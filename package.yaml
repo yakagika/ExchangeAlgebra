@@ -1,4 +1,4 @@
-name:                ExchangeAlgebra
+name:                exchangealgebra
 version:             0.1.0.0
 github:              "githubuser/ExchangeAlgebra"
 license:             BSD3
@@ -22,6 +22,7 @@ description:         Please see the README on GitHub at <https://github.com/gith
 dependencies:
 - base >= 4.7 && < 5
 - text
+- extensible
 
 
 library:
@@ -36,7 +37,7 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - ExchangeAlgebra
+    - exchangealgebra
 
 tests:
   ExchangeAlgebra-test:

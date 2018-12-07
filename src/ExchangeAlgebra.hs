@@ -1,17 +1,22 @@
-{-# LANGUAGE  GADTs
-            , RankNTypes
-            , FlexibleInstances
-            , IncoherentInstances
+
+
+{-# LANGUAGE  MultiParamTypeClasses
             , TypeSynonymInstances
+            , IncoherentInstances
             , DeriveDataTypeable
+            , FlexibleInstances
+            , TypeOperators
             , BangPatterns
-            , InstanceSigs  #-}
+            , InstanceSigs  
+            , TypeFamilies
+            , RankNTypes
+            , GADTs               #-}
 
 module ExchangeAlgebra where
 
 import              Debug.Trace
-import              Data.Typeable 
 import qualified    Data.Text       as T
+import              Data.Text       (Text)
 import qualified    Data.List       as L (map, length, elem,sort,foldl1,filter)
 import              Prelude         hiding (map, head, filter,tail)
 
@@ -19,11 +24,11 @@ import              Prelude         hiding (map, head, filter,tail)
 -- Define Base
 -----------------------------------------------
 
-class (Ord a, Show a, Eq a, Typeable a) => Name a where
+class (Ord a, Show a, Eq a) => Name a where
 
-class (Ord a, Show a, Eq a, Typeable a) => Unit a where
+class (Ord a, Show a, Eq a) => Unit a where
 
-class (Ord a, Show a, Eq a, Typeable a) => Subject a where
+class (Ord a, Show a, Eq a) => Subject a where
     
 
 class (Show a, Eq a, Ord a) => Base a where
@@ -31,345 +36,11 @@ class (Show a, Eq a, Ord a) => Base a where
     revHat :: a -> a
     isHat  :: a -> Bool
 
-data Hat = Hat | Not deriving (Ord, Eq,Typeable)
+data Hat = Hat | Not deriving (Ord, Eq)
 
 instance Show Hat where
     show Hat = "^"
     show Not = ""
-
--- HatだけでRedandunt　Algebra は作れる
-instance Base Hat where
-    getHat  x   = x
-    revHat Hat  = Not
-    revHat Not  = Hat
-    isHat Hat   = True
-    isHat _     = False
-
-
-data Wiledcard = WC deriving (Ord,Show,Eq)
-instance Name Wiledcard where
-instance Unit Wiledcard where
-instance Subject Wiledcard where
-
-
-------------------------------------------------------------
--- Define ExBase 
-------------------------------------------------------------
-class (Base a) => ExBase a where
-    whatDiv     :: a -> AccountDivision
-    whatPIMO    :: a -> PIMO
-    whichSide   :: a -> Side
-
-class AccountBase a where
-    (<=>) :: a -> a -> Bool
-
-data AccountDivision = Assets | Equity | Liability | Cost | Revenue 
-                                deriving (Ord, Show, Eq, Typeable)
-
-instance AccountBase AccountDivision where
-    Assets      <=> Liability       = True
-    Liability   <=> Assets          = True
-    Assets      <=> Equity          = True
-    Equity      <=> Assets          = True
-    Cost        <=> Liability       = True
-    Liability   <=> Cost            = True
-    Cost        <=> Equity          = True
-    Equity      <=> Cost            = True    
-    _ <=> _ = False 
-
-data PIMO   = PS | IN | MS | OUT 
-                                deriving (Ord, Show, Eq, Typeable)
-
-instance AccountBase PIMO where
-    PS  <=> IN   = True
-    IN  <=> PS   = True
-    PS  <=> MS   = True
-    MS  <=> PS   = True
-    IN  <=> OUT  = True
-    OUT <=> IN   = True
-    MS  <=> OUT  = True
-    OUT <=> MS   = True
-    _   <=> _    = False
-
-data Side = Credit | Debit deriving (Ord, Show, Eq, Typeable)
-
-switchSide :: Side -> Side
-switchSide Credit = Debit
-switchSide Debit  = Credit
-
-------------------------------------------------------------
--- Exchange Algbra Bases
-------------------------------------------------------------
-
-                    -- Assets
-data  AccountTitles =    Cash
-                    |    Deposits
-                    |    NationalBonds
-                    |    Products { detail :: T.Text}
-                    |    StockInvectment
-                    |    EquipmentInvestment
-                    |    LoansReceivable
-                    |    ReserveDepositReceivable
-                    |    Gold
-                    |    GovernmentService
-                    -- Equity
-                    |    CapitalStock 
-                    |    RetainedEarnings -- ここに取り敢えず入れておく,要確認
-                    -- Liability
-                    |    LoansPayable
-                    |    ReserveForDepreciation
-                    |    DepositPayable
-                    |    NationalBondsPayable
-                    |    ReserveDepositPayable
-                    |    CentralBankNotePayable
-                    -- Cost
-                    |    Depreciation
-                    |    WageExpenditure
-                    |    InterestExpense
-                    |    TaxesExpense
-                    |    ConsumptionExpenditure
-                    |    SubsidyExpense
-                    |    CentralBankPaymentExpence
-                    -- Revenue
-                    |    ValueAdded
-                    |    SubsidyIncome
-                    |    NationalBondInterestEarned
-                    |    DepositInterestEarned
-                    |    GrossProfit
-                    |    OrdinaryProfit
-                    |    InterestEarned 
-                    |    WageEarned
-                    |    TaxesRevenue
-                    |    CentralBankPaymentIncome
-                    deriving (Show,Eq,Typeable)
-
-
-instance Subject AccountTitles where
-
-instance Enum AccountTitles where
-    fromEnum    Cash                        = 0
-    fromEnum    Deposits                    = 1
-    fromEnum    NationalBonds               = 2
-    fromEnum    (Products _ )               = 3
-    fromEnum    StockInvectment             = 4
-    fromEnum    EquipmentInvestment         = 5
-    fromEnum    LoansReceivable             = 6
-    fromEnum    ReserveDepositReceivable    = 7
-    fromEnum    Gold                        = 8
-    fromEnum    GovernmentService           = 9
-    fromEnum    CapitalStock                = 10
-    fromEnum    LoansPayable                = 11
-    fromEnum    ReserveForDepreciation      = 12
-    fromEnum    DepositPayable              = 13
-    fromEnum    NationalBondsPayable        = 14
-    fromEnum    ReserveDepositPayable       = 15
-    fromEnum    CentralBankNotePayable      = 16
-    fromEnum    Depreciation                = 17
-    fromEnum    WageExpenditure             = 18
-    fromEnum    InterestExpense             = 19
-    fromEnum    TaxesExpense                = 20
-    fromEnum    ConsumptionExpenditure      = 21
-    fromEnum    SubsidyExpense              = 22
-    fromEnum    CentralBankPaymentExpence   = 23
-    fromEnum    ValueAdded                  = 24
-    fromEnum    RetainedEarnings            = 25
-    fromEnum    SubsidyIncome               = 26
-    fromEnum    NationalBondInterestEarned  = 27
-    fromEnum    DepositInterestEarned       = 28
-    fromEnum    GrossProfit                 = 29
-    fromEnum    OrdinaryProfit              = 30
-    fromEnum    InterestEarned              = 31
-    fromEnum    WageEarned                  = 32
-    fromEnum    TaxesRevenue                = 33
-    fromEnum    CentralBankPaymentIncome    = 34
-
-    toEnum 0    = Cash                       
-    toEnum 1    = Deposits                    
-    toEnum 2    = NationalBonds               
-    toEnum 3    = Products T.empty                  
-    toEnum 4    = StockInvectment             
-    toEnum 5    = EquipmentInvestment         
-    toEnum 6    = LoansReceivable             
-    toEnum 7    = ReserveDepositReceivable    
-    toEnum 8    = Gold                        
-    toEnum 9    = GovernmentService           
-    toEnum 10   = CapitalStock                
-    toEnum 11   = LoansPayable                
-    toEnum 12   = ReserveForDepreciation      
-    toEnum 13   = DepositPayable              
-    toEnum 14   = NationalBondsPayable        
-    toEnum 15   = ReserveDepositPayable       
-    toEnum 16   = CentralBankNotePayable      
-    toEnum 17   = Depreciation                
-    toEnum 18   = WageExpenditure             
-    toEnum 19   = InterestExpense             
-    toEnum 20   = TaxesExpense                
-    toEnum 21   = ConsumptionExpenditure      
-    toEnum 22   = SubsidyExpense              
-    toEnum 23   = CentralBankPaymentExpence   
-    toEnum 24   = ValueAdded                  
-    toEnum 25   = RetainedEarnings            
-    toEnum 26   = SubsidyIncome                
-    toEnum 27   = NationalBondInterestEarned  
-    toEnum 28   = DepositInterestEarned       
-    toEnum 29   = GrossProfit                 
-    toEnum 30   = OrdinaryProfit              
-    toEnum 31   = InterestEarned              
-    toEnum 32   = WageEarned                  
-    toEnum 33   = TaxesRevenue               
-    toEnum 34   = CentralBankPaymentIncome    
-
-
-instance Ord AccountTitles where
-    compare (Products x) (Products y) = compare x y
-    compare x y = compare (fromEnum x) (fromEnum y)
-    
-    (<) x y | compare x y == LT = True
-            | otherwise         = False
-
-    (>) x y | compare x y == GT = True
-            | otherwise         = False
-    
-
-    (<=) x y | compare x y == LT || compare x y == EQ   = True
-             | otherwise                                = False
-
-    (>=) x y | compare x y == GT || compare x y == EQ   = True
-             | otherwise                                = False
-
-
-    max x y | x >= y    = x
-            | otherwise = y 
-
-    min x y | x <= y    = x
-            | otherwise = y
-
-
-data  CountUnit = Yen | Amount deriving (Ord, Show,Eq)
-instance Unit CountUnit where
-
-instance Name T.Text where
-
-
------------------------------------------------
--- Multi Dimention Base 
------------------------------------------------
-
--- Base も一般化して，otherの部分を与える
-
-
-infixr 8 .<  
-(.<) = (,)
-
-infixr 7 :<
-data MDBase　h u s where 
-     (:<) :: (Unit u, Subject s)  
-            => !Hat ->  !(u, s) ->  MDBase Hat u s
-    deriving Typeable 
-
-
-instance (Unit b, Subject c) => Eq (MDBase h b c) where
-    (==) (h1 :< (u1,s1))(h2 :< (u2, s2))
-        | u1 == u2 && s1 == s2 = True
-        | otherwise = False
-
-    (/=) x y = not (x == y)
-
-instance Show (MDBase h a b) where
-    show (h :<(a,b)) = (show h) 
-                        ++ "<" 
-                        ++ (show a) 
-                        ++ ", " 
-                        ++ (show b) 
-                        ++ " >"    
-
-instance (Unit u, Subject s) => Base (MDBase Hat u s) where
-    getHat (h:<(u,s)) = h
-    revHat (Hat:< x) = Not :< x
-    revHat (Not:< x) = Hat :< x
-    isHat x | getHat x == Hat = True
-            | otherwise       = False
-
-instance (Unit u, Subject s) => Ord (MDBase Hat u s) where
-    compare !(h :< (u, s)) !(h' :<(u', s'))
-        | s >  s' = GT
-        | s == s'  && u >  u' = GT
-        | s == s'  && u == u' = EQ
-        | s == s'  && u <  u' = LT
-        | s <  s'  = LT 
-
-    (<) x y | compare x y == LT = True
-            | otherwise         = False
-
-    (>) x y | compare x y == GT = True
-            | otherwise         = False
-    
-
-    (<=) x y | compare x y == LT || compare x y == EQ   = True
-             | otherwise                                = False
-
-    (>=) x y | compare x y == GT || compare x y == EQ   = True
-             | otherwise                                = False
-
-
-    max x y | x >= y    = x
-            | otherwise = y 
-
-    min x y | x <= y    = x
-            | otherwise = y
-
-
- 
-type ExMDBase = MDBase Hat CountUnit AccountTitles
-
-instance ExBase ExMDBase where
-    whatDiv (_ :< (_,s)) 
-        | s == CapitalStock || s == RetainedEarnings = Equity
-        | L.elem s  [ LoansPayable
-                    , ReserveForDepreciation
-                    , DepositPayable
-                    , NationalBondsPayable
-                    , ReserveDepositPayable
-                    , CentralBankNotePayable] 
-                    = Liability
-        | L.elem s  [ Depreciation
-                    , WageExpenditure
-                    , InterestExpense
-                    , TaxesExpense
-                    , ConsumptionExpenditure
-                    , SubsidyExpense
-                    , CentralBankPaymentExpence]
-                    = Cost
-        | L.elem s  [ ValueAdded
-                    , SubsidyIncome
-                    , NationalBondInterestEarned
-                    , DepositInterestEarned
-                    , GrossProfit
-                    , OrdinaryProfit
-                    , InterestEarned
-                    , WageEarned
-                    , TaxesRevenue
-                    , CentralBankPaymentIncome]
-                    = Revenue
-        | otherwise = Assets
-    whatPIMO x
-        | whatDiv x == Assets       = PS
-        | whatDiv x == Equity       = MS
-        | whatDiv x == Liability    = MS
-        | whatDiv x == Cost         = OUT
-        | whatDiv x == Revenue      = IN
-
-    whichSide x 
-        | getHat x == Hat  = f $ whatDiv x
-        | otherwise     = switchSide $ f $ whatDiv x 
-        where
-            f Assets    = Credit
-            f Cost      = Credit
-            f Liability = Debit
-            f Equity    = Debit
-            f Revenue   = Debit
-
-
 
 
 ------------------------------------------------------------
@@ -387,8 +58,12 @@ class Redundant a where
 infixr 7 :@
 infixr 5 :+
 
+
+{-@ type R = {i:Int | i >= 0 }@-}
+
 data Alg b where
     Zero :: Alg b
+    {-@ (:@) ::  (Base b) => {val :: !R, base :: !b}  -> Alg b @-}
     (:@) :: (Base b) => {val :: !Double, base :: !b}  -> Alg b
     (:+) :: (Base b) => !(Alg b) -> !(Alg b) -> Alg b
 
@@ -512,9 +187,6 @@ instance (Base b) =>  Redundant (Alg b) where
                         t  = tail xs
                         h1 = head xs
                         h2 = head t
-                    
-
-
 
 -- 基本の関数
 vals :: Alg b -> [Double]
@@ -605,6 +277,7 @@ sort (x :+ y)  = foldl1 (:+) $ L.sort $ toList (x :+ y)
 normSort :: Alg b -> Alg b
 normSort = undefined
 
+
 ------------------------------------------------------------
 -- Exchange これを継承すれば交換代数になる
 ------------------------------------------------------------
@@ -620,16 +293,362 @@ class (Redundant a) => Exchange a where
     -- norm Balance
     balance :: a -> Bool
 
+------------------------------------------------------------
+-- Define ExBase 
+------------------------------------------------------------
+class (Base a) => ExBase a where
+    whatDiv     :: a -> AccountDivision
+    whatPIMO    :: a -> PIMO
+    whichSide   :: a -> Side
+
+class AccountBase a where
+    (<=>) :: a -> a -> Bool
+
+data AccountDivision = Assets | Equity | Liability | Cost | Revenue 
+                                deriving (Ord, Show, Eq)
+
+instance AccountBase AccountDivision where
+    Assets      <=> Liability       = True
+    Liability   <=> Assets          = True
+    Assets      <=> Equity          = True
+    Equity      <=> Assets          = True
+    Cost        <=> Liability       = True
+    Liability   <=> Cost            = True
+    Cost        <=> Equity          = True
+    Equity      <=> Cost            = True    
+    _ <=> _ = False 
+
+data PIMO   = PS | IN | MS | OUT 
+                                deriving (Ord, Show, Eq)
+
+instance AccountBase PIMO where
+    PS  <=> IN   = True
+    IN  <=> PS   = True
+    PS  <=> MS   = True
+    MS  <=> PS   = True
+    IN  <=> OUT  = True
+    OUT <=> IN   = True
+    MS  <=> OUT  = True
+    OUT <=> MS   = True
+    _   <=> _    = False
+
+data Side = Credit | Debit deriving (Ord, Show, Eq)
+
+switchSide :: Side -> Side
+switchSide Credit = Debit
+switchSide Debit  = Credit
 
 ------------------------------------------------------------
--- Exchange Algebra
+-- Exchange Algbra Bases Elements
 ------------------------------------------------------------
 
--- Basic Exchange Algebra これ以外にも四項でも，中身が違うものも作れるけどとりあえず代表的なもの
-type BMDBase    = MDBase Hat CountUnit AccountTitles
-type BExAlg     = Alg BMDBase
+                    -- Assets
+data  AccountTitles =    Cash
+                    |    Deposits
+                    |    NationalBonds
+                    |    Products { detail :: Text}
+                    |    StockInvectment
+                    |    EquipmentInvestment
+                    |    LoansReceivable
+                    |    ReserveDepositReceivable
+                    |    Gold
+                    |    GovernmentService
+                    -- Equity
+                    |    CapitalStock 
+                    |    RetainedEarnings -- ここに取り敢えず入れておく,要確認
+                    -- Liability
+                    |    LoansPayable
+                    |    ReserveForDepreciation
+                    |    DepositPayable
+                    |    NationalBondsPayable
+                    |    ReserveDepositPayable
+                    |    CentralBankNotePayable
+                    -- Cost
+                    |    Depreciation
+                    |    WageExpenditure
+                    |    InterestExpense
+                    |    TaxesExpense
+                    |    ConsumptionExpenditure
+                    |    SubsidyExpense
+                    |    CentralBankPaymentExpence
+                    -- Revenue
+                    |    ValueAdded
+                    |    SubsidyIncome
+                    |    NationalBondInterestEarned
+                    |    DepositInterestEarned
+                    |    GrossProfit
+                    |    OrdinaryProfit
+                    |    InterestEarned 
+                    |    WageEarned
+                    |    TaxesRevenue
+                    |    CentralBankPaymentIncome
+                    deriving (Show,Eq)
 
-instance Exchange BExAlg where
+
+instance Subject    AccountTitles   where
+instance Enum       AccountTitles   where
+    fromEnum    Cash                        = 0
+    fromEnum    Deposits                    = 1
+    fromEnum    NationalBonds               = 2
+    fromEnum    (Products _ )               = 3
+    fromEnum    StockInvectment             = 4
+    fromEnum    EquipmentInvestment         = 5
+    fromEnum    LoansReceivable             = 6
+    fromEnum    ReserveDepositReceivable    = 7
+    fromEnum    Gold                        = 8
+    fromEnum    GovernmentService           = 9
+    fromEnum    CapitalStock                = 10
+    fromEnum    LoansPayable                = 11
+    fromEnum    ReserveForDepreciation      = 12
+    fromEnum    DepositPayable              = 13
+    fromEnum    NationalBondsPayable        = 14
+    fromEnum    ReserveDepositPayable       = 15
+    fromEnum    CentralBankNotePayable      = 16
+    fromEnum    Depreciation                = 17
+    fromEnum    WageExpenditure             = 18
+    fromEnum    InterestExpense             = 19
+    fromEnum    TaxesExpense                = 20
+    fromEnum    ConsumptionExpenditure      = 21
+    fromEnum    SubsidyExpense              = 22
+    fromEnum    CentralBankPaymentExpence   = 23
+    fromEnum    ValueAdded                  = 24
+    fromEnum    RetainedEarnings            = 25
+    fromEnum    SubsidyIncome               = 26
+    fromEnum    NationalBondInterestEarned  = 27
+    fromEnum    DepositInterestEarned       = 28
+    fromEnum    GrossProfit                 = 29
+    fromEnum    OrdinaryProfit              = 30
+    fromEnum    InterestEarned              = 31
+    fromEnum    WageEarned                  = 32
+    fromEnum    TaxesRevenue                = 33
+    fromEnum    CentralBankPaymentIncome    = 34
+
+    toEnum 0    = Cash                       
+    toEnum 1    = Deposits                    
+    toEnum 2    = NationalBonds               
+    toEnum 3    = Products T.empty                  
+    toEnum 4    = StockInvectment             
+    toEnum 5    = EquipmentInvestment         
+    toEnum 6    = LoansReceivable             
+    toEnum 7    = ReserveDepositReceivable    
+    toEnum 8    = Gold                        
+    toEnum 9    = GovernmentService           
+    toEnum 10   = CapitalStock                
+    toEnum 11   = LoansPayable                
+    toEnum 12   = ReserveForDepreciation      
+    toEnum 13   = DepositPayable              
+    toEnum 14   = NationalBondsPayable        
+    toEnum 15   = ReserveDepositPayable       
+    toEnum 16   = CentralBankNotePayable      
+    toEnum 17   = Depreciation                
+    toEnum 18   = WageExpenditure             
+    toEnum 19   = InterestExpense             
+    toEnum 20   = TaxesExpense                
+    toEnum 21   = ConsumptionExpenditure      
+    toEnum 22   = SubsidyExpense              
+    toEnum 23   = CentralBankPaymentExpence   
+    toEnum 24   = ValueAdded                  
+    toEnum 25   = RetainedEarnings            
+    toEnum 26   = SubsidyIncome                
+    toEnum 27   = NationalBondInterestEarned  
+    toEnum 28   = DepositInterestEarned       
+    toEnum 29   = GrossProfit                 
+    toEnum 30   = OrdinaryProfit              
+    toEnum 31   = InterestEarned              
+    toEnum 32   = WageEarned                  
+    toEnum 33   = TaxesRevenue               
+    toEnum 34   = CentralBankPaymentIncome    
+
+
+instance Ord AccountTitles where
+    compare (Products x) (Products y) = compare x y
+    compare x y = compare (fromEnum x) (fromEnum y)
+    
+    (<) x y | compare x y == LT = True
+            | otherwise         = False
+
+    (>) x y | compare x y == GT = True
+            | otherwise         = False
+    
+
+    (<=) x y | compare x y == LT || compare x y == EQ   = True
+             | otherwise                                = False
+
+    (>=) x y | compare x y == GT || compare x y == EQ   = True
+             | otherwise                                = False
+
+
+    max x y | x >= y    = x
+            | otherwise = y 
+
+    min x y | x <= y    = x
+            | otherwise = y
+
+
+data  CountUnit = Yen | Amount deriving (Ord, Show,Eq)
+instance Unit CountUnit where
+
+instance Name Text where
+
+
+------------------------------------------------------------------
+-- 以下,実構造の設計
+------------------------------------------------------------------
+------------------------------------------------------------------
+-- Simplest Redundant Algebra
+------------------------------------------------------------------
+
+-- HatだけでRedandunt　Algebra は作れる
+instance Base Hat where
+    getHat  x   = x
+    revHat Hat  = Not
+    revHat Not  = Hat
+    isHat  Hat   = True
+    isHat _     = False
+
+type JustRedundant = Alg Hat
+
+
+------------------------------------------------------------------
+-- Subject だけの Base
+------------------------------------------------------------------
+
+data Base1 h s where
+    SBase :: (Subject u) => Hat -> u -> Base1 Hat u
+
+{-  instance Base (Base1 h s) where
+    getHat  x   = x
+    revHat Hat  = Not
+    revHat Not  = Hat
+    isHat  Hat   = True
+    isHat _     = False
+-}
+
+-----------------------------------------------
+-- Multi Dimention Base 
+-----------------------------------------------
+
+-- Base も一般化して，otherの部分を与える
+
+
+infixr 8 .<  
+(.<) = (,)
+
+infixr 7 :<
+data MDBase　h u s where 
+     (:<) :: (Unit u, Subject s)  
+            => !Hat ->  !(u, s) ->  MDBase Hat u s
+
+
+instance (Unit b, Subject c) => Eq (MDBase h b c) where
+    (==) (h1 :< (u1,s1))(h2 :< (u2, s2))
+        | u1 == u2 && s1 == s2 = True
+        | otherwise = False
+
+    (/=) x y = not (x == y)
+
+instance Show (MDBase h a b) where
+    show (h :<(a,b)) = (show h) 
+                        ++ "<" 
+                        ++ (show a) 
+                        ++ ", " 
+                        ++ (show b) 
+                        ++ " >"    
+
+instance (Unit u, Subject s) => Base (MDBase Hat u s) where
+    getHat (h:<(u,s)) = h
+    revHat (Hat:< x) = Not :< x
+    revHat (Not:< x) = Hat :< x
+    isHat x | getHat x == Hat = True
+            | otherwise       = False
+
+instance (Unit u, Subject s) => Ord (MDBase Hat u s) where
+    compare !(h :< (u, s)) !(h' :<(u', s'))
+        | s >  s' = GT
+        | s == s'  && u >  u' = GT
+        | s == s'  && u == u' = EQ
+        | s == s'  && u <  u' = LT
+        | s <  s'  = LT 
+
+    (<) x y | compare x y == LT = True
+            | otherwise         = False
+
+    (>) x y | compare x y == GT = True
+            | otherwise         = False
+    
+
+    (<=) x y | compare x y == LT || compare x y == EQ   = True
+             | otherwise                                = False
+
+    (>=) x y | compare x y == GT || compare x y == EQ   = True
+             | otherwise                                = False
+
+
+    max x y | x >= y    = x
+            | otherwise = y 
+
+    min x y | x <= y    = x
+            | otherwise = y
+
+
+ 
+type ExMDBase = MDBase Hat CountUnit AccountTitles
+
+instance ExBase ExMDBase where
+    whatDiv (_ :< (_,s)) 
+        | s == CapitalStock || s == RetainedEarnings = Equity
+        | L.elem s  [ LoansPayable
+                    , ReserveForDepreciation
+                    , DepositPayable
+                    , NationalBondsPayable
+                    , ReserveDepositPayable
+                    , CentralBankNotePayable] 
+                    = Liability
+        | L.elem s  [ Depreciation
+                    , WageExpenditure
+                    , InterestExpense
+                    , TaxesExpense
+                    , ConsumptionExpenditure
+                    , SubsidyExpense
+                    , CentralBankPaymentExpence]
+                    = Cost
+        | L.elem s  [ ValueAdded
+                    , SubsidyIncome
+                    , NationalBondInterestEarned
+                    , DepositInterestEarned
+                    , GrossProfit
+                    , OrdinaryProfit
+                    , InterestEarned
+                    , WageEarned
+                    , TaxesRevenue
+                    , CentralBankPaymentIncome]
+                    = Revenue
+        | otherwise = Assets
+    whatPIMO x
+        | whatDiv x == Assets       = PS
+        | whatDiv x == Equity       = MS
+        | whatDiv x == Liability    = MS
+        | whatDiv x == Cost         = OUT
+        | whatDiv x == Revenue      = IN
+
+    whichSide x 
+        | getHat x == Hat  = f $ whatDiv x
+        | otherwise     = switchSide $ f $ whatDiv x 
+        where
+            f Assets    = Credit
+            f Cost      = Credit
+            f Liability = Debit
+            f Equity    = Debit
+            f Revenue   = Debit
+
+------------------------------------------------------------
+-- 要素が2つの(最小の)Exchange Algebra
+------------------------------------------------------------
+-- Basic Exchange Algebra 中身が違うものも作れるけどとりあえず代表的なもの
+type Ex2Base     = MDBase Hat CountUnit AccountTitles
+type Ex2Alg      = Alg Ex2Base
+
+instance Exchange Ex2Alg where
     subject ( _:@ _ :< (u,s)) = s
     unit    ( _:@ _ :< (u,s)) = u
     decR xs = fromList $ filter (\x -> x /= Zero && (whichSide . base) x == Debit) xs
