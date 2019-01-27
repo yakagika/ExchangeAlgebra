@@ -1,3 +1,6 @@
+-- | Copyright (c) 2019 Kaya Akagi
+--   Released under the MIT license
+--   https://opensource.org/licenses/mit-license.php
 
 
 {-# LANGUAGE  MultiParamTypeClasses
