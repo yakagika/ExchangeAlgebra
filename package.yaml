@@ -1,7 +1,7 @@
 name:                exchangealgebra
 version:             0.1.0.0
-github:              "githubuser/ExchangeAlgebra"
-license:             BSD3
+github:              "yakagika/ExchangeAlgebra"
+license:             MIT
 author:              "Kaya Akagi"
 maintainer:          "akagi15@cs.dis.titech.ac.jp"
 copyright:           "2019 Kaya Akagi"

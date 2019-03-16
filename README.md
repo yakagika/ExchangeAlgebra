@@ -1,8 +1,11 @@
 # ExchangeAlgebra
+This program is written by Haskell language.
 
-Package for Exchange Algebra defined by Hirosh Deguch.
+<https://www.haskell.org/>
 
-Exchange Algebra is a algebraic description of bokkkeeping system. 
+Package for Exchange Algebra defined in Hirosh Deguch.
+
+Exchange Algebra is a algebraic description of bookkeeping system. 
 Details are bellow.
 
 <https://www.springer.com/gp/book/9784431209850>

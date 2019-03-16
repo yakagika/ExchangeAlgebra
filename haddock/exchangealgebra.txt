@@ -7,6 +7,21 @@
 @package exchangealgebra
 @version 0.1.0.0
 
+
+-- | Released under the MIT license
+--   
+--   Package for Exchange Algebra defined by Hirosh Deguch.
+--   
+--   Exchange Algebra is a algebraic description of bokkkeeping system.
+--   Details are bellow.
+--   
+--   <a>https://www.springer.com/gp/book/9784431209850</a>
+--   
+--   
+--   <a>https://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/82987/1/0809-7.pdf</a>
+--   
+--   _Note_ : The current version 0.1.0.0 will be completely changed
+--   shortly, especially in the accounts settings section.
 module ExchangeAlgebra
 class (Ord a, Show a, Eq a) => Name a
 class (Ord a, Show a, Eq a) => Unit a
@@ -18,15 +33,21 @@ isHat :: Base a => a -> Bool
 data Hat
 Hat :: Hat
 Not :: Hat
+
+-- | Definition of Reducduncy
 class Redundant a
 (.^) :: Redundant a => a -> a
 (.~) :: Redundant a => a -> a
 norm :: Redundant a => a -> Double
 data Alg b
 [Zero] :: Alg b
-[:@] :: (Base b) => {val :: !Double, base :: !b} -> Alg b
-[:+] :: (Base b) => !(Alg b) -> !(Alg b) -> Alg b
-(.+) :: (Base b) => Alg b -> Alg b -> Alg b
+[:@] :: Base b => {val :: !Double, base :: !b} -> Alg b
+[:+] :: Base b => !Alg b -> !Alg b -> Alg b
+infixr 7 :@
+infixr 5 :+
+
+-- | :+ の Evaluationに相当する
+(.+) :: Base b => Alg b -> Alg b -> Alg b
 infixr 5 .+
 vals :: Alg b -> [Double]
 bases :: Alg b -> [Maybe b]
@@ -35,17 +56,25 @@ isZero :: Alg b -> Bool
 isSingle :: Alg b -> Bool
 isSIngle :: () => Alg b -> Bool
 isFormula :: Alg b -> Bool
-fromList :: (Base b) => [Alg b] -> Alg b
+fromList :: Base b => [Alg b] -> Alg b
 toList :: Alg b -> [Alg b]
 head :: Alg b -> Alg b
 tail :: Alg b -> Alg b
 map :: (Alg b -> Alg b) -> Alg b -> Alg b
 filter :: (Alg b -> Bool) -> Alg b -> [Alg b]
-proj :: (Base b) => b -> Alg b -> Alg b
-projNorm :: (Base b) => b -> Alg b -> Double
-transfer :: (Base b) => b -> b -> Alg b -> Alg b
-sort :: (Ord b) => Alg b -> Alg b
+
+-- | projection
+proj :: Base b => b -> Alg b -> Alg b
+projNorm :: Base b => b -> Alg b -> Double
+transfer :: Base b => b -> b -> Alg b -> Alg b
+
+-- | Baseの大小（==Algの大小）でソート
+sort :: Ord b => Alg b -> Alg b
+
+-- | normの大小でソート
 normSort :: Alg b -> Alg b
+
+-- | Exchange これを継承すれば交換代数になる
 class (Redundant a) => Exchange a
 subject :: Exchange a => a -> AccountTitles
 unit :: Exchange a => a -> CountUnit
@@ -75,7 +104,12 @@ data Side
 Credit :: Side
 Debit :: Side
 switchSide :: Side -> Side
+
+-- | The current version 0.1.0.0 will be completely changed shortly,
+--   especially this section.
 data AccountTitles
+
+-- | Bellows are Assets
 Cash :: AccountTitles
 Deposits :: AccountTitles
 NationalBonds :: AccountTitles
@@ -87,14 +121,20 @@ LoansReceivable :: AccountTitles
 ReserveDepositReceivable :: AccountTitles
 Gold :: AccountTitles
 GovernmentService :: AccountTitles
+
+-- | Bellows are Equity
 CapitalStock :: AccountTitles
 RetainedEarnings :: AccountTitles
+
+-- | Bellows are Liability
 LoansPayable :: AccountTitles
 ReserveForDepreciation :: AccountTitles
 DepositPayable :: AccountTitles
 NationalBondsPayable :: AccountTitles
 ReserveDepositPayable :: AccountTitles
 CentralBankNotePayable :: AccountTitles
+
+-- | Bellows are Cost
 Depreciation :: AccountTitles
 WageExpenditure :: AccountTitles
 InterestExpense :: AccountTitles
@@ -102,6 +142,8 @@ TaxesExpense :: AccountTitles
 ConsumptionExpenditure :: AccountTitles
 SubsidyExpense :: AccountTitles
 CentralBankPaymentExpence :: AccountTitles
+
+-- | Bellows are Revenue
 ValueAdded :: AccountTitles
 SubsidyIncome :: AccountTitles
 NationalBondInterestEarned :: AccountTitles
@@ -116,12 +158,15 @@ data CountUnit
 Yen :: CountUnit
 Amount :: CountUnit
 type JustRedundant = Alg Hat
+
+-- | Base only with Subject.
 data Base1 h s
-[SBase] :: (Subject u) => Hat -> u -> Base1 Hat u
+[SBase] :: Subject u => Hat -> u -> Base1 Hat u
 (.<) :: () => a -> b -> (a, b)
 infixr 8 .<
 data MDBase h u s
 [:<] :: (Unit u, Subject s) => !Hat -> !(u, s) -> MDBase Hat u s
+infixr 7 :<
 type ExMDBase = MDBase Hat CountUnit AccountTitles
 type Ex2Base = MDBase Hat CountUnit AccountTitles
 type Ex2Alg = Alg Ex2Base
