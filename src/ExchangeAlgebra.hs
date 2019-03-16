@@ -1,3 +1,16 @@
+{-# LANGUAGE  MultiParamTypeClasses
+            , TypeSynonymInstances
+            , IncoherentInstances
+            , DeriveDataTypeable
+            , FlexibleInstances
+            , TypeOperators
+            , BangPatterns
+            , InstanceSigs  
+            , TypeFamilies
+            , RankNTypes
+            , GADTs               #-}
+
+
 {- |
 
 Module     : ExchangeAlgebra
@@ -20,17 +33,6 @@ _Note_ : The current version 0.1.0.0 will be completely changed shortly, especia
 
 -}
  
-{-# LANGUAGE  MultiParamTypeClasses
-            , TypeSynonymInstances
-            , IncoherentInstances
-            , DeriveDataTypeable
-            , FlexibleInstances
-            , TypeOperators
-            , BangPatterns
-            , InstanceSigs  
-            , TypeFamilies
-            , RankNTypes
-            , GADTs               #-}
 
 module ExchangeAlgebra where
 
