@@ -1,5 +1,7 @@
 # ExchangeAlgebra
 
+Package for Exchange Algebra defined by Hirosh Deguch.
+
 Exchange Algebra is a algebraic description of bokkkeeping system. 
 Details are bellow.
 
