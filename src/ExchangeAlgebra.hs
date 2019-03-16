@@ -1,8 +1,25 @@
--- | Copyright (c) 2019 Kaya Akagi
---   Released under the MIT license
---   https://opensource.org/licenses/mit-license.php
+{- |
 
+Module     : ExchangeAlgebra
+Licence    : MIT
+Copyright  : (c) Kaya Akagi. 2018-2019
+Maintainer : akagi15@cs.dis.titech.ac.jp
 
+Released under the BSD3 license
+
+Package for Exchange Algebra defined by Hirosh Deguch.
+
+Exchange Algebra is a algebraic description of bokkkeeping system. 
+Details are bellow.
+
+<https://www.springer.com/gp/book/9784431209850>
+
+<https://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/82987/1/0809-7.pdf>
+
+_Note_ : The current version 0.1.0.0 will be completely changed shortly, especially in the accounts settings section.
+
+-}
+ 
 {-# LANGUAGE  MultiParamTypeClasses
             , TypeSynonymInstances
             , IncoherentInstances
@@ -24,7 +41,7 @@ import qualified    Data.List       as L (map, length, elem,sort,foldl1,filter)
 import              Prelude         hiding (map, head, filter,tail)
 
 -----------------------------------------------
--- Define Base
+-- * Define Base
 -----------------------------------------------
 
 class (Ord a, Show a, Eq a) => Name a where
@@ -47,16 +64,15 @@ instance Show Hat where
 
 
 ------------------------------------------------------------
--- Reducdunt　これを継承すれば冗長代数になる
+-- | Definition of Reducduncy
 ------------------------------------------------------------
 class Redundant a where
     (.^) :: a -> a
     (.~) :: a -> a
     norm :: a -> Double
 
-
 ------------------------------------------------------------
--- Redundant Algebra
+-- * Redundant Algebra
 ------------------------------------------------------------
 infixr 7 :@
 infixr 5 :+
@@ -136,7 +152,7 @@ instance (Base b) => Monoid (Alg b) where
     mconcat (x:y) = x `mappend`  mconcat y
 
 
--- :+ の　Evaluationに相当する
+-- | :+ の　Evaluationに相当する
 infixr 5 .+
 (.+) :: (Base b) => Alg b -> Alg b -> Alg b
 (.+) = mappend
@@ -191,7 +207,7 @@ instance (Base b) =>  Redundant (Alg b) where
                         h1 = head xs
                         h2 = head t
 
--- 基本の関数
+-- * 基本の関数
 vals :: Alg b -> [Double]
 vals Zero     = [0]  
 vals (x :@ y) = [x]
@@ -249,7 +265,7 @@ filter f (v :@ b)   | f (v :@ b)    = [v :@ b]
                     | otherwise     = []
 filter f (x :+ y) = filter f x ++ filter f y
 
--- projection 
+-- | projection 
 
 proj :: (Base b) => b -> Alg b -> Alg b
 proj b alg = fromList $ filter (\x ->  x /= Zero && base x == b ) alg 
@@ -268,7 +284,7 @@ transfer b1 b2 xs = map (transfer b1 b2) xs
 
 
 
--- Baseの大小（==Algの大小）でソート
+-- | Baseの大小（==Algの大小）でソート
 
 sort :: (Ord b) => Alg b -> Alg b
 sort Zero      = Zero
@@ -276,13 +292,13 @@ sort (v :@ b)  = (v :@ b)
 sort (x :+ y)  = foldl1 (:+) $ L.sort $ toList (x :+ y)
 
  
--- normの大小でソート
+-- | normの大小でソート
 normSort :: Alg b -> Alg b
 normSort = undefined
 
 
 ------------------------------------------------------------
--- Exchange これを継承すれば交換代数になる
+-- | Exchange これを継承すれば交換代数になる
 ------------------------------------------------------------
 class (Redundant a) => Exchange a where
     subject :: a -> AccountTitles
@@ -297,7 +313,7 @@ class (Redundant a) => Exchange a where
     balance :: a -> Bool
 
 ------------------------------------------------------------
--- Define ExBase 
+-- * Define ExBase 
 ------------------------------------------------------------
 class (Base a) => ExBase a where
     whatDiv     :: a -> AccountDivision
@@ -342,11 +358,11 @@ switchSide Credit = Debit
 switchSide Debit  = Credit
 
 ------------------------------------------------------------
--- Exchange Algbra Bases Elements
+-- * Exchange Algbra Bases Elements
 ------------------------------------------------------------
 
-                    -- Assets
-data  AccountTitles =    Cash
+-- | The current version 0.1.0.0 will be completely changed shortly, especially this section.
+data  AccountTitles =    Cash                            -- ^ Bellows are Assets
                     |    Deposits
                     |    NationalBonds
                     |    Products { detail :: Text}
@@ -356,26 +372,22 @@ data  AccountTitles =    Cash
                     |    ReserveDepositReceivable
                     |    Gold
                     |    GovernmentService
-                    -- Equity
-                    |    CapitalStock 
-                    |    RetainedEarnings -- ここに取り敢えず入れておく,要確認
-                    -- Liability
-                    |    LoansPayable
+                    |    CapitalStock                    -- ^ Bellows are Equity
+                    |    RetainedEarnings 
+                    |    LoansPayable                    -- ^ Bellows are Liability
                     |    ReserveForDepreciation
                     |    DepositPayable
                     |    NationalBondsPayable
                     |    ReserveDepositPayable
                     |    CentralBankNotePayable
-                    -- Cost
-                    |    Depreciation
+                    |    Depreciation                    -- ^ Bellows are Cost
                     |    WageExpenditure
                     |    InterestExpense
                     |    TaxesExpense
                     |    ConsumptionExpenditure
                     |    SubsidyExpense
                     |    CentralBankPaymentExpence
-                    -- Revenue
-                    |    ValueAdded
+                    |    ValueAdded                      -- ^ Bellows are Revenue
                     |    SubsidyIncome
                     |    NationalBondInterestEarned
                     |    DepositInterestEarned
@@ -495,13 +507,13 @@ instance Name Text where
 
 
 ------------------------------------------------------------------
--- 以下,実構造の設計
+-- Definision of concreat  algeraic structures. 
 ------------------------------------------------------------------
 ------------------------------------------------------------------
--- Simplest Redundant Algebra
+-- * Simplest Redundant Algebra
 ------------------------------------------------------------------
 
--- HatだけでRedandunt　Algebra は作れる
+-- | Redandunt Algebra only with Hat.
 instance Base Hat where
     getHat  x   = x
     revHat Hat  = Not
@@ -513,7 +525,7 @@ type JustRedundant = Alg Hat
 
 
 ------------------------------------------------------------------
--- Subject だけの Base
+-- | Base only with Subject.
 ------------------------------------------------------------------
 
 data Base1 h s where
@@ -645,12 +657,15 @@ instance ExBase ExMDBase where
             f Revenue   = Debit
 
 ------------------------------------------------------------
--- 要素が2つの(最小の)Exchange Algebra
+-- * Smallest Exchange Algebra
 ------------------------------------------------------------
 -- Basic Exchange Algebra 中身が違うものも作れるけどとりあえず代表的なもの
 type Ex2Base     = MDBase Hat CountUnit AccountTitles
 type Ex2Alg      = Alg Ex2Base
 
+-- | Smallest Exchange Algebra
+-- 
+-- _NOTE_ : balance function is not accurate in current version. It will be modify soon. 
 instance Exchange Ex2Alg where
     subject ( _:@ _ :< (u,s)) = s
     unit    ( _:@ _ :< (u,s)) = u
