@@ -16,7 +16,7 @@
     Copyright  : (c) Kaya Akagi. 2018-2019
     Maintainer : akagi15@cs.dis.titech.ac.jp
 
-    Released under the MIT license
+    Released under the OWL license
 
     Package for Exchange Algebra defined by Hirosh Deguch.
 
