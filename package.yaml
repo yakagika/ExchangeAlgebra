@@ -1,7 +1,7 @@
 name:                exchangealgebra
 version:             0.1.0.0
 github:              "yakagika/ExchangeAlgebra"
-license:             OWL
+license:             OW
 author:              "Kaya Akagi"
 maintainer:          "akagi15@cs.dis.titech.ac.jp"
 copyright:           "2019 Kaya Akagi"
