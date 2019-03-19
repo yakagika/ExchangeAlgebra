@@ -16,4 +16,4 @@ _Note_ : The current version 0.1.0.0 will be completely changed shortly,
 especially in the accounts settings section.
 
 
-This program is released under the Open World Licence.
+This program is released under both the MIT License and the Open World License.
