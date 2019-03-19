@@ -15,5 +15,6 @@ _Note_ : Documents are in the /haddock
 _Note_ : The current version 0.1.0.0 will be completely changed shortly, 
 especially in the accounts settings section.
 
-
+**Licens**
+- - - - - - -
 This program is released under both the MIT License and the Open World License.
