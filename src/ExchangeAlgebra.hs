@@ -5,7 +5,7 @@
             , FlexibleInstances
             , TypeOperators
             , BangPatterns
-            , InstanceSigs  
+            , InstanceSigs
             , TypeFamilies
             , RankNTypes
             , GADTs               #-}
@@ -20,7 +20,7 @@
 
     Package for Exchange Algebra defined by Hirosh Deguch.
 
-    Exchange Algebra is a algebraic description of bokkkeeping system. 
+    Exchange Algebra is a algebraic description of bokkkeeping system.
     Details are bellow.
 
     <https://www.springer.com/gp/book/9784431209850>
@@ -30,7 +30,7 @@
     _Note_ : The current version 0.1.0.0 will be completely changed shortly, especially in the accounts settings section.
 
 -}
- 
+
 
 module ExchangeAlgebra where
 
@@ -49,7 +49,7 @@ class (Ord a, Show a, Eq a) => Name a where
 class (Ord a, Show a, Eq a) => Unit a where
 
 class (Ord a, Show a, Eq a) => Subject a where
-    
+
 
 class (Show a, Eq a, Ord a) => Base a where
     getHat :: a -> Hat
@@ -89,21 +89,21 @@ data Alg b where
 instance (Show b) => Show (Alg b) where
     show Zero           = "0"
     show (v :@ b)       = (show v) ++ ":@" ++  (show b)
-    show (x :+ y)       = (show x) ++ ".+ " ++ (show y) 
+    show (x :+ y)       = (show x) ++ ".+ " ++ (show y)
 
 instance (Base b, Ord b, Eq b) => Eq (Alg b) where
     (==) Zero Zero = True
     (==) Zero _    = False
     (==) _    Zero = False
 
-    (==) (v :@ b) (v' :@ b') 
+    (==) (v :@ b) (v' :@ b')
         | v == v' && b == b'    = True
-        | otherwise             = False 
+        | otherwise             = False
 
     (==) x y = f x == f y
         where f = (L.filter (Zero <)) . L.sort . toList
 
-    (/=) x y = not (x == y)  
+    (/=) x y = not (x == y)
 
 
 instance (Base b, Ord b) => Ord (Alg b) where
@@ -120,7 +120,7 @@ instance (Base b, Ord b) => Ord (Alg b) where
 
     (>) x y | compare x y == GT = True
             | otherwise         = False
-    
+
 
     (<=) x y | compare x y == LT || compare x y == EQ   = True
              | otherwise                                = False
@@ -129,7 +129,7 @@ instance (Base b, Ord b) => Ord (Alg b) where
              | otherwise                                = False
 
     max x y | x >= y    = x
-            | otherwise = y 
+            | otherwise = y
 
     min x y | x <= y    = x
             | otherwise = y
@@ -141,7 +141,7 @@ instance (Base b) => Semigroup (Alg b) where
     (<>) !x    Zero  = x
     (<>) !(v :@ b) !(v' :@ b') = (v :@ b) :+ (v' :@ b')
     (<>) !x  !y =  f ( x :+ y)
-        where f = (foldl1 (:+)) . (L.filter (/= Zero)) . toList 
+        where f = (foldl1 (:+)) . (L.filter (/= Zero)) . toList
 
 instance (Base b) => Monoid (Alg b) where
     mempty = Zero
@@ -152,16 +152,16 @@ instance (Base b) => Monoid (Alg b) where
     mconcat (x:y) = x `mappend`  mconcat y
 
 
--- | :+ の　Evaluationに相当する
+-- | :+ の Evaluationに相当する
 infixr 5 .+
 (.+) :: (Base b) => Alg b -> Alg b -> Alg b
 (.+) = mappend
 
 instance (Base b) =>  Redundant (Alg b) where
     (.^) Zero               = Zero
-    (.^) (v :@ b)           = v :@ (revHat b) 
+    (.^) (v :@ b)           = v :@ (revHat b)
     (.^) (x :+ y)           = map (.^) x :+ map (.^) y
- 
+
 
     norm Zero       = 0
     norm (v :@ b)   = v
@@ -170,9 +170,9 @@ instance (Base b) =>  Redundant (Alg b) where
     (.~) Zero       = Zero
     (.~) (v :@ b)   | v == 0.0  = Zero
                     | otherwise = v :@ b
-    (.~) ((v :@ b) :+ (v' :@ b')) 
+    (.~) ((v :@ b) :+ (v' :@ b'))
         | b /= b' = ((v :@ b) :+ (v' :@ b'))
-        | otherwise 
+        | otherwise
             = let h   = getHat b  in
                 let h'  = getHat b' in
                 case (h,h') of
@@ -191,17 +191,17 @@ instance (Base b) =>  Redundant (Alg b) where
             g :: Alg b -> Bool
             g Zero     = False
             g (0 :@ _) = False
-            g _        = True  
+            g _        = True
 
             z = sort xs
             f :: (Base b) => Alg b  -> Alg b
             f Zero       = Zero
             f (v :@ b)   | v == 0.0  = Zero
                          | otherwise = v :@ b
-            f ((v :@ b) :+ (v' :@ b'))  = (.~) ((v :@ b) :+ (v' :@ b')) 
-            f xs    | isZero h1              = f t 
+            f ((v :@ b) :+ (v' :@ b'))  = (.~) ((v :@ b) :+ (v' :@ b'))
+            f xs    | isZero h1              = f t
                     | base h1 /= base h2     = h1 :+ f t
-                    | otherwise = f $ (f (h1 :+ h2)) :+ tail t 
+                    | otherwise = f $ (f (h1 :+ h2)) :+ tail t
                     where
                         t  = tail xs
                         h1 = head xs
@@ -209,7 +209,7 @@ instance (Base b) =>  Redundant (Alg b) where
 
 -- * 基本の関数
 vals :: Alg b -> [Double]
-vals Zero     = [0]  
+vals Zero     = [0]
 vals (x :@ y) = [x]
 vals xs = L.map val $ toList xs
 
@@ -219,7 +219,7 @@ bases (v :@ b) = [Just b]
 bases (x :+ y) = bases x ++ bases y
 
 length :: Alg b -> Int
-length = L.length . toList 
+length = L.length . toList
 
 isZero :: Alg b -> Bool
 isZero Zero = True
@@ -234,19 +234,19 @@ isFormula (x :+ y) = True
 isFormula _        = False
 
 fromList :: (Base b) =>  [Alg b] -> Alg b
-fromList = mconcat 
+fromList = mconcat
 
 toList :: Alg b -> [Alg b]
 toList Zero     = [Zero]
-toList (v :@ b) = [(v :@ b)] 
+toList (v :@ b) = [(v :@ b)]
 toList (x :+ y) = toList x ++ toList y
 
-head :: Alg b -> Alg b 
+head :: Alg b -> Alg b
 head Zero = Zero
 head (v :@ b) = (v :@ b)
-head (x :+ y) = head x 
+head (x :+ y) = head x
 
-tail :: Alg b -> Alg b 
+tail :: Alg b -> Alg b
 tail Zero = Zero
 tail (v:@b) = Zero
 tail (Zero :+ y) =  y
@@ -256,7 +256,7 @@ tail (x :+ y) = (tail x) :+ y
 map ::   (Alg b -> Alg b) -> Alg b -> Alg b
 map f  Zero    = f Zero
 map f (v :@ b) = f (v :@ b)
-map f (x :+ y) = (map f x) :+ map f y 
+map f (x :+ y) = (map f x) :+ map f y
 
 filter :: (Alg b -> Bool) -> Alg b -> [Alg b]
 filter f Zero       | f Zero        = [Zero]
@@ -265,19 +265,19 @@ filter f (v :@ b)   | f (v :@ b)    = [v :@ b]
                     | otherwise     = []
 filter f (x :+ y) = filter f x ++ filter f y
 
--- | projection 
+-- | projection
 
 proj :: (Base b) => b -> Alg b -> Alg b
-proj b alg = fromList $ filter (\x ->  x /= Zero && base x == b ) alg 
+proj b alg = fromList $ filter (\x ->  x /= Zero && base x == b ) alg
 
 projNorm :: (Base b) => b -> Alg b -> Double
-projNorm b alg  = norm $ (.~) 
-            $ fromList 
-            $ filter (\x ->  x /= Zero && base x == b ) alg 
+projNorm b alg  = norm $ (.~)
+            $ fromList
+            $ filter (\x ->  x /= Zero && base x == b ) alg
 
 -- Transfer
 transfer :: (Base b) => b -> b -> Alg b -> Alg b
-transfer _  _  Zero = Zero 
+transfer _  _  Zero = Zero
 transfer b1 b2 (v :@ b) | b == b1 = v :@ b1
                         | otherwise = v :@ b
 transfer b1 b2 xs = map (transfer b1 b2) xs
@@ -291,7 +291,7 @@ sort Zero      = Zero
 sort (v :@ b)  = (v :@ b)
 sort (x :+ y)  = foldl1 (:+) $ L.sort $ toList (x :+ y)
 
- 
+
 -- | normの大小でソート
 normSort :: Alg b -> Alg b
 normSort = undefined
@@ -304,16 +304,16 @@ class (Redundant a) => Exchange a where
     subject :: a -> AccountTitles
     unit    :: a -> CountUnit
     -- R-L decomposition
-    decR :: a -> a 
+    decR :: a -> a
     decL :: a -> a
     -- P-M decomposition
-    decP :: a -> a 
+    decP :: a -> a
     decM :: a -> a
     -- norm Balance
     balance :: a -> Bool
 
 ------------------------------------------------------------
--- * Define ExBase 
+-- * Define ExBase
 ------------------------------------------------------------
 class (Base a) => ExBase a where
     whatDiv     :: a -> AccountDivision
@@ -323,7 +323,7 @@ class (Base a) => ExBase a where
 class AccountBase a where
     (<=>) :: a -> a -> Bool
 
-data AccountDivision = Assets | Equity | Liability | Cost | Revenue 
+data AccountDivision = Assets | Equity | Liability | Cost | Revenue
                                 deriving (Ord, Show, Eq)
 
 instance AccountBase AccountDivision where
@@ -334,10 +334,10 @@ instance AccountBase AccountDivision where
     Cost        <=> Liability       = True
     Liability   <=> Cost            = True
     Cost        <=> Equity          = True
-    Equity      <=> Cost            = True    
-    _ <=> _ = False 
+    Equity      <=> Cost            = True
+    _ <=> _ = False
 
-data PIMO   = PS | IN | MS | OUT 
+data PIMO   = PS | IN | MS | OUT
                                 deriving (Ord, Show, Eq)
 
 instance AccountBase PIMO where
@@ -373,7 +373,7 @@ data  AccountTitles =    Cash                            -- ^ Bellows are Assets
                     |    Gold
                     |    GovernmentService
                     |    CapitalStock                    -- ^ Bellows are Equity
-                    |    RetainedEarnings 
+                    |    RetainedEarnings
                     |    LoansPayable                    -- ^ Bellows are Liability
                     |    ReserveForDepreciation
                     |    DepositPayable
@@ -393,7 +393,7 @@ data  AccountTitles =    Cash                            -- ^ Bellows are Assets
                     |    DepositInterestEarned
                     |    GrossProfit
                     |    OrdinaryProfit
-                    |    InterestEarned 
+                    |    InterestEarned
                     |    WageEarned
                     |    TaxesRevenue
                     |    CentralBankPaymentIncome
@@ -438,53 +438,53 @@ instance Enum       AccountTitles   where
     fromEnum    TaxesRevenue                = 33
     fromEnum    CentralBankPaymentIncome    = 34
 
-    toEnum 0    = Cash                       
-    toEnum 1    = Deposits                    
-    toEnum 2    = NationalBonds               
-    toEnum 3    = Products T.empty                  
-    toEnum 4    = StockInvectment             
-    toEnum 5    = EquipmentInvestment         
-    toEnum 6    = LoansReceivable             
-    toEnum 7    = ReserveDepositReceivable    
-    toEnum 8    = Gold                        
-    toEnum 9    = GovernmentService           
-    toEnum 10   = CapitalStock                
-    toEnum 11   = LoansPayable                
-    toEnum 12   = ReserveForDepreciation      
-    toEnum 13   = DepositPayable              
-    toEnum 14   = NationalBondsPayable        
-    toEnum 15   = ReserveDepositPayable       
-    toEnum 16   = CentralBankNotePayable      
-    toEnum 17   = Depreciation                
-    toEnum 18   = WageExpenditure             
-    toEnum 19   = InterestExpense             
-    toEnum 20   = TaxesExpense                
-    toEnum 21   = ConsumptionExpenditure      
-    toEnum 22   = SubsidyExpense              
-    toEnum 23   = CentralBankPaymentExpence   
-    toEnum 24   = ValueAdded                  
-    toEnum 25   = RetainedEarnings            
-    toEnum 26   = SubsidyIncome                
-    toEnum 27   = NationalBondInterestEarned  
-    toEnum 28   = DepositInterestEarned       
-    toEnum 29   = GrossProfit                 
-    toEnum 30   = OrdinaryProfit              
-    toEnum 31   = InterestEarned              
-    toEnum 32   = WageEarned                  
-    toEnum 33   = TaxesRevenue               
-    toEnum 34   = CentralBankPaymentIncome    
+    toEnum 0    = Cash
+    toEnum 1    = Deposits
+    toEnum 2    = NationalBonds
+    toEnum 3    = Products T.empty
+    toEnum 4    = StockInvectment
+    toEnum 5    = EquipmentInvestment
+    toEnum 6    = LoansReceivable
+    toEnum 7    = ReserveDepositReceivable
+    toEnum 8    = Gold
+    toEnum 9    = GovernmentService
+    toEnum 10   = CapitalStock
+    toEnum 11   = LoansPayable
+    toEnum 12   = ReserveForDepreciation
+    toEnum 13   = DepositPayable
+    toEnum 14   = NationalBondsPayable
+    toEnum 15   = ReserveDepositPayable
+    toEnum 16   = CentralBankNotePayable
+    toEnum 17   = Depreciation
+    toEnum 18   = WageExpenditure
+    toEnum 19   = InterestExpense
+    toEnum 20   = TaxesExpense
+    toEnum 21   = ConsumptionExpenditure
+    toEnum 22   = SubsidyExpense
+    toEnum 23   = CentralBankPaymentExpence
+    toEnum 24   = ValueAdded
+    toEnum 25   = RetainedEarnings
+    toEnum 26   = SubsidyIncome
+    toEnum 27   = NationalBondInterestEarned
+    toEnum 28   = DepositInterestEarned
+    toEnum 29   = GrossProfit
+    toEnum 30   = OrdinaryProfit
+    toEnum 31   = InterestEarned
+    toEnum 32   = WageEarned
+    toEnum 33   = TaxesRevenue
+    toEnum 34   = CentralBankPaymentIncome
 
 
 instance Ord AccountTitles where
     compare (Products x) (Products y) = compare x y
     compare x y = compare (fromEnum x) (fromEnum y)
-    
+
     (<) x y | compare x y == LT = True
             | otherwise         = False
 
     (>) x y | compare x y == GT = True
             | otherwise         = False
-    
+
 
     (<=) x y | compare x y == LT || compare x y == EQ   = True
              | otherwise                                = False
@@ -494,7 +494,7 @@ instance Ord AccountTitles where
 
 
     max x y | x >= y    = x
-            | otherwise = y 
+            | otherwise = y
 
     min x y | x <= y    = x
             | otherwise = y
@@ -507,10 +507,10 @@ instance Name Text where
 
 
 ------------------------------------------------------------------
--- Definision of concreat  algeraic structures. 
+-- * Definision of concreat  algeraic structures.
 ------------------------------------------------------------------
 ------------------------------------------------------------------
--- * Simplest Redundant Algebra
+-- ** Simplest Redundant Algebra
 ------------------------------------------------------------------
 
 -- | Redandunt Algebra only with Hat.
@@ -518,7 +518,7 @@ instance Base Hat where
     getHat  x   = x
     revHat Hat  = Not
     revHat Not  = Hat
-    isHat  Hat   = True
+    isHat  Hat  = True
     isHat _     = False
 
 type JustRedundant = Alg Hat
@@ -540,18 +540,18 @@ data Base1 h s where
 -}
 
 -----------------------------------------------
--- Multi Dimention Base 
+-- * Multi Dimention Base
 -----------------------------------------------
 
 -- Base も一般化して，otherの部分を与える
 
 
-infixr 8 .<  
+infixr 8 .<
 (.<) = (,)
 
 infixr 7 :<
-data MDBase　h u s where 
-     (:<) :: (Unit u, Subject s)  
+data MDBase h u s where
+     (:<) :: (Unit u, Subject s)
             => !Hat ->  !(u, s) ->  MDBase Hat u s
 
 
@@ -563,12 +563,12 @@ instance (Unit b, Subject c) => Eq (MDBase h b c) where
     (/=) x y = not (x == y)
 
 instance Show (MDBase h a b) where
-    show (h :<(a,b)) = (show h) 
-                        ++ "<" 
-                        ++ (show a) 
-                        ++ ", " 
-                        ++ (show b) 
-                        ++ " >"    
+    show (h :<(a,b)) = (show h)
+                        ++ "<"
+                        ++ (show a)
+                        ++ ", "
+                        ++ (show b)
+                        ++ " >"
 
 instance (Unit u, Subject s) => Base (MDBase Hat u s) where
     getHat (h:<(u,s)) = h
@@ -583,14 +583,14 @@ instance (Unit u, Subject s) => Ord (MDBase Hat u s) where
         | s == s'  && u >  u' = GT
         | s == s'  && u == u' = EQ
         | s == s'  && u <  u' = LT
-        | s <  s'  = LT 
+        | s <  s'  = LT
 
     (<) x y | compare x y == LT = True
             | otherwise         = False
 
     (>) x y | compare x y == GT = True
             | otherwise         = False
-    
+
 
     (<=) x y | compare x y == LT || compare x y == EQ   = True
              | otherwise                                = False
@@ -600,24 +600,24 @@ instance (Unit u, Subject s) => Ord (MDBase Hat u s) where
 
 
     max x y | x >= y    = x
-            | otherwise = y 
+            | otherwise = y
 
     min x y | x <= y    = x
             | otherwise = y
 
 
- 
+
 type ExMDBase = MDBase Hat CountUnit AccountTitles
 
 instance ExBase ExMDBase where
-    whatDiv (_ :< (_,s)) 
+    whatDiv (_ :< (_,s))
         | s == CapitalStock || s == RetainedEarnings = Equity
         | L.elem s  [ LoansPayable
                     , ReserveForDepreciation
                     , DepositPayable
                     , NationalBondsPayable
                     , ReserveDepositPayable
-                    , CentralBankNotePayable] 
+                    , CentralBankNotePayable]
                     = Liability
         | L.elem s  [ Depreciation
                     , WageExpenditure
@@ -646,9 +646,9 @@ instance ExBase ExMDBase where
         | whatDiv x == Cost         = OUT
         | whatDiv x == Revenue      = IN
 
-    whichSide x 
+    whichSide x
         | getHat x == Hat  = f $ whatDiv x
-        | otherwise     = switchSide $ f $ whatDiv x 
+        | otherwise     = switchSide $ f $ whatDiv x
         where
             f Assets    = Credit
             f Cost      = Credit
@@ -664,8 +664,8 @@ type Ex2Base     = MDBase Hat CountUnit AccountTitles
 type Ex2Alg      = Alg Ex2Base
 
 -- | Smallest Exchange Algebra
--- 
--- _NOTE_ : balance function is not accurate in current version. It will be modify soon. 
+--
+-- _NOTE_ : balance function is not accurate in current version. It will be modify soon.
 instance Exchange Ex2Alg where
     subject ( _:@ _ :< (u,s)) = s
     unit    ( _:@ _ :< (u,s)) = u
@@ -675,7 +675,7 @@ instance Exchange Ex2Alg where
     decM xs = fromList $ filter (\x -> x /= Zero && (not. isHat. base) x) xs
     balance xs  | (norm . decR) xs == (norm . decL) xs = True
                 | otherwise                            = False
- 
+
 
 
 
