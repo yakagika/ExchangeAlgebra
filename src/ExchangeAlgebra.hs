@@ -440,7 +440,7 @@ instance (ExBaseClass b) =>  Redundant (ExAlg b) where
         | otherwise
             = let h   = getHat b  in
                 let h'  = getHat b' in
-                case (h,h') of
+                case (trace (show (h,h')) (h, h')) of
                 (Hat, Hat) -> (v + v') :@ b
                 (Not, Not) -> (v + v') :@ b
                 (Not, Hat)  | v == v' -> Zero
