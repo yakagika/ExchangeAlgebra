@@ -79,7 +79,7 @@ class (Redundant a) => Exchange a where
 
 class (Eq a, Ord a, Show a) =>  BaseClass a where
     accountTitle    ::  a -> Maybe AccountTitles
-    name            ::  a -> Maybe Text
+    name            ::  a -> Maybe Text             -- ^ ここを特定のクラスのインスタンスにしたい
     unit            ::  a -> Maybe CountUnit
     subject         ::  a -> Maybe Text
     date            ::  a -> Maybe Day
@@ -125,7 +125,7 @@ data  AccountTitles =    Cash                            -- ^ Bellows are Assets
                     |    CentralBankPaymentIncome
                     deriving (Show, Eq, Ord, Enum)
 
-{-
+{- |
 
 勘定科目の全体と
 必要となる処理に関して,体系的に包括された参考文献
@@ -142,16 +142,14 @@ instance BaseClass AccountTitles where
     time            _  = Nothing
     date            _  = Nothing
 
--- ** Name :: 品目の名前
+-- | Name :: 品目の名前
 type Name = Text
 
--- ** 勘定科目の主体
+-- | 勘定科目の主体
 type Subject = Text
 
 
-data  CountUnit = Yen | Amount deriving (Ord, Show, Eq)
-
-
+data CountUnit = Yen | Amount deriving (Ord, Show, Eq)
 
 
 {- | 冗長基底の定義
@@ -592,7 +590,6 @@ instance BaseClass (AccountTitles, Name, CountUnit, Subject) where
     subject      (a, n, u, s)   = Just s
     date         _              = Nothing
     time         _              = Nothing
-
 
 
 instance BaseClass (AccountTitles, Name, CountUnit, Subject,  Day) where
