@@ -41,6 +41,9 @@ import qualified    Data.List       as L (map, length, elem,sort,foldl1,filter)
 import              Prelude         hiding (map, head, filter,tail)
 import qualified    Data.Time       as Time
 import              Data.Time
+import qualified    Data.Map.Strict as Map
+import qualified    Data.List       as List
+
 
 ------------------------------------------------------------------
 -- | Definition of Reducduncy (これを継承すれば冗長代数になる)
@@ -51,22 +54,19 @@ infixr 9 .~
 class Redundant a where
     (.^) :: a -> a
     (.~) :: a -> a
-    norm :: a -> Double
+    norm :: a -> Double -- ^ 値の部分だけを抽出
 
 ------------------------------------------------------------
 -- | Exchange これを継承すれば交換代数になる
 ------------------------------------------------------------
 class (Redundant a) => Exchange a where
-    -- R-L decomposition
-    decR :: a -> a
+    decR :: a -> a       -- ^ R-L decomposition
     decL :: a -> a
 
-    -- P-M decomposition
-    decP :: a -> a
+    decP :: a -> a       -- ^ P-M decomposition
     decM :: a -> a
 
-    -- norm Balance
-    balance :: a -> Bool
+    balance :: a -> Bool -- ^ norm Balance
 
 
 
@@ -520,11 +520,15 @@ tail (Zero :+ y) =  y
 tail ((v:@ b) :+ y) = y
 tail (x :+ y) = (tail x) :+ y
 
+{-# INLINE map #-}
+-- | map
 map ::   (ExAlg b -> ExAlg b) -> ExAlg b -> ExAlg b
 map f  Zero    = f Zero
 map f (v :@ b) = f (v :@ b)
 map f (x :+ y) = (map f x) :+ map f y
 
+{-# INLINE filter #-}
+-- | filter
 filter :: (ExAlg b -> Bool) -> ExAlg b -> [ExAlg b]
 filter f Zero       | f Zero        = [Zero]
                     | otherwise     = []
@@ -537,18 +541,11 @@ filter f (x :+ y) = filter f x ++ filter f y
 proj :: (ExBaseClass b) => b -> ExAlg b -> ExAlg b
 proj b alg = fromList $ filter (\x ->  x /= Zero && hatBase x == b ) alg
 
+
 projNorm :: (ExBaseClass b) => b -> ExAlg b -> Double
 projNorm b alg  = norm $ (.~)
             $ fromList
             $ filter (\x ->  x /= Zero && hatBase x == b ) alg
-
--- Transfer
-transfer :: (ExBaseClass b) => b -> b -> ExAlg b -> ExAlg b
-transfer _  _  Zero = Zero
-transfer b1 b2 (v :@ b) | b == b1 = v :@ b1
-                        | otherwise = v :@ b
-transfer b1 b2 xs = map (transfer b1 b2) xs
-
 
 
 -- | Baseの大小（==Algの大小）でソート
@@ -613,7 +610,79 @@ instance BaseClass (AccountTitles, Name, CountUnit, Subject, Day, TimeOfDay) whe
 ------------------------------------------------------------------
 -- ** 仕分け
 
+
+-- ** バランス
+
+
 -- ** 振替
+
+
+-- | 振替変換テーブル
+data TransTable b where
+     TransTable         :: (ExBaseClass b) => (Map.Map b {-変換前-} b {-変換後-})
+                                           -> TransTable b
+     -- ^ 基底ごと変換
+     PartialTransTable  :: (ExBaseClass b) => (Map.Map b (Double {- 変換量 -}, b))
+                                           -> TransTable b
+     -- ^ 部分的に変換
+     FunctionTransTable :: (ExBaseClass b) => (Map.Map b ((Double -> Double), b))
+                                           -> TransTable b
+     -- ^ 数値部分に関数を適用して変換 按分はこれを使う
+
+
+
+instance Show (TransTable b) where
+    show (TransTable b)         = "TransTable "         ++ show b
+    show (PartialTransTable b)  = "PartialTransTable "  ++ show b
+    show (FunctionTransTable b) = "FunctionTransTable " ++
+                                (List.foldl1 (++)
+                                ( List.map (\(before, (f, after)) -> "(" ++ show before ++ ", ( <function:: Double -> Double>, "
+                                ++ show after ++ ")")
+                                (Map.toList b)))
+
+
+{-| 振替変換
+振替変換は、交換代数元の要素の基底を別の基底に振り替える変換となります。
+振替変換では、変換 対象の値は変わりません。例えば、次のような交換代数元 x があり、
+x = 6^ < e1 > +2 < e2 > +2 < e3 > +4 < e4 > +5^ < e5 > 変換定義 t を次のように定義した場合、
+( from) < e1 > -> (to) < eA >
+( from) < e2 > -> (to) < eA >
+( from) < e3 > -> (to) < eA >
+変換結果 r は、次のようになります。
+r = 6^ < e1 > +2 < e2 > +2 < e3 > +4 < e4 > +5^ < e5 >
+   +  6 < e 1 > + 6 ^ < e A >
+   + 2 ^ < e 2 > + 2 < e A >
+   + 2 ^ < e 3 > + 2 < e A >
+ = 6 ^ < e 1 > + 2 < e 2 > + 2 < e 3 > + 4 < e 4 > + 5 ^ < e 5 >
+   + 6 < e 1 > + 6 ^ < e A > + 2 ^ < e 2 > + 4 < e A > + 2 ^ < e 3 >
+-}
+
+transfer :: (ExBaseClass b) => TransTable b -> ExAlg b -> ExAlg b
+transfer _  Zero  = Zero
+transfer (TransTable ms)         (v :@ before)
+    = case Map.lookup before ms of
+        Just after -> v :@ after
+        Nothing    -> v :@ before
+
+transfer (PartialTransTable ms)  (v :@ before)
+    = case Map.lookup before ms of
+        Just (d, after) | d < 0      -> error "transfer: minus value"
+                        | v - d >= 0 ->  (v - d) :@ before
+                                     .+       d  :@ after
+                        | otherwise  ->       v  :@ after
+        Nothing         ->                    v  :@ before
+
+transfer (FunctionTransTable ms) (v :@ before) -- 負に変換される場合はrevHat
+    = case Map.lookup before ms of
+        Just (f, after) | (f v) <  0 -> error "transfer: minus value"
+                        | (f v) >= 0 -> (v - (f v)) :@ before
+                                     .+      (f v)  :@ after
+                        | otherwise  ->          v  :@ after
+        Nothing                      ->          v  :@ before
+
+transfer tm xs                                 = map (transfer tm) xs
+
+
 
 -- *** 決算振替仕訳
 

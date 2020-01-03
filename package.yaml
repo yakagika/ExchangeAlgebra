@@ -24,6 +24,7 @@ dependencies:
 - text
 - extensible
 - time
+- containers
 
 library:
   source-dirs: src
