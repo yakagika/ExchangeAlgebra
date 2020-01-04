@@ -25,6 +25,7 @@ dependencies:
 - extensible
 - time
 - containers
+- lens
 
 library:
   source-dirs: src

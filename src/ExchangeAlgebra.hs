@@ -42,7 +42,6 @@ import              Prelude         hiding (map, head, filter,tail)
 import qualified    Data.Time       as Time
 import              Data.Time
 import qualified    Data.Map.Strict as Map
-import qualified    Data.List       as List
 
 
 ------------------------------------------------------------------
@@ -73,6 +72,9 @@ class (Redundant a) => Exchange a where
 ------------------------------------------------------------------
 -- * Elm
 ------------------------------------------------------------------
+
+
+
 {- | 要素の定義
     これを継承すれば取り敢えず基底になれる
 -}
@@ -88,41 +90,41 @@ class (Eq a, Ord a, Show a) =>  BaseClass a where
 -- ** Account Titles
 
 -- | The current version 0.1.0.0 will be completely changed shortly, especially this section.
-data  AccountTitles =    Cash                            -- ^ Bellows are Assets (資産)
-                    |    Deposits
-                    |    NationalBonds
-                    |    Products
-                    |    StockInvectment
-                    |    EquipmentInvestment
-                    |    LoansReceivable
-                    |    ReserveDepositReceivable
-                    |    Gold
-                    |    GovernmentService
-                    |    CapitalStock                    -- ^ Bellows are Equity (資本)
-                    |    RetainedEarnings
-                    |    LoansPayable                    -- ^ Bellows are Liability (負債)
-                    |    ReserveForDepreciation
-                    |    DepositPayable
-                    |    NationalBondsPayable
-                    |    ReserveDepositPayable
-                    |    CentralBankNotePayable
-                    |    Depreciation                    -- ^ Bellows are Cost
-                    |    WageExpenditure
-                    |    InterestExpense
-                    |    TaxesExpense
-                    |    ConsumptionExpenditure
-                    |    SubsidyExpense
-                    |    CentralBankPaymentExpence
-                    |    ValueAdded                      -- ^ Bellows are Revenue
-                    |    SubsidyIncome
-                    |    NationalBondInterestEarned
-                    |    DepositInterestEarned
-                    |    GrossProfit
-                    |    OrdinaryProfit
-                    |    InterestEarned
-                    |    WageEarned
-                    |    TaxesRevenue
-                    |    CentralBankPaymentIncome
+data  AccountTitles =    Cash                            -- ^ 資産 現金
+                    |    Deposits                        -- ^ 資産 預金
+                    |    NationalBonds                   -- ^ 資産 国債
+                    |    Products                        -- ^ 資産 在庫
+                    |    StockInvestment                 -- ^ 資産 株式投資
+                    |    EquipmentInvestment             -- ^ 資産 設備投資
+                    |    LoansReceivable                 -- ^ 資産 貸付金
+                    |    ReserveDepositReceivable        -- ^ 資産 預金準備金
+                    |    Gold                            -- ^ 資産 金
+                    |    GovernmentService               -- ^ 資産 政府支出
+                    |    CapitalStock                    -- ^ 資本 資本金
+                    |    RetainedEarnings                -- ^ 資本 留保所得
+                    |    LoansPayable                    -- ^ 負債 借入金
+                    |    ReserveForDepreciation          -- ^ 負債 償却準備金
+                    |    DepositPayable                  -- ^ 負債 預り金
+                    |    NationalBondsPayable            -- ^ 負債 国債 借入金
+                    |    ReserveDepositPayable           -- ^ 負債
+                    |    CentralBankNotePayable          -- ^ 負債
+                    |    Depreciation                    -- ^ 費用
+                    |    WageExpenditure                 -- ^ 費用
+                    |    InterestExpense                 -- ^ 費用
+                    |    TaxesExpense                    -- ^ 費用
+                    |    ConsumptionExpenditure          -- ^ 費用
+                    |    SubsidyExpense                  -- ^ 費用
+                    |    CentralBankPaymentExpence       -- ^ 費用
+                    |    ValueAdded                      -- ^ 収益
+                    |    SubsidyIncome                   -- ^ 収益
+                    |    NationalBondInterestEarned      -- ^ 収益
+                    |    DepositInterestEarned           -- ^ 収益
+                    |    GrossProfit                     -- ^ 収益
+                    |    OrdinaryProfit                  -- ^ 収益
+                    |    InterestEarned                  -- ^ 収益
+                    |    WageEarned                      -- ^ 収益
+                    |    TaxesRevenue                    -- ^ 収益
+                    |    CentralBankPaymentIncome        -- ^ 収益
                     deriving (Show, Eq, Ord, Enum)
 
 {- |
@@ -345,10 +347,10 @@ data ExAlg b where
 
 
 instance (ExBaseClass a) =>  Exchange (ExAlg a) where
-    decR xs = fromList $ filter (\x -> x /= Zero && (whichSide . hatBase) x == Just Debit) xs
-    decL xs = fromList $ filter (\x -> x /= Zero && (whichSide . hatBase) x == Just Credit) xs
-    decP xs = fromList $ filter (\x -> x /= Zero && (isHat . hatBase ) x) xs
-    decM xs = fromList $ filter (\x -> x /= Zero && (not. isHat. hatBase) x) xs
+    decR xs = filter (\x -> x /= Zero && (whichSide . hatBase) x == Just Debit) xs
+    decL xs = filter (\x -> x /= Zero && (whichSide . hatBase) x == Just Credit) xs
+    decP xs = filter (\x -> x /= Zero && (isHat . hatBase ) x) xs
+    decM xs = filter (\x -> x /= Zero && (not. isHat. hatBase) x) xs
     balance xs  | (norm . decR) xs == (norm . decL) xs = True
                 | otherwise                            = False
 
@@ -407,7 +409,7 @@ instance (ExBaseClass b) => Semigroup (ExAlg b) where
     (<>) !x    Zero  = x
     (<>) !(v :@ b) !(v' :@ b') = (v :@ b) :+ (v' :@ b')
     (<>) !x  !y =  f ( x :+ y)
-        where f = (foldl1 (:+)) . (L.filter (/= Zero)) . toList
+        where f = filter (/= Zero)
 
 instance (ExBaseClass b) => Monoid (ExAlg b) where
     mempty = Zero
@@ -451,7 +453,7 @@ instance (ExBaseClass b) =>  Redundant (ExAlg b) where
                             | v <  v' -> (v' - v) :@ b'
 
 
-    (.~) xs = mconcat $ filter g $ f z
+    (.~) xs = filter g $ f z
         where
             g :: ExAlg b -> Bool
             g Zero     = False
@@ -529,22 +531,22 @@ map f (x :+ y) = (map f x) :+ map f y
 
 {-# INLINE filter #-}
 -- | filter
-filter :: (ExAlg b -> Bool) -> ExAlg b -> [ExAlg b]
-filter f Zero       | f Zero        = [Zero]
-                    | otherwise     = []
-filter f (v :@ b)   | f (v :@ b)    = [v :@ b]
-                    | otherwise     = []
-filter f (x :+ y) = filter f x ++ filter f y
+filter :: (ExAlg b -> Bool) -> ExAlg b -> ExAlg b
+filter f Zero                       = Zero
+filter f (v :@ b)   | f (v :@ b)    = v :@ b
+                    | otherwise     = Zero
+filter f (x :+ y)                   = filter f x .+ filter f y
 
 -- | projection
 
 proj :: (ExBaseClass b) => b -> ExAlg b -> ExAlg b
-proj b alg = fromList $ filter (\x ->  x /= Zero && hatBase x == b ) alg
+proj b alg = filter (\x ->  x /= Zero && hatBase x == b ) alg
 
+projByAccountTitle :: (ExBaseClass b) => AccountTitles -> ExAlg b -> ExAlg b
+projByAccountTitle at alg = filter (\x -> x /= Zero &&  (accountTitle . hatBase) x == Just at) alg
 
 projNorm :: (ExBaseClass b) => b -> ExAlg b -> Double
 projNorm b alg  = norm $ (.~)
-            $ fromList
             $ filter (\x ->  x /= Zero && hatBase x == b ) alg
 
 
@@ -562,6 +564,8 @@ normSort = undefined
 
 ------------------------------------------------------------------
 -- * シンプルな基底 増やしたければ増やせる
+-- 同じ呼び出し関数を使うためにタプルにしている.
+-- DuplicateRecordFields 拡張 よりも制限が少なく 見た目が良いためにこちらを選択
 ------------------------------------------------------------------
 
 instance BaseClass (AccountTitles, Name) where
@@ -608,24 +612,19 @@ instance BaseClass (AccountTitles, Name, CountUnit, Subject, Day, TimeOfDay) whe
 ------------------------------------------------------------------
 -- * 基本計算処理
 ------------------------------------------------------------------
--- ** 仕分け
-
-
--- ** バランス
-
 
 -- ** 振替
 
 
 -- | 振替変換テーブル
 data TransTable b where
-     TransTable         :: (ExBaseClass b) => (Map.Map b {-変換前-} b {-変換後-})
+     TransTable         :: (ExBaseClass b) => {table :: (Map.Map b {-変換前-} b {-変換後-})}
                                            -> TransTable b
      -- ^ 基底ごと変換
-     PartialTransTable  :: (ExBaseClass b) => (Map.Map b (Double {- 変換量 -}, b))
+     PartialTransTable  :: (ExBaseClass b) => {partialTable :: (Map.Map b (Double {- 変換量 -}, b))}
                                            -> TransTable b
      -- ^ 部分的に変換
-     FunctionTransTable :: (ExBaseClass b) => (Map.Map b ((Double -> Double), b))
+     FunctionTransTable :: (ExBaseClass b) => {functionTable :: (Map.Map b ((Double -> Double), b))}
                                            -> TransTable b
      -- ^ 数値部分に関数を適用して変換 按分はこれを使う
 
@@ -635,8 +634,8 @@ instance Show (TransTable b) where
     show (TransTable b)         = "TransTable "         ++ show b
     show (PartialTransTable b)  = "PartialTransTable "  ++ show b
     show (FunctionTransTable b) = "FunctionTransTable " ++
-                                (List.foldl1 (++)
-                                ( List.map (\(before, (f, after)) -> "(" ++ show before ++ ", ( <function:: Double -> Double>, "
+                                (L.foldl1 (++)
+                                (L.map (\(before, (f, after)) -> "(" ++ show before ++ ", ( <function:: Double -> Double>, "
                                 ++ show after ++ ")")
                                 (Map.toList b)))
 
@@ -672,21 +671,77 @@ transfer (PartialTransTable ms)  (v :@ before)
                         | otherwise  ->       v  :@ after
         Nothing         ->                    v  :@ before
 
-transfer (FunctionTransTable ms) (v :@ before) -- 負に変換される場合はrevHat
+transfer (FunctionTransTable ms) (v :@ before)
     = case Map.lookup before ms of
         Just (f, after) | (f v) <  0 -> error "transfer: minus value"
-                        | (f v) >= 0 -> (v - (f v)) :@ before
-                                     .+      (f v)  :@ after
-                        | otherwise  ->          v  :@ after
-        Nothing                      ->          v  :@ before
+                        | (f v) >= 0 -> (v - (rounding (f v))) :@ before
+                                     .+      (rounding (f v))  :@ after
+                        | otherwise  ->                   v    :@ after
+        Nothing         ->                                v    :@ before
 
-transfer tm xs                                 = map (transfer tm) xs
+transfer tm xs          = map (transfer tm) xs
+
+
+
+
+-- *** 経過勘定の振替
+
+-- ** 仕分け
+
+-- *** 利息の仕分け
+
+{- | 預金利息の仕分け -}
+
+{- | 国債償還
+国債発行分だけ利息を払う
+    Depo
+
+国債保有分だけ利息をもらう
+
+
+-}
+
+redemption :: (ExBaseClass b) => NationalBondsInterestRate -> ExAlg b -> ExAlg b
+redemption _ Zero   = Zero
+redemption nbir alg = undefined
+    where
+    alg' =  (.~) alg
+    -- Hat付きの国債及び国債借入金を現金に変換
+    hatConvertedAlg = (flip map) alg
+                    $ \(v:@ hb) -> case (getHat hb, accountTitle hb) of
+                                        (Not, _)                         -> (v:@ hb)
+                                        (Hat, Just NationalBonds)        -> (v:@ hb)
+                                        (Hat, Just NationalBondsPayable) -> undefined
+
+
+
+type NationalBondsInterestRate = Double
+type InterestRate              = Double
+
 
 
 
 -- *** 決算振替仕訳
 
--- *** 経過勘定の振替
+{- | 仕分け -}
+accountingJournal = undefined
+
+-- * バランス
+
+{- | バランスしていない場合の処理 -}
+forceBalance = undefined
+
+
+-- * 端数処理
+
+{- | 端数処理
+割り算と掛け算に利用
+基本的には切り上げで処理する
+勘定科目の乗除には全てこれを適用
+-}
+
+rounding :: Double -> Double
+rounding = fromIntegral . ceiling
 
 
 
