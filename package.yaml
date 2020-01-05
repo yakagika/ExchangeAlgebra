@@ -25,6 +25,8 @@ dependencies:
 - extensible
 - time
 - containers
+- lens
+- numeric-prelude
 
 library:
   source-dirs: src
