@@ -183,21 +183,23 @@ instance Element Day where
 -- * Base 基底の条件
 ------------------------------------------------------------------
 
-data AutoGetter = AutoGetter { _getAccountTitle :: {-# Unpack #-} (Maybe AccountTitles)
-                             , _getName         :: {-# Unpack #-} (Maybe Name)
-                             , _getCountUnit    :: {-# Unpack #-} (Maybe CountUnit)
-                             , _getSubject      :: {-# Unpack #-} (Maybe Subject)
-                             , _getDay          :: {-# Unpack #-} (Maybe Day)
-                             , _getTime         :: {-# Unpack #-} (Maybe TimeOfDay) } deriving Show
+data AutoGetter = AutoGetter { _getAccountTitle :: (Maybe AccountTitles)
+                             , _getName         :: (Maybe Name)
+                             , _getCountUnit    :: (Maybe CountUnit)
+                             , _getSubject      :: (Maybe Subject)
+                             , _getDay          :: (Maybe Day)
+                             , _getTime         :: (Maybe TimeOfDay) } deriving Show
 
 initAutoGetter = AutoGetter Nothing Nothing Nothing Nothing Nothing Nothing
 
-data AutoSetter a = AutoSetter  { _setAccountTitle :: {-# Unpack #-} (a -> AccountTitles -> Maybe a)
-                                , _setName         :: {-# Unpack #-} (a -> Name          -> Maybe a)
-                                , _setCountUnit    :: {-# Unpack #-} (a -> CountUnit     -> Maybe a)
-                                , _setSubject      :: {-# Unpack #-} (a -> Subject       -> Maybe a)
-                                , _setDay          :: {-# Unpack #-} (a -> Day           -> Maybe a)
-                                , _setTime         :: {-# Unpack #-} (a -> TimeOfDay     -> Maybe a)}
+-- | Setter 自動生成用 自動生成になっていない Lensを利用したら可能にも思うが,多相が難しい
+data AutoSetter a = AutoSetter  { _setAccountTitle :: (a -> AccountTitles -> Maybe a)
+                                , _setName         :: (a -> Name          -> Maybe a)
+                                , _setCountUnit    :: (a -> CountUnit     -> Maybe a)
+                                , _setSubject      :: (a -> Subject       -> Maybe a)
+                                , _setDay          :: (a -> Day           -> Maybe a)
+                                , _setTime         :: (a -> TimeOfDay     -> Maybe a)}
+
 initAutoSetter = AutoSetter (\x y -> Nothing)
                             (\x y -> Nothing)
                             (\x y -> Nothing)
@@ -500,7 +502,7 @@ instance (ExBaseClass b) =>  Redundant (ExAlg b) where
                 (Hat, Hat) -> (v + v') :@ b
                 (Not, Not) -> (v + v') :@ b
                 (Not, Hat)  | v == v' -> Zero
-                            | v >  v' -> (v - v') @ b
+                            | v >  v' -> (v - v'):@ b
                             | v <  v' -> (v'- v) :@ b'
                 (Hat, Not)  | v == v' -> Zero
                             | v >  v' -> (v - v') :@ b
@@ -620,71 +622,125 @@ normSort = undefined
 -- * シンプルな基底 増やしたければ増やせる
 ------------------------------------------------------------------
 instance BaseClass AccountTitles where
-    autoGetter at = initAutoGetter{ _getAccountTitle =  (Just at) }
+    autoGetter at = initAutoGetter{ _getAccountTitle = (Just at)}
+    autoSetter at = initAutoSetter{ _setAccountTitle = \at x -> Just x }
 
 
 instance BaseClass Name where
+    autoGetter name = initAutoGetter{ _getName = (Just name)}
+    autoSetter name = initAutoSetter{ _setName = \name x -> Just x }
+
 
 instance BaseClass CountUnit where
+    autoGetter cu = initAutoGetter{ _getCountUnit = (Just cu)}
+    autoSetter cu = initAutoSetter{ _setCountUnit = \cu x -> Just x }
 
-instance BaseClass TimeOfDay
+instance BaseClass Day where
+    autoGetter day = initAutoGetter{ _getDay = (Just day)}
+    autoSetter day = initAutoSetter{ _setDay = \day x -> Just x }
 
-instance BaseClass Day
 
+instance BaseClass TimeOfDay where
+    autoGetter time = initAutoGetter{ _getTime = (Just time)}
+    autoSetter time = initAutoSetter{ _setTime = \time x -> Just x }
 
 instance BaseClass (HatBase a) where
-    getAccountTitle (h :< b) = getAccountTitle b
-    getName         (h :< b) = getName         b
-    getCountUnit    (h :< b) = getCountUnit    b
-    getDay          (h :< b) = getDay          b
-    getSubject      (h :< b) = getSubject      b
-    getTime         (h :< b) = getTime         b
+    autoGetter (h :< b) = autoGetter b
+    autoSetter (h :< b) =  let bSetter = autoSetter b
+                        in AutoSetter   (\(h :< b) x -> (h :< ) <$> ((_setAccountTitle bSetter) b x))
+                                        (\(h :< b) x -> (h :< ) <$> ((_setName         bSetter) b x))
+                                        (\(h :< b) x -> (h :< ) <$> ((_setCountUnit    bSetter) b x))
+                                        (\(h :< b) x -> (h :< ) <$> ((_setSubject      bSetter) b x))
+                                        (\(h :< b) x -> (h :< ) <$> ((_setDay          bSetter) b x))
+                                        (\(h :< b) x -> (h :< ) <$> ((_setTime         bSetter) b x))
 
 
 
 instance BaseClass (AccountTitles, Name) where
     autoGetter (accountTitle, name)
-        = initAutoGetter { _getAccountTitle = (Just accountTitle)
-                         , _getName         = (Just name)}
+        = initAutoGetter { _getAccountTitle = Just accountTitle
+                         , _getName         = Just name}
 
     autoSetter (accountTitle, name)
-        = initAutoSetter { _setAccountTitle = (\(accountTitle, name) x -> Just (x, name))
-                         , _setName         = (\x y -> Nothing)}
+        = initAutoSetter { _setAccountTitle = \(accountTitle, name) x -> Just (x, name)
+                         , _setName         = \(accountTitle, name) x -> Just (accountTitle, x)}
 
 
 
 instance BaseClass (AccountTitles, Name, CountUnit) where
-    getAccountTitle    (a, n, u) = Just a
-    getName            (a, n, u) = Just n
-    getCountUnit       (a, n, u) = Just u
-    getSubject         (a, n, u) = Nothing
-    getDay             _         = Nothing
-    getTime            _         = Nothing
+    autoGetter (accountTitle, name, countUnit)
+        = initAutoGetter { _getAccountTitle = Just accountTitle
+                         , _getName         = Just name
+                         , _getCountUnit    = Just countUnit}
+
+    autoSetter (accountTitle, name, countUnit)
+        = initAutoSetter { _setAccountTitle =      \(accountTitle, name, countUnit) x
+                                            -> Just (x,            name, countUnit)
+                         , _setName         =      \(accountTitle, name, countUnit) x
+                                            -> Just (accountTitle, x,    countUnit)
+                         , _setCountUnit    =      \(accountTitle, name, countUnit) x
+                                            -> Just (accountTitle, name, x        )}
 
 instance BaseClass (AccountTitles, Name, CountUnit, Subject) where
-    getAccountTitle (a, n, u, s)   = Just a
-    getName         (a, n, u, s)   = Just n
-    getCountUnit    (a, n, u, s)   = Just u
-    getSubject      (a, n, u, s)   = Just s
-    getDay          _              = Nothing
-    getTime         _              = Nothing
+    autoGetter (accountTitle, name, countUnit, subject)
+        = initAutoGetter { _getAccountTitle = Just accountTitle
+                         , _getName         = Just name
+                         , _getCountUnit    = Just countUnit
+                         , _getSubject      = Just subject}
 
+    autoSetter (accountTitle, name, countUnit, subject)
+        = initAutoSetter { _setAccountTitle =      \(accountTitle, name, countUnit, subject) x
+                                            -> Just (x,            name, countUnit, subject)
+                         , _setName         =      \(accountTitle, name, countUnit, subject) x
+                                            -> Just (accountTitle, x,    countUnit, subject)
+                         , _setCountUnit    =      \(accountTitle, name, countUnit, subject) x
+                                            -> Just (accountTitle, name, x,         subject)
+                         , _setSubject      =      \(accountTitle, name, countUnit, subject) x
+                                            -> Just (accountTitle, name, countUnit, x      )}
 
 instance BaseClass (AccountTitles, Name, CountUnit, Subject,  Day) where
-    getAccountTitle    (a, n, u, s, d) = Just a
-    getName            (a, n, u, s, d) = Just n
-    getCountUnit       (a, n, u, s, d) = Just u
-    getSubject         (a, n, u, s, d) = Just s
-    getDay            (a, n, u, s, d) = Just d
-    getTime            _               = Nothing
+    autoGetter (accountTitle, name, countUnit, subject, day)
+        = initAutoGetter { _getAccountTitle = Just accountTitle
+                         , _getName         = Just name
+                         , _getCountUnit    = Just countUnit
+                         , _getSubject      = Just subject
+                         , _getDay          = Just day}
+
+    autoSetter (accountTitle, name, countUnit, subject, day)
+        = initAutoSetter { _setAccountTitle =      \(accountTitle, name, countUnit, subject, day) x
+                                            -> Just (x,            name, countUnit, subject, day)
+                         , _setName         =      \(accountTitle, name, countUnit, subject, day) x
+                                            -> Just (accountTitle, x,    countUnit, subject, day)
+                         , _setCountUnit    =      \(accountTitle, name, countUnit, subject, day) x
+                                            -> Just (accountTitle, name, x,         subject, day)
+                         , _setSubject      =      \(accountTitle, name, countUnit, subject, day) x
+                                            -> Just (accountTitle, name, countUnit, x,       day)
+                         , _setDay          =      \(accountTitle, name, countUnit, subject, day) x
+                                            -> Just (accountTitle, name, countUnit, subject, x  )}
+
 
 instance BaseClass (AccountTitles, Name, CountUnit, Subject, Day, TimeOfDay) where
-    getAccountTitle    (a, n, u, s, d, t) = Just a
-    getName            (a, n, u, s, d, t) = Just n
-    getCountUnit            (a, n, u, s, d, t) = Just u
-    getSubject         (a, n, u, s, d, t) = Just s
-    getDay            (a, n, u, s, d, t) = Just d
-    getTime            (a, n, u, s, d, t) = Just t
+    autoGetter (accountTitle, name, countUnit, subject, day, time)
+        = initAutoGetter { _getAccountTitle = Just accountTitle
+                         , _getName         = Just name
+                         , _getCountUnit    = Just countUnit
+                         , _getSubject      = Just subject
+                         , _getDay          = Just day
+                         , _getTime         = Just time}
+
+    autoSetter (accountTitle, name, countUnit, subject, day, time)
+        = AutoSetter     { _setAccountTitle =      \(accountTitle, name, countUnit, subject, day, time) x
+                                            -> Just (x,            name, countUnit, subject, day, time)
+                         , _setName         =      \(accountTitle, name, countUnit, subject, day, time) x
+                                            -> Just (accountTitle, x,    countUnit, subject, day, time)
+                         , _setCountUnit    =      \(accountTitle, name, countUnit, subject, day, time) x
+                                            -> Just (accountTitle, name, x,         subject, day, time)
+                         , _setSubject      =      \(accountTitle, name, countUnit, subject, day, time) x
+                                            -> Just (accountTitle, name, countUnit, x,       day, time)
+                         , _setDay          =      \(accountTitle, name, countUnit, subject, day, time) x
+                                            -> Just (accountTitle, name, countUnit, subject, x,   time)
+                         , _setTime          =      \(accountTitle, name, countUnit, subject, day, time) x
+                                            -> Just (accountTitle, name, countUnit, subject, day, x   )}
 
 ------------------------------------------------------------------
 -- * 基本計算処理
