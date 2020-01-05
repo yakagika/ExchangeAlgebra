@@ -26,6 +26,10 @@ dependencies:
 - time
 - containers
 - lens
+<<<<<<< HEAD
+=======
+- numeric-prelude
+>>>>>>> makeAutoSetter
 
 library:
   source-dirs: src
