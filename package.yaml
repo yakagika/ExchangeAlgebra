@@ -1,5 +1,5 @@
 name:                exchangealgebra
-version:             0.1.0.0
+version:             0.2.0.0
 github:              "yakagika/ExchangeAlgebra"
 license:             OW
 author:              "Kaya Akagi"
@@ -26,10 +26,7 @@ dependencies:
 - time
 - containers
 - lens
-<<<<<<< HEAD
-=======
 - numeric-prelude
->>>>>>> makeAutoSetter
 
 library:
   source-dirs: src
