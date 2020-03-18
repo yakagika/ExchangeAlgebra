@@ -54,7 +54,10 @@ import              Number.NonNegative  (Double, fromNumber, toNumber) -- 非負
 
 -- | Element Class 基底の要素になるためにはこれのインスタンスになる必要がある
 class (Eq a, Ord a, Show a) => Element a where
-
+    wiledcard       :: a        -- ^ 検索等に用いるワイルドカード
+    isWiledcard     :: a -> Bool
+    isWiledcard a | wiledcard == a = True
+                  | otherwise      = False
 
 ------------------------------------------------------------------
 -- * Elm
@@ -63,45 +66,49 @@ class (Eq a, Ord a, Show a) => Element a where
 -- ** Account Titles
 
 -- | The current version 0.1.0.0 will be completely changed shortly, especially this section.
-data  AccountTitles =   Cash                            -- ^ 資産 現金
-                    |   Deposits                        -- ^ 資産 預金
-                    |   NationalBonds                   -- ^ 資産 国債
-                    |   Products                        -- ^ 資産 在庫
-                    |   Machinery                       -- ^ 資産 機械設備
-                    |   Building                        -- ^ 資産 不動産
-                    |   StockInvestment                 -- ^ 資産 株式投資
-                    |   EquipmentInvestment             -- ^ 資産 設備投資
-                    |   LoansReceivable                 -- ^ 資産 貸付金
-                    |   ReserveDepositReceivable        -- ^ 資産 預金準備金
-                    |   Gold                            -- ^ 資産 金
-                    |   GovernmentService               -- ^ 資産 政府支出
-                    |   CapitalStock                    -- ^ 資本 資本金
-                    |   RetainedEarnings                -- ^ 資本 留保所得
-                    |   LoansPayable                    -- ^ 負債 借入金
-                    |   ReserveForDepreciation          -- ^ 負債 償却準備金
-                    |   DepositPayable                  -- ^ 負債 預り金
-                    |   NationalBondsPayable            -- ^ 負債 国債 借入金
-                    |   ReserveDepositPayable           -- ^ 負債 未払金
-                    |   CentralBankNotePayable          -- ^ 負債 中央銀行手形
-                    |   Depreciation                    -- ^ 費用
-                    |   WageExpenditure                 -- ^ 費用
-                    |   InterestExpense                 -- ^ 費用
-                    |   TaxesExpense                    -- ^ 費用
-                    |   ConsumptionExpenditure          -- ^ 費用
-                    |   SubsidyExpense                  -- ^ 費用
-                    |   CentralBankPaymentExpence       -- ^ 費用
-                    |   ValueAdded                      -- ^ 収益
-                    |   SubsidyIncome                   -- ^ 収益
-                    |   NationalBondInterestEarned      -- ^ 収益
-                    |   DepositInterestEarned           -- ^ 収益
-                    |   GrossProfit                     -- ^ 収益
-                    |   OrdinaryProfit                  -- ^ 収益
-                    |   InterestEarned                  -- ^ 収益
-                    |   WageEarned                      -- ^ 収益
-                    |   TaxesRevenue                    -- ^ 収益
-                    |   CentralBankPaymentIncome        -- ^ 収益
+data  AccountTitles = Cash                            -- ^ 資産 現金
+                    | Deposits                        -- ^ 資産 預金
+                    | NationalBonds                   -- ^ 資産 国債
+                    | Products                        -- ^ 資産 在庫
+                    | Machinery                       -- ^ 資産 機械設備
+                    | Building                        -- ^ 資産 不動産
+                    | StockInvestment                 -- ^ 資産 株式投資
+                    | EquipmentInvestment             -- ^ 資産 設備投資
+                    | LoansReceivable                 -- ^ 資産 貸付金
+                    | ReserveDepositReceivable        -- ^ 資産 預金準備金
+                    | Gold                            -- ^ 資産 金
+                    | GovernmentService               -- ^ 資産 政府支出
+                    | CapitalStock                    -- ^ 資本 資本金
+                    | RetainedEarnings                -- ^ 資本 留保所得
+                    | LoansPayable                    -- ^ 負債 借入金
+                    | ReserveForDepreciation          -- ^ 負債 償却準備金
+                    | DepositPayable                  -- ^ 負債 預り金
+                    | NationalBondsPayable            -- ^ 負債 国債 借入金
+                    | ReserveDepositPayable           -- ^ 負債 未払金
+                    | CentralBankNotePayable          -- ^ 負債 中央銀行手形
+                    | Depreciation                    -- ^ 費用
+                    | WageExpenditure                 -- ^ 費用
+                    | InterestExpense                 -- ^ 費用
+                    | TaxesExpense                    -- ^ 費用
+                    | ConsumptionExpenditure          -- ^ 費用
+                    | SubsidyExpense                  -- ^ 費用
+                    | CentralBankPaymentExpence       -- ^ 費用
+                    | ValueAdded                      -- ^ 収益
+                    | SubsidyIncome                   -- ^ 収益
+                    | NationalBondInterestEarned      -- ^ 収益
+                    | DepositInterestEarned           -- ^ 収益
+                    | GrossProfit                     -- ^ 収益
+                    | OrdinaryProfit                  -- ^ 収益
+                    | InterestEarned                  -- ^ 収益
+                    | WageEarned                      -- ^ 収益
+                    | TaxesRevenue                    -- ^ 収益
+                    | CentralBankPaymentIncome        -- ^ 収益
+                    | AccountTitle                    -- ^ ワイルドカード
                     deriving (Show, Eq, Ord, Enum)
-instance Element AccountTitles
+
+instance Element AccountTitles where
+    wiledcard = AccountTitle
+
 
 {- |
 
@@ -117,15 +124,26 @@ type Name = Text
 -- | 勘定科目の主体
 type Subject = Text
 instance Element Text where
+    wiledcard   = T.empty
+
 
 -- | 通貨単位 又は 物量
-data CountUnit = Yen | Dollar | Euro | CNY | Amount deriving (Ord, Show, Eq)
-instance Element CountUnit where
+data CountUnit  = Yen
+                | Dollar
+                | Euro
+                | CNY
+                | Amount
+                | CountUnit
+                deriving (Ord, Show, Eq)
 
+instance Element CountUnit where
+    wiledcard = CountUnit
 
 instance Element TimeOfDay where
+    wiledcard = Time.midnight
 
 instance Element Day where
+    wiledcard =  ModifiedJulianDay 0
 
 ------------------------------------------------------------------
 -- * Base 基底の条件
@@ -143,12 +161,12 @@ data AutoGetter = AutoGetter { _maybeGetAccountTitle :: (Maybe AccountTitles)
 initAutoGetter = AutoGetter Nothing Nothing Nothing Nothing Nothing Nothing
 
 -- | Setter 自動生成用 自動生成になっていない Lensを利用したら可能にも思うが,多相が難しい
-data AutoSetter a = AutoSetter  { _maybeSetAccountTitle :: (a -> AccountTitles -> Maybe a)
-                                , _maybeSetName         :: (a -> Name          -> Maybe a)
-                                , _maybeSetCountunit    :: (a -> CountUnit     -> Maybe a)
-                                , _maybeSetSubject      :: (a -> Subject       -> Maybe a)
-                                , _maybeSetDay          :: (a -> Day           -> Maybe a)
-                                , _maybeSetTime         :: (a -> TimeOfDay     -> Maybe a)}
+data AutoSetter a = AutoSetter  { _maybeSetAccountTitle :: (a -> AccountTitles      -> Maybe a)
+                                , _maybeSetName         :: (a -> Name               -> Maybe a)
+                                , _maybeSetCountunit    :: (a -> CountUnit          -> Maybe a)
+                                , _maybeSetSubject      :: (a -> Subject            -> Maybe a)
+                                , _maybeSetDay          :: (a -> Day                -> Maybe a)
+                                , _maybeSetTime         :: (a -> TimeOfDay          -> Maybe a)}
 
 initAutoSetter = AutoSetter (\x y -> Nothing)
                             (\x y -> Nothing)
@@ -181,12 +199,12 @@ class (Eq a, Ord a, Show a) =>  BaseClass a where
     maybeGetTime          a = _maybeGetTime          (autoGetter a)
 
     -- setter 自動化はできていないので自分で定義する必要がある
-    maybeSetAccountTitle  :: a -> AccountTitles -> Maybe a
-    maybeSetName          :: a -> Text          -> Maybe a
-    maybeSetCountunit     :: a -> CountUnit     -> Maybe a
-    maybeSetSubject       :: a -> Text          -> Maybe a
-    maybeSetDay           :: a -> Day           -> Maybe a
-    maybeSetTime          :: a -> TimeOfDay     -> Maybe a
+    maybeSetAccountTitle  :: a -> AccountTitles     -> Maybe a
+    maybeSetName          :: a -> Text              -> Maybe a
+    maybeSetCountunit     :: a -> CountUnit         -> Maybe a
+    maybeSetSubject       :: a -> Text              -> Maybe a
+    maybeSetDay           :: a -> Day               -> Maybe a
+    maybeSetTime          :: a -> TimeOfDay         -> Maybe a
 
     maybeSetAccountTitle a x = (_maybeSetAccountTitle  (autoSetter a)) a x
     maybeSetName         a x = (_maybeSetName          (autoSetter a)) a x
@@ -204,8 +222,9 @@ class (BaseClass a) =>  HatBaseClass a where
     isHat   :: a    -> Bool
 
 -- | Hat の定義
-data Hat = Hat | Not deriving (Ord, Eq)
+data Hat = Hat | Not | HatNot deriving (Ord, Eq)
 instance Element Hat where
+    wiledcard = HatNot
 
 instance Show Hat where
     show Hat = "^"
@@ -265,6 +284,8 @@ class (HatBaseClass a) => ExBaseClass a where
 
     whatDiv     :: a -> AccountDivision
     whatDiv b
+        | isWiledcard (getAccountTitle b)        = error $ "this is wiledcard" ++ show (getAccountTitle b)
+
         | getAccountTitle b == CapitalStock      = Equity
         | getAccountTitle b == RetainedEarnings  = Equity
 
@@ -918,11 +939,6 @@ forceBalance = undefined
 rounding :: Number.NonNegative.Double -> Number.NonNegative.Double
 rounding = fromIntegral . ceiling
 
-
-
--- * AlgSet
-------------------------------------------------------------------
-type AlgSet = [Alg b]
 
 
 
