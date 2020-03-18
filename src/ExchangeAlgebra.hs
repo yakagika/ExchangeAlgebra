@@ -63,41 +63,43 @@ class (Eq a, Ord a, Show a) => Element a where
 -- ** Account Titles
 
 -- | The current version 0.1.0.0 will be completely changed shortly, especially this section.
-data  AccountTitles =    Cash                            -- ^ 資産 現金
-                    |    Deposits                        -- ^ 資産 預金
-                    |    NationalBonds                   -- ^ 資産 国債
-                    |    Products                        -- ^ 資産 在庫
-                    |    StockInvestment                 -- ^ 資産 株式投資
-                    |    EquipmentInvestment             -- ^ 資産 設備投資
-                    |    LoansReceivable                 -- ^ 資産 貸付金
-                    |    ReserveDepositReceivable        -- ^ 資産 預金準備金
-                    |    Gold                            -- ^ 資産 金
-                    |    GovernmentService               -- ^ 資産 政府支出
-                    |    CapitalStock                    -- ^ 資本 資本金
-                    |    RetainedEarnings                -- ^ 資本 留保所得
-                    |    LoansPayable                    -- ^ 負債 借入金
-                    |    ReserveForDepreciation          -- ^ 負債 償却準備金
-                    |    DepositPayable                  -- ^ 負債 預り金
-                    |    NationalBondsPayable            -- ^ 負債 国債 借入金
-                    |    ReserveDepositPayable           -- ^ 負債
-                    |    CentralBankNotePayable          -- ^ 負債
-                    |    Depreciation                    -- ^ 費用
-                    |    WageExpenditure                 -- ^ 費用
-                    |    InterestExpense                 -- ^ 費用
-                    |    TaxesExpense                    -- ^ 費用
-                    |    ConsumptionExpenditure          -- ^ 費用
-                    |    SubsidyExpense                  -- ^ 費用
-                    |    CentralBankPaymentExpence       -- ^ 費用
-                    |    ValueAdded                      -- ^ 収益
-                    |    SubsidyIncome                   -- ^ 収益
-                    |    NationalBondInterestEarned      -- ^ 収益
-                    |    DepositInterestEarned           -- ^ 収益
-                    |    GrossProfit                     -- ^ 収益
-                    |    OrdinaryProfit                  -- ^ 収益
-                    |    InterestEarned                  -- ^ 収益
-                    |    WageEarned                      -- ^ 収益
-                    |    TaxesRevenue                    -- ^ 収益
-                    |    CentralBankPaymentIncome        -- ^ 収益
+data  AccountTitles =   Cash                            -- ^ 資産 現金
+                    |   Deposits                        -- ^ 資産 預金
+                    |   NationalBonds                   -- ^ 資産 国債
+                    |   Products                        -- ^ 資産 在庫
+                    |   Machinery                       -- ^ 資産 機械設備
+                    |   Building                        -- ^ 資産 不動産
+                    |   StockInvestment                 -- ^ 資産 株式投資
+                    |   EquipmentInvestment             -- ^ 資産 設備投資
+                    |   LoansReceivable                 -- ^ 資産 貸付金
+                    |   ReserveDepositReceivable        -- ^ 資産 預金準備金
+                    |   Gold                            -- ^ 資産 金
+                    |   GovernmentService               -- ^ 資産 政府支出
+                    |   CapitalStock                    -- ^ 資本 資本金
+                    |   RetainedEarnings                -- ^ 資本 留保所得
+                    |   LoansPayable                    -- ^ 負債 借入金
+                    |   ReserveForDepreciation          -- ^ 負債 償却準備金
+                    |   DepositPayable                  -- ^ 負債 預り金
+                    |   NationalBondsPayable            -- ^ 負債 国債 借入金
+                    |   ReserveDepositPayable           -- ^ 負債 未払金
+                    |   CentralBankNotePayable          -- ^ 負債 中央銀行手形
+                    |   Depreciation                    -- ^ 費用
+                    |   WageExpenditure                 -- ^ 費用
+                    |   InterestExpense                 -- ^ 費用
+                    |   TaxesExpense                    -- ^ 費用
+                    |   ConsumptionExpenditure          -- ^ 費用
+                    |   SubsidyExpense                  -- ^ 費用
+                    |   CentralBankPaymentExpence       -- ^ 費用
+                    |   ValueAdded                      -- ^ 収益
+                    |   SubsidyIncome                   -- ^ 収益
+                    |   NationalBondInterestEarned      -- ^ 収益
+                    |   DepositInterestEarned           -- ^ 収益
+                    |   GrossProfit                     -- ^ 収益
+                    |   OrdinaryProfit                  -- ^ 収益
+                    |   InterestEarned                  -- ^ 収益
+                    |   WageEarned                      -- ^ 収益
+                    |   TaxesRevenue                    -- ^ 収益
+                    |   CentralBankPaymentIncome        -- ^ 収益
                     deriving (Show, Eq, Ord, Enum)
 instance Element AccountTitles
 
@@ -318,8 +320,12 @@ class (HatBaseClass a) => ExBaseClass a where
 class AccountBase a where
     (<=>) :: a -> a -> Bool
 
-data AccountDivision = Assets | Equity | Liability | Cost | Revenue
-                                deriving (Ord, Show, Eq)
+data AccountDivision = Assets       -- ^ 資産
+                     | Equity       -- ^ 資本
+                     | Liability    -- ^ 負債
+                     | Cost         -- ^ 費用
+                     | Revenue      -- ^ 収益
+                     deriving (Ord, Show, Eq)
 
 instance AccountBase AccountDivision where
     Assets      <=> Liability       = True
@@ -351,9 +357,6 @@ data Side = Credit | Debit deriving (Ord, Show, Eq)
 switchSide :: Side -> Side
 switchSide Credit = Debit
 switchSide Debit  = Credit
-
-
-
 
 ------------------------------------------------------------
 -- * Algebra
@@ -915,6 +918,11 @@ forceBalance = undefined
 rounding :: Number.NonNegative.Double -> Number.NonNegative.Double
 rounding = fromIntegral . ceiling
 
+
+
+-- * AlgSet
+------------------------------------------------------------------
+type AlgSet = [Alg b]
 
 
 
