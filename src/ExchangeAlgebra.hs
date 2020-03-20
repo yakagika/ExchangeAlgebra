@@ -49,16 +49,33 @@ import qualified    Control.Lens        as Lens
 import              Number.NonNegative  (Double, fromNumber, toNumber) -- 非負の実数
 
 ------------------------------------------------------------------
--- * Elements 基底の要素\
+-- * Element 基底の要素\
 ------------------------------------------------------------------
 
 -- | Element Class 基底の要素になるためにはこれのインスタンスになる必要がある
 class (Eq a, Ord a, Show a) => Element a where
-    wiledcard       :: a        -- ^ 検索等に用いるワイルドカード
+
+    wiledcard       ::  a        -- ^ 検索等に用いるワイルドカード
+
     isWiledcard     :: a -> Bool
     isWiledcard a | wiledcard == a = True
                   | otherwise      = False
 
+    equal :: a -> a -> Bool
+    equal a b | isWiledcard a = True
+              | isWiledcard b = True
+              | otherwise     = a == b
+
+    (.==) :: a -> a -> Bool
+    (.==) a b | a == b   || (equal a b) = True
+              | otherwise               = False
+
+    (./=) :: a -> a -> Bool
+    (./=) a b = not (a .== b)
+
+
+infix 4 .==
+infix 4 ./=
 ------------------------------------------------------------------
 -- * Elm
 ------------------------------------------------------------------
@@ -145,6 +162,90 @@ instance Element TimeOfDay where
 instance Element Day where
     wiledcard =  ModifiedJulianDay 0
 
+instance (Element a ,Element b)
+    => Element (a, b) where
+    wiledcard = (wiledcard, wiledcard)
+    equal (a1, a2) (b1, b2)
+        =  (a1 .== b1)
+        && (a2 .== b2)
+
+instance (Element a, Element b, Element c)
+    => Element (a, b, c) where
+    wiledcard = ( wiledcard
+                , wiledcard
+                , wiledcard)
+
+    equal (a1, a2, a3) (b1, b2, b3)
+        =  (a1 .== b1)
+        && (a2 .== b2)
+        && (a3 .== b3)
+
+instance (Element a, Element b, Element c, Element d)
+    => Element (a, b, c, d) where
+    wiledcard = ( wiledcard
+                , wiledcard
+                , wiledcard
+                , wiledcard)
+
+    equal (a1, a2, a3, a4) (b1, b2, b3, b4)
+        =  (a1 .== b1)
+        && (a2 .== b2)
+        && (a3 .== b3)
+        && (a4 .== b4)
+
+
+instance (Element a, Element b, Element c, Element d, Element e)
+    => Element (a, b, c, d, e) where
+    wiledcard = ( wiledcard
+                , wiledcard
+                , wiledcard
+                , wiledcard
+                , wiledcard)
+
+    equal (a1, a2, a3, a4, a5) (b1, b2, b3, b4, b5)
+        =  (a1 .== b1)
+        && (a2 .== b2)
+        && (a3 .== b3)
+        && (a4 .== b4)
+        && (a5 .== b5)
+
+instance (Element a, Element b, Element c, Element d, Element e, Element f)
+    => Element (a, b, c, d, e, f) where
+    wiledcard = ( wiledcard
+                , wiledcard
+                , wiledcard
+                , wiledcard
+                , wiledcard
+                , wiledcard)
+
+    equal (a1, a2, a3, a4, a5, a6) (b1, b2, b3, b4, b5, b6)
+        =  (a1 .== b1)
+        && (a2 .== b2)
+        && (a3 .== b3)
+        && (a4 .== b4)
+        && (a5 .== b5)
+        && (a6 .== b6)
+
+instance (Element a, Element b, Element c, Element d, Element e, Element f, Element d)
+    => Element (a, b, c, d, e, f, d) where
+    wiledcard = ( wiledcard
+                , wiledcard
+                , wiledcard
+                , wiledcard
+                , wiledcard
+                , wiledcard
+                , wiledcard)
+
+    equal (a1, a2, a3, a4, a5, a6, a7) (b1, b2, b3, b4, b5, b6, b7)
+        =  (a1 .== b1)
+        && (a2 .== b2)
+        && (a3 .== b3)
+        && (a4 .== b4)
+        && (a5 .== b5)
+        && (a6 .== b6)
+        && (a7 .== b7)
+
+
 ------------------------------------------------------------------
 -- * Base 基底の条件
 ------------------------------------------------------------------
@@ -179,7 +280,7 @@ initAutoSetter = AutoSetter (\x y -> Nothing)
     これを継承すれば取り敢えず基底になれる
 -}
 
-class (Eq a, Ord a, Show a) =>  BaseClass a where
+class (Element a) =>  BaseClass a where
     autoGetter      :: a -> AutoGetter                         -- ^ Getterだけは自動化可能 ただし,独自の要素を追加した場合は自分で定義する必要がある.
     autoSetter      :: a -> AutoSetter a
 
@@ -216,15 +317,21 @@ class (Eq a, Ord a, Show a) =>  BaseClass a where
 ------------------------------------------------------------------
 -- ** HatBase
 ------------------------------------------------------------------
-class (BaseClass a) =>  HatBaseClass a where
+class (BaseClass a) => HatBaseClass a where
     getHat  :: a    -> Hat
     revHat  :: a    -> a
     isHat   :: a    -> Bool
 
 -- | Hat の定義
 data Hat = Hat | Not | HatNot deriving (Ord, Eq)
+
 instance Element Hat where
     wiledcard = HatNot
+    equal Hat Hat = True
+    equal Hat Not = False
+    equal Not Hat = False
+    equal Not Not = True
+    equal _   _   = True
 
 instance Show Hat where
     show Hat = "^"
@@ -263,7 +370,23 @@ instance Ord (HatBase a) where
             | otherwise = y
 
 instance Show (HatBase a) where
-    show (h :< b) = show h ++ ":<" ++ show b ++ ">"
+    show (h :< b) = show h ++ ":< " ++ show b ++ " >"
+
+instance Element (HatBase a) where
+    wiledcard = undefined
+    equal (h1:<b1) (h2:<b2) = h1 .== h2 && b1 .== b2
+
+
+instance BaseClass (HatBase a) where
+    autoGetter (h :< b) = autoGetter b
+    autoSetter (h :< b) =  let bSetter = autoSetter b
+                        in AutoSetter   (\(h :< b) x -> (h :< ) <$> ((_maybeSetAccountTitle bSetter) b x))
+                                        (\(h :< b) x -> (h :< ) <$> ((_maybeSetName         bSetter) b x))
+                                        (\(h :< b) x -> (h :< ) <$> ((_maybeSetCountunit    bSetter) b x))
+                                        (\(h :< b) x -> (h :< ) <$> ((_maybeSetSubject      bSetter) b x))
+                                        (\(h :< b) x -> (h :< ) <$> ((_maybeSetDay          bSetter) b x))
+                                        (\(h :< b) x -> (h :< ) <$> ((_maybeSetTime         bSetter) b x))
+
 
 instance HatBaseClass (HatBase a) where
     getHat (h   :< b) = h
@@ -440,8 +563,8 @@ instance (HatBaseClass b) => Eq (Alg b) where
     (==) _    Zero = False
 
     (==) (v :@ b) (v' :@ b')
-        | v == v' && b == b'    = True
-        | otherwise             = False
+        | v == v' && b .== b'    = True
+        | otherwise              = False
 
     (==) x y = f x == f y
         where f = (L.filter (Zero <)) . L.sort . toList
@@ -622,14 +745,20 @@ filter f (x :+ y)                   = filter f x .+ filter f y
 -- | projection
 
 proj :: (HatBaseClass b) => b -> Alg b -> Alg b
-proj b alg = filter (\x ->  x /= Zero && hatBase x == b ) alg
+proj b alg = filter (\x ->  x /= Zero && hatBase x .== b ) alg
 
 projByAccountTitle :: (ExBaseClass b) => AccountTitles -> Alg b -> Alg b
-projByAccountTitle at alg = filter (\x -> x /= Zero &&  (maybeGetAccountTitle . hatBase) x == Just at) alg
+projByAccountTitle at alg = filter (f at) alg
+    where
+        f at Zero = False
+        f at x    = case (maybeGetAccountTitle . hatBase) x of
+                        Nothing -> False
+                        Just y  -> at .== y
+
 
 projNorm :: (HatBaseClass b) => b -> Alg b -> Number.NonNegative.Double
 projNorm b alg  = norm $ (.-)
-            $ filter (\x ->  x /= Zero && hatBase x == b ) alg
+            $ filter (\x ->  x /= Zero && hatBase x .== b ) alg
 
 
 -- | Baseの大小（==Algの大小）でソート
@@ -649,15 +778,6 @@ normSort = undefined
 -- 同じ呼び出し関数を使うためにタプルにしている.
 -- DuplicateRecordFields 拡張 よりも制限が少なく 見た目が良いためにこちらを選択
 ------------------------------------------------------------------
-instance BaseClass (HatBase a) where
-    autoGetter (h :< b) = autoGetter b
-    autoSetter (h :< b) =  let bSetter = autoSetter b
-                        in AutoSetter   (\(h :< b) x -> (h :< ) <$> ((_maybeSetAccountTitle bSetter) b x))
-                                        (\(h :< b) x -> (h :< ) <$> ((_maybeSetName         bSetter) b x))
-                                        (\(h :< b) x -> (h :< ) <$> ((_maybeSetCountunit    bSetter) b x))
-                                        (\(h :< b) x -> (h :< ) <$> ((_maybeSetSubject      bSetter) b x))
-                                        (\(h :< b) x -> (h :< ) <$> ((_maybeSetDay          bSetter) b x))
-                                        (\(h :< b) x -> (h :< ) <$> ((_maybeSetTime         bSetter) b x))
 
 -- ** 要素数 1
 -- *** 勘定科目のみ (交換代数基底)
