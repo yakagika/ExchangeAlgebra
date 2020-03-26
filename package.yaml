@@ -27,6 +27,7 @@ dependencies:
 - containers
 - lens
 - numeric-prelude
+- unicode-show
 
 library:
   source-dirs: src
