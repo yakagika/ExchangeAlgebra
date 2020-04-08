@@ -38,7 +38,7 @@ module ExchangeAlgebra where
 import              Debug.Trace
 import qualified    Data.Text           as T
 import              Data.Text           (Text)
-import qualified    Data.List           as L (map, length, elem,sort,foldl1,filter)
+import qualified    Data.List           as L (map, length, elem,sort,foldl1,filter, or)
 import              Prelude             hiding (map, head, filter,tail)
 import qualified    Data.Time           as Time
 import              Data.Time
@@ -153,7 +153,7 @@ data CountUnit  = Yen
                 | CNY
                 | Amount
                 | CountUnit
-                deriving (Ord, Show, Eq)
+                deriving (Ord, Show, Eq,Enum)
 
 instance Element CountUnit where
     wiledcard = CountUnit
@@ -286,7 +286,7 @@ class (BaseClass a) => HatBaseClass a where
     isHat   :: a    -> Bool
 
 -- | Hat の定義
-data Hat = Hat | Not | HatNot
+data Hat = Hat | Not | HatNot deriving (Enum)
 
 instance Eq Hat where
     (==) Hat Hat    = True
@@ -388,6 +388,11 @@ instance HatBaseClass (HatBase a) where
 ------------------------------------------------------------
 -- * Define ExBase
 ------------------------------------------------------------
+data Side = Credit | Debit deriving (Ord, Show, Eq)
+
+switchSide :: Side -> Side
+switchSide Credit = Debit
+switchSide Debit  = Credit
 
 -- | BaseClass ⊃ HatBaseClass ⊃ ExBaseClass
 class (HatBaseClass a) => ExBaseClass a where
@@ -431,6 +436,7 @@ class (HatBaseClass a) => ExBaseClass a where
             , CentralBankPaymentIncome]       = Revenue
         | otherwise                           = Assets
 
+
     whatPIMO    :: a -> PIMO
     whatPIMO x
         | whatDiv x == Assets       = PS
@@ -449,6 +455,13 @@ class (HatBaseClass a) => ExBaseClass a where
             f Liability = Debit
             f Equity    = Debit
             f Revenue   = Debit
+
+    -- credit :: [a] -- ^ Elem に Text や Int などがある場合は projCredit を使う
+    -- credit = L.filter (\x -> whichSide x == Credit) [toEnum 0 ..]
+
+    -- debit :: [a] -- ^ Elem に Text や Int などがある場合は projDebit を使う
+    -- debit = L.filter (\x -> whichSide x == Debit) [toEnum 0 ..]
+
 
 class AccountBase a where
     (<=>) :: a -> a -> Bool
@@ -485,11 +498,6 @@ instance AccountBase PIMO where
     OUT <=> MS   = True
     _   <=> _    = False
 
-data Side = Credit | Debit deriving (Ord, Show, Eq)
-
-switchSide :: Side -> Side
-switchSide Credit = Debit
-switchSide Debit  = Credit
 
 ------------------------------------------------------------
 -- * Algebra
@@ -732,10 +740,28 @@ filter f (v :@ b)   | f (v :@ b)    = v :@ b
                     | otherwise     = Zero
 filter f (x :+ y)                   = filter f x .+ filter f y
 
--- | projection
+{- | projection
+[\
+Let x = \sum_{e_i \in \Gamma}{a_i \times e_i} , then Project[e_k](x) = a_k e_k is defined as projection operatirs.\\
+\forall A \subset \Gannma Project[A](x) is defined as Projecton[A](x) = \sum_{e \in A}{project[e](x)}
+\]
+-}
 
-proj :: (HatBaseClass b) => b -> Alg b -> Alg b
-proj b alg = filter (\x ->  x /= Zero && hatBase x .== b ) alg
+proj :: (ExBaseClass b)  => [b] -> Alg b -> Alg b
+proj bs alg = filter (f bs) alg
+    where
+    f ::(ExBaseClass b)  => [b] -> Alg b  -> Bool
+    f _ Zero     = False
+    f bs (v:@b)  = L.or $ L.map (\x -> b .== x) bs
+
+-- | proj devit algs の代わりに Elem に Text や Int などがある場合は projCredit を使う
+projCredit :: (ExBaseClass b) => Alg b -> Alg b
+projCredit = filter (\x -> (whichSide . hatBase) x == Credit)
+
+-- | proj debit algs の代わりに Elem に Text や Int などがある場合は projDebit を使う
+projDebit :: (ExBaseClass b)  => Alg b -> Alg b
+projDebit = filter (\x -> (whichSide . hatBase) x == Credit)
+
 
 projByAccountTitle :: (ExBaseClass b) => AccountTitles -> Alg b -> Alg b
 projByAccountTitle at alg = filter (f at) alg
