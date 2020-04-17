@@ -602,9 +602,9 @@ instance (HatBaseClass b) => Semigroup (Alg b) where
     (<>) Zero Zero  = Zero
     (<>) Zero !x     = x
     (<>) !x    Zero  = x
-    (<>) !(v :@ b) !(v' :@ b') = (v :@ b) :+ (v' :@ b')
-    (<>) !x  !y =  f ( x :+ y)
-        where f = filter (/= Zero)
+    (<>) !(v :@ b)  !(v' :@ b') = (v :@ b) :+ (v' :@ b')
+    (<>) !x         !(y:+z)     = filter (/= Zero) (x :+ y :+ z)
+    (<>) !(x :+ y)  !z          = filter (/= Zero) (x :+ y :+ z)
 
 instance (HatBaseClass b) => Monoid (Alg b) where
     mempty = Zero
@@ -631,7 +631,7 @@ instance (HatBaseClass b) =>  Redundant (Alg b) where
     (.-) (v :@ b)   | v == 0.0  = Zero
                     | otherwise = v :@ b
     (.-) ((v :@ b) :+ (v' :@ b'))
-        | b /= b' = ((v :@ b) :+ (v' :@ b'))
+        | b /= b' = ((v :@ b) .+ (v' :@ b'))
         | otherwise
             = let h   = getHat b  in
                 let h'  = getHat b' in
@@ -718,6 +718,7 @@ head Zero = Zero
 head (v :@ b) = (v :@ b)
 head (x :+ y) = head x
 
+-- |
 tail :: Alg b -> Alg b
 tail Zero = Zero
 tail (v:@b) = Zero
@@ -738,7 +739,7 @@ filter :: (Alg b -> Bool) -> Alg b -> Alg b
 filter f Zero                       = Zero
 filter f (v :@ b)   | f (v :@ b)    = v :@ b
                     | otherwise     = Zero
-filter f (x :+ y)                   = filter f x .+ filter f y
+filter f (x :+ y)                   = filter f x :+ filter f y
 
 {- | projection
 [\
