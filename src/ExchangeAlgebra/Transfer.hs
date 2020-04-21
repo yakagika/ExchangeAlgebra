@@ -134,7 +134,7 @@ r = 6^ < e1 > +2 < e2 > +2 < e3 > +4 < e4 > +5^ < e5 >
    + 6 < e 1 > + 6 ^ < e A > + 2 ^ < e 2 > + 4 < e A > + 2 ^ < e 3 >
 -}
 
-transfer :: ( BaseClass b) => Alg (HatBase b) -> TransTable b -> Alg (HatBase b)
+transfer :: (HatBaseClass b) => Alg (HatBase b) -> TransTable b -> Alg (HatBase b)
 transfer a NullTable                                = a
 transfer Zero (TransTable _ b f a l r)              = Zero
 transfer (v:@ h :< b1) (TransTable _ b2 f a l r)    | b1 ./= b2 = case compare b1 b2 of
