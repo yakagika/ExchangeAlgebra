@@ -29,12 +29,12 @@ type Size = Int
 data TransTable b where
      NullTable   :: (HatBaseClass b)     => TransTable b
      TransTable  :: (HatBaseClass b)     => { _size       :: Size
-                                         , _before     :: b                                                        {- ^ 変換前の基底 -}
-                                         , _transFunc  :: (NN.Double -> NN.Double) {- ^ 値の変換用の関数 -}
-                                         , _after      :: b                                                        {- ^ 変換後の基底 -}
-                                         , _left       :: TransTable b
-                                         , _right      :: TransTable b }
-                                      -> TransTable b
+                                            , _before     :: b                        {- ^ 変換前の基底 -}
+                                            , _transFunc  :: (NN.Double -> NN.Double) {- ^ 値の変換用の関数 -}
+                                            , _after      :: b                        {- ^ 変換後の基底 -}
+                                            , _left       :: TransTable b
+                                            , _right      :: TransTable b }
+                                            -> TransTable b
 
 instance (HatBaseClass b) => Show (TransTable b) where
     show NullTable                = "[()]"
@@ -134,15 +134,15 @@ r = 6^ < e1 > +2 < e2 > +2 < e3 > +4 < e4 > +5^ < e5 >
    + 6 < e 1 > + 6 ^ < e A > + 2 ^ < e 2 > + 4 < e A > + 2 ^ < e 3 >
 -}
 
-transfer :: (HatBaseClass b) => Alg (HatBase b) -> TransTable b -> Alg (HatBase b)
-transfer a NullTable                                = a
+transfer :: (HatBaseClass b) => Alg b -> TransTable b -> Alg b
+transfer alg NullTable                              = alg
 transfer Zero (TransTable _ b f a l r)              = Zero
-transfer (v:@ h :< b1) (TransTable _ b2 f a l r)    | b1 ./= b2 = case compare b1 b2 of
-                                                            LT -> transfer (v :@ (h:< b1)) l
-                                                            GT -> transfer (v :@ (h:< b1)) r
-                                                    | b1 .== b2 = (f v) :@ (h:< a)
+transfer (v:@ hb1) (TransTable _ hb2 f a l r)       | hb1 ./= hb2 = case compare hb1 hb2 of
+                                                            LT -> transfer (v :@ hb1) l
+                                                            GT -> transfer (v :@ hb1) r
+                                                    | hb1 .== hb2 = (f v) :@ a
 
-transfer ((:+) a xs) tt = (.+) (transfer a tt) (transfer xs tt)
+transfer ((:+) alg algs) tt = (.+) (transfer alg tt) (transfer algs tt)
 
 
 singleton :: (HatBaseClass b) => b -> (NN.Double -> NN.Double) -> b -> TransTable b
