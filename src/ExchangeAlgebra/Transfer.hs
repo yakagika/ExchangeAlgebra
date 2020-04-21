@@ -1,4 +1,4 @@
-{-# LANGUAGE  GADTs, PatternGuards, MagicHash, BangPatterns #-}
+{-# LANGUAGE  GADTs, PatternGuards, MagicHash, BangPatterns, FlexibleInstances #-}
 
 module ExchangeAlgebra.Transfer where
 
@@ -240,10 +240,10 @@ balanceR b f a l r = case l of
               | otherwise -> TransTable (1+ls+rs) b f a l r
 
 
-fromList :: (HatBaseClass b) => [(b,(NN.Double -> NN.Double),b)] -> TransTable b
+fromList :: (HatBaseClass b) => [(b,b,(NN.Double -> NN.Double))] -> TransTable b
 fromList [] = NullTable
-fromList [(b1, f1 ,a1)] = a1 `seq` TransTable 1 b1 f1 a1 NullTable NullTable
-fromList ((b1, f1, a1) : xs0)   | not_ordered b1 xs0 = a1 `seq` fromList' (TransTable 1 b1 f1 a1 NullTable NullTable) xs0
+fromList [(b1,a1, f1)] = a1 `seq` TransTable 1 b1 f1 a1 NullTable NullTable
+fromList ((b1,a1, f1)  : xs0)   | not_ordered b1 xs0 = a1 `seq` fromList' (TransTable 1 b1 f1 a1 NullTable NullTable) xs0
                                 | otherwise = a1 `seq` go (1::Int) (TransTable 1 b1 f1 a1 NullTable NullTable) xs0
   where
     not_ordered _ [] = False
@@ -251,26 +251,40 @@ fromList ((b1, f1, a1) : xs0)   | not_ordered b1 xs0 = a1 `seq` fromList' (Trans
     {-# INLINE not_ordered #-}
 
     fromList' t0 xs = Foldable.foldl' ins t0 xs
-      where ins t (k,f,x) = insert k f x t
+      where ins t (k,x,f) = insert k f x t
 
     go !_ t [] = t
-    go _ t [(kx, fx, x)] = x `seq` insertMax kx fx x t
-    go s l xs@((kx, fx, x) : xss) | not_ordered kx xss = fromList' l xs
+    go _ t [(kx, x, fx)] = x `seq` insertMax kx fx x t
+    go s l xs@((kx, x, fx) : xss) | not_ordered kx xss = fromList' l xs
                               | otherwise = case create s xss of
                                   (r, ys, []) -> x `seq` go (s `shiftL` 1) (link kx fx x l r) ys
                                   (r, _,  ys) -> x `seq` fromList' (link kx fx x l r) ys
 
     create !_ [] = (NullTable, [], [])
     create s xs@(xp : xss)
-      | s == 1 = case xp of (kx,fx, x)  | not_ordered kx xss -> x `seq` (TransTable 1 kx fx x NullTable NullTable, [], xss)
-                                        | otherwise -> x `seq` (TransTable 1 kx fx x NullTable NullTable, xss, [])
+      | s == 1 = case xp of (kx, x, fx)  | not_ordered kx xss -> x `seq` (TransTable 1 kx fx x NullTable NullTable, [], xss)
+                                         | otherwise -> x `seq` (TransTable 1 kx fx x NullTable NullTable, xss, [])
       | otherwise = case create (s `shiftR` 1) xs of
                       res@(_, [], _) -> res
-                      (l, [(ky,fy, y)], zs) -> y `seq` (insertMax ky fy y l, [], zs)
-                      (l, ys@((ky,fy, y):yss), _) | not_ordered ky yss -> (l, [], ys)
+                      (l, [(ky, y, fy)], zs) -> y `seq` (insertMax ky fy y l, [], zs)
+                      (l, ys@((ky, y, fy):yss), _) | not_ordered ky yss -> (l, [], ys)
                                                | otherwise -> case create (s `shiftR` 1) yss of
                                                    (r, zs, ws) -> y `seq` (link ky fy y l r, zs, ws)
 
+data TransTableParts b where
+  (:->)   :: (HatBaseClass b) => b -> b -> TransTableParts b
+
+instance (HatBaseClass b) => Show (TransTableParts b) where
+  show (b1 :-> b2) = show b1 ++ " :-> " ++ show b2
+
+(|%) :: (HatBaseClass b) => TransTableParts b -> (NN.Double -> NN.Double) -> [(b,b,(NN.Double -> NN.Double))]
+(|%) (b1 :-> b2) f = [(b1,b2,f)]
+
+infixr 4 :->
+infixr 3 |%
+
+instance Show (NN.Double -> NN.Double) where
+    show f = "<value transfer>"
 
 {-
 instance Show (TransTable b) where
