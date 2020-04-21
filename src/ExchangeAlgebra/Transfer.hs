@@ -1,4 +1,4 @@
-{-# LANGUAGE  GADTs, PatternGuards, MagicHash, BangPatterns, FlexibleInstances #-}
+{-# LANGUAGE  GADTs, PatternGuards, MagicHash, BangPatterns, FlexibleInstances, PostfixOperators #-}
 
 module ExchangeAlgebra.Transfer where
 
@@ -36,16 +36,17 @@ data TransTable b where
                                             , _right      :: TransTable b }
                                             -> TransTable b
 
+isNullTable NullTable = True
+isNullTable _         = False
+
 instance (HatBaseClass b) => Show (TransTable b) where
-    show NullTable                = "[()]"
+    show NullTable                = "[]"
     show (TransTable s b f a l r)                   = "[(" ++ ushow b
-                                                    ++ ", <function>"
-                                                    ++ ", "
+                                                    ++ ","
                                                     ++ ushow a
-                                                    ++ "), "
-                                                    ++ (Prelude.tail. Prelude.init .ushow) l
-                                                    ++ ", "
-                                                    ++ (Prelude.tail. Prelude.init . ushow) r
+                                                    ++ ",<function>)"
+                                                    ++ (if isNullTable l then "" else "," ++ (Prelude.tail. Prelude.init .ushow) l)
+                                                    ++ (if isNullTable r then "" else "," ++ (Prelude.tail. Prelude.init .ushow) r)
                                                     ++ "]"
 
 instance (HatBaseClass b) => Monoid (TransTable b) where
@@ -140,7 +141,12 @@ transfer Zero (TransTable _ b f a l r)              = Zero
 transfer (v:@ hb1) (TransTable _ hb2 f a l r)       | hb1 ./= hb2 = case compare hb1 hb2 of
                                                             LT -> transfer (v :@ hb1) l
                                                             GT -> transfer (v :@ hb1) r
-                                                    | hb1 .== hb2 = (f v) :@ a
+                                                    | hb1 .== hb2 = case compare v (f v) of
+                                                            LT -> ((f v) - v) :@ hb1 -- 変換後に増えた分足す
+                                                               .+ (f v)       :@ a
+                                                            EQ -> (f v)       :@ a
+                                                            GT -> (v - (f v)) :@ hb1 -- あまり
+                                                               .+ (f v)       :@ a
 
 transfer ((:+) alg algs) tt = (.+) (transfer alg tt) (transfer algs tt)
 
@@ -239,6 +245,10 @@ balanceR b f a l r = case l of
                    (_, _) -> error "Failure in Data.Map.balanceR"
               | otherwise -> TransTable (1+ls+rs) b f a l r
 
+-- | make TransTable from list
+--
+-- >>> ExchangeAlgebra.Transfer.fromList [(Hat:<(Cash),Hat:<(Building),id),(Hat:<(Building),Hat:<(Cash),id)]
+-- [(Hat:<Cash,Hat:<Building,<function>),(Not:<Building,Not:<Cash,<function>)]
 
 fromList :: (HatBaseClass b) => [(b,b,(NN.Double -> NN.Double))] -> TransTable b
 fromList [] = NullTable
@@ -271,20 +281,39 @@ fromList ((b1,a1, f1)  : xs0)   | not_ordered b1 xs0 = a1 `seq` fromList' (Trans
                                                | otherwise -> case create (s `shiftR` 1) yss of
                                                    (r, zs, ws) -> y `seq` (link ky fy y l r, zs, ws)
 
+
+-- | make TransTable from list
+-- same as fromList
+-- >>> table $ Hat:<(Cash) :-> Hat:<(Building) |% id ++ Hat:<(Building) :-> Hat:<(Cash) |% id
+-- [(Hat:<Cash,Hat:<Building,<function>),(Hat:<Building,Hat:<Cash,<function>)]
+
+table ::  (HatBaseClass b) => [(b,b,(NN.Double -> NN.Double))] -> TransTable b
+table = ExchangeAlgebra.Transfer.fromList
+
 data TransTableParts b where
   (:->)   :: (HatBaseClass b) => b -> b -> TransTableParts b
 
 instance (HatBaseClass b) => Show (TransTableParts b) where
   show (b1 :-> b2) = show b1 ++ " :-> " ++ show b2
 
+-- | Syntax to make list for makeList
+--
+-- >>> Hat:<(Yen,Cash):-> Hat:<(Yen,Building) |% id ++ Not:<(Yen,Building)  :-> Not:<(Yen, Cash)  |% id
+-- [(Hat:<(Yen,Cash),Hat:<(Yen,Building),<function>),(Not:<(Yen,Building),Not:<(Yen,Cash),<function>)]
+
 (|%) :: (HatBaseClass b) => TransTableParts b -> (NN.Double -> NN.Double) -> [(b,b,(NN.Double -> NN.Double))]
 (|%) (b1 :-> b2) f = [(b1,b2,f)]
 
-infixr 4 :->
-infixr 3 |%
+infixr 8 :->
+infixr 7 |%
 
 instance Show (NN.Double -> NN.Double) where
-    show f = "<value transfer>"
+    show f = "<function>"
+
+x =  Hat:<Cash      :-> Hat:<Building |% id
+  ++ Not:<Building  :-> Not:<Cash     |% id
+
+
 
 {-
 instance Show (TransTable b) where

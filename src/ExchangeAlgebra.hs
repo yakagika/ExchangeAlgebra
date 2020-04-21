@@ -286,7 +286,7 @@ class (BaseClass a) => HatBaseClass a where
     isHat   :: a    -> Bool
 
 -- | Hat の定義
-data Hat = Hat | Not | HatNot deriving (Enum)
+data Hat = Hat | Not | HatNot deriving (Enum, Show)
 
 instance Eq Hat where
     (==) Hat Hat    = True
@@ -331,10 +331,6 @@ instance Element Hat where
     equal Not Not = True
     equal _   _   = True
 
-instance Show Hat where
-    show Hat    = "^"
-    show Not    = ""
-    show HatNot = "#"
 
 data HatBase a where
      (:<)  :: (BaseClass a) => {hat :: Hat,  base :: a } -> HatBase a
@@ -369,7 +365,7 @@ instance Ord (HatBase a) where
             | otherwise = y
 
 instance Show (HatBase a) where
-    show (h :< b) = show h ++ ":< " ++ show b ++ " >"
+    show (h :< b) = show h ++ ":<" ++ show b
 
 instance Element (HatBase a) where
     wiledcard = undefined

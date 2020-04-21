@@ -52,4 +52,14 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - ExchangeAlgebra
+    - exchangealgebra
+
+  ExchangeAlgebra-doctest:
+    main: test/doctests.hs
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - exchangealgebra
+    - doctest
