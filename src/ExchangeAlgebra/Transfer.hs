@@ -4,7 +4,8 @@ module ExchangeAlgebra.Transfer where
 
 import  qualified   ExchangeAlgebra as EA
 import              ExchangeAlgebra
-import              Number.NonNegative  (Double, fromNumber, toNumber) -- 非負の実数
+
+import qualified    Number.NonNegative  as NN (Double, fromNumber, toNumber) -- 非負の実数
 import qualified    Data.Maybe          as Maybe
 import              Text.Show.Unicode               (ushow)
 import GHC.Exts ( reallyUnsafePtrEquality# )
@@ -26,16 +27,16 @@ type Size = Int
 
 -- | 振替変換テーブル
 data TransTable b where
-     NullTable   :: (BaseClass b)     => TransTable b
-     TransTable  :: (BaseClass b)     => { _size       :: Size
+     NullTable   :: (HatBaseClass b)     => TransTable b
+     TransTable  :: (HatBaseClass b)     => { _size       :: Size
                                          , _before     :: b                                                        {- ^ 変換前の基底 -}
-                                         , _transFunc  :: (Number.NonNegative.Double -> Number.NonNegative.Double) {- ^ 値の変換用の関数 -}
+                                         , _transFunc  :: (NN.Double -> NN.Double) {- ^ 値の変換用の関数 -}
                                          , _after      :: b                                                        {- ^ 変換後の基底 -}
                                          , _left       :: TransTable b
                                          , _right      :: TransTable b }
                                       -> TransTable b
 
-instance (BaseClass b) => Show (TransTable b) where
+instance (HatBaseClass b) => Show (TransTable b) where
     show NullTable                = "[()]"
     show (TransTable s b f a l r)                   = "[(" ++ ushow b
                                                     ++ ", <function>"
@@ -47,17 +48,17 @@ instance (BaseClass b) => Show (TransTable b) where
                                                     ++ (Prelude.tail. Prelude.init . ushow) r
                                                     ++ "]"
 
-instance (BaseClass b) => Monoid (TransTable b) where
+instance (HatBaseClass b) => Monoid (TransTable b) where
     mempty  = NullTable
     mconcat = unions
     mappend = (<>)
 
-instance (BaseClass b) => Semigroup (TransTable b) where
+instance (HatBaseClass b) => Semigroup (TransTable b) where
     (<>)   = union
     stimes = stimesIdempotentMonoid
 
 
-union ::(BaseClass b) => TransTable b -> TransTable b -> TransTable b
+union ::(HatBaseClass b) => TransTable b -> TransTable b -> TransTable b
 union t1 NullTable  = t1
 union t1 (TransTable _ b f a NullTable NullTable) = insertR b f a t1
 union (TransTable _ b f a NullTable NullTable) t2 = insert b f a t2
@@ -68,7 +69,7 @@ union t1@(TransTable _ b1 f1 a1 l1 r1) t2 = case split b1 t2 of
            where !l1l2 = union l1 l2
                  !r1r2 = union r1 r2
 
-link :: (BaseClass b) => b -> (Number.NonNegative.Double -> Number.NonNegative.Double) -> b -> TransTable b -> TransTable b -> TransTable b
+link :: (HatBaseClass b) => b -> (NN.Double -> NN.Double) -> b -> TransTable b -> TransTable b -> TransTable b
 link kx fx x NullTable r  = insertMin kx fx x r
 link kx fx x l NullTable  = insertMax kx fx x l
 link kx fx x l@(TransTable sizeL ky fy y ly ry) r@(TransTable sizeR kz fz z lz rz)
@@ -76,12 +77,12 @@ link kx fx x l@(TransTable sizeL ky fy y ly ry) r@(TransTable sizeR kz fz z lz r
   | delta*sizeR < sizeL  = balanceR ky fy y ly (link kx fx x ry r)
   | otherwise            = bin kx fx x l r
 
-bin :: (BaseClass b) => b -> (Number.NonNegative.Double -> Number.NonNegative.Double) -> b -> TransTable b -> TransTable b -> TransTable b
+bin :: (HatBaseClass b) => b -> (NN.Double -> NN.Double) -> b -> TransTable b -> TransTable b -> TransTable b
 bin k f x l r
   = TransTable (size l + size r + 1) k f x l r
 
 
-split :: (BaseClass b) => b  -> TransTable b -> (TransTable b, TransTable b)
+split :: (HatBaseClass b) => b  -> TransTable b -> (TransTable b, TransTable b)
 split !k0 t0 = toPair $ go k0 t0
   where
     go k t =
@@ -92,7 +93,7 @@ split !k0 t0 = toPair $ go k0 t0
           GT -> let (lt :*: gt) = go k r in link kx fx x l lt :*: gt
           EQ -> (l :*: r)
 
-insertMax,insertMin :: (BaseClass b) => b -> (Number.NonNegative.Double -> Number.NonNegative.Double) -> b -> TransTable b -> TransTable b
+insertMax,insertMin :: (HatBaseClass b) => b -> (NN.Double -> NN.Double) -> b -> TransTable b -> TransTable b
 insertMax kx fx x t
   = case t of
       NullTable -> singleton kx fx x
@@ -106,15 +107,14 @@ insertMin kx fx x t
           -> balanceL ky fy y (insertMin kx fx x l) r
 
 
-unions :: (Foldable f, BaseClass b) => f (TransTable b) -> TransTable b
-unions ts
-  = Foldable.foldl' union NullTable ts
+unions :: (Foldable f, HatBaseClass b) => f (TransTable b) -> TransTable b
+unions ts = Foldable.foldl' union NullTable ts
 
-null :: (BaseClass b) => TransTable b -> Bool
+null :: (HatBaseClass b) => TransTable b -> Bool
 null NullTable = True
 null (TransTable _ _ _ _ _ _) = False
 
-size :: (BaseClass b) => TransTable b -> Size
+size :: (HatBaseClass b) => TransTable b -> Size
 size NullTable = 0
 size (TransTable s _ _ _ _ _) = s
 
@@ -145,13 +145,13 @@ transfer (v:@ h :< b1) (TransTable _ b2 f a l r)    | b1 ./= b2 = case compare b
 transfer ((:+) a xs) tt = (.+) (transfer a tt) (transfer xs tt)
 
 
-singleton :: (BaseClass b) => b -> (Number.NonNegative.Double -> Number.NonNegative.Double) -> b -> TransTable b
+singleton :: (HatBaseClass b) => b -> (NN.Double -> NN.Double) -> b -> TransTable b
 singleton before f after = TransTable 1 before f after NullTable NullTable
 
-insert :: (BaseClass b) => b -> (Number.NonNegative.Double -> Number.NonNegative.Double) -> b -> TransTable b ->  TransTable b
+insert :: (HatBaseClass b) => b -> (NN.Double -> NN.Double) -> b -> TransTable b ->  TransTable b
 insert b = go b b
     where
-    go :: (BaseClass b) =>  b -> b -> (Number.NonNegative.Double -> Number.NonNegative.Double) -> b -> TransTable b -> TransTable b
+    go :: (HatBaseClass b) =>  b -> b -> (NN.Double -> NN.Double) -> b -> TransTable b -> TransTable b
     go orig !_  f  x NullTable = singleton (lazy orig) f x
     go orig !kx fx x t@(TransTable sz ky fy y l r) =
         case compare kx ky of
@@ -164,10 +164,10 @@ insert b = go b b
             EQ | x `ptrEq` y && (lazy orig `seq` (orig `ptrEq` ky)) -> t
                | otherwise -> TransTable sz (lazy orig) fx x l r
 
-insertR ::  (BaseClass b) => b -> (Number.NonNegative.Double -> Number.NonNegative.Double) -> b ->  TransTable b -> TransTable b
+insertR ::  (HatBaseClass b) => b -> (NN.Double -> NN.Double) -> b ->  TransTable b -> TransTable b
 insertR kx0 = go kx0 kx0
   where
-    go :: (BaseClass b) => b -> b -> (Number.NonNegative.Double -> Number.NonNegative.Double) -> b -> TransTable b -> TransTable b
+    go :: (HatBaseClass b) => b -> b -> (NN.Double -> NN.Double) -> b -> TransTable b -> TransTable b
     go orig !_  fx ax NullTable = singleton (lazy orig) fx ax
     go orig !bx fx ax t@(TransTable _ by fy ay l r) =
         case compare bx ay of
@@ -185,7 +185,7 @@ ptrEq x y = isTrue# (reallyUnsafePtrEquality# x y)
 delta = 3
 ratio = 2
 
-balanceL :: (BaseClass b) => b -> (Number.NonNegative.Double -> Number.NonNegative.Double) -> b -> TransTable b -> TransTable b -> TransTable b
+balanceL :: (HatBaseClass b) => b -> (NN.Double -> NN.Double) -> b -> TransTable b -> TransTable b -> TransTable b
 balanceL b f a l r = case r of
   NullTable -> case l of
            NullTable -> TransTable 1 b f a NullTable NullTable
@@ -213,7 +213,7 @@ balanceL b f a l r = case r of
                    (_, _) -> error "Failure in Data.Map.balanceL"
               | otherwise -> TransTable (1+ls+rs) b f a l r
 
-balanceR :: (BaseClass b) =>  b -> (Number.NonNegative.Double -> Number.NonNegative.Double) -> b -> TransTable b -> TransTable b -> TransTable b
+balanceR :: (HatBaseClass b) =>  b -> (NN.Double -> NN.Double) -> b -> TransTable b -> TransTable b -> TransTable b
 balanceR b f a l r = case l of
   NullTable -> case r of
            NullTable                                -> TransTable 1 b f a NullTable NullTable
@@ -240,7 +240,7 @@ balanceR b f a l r = case l of
               | otherwise -> TransTable (1+ls+rs) b f a l r
 
 
-fromList :: (BaseClass b) => [(b,(Number.NonNegative.Double -> Number.NonNegative.Double),b)] -> TransTable b
+fromList :: (HatBaseClass b) => [(b,(NN.Double -> NN.Double),b)] -> TransTable b
 fromList [] = NullTable
 fromList [(b1, f1 ,a1)] = a1 `seq` TransTable 1 b1 f1 a1 NullTable NullTable
 fromList ((b1, f1, a1) : xs0)   | not_ordered b1 xs0 = a1 `seq` fromList' (TransTable 1 b1 f1 a1 NullTable NullTable) xs0
@@ -279,7 +279,7 @@ instance Show (TransTable b) where
     show (FunctionTransTable b) = "FunctionTransTable " ++
                                 (L.foldl1 (++)
                                 (L.map (\(before, (f, after)) -> "(" ++ show before
-                                                              ++ ", ( <function:: Number.NonNegative.Double -> Number.NonNegative.Double>, "
+                                                              ++ ", ( <function:: NN.Double -> NN.Double>, "
                                                               ++ show after ++ ")")
                                 (Map.toList b)))
 
