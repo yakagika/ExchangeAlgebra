@@ -75,6 +75,9 @@ class (Eq a, Ord a, Show a) => Element a where
     (./=) :: a -> a -> Bool
     (./=) a b = not (a .== b)
 
+(.#) :: Element a => a
+(.#) = wiledcard
+
 
 infix 4 .==
 infix 4 ./=
