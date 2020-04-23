@@ -738,6 +738,8 @@ map f (x :+ y) = (map f x) :+ map f y
 -- | filter
 filter :: (Alg b -> Bool) -> Alg b -> Alg b
 filter f Zero                       = Zero
+filter f (v :@ b)   | f (v :@ b)    = v :@ b
+                    | otherwise     = Zero
 filter f (x :+ y)   | f x           = x :+ filter f y
                     | otherwise     = filter f y
 {- | projection
