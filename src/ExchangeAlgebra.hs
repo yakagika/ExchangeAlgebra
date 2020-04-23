@@ -738,10 +738,8 @@ map f (x :+ y) = (map f x) :+ map f y
 -- | filter
 filter :: (Alg b -> Bool) -> Alg b -> Alg b
 filter f Zero                       = Zero
-filter f (v :@ b)   | f (v :@ b)    = v :@ b
-                    | otherwise     = Zero
-filter f (x :+ y)                   = filter f x :+ filter f y
-
+filter f (x :+ y)   | f x           = x :+ filter f y
+                    | otherwise     = filter f y
 {- | projection
 [\
 Let x = \sum_{e_i \in \Gamma}{a_i \times e_i} , then Project[e_k](x) = a_k e_k is defined as projection operatirs.\\
