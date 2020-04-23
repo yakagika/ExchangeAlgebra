@@ -293,7 +293,9 @@ data Hat = Hat | Not | HatNot deriving (Enum, Show)
 
 instance Eq Hat where
     (==) Hat Hat    = True
-    (==) Not Not    = False
+    (==) Not Not    = True
+    (==) Hat Not    = False
+    (==) Not Hat    = False
     (==) Hat HatNot = True
     (==) HatNot Hat = True
     (/=) x y = not (x == y)

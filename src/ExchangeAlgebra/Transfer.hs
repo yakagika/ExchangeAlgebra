@@ -310,11 +310,6 @@ infixr 7 |%
 instance Show (NN.Double -> NN.Double) where
     show f = "<function>"
 
-x =  Hat:<Cash      :-> Hat:<Building |% id
-  ++ Not:<Building  :-> Not:<Cash     |% id
-
-
-
 {-
 instance Show (TransTable b) where
     show (TransTable b)         = "TransTable "         ++ show b
