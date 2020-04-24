@@ -620,7 +620,7 @@ instance (HatBaseClass b) => Monoid (Alg b) where
 instance (HatBaseClass b) =>  Redundant (Alg b) where
     (.^) Zero               = Zero
     (.^) (v :@ b)           = v :@ (revHat b)
-    (.^) (x :+ y)           = map (.^) x :+ map (.^) y
+    (.^) (x :+ y)           = (.^) x .+ (.^) y
 
     (.+) = mappend
 
