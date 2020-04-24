@@ -695,9 +695,10 @@ instance (ExBaseClass a) =>  Exchange (Alg a) where
 -- >>> allHat $ 10:@Hat:<Cash .+ 12:@Not:<Deposits
 -- False
 --
--- in case alg incluede Zero
--- >>> allNot $ 10:@Not:<Cash :+ 12:@Not:<Deposits :+ Zero
--- *** Exception: No match in record selector hatBase
+-- Note: in case Zero, this returns True
+-- >>> allNot (Zero :: Alg (HatBase AccountTitles))
+-- True
+--
 -- use (.+) instead of (:+)
 
 allHat :: (HatBaseClass b) => Alg b -> Bool
@@ -745,8 +746,16 @@ isFormula _        = False
 fromList :: (HatBaseClass b) =>  [Alg b] -> Alg b
 fromList = mconcat
 
+-- | convert Alg b to List
+--
+-- >>> toList $ 10:@Hat:<(Cash) :+ 10:@Hat:<(Deposits) :+ Zero
+-- [10.0:@Hat:<Cash,10.0:@Hat:<Deposits]
+--
+-- you need define type variables to use this for Zero
+-- >>> toList Zero :: [Alg (HatBase AccountTitles)]
+-- []
 toList :: Alg b -> [Alg b]
-toList Zero     = [Zero]
+toList Zero     = []
 toList (v :@ b) = [(v :@ b)]
 toList (x :+ y) = toList x ++ toList y
 
