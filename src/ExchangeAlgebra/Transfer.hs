@@ -247,7 +247,7 @@ balanceR b f a l r = case l of
 
 -- | make TransTable from list
 --
--- >>> ExchangeAlgebra.Transfer.fromList [(Hat:<(Cash),Hat:<(Building),id),(Hat:<(Building),Hat:<(Cash),id)]
+-- >>> ExchangeAlgebra.Transfer.fromList [(Hat:<(Cash),Hat:<(Building),id),(Not:<(Building),Not:<(Cash),id)]
 -- [(Hat:<Cash,Hat:<Building,<function>),(Not:<Building,Not:<Cash,<function>)]
 
 fromList :: (HatBaseClass b) => [(b,b,(NN.Double -> NN.Double))] -> TransTable b

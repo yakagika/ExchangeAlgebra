@@ -38,7 +38,7 @@ module ExchangeAlgebra where
 import              Debug.Trace
 import qualified    Data.Text           as T
 import              Data.Text           (Text)
-import qualified    Data.List           as L (map, length, elem,sort,foldl1,filter, or)
+import qualified    Data.List           as L (map, length, elem,sort,foldl1,filter, or, and)
 import              Prelude             hiding (map, head, filter,tail)
 import qualified    Data.Time           as Time
 import              Data.Time
@@ -287,6 +287,7 @@ class (BaseClass a) => HatBaseClass a where
     getHat  :: a    -> Hat
     revHat  :: a    -> a
     isHat   :: a    -> Bool
+    isNot   :: a    -> Bool
 
 -- | Hat の定義
 data Hat = Hat | Not | HatNot deriving (Enum, Show)
@@ -380,10 +381,14 @@ instance BaseClass (HatBase a) where
 
 instance HatBaseClass (HatBase a) where
     getHat (h   :< b) = h
+
     revHat (Hat :< b) = Not :< b
     revHat (Not :< b) = Hat :< b
+
     isHat  (Hat :< b) = True
     isHat  (Not :< b) = False
+
+    isNot  = not . isHat
 
 
 ------------------------------------------------------------
@@ -681,6 +686,37 @@ instance (ExBaseClass a) =>  Exchange (Alg a) where
 ------------------------------------------------------------------
 -- * 基本の関数
 ------------------------------------------------------------------
+
+-- | 全てHatかどうかを判定する
+--
+-- >>> allHat $ 10:@Hat:<Cash .+ 12:@Hat:<Deposits
+-- True
+--
+-- >>> allHat $ 10:@Hat:<Cash .+ 12:@Not:<Deposits
+-- False
+--
+-- in case alg incluede Zero
+-- >>> allNot $ 10:@Not:<Cash :+ 12:@Not:<Deposits :+ Zero
+-- *** Exception: No match in record selector hatBase
+-- use (.+) instead of (:+)
+
+allHat :: (HatBaseClass b) => Alg b -> Bool
+allHat xs = L.and $ L.map (isHat . hatBase) $ toList xs
+
+
+-- | 全てNotかどうかを判定する
+--
+--
+-- >>> allNot $ 10:@Hat:<Cash .+ 12:@Hat:<Deposits
+-- False
+--
+-- >>> allNot $ 10:@Not:<Cash .+ 12:@Not:<Deposits
+-- True
+
+allNot :: (HatBaseClass b) => Alg b -> Bool
+allNot xs = L.and $ L.map (isNot . hatBase) $ toList xs
+
+
 vals :: Alg b -> [Number.NonNegative.Double]
 vals Zero     = [0]
 vals (x :@ y) = [x]
