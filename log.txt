@@ -1,0 +1,102 @@
+commit e22d269af422db6425f4555c30e6f7cffdfa1f69
+Author: yakagika <kaya3728+github@gmail.com>
+Date:   Sat Apr 25 06:34:07 2020 +0900
+
+    fix toList
+
+commit c4eb9273e72c017c6343abc26db4215cadf8d3bd
+Author: yakagika <kaya3728+github@gmail.com>
+Date:   Sat Apr 25 02:51:11 2020 +0900
+
+    add allHat, allNot
+
+commit a3a5dbb8eb1d158671de25530f7fb03e0c2db53e
+Author: yakagika <kaya3728+github@gmail.com>
+Date:   Sat Apr 25 02:09:04 2020 +0900
+
+    fix (.^)
+
+commit e5e514a18f9347a93520ccdf2b33010cbdf9ae40
+Author: yakagika <kaya3728+github@gmail.com>
+Date:   Thu Apr 23 21:46:19 2020 +0900
+
+    fix filter
+
+commit 87a1eb632d59bdb5986ce48c349286482497ae54
+Author: yakagika <kaya3728+github@gmail.com>
+Date:   Thu Apr 23 21:40:17 2020 +0900
+
+    fix filter
+
+commit a237397d0cbbacd8a15c9dc967024b3cd13e1002
+Author: yakagika <kaya3728+github@gmail.com>
+Date:   Thu Apr 23 21:35:54 2020 +0900
+
+    fix filter
+
+commit 9819e898bc9acceea15ddba716a00cf3375263d8
+Author: yakagika <kaya3728+github@gmail.com>
+Date:   Thu Apr 23 21:25:26 2020 +0900
+
+    modify Eq Hat
+
+commit a80fd25c6f71ce14d8d152e812590c4519ee9ef7
+Author: yakagika <kaya3728+github@gmail.com>
+Date:   Wed Apr 22 23:02:02 2020 +0900
+
+    add .#
+
+commit 27c6588d38ef2e70228a6c890c83c8ed16f20bc9
+Author: yakagika <kaya3728+github@gmail.com>
+Date:   Wed Apr 22 02:38:44 2020 +0900
+
+    make syntaxes
+
+commit 33d65ae016f3cbbcc3e3bfcd5c818a2818fa1b9e
+Author: yakagika <kaya3728+github@gmail.com>
+Date:   Tue Apr 21 14:36:20 2020 +0900
+
+    add TransTableParts
+
+commit d61d1767de5f0bb4dc3ef251522cf5d4c6b5bbb8
+Author: yakagika <kaya3728+github@gmail.com>
+Date:   Tue Apr 21 13:44:20 2020 +0900
+
+    fix Type of function: transfer
+
+commit 16930a679416d50f66631d8bec366331f72f1ef0
+Author: yakagika <kaya3728+github@gmail.com>
+Date:   Tue Apr 21 13:13:16 2020 +0900
+
+    modify Type of function : transfer
+
+commit 6ea9cb941f33b757ba830bca6a2a422b6a4a2f3d
+Author: yakagika <kaya3728+github@gmail.com>
+Date:   Tue Apr 21 12:24:07 2020 +0900
+
+    change transTables Type
+
+commit 82d199604a9e15d8de968c88e6336de70f1b7fec
+Author: yakagika <kaya3728+github@gmail.com>
+Date:   Fri Apr 17 21:45:35 2020 +0900
+
+    fix <> and filter
+
+commit 8e4945d2a4a0ce8c92d4001bc1899957f0908369
+Author: yakagika <kaya3728+github@gmail.com>
+Date:   Fri Apr 17 02:33:49 2020 +0900
+
+    fix projNorm
+
+commit 5f8b80efd12dc909c565b1af2a8547e646e553b6
+Author: Kaya Akagi <akagi@Kayas-MacBook-Pro.local>
+Date:   Sun Apr 12 17:56:23 2020 +0900
+
+    fster proj
+
+commit 5bf2a663a8cc7624b0c133a976906b4200cee5bb
+Author: Kaya Akagi <akagi@Kayas-MacBook-Pro.local>
+Date:   Wed Apr 8 22:09:48 2020 +0900
+
+    add projCredit
+

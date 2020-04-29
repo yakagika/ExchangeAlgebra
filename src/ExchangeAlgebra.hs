@@ -114,7 +114,7 @@ data  AccountTitles = Cash                            -- ^ 資産 現金
                     | TaxesExpense                    -- ^ 費用
                     | ConsumptionExpenditure          -- ^ 費用
                     | SubsidyExpense                  -- ^ 費用
-                    | CentralBankPaymentExpence       -- ^ 費用
+                    | CentralBankPaymentExpense       -- ^ 費用
                     | ValueAdded                      -- ^ 収益
                     | SubsidyIncome                   -- ^ 収益
                     | NationalBondInterestEarned      -- ^ 収益
@@ -427,7 +427,7 @@ class (HatBaseClass a) => ExBaseClass a where
             , TaxesExpense
             , ConsumptionExpenditure
             , SubsidyExpense
-            , CentralBankPaymentExpence]      = Cost
+            , CentralBankPaymentExpense]      = Cost
 
         | L.elem (getAccountTitle b)
             [ ValueAdded
@@ -716,7 +716,6 @@ allHat xs = L.and $ L.map (isHat . hatBase) $ toList xs
 
 allNot :: (HatBaseClass b) => Alg b -> Bool
 allNot xs = L.and $ L.map (isNot . hatBase) $ toList xs
-
 
 vals :: Alg b -> [Number.NonNegative.Double]
 vals Zero     = [0]
