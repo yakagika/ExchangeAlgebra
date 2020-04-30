@@ -38,7 +38,7 @@ module ExchangeAlgebra where
 import              Debug.Trace
 import qualified    Data.Text           as T
 import              Data.Text           (Text)
-import qualified    Data.List           as L (map, length, elem,sort,foldl1,filter, or, and)
+import qualified    Data.List           as L (map, length, elem,sort,foldl1,filter, or, and, sum)
 import              Prelude             hiding (map, head, filter,tail)
 import qualified    Data.Time           as Time
 import              Data.Time
@@ -293,12 +293,14 @@ class (BaseClass a) => HatBaseClass a where
 data Hat = Hat | Not | HatNot deriving (Enum, Show)
 
 instance Eq Hat where
-    (==) Hat Hat    = True
-    (==) Not Not    = True
-    (==) Hat Not    = False
-    (==) Not Hat    = False
-    (==) Hat HatNot = True
-    (==) HatNot Hat = True
+    (==) Hat    Hat     = True
+    (==) Not    Not     = True
+    (==) Hat    Not     = False
+    (==) Not    Hat     = False
+    (==) Hat    HatNot  = True
+    (==) HatNot Hat     = True
+    (==) Not    HatNot  = True
+    (==) HatNot Not     = True
     (/=) x y = not (x == y)
 
 instance Ord Hat where
@@ -631,7 +633,7 @@ instance (HatBaseClass b) =>  Redundant (Alg b) where
 
     norm Zero       = 0
     norm (v :@ b)   = v
-    norm xs         = sum $ vals xs
+    norm xs         = L.sum $ vals xs
 
     (.-) Zero       = Zero
     (.-) (v :@ b)   | v == 0.0  = Zero
