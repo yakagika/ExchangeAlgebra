@@ -546,11 +546,9 @@ class (Redundant a) => Exchange a where
 -- * Algebra
 ------------------------------------------------------------------
 
-{-@ type R = {i:Int | i >= 0 }@-}
 -- | 代数元 数値と基底のペア
 data Alg b where
     Zero :: (HatBaseClass b) => Alg b
-    {-@ (:@) ::  (BaseClass b) => {val :: !R, hatBase :: !b}  -> Alg b @-}
     (:@) :: (HatBaseClass b) => {val :: Number.NonNegative.Double, hatBase :: !b}  -> Alg b
     (:+) :: (HatBaseClass b) => !(Alg b) -> !(Alg b) -> Alg b
 
@@ -607,12 +605,15 @@ instance (HatBaseClass b, Ord b) => Ord (Alg b) where
 
 
 instance (HatBaseClass b) => Semigroup (Alg b) where
-    (<>) Zero Zero  = Zero
-    (<>) Zero !x     = x
-    (<>) !x    Zero  = x
-    (<>) !(v :@ b)  !(v' :@ b') = (v :@ b) :+ (v' :@ b')
-    (<>) !x         !(y:+z)     = filter (/= Zero) (x :+ y :+ z)
-    (<>) !(x :+ y)  !z          = filter (/= Zero) (x :+ y :+ z)
+    (<>) Zero         Zero      = Zero
+    (<>) Zero         !(v:@b)   = v:@b
+    (<>) Zero         !(x:+y)   = x <> y
+    (<>) !(v:@b)      Zero      = v:@b
+    (<>) !(x:+y)      Zero      = x <> y
+    (<>) !(v:@b)      !(v':@b') = (v:@b) :+ (v':@b')
+    (<>) !(v:@b)      !(y:+z)   = (v:@b) <> y <> z
+    (<>) !((v:@b):+y) !(v':@b') = (v:@b) <> y <> (v':@b')
+    (<>) !((v:@b):+y) !(z:+w)   = (v:@b) <> y <> z <> w
 
 instance (HatBaseClass b) => Monoid (Alg b) where
     mempty = Zero
@@ -666,10 +667,10 @@ instance (HatBaseClass b) =>  Redundant (Alg b) where
             f Zero       = Zero
             f (v :@ b)   | v == 0.0  = Zero
                          | otherwise = v :@ b
-            f ((v :@ b) :+ (v' :@ b'))  = (.-) ((v :@ b) :+ (v' :@ b'))
+            f ((v :@ b) :+ (v' :@ b'))  = (.-) ((v :@ b) .+ (v' :@ b'))
             f xs    | isZero h1              = f t
-                    | hatBase h1 /= hatBase h2     = h1 :+ f t
-                    | otherwise = f $ (f (h1 :+ h2)) :+ tail t
+                    | hatBase h1 /= hatBase h2     = h1 .+ f t
+                    | otherwise = f $ (f (h1 :+ h2)) .+ tail t
                     where
                         t  = tail xs
                         h1 = head xs
@@ -767,29 +768,28 @@ head (x :+ y) = head x
 
 -- |
 tail :: Alg b -> Alg b
-tail Zero = Zero
-tail (v:@b) = Zero
-tail (Zero :+ y) =  y
-tail ((v:@ b) :+ y) = y
-tail (x :+ y) = (tail x) :+ y
+tail Zero            = Zero
+tail (v:@b)          = Zero
+tail (Zero :+ y)     = y
+tail ((v:@ b) :+ y)  = y
+tail (x :+ y)        = (tail x) .+ y
 
 {-# INLINE map #-}
 -- | map
 map ::   (Alg b -> Alg b) -> Alg b -> Alg b
 map f  Zero    = f Zero
 map f (v :@ b) = f (v :@ b)
-map f (x :+ y) = (map f x) :+ map f y
+map f (x :+ y) = (map f x) .+ map f y
 
 {-# INLINE filter #-}
 -- | filter
 filter :: (Alg b -> Bool) -> Alg b -> Alg b
-filter f Zero                       = Zero
-filter f (v :@ b)   | f (v :@ b)    = v :@ b
-                    | otherwise     = Zero
-filter f (x :+ y)   | f x           = case (filter f y) of
-                                        Zero -> x
-                                        ys   -> x :+ ys
-                    | otherwise     = filter f y
+filter f Zero                 = Zero
+filter f (v:@b) | f (v:@b)    = v:@b
+                | otherwise   = Zero
+filter f (x:+y) = (filter f x) .+ (filter f y)
+
+
 {- | projection
 [\
 Let x = \sum_{e_i \in \Gamma}{a_i \times e_i} , then Project[e_k](x) = a_k e_k is defined as projection operatirs.\\
@@ -798,7 +798,7 @@ Let x = \sum_{e_i \in \Gamma}{a_i \times e_i} , then Project[e_k](x) = a_k e_k i
 -}
 
 proj :: (HatBaseClass b)  => [b] -> Alg b -> Alg b
-proj bs  alg = filter (\x -> f bs (trace (show x) x) ) alg
+proj bs  alg = filter (f bs) alg
     where
     f ::(HatBaseClass b)  => [b] -> Alg b  -> Bool
     f _   Zero       = False
@@ -832,7 +832,7 @@ projNorm bs alg  = norm $ (.-) $ proj bs alg
 sort :: (Ord b) => Alg b -> Alg b
 sort Zero      = Zero
 sort (v :@ b)  = (v :@ b)
-sort (x :+ y)  = foldl1 (:+) $ L.sort $ toList (x :+ y)
+sort (x :+ y)  = foldl1 (.+) $ L.sort $ toList (x .+ y)
 
 
 -- | normの大小でソート
