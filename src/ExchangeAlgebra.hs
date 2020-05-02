@@ -9,7 +9,9 @@
             , InstanceSigs
             , TypeFamilies
             , RankNTypes
-            , GADTs               #-}
+            , GADTs
+            , Strict
+            , StrictData               #-}
 
 
 {- |

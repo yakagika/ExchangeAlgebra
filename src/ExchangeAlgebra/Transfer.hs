@@ -1,4 +1,11 @@
-{-# LANGUAGE  GADTs, PatternGuards, MagicHash, BangPatterns, FlexibleInstances, PostfixOperators #-}
+{-# LANGUAGE  GADTs
+            , PatternGuards
+            , MagicHash
+            , BangPatterns
+            , FlexibleInstances
+            , PostfixOperators
+            , StrictData
+            , Strict #-}
 
 module ExchangeAlgebra.Transfer where
 
