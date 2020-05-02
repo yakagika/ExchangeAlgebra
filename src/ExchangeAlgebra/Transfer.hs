@@ -3,9 +3,7 @@
             , MagicHash
             , BangPatterns
             , FlexibleInstances
-            , PostfixOperators
-            , StrictData
-            , Strict #-}
+            , PostfixOperators #-}
 
 module ExchangeAlgebra.Transfer where
 
