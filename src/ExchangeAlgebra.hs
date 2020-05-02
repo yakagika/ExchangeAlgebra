@@ -788,7 +788,7 @@ filter f (v :@ b)   | f (v :@ b)    = v :@ b
                     | otherwise     = Zero
 filter f (x :+ y)   | f x           = case (filter f y) of
                                         Zero -> x
-                                        _    -> x :+ filter f y
+                                        ys   -> x :+ ys
                     | otherwise     = filter f y
 {- | projection
 [\
@@ -798,7 +798,7 @@ Let x = \sum_{e_i \in \Gamma}{a_i \times e_i} , then Project[e_k](x) = a_k e_k i
 -}
 
 proj :: (HatBaseClass b)  => [b] -> Alg b -> Alg b
-proj bs  alg = filter (f bs) alg
+proj bs  alg = filter (\x -> f bs (trace (show x) x) ) alg
     where
     f ::(HatBaseClass b)  => [b] -> Alg b  -> Bool
     f _   Zero       = False
