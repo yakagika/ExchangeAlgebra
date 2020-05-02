@@ -793,6 +793,7 @@ filter f (v:@b) | f (v:@b)    = v:@b
 filter f (x:+y) | f x         = case (filter f y) of
                                     Zero -> x
                                     ys   -> x .+ ys
+                | otherwise  = filter f y
 
 {- | projection
 [\
