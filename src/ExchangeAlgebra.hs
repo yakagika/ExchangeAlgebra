@@ -801,9 +801,10 @@ proj :: (HatBaseClass b)  => [b] -> Alg b -> Alg b
 proj bs  alg = filter (f bs) alg
     where
     f ::(HatBaseClass b)  => [b] -> Alg b  -> Bool
-    f _ Zero       = False
-    f [b] (v:@eb)  = b .== eb
-    f bs  (v:@eb)  = L.or $ L.map (\x -> eb .== x) bs
+    f _   Zero       = False
+    f []  _          = False
+    f [b] (v:@eb)    = b .== eb
+    f bs  (v:@eb)    = L.or $ L.map (\x -> eb .== x) bs
 
 -- | proj devit algs の代わりに Elem に Text や Int などがある場合は projCredit を使う
 projCredit :: (ExBaseClass b) => Alg b -> Alg b
