@@ -790,8 +790,9 @@ filter :: (Alg b -> Bool) -> Alg b -> Alg b
 filter f Zero                 = Zero
 filter f (v:@b) | f (v:@b)    = v:@b
                 | otherwise   = Zero
-filter f (x:+y) = (filter f x) .+ (filter f y)
-
+filter f (x:+y) | f x         = case (filter f y) of
+                                    Zero -> x
+                                    ys   -> x .+ ys
 
 {- | projection
 [\
