@@ -38,7 +38,7 @@ module ExchangeAlgebra where
 import              Debug.Trace
 import qualified    Data.Text           as T
 import              Data.Text           (Text)
-import qualified    Data.List           as L (map, length, elem,sort,foldl1,filter, or, and, sum)
+import qualified    Data.List           as L (foldr1, map, length, elem,sort,foldl1,filter, or, and, sum)
 import              Prelude             hiding (map, head, filter,tail)
 import qualified    Data.Time           as Time
 import              Data.Time
@@ -525,8 +525,8 @@ class Redundant a where
     norm :: a -> Number.NonNegative.Double  -- ^ 値の部分だけを抽出
 
 infixr 7 .^
-infixr 4 .-
-infixr 5 .+
+infixr 3 .-
+infixr 4 .+
 
 
 ------------------------------------------------------------
@@ -547,6 +547,9 @@ class (Redundant a) => Exchange a where
 ------------------------------------------------------------------
 
 -- | 代数元 数値と基底のペア
+--
+-- Use (.+) instead of (:+) except for pattern match.
+
 data Alg b where
     Zero :: (HatBaseClass b) => Alg b
     (:@) :: (HatBaseClass b) => {val :: Number.NonNegative.Double, hatBase :: !b}  -> Alg b
@@ -605,15 +608,15 @@ instance (HatBaseClass b, Ord b) => Ord (Alg b) where
 
 
 instance (HatBaseClass b) => Semigroup (Alg b) where
-    (<>) Zero         Zero      = Zero
-    (<>) Zero         !(v:@b)   = v:@b
-    (<>) Zero         !(x:+y)   = x <> y
-    (<>) !(v:@b)      Zero      = v:@b
-    (<>) !(x:+y)      Zero      = x <> y
-    (<>) !(v:@b)      !(v':@b') = (v:@b) :+ (v':@b')
-    (<>) !(v:@b)      !(y:+z)   = (v:@b) <> y <> z
-    (<>) !((v:@b):+y) !(v':@b') = (v:@b) <> y <> (v':@b')
-    (<>) !((v:@b):+y) !(z:+w)   = (v:@b) <> y <> z <> w
+    (<>) Zero         Zero              = Zero
+    (<>) Zero         !(v:@b)           = v:@b
+    (<>) !(v:@b)      Zero              = v:@b
+    (<>) !(v:@b)      !(v':@b')         = v:@b :+ v':@b'
+
+    (<>) Zero         !(z:+w)           = z <> w
+    (<>) !(x:+y)      Zero              = x <> y
+
+    (<>) x            y                 = L.foldr1 (:+) (toList (x :+ y))
 
 instance (HatBaseClass b) => Monoid (Alg b) where
     mempty = Zero
