@@ -620,8 +620,10 @@ instance (HatBaseClass b) => Semigroup (Alg b) where
     (x:+y) <> Zero    = x <> y
     Zero   <> (z:+w)  = z <> w
 
-    -- | 結合法則
-    (x:+y) <> z      = x <> (y <> z)
+    -- | 結合法則(というか右結合に変換)
+    (v:@b) <> (z:+w) = (v:@b) :+ (z <> w)
+    (x:+y) <> (w:@c) = (w:@c) :+ (x <> y)
+    (x:+y) <> (z:+w) = x <> (y <> (z <> w))
 
 
 
