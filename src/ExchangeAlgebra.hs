@@ -527,9 +527,14 @@ class (Monoid a) =>  Redundant a where
     (.|) :: a -> NN.Double
     (.|) = norm
 
+    (<+) :: (Applicative f) => f a -> f a -> f a
+    (<+) x y = (.+) <$> x <*> y
+
+
 infixr 7 .^
 infixr 3 .-
 infixr 4 .+
+infixr 4 <+
 
 
 ------------------------------------------------------------
@@ -558,7 +563,12 @@ data Alg b where
     (:@) :: (HatBaseClass b) => {val :: NN.Double, hatBase :: !b}  -> Alg b
     (:+) :: (HatBaseClass b) => !(Alg b) -> !(Alg b) -> Alg b
 
+
+(<@) :: (Applicative f, HatBaseClass b) => f NN.Double -> b -> f (Alg b)
+(<@) v b = (:@) <$> v <*> (pure b)
+
 infixr 6 :@
+infixr 6 <@
 infixr 5 :+
 
 instance (Show b) => Show (Alg b) where
@@ -821,8 +831,8 @@ proj bs  alg = filter (f bs) alg
     f []  _          = False
     f [b] (v:@eb)    = b .== eb
     f bs  (v:@eb)    = L.or $ L.map (\x -> eb .== x) bs
-    f [b] xs         = error $ show xs
-    f bs  xs         = error $ show xs
+    f [b] xs         = error $ "error at proj : you might use (:+) instead of (.+)."
+    f bs  xs         = error $ "error at proj : you might use (:+) instead of (.+)."
 
 -- | proj devit algs の代わりに Elem に Text や Int などがある場合は projCredit を使う
 projCredit :: (ExBaseClass b) => Alg b -> Alg b
