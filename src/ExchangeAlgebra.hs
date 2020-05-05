@@ -46,7 +46,7 @@ import qualified    Data.Map.Strict     as Map
 import qualified    Data.Map.Strict     as Map
 import qualified    Data.Maybe          as Maybe
 import qualified    Control.Lens        as Lens
-import              Number.NonNegative  (Double, fromNumber, toNumber) -- 非負の実数
+import qualified    Number.NonNegative  as NN (Double, fromNumber, toNumber) -- 非負の実数
 
 ------------------------------------------------------------------
 -- * Element 基底の要素
@@ -518,11 +518,14 @@ instance AccountBase PIMO where
 --
 --  Redundant ⊃ Exchange
 
-class Redundant a where
+class (Monoid a) =>  Redundant a where
     (.^) :: a -> a
     (.-) :: a -> a
     (.+) :: a -> a -> a
-    norm :: a -> Number.NonNegative.Double  -- ^ 値の部分だけを抽出
+    (.*) :: NN.Double -> a -> a
+    norm :: a -> NN.Double  -- ^ 値の部分だけを抽出
+    (.|) :: a -> NN.Double
+    (.|) = norm
 
 infixr 7 .^
 infixr 3 .-
@@ -552,7 +555,7 @@ class (Redundant a) => Exchange a where
 
 data Alg b where
     Zero :: (HatBaseClass b) => Alg b
-    (:@) :: (HatBaseClass b) => {val :: Number.NonNegative.Double, hatBase :: !b}  -> Alg b
+    (:@) :: (HatBaseClass b) => {val :: NN.Double, hatBase :: !b}  -> Alg b
     (:+) :: (HatBaseClass b) => !(Alg b) -> !(Alg b) -> Alg b
 
 infixr 6 :@
@@ -572,8 +575,8 @@ instance (HatBaseClass b) => Eq (Alg b) where
         | v == v' && b .== b'    = True
         | otherwise              = False
 
-    (==) x y = f x == f y
-        where f = (L.filter (Zero <)) . L.sort . toList
+    -- 交換法則
+    (==) (x :+ y) (w :+ z)       = (x == w && y == z)  || (x == z && y == w)
 
     (/=) x y = not (x == y)
 
@@ -608,24 +611,22 @@ instance (HatBaseClass b, Ord b) => Ord (Alg b) where
 
 
 instance (HatBaseClass b) => Semigroup (Alg b) where
-    (<>) Zero         Zero              = Zero
-    (<>) Zero         !(v:@b)           = v:@b
-    (<>) !(v:@b)      Zero              = v:@b
-    (<>) !(v:@b)      !(v':@b')         = v:@b :+ v':@b'
+    -- | 結合法則
+    (v:@b) <> (w:@c) = (v:@b) :+ (w:@c)
+    (x :+ y) <> z    = x <> (y :+ z)
 
-    (<>) Zero         !(z:+w)           = z <> w
-    (<>) !(x:+y)      Zero              = x <> y
-
-    (<>) x            y                 = L.foldr1 (:+) (toList (x :+ y))
 
 instance (HatBaseClass b) => Monoid (Alg b) where
+    -- 単位元
     mempty = Zero
-    mappend = (<>)
-    mconcat []       = Zero
-    mconcat [Zero]   = Zero
-    mconcat [v :@ b] = v :@ b
-    mconcat (x:y) = x `mappend`  mconcat y
 
+    -- 単位元の演算
+    mappend Zero    Zero   = Zero
+    mappend Zero   (v:@b)  = (v:@b)
+    mappend (v:@b)  Zero   = (v:@b)
+    mappend (x:+y) Zero    = (x:+y)
+    mappend Zero   (z:+w)  = (z:+w)
+    mappend x      y       = x <> y
 
 
 instance (HatBaseClass b) =>  Redundant (Alg b) where
@@ -634,6 +635,11 @@ instance (HatBaseClass b) =>  Redundant (Alg b) where
     (.^) (x :+ y)           = (.^) x .+ (.^) y
 
     (.+) = mappend
+
+    -- (.*)
+    x  .*  Zero    = Zero
+    x  .*  (v:@b)  = (x * v):@b
+    a  .*  (x:+y)  = (a.* x) .+ (a .* y)
 
     norm Zero       = 0
     norm (v :@ b)   = v
@@ -723,7 +729,7 @@ allHat xs = L.and $ L.map (isHat . hatBase) $ toList xs
 allNot :: (HatBaseClass b) => Alg b -> Bool
 allNot xs = L.and $ L.map (isNot . hatBase) $ toList xs
 
-vals :: Alg b -> [Number.NonNegative.Double]
+vals :: Alg b -> [NN.Double]
 vals Zero     = [0]
 vals (x :@ y) = [x]
 vals xs = L.map val $ toList xs
@@ -828,7 +834,7 @@ projByAccountTitle at alg = filter (f at) alg
         f at x    = ((getAccountTitle .hatBase) x) .== at
 
 
-projNorm :: (HatBaseClass b) => [b] -> Alg b -> Number.NonNegative.Double
+projNorm :: (HatBaseClass b) => [b] -> Alg b -> NN.Double
 projNorm bs alg  = norm $ (.-) $ proj bs alg
 
 
@@ -918,7 +924,7 @@ forceBalance = undefined
 勘定科目の乗除には全てこれを適用
 -}
 
-rounding :: Number.NonNegative.Double -> Number.NonNegative.Double
+rounding :: NN.Double -> NN.Double
 rounding = fromIntegral . ceiling
 
 
