@@ -817,6 +817,8 @@ proj bs  alg = filter (f bs) alg
     f []  _          = False
     f [b] (v:@eb)    = b .== eb
     f bs  (v:@eb)    = L.or $ L.map (\x -> eb .== x) bs
+    f [b] xs         = error $ show xs
+    f bs  xs         = error $ show xs
 
 -- | proj devit algs の代わりに Elem に Text や Int などがある場合は projCredit を使う
 projCredit :: (ExBaseClass b) => Alg b -> Alg b
