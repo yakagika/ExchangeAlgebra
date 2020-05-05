@@ -613,7 +613,8 @@ instance (HatBaseClass b, Ord b) => Ord (Alg b) where
 instance (HatBaseClass b) => Semigroup (Alg b) where
     -- | 結合法則
     (v:@b) <> (w:@c) = (v:@b) :+ (w:@c)
-    (x :+ y) <> z    = x <> (y :+ z)
+    (x:+y) <> z      = x <> (y :+ z)
+    x      <> y      = x :+ y
 
 
 instance (HatBaseClass b) => Monoid (Alg b) where
@@ -624,8 +625,8 @@ instance (HatBaseClass b) => Monoid (Alg b) where
     mappend Zero    Zero   = Zero
     mappend Zero   (v:@b)  = (v:@b)
     mappend (v:@b)  Zero   = (v:@b)
-    mappend (x:+y) Zero    = (x:+y)
-    mappend Zero   (z:+w)  = (z:+w)
+    mappend (x:+y) Zero    = mappend x y
+    mappend Zero   (z:+w)  = mappend z w
     mappend x      y       = x <> y
 
 
