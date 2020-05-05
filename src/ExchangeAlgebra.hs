@@ -611,23 +611,25 @@ instance (HatBaseClass b, Ord b) => Ord (Alg b) where
 
 
 instance (HatBaseClass b) => Semigroup (Alg b) where
-    -- | 結合法則
     (v:@b) <> (w:@c) = (v:@b) :+ (w:@c)
-    (x:+y) <> z      = x <> (y :+ z)
-    x      <> y      = x :+ y
+
+    -- | 単位元の演算
+    Zero   <>  Zero   = Zero
+    Zero   <> (v:@b)  = (v:@b)
+    (v:@b) <> Zero    = (v:@b)
+    (x:+y) <> Zero    = x <> y
+    Zero   <> (z:+w)  = z <> w
+
+    -- | 結合法則
+    (x:+y) <> z      = x <> (y <> z)
+
 
 
 instance (HatBaseClass b) => Monoid (Alg b) where
     -- 単位元
     mempty = Zero
 
-    -- 単位元の演算
-    mappend Zero    Zero   = Zero
-    mappend Zero   (v:@b)  = (v:@b)
-    mappend (v:@b)  Zero   = (v:@b)
-    mappend (x:+y) Zero    = mappend x y
-    mappend Zero   (z:+w)  = mappend z w
-    mappend x      y       = x <> y
+    mappend = (<>)
 
 
 instance (HatBaseClass b) =>  Redundant (Alg b) where
