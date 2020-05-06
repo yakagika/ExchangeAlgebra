@@ -531,9 +531,9 @@ class (Monoid a) =>  Redundant a where
 
 
 infixr 7 .^
-infixr 3 .-
-infixr 4 .+
-infixr 4 <+
+infixr 2 .-
+infixr 3 .+
+infixr 3 <+
 
 
 ------------------------------------------------------------
