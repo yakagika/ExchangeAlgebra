@@ -39,13 +39,12 @@ import              Debug.Trace
 import qualified    Data.Text           as T
 import              Data.Text           (Text)
 import qualified    Data.List           as L (foldr1, map, length, elem,sort,foldl1,filter, or, and, sum)
-import              Prelude             hiding (map, head, filter,tail)
+import              Prelude             hiding (map, head, filter,tail, traverse, mapM)
 import qualified    Data.Time           as Time
 import              Data.Time
 import qualified    Data.Map.Strict     as Map
 import qualified    Data.Map.Strict     as Map
 import qualified    Data.Maybe          as Maybe
-import qualified    Control.Lens        as Lens
 import qualified    Number.NonNegative  as NN (Double, fromNumber, toNumber) -- 非負の実数
 
 ------------------------------------------------------------------
@@ -769,7 +768,7 @@ isFormula :: Alg b -> Bool
 isFormula (x :+ y) = True
 isFormula _        = False
 
-fromList :: (HatBaseClass b) =>  [Alg b] -> Alg b
+fromList ::(HatBaseClass b ) => [Alg b] -> Alg b
 fromList = mconcat
 
 -- | convert Alg b to List
@@ -800,10 +799,23 @@ tail (x :+ y)        = (tail x) .+ y
 
 {-# INLINE map #-}
 -- | map
-map ::   (Alg b -> Alg b) -> Alg b -> Alg b
+map :: (HatBaseClass b) => (Alg a -> Alg b) -> Alg a -> Alg b
 map f  Zero    = f Zero
 map f (v :@ b) = f (v :@ b)
 map f (x :+ y) = (map f x) .+ map f y
+
+traverse :: (HatBaseClass b, Applicative f) => (Alg a -> f (Alg b)) -> Alg a -> f (Alg b)
+traverse f xs = fromList <$>  (sequenceA . fmap f)  (toList xs)
+
+{-# INLINE mapM #-}
+mapM ::  (HatBaseClass b, Applicative f) => (Alg a -> f (Alg b)) -> Alg a -> f (Alg b)
+mapM = traverse
+
+{-# INLINE forM #-}
+forM ::  (HatBaseClass b, Applicative f) =>  Alg a -> (Alg a -> f (Alg b)) -> f (Alg b)
+forM = flip mapM
+
+
 
 {-# INLINE filter #-}
 -- | filter
