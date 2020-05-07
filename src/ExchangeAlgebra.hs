@@ -620,18 +620,34 @@ instance (HatBaseClass b, Ord b) => Ord (Alg b) where
 
 
 instance (HatBaseClass b) => Semigroup (Alg b) where
-    (v:@b) <> (w:@c) = (v:@b) :+ (w:@c)
+    (v:@b) <> (w:@c) = case (v == 0 , w == 0) of
+                            (True, True)   -> Zero
+                            (True, False)  -> (w:@c)
+                            (False, True)  -> (v:@b)
+                            (False, False) -> (v:@b) :+ (w:@c)
 
     -- | 単位元の演算
     Zero   <>  Zero   = Zero
-    Zero   <> (v:@b)  = (v:@b)
-    (v:@b) <> Zero    = (v:@b)
+    Zero   <> (v:@b)  = case v == 0 of
+                            True  -> Zero
+                            False -> (v:@b)
+
+    (v:@b) <> Zero    = case v == 0 of
+                            True  -> Zero
+                            False -> (v:@b)
+
     (x:+y) <> Zero    = x <> y
     Zero   <> (z:+w)  = z <> w
 
     -- | 結合法則(というか右結合に変換)
-    (v:@b) <> (z:+w) = (v:@b) :+ (z <> w)
-    (x:+y) <> (w:@c) = (w:@c) :+ (x <> y)
+    (v:@b) <> (z:+w) = case v == 0 of
+                        True  -> (z <> w)
+                        False -> (v:@b) :+ (z <> w)
+
+    (x:+y) <> (w:@c) = case w == 0 of
+                        True  -> (x <> y)
+                        False -> (w:@c) :+ (x <> y)
+
     (x:+y) <> (z:+w) = x <> (y <> (z <> w))
 
 
@@ -639,9 +655,8 @@ instance (HatBaseClass b) => Semigroup (Alg b) where
 instance (HatBaseClass b) => Monoid (Alg b) where
     -- 単位元
     mempty = Zero
-
     mappend = (<>)
-
+    mconcat = foldr mappend mempty
 
 instance (HatBaseClass b) =>  Redundant (Alg b) where
     (.^) Zero               = Zero
@@ -652,7 +667,11 @@ instance (HatBaseClass b) =>  Redundant (Alg b) where
 
     -- (.*)
     x  .*  Zero    = Zero
-    x  .*  (v:@b)  = (x * v):@b
+    0  .*  x       = Zero
+    x  .*  (v:@b)  = case v == 0 of
+                        True  -> Zero
+                        False -> (x * v):@b
+
     a  .*  (x:+y)  = (a.* x) .+ (a .* y)
 
     norm Zero       = 0
@@ -662,6 +681,7 @@ instance (HatBaseClass b) =>  Redundant (Alg b) where
     (.-) Zero       = Zero
     (.-) (v :@ b)   | v == 0.0  = Zero
                     | otherwise = v :@ b
+
     (.-) ((v :@ b) :+ (v' :@ b'))
         | b /= b' = ((v :@ b) .+ (v' :@ b'))
         | otherwise
@@ -676,7 +696,6 @@ instance (HatBaseClass b) =>  Redundant (Alg b) where
                 (Hat, Not)  | v == v' -> Zero
                             | v >  v' -> (v - v') :@ b
                             | v <  v' -> (v' - v) :@ b'
-
 
     (.-) xs = filter g $ f z
         where
@@ -814,7 +833,6 @@ mapM = traverse
 {-# INLINE forM #-}
 forM ::  (HatBaseClass b, Applicative f) =>  Alg a -> (Alg a -> f (Alg b)) -> f (Alg b)
 forM = flip mapM
-
 
 
 {-# INLINE filter #-}
@@ -955,12 +973,6 @@ forceBalance = undefined
 
 rounding :: NN.Double -> NN.Double
 rounding = fromIntegral . ceiling
-
-
-
-
-
-
 
 
 
