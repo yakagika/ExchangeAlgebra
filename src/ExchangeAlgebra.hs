@@ -9,7 +9,9 @@
             , InstanceSigs
             , TypeFamilies
             , RankNTypes
-            , GADTs                     #-}
+            , GADTs
+            , StrictData
+            , Strict                     #-}
 
 
 {- |
@@ -705,14 +707,18 @@ instance (HatBaseClass b) =>  Redundant (Alg b) where
             g _        = True
 
             z = sort xs
+
             f :: (HatBaseClass b) => Alg b  -> Alg b
             f Zero       = Zero
+
             f (v :@ b)   | v == 0.0  = Zero
                          | otherwise = v :@ b
+
             f ((v :@ b) :+ (v' :@ b'))  = (.-) ((v :@ b) .+ (v' :@ b'))
-            f xs    | isZero h1              = f t
-                    | hatBase h1 /= hatBase h2     = h1 .+ f t
-                    | otherwise = f $ (f (h1 :+ h2)) .+ tail t
+
+            f xs    | isZero  h1               = f t
+                    | hatBase h1 /= hatBase h2 = h1 .+ f t
+                    | otherwise                = f $ (f (h1 :+ h2)) .+ tail t
                     where
                         t  = tail xs
                         h1 = head xs
