@@ -153,7 +153,7 @@ transfer (v:@ hb1) (TransTable _ hb2 f a l r)       | hb1 ./= hb2 = case compare
                                                             GT -> (v - (f v)) :@ hb1 -- あまり
                                                                .+ (f v)       :@ a
 
-transfer ((:+) alg algs) tt = (.+) (transfer alg tt) (transfer algs tt)
+transfer xs tt = ExchangeAlgebra.map (\x -> transfer x tt) xs
 
 
 singleton :: (HatBaseClass b) => b -> (NN.Double -> NN.Double) -> b -> TransTable b
