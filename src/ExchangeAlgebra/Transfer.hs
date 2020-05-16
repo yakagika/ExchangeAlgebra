@@ -23,6 +23,7 @@ import qualified Data.Foldable as Foldable
 import Data.Foldable (Foldable())
 import Data.Bits (shiftL, shiftR)
 import Utils.Containers.Internal.StrictPair
+import Debug.Trace
 
 ------------------------------------------------------------------
 -- * 基本計算処理
@@ -146,7 +147,7 @@ transfer Zero (TransTable _ b f a l r)              = Zero
 transfer (v:@ hb1) (TransTable _ hb2 f a l r)       | hb1 ./= hb2 = case compare hb1 hb2 of
                                                             LT -> transfer (v :@ hb1) l
                                                             GT -> transfer (v :@ hb1) r
-                                                    | hb1 .== hb2 = case compare v (f v) of
+                                                    | (trace (show hb1) hb1) .== (trace (show hb2) hb2) = case compare v (f v) of
                                                             LT -> ((f v) - v) :@ hb1 -- 変換後に増えた分足す
                                                                .+ (f v)       :@ a
                                                             EQ -> (f v)       :@ a
