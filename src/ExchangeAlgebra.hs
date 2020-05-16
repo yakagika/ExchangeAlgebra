@@ -306,6 +306,7 @@ instance Eq Hat where
 
 instance Ord Hat where
     compare Hat Hat     = EQ
+    compare Not Not     = EQ
     compare HatNot _    = EQ
     compare _ HatNot    = EQ
     compare Hat Not     = LT
