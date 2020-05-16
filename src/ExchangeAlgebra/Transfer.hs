@@ -144,10 +144,10 @@ r = 6^ < e1 > +2 < e2 > +2 < e3 > +4 < e4 > +5^ < e5 >
 transfer :: (HatBaseClass b) => Alg b -> TransTable b -> Alg b
 transfer alg NullTable                              = alg
 transfer Zero (TransTable _ b f a l r)              = Zero
-transfer (v:@ hb1) (TransTable _ hb2 f a l r)       | (trace (show hb1) hb1) ./= (trace (show hb2) hb2) = case compare hb1 hb2 of
+transfer (v:@ hb1) (TransTable _ hb2 f a l r)       | hb1 ./= hb2 = case compare hb1 hb2 of
                                                             LT -> transfer (v :@ hb1) l
                                                             GT -> transfer (v :@ hb1) r
-                                                    | (trace (show hb1) hb1) .== (trace (show hb2) hb2) = case compare v (f v) of
+                                                    | hb1 .== hb2 = case compare v (f v) of
                                                             LT -> ((f v) - v) :@ hb1 -- 変換後に増えた分足す
                                                                .+ (f v)       :@ a
                                                             EQ -> (f v)       :@ a
@@ -205,19 +205,19 @@ balanceL b f a l r = case r of
                 -> TransTable 2 b f a l NullTable
 
            (TransTable _ lb lf la NullTable (TransTable _ lrb lrf lra _ _))
-                -> TransTable 3 lra lrf lrb (TransTable 1 lb lf la NullTable NullTable) (TransTable 1 a f b NullTable NullTable)
+                -> TransTable 3 lrb lrf lra (TransTable 1 lb lf la NullTable NullTable) (TransTable 1 b f a NullTable NullTable)
 
            (TransTable _ lb lf la ll@(TransTable _ _ _ _ _ _) NullTable)
                 -> TransTable 3 lb lf la ll (TransTable 1 b f a NullTable NullTable)
 
-           (TransTable ls lb lf la ll@(TransTable lls _ _ _ _ _) lr@(TransTable lrs lra lrf lrb lrl lrr))
+           (TransTable ls lb lf la ll@(TransTable lls _ _ _ _ _) lr@(TransTable lrs lrb lrf lra lrl lrr))
              | lrs < ratio*lls  -> TransTable (1+ls) lb lf la ll (TransTable (1+lrs) b f a lr NullTable)
              | otherwise        -> TransTable (1+ls) lrb lrf lra (TransTable (1+lls+size lrl) lb lf la ll lrl) (TransTable (1+size lrr) b f a lrr NullTable)
 
   (TransTable rs _ _ _ _ _) -> case l of
            NullTable -> TransTable (1+rs) b f a NullTable r
 
-           (TransTable ls la lf lb ll lr)
+           (TransTable ls lb lf la ll lr)
               | ls > delta*rs  -> case (ll, lr) of
                    (TransTable lls _ _ _ _ _, TransTable lrs lrb lrf lra lrl lrr)
                      | lrs < ratio*lls -> TransTable (1+ls+rs) lb lf la ll (TransTable (1+rs+lrs) b f a lr r)
@@ -272,9 +272,9 @@ fromList ((b1,a1, f1)  : xs0)   | not_ordered b1 xs0 = a1 `seq` fromList' (Trans
     go !_ t [] = t
     go _ t [(kx, x, fx)] = x `seq` insertMax kx fx x t
     go s l xs@((kx, x, fx) : xss) | not_ordered kx xss = fromList' l xs
-                              | otherwise = case create s xss of
-                                  (r, ys, []) -> x `seq` go (s `shiftL` 1) (link kx fx x l r) ys
-                                  (r, _,  ys) -> x `seq` fromList' (link kx fx x l r) ys
+                                  | otherwise = case create s xss of
+                                    (r, ys, []) -> x `seq` go (s `shiftL` 1) (link kx fx x l r) ys
+                                    (r, _,  ys) -> x `seq` fromList' (link kx fx x l r) ys
 
     create !_ [] = (NullTable, [], [])
     create s xs@(xp : xss)
@@ -284,8 +284,8 @@ fromList ((b1,a1, f1)  : xs0)   | not_ordered b1 xs0 = a1 `seq` fromList' (Trans
                       res@(_, [], _) -> res
                       (l, [(ky, y, fy)], zs) -> y `seq` (insertMax ky fy y l, [], zs)
                       (l, ys@((ky, y, fy):yss), _) | not_ordered ky yss -> (l, [], ys)
-                                               | otherwise -> case create (s `shiftR` 1) yss of
-                                                   (r, zs, ws) -> y `seq` (link ky fy y l r, zs, ws)
+                                                   | otherwise -> case create (s `shiftR` 1) yss of
+                                                      (r, zs, ws) -> y `seq` (link ky fy y l r, zs, ws)
 
 
 -- | make TransTable from list
