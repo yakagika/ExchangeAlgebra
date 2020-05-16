@@ -345,7 +345,7 @@ data HatBase a where
      (:<)  :: (BaseClass a) => {hat :: Hat,  base :: a } -> HatBase a
 
 instance Eq (HatBase a) where
-    (==) (h1 :< b1) (h2 :< b2) = b1 .== b2
+    (==) (h1 :< b1) (h2 :< b2) = h1 .== h2 && b1 .== b2
     (/=) x y = not (x == y)
 
 instance Ord (HatBase a) where
@@ -660,6 +660,7 @@ instance (HatBaseClass b) => Monoid (Alg b) where
     mappend = (<>)
     mconcat = foldr mappend mempty
 
+
 instance (HatBaseClass b) =>  Redundant (Alg b) where
     (.^) Zero               = Zero
     (.^) (v :@ b)           = v :@ (revHat b)
@@ -687,9 +688,9 @@ instance (HatBaseClass b) =>  Redundant (Alg b) where
     (.-) ((v :@ b) :+ (v' :@ b'))
         | b /= b' = ((v :@ b) .+ (v' :@ b'))
         | otherwise
-            = let h   = getHat b  in
-                let h'  = getHat b' in
-                case (h, h') of
+            =  let h   = getHat b
+            in let h'  = getHat b'
+            in case (h, h') of
                 (Hat, Hat) -> (v + v') :@ b
                 (Not, Not) -> (v + v') :@ b
                 (Not, Hat)  | v == v' -> Zero
