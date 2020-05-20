@@ -355,7 +355,7 @@ redemption nbir alg = undefined
     -- Hat付きの国債及び国債借入金を現金に変換
     hatConvertedAlg :: (ExBaseClass b) => Alg b -> Alg b
     hatConvertedAlg alg = (flip EA.map) alg
-                    $ \(v:@ hb) -> case (getHat hb, getAccountTitle hb) of
+                    $ \(v:@ hb) -> case (hat hb, getAccountTitle hb) of
                                         (Not, _)                    -> (v:@ hb)
                                         (Hat, NationalBonds)        -> v :@ (setAccountTitle hb Cash)
                                         (Hat, NationalBondsPayable) -> v :@ (setAccountTitle hb Cash)

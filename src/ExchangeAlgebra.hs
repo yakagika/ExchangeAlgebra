@@ -285,7 +285,7 @@ instance (Element e1, Element e2, Element e3, Element e4, Element e5, Element e6
 -- ** HatBase
 ------------------------------------------------------------------
 class (BaseClass a) => HatBaseClass a where
-    getHat  :: a    -> Hat
+    hat  :: a    -> Hat
     revHat  :: a    -> a
     isHat   :: a    -> Bool
     isNot   :: a    -> Bool
@@ -343,7 +343,7 @@ instance Element Hat where
 
 
 data HatBase a where
-     (:<)  :: (BaseClass a) => {hat :: Hat,  base :: a } -> HatBase a
+     (:<)  :: (BaseClass a) => {_hat :: Hat,  _base :: a } -> HatBase a
 
 instance Eq (HatBase a) where
     (==) (h1 :< b1) (h2 :< b2) = h1 .== h2 && b1 .== b2
@@ -384,7 +384,7 @@ instance Element (HatBase a) where
 instance BaseClass (HatBase a) where
 
 instance HatBaseClass (HatBase a) where
-    getHat (h   :< b) = h
+    hat  = _hat
 
     revHat (Hat :< b) = Not :< b
     revHat (Not :< b) = Hat :< b
@@ -457,7 +457,7 @@ class (HatBaseClass a) => ExBaseClass a where
 
     whichSide   :: a -> Side
     whichSide x
-        | getHat x == Hat  = f $ whatDiv x
+        | hat x == Hat  = f $ whatDiv x
         | otherwise        = switchSide $ f $ whatDiv x
         where
             f Assets    = Credit
@@ -562,9 +562,8 @@ class (Redundant a) => Exchange a where
 
 data Alg b where
     Zero :: (HatBaseClass b) => Alg b
-    (:@) :: (HatBaseClass b) => {val :: NN.Double, hatBase :: !b}  -> Alg b
+    (:@) :: (HatBaseClass b) => {_val :: NN.Double, _hatBase :: !b}  -> Alg b
     (:+) :: (HatBaseClass b) => !(Alg b) -> !(Alg b) -> Alg b
-
 
 (<@) :: (Applicative f, HatBaseClass b) => f NN.Double -> b -> f (Alg b)
 (<@) v b = (:@) <$> v <*> (pure b)
@@ -686,51 +685,46 @@ instance (HatBaseClass b) =>  Redundant (Alg b) where
     (.-) (v :@ b)   | v == 0.0  = Zero
                     | otherwise = v :@ b
 
-    (.-) ((v :@ b) :+ (v' :@ b'))
-        | b /= b' = ((v :@ b) .+ (v' :@ b'))
-        | otherwise
-            =  let h   = getHat b
-            in let h'  = getHat b'
-            in case (h, h') of
-                (Hat, Hat) -> (v + v') :@ b
-                (Not, Not) -> (v + v') :@ b
-                (Not, Hat)  | v == v' -> Zero
-                            | v >  v' -> (v - v'):@ b
-                            | v <  v' -> (v'- v) :@ b'
-                (Hat, Not)  | v == v' -> Zero
-                            | v >  v' -> (v - v') :@ b
-                            | v <  v' -> (v' - v) :@ b'
-
-    (.-) xs = filter g $ f z
+    (.-) xs         = f Zero $ L.sort $ toList xs
         where
-            g :: Alg b -> Bool
-            g Zero     = False
-            g (0 :@ _) = False
-            g _        = True
+        f :: (HatBaseClass b) => Alg b -> [Alg b] -> Alg b
+        f x []           = x 
+        f x [y]          = x >< y 
+        f Zero   (y:ys)  = f y ys 
+        f (v:@b) (y:ys)  = case ((v:@b) >< y) of 
+                                        Zero             -> f y      ys
+                                        (w:@c)           -> f (w:@c) ys 
+                                        ((w:@c):+(x:@d)) -> (w:@c) <> (f (x:@d) ys)  
 
-            z = sort xs
+        (><) :: (HatBaseClass b) => Alg b -> Alg b -> Alg b 
+        Zero     >< Zero   = Zero
+        Zero     >< (v:@b) = case v == 0 of True  -> Zero
+                                            False -> (v:@b)
+        (v:@b)   >< Zero   = case v == 0 of True  -> Zero
+                                            False -> (v:@b)
 
-            f :: (HatBaseClass b) => Alg b  -> Alg b
-            f Zero       = Zero
-
-            f (v :@ b)   | v == 0.0  = Zero
-                         | otherwise = v :@ b
-
-            f ((v :@ b) :+ (v' :@ b'))  = (.-) ((v :@ b) .+ (v' :@ b'))
-
-            f xs    | isZero  h1               = f t
-                    | hatBase h1 /= hatBase h2 = h1 .+ f t
-                    | otherwise                = f $ (f (h1 :+ h2)) .+ tail t
-                    where
-                        t  = tail xs
-                        h1 = head xs
-                        h2 = head t
+        (v:@b) >< (w:@c)    | (b /= c)  &&  ((revHat b) /= c) = case (v == 0 , w == 0) of
+                                            (True, True)   -> Zero
+                                            (True, False)  -> (w:@c)
+                                            (False, True)  -> (v:@b)
+                                            (False, False) -> (v:@b) :+ (w:@c)
+                            | otherwise =  let h = hat b
+                                        in let n = hat c  
+                                        in case (h, n) of
+                                            (Hat, Hat) -> (v + w) :@b
+                                            (Not, Not) -> (v + w) :@b
+                                            (Not, Hat)  | v == w -> Zero
+                                                        | v >  w -> (v - w):@b
+                                                        | v <  w -> (w - v):@c
+                                            (Hat, Not)  | v == w -> Zero
+                                                        | v >  w -> (v - w):@b
+                                                        | v <  w -> (w - v):@c
 
 instance (ExBaseClass a) =>  Exchange (Alg a) where
-    decR xs = filter (\x -> x /= Zero && (whichSide . hatBase) x == Debit) xs
-    decL xs = filter (\x -> x /= Zero && (whichSide . hatBase) x == Credit) xs
-    decP xs = filter (\x -> x /= Zero && (isHat . hatBase ) x) xs
-    decM xs = filter (\x -> x /= Zero && (not. isHat. hatBase) x) xs
+    decR xs = filter (\x -> x /= Zero && (whichSide . _hatBase) x == Debit) xs
+    decL xs = filter (\x -> x /= Zero && (whichSide . _hatBase) x == Credit) xs
+    decP xs = filter (\x -> x /= Zero && (isHat . _hatBase ) x) xs
+    decM xs = filter (\x -> x /= Zero && (not. isHat. _hatBase) x) xs
     balance xs  | (norm . decR) xs == (norm . decL) xs = True
                 | otherwise                            = False
 
@@ -755,7 +749,7 @@ instance (ExBaseClass a) =>  Exchange (Alg a) where
 -- use (.+) instead of (:+)
 
 allHat :: (HatBaseClass b) => Alg b -> Bool
-allHat xs = L.and $ L.map (isHat . hatBase) $ toList xs
+allHat xs = L.and $ L.map (isHat . _hatBase) $ toList xs
 
 
 -- | 全てNotかどうかを判定する
@@ -768,12 +762,12 @@ allHat xs = L.and $ L.map (isHat . hatBase) $ toList xs
 -- True
 
 allNot :: (HatBaseClass b) => Alg b -> Bool
-allNot xs = L.and $ L.map (isNot . hatBase) $ toList xs
+allNot xs = L.and $ L.map (isNot . _hatBase) $ toList xs
 
 vals :: Alg b -> [NN.Double]
 vals Zero     = [0]
 vals (x :@ y) = [x]
-vals xs = L.map val $ toList xs
+vals xs = L.map _val $ toList xs
 
 bases :: Alg b -> [Maybe b]
 bases Zero = [Nothing]
@@ -874,11 +868,11 @@ proj bs  alg = filter (f bs) alg
 
 -- | proj devit algs の代わりに Elem に Text や Int などがある場合は projCredit を使う
 projCredit :: (ExBaseClass b) => Alg b -> Alg b
-projCredit = filter (\x -> (whichSide . hatBase) x == Credit)
+projCredit = filter (\x -> (whichSide . _hatBase) x == Credit)
 
 -- | proj debit algs の代わりに Elem に Text や Int などがある場合は projDebit を使う
 projDebit :: (ExBaseClass b)  => Alg b -> Alg b
-projDebit = filter (\x -> (whichSide . hatBase) x == Credit)
+projDebit = filter (\x -> (whichSide . _hatBase) x == Credit)
 
 
 projByAccountTitle :: (ExBaseClass b) => AccountTitles -> Alg b -> Alg b
@@ -886,7 +880,7 @@ projByAccountTitle at alg = filter (f at) alg
     where
         f :: (ExBaseClass b) => AccountTitles -> Alg b -> Bool
         f at Zero = False
-        f at x    = ((getAccountTitle .hatBase) x) .== at
+        f at x    = ((getAccountTitle ._hatBase) x) .== at
 
 
 projNorm :: (HatBaseClass b) => [b] -> Alg b -> NN.Double
