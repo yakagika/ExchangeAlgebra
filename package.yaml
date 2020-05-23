@@ -28,6 +28,7 @@ dependencies:
 - lens
 - numeric-prelude
 - unicode-show
+- non-negative
 
 library:
   source-dirs: src

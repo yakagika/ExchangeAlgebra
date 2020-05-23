@@ -37,7 +37,7 @@ data TransTable n b where
      TransTable  :: (HatVal n, HatBaseClass b)     
                  => { _size       :: Size
                     , _before     :: b                  {- ^ 変換前の基底 -}
-                    , _transFunc  :: (NN.T n -> NN.T n) {- ^ 値の変換用の関数 -}
+                    , _transFunc  :: (n -> n) {- ^ 値の変換用の関数 -}
                     , _after      :: b                  {- ^ 変換後の基底 -}
                     , _left       :: TransTable n b
                     , _right      :: TransTable n b }
@@ -77,7 +77,7 @@ union t1@(TransTable _ b1 f1 a1 l1 r1) t2 = case split b1 t2 of
            where !l1l2 = union l1 l2
                  !r1r2 = union r1 r2
 
-link :: (HatVal n, HatBaseClass b) => b -> (NN.T n -> NN.T n) -> b -> TransTable n b -> TransTable n b -> TransTable n b
+link :: (HatVal n, HatBaseClass b) => b -> (n -> n) -> b -> TransTable n b -> TransTable n b -> TransTable n b
 link kx fx x NullTable r  = insertMin kx fx x r
 link kx fx x l NullTable  = insertMax kx fx x l
 link kx fx x l@(TransTable sizeL ky fy y ly ry) r@(TransTable sizeR kz fz z lz rz)
@@ -85,7 +85,7 @@ link kx fx x l@(TransTable sizeL ky fy y ly ry) r@(TransTable sizeR kz fz z lz r
   | delta*sizeR < sizeL  = balanceR ky fy y ly (link kx fx x ry r)
   | otherwise            = bin kx fx x l r
 
-bin :: (HatVal n, HatBaseClass b) => b -> (NN.T n -> NN.T n) -> b -> TransTable n b -> TransTable n b -> TransTable n b
+bin :: (HatVal n, HatBaseClass b) => b -> (n -> n) -> b -> TransTable n b -> TransTable n b -> TransTable n b
 bin k f x l r
   = TransTable (size l + size r + 1) k f x l r
 
@@ -101,7 +101,7 @@ split !k0 t0 = toPair $ go k0 t0
           GT -> let (lt :*: gt) = go k r in link kx fx x l lt :*: gt
           EQ -> (l :*: r)
 
-insertMax,insertMin :: (HatVal n, HatBaseClass b) => b -> (NN.T n -> NN.T n) -> b -> TransTable n b -> TransTable n b
+insertMax,insertMin :: (HatVal n, HatBaseClass b) => b -> (n -> n) -> b -> TransTable n b -> TransTable n b
 insertMax kx fx x t
   = case t of
       NullTable -> singleton kx fx x
@@ -142,7 +142,7 @@ r = 6^ < e1 > +2 < e2 > +2 < e3 > +4 < e4 > +5^ < e5 >
    + 6 < e 1 > + 6 ^ < e A > + 2 ^ < e 2 > + 4 < e A > + 2 ^ < e 3 >
 -}
 
-transfer :: (HatBaseClass b) => Alg n b -> TransTable n b -> Alg n b
+transfer :: (HatVal n, HatBaseClass b) => Alg n b -> TransTable n b -> Alg n b
 transfer alg NullTable                              = alg
 transfer Zero (TransTable _ b f a l r)              = Zero
 transfer (v:@ hb1) (TransTable _ hb2 f a l r)       | hb1 ./= hb2 = case compare hb1 hb2 of
@@ -158,13 +158,13 @@ transfer (v:@ hb1) (TransTable _ hb2 f a l r)       | hb1 ./= hb2 = case compare
 transfer xs tt = ExchangeAlgebra.map (\x -> transfer x tt) xs
 
 
-singleton :: (HatVal n,HatBaseClass b) => b ->(NN.T n -> NN.T n) -> b -> TransTable n b
+singleton :: (HatVal n,HatBaseClass b) => b ->(n -> n) -> b -> TransTable n b
 singleton before f after = TransTable 1 before f after NullTable NullTable
 
-insert :: (HatVal n,HatBaseClass b) => b -> (NN.T n -> NN.T n) -> b -> TransTable n b ->  TransTable n b
+insert :: (HatVal n,HatBaseClass b) => b -> (n -> n) -> b -> TransTable n b ->  TransTable n b
 insert b = go b b
     where
-    go :: (HatVal n,HatBaseClass b) =>  b -> b -> (NN.T n -> NN.T n) -> b -> TransTable n b -> TransTable n b
+    go :: (HatVal n,HatBaseClass b) =>  b -> b -> (n -> n) -> b -> TransTable n b -> TransTable n b
     go orig !_  f  x NullTable = singleton (lazy orig) f x
     go orig !kx fx x t@(TransTable sz ky fy y l r) =
         case compare kx ky of
@@ -177,10 +177,10 @@ insert b = go b b
             EQ | x `ptrEq` y && (lazy orig `seq` (orig `ptrEq` ky)) -> t
                | otherwise -> TransTable sz (lazy orig) fx x l r
 
-insertR ::  (HatVal n,HatBaseClass b) => b ->  (NN.T n -> NN.T n) -> b ->  TransTable n b -> TransTable n b
+insertR ::  (HatVal n,HatBaseClass b) => b ->  (n -> n) -> b ->  TransTable n b -> TransTable n b
 insertR kx0 = go kx0 kx0
   where
-    go :: (HatVal n,HatBaseClass b) => b -> b ->  (NN.T n -> NN.T n) -> b -> TransTable n b -> TransTable n b
+    go :: (HatVal n,HatBaseClass b) => b -> b ->  (n -> n) -> b -> TransTable n b -> TransTable n b
     go orig !_  fx ax NullTable = singleton (lazy orig) fx ax
     go orig !bx fx ax t@(TransTable _ by fy ay l r) =
         case compare bx ay of
@@ -198,7 +198,7 @@ ptrEq x y = isTrue# (reallyUnsafePtrEquality# x y)
 delta = 3
 ratio = 2
 
-balanceL :: (HatVal n, HatBaseClass b) => b -> (NN.T n -> NN.T n) -> b -> TransTable n b -> TransTable n b -> TransTable n b
+balanceL :: (HatVal n, HatBaseClass b) => b -> (n -> n) -> b -> TransTable n b -> TransTable n b -> TransTable n b
 balanceL b f a l r = case r of
   NullTable -> case l of
            NullTable -> TransTable 1 b f a NullTable NullTable
@@ -226,7 +226,7 @@ balanceL b f a l r = case r of
                    (_, _) -> error "Failure in Data.Map.balanceL"
               | otherwise -> TransTable (1+ls+rs) b f a l r
 
-balanceR :: (HatVal n, HatBaseClass b) =>  b -> (NN.T n -> NN.T n) -> b -> TransTable n b -> TransTable n b -> TransTable n b
+balanceR :: (HatVal n, HatBaseClass b) =>  b -> (n -> n) -> b -> TransTable n b -> TransTable n b -> TransTable n b
 balanceR b f a l r = case l of
   NullTable -> case r of
            NullTable                                -> TransTable 1 b f a NullTable NullTable
@@ -257,7 +257,7 @@ balanceR b f a l r = case l of
 -- >>> ExchangeAlgebra.Transfer.fromList [(Hat:<(Cash),Hat:<(Building),id),(Not:<(Building),Not:<(Cash),id)]
 -- [(Hat:<Cash,Hat:<Building,<function>),(Not:<Building,Not:<Cash,<function>)]
 
-fromList :: (HatVal n, HatBaseClass b) => [(b,b,(NN.T n -> NN.T n))] -> TransTable n b
+fromList :: (HatVal n, HatBaseClass b) => [(b,b,(n -> n))] -> TransTable n b
 fromList [] = NullTable
 fromList [(b1,a1, f1)] = a1 `seq` TransTable 1 b1 f1 a1 NullTable NullTable
 fromList ((b1,a1, f1)  : xs0)   | not_ordered b1 xs0 = a1 `seq` fromList' (TransTable 1 b1 f1 a1 NullTable NullTable) xs0
@@ -294,7 +294,7 @@ fromList ((b1,a1, f1)  : xs0)   | not_ordered b1 xs0 = a1 `seq` fromList' (Trans
 -- >>> table $ Hat:<(Cash) :-> Hat:<(Building) |% id ++ Hat:<(Building) :-> Hat:<(Cash) |% id
 -- [(Hat:<Cash,Hat:<Building,<function>),(Hat:<Building,Hat:<Cash,<function>)]
 
-table ::  (HatVal n, HatBaseClass b) => [(b,b,(NN.T n -> NN.T n))] -> TransTable n b
+table ::  (HatVal n, HatBaseClass b) => [(b,b,(n -> n))] -> TransTable n b
 table = ExchangeAlgebra.Transfer.fromList
 
 data TransTableParts b where
@@ -308,13 +308,13 @@ instance (HatBaseClass b) => Show (TransTableParts b) where
 -- >>> Hat:<(Yen,Cash):-> Hat:<(Yen,Building) |% id ++ Not:<(Yen,Building)  :-> Not:<(Yen, Cash)  |% id
 -- [(Hat:<(Yen,Cash),Hat:<(Yen,Building),<function>),(Not:<(Yen,Building),Not:<(Yen,Cash),<function>)]
 
-(|%) :: (HatVal n, HatBaseClass b) => TransTableParts b -> (NN.T n -> NN.T n) -> [(b,b,(NN.T n -> NN.T n))]
+(|%) :: (HatVal n, HatBaseClass b) => TransTableParts b -> (n -> n) -> [(b,b,(n -> n))]
 (|%) (b1 :-> b2) f = [(b1,b2,f)]
 
 infixr 8 :->
 infixr 7 |%
 
-instance (HatVal n) => Show (NN.T n -> NN.T n) where
+instance (HatVal n) => Show (n -> n) where
     show f = "<function>"
 
 {-
@@ -354,7 +354,7 @@ redemption nbir alg = undefined
     where
     alg' =  (.-) alg
     -- Hat付きの国債及び国債借入金を現金に変換
-    hatConvertedAlg :: (ExBaseClass b) => Alg n b -> Alg n b
+    hatConvertedAlg :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
     hatConvertedAlg alg = (flip EA.map) alg
                     $ \(v:@ hb) -> case (hat hb, getAccountTitle hb) of
                                         (Not, _)                    -> (v:@ hb)
