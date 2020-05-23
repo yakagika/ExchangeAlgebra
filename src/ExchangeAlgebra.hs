@@ -47,7 +47,7 @@ import              Data.Time
 import qualified    Data.Map.Strict     as Map
 import qualified    Data.Map.Strict     as Map
 import qualified    Data.Maybe          as Maybe
-import qualified    Number.NonNegative  as NN (Double, fromNumber, toNumber) -- 非負の実数
+import qualified    Number.NonNegative  as NN  -- 非負の実数
 
 ------------------------------------------------------------------
 -- * Element 基底の要素
@@ -520,16 +520,15 @@ instance AccountBase PIMO where
 --
 --  Redundant ⊃ Exchange
 
-class (Monoid a) =>  Redundant a where
-    (.^) :: a -> a
-    (.-) :: a -> a
-    (.+) :: a -> a -> a
-    (.*) :: NN.Double -> a -> a
-    norm :: a -> NN.Double  -- ^ 値の部分だけを抽出
-    (.|) :: a -> NN.Double
+class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
+    (.^) :: a n b -> a n b 
+    (.-) :: a n b -> a n b
+    (.+) :: a n b -> a n b -> a n b
+    (.*) :: NN.T n -> a n b -> a n b
+    norm :: a n b -> NN.T n  -- ^ 値の部分だけを抽出
+    (.|) :: a n b -> NN.T n 
     (.|) = norm
-
-    (<+) :: (Applicative f) => f a -> f a -> f a
+    (<+) :: (Applicative f) => f (a n b) -> f (a n b) -> f (a n b)
     (<+) x y = (.+) <$> x <*> y
 
 
@@ -542,42 +541,49 @@ infixr 3 <+
 ------------------------------------------------------------
 -- ** Definition of Exchange Algebra
 ------------------------------------------------------------
-class (Redundant a) => Exchange a where
-    decR :: a -> a       -- ^ R-L decomposition
-    decL :: a -> a
+class (Redundant a n b ) => Exchange a n b where
+    decR :: a n b -> a n b       -- ^ R-L decomposition
+    decL :: a n b -> a n b
 
-    decP :: a -> a       -- ^ P-M decomposition
-    decM :: a -> a
+    decP :: a n b -> a n b       -- ^ P-M decomposition
+    decM :: a n b -> a n b
 
-    balance :: a -> Bool -- ^ norm Balance
+    balance :: a n b -> Bool -- ^ norm Balance
 
 
 ------------------------------------------------------------------
 -- * Algebra
 ------------------------------------------------------------------
 
+class (Show n, Ord n, Eq n, Num n) => HatVal n where 
+
+instance HatVal Double where 
+
 -- | 代数元 数値と基底のペア
 --
 -- Use (.+) instead of (:+) except for pattern match.
 
-data Alg b where
-    Zero :: (HatBaseClass b) => Alg b
-    (:@) :: (HatBaseClass b) => {_val :: NN.Double, _hatBase :: !b}  -> Alg b
-    (:+) :: (HatBaseClass b) => !(Alg b) -> !(Alg b) -> Alg b
+data  Alg n b where
+    Zero :: (HatVal n, Num n, HatBaseClass b) 
+         => Alg n b
+    (:@) :: (HatVal n, HatBaseClass b) 
+         => {_val :: NN.T n, _hatBase :: b}  -> Alg n b
+    (:+) :: (HatVal n, HatBaseClass b) 
+         => (Alg n b) -> (Alg n b) -> Alg n b
 
-(<@) :: (Applicative f, HatBaseClass b) => f NN.Double -> b -> f (Alg b)
+(<@) :: (HatVal n, Applicative f, HatBaseClass b) => f (NN.T n)  -> b -> f (Alg n b)
 (<@) v b = (:@) <$> v <*> (pure b)
 
 infixr 6 :@
 infixr 6 <@
 infixr 5 :+
 
-instance (Show b) => Show (Alg b) where
+instance Show (Alg n b) where
     show Zero           = "0"
     show (v :@ b)       = (show v) ++ ":@" ++  (show b)
     show (x :+ y)       = (show x) ++ ".+ " ++ (show y)
 
-instance (HatBaseClass b) => Eq (Alg b) where
+instance Eq (Alg n b) where
     (==) Zero Zero = True
     (==) Zero _    = False
     (==) _    Zero = False
@@ -588,11 +594,9 @@ instance (HatBaseClass b) => Eq (Alg b) where
 
     -- 交換法則
     (==) (x :+ y) (w :+ z)       = (x == w && y == z)  || (x == z && y == w)
+    (/=) x y                     = not (x == y)
 
-    (/=) x y = not (x == y)
-
-
-instance (HatBaseClass b, Ord b) => Ord (Alg b) where
+instance Ord (Alg n b) where
     compare Zero Zero = EQ
     compare Zero _    = LT
     compare _    Zero = GT
@@ -621,7 +625,7 @@ instance (HatBaseClass b, Ord b) => Ord (Alg b) where
             | otherwise = y
 
 
-instance (HatBaseClass b) => Semigroup (Alg b) where
+instance Semigroup (Alg n b) where
     (v:@b) <> (w:@c) = case (v == 0 , w == 0) of
                             (True, True)   -> Zero
                             (True, False)  -> (w:@c)
@@ -654,21 +658,20 @@ instance (HatBaseClass b) => Semigroup (Alg b) where
 
 
 
-instance (HatBaseClass b) => Monoid (Alg b) where
+instance (HatVal n, HatBaseClass b) => Monoid (Alg n b) where
     -- 単位元
     mempty = Zero
     mappend = (<>)
     mconcat = foldr mappend mempty
 
 
-instance (HatBaseClass b) =>  Redundant (Alg b) where
+instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
     (.^) Zero               = Zero
     (.^) (v :@ b)           = v :@ (revHat b)
     (.^) (x :+ y)           = (.^) x .+ (.^) y
 
     (.+) = mappend
 
-    -- (.*)
     x  .*  Zero    = Zero
     0  .*  x       = Zero
     x  .*  (v:@b)  = case v == 0 of
@@ -682,12 +685,12 @@ instance (HatBaseClass b) =>  Redundant (Alg b) where
     norm xs         = L.sum $ vals xs
 
     (.-) Zero       = Zero
-    (.-) (v :@ b)   | v == 0.0  = Zero
+    (.-) (v :@ b)   | v == 0    = Zero
                     | otherwise = v :@ b
 
     (.-) xs         = f Zero $ L.sort $ toList xs
         where
-        f :: (HatBaseClass b) => Alg b -> [Alg b] -> Alg b
+        f :: Alg n b -> [Alg n b] -> Alg n b
         f x []           = x 
         f x [y]          = x >< y 
         f Zero   (y:ys)  = f y ys 
@@ -696,7 +699,7 @@ instance (HatBaseClass b) =>  Redundant (Alg b) where
                                         (w:@c)           -> f (w:@c) ys 
                                         ((w:@c):+(x:@d)) -> (w:@c) <> (f (x:@d) ys)  
 
-        (><) :: (HatBaseClass b) => Alg b -> Alg b -> Alg b 
+        (><) ::  Alg n b -> Alg n b -> Alg n b 
         Zero     >< Zero   = Zero
         Zero     >< (v:@b) = case v == 0 of True  -> Zero
                                             False -> (v:@b)
@@ -720,7 +723,7 @@ instance (HatBaseClass b) =>  Redundant (Alg b) where
                                                         | v >  w -> (v - w):@b
                                                         | v <  w -> (w - v):@c
 
-instance (ExBaseClass a) =>  Exchange (Alg a) where
+instance (HatVal n, ExBaseClass a) =>  Exchange Alg n a where
     decR xs = filter (\x -> x /= Zero && (whichSide . _hatBase) x == Debit) xs
     decL xs = filter (\x -> x /= Zero && (whichSide . _hatBase) x == Credit) xs
     decP xs = filter (\x -> x /= Zero && (isHat . _hatBase ) x) xs
@@ -748,9 +751,8 @@ instance (ExBaseClass a) =>  Exchange (Alg a) where
 --
 -- use (.+) instead of (:+)
 
-allHat :: (HatBaseClass b) => Alg b -> Bool
+allHat :: (HatBaseClass b) =>  Alg n b -> Bool
 allHat xs = L.and $ L.map (isHat . _hatBase) $ toList xs
-
 
 -- | 全てNotかどうかを判定する
 --
@@ -761,38 +763,38 @@ allHat xs = L.and $ L.map (isHat . _hatBase) $ toList xs
 -- >>> allNot $ 10:@Not:<Cash .+ 12:@Not:<Deposits
 -- True
 
-allNot :: (HatBaseClass b) => Alg b -> Bool
+allNot ::(HatBaseClass b) =>  Alg n b -> Bool
 allNot xs = L.and $ L.map (isNot . _hatBase) $ toList xs
 
-vals :: Alg b -> [NN.Double]
+vals :: Alg n b -> [NN.T n]
 vals Zero     = [0]
 vals (x :@ y) = [x]
 vals xs = L.map _val $ toList xs
 
-bases :: Alg b -> [Maybe b]
+bases :: Alg n b -> [Maybe b]
 bases Zero = [Nothing]
 bases (v :@ b) = [Just b]
 bases (x :+ y) = bases x ++ bases y
 
-length :: Alg b -> Int
+length :: Alg n b -> Int
 length = L.length . toList
 
-isZero :: Alg b -> Bool
+isZero :: Alg n b -> Bool
 isZero Zero = True
 isZero _    = False
 
-isSingle :: Alg b -> Bool
+isSingle :: Alg n b -> Bool
 isSIngle (_ :@ _) = True
 isSingle _        = False
 
-isFormula :: Alg b -> Bool
+isFormula :: Alg n b -> Bool
 isFormula (x :+ y) = True
 isFormula _        = False
 
-fromList ::(HatBaseClass b ) => [Alg b] -> Alg b
+fromList ::(HatVal n, HatBaseClass b ) => [Alg n b] -> Alg n b
 fromList = mconcat
 
--- | convert Alg b to List
+-- | convert Alg n b to List
 --
 -- >>> toList $ 10:@Hat:<(Cash) :+ 10:@Hat:<(Deposits) :+ Zero
 -- [10.0:@Hat:<Cash,10.0:@Hat:<Deposits]
@@ -800,18 +802,18 @@ fromList = mconcat
 -- you need define type variables to use this for Zero
 -- >>> toList Zero :: [Alg (HatBase AccountTitles)]
 -- []
-toList :: Alg b -> [Alg b]
+toList :: Alg n b -> [Alg n b]
 toList Zero     = []
 toList (v :@ b) = [(v :@ b)]
 toList (x :+ y) = toList x ++ toList y
 
-head :: Alg b -> Alg b
+head :: Alg n b -> Alg n b
 head Zero = Zero
 head (v :@ b) = (v :@ b)
 head (x :+ y) = head x
 
 -- |
-tail :: Alg b -> Alg b
+tail :: Alg n b -> Alg n b
 tail Zero            = Zero
 tail (v:@b)          = Zero
 tail (Zero :+ y)     = y
@@ -820,26 +822,29 @@ tail (x :+ y)        = (tail x) .+ y
 
 {-# INLINE map #-}
 -- | map
-map :: (HatBaseClass b) => (Alg a -> Alg b) -> Alg a -> Alg b
+map :: (HatBaseClass b) => (Alg n a -> Alg n b) -> Alg n a -> Alg n b
 map f  Zero    = f Zero
 map f (v :@ b) = f (v :@ b)
 map f (x :+ y) = (map f x) .+ map f y
 
-traverse :: (HatBaseClass b, Applicative f) => (Alg a -> f (Alg b)) -> Alg a -> f (Alg b)
+traverse :: (HatVal n, HatBaseClass b, Applicative f) 
+         => (Alg n a -> f (Alg n b)) -> Alg n a -> f (Alg n b)
 traverse f xs = fromList <$>  (sequenceA . fmap f)  (toList xs)
 
 {-# INLINE mapM #-}
-mapM ::  (HatBaseClass b, Applicative f) => (Alg a -> f (Alg b)) -> Alg a -> f (Alg b)
+mapM :: (HatVal n,HatBaseClass b, Applicative f) 
+     => (Alg n a -> f (Alg n b)) -> Alg n a -> f (Alg n b)
 mapM = traverse
 
 {-# INLINE forM #-}
-forM ::  (HatBaseClass b, Applicative f) =>  Alg a -> (Alg a -> f (Alg b)) -> f (Alg b)
+forM :: (HatVal n, HatBaseClass b, Applicative f) 
+     => Alg n a -> (Alg n a -> f (Alg n b)) -> f (Alg n b)
 forM = flip mapM
 
 
 {-# INLINE filter #-}
 -- | filter
-filter :: (Alg b -> Bool) -> Alg b -> Alg b
+filter :: (Alg n b -> Bool) -> Alg n b -> Alg n b
 filter f Zero                 = Zero
 filter f (v:@b) | f (v:@b)    = v:@b
                 | otherwise   = Zero
@@ -855,10 +860,10 @@ Let x = \sum_{e_i \in \Gamma}{a_i \times e_i} , then Project[e_k](x) = a_k e_k i
 \]
 -}
 
-proj :: (HatBaseClass b)  => [b] -> Alg b -> Alg b
+proj :: (HatBaseClass b)  => [b] -> Alg n b -> Alg n b
 proj bs  alg = filter (f bs) alg
     where
-    f ::(HatBaseClass b)  => [b] -> Alg b  -> Bool
+    f ::(HatBaseClass b)  => [b] -> Alg n b  -> Bool
     f _   Zero       = False
     f []  _          = False
     f [b] (v:@eb)    = b .== eb
@@ -867,36 +872,36 @@ proj bs  alg = filter (f bs) alg
     f bs  xs         = error $ "error at proj : you might use (:+) instead of (.+)."
 
 -- | proj devit algs の代わりに Elem に Text や Int などがある場合は projCredit を使う
-projCredit :: (ExBaseClass b) => Alg b -> Alg b
+projCredit :: (ExBaseClass b) => Alg n b -> Alg n b
 projCredit = filter (\x -> (whichSide . _hatBase) x == Credit)
 
 -- | proj debit algs の代わりに Elem に Text や Int などがある場合は projDebit を使う
-projDebit :: (ExBaseClass b)  => Alg b -> Alg b
+projDebit :: (ExBaseClass b)  => Alg n b -> Alg n b
 projDebit = filter (\x -> (whichSide . _hatBase) x == Credit)
 
 
-projByAccountTitle :: (ExBaseClass b) => AccountTitles -> Alg b -> Alg b
+projByAccountTitle :: (ExBaseClass b) => AccountTitles -> Alg n b -> Alg n b
 projByAccountTitle at alg = filter (f at) alg
     where
-        f :: (ExBaseClass b) => AccountTitles -> Alg b -> Bool
+        f :: (ExBaseClass b) => AccountTitles -> Alg n b -> Bool
         f at Zero = False
         f at x    = ((getAccountTitle ._hatBase) x) .== at
 
 
-projNorm :: (HatBaseClass b) => [b] -> Alg b -> NN.Double
+projNorm :: (HatVal n, HatBaseClass b) => [b] -> Alg n b -> NN.T n
 projNorm bs alg  = norm $ (.-) $ proj bs alg
 
 
 -- | Baseの大小（==Algの大小）でソート
 
-sort :: (Ord b) => Alg b -> Alg b
+sort :: (Ord b) => Alg n b -> Alg n b
 sort Zero      = Zero
 sort (v :@ b)  = (v :@ b)
 sort (x :+ y)  = foldl1 (.+) $ L.sort $ toList (x .+ y)
 
 
 -- | normの大小でソート
-normSort :: Alg b -> Alg b
+normSort :: Alg n b -> Alg n b
 normSort = undefined
 
 ------------------------------------------------------------------
