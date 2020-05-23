@@ -29,6 +29,7 @@ dependencies:
 - numeric-prelude
 - unicode-show
 - non-negative
+- bifunctors
 
 library:
   source-dirs: src

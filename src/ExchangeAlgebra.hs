@@ -51,6 +51,7 @@ import qualified    Data.Maybe          as Maybe
 import qualified    Number.NonNegative  as NN  -- 非負の実数
 import              Numeric.NonNegative.Class (C)
 import              Data.Bifunctor
+import              Data.Biapplicative
 ------------------------------------------------------------------
 -- * Element 基底の要素
 ------------------------------------------------------------------
@@ -664,6 +665,10 @@ instance (HatVal n, HatBaseClass b) => Monoid (Alg n b) where
 instance Bifunctor Alg where
     bimap _ _ Zero   = Zero 
     bimap f g (v:@b) = (f v) :@ (g b) 
+
+instance Biapplicative Alg where 
+    bipure v b = v:@b 
+
 
 instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
     (.^) Zero               = Zero
