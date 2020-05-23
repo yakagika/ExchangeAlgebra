@@ -578,7 +578,7 @@ infixr 6 :@
 infixr 6 <@
 infixr 5 :+
 
-instance (HatVal n, HatBaseClass b) => Show (Alg n b) where
+instance (Show n, Show b) => Show (Alg n b) where
     show Zero           = "0"
     show (v :@ b)       = (show v) ++ ":@" ++  (show b)
     show (x :+ y)       = (show x) ++ ".+ " ++ (show y)
@@ -625,7 +625,7 @@ instance (HatVal n, HatBaseClass b) =>  Ord (Alg n b) where
             | otherwise = y
 
 
-instance (HatVal n, HatBaseClass b) =>  Semigroup (Alg n b) where
+instance  (HatVal n, HatBaseClass b) => Semigroup (Alg n b) where
     (v:@b) <> (w:@c) = case (v == 0 , w == 0) of
                             (True, True)   -> Zero
                             (True, False)  -> (w:@c)
@@ -663,13 +663,10 @@ instance (HatVal n, HatBaseClass b) => Monoid (Alg n b) where
     mconcat = foldr mappend mempty
 
 instance Bifunctor Alg where
-    bimap _ _ Zero   = Zero 
-    bimap f g (v:@b) = (f v) :@ (g b) 
-
-instance Biapplicative Alg where 
-    bipure v b = v:@b 
-
-
+    bimap _ _ Zero     = Zero 
+    bimap f g (v:@b)   = (f v) :@ (g b) 
+    bimap f g (x:+xs)  = (bimap f g x) :+ (bimap f g xs)
+    
 instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
     (.^) Zero               = Zero
     (.^) (v :@ b)           = v :@ (revHat b)
