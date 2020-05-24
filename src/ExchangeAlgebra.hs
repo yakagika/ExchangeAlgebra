@@ -721,7 +721,7 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
                                             (Not, Hat)  | v == w -> Zero
                                                         | v >  w -> (v - w):@b
                                                         | v <  w -> (w - v):@c
-                                            (Hat, Not)  | v == w -> Zero
+                                            (Hat, Not)  | (trace (show v) v) == (trace (show w) w) -> Zero
                                                         | v >  w -> (v - w):@b
                                                         | v <  w -> (w - v):@c
 
