@@ -715,13 +715,13 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
                                             (False, False) -> (v:@b) .+ (w:@c)
                             | otherwise =  let h = hat b
                                         in let n = hat c  
-                                        in case (trace (show (h, n)) (h, n)) of
+                                        in case (h, n) of
                                             (Hat, Hat) -> (v + w) :@b
                                             (Not, Not) -> (v + w) :@b
                                             (Not, Hat)  | v == w -> Zero
                                                         | v >  w -> (v - w):@b
                                                         | v <  w -> (w - v):@c
-                                            (Hat, Not)  | (trace (show v) v) == (trace (show w) w) -> Zero
+                                            (Hat, Not)  | v == w -> Zero
                                                         | v >  w -> (v - w):@b
                                                         | v <  w -> (w - v):@c
 
