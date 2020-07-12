@@ -524,12 +524,12 @@ instance AccountBase PIMO where
 --  Redundant ⊃ Exchange
 
 class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
-    (.^) :: a n b -> a n b 
+    (.^) :: a n b -> a n b
     (.-) :: a n b -> a n b
     (.+) :: a n b -> a n b -> a n b
     (.*) :: n -> a n b -> a n b
     norm :: a n b -> n  -- ^ 値の部分だけを抽出
-    (.|) :: a n b -> n 
+    (.|) :: a n b -> n
     (.|) = norm
     (<+) :: (Applicative f) => f (a n b) -> f (a n b) -> f (a n b)
     (<+) x y = (.+) <$> x <*> y
@@ -558,9 +558,9 @@ class (Redundant a n b ) => Exchange a n b where
 -- * Algebra
 ------------------------------------------------------------------
 
-class (Show n, Ord n, Eq n,Num n, C n) => HatVal n where 
+class (Show n, Ord n, Eq n,Num n, C n) => HatVal n where
 
-instance HatVal NN.Double where 
+instance HatVal NN.Double where
 
 -- | 代数元 数値と基底のペア
 --
@@ -579,9 +579,12 @@ infixr 6 <@
 infixr 5 :+
 
 instance (Show n, Show b) => Show (Alg n b) where
-    show Zero           = "0"
-    show (v :@ b)       = (show v) ++ ":@" ++  (show b)
-    show (x :+ y)       = (show x) ++ ".+ " ++ (show y)
+    show Zero               = "0"
+    show (v :@ b)           = (show v)          ++ ":@"    ++ show b
+    show (x:@b :+ y:@c)     = (show (x:@b))     ++ " .+ "  ++ show (y:@c)
+    -- 左結合になっている場合のみ表記変更
+    show ((w :+ z) :+ x:@b) = (show (w :+ z))   ++ " |.+ " ++ show (x:@b)
+    show (x :+ y)           = (show x)          ++ " .+ "  ++ show y
 
 instance (HatVal n, HatBaseClass b) =>  Eq (Alg n b) where
     (==) Zero Zero = True
@@ -663,10 +666,10 @@ instance (HatVal n, HatBaseClass b) => Monoid (Alg n b) where
     mconcat = foldr mappend mempty
 
 instance Bifunctor Alg where
-    bimap _ _ Zero     = Zero 
-    bimap f g (v:@b)   = (f v) :@ (g b) 
+    bimap _ _ Zero     = Zero
+    bimap f g (v:@b)   = (f v) :@ (g b)
     bimap f g (x:+xs)  = (bimap f g x) :+ (bimap f g xs)
-    
+
 instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
     (.^) Zero               = Zero
     (.^) (v :@ b)           = v :@ (revHat b)
@@ -693,15 +696,15 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
     (.-) xs         = f Zero $ L.sort $ toList xs
         where
         f :: (HatVal n, HatBaseClass b) => Alg n b -> [Alg n b] -> Alg n b
-        f x []           = x 
-        f x [y]          = x >< y 
-        f Zero   (y:ys)  = f y ys 
-        f (v:@b) (y:ys)  = case ((v:@b) >< y) of 
+        f x []           = x
+        f x [y]          = x >< y
+        f Zero   (y:ys)  = f y ys
+        f (v:@b) (y:ys)  = case ((v:@b) >< y) of
                                         Zero             -> f y      ys
-                                        (w:@c)           -> f (w:@c) ys 
-                                        ((w:@c):+(x:@d)) -> (w:@c) .+ (f (x:@d) ys)  
+                                        (w:@c)           -> f (w:@c) ys
+                                        ((w:@c):+(x:@d)) -> (w:@c) .+ (f (x:@d) ys)
 
-        (><) ::  (HatVal n, HatBaseClass b) => Alg n b -> Alg n b -> Alg n b 
+        (><) ::  (HatVal n, HatBaseClass b) => Alg n b -> Alg n b -> Alg n b
         Zero     >< Zero   = Zero
         Zero     >< (v:@b) = case v == 0 of True  -> Zero
                                             False -> (v:@b)
@@ -714,7 +717,7 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
                                             (False, True)  -> (v:@b)
                                             (False, False) -> (v:@b) .+ (w:@c)
                             | otherwise =  let h = hat b
-                                        in let n = hat c  
+                                        in let n = hat c
                                         in case (h, n) of
                                             (Hat, Hat) -> (v + w) :@b
                                             (Not, Not) -> (v + w) :@b
@@ -829,17 +832,17 @@ map f  Zero    = f Zero
 map f (v :@ b) = f (v :@ b)
 map f (x :+ y) = (map f x) .+ map f y
 
-traverse :: (HatVal n, HatBaseClass b, Applicative f) 
+traverse :: (HatVal n, HatBaseClass b, Applicative f)
          => (Alg n a -> f (Alg n b)) -> Alg n a -> f (Alg n b)
 traverse f xs = fromList <$>  (sequenceA . fmap f)  (toList xs)
 
 {-# INLINE mapM #-}
-mapM :: (HatVal n,HatBaseClass b, Applicative f) 
+mapM :: (HatVal n,HatBaseClass b, Applicative f)
      => (Alg n a -> f (Alg n b)) -> Alg n a -> f (Alg n b)
 mapM = traverse
 
 {-# INLINE forM #-}
-forM :: (HatVal n, HatBaseClass b, Applicative f) 
+forM :: (HatVal n, HatBaseClass b, Applicative f)
      => Alg n a -> (Alg n a -> f (Alg n b)) -> f (Alg n b)
 forM = flip mapM
 
