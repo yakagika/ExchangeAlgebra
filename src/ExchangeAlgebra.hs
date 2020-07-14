@@ -76,8 +76,10 @@ instance Nearly NN.Double where
     isNearly = isNearlyNum
 
 isNearlyNum :: (Num a, Ord a) => a -> a -> a -> Bool
-isNearlyNum x y t = abs (x - y) <= abs t
-
+isNearlyNum x y t
+    | x == y  = True
+    | x >  y  = abs (x - y) <= abs t
+    | x <  y  = abs (y - x) <= abs t
 
 
 
@@ -758,8 +760,8 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
                                                         | v <  w            -> (w - v):@c
                                             (Hat, Not)  | v == w            -> Zero
                                                         | isNearly v w 1e-5 -> Zero -- 丸め込み
-                                                        | v >  w -> (v - w):@b
-                                                        | v <  w -> (w - v):@c
+                                                        | v >  w            -> (v - w):@b
+                                                        | v <  w            -> (w - v):@c
 
 instance (HatVal n, ExBaseClass a) =>  Exchange Alg n a where
     decR xs = filter (\x -> x /= Zero && (whichSide . _hatBase) x == Debit) xs
