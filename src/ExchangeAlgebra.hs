@@ -700,7 +700,7 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
         f x [y]          = x >< y
         f Zero   (y:ys)  = f y ys
         f (v:@b) (y:ys)  = case ((v:@b) >< y) of
-                                        Zero             -> f y      ys
+                                        Zero             -> f Zero   ys
                                         (w:@c)           -> f (w:@c) ys
                                         ((w:@c):+(x:@d)) -> (w:@c) .+ (f (x:@d) ys)
 
@@ -712,10 +712,10 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
                                             False -> (v:@b)
 
         (v:@b) >< (w:@c)    | (b /= c)  &&  ((revHat b) /= c) = case (v == 0 , w == 0) of
-                                            (True, True)   -> Zero
-                                            (True, False)  -> (w:@c)
-                                            (False, True)  -> (v:@b)
-                                            (False, False) -> (v:@b) .+ (w:@c)
+                                            (True,  True)   -> Zero
+                                            (True,  False)  -> (w:@c)
+                                            (False, True)   -> (v:@b)
+                                            (False, False)  -> (v:@b) :+ (w:@c)
                             | otherwise =  let h = hat b
                                         in let n = hat c
                                         in case (h, n) of
