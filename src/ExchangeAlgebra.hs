@@ -52,6 +52,36 @@ import qualified    Number.NonNegative  as NN  -- 非負の実数
 import              Numeric.NonNegative.Class (C)
 import              Data.Bifunctor
 import              Data.Biapplicative
+
+
+------------------------------------------------------------------
+-- * 丸め込み判定
+------------------------------------------------------------------
+class (Eq a, Ord a) => Nearly a where
+    isNearly     :: a -> a -> a -> Bool
+
+instance Nearly Int where
+    isNearly = isNearlyNum
+
+instance Nearly Integer where
+    isNearly = isNearlyNum
+
+instance Nearly Float where
+    isNearly = isNearlyNum
+
+instance Nearly Double where
+    isNearly = isNearlyNum
+
+instance Nearly NN.Double where
+    isNearly = isNearlyNum
+
+isNearlyNum :: (Num a, Ord a) => a -> a -> a -> Bool
+isNearlyNum x y t = abs (x - y) <= abs t
+
+
+
+
+
 ------------------------------------------------------------------
 -- * Element 基底の要素
 ------------------------------------------------------------------
@@ -558,7 +588,8 @@ class (Redundant a n b ) => Exchange a n b where
 -- * Algebra
 ------------------------------------------------------------------
 
-class (Show n, Ord n, Eq n,Num n, C n) => HatVal n where
+class (Show n, Ord n, Eq n, Nearly n, Fractional n,  Num n, C n) => HatVal n where
+
 
 instance HatVal NN.Double where
 
@@ -721,10 +752,12 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
                                         in case (h, n) of
                                             (Hat, Hat) -> (v + w) :@b
                                             (Not, Not) -> (v + w) :@b
-                                            (Not, Hat)  | v == w -> Zero
-                                                        | v >  w -> (v - w):@b
-                                                        | v <  w -> (w - v):@c
-                                            (Hat, Not)  | v == w -> Zero
+                                            (Not, Hat)  | v == w            -> Zero
+                                                        | isNearly v w 1e-5 -> Zero -- 丸め込み
+                                                        | v >  w            -> (v - w):@b
+                                                        | v <  w            -> (w - v):@c
+                                            (Hat, Not)  | v == w            -> Zero
+                                                        | isNearly v w 1e-5 -> Zero -- 丸め込み
                                                         | v >  w -> (v - w):@b
                                                         | v <  w -> (w - v):@c
 
