@@ -755,11 +755,11 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
                                             (Hat, Hat) -> (v + w) :@b
                                             (Not, Not) -> (v + w) :@b
                                             (Not, Hat)  | v == w            -> Zero
-                                                        | isNearly v w 1e-5 -> Zero -- 丸め込み
+                                                        | isNearly v w 1e-10 -> Zero -- 丸め込み
                                                         | v >  w            -> (v - w):@b
                                                         | v <  w            -> (w - v):@c
                                             (Hat, Not)  | v == w            -> Zero
-                                                        | isNearly v w 1e-5 -> Zero -- 丸め込み
+                                                        | isNearly v w 1e-10 -> Zero -- 丸め込み
                                                         | v >  w            -> (v - w):@b
                                                         | v <  w            -> (w - v):@c
 
