@@ -60,21 +60,28 @@ import              Data.Biapplicative
 class (Eq a, Ord a) => Nearly a where
     isNearly     :: a -> a -> a -> Bool
 
+
 instance Nearly Int where
+    {-# INLINE isNearly #-}
     isNearly = isNearlyNum
 
 instance Nearly Integer where
+    {-# INLINE isNearly #-}
     isNearly = isNearlyNum
 
 instance Nearly Float where
+    {-# INLINE isNearly #-}
     isNearly = isNearlyNum
 
 instance Nearly Double where
+    {-# INLINE isNearly #-}
     isNearly = isNearlyNum
 
 instance Nearly NN.Double where
+    {-# INLINE isNearly #-}
     isNearly = isNearlyNum
 
+{-# INLINE isNearlyNum #-}
 isNearlyNum :: (Num a, Ord a) => a -> a -> a -> Bool
 isNearlyNum x y t
     | x == y  = True
@@ -94,21 +101,25 @@ class (Eq a, Ord a, Show a) => Element a where
     wiledcard       ::  a        -- ^ 検索等に用いるワイルドカード
 
     isWiledcard     :: a -> Bool
+    {-# INLINE isWiledcard #-}
     isWiledcard a | wiledcard == a = True
                   | otherwise      = False
 
     equal :: a -> a -> Bool
+    {-# INLINE equal #-}
     equal a b | isWiledcard a = True
               | isWiledcard b = True
               | otherwise     = a == b
 
     -- | wiledcard を等しいとみなす ==
     (.==) :: a -> a -> Bool
+    {-# INLINE (.==)  #-}
     (.==) a b | a == b   || (equal a b) = True
               | otherwise               = False
 
     -- | wiledcard を等しいとみなす /=
     (./=) :: a -> a -> Bool
+    {-# INLINE (./=) #-}
     (./=) a b = not (a .== b)
 
 (.#) :: Element a => a
@@ -556,13 +567,28 @@ instance AccountBase PIMO where
 --  Redundant ⊃ Exchange
 
 class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
+    -- | hat calculation
     (.^) :: a n b -> a n b
+
+    -- | bar calculation
     (.-) :: a n b -> a n b
+
+    -- | compress same Base algebras keep dividing different Hat Values
+    compress :: a n b -> a n b
+
+    -- | + calculation; alias of <> in monoid
     (.+) :: a n b -> a n b -> a n b
+
+    -- | multiplication
     (.*) :: n -> a n b -> a n b
-    norm :: a n b -> n  -- ^ 値の部分だけを抽出
+
+    -- | get value part
+    norm :: a n b -> n
+
+    -- | alias of nolm
     (.|) :: a n b -> n
     (.|) = norm
+
     (<+) :: (Applicative f) => f (a n b) -> f (a n b) -> f (a n b)
     (<+) x y = (.+) <$> x <*> y
 
@@ -662,6 +688,7 @@ instance (HatVal n, HatBaseClass b) =>  Ord (Alg n b) where
 
 
 instance  (HatVal n, HatBaseClass b) => Semigroup (Alg n b) where
+    {-# INLINE (<>) #-}
     (v:@b) <> (w:@c) = case (v == 0 , w == 0) of
                             (True, True)   -> Zero
                             (True, False)  -> (w:@c)
@@ -722,12 +749,14 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
     norm (v :@ b)   = v
     norm xs         = L.sum $ vals xs
 
+    {-# INLINE (.-) #-}
     (.-) Zero       = Zero
     (.-) (v :@ b)   | v == 0    = Zero
                     | otherwise = v :@ b
 
     (.-) xs         = f Zero $ L.sort $ toList xs
         where
+        {-# INLINE f #-}
         f :: (HatVal n, HatBaseClass b) => Alg n b -> [Alg n b] -> Alg n b
         f x []           = x
         f x [y]          = x >< y
@@ -737,6 +766,7 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
                                         (w:@c)           -> f (w:@c) ys
                                         ((w:@c):+(x:@d)) -> (w:@c) .+ (f (x:@d) ys)
 
+        {-# INLINE (><) #-}
         (><) ::  (HatVal n, HatBaseClass b) => Alg n b -> Alg n b -> Alg n b
         Zero     >< Zero   = Zero
         Zero     >< (v:@b) = case v == 0 of True  -> Zero
@@ -754,14 +784,52 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
                                         in case (h, n) of
                                             (Hat, Hat) -> (v + w) :@b
                                             (Not, Not) -> (v + w) :@b
-                                            (Not, Hat)  | v == w            -> Zero
+                                            (Not, Hat)  | v == w             -> Zero
                                                         | isNearly v w 1e-10 -> Zero -- 丸め込み
-                                                        | v >  w            -> (v - w):@b
-                                                        | v <  w            -> (w - v):@c
-                                            (Hat, Not)  | v == w            -> Zero
+                                                        | v >  w             -> (v - w):@b
+                                                        | v <  w             -> (w - v):@c
+                                            (Hat, Not)  | v == w             -> Zero
                                                         | isNearly v w 1e-10 -> Zero -- 丸め込み
-                                                        | v >  w            -> (v - w):@b
-                                                        | v <  w            -> (w - v):@c
+                                                        | v >  w             -> (v - w):@b
+                                                        | v <  w             -> (w - v):@c
+
+    {-# INLINE compress #-}
+    compress Zero       = Zero
+    compress (v :@ b)   | v == 0    = Zero
+                        | otherwise = v :@ b
+
+    compress xs         = g Zero $ L.sort $ toList xs
+        where
+        {-# INLINE g #-}
+        g :: (HatVal n, HatBaseClass b) => Alg n b -> [Alg n b] -> Alg n b
+        g x []           = x
+        g x [y]          = x >><< y
+        g Zero   (y:ys)  = g y ys
+        g (v:@b) (y:ys)  = case ((v:@b) >><< y) of
+                                        Zero             -> g Zero   ys
+                                        (w:@c)           -> g (w:@c) ys
+                                        ((w:@c):+(x:@d)) -> (w:@c) .+ (g (x:@d) ys)
+
+        {-# INLINE (>><<) #-}
+        (>><<) ::  (HatVal n, HatBaseClass b) => Alg n b -> Alg n b -> Alg n b
+        Zero    >><< Zero   = Zero
+        Zero    >><< (v:@b) = case v == 0 of True  -> Zero
+                                             False -> (v:@b)
+        (v:@b)  >><< Zero   = case v == 0 of True  -> Zero
+                                             False -> (v:@b)
+
+        (v:@b)  >><< (w:@c) | (b /= c)  &&  ((revHat b) /= c) = case (v == 0 , w == 0) of
+                                            (True,  True)   -> Zero
+                                            (True,  False)  -> (w:@c)
+                                            (False, True)   -> (v:@b)
+                                            (False, False)  -> (v:@b) :+ (w:@c)
+                            | otherwise =  let h = hat b
+                                        in let n = hat c
+                                        in case (h, n) of
+                                            (Hat, Hat) -> (v + w) :@b
+                                            (Not, Not) -> (v + w) :@b
+                                            (Not, Hat) -> (w:@c) :+ (v:@b)
+                                            (Hat, Not) -> (v:@b) :+ (w:@c)
 
 instance (HatVal n, ExBaseClass a) =>  Exchange Alg n a where
     decR xs = filter (\x -> x /= Zero && (whichSide . _hatBase) x == Debit) xs
@@ -842,6 +910,7 @@ fromList = mconcat
 -- you need define type variables to use this for Zero
 -- >>> toList Zero :: [Alg (HatBase AccountTitles)]
 -- []
+{-# INLINE toList #-}
 toList :: Alg n b -> [Alg n b]
 toList Zero     = []
 toList (v :@ b) = [(v :@ b)]
@@ -899,7 +968,7 @@ Let x = \sum_{e_i \in \Gamma}{a_i \times e_i} , then Project[e_k](x) = a_k e_k i
 \forall A \subset \Gannma Project[A](x) is defined as Projecton[A](x) = \sum_{e \in A}{project[e](x)}
 \]
 -}
-
+{-# INLINE proj #-}
 proj :: (HatVal n, HatBaseClass b)  => [b] -> Alg n b -> Alg n b
 proj bs  alg = filter (f bs) alg
     where
@@ -927,7 +996,7 @@ projByAccountTitle at alg = filter (f at) alg
         f at Zero = False
         f at x    = ((getAccountTitle ._hatBase) x) .== at
 
-
+{-# INLINE projNorm #-}
 projNorm :: (HatVal n, HatBaseClass b) => [b] -> Alg n b -> n
 projNorm bs alg  = norm $ (.-) $ proj bs alg
 
