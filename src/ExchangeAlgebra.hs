@@ -217,6 +217,8 @@ instance Element Day where
 instance (Element a ,Element b)
     => Element (a, b) where
     wiledcard = (wiledcard, wiledcard)
+
+    {-# INLINE equal #-}
     equal (a1, a2) (b1, b2)
         =  (a1 .== b1)
         && (a2 .== b2)
@@ -227,6 +229,7 @@ instance (Element a, Element b, Element c)
                 , wiledcard
                 , wiledcard)
 
+    {-# INLINE equal #-}
     equal (a1, a2, a3) (b1, b2, b3)
         =  (a1 .== b1)
         && (a2 .== b2)
@@ -239,6 +242,7 @@ instance (Element a, Element b, Element c, Element d)
                 , wiledcard
                 , wiledcard)
 
+    {-# INLINE equal #-}
     equal (a1, a2, a3, a4) (b1, b2, b3, b4)
         =  (a1 .== b1)
         && (a2 .== b2)
@@ -254,6 +258,7 @@ instance (Element a, Element b, Element c, Element d, Element e)
                 , wiledcard
                 , wiledcard)
 
+    {-# INLINE equal #-}
     equal (a1, a2, a3, a4, a5) (b1, b2, b3, b4, b5)
         =  (a1 .== b1)
         && (a2 .== b2)
@@ -270,6 +275,7 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f)
                 , wiledcard
                 , wiledcard)
 
+    {-# INLINE equal #-}
     equal (a1, a2, a3, a4, a5, a6) (b1, b2, b3, b4, b5, b6)
         =  (a1 .== b1)
         && (a2 .== b2)
@@ -287,7 +293,7 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f, Elem
                 , wiledcard
                 , wiledcard
                 , wiledcard)
-
+    {-# INLINE equal #-}
     equal (a1, a2, a3, a4, a5, a6, a7) (b1, b2, b3, b4, b5, b6, b7)
         =  (a1 .== b1)
         && (a2 .== b2)
@@ -381,6 +387,7 @@ instance Ord Hat where
 
 instance Element Hat where
     wiledcard = HatNot
+    {-# INLINE equal #-}
     equal Hat Hat = True
     equal Hat Not = False
     equal Not Hat = False
@@ -425,6 +432,7 @@ instance Show (HatBase a) where
 
 instance Element (HatBase a) where
     wiledcard = undefined
+    {-# INLINE equal #-}
     equal (h1:<b1) (h2:<b2) = h1 .== h2 && b1 .== b2
 
 instance BaseClass (HatBase a) where
@@ -689,11 +697,13 @@ instance (HatVal n, HatBaseClass b) =>  Ord (Alg n b) where
 instance  (HatVal n, HatBaseClass b) => Semigroup (Alg n b) where
     {-# INLINE (<>) #-}
 
+    -- | Associative law ;convert to right join
     x <> y  = foldr1 (:+)
             $ (flip L.filter)
             (toList x ++ toList y)
             $ \z -> z /= Zero && (_val z) /= 0
-    {-
+
+    {- 遅いので使わない
     (v:@b) <> (w:@c) = case (v == 0 , w == 0) of
                             (True, True)   -> Zero
                             (True, False)  -> (w:@c)
