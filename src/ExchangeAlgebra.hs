@@ -618,7 +618,6 @@ class (Redundant a n b ) => Exchange a n b where
 
 class (Show n, Ord n, Eq n, Nearly n, Fractional n,  Num n, C n) => HatVal n where
 
-
 instance HatVal NN.Double where
 
 -- | 代数元 数値と基底のペア
@@ -689,6 +688,12 @@ instance (HatVal n, HatBaseClass b) =>  Ord (Alg n b) where
 
 instance  (HatVal n, HatBaseClass b) => Semigroup (Alg n b) where
     {-# INLINE (<>) #-}
+
+    x <> y  = foldl1 (:+)
+            $ (flip L.filter)
+            (toList x ++ toList y)
+            $ \z -> z /= Zero && (_val z) /= 0
+    {-
     (v:@b) <> (w:@c) = case (v == 0 , w == 0) of
                             (True, True)   -> Zero
                             (True, False)  -> (w:@c)
@@ -718,6 +723,7 @@ instance  (HatVal n, HatBaseClass b) => Semigroup (Alg n b) where
                         False -> (w:@c) :+ (x <> y)
 
     (x:+y) <> (z:+w) = x <> (y <> (z <> w))
+    -}
 
 instance (HatVal n, HatBaseClass b) => Monoid (Alg n b) where
     -- 単位元
