@@ -689,7 +689,7 @@ instance (HatVal n, HatBaseClass b) =>  Ord (Alg n b) where
 instance  (HatVal n, HatBaseClass b) => Semigroup (Alg n b) where
     {-# INLINE (<>) #-}
 
-    x <> y  = foldl1 (:+)
+    x <> y  = foldr1 (:+)
             $ (flip L.filter)
             (toList x ++ toList y)
             $ \z -> z /= Zero && (_val z) /= 0
