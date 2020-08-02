@@ -698,12 +698,18 @@ instance  (HatVal n, HatBaseClass b) => Semigroup (Alg n b) where
     {-# INLINE (<>) #-}
 
     -- | Associative law ;convert to right join
-    x <> y  = foldr1 (:+)
+    x <> y  = foldr (<<>>) Zero
             $ (flip L.filter)
             (toList x ++ toList y)
             $ \z -> z /= Zero && (_val z) /= 0
+            where
+            {-# INLINE (<<>>) #-}
+            Zero <<>> Zero = Zero
+            Zero <<>> x    = x
+            x    <<>> Zero = x
+            x    <<>> y    = x :+ y
 
-    {- 遅いので使わない
+    {- 格好いいけど遅いので使わない
     (v:@b) <> (w:@c) = case (v == 0 , w == 0) of
                             (True, True)   -> Zero
                             (True, False)  -> (w:@c)
