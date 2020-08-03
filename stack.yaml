@@ -17,7 +17,7 @@
 #
 # resolver: ./custom-snapshot.yaml
 # resolver: https://example.com/snapshots/2018-01-01.yaml
-resolver: lts-14.18
+resolver: lts-16.8
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.
@@ -48,7 +48,9 @@ build:
 # using the same syntax as the packages field.
 # (e.g., acme-missiles-0.3)
 extra-deps:
-- extensible-0.5@sha256:8a3ca016244ad8780fc3c1b9d2ff99534718a4e3a40cd69d8145d0fee915ef09
+  - extensible-0.8@sha256:45ca089909ae434329e4d05dc557be94ff04f24c43ff9b915bd90c0599c83211,2911
+  - membership-0@sha256:3a11d8fd53cb1a76bb9273e6c929bbf9d649f109714bf487abb3143be04ddc81,995
+
 
 # Override default flag values for local packages and extra-deps
 # flags: {}
