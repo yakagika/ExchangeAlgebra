@@ -82,11 +82,12 @@ instance Nearly NN.Double where
     isNearly = isNearlyNum
 
 {-# INLINE isNearlyNum #-}
-isNearlyNum :: (Num a, Ord a) => a -> a -> a -> Bool
+isNearlyNum :: (Show a, Num a, Ord a) => a -> a -> a -> Bool
 isNearlyNum x y t
-    | x == y  = True
-    | x >  y  = abs (x - y) <= abs t
-    | x <  y  = abs (y - x) <= abs t
+    | x == y    = True
+    | x >  y    = abs (x - y) <= abs t
+    | x <  y    = abs (y - x) <= abs t
+    | otherwise = error $ "on isNearlyNum: " ++ show x ++ ", " ++ show y
 
 
 
