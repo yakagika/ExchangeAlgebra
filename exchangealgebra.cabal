@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.31.1.
+-- This file has been generated from package.yaml by hpack version 0.33.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: a29ef90c539ae92465b12b62ed77802dca32f9e8c290e964f640fb6867d6e955
+-- hash: ef96999c8cbf7eb4d3549a12b2d9bb9511d266365d64782f9a03ea000d44537e
 
 name:           exchangealgebra
 version:        0.2.0.0
@@ -52,7 +52,7 @@ executable ExchangeAlgebra-exe
       Paths_exchangealgebra
   hs-source-dirs:
       app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O3
   build-depends:
       base >=4.7 && <5
     , bifunctors
@@ -72,7 +72,7 @@ test-suite ExchangeAlgebra-doctest
   main-is: test/doctests.hs
   other-modules:
       Paths_exchangealgebra
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O3
   build-depends:
       base >=4.7 && <5
     , bifunctors
@@ -95,7 +95,7 @@ test-suite ExchangeAlgebra-test
       Paths_exchangealgebra
   hs-source-dirs:
       test
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O3
   build-depends:
       base >=4.7 && <5
     , bifunctors
