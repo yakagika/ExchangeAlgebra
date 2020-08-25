@@ -60,7 +60,6 @@ import              Data.Biapplicative
 class (Eq a, Ord a) => Nearly a where
     isNearly     :: a -> a -> a -> Bool
 
-
 instance Nearly Int where
     {-# INLINE isNearly #-}
     isNearly = isNearlyNum
