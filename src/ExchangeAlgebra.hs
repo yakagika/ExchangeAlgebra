@@ -520,8 +520,8 @@ class (HatBaseClass a) => ExBaseClass a where
 
     whichSide   :: a -> Side
     whichSide x
-        | hat x == Hat  = f $ whatDiv x
-        | otherwise        = switchSide $ f $ whatDiv x
+        | hat x == Not  = f $ whatDiv x
+        | otherwise     = switchSide $ f $ whatDiv x
         where
             f Assets    = Credit
             f Cost      = Credit
@@ -1077,6 +1077,10 @@ instance BaseClass TimeOfDay where
 instance ExBaseClass (HatBase (AccountTitles, Name)) where
     getAccountTitle (h:< (a, n))   = a
     setAccountTitle (h:< (a, n)) b = h:< (b, n)
+
+instance ExBaseClass (HatBase (CountUnit, AccountTitles)) where
+    getAccountTitle (h:< (u, a))   = a
+    setAccountTitle (h:< (u, a)) b = h:< (u, b)
 
 -- ** 要素数 3
 -- | 基礎的なBaseClass 要素数 3

@@ -30,12 +30,13 @@ dependencies:
 - unicode-show
 - non-negative
 - bifunctors
+- csv-parser
 
 library:
   source-dirs: src
 
 executables:
-  ExchangeAlgebra-exe:
+  main:
     main:                Main.hs
     source-dirs:         app
     ghc-options:

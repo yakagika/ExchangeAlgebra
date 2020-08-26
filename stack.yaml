@@ -51,6 +51,10 @@ extra-deps:
   - extensible-0.8@sha256:45ca089909ae434329e4d05dc557be94ff04f24c43ff9b915bd90c0599c83211,2911
   - membership-0@sha256:3a11d8fd53cb1a76bb9273e6c929bbf9d649f109714bf487abb3143be04ddc81,995
 
+  - git: git@github.com:yakagika/CSVParserT.git
+    commit:  ca0d0e312bfc429825db77ef00abef836f25c6ee
+
+
 
 # Override default flag values for local packages and extra-deps
 # flags: {}

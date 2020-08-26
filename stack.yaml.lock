@@ -18,6 +18,17 @@ packages:
       sha256: 3b593e0d14e848e318e745555776ebb25210e5e3dec4fde5d3c08ab51ceddc62
   original:
     hackage: membership-0@sha256:3a11d8fd53cb1a76bb9273e6c929bbf9d649f109714bf487abb3143be04ddc81,995
+- completed:
+    name: csv-parser
+    version: 0.1.0.0
+    git: git@github.com:yakagika/CSVParserT.git
+    pantry-tree:
+      size: 734
+      sha256: 827356ebd2d3d5412074e141db4600b261e1f456fe03fdefa23e935eb9caa378
+    commit: ca0d0e312bfc429825db77ef00abef836f25c6ee
+  original:
+    git: git@github.com:yakagika/CSVParserT.git
+    commit: ca0d0e312bfc429825db77ef00abef836f25c6ee
 snapshots:
 - completed:
     size: 532379

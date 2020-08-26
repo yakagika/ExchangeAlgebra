@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 79d008983024c80e5cd3d48084f1cb436ebd94224d910bd23eb82c35b2e24176
+-- hash: 6d12825a58f48e7fb80e07d5846adcb3bdf7d905ea44936802f0519fc6ba51f5
 
 name:           exchangealgebra
 version:        0.2.0.0
@@ -38,6 +38,7 @@ library
       base >=4.7 && <5
     , bifunctors
     , containers
+    , csv-parser
     , extensible
     , lens
     , non-negative
@@ -47,7 +48,7 @@ library
     , unicode-show
   default-language: Haskell2010
 
-executable ExchangeAlgebra-exe
+executable main
   main-is: Main.hs
   other-modules:
       Paths_exchangealgebra
@@ -58,6 +59,7 @@ executable ExchangeAlgebra-exe
       base >=4.7 && <5
     , bifunctors
     , containers
+    , csv-parser
     , exchangealgebra
     , extensible
     , lens
@@ -78,6 +80,7 @@ test-suite ExchangeAlgebra-doctest
       base >=4.7 && <5
     , bifunctors
     , containers
+    , csv-parser
     , doctest
     , exchangealgebra
     , extensible
@@ -101,6 +104,7 @@ test-suite ExchangeAlgebra-test
       base >=4.7 && <5
     , bifunctors
     , containers
+    , csv-parser
     , exchangealgebra
     , extensible
     , lens
