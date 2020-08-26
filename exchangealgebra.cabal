@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: ef96999c8cbf7eb4d3549a12b2d9bb9511d266365d64782f9a03ea000d44537e
+-- hash: 79d008983024c80e5cd3d48084f1cb436ebd94224d910bd23eb82c35b2e24176
 
 name:           exchangealgebra
 version:        0.2.0.0
@@ -28,6 +28,7 @@ source-repository head
 library
   exposed-modules:
       ExchangeAlgebra
+      ExchangeAlgebra.BalanceSheet
       ExchangeAlgebra.Transfer
   other-modules:
       Paths_exchangealgebra

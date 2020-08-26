@@ -337,10 +337,12 @@ instance (Element e1, Element e2, Element e3, Element e4, Element e5, Element e6
 -- ** HatBase
 ------------------------------------------------------------------
 class (BaseClass a) => HatBaseClass a where
-    hat     :: a    -> Hat
-    revHat  :: a    -> a
-    isHat   :: a    -> Bool
-    isNot   :: a    -> Bool
+    toHat  :: a    -> a
+    toNot  :: a    -> a
+    hat    :: a    -> Hat
+    revHat :: a    -> a
+    isHat  :: a    -> Bool
+    isNot  :: a    -> Bool
 
 -- | Hat の定義
 data Hat = Hat | Not | HatNot deriving (Enum, Show)
@@ -430,15 +432,18 @@ instance Ord (HatBase a) where
 instance Show (HatBase a) where
     show (h :< b) = show h ++ ":<" ++ show b
 
-instance Element (HatBase a) where
-    wiledcard = undefined
+instance (BaseClass a) => Element (HatBase a) where
+    wiledcard = HatNot :<wiledcard
     {-# INLINE equal #-}
     equal (h1:<b1) (h2:<b2) = h1 .== h2 && b1 .== b2
 
-instance BaseClass (HatBase a) where
+instance (BaseClass a) => BaseClass (HatBase a) where
 
-instance HatBaseClass (HatBase a) where
+instance (BaseClass a) => HatBaseClass (HatBase a) where
     hat  = _hat
+
+    toHat (h:<b) = Hat:<b
+    toNot (h:<b) = Not:<b
 
     revHat (Hat :< b) = Not :< b
     revHat (Not :< b) = Hat :< b
@@ -461,7 +466,11 @@ switchSide Debit  = Credit
 -- | BaseClass ⊃ HatBaseClass ⊃ ExBaseClass
 class (HatBaseClass a) => ExBaseClass a where
     getAccountTitle :: a -> AccountTitles
+
     setAccountTitle :: a -> AccountTitles -> a
+
+    (.~) :: a -> AccountTitles -> a
+    (.~) = setAccountTitle
 
     whatDiv     :: a -> AccountDivision
     whatDiv b

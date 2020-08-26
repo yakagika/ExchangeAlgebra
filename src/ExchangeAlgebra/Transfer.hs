@@ -3,6 +3,7 @@
             , MagicHash
             , BangPatterns
             , FlexibleInstances
+            , FlexibleContexts
             , PostfixOperators #-}
 
 module ExchangeAlgebra.Transfer where
@@ -34,7 +35,7 @@ type Size = Int
 -- | 振替変換テーブル
 data TransTable n b where
      NullTable   :: (HatVal n, HatBaseClass b)     => TransTable n b
-     TransTable  :: (HatVal n, HatBaseClass b)     
+     TransTable  :: (HatVal n, HatBaseClass b)
                  => { _size       :: Size
                     , _before     :: b                  {- ^ 変換前の基底 -}
                     , _transFunc  :: (n -> n) {- ^ 値の変換用の関数 -}
@@ -368,8 +369,86 @@ type InterestRate              = Prelude.Double
 
 
 
-
 -- *** 決算振替仕訳
 
 {- | 仕分け -}
-accountingJournal = undefined
+
+-- | Gross Profit Transfer
+grossProfitTransfer :: (HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
+grossProfitTransfer ts
+    =  transfer ts
+    $  table
+    $  (toNot wiledcard) .~ WageExpenditure :-> (toHat wiledcard) .~ GrossProfit |% id
+    ++ (toHat wiledcard) .~ WageExpenditure :-> (toNot wiledcard) .~ GrossProfit |% id
+    ------------------------------------------------------------------
+    ++ (toNot wiledcard) .~ Depreciation    :-> (toHat wiledcard) .~ GrossProfit |% id
+    ++ (toHat wiledcard) .~ Depreciation    :-> (toNot wiledcard) .~ GrossProfit |% id
+    ------------------------------------------------------------------
+    ++ (toNot wiledcard) .~ ValueAdded      :-> (toNot wiledcard) .~ GrossProfit |% id
+    ++ (toHat wiledcard) .~ ValueAdded      :-> (toHat wiledcard) .~ GrossProfit |% id
+
+
+-- | Ordinary Profit Transfer
+ordinaryProfitTransfer :: (HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
+ordinaryProfitTransfer ts
+  = transfer ts
+  $ table
+  $  (toNot wiledcard) .~ GrossProfit               :-> (toNot wiledcard) .~ OrdinaryProfit |% id
+  ++ (toHat wiledcard) .~ GrossProfit               :-> (toHat wiledcard) .~ OrdinaryProfit |% id
+  ------------------------------------------------------------------
+  ++ (toNot wiledcard) .~ InterestEarned            :-> (toNot wiledcard) .~ OrdinaryProfit |% id
+  ++ (toHat wiledcard) .~ InterestEarned            :-> (toHat wiledcard) .~ OrdinaryProfit |% id
+  ------------------------------------------------------------------
+  ++ (toNot wiledcard) .~ InterestExpense           :-> (toHat wiledcard) .~ OrdinaryProfit |% id
+  ++ (toHat wiledcard) .~ InterestExpense           :-> (toNot wiledcard) .~ OrdinaryProfit |% id
+  ------------------------------------------------------------------
+  ++ (toNot wiledcard) .~ SubsidyIncome             :-> (toNot wiledcard) .~ OrdinaryProfit |% id
+  ++ (toHat wiledcard) .~ SubsidyIncome             :-> (toHat wiledcard) .~ OrdinaryProfit |% id
+  ------------------------------------------------------------------
+  ++ (toNot wiledcard) .~ TaxesExpense              :-> (toHat wiledcard) .~ OrdinaryProfit |% id
+  ++ (toHat wiledcard) .~ TaxesExpense              :-> (toNot wiledcard) .~ OrdinaryProfit |% id
+  -- Government
+  ++ (toNot wiledcard) .~ TaxesRevenue              :-> (toNot wiledcard) .~ OrdinaryProfit |% id
+  ++ (toHat wiledcard) .~ TaxesRevenue              :-> (toHat wiledcard) .~ OrdinaryProfit |% id
+  ------------------------------------------------------------------
+  ++ (toNot wiledcard) .~ CentralBankPaymentIncome  :-> (toNot wiledcard) .~ OrdinaryProfit |% id
+  ++ (toHat wiledcard) .~ CentralBankPaymentIncome  :-> (toHat wiledcard) .~ OrdinaryProfit |% id
+  ------------------------------------------------------------------
+  ++ (toNot wiledcard) .~ Depreciation              :-> (toHat wiledcard) .~ OrdinaryProfit |% id
+  ++ (toHat wiledcard) .~ Depreciation              :-> (toNot wiledcard) .~ OrdinaryProfit |% id
+  ------------------------------------------------------------------
+  ++ (toNot wiledcard) .~ WageExpenditure           :-> (toHat wiledcard) .~ OrdinaryProfit |% id
+  ++ (toHat wiledcard) .~ WageExpenditure           :-> (toNot wiledcard) .~ OrdinaryProfit |% id
+  ------------------------------------------------------------------
+  ++ (toNot wiledcard) .~ SubsidyExpense            :-> (toHat wiledcard) .~ OrdinaryProfit |% id
+  ++ (toHat wiledcard) .~ SubsidyExpense            :-> (toNot wiledcard) .~ OrdinaryProfit |% id
+  ------------------------------------------------------------------
+  ++ (toNot wiledcard) .~ InterestExpense           :-> (toHat wiledcard) .~ OrdinaryProfit |% id
+  ++ (toHat wiledcard) .~ InterestExpense           :-> (toNot wiledcard) .~ OrdinaryProfit |% id
+  -- Household
+  ++ (toNot wiledcard) .~ WageEarned                :-> (toNot wiledcard) .~ OrdinaryProfit |% id
+  ++ (toHat wiledcard) .~ WageEarned                :-> (toHat wiledcard) .~ OrdinaryProfit |% id
+  ------------------------------------------------------------------
+  ++ (toNot wiledcard) .~ ConsumptionExpenditure    :-> (toHat wiledcard) .~ OrdinaryProfit |% id
+  ++ (toHat wiledcard) .~ ConsumptionExpenditure    :-> (toNot wiledcard) .~ OrdinaryProfit |% id
+  -- CentralBank
+  ++ (toNot wiledcard) .~ CentralBankPaymentExpense :-> (toHat wiledcard) .~ OrdinaryProfit |% id
+  ++ (toHat wiledcard) .~ CentralBankPaymentExpense :-> (toNot wiledcard) .~ OrdinaryProfit |% id
+
+
+-- | Retained Earning Transfer
+retainedEarningTransfer :: (HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
+retainedEarningTransfer ts
+  = transfer ts
+  $ table
+  $  (toNot wiledcard) .~ OrdinaryProfit            :-> (toNot wiledcard) .~ RetainedEarnings |% id
+  ++ (toHat wiledcard) .~ OrdinaryProfit            :-> (toHat wiledcard) .~ RetainedEarnings |% id
+
+-- | Final Stock Transfer (損益勘定)
+finalStockTransfer ::(HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
+finalStockTransfer  = (.-)
+                    . retainedEarningTransfer
+                    . ordinaryProfitTransfer
+                    . grossProfitTransfer
+
+
