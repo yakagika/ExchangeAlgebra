@@ -1116,8 +1116,8 @@ normSort = undefined
 
 
 -- | 流動資産の取得
-projCurrentAsssets :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
-projCurrentAsssets = (filter (\x -> (fixedCurrent . _hatBase) x == Current))
+projCurrentAssets :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+projCurrentAssets = (filter (\x -> (fixedCurrent . _hatBase) x == Current))
                    . (filter (\x -> (whatDiv . _hatBase) x      == Assets))
                    . projDebit
 
