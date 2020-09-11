@@ -139,7 +139,8 @@ data  AccountTitles = Cash                            -- ^ 資産 現金
                     | Deposits                        -- ^ 資産 預金
                     | Securities                      -- ^ 資産 有価証券
                     | InvestmentSecurities            -- ^ 資産 投資有価証券
-                    | NationalBonds                   -- ^ 資産 国債
+                    | LongTermNationalBonds           -- ^ 資産 長期国債
+                    | ShortTermNationalBonds          -- ^ 資産 短期国債
                     | Products                        -- ^ 資産 在庫
                     | Machinery                       -- ^ 資産 機械設備
                     | Building                        -- ^ 資産 不動産
@@ -564,7 +565,8 @@ class (HatBaseClass a) => ExBaseClass a where
         f Deposits                       = Current
         f Securities                     = Current
         f InvestmentSecurities           = Fixed
-        f NationalBonds                  = Other
+        f LongTermNationalBonds          = Fixed
+        f ShortTermNationalBonds         = Current
         f Products                       = Current
         f Machinery                      = Fixed
         f Building                       = Fixed
