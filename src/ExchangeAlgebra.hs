@@ -137,22 +137,27 @@ infix 4 ./=
 -- | The current version 0.1.0.0 will be completely changed shortly, especially this section.
 data  AccountTitles = Cash                            -- ^ 資産 現金
                     | Deposits                        -- ^ 資産 預金
+                    | Securities                      -- ^ 資産 有価証券
+                    | InvestmentSecurities            -- ^ 資産 投資有価証券
                     | NationalBonds                   -- ^ 資産 国債
                     | Products                        -- ^ 資産 在庫
                     | Machinery                       -- ^ 資産 機械設備
                     | Building                        -- ^ 資産 不動産
                     | StockInvestment                 -- ^ 資産 株式投資
                     | EquipmentInvestment             -- ^ 資産 設備投資
-                    | LoansReceivable                 -- ^ 資産 貸付金
+                    | LongTermLoansReceivable         -- ^ 資産 貸付金
+                    | ShortTermLoansReceivable        -- ^ 資産 短期貸付金
                     | ReserveDepositReceivable        -- ^ 資産 預金準備金
                     | Gold                            -- ^ 資産 金
                     | GovernmentService               -- ^ 資産 政府支出
                     | CapitalStock                    -- ^ 資本 資本金
                     | RetainedEarnings                -- ^ 資本 留保所得
-                    | LoansPayable                    -- ^ 負債 借入金
+                    | LongTermLoansPayable            -- ^ 負債 長期借入金
+                    | ShortTermLoansPayable           -- ^ 負債 短期借入金
                     | ReserveForDepreciation          -- ^ 負債 償却準備金
                     | DepositPayable                  -- ^ 負債 預り金
-                    | NationalBondsPayable            -- ^ 負債 国債 借入金
+                    | LongTermNationalBondsPayable    -- ^ 負債 長期国債 借入金
+                    | ShortTermNationalBondsPayable   -- ^ 負債 短期国債 借入金
                     | ReserveDepositPayable           -- ^ 負債 未払金
                     | CentralBankNotePayable          -- ^ 負債 中央銀行手形
                     | Depreciation                    -- ^ 費用
@@ -401,7 +406,9 @@ data HatBase a where
      (:<)  :: (BaseClass a) => {_hat :: Hat,  _base :: a } -> HatBase a
 
 instance Eq (HatBase a) where
+    {-# INLINE (==) #-}
     (==) (h1 :< b1) (h2 :< b2) = h1 .== h2 && b1 .== b2
+    {-# INLINE (/=) #-}
     (/=) x y = not (x == y)
 
 instance Ord (HatBase a) where
@@ -445,13 +452,17 @@ instance (BaseClass a) => HatBaseClass (HatBase a) where
     toHat (h:<b) = Hat:<b
     toNot (h:<b) = Not:<b
 
+    {-# INLINE revHat #-}
     revHat (Hat :< b) = Not :< b
     revHat (Not :< b) = Hat :< b
 
+    {-# INLINE isHat #-}
     isHat  (Hat :< b) = True
     isHat  (Not :< b) = False
 
+    {-# INLINE isNot #-}
     isNot  = not . isHat
+
 
 
 ------------------------------------------------------------
@@ -463,15 +474,19 @@ switchSide :: Side -> Side
 switchSide Credit = Debit
 switchSide Debit  = Credit
 
+data FixedCurrent = Fixed | Current | Other deriving (Show, Eq)
+
 -- | BaseClass ⊃ HatBaseClass ⊃ ExBaseClass
 class (HatBaseClass a) => ExBaseClass a where
     getAccountTitle :: a -> AccountTitles
 
     setAccountTitle :: a -> AccountTitles -> a
 
+    {-# INLINE (.~) #-}
     (.~) :: a -> AccountTitles -> a
     (.~) = setAccountTitle
 
+    {-# INLINE whatDiv #-}
     whatDiv     :: a -> AccountDivision
     whatDiv b
         | isWiledcard (getAccountTitle b)        = error $ "this is wiledcard" ++ show (getAccountTitle b)
@@ -480,10 +495,12 @@ class (HatBaseClass a) => ExBaseClass a where
         | getAccountTitle b == RetainedEarnings  = Equity
 
         | L.elem (getAccountTitle b)
-            [ LoansPayable
+            [ LongTermLoansPayable
+            , ShortTermLoansPayable
             , ReserveForDepreciation
             , DepositPayable
-            , NationalBondsPayable
+            , LongTermNationalBondsPayable
+            , ShortTermNationalBondsPayable
             , ReserveDepositPayable
             , CentralBankNotePayable]         = Liability
 
@@ -509,7 +526,7 @@ class (HatBaseClass a) => ExBaseClass a where
             , CentralBankPaymentIncome]       = Revenue
         | otherwise                           = Assets
 
-
+    {-# INLINE whatPIMO #-}
     whatPIMO    :: a -> PIMO
     whatPIMO x
         | whatDiv x == Assets       = PS
@@ -518,6 +535,7 @@ class (HatBaseClass a) => ExBaseClass a where
         | whatDiv x == Cost         = OUT
         | whatDiv x == Revenue      = IN
 
+    {-# INLINE whichSide #-}
     whichSide   :: a -> Side
     whichSide x
         | hat x == Not  = f $ whatDiv x
@@ -534,6 +552,57 @@ class (HatBaseClass a) => ExBaseClass a where
 
     -- debit :: [a] -- ^ Elem に Text や Int などがある場合は projDebit を使う
     -- debit = L.filter (\x -> whichSide x == Debit) [toEnum 0 ..]
+
+    -- | 流動/固定の区別
+    -- 要チェック
+
+    fixedCurrent :: a -> FixedCurrent
+    fixedCurrent b = f (getAccountTitle b)
+        where
+        {-# INLINE f #-}
+        f Cash                           = Current
+        f Deposits                       = Current
+        f Securities                     = Current
+        f InvestmentSecurities           = Fixed
+        f NationalBonds                  = Other
+        f Products                       = Current
+        f Machinery                      = Fixed
+        f Building                       = Fixed
+        f StockInvestment                = Other  -- 注意
+        f EquipmentInvestment            = Fixed
+        f LongTermLoansReceivable        = Fixed
+        f ShortTermLoansReceivable       = Current
+        f ReserveDepositReceivable       = Current
+        f Gold                           = Fixed
+        f GovernmentService              = Current
+        f CapitalStock                   = Other
+        f RetainedEarnings               = Other
+        f ShortTermLoansPayable          = Current
+        f LongTermLoansPayable           = Fixed
+        f ReserveForDepreciation         = Current
+        f DepositPayable                 = Current
+        f LongTermNationalBondsPayable   = Fixed
+        f ShortTermNationalBondsPayable  = Current
+        f ReserveDepositPayable          = Current
+        f CentralBankNotePayable         = Current
+        f Depreciation                   = Other
+        f WageExpenditure                = Other
+        f InterestExpense                = Other
+        f TaxesExpense                   = Other
+        f ConsumptionExpenditure         = Other
+        f SubsidyExpense                 = Other
+        f CentralBankPaymentExpense      = Other
+        f ValueAdded                     = Other
+        f SubsidyIncome                  = Other
+        f NationalBondInterestEarned     = Other
+        f DepositInterestEarned          = Other
+        f GrossProfit                    = Other
+        f OrdinaryProfit                 = Other
+        f InterestEarned                 = Other
+        f WageEarned                     = Other
+        f TaxesRevenue                   = Other
+        f CentralBankPaymentIncome       = Other
+        f AccountTitle                   = Other
 
 
 class AccountBase a where
@@ -1042,6 +1111,43 @@ sort (x :+ y)  = foldl1 (.+) $ L.sort $ toList (x .+ y)
 -- | normの大小でソート
 normSort :: Alg n b -> Alg n b
 normSort = undefined
+
+
+-- | 流動資産の取得
+projCurrentAsssets :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+projCurrentAsssets = (filter (\x -> (fixedCurrent . _hatBase) x == Current))
+                   . (filter (\x -> (whatDiv . _hatBase) x      == Assets))
+                   . projDebit
+
+-- | 固定資産
+projFixedAssets :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+projFixedAssets = (filter (\x -> (fixedCurrent . _hatBase) x == Fixed))
+                . (filter (\x -> (whatDiv . _hatBase) x      == Assets))
+                . projDebit
+
+-- | 繰延資産
+-- 税法固有の繰延資産は、「投資その他の資産」に長期前払費用等の適当な項目を付して表示する。
+projDeferredAssets :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+projDeferredAssets  = (filter (\x -> (fixedCurrent . _hatBase) x == Other))
+                    . (filter (\x -> (whatDiv . _hatBase) x      == Assets))
+                    . projDebit
+
+-- | 流動負債
+projCurrentLiability :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+projCurrentLiability  = (filter (\x -> (fixedCurrent . _hatBase) x == Current))
+                      . (filter (\x -> (whatDiv . _hatBase) x      == Liability))
+                      . projCredit
+
+-- | 固定負債
+projFixedLiability :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+projFixedLiability  = (filter (\x -> (fixedCurrent . _hatBase) x == Fixed))
+                    . (filter (\x -> (whatDiv . _hatBase) x      == Liability))
+                    . projCredit
+
+-- | 株主資本
+projCapitalStock :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+projCapitalStock = undefined
+
 
 ------------------------------------------------------------------
 -- * シンプルな基底 増やしたければ増やせる

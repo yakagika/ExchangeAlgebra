@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 6d12825a58f48e7fb80e07d5846adcb3bdf7d905ea44936802f0519fc6ba51f5
+-- hash: 7d67e12ee2f78a707f3d4f9cdfc49f382a000528cf1b2a875928a7aa82c0651b
 
 name:           exchangealgebra
 version:        0.2.0.0
@@ -54,7 +54,7 @@ executable main
       Paths_exchangealgebra
   hs-source-dirs:
       app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O3
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O1
   build-depends:
       base >=4.7 && <5
     , bifunctors
@@ -75,7 +75,7 @@ test-suite ExchangeAlgebra-doctest
   main-is: test/doctests.hs
   other-modules:
       Paths_exchangealgebra
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O3
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O1
   build-depends:
       base >=4.7 && <5
     , bifunctors
@@ -99,7 +99,7 @@ test-suite ExchangeAlgebra-test
       Paths_exchangealgebra
   hs-source-dirs:
       test
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O3
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O1
   build-depends:
       base >=4.7 && <5
     , bifunctors

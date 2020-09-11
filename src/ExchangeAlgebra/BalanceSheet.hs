@@ -28,7 +28,7 @@ import qualified    ExchangeAlgebra.Transfer    as ET
 import qualified    CSV.Text                    as CSV
 import qualified    Data.List                   as L
 import qualified    Data.Text                   as T
-import qualified    Number.NonNegative          as NN
+
 
 -- | BalanceSheetの形でCSVで出力する
 writeBS :: (HatVal n, HatBaseClass b, ExBaseClass b) => FilePath -> Alg n b -> IO ()

@@ -333,45 +333,9 @@ instance Show (TransTable n b) where
 -}
 
 
--- *** 経過勘定の振替
+-- * 決算振替仕訳
 
--- ** 仕分け
-
--- *** 利息の仕分け
-
-{- | 預金利息の仕分け -}
-
-{- | 国債償還
-国債発行分だけ利息を払う
-    Depo
-
-国債保有分だけ利息をもらう
-
-
--}
-
-redemption :: (HatVal n, ExBaseClass b) => NationalBondsInterestRate -> Alg n b -> Alg n b
-redemption _ Zero   = Zero
-redemption nbir alg = undefined
-    where
-    alg' =  (.-) alg
-    -- Hat付きの国債及び国債借入金を現金に変換
-    hatConvertedAlg :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
-    hatConvertedAlg alg = (flip EA.map) alg
-                    $ \(v:@ hb) -> case (hat hb, getAccountTitle hb) of
-                                        (Not, _)                    -> (v:@ hb)
-                                        (Hat, NationalBonds)        -> v :@ (setAccountTitle hb Cash)
-                                        (Hat, NationalBondsPayable) -> v :@ (setAccountTitle hb Cash)
-
-
-type NationalBondsInterestRate = Prelude.Double
-type InterestRate              = Prelude.Double
-
-
-
--- *** 決算振替仕訳
-
-{- | 仕分け -}
+-- **  仕分け
 
 -- | Gross Profit Transfer
 grossProfitTransfer :: (HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
