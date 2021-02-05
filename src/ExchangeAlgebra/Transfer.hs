@@ -1,30 +1,57 @@
-{-# LANGUAGE  GADTs
-            , PatternGuards
-            , MagicHash
-            , BangPatterns
-            , FlexibleInstances
-            , FlexibleContexts
-            , PostfixOperators #-}
+{- |
+    Module     : ExchangeAlgebra.Transfer
+    Copyright  : (c) Kaya Akagi. 2018-2019
+    Maintainer : akagi_kaya@icloud.com
+
+    Released under the OWL license
+
+    Package for Exchange Algebra defined by Hirosh Deguch.
+
+    Exchange Algebra is a algebraic description of bokkkeeping system.
+    Details are bellow.
+
+    <https://www.springer.com/gp/book/9784431209850>
+
+    <https://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/82987/1/0809-7.pdf>
+
+    _Note_ : The current version 0.1.0.0 will be completely changed shortly, especially in the accounts settings section.
+
+-}
+
+
+{-# LANGUAGE GADTs              #-}
+{-# LANGUAGE PatternGuards      #-}
+{-# LANGUAGE MagicHash          #-}
+{-# LANGUAGE BangPatterns       #-}
+{-# LANGUAGE FlexibleInstances  #-}
+{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE PostfixOperators   #-}
+
+
 
 module ExchangeAlgebra.Transfer where
 
-import  qualified   ExchangeAlgebra as EA
+import qualified    ExchangeAlgebra as EA
 import              ExchangeAlgebra
 
-import qualified    Number.NonNegative  as NN (Double, fromNumber, toNumber,T) -- 非負の実数
+import qualified    Number.NonNegative  as NN       ( Double
+                                                    , fromNumber
+                                                    , toNumber,T) -- 非負の実数
 import qualified    Data.Maybe          as Maybe
-import              Text.Show.Unicode               (ushow)
-import GHC.Exts ( reallyUnsafePtrEquality# )
-import GHC.Exts ( isTrue# )
-import GHC.Exts (build, lazy)
-import Data.Semigroup (stimesIdempotentMonoid)
-import Data.Semigroup (Semigroup(stimes))
-import Data.Monoid (Monoid(..))
-import qualified Data.Foldable as Foldable
-import Data.Foldable (Foldable())
-import Data.Bits (shiftL, shiftR)
-import Utils.Containers.Internal.StrictPair
-import Debug.Trace
+import              Text.Show.Unicode               ( ushow)
+import              GHC.Exts                        ( reallyUnsafePtrEquality#
+                                                    , isTrue#
+                                                    , build
+                                                    , lazy)
+import              Data.Semigroup                  ( Semigroup(stimes)
+                                                    , stimesIdempotentMonoid)
+import              Data.Monoid                     ( Monoid(..))
+import qualified    Data.Foldable       as Foldable
+import              Data.Foldable                   ( Foldable())
+import              Data.Bits                       ( shiftL
+                                                    , shiftR)
+import              Utils.Containers.Internal.StrictPair
+import              Debug.Trace
 
 ------------------------------------------------------------------
 -- * 基本計算処理
@@ -38,7 +65,7 @@ data TransTable n b where
      TransTable  :: (HatVal n, HatBaseClass b)
                  => { _size       :: Size
                     , _before     :: b                  {- ^ 変換前の基底 -}
-                    , _transFunc  :: (n -> n) {- ^ 値の変換用の関数 -}
+                    , _transFunc  :: (n -> n)           {- ^ 値の変換用の関数 -}
                     , _after      :: b                  {- ^ 変換後の基底 -}
                     , _left       :: TransTable n b
                     , _right      :: TransTable n b }
@@ -66,7 +93,7 @@ instance (HatVal n,HatBaseClass b) => Semigroup (TransTable n b) where
     (<>)   = union
     stimes = stimesIdempotentMonoid
 
-
+{-# INLINE union #-}
 union ::(HatBaseClass b) => TransTable n b -> TransTable n b -> TransTable n b
 union t1 NullTable  = t1
 union t1 (TransTable _ b f a NullTable NullTable) = insertR b f a t1
@@ -78,6 +105,7 @@ union t1@(TransTable _ b1 f1 a1 l1 r1) t2 = case split b1 t2 of
            where !l1l2 = union l1 l2
                  !r1r2 = union r1 r2
 
+{-# INLINE link #-}
 link :: (HatVal n, HatBaseClass b) => b -> (n -> n) -> b -> TransTable n b -> TransTable n b -> TransTable n b
 link kx fx x NullTable r  = insertMin kx fx x r
 link kx fx x l NullTable  = insertMax kx fx x l
@@ -86,11 +114,12 @@ link kx fx x l@(TransTable sizeL ky fy y ly ry) r@(TransTable sizeR kz fz z lz r
   | delta*sizeR < sizeL  = balanceR ky fy y ly (link kx fx x ry r)
   | otherwise            = bin kx fx x l r
 
+{-# INLINE bin #-}
 bin :: (HatVal n, HatBaseClass b) => b -> (n -> n) -> b -> TransTable n b -> TransTable n b -> TransTable n b
 bin k f x l r
   = TransTable (size l + size r + 1) k f x l r
 
-
+{-# INLINE split #-}
 split :: (HatBaseClass b) => b  -> TransTable n b -> (TransTable n b, TransTable n b)
 split !k0 t0 = toPair $ go k0 t0
   where
@@ -102,6 +131,7 @@ split !k0 t0 = toPair $ go k0 t0
           GT -> let (lt :*: gt) = go k r in link kx fx x l lt :*: gt
           EQ -> (l :*: r)
 
+{-# INLINE insertMax #-}
 insertMax,insertMin :: (HatVal n, HatBaseClass b) => b -> (n -> n) -> b -> TransTable n b -> TransTable n b
 insertMax kx fx x t
   = case t of
@@ -109,20 +139,23 @@ insertMax kx fx x t
       TransTable _ ky fy y l r
           -> balanceR ky fy y l (insertMax kx fx x r)
 
+{-# INLINE insertMin #-}
 insertMin kx fx x t
   = case t of
       NullTable -> singleton kx fx x
       TransTable _ ky fy y l r
           -> balanceL ky fy y (insertMin kx fx x l) r
 
-
+{-# INLINE unions #-}
 unions :: (HatVal n, Foldable f, HatBaseClass b) => f (TransTable n b) -> TransTable n b
 unions ts = Foldable.foldl' union NullTable ts
 
+{-# INLINE null #-}
 null :: (HatBaseClass b) => TransTable n b -> Bool
 null NullTable = True
 null (TransTable _ _ _ _ _ _) = False
 
+{-# INLINE size #-}
 size :: (HatBaseClass b) => TransTable n b -> Size
 size NullTable = 0
 size (TransTable s _ _ _ _ _) = s
@@ -143,11 +176,11 @@ r = 6^ < e1 > +2 < e2 > +2 < e3 > +4 < e4 > +5^ < e5 >
  = 6 ^ < e 1 > + 2 < e 2 > + 2 < e 3 > + 4 < e 4 > + 5 ^ < e 5 >
    + 6 < e 1 > + 6 ^ < e A > + 2 ^ < e 2 > + 4 < e A > + 2 ^ < e 3 >
 -}
-
+{-# INLINE transfer #-}
 transfer :: (HatVal n, HatBaseClass b) => Alg n b -> TransTable n b -> Alg n b
 transfer alg NullTable                              = alg
 transfer Zero (TransTable _ b f a l r)              = Zero
-transfer (v:@ hb1) (TransTable _ hb2 f a l r)       | hb1 ./= hb2 = case compare hb1 hb2 of
+transfer (v:@ hb1) (TransTable _ hb2 f a l r)       | hb1 ./= hb2 = case compareElement hb1 hb2 of
                                                             LT -> transfer (v :@ hb1) l
                                                             GT -> transfer (v :@ hb1) r
                                                     | hb1 .== hb2 = case compare v (f v) of
@@ -157,19 +190,40 @@ transfer (v:@ hb1) (TransTable _ hb2 f a l r)       | hb1 ./= hb2 = case compare
                                                             GT -> (v - (f v)) :@ hb1 -- あまり
                                                                .+ (f v)       :@ a
 
-transfer xs tt = ExchangeAlgebra.map (\x -> transfer x tt) xs
+transfer xs tt = EA.map (\x -> transfer x tt) xs
+
+-- | タプルの内, ワイルドカードは変換しない
+{-# INLINE transferKeepWiledcard #-}
+transferKeepWiledcard :: (HatVal n, HatBaseClass b) => Alg n b -> TransTable n b -> Alg n b
+transferKeepWiledcard alg NullTable                              = alg
+transferKeepWiledcard Zero (TransTable _ b f a l r)              = Zero
+transferKeepWiledcard (v:@ hb1) (TransTable _ hb2 f a l r)
+    | hb1 ./= hb2 = case compareElement hb1 hb2 of
+            LT -> transferKeepWiledcard (v :@ hb1) l
+            GT -> transferKeepWiledcard (v :@ hb1) r
+    | hb1 .== hb2 = case compare v (f v) of
+            LT -> ((f v) - v) :@ hb1 -- 変換後に増えた分足す
+               .+ (f v)       :@ keepWiledcard hb1 a
+            EQ -> (f v)       :@ keepWiledcard hb1 a
+            GT -> (v - (f v)) :@ hb1 -- あまり
+               .+ (f v)       :@ keepWiledcard hb1 a
+
+transferKeepWiledcard xs tt = EA.map (\x -> transferKeepWiledcard x tt) xs
 
 
+
+{-# INLINE singleton #-}
 singleton :: (HatVal n,HatBaseClass b) => b ->(n -> n) -> b -> TransTable n b
 singleton before f after = TransTable 1 before f after NullTable NullTable
 
+{-# INLINE insert #-}
 insert :: (HatVal n,HatBaseClass b) => b -> (n -> n) -> b -> TransTable n b ->  TransTable n b
 insert b = go b b
     where
     go :: (HatVal n,HatBaseClass b) =>  b -> b -> (n -> n) -> b -> TransTable n b -> TransTable n b
     go orig !_  f  x NullTable = singleton (lazy orig) f x
     go orig !kx fx x t@(TransTable sz ky fy y l r) =
-        case compare kx ky of
+        case compareElement kx ky of
             LT | l' `ptrEq` l -> t
                | otherwise -> balanceL ky fy y l' r
                where !l' = go orig kx fx x l
@@ -179,13 +233,14 @@ insert b = go b b
             EQ | x `ptrEq` y && (lazy orig `seq` (orig `ptrEq` ky)) -> t
                | otherwise -> TransTable sz (lazy orig) fx x l r
 
+{-# INLINE insertR #-}
 insertR ::  (HatVal n,HatBaseClass b) => b ->  (n -> n) -> b ->  TransTable n b -> TransTable n b
 insertR kx0 = go kx0 kx0
   where
     go :: (HatVal n,HatBaseClass b) => b -> b ->  (n -> n) -> b -> TransTable n b -> TransTable n b
     go orig !_  fx ax NullTable = singleton (lazy orig) fx ax
     go orig !bx fx ax t@(TransTable _ by fy ay l r) =
-        case compare bx ay of
+        case compareElement bx ay of
             LT | l' `ptrEq` l -> t
                | otherwise -> balanceL by fy ay l' r
                where !l' = go orig bx fx ax l
@@ -194,6 +249,7 @@ insertR kx0 = go kx0 kx0
                where !r' = go orig bx fx ax r
             EQ -> t
 
+{-# INLINE ptrEq #-}
 ptrEq :: a -> a -> Bool
 ptrEq x y = isTrue# (reallyUnsafePtrEquality# x y)
 
@@ -232,7 +288,9 @@ balanceR :: (HatVal n, HatBaseClass b) =>  b -> (n -> n) -> b -> TransTable n b 
 balanceR b f a l r = case l of
   NullTable -> case r of
            NullTable                                -> TransTable 1 b f a NullTable NullTable
-           (TransTable _ _ _ _ NullTable NullTable)   -> TransTable 2 b f a NullTable r
+           (TransTable _ _ _ _ NullTable NullTable)
+                    -> TransTable 2 b f a NullTable r
+
            (TransTable _ rb rf ra NullTable rr@(TransTable _ _ _ _ _ _))
                     -> TransTable 3 rb rf ra (TransTable 1 b f a NullTable NullTable) rr
 
@@ -338,9 +396,9 @@ instance Show (TransTable n b) where
 -- **  仕分け
 
 -- | Gross Profit Transfer
-grossProfitTransfer :: (HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
-grossProfitTransfer ts
-    =  transfer ts
+grossProfitTransferKeepWiledcard :: (HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
+grossProfitTransferKeepWiledcard ts
+    =  transferKeepWiledcard ts
     $  table
     $  (toNot wiledcard) .~ WageExpenditure :-> (toHat wiledcard) .~ GrossProfit |% id
     ++ (toHat wiledcard) .~ WageExpenditure :-> (toNot wiledcard) .~ GrossProfit |% id
@@ -351,11 +409,10 @@ grossProfitTransfer ts
     ++ (toNot wiledcard) .~ ValueAdded      :-> (toNot wiledcard) .~ GrossProfit |% id
     ++ (toHat wiledcard) .~ ValueAdded      :-> (toHat wiledcard) .~ GrossProfit |% id
 
-
 -- | Ordinary Profit Transfer
-ordinaryProfitTransfer :: (HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
-ordinaryProfitTransfer ts
-  = transfer ts
+ordinaryProfitTransferKeepWiledcard :: (HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
+ordinaryProfitTransferKeepWiledcard ts
+  = transferKeepWiledcard ts
   $ table
   $  (toNot wiledcard) .~ GrossProfit               :-> (toNot wiledcard) .~ OrdinaryProfit |% id
   ++ (toHat wiledcard) .~ GrossProfit               :-> (toHat wiledcard) .~ OrdinaryProfit |% id
@@ -401,18 +458,18 @@ ordinaryProfitTransfer ts
 
 
 -- | Retained Earning Transfer
-retainedEarningTransfer :: (HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
-retainedEarningTransfer ts
-  = transfer ts
+retainedEarningTransferKeepWiledcard :: (HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
+retainedEarningTransferKeepWiledcard ts
+  = transferKeepWiledcard ts
   $ table
   $  (toNot wiledcard) .~ OrdinaryProfit            :-> (toNot wiledcard) .~ RetainedEarnings |% id
   ++ (toHat wiledcard) .~ OrdinaryProfit            :-> (toHat wiledcard) .~ RetainedEarnings |% id
 
 -- | Final Stock Transfer (損益勘定)
-finalStockTransfer ::(HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
-finalStockTransfer  = (.-)
-                    . retainedEarningTransfer
-                    . ordinaryProfitTransfer
-                    . grossProfitTransfer
+finalStockTransferKeepWiledcard ::(HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
+finalStockTransferKeepWiledcard  = (.-)
+                    . retainedEarningTransferKeepWiledcard
+                    . ordinaryProfitTransferKeepWiledcard
+                    . grossProfitTransferKeepWiledcard
 
 

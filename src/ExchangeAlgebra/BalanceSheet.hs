@@ -33,7 +33,7 @@ import qualified    Data.Text                   as T
 -- | BalanceSheetの形でCSVで出力する
 writeBS :: (HatVal n, HatBaseClass b, ExBaseClass b) => FilePath -> Alg n b -> IO ()
 writeBS path alg
-    =  let transferd       = ET.finalStockTransfer alg
+    =  let transferd       = ET.finalStockTransferKeepWiledcard alg
     in let debitSide       = decR transferd
     in let creditSide      = decL transferd
     in let assets          = creditSide

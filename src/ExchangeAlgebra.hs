@@ -1,24 +1,24 @@
-{-# LANGUAGE  MultiParamTypeClasses
-            , InstanceSigs
-            , TypeSynonymInstances
-            , DeriveDataTypeable
-            , OverloadedStrings
-            , FlexibleInstances
-            , FlexibleContexts
-            , TypeOperators
-            , BangPatterns
-            , InstanceSigs
-            , TypeFamilies
-            , RankNTypes
-            , GADTs
-            , StrictData
-            , Strict                     #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE InstanceSigs               #-}
+{-# LANGUAGE TypeSynonymInstances       #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE TypeOperators              #-}
+{-# LANGUAGE BangPatterns               #-}
+{-# LANGUAGE InstanceSigs               #-}
+{-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE RankNTypes                 #-}
+{-# LANGUAGE GADTs                      #-}
+{-# LANGUAGE StrictData                 #-}
+{-# LANGUAGE Strict                     #-}
 
 
 {- |
     Module     : ExchangeAlgebra
     Copyright  : (c) Kaya Akagi. 2018-2019
-    Maintainer : akagi15@cs.dis.titech.ac.jp
+    Maintainer : akagi_kaya@icloud.com
 
     Released under the OWL license
 
@@ -52,7 +52,6 @@ import qualified    Number.NonNegative  as NN  -- 非負の実数
 import              Numeric.NonNegative.Class (C)
 import              Data.Bifunctor
 import              Data.Biapplicative
-
 
 ------------------------------------------------------------------
 -- * 丸め込み判定
@@ -88,9 +87,6 @@ isNearlyNum x y t
     | x <  y    = abs (y - x) <= abs t
     | otherwise = error $ "on isNearlyNum: " ++ show x ++ ", " ++ show y
 
-
-
-
 ------------------------------------------------------------------
 -- * Element 基底の要素
 ------------------------------------------------------------------
@@ -104,6 +100,15 @@ class (Eq a, Ord a, Show a) => Element a where
     {-# INLINE isWiledcard #-}
     isWiledcard a | wiledcard == a = True
                   | otherwise      = False
+
+    -- | ワイルドカードからそれ以外への変換
+    --  transfer で利用する
+    keepWiledcard :: a -> a -> a
+    keepWiledcard x y
+        | x == y    = x
+        | otherwise = case isWiledcard y of
+                        True  ->  x
+                        False ->  y
 
     equal :: a -> a -> Bool
     {-# INLINE equal #-}
@@ -121,6 +126,36 @@ class (Eq a, Ord a, Show a) => Element a where
     (./=) :: a -> a -> Bool
     {-# INLINE (./=) #-}
     (./=) a b = not (a .== b)
+
+    compareElement :: a -> a -> Ordering
+    {-# INLINE compareElement #-}
+    compareElement x y
+        | x .== y    = EQ
+        | otherwise  = compare x y
+
+    (.<) :: a -> a -> Bool
+    (.<) x y | compareElement x y == LT     = True
+             | otherwise                    = False
+
+    (.>) :: a -> a -> Bool
+    (.>) x y | compareElement x y == GT     = True
+             | otherwise                    = False
+
+    (.<=) :: a -> a -> Bool
+    (.<=) x y | compareElement x y == LT || compareElement x y == EQ    = True
+              | otherwise                                               = False
+
+    (.>=) :: a -> a -> Bool
+    (.>=) x y | compareElement x y == GT || compareElement x y == EQ    = True
+              | otherwise                                               = False
+
+    maxElement :: a -> a -> a
+    maxElement x y  | x .>= y    = x
+                    | otherwise  = y
+
+    minElement :: a -> a -> a
+    minElement x y  | x .<= y    = x
+                    | otherwise  = y
 
 (.#) :: Element a => a
 (.#) = wiledcard
@@ -179,11 +214,10 @@ data  AccountTitles = Cash                            -- ^ 資産 現金
                     | TaxesRevenue                    -- ^ 収益
                     | CentralBankPaymentIncome        -- ^ 収益
                     | AccountTitle                    -- ^ ワイルドカード
-                    deriving (Show, Eq, Ord, Enum)
+                    deriving (Show, Ord, Eq, Enum)
 
 instance Element AccountTitles where
     wiledcard = AccountTitle
-
 
 {- |
 
@@ -201,7 +235,6 @@ type Subject = Text
 instance Element Text where
     wiledcard   = T.empty
 
-
 -- | 通貨単位 又は 物量
 data CountUnit  = Yen
                 | Dollar
@@ -209,7 +242,7 @@ data CountUnit  = Yen
                 | CNY
                 | Amount
                 | CountUnit
-                deriving (Ord, Show, Eq,Enum)
+                deriving (Show, Ord, Eq, Enum)
 
 instance Element CountUnit where
     wiledcard = CountUnit
@@ -229,6 +262,10 @@ instance (Element a ,Element b)
         =  (a1 .== b1)
         && (a2 .== b2)
 
+    keepWiledcard (a1, a2) (b1, b2)
+        = ( keepWiledcard a1 b1
+          , keepWiledcard a2 b2)
+
 instance (Element a, Element b, Element c)
     => Element (a, b, c) where
     wiledcard = ( wiledcard
@@ -240,6 +277,12 @@ instance (Element a, Element b, Element c)
         =  (a1 .== b1)
         && (a2 .== b2)
         && (a3 .== b3)
+
+    keepWiledcard (a1, a2, a3) (b1, b2, b3)
+        = ( keepWiledcard a1 b1
+          , keepWiledcard a2 b2
+          , keepWiledcard a3 b3)
+
 
 instance (Element a, Element b, Element c, Element d)
     => Element (a, b, c, d) where
@@ -254,6 +297,12 @@ instance (Element a, Element b, Element c, Element d)
         && (a2 .== b2)
         && (a3 .== b3)
         && (a4 .== b4)
+
+    keepWiledcard (a1, a2, a3, a4) (b1, b2, b3, b4)
+        = ( keepWiledcard a1 b1
+          , keepWiledcard a2 b2
+          , keepWiledcard a3 b3
+          , keepWiledcard a4 b4)
 
 
 instance (Element a, Element b, Element c, Element d, Element e)
@@ -271,6 +320,14 @@ instance (Element a, Element b, Element c, Element d, Element e)
         && (a3 .== b3)
         && (a4 .== b4)
         && (a5 .== b5)
+
+    keepWiledcard (a1, a2, a3, a4, a5) (b1, b2, b3, b4, b5)
+        = ( keepWiledcard a1 b1
+          , keepWiledcard a2 b2
+          , keepWiledcard a3 b3
+          , keepWiledcard a4 b4
+          , keepWiledcard a5 b5)
+
 
 instance (Element a, Element b, Element c, Element d, Element e, Element f)
     => Element (a, b, c, d, e, f) where
@@ -290,6 +347,15 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f)
         && (a5 .== b5)
         && (a6 .== b6)
 
+    keepWiledcard (a1, a2, a3, a4, a5, a6) (b1, b2, b3, b4, b5, b6)
+        = ( keepWiledcard a1 b1
+          , keepWiledcard a2 b2
+          , keepWiledcard a3 b3
+          , keepWiledcard a4 b4
+          , keepWiledcard a5 b5
+          , keepWiledcard a6 b6)
+
+
 instance (Element a, Element b, Element c, Element d, Element e, Element f, Element d)
     => Element (a, b, c, d, e, f, d) where
     wiledcard = ( wiledcard
@@ -308,6 +374,15 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f, Elem
         && (a5 .== b5)
         && (a6 .== b6)
         && (a7 .== b7)
+
+    keepWiledcard (a1, a2, a3, a4, a5, a6, a7) (b1, b2, b3, b4, b5, b6, b7)
+        = ( keepWiledcard a1 b1
+          , keepWiledcard a2 b2
+          , keepWiledcard a3 b3
+          , keepWiledcard a4 b4
+          , keepWiledcard a5 b5
+          , keepWiledcard a6 b6
+          , keepWiledcard a7 b7)
 
 
 ------------------------------------------------------------------
@@ -351,7 +426,10 @@ class (BaseClass a) => HatBaseClass a where
     isNot  :: a    -> Bool
 
 -- | Hat の定義
-data Hat = Hat | Not | HatNot deriving (Enum, Show)
+data Hat    = Hat
+            | Not
+            | HatNot
+            deriving (Enum, Show)
 
 instance Eq Hat where
     (==) Hat    Hat     = True
@@ -450,7 +528,9 @@ instance (BaseClass a) => BaseClass (HatBase a) where
 instance (BaseClass a) => HatBaseClass (HatBase a) where
     hat  = _hat
 
+    {-# INLINE toHat #-}
     toHat (h:<b) = Hat:<b
+    {-# INLINE toNot #-}
     toNot (h:<b) = Not:<b
 
     {-# INLINE revHat #-}
@@ -490,7 +570,9 @@ class (HatBaseClass a) => ExBaseClass a where
     {-# INLINE whatDiv #-}
     whatDiv     :: a -> AccountDivision
     whatDiv b
-        | isWiledcard (getAccountTitle b)        = error $ "this is wiledcard" ++ show (getAccountTitle b)
+        | isWiledcard (getAccountTitle b)        = error
+                                                 $ "this is wiledcard"
+                                                 ++ show (getAccountTitle b)
 
         | getAccountTitle b == CapitalStock      = Equity
         | getAccountTitle b == RetainedEarnings  = Equity
@@ -542,6 +624,7 @@ class (HatBaseClass a) => ExBaseClass a where
         | hat x == Not  = f $ whatDiv x
         | otherwise     = switchSide $ f $ whatDiv x
         where
+            {-# INLINE f #-}
             f Assets    = Credit
             f Cost      = Credit
             f Liability = Debit
@@ -557,6 +640,7 @@ class (HatBaseClass a) => ExBaseClass a where
     -- | 流動/固定の区別
     -- 要チェック
 
+    {-# INLINE fixedCurrent #-}
     fixedCurrent :: a -> FixedCurrent
     fixedCurrent b = f (getAccountTitle b)
         where
@@ -628,8 +712,11 @@ instance AccountBase AccountDivision where
     Equity      <=> Cost            = True
     _ <=> _ = False
 
-data PIMO   = PS | IN | MS | OUT
-                                deriving (Ord, Show, Eq)
+data PIMO   = PS
+            | IN
+            | MS
+            | OUT
+            deriving (Ord, Show, Eq)
 
 instance AccountBase PIMO where
     PS  <=> IN   = True
@@ -673,10 +760,12 @@ class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
     -- | get value part
     norm :: a n b -> n
 
+    {-# INLINE (.|) #-}
     -- | alias of nolm
     (.|) :: a n b -> n
     (.|) = norm
 
+    {-# INLINE (<+) #-}
     (<+) :: (Applicative f) => f (a n b) -> f (a n b) -> f (a n b)
     (<+) x y = (.+) <$> x <*> y
 
@@ -693,10 +782,8 @@ infixr 3 <+
 class (Redundant a n b ) => Exchange a n b where
     decR :: a n b -> a n b       -- ^ R-L decomposition
     decL :: a n b -> a n b
-
     decP :: a n b -> a n b       -- ^ P-M decomposition
     decM :: a n b -> a n b
-
     balance :: a n b -> Bool -- ^ norm Balance
 
 
@@ -704,7 +791,13 @@ class (Redundant a n b ) => Exchange a n b where
 -- * Algebra
 ------------------------------------------------------------------
 
-class (Show n, Ord n, Eq n, Nearly n, Fractional n,  Num n, C n) => HatVal n where
+class   ( Show n
+        , Ord n
+        , Eq n
+        , Nearly n
+        , Fractional n
+        , Num n
+        , C n           ) => HatVal n where
 
 instance HatVal NN.Double where
 
@@ -1090,7 +1183,6 @@ projCredit = filter (\x -> (whichSide . _hatBase) x == Credit)
 projDebit :: (HatVal n, ExBaseClass b)  => Alg n b -> Alg n b
 projDebit = filter (\x -> (whichSide . _hatBase) x == Credit)
 
-
 projByAccountTitle :: (HatVal n, ExBaseClass b) => AccountTitles -> Alg n b -> Alg n b
 projByAccountTitle at alg = filter (f at) alg
     where
@@ -1117,7 +1209,7 @@ normSort = undefined
 
 -- | 流動資産の取得
 projCurrentAssets :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
-projCurrentAssets = (filter (\x -> (fixedCurrent . _hatBase) x == Current))
+projCurrentAssets  = (filter (\x -> (fixedCurrent . _hatBase) x == Current))
                    . (filter (\x -> (whatDiv . _hatBase) x      == Assets))
                    . projDebit
 
@@ -1231,6 +1323,3 @@ forceBalance = undefined
 
 rounding :: NN.Double -> NN.Double
 rounding = fromIntegral . ceiling
-
-
-
