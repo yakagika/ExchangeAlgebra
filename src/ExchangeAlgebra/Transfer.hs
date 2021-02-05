@@ -126,7 +126,7 @@ split !k0 t0 = toPair $ go k0 t0
     go k t =
       case t of
         NullTable            -> NullTable :*: NullTable
-        TransTable _ kx fx x l r -> case compare k kx of
+        TransTable _ kx fx x l r -> case compareElement k kx of
           LT -> let (lt :*: gt) = go k l in lt :*: link kx fx x gt r
           GT -> let (lt :*: gt) = go k r in link kx fx x l lt :*: gt
           EQ -> (l :*: r)
