@@ -266,6 +266,11 @@ instance (Element a ,Element b)
         = ( keepWiledcard a1 b1
           , keepWiledcard a2 b2)
 
+    compareElement (a1, a2) (b1, b2)
+        = case compareElement a1 b1 of
+            EQ -> compareElement a2 b2
+            x  -> x
+
 instance (Element a, Element b, Element c)
     => Element (a, b, c) where
     wiledcard = ( wiledcard
@@ -282,6 +287,10 @@ instance (Element a, Element b, Element c)
         = ( keepWiledcard a1 b1
           , keepWiledcard a2 b2
           , keepWiledcard a3 b3)
+
+    compareElement (a1, a2, a3) (b1, b2, b3)
+        = compareElement ((a1, a2), a3)
+                         ((b1, b2), b3)
 
 
 instance (Element a, Element b, Element c, Element d)
@@ -303,6 +312,10 @@ instance (Element a, Element b, Element c, Element d)
           , keepWiledcard a2 b2
           , keepWiledcard a3 b3
           , keepWiledcard a4 b4)
+
+    compareElement (a1, a2, a3, a4) (b1, b2, b3, b4)
+        = compareElement ((a1, a2, a3), a4)
+                         ((b1, b2, b3), b4)
 
 
 instance (Element a, Element b, Element c, Element d, Element e)
@@ -327,6 +340,10 @@ instance (Element a, Element b, Element c, Element d, Element e)
           , keepWiledcard a3 b3
           , keepWiledcard a4 b4
           , keepWiledcard a5 b5)
+
+    compareElement (a1, a2, a3, a4, a5) (b1, b2, b3, b4, b5)
+        = compareElement ((a1, a2, a3, a4), a5)
+                         ((b1, b2, b3, b4), b5)
 
 
 instance (Element a, Element b, Element c, Element d, Element e, Element f)
@@ -354,6 +371,10 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f)
           , keepWiledcard a4 b4
           , keepWiledcard a5 b5
           , keepWiledcard a6 b6)
+
+    compareElement (a1, a2, a3, a4, a5, a6) (b1, b2, b3, b4, b5, b6)
+        = compareElement ((a1, a2, a3, a4, a5), a6)
+                         ((b1, b2, b3, b4, b5), b6)
 
 
 instance (Element a, Element b, Element c, Element d, Element e, Element f, Element d)
@@ -384,6 +405,9 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f, Elem
           , keepWiledcard a6 b6
           , keepWiledcard a7 b7)
 
+    compareElement (a1, a2, a3, a4, a5, a6, a7) (b1, b2, b3, b4, b5, b6, b7)
+        = compareElement ((a1, a2, a3, a4, a5, a6), a7)
+                         ((b1, b2, b3, b4, b5, b6), b7)
 
 ------------------------------------------------------------------
 -- * Base 基底の条件
@@ -473,12 +497,14 @@ instance Ord Hat where
 
 instance Element Hat where
     wiledcard = HatNot
+
     {-# INLINE equal #-}
     equal Hat Hat = True
     equal Hat Not = False
     equal Not Hat = False
     equal Not Not = True
     equal _   _   = True
+
 
 
 data HatBase a where
@@ -520,8 +546,17 @@ instance Show (HatBase a) where
 
 instance (BaseClass a) => Element (HatBase a) where
     wiledcard = HatNot :<wiledcard
+
     {-# INLINE equal #-}
     equal (h1:<b1) (h2:<b2) = h1 .== h2 && b1 .== b2
+
+    keepWiledcard (h1:<b1) (h2:<b2)
+        = (keepWiledcard h1 h2) :< (keepWiledcard b1 b2)
+
+    compareElement (h1:<b1) (h2:<b2)
+        = case compareElement b1 b2 of
+            EQ -> compareElement h1 h2
+            x  -> x
 
 instance (BaseClass a) => BaseClass (HatBase a) where
 
