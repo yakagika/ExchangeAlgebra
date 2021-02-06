@@ -52,6 +52,7 @@ import              Data.Bits                       ( shiftL
                                                     , shiftR)
 import              Utils.Containers.Internal.StrictPair
 import              Debug.Trace
+import              GHC.Stack
 
 ------------------------------------------------------------------
 -- * 基本計算処理
@@ -61,8 +62,8 @@ type Size = Int
 
 -- | 振替変換テーブル
 data TransTable n b where
-     NullTable   :: (HatVal n, HatBaseClass b)     => TransTable n b
-     TransTable  :: (HatVal n, HatBaseClass b)
+     NullTable   :: (HasCallStack, HatVal n, HatBaseClass b) => TransTable n b
+     TransTable  :: (HasCallStack, HatVal n, HatBaseClass b)
                  => { _size       :: Size
                     , _before     :: b                  {- ^ 変換前の基底 -}
                     , _transFunc  :: (n -> n)           {- ^ 値の変換用の関数 -}
@@ -177,7 +178,7 @@ r = 6^ < e1 > +2 < e2 > +2 < e3 > +4 < e4 > +5^ < e5 >
    + 6 < e 1 > + 6 ^ < e A > + 2 ^ < e 2 > + 4 < e A > + 2 ^ < e 3 >
 -}
 {-# INLINE transfer #-}
-transfer :: (HatVal n, HatBaseClass b) => Alg n b -> TransTable n b -> Alg n b
+transfer :: (HasCallStack, HatVal n, HatBaseClass b) => Alg n b -> TransTable n b -> Alg n b
 transfer alg NullTable                              = alg
 transfer Zero (TransTable _ b f a l r)              = Zero
 transfer (v:@ hb1) (TransTable _ hb2 f a l r)       | hb1 ./= hb2 = case compareElement hb1 hb2 of
@@ -194,7 +195,7 @@ transfer xs tt = EA.map (\x -> transfer x tt) xs
 
 -- | タプルの内, ワイルドカードは変換しない
 {-# INLINE transferKeepWiledcard #-}
-transferKeepWiledcard :: (HatVal n, HatBaseClass b) => Alg n b -> TransTable n b -> Alg n b
+transferKeepWiledcard :: (HasCallStack, HatVal n, HatBaseClass b) => Alg n b -> TransTable n b -> Alg n b
 transferKeepWiledcard alg NullTable                              = alg
 transferKeepWiledcard Zero (TransTable _ b f a l r)              = Zero
 transferKeepWiledcard (v:@ hb1) (TransTable _ hb2 f a l r)

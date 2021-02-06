@@ -52,12 +52,13 @@ import qualified    Number.NonNegative  as NN  -- 非負の実数
 import              Numeric.NonNegative.Class (C)
 import              Data.Bifunctor
 import              Data.Biapplicative
+import              GHC.Stack
 
 ------------------------------------------------------------------
 -- * 丸め込み判定
 ------------------------------------------------------------------
 class (Eq a, Ord a) => Nearly a where
-    isNearly     :: a -> a -> a -> Bool
+    isNearly     :: HasCallStack => a -> a -> a -> Bool
 
 instance Nearly Int where
     {-# INLINE isNearly #-}
@@ -80,7 +81,7 @@ instance Nearly NN.Double where
     isNearly = isNearlyNum
 
 {-# INLINE isNearlyNum #-}
-isNearlyNum :: (Show a, Num a, Ord a) => a -> a -> a -> Bool
+isNearlyNum :: (HasCallStack, Show a, Num a, Ord a) => a -> a -> a -> Bool
 isNearlyNum x y t
     | x == y    = True
     | x >  y    = abs (x - y) <= abs t
@@ -94,7 +95,7 @@ isNearlyNum x y t
 -- | Element Class 基底の要素になるためにはこれのインスタンスになる必要がある
 class (Eq a, Ord a, Show a) => Element a where
 
-    wiledcard       ::  a        -- ^ 検索等に用いるワイルドカード
+    wiledcard       :: a        -- ^ 検索等に用いるワイルドカード
 
     isWiledcard     :: a -> Bool
     {-# INLINE isWiledcard #-}
@@ -778,30 +779,30 @@ instance AccountBase PIMO where
 
 class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
     -- | hat calculation
-    (.^) :: a n b -> a n b
+    (.^) :: HasCallStack => a n b -> a n b
 
     -- | bar calculation
-    (.-) :: a n b -> a n b
+    (.-) :: HasCallStack => a n b -> a n b
 
     -- | compress same Base algebras keep dividing different Hat Values
     compress :: a n b -> a n b
 
     -- | + calculation; alias of <> in monoid
-    (.+) :: a n b -> a n b -> a n b
+    (.+) :: HasCallStack => a n b -> a n b -> a n b
 
     -- | multiplication
-    (.*) :: n -> a n b -> a n b
+    (.*) :: HasCallStack => n -> a n b -> a n b
 
     -- | get value part
-    norm :: a n b -> n
+    norm :: HasCallStack => a n b -> n
 
     {-# INLINE (.|) #-}
     -- | alias of nolm
-    (.|) :: a n b -> n
+    (.|) :: HasCallStack => a n b -> n
     (.|) = norm
 
     {-# INLINE (<+) #-}
-    (<+) :: (Applicative f) => f (a n b) -> f (a n b) -> f (a n b)
+    (<+) :: (HasCallStack, Applicative f) => f (a n b) -> f (a n b) -> f (a n b)
     (<+) x y = (.+) <$> x <*> y
 
 
@@ -815,11 +816,11 @@ infixr 3 <+
 -- ** Definition of Exchange Algebra
 ------------------------------------------------------------
 class (Redundant a n b ) => Exchange a n b where
-    decR :: a n b -> a n b       -- ^ R-L decomposition
-    decL :: a n b -> a n b
-    decP :: a n b -> a n b       -- ^ P-M decomposition
-    decM :: a n b -> a n b
-    balance :: a n b -> Bool -- ^ norm Balance
+    decR :: HasCallStack => a n b -> a n b       -- ^ R-L decomposition
+    decL :: HasCallStack => a n b -> a n b
+    decP :: HasCallStack => a n b -> a n b       -- ^ P-M decomposition
+    decM :: HasCallStack => a n b -> a n b
+    balance :: HasCallStack => a n b -> Bool -- ^ norm Balance
 
 
 ------------------------------------------------------------------
@@ -841,11 +842,11 @@ instance HatVal NN.Double where
 -- Use (.+) instead of (:+) except for pattern match.
 
 data  Alg n b where
-    Zero :: Alg n b
-    (:@) :: {_val :: n, _hatBase :: b}  -> Alg n b
-    (:+) :: (Alg n b) -> (Alg n b) -> Alg n b
+    Zero :: HasCallStack => Alg n b
+    (:@) :: HasCallStack => {_val :: n, _hatBase :: b}  -> Alg n b
+    (:+) :: HasCallStack => (Alg n b) -> (Alg n b) -> Alg n b
 
-(<@) :: (HatVal n, Applicative f, HatBaseClass b) => f n  -> b -> f (Alg n b)
+(<@) :: (HasCallStack, HatVal n, Applicative f, HatBaseClass b) => f n  -> b -> f (Alg n b)
 (<@) v b = (:@) <$> v <*> (pure b)
 
 infixr 6 :@
@@ -1104,7 +1105,7 @@ allHat xs = L.and $ L.map (isHat . _hatBase) $ toList xs
 allNot ::(HatVal n, HatBaseClass b) =>   Alg n b -> Bool
 allNot xs = L.and $ L.map (isNot . _hatBase) $ toList xs
 
-vals :: (HatVal n, HatBaseClass b) =>  Alg n b -> [n]
+vals :: (HasCallStack,HatVal n, HatBaseClass b) =>  Alg n b -> [n]
 vals Zero     = [0]
 vals (x :@ y) = [x]
 vals xs = L.map _val $ toList xs
@@ -1129,7 +1130,7 @@ isFormula :: (HatVal n, HatBaseClass b) => Alg n b -> Bool
 isFormula (x :+ y) = True
 isFormula _        = False
 
-fromList ::(HatVal n, HatBaseClass b ) => [Alg n b] -> Alg n b
+fromList ::(HasCallStack,HatVal n, HatBaseClass b ) => [Alg n b] -> Alg n b
 fromList = mconcat
 
 -- | convert Alg n b to List
@@ -1183,7 +1184,7 @@ forM = flip mapM
 
 {-# INLINE filter #-}
 -- | filter
-filter :: (HatVal n, HatBaseClass b) => (Alg n b -> Bool) -> Alg n b -> Alg n b
+filter :: (HasCallStack,HatVal n, HatBaseClass b) => (Alg n b -> Bool) -> Alg n b -> Alg n b
 filter f Zero                 = Zero
 filter f (v:@b) | f (v:@b)    = v:@b
                 | otherwise   = Zero
@@ -1199,7 +1200,7 @@ Let x = \sum_{e_i \in \Gamma}{a_i \times e_i} , then Project[e_k](x) = a_k e_k i
 \]
 -}
 {-# INLINE proj #-}
-proj :: (HatVal n, HatBaseClass b)  => [b] -> Alg n b -> Alg n b
+proj :: (HasCallStack, HatVal n, HatBaseClass b)  => [b] -> Alg n b -> Alg n b
 proj bs  alg = filter (f bs) alg
     where
     f ::(HatVal n, HatBaseClass b)  => [b] -> Alg n b  -> Bool
@@ -1211,14 +1212,14 @@ proj bs  alg = filter (f bs) alg
     f bs  xs         = error $ "error at proj : you might use (:+) instead of (.+)."
 
 -- | proj devit algs の代わりに Elem に Text や Int などがある場合は projCredit を使う
-projCredit :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+projCredit :: (HasCallStack,HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projCredit = filter (\x -> (whichSide . _hatBase) x == Credit)
 
 -- | proj debit algs の代わりに Elem に Text や Int などがある場合は projDebit を使う
-projDebit :: (HatVal n, ExBaseClass b)  => Alg n b -> Alg n b
+projDebit :: (HasCallStack,HatVal n, ExBaseClass b)  => Alg n b -> Alg n b
 projDebit = filter (\x -> (whichSide . _hatBase) x == Credit)
 
-projByAccountTitle :: (HatVal n, ExBaseClass b) => AccountTitles -> Alg n b -> Alg n b
+projByAccountTitle :: (HasCallStack,HatVal n, ExBaseClass b) => AccountTitles -> Alg n b -> Alg n b
 projByAccountTitle at alg = filter (f at) alg
     where
         f :: (ExBaseClass b) => AccountTitles -> Alg n b -> Bool
@@ -1226,7 +1227,7 @@ projByAccountTitle at alg = filter (f at) alg
         f at x    = ((getAccountTitle ._hatBase) x) .== at
 
 {-# INLINE projNorm #-}
-projNorm :: (HatVal n, HatBaseClass b) => [b] -> Alg n b -> n
+projNorm :: (HasCallStack,HatVal n, HatBaseClass b) => [b] -> Alg n b -> n
 projNorm bs alg  = norm $ (.-) $ proj bs alg
 
 -- | Baseの大小（==Algの大小）でソート
@@ -1243,38 +1244,38 @@ normSort = undefined
 
 
 -- | 流動資産の取得
-projCurrentAssets :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+projCurrentAssets :: (HasCallStack, HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projCurrentAssets  = (filter (\x -> (fixedCurrent . _hatBase) x == Current))
                    . (filter (\x -> (whatDiv . _hatBase) x      == Assets))
                    . projDebit
 
 -- | 固定資産
-projFixedAssets :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+projFixedAssets :: (HasCallStack, HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projFixedAssets = (filter (\x -> (fixedCurrent . _hatBase) x == Fixed))
                 . (filter (\x -> (whatDiv . _hatBase) x      == Assets))
                 . projDebit
 
 -- | 繰延資産
 -- 税法固有の繰延資産は、「投資その他の資産」に長期前払費用等の適当な項目を付して表示する。
-projDeferredAssets :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+projDeferredAssets :: (HasCallStack, HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projDeferredAssets  = (filter (\x -> (fixedCurrent . _hatBase) x == Other))
                     . (filter (\x -> (whatDiv . _hatBase) x      == Assets))
                     . projDebit
 
 -- | 流動負債
-projCurrentLiability :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+projCurrentLiability :: (HasCallStack, HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projCurrentLiability  = (filter (\x -> (fixedCurrent . _hatBase) x == Current))
                       . (filter (\x -> (whatDiv . _hatBase) x      == Liability))
                       . projCredit
 
 -- | 固定負債
-projFixedLiability :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+projFixedLiability :: (HasCallStack, HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projFixedLiability  = (filter (\x -> (fixedCurrent . _hatBase) x == Fixed))
                     . (filter (\x -> (whatDiv . _hatBase) x      == Liability))
                     . projCredit
 
 -- | 株主資本
-projCapitalStock :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+projCapitalStock :: (HasCallStack, HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projCapitalStock = undefined
 
 
