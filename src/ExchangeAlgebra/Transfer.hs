@@ -29,10 +29,22 @@
 
 
 
-module ExchangeAlgebra.Transfer where
+module ExchangeAlgebra.Transfer
+    ( TransTable
+    , isNullTable
+    , transfer
+    , transferKeepWiledcard
+    , table
+    , TransTableParts
+    , (|%)
+    , grossProfitTransferKeepWiledcard
+    , ordinaryProfitTransferKeepWiledcard
+    , retainedEarningTransferKeepWiledcard
+    , finalStockTransferKeepWiledcard) where
 
-import qualified    ExchangeAlgebra as EA
-import              ExchangeAlgebra
+import qualified    ExchangeAlgebra.Algebra as EA
+import              ExchangeAlgebra.Algebra
+
 
 import qualified    Number.NonNegative  as NN       ( Double
                                                     , fromNumber

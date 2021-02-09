@@ -22,8 +22,9 @@
 
 module ExchangeAlgebra.BalanceSheet where
 
-import qualified    ExchangeAlgebra             as EA
-import              ExchangeAlgebra
+import qualified    ExchangeAlgebra.Algebra     as EA
+import              ExchangeAlgebra.Algebra
+
 import qualified    ExchangeAlgebra.Transfer    as ET
 import qualified    CSV.Text                    as CSV
 import qualified    Data.List                   as L

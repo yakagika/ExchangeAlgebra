@@ -1,7 +1,5 @@
-
-
 {- |
-    Module     : ExchangeAlgebra
+    Module     : ExchangeAlgebra.Record
     Copyright  : (c) Kaya Akagi. 2018-2019
     Maintainer : akagi_kaya@icloud.com
 
@@ -20,14 +18,19 @@
 
 -}
 
+{-# LANGUAGE GADTs                      #-}
 
-module ExchangeAlgebra
-    ( module ExchangeAlgebra.Algebra
-    , module ExchangeAlgebra.Record
-    , module ExchangeAlgebra.Transfer
-    , module ExchangeAlgebra.BalanceSheet ) where
+module ExchangeAlgebra.Record where
 
-import              ExchangeAlgebra.Algebra
-import              ExchangeAlgebra.Record
-import              ExchangeAlgebra.Transfer
-import              ExchangeAlgebra.BalanceSheet
+import ExchangeAlgebra.Algebra
+
+
+-- | 摘要のクラス
+class (Show a, Eq a) => Summary a where
+
+
+-- | 摘要の付随した取引データ
+data  Record n b a where
+    Record  :: (HatVal n, HatBaseClass b, Summary a)
+            => {_transaction :: Alg n b, _summary :: a} -> Record n b a
+
