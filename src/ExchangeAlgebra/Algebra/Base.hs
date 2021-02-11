@@ -139,7 +139,7 @@ data HatBase a where
 
 instance Eq (HatBase a) where
     {-# INLINE (==) #-}
-    (==) (h1 :< b1) (h2 :< b2) = h1 .== h2 && b1 .== b2
+    (==) (h1 :< b1) (h2 :< b2) = h1 == h2 && b1 == b2
     {-# INLINE (/=) #-}
     (/=) x y = not (x == y)
 
