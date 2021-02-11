@@ -34,3 +34,6 @@ data  Record n b a where
     Record  :: (HatVal n, HatBaseClass b, Summary a)
             => {_transaction :: Alg n b, _summary :: a} -> Record n b a
 
+
+fromRecord :: [Record n b a] -> Alg n b
+fromRecord = undefined

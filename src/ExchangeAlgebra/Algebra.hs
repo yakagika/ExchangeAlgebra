@@ -56,7 +56,7 @@ import qualified    Number.NonNegative  as NN  -- 非負の実数
 import              Numeric.NonNegative.Class (C)
 import              Data.Bifunctor
 import              Data.Biapplicative
-
+import              Algebra.Additive (C)
 
 ------------------------------------------------------------------
 -- * 丸め込み判定
@@ -159,9 +159,21 @@ class   ( Show n
         , Nearly n
         , Fractional n
         , Num n
-        , C n           ) => HatVal n where
+        , Numeric.NonNegative.Class.C n) => HatVal n where
+
+        zeroValue :: n
+
+        isZeroValue :: n -> Bool
+        isZeroValue x
+            | zeroValue == x = True
+            | otherwise      = False
+
+        isErrorValue :: n -> Bool
 
 instance HatVal NN.Double where
+    zeroValue = 0
+    isErrorValue x  =  isNaN        (NN.toNumber x)
+                    || isInfinite   (NN.toNumber x)
 
 -- | 代数元 数値と基底のペア
 --
@@ -172,10 +184,21 @@ data  Alg n b where
     (:@) :: {_val :: n, _hatBase :: b}  -> Alg n b
     (:+) :: (Alg n b) -> (Alg n b) -> Alg n b
 
-(<@) :: (HatVal n, Applicative f, HatBaseClass b) => f n  -> b -> f (Alg n b)
-(<@) v b = (:@) <$> v <*> (pure b)
+(.@) :: (HatVal n, HatBaseClass b) => n -> b -> Alg n b
+(.@) v b = case isErrorValue v of
+                False -> v :@ b
+                True  -> error  $ "errorValue at (:@) val: "
+                                ++ show v
+                                ++ show ":@"
+                                ++ show b
+
+(<@) :: (HatVal n, Applicative f, HatBaseClass b)
+     => f n  -> b -> f (Alg n b)
+(<@) v b = (.@) <$> v <*> (pure b)
+
 
 infixr 6 :@
+infixr 6 .@
 infixr 6 <@
 infixr 5 :+
 
@@ -457,6 +480,7 @@ isFormula :: (HatVal n, HatBaseClass b) => Alg n b -> Bool
 isFormula (x :+ y) = True
 isFormula _        = False
 
+{-# INLINE fromList #-}
 fromList ::(HatVal n, HatBaseClass b ) => [Alg n b] -> Alg n b
 fromList = mconcat
 
