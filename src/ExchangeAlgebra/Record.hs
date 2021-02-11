@@ -86,7 +86,7 @@ filterRecord = L.filter
 --  1.0:@Hat:<Yen .+ 1.0:@Not:<Amount .+ 2.0:@Hat:<Yen .+ 2.0:@Not:<Amount
 
 projRecord :: (HatVal n, HatBaseClass b, Summary a)
-           => (Summary a) => [a] -> [Record n b a] -> Alg n b
+           => [a] -> [Record n b a] -> Alg n b
 projRecord []   _   = Zero
 ------------------------------------------------------------------
 projRecord _    []  = Zero
@@ -100,6 +100,21 @@ projRecord ss   [r] | L.or (L.map (\s -> s == _summary r) ss) = _alg r
 projRecord ss rs = fromRecord
                  $ L.filter (\r -> L.or (L.map (\s -> s == _summary r) ss)) rs
 
+
+projRecordWithout   :: (HatVal n, HatBaseClass b, Summary a)
+                    => [a] -> [Record n b a] -> Alg n b
+projRecordWithout []   _    = Zero
+------------------------------------------------------------------
+projRecordWithout _    []   = Zero
+------------------------------------------------------------------
+projRecordWithout [s]  [r]  | s /=  _summary r = _alg r
+                            | otherwise        = Zero
+------------------------------------------------------------------
+projRecordWithout ss   [r]  | L.and (L.map (\s -> s /= _summary r) ss) = _alg r
+                            | otherwise                               = Zero
+------------------------------------------------------------------
+projRecordWithout ss rs     = fromRecord
+                            $ L.filter (\r -> L.and (L.map (\s -> s /= _summary r) ss)) rs
 
 
 
