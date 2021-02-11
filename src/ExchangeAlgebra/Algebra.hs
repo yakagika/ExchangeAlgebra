@@ -554,13 +554,14 @@ Let x = \sum_{e_i \in \Gamma}{a_i \times e_i} , then Project[e_k](x) = a_k e_k i
 proj :: (HatVal n, HatBaseClass b)  => [b] -> Alg n b -> Alg n b
 proj bs  alg = filter (f bs) alg
     where
+    {-# INLINE f #-}
     f ::(HatVal n, HatBaseClass b)  => [b] -> Alg n b  -> Bool
     f _   Zero       = False
     f []  _          = False
     f [b] (v:@eb)    = b .== eb
     f bs  (v:@eb)    = L.or $ L.map (\x -> eb .== x) bs
-    f [b] xs         = error $ "error at proj : you might use (:+) instead of (.+)."
-    f bs  xs         = error $ "error at proj : you might use (:+) instead of (.+)."
+    f [b] xs         = error $ "error at proj : you should use (.+) instead of (:+)."
+    f bs  xs         = error $ "error at proj : you should use (.+) instead of (:+)."
 
 -- | proj devit algs の代わりに Elem に Text や Int などがある場合は projCredit を使う
 projCredit :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
