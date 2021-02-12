@@ -456,8 +456,6 @@ ordinaryProfitTransferKeepWiledcard ts
   ++ (toNot wiledcard) .~ SubsidyExpense            :-> (toHat wiledcard) .~ OrdinaryProfit |% id
   ++ (toHat wiledcard) .~ SubsidyExpense            :-> (toNot wiledcard) .~ OrdinaryProfit |% id
   ------------------------------------------------------------------
-  ++ (toNot wiledcard) .~ InterestExpense           :-> (toHat wiledcard) .~ OrdinaryProfit |% id
-  ++ (toHat wiledcard) .~ InterestExpense           :-> (toNot wiledcard) .~ OrdinaryProfit |% id
   -- Household
   ++ (toNot wiledcard) .~ WageEarned                :-> (toNot wiledcard) .~ OrdinaryProfit |% id
   ++ (toHat wiledcard) .~ WageEarned                :-> (toHat wiledcard) .~ OrdinaryProfit |% id
