@@ -80,46 +80,7 @@ class (BaseClass a) => HatBaseClass a where
 data Hat    = Hat
             | Not
             | HatNot
-            deriving (Enum, Show)
-
-instance Eq Hat where
-    (==) Hat    Hat     = True
-    (==) Not    Not     = True
-    (==) Hat    Not     = False
-    (==) Not    Hat     = False
-    (==) Hat    HatNot  = True
-    (==) HatNot Hat     = True
-    (==) Not    HatNot  = True
-    (==) HatNot Not     = True
-    (/=) x y = not (x == y)
-
-instance Ord Hat where
-    compare Hat Hat     = EQ
-    compare Not Not     = EQ
-    compare HatNot _    = EQ
-    compare _ HatNot    = EQ
-    compare Hat Not     = LT
-    compare Not Hat     = GT
-
-
-    (<) x y | compare x y == LT = True
-            | otherwise         = False
-
-    (>) x y | compare x y == GT = True
-            | otherwise         = False
-
-
-    (<=) x y | compare x y == LT || compare x y == EQ   = True
-             | otherwise                                = False
-
-    (>=) x y | compare x y == GT || compare x y == EQ   = True
-             | otherwise                                = False
-
-    max x y | x >= y    = x
-            | otherwise = y
-
-    min x y | x <= y    = x
-            | otherwise = y
+            deriving (Enum, Eq, Ord, Show)
 
 
 instance Element Hat where
@@ -131,8 +92,6 @@ instance Element Hat where
     equal Not Hat = False
     equal Not Not = True
     equal _   _   = True
-
-
 
 data HatBase a where
      (:<)  :: (BaseClass a) => {_hat :: Hat,  _base :: a } -> HatBase a
