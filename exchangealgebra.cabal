@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.33.0.
+-- This file has been generated from package.yaml by hpack version 0.36.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: ccc9ebbb658040f5520cf58dc8db1e8474a73d24db84e2fbb80c0c8e190434a0
+-- hash: 934e9749c9c0e04cb92ad53268a21b715b351058a28ebb561aa1a4155aca1d42
 
 name:           exchangealgebra
 version:        0.2.0.0
@@ -14,7 +14,7 @@ bug-reports:    https://github.com/yakagika/ExchangeAlgebra/issues
 author:         Kaya Akagi
 maintainer:     kaya3728@gmail.com
 copyright:      2019 Kaya Akagi
-license:        OW
+license:        MIT
 license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
@@ -39,11 +39,10 @@ library
   hs-source-dirs:
       src
   build-depends:
-      base >=4.7 && <5
+      base
     , bifunctors
     , containers
     , csv-parser
-    , extensible
     , lens
     , non-negative
     , numeric-prelude
@@ -60,12 +59,11 @@ executable main
       app
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -O1
   build-depends:
-      base >=4.7 && <5
+      base
     , bifunctors
     , containers
     , csv-parser
     , exchangealgebra
-    , extensible
     , lens
     , non-negative
     , numeric-prelude
@@ -81,13 +79,12 @@ test-suite ExchangeAlgebra-doctest
       Paths_exchangealgebra
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -O1
   build-depends:
-      base >=4.7 && <5
+      base
     , bifunctors
     , containers
     , csv-parser
     , doctest
     , exchangealgebra
-    , extensible
     , lens
     , non-negative
     , numeric-prelude
@@ -105,12 +102,11 @@ test-suite ExchangeAlgebra-test
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -O1
   build-depends:
-      base >=4.7 && <5
+      base
     , bifunctors
     , containers
     , csv-parser
     , exchangealgebra
-    , extensible
     , lens
     , non-negative
     , numeric-prelude

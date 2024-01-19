@@ -205,6 +205,8 @@ transfer (v:@ hb1) (TransTable _ hb2 f a l r)       | hb1 ./= hb2 = case compare
 transfer xs tt = EA.map (\x -> transfer x tt) xs
 
 -- | タプルの内, ワイルドカードは変換しない
+
+
 {-# INLINE transferKeepWiledcard #-}
 transferKeepWiledcard :: (HatVal n, HatBaseClass b) => Alg n b -> TransTable n b -> Alg n b
 transferKeepWiledcard alg NullTable                              = alg
@@ -422,6 +424,13 @@ grossProfitTransferKeepWiledcard ts
     ++ (toHat wiledcard) .~ ValueAdded      :-> (toHat wiledcard) .~ GrossProfit |% id
 
 -- | Ordinary Profit Transfer
+--
+-- >>>  import qualified Number.NonNegative as NN
+-- >>>  type Test = Alg NN.Double (HatBase (CountUnit, AccountTitles))
+-- >>>  x = 2279.0:@Not:<(Yen,Depreciation) .+ 500475.0:@Not:<(Yen,InterestEarned) :: Test
+-- >>>  ordinaryProfitTransferKeepWiledcard x
+--      2279.0:@Hat:<(Yen,OrdinaryProfit) .+ 500475.0:@Not:<(Yen,OrdinaryProfit)
+
 ordinaryProfitTransferKeepWiledcard :: (HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
 ordinaryProfitTransferKeepWiledcard ts
   = transferKeepWiledcard ts

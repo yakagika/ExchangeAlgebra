@@ -137,7 +137,6 @@ infixr 2 .-
 infixr 3 .+
 infixr 3 <+
 
-
 ------------------------------------------------------------
 -- ** Definition of Exchange Algebra
 ------------------------------------------------------------
@@ -174,6 +173,10 @@ instance HatVal NN.Double where
     zeroValue = 0
     isErrorValue x  =  isNaN        (NN.toNumber x)
                     || isInfinite   (NN.toNumber x)
+
+-- データ代数 Hat が セミグループになる.
+-- 単位元もない(未実装)
+-- 交換代数をデータ代数の要素にする
 
 -- | 代数元 数値と基底のペア
 --
@@ -304,11 +307,6 @@ instance (HatVal n, HatBaseClass b) => Monoid (Alg n b) where
     mempty = Zero
     mappend = (<>)
     mconcat = foldr mappend mempty
-
-instance Bifunctor Alg where
-    bimap _ _ Zero     = Zero
-    bimap f g (v:@b)   = (f v) :@ (g b)
-    bimap f g (x:+xs)  = (bimap f g x) :+ (bimap f g xs)
 
 instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
     (.^) Zero               = Zero

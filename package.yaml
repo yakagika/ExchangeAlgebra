@@ -1,7 +1,7 @@
 name:                exchangealgebra
 version:             0.2.0.0
 github:              "yakagika/ExchangeAlgebra"
-license:             OW
+license:             MIT
 author:              "Kaya Akagi"
 maintainer:          "kaya3728@gmail.com"
 copyright:           "2019 Kaya Akagi"
@@ -20,9 +20,8 @@ extra-source-files:
 description:         Please see the README on GitHub at <https://github.com/githubuser/ExchangeAlgebra#readme>
 
 dependencies:
-- base >= 4.7 && < 5
+- base
 - text
-- extensible
 - time
 - containers
 - lens
@@ -46,6 +45,20 @@ executables:
     - -O1
     dependencies:
     - exchangealgebra
+
+executables:
+  sample:
+    main:                Sample.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    - -O1
+    dependencies:
+    - exchangealgebra
+
+
 
 tests:
   ExchangeAlgebra-test:
