@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 934e9749c9c0e04cb92ad53268a21b715b351058a28ebb561aa1a4155aca1d42
+-- hash: f60417edc20e1508c89d6134fd658779ed898796cc57f1548c888e3ab39df5c1
 
 name:           exchangealgebra
 version:        0.2.0.0
@@ -51,9 +51,10 @@ library
     , unicode-show
   default-language: Haskell2010
 
-executable main
-  main-is: Main.hs
+executable sample
+  main-is: Sample.hs
   other-modules:
+      Main
       Paths_exchangealgebra
   hs-source-dirs:
       app

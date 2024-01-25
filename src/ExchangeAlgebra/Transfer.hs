@@ -36,11 +36,13 @@ module ExchangeAlgebra.Transfer
     , transferKeepWiledcard
     , table
     , TransTableParts
+    , (.->)
     , (|%)
     , grossProfitTransferKeepWiledcard
     , ordinaryProfitTransferKeepWiledcard
     , retainedEarningTransferKeepWiledcard
-    , finalStockTransferKeepWiledcard) where
+    , finalStockTransferKeepWiledcard
+    ) where
 
 import qualified    ExchangeAlgebra.Algebra as EA
 import              ExchangeAlgebra.Algebra
@@ -374,6 +376,9 @@ table = ExchangeAlgebra.Transfer.fromList
 data TransTableParts b where
   (:->)   :: (HatBaseClass b) => b -> b -> TransTableParts b
 
+(.->) :: (HatBaseClass b) => b -> b -> TransTableParts b
+(.->) b1 b2  = b1 :-> b2
+
 instance (HatBaseClass b) => Show (TransTableParts b) where
   show (b1 :-> b2) = show b1 ++ " :-> " ++ show b2
 
@@ -385,6 +390,7 @@ instance (HatBaseClass b) => Show (TransTableParts b) where
 (|%) :: (HatVal n, HatBaseClass b) => TransTableParts b -> (n -> n) -> [(b,b,(n -> n))]
 (|%) (b1 :-> b2) f = [(b1,b2,f)]
 
+infixr 8 .->
 infixr 8 :->
 infixr 7 |%
 
