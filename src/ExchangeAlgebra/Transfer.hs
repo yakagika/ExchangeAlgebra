@@ -197,18 +197,19 @@ transfer Zero (TransTable _ b f a l r)              = Zero
 transfer (v:@ hb1) (TransTable _ hb2 f a l r)       | hb1 ./= hb2 = case compareElement hb1 hb2 of
                                                             LT -> transfer (v :@ hb1) l
                                                             GT -> transfer (v :@ hb1) r
+                                                    | hb1 .== hb2 = (f v) :@ a
+
+{- I forgot why this is needed....
                                                     | hb1 .== hb2 = case compare v (f v) of
                                                             LT -> ((f v) - v) :@ hb1 -- 変換後に増えた分足す
                                                                .+ (f v)       :@ a
                                                             EQ -> (f v)       :@ a
                                                             GT -> (v - (f v)) :@ hb1 -- あまり
                                                                .+ (f v)       :@ a
-
+-}
 transfer xs tt = EA.map (\x -> transfer x tt) xs
 
 -- | タプルの内, ワイルドカードは変換しない
-
-
 {-# INLINE transferKeepWiledcard #-}
 transferKeepWiledcard :: (HatVal n, HatBaseClass b) => Alg n b -> TransTable n b -> Alg n b
 transferKeepWiledcard alg NullTable                              = alg
@@ -217,12 +218,16 @@ transferKeepWiledcard (v:@ hb1) (TransTable _ hb2 f a l r)
     | hb1 ./= hb2 = case compareElement hb1 hb2 of
             LT -> transferKeepWiledcard (v :@ hb1) l
             GT -> transferKeepWiledcard (v :@ hb1) r
+    | hb1 .== hb2 = (f v) :@ keepWiledcard hb1 a
+
+{- I forgot why this is needed....
     | hb1 .== hb2 = case compare v (f v) of
             LT -> ((f v) - v) :@ hb1 -- 変換後に増えた分足す
                .+ (f v)       :@ keepWiledcard hb1 a
             EQ -> (f v)       :@ keepWiledcard hb1 a
             GT -> (v - (f v)) :@ hb1 -- あまり
                .+ (f v)       :@ keepWiledcard hb1 a
+-}
 
 transferKeepWiledcard xs tt = EA.map (\x -> transferKeepWiledcard x tt) xs
 

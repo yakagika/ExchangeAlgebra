@@ -74,29 +74,29 @@ flow[q] & =  x~\hat{} \langle a,1,q,Qua \rangle  + x'         \langle Cash,1,q,Y
 -}
 
 flow :: Transaction
-flow =  1 .@ Hat :<(Products,"a",1,1,Amount) .+ 1 .@ Not :<(Cash,(.#),1,1,Yen)
-     .+ 1 .@ Not :<(Products,"a",2,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),2,1,Yen)
-     .+ 1 .@ Hat :<(Products,"b",1,1,Amount) .+ 1 .@ Not :<(Cash,(.#),1,1,Yen)
-     .+ 1 .@ Not :<(Products,"b",2,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),2,1,Yen)
-     .+ 1 .@ Hat :<(Products,"a",1,1,Amount) .+ 1 .@ Not :<(Cash,(.#),1,1,Yen)
-     .+ 1 .@ Not :<(Products,"a",3,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),3,1,Yen)
-     .+ 1 .@ Hat :<(Products,"c",3,1,Amount) .+ 1 .@ Not :<(Cash,(.#),3,1,Yen)
-     .+ 1 .@ Not :<(Products,"c",2,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),2,1,Yen)
-     .+ 1 .@ Hat :<(Products,"d",3,1,Amount) .+ 1 .@ Not :<(Cash,(.#),3,1,Yen)
-     .+ 1 .@ Not :<(Products,"d",2,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),2,1,Yen)
-     .+ 1 .@ Hat :<(Products,"d",3,1,Amount) .+ 1 .@ Not :<(Cash,(.#),3,1,Yen)
-     .+ 1 .@ Not :<(Products,"d",4,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),4,1,Yen)
+flow =  10 .@ Hat :<(Products,"a",1,1,Amount) -- .+ 1 .@ Not :<(Cash,(.#),1,1,Yen)
+--     .+ 1 .@ Not :<(Products,"a",2,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),2,1,Yen)
+--     .+ 1 .@ Hat :<(Products,"b",1,1,Amount) .+ 1 .@ Not :<(Cash,(.#),1,1,Yen)
+--     .+ 1 .@ Not :<(Products,"b",2,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),2,1,Yen)
+--     .+ 1 .@ Hat :<(Products,"a",1,1,Amount) .+ 1 .@ Not :<(Cash,(.#),1,1,Yen)
+--     .+ 1 .@ Not :<(Products,"a",3,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),3,1,Yen)
+--     .+ 1 .@ Hat :<(Products,"c",3,1,Amount) .+ 1 .@ Not :<(Cash,(.#),3,1,Yen)
+--     .+ 1 .@ Not :<(Products,"c",2,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),2,1,Yen)
+--     .+ 1 .@ Hat :<(Products,"d",3,1,Amount) .+ 1 .@ Not :<(Cash,(.#),3,1,Yen)
+--     .+ 1 .@ Not :<(Products,"d",2,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),2,1,Yen)
+--     .+ 1 .@ Hat :<(Products,"d",3,1,Amount) .+ 1 .@ Not :<(Cash,(.#),3,1,Yen)
+--     .+ 1 .@ Not :<(Products,"d",4,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),4,1,Yen)
 
 
 -- toPriceの実装
---toPrice :: Transaction -> Transaction
+-- toPrice :: Transaction -> Transaction
 toPrice ts
-    =  EA.transferKeepWiledcard ts
+    =  EA.transfer ts
     $  EA.table
-    $  (Hat:<(Products,"a",(.#),1,Amount)) .-> (Hat:<(Cash,(.#),(.#),1,Yen)) |% id -- 値段2円(個数×2)
+    $  (Hat:<(Products,"a",(.#),1,Amount)) .-> (Hat:<(Cash,(.#),(.#),1,Yen)) |% (*3) -- 値段2円(個数×2)
     ++ (Not:<(Products,"a",(.#),1,Amount)) .-> (Not:<(Cash,(.#),(.#),1,Yen)) |% (*2)
     ------------------------------------------------------------------
-    ++ (Hat:<(Products,"b",(.#),1,Amount)) .-> (Hat:<(Cash,(.#),(.#),1,Yen)) |% (*3)-- 3円
+    ++ (Hat:<(Products,"b",(.#),1,Amount)) .-> (Hat:<(Cash,(.#),(.#),1,Yen)) |% (*3) -- 3円
     ++ (Not:<(Products,"b",(.#),1,Amount)) .-> (Not:<(Cash,(.#),(.#),1,Yen)) |% (*3)
     ------------------------------------------------------------------
     ++ (Hat:<(Products,"c",(.#),1,Amount)) .-> (Hat:<(Cash,(.#),(.#),1,Yen)) |% (*4)
@@ -105,9 +105,11 @@ toPrice ts
     ++ (Hat:<(Products,"d",(.#),1,Amount)) .-> (Hat:<(Cash,(.#),(.#),1,Yen)) |% (*5)
     ++ (Not:<(Products,"d",(.#),1,Amount)) .-> (Not:<(Cash,(.#),(.#),1,Yen)) |% (*5)
 
--- purchace :: Transaction -> CommodityName -> Entity -> Period -> NN.Double
--- purchace ex c e p = tilde . (projHatEx ex (Not))
+purchace :: Transaction -> VEHatBase -> Transaction
+purchace ex b = bar $ toPrice $ proj [b] ex
 
 main :: IO ()
 main = do
-    print $ proj [Not :<(Products,"a",2,1,Amount)] $ toPrice $ flow
+    print $ toPrice flow
+    print $ purchace flow (Not:<(Products,"a",1,1,Amount))
+

@@ -110,6 +110,9 @@ class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
     -- | bar calculation
     (.-) :: a n b -> a n b
 
+    bar :: a n b -> a n b
+    bar = (.-)
+
     -- | compress same Base algebras keep dividing different Hat Values
     compress :: a n b -> a n b
 
@@ -371,6 +374,7 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
                                                         | v >  w             -> (v - w):@b
                                                         | v <  w             -> (w - v):@c
 
+
     {-# INLINE compress #-}
     compress Zero       = Zero
     compress (v :@ b)   | v == 0    = Zero
@@ -416,7 +420,6 @@ instance (HatVal n, ExBaseClass a) =>  Exchange Alg n a where
     decM xs = filter (\x -> x /= Zero && (not. isHat. _hatBase) x) xs
     balance xs  | (norm . decR) xs == (norm . decL) xs = True
                 | otherwise                            = False
-
 
 
 
