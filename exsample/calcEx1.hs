@@ -3,15 +3,25 @@
 {-# LANGUAGE Rank2Types         #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-import qualified  ExchangeAlgebra as EA
-import            ExchangeAlgebra
+{-
+基底を定義して会計計算を行うサンプル
+-}
 
-import qualified    Number.NonNegative              as NN
-import qualified    Numeric                         as N
+
+
+
+import qualified    ExchangeAlgebra         as EA
+import              ExchangeAlgebra
+
+import qualified    Number.NonNegative      as NN
+import qualified    Numeric                 as N
 import              Number.NonNegative
 
-import qualified Data.Map.Strict as M
-import qualified Data.Text as T
+import qualified    Data.Map.Strict         as M
+import qualified    Data.Text               as T
+
+import              Data.Array.ST
+
 
 ------------------------------------------------------------------
 -- * Exchange Algebra
@@ -30,7 +40,7 @@ instance EA.Element ID where
 -- A set of transaction entity index
 type Entity = ID
 
---
+-- 商品名
 type CommodityName = T.Text
 
 type Period = ID
@@ -73,27 +83,30 @@ flow[q] & =  x~\hat{} \langle a,1,q,Qua \rangle  + x'         \langle Cash,1,q,Y
 \end{align*}
 -}
 
-flow :: Transaction
-flow =  10 .@ Hat :<(Products,"a",1,1,Amount) -- .+ 1 .@ Not :<(Cash,(.#),1,1,Yen)
---     .+ 1 .@ Not :<(Products,"a",2,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),2,1,Yen)
---     .+ 1 .@ Hat :<(Products,"b",1,1,Amount) .+ 1 .@ Not :<(Cash,(.#),1,1,Yen)
---     .+ 1 .@ Not :<(Products,"b",2,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),2,1,Yen)
---     .+ 1 .@ Hat :<(Products,"a",1,1,Amount) .+ 1 .@ Not :<(Cash,(.#),1,1,Yen)
---     .+ 1 .@ Not :<(Products,"a",3,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),3,1,Yen)
---     .+ 1 .@ Hat :<(Products,"c",3,1,Amount) .+ 1 .@ Not :<(Cash,(.#),3,1,Yen)
---     .+ 1 .@ Not :<(Products,"c",2,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),2,1,Yen)
---     .+ 1 .@ Hat :<(Products,"d",3,1,Amount) .+ 1 .@ Not :<(Cash,(.#),3,1,Yen)
---     .+ 1 .@ Not :<(Products,"d",2,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),2,1,Yen)
---     .+ 1 .@ Hat :<(Products,"d",3,1,Amount) .+ 1 .@ Not :<(Cash,(.#),3,1,Yen)
---     .+ 1 .@ Not :<(Products,"d",4,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),4,1,Yen)
+flow  :: Transaction
+flow  =  1 .@ Hat :<(Products,"a",1,1,Amount) .+ 1 .@ Not :<(Cash,(.#),1,1,Yen)
+      .+ 1 .@ Not :<(Products,"a",2,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),2,1,Yen)
+      .+ 1 .@ Hat :<(Products,"b",1,1,Amount) .+ 1 .@ Not :<(Cash,(.#),1,1,Yen)
+      .+ 1 .@ Not :<(Products,"b",2,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),2,1,Yen)
+      .+ 1 .@ Hat :<(Products,"a",1,1,Amount) .+ 1 .@ Not :<(Cash,(.#),1,1,Yen)
+      .+ 1 .@ Not :<(Products,"a",3,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),3,1,Yen)
+      .+ 1 .@ Hat :<(Products,"c",3,1,Amount) .+ 1 .@ Not :<(Cash,(.#),3,1,Yen)
+      .+ 1 .@ Not :<(Products,"c",2,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),2,1,Yen)
+      .+ 1 .@ Hat :<(Products,"d",3,1,Amount) .+ 1 .@ Not :<(Cash,(.#),3,1,Yen)
+      .+ 1 .@ Not :<(Products,"d",2,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),2,1,Yen)
+      .+ 1 .@ Hat :<(Products,"d",3,1,Amount) .+ 1 .@ Not :<(Cash,(.#),3,1,Yen)
+      .+ 1 .@ Not :<(Products,"d",4,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),4,1,Yen)
 
 
 -- toPriceの実装
--- toPrice :: Transaction -> Transaction
+-- MapやArrayでもいいが
+-- 交換代数のTransfer (振替)として実装する
+
+toPrice :: Transaction -> Transaction
 toPrice ts
     =  EA.transfer ts
     $  EA.table
-    $  (Hat:<(Products,"a",(.#),1,Amount)) .-> (Hat:<(Cash,(.#),(.#),1,Yen)) |% (*3) -- 値段2円(個数×2)
+    $  (Hat:<(Products,"a",(.#),1,Amount)) .-> (Hat:<(Cash,(.#),(.#),1,Yen)) |% (*2) -- 値段2円(個数×2)
     ++ (Not:<(Products,"a",(.#),1,Amount)) .-> (Not:<(Cash,(.#),(.#),1,Yen)) |% (*2)
     ------------------------------------------------------------------
     ++ (Hat:<(Products,"b",(.#),1,Amount)) .-> (Hat:<(Cash,(.#),(.#),1,Yen)) |% (*3) -- 3円
@@ -111,5 +124,5 @@ purchace ex b = bar $ toPrice $ proj [b] ex
 main :: IO ()
 main = do
     print $ toPrice flow
-    print $ purchace flow (Not:<(Products,"a",1,1,Amount))
+    print $ norm $ purchace flow (Not:<(Products,"a",(.#),1,Amount))
 

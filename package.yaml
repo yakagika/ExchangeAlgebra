@@ -1,5 +1,5 @@
 name:                exchangealgebra
-version:             0.2.0.0
+version:             0.3.0.0
 github:              "yakagika/ExchangeAlgebra"
 license:             MIT
 author:              "Kaya Akagi"
@@ -30,35 +30,27 @@ dependencies:
 - non-negative
 - bifunctors
 - csv-parser
+- array
 
 library:
   source-dirs: src
 
-executables:
-  main:
-    main:                Main.hs
-    source-dirs:         app
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
-    - -O1
-    dependencies:
-    - exchangealgebra
+
+_exe-defs: &exe-defaults
+  dependencies: exchangealgebra
+  ghc-options: [-O2, -threaded, -rtsopts,-with-rtsopts=-N]
+
 
 executables:
-  sample:
-    main:                Sample.hs
-    source-dirs:         app
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
-    - -O1
-    dependencies:
-    - exchangealgebra
+  calcex1:
+    <<: *exe-defaults
+    main:                calcEx1.hs
+    source-dirs:         exsample
 
-
+  ssex1:
+    <<: *exe-defaults
+    main:                statespaceEx1.hs
+    source-dirs:         exsample
 
 tests:
   ExchangeAlgebra-test:
