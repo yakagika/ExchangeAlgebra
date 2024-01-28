@@ -43,7 +43,7 @@ type Entity = ID
 -- 商品名
 type CommodityName = T.Text
 
-type Period = ID
+type Term = ID
 
 ------------------------------------------------------------------
 -- ** ExBase
@@ -51,14 +51,15 @@ type Period = ID
 -- ExBaseをインスタンス宣言する
 -- 会計勘定科目の位置のみ指定すればOK
 
-type VEHatBase = EA.HatBase (EA.AccountTitles, CommodityName, Entity, Period, EA.CountUnit)
+type VEHatBase = EA.HatBase ( EA.AccountTitles
+                            , CommodityName
+                            , Entity
+                            , Term
+                            , EA.CountUnit)
 
 instance ExBaseClass VEHatBase where
-    getAccountTitle (h :< (accountTitle, commodityName,entity,period,countUnit))
-      = accountTitle
-
-    setAccountTitle (h :< (accountTitle, commodityName,entity,period,countUnit)) b
-      = h :< (b, commodityName,entity,period,countUnit)
+    getAccountTitle (h :< (a,c,e,t,u))   = a
+    setAccountTitle (h :< (a,c,e,t,u)) b = h :< (b,c,e,t,u)
 
 -- | 取引情報 一対の取引
 type Transaction = EA.Alg NN.Double VEHatBase
@@ -104,25 +105,26 @@ flow  =  1 .@ Hat :<(Products,"a",1,1,Amount) .+ 1 .@ Not :<(Cash,(.#),1,1,Yen)
 
 toPrice :: Transaction -> Transaction
 toPrice ts
-    =  EA.transfer ts
+    =  EA.transferKeepWiledcard ts
     $  EA.table
-    $  (Hat:<(Products,"a",(.#),1,Amount)) .-> (Hat:<(Cash,(.#),(.#),1,Yen)) |% (*2) -- 値段2円(個数×2)
-    ++ (Not:<(Products,"a",(.#),1,Amount)) .-> (Not:<(Cash,(.#),(.#),1,Yen)) |% (*2)
+    $  (Hat:<(Products,"a",(.#),1,Amount)) .-> (Not:<(Sales,(.#),(.#),1,Yen))     |% (*2) -- 値段2円(個数×2)
+    ++ (Not:<(Products,"a",(.#),1,Amount)) .-> (Not:<(Purchases,(.#),(.#),1,Yen)) |% (*2)
     ------------------------------------------------------------------
-    ++ (Hat:<(Products,"b",(.#),1,Amount)) .-> (Hat:<(Cash,(.#),(.#),1,Yen)) |% (*3) -- 3円
-    ++ (Not:<(Products,"b",(.#),1,Amount)) .-> (Not:<(Cash,(.#),(.#),1,Yen)) |% (*3)
+    ++ (Hat:<(Products,"b",(.#),1,Amount)) .-> (Not:<(Sales,(.#),(.#),1,Yen))     |% (*3) -- 3円
+    ++ (Not:<(Products,"b",(.#),1,Amount)) .-> (Not:<(Purchases,(.#),(.#),1,Yen)) |% (*3)
     ------------------------------------------------------------------
-    ++ (Hat:<(Products,"c",(.#),1,Amount)) .-> (Hat:<(Cash,(.#),(.#),1,Yen)) |% (*4)
-    ++ (Not:<(Products,"c",(.#),1,Amount)) .-> (Not:<(Cash,(.#),(.#),1,Yen)) |% (*4)
+    ++ (Hat:<(Products,"c",(.#),1,Amount)) .-> (Not:<(Sales,(.#),(.#),1,Yen))     |% (*4)
+    ++ (Not:<(Products,"c",(.#),1,Amount)) .-> (Not:<(Purchases,(.#),(.#),1,Yen)) |% (*4)
     ------------------------------------------------------------------
-    ++ (Hat:<(Products,"d",(.#),1,Amount)) .-> (Hat:<(Cash,(.#),(.#),1,Yen)) |% (*5)
-    ++ (Not:<(Products,"d",(.#),1,Amount)) .-> (Not:<(Cash,(.#),(.#),1,Yen)) |% (*5)
+    ++ (Hat:<(Products,"d",(.#),1,Amount)) .-> (Not:<(Sales,(.#),(.#),1,Yen))     |% (*5)
+    ++ (Not:<(Products,"d",(.#),1,Amount)) .-> (Not:<(Purchases,(.#),(.#),1,Yen)) |% (*5)
 
 purchace :: Transaction -> VEHatBase -> Transaction
 purchace ex b = bar $ toPrice $ proj [b] ex
 
 main :: IO ()
 main = do
-    print $ toPrice flow
+    print $ proj [Not:<(Products,(.#),2,(.#),(.#))] flow
+    print $ toPrice $ proj [HatNot:<(Products,(.#),2,(.#),(.#))] flow
     print $ norm $ purchace flow (Not:<(Products,"a",(.#),1,Amount))
 

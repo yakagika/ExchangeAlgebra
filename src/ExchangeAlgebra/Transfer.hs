@@ -433,6 +433,12 @@ grossProfitTransferKeepWiledcard ts
     ------------------------------------------------------------------
     ++ (toNot wiledcard) .~ ValueAdded      :-> (toNot wiledcard) .~ GrossProfit |% id
     ++ (toHat wiledcard) .~ ValueAdded      :-> (toHat wiledcard) .~ GrossProfit |% id
+    ------------------------------------------------------------------
+    ++ (toNot wiledcard) .~ Sales           :-> (toNot wiledcard) .~ GrossProfit |% id
+    ++ (toHat wiledcard) .~ Sales           :-> (toHat wiledcard) .~ GrossProfit |% id
+    ------------------------------------------------------------------
+    ++ (toNot wiledcard) .~ Purchases       :-> (toHat wiledcard) .~ GrossProfit |% id
+    ++ (toHat wiledcard) .~ Purchases       :-> (toNot wiledcard) .~ GrossProfit |% id
 
 -- | Ordinary Profit Transfer
 --

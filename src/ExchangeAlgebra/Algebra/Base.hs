@@ -220,7 +220,8 @@ class (HatBaseClass a) => ExBaseClass a where
             , TaxesExpense
             , ConsumptionExpenditure
             , SubsidyExpense
-            , CentralBankPaymentExpense]      = Cost
+            , CentralBankPaymentExpense
+            , Purchases]      = Cost
 
         | L.elem (getAccountTitle b)
             [ ValueAdded
@@ -232,7 +233,8 @@ class (HatBaseClass a) => ExBaseClass a where
             , InterestEarned
             , WageEarned
             , TaxesRevenue
-            , CentralBankPaymentIncome]       = Revenue
+            , CentralBankPaymentIncome
+            , Sales]                          = Revenue
         | otherwise                           = Assets
 
     {-# INLINE whatPIMO #-}

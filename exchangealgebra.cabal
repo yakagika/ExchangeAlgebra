@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: bd2427d558830f56a9ec3843b53b3f75bda09169490103db5d71d3f19ccd99b0
+-- hash: 1e0486b81a0467c3a7b59c1e3bd8168648f2614aec307243171d7579061d1185
 
 name:           exchangealgebra
 version:        0.3.0.0
@@ -39,7 +39,9 @@ library
   hs-source-dirs:
       src
   build-depends:
-      array
+      Chart
+    , Chart-cairo
+    , array
     , base
     , bifunctors
     , containers
@@ -60,7 +62,9 @@ executable calcex1
       exsample
   ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      array
+      Chart
+    , Chart-cairo
+    , array
     , base
     , bifunctors
     , containers
@@ -82,7 +86,9 @@ executable ssex1
       exsample
   ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      array
+      Chart
+    , Chart-cairo
+    , array
     , base
     , bifunctors
     , containers
@@ -103,7 +109,9 @@ test-suite ExchangeAlgebra-doctest
       Paths_exchangealgebra
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -O1
   build-depends:
-      array
+      Chart
+    , Chart-cairo
+    , array
     , base
     , bifunctors
     , containers
@@ -127,7 +135,9 @@ test-suite ExchangeAlgebra-test
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -O1
   build-depends:
-      array
+      Chart
+    , Chart-cairo
+    , array
     , base
     , bifunctors
     , containers

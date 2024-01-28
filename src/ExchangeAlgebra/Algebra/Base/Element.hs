@@ -146,6 +146,7 @@ data  AccountTitles = Cash                            -- ^ 資産 現金
                     | ConsumptionExpenditure          -- ^ 費用
                     | SubsidyExpense                  -- ^ 費用
                     | CentralBankPaymentExpense       -- ^ 費用
+                    | Purchases                       -- ^ 費用 仕入
                     | ValueAdded                      -- ^ 収益
                     | SubsidyIncome                   -- ^ 収益
                     | NationalBondInterestEarned      -- ^ 収益
@@ -156,6 +157,7 @@ data  AccountTitles = Cash                            -- ^ 資産 現金
                     | WageEarned                      -- ^ 収益
                     | TaxesRevenue                    -- ^ 収益
                     | CentralBankPaymentIncome        -- ^ 収益
+                    | Sales                           -- ^ 収益 売上
                     | AccountTitle                    -- ^ ワイルドカード
                     deriving (Show, Ord, Eq, Enum)
 
