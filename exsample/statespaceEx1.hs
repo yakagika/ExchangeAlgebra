@@ -169,20 +169,22 @@ type ID = Prelude.Int
 
 instance EA.Element ID where
     wiledcard = -1
-
--- A set of transaction entity index
+-- 取引主体ID
 type Entity = ID
+-- 最小
 fstEnt  = 1
+-- 最大
 lastEnt = 4
-
---
-type CommodityName = T.Text
-
+-- 期
 type Term = ID
 -- | 開始
 initTerm = 1
 -- | 終了
-lastTerm = 5
+lastTerm = 3
+
+-- 商品名
+type CommodityName = T.Text
+
 ------------------------------------------------------------------
 -- ** ExBase
 ------------------------------------------------------------------
@@ -263,17 +265,34 @@ instance Series ST s (Book s) where
     updatePattern KindBook _ = return Modify
 
     -- 過去のTermを次の期のTermに変更して追加する
-    modify KindBook wld f initTerm =  return ()
     modify KindBook wld f t =  readSTRef (f wld) >>= \bk
-                            -> let added = plusTerm t (EA.finalStockTransferKeepWiledcard bk)
-                            in modifySTRef (f wld) $ \x -> bk .+ added
+                            -> let added = g t bk
+                            in modifySTRef (f wld) (\x -> x .+ added)
+        where
+        g t x = (.-)
+              $ plusTerm t
+              $ EA.finalStockTransferKeepWiledcard
+              $ inventoryCount
+              $ proj [HatNot :<((.#),(.#),(.#),t-1,(.#))] x
 
--- 1期繰り上げるTransfer
+-- | 1期繰り上げるTransfer
 plusTerm :: Term -> Transaction -> Transaction
 plusTerm  t tr = ET.transferKeepWiledcard tr
                  $ EA.table
                  $  (Not:<((.#),(.#),(.#),t,(.#))) .-> (Not:<((.#),(.#),(.#),t+1,(.#))) |% id
                  ++ (Hat:<((.#),(.#),(.#),t,(.#))) .-> (Hat:<((.#),(.#),(.#),t+1,(.#))) |% id
+
+-- | 棚卸し仕訳
+-- 物量で商品が売上と同額貸方にあるので,
+-- 同額の売上に変換することで分記法から,三分割法の売上に変換される
+-- ここでは,Cashが発生する機会が販売購入以外にないため,この実装で良いが
+-- 他に同名の勘定科目が生じるイベントがある場合には,摘要上方を利用する必要がある.
+inventoryCount ::  Transaction -> Transaction
+inventoryCount tr = ET.transferKeepWiledcard tr
+                  $ EA.table
+                  $  (Not:<(Cash,(.#),(.#),(.#),(.#))) .-> (Not:<(Sales,(.#),(.#),(.#),(.#))) |% id
+                  ++ (Hat:<(Cash,(.#),(.#),(.#),(.#))) .-> (Not:<(Purchases,(.#),(.#),(.#),(.#))) |% id
+
 
 ------------------------------------------------------------------
 -- ** 価格の状態空間の定義
@@ -284,20 +303,19 @@ type Prices s = STArray s Term VETransTable
 
 -- 価格の初期状態
 -- 今回は期間別の1財1価 ,生産者別の価格,取引別の価格は取引idなどを基底に持たせる必要がある.
--- 物量で商品が売上と同額貸方にあるので,同額の売上に変換することで物量簿記から,三分割法の売上に変換される
 initPrice :: Term -> VETransTable
 initPrice t = EA.table
-            $  (Hat:<(Products,"a",(.#),t,Amount)) .-> (Not:<(Sales,(.#),(.#),t,Yen))     |% (*2) -- 値段2円(個数×2)
-            ++ (Not:<(Products,"a",(.#),t,Amount)) .-> (Not:<(Purchases,(.#),(.#),t,Yen)) |% (*2)
+            $  (Hat:<(Products,"a",(.#),t,Amount)) .-> (Hat:<(Products,"a",(.#),t,Yen)) |% (*2) -- 値段2円(個数×2)
+            ++ (Not:<(Products,"a",(.#),t,Amount)) .-> (Not:<(Products,"a",(.#),t,Yen)) |% (*2)
             ------------------------------------------------------------------
-            ++ (Hat:<(Products,"b",(.#),t,Amount)) .-> (Not:<(Sales,(.#),(.#),t,Yen))     |% (*3) -- 3円
-            ++ (Not:<(Products,"b",(.#),t,Amount)) .-> (Not:<(Purchases,(.#),(.#),t,Yen)) |% (*3)
+            ++ (Hat:<(Products,"b",(.#),t,Amount)) .-> (Hat:<(Products,"b",(.#),t,Yen)) |% (*3) -- 3円
+            ++ (Not:<(Products,"b",(.#),t,Amount)) .-> (Not:<(Products,"b",(.#),t,Yen)) |% (*3)
             ------------------------------------------------------------------
-            ++ (Hat:<(Products,"c",(.#),t,Amount)) .-> (Not:<(Sales,(.#),(.#),t,Yen))     |% (*4)
-            ++ (Not:<(Products,"c",(.#),t,Amount)) .-> (Not:<(Purchases,(.#),(.#),t,Yen)) |% (*4)
+            ++ (Hat:<(Products,"c",(.#),t,Amount)) .-> (Hat:<(Products,"c",(.#),t,Yen)) |% (*4)
+            ++ (Not:<(Products,"c",(.#),t,Amount)) .-> (Not:<(Products,"c",(.#),t,Yen)) |% (*4)
             ------------------------------------------------------------------
-            ++ (Hat:<(Products,"d",(.#),t,Amount)) .-> (Not:<(Sales,(.#),(.#),t,Yen))     |% (*5)
-            ++ (Not:<(Products,"d",(.#),t,Amount)) .-> (Not:<(Purchases,(.#),(.#),t,Yen)) |% (*5)
+            ++ (Hat:<(Products,"d",(.#),t,Amount)) .-> (Hat:<(Products,"d",(.#),t,Yen)) |% (*5)
+            ++ (Not:<(Products,"d",(.#),t,Amount)) .-> (Not:<(Products,"d",(.#),t,Yen)) |% (*5)
 
 -- 価格履歴の初期状態
 initPrices :: ST s (Prices s)
@@ -308,10 +326,10 @@ initPrices  = newListArray (initTerm, lastTerm)
 -- 価格は固定
 instance Series ST s (Prices s) where
     initialize KindPrices = initPrices
-    updatePattern _ _ = return DoNothing
+    updatePattern KindPrices _ = return DoNothing
 
 ------------------------------------------------------------------
--- 空間の定義
+-- 状態空間の定義
 -- 簿記空間と環境変数
 data World s = World { _book    :: Book s
                      , _prices  :: Prices s }
@@ -326,9 +344,8 @@ initSTWorld = do
     return World {..}
 
 updateWorld :: Term -> World s -> ST s ()
-updateWorld t wld = do
-    update  KindBook   wld _book    t
-    update  KindPrices wld _prices  t
+updateWorld t wld =  update  KindBook   wld _book    t
+                  >> update  KindPrices wld _prices  t
 
 ------------------------------------------------------------------
 -- * 状態の更新
@@ -377,12 +394,13 @@ event wld BuySell t = newSTRef
                .+ 1 .@ Hat :<(Products,"d",3,t,Amount) .+ 5 .@ Not :<(Cash,(.#),3,t,Yen)
                .+ 1 .@ Not :<(Products,"d",4,t,Amount) .+ 5 .@ Hat :<(Cash,(.#),4,t,Yen)
 ------------------------------------------------------------------
--- 仕訳の一般化
-journal  World s -> TransactionType -> Term -> ST s ()
+-- 仕訳の一般化 (未実装)
+-- journal  World s -> TransactionType -> Term -> ST s ()
+
 
 
 -- イベントごとに仕訳をしないと正しく記録されない
-updateBook :: TransactionType -> Term -> World s -> ST s ()
+updateBook :: EventType -> Term -> World s -> ST s ()
 updateBook tt t wld =  event wld tt t >>= \stbk
                     -> readSTRef stbk >>= \bk
                     -> case bk of
@@ -397,7 +415,7 @@ updateEveryEvent t wld
     xs =    [ Production
             , BuySell]
 
---  物量簿記を通常簿記に変換する(棚卸)
+--  物量簿記を通常簿記に変換する
 toPrice :: Term -> World s -> ST s ()
 toPrice t wld =  readArray (_prices wld) t >>= \pt
               -> modifySTRef (_book wld) $ \x
@@ -420,8 +438,8 @@ culcTotalTerm wld = loop wld initTerm
   loop ::  World s -> Term -> ST s ()
   loop wld t
     | t >= lastTerm =  culcSingleTerm wld t
-    | otherwise       =  culcSingleTerm wld t
-                      >> loop wld (t + 1)
+    | otherwise     =  culcSingleTerm wld t
+                    >> loop wld (t + 1)
 
 
 ------------------------------------------------------------------

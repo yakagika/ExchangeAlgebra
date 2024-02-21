@@ -148,7 +148,7 @@ class (Redundant a n b ) => Exchange a n b where
     decL :: a n b -> a n b
     decP :: a n b -> a n b       -- ^ P-M decomposition
     decM :: a n b -> a n b
-    balance :: a n b -> Bool -- ^ norm Balance
+    balance :: a n b -> Bool     -- ^ norm Balance
 
 
 ------------------------------------------------------------------
@@ -184,6 +184,20 @@ instance HatVal NN.Double where
 -- | 代数元 数値と基底のペア
 --
 -- Use (.+) instead of (:+) except for pattern match.
+
+{-
+-- 線形結合の要素
+data ExElm n b where
+    (:@) :: {_val :: n, _hatBase :: b}  -> ExElm n b
+
+-- 線形結合
+data Assoc n b
+    Zero :: Alg n b
+    (:+) :: (ExElm n b) -> (Assoc n b) -> Assoc n b
+
+のように分離したほうが良い.
+-}
+
 
 data  Alg n b where
     Zero :: Alg n b

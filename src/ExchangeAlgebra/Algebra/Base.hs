@@ -72,7 +72,7 @@ class (BaseClass a) => HatBaseClass a where
     toHat  :: a    -> a
     toNot  :: a    -> a
     hat    :: a    -> Hat
-    revHat :: a    -> a
+    revHat :: a    -> a     -- reverse Hat
     isHat  :: a    -> Bool
     isNot  :: a    -> Bool
 

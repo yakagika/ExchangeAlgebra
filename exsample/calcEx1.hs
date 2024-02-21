@@ -102,22 +102,21 @@ flow  =  1 .@ Hat :<(Products,"a",1,1,Amount) .+ 1 .@ Not :<(Cash,(.#),1,1,Yen)
 -- toPriceの実装
 -- MapやArrayでもいいが
 -- 交換代数のTransfer (振替)として実装する
-
 toPrice :: Transaction -> Transaction
 toPrice ts
     =  EA.transferKeepWiledcard ts
     $  EA.table
-    $  (Hat:<(Products,"a",(.#),1,Amount)) .-> (Not:<(Sales,(.#),(.#),1,Yen))     |% (*2) -- 値段2円(個数×2)
-    ++ (Not:<(Products,"a",(.#),1,Amount)) .-> (Not:<(Purchases,(.#),(.#),1,Yen)) |% (*2)
+    $  (Hat:<(Products,"a",(.#),1,Amount)) .-> (Hat:<(Products,"a",(.#),1,Yen)) |% (*2) -- 値段2円(個数×2)
+    ++ (Not:<(Products,"a",(.#),1,Amount)) .-> (Not:<(Products,"a",(.#),1,Yen)) |% (*2)
     ------------------------------------------------------------------
-    ++ (Hat:<(Products,"b",(.#),1,Amount)) .-> (Not:<(Sales,(.#),(.#),1,Yen))     |% (*3) -- 3円
-    ++ (Not:<(Products,"b",(.#),1,Amount)) .-> (Not:<(Purchases,(.#),(.#),1,Yen)) |% (*3)
+    ++ (Hat:<(Products,"b",(.#),1,Amount)) .-> (Hat:<(Products,"a",(.#),1,Yen)) |% (*3) -- 3円
+    ++ (Not:<(Products,"b",(.#),1,Amount)) .-> (Not:<(Products,"a",(.#),1,Yen)) |% (*3)
     ------------------------------------------------------------------
-    ++ (Hat:<(Products,"c",(.#),1,Amount)) .-> (Not:<(Sales,(.#),(.#),1,Yen))     |% (*4)
-    ++ (Not:<(Products,"c",(.#),1,Amount)) .-> (Not:<(Purchases,(.#),(.#),1,Yen)) |% (*4)
+    ++ (Hat:<(Products,"c",(.#),1,Amount)) .-> (Hat:<(Products,"a",(.#),1,Yen)) |% (*4)
+    ++ (Not:<(Products,"c",(.#),1,Amount)) .-> (Not:<(Products,"a",(.#),1,Yen)) |% (*4)
     ------------------------------------------------------------------
-    ++ (Hat:<(Products,"d",(.#),1,Amount)) .-> (Not:<(Sales,(.#),(.#),1,Yen))     |% (*5)
-    ++ (Not:<(Products,"d",(.#),1,Amount)) .-> (Not:<(Purchases,(.#),(.#),1,Yen)) |% (*5)
+    ++ (Hat:<(Products,"d",(.#),1,Amount)) .-> (Hat:<(Products,"a",(.#),1,Yen)) |% (*5)
+    ++ (Not:<(Products,"d",(.#),1,Amount)) .-> (Not:<(Products,"a",(.#),1,Yen)) |% (*5)
 
 purchace :: Transaction -> VEHatBase -> Transaction
 purchace ex b = bar $ toPrice $ proj [b] ex
