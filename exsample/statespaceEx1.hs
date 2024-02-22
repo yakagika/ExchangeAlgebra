@@ -12,20 +12,6 @@
 
 {-
 状態空間による会計シミュレーションサンプル
-
-flow = 1 .@ Hat :<(Products,"a",1,1,Amount) .+ 1 .@ Not :<(Cash,(.#),1,1,Yen)
-    .+ 1 .@ Not :<(Products,"a",2,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),2,1,Yen)
-    .+ 1 .@ Hat :<(Products,"b",1,1,Amount) .+ 1 .@ Not :<(Cash,(.#),1,1,Yen)
-    .+ 1 .@ Not :<(Products,"b",2,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),2,1,Yen)
-    .+ 1 .@ Hat :<(Products,"a",1,1,Amount) .+ 1 .@ Not :<(Cash,(.#),1,1,Yen)
-    .+ 1 .@ Not :<(Products,"a",3,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),3,1,Yen)
-    .+ 1 .@ Hat :<(Products,"c",3,1,Amount) .+ 1 .@ Not :<(Cash,(.#),3,1,Yen)
-    .+ 1 .@ Not :<(Products,"c",2,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),2,1,Yen)
-    .+ 1 .@ Hat :<(Products,"d",3,1,Amount) .+ 1 .@ Not :<(Cash,(.#),3,1,Yen)
-    .+ 1 .@ Not :<(Products,"d",2,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),2,1,Yen)
-    .+ 1 .@ Hat :<(Products,"d",3,1,Amount) .+ 1 .@ Not :<(Cash,(.#),3,1,Yen)
-    .+ 1 .@ Not :<(Products,"d",4,1,Amount) .+ 1 .@ Hat :<(Cash,(.#),4,1,Yen)
-
 4エージェントがこの取引を毎期繰り返すのみの尤も単純な形式
 労働者等も存在しない.
 
@@ -400,17 +386,17 @@ event wld BuySell t = newSTRef
 
 
 -- イベントごとに仕訳をしないと正しく記録されない
-updateBook :: EventType -> Term -> World s -> ST s ()
-updateBook tt t wld =  event wld tt t >>= \stbk
+input :: EventType -> Term -> World s -> ST s ()
+input tt t wld =  event wld tt t >>= \stbk
                     -> readSTRef stbk >>= \bk
                     -> case bk of
                         Zero -> return ()
                         _    -> modifySTRef (_book wld) (\x -> x .+ bk)
 
 -- | Transaction全体を結合
-updateEveryEvent :: forall s. Term -> World s ->  ST s ()
-updateEveryEvent t wld
-    = CM.forM_ xs $ \tt -> updateBook tt t wld
+inputEveryEvent :: forall s. Term -> World s ->  ST s ()
+inputEveryEvent t wld
+    = CM.forM_ xs $ \tt -> input tt t wld
     where
     xs =    [ Production
             , BuySell]
@@ -428,7 +414,7 @@ toPrice t wld =  readArray (_prices wld) t >>= \pt
 -- 順番にイベントをこなす
 culcSingleTerm :: World s -> Term -> ST s ()
 culcSingleTerm wld t =  updateWorld      t wld
-                     >> updateEveryEvent t wld
+                     >> inputEveryEvent  t wld
                      >> toPrice          t wld
 
 culcTotalTerm :: World s -> ST s ()
