@@ -200,8 +200,6 @@ instance StateTime Term where
     nextTerm = \x -> x + 1
     prevTerm = \x -> x - 1
 
-class (Eq a, Show a, Enum a, Bounded a) => VariableName a where
-
 -- | 値の次の期の情報をどうするのかのパラメーター
 data UpdatePattern = Copy         -- 前期の情報をそのままコピー
                    | Modify       -- 何らかの方法でupdate (単体でできる場合のみ)
@@ -239,21 +237,7 @@ instance (StateVariables t n s a) => StateSpace t m s (n s a) where
         where
             fs = [_1,_2,_3,_4]
 -}
-------------------------------------------------------------------
--- ** 環境変数の更新等を一般化する
-------------------------------------------------------------------
 
--- 環境変数の名前
-data Variables = KindBook    -- 簿記
-               | KindPrices  -- 価格
-               deriving (Eq, Show, Enum, Bounded)
-
-
-instance VariableName Variables where
-
--- | 環境変数全体
-kinds :: [Variables]
-kinds = [minBound.. maxBound]
 
 ------------------------------------------------------------------
 -- ** 簿記の状態空間の定義
@@ -296,7 +280,7 @@ plusTerm  t tr = ET.transferKeepWiledcard tr
 -- 物量で商品が売上と同額貸方にあるので,
 -- 同額の売上に変換することで分記法から,三分割法の売上に変換される
 -- ここでは,Cashが発生する機会が販売購入以外にないため,この実装で良いが
--- 他に同名の勘定科目が生じるイベントがある場合には,摘要上方を利用する必要がある.
+-- 他に同名の勘定科目が生じるイベントがある場合には,摘要情報を利用する必要がある.
 inventoryCount ::  Transaction -> Transaction
 inventoryCount tr = ET.transferKeepWiledcard tr
                   $ EA.table
