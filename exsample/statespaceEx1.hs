@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleInstances  #-}
 {-# LANGUAGE Rank2Types         #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE  MultiParamTypeClasses #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns         #-} -- for initSTWorld
 {-# LANGUAGE RecordWildCards        #-} -- for initSTWorld
 {-# LANGUAGE Strict                 #-}
@@ -163,10 +163,6 @@ fstEnt  = 1
 lastEnt = 4
 -- 期
 type Term = ID
--- | 開始
-initTerm = 1
--- | 終了
-lastTerm = 3
 
 -- 商品名
 type CommodityName = T.Text
@@ -191,45 +187,73 @@ instance ExBaseClass VEHatBase where
 ------------------------------------------------------------------
 -- *  状態系の導入
 ------------------------------------------------------------------
+
+class (Eq t, Show t, Ord t) => StateTime t where
+    initTerm :: t
+    lastTerm :: t
+    nextTerm :: t -> t
+    prevTerm :: t -> t
+
+instance StateTime Term where
+    initTerm = 0
+    lastTerm = 3
+    nextTerm = \x -> x + 1
+    prevTerm = \x -> x - 1
+
+class (Eq a, Show a, Enum a, Bounded a) => VariableName a where
+
+-- | 値の次の期の情報をどうするのかのパラメーター
+data UpdatePattern = Copy         -- 前期の情報をそのままコピー
+                   | Modify       -- 何らかの方法でupdate (単体でできる場合のみ)
+                   | DoNothing    -- 放置
+                   deriving (Show, Eq)
+
+-- | 環境変数の系列
+class (Monad (m s),StateTime t) => StateVariables t m s a  where
+    initialize      :: t -> m s a
+
+    updatePattern   :: t -> a -> m s UpdatePattern
+
+    copy            :: a -> t -> m s ()
+    copy x t = undefined
+
+    modify          :: a -> t -> m s ()
+    modify x t = undefined
+
+    update          :: a  -> t -> m s ()
+    update x t =  updatePattern t x >>= \k
+                    -> case k of
+                            DoNothing -> return ()
+                            Copy      -> copy   x t
+                            Modify    -> modify x t
+
+
+class (Monad (m s),StateTime t) => StateSpace t m s a where
+    initSS ::   t -> m s a
+    updateSS :: t -> a -> m s ()
+{-
+instance (StateVariables t n s a) => StateSpace t m s (n s a) where
+    updateSS t wld = CM.forM_ fs $ \f -> case f wld of
+                                        Just y  -> update y t
+                                        Nothing -> return ()
+        where
+            fs = [_1,_2,_3,_4]
+-}
 ------------------------------------------------------------------
 -- ** 環境変数の更新等を一般化する
 ------------------------------------------------------------------
 
 -- 環境変数の名前
-data Kind = KindBook    -- 簿記
-          | KindPrices  -- 価格
-          deriving (Eq, Show, Enum, Bounded)
+data Variables = KindBook    -- 簿記
+               | KindPrices  -- 価格
+               deriving (Eq, Show, Enum, Bounded)
+
+
+instance VariableName Variables where
 
 -- | 環境変数全体
-kinds :: [Kind]
+kinds :: [Variables]
 kinds = [minBound.. maxBound]
-
--- | 値の次の期の情報をどうするのかのパラメーター
-data UpdatePattern = Copy         -- 前期の情報をそのままコピー
-                   | AtOther      -- 別の場所でコピーされているので放置
-                   | DoNothing    -- 放置
-                   | Modify       -- 何らかの方法でupdate (単体でできる場合のみ)
-                   deriving (Show, Eq)
-
--- | 環境変数の系列
-class (Monad (m s)) => Series m s a where
-    initialize      :: Kind -> m s a
-
-    updatePattern   :: Kind -> (World s -> a) -> m s UpdatePattern
-
-    copy            :: Kind -> World s -> (World s -> a) -> Term -> m s ()
-    copy kind x t = undefined
-
-    modify          :: Kind -> World s -> (World s -> a) -> Term -> m s ()
-    modify kind x t = undefined
-
-    update          :: Kind -> World s -> (World s -> a) -> Term -> m s ()
-    update kind x f t =  updatePattern kind f >>= \k
-                     -> case k of
-                            DoNothing -> return ()
-                            AtOther   -> return ()
-                            Copy      -> copy   kind x f t
-                            Modify    -> modify kind x f t
 
 ------------------------------------------------------------------
 -- ** 簿記の状態空間の定義
@@ -245,28 +269,28 @@ initBook :: ST s (Book s)
 initBook = newSTRef Zero
 
 -- 一般化の適用
-instance Series ST s (Book s) where
-    initialize KindBook = initBook
+instance StateVariables Term ST s (Book s) where
+    initialize _ = initBook
 
-    updatePattern KindBook _ = return Modify
+    updatePattern _ _ = return Modify
 
     -- 過去のTermを次の期のTermに変更して追加する
-    modify KindBook wld f t =  readSTRef (f wld) >>= \bk
-                            -> let added = g t bk
-                            in modifySTRef (f wld) (\x -> x .+ added)
+    modify x t  =  readSTRef x >>= \bk
+                -> let added = g t bk
+                in modifySTRef x (\z -> z .+ added)
         where
         g t x = (.-)
               $ plusTerm t
               $ EA.finalStockTransferKeepWiledcard
               $ inventoryCount
-              $ proj [HatNot :<((.#),(.#),(.#),t-1,(.#))] x
+              $ proj [HatNot :<((.#),(.#),(.#),prevTerm t,(.#))] x
 
 -- | 1期繰り上げるTransfer
 plusTerm :: Term -> Transaction -> Transaction
 plusTerm  t tr = ET.transferKeepWiledcard tr
                  $ EA.table
-                 $  (Not:<((.#),(.#),(.#),t,(.#))) .-> (Not:<((.#),(.#),(.#),t+1,(.#))) |% id
-                 ++ (Hat:<((.#),(.#),(.#),t,(.#))) .-> (Hat:<((.#),(.#),(.#),t+1,(.#))) |% id
+                 $  (Not:<((.#),(.#),(.#),t,(.#))) .-> (Not:<((.#),(.#),(.#),nextTerm t,(.#))) |% id
+                 ++ (Hat:<((.#),(.#),(.#),t,(.#))) .-> (Hat:<((.#),(.#),(.#),nextTerm t,(.#))) |% id
 
 -- | 棚卸し仕訳
 -- 物量で商品が売上と同額貸方にあるので,
@@ -310,28 +334,24 @@ initPrices  = newListArray (initTerm, lastTerm)
 
 -- ** STArray s (ID, Term) NN.Double
 -- 価格は固定
-instance Series ST s (Prices s) where
-    initialize KindPrices = initPrices
-    updatePattern KindPrices _ = return DoNothing
+instance StateVariables Term ST s (Prices s) where
+    initialize _ = initPrices
+    updatePattern _ _ = return DoNothing
 
 ------------------------------------------------------------------
 -- 状態空間の定義
--- 簿記空間と環境変数
+-- 会計と価格のみの世界
 data World s = World { _book    :: Book s
                      , _prices  :: Prices s }
 
-type STWorld s = ST s (World s)
+instance StateSpace Term ST s (World s) where
+    initSS x = do
+        _book   <- initialize x
+        _prices <- initialize x
+        return World {..}
 
--- 空間の初期状態
-initSTWorld :: STWorld s
-initSTWorld = do
-    _book   <- initialize KindBook
-    _prices <- initialize KindPrices
-    return World {..}
-
-updateWorld :: Term -> World s -> ST s ()
-updateWorld t wld =  update  KindBook   wld _book    t
-                  >> update  KindPrices wld _prices  t
+    updateSS t wld  = update (_book wld) t
+                   >> update (_prices wld) t
 
 ------------------------------------------------------------------
 -- * 状態の更新
@@ -413,7 +433,7 @@ toPrice t wld =  readArray (_prices wld) t >>= \pt
 ------------------------------------------------------------------
 -- 順番にイベントをこなす
 culcSingleTerm :: World s -> Term -> ST s ()
-culcSingleTerm wld t =  updateWorld      t wld
+culcSingleTerm wld t =  updateSS      t wld
                      >> inputEveryEvent  t wld
                      >> toPrice          t wld
 
@@ -425,7 +445,7 @@ culcTotalTerm wld = loop wld initTerm
   loop wld t
     | t >= lastTerm =  culcSingleTerm wld t
     | otherwise     =  culcSingleTerm wld t
-                    >> loop wld (t + 1)
+                    >> loop wld (nextTerm t)
 
 
 ------------------------------------------------------------------
@@ -433,7 +453,7 @@ culcTotalTerm wld = loop wld initTerm
 ------------------------------------------------------------------
 main :: IO ()
 main = do
-    wld <- stToIO $ initSTWorld >>= \wld' -> do
+    wld <- stToIO $ initSS (0 :: Term) >>= \wld' -> do
                   culcTotalTerm wld'
                   return wld'
     bk <- stToIO $ readSTRef (_book wld)
