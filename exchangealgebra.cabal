@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1e0486b81a0467c3a7b59c1e3bd8168648f2614aec307243171d7579061d1185
+-- hash: a7140c0f61b1aa1498a77a393a4b2c442867d2e2a7b2cd2a4fab499377a338f6
 
 name:           exchangealgebra
 version:        0.3.0.0
@@ -80,6 +80,30 @@ executable calcex1
 
 executable ssex1
   main-is: statespaceEx1.hs
+  other-modules:
+      Paths_exchangealgebra
+  hs-source-dirs:
+      exsample
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      Chart
+    , Chart-cairo
+    , array
+    , base
+    , bifunctors
+    , containers
+    , csv-parser
+    , exchangealgebra
+    , lens
+    , non-negative
+    , numeric-prelude
+    , text
+    , time
+    , unicode-show
+  default-language: Haskell2010
+
+executable ssex2
+  main-is: statespaceEx2.hs
   other-modules:
       Paths_exchangealgebra
   hs-source-dirs:

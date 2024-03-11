@@ -195,7 +195,7 @@ class (Eq t, Show t, Ord t) => StateTime t where
     prevTerm :: t -> t
 
 instance StateTime Term where
-    initTerm = 0
+    initTerm = 1
     lastTerm = 3
     nextTerm = \x -> x + 1
     prevTerm = \x -> x - 1
@@ -229,6 +229,8 @@ class (Monad (m s),StateTime t) => StateVariables t m s a  where
 class (Monad (m s),StateTime t) => StateSpace t m s a where
     initSS ::   t -> m s a
     updateSS :: t -> a -> m s ()
+
+
 {-
 instance (StateVariables t n s a) => StateSpace t m s (n s a) where
     updateSS t wld = CM.forM_ fs $ \f -> case f wld of
@@ -273,8 +275,8 @@ instance StateVariables Term ST s (Book s) where
 plusTerm :: Term -> Transaction -> Transaction
 plusTerm  t tr = ET.transferKeepWiledcard tr
                  $ EA.table
-                 $  (Not:<((.#),(.#),(.#),t,(.#))) .-> (Not:<((.#),(.#),(.#),nextTerm t,(.#))) |% id
-                 ++ (Hat:<((.#),(.#),(.#),t,(.#))) .-> (Hat:<((.#),(.#),(.#),nextTerm t,(.#))) |% id
+                 $  (Not:<((.#),(.#),(.#),prevTerm t,(.#))) .-> (Not:<((.#),(.#),(.#),t,(.#))) |% id
+                 ++ (Hat:<((.#),(.#),(.#),prevTerm t,(.#))) .-> (Hat:<((.#),(.#),(.#),t,(.#))) |% id
 
 -- | 棚卸し仕訳
 -- 物量で商品が売上と同額貸方にあるので,
@@ -417,7 +419,7 @@ toPrice t wld =  readArray (_prices wld) t >>= \pt
 ------------------------------------------------------------------
 -- 順番にイベントをこなす
 culcSingleTerm :: World s -> Term -> ST s ()
-culcSingleTerm wld t =  updateSS      t wld
+culcSingleTerm wld t =  updateSS         t wld
                      >> inputEveryEvent  t wld
                      >> toPrice          t wld
 
@@ -437,7 +439,7 @@ culcTotalTerm wld = loop wld initTerm
 ------------------------------------------------------------------
 main :: IO ()
 main = do
-    wld <- stToIO $ initSS (0 :: Term) >>= \wld' -> do
+    wld <- stToIO $ initSS (1 :: Term) >>= \wld' -> do
                   culcTotalTerm wld'
                   return wld'
     bk <- stToIO $ readSTRef (_book wld)

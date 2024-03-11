@@ -54,6 +54,12 @@ executables:
     main:                statespaceEx1.hs
     source-dirs:         exsample
 
+  ssex2:
+    <<: *exe-defaults
+    main:                statespaceEx2.hs
+    source-dirs:         exsample
+
+
 tests:
   ExchangeAlgebra-test:
     main:                Spec.hs
