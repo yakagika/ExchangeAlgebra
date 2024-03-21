@@ -227,8 +227,8 @@ class (Monad (m s),StateTime t) => StateVariables t m s a  where
 
 
 class (Monad (m s),StateTime t) => StateSpace t m s a where
-    initSS ::   t -> m s a
-    updateSS :: t -> a -> m s ()
+    initialize ::   t -> m s a
+    update :: t -> a -> m s ()
 
 
 {-
