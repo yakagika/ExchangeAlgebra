@@ -9,6 +9,8 @@
 {-# LANGUAGE Strict                 #-}
 {-# LANGUAGE StrictData             #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 {-
 状態空間による会計シミュレーションサンプル
@@ -21,10 +23,10 @@
 import qualified    ExchangeAlgebra         as EA
 import              ExchangeAlgebra
 import qualified    ExchangeAlgebra.Transfer as ET
-
+import              ExchangeAlgebra.Simulate
 
 -- For Visutalization
-import              Graphics.Rendering.Chart.Easy            hiding ( (:<))
+import              Graphics.Rendering.Chart.Easy            hiding ( (:<),(.~))
 import              Graphics.Rendering.Chart.Backend.Cairo
 import              Graphics.Rendering.Chart.Axis
 import              Graphics.Rendering.Chart.Axis.Int
@@ -44,7 +46,7 @@ import              Control.Monad.ST
 import              Data.Array.ST
 import              Data.STRef
 import qualified    Data.List                       as L
-
+import GHC.Generics
 
 ------------------------------------------------------------------
 -- * 可視化用の関数定義
@@ -143,11 +145,17 @@ modifyArray ::(MArray a t m, Ix i) => a i t -> i -> (t -> t) -> m ()
 modifyArray ar e f = readArray ar e >>= \ x -> writeArray ar e (f x)
 
 ------------------------------------------------------------------
--- * Exchange Algebra
+-- *  状態系の導入
 ------------------------------------------------------------------
 
+instance StateTime Term where
+    initTerm = 1
+    lastTerm = 3
+    nextTerm = \x -> x + 1
+    prevTerm = \x -> x - 1
+
 ------------------------------------------------------------------
--- ** ExBase Elements
+-- ** 簿記の状態空間の定義
 ------------------------------------------------------------------
 -- ExBase Elementをインスタンス宣言する
 -- wiledcardのみ指定すればOK
@@ -167,9 +175,6 @@ type Term = ID
 -- 商品名
 type CommodityName = T.Text
 
-------------------------------------------------------------------
--- ** ExBase
-------------------------------------------------------------------
 -- ExBaseをインスタンス宣言する
 -- 会計勘定科目の位置のみ指定すればOK
 
@@ -184,67 +189,6 @@ instance ExBaseClass VEHatBase where
     setAccountTitle (h :< (a,c,e,t,u)) b = h :< (b,c,e,t,u)
 
 
-------------------------------------------------------------------
--- *  状態系の導入
-------------------------------------------------------------------
-
-class (Eq t, Show t, Ord t) => StateTime t where
-    initTerm :: t
-    lastTerm :: t
-    nextTerm :: t -> t
-    prevTerm :: t -> t
-
-instance StateTime Term where
-    initTerm = 1
-    lastTerm = 3
-    nextTerm = \x -> x + 1
-    prevTerm = \x -> x - 1
-
--- | 値の次の期の情報をどうするのかのパラメーター
-data UpdatePattern = Copy         -- 前期の情報をそのままコピー
-                   | Modify       -- 何らかの方法でupdate (単体でできる場合のみ)
-                   | DoNothing    -- 放置
-                   deriving (Show, Eq)
-
--- | 環境変数の系列
-class (Monad (m s),StateTime t) => StateVariables t m s a  where
-    initialize      :: t -> m s a
-
-    updatePattern   :: t -> a -> m s UpdatePattern
-
-    copy            :: a -> t -> m s ()
-    copy x t = undefined
-
-    modify          :: a -> t -> m s ()
-    modify x t = undefined
-
-    update          :: a  -> t -> m s ()
-    update x t =  updatePattern t x >>= \k
-                    -> case k of
-                            DoNothing -> return ()
-                            Copy      -> copy   x t
-                            Modify    -> modify x t
-
-
-class (Monad (m s),StateTime t) => StateSpace t m s a where
-    initialize ::   t -> m s a
-    update :: t -> a -> m s ()
-
-
-{-
-instance (StateVariables t n s a) => StateSpace t m s (n s a) where
-    updateSS t wld = CM.forM_ fs $ \f -> case f wld of
-                                        Just y  -> update y t
-                                        Nothing -> return ()
-        where
-            fs = [_1,_2,_3,_4]
--}
-
-
-------------------------------------------------------------------
--- ** 簿記の状態空間の定義
-------------------------------------------------------------------
-
 -- | 取引情報
 type Transaction = EA.Alg NN.Double VEHatBase
 -- | 簿記
@@ -255,13 +199,13 @@ initBook :: ST s (Book s)
 initBook = newSTRef Zero
 
 -- 一般化の適用
-instance StateVariables Term ST s (Book s) where
+instance Updatable Term ST s (Book s) where
     initialize _ = initBook
 
     updatePattern _ _ = return Modify
 
     -- 過去のTermを次の期のTermに変更して追加する
-    modify x t  =  readSTRef x >>= \bk
+    modify t x  =  readSTRef x >>= \bk
                 -> let added = g t bk
                 in modifySTRef x (\z -> z .+ added)
         where
@@ -286,9 +230,8 @@ plusTerm  t tr = ET.transferKeepWiledcard tr
 inventoryCount ::  Transaction -> Transaction
 inventoryCount tr = ET.transferKeepWiledcard tr
                   $ EA.table
-                  $  (Not:<(Cash,(.#),(.#),(.#),(.#))) .-> (Not:<(Sales,(.#),(.#),(.#),(.#))) |% id
-                  ++ (Hat:<(Cash,(.#),(.#),(.#),(.#))) .-> (Not:<(Purchases,(.#),(.#),(.#),(.#))) |% id
-
+                  $ (toNot wiledcard) .~ Cash .-> (toNot wiledcard) .~ Sales     |% id
+                  ++(toHat wiledcard) .~ Cash .-> (toNot wiledcard) .~ Purchases |% id
 
 ------------------------------------------------------------------
 -- ** 価格の状態空間の定義
@@ -320,7 +263,7 @@ initPrices  = newListArray (initTerm, lastTerm)
 
 -- ** STArray s (ID, Term) NN.Double
 -- 価格は固定
-instance StateVariables Term ST s (Prices s) where
+instance Updatable Term ST s (Prices s) where
     initialize _ = initPrices
     updatePattern _ _ = return DoNothing
 
@@ -329,15 +272,12 @@ instance StateVariables Term ST s (Prices s) where
 -- 会計と価格のみの世界
 data World s = World { _book    :: Book s
                      , _prices  :: Prices s }
+                     deriving (Generic)
 
-instance StateSpace Term ST s (World s) where
-    initSS x = do
-        _book   <- initialize x
-        _prices <- initialize x
-        return World {..}
+-- deriving Generic をしていれば
+-- 空のインスタンス宣言で自動でinitSS,updateSSが使えるようになる
+instance StateSpace Term ST s (World s)
 
-    updateSS t wld  = update (_book wld) t
-                   >> update (_prices wld) t
 
 ------------------------------------------------------------------
 -- * 状態の更新
@@ -419,7 +359,7 @@ toPrice t wld =  readArray (_prices wld) t >>= \pt
 ------------------------------------------------------------------
 -- 順番にイベントをこなす
 culcSingleTerm :: World s -> Term -> ST s ()
-culcSingleTerm wld t =  updateSS         t wld
+culcSingleTerm wld t =  updateAll        t wld
                      >> inputEveryEvent  t wld
                      >> toPrice          t wld
 
@@ -439,7 +379,7 @@ culcTotalTerm wld = loop wld initTerm
 ------------------------------------------------------------------
 main :: IO ()
 main = do
-    wld <- stToIO $ initSS (1 :: Term) >>= \wld' -> do
+    wld <- stToIO $ initAll (1 :: Term) >>= \wld' -> do
                   culcTotalTerm wld'
                   return wld'
     bk <- stToIO $ readSTRef (_book wld)
