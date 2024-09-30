@@ -1,24 +1,22 @@
 
 {-# LANGUAGE FlexibleContexts   #-}
 {-# LANGUAGE FlexibleInstances  #-}
-{-# LANGUAGE Rank2Types         #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE NamedFieldPuns         #-} -- for initSTWorld
-{-# LANGUAGE RecordWildCards        #-} -- for initSTWorld
 {-# LANGUAGE Strict                 #-}
 {-# LANGUAGE StrictData             #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE BangPatterns #-}
 
 {-
-状態空間による会計シミュレーションサンプル
+状態空間による会計シミュレーションサンプル(確率モデル)
 4エージェントがこの取引を毎期繰り返すのみの尤も単純な形式
 労働者等も存在しない.
-
+価格が価格改定イベントを通じて正規分布に応じて変化する
+価格と初期保有量が乱数で決定する
 -}
 
 -- Original
@@ -44,8 +42,7 @@ import              Data.Array.ST
 import              Data.STRef
 import qualified    Data.List                       as L
 import GHC.Generics
-
-
+import System.Random -- 乱数
 ------------------------------------------------------------------
 -- *  状態系の導入
 ------------------------------------------------------------------
@@ -102,7 +99,7 @@ initBook = newSTRef Zero
 
 -- 一般化の適用
 instance Updatable Term ST s (Book s) where
-    initialize _ = initBook
+    initialize _ _  = initBook
 
     updatePattern _ _ = return Modify
 
@@ -139,41 +136,71 @@ inventoryCount tr = ET.transferKeepWiledcard tr
 -- ** 価格の状態空間の定義
 ------------------------------------------------------------------
 
-type VETransTable = EA.TransTable NN.Double VEHatBase
-type Prices s = STArray s Term VETransTable
+-- | 販売価格のテーブル
+type Price = NN.Double
+type PriceTable = M.Map (Term,CommodityName) Price
+type Prices s = STRef s PriceTable
 
--- 価格の初期状態
+-- 販売価格の初期状態
 -- 今回は期間別の1財1価 ,生産者別の価格,取引別の価格は取引idなどを基底に持たせる必要がある.
-initPrice :: Term -> VETransTable
-initPrice t = EA.table
-            $  (Hat:<(Products,"a",(.#),t,Amount)) .-> (Hat:<(Products,"a",(.#),t,Yen)) |% (*2) -- 値段2円(個数×2)
-            ++ (Not:<(Products,"a",(.#),t,Amount)) .-> (Not:<(Products,"a",(.#),t,Yen)) |% (*2)
-            ------------------------------------------------------------------
-            ++ (Hat:<(Products,"b",(.#),t,Amount)) .-> (Hat:<(Products,"b",(.#),t,Yen)) |% (*3) -- 3円
-            ++ (Not:<(Products,"b",(.#),t,Amount)) .-> (Not:<(Products,"b",(.#),t,Yen)) |% (*3)
-            ------------------------------------------------------------------
-            ++ (Hat:<(Products,"c",(.#),t,Amount)) .-> (Hat:<(Products,"c",(.#),t,Yen)) |% (*4)
-            ++ (Not:<(Products,"c",(.#),t,Amount)) .-> (Not:<(Products,"c",(.#),t,Yen)) |% (*4)
-            ------------------------------------------------------------------
-            ++ (Hat:<(Products,"d",(.#),t,Amount)) .-> (Hat:<(Products,"d",(.#),t,Yen)) |% (*5)
-            ++ (Not:<(Products,"d",(.#),t,Amount)) .-> (Not:<(Products,"d",(.#),t,Yen)) |% (*5)
+initPrice :: Term -> CommodityName -> NN.Double
+initPrice t "a" = 2
+initPrice t "b" = 3
+initPrice t "c" = 4
+initPrice t "d" = 5
 
 -- 価格履歴の初期状態
 initPrices :: ST s (Prices s)
-initPrices  = newListArray (initTerm, lastTerm)
-              [initPrice t | t <- [initTerm .. lastTerm]]
+initPrices  = newSTRef $ M.fromList [((t,c),initPrice t c)
+                                    | t <- [initTerm .. lastTerm]
+                                    , c <- ["a","b","c","d"]]
 
 -- ** STArray s (ID, Term) NN.Double
 -- 価格は固定
 instance Updatable Term ST s (Prices s) where
-    initialize _ = initPrices
+    initialize _ _ = initPrices
+    updatePattern _ _ = return DoNothing
+
+type VETransTable = EA.TransTable NN.Double VEHatBase
+-- | 価格テーブルから物量→価格評価への変換テーブルを作成
+toTransTable :: PriceTable -> VETransTable
+toTransTable pt = EA.table
+                $ L.foldl (++) [] [f t c p | ((t,c),p) <- M.toList pt]
+    where
+        f :: Term -> CommodityName -> NN.Double
+          -> [(VEHatBase,VEHatBase,(NN.Double -> NN.Double))]
+        f t c p =   (Hat:<(Products,c,(.#),t,Amount))
+                .-> (Hat:<(Products,c,(.#),t,Yen))
+                |% (*p)
+
+-- | 価格の取得
+getPrice :: World s -> Term -> CommodityName -> ST s Price
+getPrice wld t c =  readSTRef (_prices wld) >>= \pt
+                 -> case M.lookup (t,c) pt of
+                    Nothing -> return 0
+                    Just x  -> return x
+
+-- | 製造原価を計算する
+getCost = undefined
+
+------------------------------------------------------------------
+-- ** 乱数生成器の状態空間の定義
+------------------------------------------------------------------
+
+type Gen s = STRef s StdGen
+
+-- ** STArray s (ID, Term) NN.Double
+-- 価格は固定
+instance Updatable Term ST s (Gen s) where
+    initialize g t = newSTRef g' where (x,g') = (genWord32 g)
     updatePattern _ _ = return DoNothing
 
 ------------------------------------------------------------------
 -- 状態空間の定義
 -- 会計と価格のみの世界
 data World s = World { _book    :: Book s
-                     , _prices  :: Prices s }
+                     , _prices  :: Prices s
+                     , _gen     :: Gen s }
                      deriving (Generic)
 
 -- deriving Generic をしていれば
@@ -187,19 +214,43 @@ instance StateSpace Term ST s (World s)
 -- ** イベントの設定
 -- 同じ取引を繰り返すだけ
 
--- | Transaction の種類
-data EventType
-    = Production                        -- ^ 保有する中間投入財を使用して生産
-    | BuySell                           -- ^ 購入販売
-    deriving (Show, Eq, Enum, Ord, Ix, Bounded)
+{-
 
--- eventの一般化
-event :: World s -> EventType -> Term -> ST s (Book s)
-------------------------------------------------------------------
+class (Eq e, Enum e, Ord e, Bounded e, StateSoace t m s a)
+    => Event e t m s a
+    event :: World s -> Term -> EventType -> m s ()
+    eventAll :: World s -> Term -> m s ()
+-}
+
+-- | Transaction の種類
+data EventName
+    = Production                        -- ^ 保有する中間投入財を使用して生産
+    | DecideNewPrice                    -- ^ 価格の決定
+    | BuySell                           -- ^ 購入販売
+    | ToPrice                           -- ^ 物量から価格評価へ変換
+    deriving (Show, Enum, Eq, Bounded)
+
+class (Show e, Eq e, Bounded e) => Event e where
+    isJournal :: e -> Bool
+    isJournal _ = False
+
+instance Event EventName where
+    isJournal Production = True
+    isJournal BuySell    = True
+
+-- 記帳
+writeJournal :: World s -> Term -> Transaction -> ST s ()
+writeJournal wld t b = case b of
+        Zero -> return ()
+        _    -> modifySTRef (_book wld) (\x -> x .+ b)
+
+
+event :: World s -> Term -> EventName -> ST s ()
+
 -- 何も購入していない場合は何も中間消費がない
 -- 記録において購入したものを中間消費して販売量と同量生産する
 -- 在庫概念,資本制約も労働制約もない
-event wld Production t = newSTRef
+event wld t Production = writeJournal wld t
                    $ 1 .@ Not :<(Products,"a",1,t,Amount)
                   .+ 1 .@ Hat :<(Products,"a",2,t,Amount)
                   .+ 1 .@ Not :<(Products,"b",1,t,Amount)
@@ -214,76 +265,93 @@ event wld Production t = newSTRef
                   .+ 1 .@ Hat :<(Products,"d",4,t,Amount)
 ------------------------------------------------------------------
 -- 中間消費分購入(販売)する
-event wld BuySell t = newSTRef
-                $ 1 .@ Hat :<(Products,"a",1,t,Amount) .+ 2 .@ Not :<(Cash,(.#),1,t,Yen)
-               .+ 1 .@ Not :<(Products,"a",2,t,Amount) .+ 2 .@ Hat :<(Cash,(.#),2,t,Yen)
-               .+ 1 .@ Hat :<(Products,"b",1,t,Amount) .+ 3 .@ Not :<(Cash,(.#),1,t,Yen)
-               .+ 1 .@ Not :<(Products,"b",2,t,Amount) .+ 3 .@ Hat :<(Cash,(.#),2,t,Yen)
-               .+ 1 .@ Hat :<(Products,"a",1,t,Amount) .+ 2 .@ Not :<(Cash,(.#),1,t,Yen)
-               .+ 1 .@ Not :<(Products,"a",3,t,Amount) .+ 2 .@ Hat :<(Cash,(.#),3,t,Yen)
-               .+ 1 .@ Hat :<(Products,"c",3,t,Amount) .+ 4 .@ Not :<(Cash,(.#),3,t,Yen)
-               .+ 1 .@ Not :<(Products,"c",2,t,Amount) .+ 4 .@ Hat :<(Cash,(.#),2,t,Yen)
-               .+ 1 .@ Hat :<(Products,"d",3,t,Amount) .+ 5 .@ Not :<(Cash,(.#),3,t,Yen)
-               .+ 1 .@ Not :<(Products,"d",2,t,Amount) .+ 5 .@ Hat :<(Cash,(.#),2,t,Yen)
-               .+ 1 .@ Hat :<(Products,"d",3,t,Amount) .+ 5 .@ Not :<(Cash,(.#),3,t,Yen)
-               .+ 1 .@ Not :<(Products,"d",4,t,Amount) .+ 5 .@ Hat :<(Cash,(.#),4,t,Yen)
+-- その時の価格を反映させる
+event wld t BuySell = writeJournal wld t
+                =<< (pure 1) <@ Hat :<(Products,"a",1,t,Amount) <+ (getPrice wld t "a") <@ Not :<(Cash,(.#),1,t,Yen)
+                <+  (pure 1) <@ Not :<(Products,"a",2,t,Amount) <+ (getPrice wld t "a") <@ Hat :<(Cash,(.#),2,t,Yen)
+                <+  (pure 1) <@ Hat :<(Products,"b",1,t,Amount) <+ (getPrice wld t "b") <@ Not :<(Cash,(.#),1,t,Yen)
+                <+  (pure 1) <@ Not :<(Products,"b",2,t,Amount) <+ (getPrice wld t "b") <@ Hat :<(Cash,(.#),2,t,Yen)
+                <+  (pure 1) <@ Hat :<(Products,"a",1,t,Amount) <+ (getPrice wld t "a") <@ Not :<(Cash,(.#),1,t,Yen)
+                <+  (pure 1) <@ Not :<(Products,"a",3,t,Amount) <+ (getPrice wld t "a") <@ Hat :<(Cash,(.#),3,t,Yen)
+                <+  (pure 1) <@ Hat :<(Products,"c",3,t,Amount) <+ (getPrice wld t "c") <@ Not :<(Cash,(.#),3,t,Yen)
+                <+  (pure 1) <@ Not :<(Products,"c",2,t,Amount) <+ (getPrice wld t "c") <@ Hat :<(Cash,(.#),2,t,Yen)
+                <+  (pure 1) <@ Hat :<(Products,"d",3,t,Amount) <+ (getPrice wld t "d") <@ Not :<(Cash,(.#),3,t,Yen)
+                <+  (pure 1) <@ Not :<(Products,"d",2,t,Amount) <+ (getPrice wld t "d") <@ Hat :<(Cash,(.#),2,t,Yen)
+                <+  (pure 1) <@ Hat :<(Products,"d",3,t,Amount) <+ (getPrice wld t "d") <@ Not :<(Cash,(.#),3,t,Yen)
+                <+  (pure 1) <@ Not :<(Products,"d",4,t,Amount) <+ (getPrice wld t "d") <@ Hat :<(Cash,(.#),4,t,Yen)
 ------------------------------------------------------------------
--- 仕訳の一般化 (未実装)
--- journal  World s -> TransactionType -> Term -> ST s ()
 
 
+event wld t DecideNewPrice =  readSTRef (_gen wld)      >>= \g
+                           -> readSTRef (_prices wld)   >>= \p
+                           -> let (p',g') = decidePrice t ["a","b","c","d"] g p
+                           in writeSTRef (_prices wld) p'
+                           >> writeSTRef (_gen wld) g'
+    where
+        decidePrice :: Term -> [CommodityName] -> StdGen -> PriceTable -> (PriceTable,StdGen)
+        decidePrice t cs g p
+            =  let (s,g') = normal' (0.0::Prelude.Double,1.0::Prelude.Double) g
+            in case cs of
+                []   -> (p,g')
+                [c]  -> let current = M.lookup (t,c) p
+                     in (M.insert (t,c) (f s current) p , g')
+                c:xs -> let current = M.lookup (t,c) p
+                     in decidePrice t xs g' (M.insert (t,c) (f s current) p)
 
--- イベントごとに仕訳をしないと正しく記録されない
-input :: EventType -> Term -> World s -> ST s ()
-input tt t wld =  event wld tt t >>= \stbk
-                    -> readSTRef stbk >>= \bk
-                    -> case bk of
-                        Zero -> return ()
-                        _    -> modifySTRef (_book wld) (\x -> x .+ bk)
+        f :: Prelude.Double -> Maybe Price -> NN.Double
+        f change current = case current of
+                Nothing -> case change > 0 of
+                            True  -> NN.fromNumber change
+                            False -> (0 :: NN.Double)
+                Just x  ->  let current' = NN.toNumber x
+                        in case (change +  current') > 0 of
+                            True    -> NN.fromNumber (change + current')
+                            False   -> NN.fromNumber current'
+
+------------------------------------------------------------------
+--  物量簿記を通常簿記に変換する
+event wld t ToPrice = readSTRef (_prices wld) >>= \pt
+              -> modifySTRef (_book wld) $ \x
+              -> EA.bar $ EA.transferKeepWiledcard (EA.bar x)
+                        $ toTransTable pt
+
 
 -- | Transaction全体を結合
-inputEveryEvent :: forall s. Term -> World s ->  ST s ()
-inputEveryEvent t wld
-    = CM.forM_ xs $ \tt -> input tt t wld
-    where
-    xs =    [ Production
-            , BuySell]
-
---  物量簿記を通常簿記に変換する
-toPrice :: Term -> World s -> ST s ()
-toPrice t wld =  readArray (_prices wld) t >>= \pt
-              -> modifySTRef (_book wld) $ \x
-              -> EA.bar $ EA.transferKeepWiledcard (EA.bar x) pt
+eventAll :: forall s.  World s -> Term ->  ST s ()
+eventAll wld t
+    = CM.forM_ ([minBound .. maxBound] :: [EventName])
+    $ \e -> event wld t e
 
 
 ------------------------------------------------------------------
 -- * Simulation
 ------------------------------------------------------------------
--- 順番にイベントをこなす
-culcSingleTerm :: World s -> Term -> ST s ()
-culcSingleTerm wld t =  updateAll        t wld
-                     >> inputEveryEvent  t wld
-                     >> toPrice          t wld
-
-culcTotalTerm :: World s -> ST s ()
-culcTotalTerm wld = loop wld initTerm
+simulate ::  World s -> ST s ()
+simulate wld = loop wld initTerm
   where
   {-# INLINE loop #-}
   loop ::  World s -> Term -> ST s ()
   loop wld t
-    | t >= lastTerm =  culcSingleTerm wld t
-    | otherwise     =  culcSingleTerm wld t
+    | t >= lastTerm =  eventAll wld t
+    | otherwise     =  eventAll wld t
                     >> loop wld (nextTerm t)
+
+-- | 初期化 → 指定されたイベントの実行までをこなす
+runSimulation :: Term -> StdGen -> ST s (World s)
+runSimulation t gen = initAll gen t >>= \wld'
+                    -> simulate wld'
+                    >> return wld'
 
 
 ------------------------------------------------------------------
 -- * 実行
 ------------------------------------------------------------------
+
+
 main :: IO ()
 main = do
-    wld <- stToIO $ initAll (1 :: Term) >>= \wld' -> do
-                  culcTotalTerm wld'
-                  return wld'
+    gen <- getStdGen
+    wld <- stToIO $ runSimulation (initTerm :: Term) gen
     bk <- stToIO $ readSTRef (_book wld)
     print $ (.-) $ proj [HatNot :<((.#),(.#),1,(.#),(.#))] bk
     writeBS "exsample/result/csv/ssex1.csv" $ EA.grossProfitTransferKeepWiledcard bk

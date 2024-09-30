@@ -30,14 +30,19 @@
 
 
 module ExchangeAlgebra.Transfer
-    ( TransTable
+    ( TransTable (..)
     , isNullTable
+    , insert
+    , updateFunction
     , transfer
     , transferKeepWiledcard
     , table
     , TransTableParts
     , (.->)
     , (|%)
+    , createTransfer
+    , incomeSummaryAccount
+    , netIncomeTransfer
     , grossProfitTransferKeepWiledcard
     , ordinaryProfitTransferKeepWiledcard
     , retainedEarningTransferKeepWiledcard
@@ -270,6 +275,24 @@ insertR kx0 = go kx0 kx0
                where !r' = go orig bx fx ax r
             EQ -> t
 
+-- | 価格テーブルを変更する
+updateFunction:: (HatVal n,HatBaseClass b) => b -> (n -> n) -> b -> TransTable n b ->  TransTable n b
+updateFunction b = go b b
+    where
+    go :: (HatVal n,HatBaseClass b) =>  b -> b -> (n -> n) -> b -> TransTable n b -> TransTable n b
+    go orig !_  f  x NullTable = singleton (lazy orig) f x
+    go orig !kx fx x t@(TransTable sz ky fy y l r) =
+        case compareElement kx ky of
+            LT | l' `ptrEq` l -> t
+               | otherwise -> balanceL ky fy y l' r
+               where !l' = go orig kx fx x l
+            GT | r' `ptrEq` r -> t
+               | otherwise -> balanceR ky fy y l r'
+               where !r' = go orig kx fx x r
+            EQ | x `ptrEq` y && (lazy orig `seq` (orig `ptrEq` ky)) -> t
+               | otherwise -> TransTable sz (lazy orig) (fx . fy) x l r
+
+
 {-# INLINE ptrEq #-}
 ptrEq :: a -> a -> Bool
 ptrEq x y = isTrue# (reallyUnsafePtrEquality# x y)
@@ -332,6 +355,18 @@ balanceR b f a l r = case l of
                      | otherwise -> TransTable (1+ls+rs) rlb rlf rla (TransTable (1+ls+size rll) b f a l rll) (TransTable (1+rrs+size rlr) rb rf ra rlr rr)
                    (_, _) -> error "Failure in Data.Map.balanceR"
               | otherwise -> TransTable (1+ls+rs) b f a l r
+
+lookup :: (HatVal n, HatBaseClass b) => b -> TransTable n b -> Maybe (TransTable n b)
+lookup k = k `seq` go
+  where
+    go NullTable = Nothing
+    go (TransTable s b f a l r) =
+        case compare k b of
+            LT -> go l
+            GT -> go r
+            EQ -> Just (TransTable s b f a l r)
+
+
 
 -- | make TransTable from list
 --
@@ -416,15 +451,33 @@ instance Show (TransTable n b) where
 -}
 
 
+
+createTransfer :: (HatVal n, ExBaseClass b) => [(b,b,(n -> n))] -> (Alg n b -> Alg n b)
+createTransfer tt = \ts -> transferKeepWiledcard ts $ table tt
+
 -- * 決算振替仕訳
+
+-- | Income Summary Account 当期純利益の算定
+incomeSummaryAccount :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+incomeSummaryAccount alg =  let (dc,diff) = diffRL alg
+                         in let x = case dc of
+                                        Debit  -> diff .@ (toNot wiledcard) .~ NetIncome
+                                        Credit -> diff .@ (toNot wiledcard) .~ NetLoss
+                         in alg .+  x
+
+-- | 当期純利益の振替
+netIncomeTransfer :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+netIncomeTransfer = createTransfer
+    $  (toNot wiledcard) .~ NetIncome :-> (toNot wiledcard) .~ RetainedEarnings |% id
+    ++ (toNot wiledcard) .~ NetLoss   :-> (toNot wiledcard) .~ RetainedEarnings |% id
+
 
 -- **  仕分け
 
 -- | Gross Profit Transfer
-grossProfitTransferKeepWiledcard :: (HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
-grossProfitTransferKeepWiledcard ts
-    =  transferKeepWiledcard ts
-    $  table
+grossProfitTransferKeepWiledcard :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+grossProfitTransferKeepWiledcard
+    =  createTransfer
     $  (toNot wiledcard) .~ WageExpenditure :-> (toHat wiledcard) .~ GrossProfit |% id
     ++ (toHat wiledcard) .~ WageExpenditure :-> (toNot wiledcard) .~ GrossProfit |% id
     ------------------------------------------------------------------
@@ -449,9 +502,8 @@ grossProfitTransferKeepWiledcard ts
 --      2279.0:@Hat:<(Yen,OrdinaryProfit) .+ 500475.0:@Not:<(Yen,OrdinaryProfit)
 
 ordinaryProfitTransferKeepWiledcard :: (HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
-ordinaryProfitTransferKeepWiledcard ts
-  = transferKeepWiledcard ts
-  $ table
+ordinaryProfitTransferKeepWiledcard
+  = createTransfer
   $  (toNot wiledcard) .~ GrossProfit               :-> (toNot wiledcard) .~ OrdinaryProfit |% id
   ++ (toHat wiledcard) .~ GrossProfit               :-> (toHat wiledcard) .~ OrdinaryProfit |% id
   ------------------------------------------------------------------
@@ -495,9 +547,8 @@ ordinaryProfitTransferKeepWiledcard ts
 
 -- | Retained Earning Transfer
 retainedEarningTransferKeepWiledcard :: (HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
-retainedEarningTransferKeepWiledcard ts
-  = transferKeepWiledcard ts
-  $ table
+retainedEarningTransferKeepWiledcard
+  = createTransfer
   $  (toNot wiledcard) .~ OrdinaryProfit            :-> (toNot wiledcard) .~ RetainedEarnings |% id
   ++ (toHat wiledcard) .~ OrdinaryProfit            :-> (toHat wiledcard) .~ RetainedEarnings |% id
 

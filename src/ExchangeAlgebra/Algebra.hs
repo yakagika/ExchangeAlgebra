@@ -149,6 +149,7 @@ class (Redundant a n b ) => Exchange a n b where
     decP :: a n b -> a n b       -- ^ P-M decomposition
     decM :: a n b -> a n b
     balance :: a n b -> Bool     -- ^ norm Balance
+    diffRL :: a n b -> (Side, n)   -- ^ if not balanced, the R-L difference
 
 
 ------------------------------------------------------------------
@@ -428,12 +429,29 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
                                             (Hat, Not) -> (v:@b) :+ (w:@c)
 
 instance (HatVal n, ExBaseClass a) =>  Exchange Alg n a where
+    -- | filter Debit side
     decR xs = filter (\x -> x /= Zero && (whichSide . _hatBase) x == Debit) xs
+
+    -- | filter Credit side
     decL xs = filter (\x -> x /= Zero && (whichSide . _hatBase) x == Credit) xs
+
+    -- | filter Plus Stock
     decP xs = filter (\x -> x /= Zero && (isHat . _hatBase ) x) xs
+
+    -- | filter Minus Stock
     decM xs = filter (\x -> x /= Zero && (not. isHat. _hatBase) x) xs
+
+    -- | check Credit Debit balance
     balance xs  | (norm . decR) xs == (norm . decL) xs = True
                 | otherwise                            = False
+
+    -- |
+    diffRL xs  | r > l = (Debit, r - l)
+               | l > r = (Credit, l -r)
+               | otherwise = (Side,0)
+        where
+        r = (norm . decR) xs
+        l = (norm . decL) xs
 
 
 

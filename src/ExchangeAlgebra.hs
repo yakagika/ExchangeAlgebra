@@ -25,11 +25,11 @@ module ExchangeAlgebra
     ( module ExchangeAlgebra.Algebra
     , module ExchangeAlgebra.Record
     , module ExchangeAlgebra.Transfer
-    , module ExchangeAlgebra.BalanceSheet
+    , module ExchangeAlgebra.Write
     , module ExchangeAlgebra.Simulate ) where
 
 import              ExchangeAlgebra.Algebra
 import              ExchangeAlgebra.Record
 import              ExchangeAlgebra.Transfer
-import              ExchangeAlgebra.BalanceSheet
+import              ExchangeAlgebra.Write
 import              ExchangeAlgebra.Simulate

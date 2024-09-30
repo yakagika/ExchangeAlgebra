@@ -52,7 +52,7 @@ instance (Element e1, Element e2)
         => BaseClass (e1, e2) where
 
 instance (Element e1, Element e2, Element e3)
-         => BaseClass (e1, e2, e3) where
+        => BaseClass (e1, e2, e3) where
 
 instance (Element e1, Element e2, Element e3, Element e4)
         => BaseClass (e1, e2, e3, e4) where
@@ -62,7 +62,6 @@ instance (Element e1, Element e2, Element e3, Element e4, Element e5)
 
 instance (Element e1, Element e2, Element e3, Element e4, Element e5, Element e6)
         => BaseClass (e1, e2, e3, e4, e5, e6) where
-
 
 
 ------------------------------------------------------------------
@@ -170,8 +169,9 @@ instance (BaseClass a) => HatBaseClass (HatBase a) where
 ------------------------------------------------------------
 -- * Define ExBase
 ------------------------------------------------------------
-data Side   = Credit
-            | Debit
+data Side   = Credit -- 貸方
+            | Debit  -- 借方
+            | Side -- wiledecard
             deriving (Ord, Show, Eq)
 
 switchSide :: Side -> Side
@@ -206,6 +206,7 @@ class (HatBaseClass a) => ExBaseClass a where
         | L.elem (getAccountTitle b)
             [ LongTermLoansPayable
             , ShortTermLoansPayable
+            , LoansPayable
             , ReserveForDepreciation
             , DepositPayable
             , LongTermNationalBondsPayable
@@ -215,13 +216,23 @@ class (HatBaseClass a) => ExBaseClass a where
 
         | L.elem (getAccountTitle b)
             [ Depreciation
+            , CostOfGoodsSold
+            , BusinessTrip
+            , Commutation
+            , UtilitiesExpense
+            , RentExpense
+            , AdvertisingExpense
+            , DeliveryExpenses
+            , SuppliesExpenses
+            , MiscellaneousExpenses
             , WageExpenditure
             , InterestExpense
             , TaxesExpense
             , ConsumptionExpenditure
             , SubsidyExpense
             , CentralBankPaymentExpense
-            , Purchases]      = Cost
+            , Purchases
+            , NetIncome]                      = Cost
 
         | L.elem (getAccountTitle b)
             [ ValueAdded
@@ -231,10 +242,13 @@ class (HatBaseClass a) => ExBaseClass a where
             , GrossProfit
             , OrdinaryProfit
             , InterestEarned
+            , ReceiptFee
+            , RentalIncome
             , WageEarned
             , TaxesRevenue
             , CentralBankPaymentIncome
-            , Sales]                          = Revenue
+            , Sales
+            , NetLoss]                        = Revenue
         | otherwise                           = Assets
 
     {-# INLINE whatPIMO #-}
@@ -275,6 +289,7 @@ class (HatBaseClass a) => ExBaseClass a where
         {-# INLINE f #-}
         f Cash                           = Current
         f Deposits                       = Current
+        f CurrentDeposits                = Current
         f Securities                     = Current
         f InvestmentSecurities           = Fixed
         f LongTermNationalBonds          = Fixed
@@ -282,6 +297,7 @@ class (HatBaseClass a) => ExBaseClass a where
         f Products                       = Current
         f Machinery                      = Fixed
         f Building                       = Fixed
+        f Vehicle                        = Fixed
         f StockInvestment                = Other  -- 注意
         f EquipmentInvestment            = Fixed
         f LongTermLoansReceivable        = Fixed
@@ -292,6 +308,7 @@ class (HatBaseClass a) => ExBaseClass a where
         f CapitalStock                   = Other
         f RetainedEarnings               = Other
         f ShortTermLoansPayable          = Current
+        f LoansPayable                   = Current
         f LongTermLoansPayable           = Fixed
         f ReserveForDepreciation         = Current
         f DepositPayable                 = Current
@@ -300,12 +317,23 @@ class (HatBaseClass a) => ExBaseClass a where
         f ReserveDepositPayable          = Current
         f CentralBankNotePayable         = Current
         f Depreciation                   = Other
+        f CostOfGoodsSold                = Other
+        f BusinessTrip                   = Other
+        f Commutation                    = Other
+        f UtilitiesExpense               = Other
+        f RentExpense                    = Other
+        f AdvertisingExpense             = Other
+        f DeliveryExpenses               = Other
+        f SuppliesExpenses               = Other
+        f MiscellaneousExpenses          = Other
         f WageExpenditure                = Other
         f InterestExpense                = Other
         f TaxesExpense                   = Other
         f ConsumptionExpenditure         = Other
         f SubsidyExpense                 = Other
         f CentralBankPaymentExpense      = Other
+        f Purchases                      = Other
+        f NetIncome                      = Other
         f ValueAdded                     = Other
         f SubsidyIncome                  = Other
         f NationalBondInterestEarned     = Other
@@ -313,9 +341,12 @@ class (HatBaseClass a) => ExBaseClass a where
         f GrossProfit                    = Other
         f OrdinaryProfit                 = Other
         f InterestEarned                 = Other
+        f ReceiptFee                     = Other
+        f RentalIncome                   = Other
         f WageEarned                     = Other
         f TaxesRevenue                   = Other
         f CentralBankPaymentIncome       = Other
+        f NetLoss                        = Other
         f AccountTitle                   = Other
 
 
@@ -389,6 +420,11 @@ instance BaseClass TimeOfDay where
 -- ** 要素数2
 
 -- | 基礎的なBaseClass 要素数 2
+
+instance ExBaseClass (HatBase (AccountTitles, Day)) where
+    getAccountTitle (h:< (a, d))   = a
+    setAccountTitle (h:< (a, d)) b = h:< (b, d)
+
 instance ExBaseClass (HatBase (AccountTitles, Name)) where
     getAccountTitle (h:< (a, n))   = a
     setAccountTitle (h:< (a, n)) b = h:< (b, n)

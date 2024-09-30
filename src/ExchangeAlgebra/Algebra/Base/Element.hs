@@ -114,50 +114,67 @@ infix 4 ./=
 
 -- | The current version 0.1.0.0 will be completely changed shortly, especially this section.
 data  AccountTitles = Cash                            -- ^ 資産 現金
-                    | Deposits                        -- ^ 資産 預金
+                    | Deposits                        -- ^ 資産 普通預金
+                    | CurrentDeposits                 -- ^ 資産 当座預金
                     | Securities                      -- ^ 資産 有価証券
                     | InvestmentSecurities            -- ^ 資産 投資有価証券
                     | LongTermNationalBonds           -- ^ 資産 長期国債
                     | ShortTermNationalBonds          -- ^ 資産 短期国債
-                    | Products                        -- ^ 資産 在庫
-                    | Machinery                       -- ^ 資産 機械設備
+                    | Products                        -- ^ 資産 商品
+                    | Machinery                       -- ^ 資産 機械設備 備品
                     | Building                        -- ^ 資産 不動産
+                    | Vehicle                         -- ^ 資産 車両 運搬具
                     | StockInvestment                 -- ^ 資産 株式投資
                     | EquipmentInvestment             -- ^ 資産 設備投資
                     | LongTermLoansReceivable         -- ^ 資産 貸付金
+                    | AccountsReceivable              -- ^ 資産 債権 売掛金
                     | ShortTermLoansReceivable        -- ^ 資産 短期貸付金
                     | ReserveDepositReceivable        -- ^ 資産 預金準備金
                     | Gold                            -- ^ 資産 金
                     | GovernmentService               -- ^ 資産 政府支出
                     | CapitalStock                    -- ^ 資本 資本金
-                    | RetainedEarnings                -- ^ 資本 留保所得
+                    | RetainedEarnings                -- ^ 資本 利益剰余金
                     | LongTermLoansPayable            -- ^ 負債 長期借入金
                     | ShortTermLoansPayable           -- ^ 負債 短期借入金
+                    | LoansPayable                    -- ^ 負債 借入金
                     | ReserveForDepreciation          -- ^ 負債 償却準備金
                     | DepositPayable                  -- ^ 負債 預り金
                     | LongTermNationalBondsPayable    -- ^ 負債 長期国債 借入金
                     | ShortTermNationalBondsPayable   -- ^ 負債 短期国債 借入金
                     | ReserveDepositPayable           -- ^ 負債 未払金
                     | CentralBankNotePayable          -- ^ 負債 中央銀行手形
-                    | Depreciation                    -- ^ 費用
-                    | WageExpenditure                 -- ^ 費用
-                    | InterestExpense                 -- ^ 費用
-                    | TaxesExpense                    -- ^ 費用
-                    | ConsumptionExpenditure          -- ^ 費用
-                    | SubsidyExpense                  -- ^ 費用
+                    | Depreciation                    -- ^ 費用 減価償却費
+                    | CostOfGoodsSold                 -- ^ 費用 売上原価
+                    | BusinessTrip                    -- ^ 費用 旅費交通費
+                    | Commutation                     -- ^ 費用 通信費
+                    | UtilitiesExpense                -- ^ 費用 水道光熱費
+                    | RentExpense                     -- ^ 費用 支払家賃
+                    | AdvertisingExpense              -- ^ 費用 広告宣伝費
+                    | DeliveryExpenses                -- ^ 費用 発送費
+                    | SuppliesExpenses                -- ^ 費用 消耗品費
+                    | MiscellaneousExpenses           -- ^ 費用 雑費
+                    | WageExpenditure                 -- ^ 費用 給料
+                    | InterestExpense                 -- ^ 費用 支払利息
+                    | TaxesExpense                    -- ^ 費用 税
+                    | ConsumptionExpenditure          -- ^ 費用 消耗品費
+                    | SubsidyExpense                  -- ^ 費用 補助金支出
                     | CentralBankPaymentExpense       -- ^ 費用
                     | Purchases                       -- ^ 費用 仕入
-                    | ValueAdded                      -- ^ 収益
-                    | SubsidyIncome                   -- ^ 収益
-                    | NationalBondInterestEarned      -- ^ 収益
-                    | DepositInterestEarned           -- ^ 収益
-                    | GrossProfit                     -- ^ 収益
-                    | OrdinaryProfit                  -- ^ 収益
-                    | InterestEarned                  -- ^ 収益
-                    | WageEarned                      -- ^ 収益
-                    | TaxesRevenue                    -- ^ 収益
+                    | NetIncome                       -- ^ 費用 当期純利益
+                    | ValueAdded                      -- ^ 収益 付加価値
+                    | SubsidyIncome                   -- ^ 収益 補助金
+                    | NationalBondInterestEarned      -- ^ 収益 国際受取利息
+                    | DepositInterestEarned           -- ^ 収益 預金受取利息
+                    | GrossProfit                     -- ^ 収益 売上総利益
+                    | OrdinaryProfit                  -- ^ 収益 経常利益
+                    | InterestEarned                  -- ^ 収益 受取利息
+                    | ReceiptFee                      -- ^ 収益 受取手数料
+                    | RentalIncome                    -- ^ 収益 受取家賃
+                    | WageEarned                      -- ^ 収益 賃金収入
+                    | TaxesRevenue                    -- ^ 収益 税収
                     | CentralBankPaymentIncome        -- ^ 収益
                     | Sales                           -- ^ 収益 売上
+                    | NetLoss                         -- ^ 収益 当期純損失
                     | AccountTitle                    -- ^ ワイルドカード
                     deriving (Show, Ord, Eq, Enum)
 
