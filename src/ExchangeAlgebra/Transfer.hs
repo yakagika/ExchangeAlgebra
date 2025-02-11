@@ -103,14 +103,14 @@ instance (HatBaseClass b) => Show (TransTable n b) where
                                                     ++ (if isNullTable r then "" else "," ++ (Prelude.tail. Prelude.init .ushow) r)
                                                     ++ "]"
 
+instance (HatVal n,HatBaseClass b) => Semigroup (TransTable n b) where
+    (<>)   = union
+    stimes = stimesIdempotentMonoid
+
 instance (HatVal n, HatBaseClass b) => Monoid (TransTable n b) where
     mempty  = NullTable
     mconcat = unions
     mappend = (<>)
-
-instance (HatVal n,HatBaseClass b) => Semigroup (TransTable n b) where
-    (<>)   = union
-    stimes = stimesIdempotentMonoid
 
 {-# INLINE union #-}
 union ::(HatBaseClass b) => TransTable n b -> TransTable n b -> TransTable n b
@@ -331,7 +331,9 @@ balanceL b f a l r = case r of
 balanceR :: (HatVal n, HatBaseClass b) =>  b -> (n -> n) -> b -> TransTable n b -> TransTable n b -> TransTable n b
 balanceR b f a l r = case l of
   NullTable -> case r of
-           NullTable                                -> TransTable 1 b f a NullTable NullTable
+           NullTable
+                    -> TransTable 1 b f a NullTable NullTable -- 終端,始端はNull
+
            (TransTable _ _ _ _ NullTable NullTable)
                     -> TransTable 2 b f a NullTable r
 

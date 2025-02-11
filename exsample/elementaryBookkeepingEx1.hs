@@ -229,9 +229,8 @@ exp8A = netIncomeTransfer $ incomeSummaryAccount exp8
 
 -- 当期純利益の振替
 netIncomeTransfer' :: MinTransaction -> MinTransaction
-netIncomeTransfer' ts
-    =  transferKeepWiledcard ts
-    $  table
+netIncomeTransfer'
+    =  createTransfer
     $  Not:<NetIncome .-> Not:<RetainedEarnings |% id
     ++ Not:<NetLoss   .-> Not:<RetainedEarnings |% id
 

@@ -239,8 +239,8 @@ instance Event EventName where
     isJournal BuySell    = True
 
 -- 記帳
-writeJournal :: World s -> Term -> Transaction -> ST s ()
-writeJournal wld t b = case b of
+journal :: World s -> Term -> Transaction -> ST s ()
+journal wld t b = case b of
         Zero -> return ()
         _    -> modifySTRef (_book wld) (\x -> x .+ b)
 
@@ -250,7 +250,7 @@ event :: World s -> Term -> EventName -> ST s ()
 -- 何も購入していない場合は何も中間消費がない
 -- 記録において購入したものを中間消費して販売量と同量生産する
 -- 在庫概念,資本制約も労働制約もない
-event wld t Production = writeJournal wld t
+event wld t Production = journal wld t
                    $ 1 .@ Not :<(Products,"a",1,t,Amount)
                   .+ 1 .@ Hat :<(Products,"a",2,t,Amount)
                   .+ 1 .@ Not :<(Products,"b",1,t,Amount)
@@ -266,7 +266,7 @@ event wld t Production = writeJournal wld t
 ------------------------------------------------------------------
 -- 中間消費分購入(販売)する
 -- その時の価格を反映させる
-event wld t BuySell = writeJournal wld t
+event wld t BuySell = journal wld t
                 =<< (pure 1) <@ Hat :<(Products,"a",1,t,Amount) <+ (getPrice wld t "a") <@ Not :<(Cash,(.#),1,t,Yen)
                 <+  (pure 1) <@ Not :<(Products,"a",2,t,Amount) <+ (getPrice wld t "a") <@ Hat :<(Cash,(.#),2,t,Yen)
                 <+  (pure 1) <@ Hat :<(Products,"b",1,t,Amount) <+ (getPrice wld t "b") <@ Not :<(Cash,(.#),1,t,Yen)

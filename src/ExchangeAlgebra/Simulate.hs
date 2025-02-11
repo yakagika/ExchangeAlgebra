@@ -69,6 +69,10 @@ data UpdatePattern = Copy         -- 前期の情報をそのままコピー
 
 -- | 環境変数の系列
 class (Monad (m s),StateTime t) => Updatable t m s a  where
+    -- StdGenは現状は全てのインスタンスの初期化で同じ値を返す.
+    -- (乱数生成器を更新していない)
+    -- 現状異なる乱数をインスタンスごとに利用したい場合は,updateGenなどを利用
+    -- 同一の乱数生成器を更新して使えるようにする予定
     initialize      :: StdGen  -> t -> m s a
 
     updatePattern   :: t -> a -> m s UpdatePattern
@@ -112,9 +116,11 @@ class (Monad (m s),StateTime t) => StateSpace t m s a where
     lastT :: a -> m s t
     lastT _ = return lastTerm
 
-    -- 乱数シードを返す
-    randomSeeds :: t -> a -> m s [Int]
-    randomSeeds _ _  = return $ replicate 5 1
+    -- | 乱数シードを定義する(デフォルト42)
+    -- 乱数シードを明示的に定義することも可能
+    -- 現状使い道なし
+    randomSeeds :: t -> a -> m s Int
+    randomSeeds _ _  = return 42
 
 -- Genericを用いた自動導出のための補助型クラス
 class  (Monad (m s),StateTime t)

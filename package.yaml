@@ -34,6 +34,7 @@ dependencies:
 - Chart
 - Chart-cairo
 - random
+- mtl
 
 library:
   source-dirs: src
@@ -70,6 +71,11 @@ executables:
     main:                elementaryBookkeepingEx2.hs
     source-dirs:         exsample
 
+
+  ripple1:
+    <<: *exe-defaults
+    main:                rippleEffectEx1.hs
+    source-dirs:         exsample
 
 tests:
   ExchangeAlgebra-test:
