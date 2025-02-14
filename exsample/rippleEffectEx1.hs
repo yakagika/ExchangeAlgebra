@@ -25,11 +25,11 @@
 -}
 
 -- Original
-import qualified    ExchangeAlgebra         as EA
-import              ExchangeAlgebra
-import qualified    ExchangeAlgebra.Transfer as ET
-import qualified    ExchangeAlgebra.Simulate as ES
-import              ExchangeAlgebra.Simulate
+import qualified    ExchangeAlgebraMap         as EA
+import              ExchangeAlgebraMap
+import qualified    ExchangeAlgebraMap.Transfer as ET
+import qualified    ExchangeAlgebraMap.Simulate as ES
+import              ExchangeAlgebraMap.Simulate
 
 
 -- Other
@@ -120,7 +120,7 @@ type Book s = STRef s Transaction
 -- 取引の初期状態
 -- 在庫だけ一定量(50)保有
 initTransaction :: Entity -> Entity -> Transaction
-initTransaction c e = 50 .@ Not :<(Products,c,e,initTerm,Amount)
+initTransaction c e = 50 :@ Not :<(Products,c,e,initTerm,Amount)
 
 initBook :: ST s (Book s)
 initBook = newSTRef $ EA.fromList [ initTransaction c c
@@ -359,9 +359,9 @@ getOneProduction wld t c = do
     let arr =  _ictable (_ics wld)  -- ICTable を取得
     inputs <- CM.forM [fstEnt..lastEnt] $ \c2 -> do
         coef <- readArray arr (t, c2, c)  -- c を生産するために必要な c2 の投入係数
-        return $ coef .@ Hat :<(Products, c2, c, t, Amount)  -- c2 の消費を記録
+        return $ coef :@ Hat :<(Products, c2, c, t, Amount)  -- c2 の消費を記録
     let totalInput = foldl (.+) Zero inputs  -- すべての中間投入を結合
-    return $ 1 .@ Not :<(Products, c, c, t, Amount) .+ totalInput  -- 生産と投入の合計
+    return $ 1 :@ Not :<(Products, c, c, t, Amount) .+ totalInput  -- 生産と投入の合計
 
 
 ------------------------------------------------------------------
@@ -570,10 +570,10 @@ event wld t BuySell = do
             when (orderAmount > NN.fromNumber 0) $ do
                 let sellAmount = min orderAmount (stock * (orderAmount / totalOrder))  -- 在庫に応じた販売量
                 p <- getPrice wld t e1
-                journal wld t $  sellAmount      .@ Hat :<(Products, e1, e1, t, Amount)
-                             .+ (sellAmount * p) .@ Not :<(Cash,(.#),e1,t,Yen)
-                             .+  sellAmount      .@ Not :<(Products, e1, e2, t, Amount)
-                             .+ (sellAmount * p) .@ Hat :<(Cash,(.#),e1,t,Yen)
+                journal wld t $  sellAmount      :@ Hat :<(Products, e1, e1, t, Amount)
+                             .+ (sellAmount * p) :@ Not :<(Cash,(.#),e1,t,Yen)
+                             .+  sellAmount      :@ Not :<(Products, e1, e2, t, Amount)
+                             .+ (sellAmount * p) :@ Hat :<(Cash,(.#),e1,t,Yen)
                 writeArray os (t, e2, e1) (orderAmount - sellAmount)  -- 受注を減らす
 
 ------------------------------------------------------------------

@@ -71,10 +71,14 @@ executables:
     main:                elementaryBookkeepingEx2.hs
     source-dirs:         exsample
 
-
   ripple1:
     <<: *exe-defaults
     main:                rippleEffectEx1.hs
+    source-dirs:         exsample
+
+  maptest:
+    <<: *exe-defaults
+    main:                maptest.hs
     source-dirs:         exsample
 
 tests:

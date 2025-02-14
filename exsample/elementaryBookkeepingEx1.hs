@@ -9,7 +9,6 @@
 import qualified    ExchangeAlgebra         as EA
 import              ExchangeAlgebra
 import qualified    ExchangeAlgebra.Transfer as ET
-import              ExchangeAlgebra.Simulate
 
 -- Other
 import qualified    Number.NonNegative      as NN

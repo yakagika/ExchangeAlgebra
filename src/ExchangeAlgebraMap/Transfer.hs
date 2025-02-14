@@ -29,7 +29,7 @@
 
 
 
-module ExchangeAlgebra.Transfer
+module ExchangeAlgebraMap.Transfer
     ( TransTable (..)
     , isNullTable
     , insert
@@ -49,8 +49,8 @@ module ExchangeAlgebra.Transfer
     , finalStockTransferKeepWiledcard
     ) where
 
-import qualified    ExchangeAlgebra.Algebra as EA
-import              ExchangeAlgebra.Algebra
+import qualified    ExchangeAlgebraMap.Algebra as EA
+import              ExchangeAlgebraMap.Algebra
 
 
 import qualified    Number.NonNegative  as NN       ( Double
@@ -115,9 +115,9 @@ instance (HatVal n, HatBaseClass b) => Monoid (TransTable n b) where
 {-# INLINE union #-}
 union ::(HatBaseClass b) => TransTable n b -> TransTable n b -> TransTable n b
 union t1 NullTable  = t1
+union NullTable t2 = t2
 union t1 (TransTable _ b f a NullTable NullTable) = insertR b f a t1
 union (TransTable _ b f a NullTable NullTable) t2 = insert b f a t2
-union NullTable t2 = t2
 union t1@(TransTable _ b1 f1 a1 l1 r1) t2 = case split b1 t2 of
   (l2, r2) | l1l2 `ptrEq` l1 && r1r2 `ptrEq` r1 -> t1
            | otherwise -> link b1 f1 a1 l1l2 r1r2
@@ -248,16 +248,16 @@ insert b = go b b
     where
     go :: (HatVal n,HatBaseClass b) =>  b -> b -> (n -> n) -> b -> TransTable n b -> TransTable n b
     go orig !_  f  x NullTable = singleton (lazy orig) f x
-    go orig !kx fx x t@(TransTable sz ky fy y l r) =
-        case compareElement kx ky of
+    go orig !bx fx x t@(TransTable sy by fy y l r) =
+        case compareElement bx by of
             LT | l' `ptrEq` l -> t
-               | otherwise -> balanceL ky fy y l' r
-               where !l' = go orig kx fx x l
+               | otherwise -> balanceL by fy y l' r
+               where !l' = go orig bx fx x l
             GT | r' `ptrEq` r -> t
-               | otherwise -> balanceR ky fy y l r'
-               where !r' = go orig kx fx x r
-            EQ | x `ptrEq` y && (lazy orig `seq` (orig `ptrEq` ky)) -> t
-               | otherwise -> TransTable sz (lazy orig) fx x l r
+               | otherwise -> balanceR by fy y l r'
+               where !r' = go orig bx fx x r
+            EQ | x `ptrEq` y && (lazy orig `seq` (orig `ptrEq` by)) -> t
+               | otherwise -> TransTable sy (lazy orig) fx x l r
 
 {-# INLINE insertR #-}
 insertR ::  (HatVal n,HatBaseClass b) => b ->  (n -> n) -> b ->  TransTable n b -> TransTable n b
@@ -266,7 +266,7 @@ insertR kx0 = go kx0 kx0
     go :: (HatVal n,HatBaseClass b) => b -> b ->  (n -> n) -> b -> TransTable n b -> TransTable n b
     go orig !_  fx ax NullTable = singleton (lazy orig) fx ax
     go orig !bx fx ax t@(TransTable _ by fy ay l r) =
-        case compareElement bx ay of
+        case compareElement bx by of
             LT | l' `ptrEq` l -> t
                | otherwise -> balanceL by fy ay l' r
                where !l' = go orig bx fx ax l
@@ -372,7 +372,7 @@ lookup k = k `seq` go
 
 -- | make TransTable from list
 --
--- >>> ExchangeAlgebra.Transfer.fromList [(Hat:<(Cash),Hat:<(Building),(id :: NN.Double -> NN.Double) ),(Not:<(Building),Not:<(Cash),id)]
+-- >>> ExchangeAlgebraMap.Transfer.fromList [(Hat:<(Cash),Hat:<(Building),(id :: NN.Double -> NN.Double) ),(Not:<(Building),Not:<(Cash),id)]
 -- [(Hat:<Cash,Hat:<Building,<function>),(Not:<Building,Not:<Cash,<function>)]
 
 fromList :: (HatVal n, HatBaseClass b) => [(b,b,(n -> n))] -> TransTable n b
@@ -413,7 +413,7 @@ fromList ((b1,a1, f1)  : xs0)   | not_ordered b1 xs0 = a1 `seq` fromList' (Trans
 -- [(Hat:<Cash,Hat:<Building,<function>),(Hat:<Building,Hat:<Cash,<function>)]
 
 table ::  (HatVal n, HatBaseClass b) => [(b,b,(n -> n))] -> TransTable n b
-table = ExchangeAlgebra.Transfer.fromList
+table = ExchangeAlgebraMap.Transfer.fromList
 
 data TransTableParts b where
   (:->)   :: (HatBaseClass b) => b -> b -> TransTableParts b
@@ -463,8 +463,8 @@ createTransfer tt = \ts -> transferKeepWiledcard ts $ table tt
 incomeSummaryAccount :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 incomeSummaryAccount alg =  let (dc,diff) = diffRL alg
                          in let x = case dc of
-                                        Debit  -> diff .@ (toNot wiledcard) .~ NetIncome
-                                        Credit -> diff .@ (toNot wiledcard) .~ NetLoss
+                                        Debit  -> diff :@ (toNot wiledcard) .~ NetIncome
+                                        Credit -> diff :@ (toNot wiledcard) .~ NetLoss
                          in alg .+  x
 
 -- | 当期純利益の振替

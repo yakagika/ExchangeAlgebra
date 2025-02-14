@@ -461,14 +461,14 @@ instance (HatVal n, ExBaseClass a) =>  Exchange Alg n a where
 
 -- | 全てHatかどうかを判定する
 --
--- >>> allHat $ 10:@Hat:<Cash .+ 12:@Hat:<Deposits
+-- >>> allHat (10:@Hat:<Cash .+ 12:@Hat:<Deposits :: Alg NN.Double (HatBase AccountTitles))
 -- True
 --
--- >>> allHat $ 10:@Hat:<Cash .+ 12:@Not:<Deposits
+-- >>> allHat ( 10:@Hat:<Cash .+ 12:@Not:<Deposits :: Alg NN.Double (HatBase AccountTitles))
 -- False
 --
 -- Note: in case Zero, this returns True
--- >>> allNot (Zero :: Alg (HatBase AccountTitles))
+-- >>> allNot (Zero :: Alg NN.Double (HatBase AccountTitles))
 -- True
 --
 -- use (.+) instead of (:+)
@@ -479,10 +479,10 @@ allHat xs = L.and $ L.map (isHat . _hatBase) $ toList xs
 -- | 全てNotかどうかを判定する
 --
 --
--- >>> allNot $ 10:@Hat:<Cash .+ 12:@Hat:<Deposits
+-- >>> allNot (10:@Hat:<Cash .+ 12:@Hat:<Deposits :: Alg NN.Double (HatBase AccountTitles))
 -- False
 --
--- >>> allNot $ 10:@Not:<Cash .+ 12:@Not:<Deposits
+-- >>> allNot ( 10:@Not:<Cash .+ 12:@Not:<Deposits :: Alg NN.Double (HatBase AccountTitles))
 -- True
 
 allNot ::(HatVal n, HatBaseClass b) =>   Alg n b -> Bool
@@ -520,10 +520,10 @@ fromList = mconcat
 -- | convert Alg n b to List
 --
 -- >>> toList $ 10:@Hat:<(Cash) :+ 10:@Hat:<(Deposits) :+ Zero
--- [10.0:@Hat:<Cash,10.0:@Hat:<Deposits]
+-- [10:@Hat:<Cash,10:@Hat:<Deposits]
 --
 -- you need define type variables to use this for Zero
--- >>> toList Zero :: [Alg (HatBase AccountTitles)]
+-- >>> toList Zero :: [Alg NN.Double AccountTitles]
 -- []
 {-# INLINE toList #-}
 toList :: Alg n b -> [Alg n b]
