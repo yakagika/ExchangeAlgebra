@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5bb7d55654ab34d2b0fe29f3c107baf71233eac8a18d69d05cbee24c95bc4643
+-- hash: 1a3588ba22f6df00fce3ac7045020a7bdda0914336ba59368399c05450671be4
 
 name:           exchangealgebra
 version:        0.3.0.0
@@ -41,6 +41,7 @@ library
       ExchangeAlgebraMap.Algebra.Base.Element
       ExchangeAlgebraMap.Record
       ExchangeAlgebraMap.Simulate
+      ExchangeAlgebraMap.Simulate.Visualize
       ExchangeAlgebraMap.Transfer
       ExchangeAlgebraMap.Write
   other-modules:
@@ -60,6 +61,7 @@ library
     , non-negative
     , numeric-prelude
     , random
+    , scientific
     , text
     , time
     , unicode-show
@@ -86,6 +88,7 @@ executable calcex1
     , non-negative
     , numeric-prelude
     , random
+    , scientific
     , text
     , time
     , unicode-show
@@ -112,6 +115,7 @@ executable ebex1
     , non-negative
     , numeric-prelude
     , random
+    , scientific
     , text
     , time
     , unicode-show
@@ -138,6 +142,7 @@ executable ebex2
     , non-negative
     , numeric-prelude
     , random
+    , scientific
     , text
     , time
     , unicode-show
@@ -164,6 +169,7 @@ executable maptest
     , non-negative
     , numeric-prelude
     , random
+    , scientific
     , text
     , time
     , unicode-show
@@ -190,6 +196,7 @@ executable ripple1
     , non-negative
     , numeric-prelude
     , random
+    , scientific
     , text
     , time
     , unicode-show
@@ -216,6 +223,7 @@ executable ssex2
     , non-negative
     , numeric-prelude
     , random
+    , scientific
     , text
     , time
     , unicode-show
@@ -242,6 +250,7 @@ test-suite ExchangeAlgebra-doctest
     , non-negative
     , numeric-prelude
     , random
+    , scientific
     , text
     , time
     , unicode-show
@@ -269,6 +278,7 @@ test-suite ExchangeAlgebra-test
     , non-negative
     , numeric-prelude
     , random
+    , scientific
     , text
     , time
     , unicode-show

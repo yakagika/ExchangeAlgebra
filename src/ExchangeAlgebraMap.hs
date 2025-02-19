@@ -26,10 +26,12 @@ module ExchangeAlgebraMap
     , module ExchangeAlgebraMap.Record
     , module ExchangeAlgebraMap.Transfer
     , module ExchangeAlgebraMap.Write
-    , module ExchangeAlgebraMap.Simulate ) where
+    , module ExchangeAlgebraMap.Simulate
+    , module ExchangeAlgebraMap.Simulate.Visualize ) where
 
 import              ExchangeAlgebraMap.Algebra
 import              ExchangeAlgebraMap.Record
 import              ExchangeAlgebraMap.Transfer
 import              ExchangeAlgebraMap.Write
 import              ExchangeAlgebraMap.Simulate
+import              ExchangeAlgebraMap.Simulate.Visualize

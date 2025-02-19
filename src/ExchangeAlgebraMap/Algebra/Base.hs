@@ -397,13 +397,11 @@ instance AccountBase PIMO where
 
 -- ** 要素数 1
 -- *** 勘定科目のみ (交換代数基底)
-
 instance BaseClass AccountTitles where
 
 instance ExBaseClass (HatBase AccountTitles) where
     getAccountTitle (h :< a)   = a
     setAccountTitle (h :< a) b = h :< b
-
 
 -- ***  名前のみ(冗長代数基底)
 instance BaseClass Name where
@@ -416,6 +414,9 @@ instance BaseClass Day where
 
 -- *** TimeOfDayのみ(冗長代数基底)
 instance BaseClass TimeOfDay where
+
+-- ***
+
 
 -- ** 要素数2
 

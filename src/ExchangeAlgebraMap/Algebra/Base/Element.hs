@@ -103,7 +103,6 @@ class (Eq a, Ord a, Show a) => Element a where
 (.#) :: Element a => a
 (.#) = wiledcard
 
-
 infix 4 .==
 infix 4 ./=
 ------------------------------------------------------------------

@@ -94,6 +94,7 @@ import              Numeric.NonNegative.Class (C)
 import              Data.Bifunctor
 import              Data.Biapplicative
 import              Algebra.Additive (C)
+import qualified    Data.Scientific     as D (Scientific, fromFloatDigits, formatScientific, FPFormat(..))
 
 ------------------------------------------------------------------
 -- * 丸め込み判定
@@ -200,6 +201,7 @@ class   ( Show n
         , Eq n
         , Nearly n
         , Fractional n
+        , RealFloat n
         , Num n) => HatVal n where
 
         zeroValue :: n
@@ -210,6 +212,22 @@ class   ( Show n
             | otherwise      = False
 
         isErrorValue :: n -> Bool
+
+
+instance RealFloat NN.Double where
+    floatRadix    = floatRadix    . NN.toNumber
+    floatDigits   = floatDigits   . NN.toNumber
+    floatRange    = floatRange    . NN.toNumber
+    decodeFloat   = decodeFloat   . NN.toNumber
+    encodeFloat m e = NN.fromNumber (encodeFloat m e)
+    exponent      = exponent      . NN.toNumber
+    significand   = NN.fromNumber . significand . NN.toNumber
+    scaleFloat n  = NN.fromNumber . scaleFloat n . NN.toNumber
+    isNaN         = isNaN         . NN.toNumber
+    isInfinite    = isInfinite    . NN.toNumber
+    isDenormalized = isDenormalized . NN.toNumber
+    isNegativeZero = isNegativeZero . NN.toNumber
+    isIEEE        = isIEEE        . NN.toNumber
 
 instance HatVal NN.Double where
     zeroValue = 0
@@ -297,16 +315,17 @@ infixr 6 :@
 infixr 6 .@
 infixr 6 <@
 
-instance (Show n, Show b) => Show (Alg n b) where
+instance (HatVal n, HatBaseClass b) => Show (Alg n b) where
     show Zero                 = "0"
-    show (Node s (b,i) v l r) =  case (isZero l, isZero r) of
-                                    (True, True)    -> show v ++ ":@" ++ show b
-                                    (True, False)   -> show v ++ ":@" ++ show b
+    show (Node s (b,i) v l r) =  let vStr = D.formatScientific D.Generic (Just 2) (D.fromFloatDigits v)
+                              in case (isZero l, isZero r) of
+                                    (True, True)    -> vStr ++ ":@" ++ show b
+                                    (True, False)   -> vStr ++ ":@" ++ show b
                                                     ++ " .+ " ++ show r
                                     (False, True)   -> show l
-                                                    ++ " .+ " ++ show v ++ ":@" ++ show b
+                                                    ++ " .+ " ++ vStr ++ ":@" ++ show b
                                     (False, False)  -> show l
-                                                    ++ " .+ " ++ show v ++ ":@" ++ show b
+                                                    ++ " .+ " ++ vStr ++ ":@" ++ show b
                                                     ++ " .+ " ++ show r
 
 instance (HatVal n, HatBaseClass b) =>  Eq (Alg n b) where
@@ -852,12 +871,21 @@ deleteFindMax t
 
 
 
-{- | projection
-[\
-Let x = \sum_{e_i \in \Gamma}{a_i \times e_i} , then Project[e_k](x) = a_k e_k is defined as projection operatirs.\\
-\forall A \subset \Gannma Project[A](x) is defined as Projecton[A](x) = \sum_{e \in A}{project[e](x)}
-\]
--}
+-- | projection
+--
+-- >>> type Test = Alg NN.Double (HatBase CountUnit)
+-- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
+-- >>> y = 2:@Not:<Yen .+ 2:@Hat:<Amount :: Test
+-- >>> proj [Hat:<Yen] $ x .+ y
+-- 1.0:@Hat:<Yen
+--
+-- >>> type Test = Alg NN.Double (HatBase CountUnit)
+-- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
+-- >>> y = 2:@Not:<Yen .+ 2:@Hat:<Amount :: Test
+-- >>> proj [HatNot:<Amount] $ x .+ y
+-- 2.0:@Hat:<Amount .+ 1.0:@Not:<Amount
+
+
 {-# INLINE proj #-}
 proj :: (HatVal n, HatBaseClass b)  => [b] -> Alg n b -> Alg n b
 proj bs  alg = filter (f bs) alg
@@ -868,8 +896,6 @@ proj bs  alg = filter (f bs) alg
     f []  _          = False
     f [b] (v:@eb)    = b .== eb
     f bs  (v:@eb)    = L.or $ L.map (\x -> eb .== x) bs
-    f [b] xs         = error $ "error at proj : you should use (.+) instead of (:+)."
-    f bs  xs         = error $ "error at proj : you should use (.+) instead of (:+)."
 
 -- | proj devit algs の代わりに Elem に Text や Int などがある場合は projCredit を使う
 projCredit :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b

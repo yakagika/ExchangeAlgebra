@@ -27,6 +27,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE Rank2Types         #-}
 
 module ExchangeAlgebraMap.Simulate
     (StateTime
@@ -52,7 +53,7 @@ import              Control.Monad
 import              Control.Monad.ST
 import              GHC.Generics
 import              System.Random
-
+import              Data.Ix
 
 class (Eq t, Show t, Ord t) => StateTime t where
     initTerm :: t

@@ -35,6 +35,7 @@ dependencies:
 - Chart-cairo
 - random
 - mtl
+- scientific
 
 library:
   source-dirs: src
