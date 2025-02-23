@@ -83,7 +83,10 @@ plotGridLine f wld file name
                 $ \ (serieses :: TimeSerieses) -> layoutToGrid
                 $ execEC
                 $ CM.forM_ serieses
-                $ \((t,xs) :: TimeSeries) -> plot $ line t xs
+                $ \((t,xs) :: TimeSeries) -> plot $ liftEC $ do
+                    plot_lines_values .= [concat xs]
+                    plot_lines_title .= t
+                    plot_lines_style . line_color .= opaque red
     in void $ renderableToFile def (file ++ "/" ++ name ++ ".png")
             $ fillBackground def
             $ gridToRenderable
@@ -208,7 +211,7 @@ initMS = 1.1
 
 -- | 20期めの追加需要(波及効果)
 addedDemand :: Double
-addedDemand = 0
+addedDemand = 500
 
 -- | 各産業の定常的な算出
 initProd :: Double
@@ -463,10 +466,12 @@ initTermCoefficients g =
         (rows, _) = foldl (\(m, g0) c2 -> let (row, g1) = generateRow g0 in (M.insert c2 row m, g1)) (M.empty, g) [fstEnt..lastEnt]
     in rows
 
--- ** 乱数リストを生成 (0.1 ~ 1.0 の範囲)
-generateRandomList :: StdGen -> Prelude.Int -> ([Prelude.Double], StdGen)
-generateRandomList g n = runState (replicateM n (state $ randomR (0.1, 1.0)))
-                                  (updateGen g 1000)
+-- ** 乱数リストを生成 (0 ~ 1.0 の範囲)
+generateRandomList :: StdGen -> Prelude.Int -> ([Double], StdGen)
+generateRandomList g n = let (xs, g') = runState (replicateM n (state $ randomR (0, 1.0)))
+                                                (updateGen g 1000)
+                       in let ys = L.map (\x -> if x < 0.1 then 0 else x) xs
+                       in (ys, g')
 
 -- ** 生産関数の初期状態 (STArray を使用, Term ごとに固定)
 initICTables :: StdGen -> ST s (ICTable s)
@@ -639,18 +644,10 @@ class (Eq e, Enum e, Ord e, Bounded e, StateSoace t m s a)
 data EventName
     = ToAmount                          -- ^ 価格から物量評価へ変換
     | Order                             -- ^ 発注量の決定
-    | BuySell                           -- ^ 購入販売
+    | SalesPurchase                     -- ^ 販売購入
     | Production                        -- ^ 保有する中間投入財を使用して生産
     | ToPrice                           -- ^ 物量から価格評価へ変換
     deriving (Show, Enum, Eq, Bounded)
-
-class (Show e, Eq e, Bounded e) => Event e where
-    isJournal :: e -> Bool
-    isJournal _ = False
-
-instance Event EventName where
-    isJournal Production = True
-    isJournal BuySell    = True
 
 -- 記帳
 journal :: World s -> Term -> Transaction -> ST s ()
@@ -698,30 +695,11 @@ event wld t Order = do
             let orderTotal = m * plan * c
             modifyArray os (t, e2, e1) (\x -> x + orderTotal)
 
--- | (在庫比率 * 受注量 - 在庫の量) のうち,現在保有している原材料在庫で生産する
-event wld t Production = do
-    bk <- readSTRef (_book wld)  -- Book を取得
-    let os = (_orders wld)  -- OrdersTable を取得
-    forM_ [fstEnt..lastEnt] $ \e1 -> do
-        r <- getInventoryRatio wld e1
-        n <- getOrderTotal wld t e1  -- `getOrderTotal` から総受注量を取得
-        let inv = projNorm [Not :<(Products, e1, e1, t, Amount)] bk  -- 在庫保有量
-        let plan = case compare (n * r) inv of
-                        -- 在庫が生産と次期の在庫より少ない場合
-                        GT -> (n * r) - inv
-                        -- 等しいか多い場合 生産する必要なし
-                        _ -> 0
-        pv <- getPossibleVolume wld t e1  -- 生産可能量を取得
-        let prod = min plan pv  -- 生産可能量との比較
-        when (prod > 0 ) $ do
-            op <- getOneProduction wld t e1  -- 1単位の生産簿記を取得
-            journal wld t (prod .* op)  -- 生産処理を記帳
-
 ------------------------------------------------------------------
 -- 受注分販売・購入する
 -- 在庫を受注の割合で販売する
 -- 売れた分受注を減らす
-event wld t BuySell = do
+event wld t SalesPurchase = do
     bk <- readSTRef (_book wld)  -- 簿記の状態を取得
     let os = _orders wld  -- OrdersTable を取得
 
@@ -744,6 +722,26 @@ event wld t BuySell = do
                                  .+  sellAmount      :@ Not :<(Products, e1, e2, t, Amount) -- 発注側 購入財
                                  .+ (sellAmount * p) :@ Hat :<(Cash,(.#),e2,t,Yen)          -- 発注側 購入額
                     writeArray os (t, e1, e2) (orderAmount - sellAmount)  -- 受注を減らす
+------------------------------------------------------------------
+-- | (在庫比率 * 受注量 - 在庫の量) のうち,現在保有している原材料在庫で生産する
+event wld t Production = do
+    bk <- readSTRef (_book wld)  -- Book を取得
+    let os = (_orders wld)  -- OrdersTable を取得
+    forM_ [fstEnt..lastEnt] $ \e1 -> do
+        r <- getInventoryRatio wld e1
+        n <- getOrderTotal wld t e1  -- `getOrderTotal` から総受注量を取得
+        let inv = projNorm [Not :<(Products, e1, e1, t, Amount)] bk  -- 在庫保有量
+        let plan = case compare (n * r) inv of
+                        -- 在庫が生産と次期の在庫より少ない場合
+                        GT -> (n * r) - inv
+                        -- 等しいか多い場合 生産する必要なし
+                        _ -> 0
+        pv <- getPossibleVolume wld t e1  -- 生産可能量を取得
+        let prod = min plan pv  -- 生産可能量との比較
+        when (prod > 0 ) $ do
+            op <- getOneProduction wld t e1  -- 1単位の生産簿記を取得
+            journal wld t (prod .* op)  -- 生産処理を記帳
+
 
 ------------------------------------------------------------------
 -- | Transaction全体を結合
@@ -786,9 +784,9 @@ main = do
     -- print $ proj [Not :<(Products,1,1,2,(.#))] bk
     -- print $ norm $ proj [Not :<(Products,1,1,2,(.#))] bk
     -- writeBS "exsample/result/csv/ripple1.csv" $ EA.grossProfitTransferKeepWiledcard bk
-    -- writeTermIO "exsample/result/csv/ripple1_io.csv" 1 ioics
-    plotGridLine grossProfitPath wld "exsample/result/fig/" "Cash_ripple1"
-    plotGridLine productionPath wld "exsample/result/fig/" "Cash_ripple1_production"
+    writeTermIO "exsample/result/csv/ripple1_io.csv" 1 ioics
+    plotGridLine grossProfitPath wld "exsample/result/fig/ripple1/addedDemand/" "Cash(Gross Profit)-Added-Demand"
+    plotGridLine productionPath wld "exsample/result/fig/ripple1/addedDemand/" "Production-Added-Demand"
 
 
 
