@@ -47,6 +47,8 @@ import              Prelude             hiding (map, head, filter,tail, traverse
 -}
 
 class (Element a) =>  BaseClass a where
+    compareBase :: a -> a -> Ordering
+    compareBase = compareElement
 
 instance (Element e1, Element e2)
         => BaseClass (e1, e2) where
@@ -74,6 +76,10 @@ class (BaseClass a) => HatBaseClass a where
     revHat :: a    -> a     -- reverse Hat
     isHat  :: a    -> Bool
     isNot  :: a    -> Bool
+
+
+    compareHatBase :: a -> a -> Ordering
+    compareHatBase = compareBase
 
 -- | Hat の定義
 data Hat    = Hat
@@ -103,8 +109,8 @@ instance Eq (HatBase a) where
 
 instance Ord (HatBase a) where
     compare (h :< b) (h' :< b')
+        | b == b' = compare h h'
         | b >  b'  = GT
-        | b .== b' = compare h h'
         | b <  b'  = LT
 
     (<) x y | compare x y == LT = True
@@ -138,6 +144,10 @@ instance (BaseClass a) => Element (HatBase a) where
     keepWiledcard (h1:<b1) (h2:<b2)
         = (keepWiledcard h1 h2) :< (keepWiledcard b1 b2)
 
+    -- |
+    -- >>> type Test = HatBase CountUnit
+    -- >>> compareHatBase (Not:<Amount :: Test) (Not:<(.#) :: Test)
+    -- EQ
     compareElement (h1:<b1) (h2:<b2)
         = case compareElement b1 b2 of
             EQ -> compareElement h1 h2
@@ -163,8 +173,6 @@ instance (BaseClass a) => HatBaseClass (HatBase a) where
 
     {-# INLINE isNot #-}
     isNot  = not . isHat
-
-
 
 ------------------------------------------------------------
 -- * Define ExBase

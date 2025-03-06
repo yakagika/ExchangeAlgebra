@@ -46,6 +46,7 @@ module ExchangeAlgebraMap.Algebra
     , Exchange(..)
     , HatVal(..)
     , Alg(Zero,_val)
+    , Identifier
     , _hatBase
     , isZero
     , (<@)
@@ -54,6 +55,7 @@ module ExchangeAlgebraMap.Algebra
     , isLiner
     , vals
     , bases
+    , keys
     , allHat
     , allNot
     , fromList
@@ -81,7 +83,7 @@ import              ExchangeAlgebraMap.Algebra.Base
 import              Debug.Trace
 import qualified    Data.Text           as T
 import              Data.Text           (Text)
-import qualified    Data.List           as L (foldr1, map, length, elem,sort,foldl1,filter, or, and, sum)
+import qualified    Data.List           as L (foldr1, map, length, elem,sort,foldl1,filter, or, and,any, sum)
 import              Prelude             hiding (map, head, filter,tail, traverse, mapM)
 import qualified    Data.Time           as Time
 import              Data.Time
@@ -144,7 +146,7 @@ isNearlyNum x y t
 class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
     -- | hat calculation
     -- >>> (.^) (10:@Not:<Cash .+ 10:@Hat:<Deposits)
-    -- 10.0:@Hat:<Cash .+ 10.0:@Not:<Deposits
+    -- 10.00:@Hat:<Cash .+ 10.00:@Not:<Deposits
     (.^) :: a n b -> a n b
 
     -- | bar calculation
@@ -164,11 +166,6 @@ class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
 
     -- | get value part
     norm :: a n b -> n
-
-    {-# INLINE (.|) #-}
-    -- | alias of nolm
-    (.|) :: a n b -> n
-    (.|) = norm
 
     {-# INLINE (<+) #-}
     (<+) :: (Applicative f) => f (a n b) -> f (a n b) -> f (a n b)
@@ -270,7 +267,7 @@ data  Alg n b where
             , _left    :: !(Alg n b)
             , _right   :: !(Alg n b)} -> Alg n b
 
-_hatBase (Node _ (b,_) _ _ _) = b
+_hatBase = fst . _key
 
 isZero Zero = True
 isZero _    = False
@@ -284,12 +281,13 @@ sizeOf (Node s _ _ _ _) = s
 
 
 singleton :: (HatVal n, HatBaseClass b) => b -> n ->  Alg n b
-singleton b n = case isErrorValue n of
-                False -> Node 1 (b,0) n Zero Zero
-                True  -> error  $ "errorValue at (.@) val: "
-                                ++ show n
-                                ++ show ".@"
-                                ++ show b
+singleton b n | n == 0 = Zero
+              | otherwise = case isErrorValue n of
+                    False -> Node 1 (b,0) n Zero Zero
+                    True  -> error  $ "errorValue at (.@) val: "
+                                    ++ show n
+                                    ++ show ":@"
+                                    ++ show b
 
 (.@) :: (HatVal n, HatBaseClass b) => n -> b -> Alg n b
 (.@) n b = singleton b n
@@ -345,8 +343,8 @@ instance (HatVal n, HatBaseClass b) =>  Ord (Alg n b) where
     compare Zero _    = LT
     compare _    Zero = GT
     compare (Node _ (b1,_) v1 Zero Zero) (Node _ (b2,_) v2 Zero Zero)
-        | b1 .== b2  = compare v1 v2
-        | otherwise  = compare b1 b2
+        | b1 == b2  = compare v1 v2
+        | otherwise = compare b1 b2
     -- Node に関しては定義しない
 
     (<) x y | compare x y == LT = True
@@ -385,7 +383,7 @@ instance  (HatVal n, HatBaseClass b) => Semigroup (Alg n b) where
 -- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
 -- >>> y = 2:@Hat:<Yen .+ 2:@Not:<Amount :: Test
 -- >>> union x y
--- 1.0:@Hat:<Yen .+ 2.0:@Hat:<Yen .+ 2.0:@Not:<Amount .+ 1.0:@Not:<Amount
+-- 1.00:@Hat:<Yen .+ 2.00:@Hat:<Yen .+ 2.00:@Not:<Amount .+ 1.00:@Not:<Amount
 
 union :: (HatVal n, HatBaseClass b) =>  Alg n b -> Alg n b -> Alg n b
 union Zero t2  = t2
@@ -678,7 +676,7 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
           in
             result
 
-instance (HatVal n, ExBaseClass a) =>  Exchange Alg n a where
+instance (HatVal n, ExBaseClass b) =>  Exchange Alg n b where
     -- | filter Debit side
     decR xs = filter (\x -> x /= Zero && (whichSide . _hatBase) x == Debit) xs
 
@@ -744,13 +742,13 @@ allNot xs = L.and $ L.map (isNot . _hatBase) $ toList xs
 -- >>> type Test = Alg NN.Double (HatBase AccountTitles)
 -- >>> xs = [1:@Hat:<Cash,1:@Not:<Deposits, 2:@Hat:<Cash, 2:@Not:<Deposits] :: [Test]
 -- >>> fromList xs
--- 1.0:@Hat:<Cash .+ 2.0:@Hat:<Cash .+ 1.0:@Not:<Deposits .+ 2.0:@Not:<Deposits
+-- 1.00:@Hat:<Cash .+ 2.00:@Hat:<Cash .+ 1.00:@Not:<Deposits .+ 2.00:@Not:<Deposits
 --
 --  >>> type Test = Alg NN.Double (HatBase CountUnit)
 --  >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
 --  >>> y = 2:@Hat:<Yen .+ 2:@Not:<Amount :: Test
 --  >>> fromList [x,y]
---  1.0:@Hat:<Yen .+ 2.0:@Hat:<Yen .+ 2.0:@Not:<Amount .+ 1.0:@Not:<Amount
+--  1.00:@Hat:<Yen .+ 2.00:@Hat:<Yen .+ 2.00:@Not:<Amount .+ 1.00:@Not:<Amount
 
 fromList ::(HatVal n, HatBaseClass b ) => [Alg n b] -> Alg n b
 fromList = mconcat
@@ -758,7 +756,7 @@ fromList = mconcat
 -- | convert Alg n b to List
 --
 -- >>> toList (10:@Hat:<(Cash) .+ 10:@Hat:<(Deposits) .+ Zero :: Alg NN.Double (HatBase AccountTitles))
--- [10.0:@Hat:<Cash,10.0:@Hat:<Deposits]
+-- [10.00:@Hat:<Cash,10.00:@Hat:<Deposits]
 --
 -- you need define type variables to use this for Zero
 -- >>> toList Zero :: [Alg NN.Double (HatBase AccountTitles)]
@@ -766,7 +764,7 @@ fromList = mconcat
 {-# INLINE toList #-}
 toList :: (HatVal n, HatBaseClass b) => Alg n b -> [Alg n b]
 toList Zero     = []
-toList xs       = foldrWithKey (\(b,i) n xs -> (n:@b):xs) [] xs
+toList xs       = foldrWithKey (\(b,i) n xs -> if n /= 0 then (n:@b):xs else xs) [] xs
 
 {-# INLINE map #-}
 -- | map
@@ -869,23 +867,37 @@ deleteFindMax t
       Node _ k x l r   -> let (km,r') = deleteFindMax r in (km,balanceL k x l r')
       Zero             -> (error "deleteFindMax: can not return the maximal element of an empty map", Zero)
 
-
-
--- | projection
---
+------------------------------------------------------------
+-- | proj
 -- >>> type Test = Alg NN.Double (HatBase CountUnit)
 -- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
 -- >>> y = 2:@Not:<Yen .+ 2:@Hat:<Amount :: Test
 -- >>> proj [Hat:<Yen] $ x .+ y
--- 1.0:@Hat:<Yen
+-- 1.00:@Hat:<Yen
 --
 -- >>> type Test = Alg NN.Double (HatBase CountUnit)
 -- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
 -- >>> y = 2:@Not:<Yen .+ 2:@Hat:<Amount :: Test
 -- >>> proj [HatNot:<Amount] $ x .+ y
--- 2.0:@Hat:<Amount .+ 1.0:@Not:<Amount
-
-
+-- 2.00:@Hat:<Amount .+ 1.00:@Not:<Amount
+--
+-- >>> type Test = Alg NN.Double (HatBase (AccountTitles, CountUnit))
+-- >>> x = 1:@Hat:<(Cash,Yen) .+ 1:@Not:<(Products,Amount) :: Test
+-- >>> y = 2:@Not:<(Cash,Yen) .+ 2:@Hat:<(Deposits,Yen) :: Test
+-- >>> proj [Hat:<((.#),Yen)] $ x .+ y
+-- 1.00:@Hat:<(Cash,Yen) .+ 2.00:@Hat:<(Deposits,Yen)
+--
+-- >>> type Test = HatBase CountUnit
+-- >>> compareHatBase (Not:<(.#) :: Test) (Not:<Yen :: Test)
+-- EQ
+--
+-- >>> type Test = Alg NN.Double (HatBase CountUnit)
+-- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
+-- >>> y = 2:@Not:<Yen .+ 2:@Hat:<Amount :: Test
+-- >>> proj [Not:<(.#)] $ x .+ y
+-- 2.00:@Not:<Yen .+ 1.00:@Not:<Amount
+--
+------------------------------------------------------------
 {-# INLINE proj #-}
 proj :: (HatVal n, HatBaseClass b)  => [b] -> Alg n b -> Alg n b
 proj bs  alg = filter (f bs) alg
@@ -895,7 +907,7 @@ proj bs  alg = filter (f bs) alg
     f _   Zero       = False
     f []  _          = False
     f [b] (v:@eb)    = b .== eb
-    f bs  (v:@eb)    = L.or $ L.map (\x -> eb .== x) bs
+    f bs  (v:@eb)    = L.any (\x -> eb .== x) bs
 
 -- | proj devit algs の代わりに Elem に Text や Int などがある場合は projCredit を使う
 projCredit :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
@@ -908,7 +920,7 @@ projDebit = filter (\x -> (whichSide . _hatBase) x == Credit)
 projByAccountTitle :: (HatVal n, ExBaseClass b) => AccountTitles -> Alg n b -> Alg n b
 projByAccountTitle at alg = filter (f at) alg
     where
-        f :: (ExBaseClass b) => AccountTitles -> Alg n b -> Bool
+        f :: (HatVal n,ExBaseClass b) => AccountTitles -> Alg n b -> Bool
         f at Zero = False
         f at x    = ((getAccountTitle ._hatBase) x) .== at
 

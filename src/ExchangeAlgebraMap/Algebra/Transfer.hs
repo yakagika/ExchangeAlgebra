@@ -29,7 +29,7 @@
 
 
 
-module ExchangeAlgebraMap.Transfer
+module ExchangeAlgebraMap.Algebra.Transfer
     ( TransTable (..)
     , isNullTable
     , insert
@@ -413,7 +413,7 @@ fromList ((b1,a1, f1)  : xs0)   | not_ordered b1 xs0 = a1 `seq` fromList' (Trans
 -- [(Hat:<Cash,Hat:<Building,<function>),(Hat:<Building,Hat:<Cash,<function>)]
 
 table ::  (HatVal n, HatBaseClass b) => [(b,b,(n -> n))] -> TransTable n b
-table = ExchangeAlgebraMap.Transfer.fromList
+table = ExchangeAlgebraMap.Algebra.Transfer.fromList
 
 data TransTableParts b where
   (:->)   :: (HatBaseClass b) => b -> b -> TransTableParts b
@@ -501,7 +501,7 @@ grossProfitTransferKeepWiledcard
 -- >>>  type Test = Alg NN.Double (HatBase (CountUnit, AccountTitles))
 -- >>>  x = 2279.0:@Not:<(Yen,Depreciation) .+ 500475.0:@Not:<(Yen,InterestEarned) :: Test
 -- >>>  ordinaryProfitTransferKeepWiledcard x
--- 2279.0:@Hat:<(Yen,OrdinaryProfit) .+ 500475.0:@Not:<(Yen,OrdinaryProfit)
+-- 2279.00:@Hat:<(Yen,OrdinaryProfit) .+ 500475.00:@Not:<(Yen,OrdinaryProfit)
 
 ordinaryProfitTransferKeepWiledcard :: (HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
 ordinaryProfitTransferKeepWiledcard

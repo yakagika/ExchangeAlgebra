@@ -39,6 +39,11 @@ class (Eq a, Ord a, Show a) => Element a where
 
     wiledcard       :: a        -- ^ 検索等に用いるワイルドカード
 
+    haveWiledcard :: a -> Bool
+    haveWiledcard a = case isWiledcard a of
+                        True  -> True
+                        False -> False
+
     isWiledcard     :: a -> Bool
     {-# INLINE isWiledcard #-}
     isWiledcard a | wiledcard == a = True
@@ -218,6 +223,9 @@ instance (Element a ,Element b)
     => Element (a, b) where
     wiledcard = (wiledcard, wiledcard)
 
+    haveWiledcard (a,b) =  (isWiledcard a)
+                        || (isWiledcard b)
+
     {-# INLINE equal #-}
     equal (a1, a2) (b1, b2)
         =  (a1 .== b1)
@@ -237,6 +245,11 @@ instance (Element a, Element b, Element c)
     wiledcard = ( wiledcard
                 , wiledcard
                 , wiledcard)
+
+    haveWiledcard (a,b,c) =  (isWiledcard a)
+                          || (isWiledcard b)
+                          || (isWiledcard c)
+
 
     {-# INLINE equal #-}
     equal (a1, a2, a3) (b1, b2, b3)
@@ -260,6 +273,11 @@ instance (Element a, Element b, Element c, Element d)
                 , wiledcard
                 , wiledcard
                 , wiledcard)
+
+    haveWiledcard (a,b,c,d) =  (isWiledcard a)
+                            || (isWiledcard b)
+                            || (isWiledcard c)
+                            || (isWiledcard d)
 
     {-# INLINE equal #-}
     equal (a1, a2, a3, a4) (b1, b2, b3, b4)
@@ -286,6 +304,12 @@ instance (Element a, Element b, Element c, Element d, Element e)
                 , wiledcard
                 , wiledcard
                 , wiledcard)
+
+    haveWiledcard (a,b,c,d,e)   =  (isWiledcard a)
+                                || (isWiledcard b)
+                                || (isWiledcard c)
+                                || (isWiledcard d)
+                                || (isWiledcard e)
 
     {-# INLINE equal #-}
     equal (a1, a2, a3, a4, a5) (b1, b2, b3, b4, b5)
@@ -316,6 +340,14 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f)
                 , wiledcard
                 , wiledcard)
 
+    haveWiledcard (a,b,c,d,e,f)   =  (isWiledcard a)
+                                  || (isWiledcard b)
+                                  || (isWiledcard c)
+                                  || (isWiledcard d)
+                                  || (isWiledcard e)
+                                  || (isWiledcard f)
+
+
     {-# INLINE equal #-}
     equal (a1, a2, a3, a4, a5, a6) (b1, b2, b3, b4, b5, b6)
         =  (a1 .== b1)
@@ -338,8 +370,8 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f)
                          ((b1, b2, b3, b4, b5), b6)
 
 
-instance (Element a, Element b, Element c, Element d, Element e, Element f, Element d)
-    => Element (a, b, c, d, e, f, d) where
+instance (Element a, Element b, Element c, Element d, Element e, Element f, Element g)
+    => Element (a, b, c, d, e, f, g) where
     wiledcard = ( wiledcard
                 , wiledcard
                 , wiledcard
@@ -347,7 +379,14 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f, Elem
                 , wiledcard
                 , wiledcard
                 , wiledcard)
-    {-# INLINE equal #-}
+
+    haveWiledcard (a,b,c,d,e,f,g)   =  (isWiledcard a)
+                                  || (isWiledcard b)
+                                  || (isWiledcard c)
+                                  || (isWiledcard d)
+                                  || (isWiledcard e)
+                                  || (isWiledcard g)
+
     equal (a1, a2, a3, a4, a5, a6, a7) (b1, b2, b3, b4, b5, b6, b7)
         =  (a1 .== b1)
         && (a2 .== b2)

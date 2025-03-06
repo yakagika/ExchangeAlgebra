@@ -25,7 +25,7 @@ module ExchangeAlgebraMap.Write where
 import qualified    ExchangeAlgebraMap.Algebra     as EA
 import              ExchangeAlgebraMap.Algebra
 
-import qualified    ExchangeAlgebraMap.Transfer    as ET
+import qualified    ExchangeAlgebraMap.Algebra.Transfer    as ET
 
 import              ExchangeAlgebraMap.Simulate
 

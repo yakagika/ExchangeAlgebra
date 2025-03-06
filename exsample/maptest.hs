@@ -1,6 +1,6 @@
 -- Original
-import qualified    ExchangeAlgebraMap         as EA
-import              ExchangeAlgebraMap
+import qualified    ExchangeAlgebraMap.Algebra         as EA
+import              ExchangeAlgebraMap.Algebra
 
 type MinBase = HatBase AccountTitles
 type MinTransaction = Alg Double MinBase
