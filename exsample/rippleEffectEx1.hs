@@ -25,17 +25,13 @@
 -}
 
 -- Original
+import              ExchangeAlgebraMapJournal
 import qualified    ExchangeAlgebraMap.Journal  as EJ
-import              ExchangeAlgebraMap.Journal
-
 import qualified    ExchangeAlgebraMap.Journal.Transfer as EJT
 import              ExchangeAlgebraMap.Journal.Transfer ((.->)
                                                         ,(|%))
 
 import qualified    ExchangeAlgebraMap.Simulate as ES
-import              ExchangeAlgebraMap.Simulate
-import              ExchangeAlgebraMap.Write
-
 
 -- Other
 import qualified    Data.Map.Strict         as M
@@ -913,12 +909,12 @@ event wld t Production = do
         -- 生産が必要な量の内 生産できる量
         let prod = min plan pv
 
-        when (e1==6) $ do
-            trace (show t ++ ":stock:" ++ show stock) return ()
-            trace (show t ++ ":order:" ++ show n) return ()
-            trace (show t ++ ":sales:" ++ show sales) return ()
-            trace (show t ++ ":plan:" ++ show plan) return ()
-            trace (show t ++ ":pv:" ++ show pv) return ()
+        -- when (e1==6) $ do
+        --     trace (show t ++ ":stock:" ++ show stock) return ()
+        --     trace (show t ++ ":order:" ++ show n) return ()
+        --     trace (show t ++ ":sales:" ++ show sales) return ()
+        --     trace (show t ++ ":plan:" ++ show plan) return ()
+        --     trace (show t ++ ":pv:" ++ show pv) return ()
 
         when (prod > 0 ) $ do
             op <- getOneProduction wld t e1  -- 1単位の生産簿記を取得
