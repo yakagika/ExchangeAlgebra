@@ -34,6 +34,7 @@ import              ExchangeAlgebraMap.Journal.Transfer ((.->)
 
 import qualified    ExchangeAlgebraMap.Simulate as ES
 import              ExchangeAlgebraMap.Simulate
+import              ExchangeAlgebraMap.Write
 
 
 -- Other
@@ -270,7 +271,6 @@ grossProfitPath wld =  stToIO $ do
             in modifyArray arr (i, t) (\x -> x  + plus - minus)
     gridPathSingleLine [fstEnt .. lastEnt] arr
 
-
 -- | 生産量の可視化
 productionPath :: EnvVar -> World RealWorld -> IO GridMatrix
 productionPath env wld = stToIO $ do
@@ -282,6 +282,20 @@ productionPath env wld = stToIO $ do
             -> modifyArray arr (i, t) (\x -> x + v)
 
     gridPathSingleLine [fstEnt .. lastEnt] arr
+
+-- | 在庫量の可視化
+stockPath :: EnvVar -> World RealWorld -> IO GridMatrix
+stockPath env wld = stToIO $ do
+    arr <- newArray ((fstEnt, initTerm), (lastEnt, lastTerm)) 0
+        :: ST s (STArray s (Entity, Term) Double)
+    CM.forM_ [initTerm .. lastTerm ] $ \t
+        -> CM.forM_ [fstEnt .. lastEnt] $ \i
+            -> getTermStock wld t env i >>= \v
+            -> modifyArray arr (i, t) (\x -> x + v)
+
+    gridPathSingleLine [fstEnt .. lastEnt] arr
+
+
 
 -- | 2つの設定の生産量の差を可視化する
 productionDiffPath :: EnvVar -> EnvVar -> World RealWorld -> World RealWorld -> IO GridMatrix
@@ -333,7 +347,7 @@ modifyArray ar e f = readArray ar e >>= \ x -> writeArray ar e (f x)
 
 instance StateTime Term where
     initTerm = 1
-    lastTerm = 30
+    lastTerm = 50
     nextTerm = \x -> x + 1
     prevTerm = \x -> x - 1
 
@@ -359,7 +373,7 @@ data EnvVar = EnvVar {_initInv :: Double -- 初期在庫保有量
                      ,_initIR  :: Double -- 在庫比率
                      ,_initMS  :: Double -- 原材料在庫比率
                      ,_addedDemend :: Double -- 20期めの追加需要(波及効果)
-                     ,_initProd   :: Double -- 各産業の定常的な算出
+                     ,_finalDemand   :: Double -- 各産業の最終需要
                      ,_inhouseRatio :: Double -- 内製部門比率
                      } deriving (Eq, Show)
 
@@ -374,17 +388,21 @@ instance EnvironmentVariables EnvVar where
 -- wiledcardのみ指定すればOK
 
 -- 取引主体ID
+-- 一つが最終需要部門
 type Entity = Int
 
 instance Element Entity where
     wiledcard = -1
 instance BaseClass Entity where
 
-
 -- 最小
 fstEnt  = 1
--- 最大
+-- 最大 (最終需要部門)
 lastEnt = 10
+
+industries = [fstEnt .. lastEnt -1]
+finalDemandSector = lastEnt
+
 -- 期
 type Term = Prelude.Int
 
@@ -405,9 +423,10 @@ instance ExBaseClass VEHatBase where
 -- 上から順番にイベントが実行される
 data EventName
     = ToAmount                          -- ^ 価格から物量評価へ変換
-    | Production                        -- ^ 保有する中間投入財を使用して生産
     | SalesPurchase                     -- ^ 販売購入
+    | Production                        -- ^ 保有する中間投入財を使用して生産
     | Order                             -- ^ 発注量の決定
+    | Consumption                       -- ^ 最終需要部門の消費
     | ToPrice                           -- ^ 物量から価格評価へ変換
     | Plank                             -- ^ Plank
     deriving (Ord,Show, Enum, Eq, Bounded)
@@ -429,11 +448,15 @@ type Ledger s = STRef s Transaction
 
 -- 取引の初期状態
 -- 在庫だけ一定量保有
-initTransaction :: Entity -> Entity -> Double -> Transaction
-initTransaction c e d = d :@ Not :<(Products,c,e,Amount) .| (plank,initTerm)
+initTransaction :: Entity -> Double -> Transaction
+initTransaction e d
+    | e == finalDemandSector = Zero -- 最終需要部門
+    | otherwise              = (.+) (d :@ Not :<(Products,e,e,Amount) .| (plank,initTerm))
+                             $ EJ.fromList [ (d/10) :@ Not :<(Products,e2,e,Amount) .| (plank,initTerm)
+                                           | e2 <- industries]
 
 initLedger :: Double -> ST s (Ledger s)
-initLedger d = newSTRef $ (EJ.fromList [ initTransaction c c d
+initLedger d = newSTRef $ (EJ.fromList [ initTransaction c d
                                        | c <- [fstEnt..lastEnt]])
 
 -- 一般化の適用
@@ -443,14 +466,14 @@ instance Updatable Term EnvVar ST s (Ledger s) where
     updatePattern _ _ _ = return Modify
 
     -- 過去のTermを次の期のTermに変更して追加する
-    modify t e x  =  readSTRef x >>= \led
-                  -> let added = g t (termJournal (t-1) led)
+    modify t e x  =  readSTRef x >>= \le
+                  -> let added = g t (termJournal (t-1) le)
                   in modifySTRef x (\z -> z .+ added)
         where
         g t x = EJ.gather (plank, t) $ f x
-        f   = (.-)
-            . EJT.finalStockTransferKeepWiledcard
+        f   = EJT.finalStockTransferKeepWiledcard
             . inventoryCount
+            . (.-)
 
 -- | 棚卸し仕訳
 -- 物量で商品が売上と同額貸方にあるので,
@@ -470,6 +493,15 @@ culcStock t e le = norm
                  $ (.-)
                  $ termJournal t le
 
+-- |
+getTermStock :: World s -> Term -> EnvVar -> Entity -> ST s Double
+getTermStock wld t env e = do
+    le <- readSTRef (_ledger wld)
+    let currentTotal = norm
+                     $ EJ.projWithBase [Not:<(Products,e,e,Yen)]
+                     $ (.-)
+                     $ (termJournal t le)
+    return currentTotal
 ------------------------------------------------------------------
 -- ** 価格の状態空間の定義
 ------------------------------------------------------------------
@@ -628,11 +660,12 @@ initTermCoefficients g inhouseRatio =
     in rows
 
 -- ** 乱数リストを生成 (0 ~ 1.0 の範囲)
+-- 最終需要部門は0
 generateRandomList :: StdGen -> Prelude.Int -> ([Double], StdGen)
-generateRandomList g n = let (xs, g') = runState (replicateM n (state $ randomR (0, 1.0)))
-                                                (updateGen g 1000)
+generateRandomList g n = let (xs, g') = runState (replicateM (n-1) (state $ randomR (0, 1.0)))
+                                                 (updateGen g 1000)
                        in let ys = L.map (\x -> if x < 0.1 then 0 else x) xs
-                       in (ys, g')
+                       in (ys ++ [0], g')
 
 -- ** 生産関数の初期状態 (STArray を使用, Term ごとに固定)
 initICTables :: StdGen -> Double -> ST s (ICTable s)
@@ -665,7 +698,7 @@ getInputCoefficient wld t (c1,c2) =  do
 getOneProduction :: World s -> Term -> Entity -> ST s Transaction
 getOneProduction wld t c = do
     let arr =  _ictable (_ics wld)  -- ICTable を取得
-    inputs <- CM.forM [fstEnt..lastEnt] $ \c2 -> do
+    inputs <- CM.forM industries $ \c2 -> do
         coef <- readArray arr (t, c2, c)  -- c を生産するために必要な c2 の投入係数
         return $ coef :@ Hat :<(Products, c2, c, Amount) .| (Production,t) -- c2 の消費を記録
     let totalInput = foldl (.+) Zero inputs  -- すべての中間投入を結合
@@ -692,23 +725,24 @@ type Order = Double
 type OrderTable s = STArray s (Term,Entity,Entity) Order
 
 
--- 価格履歴の初期状態
-initOrders :: ICTable s -> Double -> ST s (OrderTable s)
-initOrders icTable initProd = do
+-- 発注量の初期状態
+initOrders :: ICTable s -> Double -> Double -> ST s (OrderTable s)
+initOrders icTable finalDemand inhouseRatio = do
     ((tMin, c1Min, c2Min), (tMax, c1Max, c2Max)) <- getBounds (_ictable icTable)
     ordersArr <- newArray ((tMin, c1Min, c2Min), (tMax, c1Max, c2Max)) 0
     forM_ [(t, c1, c2) | t <- [tMin .. tMax]
                        , c1 <- [c1Min .. c1Max]
                        , c2 <- [c2Min .. c2Max]] $ \(t, c1, c2) -> do
-        coef <- readArray (_ictable icTable) (t, c1, c2)
-        writeArray ordersArr (t, c1, c2) (coef * initProd)
+        when (c2 == finalDemandSector) $ do
+            c <- readArray (_ictable icTable) (t, c1,c2)
+            writeArray ordersArr (t, c1, c2) ((c / inhouseRatio) * finalDemand)
     return ordersArr
 
 -- ** STArray s (ID, Term) NN.Double
 instance Updatable Term EnvVar ST s (OrderTable s) where
     initialize g _ e = do
         icTable <- initICTables g (_inhouseRatio e)  -- ICTable を初期化
-        initOrders icTable (_initProd e)   -- それを基に OrdersTable を作成
+        initOrders icTable (_finalDemand e) (_inhouseRatio e)  -- それを基に OrdersTable を作成
 
     updatePattern _ _ _  = return Modify
 
@@ -717,7 +751,7 @@ instance Updatable Term EnvVar ST s (OrderTable s) where
                     (True, _)   -> return ()
                     (_, True)   -> forM_ [fstEnt..lastEnt] $ \e1
                                 -> forM_ [fstEnt..lastEnt] $ \e2
-                                -> case (e1 == 10,e2==9) of -- 10から9への需要の増加
+                                -> case (e1 == 10, e2==9) of -- 9の最終需要の増加
                                     (True,True) -> readArray x (t-1, e2,e1) >>= \y
                                                 -> modifyArray x (t,e2,e1) (\x -> x + y + (_addedDemend e))
                                     ------------------------------------------------------------------
@@ -771,16 +805,20 @@ getPossibleVolume wld t e1 = do
     le  <- readSTRef (_ledger wld)
 
     -- 各 e2 (原材料) に対して、生産可能量の計算
-    mbps <- CM.forM [fstEnt .. lastEnt] $ \e2 -> do
+    mbps <- CM.forM industries $ \e2 -> do
         -- 原材料在庫
         let n = norm
-              $ (.-)
               $ projWithBase [Not :< (Products, e2, e1, Amount)]
-                             (termJournal t le)
-        c <- readArray ics (t, e2, e1)  -- 投入係数
+              $ (.-)
+              $ termJournal t le
+
+        -- 投入係数
+        c <- readArray ics (t, e2, e1)
+        -- 0除算防止
         case (c == 0) of
-            False -> return (Just (n / c))  -- 0除算防止
+            False -> return (Just (n / c))
             True  -> return Nothing
+
     let possibleVolumes = L.map (\(Just x) -> x)
                         $ L.filter (\x -> if x == Nothing then False else True) mbps
     return $ minimum possibleVolumes  -- 可能な生産量の最小値を返す
@@ -826,7 +864,7 @@ event wld t SalesPurchase = do
     le <- readSTRef (_ledger wld)  -- 簿記の状態を取得
     let os = _orders wld  -- OrdersTable を取得
 
-    forM_ [fstEnt..lastEnt] $ \e1 -> do
+    forM_ industries $ \e1 -> do
         -- 受注総量を取得
         totalOrder <- getOrderTotal wld t e1
         -- 在庫保有量
@@ -845,29 +883,43 @@ event wld t SalesPurchase = do
                              .+  sellAmount      :@ Not :<(Products, e1, e2, Amount) -- 発注側 購入財
                              .+ (sellAmount * p) :@ Hat :<(Cash,(.#),e2,Yen)          -- 発注側 購入額
                     journal wld t (toAdd .| (SalesPurchase,t))
-                    writeArray os (t, e1, e2) (orderAmount - sellAmount)  -- 受注を減らす
+                    -- 受注を減らす
+                    writeArray os (t, e1, e2) (orderAmount - sellAmount)
 
 ------------------------------------------------------------------
 -- | (在庫比率 * 受注量 - 在庫の量) のうち,現在保有している原材料在庫で生産する
 event wld t Production = do
     le <- readSTRef (_ledger wld)  -- Book を取得
     let os = (_orders wld)  -- OrdersTable を取得
-    forM_ [fstEnt..lastEnt] $ \e1 -> do
+    forM_ industries $ \e1 -> do
         r <- getInventoryRatio wld e1
-        -- 総受注量
+        -- 販売後の総受注量
         n <- getOrderTotal wld t e1
+        -- 販売量
+        let sales = (norm . (.-))
+                  $ projWithNoteBase [(SalesPurchase, t)] [Hat:<(Products,e1,e1,Amount)] le
         -- 在庫保有量
         let stock = culcStock t e1 le
 
         -- 今期の発注量に対するr倍以上のストックを保つだけの生産
-        let plan = case compare (r * n) stock of
+        let plan = case compare (r * (n + sales)) stock of
                         -- 在庫が受注と次期の在庫より少ない場合
-                        GT -> (r * n) - stock
+                        GT -> (r * (n + sales)) - stock
                         -- 等しいか多い場合 生産する必要なし
-                        _ -> 0
+                        -- ただし
+                        _ -> 0.5 * (n + sales)
+
         pv <- getPossibleVolume wld t e1  -- 生産可能量を取得
         -- 生産が必要な量の内 生産できる量
         let prod = min plan pv
+
+        when (e1==6) $ do
+            trace (show t ++ ":stock:" ++ show stock) return ()
+            trace (show t ++ ":order:" ++ show n) return ()
+            trace (show t ++ ":sales:" ++ show sales) return ()
+            trace (show t ++ ":plan:" ++ show plan) return ()
+            trace (show t ++ ":pv:" ++ show pv) return ()
+
         when (prod > 0 ) $ do
             op <- getOneProduction wld t e1  -- 1単位の生産簿記を取得
             journal wld t (prod .* op)  -- 生産処理を記帳
@@ -879,39 +931,61 @@ event wld t Order = do
     let os = (_orders wld)  -- OrdersTable を取得
     le <- readSTRef (_ledger wld)  -- Book を取得
 
-    forM_ [fstEnt..lastEnt] $ \e1 -> do
+
+    forM_ industries $ \e1 -> do
         r <- getInventoryRatio wld e1
         n <- getOrderTotal wld t e1
         m <- getMaterialStock wld e1
+        let sales = (norm . (.-))
+                  $ projWithNoteBase [(SalesPurchase, t)] [Hat:<(Products,e1,e1,Amount)] le
         -- 今期の生産量
-        let prod = (norm . (.-))
+        let prod = norm
                  $ projWithNoteBase [(Production, t)] [Not:<(Products,e1,e1,Amount)] le
-
-        -- 現在の在庫量
         -- 在庫保有量
         let stock = culcStock t e1 le
         -- 来期の不足分
-        let short = case compare (r * n) stock of
-                        GT -> (r * n) - stock
+        let short = case compare (r * (n + sales)) stock of
+                        GT -> (r * (n + sales)) - stock
                         _  -> 0
-
         -- e2に対する発注量を計算する
-        forM_ [fstEnt..lastEnt] $ \e2 -> do
+        forM_ industries $ \e2 -> do
             -- 現状の原材料在庫保有量
-            let materialStock = norm . (.-)
-                              $ projWithBase [Not :<(Products, e2, e1, Amount)] ((.-) le)
+            let materialStock = norm
+                              $ projWithBase [Not :<(Products, e2, e1, Amount)]
+                              $ (.-)
+                              $ termJournal t le
+
             -- 投入係数
             c <- getInputCoefficient wld t (e2,e1)
+
             -- 不足分の生産に必要な原材料在庫
-            let short_material = case compare (short * c) materialStock of
-                                        GT -> (short * c) - materialStock
-                                        _  -> 0
-            -- 次期の受注に対して必要となる原材料在庫
+            let short_material = short * c
+
+            -- 前回の需要量を次期生産できるだけの原材料在庫
+            let next_material = m * (n + sales) * c
+
+            let total = case compare (short_material + next_material) materialStock of
+                                    GT -> (short_material + next_material) - materialStock
+                                    _  -> 0
+            -- when (e1==9) $ do
+            --     trace (show t ++ ":total:" ++ show total) return ()
+            --     trace (show t ++ ":short_material:" ++ show short_material) return ()
+            --     trace (show t ++ ":next_material:" ++ show next_material) return ()
+            --     trace (show t ++ ":stock:" ++ show materialStock) return ()
+
             -- 今期の生産分のm倍
-            let next_material = (m * prod) * c
-            modifyArray os (t, e2, e1) (\x -> x + short_material + next_material)
+            modifyArray os (t, e2, e1) (\x -> x + total)
 
-
+------------------------------------------------------------------
+-- 最終需要部門が購入したものを消費する
+event wld t Consumption = do
+    -- 保有している消費財
+    le <- readSTRef (_ledger wld)
+    let total_consume = projWithNoteBase [(SalesPurchase,t)]
+                                         [Not:<(Products,(.#),finalDemandSector,(.#))]
+                                         le
+    journal wld t $ gather (Consumption,t)
+                  $ (.^) total_consume
 ------------------------------------------------------------------
 event wld t Plank = return ()
 
@@ -950,23 +1024,32 @@ main = do
     print("-----1------")
     let gen = mkStdGen seed
         env1 = EnvVar {_initInv      = 100
-                      ,_initIR       = 2.2
-                      ,_initMS       = 1.1
+                      ,_initIR       = 2.1
+                      ,_initMS       = 2.1
                       ,_addedDemend  = 0
-                      ,_initProd     = 100
+                      ,_finalDemand  = 200
                       ,_inhouseRatio = 0.4}
     wld1 <- stToIO $ runSimulation (initTerm :: Term) env1 gen
     le <- stToIO $ readSTRef (_ledger wld1)
+    print $ projWithBase [HatNot :<(Products,2,1,(.#))] $ termJournal (-1) le
+    print $ norm $ projWithBase [HatNot :<(Products,2,1,(.#))] $ (.-) $ termJournal 2 le
+    op <- stToIO $ getOneProduction wld1 1 1
     plotGridLine (productionPath env1 ) wld1 "exsample/result/fig/ripple1/normal/" "Production"
+    plotGridLine (stockPath env1 ) wld1 "exsample/result/fig/ripple1/normal/" "Stock"
     plotGridLine grossProfitPath wld1 "exsample/result/fig/ripple1/normal/" "Cash(Gross Profit)"
+    let ics = _ictable (_ics wld1)
+    arr <- stToIO (freeze ics :: ST RealWorld (Array (Term, Row, Col) InputCoefficient))
+    ioics <- thaw arr :: IO (IOArray (Term, Row, Col) InputCoefficient)
+    writeTermIO "exsample/result/csv/ripple1_io.csv" 1 ioics
 
+    {-
     ------------------------------------------------------------------
     print("-----2------")
     let env2 = EnvVar {_initInv      = 100
                       ,_initIR       = 2.2
                       ,_initMS       = 1.1
                       ,_addedDemend  = 10
-                      ,_initProd     = 100
+                      ,_finalDemand  = 10
                       ,_inhouseRatio = 0.4}
     wld2 <- stToIO $ runSimulation (initTerm :: Term) env2 gen
 
@@ -980,7 +1063,7 @@ main = do
                       ,_initIR       = 2.2
                       ,_initMS       = 1.1
                       ,_addedDemend  = 50
-                      ,_initProd     = 100
+                      ,_finalDemand  = 10
                       ,_inhouseRatio = 0.4}
     wld3 <- stToIO $ runSimulation (initTerm :: Term) env3 gen
     plotGridLine (productionPath env3 ) wld3 "exsample/result/fig/ripple1/addedDemand/" "Production-add500"
@@ -992,7 +1075,7 @@ main = do
                       ,_initIR       = 1
                       ,_initMS       = 1.1
                       ,_addedDemend  = 0
-                      ,_initProd     = 100
+                      ,_finalDemand  = 10
                       ,_inhouseRatio = 0.4}
     wld4 <- stToIO $ runSimulation (initTerm :: Term) env4 gen
     plotGridLine (productionPath env4 ) wld4 "exsample/result/fig/ripple1/smallstock/" "Production-Small-Stock"
@@ -1003,20 +1086,17 @@ main = do
                       ,_initIR       = 3
                       ,_initMS       = 1.1
                       ,_addedDemend  = 0
-                      ,_initProd     = 100
+                      ,_finalDemand  = 10
                       ,_inhouseRatio = 0.4}
     wld5 <- stToIO $ runSimulation (initTerm :: Term) env5 gen
     plotGridLine (productionPath env5 ) wld5 "exsample/result/fig/ripple1/largestock/" "Production-Large-Stock"
     plotGridLine grossProfitPath wld5 "exsample/result/fig/ripple1/largestock/" "Cash(Gross Profit)-Large-Stock"
     ------------------------------------------------------------------
+    -}
     -- bk <- stToIO $ readSTRef (_book wld)
-    -- let ics = _ictable (_ics wld)
-    -- arr <- stToIO (freeze ics :: ST RealWorld (Array (Term, Row, Col) InputCoefficient))
-    -- ioics <- thaw arr :: IO (IOArray (Term, Row, Col) InputCoefficient)
     -- print $ proj [Not :<(Products,1,1,2,(.#))] bk
     -- print $ norm $ proj [Not :<(Products,1,1,2,(.#))] bk
     -- writeBS "exsample/result/csv/ripple1.csv" $ EA.grossProfitTransferKeepWiledcard bk
-    -- writeTermIO "exsample/result/csv/ripple1_io.csv" 1 ioics
 
 
 

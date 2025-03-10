@@ -137,7 +137,7 @@ instance  (HatVal v, HatBaseClass b, Note n) => Semigroup (Journal n v b) where
 
 -- | (.+) for Jorunal
 --
--- >>> type Test = Journal String Double (EA.HatBase EA.AccountTitles)
+-- >>> type Test = Journal String Double (HatBase AccountTitles)
 -- >>> x = 20.00:@Not:<Cash .+ 20.00:@Hat:<Deposits .| "Withdrawal" :: Test
 -- >>> y = 10.00:@Hat:<Cash .+ 10.00:@Not:<Deposits .| "Deposits" :: Test
 -- >>> x .+ y
@@ -194,6 +194,13 @@ instance (Note n, HatVal v, ExBaseClass b) =>  Exchange (Journal n) v b where
 
 
 ------------------------------------------------------------------
+-- | fromList
+--
+--  >>> type Test = Journal String Double (HatBase AccountTitles)
+--  >>> x = [1.00:@Hat:<Cash .| z | z <- ["Loan Payment","Purchace Apple"]] :: [Test]
+--  >>> fromList x
+--  1.00:@Hat:<Cash.|"Purchace Apple" .+ 1.00:@Hat:<Cash.|"Loan Payment"
+
 fromList :: (HatVal v, HatBaseClass b, Note n)
          => [Journal n v b] -> Journal n v b
 fromList []     = mempty
@@ -218,7 +225,7 @@ map f (Journal js) = Journal (Map.map f js)
 --  >>> y = 2.00:@Hat:<Yen .+ 2.00:@Not:<Amount .| "dog"  :: Test
 --  >>> z = 3.00:@Hat:<Yen .+ 3.00:@Not:<Amount .| "fish" :: Test
 --  >>> projWithNote ["dog","cat"] (x .+ y .+ z)
---  2.00:@Hat:<Yen .+ 1.00:@Hat:<Yen .+ 1.00:@Not:<Amount .+ 2.00:@Not:<Amount
+--  2.00:@Not:<Amount.|"dog" .+ 2.00:@Hat:<Yen.|"dog" .+ 1.00:@Not:<Amount.|"cat" .+ 1.00:@Hat:<Yen.|"cat"
 
 projWithNote :: (HatVal v, HatBaseClass b, Note n)
              => [n] -> Journal n v b -> Journal n v b
@@ -229,6 +236,15 @@ projWithNote [n] (Journal js) = case Map.lookup n js of
 projWithNote (x:xs) js = (.+) (projWithNote [x] js) (projWithNote xs js)
 
 ------------------------------------------------------------------
+-- | projWithBase
+-- Projecting with Base.
+--  >>> type Test = Journal String Double (HatBase CountUnit)
+--  >>> x = 1.00:@Hat:<Yen .+ 1.00:@Not:<Amount .| "cat"  :: Test
+--  >>> y = 2.00:@Not:<Yen .+ 2.00:@Hat:<Amount .| "dog"  :: Test
+--  >>> z = 3.00:@Hat:<Yen .+ 3.00:@Not:<Amount .| "fish" :: Test
+--  >>> projWithBase [Not:<Amount] (x .+ y .+ z)
+--  3.00:@Not:<Amount.|"fish" .+ 1.00:@Not:<Amount.|"cat"
+
 projWithBase :: (HatVal v, HatBaseClass b, Note n)
              => [b] -> Journal n v b -> Journal n v b
 projWithBase [] js      = mempty
@@ -243,7 +259,7 @@ projWithBase (b:bs) js  = (.+) (projWithBase [b] js) (projWithBase bs js)
 --  >>> y = 2.00:@Not:<Yen .+ 2.00:@Hat:<Amount .| "dog"  :: Test
 --  >>> z = 3.00:@Hat:<Yen .+ 3.00:@Not:<Amount .| "fish" :: Test
 --  >>> projWithNoteBase ["dog","fish"] [Not:<Amount] (x .+ y .+ z)
---  3.00:@Not:<Amount
+--  3.00:@Not:<Amount.|"fish"
 
 projWithNoteBase :: (HatVal v, HatBaseClass b, Note n)
                  => [n] -> [b] -> Journal n v b -> Journal n v b
@@ -264,7 +280,8 @@ filterWithNote f (Journal js) = Journal (Map.filterWithKey f js)
 -- >>> x = 20.00:@Not:<Cash .+ 20.00:@Hat:<Deposits .| "Withdrawal" :: Test
 -- >>> y = 10.00:@Hat:<Cash .+ 10.00:@Not:<Deposits .| "Deposits" :: Test
 -- >>> gather "A" (x .+ y)
--- 20.00:@Hat:<Deposits.|"A" .+ 20.00:@Not:<Cash.|"A" .+ 10.00:@Not:<Deposits.|"A" .+ 10.00:@Hat:<Cash.|"A"
+-- 10.00:@Not:<Deposits.|"A" .+ 20.00:@Hat:<Deposits.|"A" .+ 20.00:@Not:<Cash.|"A" .+ 10.00:@Hat:<Cash.|"A"
+
 gather :: (HatVal v, HatBaseClass b, Note n)
        => n -> Journal n v b -> Journal n v b
 gather n js = (toAlg js) .| n

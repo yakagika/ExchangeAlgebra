@@ -120,11 +120,11 @@ grossProfitTransferKeepWiledcard = EJ.map EAT.grossProfitTransferKeepWiledcard
 
 -- | Ordinary Profit Transfer
 --
--- >>>  import qualified Number.NonNegative as NN
--- >>>  type Test = Alg NN.Double (HatBase (CountUnit, AccountTitles))
--- >>>  x = 2279.0:@Not:<(Yen,Depreciation) .+ 500475.0:@Not:<(Yen,InterestEarned) :: Test
--- >>>  ordinaryProfitTransferKeepWiledcard x
--- 2279.00:@Hat:<(Yen,OrdinaryProfit) .+ 500475.00:@Not:<(Yen,OrdinaryProfit)
+-- >>> type Test = Journal String Double (HatBase (CountUnit, AccountTitles))
+-- >>> x = 2279.0:@Not:<(Yen,Depreciation) .| "A" :: Test
+-- >>> y = 500475.0:@Not:<(Yen,InterestEarned) .| "B" :: Test
+-- >>> ExchangeAlgebraMap.Journal.Transfer.ordinaryProfitTransferKeepWiledcard ( x .+ y)
+-- 500475.00:@Not:<(Yen,OrdinaryProfit).|"B" .+ 2279.00:@Hat:<(Yen,OrdinaryProfit).|"A"
 
 ordinaryProfitTransferKeepWiledcard :: (Note n, HatVal v, ExBaseClass b) => Journal n v b -> Journal n v b
 ordinaryProfitTransferKeepWiledcard = EJ.map EAT.ordinaryProfitTransferKeepWiledcard

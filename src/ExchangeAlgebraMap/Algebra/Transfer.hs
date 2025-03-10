@@ -372,7 +372,7 @@ lookup k = k `seq` go
 
 -- | make TransTable from list
 --
--- >>> ExchangeAlgebraMap.Transfer.fromList [(Hat:<(Cash),Hat:<(Building),(id :: NN.Double -> NN.Double) ),(Not:<(Building),Not:<(Cash),id)]
+-- >>> ExchangeAlgebraMap.Algebra.Transfer.fromList [(Hat:<(Cash),Hat:<(Building),(id :: NN.Double -> NN.Double) ),(Not:<(Building),Not:<(Cash),id)]
 -- [(Hat:<Cash,Hat:<Building,<function>),(Not:<Building,Not:<Cash,<function>)]
 
 fromList :: (HatVal n, HatBaseClass b) => [(b,b,(n -> n))] -> TransTable n b
