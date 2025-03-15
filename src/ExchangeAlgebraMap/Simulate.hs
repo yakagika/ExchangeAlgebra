@@ -1,7 +1,7 @@
 {- |
     Module     : ExchangeAlgebra.Simulate
     Copyright  : (c) Kaya Akagi. 2024
-    Maintainer : akagi_kaya@icloud.com
+    Maintainer : yakagika@icloud.com
 
     Released under the OWL license
 
@@ -18,25 +18,28 @@
 
 -}
 
-{-# LANGUAGE FlexibleContexts   #-}
-{-# LANGUAGE FlexibleInstances  #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleContexts       #-}
+{-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE Strict                 #-}
 {-# LANGUAGE StrictData             #-}
-{-# LANGUAGE DefaultSignatures #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE Rank2Types         #-}
-
+{-# LANGUAGE DefaultSignatures      #-}
+{-# LANGUAGE DeriveGeneric          #-}
+{-# LANGUAGE DeriveAnyClass         #-}
+{-# LANGUAGE TypeOperators          #-}
+{-# LANGUAGE Rank2Types             #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE KindSignatures         #-}
+{-# LANGUAGE TypeFamilies           #-}
+{-# LANGUAGE DerivingVia #-}
 module ExchangeAlgebraMap.Simulate
     (StateTime
     ,initTerm
     ,lastTerm
     ,nextTerm
     ,prevTerm
-    ,UpdatePattern (..)
-    ,Updatable
+    ,UpdatePattern(..)
+    ,Updatable(unwrap, Inner)
     ,initialize
     ,updatePattern
     ,copy
@@ -48,119 +51,189 @@ module ExchangeAlgebraMap.Simulate
     ,normal
     ,normal'
     ,updateGen
-    ,EnvironmentVariables) where
+    ,InitVariables
+    ,UpdatableSTRef(..)
+    ,UpdatableSTArray(..)
+    ,modifyArray) where
 
 import              Control.Monad
-import              Control.Monad.ST
 import              GHC.Generics
 import              System.Random
 import              Data.Ix
+import              Data.Kind
+import              Control.Monad.ST
+import              Data.Array.ST
+import              Data.STRef
 
-class (Eq t, Show t, Ord t) => StateTime t where
+
+------------------------------------------------------------------
+class (Eq t, Show t, Ord t, Enum t, Ix t) => StateTime t where
     initTerm :: t
     lastTerm :: t
     nextTerm :: t -> t
     prevTerm :: t -> t
 
-class (Eq e, Show e) => EnvironmentVariables e where
+-- | Parameters for initialisation
+-- Referenced during initialisation
+-- Values referred to during simulation should be in Updatable
+class (Eq e, Show e) => InitVariables e where
 
 
+------------------------------------------------------------------
 -- | A parameter that indicates the pattern for updating the value to the next period
 data UpdatePattern = Copy         -- | Copy the previous state
                    | Modify       -- | Modyfy the previous state
                    | DoNothing    -- | Do nothing (if the initialisation has generated the state for all periods)
                    deriving (Show, Eq)
 
+------------------------------------------------------------------
 -- | Elements of StateSpace
-class (Monad (m s),StateTime t,EnvironmentVariables e)
-      => Updatable t e m s a  where
+class (Monad (m s),StateTime t,InitVariables e)
+      => Updatable t e m s (a :: Type -> Type)  | a s -> t e m s where
+    type Inner a s
+    unwrap :: a s -> Inner a s
+
     -- StdGenは現状は全てのインスタンスの初期化で同じ値を返す.
     -- (乱数生成器を更新していない)
     -- 現状異なる乱数をインスタンスごとに利用したい場合は,updateGenなどを利用
     -- 同一の乱数生成器を更新して使えるようにする予定
-    initialize      :: StdGen  -> t -> e -> m s a
+    initialize      :: StdGen  -> t -> e -> m s (a s)
 
-    updatePattern   :: t -> e -> a -> m s UpdatePattern
+    updatePattern   :: t -> e -> (a s) -> m s UpdatePattern
 
     {-# INLINE copy #-}
-    copy            :: t -> e -> a -> m s ()
+    copy            :: t -> e -> (a s) -> m s ()
     copy t e x = undefined
 
     {-# INLINE modify #-}
-    modify          :: t -> e -> a -> m s ()
+    modify          :: t -> e -> (a s) -> m s ()
     modify t e x = undefined
 
     {-# INLINE update #-}
-    update          :: t -> e -> a -> m s ()
+    update          :: t -> e -> (a s) -> m s ()
     update t e x =  updatePattern t e x >>= \k
                     -> case k of
                             DoNothing -> return ()
                             Copy      -> copy   t e x
                             Modify    -> modify t e x
 
-class (Monad (m s),StateTime t,EnvironmentVariables e)
-      => StateSpace t e m s a where
+
+-- | for newtype A s = A (STRef s B)
+-- example:
+-- newtype URef s = URef (STRef s Int)
+-- instance UpdatableRef URef s Int where
+--     _unwrapU (URef x) = x
+--     _wrapU x = (URef x)
+
+class UpdatableSTRef wrapper s b | wrapper s -> b where
+  _unwrapURef :: wrapper s -> STRef s b
+
+  _wrapURef :: STRef s b -> wrapper s
+
+  newURef    :: b -> ST s (wrapper s)
+  newURef b = _wrapURef <$> newSTRef b
+
+  readURef   :: wrapper s -> ST s b
+  readURef = readSTRef . _unwrapURef
+
+  writeURef  :: wrapper s -> b -> ST s ()
+  writeURef = writeSTRef . _unwrapURef
+
+  modifyURef :: wrapper s -> (b -> b) -> ST s ()
+  modifyURef x f = modifySTRef (_unwrapURef x) f
+
+
+-- | modifyArray
+{-# INLINE modifyArray #-}
+modifyArray ::(MArray a t m, Ix i) => a i t -> i -> (t -> t) -> m ()
+modifyArray ar e f = readArray ar e >>= \ x -> writeArray ar e (f x)
+
+class (Ix b) => UpdatableSTArray wrapper s b c | wrapper s -> b c where
+  _unwrapUArray :: wrapper s -> STArray s b c
+
+  _wrapUArray :: STArray s b c -> wrapper s
+
+  getUBounds :: wrapper s -> ST s (b,b)
+  getUBounds = getBounds . _unwrapUArray
+
+  newUArray    :: (b,b) -> c -> ST s (wrapper s)
+  newUArray b c = _wrapUArray <$> newArray b c
+
+  readUArray   :: wrapper s -> b -> ST s c
+  readUArray arr = readArray (_unwrapUArray arr)
+
+  writeUArray  :: wrapper s -> b -> c -> ST s ()
+  writeUArray arr = writeArray (_unwrapUArray arr)
+
+  modifyUArray :: wrapper s -> b -> (c -> c) -> ST s ()
+  modifyUArray x f = modifyArray (_unwrapUArray x) f
+
+------------------------------------------------------------------
+
+
+class (Monad (m s),StateTime t,InitVariables e)
+      => StateSpace t e m s (a :: Type -> Type) | a s -> t e m s where
     {-# INLINE initAll #-}
-    initAll ::  StdGen -> t -> e -> m s a
+    initAll ::  StdGen -> t -> e -> m s (a s)
 
     -- DefaultSignatures 拡張
-    default initAll :: (Generic a, GUpdatable t e m s (Rep a)) =>  StdGen  -> t -> e ->  m s a
+    default initAll :: (Generic (a s), GUpdatable t e m s (Rep (a s))) =>  StdGen  -> t -> e ->  m s (a s)
     initAll g t e = GHC.Generics.to <$> gInitialize g t e
 
     -- DefaultSignatures 拡張
     {-# INLINE updateAll #-}
-    updateAll :: t -> e -> a -> m s ()
-    default updateAll :: (Generic a, GUpdatable t e m s (Rep a)) => t -> e -> a -> m s ()
+    updateAll :: t -> e -> a s -> m s ()
+    default updateAll :: (Generic (a s), GUpdatable t e m s (Rep (a s))) => t -> e -> a s -> m s ()
     updateAll t e a = gUpdate t e (GHC.Generics.from a)
 
     -- 開始期を指定する
-    initT :: e -> a -> m s t
+    initT :: e -> a s -> m s t
     initT _ _ = return initTerm
 
     -- 終了期を指定する
-    lastT :: e -> a -> m s t
+    lastT :: e -> a s -> m s t
     lastT _ _ = return lastTerm
 
     -- | 乱数シードを定義する(デフォルト42)
     -- 乱数シードを明示的に定義することも可能
     -- 現状使い道なし
-    randomSeeds :: t -> e -> a -> m s Int
+    randomSeeds :: t -> e -> a s -> m s Int
     randomSeeds _ _ _ = return 42
 
 -- Genericを用いた自動導出のための補助型クラス
-class  (Monad (m s),StateTime t,EnvironmentVariables e)
+class  (Monad (m s),StateTime t,InitVariables e)
         => GUpdatable t e m s f where
     gInitialize :: StdGen  -> t -> e -> m s (f p)
 
     gUpdate :: t -> e -> f p -> m s ()
 
 -- コンストラクタに対するGUpdatableのインスタンス
-instance (Monad (m s),StateTime t,EnvironmentVariables e)
+instance (Monad (m s),StateTime t,InitVariables e)
         => GUpdatable t e m s U1 where
     gInitialize _ _ _ = return U1
     gUpdate _ _ _ = return ()
 
 -- | プリミティブ型に対するGUpdatableのインスタンス
-instance (Monad (m s),StateTime t, EnvironmentVariables e, Updatable t e m s a)
-        => GUpdatable t e m s (K1 i a) where
+instance (Monad (m s),StateTime t, InitVariables e, Updatable t e m s a)
+        => GUpdatable t e m s (K1 i (a s)) where
     gInitialize g t e = K1 <$> initialize g t e
     gUpdate t e (K1 x) = update t e x
 
 -- |直和型に対するGUpdatableのインスタンス
-instance (Monad (m s),StateTime t, EnvironmentVariables e, GUpdatable t e m s f, GUpdatable t e m s g)
+instance (Monad (m s),StateTime t, InitVariables e, GUpdatable t e m s f, GUpdatable t e m s g)
         => GUpdatable t e m s (f :+: g) where
     gInitialize g t e = gInitialize g t e
     gUpdate t e (L1 f) = gUpdate t e f
     gUpdate t e (R1 g) = gUpdate t e g
 
 -- | レコードフィールドに対するGUpdatableのインスタンス
-instance (Monad (m s),StateTime t, EnvironmentVariables e, GUpdatable t e m s g, GUpdatable t e m s f)
+instance (Monad (m s),StateTime t, InitVariables e, GUpdatable t e m s g, GUpdatable t e m s f)
         => GUpdatable t e m s (g :*: f) where
     gInitialize g t e = (:*:) <$> gInitialize g t e <*> gInitialize g t e
     gUpdate t e (x :*: y) = gUpdate t e y >> gUpdate t e x
 
 -- メタデータに対するGUpdatableのインスタンス
-instance (Monad (m s),StateTime t, EnvironmentVariables e, GUpdatable t e m s f)
+instance (Monad (m s),StateTime t, InitVariables e, GUpdatable t e m s f)
         => GUpdatable t e m s (M1 p l f) where -- メタデータは無視する
     gInitialize g t e = M1 <$> gInitialize g t e
     gUpdate t e (M1 f) = gUpdate t e f
