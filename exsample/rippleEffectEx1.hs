@@ -189,7 +189,7 @@ initLedger d = newURef (EJ.fromList [ initTransaction c d
                                      | c <- [fstEnt..lastEnt]])
 
 -- 一般化の適用
-instance Updatable Term InitVar ST s Ledger where
+instance Updatable Term InitVar Ledger s where
     type Inner Ledger s = STRef s Transaction
     unwrap (Ledger a) = a
 
@@ -261,7 +261,7 @@ initPrices  = newURef $ M.fromList [((t,c),initPrice t c)
 
 -- ** STArray s (ID, Term) Double
 -- 価格は固定
-instance Updatable Term InitVar ST s Prices where
+instance Updatable Term InitVar Prices s where
     type Inner Prices s = STRef s PriceTable
     unwrap (Prices a) = a
     initialize _ _ _ = initPrices
@@ -331,7 +331,7 @@ initIRs d   = newURef
 
 -- ** STArray s (ID, Term) Double
 -- 価格は固定
-instance Updatable Term InitVar ST s IRs where
+instance Updatable Term InitVar IRs s where
     type Inner IRs s = STRef s IRTable
     unwrap (IRs a) = a
     initialize _ _ e = initIRs (_initIR e)
@@ -356,7 +356,7 @@ instance UpdatableSTRef SP s StedyProd where
 
 -- ** STArray s (ID, Term) Double
 -- 価格は固定
-instance Updatable Term InitVar ST s SP where
+instance Updatable Term InitVar SP s where
     type Inner SP s = STRef s StedyProd
     unwrap (SP a) = a
     initialize _ _ e = newURef (_steadyProduction e)
@@ -382,7 +382,7 @@ initMSs d = newURef
 
 -- ** STArray s (ID, Term) Double
 -- 価格は固定
-instance Updatable Term InitVar ST s MSs where
+instance Updatable Term InitVar MSs s where
     type Inner MSs s = STRef s MSTable
     unwrap (MSs a) = a
     initialize _ _ e = initMSs (_initMS e)
@@ -450,7 +450,7 @@ initICTables g inhouseRatio = do
 -- | 生産関数の更新
 -- 前の期の簿記から計算する
 -- ただし,今回は価格固定なので変化なし
-instance Updatable Term InitVar ST s ICTable where
+instance Updatable Term InitVar ICTable s where
     type Inner ICTable s = STArray s (Term, Row, Col) InputCoefficient
     unwrap (ICTable a) = a
     initialize g _ e = initICTables g (_inhouseRatio e)
@@ -523,7 +523,7 @@ initOrders icTable finalDemand inhouseRatio = do
     return ordersArr
 
 -- ** STArray s (ID, Term) NN.Double
-instance Updatable Term InitVar ST s OrderTable where
+instance Updatable Term InitVar OrderTable s where
     type Inner OrderTable s = STArray s (Term,Entity,Entity) Order
     unwrap (OrderTable a) = a
     initialize g _ e = do
@@ -578,7 +578,7 @@ data World s = World { _ledger  :: Ledger s
 
 -- deriving Generic をしていれば
 -- 空のインスタンス宣言で自動でinitSS,updateSSが使えるようになる
-instance StateSpace Term InitVar ST s World
+instance StateSpace Term InitVar World s
 
 ------------------------------------------------------------------
 -- * 汎用関数
