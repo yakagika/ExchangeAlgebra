@@ -65,106 +65,6 @@ import              Graphics.Rendering.Chart.Axis
 import              Graphics.Rendering.Chart.Axis.Int
 import              Graphics.Rendering.Chart.Grid
 
-
-------------------------------------------------------------------
--- * 可視化用の関数定義
--- 本論には無関係(後ほど一般化する)
-------------------------------------------------------------------
-
-type Title          = String
-type FileName       = String
-type Label          = String
-
-type TimeSeries     = (Label, [[(Term, Double)]])
-type TimeSerieses   = [(TimeSeries)]
-type GridColumns    = [TimeSerieses]
-type GridMatrix     = [GridColumns]
-
-
-
--- | 産業の粗利益の可視化
-grossProfitPath :: World RealWorld -> IO GridMatrix
-grossProfitPath wld =  stToIO $ do
-    arr <- newArray ((fstEnt, initTerm), (lastEnt, lastTerm)) 0
-        :: ST s (STArray s (Entity, Term) Double)
-    CM.forM_ [initTerm .. lastTerm ] $ \t
-        -> CM.forM_ [fstEnt .. lastEnt] $ \i
-            -> readURef (_ledger wld) >>= \bk
-            -> let tr    = EJT.grossProfitTransferKeepWiledcard bk
-            in let plus  = norm $ EJ.projWithBase [Not:<(Cash,(.#),i,Yen)]
-                                $ termJournal t tr
-            in let minus = norm $ EJ.projWithBase [Hat:<(Cash,(.#),i,Yen)]
-                                $ termJournal t tr
-            in modifyArray arr (i, t) (\x -> x  + plus - minus)
-    ESV.gridPathSingleLine arr
-
--- | 生産量の可視化
-productionPath :: World RealWorld -> IO GridMatrix
-productionPath wld = stToIO $ do
-    arr <- newArray ((fstEnt, initTerm), (lastEnt, lastTerm)) 0
-        :: ST s (STArray s (Entity, Term) Double)
-    CM.forM_ [initTerm .. lastTerm ] $ \t
-        -> CM.forM_ [fstEnt .. lastEnt] $ \i
-            -> getTermProduction wld t i >>= \v
-            -> modifyArray arr (i, t) (\x -> x + v)
-
-    ESV.gridPathSingleLine arr
-
--- | 在庫量の可視化
-stockPath :: World RealWorld -> IO GridMatrix
-stockPath wld = stToIO $ do
-    arr <- newArray ((fstEnt, initTerm), (lastEnt, lastTerm)) 0
-        :: ST s (STArray s (Entity, Term) Double)
-    CM.forM_ [initTerm .. lastTerm ] $ \t
-        -> CM.forM_ [fstEnt .. lastEnt] $ \i
-            -> getTermStock wld t i >>= \v
-            -> modifyArray arr (i, t) (\x -> x + v)
-
-    ESV.gridPathSingleLine arr
-
-
-
--- | 2つの設定の生産量の差を可視化する
-productionDiffPath :: World RealWorld -> World RealWorld -> IO GridMatrix
-productionDiffPath wld1 wld2 = stToIO $ do
-    arr <- newArray ((fstEnt, initTerm), (lastEnt, lastTerm)) 0
-        :: ST s (STArray s (Entity, Term) Double)
-    CM.forM_ [initTerm .. lastTerm ] $ \t
-        -> CM.forM_ [fstEnt .. lastEnt] $ \i
-            -> getTermProduction wld1 t i >>= \v1
-            -> getTermProduction wld2 t i >>= \v2
-            -> modifyArray arr (i, t) (\x -> x + (v1 - v2))
-    ESV.gridPathSingleLine arr
-
-
--- | 2つのInitVarを受け取り, 同じスケール(例えば(Ent,Term))で2系列それぞれの値を集計し，
---   最終的にGridMatrixとして返す.
-productionTwoSeriesPath
-  :: InitVar                -- ^ シリーズAに対応する InitVar
-  -> InitVar                -- ^ シリーズBに対応する InitVar
-  -> World RealWorld
-  -> World RealWorld
-  -> IO GridMatrix
-productionTwoSeriesPath envA envB wldA wldB = stToIO $ do
-    -- 1. 2つの配列(arrA, arrB)を用意し, それぞれに値を書き込む
-    arrA <- newArray ((fstEnt, initTerm), (lastEnt, lastTerm)) 0
-                :: ST s (STArray s (Entity, Term) Double)
-    arrB <- newArray ((fstEnt, initTerm), (lastEnt, lastTerm)) 0
-                :: ST s (STArray s (Entity, Term) Double)
-
-    -- 2. arrA, arrB に対し, InitVarごとの値を代入 (例: getTermProduction)
-    forM_ [initTerm .. lastTerm] $ \t ->
-      forM_ [fstEnt .. lastEnt] $ \i -> do
-        valA <- getTermProduction wldA t i
-        valB <- getTermProduction wldB t i
-        modifyArray arrA (i, t) (+ valA)
-        modifyArray arrB (i, t) (+ valB)
-
-    -- 3. 2系列を同じセルに詰め込むための新たなgrid化関数を呼び出す
-    ESV.gridPathTwoLine [fstEnt .. lastEnt] arrA arrB
-
-
-
 ------------------------------------------------------------------
 -- *  状態系の導入
 ------------------------------------------------------------------
@@ -585,6 +485,17 @@ getTermProduction wld t e = do
                                            le
     return currentTotal
 
+-- | 一期の利益を取得する
+getTermProfit :: World s -> Term -> Entity -> ST s Double
+getTermProfit wld t e = do
+    le <- readURef (_ledger wld)
+    let tr    = EJT.grossProfitTransferKeepWiledcard le
+    let plus  = norm $ EJ.projWithBase [Not:<(Cash,(.#),e,Yen)]
+                     $ termJournal t tr
+    let minus = norm $ EJ.projWithBase [Hat:<(Cash,(.#),e,Yen)]
+                     $ termJournal t tr
+    return (plus - minus)
+
 ------------------------------------------------------------------
 -- ** 発注書の状態空間
 ------------------------------------------------------------------
@@ -705,15 +616,6 @@ getPossibleVolume wld t e1 = do
 ------------------------------------------------------------------
 -- ** イベントの設定
 -- 同じ取引を繰り返すだけ
-
-{-
-
-class (Eq e, Enum e, Ord e, Bounded e, StateSoace t m s a)
-    => Event e t m s a
-    event :: World s -> Term -> EventType -> m s ()
-    eventAll :: World s -> Term -> m s ()
--}
-
 
 -- 記帳
 journal :: World s -> Term -> Transaction -> ST s ()
@@ -923,24 +825,30 @@ main = do
         env1 = InitVar {_initInv            = 100
                       ,_initIR              = 5.1
                       ,_initMS              = 5.1
-                      ,_addedDemend         = 100
+                      ,_addedDemend         = 0
                       ,_finalDemand         = 200
                       ,_inhouseRatio        = 0.4
                       ,_steadyProduction    = 30}
     wld1 <- stToIO $ runSimulation (initTerm :: Term) env1 gen
-    -- le <- stToIO $ readURef (_ledger wld1)
-    -- print $ projWithBase [HatNot :<(Products,2,1,(.#))] $ termJournal (-1) le
-    -- print $ norm $ projWithBase [HatNot :<(Products,2,1,(.#))] $ (.-) $ termJournal 2 le
-    -- op <- stToIO $ getOneProduction wld1 1 1
-    ESV.plotGridLine productionPath wld1 "exsample/result/fig/ripple1/normal/" "Production"
-    ESV.plotGridLine stockPath wld1 "exsample/result/fig/ripple1/normal/" "Stock"
-    ESV.plotGridLine grossProfitPath wld1 "exsample/result/fig/ripple1/normal/" "Cash(Gross Profit)"
+    ESV.plotLine getTermProduction
+                 (fstEnt,lastEnt)
+                 wld1
+                 "exsample/result/fig/ripple1/normal/"
+                 "Production"
+    ESV.plotLine getTermStock
+                 (fstEnt,lastEnt)
+                 wld1
+                 "exsample/result/fig/ripple1/normal/"
+                 "Stock"
+    ESV.plotLine getTermProfit
+                 (fstEnt,lastEnt)
+                 wld1
+                 "exsample/result/fig/ripple1/normal/"
+                 "Cash(Gross Profit)"
     -- let ics = _ictable (_ics wld1)
     -- arr <- stToIO (freeze ics :: ST RealWorld (Array (Term, Row, Col) InputCoefficient))
     -- ioics <- thaw arr :: IO (IOArray (Term, Row, Col) InputCoefficient)
     -- writeTermIO "exsample/result/csv/ripple1_io.csv" 1 ioics
-    {-
-    ------------------------------------------------------------------
     print("-----add-small------")
     let env2 = InitVar {_initInv            = 100
                       ,_initIR              = 2.1
@@ -951,9 +859,22 @@ main = do
                       ,_steadyProduction    = 30}
     wld2 <- stToIO $ runSimulation (initTerm :: Term) env2 gen
 
-    plotGridLine (productionPath env2 ) wld2 "exsample/result/fig/ripple1/addedDemand/" "Production-add100"
-    plotGridLine (productionDiffPath env1 env2 wld2) wld1 "exsample/result/fig/ripple1/addedDemand/" "Production-Diff-add100"
-    plotGridLineMultiColor (productionTwoSeriesPath env2 env1 wld2) wld1 "exsample/result/fig/ripple1/addedDemand/" "Production-Compare-add100"
+    ESV.plotLine getTermProduction
+                 (fstEnt,lastEnt)
+                 wld2
+                 "exsample/result/fig/ripple1/addedDemand/"
+                 "Production-add100"
+    ESV.plotWldsDiffLine getTermProduction
+                         (fstEnt,lastEnt)
+                         (wld2,wld1)
+                         "exsample/result/fig/ripple1/addedDemand/"
+                         "Production-Diff-add100"
+    ESV.plotMultiLines ["normal","added"]
+                       [getTermProduction,getTermProduction]
+                       (fstEnt,lastEnt)
+                       [wld1,wld2]
+                       "exsample/result/fig/ripple1/addedDemand/"
+                       "Production-Compare-add100"
 
     ------------------------------------------------------------------
     print("-----add-large------")
@@ -965,9 +886,22 @@ main = do
                       ,_inhouseRatio        = 0.4
                       ,_steadyProduction    = 30}
     wld3 <- stToIO $ runSimulation (initTerm :: Term) env3 gen
-    plotGridLine (productionPath env3 ) wld3 "exsample/result/fig/ripple1/addedDemand/" "Production-add500"
-    plotGridLine (productionDiffPath env1 env3 wld3) wld1 "exsample/result/fig/ripple1/addedDemand/" "Production-Diff-add500"
-    plotGridLineMultiColor (productionTwoSeriesPath env3 env1 wld3) wld1 "exsample/result/fig/ripple1/addedDemand/" "Production-Compare-add500"
+    ESV.plotLine getTermProduction
+                 (fstEnt,lastEnt)
+                 wld3
+                 "exsample/result/fig/ripple1/addedDemand/"
+                 "Production-add500"
+    ESV.plotWldsDiffLine getTermProduction
+                         (fstEnt,lastEnt)
+                         (wld3,wld1)
+                         "exsample/result/fig/ripple1/addedDemand/"
+                         "Production-Diff-add500"
+    ESV.plotMultiLines ["normal","added"]
+                       [getTermProduction,getTermProduction]
+                       (fstEnt,lastEnt)
+                       [wld1,wld3]
+                       "exsample/result/fig/ripple1/addedDemand/"
+                       "Production-Compare-add500"
     ------------------------------------------------------------------
     print("-----small-stock------")
     let env4 = InitVar {_initInv            = 100
@@ -978,9 +912,17 @@ main = do
                       ,_inhouseRatio        = 0.4
                       ,_steadyProduction    = 30}
     wld4 <- stToIO $ runSimulation (initTerm :: Term) env4 gen
-    plotGridLine (productionPath env4 ) wld4 "exsample/result/fig/ripple1/smallstock/" "Production-Small-Stock"
-    plotGridLine grossProfitPath wld4 "exsample/result/fig/ripple1/smallstock/" "Cash(Gross Profit)-Small-Stock"
-    ---------------------------------------------------------------22---
+    ESV.plotLine getTermProduction
+                 (fstEnt,lastEnt)
+                 wld4
+                 "exsample/result/fig/ripple1/smallstock/"
+                 "Production-Small-Stock"
+    ESV.plotLine getTermProfit
+                 (fstEnt,lastEnt)
+                 wld4
+                 "exsample/result/fig/ripple1/smallstock/"
+                 "Cash(Gross Profit)-Small-Stock"
+    ------------------------------------------------------------------
     print("-----large-stock------")
     let env5 = InitVar {_initInv            = 100
                       ,_initIR              = 3.1
@@ -990,10 +932,17 @@ main = do
                       ,_inhouseRatio        = 0.4
                       ,_steadyProduction    = 30}
     wld5 <- stToIO $ runSimulation (initTerm :: Term) env5 gen
-    plotGridLine (productionPath env5 ) wld5 "exsample/result/fig/ripple1/largestock/" "Production-Large-Stock"
-    plotGridLine grossProfitPath wld5 "exsample/result/fig/ripple1/largestock/" "Cash(Gross Profit)-Large-Stock"
+    ESV.plotLine getTermProduction
+                 (fstEnt,lastEnt)
+                 wld5
+                 "exsample/result/fig/ripple1/largestock/"
+                 "Production-Large-Stock"
+    ESV.plotLine getTermProfit
+                 (fstEnt,lastEnt)
+                 wld5
+                 "exsample/result/fig/ripple1/largestock/"
+                 "Cash(Gross Profit)-Large-Stock"
     ------------------------------------------------------------------
-    -}
     -- bk <- stToIO $ readURef (_book wld)
     -- print $ proj [Not :<(Products,1,1,2,(.#))] bk
     -- print $ norm $ proj [Not :<(Products,1,1,2,(.#))] bk

@@ -144,6 +144,12 @@ class UpdatableSTRef wrapper s b | wrapper s -> b where
 
 
 -- | modifyArray
+-- example:
+-- newtype UArray s = UArray (STArray s (Int,Int) Double)
+-- instance UpdatableSTArray UArray s (Int,Int) Double where
+--   _unwrapUArray (UArray arr) = arr
+--   _wrapUArray arr = UArray arr
+
 {-# INLINE modifyArray #-}
 modifyArray ::(MArray a t m, Ix i) => a i t -> i -> (t -> t) -> m ()
 modifyArray ar e f = readArray ar e >>= \ x -> writeArray ar e (f x)
