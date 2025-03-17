@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 915df94ed27868a2104564293786d75e214028473bbc45b2938a0e564a2fa735
+-- hash: 06e992ca6dd00090034492ed1bdb29df862e49b7cac737feedccf9985c0e00e2
 
 name:           exchangealgebra
 version:        0.3.0.0
@@ -58,10 +58,12 @@ library
     , bifunctors
     , containers
     , csv-parser
+    , deepseq
     , lens
     , mtl
     , non-negative
     , numeric-prelude
+    , parallel
     , random
     , scientific
     , text
@@ -84,11 +86,13 @@ executable calcex1
     , bifunctors
     , containers
     , csv-parser
+    , deepseq
     , exchangealgebra
     , lens
     , mtl
     , non-negative
     , numeric-prelude
+    , parallel
     , random
     , scientific
     , text
@@ -111,11 +115,13 @@ executable ebex1
     , bifunctors
     , containers
     , csv-parser
+    , deepseq
     , exchangealgebra
     , lens
     , mtl
     , non-negative
     , numeric-prelude
+    , parallel
     , random
     , scientific
     , text
@@ -138,11 +144,13 @@ executable ebex2
     , bifunctors
     , containers
     , csv-parser
+    , deepseq
     , exchangealgebra
     , lens
     , mtl
     , non-negative
     , numeric-prelude
+    , parallel
     , random
     , scientific
     , text
@@ -165,11 +173,13 @@ executable maptest
     , bifunctors
     , containers
     , csv-parser
+    , deepseq
     , exchangealgebra
     , lens
     , mtl
     , non-negative
     , numeric-prelude
+    , parallel
     , random
     , scientific
     , text
@@ -192,11 +202,13 @@ executable ripple1
     , bifunctors
     , containers
     , csv-parser
+    , deepseq
     , exchangealgebra
     , lens
     , mtl
     , non-negative
     , numeric-prelude
+    , parallel
     , random
     , scientific
     , text
@@ -219,11 +231,13 @@ executable ssex2
     , bifunctors
     , containers
     , csv-parser
+    , deepseq
     , exchangealgebra
     , lens
     , mtl
     , non-negative
     , numeric-prelude
+    , parallel
     , random
     , scientific
     , text
@@ -245,12 +259,14 @@ test-suite ExchangeAlgebra-doctest
     , bifunctors
     , containers
     , csv-parser
+    , deepseq
     , doctest
     , exchangealgebra
     , lens
     , mtl
     , non-negative
     , numeric-prelude
+    , parallel
     , random
     , scientific
     , text
@@ -274,11 +290,13 @@ test-suite ExchangeAlgebra-test
     , bifunctors
     , containers
     , csv-parser
+    , deepseq
     , exchangealgebra
     , lens
     , mtl
     , non-negative
     , numeric-prelude
+    , parallel
     , random
     , scientific
     , text

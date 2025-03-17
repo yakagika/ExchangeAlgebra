@@ -36,6 +36,8 @@ dependencies:
 - random
 - mtl
 - scientific
+- parallel
+- deepseq
 
 library:
   source-dirs: src

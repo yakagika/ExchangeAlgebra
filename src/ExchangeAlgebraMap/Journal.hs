@@ -67,7 +67,7 @@ import qualified    Data.List               as L    ( foldr1
                                                     , sum)
 import              Prelude                 hiding (map, head, filter,tail, traverse, mapM)
 import qualified    Data.Map.Strict as Map
-
+import Control.Parallel.Strategies (using,parTraversable, rdeepseq, NFData,runEval)
 
 -- | 摘要のクラス
 class (Show a, Eq a,Ord a) => Note a where
@@ -154,7 +154,7 @@ instance (HatVal v, HatBaseClass b, Note n) => Monoid (Journal n v b) where
     mappend = (<>)
 
 instance (HatVal v, HatBaseClass b, Note n) => Redundant (Journal n) v b where
-    (.^) = map (.^)
+    (.^) = parMap (.^)
 
     (.+) = mappend
 
@@ -162,23 +162,23 @@ instance (HatVal v, HatBaseClass b, Note n) => Redundant (Journal n) v b where
 
     norm = norm . toAlg
 
-    (.-) x = map (.-) (gather plank x)
+    (.-) x = parMap (.-) (gather plank x)
 
-    compress = map compress
+    compress = parMap compress
 
 
 instance (Note n, HatVal v, ExBaseClass b) =>  Exchange (Journal n) v b where
     -- | filter Debit side
-    decR js = map (EA.filter (\x -> x /= EA.Zero && (whichSide . EA._hatBase) x == Debit)) js
+    decR js = parMap (EA.filter (\x -> x /= EA.Zero && (whichSide . EA._hatBase) x == Debit)) js
 
     -- | filter Credit side
-    decL xs = map (EA.filter (\x -> x /= EA.Zero && (whichSide . EA._hatBase) x == Credit)) xs
+    decL xs = parMap (EA.filter (\x -> x /= EA.Zero && (whichSide . EA._hatBase) x == Credit)) xs
 
     -- | filter Plus Stock
-    decP xs = map (EA.filter (\x -> x /= EA.Zero && (isHat . EA._hatBase ) x)) xs
+    decP xs = parMap (EA.filter (\x -> x /= EA.Zero && (isHat . EA._hatBase ) x)) xs
 
     -- | filter Minus Stock
-    decM xs = map (EA.filter (\x -> x /= EA.Zero && (not. isHat. EA._hatBase) x)) xs
+    decM xs = parMap (EA.filter (\x -> x /= EA.Zero && (not. isHat. EA._hatBase) x)) xs
 
     -- | check Credit Debit balance
     balance xs  | (norm . decR) xs == (norm . decL) xs = True
@@ -215,6 +215,14 @@ toAlg = EA.fromList . Map.elems . _journal
 map :: (HatVal v, HatBaseClass b, Note n)
     => (Alg v b -> Alg v b) -> Journal n v b -> Journal n v b
 map f (Journal js) = Journal (Map.map f js)
+
+
+parallelMap :: (NFData b, Ord k) => (a -> b) -> Map.Map k a -> Map.Map k b
+parallelMap f m = Map.map f m `using` parTraversable rdeepseq
+
+parMap :: (HatVal v, HatBaseClass b, Note n)
+    => (Alg v b -> Alg v b) -> Journal n v b -> Journal n v b
+parMap f (Journal js) = Journal (parallelMap f js)
 
 
 ------------------------------------------------------------------

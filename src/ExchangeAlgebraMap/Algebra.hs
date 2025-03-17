@@ -97,7 +97,7 @@ import              Data.Bifunctor
 import              Data.Biapplicative
 import              Algebra.Additive (C)
 import qualified    Data.Scientific     as D (Scientific, fromFloatDigits, formatScientific, FPFormat(..))
-
+import Control.DeepSeq
 ------------------------------------------------------------------
 -- * 丸め込み判定
 ------------------------------------------------------------------
@@ -266,6 +266,10 @@ data  Alg n b where
             , _val     :: n
             , _left    :: !(Alg n b)
             , _right   :: !(Alg n b)} -> Alg n b
+
+instance NFData (Alg n b) where
+    rnf Zero = Zero `seq` ()
+    rnf (Node s k v l r) = s `seq` k `seq` v `seq` l `seq` r `seq` ()
 
 _hatBase = fst . _key
 
