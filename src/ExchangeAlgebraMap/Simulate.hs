@@ -65,7 +65,6 @@ import              Control.Monad.ST
 import              Data.Array.ST
 import              Data.STRef
 
-
 ------------------------------------------------------------------
 class (Eq t, Show t, Ord t, Enum t, Ix t) => StateTime t where
     initTerm :: t

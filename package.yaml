@@ -38,6 +38,8 @@ dependencies:
 - scientific
 - parallel
 - deepseq
+- vector
+- async
 
 library:
   source-dirs: src

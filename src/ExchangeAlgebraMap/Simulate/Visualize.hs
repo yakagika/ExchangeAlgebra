@@ -26,7 +26,8 @@
 module ExchangeAlgebraMap.Simulate.Visualize (gridLine
                                              ,plotLine
                                              ,plotMultiLines
-                                             ,plotWldsDiffLine) where
+                                             ,plotWldsDiffLine
+                                             ,plotLineVector) where
 
 import              ExchangeAlgebraMap.Simulate
 import qualified    Data.List as L
@@ -37,6 +38,8 @@ import              Graphics.Rendering.Chart.Axis.Int
 import              Graphics.Rendering.Chart.Grid
 import qualified    Control.Monad                   as CM
 import              Control.Monad.ST
+import qualified    Data.Vector.Unboxed      as VU
+import qualified    Data.Vector.Unboxed.Mutable as VUM
 import              Data.Array.ST
 import              Data.STRef
 import qualified Data.Set as Set
@@ -128,8 +131,7 @@ funcArray f (start,end) wld = stToIO $ do
     arr <- newArray ((start, initTerm), (end, lastTerm)) 0
     CM.forM_ [initTerm .. lastTerm ] $ \t
         -> CM.forM_ [start .. end] $ \i
-            -> f wld t i >>= \v
-            -> modifyArray arr (i, t) (\x -> x + v)
+            -> writeArray arr (i, t) =<< f wld t i
 
     gridLine arr
 
@@ -181,7 +183,7 @@ gridLine arr = do
         readSTRef grid >>= return
 
 ------------------------------------------------------------------
--- ** Two lines
+-- ** Multi lines
 ------------------------------------------------------------------
 -- | Color Palette
 colorPalette :: [AlphaColour Double]
@@ -271,8 +273,7 @@ funcArrays xs fs (start,end) wlds = stToIO $ do
         arr <- newArray ((start, initTerm), (end, lastTerm)) 0
         CM.forM_ [initTerm .. lastTerm ] $ \t
             -> CM.forM_ [start .. end] $ \i
-                -> f wld t i >>= \v
-                -> modifyArray arr (i, t) (\x -> x + v)
+                -> writeArray arr (i, t) =<< f wld t i
         return arr
 
     gridLines xs arrs
@@ -411,6 +412,154 @@ funcDiffArray f (start,end) wlds = stToIO $ do
         -> CM.forM_ [start .. end] $ \i
             -> f (fst wlds) t i >>= \v1
             -> f (snd wlds) t i >>= \v2
-            -> modifyArray arr (i, t) (\x -> x + (v1-v2))
+            -> writeArray arr (i, t) (v1-v2)
 
     gridLine arr
+
+--------------------------------------------------------------------------------
+-- 1. Vector を使って (i, t) → Double の配列を作る関数
+--------------------------------------------------------------------------------
+
+-- | もとの funcArray に対応。 (i, t) を 2次元として、そこに f wld t i の値を加算します。
+--   内部実装を STArray から Unboxed Vector に変えた版。
+funcArrayVector
+  :: ( Show i, Enum i, Enum t, StateTime t )
+  => (a RealWorld -> t -> i -> ST RealWorld Double)  -- ^ 計算する関数 f
+  -> ((i,t),(i,t))                                   -- ^ 範囲 (start, end)
+  -> a RealWorld                                     -- ^ worldなど
+  -> ST RealWorld (GridMatrix t)                -- ^ 完成した不変 Vector を返す
+funcArrayVector f ((i1,t1),(i2,t2)) wld = do
+    let iCount = fromEnum i2 - fromEnum i1 + 1
+        tCount = fromEnum t2 - fromEnum t1 + 1
+        totalCount = iCount * tCount
+
+    -- 長さ totalCount の Mutable Vector を 0.0 で初期化
+    mvec <- VUM.replicate totalCount 0.0
+
+    -- 2重ループで f wld t i を計算して書き込み
+    CM.forM_ [fromEnum t1 .. fromEnum t2] $ \te -> do
+      let t = toEnum te
+      CM.forM_ [fromEnum i1 .. fromEnum i2] $ \ie -> do
+        let i = toEnum ie
+            idx = (te - fromEnum t1) * iCount
+                + (ie - fromEnum i1)
+        VUM.write mvec idx =<< f wld t i
+
+    -- 最後に Immutable な Vector に freeze
+    gridLineVector ((i1,t1),(i2,t2)) =<< VU.freeze mvec
+
+--------------------------------------------------------------------------------
+-- 2. Vector から GridMatrix t を組み立てる (もとの gridLine 相当)
+--------------------------------------------------------------------------------
+
+-- | (i, t) の2次元データを、3セル区切りでカラムを作り、最終的に GridMatrix にする。
+gridLineVector
+  :: forall t i. ( Enum i, Enum t, StateTime t, Show i )
+  => ((i,t),(i,t))           -- ^ (start, end)
+  -> VU.Vector Double -- ^ 要素数 = (end - start + 1) * (lastTerm - initTerm + 1)
+  -> ST RealWorld (GridMatrix t)
+gridLineVector ((i1,t1),(i2,t2)) vec = do
+    -- i の取りうる値一覧 (昇順)
+    let iVals  = [fromEnum i1 .. fromEnum i2]
+    let iCount = length iVals
+    let tVals  = [fromEnum t1 .. fromEnum t2]
+    let tCount = length tVals
+
+    -- 3セルごとに区切りを入れるためのカウンタ
+    -- そしてカラムのリスト, 最終的なグリッド(行)のリストを STRef で管理
+    -- (元コード gridLine と同様のロジック)
+    gridRef  <- newSTRef []        -- :: ST s (GridMatrix t)
+    colRef   <- newSTRef []        -- :: ST s (GridColumns t)
+    countRef <- newSTRef (1 :: Int)
+
+    -- i を順番にたどりつつ、3つたまるごとに1列を作る
+    CM.forM_ iVals $ \ie -> do
+      let iVal = (toEnum (ie :: Int) :: i)  -- i :: i
+      count' <- readSTRef countRef
+      -- (t,値) の列を取り出す
+      let series :: [(t, Double)]
+          series =
+            [ (toEnum te, VU.unsafeIndex vec (flattenIndex iCount (ie - fromEnum i1) (te - fromEnum t1)))
+            | te <- tVals
+            ]
+          -- TimeSeries の型は (Label, [[(t,Double)]]) なので
+          -- [[(t,Double)]] の形にする
+          ts :: [(Label, [[(t,Double)]])]
+          ts = [(show iVal, [series])]
+
+      if count' >= 3
+        then do
+          -- 3つ目に達したら、今までのもの + 今回の分を1列として grid に積む
+          oldCol <- readSTRef colRef  -- :: GridColumns t
+          modifySTRef gridRef (\acc -> acc ++ [ oldCol ++ [ts] ])
+          -- リセット
+          writeSTRef colRef []
+          writeSTRef countRef 1
+        else if ie == last iVals
+          then do
+            -- 最後の i の場合もまとめて push
+            oldCol <- readSTRef colRef
+            modifySTRef gridRef (\acc -> acc ++ [ oldCol ++ [ts] ])
+            writeSTRef colRef []
+            writeSTRef countRef 1
+          else do
+            -- まだ3セルに達してないし、最後でもないときは colRef に追加のみ
+            modifySTRef colRef (\acc -> acc ++ [ts])
+            modifySTRef countRef (+1)
+
+    -- 完了したら取り出す
+    readSTRef gridRef
+  where
+    -- flattenIndex iCount iIndex tIndex = tIndex * iCount + iIndex
+    flattenIndex :: Int -> Int -> Int -> Int
+    flattenIndex width x y = y * width + x
+
+--------------------------------------------------------------------------------
+-- 3. 実際に Vector ベースで (i, t) の折れ線グラフを描画する関数
+--------------------------------------------------------------------------------
+
+plotLineVector
+  :: ( Enum i, Enum t, StateTime t, Show i, PlotValue t )
+  => (a RealWorld -> t -> i -> ST RealWorld Double)
+  -> ((i,t),(i,t))    -- ^ (start, end)
+  -> a RealWorld      -- ^ world
+  -> FilePath         -- ^ 出力先ディレクトリ
+  -> String           -- ^ グラフタイトル
+  -> IO ()
+plotLineVector f idx wld outDir titleStr = do
+    -- 2. GridMatrix へ変換 (gridLineVector)
+    gridMatrix :: GridMatrix t <- stToIO $ funcArrayVector f idx wld
+
+    -- 3. Chart の描画
+    let gridRenderable = createGrid gridMatrix
+    CM.void $ renderableToFile def (outDir ++ "/" ++ titleStr ++ ".png")
+            $ fillBackground def
+            $ gridToRenderable
+            $ createTitle titleStr `wideAbove` gridRenderable
+
+  where
+    -- | グリッド全体を垂直方向に並べる
+    createGrid = aboveN . map createRow
+
+    -- | 1行 (GridColumns t) は横方向に並べる
+    createRow = besideN . map createColumn
+
+    -- | 1カラム (TimeSerieses t) に含まれる複数の TimeSeries をプロット
+    createColumn seriesGroup = layoutToGrid $ execEC $ do
+      CM.forM_ seriesGroup $ \(label, seriesData) ->
+        plot $ linePlot label seriesData
+
+    linePlot label seriesData = liftEC $ do
+      plot_lines_values .= [concat seriesData]
+      plot_lines_title  .= label
+      plot_lines_style . line_color .= opaque blue
+
+    createTitle name =
+      setPickFn nullPickFn $
+        label titleStyle HTA_Centre VTA_Centre name
+
+    titleStyle :: FontStyle
+    titleStyle = def
+      { _font_size   = 15
+      , _font_weight = FontWeightBold
+      }

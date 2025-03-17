@@ -48,22 +48,17 @@ import              Control.Monad.State
 import              Control.Monad.ST
 import              Data.Array.ST
 import              Data.Array.IO
-import Data.Array (Array)
+import              Data.Array (Array)
 import              Data.STRef
 import qualified    Data.List                       as L
+import qualified    Data.Map.Strict                 as Map
 import GHC.Generics
 import System.Random -- 乱数
 import Data.Coerce
+import Control.Concurrent.Async (mapConcurrently,forConcurrently_)
 
 -- Debug
 import Debug.Trace
-
--- For Visutalization
-import              Graphics.Rendering.Chart.Easy            hiding ( (:<),(.~))
-import              Graphics.Rendering.Chart.Backend.Cairo
-import              Graphics.Rendering.Chart.Axis
-import              Graphics.Rendering.Chart.Axis.Int
-import              Graphics.Rendering.Chart.Grid
 
 ------------------------------------------------------------------
 -- *  状態系の導入
@@ -809,8 +804,8 @@ simulate wld e = loop wld initTerm e
                     >> loop wld (nextTerm t) e
 
 -- | 初期化 → 指定されたイベントの実行までをこなす
-runSimulation :: Term -> InitVar -> StdGen -> ST s (World s)
-runSimulation t e gen = initAll gen t e >>= \wld'
+runSimulation :: StdGen -> InitVar ->  IO (World RealWorld)
+runSimulation gen e = stToIO $ initAll gen initTerm e >>= \wld'
                     -> simulate wld' e
                     >> return wld'
 
@@ -820,130 +815,66 @@ runSimulation t e gen = initAll gen t e >>= \wld'
 main :: IO ()
 main = do
     let seed = 42
-    print("-----normal------")
     let gen = mkStdGen seed
         env1 = InitVar {_initInv            = 100
-                      ,_initIR              = 5.1
-                      ,_initMS              = 5.1
-                      ,_addedDemend         = 0
-                      ,_finalDemand         = 200
-                      ,_inhouseRatio        = 0.4
-                      ,_steadyProduction    = 30}
-    wld1 <- stToIO $ runSimulation (initTerm :: Term) env1 gen
-    ESV.plotLine getTermProduction
-                 (fstEnt,lastEnt)
-                 wld1
-                 "exsample/result/fig/ripple1/normal/"
-                 "Production"
-    ESV.plotLine getTermStock
-                 (fstEnt,lastEnt)
-                 wld1
-                 "exsample/result/fig/ripple1/normal/"
-                 "Stock"
-    ESV.plotLine getTermProfit
-                 (fstEnt,lastEnt)
-                 wld1
-                 "exsample/result/fig/ripple1/normal/"
-                 "Cash(Gross Profit)"
-    -- let ics = _ictable (_ics wld1)
-    -- arr <- stToIO (freeze ics :: ST RealWorld (Array (Term, Row, Col) InputCoefficient))
-    -- ioics <- thaw arr :: IO (IOArray (Term, Row, Col) InputCoefficient)
-    -- writeTermIO "exsample/result/csv/ripple1_io.csv" 1 ioics
-    print("-----add-small------")
-    let env2 = InitVar {_initInv            = 100
-                      ,_initIR              = 2.1
-                      ,_initMS              = 2.1
-                      ,_addedDemend         = 10
-                      ,_finalDemand         = 200
-                      ,_inhouseRatio        = 0.4
-                      ,_steadyProduction    = 30}
-    wld2 <- stToIO $ runSimulation (initTerm :: Term) env2 gen
-
-    ESV.plotLine getTermProduction
-                 (fstEnt,lastEnt)
-                 wld2
-                 "exsample/result/fig/ripple1/addedDemand/"
-                 "Production-add100"
-    ESV.plotWldsDiffLine getTermProduction
-                         (fstEnt,lastEnt)
-                         (wld2,wld1)
-                         "exsample/result/fig/ripple1/addedDemand/"
-                         "Production-Diff-add100"
-    ESV.plotMultiLines ["normal","added"]
-                       [getTermProduction,getTermProduction]
-                       (fstEnt,lastEnt)
-                       [wld1,wld2]
-                       "exsample/result/fig/ripple1/addedDemand/"
-                       "Production-Compare-add100"
-
-    ------------------------------------------------------------------
-    print("-----add-large------")
-    let env3 = InitVar {_initInv            = 100
-                      ,_initIR              = 2.1
-                      ,_initMS              = 2.1
-                      ,_addedDemend         = 100
-                      ,_finalDemand         = 200
-                      ,_inhouseRatio        = 0.4
-                      ,_steadyProduction    = 30}
-    wld3 <- stToIO $ runSimulation (initTerm :: Term) env3 gen
-    ESV.plotLine getTermProduction
-                 (fstEnt,lastEnt)
-                 wld3
-                 "exsample/result/fig/ripple1/addedDemand/"
-                 "Production-add500"
-    ESV.plotWldsDiffLine getTermProduction
-                         (fstEnt,lastEnt)
-                         (wld3,wld1)
-                         "exsample/result/fig/ripple1/addedDemand/"
-                         "Production-Diff-add500"
-    ESV.plotMultiLines ["normal","added"]
-                       [getTermProduction,getTermProduction]
-                       (fstEnt,lastEnt)
-                       [wld1,wld3]
-                       "exsample/result/fig/ripple1/addedDemand/"
-                       "Production-Compare-add500"
-    ------------------------------------------------------------------
-    print("-----small-stock------")
-    let env4 = InitVar {_initInv            = 100
-                      ,_initIR              = 1.5
-                      ,_initMS              = 2.1
-                      ,_addedDemend         = 0
-                      ,_finalDemand         = 200
-                      ,_inhouseRatio        = 0.4
-                      ,_steadyProduction    = 30}
-    wld4 <- stToIO $ runSimulation (initTerm :: Term) env4 gen
-    ESV.plotLine getTermProduction
-                 (fstEnt,lastEnt)
-                 wld4
-                 "exsample/result/fig/ripple1/smallstock/"
-                 "Production-Small-Stock"
-    ESV.plotLine getTermProfit
-                 (fstEnt,lastEnt)
-                 wld4
-                 "exsample/result/fig/ripple1/smallstock/"
-                 "Cash(Gross Profit)-Small-Stock"
-    ------------------------------------------------------------------
-    print("-----large-stock------")
-    let env5 = InitVar {_initInv            = 100
                       ,_initIR              = 3.1
-                      ,_initMS              = 2.1
+                      ,_initMS              = 3.1
                       ,_addedDemend         = 0
                       ,_finalDemand         = 200
                       ,_inhouseRatio        = 0.4
                       ,_steadyProduction    = 30}
-    wld5 <- stToIO $ runSimulation (initTerm :: Term) env5 gen
-    ESV.plotLine getTermProduction
-                 (fstEnt,lastEnt)
-                 wld5
-                 "exsample/result/fig/ripple1/largestock/"
-                 "Production-Large-Stock"
-    ESV.plotLine getTermProfit
-                 (fstEnt,lastEnt)
-                 wld5
-                 "exsample/result/fig/ripple1/largestock/"
-                 "Cash(Gross Profit)-Large-Stock"
-    ------------------------------------------------------------------
-    -- bk <- stToIO $ readURef (_book wld)
-    -- print $ proj [Not :<(Products,1,1,2,(.#))] bk
-    -- print $ norm $ proj [Not :<(Products,1,1,2,(.#))] bk
-    -- writeBS "exsample/result/csv/ripple1.csv" $ EA.grossProfitTransferKeepWiledcard bk
+
+        env2 = env1 {_initIR      = 2.1}
+        env3 = env1 {_initIR      = 3.1}
+        env4 = env2 {_addedDemend = 10}
+        env5 = env3 {_addedDemend = 10}
+
+        envName = ["default","smallstock","largestock","smallstock-added","largestock-added"]
+    print "start simulation"
+    results <- mapConcurrently (runSimulation gen) [env1,env2,env3,env4,env5]
+    let resMap = Map.fromList
+               $ zip envName results
+
+    print "printing..."
+    forConcurrently_ envName $ \n -> do
+        let fig_dir = "exsample/result/fig/ripple1/"
+        let fs = [getTermProduction
+                 ,getTermStock
+                 ,getTermProfit]
+            fnames = ["Production"
+                     ,"Stock"
+                     ,"Profit"]
+
+        forConcurrently_ (zip fs fnames) $ \ (f, fn) -> do
+            ESV.plotLineVector f ((fstEnt,initTerm),(lastEnt,lastTerm))
+                               (resMap Map.! n) (fig_dir ++ n ++ "/") fn
+
+        if n == "largestock-added"
+            then do
+                ESV.plotWldsDiffLine getTermProduction
+                         (fstEnt,lastEnt)
+                         ((resMap Map.! "largestock"),(resMap Map.! n))
+                         (fig_dir ++ n ++ "/")
+                         "Production-Diff"
+
+                ESV.plotMultiLines ["normal","added"]
+                       [getTermProduction,getTermProduction]
+                       (fstEnt,lastEnt)
+                       [(resMap Map.! "largestock"),(resMap Map.! n)]
+                       (fig_dir ++ n ++ "/")
+                       "Production-Compare"
+        else if n == "smallstock-added"
+            then do
+                ESV.plotWldsDiffLine getTermProduction
+                         (fstEnt,lastEnt)
+                         ((resMap Map.! "smallstock"),(resMap Map.! n))
+                         (fig_dir ++ n ++ "/")
+                         "Production-Diff"
+
+                ESV.plotMultiLines ["normal","added"]
+                       [getTermProduction,getTermProduction]
+                       (fstEnt,lastEnt)
+                       [(resMap Map.! "smallstock"),(resMap Map.! n)]
+                       (fig_dir ++ n ++ "/")
+                       "Production-Compare"
+        else return ()

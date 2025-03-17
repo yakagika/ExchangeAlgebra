@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 06e992ca6dd00090034492ed1bdb29df862e49b7cac737feedccf9985c0e00e2
+-- hash: 1f9e8f561d8e7ec274f13310501ae3cb140dce291d21b09a6a75efb318bbaa63
 
 name:           exchangealgebra
 version:        0.3.0.0
@@ -54,6 +54,7 @@ library
       Chart
     , Chart-cairo
     , array
+    , async
     , base
     , bifunctors
     , containers
@@ -69,6 +70,7 @@ library
     , text
     , time
     , unicode-show
+    , vector
   default-language: Haskell2010
 
 executable calcex1
@@ -82,6 +84,7 @@ executable calcex1
       Chart
     , Chart-cairo
     , array
+    , async
     , base
     , bifunctors
     , containers
@@ -98,6 +101,7 @@ executable calcex1
     , text
     , time
     , unicode-show
+    , vector
   default-language: Haskell2010
 
 executable ebex1
@@ -111,6 +115,7 @@ executable ebex1
       Chart
     , Chart-cairo
     , array
+    , async
     , base
     , bifunctors
     , containers
@@ -127,6 +132,7 @@ executable ebex1
     , text
     , time
     , unicode-show
+    , vector
   default-language: Haskell2010
 
 executable ebex2
@@ -140,6 +146,7 @@ executable ebex2
       Chart
     , Chart-cairo
     , array
+    , async
     , base
     , bifunctors
     , containers
@@ -156,6 +163,7 @@ executable ebex2
     , text
     , time
     , unicode-show
+    , vector
   default-language: Haskell2010
 
 executable maptest
@@ -169,6 +177,7 @@ executable maptest
       Chart
     , Chart-cairo
     , array
+    , async
     , base
     , bifunctors
     , containers
@@ -185,6 +194,7 @@ executable maptest
     , text
     , time
     , unicode-show
+    , vector
   default-language: Haskell2010
 
 executable ripple1
@@ -198,6 +208,7 @@ executable ripple1
       Chart
     , Chart-cairo
     , array
+    , async
     , base
     , bifunctors
     , containers
@@ -214,6 +225,7 @@ executable ripple1
     , text
     , time
     , unicode-show
+    , vector
   default-language: Haskell2010
 
 executable ssex2
@@ -227,6 +239,7 @@ executable ssex2
       Chart
     , Chart-cairo
     , array
+    , async
     , base
     , bifunctors
     , containers
@@ -243,6 +256,7 @@ executable ssex2
     , text
     , time
     , unicode-show
+    , vector
   default-language: Haskell2010
 
 test-suite ExchangeAlgebra-doctest
@@ -255,6 +269,7 @@ test-suite ExchangeAlgebra-doctest
       Chart
     , Chart-cairo
     , array
+    , async
     , base
     , bifunctors
     , containers
@@ -272,6 +287,7 @@ test-suite ExchangeAlgebra-doctest
     , text
     , time
     , unicode-show
+    , vector
   default-language: Haskell2010
 
 test-suite ExchangeAlgebra-test
@@ -286,6 +302,7 @@ test-suite ExchangeAlgebra-test
       Chart
     , Chart-cairo
     , array
+    , async
     , base
     , bifunctors
     , containers
@@ -302,4 +319,5 @@ test-suite ExchangeAlgebra-test
     , text
     , time
     , unicode-show
+    , vector
   default-language: Haskell2010
