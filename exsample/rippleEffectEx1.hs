@@ -154,6 +154,8 @@ data EventName
 instance Note EventName where
     plank = Plank
 
+instance Event EventName where
+
 instance Note Term where
     plank = -1
 
@@ -190,15 +192,15 @@ instance Updatable Term InitVar Ledger s where
 
     initialize _ _ e = initLedger (_initInv e)
 
-    updatePattern _ _ _ = return Modify
+    updatePattern _  = return Modify
 
     -- 過去のTermを次の期のTermに変更して追加する
-    modify t e x  =  readURef x >>= \le
-                  -> let added = g t (termJournal (t-1) le)
-                  in modifyURef x (\z -> z .+ added)
+    modify g t e x  =  readURef x >>= \le
+                    -> let added = f1 t (termJournal (t-1) le)
+                    in modifyURef x (\z -> z .+ added)
         where
-        g t x = EJ.gather (plank, t) $ f x
-        f   = EJT.finalStockTransferKeepWiledcard
+        f1 t x = EJ.gather (plank, t) $ f2 x
+        f2   = EJT.finalStockTransferKeepWiledcard
             . inventoryCount
             . (.-)
 
@@ -260,7 +262,7 @@ instance Updatable Term InitVar Prices s where
     type Inner Prices s = STRef s PriceTable
     unwrap (Prices a) = a
     initialize _ _ _ = initPrices
-    updatePattern _ _ _ = return DoNothing
+    updatePattern _ = return DoNothing
 
 type VETransTable = EJT.TransTable Double VEHatBase
 
@@ -330,7 +332,7 @@ instance Updatable Term InitVar IRs s where
     type Inner IRs s = STRef s IRTable
     unwrap (IRs a) = a
     initialize _ _ e = initIRs (_initIR e)
-    updatePattern _ _ _ = return DoNothing
+    updatePattern _ = return DoNothing
 
 -- | 在庫比率の取得
 getInventoryRatio :: World s -> Entity -> ST s InventoryRatio
@@ -355,7 +357,7 @@ instance Updatable Term InitVar SP s where
     type Inner SP s = STRef s StedyProd
     unwrap (SP a) = a
     initialize _ _ e = newURef (_steadyProduction e)
-    updatePattern _ _ _ = return DoNothing
+    updatePattern _ = return DoNothing
 
 ------------------------------------------------------------------
 -- ** 原材料在庫比率
@@ -381,7 +383,7 @@ instance Updatable Term InitVar MSs s where
     type Inner MSs s = STRef s MSTable
     unwrap (MSs a) = a
     initialize _ _ e = initMSs (_initMS e)
-    updatePattern _ _ _  = return DoNothing
+    updatePattern _  = return DoNothing
 
 -- | 在庫比率の取得
 getMaterialStock :: World s -> Entity -> ST s MaterialStock
@@ -449,7 +451,7 @@ instance Updatable Term InitVar ICTable s where
     type Inner ICTable s = STArray s (Term, Row, Col) InputCoefficient
     unwrap (ICTable a) = a
     initialize g _ e = initICTables g (_inhouseRatio e)
-    updatePattern _ _ _ = return DoNothing
+    updatePattern _ = return DoNothing
 
 
 -- | 投入係数の取得
@@ -525,10 +527,10 @@ instance Updatable Term InitVar OrderTable s where
         icTable <- initICTables g (_inhouseRatio e)  -- ICTable を初期化
         initOrders icTable (_finalDemand e) (_inhouseRatio e)  -- それを基に OrdersTable を作成
 
-    updatePattern _ _ _  = return Modify
+    updatePattern _  = return Modify
 
     -- 前期の残りの分を追加
-    modify t e x  =  case (t == initTerm, t == 20)of
+    modify g t e x  =  case (t == initTerm, t == 20)of
                     (True, _)   -> return ()
                     (_, True)   -> forM_ [fstEnt..lastEnt] $ \e1
                                 -> forM_ [fstEnt..lastEnt] $ \e2
@@ -573,8 +575,8 @@ data World s = World { _ledger  :: Ledger s
 
 -- deriving Generic をしていれば
 -- 空のインスタンス宣言で自動でinitSS,updateSSが使えるようになる
-instance StateSpace Term InitVar World s
-
+instance StateSpace Term InitVar EventName World s where
+    event = event'
 ------------------------------------------------------------------
 -- * 汎用関数
 ------------------------------------------------------------------
@@ -606,26 +608,27 @@ getPossibleVolume wld t e1 = do
                         $ L.filter (\x -> if x == Nothing then False else True) mbps
     return $ minimum possibleVolumes  -- 可能な生産量の最小値を返す
 
+-- 記帳
+journal :: World s -> Term -> Transaction -> ST s ()
+journal wld t Zero = return ()
+journal wld t js   = modifyURef (_ledger wld) (\x -> x .+ js)
+
 ------------------------------------------------------------------
 -- * 状態の更新
 ------------------------------------------------------------------
 -- ** イベントの設定
 -- 同じ取引を繰り返すだけ
 
--- 記帳
-journal :: World s -> Term -> Transaction -> ST s ()
-journal wld t Zero = return ()
-journal wld t js   = modifyURef (_ledger wld) (\x -> x .+ js)
 
-event :: World s -> Term -> EventName -> ST s ()
+event' :: World s -> Term -> EventName -> ST s ()
 
 --  通常簿記を物量簿記に変換する
-event wld t ToAmount = readURef (_prices wld) >>= \pt
+event' wld t ToAmount = readURef (_prices wld) >>= \pt
               -> modifyURef (_ledger wld) $ \le
               -> EJT.transferKeepWiledcard le (toAmountTable pt)
 
 --  物量簿記を通常簿記に変換する
-event wld t ToPrice = readURef (_prices wld) >>= \pt
+event' wld t ToPrice = readURef (_prices wld) >>= \pt
               -> modifyURef (_ledger wld) $ \bk
               -> EJT.transferKeepWiledcard bk (toCashTable pt)
 
@@ -634,7 +637,7 @@ event wld t ToPrice = readURef (_prices wld) >>= \pt
 -- 受注分販売・購入する
 -- 在庫を受注の割合で販売する
 -- 売れた分受注を減らす
-event wld t SalesPurchase = do
+event' wld t SalesPurchase = do
     le <- readURef (_ledger wld)  -- 簿記の状態を取得
     let os = _orders wld  -- OrdersTable を取得
 
@@ -662,7 +665,7 @@ event wld t SalesPurchase = do
 
 ------------------------------------------------------------------
 -- | (在庫比率 * 受注量 - 在庫の量) のうち,現在保有している原材料在庫で生産する
-event wld t Production = do
+event' wld t Production = do
     le <- readURef (_ledger wld)  -- Book を取得
     let os = (_orders wld)  -- OrdersTable を取得
     forM_ industries $ \e1 -> do
@@ -708,7 +711,7 @@ event wld t Production = do
 -- 発注量を計算
 -- 在庫の販売及び不足分のうち原材料在庫で生産できた分で賄えなかった
 -- 分の生産に必要な原材料在庫を発注する
-event wld t Order = do
+event' wld t Order = do
     let os = (_orders wld)  -- OrdersTable を取得
     le <- readURef (_ledger wld)  -- Book を取得
     -- 定常的な生産量
@@ -771,7 +774,7 @@ event wld t Order = do
 
 ------------------------------------------------------------------
 -- 最終需要部門が購入したものを消費する
-event wld t Consumption = do
+event' wld t Consumption = do
     -- 保有している消費財
     le <- readURef (_ledger wld)
     let total_consume = projWithNoteBase [(SalesPurchase,t)]
@@ -780,34 +783,7 @@ event wld t Consumption = do
     journal wld t $ gather (Consumption,t)
                   $ (.^) total_consume
 ------------------------------------------------------------------
-event wld t Plank = return ()
-
-------------------------------------------------------------------
--- | Transaction全体を結合
-eventAll :: forall s.  World s -> Term ->  ST s ()
-eventAll wld t =  CM.forM_ ([minBound .. maxBound] :: [EventName])
-                $ \e -> event wld t e
-
-------------------------------------------------------------------
--- * Simulation
-------------------------------------------------------------------
-simulate ::  World s -> InitVar -> ST s ()
-simulate wld e = loop wld initTerm e
-  where
-  {-# INLINE loop #-}
-  loop ::  World s -> Term -> InitVar -> ST s ()
-  loop wld t e
-    | t == lastTerm =  updateAll t e wld >>= \_
-                    -> eventAll wld t
-    | otherwise     =  updateAll t e wld >>= \_
-                    -> eventAll wld t
-                    >> loop wld (nextTerm t) e
-
--- | 初期化 → 指定されたイベントの実行までをこなす
-runSimulation :: StdGen -> InitVar ->  IO (World RealWorld)
-runSimulation gen e = stToIO $ initAll gen initTerm e >>= \wld'
-                    -> simulate wld' e
-                    >> return wld'
+event' wld t Plank = return ()
 
 ------------------------------------------------------------------
 -- * 実行
@@ -817,15 +793,15 @@ main = do
     let seed = 42
     let gen = mkStdGen seed
         env1 = InitVar {_initInv            = 100
-                      ,_initIR              = 3.1
-                      ,_initMS              = 3.1
+                      ,_initIR              = 3.0
+                      ,_initMS              = 2.1
                       ,_addedDemend         = 0
                       ,_finalDemand         = 200
                       ,_inhouseRatio        = 0.4
                       ,_steadyProduction    = 30}
 
-        env2 = env1 {_initIR      = 2.1}
-        env3 = env1 {_initIR      = 3.1}
+        env2 = env1 {_initIR      = 2.5}
+        env3 = env1 {_initIR      = 3.5}
         env4 = env2 {_addedDemend = 10}
         env5 = env3 {_addedDemend = 10}
 
@@ -853,28 +829,28 @@ main = do
             then do
                 ESV.plotWldsDiffLine getTermProduction
                          (fstEnt,lastEnt)
-                         ((resMap Map.! "largestock"),(resMap Map.! n))
+                         ((resMap Map.! n),(resMap Map.! "largestock"))
                          (fig_dir ++ n ++ "/")
                          "Production-Diff"
 
-                ESV.plotMultiLines ["normal","added"]
+                ESV.plotMultiLines ["added","normal"]
                        [getTermProduction,getTermProduction]
                        (fstEnt,lastEnt)
-                       [(resMap Map.! "largestock"),(resMap Map.! n)]
+                       [(resMap Map.! n),(resMap Map.! "largestock")]
                        (fig_dir ++ n ++ "/")
                        "Production-Compare"
         else if n == "smallstock-added"
             then do
                 ESV.plotWldsDiffLine getTermProduction
                          (fstEnt,lastEnt)
-                         ((resMap Map.! "smallstock"),(resMap Map.! n))
+                         ((resMap Map.! n),(resMap Map.! "smallstock"))
                          (fig_dir ++ n ++ "/")
                          "Production-Diff"
 
-                ESV.plotMultiLines ["normal","added"]
+                ESV.plotMultiLines ["added","normal"]
                        [getTermProduction,getTermProduction]
                        (fstEnt,lastEnt)
-                       [(resMap Map.! "smallstock"),(resMap Map.! n)]
+                       [(resMap Map.! n),(resMap Map.! "smallstock")]
                        (fig_dir ++ n ++ "/")
                        "Production-Compare"
         else return ()

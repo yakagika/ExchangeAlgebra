@@ -47,14 +47,17 @@ module ExchangeAlgebraMap.Simulate
     ,update
     ,initAll
     ,updateAll
-    ,StateSpace
+    ,StateSpace(event,randomSeeds)
     ,normal
     ,normal'
     ,updateGen
     ,InitVariables
     ,UpdatableSTRef(..)
     ,UpdatableSTArray(..)
-    ,modifyArray) where
+    ,modifyArray
+    ,Event(..)
+    ,eventAll
+    ,runSimulation) where
 
 import              Control.Monad
 import              GHC.Generics
@@ -64,6 +67,7 @@ import              Data.Kind
 import              Control.Monad.ST
 import              Data.Array.ST
 import              Data.STRef
+import qualified    Control.Monad                   as CM
 
 ------------------------------------------------------------------
 class (Eq t, Show t, Ord t, Enum t, Ix t) => StateTime t where
@@ -71,12 +75,22 @@ class (Eq t, Show t, Ord t, Enum t, Ix t) => StateTime t where
     lastTerm :: t
     nextTerm :: t -> t
     prevTerm :: t -> t
+    toInit :: t -> t
+    toInit _ = initTerm
+    toLast :: t -> t
+    toLast _ = lastTerm
 
 -- | Parameters for initialisation
 -- Referenced during initialisation
 -- Values referred to during simulation should be in Updatable
 class (Eq e, Show e) => InitVariables e where
 
+------------------------------------------------------------------
+class (Ord e, Show e, Enum e, Eq e, Bounded e) => Event e where
+    fstEvent :: e
+    fstEvent = minBound
+    lastEvent :: e
+    lastEvent = maxBound
 
 ------------------------------------------------------------------
 -- | A parameter that indicates the pattern for updating the value to the next period
@@ -87,8 +101,8 @@ data UpdatePattern = Copy         -- | Copy the previous state
 
 ------------------------------------------------------------------
 -- | Elements of StateSpace
-class (StateTime t,InitVariables e)
-      => Updatable t e (a :: Type -> Type) s | a s -> t e where
+class (StateTime t,InitVariables v)
+      => Updatable t v (a :: Type -> Type) s | a s -> t v where
     type Inner a s
     unwrap :: a s -> Inner a s
 
@@ -96,25 +110,25 @@ class (StateTime t,InitVariables e)
     -- (乱数生成器を更新していない)
     -- 現状異なる乱数をインスタンスごとに利用したい場合は,updateGenなどを利用
     -- 同一の乱数生成器を更新して使えるようにする予定
-    initialize      :: StdGen  -> t -> e -> ST s (a s)
+    initialize    :: StdGen -> t -> v -> ST s (a s)
 
-    updatePattern   :: t -> e -> (a s) -> ST s UpdatePattern
+    updatePattern :: (a s) -> ST s UpdatePattern
 
     {-# INLINE copy #-}
-    copy            :: t -> e -> (a s) -> ST s ()
-    copy t e x = undefined
+    copy :: StdGen -> t -> v -> (a s) -> ST s ()
+    copy g t v x    = undefined
 
     {-# INLINE modify #-}
-    modify          :: t -> e -> (a s) -> ST s ()
-    modify t e x = undefined
+    modify :: StdGen -> t -> v -> (a s) -> ST s ()
+    modify g t v x  = undefined
 
     {-# INLINE update #-}
-    update          :: t -> e -> (a s) -> ST s ()
-    update t e x =  updatePattern t e x >>= \k
-                    -> case k of
+    update :: StdGen -> t -> v -> (a s) -> ST s ()
+    update g t v x  =  updatePattern x >>= \p
+                    -> case p of
                             DoNothing -> return ()
-                            Copy      -> copy   t e x
-                            Modify    -> modify t e x
+                            Copy      -> copy   g t v x
+                            Modify    -> modify g t v x
 
 
 -- | for newtype A s = A (STRef s B)
@@ -174,75 +188,105 @@ class (Ix b) => UpdatableSTArray wrapper s b c | wrapper s -> b c where
   modifyUArray x f = modifyArray (_unwrapUArray x) f
 
 ------------------------------------------------------------------
-
-
-class (StateTime t,InitVariables e)
-      => StateSpace t e (a :: Type -> Type) s | a s -> t e where
+class (StateTime t,InitVariables v, Event e)
+      => StateSpace t v e (a :: Type -> Type) s | a s -> t v e where
     {-# INLINE initAll #-}
-    initAll ::  StdGen -> t -> e -> ST s (a s)
+    initAll ::  StdGen -> t -> v -> ST s (a s)
 
     -- DefaultSignatures 拡張
-    default initAll :: (Generic (a s), GUpdatable t e (Rep (a s)) s) =>  StdGen  -> t -> e ->  ST s (a s)
-    initAll g t e = GHC.Generics.to <$> gInitialize g t e
+    default initAll :: (Generic (a s), GUpdatable t v (Rep (a s)) s)
+                    =>  StdGen -> t -> v ->  ST s (a s)
+    initAll g t v = GHC.Generics.to <$> gInitialize g t v
 
     -- DefaultSignatures 拡張
     {-# INLINE updateAll #-}
-    updateAll :: t -> e -> a s -> ST s ()
-    default updateAll :: (Generic (a s), GUpdatable t e (Rep (a s)) s) => t -> e -> a s -> ST s ()
-    updateAll t e a = gUpdate t e (GHC.Generics.from a)
+    updateAll :: StdGen -> t -> v -> a s -> ST s ()
+    default updateAll :: (Generic (a s), GUpdatable t v (Rep (a s)) s)
+                      => StdGen -> t -> v -> a s -> ST s ()
+    updateAll g t v a = gUpdate g t v (GHC.Generics.from a)
+
+    -- イベント処理
+    event :: a s -> t -> e -> ST s ()
 
     -- 開始期を指定する
-    initT :: e -> a s -> ST s t
+    initT :: v ->  a s -> ST s t
     initT _ _ = return initTerm
 
     -- 終了期を指定する
-    lastT :: e -> a s -> ST s t
+    lastT :: v -> a s -> ST s t
     lastT _ _ = return lastTerm
 
     -- | 乱数シードを定義する(デフォルト42)
     -- 乱数シードを明示的に定義することも可能
     -- 現状使い道なし
-    randomSeeds :: t -> e -> a s -> ST s Int
-    randomSeeds _ _ _ = return 42
+    randomSeeds :: a s -> ST s Int
+    randomSeeds _ = return 42
+
+
+-- | Event全体を結合
+eventAll :: forall t v e a s. (StateSpace t v e a s) => a s -> t ->  ST s ()
+eventAll wld t =  CM.forM_ [fstEvent .. lastEvent]
+                $ \e -> event wld t e
+
+-- | Simulation
+simulate :: (StateSpace t v e a s)
+         => StdGen -> a s -> v -> ST s ()
+simulate g wld v = loop g wld initTerm v
+  where
+  {-# INLINE loop #-}
+  loop :: (StateSpace t v e a s)
+       => StdGen -> a s -> t -> v -> ST s ()
+  loop g wld t v
+    | t == toLast t =  updateAll g t v wld >>= \_
+                    -> eventAll wld t
+    | otherwise     =  updateAll g t v wld >>= \_
+                    -> eventAll wld t
+                    >> loop g wld (nextTerm t) v
+
+-- | 初期化 → 指定されたイベントの実行までをこなす
+runSimulation :: (StateSpace t v e a RealWorld)
+              => StdGen -> v ->  IO (a RealWorld)
+runSimulation gen v = stToIO $ initAll gen initTerm v >>= \wld
+                    -> simulate gen wld v
+                    >> return wld
 
 -- Genericを用いた自動導出のための補助型クラス
-class  (StateTime t,InitVariables e)
-        => GUpdatable t e a s where
-    gInitialize :: StdGen  -> t -> e -> ST s (a s)
+class  (StateTime t,InitVariables v)
+        => GUpdatable t v a s where
+    gInitialize :: StdGen  -> t -> v -> ST s (a s)
 
-    gUpdate :: t -> e -> a s -> ST s ()
+    gUpdate :: StdGen -> t -> v -> a s -> ST s ()
 
 -- コンストラクタに対するGUpdatableのインスタンス
-instance (StateTime t,InitVariables e)
-        => GUpdatable t e U1 s where
+instance (StateTime t,InitVariables v)
+        => GUpdatable t v U1 s where
     gInitialize _ _ _ = return U1
-    gUpdate _ _ _ = return ()
+    gUpdate _ _ _ _ = return ()
 
 -- | プリミティブ型に対するGUpdatableのインスタンス
-instance (StateTime t, InitVariables e, Updatable t e a s)
-        => GUpdatable t e (K1 i (a s)) s where
-    gInitialize g t e = K1 <$> initialize g t e
-    gUpdate t e (K1 x) = update t e x
+instance (StateTime t, InitVariables v, Updatable t v a s)
+        => GUpdatable t v (K1 i (a s)) s where
+    gInitialize g t v = K1 <$> initialize g t v
+    gUpdate g t v (K1 x) = update g t v x
 
 -- |直和型に対するGUpdatableのインスタンス
-instance (StateTime t, InitVariables e, GUpdatable t e f s, GUpdatable t e g s)
-        => GUpdatable t e (f :+: g) s where
-    gInitialize g t e = gInitialize g t e
-    gUpdate t e (L1 f) = gUpdate t e f
-    gUpdate t e (R1 g) = gUpdate t e g
+instance (StateTime t, InitVariables v, GUpdatable t v p s, GUpdatable t v q s)
+        => GUpdatable t v (p :+: q) s where
+    gInitialize g t v = gInitialize g t v
+    gUpdate g t v (L1 p) = gUpdate g t v p
+    gUpdate g t v (R1 q) = gUpdate g t v q
 
 -- | レコードフィールドに対するGUpdatableのインスタンス
-instance (StateTime t, InitVariables e, GUpdatable t e g s, GUpdatable t e f s)
-        => GUpdatable t e (g :*: f) s where
-    gInitialize g t e = (:*:) <$> gInitialize g t e <*> gInitialize g t e
-    gUpdate t e (x :*: y) = gUpdate t e y >> gUpdate t e x
+instance (StateTime t, InitVariables v, GUpdatable t v p s, GUpdatable t v q s)
+        => GUpdatable t v (p :*: q) s where
+    gInitialize g t v = (:*:) <$> gInitialize g t v <*> gInitialize g t v
+    gUpdate g t v (x :*: y) = gUpdate g t v y >> gUpdate g t v x
 
 -- メタデータに対するGUpdatableのインスタンス
-instance (StateTime t, InitVariables e, GUpdatable t e f s)
-        => GUpdatable t e (M1 p l f) s where -- メタデータは無視する
-    gInitialize g t e = M1 <$> gInitialize g t e
-    gUpdate t e (M1 f) = gUpdate t e f
-
+instance (StateTime t, InitVariables v, GUpdatable t v f s)
+        => GUpdatable t v (M1 p l f) s where -- メタデータは無視する
+    gInitialize g t v = M1 <$> gInitialize g t v
+    gUpdate g t v (M1 f) = gUpdate g t v f
 
 ------------------------------------------------------------------
 -- * 乱数関連
