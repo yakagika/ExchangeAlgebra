@@ -42,6 +42,7 @@ module ExchangeAlgebraMap.Algebra.Transfer
     , (.->)
     , (|%)
     , createTransfer
+    , insert
     , incomeSummaryAccount
     , netIncomeTransfer
     , grossProfitTransferKeepWiledcard
