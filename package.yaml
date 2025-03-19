@@ -40,6 +40,7 @@ dependencies:
 - deepseq
 - vector
 - async
+- statistics
 
 library:
   source-dirs: src
@@ -47,8 +48,11 @@ library:
 
 _exe-defs: &exe-defaults
   dependencies: exchangealgebra
-  ghc-options: [-O2, -threaded, -rtsopts,-with-rtsopts=-N]
-
+  ghc-options: [-O2
+               ,-threaded
+               ,-rtsopts
+               ,-with-rtsopts=-N
+               ,-fwrite-ide-info]
 
 executables:
   calcex1:

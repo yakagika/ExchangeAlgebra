@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1f9e8f561d8e7ec274f13310501ae3cb140dce291d21b09a6a75efb318bbaa63
+-- hash: 0042e47b81d7199a41abdcad4310528e9cd72d32318b78ddbbe8853e7bd1a86a
 
 name:           exchangealgebra
 version:        0.3.0.0
@@ -67,6 +67,7 @@ library
     , parallel
     , random
     , scientific
+    , statistics
     , text
     , time
     , unicode-show
@@ -79,7 +80,7 @@ executable calcex1
       Paths_exchangealgebra
   hs-source-dirs:
       exsample
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N -fwrite-ide-info
   build-depends:
       Chart
     , Chart-cairo
@@ -98,6 +99,7 @@ executable calcex1
     , parallel
     , random
     , scientific
+    , statistics
     , text
     , time
     , unicode-show
@@ -110,7 +112,7 @@ executable ebex1
       Paths_exchangealgebra
   hs-source-dirs:
       exsample
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N -fwrite-ide-info
   build-depends:
       Chart
     , Chart-cairo
@@ -129,6 +131,7 @@ executable ebex1
     , parallel
     , random
     , scientific
+    , statistics
     , text
     , time
     , unicode-show
@@ -141,7 +144,7 @@ executable ebex2
       Paths_exchangealgebra
   hs-source-dirs:
       exsample
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N -fwrite-ide-info
   build-depends:
       Chart
     , Chart-cairo
@@ -160,6 +163,7 @@ executable ebex2
     , parallel
     , random
     , scientific
+    , statistics
     , text
     , time
     , unicode-show
@@ -172,7 +176,7 @@ executable maptest
       Paths_exchangealgebra
   hs-source-dirs:
       exsample
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N -fwrite-ide-info
   build-depends:
       Chart
     , Chart-cairo
@@ -191,6 +195,7 @@ executable maptest
     , parallel
     , random
     , scientific
+    , statistics
     , text
     , time
     , unicode-show
@@ -203,7 +208,7 @@ executable ripple1
       Paths_exchangealgebra
   hs-source-dirs:
       exsample
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N -fwrite-ide-info
   build-depends:
       Chart
     , Chart-cairo
@@ -222,6 +227,7 @@ executable ripple1
     , parallel
     , random
     , scientific
+    , statistics
     , text
     , time
     , unicode-show
@@ -234,7 +240,7 @@ executable ssex2
       Paths_exchangealgebra
   hs-source-dirs:
       exsample
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N -fwrite-ide-info
   build-depends:
       Chart
     , Chart-cairo
@@ -253,6 +259,7 @@ executable ssex2
     , parallel
     , random
     , scientific
+    , statistics
     , text
     , time
     , unicode-show
@@ -284,6 +291,7 @@ test-suite ExchangeAlgebra-doctest
     , parallel
     , random
     , scientific
+    , statistics
     , text
     , time
     , unicode-show
@@ -316,6 +324,7 @@ test-suite ExchangeAlgebra-test
     , parallel
     , random
     , scientific
+    , statistics
     , text
     , time
     , unicode-show

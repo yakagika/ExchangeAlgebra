@@ -20,6 +20,8 @@
 
 
 {-# LANGUAGE GADTs              #-}
+{-# LANGUAGE Strict             #-}
+{-# LANGUAGE StrictData         #-}
 {-# LANGUAGE PatternGuards      #-}
 {-# LANGUAGE MagicHash          #-}
 {-# LANGUAGE BangPatterns       #-}
@@ -223,6 +225,7 @@ transferKeepWiledcard (v:@ hb1) (TransTable _ hb2 f a l r)
     | hb1 ./= hb2 = case compareElement hb1 hb2 of
             LT -> transferKeepWiledcard (v :@ hb1) l
             GT -> transferKeepWiledcard (v :@ hb1) r
+            EQ -> error $ "transferKeepWiledcard: " ++ show hb1 ++ "," ++ show hb2
     | hb1 .== hb2 = (f v) :@ keepWiledcard hb1 a
 
 {- I forgot why this is needed....

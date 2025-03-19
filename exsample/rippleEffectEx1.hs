@@ -805,9 +805,12 @@ main = do
         env4 = env2 {_addedDemend = 10}
         env5 = env3 {_addedDemend = 10}
 
-        envName = ["default","smallstock","largestock","smallstock-added","largestock-added"]
+        -- envName = ["default","smallstock","largestock","smallstock-added","largestock-added"]
+        envName = ["default"] -- for test
     print "start simulation"
-    results <- mapConcurrently (runSimulation gen) [env1,env2,env3,env4,env5]
+    -- results <- mapConcurrently (runSimulation gen) [env1,env2,env3,env4,env5]
+    results <- mapConcurrently (runSimulation gen) [env1] -- for test
+
     let resMap = Map.fromList
                $ zip envName results
 

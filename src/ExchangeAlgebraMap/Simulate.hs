@@ -75,10 +75,6 @@ class (Eq t, Show t, Ord t, Enum t, Ix t) => StateTime t where
     lastTerm :: t
     nextTerm :: t -> t
     prevTerm :: t -> t
-    toInit :: t -> t
-    toInit _ = initTerm
-    toLast :: t -> t
-    toLast _ = lastTerm
 
 -- | Parameters for initialisation
 -- Referenced during initialisation
@@ -224,11 +220,13 @@ class (StateTime t,InitVariables v, Event e)
 
 
 -- | Event全体を結合
+{-# INLINE eventAll #-}
 eventAll :: forall t v e a s. (StateSpace t v e a s) => a s -> t ->  ST s ()
 eventAll wld t =  CM.forM_ [fstEvent .. lastEvent]
                 $ \e -> event wld t e
 
 -- | Simulation
+{-# INLINE simulate #-}
 simulate :: (StateSpace t v e a s)
          => StdGen -> a s -> v -> ST s ()
 simulate g wld v = loop g wld initTerm v
@@ -237,7 +235,7 @@ simulate g wld v = loop g wld initTerm v
   loop :: (StateSpace t v e a s)
        => StdGen -> a s -> t -> v -> ST s ()
   loop g wld t v
-    | t == toLast t =  updateAll g t v wld >>= \_
+    | t == lastTerm =  updateAll g t v wld >>= \_
                     -> eventAll wld t
     | otherwise     =  updateAll g t v wld >>= \_
                     -> eventAll wld t

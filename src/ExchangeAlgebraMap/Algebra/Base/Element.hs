@@ -46,17 +46,15 @@ class (Eq a, Ord a, Show a) => Element a where
 
     isWiledcard     :: a -> Bool
     {-# INLINE isWiledcard #-}
-    isWiledcard a | wiledcard == a = True
-                  | otherwise      = False
+    isWiledcard a = a == wiledcard
 
     -- | ワイルドカードからそれ以外への変換
     --  transfer で利用する
     keepWiledcard :: a -> a -> a
     keepWiledcard x y
-        | x == y    = x
-        | otherwise = case isWiledcard y of
-                        True  ->  x
-                        False ->  y
+        | x == y         = x
+        | isWiledcard y  = x
+        | otherwise      = y
 
     equal :: a -> a -> Bool
     {-# INLINE equal #-}
@@ -67,8 +65,10 @@ class (Eq a, Ord a, Show a) => Element a where
     -- | wiledcard を等しいとみなす ==
     (.==) :: a -> a -> Bool
     {-# INLINE (.==)  #-}
-    (.==) a b | a == b   || (equal a b) = True
-              | otherwise               = False
+    (.==) a b
+        | a == b       = True
+        | equal a b    = True
+        | otherwise    = False
 
     -- | wiledcard を等しいとみなす /=
     (./=) :: a -> a -> Bool

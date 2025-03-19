@@ -284,15 +284,16 @@ sizeOf Zero = 0
 sizeOf (Node s _ _ _ _) = s
 
 
+{-# INLINE singleton #-}
 singleton :: (HatVal n, HatBaseClass b) => b -> n ->  Alg n b
-singleton b n | n == 0 = Zero
-              | otherwise = case isErrorValue n of
-                    False -> Node 1 (b,0) n Zero Zero
-                    True  -> error  $ "errorValue at (.@) val: "
-                                    ++ show n
-                                    ++ show ":@"
-                                    ++ show b
+singleton b !n | isZeroValue n  = Zero
+               | isErrorValue n = error  $ "errorValue at (.@) val: "
+                                ++ show n
+                                ++ show ":@"
+                                ++ show b
+               | otherwise      = Node 1 (b,0) n Zero Zero
 
+{-# INLINE (.@) #-}
 (.@) :: (HatVal n, HatBaseClass b) => n -> b -> Alg n b
 (.@) n b = singleton b n
 

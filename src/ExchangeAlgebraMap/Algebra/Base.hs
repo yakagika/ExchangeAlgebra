@@ -108,6 +108,7 @@ instance Eq (HatBase a) where
     (/=) x y = not (x == y)
 
 instance Ord (HatBase a) where
+    {-# INLINE compare #-}
     compare (h :< b) (h' :< b')
         | b == b' = compare h h'
         | b >  b'  = GT
