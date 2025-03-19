@@ -34,7 +34,6 @@
 module ExchangeAlgebraMap.Algebra.Transfer
     ( TransTable (..)
     , isNullTable
-    , insert
     , updateFunction
     , transfer
     , transferKeepWiledcard

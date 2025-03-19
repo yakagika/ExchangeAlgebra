@@ -39,6 +39,7 @@ module ExchangeAlgebraMap.Journal
     , toAlg
     , fromList
     , map
+    , insert
     , projWithNote
     , projWithBase
     , projWithNoteBase
@@ -197,7 +198,7 @@ instance (Note n, HatVal v, ExBaseClass b) =>  Exchange (Journal n) v b where
 -- | fromList
 --
 --  >>> type Test = Journal String Double (HatBase AccountTitles)
---  >>> x = [1.00:@Hat:<Cash .| z | z <- ["Loan Payment","Purchace Apple"]] :: [Test]
+--  >>> x = [(1.00:@Hat:<Cash .| z) |  z <- ["Loan Payment","Purchace Apple"]] :: [Test]
 --  >>> fromList x
 --  1.00:@Hat:<Cash.|"Purchace Apple" .+ 1.00:@Hat:<Cash.|"Loan Payment"
 
@@ -223,6 +224,19 @@ parallelMap f m = Map.map f m `using` parTraversable rdeepseq
 parMap :: (HatVal v, HatBaseClass b, Note n)
     => (Alg v b -> Alg v b) -> Journal n v b -> Journal n v b
 parMap f (Journal js) = Journal (parallelMap f js)
+
+-- | insert
+--  "insert x y" inserts x to y. if note already exit in y, replace previous(y) by x.
+-- >>> type Test = Journal String Double (HatBase AccountTitles)
+-- >>> x = 10.00:@Not:<Cash .| "A" :: Test
+-- >>> y = 20.00:@Not:<Cash .| "B" :: Test
+-- >>> z = 30.00:@Hat:<Cash .| "A" :: Test
+-- >>> insert z (x .+ y)
+-- 20.00:@Not:<Cash.|"B" .+ 30.00:@Hat:<Cash.|"A"
+
+insert :: (HatVal v, HatBaseClass b, Note n)
+        => Journal n v b -> Journal n v b -> Journal n v b
+insert (Journal xs) (Journal ys) = Journal (Map.union xs ys)
 
 
 ------------------------------------------------------------------

@@ -32,7 +32,6 @@
 module ExchangeAlgebraMap.Journal.Transfer
     ( TransTable (..)
     , isNullTable
-    , insert
     , updateFunction
     , table
     , TransTableParts
@@ -52,7 +51,6 @@ import              ExchangeAlgebraMap.Algebra hiding (map)
 import qualified    ExchangeAlgebraMap.Algebra.Transfer as EAT
 import              ExchangeAlgebraMap.Algebra.Transfer (TransTable (..)
                                                         , isNullTable
-                                                        , insert
                                                         , updateFunction
                                                         , table
                                                         , TransTableParts
