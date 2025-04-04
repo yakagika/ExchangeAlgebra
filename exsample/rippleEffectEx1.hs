@@ -67,7 +67,7 @@ import Debug.Trace
 
 instance StateTime Term where
     initTerm = 1
-    lastTerm = 50
+    lastTerm = 100
     nextTerm = \x -> x + 1
     prevTerm = \x -> x - 1
 
@@ -93,7 +93,7 @@ instance Updatable Term InitVar ST s Gen where
 data InitVar = InitVar {_initInv          :: Double -- 初期在庫保有量
                        ,_stockOutRate     :: Double -- 製品在庫欠品許容率
                        ,_materialOutRate  :: Double -- 原材料在庫欠品許容率
-                       ,_addedDemend      :: Double -- 20期めの追加需要
+                       ,_addedDemand      :: Double -- 20期めの追加需要
                        ,_finalDemand      :: Double -- 各産業の最終需要
                        ,_inhouseRatio     :: Double -- 内製部門比率
                        ,_steadyProduction :: Double -- 定常的な生産
@@ -473,29 +473,38 @@ getInputCoefficient wld t e1 e2 =  do
 -- 発注された中間投入財の量 = 生産が必要な量
 -- 基本的には発注分を除けば前年度と同じ量を発注
 -- 財ごとのInt
-type Order = Double
-newtype OrderTable s = OrderTable (STArray s (Term,Entity,Entity) Order)
+type OrderAmount = Double
 
-instance UpdatableSTArray OrderTable s (Term,Entity,Entity) Order where
+data OrderRelation = Relation {_supplier :: Entity
+                              ,_customer :: Entity}
+                              deriving (Eq, Ord, Ix)
+
+newtype OrderTable s = OrderTable (STArray s (Term,OrderRelation) OrderAmount)
+
+instance UpdatableSTArray OrderTable s (Term,OrderRelation) OrderAmount where
   _unwrapUArray (OrderTable arr) = arr
   _wrapUArray arr = OrderTable arr
+
 
 -- 発注量の初期状態
 initOrders :: ICTable s -> Double -> Double -> ST s (OrderTable s)
 initOrders icTable finalDemand inhouseRatio = do
     ((tMin, c1Min, c2Min), (tMax, c1Max, c2Max)) <- getUBounds icTable
-    ordersArr <- newUArray ((tMin, c1Min, c2Min), (tMax, c1Max, c2Max)) 0
+    ordersArr <- newUArray ((tMin, Relation {_supplier = c1Min, _customer = c2Min})
+                            ,(tMax,Relation {_supplier = c1Max, _customer = c2Max})) 0
     forM_ [(t, c1, c2) | t <- [tMin .. tMax]
                        , c1 <- [c1Min .. c1Max]
                        , c2 <- [c2Min .. c2Max]] $ \(t, c1, c2) -> do
         when (c2 == finalDemandSector) $ do
             c <- readUArray icTable (t, c1,c2)
-            writeUArray ordersArr (t, c1, c2) ((c / inhouseRatio) * finalDemand)
+            writeUArray ordersArr
+                        (t, Relation {_supplier = c1, _customer = c2})
+                        ((c / inhouseRatio) * finalDemand)
     return ordersArr
 
 -- ** STArray s (ID, Term) NN.Double
 instance Updatable Term InitVar OrderTable s where
-    type Inner OrderTable s = STArray s (Term,Entity,Entity) Order
+    type Inner OrderTable s = STArray s (Term,OrderRelation) OrderAmount
     unwrap (OrderTable a) = a
     initialize g _ e = do
         icTable <- initICTables g (_inhouseRatio e)  -- ICTable を初期化
@@ -509,29 +518,39 @@ instance Updatable Term InitVar OrderTable s where
                     (_, True)   -> forM_ [fstEnt..lastEnt] $ \e1
                                 -> forM_ [fstEnt..lastEnt] $ \e2
                                 -> case (e1 == 10, e2==9) of -- 9の最終需要の増加
-                                    (True,True) -> readUArray x (t-1, e2,e1) >>= \y
-                                                -> modifyUArray x (t,e2,e1) (\x -> x + y + (_addedDemend e))
+                                    (True,True) -> readUArray x (t-1, Relation {_supplier = e2
+                                                                               ,_customer = e1}) >>= \y
+                                                -> modifyUArray x (t,Relation {_supplier = e2
+                                                                              ,_customer = e1})
+                                                                  (\x -> x + y + (_addedDemand e))
                                     ------------------------------------------------------------------
-                                    _           -> readUArray x (t-1, e2,e1) >>= \y
-                                                -> modifyUArray x (t,e2,e1) (\x -> x + y)
+                                    _           -> readUArray x (t-1, Relation {_supplier = e2
+                                                                              ,_customer = e1}) >>= \y
+                                                -> modifyUArray x (t,Relation {_supplier = e2
+                                                                              ,_customer = e1}) (\x -> x + y)
                     ------------------------------------------------------------------
                     _           -> forM_ [fstEnt..lastEnt] $ \e1
                                 -> forM_ [fstEnt..lastEnt] $ \e2
-                                -> readUArray x (t-1, e2,e1) >>= \y
-                                -> modifyUArray x (t,e2,e1) (\x -> x + y)
+                                -> readUArray x (t-1, Relation {_supplier = e2
+                                                               ,_customer = e1}) >>= \y
+                                -> modifyUArray x (t,Relation {_supplier = e2
+                                                              ,_customer = e1})
+                                                  (\x -> x + y)
 
 -- | 個別の発注量の取得
-getOrder :: World s -> Term -> Entity -> Entity -> ST s Order
-getOrder wld t e1 e2 =  let arr = (_orders wld)
-                     in readUArray arr (t,e1,e2)
+getOrder :: World s -> Term -> OrderRelation -> ST s OrderAmount
+getOrder wld t r =  let arr = (_orders wld)
+                 in readUArray arr (t, r)
 
 -- | 総受注量の取得
-getOrderTotal :: World s -> Term -> Entity -> ST s Order
+getOrderTotal :: World s -> Term -> Entity -> ST s OrderAmount
 getOrderTotal wld t e1 = case t < 1 of
     True -> return 0
     False -> do
         let arr = (_orders wld)
-        values <- CM.mapM (\e2 -> readUArray arr (t, e1, e2)) [fstEnt .. lastEnt]
+        values <- CM.mapM (\e2 -> readUArray arr (t, Relation {_supplier = e1
+                                                              ,_customer = e2}))
+                          [fstEnt .. lastEnt]
         return $ sum values
 
 ------------------------------------------------------------------
@@ -774,7 +793,7 @@ event' wld t SalesPurchase = do
 
     forM_ industries $ \e1 -> do
         -- 自社製品の需要(売らない)
-        selfDemand <- readUArray os (t, e1, e1)
+        selfDemand <- getOrder wld t Relation{_supplier = e1, _customer = e1}
         -- 最適原材料在庫
         am <- appropriateMaterial wld (t - 1) e1 e1
 
@@ -788,22 +807,29 @@ event' wld t SalesPurchase = do
         availableStock <- case compare am selfDemand of
                             -- そもそもの需要のほうが大きい場合
                             LT -> case compare stock selfDemand of
-                                    GT -> writeUArray os (t, e1, e1) 0
+                                    GT -> writeUArray os (t, Relation {_supplier = e1
+                                                                      ,_customer = e1}) 0
                                        >> return (stock - selfDemand)
-                                    _  -> writeUArray os (t, e1, e1) (selfDemand - stock)
+                                    _  -> writeUArray os (t, Relation {_supplier = e1
+                                                                     ,_customer = e1})
+                                                         (selfDemand - stock)
                                        >> return 0
                             -- 自社需要がなくても最低限最適原材料在庫は保持しておく
                             _  -> case compare stock am of
-                                    GT -> writeUArray os (t, e1, e1) 0
+                                    GT -> writeUArray os (t, Relation {_supplier = e1
+                                                                      ,_customer = e1}) 0
                                        >> return (stock - am)
-                                    _  -> writeUArray os (t, e1, e1) (am - stock)
+                                    _  -> writeUArray os (t, Relation {_supplier = e1
+                                                                      ,_customer = e1})
+                                                         (am - stock)
                                        >> return 0
 
         -- 各 e2 (注文元) に対して処理
         forM_ [fstEnt..lastEnt] $ \e2 -> do
             when (e1 /= e2) $ do
                 -- e2 から e1 への受注量
-                orderAmount <- readUArray os (t, e1, e2)
+                orderAmount <- readUArray os (t, Relation {_supplier = e1
+                                                          ,_customer = e2})
 
                 -- 受注がゼロでない場合に販売処理を実施
                 when (orderAmount > 0) $ do
@@ -818,7 +844,9 @@ event' wld t SalesPurchase = do
                                  .+ (sellAmount * p) :@ Hat :<(Cash,(.#),e2,Yen)          -- 発注側 購入額
                         journal wld t (toAdd .| (SalesPurchase,t))
                         -- 受注を減らす
-                        writeUArray os (t, e1, e2) (orderAmount - sellAmount)
+                        writeUArray os (t, Relation {_supplier = e1
+                                                    ,_customer = e2})
+                                       (orderAmount - sellAmount)
 
 ------------------------------------------------------------------
 -- | 不足分及び,在庫不足分に対して現在保有している原材料在庫で生産する
@@ -915,7 +943,9 @@ event' wld t Order = do
                     -- trace (show t ++ "-am(" ++ show e2 ++ "): " ++ show am) return ()
                     trace (show t ++ "-tl(" ++ show e2 ++ "): " ++ show total) return ()
                 -}
-                modifyUArray (_orders wld) (t, e2, e1) (\x -> x + total)
+                modifyUArray (_orders wld) (t, Relation {_supplier = e2
+                                                        ,_customer = e1})
+                                           (\x -> x + total)
 
 ------------------------------------------------------------------
 -- 最終需要部門が購入したものを消費する
@@ -939,17 +969,17 @@ main = do
     let gen = mkStdGen seed
         defaultEnv = InitVar {_initInv             = 100
                              ,_stockOutRate        = 0.1
-                             ,_materialOutRate     = 0.05
-                             ,_addedDemend         = 0
+                             ,_materialOutRate     = 0.1
+                             ,_addedDemand         = 0
                              ,_finalDemand         = 200
                              ,_inhouseRatio        = 0.4
-                             ,_steadyProduction    = 30}
+                             ,_steadyProduction    = 10}
 
-        smallStockEnv   = defaultEnv {_stockOutRate = 0.05}
-        largeStockEnv   = defaultEnv {_stockOutRate = 0.15}
-        defaultAddedEnv = smallStockEnv {_addedDemend = 10}
-        smallAddedEnv   = smallStockEnv {_addedDemend = 10}
-        largeAddedEnv   = largeStockEnv {_addedDemend = 10}
+        smallStockEnv   = defaultEnv {_stockOutRate = 0.1}
+        largeStockEnv   = defaultEnv {_stockOutRate = 0.05}
+        defaultAddedEnv = smallStockEnv {_addedDemand = 10}
+        smallAddedEnv   = smallStockEnv {_addedDemand = 10}
+        largeAddedEnv   = largeStockEnv {_addedDemand = 10}
 
 {- for test
         envs =  [defaultEnv]
@@ -996,32 +1026,46 @@ main = do
             ESV.plotLineVector f ((fstEnt,initTerm),(lastEnt,lastTerm))
                                (resMap Map.! n) (fig_dir ++ n ++ "/") fn
 
-        if n == "largestock-added"
+        if n == "default-added"
+            then do
+                ESV.plotWldsDiffLine getTermProduction
+                         (fstEnt,lastEnt)
+                         ((resMap Map.! n),(resMap Map.! "default"))
+                         (fig_dir ++ n ++ "/")
+                         "Difference in production volume"
+
+                ESV.plotMultiLines ["added","normal"]
+                       [getTermProduction,getTermProduction]
+                       (fstEnt,lastEnt)
+                       [(resMap Map.! n),(resMap Map.! "default")]
+                       (fig_dir ++ n ++ "/")
+                       "Comparison of production volume"
+        else if n == "largestock-added"
             then do
                 ESV.plotWldsDiffLine getTermProduction
                          (fstEnt,lastEnt)
                          ((resMap Map.! n),(resMap Map.! "largestock"))
                          (fig_dir ++ n ++ "/")
-                         "Production-Diff"
+                         "Difference in production volume"
 
                 ESV.plotMultiLines ["added","normal"]
                        [getTermProduction,getTermProduction]
                        (fstEnt,lastEnt)
                        [(resMap Map.! n),(resMap Map.! "largestock")]
                        (fig_dir ++ n ++ "/")
-                       "Production-Compare"
+                       "Comparison of production volume"
         else if n == "smallstock-added"
             then do
                 ESV.plotWldsDiffLine getTermProduction
                          (fstEnt,lastEnt)
                          ((resMap Map.! n),(resMap Map.! "smallstock"))
                          (fig_dir ++ n ++ "/")
-                         "Production-Diff"
+                         "Difference in production volume"
 
                 ESV.plotMultiLines ["added","normal"]
                        [getTermProduction,getTermProduction]
                        (fstEnt,lastEnt)
                        [(resMap Map.! n),(resMap Map.! "smallstock")]
                        (fig_dir ++ n ++ "/")
-                       "Production-Compare"
+                       "Comparison of production volume"
         else return ()
