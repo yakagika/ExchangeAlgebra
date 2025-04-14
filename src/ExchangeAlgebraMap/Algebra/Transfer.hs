@@ -36,7 +36,6 @@ module ExchangeAlgebraMap.Algebra.Transfer
     , isNullTable
     , updateFunction
     , transfer
-    , transferKeepWiledcard
     , table
     , TransTableParts
     , (.->)
@@ -45,10 +44,10 @@ module ExchangeAlgebraMap.Algebra.Transfer
     , insert
     , incomeSummaryAccount
     , netIncomeTransfer
-    , grossProfitTransferKeepWiledcard
-    , ordinaryProfitTransferKeepWiledcard
-    , retainedEarningTransferKeepWiledcard
-    , finalStockTransferKeepWiledcard
+    , grossProfitTransfer
+    , ordinaryProfitTransfer
+    , retainedEarningTransfer
+    , finalStockTransfer
     ) where
 
 import qualified    ExchangeAlgebraMap.Algebra as EA
@@ -181,63 +180,55 @@ size :: (HatBaseClass b) => TransTable n b -> Size
 size NullTable = 0
 size (TransTable s _ _ _ _ _) = s
 
-{-| 振替変換
-振替変換は、交換代数元の要素の基底を別の基底に振り替える変換となります。
-振替変換では、変換 対象の値は変わりません。例えば、次のような交換代数元 a があり、
-a = 6^ < e1 > +2 < e2 > +2 < e3 > +4 < e4 > +5^ < e5 > 変換定義 t を次のように定義した場合、
-( from) < e1 > -> (to) < eA >
-( from) < e2 > -> (to) < eA >
-( from) < e3 > -> (to) < eA >
-変換結果 r は、次のようになります。
-r = 6^ < e1 > +2 < e2 > +2 < e3 > +4 < e4 > +5^ < e5 >
-   +  6 < e 1 > + 6 ^ < e A >
-   + 2 ^ < e 2 > + 2 < e A >
-   + 2 ^ < e 3 > + 2 < e A >
- = 6 ^ < e 1 > + 2 < e 2 > + 2 < e 3 > + 4 < e 4 > + 5 ^ < e 5 >
- = 6 ^ < e 1 > + 2 < e 2 > + 2 < e 3 > + 4 < e 4 > + 5 ^ < e 5 >
-   + 6 < e 1 > + 6 ^ < e A > + 2 ^ < e 2 > + 4 < e A > + 2 ^ < e 3 >
--}
+
+-- | transfer
+-- 振替変換は、交換代数元の要素の基底を別の基底に振り替える変換となります。
+-- 振替変換では、変換 対象の値は変わりません。例えば、次のような交換代数元 a があり、
+-- a = 6^ < e1 > +2 < e2 > +2 < e3 > +4 < e4 > +5^ < e5 > 変換定義 t を次のように定義した場合、
+-- ( from) < e1 > -> (to) < eA >
+-- ( from) < e2 > -> (to) < eA >
+-- ( from) < e3 > -> (to) < eA >
+-- 変換結果 r は、次のようになります。
+-- r = 6^ < e1 > +2 < e2 > +2 < e3 > +4 < e4 > +5^ < e5 >
+--    +  6 < e 1 > + 6 ^ < e A >
+--    + 2 ^ < e 2 > + 2 < e A >
+--    + 2 ^ < e 3 > + 2 < e A >
+--  = 6 ^ < e 1 > + 2 < e 2 > + 2 < e 3 > + 4 < e 4 > + 5 ^ < e 5 >
+--  = 6 ^ < e 1 > + 2 < e 2 > + 2 < e 3 > + 4 < e 4 > + 5 ^ < e 5 >
+--    + 6 < e 1 > + 6 ^ < e A > + 2 ^ < e 2 > + 4 < e A > + 2 ^ < e 3 >
+--
+--
+-- >>> type Test = Alg NN.Double (HatBase (AccountTitles, CountUnit))
+-- >>> x = 1:@Hat:<(Cash,Yen) .+ 1:@Not:<(Products,Amount) :: Test
+-- >>> y = 2:@Not:<(Cash,Yen) .+ 2:@Hat:<(Deposits,Yen) :: Test
+-- >>> transfer (x .+ y) $ table $ Not:<(Products,Amount) :-> Not:<(Products,Yen) |% id ++  Hat:<(Products,Amount) :-> Hat:<(Products,Yen) |% id
+-- 1.00:@Hat:<(Cash,Yen) .+ 2.00:@Not:<(Cash,Yen) .+ 2.00:@Hat:<(Deposits,Yen) .+ 1.00:@Not:<(Products,Yen)
+--
+-- ワイルドカードはマッチングするが変換されない
+--  >>> type Test = Alg NN.Double (HatBase (AccountTitles, CountUnit))
+-- >>> x = 1:@Hat:<(Cash,Yen) .+ 1:@Not:<(Products,Amount) :: Test
+-- >>> y = 2:@Not:<(Cash,Yen) .+ 2:@Hat:<(Deposits,Yen) :: Test
+-- >>> transfer (x .+ y) $ table $ HatNot:<(Products,Amount) :-> HatNot:<(Products,Yen) |% id
+-- 1.00:@Hat:<(Cash,Yen) .+ 2.00:@Not:<(Cash,Yen) .+ 2.00:@Hat:<(Deposits,Yen) .+ 1.00:@Not:<(Products,Yen)
+--
+-- >>> instance Element Int where wiledcard = -1
+-- >>> type Test = Alg NN.Double (HatBase (AccountTitles, Int,CountUnit))
+-- >>> x = 1:@Hat:<(Cash,(.#),Yen) .+ 1:@Not:<(Products,1,Yen) :: Test
+-- >>> transfer x $ table $ HatNot:<((.#),(.#),Yen) :-> HatNot:<((.#),(.#),Amount) |% id
+-- 1.00:@Hat:<(Cash,-1,Amount) .+ 1.00:@Not:<(Products,1,Amount)
+
+
 {-# INLINE transfer #-}
 transfer :: (HatVal n, HatBaseClass b) => Alg n b -> TransTable n b -> Alg n b
 transfer alg NullTable                              = alg
 transfer Zero (TransTable _ b f a l r)              = Zero
-transfer (v:@ hb1) (TransTable _ hb2 f a l r)       | hb1 ./= hb2 = case compareElement hb1 hb2 of
-                                                            LT -> transfer (v :@ hb1) l
-                                                            GT -> transfer (v :@ hb1) r
-                                                    | hb1 .== hb2 = (f v) :@ a
-
-{- I forgot why this is needed....
-                                                    | hb1 .== hb2 = case compare v (f v) of
-                                                            LT -> ((f v) - v) :@ hb1 -- 変換後に増えた分足す
-                                                               .+ (f v)       :@ a
-                                                            EQ -> (f v)       :@ a
-                                                            GT -> (v - (f v)) :@ hb1 -- あまり
-                                                               .+ (f v)       :@ a
--}
-transfer xs tt = EA.map (\x -> transfer x tt) xs
-
--- | タプルの内, ワイルドカードは変換しない
-{-# INLINE transferKeepWiledcard #-}
-transferKeepWiledcard :: (HatVal n, HatBaseClass b) => Alg n b -> TransTable n b -> Alg n b
-transferKeepWiledcard alg NullTable                              = alg
-transferKeepWiledcard Zero (TransTable _ b f a l r)              = Zero
-transferKeepWiledcard (v:@ hb1) (TransTable _ hb2 f a l r)
+transfer (v:@ hb1) (TransTable _ hb2 f a l r)
     | hb1 ./= hb2 = case compareElement hb1 hb2 of
-            LT -> transferKeepWiledcard (v :@ hb1) l
-            GT -> transferKeepWiledcard (v :@ hb1) r
-            EQ -> error $ "transferKeepWiledcard: " ++ show hb1 ++ "," ++ show hb2
+            LT -> transfer (v :@ hb1) l
+            GT -> transfer (v :@ hb1) r
+            EQ -> error $ "transfer: " ++ show hb1 ++ "," ++ show hb2
     | hb1 .== hb2 = (f v) :@ keepWiledcard hb1 a
-
-{- I forgot why this is needed....
-    | hb1 .== hb2 = case compare v (f v) of
-            LT -> ((f v) - v) :@ hb1 -- 変換後に増えた分足す
-               .+ (f v)       :@ keepWiledcard hb1 a
-            EQ -> (f v)       :@ keepWiledcard hb1 a
-            GT -> (v - (f v)) :@ hb1 -- あまり
-               .+ (f v)       :@ keepWiledcard hb1 a
--}
-
-transferKeepWiledcard xs tt = EA.map (\x -> transferKeepWiledcard x tt) xs
+transfer xs tt = EA.map (\x -> transfer x tt) xs
 
 
 
@@ -442,23 +433,9 @@ infixr 7 |%
 instance (HatVal n) => Show (n -> n) where
     show f = "<function>"
 
-{-
-instance Show (TransTable n b) where
-    show (TransTable n b)         = "TransTable "         ++ show b
-    show (PartialTransTable b)  = "PartialTransTable "  ++ show b
-    show (FunctionTransTable b) = "FunctionTransTable " ++
-                                (L.foldl1 (++)
-                                (L.map (\(before, (f, after)) -> "(" ++ show before
-                                                              ++ ", ( <function:: NN.Double -> NN.Double>, "
-                                                              ++ show after ++ ")")
-                                (Map.toList b)))
-
--}
-
-
 
 createTransfer :: (HatVal n, ExBaseClass b) => [(b,b,(n -> n))] -> (Alg n b -> Alg n b)
-createTransfer tt = \ts -> transferKeepWiledcard ts $ table tt
+createTransfer tt = \ts -> transfer ts $ table tt
 
 -- * 決算振替仕訳
 
@@ -480,8 +457,8 @@ netIncomeTransfer = createTransfer
 -- **  仕分け
 
 -- | Gross Profit Transfer
-grossProfitTransferKeepWiledcard :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
-grossProfitTransferKeepWiledcard
+grossProfitTransfer :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+grossProfitTransfer
     =  createTransfer
     $  (toNot wiledcard) .~ WageExpenditure :-> (toHat wiledcard) .~ GrossProfit |% id
     ++ (toHat wiledcard) .~ WageExpenditure :-> (toNot wiledcard) .~ GrossProfit |% id
@@ -503,11 +480,11 @@ grossProfitTransferKeepWiledcard
 -- >>>  import qualified Number.NonNegative as NN
 -- >>>  type Test = Alg NN.Double (HatBase (CountUnit, AccountTitles))
 -- >>>  x = 2279.0:@Not:<(Yen,Depreciation) .+ 500475.0:@Not:<(Yen,InterestEarned) :: Test
--- >>>  ordinaryProfitTransferKeepWiledcard x
+-- >>>  ordinaryProfitTransfer x
 -- 2279.00:@Hat:<(Yen,OrdinaryProfit) .+ 500475.00:@Not:<(Yen,OrdinaryProfit)
 
-ordinaryProfitTransferKeepWiledcard :: (HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
-ordinaryProfitTransferKeepWiledcard
+ordinaryProfitTransfer :: (HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
+ordinaryProfitTransfer
   = createTransfer
   $  (toNot wiledcard) .~ GrossProfit               :-> (toNot wiledcard) .~ OrdinaryProfit |% id
   ++ (toHat wiledcard) .~ GrossProfit               :-> (toHat wiledcard) .~ OrdinaryProfit |% id
@@ -551,17 +528,17 @@ ordinaryProfitTransferKeepWiledcard
 
 
 -- | Retained Earning Transfer
-retainedEarningTransferKeepWiledcard :: (HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
-retainedEarningTransferKeepWiledcard
+retainedEarningTransfer :: (HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
+retainedEarningTransfer
   = createTransfer
   $  (toNot wiledcard) .~ OrdinaryProfit            :-> (toNot wiledcard) .~ RetainedEarnings |% id
   ++ (toHat wiledcard) .~ OrdinaryProfit            :-> (toHat wiledcard) .~ RetainedEarnings |% id
 
 -- | Final Stock Transfer (損益勘定)
-finalStockTransferKeepWiledcard ::(HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
-finalStockTransferKeepWiledcard  = (.-)
-                    . retainedEarningTransferKeepWiledcard
-                    . ordinaryProfitTransferKeepWiledcard
-                    . grossProfitTransferKeepWiledcard
+finalStockTransfer ::(HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
+finalStockTransfer  = (.-)
+                    . retainedEarningTransfer
+                    . ordinaryProfitTransfer
+                    . grossProfitTransfer
 
 

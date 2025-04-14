@@ -38,12 +38,11 @@ module ExchangeAlgebraMap.Journal.Transfer
     , (.->)
     , (|%)
     , ExchangeAlgebraMap.Journal.Transfer.transfer
-    , ExchangeAlgebraMap.Journal.Transfer.transferKeepWiledcard
     , ExchangeAlgebraMap.Journal.Transfer.netIncomeTransfer
-    , ExchangeAlgebraMap.Journal.Transfer.grossProfitTransferKeepWiledcard
-    , ExchangeAlgebraMap.Journal.Transfer.ordinaryProfitTransferKeepWiledcard
-    , ExchangeAlgebraMap.Journal.Transfer.retainedEarningTransferKeepWiledcard
-    , ExchangeAlgebraMap.Journal.Transfer.finalStockTransferKeepWiledcard
+    , ExchangeAlgebraMap.Journal.Transfer.grossProfitTransfer
+    , ExchangeAlgebraMap.Journal.Transfer.ordinaryProfitTransfer
+    , ExchangeAlgebraMap.Journal.Transfer.retainedEarningTransfer
+    , ExchangeAlgebraMap.Journal.Transfer.finalStockTransfer
     ) where
 
 import qualified    ExchangeAlgebraMap.Algebra as EA
@@ -56,9 +55,9 @@ import              ExchangeAlgebraMap.Algebra.Transfer (TransTable (..)
                                                         , TransTableParts
                                                         , (.->)
                                                         , (|%)
-                                                        , retainedEarningTransferKeepWiledcard
-                                                        , ordinaryProfitTransferKeepWiledcard
-                                                        , grossProfitTransferKeepWiledcard)
+                                                        , retainedEarningTransfer
+                                                        , ordinaryProfitTransfer
+                                                        , grossProfitTransfer)
 import qualified    ExchangeAlgebraMap.Journal as EJ
 import              ExchangeAlgebraMap.Journal hiding ()
 
@@ -82,19 +81,16 @@ import              Utils.Containers.Internal.StrictPair
 import              Debug.Trace
 
 
-{-# INLINE transfer #-}
-transfer :: (HatVal v, HatBaseClass b,Note n) => Journal n v b -> TransTable v b -> Journal n v b
-transfer js tb = EJ.map (\x ->  EAT.transfer x tb) js
 
 -- | タプルの内, ワイルドカードは変換しない
-{-# INLINE transferKeepWiledcard #-}
-transferKeepWiledcard :: (HatVal v, HatBaseClass b, Note n)
+{-# INLINE transfer #-}
+transfer :: (HatVal v, HatBaseClass b, Note n)
                       => Journal n v b -> TransTable v b -> Journal n v b
-transferKeepWiledcard js tb = EJ.map (\x ->  EAT.transferKeepWiledcard x tb) js
+transfer js tb = EJ.map (\x ->  EAT.transfer x tb) js
 
 createTransfer :: (Note n, HatVal v, ExBaseClass b)
                => [(b,b,(v -> v))] -> (Journal n v b -> Journal n v b)
-createTransfer tt = \ts -> transferKeepWiledcard ts $ EAT.table tt
+createTransfer tt = \ts -> transfer ts $ EAT.table tt
 
 -- * 決算振替仕訳
 
@@ -113,29 +109,29 @@ netIncomeTransfer = EJ.map EAT.netIncomeTransfer
 -- **  仕分け
 
 -- | Gross Profit Transfer
-grossProfitTransferKeepWiledcard :: (Note n, HatVal v, ExBaseClass b) => Journal n v b -> Journal n v b
-grossProfitTransferKeepWiledcard = EJ.map EAT.grossProfitTransferKeepWiledcard
+grossProfitTransfer :: (Note n, HatVal v, ExBaseClass b) => Journal n v b -> Journal n v b
+grossProfitTransfer = EJ.map EAT.grossProfitTransfer
 
 -- | Ordinary Profit Transfer
 --
 -- >>> type Test = Journal String Double (HatBase (CountUnit, AccountTitles))
 -- >>> x = 2279.0:@Not:<(Yen,Depreciation) .| "A" :: Test
 -- >>> y = 500475.0:@Not:<(Yen,InterestEarned) .| "B" :: Test
--- >>> ExchangeAlgebraMap.Journal.Transfer.ordinaryProfitTransferKeepWiledcard ( x .+ y)
+-- >>> ExchangeAlgebraMap.Journal.Transfer.ordinaryProfitTransfer ( x .+ y)
 -- 500475.00:@Not:<(Yen,OrdinaryProfit).|"B" .+ 2279.00:@Hat:<(Yen,OrdinaryProfit).|"A"
 
-ordinaryProfitTransferKeepWiledcard :: (Note n, HatVal v, ExBaseClass b) => Journal n v b -> Journal n v b
-ordinaryProfitTransferKeepWiledcard = EJ.map EAT.ordinaryProfitTransferKeepWiledcard
+ordinaryProfitTransfer :: (Note n, HatVal v, ExBaseClass b) => Journal n v b -> Journal n v b
+ordinaryProfitTransfer = EJ.map EAT.ordinaryProfitTransfer
 
 -- | Retained Earning Transfer
-retainedEarningTransferKeepWiledcard :: (Note n, HatVal v, ExBaseClass b) => Journal n v b -> Journal n v b
-retainedEarningTransferKeepWiledcard = EJ.map EAT.retainedEarningTransferKeepWiledcard
+retainedEarningTransfer :: (Note n, HatVal v, ExBaseClass b) => Journal n v b -> Journal n v b
+retainedEarningTransfer = EJ.map EAT.retainedEarningTransfer
 
 -- | Final Stock Transfer (損益勘定)
-finalStockTransferKeepWiledcard ::(Note n, HatVal v, ExBaseClass b) =>  Journal n v b -> Journal n v b
-finalStockTransferKeepWiledcard  = (.-)
-                    . ExchangeAlgebraMap.Journal.Transfer.retainedEarningTransferKeepWiledcard
-                    . ExchangeAlgebraMap.Journal.Transfer.ordinaryProfitTransferKeepWiledcard
-                    . ExchangeAlgebraMap.Journal.Transfer.grossProfitTransferKeepWiledcard
+finalStockTransfer ::(Note n, HatVal v, ExBaseClass b) =>  Journal n v b -> Journal n v b
+finalStockTransfer  = (.-)
+                    . ExchangeAlgebraMap.Journal.Transfer.retainedEarningTransfer
+                    . ExchangeAlgebraMap.Journal.Transfer.ordinaryProfitTransfer
+                    . ExchangeAlgebraMap.Journal.Transfer.grossProfitTransfer
 
 

@@ -55,40 +55,26 @@ _exe-defs: &exe-defaults
                ,-fwrite-ide-info]
 
 executables:
-  calcex1:
-    <<: *exe-defaults
-    main:                calcEx1.hs
-    source-dirs:         exsample
-
-#  ssex1:
-#    <<: *exe-defaults
-#    main:                statespaceEx1.hs
-#    source-dirs:         exsample
-
   ssex2:
     <<: *exe-defaults
     main:                statespaceEx2.hs
-    source-dirs:         exsample
+    source-dirs:         exsample/basic
 
   ebex1:
     <<: *exe-defaults
     main:                elementaryBookkeepingEx1.hs
-    source-dirs:         exsample
+    source-dirs:         exsample/basic
 
   ebex2:
     <<: *exe-defaults
     main:                elementaryBookkeepingEx2.hs
-    source-dirs:         exsample
+    source-dirs:         exsample/basic
 
   ripple1:
     <<: *exe-defaults
     main:                rippleEffectEx1.hs
-    source-dirs:         exsample
+    source-dirs:         exsample/deterministic/rippleEffect
 
-  maptest:
-    <<: *exe-defaults
-    main:                maptest.hs
-    source-dirs:         exsample
 
 tests:
   ExchangeAlgebra-test:

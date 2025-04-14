@@ -223,8 +223,10 @@ instance (Element a ,Element b)
     => Element (a, b) where
     wiledcard = (wiledcard, wiledcard)
 
-    haveWiledcard (a,b) =  (isWiledcard a)
-                        || (isWiledcard b)
+    haveWiledcard (a,b)
+        | isWiledcard a = True
+        | isWiledcard b = True
+        | otherwise     = False
 
     {-# INLINE equal #-}
     equal (a1, a2) (b1, b2)
@@ -246,9 +248,11 @@ instance (Element a, Element b, Element c)
                 , wiledcard
                 , wiledcard)
 
-    haveWiledcard (a,b,c) =  (isWiledcard a)
-                          || (isWiledcard b)
-                          || (isWiledcard c)
+    haveWiledcard (a,b,c)
+        | isWiledcard a = True
+        | isWiledcard b = True
+        | isWiledcard c = True
+        | otherwise     = False
 
 
     {-# INLINE equal #-}
@@ -274,10 +278,12 @@ instance (Element a, Element b, Element c, Element d)
                 , wiledcard
                 , wiledcard)
 
-    haveWiledcard (a,b,c,d) =  (isWiledcard a)
-                            || (isWiledcard b)
-                            || (isWiledcard c)
-                            || (isWiledcard d)
+    haveWiledcard (a,b,c,d)
+        | isWiledcard a = True
+        | isWiledcard b = True
+        | isWiledcard c = True
+        | isWiledcard d = True
+        | otherwise     = False
 
     {-# INLINE equal #-}
     equal (a1, a2, a3, a4) (b1, b2, b3, b4)
@@ -305,11 +311,13 @@ instance (Element a, Element b, Element c, Element d, Element e)
                 , wiledcard
                 , wiledcard)
 
-    haveWiledcard (a,b,c,d,e)   =  (isWiledcard a)
-                                || (isWiledcard b)
-                                || (isWiledcard c)
-                                || (isWiledcard d)
-                                || (isWiledcard e)
+    haveWiledcard (a,b,c,d,e)
+        | isWiledcard a = True
+        | isWiledcard b = True
+        | isWiledcard c = True
+        | isWiledcard d = True
+        | isWiledcard e = True
+        | otherwise     = False
 
     {-# INLINE equal #-}
     equal (a1, a2, a3, a4, a5) (b1, b2, b3, b4, b5)
@@ -340,13 +348,14 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f)
                 , wiledcard
                 , wiledcard)
 
-    haveWiledcard (a,b,c,d,e,f)   =  (isWiledcard a)
-                                  || (isWiledcard b)
-                                  || (isWiledcard c)
-                                  || (isWiledcard d)
-                                  || (isWiledcard e)
-                                  || (isWiledcard f)
-
+    haveWiledcard (a,b,c,d,e,f)
+        | isWiledcard a = True
+        | isWiledcard b = True
+        | isWiledcard c = True
+        | isWiledcard d = True
+        | isWiledcard e = True
+        | isWiledcard f = True
+        | otherwise     = False
 
     {-# INLINE equal #-}
     equal (a1, a2, a3, a4, a5, a6) (b1, b2, b3, b4, b5, b6)
@@ -380,12 +389,14 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f, Elem
                 , wiledcard
                 , wiledcard)
 
-    haveWiledcard (a,b,c,d,e,f,g)   =  (isWiledcard a)
-                                  || (isWiledcard b)
-                                  || (isWiledcard c)
-                                  || (isWiledcard d)
-                                  || (isWiledcard e)
-                                  || (isWiledcard g)
+    haveWiledcard (a,b,c,d,e,f,g)
+        | isWiledcard a = True
+        | isWiledcard b = True
+        | isWiledcard c = True
+        | isWiledcard d = True
+        | isWiledcard e = True
+        | isWiledcard g = True
+        | otherwise     = False
 
     equal (a1, a2, a3, a4, a5, a6, a7) (b1, b2, b3, b4, b5, b6, b7)
         =  (a1 .== b1)

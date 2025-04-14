@@ -47,7 +47,7 @@ tshow = T.pack . show
 -- | BalanceSheet貸借対照表の形でCSVで出力する
 writeBS :: (HatVal n, HatBaseClass b, ExBaseClass b) => FilePath -> Alg n b -> IO ()
 writeBS path alg
-    =  let transferd       = ET.finalStockTransferKeepWiledcard alg
+    =  let transferd       = ET.finalStockTransfer alg
     in let debitSide       = decR transferd
     in let creditSide      = decL transferd
     in let assets          = creditSide

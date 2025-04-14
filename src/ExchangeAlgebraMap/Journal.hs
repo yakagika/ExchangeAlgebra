@@ -69,6 +69,7 @@ import qualified    Data.List               as L    ( foldr1
 import              Prelude                 hiding (map, head, filter,tail, traverse, mapM)
 import qualified    Data.Map.Strict as Map
 import Control.Parallel.Strategies (using,parTraversable, rdeepseq, NFData,runEval)
+import qualified Data.Set as S
 
 -- | 摘要のクラス
 class (Show a, Eq a,Ord a) => Note a where
@@ -163,7 +164,7 @@ instance (HatVal v, HatBaseClass b, Note n) => Redundant (Journal n) v b where
 
     norm = norm . toAlg
 
-    (.-) x = parMap (.-) (gather plank x)
+    (.-) x = map (.-) (gather plank x)
 
     compress = parMap compress
 
@@ -251,11 +252,7 @@ insert (Journal xs) (Journal ys) = Journal (Map.union xs ys)
 
 projWithNote :: (HatVal v, HatBaseClass b, Note n)
              => [n] -> Journal n v b -> Journal n v b
-projWithNote [] _ = mempty
-projWithNote [n] (Journal js) = case Map.lookup n js of
-                                Nothing -> mempty
-                                Just x  -> x .| n
-projWithNote (x:xs) js = (.+) (projWithNote [x] js) (projWithNote xs js)
+projWithNote ns (Journal js) = Journal $ Map.restrictKeys js (S.fromList ns)
 
 ------------------------------------------------------------------
 -- | projWithBase
@@ -269,9 +266,8 @@ projWithNote (x:xs) js = (.+) (projWithNote [x] js) (projWithNote xs js)
 
 projWithBase :: (HatVal v, HatBaseClass b, Note n)
              => [b] -> Journal n v b -> Journal n v b
-projWithBase [] js      = mempty
-projWithBase [b] js     = map (EA.proj [b]) js
-projWithBase (b:bs) js  = (.+) (projWithBase [b] js) (projWithBase bs js)
+projWithBase [] js = mempty
+projWithBase xs js = map (EA.proj xs) js
 
 ------------------------------------------------------------------
 -- | projFromJournal
@@ -302,7 +298,7 @@ filterWithNote f (Journal js) = Journal (Map.filterWithKey f js)
 -- >>> x = 20.00:@Not:<Cash .+ 20.00:@Hat:<Deposits .| "Withdrawal" :: Test
 -- >>> y = 10.00:@Hat:<Cash .+ 10.00:@Not:<Deposits .| "Deposits" :: Test
 -- >>> gather "A" (x .+ y)
--- 10.00:@Not:<Deposits.|"A" .+ 20.00:@Hat:<Deposits.|"A" .+ 20.00:@Not:<Cash.|"A" .+ 10.00:@Hat:<Cash.|"A"
+-- 20.00:@Hat:<Deposits.|"A" .+ 10.00:@Not:<Deposits.|"A" .+ 10.00:@Hat:<Cash.|"A" .+ 20.00:@Not:<Cash.|"A"
 
 gather :: (HatVal v, HatBaseClass b, Note n)
        => n -> Journal n v b -> Journal n v b

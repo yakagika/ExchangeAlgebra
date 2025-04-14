@@ -31,7 +31,7 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE KindSignatures         #-}
 {-# LANGUAGE TypeFamilies           #-}
-{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE DerivingVia            #-}
 module ExchangeAlgebraMap.Simulate
     (StateTime
     ,initTerm
