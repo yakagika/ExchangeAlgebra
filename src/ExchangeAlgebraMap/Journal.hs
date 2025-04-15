@@ -24,7 +24,9 @@
 {-# LANGUAGE PatternSynonyms            #-}
 {-# LANGUAGE ViewPatterns               #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE PatternSynonyms, ViewPatterns #-}
+
 module ExchangeAlgebraMap.Journal
     ( module ExchangeAlgebraMap.Algebra.Base
     , HatVal(..)
@@ -67,17 +69,23 @@ import qualified    Data.List               as L    ( foldr1
                                                     , and
                                                     , sum)
 import              Prelude                 hiding (map, head, filter,tail, traverse, mapM)
-import qualified    Data.Map.Strict as Map
+import qualified    Data.HashMap.Strict as Map
 import Control.Parallel.Strategies (using,parTraversable, rdeepseq, NFData,runEval)
 import qualified Data.Set as S
+import Data.Hashable
+import qualified Data.Text as T
 
 -- | 摘要のクラス
-class (Show a, Eq a,Ord a) => Note a where
+class (Show a, Eq a,Ord a, Hashable a) => Note a where
     plank :: a
     isPlank :: a -> Bool
     isPlank x = x == plank
 
+
 instance Note String where
+    plank = ""
+
+instance Note T.Text where
     plank = ""
 
 instance (Note a, Note b) => Note (a,b) where
@@ -93,7 +101,7 @@ instance (Note a, Note b, Note c, Note d) => Note (a,b,c,d) where
 -- | 摘要の付随した取引データ
 data Journal n v b where
      Journal :: (Note n, HatVal v, HatBaseClass b)
-            => {_journal :: Map.Map n (Alg v b)} ->  Journal n v b
+            => {_journal :: Map.HashMap n (Alg v b)} ->  Journal n v b
 
 isZero :: (HatVal v, HatBaseClass b, Note n)
        => Journal n v b -> Bool
@@ -128,7 +136,7 @@ instance (HatVal v, HatBaseClass b, Note n) => Show (Journal n v b) where
                                                 then show x ++ ".|" ++ show k
                                                 else y ++ " .+ " ++ show x ++ ".|" ++ show k)
                                           t
-                                          (EA.toList a)
+                                          (EA.toASCList a)
 ------------------------------------------------------------------
 
 instance  (HatVal v, HatBaseClass b, Note n) => Semigroup (Journal n v b) where
@@ -143,7 +151,8 @@ instance  (HatVal v, HatBaseClass b, Note n) => Semigroup (Journal n v b) where
 -- >>> x = 20.00:@Not:<Cash .+ 20.00:@Hat:<Deposits .| "Withdrawal" :: Test
 -- >>> y = 10.00:@Hat:<Cash .+ 10.00:@Not:<Deposits .| "Deposits" :: Test
 -- >>> x .+ y
--- 20.00:@Hat:<Deposits.|"Withdrawal" .+ 20.00:@Not:<Cash.|"Withdrawal" .+ 10.00:@Not:<Deposits.|"Deposits" .+ 10.00:@Hat:<Cash.|"Deposits"
+-- 10.00:@Not:<Deposits.|"Deposits" .+ 10.00:@Hat:<Cash.|"Deposits" .+ 20.00:@Hat:<Deposits.|"Withdrawal" .+ 20.00:@Not:<Cash.|"Withdrawal"
+
 
 addJournal :: (HatVal v, HatBaseClass b, Note n)
            => Journal n v b -> Journal n v b -> Journal n v b
@@ -201,7 +210,7 @@ instance (Note n, HatVal v, ExBaseClass b) =>  Exchange (Journal n) v b where
 --  >>> type Test = Journal String Double (HatBase AccountTitles)
 --  >>> x = [(1.00:@Hat:<Cash .| z) |  z <- ["Loan Payment","Purchace Apple"]] :: [Test]
 --  >>> fromList x
---  1.00:@Hat:<Cash.|"Purchace Apple" .+ 1.00:@Hat:<Cash.|"Loan Payment"
+--  1.00:@Hat:<Cash.|"Loan Payment" .+ 1.00:@Hat:<Cash.|"Purchace Apple"
 
 fromList :: (HatVal v, HatBaseClass b, Note n)
          => [Journal n v b] -> Journal n v b
@@ -219,7 +228,7 @@ map :: (HatVal v, HatBaseClass b, Note n)
 map f (Journal js) = Journal (Map.map f js)
 
 
-parallelMap :: (NFData b, Ord k) => (a -> b) -> Map.Map k a -> Map.Map k b
+parallelMap :: (NFData b, Ord k) => (a -> b) -> Map.HashMap k a -> Map.HashMap k b
 parallelMap f m = Map.map f m `using` parTraversable rdeepseq
 
 parMap :: (HatVal v, HatBaseClass b, Note n)
@@ -233,7 +242,7 @@ parMap f (Journal js) = Journal (parallelMap f js)
 -- >>> y = 20.00:@Not:<Cash .| "B" :: Test
 -- >>> z = 30.00:@Hat:<Cash .| "A" :: Test
 -- >>> insert z (x .+ y)
--- 20.00:@Not:<Cash.|"B" .+ 30.00:@Hat:<Cash.|"A"
+-- 30.00:@Hat:<Cash.|"A" .+ 20.00:@Not:<Cash.|"B"
 
 insert :: (HatVal v, HatBaseClass b, Note n)
         => Journal n v b -> Journal n v b -> Journal n v b
@@ -252,8 +261,9 @@ insert (Journal xs) (Journal ys) = Journal (Map.union xs ys)
 
 projWithNote :: (HatVal v, HatBaseClass b, Note n)
              => [n] -> Journal n v b -> Journal n v b
-projWithNote ns (Journal js) = Journal $ Map.restrictKeys js (S.fromList ns)
-
+projWithNote ns (Journal js) = Journal $ Map.filterWithKey (\k _ -> S.member k nsSet) js
+  where
+    nsSet = S.fromList ns
 ------------------------------------------------------------------
 -- | projWithBase
 -- Projecting with Base.
@@ -298,7 +308,7 @@ filterWithNote f (Journal js) = Journal (Map.filterWithKey f js)
 -- >>> x = 20.00:@Not:<Cash .+ 20.00:@Hat:<Deposits .| "Withdrawal" :: Test
 -- >>> y = 10.00:@Hat:<Cash .+ 10.00:@Not:<Deposits .| "Deposits" :: Test
 -- >>> gather "A" (x .+ y)
--- 20.00:@Hat:<Deposits.|"A" .+ 10.00:@Not:<Deposits.|"A" .+ 10.00:@Hat:<Cash.|"A" .+ 20.00:@Not:<Cash.|"A"
+-- 10.00:@Not:<Deposits.|"A" .+ 20.00:@Hat:<Deposits.|"A" .+ 20.00:@Not:<Cash.|"A" .+ 10.00:@Hat:<Cash.|"A"
 
 gather :: (HatVal v, HatBaseClass b, Note n)
        => n -> Journal n v b -> Journal n v b

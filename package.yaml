@@ -41,6 +41,8 @@ dependencies:
 - vector
 - async
 - statistics
+- hashable
+- unordered-containers
 
 library:
   source-dirs: src

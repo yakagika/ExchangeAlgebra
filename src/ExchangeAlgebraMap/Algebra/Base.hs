@@ -26,6 +26,7 @@
 {-# LANGUAGE TypeFamilyDependencies     #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE ConstrainedClassMethods    #-}
+{-# LANGUAGE DeriveGeneric              #-}
 
 
 module ExchangeAlgebraMap.Algebra.Base
@@ -39,6 +40,8 @@ import              Data.Time
 import qualified    Data.List           as L (foldr1, map, length, elem,sort,foldl1,filter, or, and, sum)
 import              Prelude             hiding (map, head, filter,tail, traverse, mapM)
 import GHC.Stack (HasCallStack, callStack, prettyCallStack)
+import GHC.Generics (Generic)
+import Data.Hashable
 
 customError :: HasCallStack => String -> a
 customError msg = error (msg ++ "\nCallStack:\n" ++ prettyCallStack callStack)
@@ -99,8 +102,9 @@ class (BaseClass a, BaseClass (BasePart a)) => HatBaseClass a where
 data Hat    = Hat
             | Not
             | HatNot
-            deriving (Enum, Eq, Ord, Show)
+            deriving (Enum, Eq, Ord, Show, Generic)
 
+instance Hashable Hat where
 
 instance Element Hat where
     wiledcard = HatNot
@@ -115,10 +119,12 @@ instance Element Hat where
 instance BaseClass Hat where
 
 data BaseForSingleHat = BaseForSingleHat
-    deriving (Eq,Ord)
+    deriving (Eq,Ord,Generic)
 
 instance Show BaseForSingleHat where
     show _ = ""
+
+instance Hashable BaseForSingleHat where
 
 instance Element BaseForSingleHat where
     wiledcard = BaseForSingleHat
@@ -191,6 +197,10 @@ instance Ord (HatBase a) where
 
     min x y | x <= y    = x
             | otherwise = y
+
+instance (BaseClass a) => Hashable (HatBase a) where
+     hashWithSalt salt (h:<b) = salt `hashWithSalt` h
+                                     `hashWithSalt` b
 
 -- | Element (HatBase a)
 --  haveWiledcard

@@ -1,17 +1,12 @@
 
-{-# LANGUAGE FlexibleContexts   #-}
 {-# LANGUAGE FlexibleInstances  #-}
-{-# LANGUAGE Rank2Types         #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE Strict                 #-}
 {-# LANGUAGE StrictData             #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE TypeFamilies #-}
 
 {-
@@ -58,6 +53,8 @@ import Data.Coerce
 import Control.Concurrent.Async (mapConcurrently,forConcurrently_)
 import Statistics.Distribution hiding (mean, stdDev)
 import Statistics.Distribution.Normal
+import GHC.Generics (Generic)
+import Data.Hashable
 
 -- Debug
 import Debug.Trace
@@ -159,7 +156,17 @@ data EventName
     | Consumption                       -- ^ 最終需要部門の消費
     | ToPrice                           -- ^ 物量から価格評価へ変換
     | Plank                             -- ^ Plank
-    deriving (Ord,Show, Enum, Eq, Bounded)
+    deriving (Ord,Show, Enum, Eq, Bounded, Generic)
+
+-- | ElementのインスタンスはHashableである必要がある
+-- {-# LANGUAGE DeriveGeneric #-}
+--  import GHC.Generics (Generic)
+--  import Data.Hashable
+-- を記載したうえで, deriving (Generic)
+-- instance Hashable a where
+-- で大抵は自動導出される
+
+instance Hashable EventName where
 
 instance Note EventName where
     plank = Plank

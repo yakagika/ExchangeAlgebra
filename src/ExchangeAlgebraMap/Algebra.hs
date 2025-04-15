@@ -16,6 +16,7 @@
 {-# LANGUAGE Strict                     #-}
 {-# LANGUAGE PatternSynonyms            #-}
 {-# LANGUAGE ViewPatterns               #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 {- |
     Module     : ExchangeAlgebra.Algebra
@@ -52,6 +53,7 @@ module ExchangeAlgebraMap.Algebra
     , bases
     , fromList
     , toList
+    , toASCList
     , map
     , filter
     , proj
@@ -76,7 +78,7 @@ import qualified    Data.List           as L (foldl', map, length, elem,sort,fil
 import              Prelude             hiding (map, head, filter,tail, traverse, mapM)
 import qualified    Data.Time           as Time
 import              Data.Time
-import qualified    Data.Map.Strict     as Map
+import qualified    Data.HashMap.Strict     as Map
 import qualified    Data.Foldable       as Foldable (foldMap,foldl)
 import qualified    Data.Maybe          as Maybe
 import qualified    Number.NonNegative  as NN  -- 非負の実数
@@ -88,6 +90,8 @@ import qualified    Data.Scientific     as D (Scientific, fromFloatDigits, forma
 import Control.DeepSeq
 import Control.Parallel.Strategies (rpar, rseq, runEval, using, Strategy, rdeepseq)
 import GHC.Stack (HasCallStack, callStack, prettyCallStack)
+import Data.Hashable
+
 ------------------------------------------------------------------
 -- * 丸め込み判定
 ------------------------------------------------------------------
@@ -132,11 +136,31 @@ isNearlyNum x y t
 -- | Reduncdant Class
 --
 --  Redundant ⊃ Exchange
+--
+-- hat calculation
+-- >>> (.^) (10:@Not:<Cash .+ 10:@Hat:<Deposits)
+-- 10.00:@Hat:<Cash .+ 10.00:@Not:<Deposits
+--
+-- bar calculation
+-- >>> x = 10:@Not:<Cash .+ 10:@Hat:<Deposits
+-- >>> y = 5:@Hat:<Cash .+ 5:@Not:<Deposits
+-- >>> (.-) $ x .+ y
+-- 5.00:@Not:<Cash .+ 5.00:@Hat:<Deposits
+--
+-- norm calculation
+-- >>> norm $ 10:@Not:<Cash .+ 10:@Hat:<Deposits
+-- 20.0
+--
+-- (.*) calculation
+-- >>> (.*) 5 $ 10:@Not:<Cash .+ 10:@Hat:<Deposits
+-- 50.00:@Not:<Cash .+ 50.00:@Hat:<Deposits
+--
+-- compress calculation
+-- >>> compress $ 10:@Not:<Cash .+ 5:@Hat:<Cash .+ 3:@Not:<Cash
+-- 5.00:@Hat:<Cash .+ 13.00:@Not:<Cash
 
 class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
-    -- | hat calculation
-    -- >>> (.^) (10:@Not:<Cash .+ 10:@Hat:<Deposits)
-    -- 10.00:@Hat:<Cash .+ 10.00:@Not:<Deposits
+    -- |
     (.^) :: a n b -> a n b
 
     -- | bar calculation
@@ -274,7 +298,7 @@ pairAppend (Pair x1 y1) (Pair x2 y2) = Pair (x1 ++ x2) (y1 ++ y2)
 data  Alg v b where
         Zero  :: Alg v b
         (:@)  :: {_val :: v, _hatBase :: b} -> Alg v b
-        Liner :: {_realg :: Map.Map (BasePart b) (Pair v)} ->  Alg v b
+        Liner :: {_realg :: Map.HashMap (BasePart b) (Pair v)} ->  Alg v b
 
 isZero :: Alg v b -> Bool
 isZero Zero = True
@@ -612,7 +636,7 @@ map f (Liner m) = fromList
         q f h b ys v = let v2:@b2 = f (v:@(merge h b))
                    in case isZeroValue v2 of
                         True  -> ys
-                        False -> ys ++ [v2:@b2]
+                        False -> (v2:@b2):ys
 
 {-# INLINE filter #-}
 -- | filter

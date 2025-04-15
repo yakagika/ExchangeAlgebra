@@ -118,7 +118,7 @@ grossProfitTransfer = EJ.map EAT.grossProfitTransfer
 -- >>> x = 2279.0:@Not:<(Yen,Depreciation) .| "A" :: Test
 -- >>> y = 500475.0:@Not:<(Yen,InterestEarned) .| "B" :: Test
 -- >>> ExchangeAlgebraMap.Journal.Transfer.ordinaryProfitTransfer ( x .+ y)
--- 500475.00:@Not:<(Yen,OrdinaryProfit).|"B" .+ 2279.00:@Hat:<(Yen,OrdinaryProfit).|"A"
+-- 2279.00:@Hat:<(Yen,OrdinaryProfit).|"A" .+ 500475.00:@Not:<(Yen,OrdinaryProfit).|"B"
 
 ordinaryProfitTransfer :: (Note n, HatVal v, ExBaseClass b) => Journal n v b -> Journal n v b
 ordinaryProfitTransfer = EJ.map EAT.ordinaryProfitTransfer

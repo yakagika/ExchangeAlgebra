@@ -21,7 +21,7 @@
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE StrictData                 #-}
 {-# LANGUAGE Strict                     #-}
-
+{-# LANGUAGE DeriveGeneric              #-}
 
 module ExchangeAlgebraMap.Algebra.Base.Element where
 
@@ -29,13 +29,16 @@ import qualified    Data.Text           as T
 import              Data.Text           (Text)
 import qualified    Data.Time           as Time
 import              Data.Time
+import Data.Fixed (Pico)
+import GHC.Generics (Generic)
+import Data.Hashable
 
 ------------------------------------------------------------------
 -- * Element 基底の要素
 ------------------------------------------------------------------
 
 -- | Element Class 基底の要素になるためにはこれのインスタンスになる必要がある
-class (Eq a, Ord a, Show a) => Element a where
+class (Eq a, Ord a, Show a, Hashable a) => Element a where
 
     wiledcard       :: a        -- ^ 検索等に用いるワイルドカード
 
@@ -180,10 +183,14 @@ data  AccountTitles = Cash                            -- ^ 資産 現金
                     | Sales                           -- ^ 収益 売上
                     | NetLoss                         -- ^ 収益 当期純損失
                     | AccountTitle                    -- ^ ワイルドカード
-                    deriving (Show, Ord, Eq, Enum)
+                    deriving (Show, Ord, Eq, Enum, Generic)
+
+instance Hashable AccountTitles where
 
 instance Element AccountTitles where
     wiledcard = AccountTitle
+
+
 
 {- |
 
@@ -208,10 +215,22 @@ data CountUnit  = Yen
                 | CNY
                 | Amount
                 | CountUnit
-                deriving (Show, Ord, Eq, Enum)
+                deriving (Show, Ord, Eq, Enum,Generic)
+
+instance Hashable CountUnit where
 
 instance Element CountUnit where
     wiledcard = CountUnit
+
+
+-- TimeOfDay は内部で時,分,秒 (Pico) を保持しているので,それぞれをハッシュ化する
+instance Hashable TimeOfDay where
+  hashWithSalt salt (TimeOfDay hour min sec) =
+    salt `hashWithSalt` hour `hashWithSalt` min `hashWithSalt` sec
+
+-- Day は内部で ModifiedJulianDay 形式の Integer を保持しているのでそれを利用
+instance Hashable Day where
+  hashWithSalt salt day = hashWithSalt salt (toModifiedJulianDay day)
 
 instance Element TimeOfDay where
     wiledcard = Time.midnight
