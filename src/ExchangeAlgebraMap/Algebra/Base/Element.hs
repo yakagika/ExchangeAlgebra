@@ -48,13 +48,13 @@ class (Eq a, Ord a, Show a) => Element a where
     {-# INLINE isWiledcard #-}
     isWiledcard a = a == wiledcard
 
-    -- | ワイルドカードからそれ以外への変換
+    -- | ワイルドカードを無視した変換
     --  transfer で利用する
-    keepWiledcard :: a -> a -> a
-    keepWiledcard x y
-        | x == y         = x
-        | isWiledcard y  = x
-        | otherwise      = y
+    ignoreWiledcard :: a -> a -> a
+    ignoreWiledcard before after
+        | before == after   = before
+        | isWiledcard after = before
+        | otherwise         = after
 
     equal :: a -> a -> Bool
     {-# INLINE equal #-}
@@ -233,9 +233,9 @@ instance (Element a ,Element b)
         =  (a1 .== b1)
         && (a2 .== b2)
 
-    keepWiledcard (a1, a2) (b1, b2)
-        = ( keepWiledcard a1 b1
-          , keepWiledcard a2 b2)
+    ignoreWiledcard (a1, a2) (b1, b2)
+        = ( ignoreWiledcard a1 b1
+          , ignoreWiledcard a2 b2)
 
     compareElement (a1, a2) (b1, b2)
         = case compareElement a1 b1 of
@@ -261,10 +261,10 @@ instance (Element a, Element b, Element c)
         && (a2 .== b2)
         && (a3 .== b3)
 
-    keepWiledcard (a1, a2, a3) (b1, b2, b3)
-        = ( keepWiledcard a1 b1
-          , keepWiledcard a2 b2
-          , keepWiledcard a3 b3)
+    ignoreWiledcard (a1, a2, a3) (b1, b2, b3)
+        = ( ignoreWiledcard a1 b1
+          , ignoreWiledcard a2 b2
+          , ignoreWiledcard a3 b3)
 
     compareElement (a1, a2, a3) (b1, b2, b3)
         = compareElement ((a1, a2), a3)
@@ -292,11 +292,11 @@ instance (Element a, Element b, Element c, Element d)
         && (a3 .== b3)
         && (a4 .== b4)
 
-    keepWiledcard (a1, a2, a3, a4) (b1, b2, b3, b4)
-        = ( keepWiledcard a1 b1
-          , keepWiledcard a2 b2
-          , keepWiledcard a3 b3
-          , keepWiledcard a4 b4)
+    ignoreWiledcard (a1, a2, a3, a4) (b1, b2, b3, b4)
+        = ( ignoreWiledcard a1 b1
+          , ignoreWiledcard a2 b2
+          , ignoreWiledcard a3 b3
+          , ignoreWiledcard a4 b4)
 
     compareElement (a1, a2, a3, a4) (b1, b2, b3, b4)
         = compareElement ((a1, a2, a3), a4)
@@ -327,12 +327,12 @@ instance (Element a, Element b, Element c, Element d, Element e)
         && (a4 .== b4)
         && (a5 .== b5)
 
-    keepWiledcard (a1, a2, a3, a4, a5) (b1, b2, b3, b4, b5)
-        = ( keepWiledcard a1 b1
-          , keepWiledcard a2 b2
-          , keepWiledcard a3 b3
-          , keepWiledcard a4 b4
-          , keepWiledcard a5 b5)
+    ignoreWiledcard (a1, a2, a3, a4, a5) (b1, b2, b3, b4, b5)
+        = ( ignoreWiledcard a1 b1
+          , ignoreWiledcard a2 b2
+          , ignoreWiledcard a3 b3
+          , ignoreWiledcard a4 b4
+          , ignoreWiledcard a5 b5)
 
     compareElement (a1, a2, a3, a4, a5) (b1, b2, b3, b4, b5)
         = compareElement ((a1, a2, a3, a4), a5)
@@ -366,13 +366,13 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f)
         && (a5 .== b5)
         && (a6 .== b6)
 
-    keepWiledcard (a1, a2, a3, a4, a5, a6) (b1, b2, b3, b4, b5, b6)
-        = ( keepWiledcard a1 b1
-          , keepWiledcard a2 b2
-          , keepWiledcard a3 b3
-          , keepWiledcard a4 b4
-          , keepWiledcard a5 b5
-          , keepWiledcard a6 b6)
+    ignoreWiledcard (a1, a2, a3, a4, a5, a6) (b1, b2, b3, b4, b5, b6)
+        = ( ignoreWiledcard a1 b1
+          , ignoreWiledcard a2 b2
+          , ignoreWiledcard a3 b3
+          , ignoreWiledcard a4 b4
+          , ignoreWiledcard a5 b5
+          , ignoreWiledcard a6 b6)
 
     compareElement (a1, a2, a3, a4, a5, a6) (b1, b2, b3, b4, b5, b6)
         = compareElement ((a1, a2, a3, a4, a5), a6)
@@ -407,14 +407,14 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f, Elem
         && (a6 .== b6)
         && (a7 .== b7)
 
-    keepWiledcard (a1, a2, a3, a4, a5, a6, a7) (b1, b2, b3, b4, b5, b6, b7)
-        = ( keepWiledcard a1 b1
-          , keepWiledcard a2 b2
-          , keepWiledcard a3 b3
-          , keepWiledcard a4 b4
-          , keepWiledcard a5 b5
-          , keepWiledcard a6 b6
-          , keepWiledcard a7 b7)
+    ignoreWiledcard (a1, a2, a3, a4, a5, a6, a7) (b1, b2, b3, b4, b5, b6, b7)
+        = ( ignoreWiledcard a1 b1
+          , ignoreWiledcard a2 b2
+          , ignoreWiledcard a3 b3
+          , ignoreWiledcard a4 b4
+          , ignoreWiledcard a5 b5
+          , ignoreWiledcard a6 b6
+          , ignoreWiledcard a7 b7)
 
     compareElement (a1, a2, a3, a4, a5, a6, a7) (b1, b2, b3, b4, b5, b6, b7)
         = compareElement ((a1, a2, a3, a4, a5, a6), a7)

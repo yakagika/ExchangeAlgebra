@@ -197,10 +197,28 @@ instance Ord (HatBase a) where
 -- >>> haveWiledcard (HatNot:<Amount :: HatBase CountUnit)
 -- True
 --
+-- (.==)
+-- >>> Not:<(Cash, Yen) == Not:<(Cash,(.#))
+-- False
+--
+-- >>> Not:<(Cash, Yen) .== Not:<(Cash,(.#))
+-- True
+--
 --  compareElement
 -- >>> type Test = HatBase CountUnit
 -- >>> compareHatBase (Not:<Amount :: Test) (Not:<(.#) :: Test)
 -- EQ
+--
+-- ignoreWiledcard
+-- >>> ignoreWiledcard (Not:<(Products,Yen)) (Hat:<(Products,Amount))
+-- Hat:<(Products,Amount)
+--
+-- >>> ignoreWiledcard (Not:<(Products,Yen)) (Hat:<(Products,(.#)))
+-- Hat:<(Products,Yen)
+--
+-- >>> ignoreWiledcard (Not:<(Cash,(.#))) (HatNot:<((.#),Amount))
+-- Not:<(Cash,Amount)
+
 
 instance (BaseClass a) => Element (HatBase a) where
     wiledcard = HatNot :<wiledcard
@@ -213,8 +231,8 @@ instance (BaseClass a) => Element (HatBase a) where
     {-# INLINE equal #-}
     equal (h1:<b1) (h2:<b2) = h1 .== h2 && b1 .== b2
 
-    keepWiledcard (h1:<b1) (h2:<b2)
-        = (keepWiledcard h1 h2) :< (keepWiledcard b1 b2)
+    ignoreWiledcard (h1:<b1) (h2:<b2)
+        = (ignoreWiledcard h1 h2) :< (ignoreWiledcard b1 b2)
 
 
     compareElement (h1:<b1) (h2:<b2)

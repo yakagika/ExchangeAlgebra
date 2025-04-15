@@ -227,7 +227,7 @@ transfer (v:@ hb1) (TransTable _ hb2 f a l r)
             LT -> transfer (v :@ hb1) l
             GT -> transfer (v :@ hb1) r
             EQ -> error $ "transfer: " ++ show hb1 ++ "," ++ show hb2
-    | hb1 .== hb2 = (f v) :@ keepWiledcard hb1 a
+    | hb1 .== hb2 = (f v) :@ ignoreWiledcard hb1 a
 transfer xs tt = EA.map (\x -> transfer x tt) xs
 
 
