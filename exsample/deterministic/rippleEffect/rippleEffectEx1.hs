@@ -273,10 +273,8 @@ toCashTable pt = EJT.table
                 $ concatMap (\((_, c), p) -> f c p) (M.toList pt)
     where
         {-# INLINE f #-}
-        f :: Entity -> Double
-          -> [(VEHatBase,VEHatBase,(Double -> Double))]
-        f c p =  (Hat:<(Products,c,(.#),Amount)) .-> (Hat:<(Products,c,(.#),Yen)) |% (*p)
-              ++ (Not:<(Products,c,(.#),Amount)) .-> (Not:<(Products,c,(.#),Yen)) |% (*p)
+        f :: Entity -> Double -> [(VEHatBase,VEHatBase, Double -> Double)]
+        f c p =  (HatNot:<(Products,c,(.#),Amount)) .-> (HatNot:<(Products,c,(.#),Yen)) |% (*p)
 
 
 -- | 価格テーブルから価格→物量評価への変換テーブルを作成
@@ -285,10 +283,8 @@ toAmountTable pt = EJT.table
                 $ concatMap (\((_, c), p) -> f c p) (M.toList pt)
     where
         {-# INLINE f #-}
-        f ::  Entity -> Double
-          -> [(VEHatBase,VEHatBase,(Double -> Double))]
-        f c p =  (Hat:<(Products,c,(.#),Yen)).-> (Hat:<(Products,c,(.#),Amount)) |% (/p)
-              ++ (Not:<(Products,c,(.#),Yen)).-> (Not:<(Products,c,(.#),Amount)) |% (/p)
+        f :: Entity -> Double -> [(VEHatBase,VEHatBase, Double -> Double)]
+        f c p =  (HatNot:<(Products,c,(.#),Yen)).-> (HatNot:<(Products,c,(.#),Amount)) |% (/p)
 
 -- | 価格の取得
 getPrice :: World s -> Term -> Entity -> ST s Price

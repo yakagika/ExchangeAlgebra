@@ -16,7 +16,7 @@
 {-# LANGUAGE Strict                     #-}
 {-# LANGUAGE PatternSynonyms            #-}
 {-# LANGUAGE ViewPatterns               #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings          #-}
 
 {- |
     Module     : ExchangeAlgebra.Algebra
@@ -554,7 +554,7 @@ bases (Liner m) = Map.foldlWithKey f [] m
             = L.foldl' (g Not b) (L.foldl' (g Hat b) xs hs) hs
 
         g ::  (HatVal v, HatBaseClass b) => Hat -> BasePart b -> [b] -> v -> [b]
-        g h b ys v = ys ++ [merge h b]
+        g h b ys v = (merge h b):ys
 
 {-# INLINE fromList #-}
 -- | convert List to Alg n b
@@ -576,7 +576,7 @@ fromList = mconcat
 -- | convert Alg n b to List
 --
 -- >>> toList (10:@Hat:<(Cash) .+ 10:@Hat:<(Deposits) .+ Zero :: Alg NN.Double (HatBase AccountTitles))
--- [10.00:@Hat:<Cash,10.00:@Hat:<Deposits]
+-- [10.00:@Hat:<Deposits,10.00:@Hat:<Cash]
 --
 -- you need define type variables to use this for Zero
 -- >>> toList Zero :: [Alg NN.Double (HatBase AccountTitles)]
@@ -594,7 +594,7 @@ toList (Liner m)  = Map.foldlWithKey f [] m
         g :: (HatVal v, HatBaseClass b) => Hat -> BasePart b -> [Alg v b] -> v -> [Alg v b]
         g h b ys v
             | isZeroValue v = ys
-            | otherwise     = ys ++ [v :@ (merge h b)]
+            | otherwise     = (v :@ (merge h b)):ys
 
 {-# INLINE toASCList #-}
 toASCList :: (HatVal v, HatBaseClass b) => Alg v b -> [Alg v b]
@@ -623,20 +623,86 @@ map f (v:@b)    = let  v2:@b2 = f (v:@b)
                 in case isZeroValue v2 of
                     True  -> Zero
                     False -> (v2 :@ b2)
-map f (Liner m) = fromList
-                $ Map.foldlWithKey (p f) [] m
+map f (Liner m) = case dToList (Map.foldrWithKey (p f) dnil m)of
+                    [] -> Zero
+                    [(b,Pair [] [n])] -> n:@(merge Not b)
+                    [(b,Pair [h] [])] -> h:@(merge Hat b)
+                    [(b,Pair ns hs)] -> Liner $ Map.singleton b (Pair ns hs)
+                    xs -> Liner $ Map.fromListWith pairAppend xs
     where
         p :: (HatVal v, HatBaseClass b)
-          => (Alg v b -> Alg v b) -> [Alg v b] -> BasePart b -> Pair v -> [Alg v b]
-        p f xs b Pair {_hatSide=hs, _notSide=ns}
-            = L.foldl' (q f Not b) (L.foldl' (q f Hat b) xs hs) ns
+          => (Alg v b -> Alg v b)
+          -> BasePart b
+          -> Pair v
+          -> DList (BasePart b,Pair v)
+          -> DList (BasePart b,Pair v)
+        p f b Pair {_hatSide=hs, _notSide=ns} accDList =
+            let (dl1, hs2) = q f Hat b hs
+                (dl2, ns2) = q f Not b ns
+                prefix     = dappend dl1 dl2
+            in case (null hs2, null ns2) of
+                (True,True)   -> dappend prefix accDList
+                (True,False)  -> dappend prefix
+                               . dappend (dsingle (b, nullPair{_notSide = ns2}))
+                               $ accDList
+                (False,True)  -> dappend prefix
+                               . dappend (dsingle (b, nullPair{_hatSide = hs2}))
+                               $ accDList
+                (False,False) -> dappend prefix
+                               . dappend (dsingle (b, Pair hs2 ns2))
+                               $ accDList
 
         q :: (HatVal v, HatBaseClass b)
-          => (Alg v b -> Alg v b) -> Hat ->  BasePart b -> [Alg v b]  -> v -> [Alg v b]
-        q f h b ys v = let v2:@b2 = f (v:@(merge h b))
-                   in case isZeroValue v2 of
-                        True  -> ys
-                        False -> (v2:@b2):ys
+          => (Alg v b -> Alg v b)
+          -> Hat
+          -> BasePart b
+          -> [v]
+          -> (DList (BasePart b,Pair v),[v])
+        q f h b vs = L.foldl' (r f h b) (dnil,[]) vs
+
+        r  :: (HatVal v, HatBaseClass b)
+           => (Alg v b -> Alg v b)
+           -> Hat
+           -> BasePart b
+           -> (DList (BasePart b,Pair v),[v])
+           -> v
+           -> (DList (BasePart b,Pair v),[v])
+        r f h b (dlAcc,vsAcc) v = case f (v:@(merge h b)) of
+                            Zero   ->  (dlAcc, vsAcc)
+                            ------------------------------------------------------------------
+                            v2:@b2
+                                | isZeroValue v2 ->  (dlAcc, vsAcc)
+                                | b2 .== (merge h b) -> (dlAcc, v2 : vsAcc)
+                                | isHat (hat b2)     -> (dappend dlAcc (dsingle ( base b2
+                                                                       ,nullPair{_hatSide=[v2]}))
+                                                        ,vsAcc )
+                                | otherwise          -> (dappend dlAcc (dsingle ( base b2
+                                                                       ,nullPair{_notSide=[v2]} ))
+                                                        ,vsAcc )
+
+-- 差分リストを定義
+type DList a = [a] -> [a]
+
+{-# INLINE dnil #-}
+dnil :: DList a
+dnil = id
+
+{-# INLINE dappend #-}
+dappend :: DList a -> DList a -> DList a
+dappend = (.)  -- 関数合成
+
+{-# INLINE dsingle #-}
+dsingle :: a -> DList a
+dsingle x = \rest -> x : rest
+
+{-# INLINE dToList #-}
+dToList :: DList a -> [a]
+dToList dl = dl []
+
+{-# INLINE dFromList #-}
+dFromList :: [a] -> DList a
+dFromList xs = (xs ++)
+
 
 {-# INLINE filter #-}
 -- | filter
@@ -695,21 +761,7 @@ dfilter p xs = go xs id
     go (y:ys) dl
       | p y       = go ys (dl . (y:))
       | otherwise = go ys dl
-{-
-filter f (Liner m) = fromList
-                   $ Map.foldlWithKey (p f) [] m
-    where
-        p :: (HatVal v, HatBaseClass b)
-            => (Alg v b -> Bool) -> [Alg v b] -> BasePart b -> Pair v -> [Alg v b]
-        p f xs b Pair {_hatSide=hs, _notSide=ns}
-            = L.foldl' (q f Not b) (L.foldl' (q f Hat b) xs hs) ns
 
-        q :: (HatVal v, HatBaseClass b)
-          => (Alg v b -> Bool) -> Hat -> BasePart b -> [Alg v b]  -> v -> [Alg v b]
-        q f h b ys v
-            | f (v:@(merge h b))  = ys ++ [v:@(merge h b)]
-            | otherwise = ys
--}
 ------------------------------------------------------------
 -- | proj
 -- >>> type Test = Alg NN.Double (HatBase CountUnit)

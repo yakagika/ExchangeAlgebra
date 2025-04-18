@@ -34,14 +34,12 @@
 module ExchangeAlgebraMap.Algebra.Transfer
     ( TransTable (..)
     , isNullTable
-    , updateFunction
     , transfer
     , table
     , TransTableParts
     , (.->)
     , (|%)
     , createTransfer
-    , insert
     , incomeSummaryAccount
     , netIncomeTransfer
     , grossProfitTransfer
@@ -229,8 +227,6 @@ transfer (v:@ hb1) (TransTable _ hb2 f a l r)
             EQ -> error $ "transfer: " ++ show hb1 ++ "," ++ show hb2
     | hb1 .== hb2 = (f v) :@ ignoreWiledcard hb1 a
 transfer xs tt = EA.map (\x -> transfer x tt) xs
-
-
 
 {-# INLINE singleton #-}
 singleton :: (HatVal n,HatBaseClass b) => b ->(n -> n) -> b -> TransTable n b

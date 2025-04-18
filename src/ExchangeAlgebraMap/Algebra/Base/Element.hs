@@ -46,9 +46,8 @@ class (Eq a, Ord a, Show a, Hashable a) => Element a where
     haveWiledcard a = case isWiledcard a of
                         True  -> True
                         False -> False
-
-    isWiledcard     :: a -> Bool
     {-# INLINE isWiledcard #-}
+    isWiledcard     :: a -> Bool
     isWiledcard a = a == wiledcard
 
     -- | ワイルドカードを無視した変換
@@ -59,27 +58,27 @@ class (Eq a, Ord a, Show a, Hashable a) => Element a where
         | isWiledcard after = before
         | otherwise         = after
 
-    equal :: a -> a -> Bool
     {-# INLINE equal #-}
+    equal :: a -> a -> Bool
     equal a b | isWiledcard a = True
               | isWiledcard b = True
               | otherwise     = a == b
 
     -- | wiledcard を等しいとみなす ==
-    (.==) :: a -> a -> Bool
     {-# INLINE (.==)  #-}
+    (.==) :: a -> a -> Bool
     (.==) a b
         | a == b       = True
         | equal a b    = True
         | otherwise    = False
 
     -- | wiledcard を等しいとみなす /=
-    (./=) :: a -> a -> Bool
     {-# INLINE (./=) #-}
+    (./=) :: a -> a -> Bool
     (./=) a b = not (a .== b)
 
-    compareElement :: a -> a -> Ordering
     {-# INLINE compareElement #-}
+    compareElement :: a -> a -> Ordering
     compareElement x y
         | x .== y    = EQ
         | otherwise  = compare x y
