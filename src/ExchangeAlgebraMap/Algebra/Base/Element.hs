@@ -42,16 +42,19 @@ class (Eq a, Ord a, Show a, Hashable a) => Element a where
 
     wiledcard       :: a        -- ^ 検索等に用いるワイルドカード
 
+    {-# INLINE haveWiledcard #-}
     haveWiledcard :: a -> Bool
-    haveWiledcard a = case isWiledcard a of
-                        True  -> True
-                        False -> False
+    haveWiledcard a
+        | isWiledcard a = True
+        | otherwise     = False
+
     {-# INLINE isWiledcard #-}
     isWiledcard     :: a -> Bool
     isWiledcard a = a == wiledcard
 
     -- | ワイルドカードを無視した変換
     --  transfer で利用する
+    {-# INLINE ignoreWiledcard #-}
     ignoreWiledcard :: a -> a -> a
     ignoreWiledcard before after
         | before == after   = before
@@ -107,6 +110,7 @@ class (Eq a, Ord a, Show a, Hashable a) => Element a where
     minElement x y  | x .<= y    = x
                     | otherwise  = y
 
+{-# INLINE (.#) #-}
 (.#) :: Element a => a
 (.#) = wiledcard
 
@@ -187,6 +191,7 @@ data  AccountTitles = Cash                            -- ^ 資産 現金
 instance Hashable AccountTitles where
 
 instance Element AccountTitles where
+    {-# INLINE wiledcard #-}
     wiledcard = AccountTitle
 
 
@@ -205,6 +210,8 @@ type Name = Text
 -- | 勘定科目の主体
 type Subject = Text
 instance Element Text where
+
+    {-# INLINE wiledcard #-}
     wiledcard   = T.empty
 
 -- | 通貨単位 又は 物量
@@ -219,6 +226,8 @@ data CountUnit  = Yen
 instance Hashable CountUnit where
 
 instance Element CountUnit where
+
+    {-# INLINE wiledcard #-}
     wiledcard = CountUnit
 
 
@@ -239,8 +248,11 @@ instance Element Day where
 
 instance (Element a ,Element b)
     => Element (a, b) where
+
+    {-# INLINE wiledcard #-}
     wiledcard = (wiledcard, wiledcard)
 
+    {-# INLINE haveWiledcard #-}
     haveWiledcard (a,b)
         | isWiledcard a = True
         | isWiledcard b = True
@@ -251,10 +263,12 @@ instance (Element a ,Element b)
         =  (a1 .== b1)
         && (a2 .== b2)
 
+    {-# INLINE ignoreWiledcard #-}
     ignoreWiledcard (a1, a2) (b1, b2)
         = ( ignoreWiledcard a1 b1
           , ignoreWiledcard a2 b2)
 
+    {-# INLINE compareElement #-}
     compareElement (a1, a2) (b1, b2)
         = case compareElement a1 b1 of
             EQ -> compareElement a2 b2
@@ -262,10 +276,13 @@ instance (Element a ,Element b)
 
 instance (Element a, Element b, Element c)
     => Element (a, b, c) where
+
+    {-# INLINE wiledcard #-}
     wiledcard = ( wiledcard
                 , wiledcard
                 , wiledcard)
 
+    {-# INLINE haveWiledcard #-}
     haveWiledcard (a,b,c)
         | isWiledcard a = True
         | isWiledcard b = True
@@ -279,11 +296,13 @@ instance (Element a, Element b, Element c)
         && (a2 .== b2)
         && (a3 .== b3)
 
+    {-# INLINE ignoreWiledcard #-}
     ignoreWiledcard (a1, a2, a3) (b1, b2, b3)
         = ( ignoreWiledcard a1 b1
           , ignoreWiledcard a2 b2
           , ignoreWiledcard a3 b3)
 
+    {-# INLINE compareElement #-}
     compareElement (a1, a2, a3) (b1, b2, b3)
         = compareElement ((a1, a2), a3)
                          ((b1, b2), b3)
@@ -291,11 +310,15 @@ instance (Element a, Element b, Element c)
 
 instance (Element a, Element b, Element c, Element d)
     => Element (a, b, c, d) where
+
+    {-# INLINE wiledcard #-}
     wiledcard = ( wiledcard
                 , wiledcard
                 , wiledcard
                 , wiledcard)
 
+
+    {-# INLINE haveWiledcard #-}
     haveWiledcard (a,b,c,d)
         | isWiledcard a = True
         | isWiledcard b = True
@@ -310,12 +333,14 @@ instance (Element a, Element b, Element c, Element d)
         && (a3 .== b3)
         && (a4 .== b4)
 
+    {-# INLINE ignoreWiledcard #-}
     ignoreWiledcard (a1, a2, a3, a4) (b1, b2, b3, b4)
         = ( ignoreWiledcard a1 b1
           , ignoreWiledcard a2 b2
           , ignoreWiledcard a3 b3
           , ignoreWiledcard a4 b4)
 
+    {-# INLINE compareElement #-}
     compareElement (a1, a2, a3, a4) (b1, b2, b3, b4)
         = compareElement ((a1, a2, a3), a4)
                          ((b1, b2, b3), b4)
@@ -323,12 +348,16 @@ instance (Element a, Element b, Element c, Element d)
 
 instance (Element a, Element b, Element c, Element d, Element e)
     => Element (a, b, c, d, e) where
+
+    {-# INLINE wiledcard #-}
     wiledcard = ( wiledcard
                 , wiledcard
                 , wiledcard
                 , wiledcard
                 , wiledcard)
 
+
+    {-# INLINE haveWiledcard #-}
     haveWiledcard (a,b,c,d,e)
         | isWiledcard a = True
         | isWiledcard b = True
@@ -345,6 +374,7 @@ instance (Element a, Element b, Element c, Element d, Element e)
         && (a4 .== b4)
         && (a5 .== b5)
 
+    {-# INLINE ignoreWiledcard #-}
     ignoreWiledcard (a1, a2, a3, a4, a5) (b1, b2, b3, b4, b5)
         = ( ignoreWiledcard a1 b1
           , ignoreWiledcard a2 b2
@@ -352,6 +382,7 @@ instance (Element a, Element b, Element c, Element d, Element e)
           , ignoreWiledcard a4 b4
           , ignoreWiledcard a5 b5)
 
+    {-# INLINE compareElement #-}
     compareElement (a1, a2, a3, a4, a5) (b1, b2, b3, b4, b5)
         = compareElement ((a1, a2, a3, a4), a5)
                          ((b1, b2, b3, b4), b5)
@@ -359,6 +390,8 @@ instance (Element a, Element b, Element c, Element d, Element e)
 
 instance (Element a, Element b, Element c, Element d, Element e, Element f)
     => Element (a, b, c, d, e, f) where
+
+    {-# INLINE wiledcard #-}
     wiledcard = ( wiledcard
                 , wiledcard
                 , wiledcard
@@ -366,6 +399,7 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f)
                 , wiledcard
                 , wiledcard)
 
+    {-# INLINE haveWiledcard #-}
     haveWiledcard (a,b,c,d,e,f)
         | isWiledcard a = True
         | isWiledcard b = True
@@ -384,6 +418,7 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f)
         && (a5 .== b5)
         && (a6 .== b6)
 
+    {-# INLINE ignoreWiledcard #-}
     ignoreWiledcard (a1, a2, a3, a4, a5, a6) (b1, b2, b3, b4, b5, b6)
         = ( ignoreWiledcard a1 b1
           , ignoreWiledcard a2 b2
@@ -392,6 +427,7 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f)
           , ignoreWiledcard a5 b5
           , ignoreWiledcard a6 b6)
 
+    {-# INLINE compareElement #-}
     compareElement (a1, a2, a3, a4, a5, a6) (b1, b2, b3, b4, b5, b6)
         = compareElement ((a1, a2, a3, a4, a5), a6)
                          ((b1, b2, b3, b4, b5), b6)
@@ -407,6 +443,7 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f, Elem
                 , wiledcard
                 , wiledcard)
 
+    {-# INLINE haveWiledcard #-}
     haveWiledcard (a,b,c,d,e,f,g)
         | isWiledcard a = True
         | isWiledcard b = True
@@ -416,6 +453,7 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f, Elem
         | isWiledcard g = True
         | otherwise     = False
 
+    {-# INLINE equal #-}
     equal (a1, a2, a3, a4, a5, a6, a7) (b1, b2, b3, b4, b5, b6, b7)
         =  (a1 .== b1)
         && (a2 .== b2)
@@ -425,6 +463,7 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f, Elem
         && (a6 .== b6)
         && (a7 .== b7)
 
+    {-# INLINE ignoreWiledcard #-}
     ignoreWiledcard (a1, a2, a3, a4, a5, a6, a7) (b1, b2, b3, b4, b5, b6, b7)
         = ( ignoreWiledcard a1 b1
           , ignoreWiledcard a2 b2
@@ -434,6 +473,7 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f, Elem
           , ignoreWiledcard a6 b6
           , ignoreWiledcard a7 b7)
 
+    {-# INLINE compareElement #-}
     compareElement (a1, a2, a3, a4, a5, a6, a7) (b1, b2, b3, b4, b5, b6, b7)
         = compareElement ((a1, a2, a3, a4, a5, a6), a7)
                          ((b1, b2, b3, b4, b5, b6), b7)

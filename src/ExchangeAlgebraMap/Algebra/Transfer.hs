@@ -89,6 +89,7 @@ data TransTable n b where
                     , _right      :: TransTable n b }
                     -> TransTable n b
 
+{-# INLINE isNullTable #-}
 isNullTable NullTable = True
 isNullTable _         = False
 
@@ -236,6 +237,7 @@ singleton before f after = TransTable 1 before f after NullTable NullTable
 insert :: (HatVal n,HatBaseClass b) => b -> (n -> n) -> b -> TransTable n b ->  TransTable n b
 insert b = go b b
     where
+    {-# INLINE go #-}
     go :: (HatVal n,HatBaseClass b) =>  b -> b -> (n -> n) -> b -> TransTable n b -> TransTable n b
     go orig !_  f  x NullTable = singleton (lazy orig) f x
     go orig !bx fx x t@(TransTable sy by fy y l r) =
@@ -253,6 +255,7 @@ insert b = go b b
 insertR ::  (HatVal n,HatBaseClass b) => b ->  (n -> n) -> b ->  TransTable n b -> TransTable n b
 insertR kx0 = go kx0 kx0
   where
+    {-# INLINE go #-}
     go :: (HatVal n,HatBaseClass b) => b -> b ->  (n -> n) -> b -> TransTable n b -> TransTable n b
     go orig !_  fx ax NullTable = singleton (lazy orig) fx ax
     go orig !bx fx ax t@(TransTable _ by fy ay l r) =
@@ -269,6 +272,7 @@ insertR kx0 = go kx0 kx0
 updateFunction:: (HatVal n,HatBaseClass b) => b -> (n -> n) -> b -> TransTable n b ->  TransTable n b
 updateFunction b = go b b
     where
+    {-# INLINE go #-}
     go :: (HatVal n,HatBaseClass b) =>  b -> b -> (n -> n) -> b -> TransTable n b -> TransTable n b
     go orig !_  f  x NullTable = singleton (lazy orig) f x
     go orig !kx fx x t@(TransTable sz ky fy y l r) =
@@ -371,13 +375,15 @@ fromList [(b1,a1, f1)] = a1 `seq` TransTable 1 b1 f1 a1 NullTable NullTable
 fromList ((b1,a1, f1)  : xs0)   | not_ordered b1 xs0 = a1 `seq` fromList' (TransTable 1 b1 f1 a1 NullTable NullTable) xs0
                                 | otherwise = a1 `seq` go (1::Int) (TransTable 1 b1 f1 a1 NullTable NullTable) xs0
   where
+    {-# INLINE not_ordered #-}
     not_ordered _ [] = False
     not_ordered kx ((ky, _, _) : _) = kx >= ky
-    {-# INLINE not_ordered #-}
+
 
     fromList' t0 xs = Foldable.foldl' ins t0 xs
       where ins t (k,x,f) = insert k f x t
 
+    {-# INLINE go #-}
     go !_ t [] = t
     go _ t [(kx, x, fx)] = x `seq` insertMax kx fx x t
     go s l xs@((kx, x, fx) : xss) | not_ordered kx xss = fromList' l xs
@@ -385,7 +391,8 @@ fromList ((b1,a1, f1)  : xs0)   | not_ordered b1 xs0 = a1 `seq` fromList' (Trans
                                     (r, ys, []) -> x `seq` go (s `shiftL` 1) (link kx fx x l r) ys
                                     (r, _,  ys) -> x `seq` fromList' (link kx fx x l r) ys
 
-    create !_ [] = (NullTable, [], [])
+    {-# INLINE create #-}
+    create _ [] = (NullTable, [], [])
     create s xs@(xp : xss)
       | s == 1 = case xp of (kx, x, fx)  | not_ordered kx xss -> x `seq` (TransTable 1 kx fx x NullTable NullTable, [], xss)
                                          | otherwise -> x `seq` (TransTable 1 kx fx x NullTable NullTable, xss, [])
@@ -401,13 +408,14 @@ fromList ((b1,a1, f1)  : xs0)   | not_ordered b1 xs0 = a1 `seq` fromList' (Trans
 -- same as fromList
 -- >>> table $ Hat:<(Cash) :-> Hat:<(Building) |% (id :: NN.Double -> NN.Double) ++ Hat:<(Building) :-> Hat:<(Cash) |% id
 -- [(Hat:<Cash,Hat:<Building,<function>),(Hat:<Building,Hat:<Cash,<function>)]
-
+{-# INLINE table #-}
 table ::  (HatVal n, HatBaseClass b) => [(b,b,(n -> n))] -> TransTable n b
 table = ExchangeAlgebraMap.Algebra.Transfer.fromList
 
 data TransTableParts b where
   (:->)   :: (HatBaseClass b) => b -> b -> TransTableParts b
 
+{-# INLINE (.->) #-}
 (.->) :: (HatBaseClass b) => b -> b -> TransTableParts b
 (.->) b1 b2  = b1 :-> b2
 
@@ -418,7 +426,7 @@ instance (HatBaseClass b) => Show (TransTableParts b) where
 --
 -- >>> Hat:<(Yen,Cash):-> Hat:<(Yen,Building) |% (id :: NN.Double -> NN.Double) ++ Not:<(Yen,Building)  :-> Not:<(Yen, Cash)  |% id
 -- [(Hat:<(Yen,Cash),Hat:<(Yen,Building),<function>),(Not:<(Yen,Building),Not:<(Yen,Cash),<function>)]
-
+{-# INLINE (|%) #-}
 (|%) :: (HatVal n, HatBaseClass b) => TransTableParts b -> (n -> n) -> [(b,b,(n -> n))]
 (|%) (b1 :-> b2) f = [(b1,b2,f)]
 
@@ -428,7 +436,6 @@ infixr 7 |%
 
 instance (HatVal n) => Show (n -> n) where
     show f = "<function>"
-
 
 createTransfer :: (HatVal n, ExBaseClass b) => [(b,b,(n -> n))] -> (Alg n b -> Alg n b)
 createTransfer tt = \ts -> transfer ts $ table tt

@@ -593,10 +593,13 @@ instance StateSpace Term InitVar EventName World s where
 -- * 汎用関数
 ------------------------------------------------------------------
 {-# INLINE termAmount #-}
+-- | 価格による物量評価
+-- 最終期以外は記録がAmountでなされている
+-- 価格が固定なので,毎回作る必要はなくボトルネックとなっている
+-- 今後の拡張性のために現行の形式を採用
 termAmount t le pt =  let !termedle = termJournal t le
                    in let !amountTable = toAmountTable pt
                    in EJT.transfer termedle amountTable
-
 
 {-# INLINE mean #-}
 -- | 平均を計算
@@ -797,16 +800,17 @@ journal wld t js   = modifyURef (_ledger wld) (\x -> x .+ js)
 
 event' :: World s -> Term -> EventName -> ST s ()
 
---  通常簿記を物量簿記に変換する
-event' wld t ToAmount = readURef (_prices wld) >>= \pt
-              -> modifyURef (_ledger wld) $ \le
-              -> EJ.insert (EJT.transfer (termJournal t le) (toAmountTable pt)) le
+-- 通常簿記を物量簿記に変換する
+-- 初期から物量なので今回は何もしない
+event' wld t ToAmount = return ()
 
---  物量簿記を通常簿記に変換する
-event' wld t ToPrice = readURef (_prices wld) >>= \pt
-              -> modifyURef (_ledger wld) $ \le
-              -> EJ.insert (EJT.transfer (termJournal t le) (toCashTable pt)) le
-
+-- 物量簿記を通常簿記に変換する
+-- 最終期のみ実施
+event' wld t ToPrice
+    | t == lastTerm =  readURef (_prices wld) >>= \pt
+                    -> modifyURef (_ledger wld) $ \le
+                    -> EJT.transfer le (toCashTable pt)
+    | otherwise = return ()
 
 ------------------------------------------------------------------
 -- 受注分販売・購入する

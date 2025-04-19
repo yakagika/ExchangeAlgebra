@@ -226,32 +226,35 @@ class   ( Show n
 
 
 instance RealFloat NN.Double where
-    floatRadix    = floatRadix    . NN.toNumber
-    floatDigits   = floatDigits   . NN.toNumber
-    floatRange    = floatRange    . NN.toNumber
-    decodeFloat   = decodeFloat   . NN.toNumber
+    floatRadix      = floatRadix    . NN.toNumber
+    floatDigits     = floatDigits   . NN.toNumber
+    floatRange      = floatRange    . NN.toNumber
+    decodeFloat     = decodeFloat   . NN.toNumber
     encodeFloat m e = NN.fromNumber (encodeFloat m e)
-    exponent      = exponent      . NN.toNumber
-    significand   = NN.fromNumber . significand . NN.toNumber
-    scaleFloat n  = NN.fromNumber . scaleFloat n . NN.toNumber
-    isNaN         = isNaN         . NN.toNumber
-    isInfinite    = isInfinite    . NN.toNumber
-    isDenormalized = isDenormalized . NN.toNumber
-    isNegativeZero = isNegativeZero . NN.toNumber
-    isIEEE        = isIEEE        . NN.toNumber
+    exponent        = exponent      . NN.toNumber
+    significand     = NN.fromNumber . significand . NN.toNumber
+    scaleFloat n    = NN.fromNumber . scaleFloat n . NN.toNumber
+    isNaN           = isNaN         . NN.toNumber
+    isInfinite      = isInfinite    . NN.toNumber
+    isDenormalized  = isDenormalized . NN.toNumber
+    isNegativeZero  = isNegativeZero . NN.toNumber
+    isIEEE          = isIEEE        . NN.toNumber
 
 instance HatVal NN.Double where
+    {-# INLINE zeroValue #-}
     zeroValue = 0
+    {-# INLINE isErrorValue #-}
     isErrorValue x  =  isNaN        (NN.toNumber x)
                     || isInfinite   (NN.toNumber x)
 
 instance HatVal Prelude.Double where
+    {-# INLINE zeroValue #-}
     zeroValue = 0
+
+    {-# INLINE isErrorValue #-}
     isErrorValue x  =  isNaN        x
                     || isInfinite   x
                     || x < 0
-
-
 
 data Pair v where
  Pair :: {_hatSide :: [v]
@@ -408,7 +411,7 @@ instance  (HatVal n, HatBaseClass b) => Semigroup (Alg n b) where
 -- >>> y = 2:@Hat:<Yen .+ 2:@Not:<Amount :: Test
 -- >>> union x y
 -- 1.00:@Hat:<Yen .+ 2.00:@Hat:<Yen .+ 1.00:@Not:<Amount .+ 2.00:@Not:<Amount
-
+{-# INLINE union #-}
 union :: (HatVal n, HatBaseClass b) =>  Alg n b -> Alg n b -> Alg n b
 union Zero x  = x
 union x Zero  = x
@@ -490,15 +493,17 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
     {-# INLINE (.-) #-}
     (.-) Zero = Zero
     (.-) (v:@b) = v:@b
-    (.-) (Liner m) = Liner
-                   $ Map.filter (not . isNullPair)
-                   $ Map.map f m
+    (.-) (Liner m) = let !res = Map.mapMaybe f m
+                   in case null res of
+                        True -> Zero
+                        False -> Liner res
         where
+            {-# INLINE f #-}
             f (Pair hs ns) = let (h, n) = (sum hs,sum ns)
                            in case compare h n of
-                                GT -> Pair [h - n] []
-                                LT -> Pair [] [n - h]
-                                EQ -> nullPair
+                                GT -> Just (Pair [h - n] [])
+                                LT -> Just (Pair [] [n - h])
+                                EQ -> Nothing
 
     {-# INLINE compress #-}
     compress Zero       = Zero
@@ -630,6 +635,7 @@ map f (Liner m) = case dToList (Map.foldrWithKey (p f) dnil m)of
                     [(b,Pair ns hs)]  -> Liner $ Map.singleton b (Pair ns hs)
                     xs                -> Liner $ Map.fromListWith pairAppend xs
     where
+        {-# INLINE p #-}
         p :: (HatVal v, HatBaseClass b)
           => (Alg v b -> Alg v b)
           -> BasePart b
@@ -651,7 +657,7 @@ map f (Liner m) = case dToList (Map.foldrWithKey (p f) dnil m)of
                 (False,False) -> dappend prefix
                                . dappend (dsingle (b, Pair hs2 ns2))
                                $ accDList
-
+        {-# INLINE q #-}
         q :: (HatVal v, HatBaseClass b)
           => (Alg v b -> Alg v b)
           -> Hat
@@ -660,6 +666,7 @@ map f (Liner m) = case dToList (Map.foldrWithKey (p f) dnil m)of
           -> (DList (BasePart b,Pair v),[v])
         q f h b vs = L.foldl' (r f h b) (dnil,[]) vs
 
+        {-# INLINE r #-}
         r  :: (HatVal v, HatBaseClass b)
            => (Alg v b -> Alg v b)
            -> Hat
@@ -747,9 +754,11 @@ filter f (Liner m) =
     -- 与えられた述語 f を満たすか判定するためのフィルタ関数
     ----------------------------------------------------------------
     -- filterSide :: BasePart b -> Hat -> [v] -> [v]
+    {-# INLINE filterSide #-}
     filterSide bp h = dfilter (\val -> f (val :@ merge h bp))
 
     -- | 差分リストを用いた手実装filter
+    {-# INLINE dfilter #-}
     dfilter :: (a -> Bool) -> [a] -> [a]
     dfilter p xs = go xs id
       where
@@ -803,6 +812,7 @@ proj (b:bs) (Liner m) = case dToList (go (b:bs) m) of
                             [(b,Pair ns hs)]  -> Liner $ Map.singleton b (Pair ns hs)
                             xs                -> Liner $ Map.fromListWith pairAppend xs
     where
+    {-# INLINE go #-}
     go :: (HatVal v, HatBaseClass b)
        => [b]
        -> Map.HashMap (BasePart b) (Pair v)
@@ -822,6 +832,7 @@ proj (b:bs) (Liner m) = case dToList (go (b:bs) m) of
                                                                     HatNot -> ((base b), Pair {_hatSide = hs
                                                                                               ,_notSide = ns})
                                                        in dappend (dsingle res) (go bs m)
+    {-# INLINE f #-}
     f ::  (HatVal v, HatBaseClass b)
        => b
        -> BasePart b
@@ -854,7 +865,6 @@ projByAccountTitle at alg = filter (f at) alg
         f at Zero = False
         f at x    = ((getAccountTitle ._hatBase) x) .== at
 
-{-# INLINE projNorm #-}
 projNorm :: (HatVal n, HatBaseClass b) => [b] -> Alg n b -> n
 projNorm bs alg  = norm $ (.-) $ proj bs alg
 
