@@ -283,14 +283,16 @@ instance (HatVal v) => Ord (Pair v) where
     min x y | x <= y    = x
             | otherwise = y
 
-
+{-# INLINE nullPair #-}
 nullPair :: Pair v
 nullPair = Pair [] []
 
+{-# INLINE isNullPair #-}
 isNullPair :: Pair v -> Bool
 isNullPair (Pair [] []) = True
 isNullPair _            = False
 
+{-# INLINE pairAppend #-}
 pairAppend :: Pair v -> Pair v -> Pair v
 pairAppend (Pair x1 y1) (Pair x2 y2) = Pair (x1 ++ x2) (y1 ++ y2)
 
@@ -581,7 +583,6 @@ fromList = mconcat
 -- you need define type variables to use this for Zero
 -- >>> toList Zero :: [Alg NN.Double (HatBase AccountTitles)]
 -- []
-{-# INLINE toList #-}
 toList :: (HatVal v, HatBaseClass b) => Alg v b -> [Alg v b]
 toList Zero       = []
 toList (v:@b)     = [v:@b]
@@ -601,7 +602,6 @@ toASCList :: (HatVal v, HatBaseClass b) => Alg v b -> [Alg v b]
 toASCList = L.sort . toList
 
 
-{-# INLINE map #-}
 -- | map
 --
 -- >>> type Test = Alg Double (HatBase CountUnit)
@@ -624,11 +624,11 @@ map f (v:@b)    = let  v2:@b2 = f (v:@b)
                     True  -> Zero
                     False -> (v2 :@ b2)
 map f (Liner m) = case dToList (Map.foldrWithKey (p f) dnil m)of
-                    [] -> Zero
+                    []                -> Zero
                     [(b,Pair [] [n])] -> n:@(merge Not b)
                     [(b,Pair [h] [])] -> h:@(merge Hat b)
-                    [(b,Pair ns hs)] -> Liner $ Map.singleton b (Pair ns hs)
-                    xs -> Liner $ Map.fromListWith pairAppend xs
+                    [(b,Pair ns hs)]  -> Liner $ Map.singleton b (Pair ns hs)
+                    xs                -> Liner $ Map.fromListWith pairAppend xs
     where
         p :: (HatVal v, HatBaseClass b)
           => (Alg v b -> Alg v b)
@@ -749,18 +749,14 @@ filter f (Liner m) =
     -- filterSide :: BasePart b -> Hat -> [v] -> [v]
     filterSide bp h = dfilter (\val -> f (val :@ merge h bp))
 
-------------------------------------------------------------
--- | 差分リストを用いた手実装filter
---   (末尾連結 `(++ [x])` を避けて高速化を図る)
-------------------------------------------------------------
-{-# INLINE dfilter #-}
-dfilter :: (a -> Bool) -> [a] -> [a]
-dfilter p xs = go xs id
-  where
-    go []     dl = dl []
-    go (y:ys) dl
-      | p y       = go ys (dl . (y:))
-      | otherwise = go ys dl
+    -- | 差分リストを用いた手実装filter
+    dfilter :: (a -> Bool) -> [a] -> [a]
+    dfilter p xs = go xs id
+      where
+        go []     dl = dl []
+        go (y:ys) dl
+          | p y       = go ys (dl . (y:))
+          | otherwise = go ys dl
 
 ------------------------------------------------------------
 -- | proj
@@ -800,20 +796,46 @@ proj _     Zero       = Zero
 proj (b:bs) (v:@b2)
     |  b .== b2       = v:@b2
     | otherwise       = proj bs (v:@b2)
-proj (b:bs) (Liner m)
-    = case haveWiledcard (base b) of
-        False -> case Map.lookup (base b) m of
-                    Nothing -> proj bs (Liner m)
-                    Just Pair {_hatSide = hs
-                              ,_notSide = ns} -> let f = \ x -> Liner (Map.singleton (base b) x)
-                                                     res = case hat b of
-                                                            Hat    -> f nullPair {_hatSide = hs}
-                                                            Not    -> f nullPair {_notSide = ns}
-                                                            HatNot -> f Pair {_hatSide = hs
-                                                                             ,_notSide = ns}
-                                              in res .+ proj bs (Liner m)
+proj (b:bs) (Liner m) = case dToList (go (b:bs) m) of
+                            []                -> Zero
+                            [(b,Pair [] [n])] -> n:@(merge Not b)
+                            [(b,Pair [h] [])] -> h:@(merge Hat b)
+                            [(b,Pair ns hs)]  -> Liner $ Map.singleton b (Pair ns hs)
+                            xs                -> Liner $ Map.fromListWith pairAppend xs
+    where
+    go :: (HatVal v, HatBaseClass b)
+       => [b]
+       -> Map.HashMap (BasePart b) (Pair v)
+       -> DList (BasePart b, Pair v)
+    go [] _ = dnil
+    go (b:bs)  m
+        | null m                 = dnil
+        | haveWiledcard (base b) = dappend (Map.foldrWithKey (f b) dnil m)
+                                 $ go bs m
 
-        True  -> filter (\x -> (_hatBase x) .== b) (Liner m) .+ proj bs (Liner m)
+        | otherwise = case Map.lookup (base b) m of
+                            Nothing -> go bs m
+                            Just Pair {_hatSide = hs
+                                      ,_notSide = ns} -> let res = case hat b of
+                                                                    Hat    -> ((base b), nullPair {_hatSide = hs})
+                                                                    Not    -> ((base b), nullPair {_notSide = ns})
+                                                                    HatNot -> ((base b), Pair {_hatSide = hs
+                                                                                              ,_notSide = ns})
+                                                       in dappend (dsingle res) (go bs m)
+    f ::  (HatVal v, HatBaseClass b)
+       => b
+       -> BasePart b
+       -> Pair v
+       -> DList (BasePart b,Pair v)
+       -> DList (BasePart b,Pair v)
+    f b bp Pair {_hatSide=hs, _notSide=ns} accDList
+        | (base b) .== bp = let res = case hat b of
+                                        Hat    -> (bp, nullPair {_hatSide = hs})
+                                        Not    -> (bp, nullPair {_notSide = ns})
+                                        HatNot -> (bp, Pair {_hatSide = hs
+                                                            ,_notSide = ns})
+                          in dappend (dsingle res) accDList
+        | otherwise       = accDList
 
 ------------------------------------------------------------------
 
