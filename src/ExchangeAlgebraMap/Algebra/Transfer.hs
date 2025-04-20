@@ -379,7 +379,7 @@ fromList ((b1,a1, f1)  : xs0)   | not_ordered b1 xs0 = a1 `seq` fromList' (Trans
     not_ordered _ [] = False
     not_ordered kx ((ky, _, _) : _) = kx >= ky
 
-
+    {-# INLINE fromList' #-}
     fromList' t0 xs = Foldable.foldl' ins t0 xs
       where ins t (k,x,f) = insert k f x t
 

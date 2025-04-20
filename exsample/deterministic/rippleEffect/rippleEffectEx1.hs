@@ -556,9 +556,9 @@ getOrder wld t r =  let arr = (_orders wld)
 
 -- | 総受注量の取得
 getOrderTotal :: World s -> Term -> Entity -> ST s OrderAmount
-getOrderTotal wld t e1 = case t < 1 of
-    True -> return 0
-    False -> do
+getOrderTotal wld t e1
+    | t < 1 = return 0
+    | otherwise = do
         let arr = (_orders wld)
         values <- CM.mapM (\e2 -> readUArray arr (t, Relation {_supplier = e1
                                                               ,_customer = e2}))
@@ -652,10 +652,11 @@ getSafetyStock wld t e = readURef (_ssf wld) >>= \ssf -- 安全係数
 -- | 適正原材料在庫
 -- 安全在庫 + 10期の使用量の平均
 appropriateMaterial :: World s -> Term -> Entity -> Entity -> ST s Double
-appropriateMaterial wld t e1 e2
-    =  getSafetyMaterial wld t e1 e2 >>= \sm
-    -> mean <$> CM.mapM (\ t' -> getTermInput wld t' e1 e2) [max 1 (t-10) .. t] >>= \tm
-    -> return $ sm + tm
+appropriateMaterial wld t e1 e2 = do
+    sm <- getSafetyMaterial wld t e1 e2
+    c <- getInputCoefficient wld t e1 e2
+    tm <- mean <$> (CM.forM [max 1 (t-10) .. t] $ \ t' -> (*) c <$> getTermDemand wld t' e1)
+    return $ sm + tm
 
 -- | 安全原材料在庫の計算
 -- 安全在庫＝安全係数×使用量の標準偏差×√（発注リードタイム＋発注間隔）
@@ -674,7 +675,9 @@ getSafetyMaterial wld t e1 e2
     inputStdDev :: World s -> Term -> Entity -> Entity -> ST s Double
     inputStdDev wld t e1 e2
         | t < 2     = return 1 -- 1期分しかない場合は標準正規分布を仮定
-        | otherwise = stdDev <$> CM.mapM (\ t' -> getTermInput wld t' e1 e2) [max 1 (t-10) .. t]
+        | otherwise =  getInputCoefficient wld t e1 e2 >>= \c
+                    -> stdDev <$> (CM.forM [max 1 (t-10) .. t] $ \ t'
+                    -> (*) c <$> getTermDemand wld t' e1)
 
 -- | 一期の使用量を取得する
 getTermInput :: World s -> Term -> Entity -> Entity -> ST s Double
@@ -787,9 +790,9 @@ getPossibleVolume wld t e1 = do
     return $ minimum possibleVolumes  -- 可能な生産量の最小値を返す
 
 -- 記帳
-journal :: World s -> Term -> Transaction -> ST s ()
-journal wld t Zero = return ()
-journal wld t js   = modifyURef (_ledger wld) (\x -> x .+ js)
+journal :: World s ->  Transaction -> ST s ()
+journal wld Zero = return ()
+journal wld js   = modifyURef (_ledger wld) (\x -> x .+ js)
 
 ------------------------------------------------------------------
 -- * 状態の更新
@@ -816,67 +819,45 @@ event' wld t ToPrice
 -- 受注分販売・購入する
 -- 在庫を受注の割合で販売する
 -- 売れた分受注を減らす
--- 自社製品の需要分は先に100%処理
 event' wld t SalesPurchase = do
     le <- readURef (_ledger wld)  -- 簿記の状態を取得
     let os = _orders wld  -- OrdersTable を取得
 
     forM_ industries $ \e1 -> do
-        -- 自社製品の需要(売らない)
-        selfDemand <- getOrder wld t Relation{_supplier = e1, _customer = e1}
-        -- 最適原材料在庫
-        am <- appropriateMaterial wld (t - 1) e1 e1
+        -- 初期で総需要が在庫を上回った場合の対策
+        when (t == initTerm) $ do
+            finalDemand <- getOrder wld t Relation {_supplier = e1, _customer = finalDemandSector}
+            c <- getInputCoefficient wld t e1 e1
+            order wld t Relation {_supplier = e1, _customer = e1} (c * finalDemand)
 
         -- 受注総量を取得
         totalOrder <- getOrderTotal wld t e1
 
+
         -- 在庫保有量
         stock <- getTermStock wld t e1
 
-        -- 自社需要の解消
-        availableStock <- case compare am selfDemand of
-                            -- そもそもの需要のほうが大きい場合
-                            LT -> case compare stock selfDemand of
-                                    GT -> writeUArray os (t, Relation {_supplier = e1
-                                                                      ,_customer = e1}) 0
-                                       >> return (stock - selfDemand)
-                                    _  -> writeUArray os (t, Relation {_supplier = e1
-                                                                     ,_customer = e1})
-                                                         (selfDemand - stock)
-                                       >> return 0
-                            -- 自社需要がなくても最低限最適原材料在庫は保持しておく
-                            _  -> case compare stock am of
-                                    GT -> writeUArray os (t, Relation {_supplier = e1
-                                                                      ,_customer = e1}) 0
-                                       >> return (stock - am)
-                                    _  -> writeUArray os (t, Relation {_supplier = e1
-                                                                      ,_customer = e1})
-                                                         (am - stock)
-                                       >> return 0
-
         -- 各 e2 (注文元) に対して処理
         forM_ [fstEnt..lastEnt] $ \e2 -> do
-            when (e1 /= e2) $ do
-                -- e2 から e1 への受注量
-                orderAmount <- readUArray os (t, Relation {_supplier = e1
-                                                          ,_customer = e2})
+            -- e2 から e1 への受注量
+            orderAmount <- readUArray os (t, Relation {_supplier = e1
+                                                      ,_customer = e2})
 
-                -- 受注がゼロでない場合に販売処理を実施
-                when (orderAmount > 0) $ do
-                    -- 在庫に応じた販売量
-                    -- 最適原材料在庫(am) の分は残す
-                    let sellAmount = min orderAmount (availableStock  * (orderAmount / totalOrder))
-                    when (sellAmount > 0 ) $ do
-                        p <- getPrice wld t e1
-                        let toAdd =  sellAmount      :@ Hat :<(Products, e1, e1, Amount) -- 受注側 販売財
-                                 .+ (sellAmount * p) :@ Not :<(Cash,(.#),e1,Yen)          -- 受注側 販売益
-                                 .+  sellAmount      :@ Not :<(Products, e1, e2, Amount) -- 発注側 購入財
-                                 .+ (sellAmount * p) :@ Hat :<(Cash,(.#),e2,Yen)          -- 発注側 購入額
-                        journal wld t (toAdd .| (SalesPurchase,t))
-                        -- 受注を減らす
-                        writeUArray os (t, Relation {_supplier = e1
-                                                    ,_customer = e2})
-                                       (orderAmount - sellAmount)
+            -- 受注がゼロでない場合に販売処理を実施
+            when (orderAmount > 0) $ do
+                -- 在庫に応じた販売量
+                let sellAmount = min orderAmount (stock  * (orderAmount / totalOrder))
+                when (sellAmount > 0 ) $ do
+                    p <- getPrice wld t e1
+                    let toAdd =  sellAmount      :@ Hat :<(Products, e1, e1, Amount) -- 受注側 販売財
+                             .+ (sellAmount * p) :@ Not :<(Cash,(.#),e1,Yen)          -- 受注側 販売益
+                             .+  sellAmount      :@ Not :<(Products, e1, e2, Amount) -- 発注側 購入財
+                             .+ (sellAmount * p) :@ Hat :<(Cash,(.#),e2,Yen)          -- 発注側 購入額
+                    journal wld (toAdd .| (SalesPurchase,t))
+                    -- 受注を減らす
+                    writeUArray os (t, Relation {_supplier = e1
+                                                ,_customer = e2})
+                                   (orderAmount - sellAmount)
 
 
 ------------------------------------------------------------------
@@ -906,6 +887,7 @@ event' wld t Production = do
         pv <- getPossibleVolume wld t e1  -- 生産可能量を取得
         -- 生産が必要な量の内 生産できる量
         let prod = min plan pv
+
         {-
         when (e1 == 4) $ do
             trace ("--------------------------") return ()
@@ -916,7 +898,9 @@ event' wld t Production = do
         -}
         when (prod > 0 ) $ do
             op <- getOneProduction wld t e1  -- 1単位の生産簿記を取得
-            journal wld t (prod .* op)  -- 生産処理を記帳
+            journal wld (prod .* op)  -- 生産処理を記帳
+
+
 ------------------------------------------------------------------
 -- 発注量を計算
 -- 安全在庫に補充点方式で補充する
@@ -964,9 +948,11 @@ event' wld t Order = do
                 -- 不足分の生産に必要な原材料在庫
                 let short_material = plan * c
                 -- 不足分と安全在庫の確保のために必要な原材料在庫
-                let total = case compare short_material ms of
-                                GT -> (short_material + am) - ms
-                                _  -> 0
+                let total
+                        | e1 == e2  = short_material + am
+                        | otherwise = case compare (short_material + am) ms of
+                                        GT -> (short_material + am) - ms
+                                        _  -> 0
 
                 {-
                 when (e1 == 4) $ do
@@ -985,8 +971,8 @@ event' wld t Consumption = do
     let total_consume = projWithNoteBase [(SalesPurchase,t)]
                                          [Not:<(Products,(.#),finalDemandSector,(.#))]
                                          le
-    journal wld t $ gather (Consumption,t)
-                  $ (.^) total_consume
+    journal wld $ gather (Consumption,t)
+                $ (.^) total_consume
 ------------------------------------------------------------------
 event' wld t Plank = return ()
 
@@ -999,11 +985,11 @@ main = do
     let gen = mkStdGen seed
         defaultEnv = InitVar {_initInv             = 100
                              ,_stockOutRate        = 0.1
-                             ,_materialOutRate     = 0.05
+                             ,_materialOutRate     = 0.1
                              ,_addedDemand         = 0
-                             ,_finalDemand         = 200
+                             ,_finalDemand         = 300
                              ,_inhouseRatio        = 0.4
-                             ,_steadyProduction    = 10}
+                             ,_steadyProduction    = 0}
 
         smallStockEnv   = defaultEnv {_stockOutRate = 0.1}
         largeStockEnv   = defaultEnv {_stockOutRate = 0.05}
@@ -1011,12 +997,12 @@ main = do
         smallAddedEnv   = smallStockEnv {_addedDemand = 10}
         largeAddedEnv   = largeStockEnv {_addedDemand = 10}
 
-{- for Test
         envs =  [defaultEnv]
 
         envNames = ["default"]
--}
 
+
+{-
         envs =  [defaultEnv
                 ,smallStockEnv
                 ,largeStockEnv
@@ -1030,7 +1016,7 @@ main = do
                    ,"default-added"
                    ,"smallstock-added"
                    ,"largestock-added"]
-
+-}
     ------------------------------------------------------------------
     print "start simulation"
     results <- mapConcurrently (runSimulation gen) envs
