@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 569698dfd0d0aaf1ad855d6d02a7cbb4366ce3d1cf19240dc33bc4ba36c502dd
+-- hash: 1a85f781caa82d7c7c4aabd9ab36769b9a0710caa2e502ed21d52c591b5d9e5b
 
 name:           exchangealgebra
 version:        0.3.0.0
@@ -144,12 +144,46 @@ executable ebex2
     , vector
   default-language: Haskell2010
 
-executable ripple1
-  main-is: rippleEffectEx1.hs
+executable ripple
+  main-is: ripple.hs
   other-modules:
       Paths_exchangealgebra
   hs-source-dirs:
-      exsample/deterministic/rippleEffect
+      exsample/deterministic/ripple
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N -fwrite-ide-info
+  build-depends:
+      Chart
+    , Chart-cairo
+    , array
+    , async
+    , base
+    , bifunctors
+    , containers
+    , csv-parser
+    , deepseq
+    , exchangealgebra
+    , hashable
+    , lens
+    , mtl
+    , non-negative
+    , numeric-prelude
+    , parallel
+    , random
+    , scientific
+    , statistics
+    , text
+    , time
+    , unicode-show
+    , unordered-containers
+    , vector
+  default-language: Haskell2010
+
+executable rippleWithStock
+  main-is: rippleWithStock.hs
+  other-modules:
+      Paths_exchangealgebra
+  hs-source-dirs:
+      exsample/deterministic/ripple
   ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N -fwrite-ide-info
   build-depends:
       Chart

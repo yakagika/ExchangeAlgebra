@@ -232,4 +232,23 @@ writeTermIO path t arr = do
             result' <- readIORef result
             CSV.writeCSV path result'
 
+-- | 与えられた波及効果をCSVとして出力する
+-- CSVとして出力する関数
+-- 与えられた波及効果をCSVとして出力する
+writeLeontiefInverse :: FilePath -> IOArray (Int, Int) Double -> IO ()
+writeLeontiefInverse path arr = do
+    ((r1, c1), (r2, c2)) <- getBounds arr
+    let rows = [r1 .. r2]
+    let cols = [c1 .. c2]
+    result <- newIORef ([(T.pack ""):(L.map tshow cols)] :: [[T.Text]])
+    forM_ rows $ \r -> do
+        line <- newIORef ([tshow r] :: [T.Text])
+        forM_ cols $ \c -> do
+            v <- readArray arr (r, c)
+            modifyIORef line (\xs -> xs ++ [T.pack (show v)])
+        line' <- readIORef line
+        modifyIORef result (\xs -> xs ++ [line'])
+    result' <- readIORef result
+    CSV.writeCSV path result'
+
 

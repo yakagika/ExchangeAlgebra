@@ -57,7 +57,8 @@ module ExchangeAlgebraMap.Simulate
     ,modifyArray
     ,Event(..)
     ,eventAll
-    ,runSimulation) where
+    ,runSimulation
+    ,leontiefInverse) where
 
 import              Control.Monad
 import              GHC.Generics
@@ -66,8 +67,12 @@ import              Data.Ix
 import              Data.Kind
 import              Control.Monad.ST
 import              Data.Array.ST
+import              Data.Array.IO
 import              Data.STRef
 import qualified    Control.Monad                   as CM
+import              Data.Array
+import              System.IO
+import Data.List (intersperse)
 
 ------------------------------------------------------------------
 class (Eq t, Show t, Ord t, Enum t, Ix t) => StateTime t where
@@ -285,6 +290,62 @@ instance (StateTime t, InitVariables v, GUpdatable t v f s)
         => GUpdatable t v (M1 p l f) s where -- メタデータは無視する
     gInitialize g t v = M1 <$> gInitialize g t v
     gUpdate g t v (M1 f) = gUpdate g t v f
+
+------------------------------------------------------------------
+-- * Rippele Effect Analysis
+------------------------------------------------------------------
+
+-- | Generate Identity Matrix
+identity :: Int -> IO (IOArray (Int, Int) Double)
+identity n = newArray ((1, 1), (n, n)) 0 >>= \arr -> do
+    forM_ [1..n] $ \i -> writeArray arr (i, i) 1
+    return arr
+
+-- | Calculate inverse matrix with Gauss-Jordan Method
+inverse :: IOArray (Int, Int) Double -> IO (IOArray (Int, Int) Double)
+inverse mat = do
+    bnds <- getBounds mat
+    let ((1,1),(n,_)) = bnds
+    inv <- identity n
+
+    forM_ [1..n] $ \i -> do
+        pivot <- readArray mat (i,i)
+        forM_ [1..n] $ \j -> do
+            modifyArray mat (i,j) (/pivot)
+            modifyArray inv (i,j) (/pivot)
+        forM_ [1..n] $ \k -> when (k /= i) $ do
+            factor <- readArray mat (k,i)
+            forM_ [1..n] $ \j -> do
+                mVal <- readArray mat (i,j)
+                iVal <- readArray inv (i,j)
+                modifyArray mat (k,j) (\x -> x - factor * mVal)
+                modifyArray inv (k,j) (\x -> x - factor * iVal)
+
+    return inv
+
+  where
+    modifyArray arr ix f = readArray arr ix >>= writeArray arr ix . f
+
+{- | Calculate Leontief's Inverse Matrix
+ex.
+main :: IO ()
+main = do
+    mat <- newListArray ((1,1),(2,2)) [0.2, 0.3, 0.4, 0.1]
+    result <- leontiefInverse mat
+    putStrLn "Leontief Inverse (波及効果行列):"
+    writeLeontiefInverse "output.csv" result
+-}
+
+leontiefInverse :: IOArray (Int, Int) Double -> IO (IOArray (Int, Int) Double)
+leontiefInverse a = do
+    bnds <- getBounds a
+    temp <- newArray bnds 0
+    forM_ (range bnds) $ \(i,j) -> do
+        val <- readArray a (i,j)
+        writeArray temp (i,j) (if i == j then 1 - val else -val)
+    inverse temp
+
+
 
 ------------------------------------------------------------------
 -- * 乱数関連

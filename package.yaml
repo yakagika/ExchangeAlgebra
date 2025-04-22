@@ -72,10 +72,15 @@ executables:
     main:                elementaryBookkeepingEx2.hs
     source-dirs:         exsample/basic
 
-  ripple1:
+  rippleWithStock:
     <<: *exe-defaults
-    main:                rippleEffectEx1.hs
-    source-dirs:         exsample/deterministic/rippleEffect
+    main:                rippleWithStock.hs
+    source-dirs:         exsample/deterministic/ripple
+
+  ripple:
+    <<: *exe-defaults
+    main:                ripple.hs
+    source-dirs:         exsample/deterministic/ripple
 
 
 tests:
