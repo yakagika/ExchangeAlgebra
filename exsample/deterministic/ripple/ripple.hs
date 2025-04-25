@@ -1,13 +1,13 @@
 
-{-# LANGUAGE FlexibleInstances  #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE OverloadedStrings      #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE Strict                 #-}
 {-# LANGUAGE StrictData             #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
+{-# LANGUAGE DeriveGeneric          #-}
+{-# LANGUAGE BangPatterns           #-}
+{-# LANGUAGE TypeFamilies           #-}
 
 {-
 波及効果のシュミレーションサンプル
@@ -213,6 +213,8 @@ inventoryCount tr = EJT.transfer tr
                   $ (toNot wiledcard) .~ Cash .-> (toNot wiledcard) .~ Sales     |% id
                   ++(toHat wiledcard) .~ Cash .-> (toNot wiledcard) .~ Purchases |% id
 
+
+
 ------------------------------------------------------------------
 -- ** 価格の状態空間の定義
 ------------------------------------------------------------------
@@ -357,25 +359,6 @@ instance Updatable Term InitVar ICTable s where
     updatePattern _ = return DoNothing
 
 
--- | 投入係数の取得
--- 1単位の e1 の生産に必要な e2
-getInputCoefficient :: World s -> Term -> Entity -> Entity -> ST s InputCoefficient
-getInputCoefficient wld t e1 e2 =  do
-                let ics = (_ics wld)
-                readUArray ics (t,e2,e1)
-
--- | 初期の投入係数行列の取得
--- 1期の投入係数行列を取得する
--- 最終需要を抜かした9*9
-getInputCoefficients :: World RealWorld -> IO (IOArray (Entity,Entity) Double)
-getInputCoefficients wld = do
-    let arr = (_ics wld)
-    result <- newArray ((fstEnt, fstEnt), (lastEnt -1, lastEnt -1)) 0
-    forM_ [fstEnt .. lastEnt -1] $ \e1 ->
-        forM_ [fstEnt .. lastEnt -1] $ \e2 -> do
-            c <- stToIO $ readUArray arr (1,e1,e2)
-            writeArray result (e1,e2) c
-    return result
 ------------------------------------------------------------------
 -- ** 発注書の状態空間
 ------------------------------------------------------------------
@@ -446,21 +429,6 @@ instance Updatable Term InitVar OrderTable s where
                                                               ,_customer = e1})
                                                   (\x -> x + y)
 
--- | 個別の発注量の取得
-getOrder :: World s -> Term -> OrderRelation -> ST s OrderAmount
-getOrder wld t r =  let arr = (_orders wld)
-                 in readUArray arr (t, r)
-
--- | 総受注量の取得
-getOrderTotal :: World s -> Term -> Entity -> ST s OrderAmount
-getOrderTotal wld t e1
-    | t < 1 = return 0
-    | otherwise = do
-        let arr = (_orders wld)
-        values <- CM.mapM (\e2 -> readUArray arr (t, Relation {_supplier = e1
-                                                              ,_customer = e2}))
-                          [fstEnt .. lastEnt]
-        return $ sum values
 
 -- | 発注
 order :: World s -> Term -> OrderRelation -> OrderAmount -> ST s ()
@@ -496,6 +464,43 @@ termAmount t le pt =  let !termedle = termJournal t le
                    in let !amountTable = toAmountTable pt
                    in EJT.transfer termedle amountTable
 
+-- | 投入係数の取得
+-- 1単位の e1 の生産に必要な e2
+getInputCoefficient :: World s -> Term -> Entity -> Entity -> ST s InputCoefficient
+getInputCoefficient wld t e1 e2 =  do
+                let ics = (_ics wld)
+                readUArray ics (t,e2,e1)
+
+-- | 初期の投入係数行列の取得
+-- 1期の投入係数行列を取得する
+-- 最終需要を抜かした9*9
+getInputCoefficients :: World RealWorld -> IO (IOArray (Entity,Entity) Double)
+getInputCoefficients wld = do
+    let arr = (_ics wld)
+    result <- newArray ((fstEnt, fstEnt), (lastEnt -1, lastEnt -1)) 0
+    forM_ [fstEnt .. lastEnt -1] $ \e1 ->
+        forM_ [fstEnt .. lastEnt -1] $ \e2 -> do
+            c <- stToIO $ readUArray arr (1,e1,e2)
+            writeArray result (e1,e2) c
+    return result
+
+
+-- | 個別の発注量の取得
+getOrder :: World s -> Term -> OrderRelation -> ST s OrderAmount
+getOrder wld t r =  let arr = (_orders wld)
+                 in readUArray arr (t, r)
+
+-- | 総受注量の取得
+getOrderTotal :: World s -> Term -> Entity -> ST s OrderAmount
+getOrderTotal wld t e1
+    | t < 1 = return 0
+    | otherwise = do
+        let arr = (_orders wld)
+        values <- CM.mapM (\e2 -> readUArray arr (t, Relation {_supplier = e1
+                                                              ,_customer = e2}))
+                          [fstEnt .. lastEnt]
+        return $ sum values
+
 -- | 一期の使用量を取得する
 getTermInput :: World s -> Term -> Entity -> Entity -> ST s Double
 getTermInput wld t e1 e2 = do
@@ -518,16 +523,6 @@ getTermStock wld t e = do
                 $ termAmount t le pt
     return result
 
--- | 一期の原材料在庫保有量を取得する
-getTermMaterial :: World s -> Term -> Entity -> Entity -> ST s Double
-getTermMaterial wld t e1 e2 = do
-    pt <- readURef (_prices wld)
-    le <- readURef (_ledger wld)
-    let !result = norm
-                $ projWithBase [Not :<(Products, e2, e1, Amount)]
-                $ (.-)
-                $ termAmount t le pt
-    return result
 
 -- | 一期の算出を取得する
 getTermProduction :: World s -> Term -> Entity -> ST s Double
@@ -573,10 +568,34 @@ getOneProduction :: World s -> Term -> Entity -> ST s Transaction
 getOneProduction wld t c = do
     let arr =  (_ics wld)  -- ICTable を取得
     inputs <- CM.forM industries $ \c2 -> do
-        coef <- readUArray arr (t, c2, c)  -- c を生産するために必要な c2 の投入係数
-        return $ coef :@ Hat :<(Products, c2, c, Amount) .| (Production,t) -- c2 の消費を記録
-    let !totalInput = foldl (.+) Zero inputs  -- すべての中間投入を結合
-    return $! (1 :@ Not :<(Products, c, c, Amount) .| (Production,t)) .+ totalInput   -- 生産と投入の合計
+        -- c を生産するために必要な c2 の投入係数
+        coef <- readUArray arr (t, c2, c)
+        -- c2 の消費を記録
+        return $ coef :@ Hat :<(Products, c2, c, Amount) .| (Production,t)
+        -- すべての中間投入を結合
+    let !totalInput = EJ.fromList inputs
+        -- 生産と投入の合計
+        !result = (1 :@ Not :<(Products, c, c, Amount) .| (Production,t)) .+ totalInput
+    return result
+
+
+-- | 中間投入量の差額(ripple Effectの把握)
+-- 期間全体の総額を比較する
+culcRippleEffect :: World RealWorld
+                 -> World RealWorld
+                 -> InitVar
+                 -> IO (IOArray (Entity,Entity) Double)
+culcRippleEffect notAdded added iv = do
+    result <- newArray ((fstEnt, fstEnt), (lastEnt -1, lastEnt -1)) 0
+    forM_ [fstEnt .. lastEnt -1] $ \e1 ->
+        forM_ [fstEnt .. lastEnt -1] $ \e2 -> do
+            forM_ [initTerm .. lastTerm] $ \t -> do
+                inputNotAdded <- stToIO $ getTermInput notAdded t e1 e2
+                inputAdded    <- stToIO $ getTermInput added t e1 e2
+                when (inputNotAdded /= inputAdded) $ do
+                    x <- readArray result (e2,e1)
+                    writeArray result (e2,e1) (x + (inputAdded - inputNotAdded) / (_addedDemand iv))
+    return result
 
 
 -- 記帳
@@ -721,11 +740,24 @@ main = do
     let resMap = Map.fromList
                $ zip envNames results
 
+
     ------------------------------------------------------------------
-    -- Basic Ripple Effect
+    print "printing tables ..."
+    -- coefficient Table
     mat <- getInputCoefficients (resMap Map.! "default")
-    re  <- leontiefInverse mat
-    writeLeontiefInverse (csv_dir ++ "leontiefInverse.csv") re
+    writeIOMatrix (csv_dir ++ "io.csv") mat
+
+    -- Basic Ripple Effect
+    li  <- leontiefInverse mat
+    writeIOMatrix (csv_dir ++ "leontiefInverse.csv") li
+    re  <- rippleEffect 9 li
+    writeIOMatrix (csv_dir ++ "rippleEffect.csv") re
+
+    -- ABM Ripple Effect
+    reABM <- culcRippleEffect (resMap Map.! "default")
+                              (resMap Map.! "default-added")
+                              defaultAddedEnv
+    writeIOMatrix  (csv_dir ++ "rippleEffectABM.csv") reABM
     ------------------------------------------------------------------
     print "printing..."
     forConcurrently_ envNames $ \n -> do

@@ -232,11 +232,11 @@ writeTermIO path t arr = do
             result' <- readIORef result
             CSV.writeCSV path result'
 
--- | 与えられた波及効果をCSVとして出力する
+-- | 与えられたInput-Output TableをCSVとして出力する
 -- CSVとして出力する関数
 -- 与えられた波及効果をCSVとして出力する
-writeLeontiefInverse :: FilePath -> IOArray (Int, Int) Double -> IO ()
-writeLeontiefInverse path arr = do
+writeIOMatrix :: FilePath -> IOArray (Int, Int) Double -> IO ()
+writeIOMatrix path arr = do
     ((r1, c1), (r2, c2)) <- getBounds arr
     let rows = [r1 .. r2]
     let cols = [c1 .. c2]

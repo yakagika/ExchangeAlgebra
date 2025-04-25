@@ -58,7 +58,8 @@ module ExchangeAlgebraMap.Simulate
     ,Event(..)
     ,eventAll
     ,runSimulation
-    ,leontiefInverse) where
+    ,leontiefInverse
+    ,rippleEffect) where
 
 import              Control.Monad
 import              GHC.Generics
@@ -345,6 +346,16 @@ leontiefInverse a = do
         writeArray temp (i,j) (if i == j then 1 - val else -val)
     inverse temp
 
+-- | 逆行列を利用して実際の需要増加量を計算する
+-- 産業に1単位の需要増加があった場合の波及効果を計算する
+rippleEffect :: Int -> IOArray (Int, Int) Double -> IO (IOArray (Int, Int) Double)
+rippleEffect industry inverseArr = do
+    ((r1,c1),(r2,c2)) <- getBounds inverseArr
+    result <- newArray ((r1,c1),(r2,c2)) 0
+    forM_ [r1..r2] $ \i -> do
+        val <- readArray inverseArr (i, industry)
+        writeArray result (i, industry) val
+    return result
 
 
 ------------------------------------------------------------------

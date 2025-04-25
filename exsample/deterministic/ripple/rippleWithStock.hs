@@ -534,21 +534,6 @@ instance Updatable Term InitVar OrderTable s where
                                                               ,_customer = e1})
                                                   (\x -> x + y)
 
--- | 個別の発注量の取得
-getOrder :: World s -> Term -> OrderRelation -> ST s OrderAmount
-getOrder wld t r =  let arr = (_orders wld)
-                 in readUArray arr (t, r)
-
--- | 総受注量の取得
-getOrderTotal :: World s -> Term -> Entity -> ST s OrderAmount
-getOrderTotal wld t e1
-    | t < 1 = return 0
-    | otherwise = do
-        let arr = (_orders wld)
-        values <- CM.mapM (\e2 -> readUArray arr (t, Relation {_supplier = e1
-                                                              ,_customer = e2}))
-                          [fstEnt .. lastEnt]
-        return $ sum values
 
 -- | 発注
 order :: World s -> Term -> OrderRelation -> OrderAmount -> ST s ()
@@ -600,6 +585,22 @@ stdDev xs
   where
     avg = mean xs
     variance = sum [(x - avg)^2 | x <- xs] / fromIntegral (length xs)
+
+-- | 個別の発注量の取得
+getOrder :: World s -> Term -> OrderRelation -> ST s OrderAmount
+getOrder wld t r =  let arr = (_orders wld)
+                 in readUArray arr (t, r)
+
+-- | 総受注量の取得
+getOrderTotal :: World s -> Term -> Entity -> ST s OrderAmount
+getOrderTotal wld t e1
+    | t < 1 = return 0
+    | otherwise = do
+        let arr = (_orders wld)
+        values <- CM.mapM (\e2 -> readUArray arr (t, Relation {_supplier = e1
+                                                              ,_customer = e2}))
+                          [fstEnt .. lastEnt]
+        return $ sum values
 
 
 -- | 適正在庫
@@ -741,11 +742,15 @@ getOneProduction :: World s -> Term -> Entity -> ST s Transaction
 getOneProduction wld t c = do
     let arr =  (_ics wld)  -- ICTable を取得
     inputs <- CM.forM industries $ \c2 -> do
-        coef <- readUArray arr (t, c2, c)  -- c を生産するために必要な c2 の投入係数
-        return $ coef :@ Hat :<(Products, c2, c, Amount) .| (Production,t) -- c2 の消費を記録
-    let !totalInput = foldl (.+) Zero inputs  -- すべての中間投入を結合
-    return $! (1 :@ Not :<(Products, c, c, Amount) .| (Production,t)) .+ totalInput   -- 生産と投入の合計
-
+        -- c を生産するために必要な c2 の投入係数
+        coef <- readUArray arr (t, c2, c)
+        -- c2 の消費を記録
+        return $ coef :@ Hat :<(Products, c2, c, Amount) .| (Production,t)
+        -- すべての中間投入を結合
+    let !totalInput = EJ.fromList inputs
+        -- 生産と投入の合計
+        !result = (1 :@ Not :<(Products, c, c, Amount) .| (Production,t)) .+ totalInput
+    return result
 
 -- | 生産可能量の計算
 -- 現在の原材料在庫に基づいて生産可能量を計算する
