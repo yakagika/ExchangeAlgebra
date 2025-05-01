@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1a85f781caa82d7c7c4aabd9ab36769b9a0710caa2e502ed21d52c591b5d9e5b
+-- hash: 5d5d124a183236f6bb5c5ed6f8ed800dbbf67650783edef7be93af3b89f47274
 
 name:           exchangealgebra
 version:        0.3.0.0
@@ -147,6 +147,7 @@ executable ebex2
 executable ripple
   main-is: ripple.hs
   other-modules:
+      RippleEffect
       Paths_exchangealgebra
   hs-source-dirs:
       exsample/deterministic/ripple
@@ -181,6 +182,7 @@ executable ripple
 executable rippleWithStock
   main-is: rippleWithStock.hs
   other-modules:
+      RippleEffect
       Paths_exchangealgebra
   hs-source-dirs:
       exsample/deterministic/ripple
