@@ -209,8 +209,11 @@ main = do
     ------------------------------------------------------------------
     print "printing tables ..."
     -- coefficient Table
-    mat <- getInputCoefficients (resMap Map.! "default")
-    writeIOMatrix (csv_dir ++ "io.csv") mat
+    matWithFinalDemand <- getInputCoefficients (resMap Map.! "default") (fstEnt,lastEnt)
+    writeIOMatrix (csv_dir ++ "io.csv") matWithFinalDemand
+
+
+    mat <- getInputCoefficients (resMap Map.! "default") (fstEnt,lastEnt -1)
 
     -- Basic Ripple Effect
     li  <- leontiefInverse mat

@@ -774,12 +774,12 @@ getInputCoefficient wld t e1 e2 =  do
 -- | 初期の投入係数行列の取得
 -- 1期の投入係数行列を取得する
 -- 最終需要を抜かした9*9
-getInputCoefficients :: World RealWorld -> IO (IOArray (Entity,Entity) Double)
-getInputCoefficients wld = do
+getInputCoefficients :: World RealWorld -> (Entity,Entity) -> IO (IOArray (Entity,Entity) Double)
+getInputCoefficients wld (i,j) = do
     let arr = (_ics wld)
-    result <- newArray ((fstEnt, fstEnt), (lastEnt -1, lastEnt -1)) 0
-    forM_ [fstEnt .. lastEnt -1] $ \e1 ->
-        forM_ [fstEnt .. lastEnt -1] $ \e2 -> do
+    result <- newArray ((i, i), (j, j)) 0
+    forM_ [i .. j] $ \e1 ->
+        forM_ [i .. j] $ \e2 -> do
             c <- stToIO $ readUArray arr (1,e1,e2)
             writeArray result (e1,e2) c
     return result
