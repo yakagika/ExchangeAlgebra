@@ -27,8 +27,8 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE PatternSynonyms, ViewPatterns #-}
 
-module ExchangeAlgebraMap.Journal
-    ( module ExchangeAlgebraMap.Algebra.Base
+module ExchangeAlgebra.Journal
+    ( module ExchangeAlgebra.Algebra.Base
     , HatVal(..)
     , HatBaseClass(..)
     , Redundant(..)
@@ -36,7 +36,7 @@ module ExchangeAlgebraMap.Journal
     , pattern (:@)
     , Note(..)
     , Journal(..)
-    , pattern ExchangeAlgebraMap.Journal.Zero
+    , pattern ExchangeAlgebra.Journal.Zero
     , (.|)
     , toAlg
     , fromList
@@ -49,14 +49,14 @@ module ExchangeAlgebraMap.Journal
     , gather
     )where
 
-import qualified    ExchangeAlgebraMap.Algebra as EA
-import              ExchangeAlgebraMap.Algebra.Base
-import              ExchangeAlgebraMap.Algebra ( HatVal(..)
-                                               , HatBaseClass(..)
-                                               , Alg(..)
-                                               , Redundant(..)
-                                               , Exchange(..)
-                                               , pattern (:@))
+import qualified    ExchangeAlgebra.Algebra as EA
+import              ExchangeAlgebra.Algebra.Base
+import              ExchangeAlgebra.Algebra ( HatVal(..)
+                                            , HatBaseClass(..)
+                                            , Alg(..)
+                                            , Redundant(..)
+                                            , Exchange(..)
+                                            , pattern (:@))
 import qualified    Data.List               as L    ( foldr1
                                                     , foldr
                                                     , map

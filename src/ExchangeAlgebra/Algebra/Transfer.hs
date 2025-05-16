@@ -31,7 +31,7 @@
 
 
 
-module ExchangeAlgebraMap.Algebra.Transfer
+module ExchangeAlgebra.Algebra.Transfer
     ( TransTable (..)
     , isNullTable
     , transfer
@@ -48,8 +48,8 @@ module ExchangeAlgebraMap.Algebra.Transfer
     , finalStockTransfer
     ) where
 
-import qualified    ExchangeAlgebraMap.Algebra as EA
-import              ExchangeAlgebraMap.Algebra
+import qualified    ExchangeAlgebra.Algebra as EA
+import              ExchangeAlgebra.Algebra
 
 
 import qualified    Number.NonNegative  as NN       ( Double
@@ -410,7 +410,7 @@ fromList ((b1,a1, f1)  : xs0)   | not_ordered b1 xs0 = a1 `seq` fromList' (Trans
 -- [(Hat:<Cash,Hat:<Building,<function>),(Hat:<Building,Hat:<Cash,<function>)]
 {-# INLINE table #-}
 table ::  (HatVal n, HatBaseClass b) => [(b,b,(n -> n))] -> TransTable n b
-table = ExchangeAlgebraMap.Algebra.Transfer.fromList
+table = ExchangeAlgebra.Algebra.Transfer.fromList
 
 data TransTableParts b where
   (:->)   :: (HatBaseClass b) => b -> b -> TransTableParts b

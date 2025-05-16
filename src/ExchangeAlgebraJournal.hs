@@ -21,13 +21,13 @@
 -}
 
 
-module ExchangeAlgebraMap
-    ( module ExchangeAlgebraMap.Algebra
-    , module ExchangeAlgebraMap.Algebra.Transfer
-    , module ExchangeAlgebraMap.Write
-    , module ExchangeAlgebraMap.Simulate ) where
+module ExchangeAlgebraJournal
+    ( module ExchangeAlgebra.Journal
+    , module ExchangeAlgebra.Journal.Transfer
+    , module ExchangeAlgebra.Write
+    , module ExchangeAlgebra.Simulate ) where
 
-import              ExchangeAlgebraMap.Algebra
-import              ExchangeAlgebraMap.Algebra.Transfer
-import              ExchangeAlgebraMap.Write
-import              ExchangeAlgebraMap.Simulate
+import              ExchangeAlgebra.Journal
+import              ExchangeAlgebra.Journal.Transfer
+import              ExchangeAlgebra.Write
+import              ExchangeAlgebra.Simulate

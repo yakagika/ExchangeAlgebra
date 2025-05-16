@@ -23,13 +23,13 @@
 -}
 
 
-module ExchangeAlgebraMap.Simulate.Visualize (gridLine
-                                             ,plotLine
-                                             ,plotMultiLines
-                                             ,plotWldsDiffLine
-                                             ,plotLineVector) where
+module ExchangeAlgebra.Simulate.Visualize   (gridLine
+                                            ,plotLine
+                                            ,plotMultiLines
+                                            ,plotWldsDiffLine
+                                            ,plotLineVector) where
 
-import              ExchangeAlgebraMap.Simulate
+import              ExchangeAlgebra.Simulate
 import qualified    Data.List as L
 import              Graphics.Rendering.Chart.Easy            hiding ( (:<),(.~))
 import              Graphics.Rendering.Chart.Backend.Cairo

@@ -29,35 +29,35 @@
 
 
 
-module ExchangeAlgebraMap.Journal.Transfer
+module ExchangeAlgebra.Journal.Transfer
     ( TransTable (..)
     , isNullTable
     , table
     , TransTableParts
     , (.->)
     , (|%)
-    , ExchangeAlgebraMap.Journal.Transfer.transfer
-    , ExchangeAlgebraMap.Journal.Transfer.netIncomeTransfer
-    , ExchangeAlgebraMap.Journal.Transfer.grossProfitTransfer
-    , ExchangeAlgebraMap.Journal.Transfer.ordinaryProfitTransfer
-    , ExchangeAlgebraMap.Journal.Transfer.retainedEarningTransfer
-    , ExchangeAlgebraMap.Journal.Transfer.finalStockTransfer
+    , ExchangeAlgebra.Journal.Transfer.transfer
+    , ExchangeAlgebra.Journal.Transfer.netIncomeTransfer
+    , ExchangeAlgebra.Journal.Transfer.grossProfitTransfer
+    , ExchangeAlgebra.Journal.Transfer.ordinaryProfitTransfer
+    , ExchangeAlgebra.Journal.Transfer.retainedEarningTransfer
+    , ExchangeAlgebra.Journal.Transfer.finalStockTransfer
     ) where
 
-import qualified    ExchangeAlgebraMap.Algebra as EA
-import              ExchangeAlgebraMap.Algebra hiding (map)
-import qualified    ExchangeAlgebraMap.Algebra.Transfer as EAT
-import              ExchangeAlgebraMap.Algebra.Transfer (TransTable (..)
-                                                        , isNullTable
-                                                        , table
-                                                        , TransTableParts
-                                                        , (.->)
-                                                        , (|%)
-                                                        , retainedEarningTransfer
-                                                        , ordinaryProfitTransfer
-                                                        , grossProfitTransfer)
-import qualified    ExchangeAlgebraMap.Journal as EJ
-import              ExchangeAlgebraMap.Journal hiding ()
+import qualified    ExchangeAlgebra.Algebra as EA
+import              ExchangeAlgebra.Algebra hiding (map)
+import qualified    ExchangeAlgebra.Algebra.Transfer as EAT
+import              ExchangeAlgebra.Algebra.Transfer (TransTable (..)
+                                                    , isNullTable
+                                                    , table
+                                                    , TransTableParts
+                                                    , (.->)
+                                                    , (|%)
+                                                    , retainedEarningTransfer
+                                                    , ordinaryProfitTransfer
+                                                    , grossProfitTransfer)
+import qualified    ExchangeAlgebra.Journal as EJ
+import              ExchangeAlgebra.Journal hiding ()
 
 import qualified    Number.NonNegative  as NN       ( Double
                                                     , fromNumber
@@ -128,8 +128,8 @@ retainedEarningTransfer = EJ.map EAT.retainedEarningTransfer
 -- | Final Stock Transfer (損益勘定)
 finalStockTransfer ::(Note n, HatVal v, ExBaseClass b) =>  Journal n v b -> Journal n v b
 finalStockTransfer  = (.-)
-                    . ExchangeAlgebraMap.Journal.Transfer.retainedEarningTransfer
-                    . ExchangeAlgebraMap.Journal.Transfer.ordinaryProfitTransfer
-                    . ExchangeAlgebraMap.Journal.Transfer.grossProfitTransfer
+                    . ExchangeAlgebra.Journal.Transfer.retainedEarningTransfer
+                    . ExchangeAlgebra.Journal.Transfer.ordinaryProfitTransfer
+                    . ExchangeAlgebra.Journal.Transfer.grossProfitTransfer
 
 

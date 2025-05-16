@@ -16,15 +16,15 @@
 
 -- Original
 import              RippleEffect
-import              ExchangeAlgebraMapJournal
-import qualified    ExchangeAlgebraMap.Journal  as EJ
-import qualified    ExchangeAlgebraMap.Journal.Transfer as EJT
-import              ExchangeAlgebraMap.Journal.Transfer ((.->)
+import              ExchangeAlgebraJournal
+import qualified    ExchangeAlgebra.Journal  as EJ
+import qualified    ExchangeAlgebra.Journal.Transfer as EJT
+import              ExchangeAlgebra.Journal.Transfer ((.->)
                                                         ,(|%))
 
-import qualified    ExchangeAlgebraMap.Simulate as ES
-import qualified    ExchangeAlgebraMap.Simulate
-import qualified    ExchangeAlgebraMap.Simulate.Visualize as ESV
+import qualified    ExchangeAlgebra.Simulate as ES
+import qualified    ExchangeAlgebra.Simulate
+import qualified    ExchangeAlgebra.Simulate.Visualize as ESV
 
 
 -- Other

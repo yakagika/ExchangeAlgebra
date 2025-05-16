@@ -23,13 +23,11 @@
 
 module ExchangeAlgebra
     ( module ExchangeAlgebra.Algebra
-    , module ExchangeAlgebra.Record
-    , module ExchangeAlgebra.Transfer
+    , module ExchangeAlgebra.Algebra.Transfer
     , module ExchangeAlgebra.Write
     , module ExchangeAlgebra.Simulate ) where
 
 import              ExchangeAlgebra.Algebra
-import              ExchangeAlgebra.Record
-import              ExchangeAlgebra.Transfer
+import              ExchangeAlgebra.Algebra.Transfer
 import              ExchangeAlgebra.Write
 import              ExchangeAlgebra.Simulate

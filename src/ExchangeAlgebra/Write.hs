@@ -25,7 +25,10 @@ module ExchangeAlgebra.Write where
 import qualified    ExchangeAlgebra.Algebra     as EA
 import              ExchangeAlgebra.Algebra
 
-import qualified    ExchangeAlgebra.Transfer    as ET
+import qualified    ExchangeAlgebra.Algebra.Transfer    as ET
+
+import              ExchangeAlgebra.Simulate
+
 import qualified    CSV.Text                    as CSV
 import qualified    Data.List                   as L
 import qualified    Data.Text                   as T
@@ -33,17 +36,18 @@ import qualified    Data.Text                   as T
 import              Data.IORef
 import              Control.Monad
 import qualified    Data.Set as Set
-
+import              Data.Array.IO
 -- Day
 import qualified    Data.Time           as Time
 import              Data.Time
 
-
+tshow :: (Show a) => a -> T.Text
+tshow = T.pack . show
 
 -- | BalanceSheet貸借対照表の形でCSVで出力する
 writeBS :: (HatVal n, HatBaseClass b, ExBaseClass b) => FilePath -> Alg n b -> IO ()
 writeBS path alg
-    =  let transferd       = ET.finalStockTransferKeepWiledcard alg
+    =  let transferd       = ET.finalStockTransfer alg
     in let debitSide       = decR transferd
     in let creditSide      = decL transferd
     in let assets          = creditSide
@@ -205,5 +209,46 @@ writeCompoundTrialBalance path alg = do
     result' <- readIORef result
     CSV.writeCSV path result'
 
+
+------------------------------------------------------------------
+-- Write Functions for Simulation
+------------------------------------------------------------------
+
+-- | 複数年の産業連関表
+writeTermIO :: (HatVal n,BaseClass b, StateTime t, Ix b, Ix t, Enum b)
+            => FilePath -> t -> IOArray (t, b, b) n  -> IO ()
+writeTermIO path t arr = do
+            ((tMin, c1Min, c2Min), (tMax, c1Max, c2Max)) <- getBounds arr
+            let rows = [c1Min .. c1Max]
+            let cols = [c2Min .. c2Max]
+            result <- newIORef ([(T.pack ""):(L.map tshow cols)] :: [[T.Text]])
+            forM_ rows $ \r -> do
+                line <- newIORef ([tshow r] :: [T.Text])
+                forM_ cols $ \c -> do
+                    v <- readArray arr (t,r,c)
+                    modifyIORef line (\xs -> xs ++ [tshow v])
+                line' <- readIORef line
+                modifyIORef result (\xs -> xs ++ [line'])
+            result' <- readIORef result
+            CSV.writeCSV path result'
+
+-- | 与えられたInput-Output TableをCSVとして出力する
+-- CSVとして出力する関数
+-- 与えられた波及効果をCSVとして出力する
+writeIOMatrix :: FilePath -> IOArray (Int, Int) Double -> IO ()
+writeIOMatrix path arr = do
+    ((r1, c1), (r2, c2)) <- getBounds arr
+    let rows = [r1 .. r2]
+    let cols = [c1 .. c2]
+    result <- newIORef ([(T.pack ""):(L.map tshow cols)] :: [[T.Text]])
+    forM_ rows $ \r -> do
+        line <- newIORef ([tshow r] :: [T.Text])
+        forM_ cols $ \c -> do
+            v <- readArray arr (r, c)
+            modifyIORef line (\xs -> xs ++ [T.pack (show v)])
+        line' <- readIORef line
+        modifyIORef result (\xs -> xs ++ [line'])
+    result' <- readIORef result
+    CSV.writeCSV path result'
 
 

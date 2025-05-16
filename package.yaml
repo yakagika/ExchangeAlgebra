@@ -57,11 +57,6 @@ _exe-defs: &exe-defaults
                ,-fwrite-ide-info]
 
 executables:
-  ssex2:
-    <<: *exe-defaults
-    main:                statespaceEx2.hs
-    source-dirs:         exsample/basic
-
   ebex1:
     <<: *exe-defaults
     main:                elementaryBookkeepingEx1.hs

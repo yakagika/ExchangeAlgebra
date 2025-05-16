@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5d5d124a183236f6bb5c5ed6f8ed800dbbf67650783edef7be93af3b89f47274
+-- hash: a1241b35d00e9194045507d3c8ed2b9cbdb547762d856b7fd081485ca4ecd8ce
 
 name:           exchangealgebra
 version:        0.3.0.0
@@ -31,21 +31,13 @@ library
       ExchangeAlgebra.Algebra
       ExchangeAlgebra.Algebra.Base
       ExchangeAlgebra.Algebra.Base.Element
-      ExchangeAlgebra.Record
+      ExchangeAlgebra.Algebra.Transfer
+      ExchangeAlgebra.Journal
+      ExchangeAlgebra.Journal.Transfer
       ExchangeAlgebra.Simulate
-      ExchangeAlgebra.Transfer
+      ExchangeAlgebra.Simulate.Visualize
       ExchangeAlgebra.Write
-      ExchangeAlgebraMap
-      ExchangeAlgebraMap.Algebra
-      ExchangeAlgebraMap.Algebra.Base
-      ExchangeAlgebraMap.Algebra.Base.Element
-      ExchangeAlgebraMap.Algebra.Transfer
-      ExchangeAlgebraMap.Journal
-      ExchangeAlgebraMap.Journal.Transfer
-      ExchangeAlgebraMap.Simulate
-      ExchangeAlgebraMap.Simulate.Visualize
-      ExchangeAlgebraMap.Write
-      ExchangeAlgebraMapJournal
+      ExchangeAlgebraJournal
   other-modules:
       Paths_exchangealgebra
   hs-source-dirs:
@@ -186,40 +178,6 @@ executable rippleWithStock
       Paths_exchangealgebra
   hs-source-dirs:
       exsample/deterministic/ripple
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N -fwrite-ide-info
-  build-depends:
-      Chart
-    , Chart-cairo
-    , array
-    , async
-    , base
-    , bifunctors
-    , containers
-    , csv-parser
-    , deepseq
-    , exchangealgebra
-    , hashable
-    , lens
-    , mtl
-    , non-negative
-    , numeric-prelude
-    , parallel
-    , random
-    , scientific
-    , statistics
-    , text
-    , time
-    , unicode-show
-    , unordered-containers
-    , vector
-  default-language: Haskell2010
-
-executable ssex2
-  main-is: statespaceEx2.hs
-  other-modules:
-      Paths_exchangealgebra
-  hs-source-dirs:
-      exsample/basic
   ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N -fwrite-ide-info
   build-depends:
       Chart

@@ -22,6 +22,11 @@
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE StrictData                 #-}
 {-# LANGUAGE Strict                     #-}
+{-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE TypeFamilyDependencies     #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE ConstrainedClassMethods    #-}
+{-# LANGUAGE DeriveGeneric              #-}
 
 
 module ExchangeAlgebra.Algebra.Base
@@ -34,7 +39,12 @@ import qualified    Data.Time           as Time
 import              Data.Time
 import qualified    Data.List           as L (foldr1, map, length, elem,sort,foldl1,filter, or, and, sum)
 import              Prelude             hiding (map, head, filter,tail, traverse, mapM)
+import GHC.Stack (HasCallStack, callStack, prettyCallStack)
+import GHC.Generics (Generic)
+import Data.Hashable
 
+customError :: HasCallStack => String -> a
+customError msg = error (msg ++ "\nCallStack:\n" ++ prettyCallStack callStack)
 
 ------------------------------------------------------------------
 -- * Base 基底の条件
@@ -47,6 +57,8 @@ import              Prelude             hiding (map, head, filter,tail, traverse
 -}
 
 class (Element a) =>  BaseClass a where
+    compareBase :: a -> a -> Ordering
+    compareBase = compareElement
 
 instance (Element e1, Element e2)
         => BaseClass (e1, e2) where
@@ -67,20 +79,32 @@ instance (Element e1, Element e2, Element e3, Element e4, Element e5, Element e6
 ------------------------------------------------------------------
 -- ** HatBase
 ------------------------------------------------------------------
-class (BaseClass a) => HatBaseClass a where
-    toHat  :: a    -> a
-    toNot  :: a    -> a
-    hat    :: a    -> Hat
-    revHat :: a    -> a     -- reverse Hat
-    isHat  :: a    -> Bool
-    isNot  :: a    -> Bool
 
+class (BaseClass a, BaseClass (BasePart a)) => HatBaseClass a where
+    type BasePart a
+    base    :: (BaseClass (BasePart a)) => a -> BasePart a
+    hat     :: a    -> Hat
+
+    merge :: Hat -> BasePart a -> a
+
+    toHat   :: a    -> a
+    toNot   :: a    -> a
+    revHat  :: a    -> a     -- reverse Hat
+    isHat   :: a    -> Bool
+    isNot   :: a    -> Bool
+
+
+    compareHatBase :: a -> a -> Ordering
+    compareHatBase = compareBase
+
+------------------------------------------------------------------
 -- | Hat の定義
 data Hat    = Hat
             | Not
             | HatNot
-            deriving (Enum, Eq, Ord, Show)
+            deriving (Enum, Eq, Ord, Show, Generic)
 
+instance Hashable Hat where
 
 instance Element Hat where
     wiledcard = HatNot
@@ -92,8 +116,53 @@ instance Element Hat where
     equal Not Not = True
     equal _   _   = True
 
+instance BaseClass Hat where
+
+data BaseForSingleHat = BaseForSingleHat
+    deriving (Eq,Ord,Generic)
+
+instance Show BaseForSingleHat where
+    show _ = ""
+
+instance Hashable BaseForSingleHat where
+
+instance Element BaseForSingleHat where
+    wiledcard = BaseForSingleHat
+    equal _ _ = True
+
+instance BaseClass BaseForSingleHat where
+
+instance HatBaseClass Hat where
+    type BasePart Hat = BaseForSingleHat
+    hat  = id
+    base x = BaseForSingleHat
+
+    merge Hat _ = Hat
+    merge Not _ = Not
+
+    {-# INLINE toHat #-}
+    toHat _ = Hat
+
+    {-# INLINE toNot #-}
+    toNot _ = Not
+
+    {-# INLINE revHat #-}
+    revHat Hat = Not
+    revHat Not = Hat
+
+    {-# INLINE isHat #-}
+    isHat  Hat = True
+    isHat  Not = False
+
+    {-# INLINE isNot #-}
+    isNot  = not . isHat
+------------------------------------------------------------------
+
 data HatBase a where
      (:<)  :: (BaseClass a) => {_hat :: Hat,  _base :: a } -> HatBase a
+
+instance Show (HatBase a) where
+    show (h :< b) = show h ++ ":<" ++ show b
 
 instance Eq (HatBase a) where
     {-# INLINE (==) #-}
@@ -102,9 +171,10 @@ instance Eq (HatBase a) where
     (/=) x y = not (x == y)
 
 instance Ord (HatBase a) where
+    {-# INLINE compare #-}
     compare (h :< b) (h' :< b')
+        | b == b' = compare h h'
         | b >  b'  = GT
-        | b .== b' = compare h h'
         | b <  b'  = LT
 
     (<) x y | compare x y == LT = True
@@ -114,11 +184,13 @@ instance Ord (HatBase a) where
             | otherwise         = False
 
 
-    (<=) x y | compare x y == LT || compare x y == EQ   = True
-             | otherwise                                = False
+    (<=) x y | compare x y == LT = True
+             | compare x y == EQ = True
+             | otherwise         = False
 
-    (>=) x y | compare x y == GT || compare x y == EQ   = True
-             | otherwise                                = False
+    (>=) x y | compare x y == GT = True
+             | compare x y == EQ = True
+             | otherwise         = False
 
     max x y | x >= y    = x
             | otherwise = y
@@ -126,17 +198,52 @@ instance Ord (HatBase a) where
     min x y | x <= y    = x
             | otherwise = y
 
-instance Show (HatBase a) where
-    show (h :< b) = show h ++ ":<" ++ show b
+instance (BaseClass a) => Hashable (HatBase a) where
+     hashWithSalt salt (h:<b) = salt `hashWithSalt` h
+                                     `hashWithSalt` b
+
+-- | Element (HatBase a)
+--  haveWiledcard
+-- >>> haveWiledcard (HatNot:<Amount :: HatBase CountUnit)
+-- True
+--
+-- (.==)
+-- >>> Not:<(Cash, Yen) == Not:<(Cash,(.#))
+-- False
+--
+-- >>> Not:<(Cash, Yen) .== Not:<(Cash,(.#))
+-- True
+--
+--  compareElement
+-- >>> type Test = HatBase CountUnit
+-- >>> compareHatBase (Not:<Amount :: Test) (Not:<(.#) :: Test)
+-- EQ
+--
+-- ignoreWiledcard
+-- >>> ignoreWiledcard (Not:<(Products,Yen)) (Hat:<(Products,Amount))
+-- Hat:<(Products,Amount)
+--
+-- >>> ignoreWiledcard (Not:<(Products,Yen)) (Hat:<(Products,(.#)))
+-- Hat:<(Products,Yen)
+--
+-- >>> ignoreWiledcard (Not:<(Cash,(.#))) (HatNot:<((.#),Amount))
+-- Not:<(Cash,Amount)
+
 
 instance (BaseClass a) => Element (HatBase a) where
     wiledcard = HatNot :<wiledcard
 
+    haveWiledcard (h:<b)
+        | isWiledcard h   = True
+        | haveWiledcard b = True
+        | otherwise       = False
+
     {-# INLINE equal #-}
     equal (h1:<b1) (h2:<b2) = h1 .== h2 && b1 .== b2
 
-    keepWiledcard (h1:<b1) (h2:<b2)
-        = (keepWiledcard h1 h2) :< (keepWiledcard b1 b2)
+    ignoreWiledcard (h1:<b1) (h2:<b2)
+        = (ignoreWiledcard h1 h2) :< (ignoreWiledcard b1 b2)
+
 
     compareElement (h1:<b1) (h2:<b2)
         = case compareElement b1 b2 of
@@ -146,10 +253,17 @@ instance (BaseClass a) => Element (HatBase a) where
 instance (BaseClass a) => BaseClass (HatBase a) where
 
 instance (BaseClass a) => HatBaseClass (HatBase a) where
+    type BasePart (HatBase a) = a
+
     hat  = _hat
+
+    base = _base
+
+    merge = (:<)
 
     {-# INLINE toHat #-}
     toHat (h:<b) = Hat:<b
+
     {-# INLINE toNot #-}
     toNot (h:<b) = Not:<b
 
@@ -158,13 +272,12 @@ instance (BaseClass a) => HatBaseClass (HatBase a) where
     revHat (Not :< b) = Hat :< b
 
     {-# INLINE isHat #-}
-    isHat  (Hat :< b) = True
-    isHat  (Not :< b) = False
+    isHat  (Hat :< b)    = True
+    isHat  (Not :< b)    = False
+    isHat  (HatNot :< b) = customError "called HatNot"
 
     {-# INLINE isNot #-}
     isNot  = not . isHat
-
-
 
 ------------------------------------------------------------
 -- * Define ExBase
@@ -397,13 +510,11 @@ instance AccountBase PIMO where
 
 -- ** 要素数 1
 -- *** 勘定科目のみ (交換代数基底)
-
 instance BaseClass AccountTitles where
 
 instance ExBaseClass (HatBase AccountTitles) where
     getAccountTitle (h :< a)   = a
     setAccountTitle (h :< a) b = h :< b
-
 
 -- ***  名前のみ(冗長代数基底)
 instance BaseClass Name where
@@ -416,6 +527,9 @@ instance BaseClass Day where
 
 -- *** TimeOfDayのみ(冗長代数基底)
 instance BaseClass TimeOfDay where
+
+-- ***
+
 
 -- ** 要素数2
 

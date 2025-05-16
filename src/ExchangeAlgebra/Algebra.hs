@@ -7,13 +7,16 @@
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE BangPatterns               #-}
+{-# LANGUAGE PatternGuards              #-}
 {-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE RankNTypes                 #-}
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE StrictData                 #-}
 {-# LANGUAGE Strict                     #-}
-
+{-# LANGUAGE PatternSynonyms            #-}
+{-# LANGUAGE ViewPatterns               #-}
+{-# LANGUAGE OverloadedStrings          #-}
 
 {- |
     Module     : ExchangeAlgebra.Algebra
@@ -37,26 +40,57 @@
 
 
 module ExchangeAlgebra.Algebra
-    ( module ExchangeAlgebra.Algebra
-    , module ExchangeAlgebra.Algebra.Base )where
+    ( module ExchangeAlgebra.Algebra.Base
+    , Nearly
+    , isNearlyNum
+    , Redundant(..)
+    , Exchange(..)
+    , HatVal(..)
+    , Alg(..)
+    , isZero
+    , (<@)
+    , vals
+    , bases
+    , fromList
+    , toList
+    , toASCList
+    , map
+    , filter
+    , proj
+    , projCredit
+    , projDebit
+    , projByAccountTitle
+    , projNorm
+    , projCurrentAssets
+    , projFixedAssets
+    , projDeferredAssets
+    , projCurrentLiability
+    , projFixedLiability
+    , projCapitalStock
+    , rounding)where
 
 import              ExchangeAlgebra.Algebra.Base
 
 import              Debug.Trace
 import qualified    Data.Text           as T
 import              Data.Text           (Text)
-import qualified    Data.List           as L (foldr1, map, length, elem,sort,foldl1,filter, or, and, sum)
+import qualified    Data.List           as L (foldl', map, length, elem,sort,filter, or, and,any, sum, concat)
 import              Prelude             hiding (map, head, filter,tail, traverse, mapM)
 import qualified    Data.Time           as Time
 import              Data.Time
-import qualified    Data.Map.Strict     as Map
-import qualified    Data.Map.Strict     as Map
+import qualified    Data.HashMap.Strict     as Map
+import qualified    Data.Foldable       as Foldable (foldMap,foldl)
 import qualified    Data.Maybe          as Maybe
 import qualified    Number.NonNegative  as NN  -- 非負の実数
 import              Numeric.NonNegative.Class (C)
 import              Data.Bifunctor
 import              Data.Biapplicative
 import              Algebra.Additive (C)
+import qualified    Data.Scientific     as D (Scientific, fromFloatDigits, formatScientific, FPFormat(..))
+import Control.DeepSeq
+import Control.Parallel.Strategies (rpar, rseq, runEval, using, Strategy, rdeepseq)
+import GHC.Stack (HasCallStack, callStack, prettyCallStack)
+import Data.Hashable
 
 ------------------------------------------------------------------
 -- * 丸め込み判定
@@ -102,9 +136,31 @@ isNearlyNum x y t
 -- | Reduncdant Class
 --
 --  Redundant ⊃ Exchange
+--
+-- hat calculation
+-- >>> (.^) (10:@Not:<Cash .+ 10:@Hat:<Deposits)
+-- 10.00:@Hat:<Cash .+ 10.00:@Not:<Deposits
+--
+-- bar calculation
+-- >>> x = 10:@Not:<Cash .+ 10:@Hat:<Deposits
+-- >>> y = 5:@Hat:<Cash .+ 5:@Not:<Deposits
+-- >>> (.-) $ x .+ y
+-- 5.00:@Not:<Cash .+ 5.00:@Hat:<Deposits
+--
+-- norm calculation
+-- >>> norm $ 10:@Not:<Cash .+ 10:@Hat:<Deposits
+-- 20.0
+--
+-- (.*) calculation
+-- >>> (.*) 5 $ 10:@Not:<Cash .+ 10:@Hat:<Deposits
+-- 50.00:@Not:<Cash .+ 50.00:@Hat:<Deposits
+--
+-- compress calculation
+-- >>> compress $ 10:@Not:<Cash .+ 5:@Hat:<Cash .+ 3:@Not:<Cash
+-- 5.00:@Hat:<Cash .+ 13.00:@Not:<Cash
 
 class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
-    -- | hat calculation
+    -- |
     (.^) :: a n b -> a n b
 
     -- | bar calculation
@@ -124,11 +180,6 @@ class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
 
     -- | get value part
     norm :: a n b -> n
-
-    {-# INLINE (.|) #-}
-    -- | alias of nolm
-    (.|) :: a n b -> n
-    (.|) = norm
 
     {-# INLINE (<+) #-}
     (<+) :: (Applicative f) => f (a n b) -> f (a n b) -> f (a n b)
@@ -161,8 +212,8 @@ class   ( Show n
         , Eq n
         , Nearly n
         , Fractional n
-        , Num n
-        , Numeric.NonNegative.Class.C n) => HatVal n where
+        , RealFloat n
+        , Num n) => HatVal n where
 
         zeroValue :: n
 
@@ -173,45 +224,103 @@ class   ( Show n
 
         isErrorValue :: n -> Bool
 
+
+instance RealFloat NN.Double where
+    floatRadix      = floatRadix    . NN.toNumber
+    floatDigits     = floatDigits   . NN.toNumber
+    floatRange      = floatRange    . NN.toNumber
+    decodeFloat     = decodeFloat   . NN.toNumber
+    encodeFloat m e = NN.fromNumber (encodeFloat m e)
+    exponent        = exponent      . NN.toNumber
+    significand     = NN.fromNumber . significand . NN.toNumber
+    scaleFloat n    = NN.fromNumber . scaleFloat n . NN.toNumber
+    isNaN           = isNaN         . NN.toNumber
+    isInfinite      = isInfinite    . NN.toNumber
+    isDenormalized  = isDenormalized . NN.toNumber
+    isNegativeZero  = isNegativeZero . NN.toNumber
+    isIEEE          = isIEEE        . NN.toNumber
+
 instance HatVal NN.Double where
+    {-# INLINE zeroValue #-}
     zeroValue = 0
+    {-# INLINE isErrorValue #-}
     isErrorValue x  =  isNaN        (NN.toNumber x)
                     || isInfinite   (NN.toNumber x)
 
--- データ代数 Hat が セミグループになる.
--- 単位元もない(未実装)
--- 交換代数をデータ代数の要素にする
+instance HatVal Prelude.Double where
+    {-# INLINE zeroValue #-}
+    zeroValue = 0
+
+    {-# INLINE isErrorValue #-}
+    isErrorValue x  =  isNaN        x
+                    || isInfinite   x
+                    || x < 0
+
+data Pair v where
+ Pair :: {_hatSide :: [v]
+         ,_notSide :: [v]} -> Pair v
+         deriving (Eq)
+
+
+instance (HatVal v) => Ord (Pair v) where
+    {-# INLINE compare #-}
+    compare (Pair hs1 ns1) (Pair hs2 ns2) = compare ((sum hs1) - (sum ns1)) ((sum hs2) - (sum ns2))
+
+    (<) x y | compare x y == LT = True
+            | otherwise         = False
+
+    (>) x y | compare x y == GT = True
+            | otherwise         = False
+
+    (<=) x y | compare x y == LT   = True
+             | compare x y == EQ   = True
+             | otherwise           = False
+
+    (>=) x y | compare x y == GT = True
+             | compare x y == EQ = True
+             | otherwise         = False
+
+    max x y | x >= y    = x
+            | otherwise = y
+
+    min x y | x <= y    = x
+            | otherwise = y
+
+{-# INLINE nullPair #-}
+nullPair :: Pair v
+nullPair = Pair [] []
+
+{-# INLINE isNullPair #-}
+isNullPair :: Pair v -> Bool
+isNullPair (Pair [] []) = True
+isNullPair _            = False
+
+{-# INLINE pairAppend #-}
+pairAppend :: Pair v -> Pair v -> Pair v
+pairAppend (Pair x1 y1) (Pair x2 y2) = Pair (x1 ++ x2) (y1 ++ y2)
 
 -- | 代数元 数値と基底のペア
---
--- Use (.+) instead of (:+) except for pattern match.
+data  Alg v b where
+        Zero  :: Alg v b
+        (:@)  :: {_val :: v, _hatBase :: b} -> Alg v b
+        Liner :: {_realg :: Map.HashMap (BasePart b) (Pair v)} ->  Alg v b
 
-{-
--- 線形結合の要素
-data ExElm n b where
-    (:@) :: {_val :: n, _hatBase :: b}  -> ExElm n b
+isZero :: Alg v b -> Bool
+isZero Zero = True
+isZero _    = False
 
--- 線形結合
-data Assoc n b
-    Zero :: Alg n b
-    (:+) :: (ExElm n b) -> (Assoc n b) -> Assoc n b
+{-# INLINE singleton #-}
+singleton :: (HatVal v, HatBaseClass b) => v -> b -> Alg v b
+singleton v b | isZeroValue v  = Zero
+              | isErrorValue v = error  $ "errorValue at (.@) val: "
+                               ++ show v
+                               ++ show ":@"
+                               ++ show b
+              | otherwise      = v :@ b
 
-のように分離したほうが良い.
--}
-
-
-data  Alg n b where
-    Zero :: Alg n b
-    (:@) :: {_val :: n, _hatBase :: b}  -> Alg n b
-    (:+) :: (Alg n b) -> (Alg n b) -> Alg n b
-
+{-# INLINE (.@) #-}
 (.@) :: (HatVal n, HatBaseClass b) => n -> b -> Alg n b
-(.@) v b = case isErrorValue v of
-                False -> v :@ b
-                True  -> error  $ "errorValue at (:@) val: "
-                                ++ show v
-                                ++ show ":@"
-                                ++ show b
+(.@) v b = singleton v b
 
 (<@) :: (HatVal n, Applicative f, HatBaseClass b)
      => f n  -> b -> f (Alg n b)
@@ -221,37 +330,33 @@ data  Alg n b where
 infixr 6 :@
 infixr 6 .@
 infixr 6 <@
-infixr 5 :+
 
-instance (Show n, Show b) => Show (Alg n b) where
-    show Zero               = "0"
-    show (v :@ b)           = (show v)          ++ ":@"    ++ show b
-    show (x:@b :+ y:@c)     = (show (x:@b))     ++ " .+ "  ++ show (y:@c)
-    -- 左結合になっている場合のみ表記変更
-    show ((w :+ z) :+ x:@b) = (show (w :+ z))   ++ " |.+ " ++ show (x:@b)
-    show (x :+ y)           = (show x)          ++ " .+ "  ++ show y
+showV ::  (HatVal v) => v -> String
+showV v = D.formatScientific D.Generic (Just 2) (D.fromFloatDigits v)
 
-instance (HatVal n, HatBaseClass b) =>  Eq (Alg n b) where
+instance (HatVal v, HatBaseClass b) =>  Eq (Alg v b) where
     (==) Zero Zero = True
     (==) Zero _    = False
     (==) _    Zero = False
+    (==) (v1:@b1) (v2:@b2) = (v1 == v2) && (b1 == b2)
+    (==) (Liner m1) (Liner m2) = m1 == m2
+    (==) _ _ = False
+    (/=) x y = not (x == y)
 
-    (==) (v :@ b) (v' :@ b')
-        | v == v' && b .== b'    = True
-        | otherwise              = False
-
-    -- 交換法則
-    (==) (x :+ y) (w :+ z)       = (x == w && y == z)  || (x == z && y == w)
-    (/=) x y                     = not (x == y)
-
-instance (HatVal n, HatBaseClass b) =>  Ord (Alg n b) where
+instance (HatVal v, HatBaseClass b) => Ord (Alg v b) where
+    {-# INLINE compare #-}
     compare Zero Zero = EQ
-    compare Zero _    = LT
-    compare _    Zero = GT
-    compare (v :@ b) (v' :@ b')
-        | b .== b'   = compare v v'
-        | otherwise  = compare b b'
-    -- :+ に関しては定義しない
+    compare Zero _ = LT
+    compare _ Zero = GT
+
+    compare (v:@b) (Liner m) = LT
+    compare (Liner m) (v:@b) = GT
+    compare (v1:@b1) (v2:@b2)
+        | b1 == b2 = compare v1 v2
+        | b1 >  b2  = GT
+        | b1 <  b2  = LT
+
+    compare (Liner m1) (Liner m2) = compare m1 m2
 
     (<) x y | compare x y == LT = True
             | otherwise         = False
@@ -259,12 +364,13 @@ instance (HatVal n, HatBaseClass b) =>  Ord (Alg n b) where
     (>) x y | compare x y == GT = True
             | otherwise         = False
 
+    (<=) x y | compare x y == LT   = True
+             | compare x y == EQ   = True
+             | otherwise           = False
 
-    (<=) x y | compare x y == LT || compare x y == EQ   = True
-             | otherwise                                = False
-
-    (>=) x y | compare x y == GT || compare x y == EQ   = True
-             | otherwise                                = False
+    (>=) x y | compare x y == GT = True
+             | compare x y == EQ = True
+             | otherwise         = False
 
     max x y | x >= y    = x
             | otherwise = y
@@ -272,163 +378,141 @@ instance (HatVal n, HatBaseClass b) =>  Ord (Alg n b) where
     min x y | x <= y    = x
             | otherwise = y
 
+instance (HatVal v, HatBaseClass b) => Show (Alg v b) where
+    show Zero       = "0"
+    show (v:@b)     = (showV v) ++ ":@" ++ show b
+    show xs = let ls = toASCList xs
+            in  go ls
+        where
+            go []     = "0"
+            go [y]    = show y
+            go (y:ys) = show y ++ " .+ " ++ go ys
+
+
+instance NFData (Alg v b) where
+    rnf Zero      = Zero `seq` ()
+    rnf (v:@b)    = v `seq` b `seq` ()
+    rnf (Liner m) = Map.foldrWithKey (\k v acc -> k `seq` v `seq` acc) () m
+------------------------------------------------------------------
+-- Semigroup
+------------------------------------------------------------------
 
 instance  (HatVal n, HatBaseClass b) => Semigroup (Alg n b) where
     {-# INLINE (<>) #-}
-
     -- | Associative law ;convert to right join
-    x <> y  = foldr (<<>>) Zero
-            $ (flip L.filter)
-            (toList x ++ toList y)
-            $ \z -> z /= Zero && (_val z) /= 0
-            where
-            {-# INLINE (<<>>) #-}
-            Zero <<>> Zero = Zero
-            Zero <<>> x    = x
-            x    <<>> Zero = x
-            x    <<>> y    = x :+ y
+    (<>)  = union
 
-    {- 格好いいけど遅いので使わない
-    (v:@b) <> (w:@c) = case (v == 0 , w == 0) of
-                            (True, True)   -> Zero
-                            (True, False)  -> (w:@c)
-                            (False, True)  -> (v:@b)
-                            (False, False) -> (v:@b) :+ (w:@c)
 
-    -- | 単位元の演算
-    Zero   <>  Zero   = Zero
-    Zero   <> (v:@b)  = case v == 0 of
+
+-- | union two trees
+--
+-- >>> type Test = Alg NN.Double (HatBase CountUnit)
+-- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
+-- >>> y = 2:@Hat:<Yen .+ 2:@Not:<Amount :: Test
+-- >>> union x y
+-- 1.00:@Hat:<Yen .+ 2.00:@Hat:<Yen .+ 1.00:@Not:<Amount .+ 2.00:@Not:<Amount
+{-# INLINE union #-}
+union :: (HatVal n, HatBaseClass b) =>  Alg n b -> Alg n b -> Alg n b
+union Zero x  = x
+union x Zero  = x
+-- singletons
+union (v1:@b1) (v2:@b2)
+    | isZeroValue v1 = case isZeroValue v2 of
                             True  -> Zero
-                            False -> (v:@b)
+                            False -> v2:@b1
+    | isZeroValue v2 = v1:@b2
+    | otherwise      = insert b2 v2 (v1:@b1)
+-- If one side is a singleton
+union x (v:@b) = insert b v x
+union (v:@b) x = insert b v x
 
-    (v:@b) <> Zero    = case v == 0 of
-                            True  -> Zero
-                            False -> (v:@b)
+-- In the case of multiple elements
+union (Liner m1) (Liner m2) = Liner (Map.unionWith pairAppend m1 m2)
 
-    (x:+y) <> Zero    = x <> y
-    Zero   <> (z:+w)  = z <> w
 
-    -- | 結合法則(というか右結合に変換)
-    (v:@b) <> (z:+w) = case v == 0 of
-                        True  -> (z <> w)
-                        False -> (v:@b) :+ (z <> w)
+{-# INLINE insert #-}
+insert :: (HatVal v,HatBaseClass b) => b -> v -> Alg v b ->  Alg v b
+insert b v Zero       = v .@ b
+insert b1 v1 (v2:@b2) = case isHat b1 of
+                            True  -> insert b2 v2
+                                   $ Liner
+                                   $ Map.singleton (base b1)
+                                   $ nullPair {_hatSide = [v1]}
+                            False -> insert b2 v2
+                                   $ Liner
+                                   $ Map.singleton (base b1)
+                                   $ nullPair {_notSide = [v1]}
+insert b v (Liner m)  = case isHat b of
+                        True  -> Liner
+                               $ Map.insertWith pairAppend
+                                                (base b)
+                                                nullPair {_hatSide = [v]}
+                                                m
+                        False -> Liner
+                               $ Map.insertWith pairAppend
+                                                (base b)
+                                                nullPair {_notSide =[v]}
+                                                m
 
-    (x:+y) <> (w:@c) = case w == 0 of
-                        True  -> (x <> y)
-                        False -> (w:@c) :+ (x <> y)
-
-    (x:+y) <> (z:+w) = x <> (y <> (z <> w))
-    -}
+------------------------------------------------------------------
+-- Monoid
+------------------------------------------------------------------
 
 instance (HatVal n, HatBaseClass b) => Monoid (Alg n b) where
     -- 単位元
     mempty = Zero
     mappend = (<>)
-    mconcat = foldr mappend mempty
+    mconcat = unions
+
+{-# INLINE unions #-}
+unions :: (HatVal n, Foldable f, HatBaseClass b) => f (Alg n b) -> Alg n b
+unions ts = Foldable.foldl union Zero ts
+
+------------------------------------------------------------------
+-- Redundant
+------------------------------------------------------------------
 
 instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
-    (.^) Zero               = Zero
-    (.^) (v :@ b)           = v :@ (revHat b)
-    (.^) (x :+ y)           = (.^) x .+ (.^) y
+    (.^) Zero       = Zero
+    (.^) (n:@ b)    = n :@ (revHat b)
+    (.^) (Liner ms) = Liner
+                    $ Map.map (\ (Pair hs ns) -> Pair ns hs) ms
 
     (.+) = mappend
 
-    x  .*  Zero    = Zero
-    0  .*  x       = Zero
-    x  .*  (v:@b)  = case v == 0 of
-                        True  -> Zero
-                        False -> (x * v):@b
-
-    a  .*  (x:+y)  = (a.* x) .+ (a .* y)
+    x  .*  Zero      = Zero
+    0  .*  x         = Zero
+    x  .* (v:@b)     = (x * v) :@ b
+    x  .* (Liner ms) = Liner
+                     $ Map.map (\ (Pair hs ns) -> Pair (L.map (x *) hs) (L.map (x *) ns)) ms
 
     norm Zero       = 0
-    norm (v :@ b)   = v
-    norm xs         = L.sum $ vals xs
+    norm (v:@b)     = v
+    norm (Liner ms) = Map.foldl (\ x (Pair hs ns) -> x + sum hs + sum ns) 0 ms
 
     {-# INLINE (.-) #-}
-    (.-) Zero       = Zero
-    (.-) (v :@ b)   | v == 0    = Zero
-                    | otherwise = v :@ b
-
-    (.-) xs         = f Zero $ L.sort $ toList xs
+    (.-) Zero = Zero
+    (.-) (v:@b) = v:@b
+    (.-) (Liner m) = let !res = Map.mapMaybe f m
+                   in case null res of
+                        True -> Zero
+                        False -> Liner res
         where
-        {-# INLINE f #-}
-        f :: (HatVal n, HatBaseClass b) => Alg n b -> [Alg n b] -> Alg n b
-        f x []           = x
-        f x [y]          = x >< y
-        f Zero   (y:ys)  = f y ys
-        f (v:@b) (y:ys)  = case ((v:@b) >< y) of
-                                        Zero             -> f Zero   ys
-                                        (w:@c)           -> f (w:@c) ys
-                                        ((w:@c):+(x:@d)) -> (w:@c) .+ (f (x:@d) ys)
-
-        {-# INLINE (><) #-}
-        (><) ::  (HatVal n, HatBaseClass b) => Alg n b -> Alg n b -> Alg n b
-        Zero     >< Zero   = Zero
-        Zero     >< (v:@b) = case v == 0 of True  -> Zero
-                                            False -> (v:@b)
-        (v:@b)   >< Zero   = case v == 0 of True  -> Zero
-                                            False -> (v:@b)
-
-        (v:@b) >< (w:@c)    | (b /= c)  &&  ((revHat b) /= c) = case (v == 0 , w == 0) of
-                                            (True,  True)   -> Zero
-                                            (True,  False)  -> (w:@c)
-                                            (False, True)   -> (v:@b)
-                                            (False, False)  -> (v:@b) :+ (w:@c)
-                            | otherwise =  let h = hat b
-                                        in let n = hat c
-                                        in case (h, n) of
-                                            (Hat, Hat) -> (v + w) :@b
-                                            (Not, Not) -> (v + w) :@b
-                                            (Not, Hat)  | v == w             -> Zero
-                                                        | isNearly v w 1e-10 -> Zero -- 丸め込み
-                                                        | v >  w             -> (v - w):@b
-                                                        | v <  w             -> (w - v):@c
-                                            (Hat, Not)  | v == w             -> Zero
-                                                        | isNearly v w 1e-10 -> Zero -- 丸め込み
-                                                        | v >  w             -> (v - w):@b
-                                                        | v <  w             -> (w - v):@c
-
+            {-# INLINE f #-}
+            f (Pair hs ns) = let (h, n) = (sum hs,sum ns)
+                           in case compare h n of
+                                GT -> Just (Pair [h - n] [])
+                                LT -> Just (Pair [] [n - h])
+                                EQ -> Nothing
 
     {-# INLINE compress #-}
     compress Zero       = Zero
-    compress (v :@ b)   | v == 0    = Zero
-                        | otherwise = v :@ b
+    compress (v:@b)     = v:@b
+    compress (Liner m)  = Liner
+                        $ Map.map (\ (Pair hs ns) -> Pair [sum hs] [sum ns]) m
 
-    compress xs         = g Zero $ L.sort $ toList xs
-        where
-        {-# INLINE g #-}
-        g :: (HatVal n, HatBaseClass b) => Alg n b -> [Alg n b] -> Alg n b
-        g x []           = x
-        g x [y]          = x >><< y
-        g Zero   (y:ys)  = g y ys
-        g (v:@b) (y:ys)  = case ((v:@b) >><< y) of
-                                        Zero             -> g Zero   ys
-                                        (w:@c)           -> g (w:@c) ys
-                                        ((w:@c):+(x:@d)) -> (w:@c) .+ (g (x:@d) ys)
 
-        {-# INLINE (>><<) #-}
-        (>><<) ::  (HatVal n, HatBaseClass b) => Alg n b -> Alg n b -> Alg n b
-        Zero    >><< Zero   = Zero
-        Zero    >><< (v:@b) = case v == 0 of True  -> Zero
-                                             False -> (v:@b)
-        (v:@b)  >><< Zero   = case v == 0 of True  -> Zero
-                                             False -> (v:@b)
-
-        (v:@b)  >><< (w:@c) | (b /= c)  &&  ((revHat b) /= c) = case (v == 0 , w == 0) of
-                                            (True,  True)   -> Zero
-                                            (True,  False)  -> (w:@c)
-                                            (False, True)   -> (v:@b)
-                                            (False, False)  -> (v:@b) :+ (w:@c)
-                            | otherwise =  let h = hat b
-                                        in let n = hat c
-                                        in case (h, n) of
-                                            (Hat, Hat) -> (v + w) :@b
-                                            (Not, Not) -> (v + w) :@b
-                                            (Not, Hat) -> (w:@c) :+ (v:@b)
-                                            (Hat, Not) -> (v:@b) :+ (w:@c)
-
-instance (HatVal n, ExBaseClass a) =>  Exchange Alg n a where
+instance (HatVal n, ExBaseClass b) =>  Exchange Alg n b where
     -- | filter Debit side
     decR xs = filter (\x -> x /= Zero && (whichSide . _hatBase) x == Debit) xs
 
@@ -453,148 +537,318 @@ instance (HatVal n, ExBaseClass a) =>  Exchange Alg n a where
         r = (norm . decR) xs
         l = (norm . decL) xs
 
-
-
 ------------------------------------------------------------------
 -- * 基本の関数
 ------------------------------------------------------------------
 
--- | 全てHatかどうかを判定する
---
--- >>> allHat (10:@Hat:<Cash .+ 12:@Hat:<Deposits :: Alg NN.Double (HatBase AccountTitles))
--- True
---
--- >>> allHat ( 10:@Hat:<Cash .+ 12:@Not:<Deposits :: Alg NN.Double (HatBase AccountTitles))
--- False
---
--- Note: in case Zero, this returns True
--- >>> allNot (Zero :: Alg NN.Double (HatBase AccountTitles))
--- True
---
--- use (.+) instead of (:+)
+-- | vals
+-- get vals
+vals :: (HatVal v, HatBaseClass b) => Alg v b -> [v]
+vals Zero = []
+vals (v:@b) = [v]
+vals (Liner m) = Map.foldl (\ xs (Pair hs ns) -> xs ++ hs ++ ns) [] m
 
-allHat :: (HatVal n, HatBaseClass b) =>  Alg n b -> Bool
-allHat xs = L.and $ L.map (isHat . _hatBase) $ toList xs
 
--- | 全てNotかどうかを判定する
---
---
--- >>> allNot (10:@Hat:<Cash .+ 12:@Hat:<Deposits :: Alg NN.Double (HatBase AccountTitles))
--- False
---
--- >>> allNot ( 10:@Not:<Cash .+ 12:@Not:<Deposits :: Alg NN.Double (HatBase AccountTitles))
--- True
+-- | bases
+-- get bases
+bases :: (HatVal v, HatBaseClass b) => Alg v b -> [b]
+bases Zero = []
+bases (v:@b) = [b]
+bases (Liner m) = Map.foldlWithKey f [] m
+    where
+        f ::  (HatVal v, HatBaseClass b) => [b] -> BasePart b -> Pair v ->  [b]
+        f xs b (Pair {_hatSide = hs, _notSide = ns})
+            = L.foldl' (g Not b) (L.foldl' (g Hat b) xs hs) hs
 
-allNot ::(HatVal n, HatBaseClass b) =>   Alg n b -> Bool
-allNot xs = L.and $ L.map (isNot . _hatBase) $ toList xs
-
-vals :: (HatVal n, HatBaseClass b) =>  Alg n b -> [n]
-vals Zero     = [0]
-vals (x :@ y) = [x]
-vals xs = L.map _val $ toList xs
-
-bases ::(HatVal n, HatBaseClass b) =>  Alg n b -> [Maybe b]
-bases Zero = [Nothing]
-bases (v :@ b) = [Just b]
-bases (x :+ y) = bases x ++ bases y
-
-length :: (HatVal n, HatBaseClass b) => Alg n b -> Int
-length = L.length . toList
-
-isZero :: (HatVal n, HatBaseClass b) => Alg n b -> Bool
-isZero Zero = True
-isZero _    = False
-
-isSingle :: (HatVal n, HatBaseClass b) => Alg n b -> Bool
-isSIngle (_ :@ _) = True
-isSingle _        = False
-
-isFormula :: (HatVal n, HatBaseClass b) => Alg n b -> Bool
-isFormula (x :+ y) = True
-isFormula _        = False
+        g ::  (HatVal v, HatBaseClass b) => Hat -> BasePart b -> [b] -> v -> [b]
+        g h b ys v = (merge h b):ys
 
 {-# INLINE fromList #-}
-fromList ::(HatVal n, HatBaseClass b ) => [Alg n b] -> Alg n b
+-- | convert List to Alg n b
+--
+-- >>> type Test = Alg NN.Double (HatBase AccountTitles)
+-- >>> xs = [1:@Hat:<Cash,1:@Not:<Deposits, 2:@Hat:<Cash, 2:@Not:<Deposits] :: [Test]
+-- >>> fromList xs
+-- 1.00:@Hat:<Cash .+ 2.00:@Hat:<Cash .+ 1.00:@Not:<Deposits .+ 2.00:@Not:<Deposits
+--
+--  >>> type Test = Alg NN.Double (HatBase CountUnit)
+--  >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
+--  >>> y = 2:@Hat:<Yen .+ 2:@Not:<Amount :: Test
+--  >>> fromList [x,y]
+--  1.00:@Hat:<Yen .+ 2.00:@Hat:<Yen .+ 1.00:@Not:<Amount .+ 2.00:@Not:<Amount
+
+fromList ::(HatVal v, HatBaseClass b ) => [Alg v b] -> Alg v b
 fromList = mconcat
 
 -- | convert Alg n b to List
 --
--- >>> toList $ 10:@Hat:<(Cash) :+ 10:@Hat:<(Deposits) :+ Zero
--- [10:@Hat:<Cash,10:@Hat:<Deposits]
+-- >>> toList (10:@Hat:<(Cash) .+ 10:@Hat:<(Deposits) .+ Zero :: Alg NN.Double (HatBase AccountTitles))
+-- [10.00:@Hat:<Deposits,10.00:@Hat:<Cash]
 --
 -- you need define type variables to use this for Zero
--- >>> toList Zero :: [Alg NN.Double AccountTitles]
+-- >>> toList Zero :: [Alg NN.Double (HatBase AccountTitles)]
 -- []
-{-# INLINE toList #-}
-toList :: Alg n b -> [Alg n b]
-toList Zero     = []
-toList (v :@ b) = [(v :@ b)]
-toList (x :+ y) = toList x ++ toList y
+toList :: (HatVal v, HatBaseClass b) => Alg v b -> [Alg v b]
+toList Zero       = []
+toList (v:@b)     = [v:@b]
+toList (Liner m)  = Map.foldlWithKey f [] m
+    where
+        f :: (HatVal v, HatBaseClass b) =>  [Alg v b] -> BasePart b -> Pair v -> [Alg v b]
+        f xs b Pair {_hatSide = hs, _notSide = ns}
+            = L.foldl' (g Hat b) (L.foldl' (g Not b) xs ns) hs
 
-head :: Alg n b -> Alg n b
-head Zero = Zero
-head (v :@ b) = (v :@ b)
-head (x :+ y) = head x
+        g :: (HatVal v, HatBaseClass b) => Hat -> BasePart b -> [Alg v b] -> v -> [Alg v b]
+        g h b ys v
+            | isZeroValue v = ys
+            | otherwise     = (v :@ (merge h b)):ys
 
--- |
-tail :: (HatVal n, HatBaseClass b) => Alg n b -> Alg n b
-tail Zero            = Zero
-tail (v:@b)          = Zero
-tail (Zero :+ y)     = y
-tail ((v:@ b) :+ y)  = y
-tail (x :+ y)        = (tail x) .+ y
+{-# INLINE toASCList #-}
+toASCList :: (HatVal v, HatBaseClass b) => Alg v b -> [Alg v b]
+toASCList = L.sort . toList
 
-{-# INLINE map #-}
+
 -- | map
-map :: (HatVal n, HatBaseClass b) => (Alg n a -> Alg n b) -> Alg n a -> Alg n b
-map f  Zero    = f Zero
-map f (v :@ b) = f (v :@ b)
-map f (x :+ y) = (map f x) .+ map f y
+--
+-- >>> type Test = Alg Double (HatBase CountUnit)
+-- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
+-- >>> y = 2:@Not:<Yen .+ 2:@Hat:<Amount :: Test
+-- >>> map (\ (x:@hb) ->  x:@(toHat hb)) $ x .+ y
+-- 1.00:@Hat:<Yen .+ 2.00:@Hat:<Yen .+ 1.00:@Hat:<Amount .+ 2.00:@Hat:<Amount
+--
+-- >>> type Test = Alg Double Hat
+-- >>> x = 1:@Hat .+ 1:@Not :: Test
+-- >>> y = 2:@Not .+ 2:@Hat :: Test
+-- >>> map (\ (x:@hb) -> (2 * x):@hb) $ x .+ y
+-- 2.00:@Hat .+ 4.00:@Hat .+ 2.00:@Not .+ 4.00:@Not
 
-traverse :: (HatVal n, HatBaseClass b, Applicative f)
-         => (Alg n a -> f (Alg n b)) -> Alg n a -> f (Alg n b)
-traverse f xs = fromList <$>  (sequenceA . fmap f)  (toList xs)
+map :: (HasCallStack,HatVal v, HatBaseClass b)
+     => (Alg v b -> Alg v b) -> Alg v b -> Alg v b
+map f Zero      = Zero
+map f (v:@b)    = let  v2:@b2 = f (v:@b)
+                in case isZeroValue v2 of
+                    True  -> Zero
+                    False -> (v2 :@ b2)
+map f (Liner m) = case dToList (Map.foldrWithKey (p f) dnil m)of
+                    []                -> Zero
+                    [(b,Pair [] [n])] -> n:@(merge Not b)
+                    [(b,Pair [h] [])] -> h:@(merge Hat b)
+                    [(b,Pair ns hs)]  -> Liner $ Map.singleton b (Pair ns hs)
+                    xs                -> Liner $ Map.fromListWith pairAppend xs
+    where
+        {-# INLINE p #-}
+        p :: (HatVal v, HatBaseClass b)
+          => (Alg v b -> Alg v b)
+          -> BasePart b
+          -> Pair v
+          -> DList (BasePart b,Pair v)
+          -> DList (BasePart b,Pair v)
+        p f b Pair {_hatSide=hs, _notSide=ns} accDList =
+            let (dl1, hs2) = q f Hat b hs
+                (dl2, ns2) = q f Not b ns
+                prefix     = dappend dl1 dl2
+            in case (null hs2, null ns2) of
+                (True,True)   -> dappend prefix accDList
+                (True,False)  -> dappend prefix
+                               . dappend (dsingle (b, nullPair{_notSide = ns2}))
+                               $ accDList
+                (False,True)  -> dappend prefix
+                               . dappend (dsingle (b, nullPair{_hatSide = hs2}))
+                               $ accDList
+                (False,False) -> dappend prefix
+                               . dappend (dsingle (b, Pair hs2 ns2))
+                               $ accDList
+        {-# INLINE q #-}
+        q :: (HatVal v, HatBaseClass b)
+          => (Alg v b -> Alg v b)
+          -> Hat
+          -> BasePart b
+          -> [v]
+          -> (DList (BasePart b,Pair v),[v])
+        q f h b vs = L.foldl' (r f h b) (dnil,[]) vs
 
-{-# INLINE mapM #-}
-mapM :: (HatVal n,HatBaseClass b, Applicative f)
-     => (Alg n a -> f (Alg n b)) -> Alg n a -> f (Alg n b)
-mapM = traverse
+        {-# INLINE r #-}
+        r  :: (HatVal v, HatBaseClass b)
+           => (Alg v b -> Alg v b)
+           -> Hat
+           -> BasePart b
+           -> (DList (BasePart b,Pair v),[v])
+           -> v
+           -> (DList (BasePart b,Pair v),[v])
+        r f h b (dlAcc,vsAcc) v = case f (v:@(merge h b)) of
+                            Zero   ->  (dlAcc, vsAcc)
+                            ------------------------------------------------------------------
+                            v2:@b2
+                                | isZeroValue v2 ->  (dlAcc, vsAcc)
+                                | b2 .== (merge h b) -> (dlAcc, v2 : vsAcc)
+                                | isHat (hat b2)     -> (dappend dlAcc (dsingle ( base b2
+                                                                       ,nullPair{_hatSide=[v2]}))
+                                                        ,vsAcc )
+                                | otherwise          -> (dappend dlAcc (dsingle ( base b2
+                                                                       ,nullPair{_notSide=[v2]} ))
+                                                        ,vsAcc )
 
-{-# INLINE forM #-}
-forM :: (HatVal n, HatBaseClass b, Applicative f)
-     => Alg n a -> (Alg n a -> f (Alg n b)) -> f (Alg n b)
-forM = flip mapM
+-- 差分リストを定義
+type DList a = [a] -> [a]
+
+{-# INLINE dnil #-}
+dnil :: DList a
+dnil = id
+
+{-# INLINE dappend #-}
+dappend :: DList a -> DList a -> DList a
+dappend = (.)  -- 関数合成
+
+{-# INLINE dsingle #-}
+dsingle :: a -> DList a
+dsingle x = \rest -> x : rest
+
+{-# INLINE dToList #-}
+dToList :: DList a -> [a]
+dToList dl = dl []
+
+{-# INLINE dFromList #-}
+dFromList :: [a] -> DList a
+dFromList xs = (xs ++)
 
 
 {-# INLINE filter #-}
 -- | filter
-filter :: (HatVal n, HatBaseClass b) => (Alg n b -> Bool) -> Alg n b -> Alg n b
+--
+-- >>> type Test = Alg Double (HatBase CountUnit)
+-- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
+-- >>> y = 2:@Not:<Yen .+ 2:@Hat:<Amount :: Test
+-- >>> filter (isHat . _hatBase) $ x .+ y
+-- 1.00:@Hat:<Yen .+ 2.00:@Hat:<Amount
+--
+-- >>> type Test = Alg Double (HatBase CountUnit)
+-- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
+-- >>> y = 2:@Not:<Yen .+ 2:@Hat:<Amount :: Test
+-- >>> filter ((1 <). _val) $ x .+ y
+-- 2.00:@Not:<Yen .+ 2.00:@Hat:<Amount
+
+
+filter :: (HatVal v, HatBaseClass b) => (Alg v b -> Bool) -> Alg v b -> Alg v b
 filter f Zero                 = Zero
 filter f (v:@b) | f (v:@b)    = v:@b
                 | otherwise   = Zero
-filter f (x:+y) | f x         = case (filter f y) of
-                                    Zero -> x
-                                    ys   -> x .+ ys
-                | otherwise  = filter f y
 
-{- | projection
-[\
-Let x = \sum_{e_i \in \Gamma}{a_i \times e_i} , then Project[e_k](x) = a_k e_k is defined as projection operatirs.\\
-\forall A \subset \Gannma Project[A](x) is defined as Projecton[A](x) = \sum_{e \in A}{project[e](x)}
-\]
--}
-{-# INLINE proj #-}
-proj :: (HatVal n, HatBaseClass b)  => [b] -> Alg n b -> Alg n b
-proj bs  alg = filter (f bs) alg
+filter f (Liner m) =
+    -- mapMaybeWithKey で新しい Map を構築
+    let m' = Map.mapMaybeWithKey
+               (\basePart (Pair hs ns) ->
+                  -- hs, ns それぞれをフィルタ
+                  let hs' = filterSide basePart Hat hs
+                      ns' = filterSide basePart Not ns
+                  in
+                    -- 両方とも空になればエントリ削除 (Nothing)
+                    if null hs' && null ns'
+                       then Nothing
+                       else Just (Pair hs' ns'))
+             m
+    in
+      -- 結果の Map が空なら Zero, そうでなければ Liner m'
+      if Map.null m' then Zero else Liner m'
+  where
+    ----------------------------------------------------------------
+    -- basePart と Hat/Not を元に「v:@(merge h basePart)」を作り，
+    -- 与えられた述語 f を満たすか判定するためのフィルタ関数
+    ----------------------------------------------------------------
+    -- filterSide :: BasePart b -> Hat -> [v] -> [v]
+    {-# INLINE filterSide #-}
+    filterSide bp h = dfilter (\val -> f (val :@ merge h bp))
+
+    -- | 差分リストを用いた手実装filter
+    {-# INLINE dfilter #-}
+    dfilter :: (a -> Bool) -> [a] -> [a]
+    dfilter p xs = go xs id
+      where
+        go []     dl = dl []
+        go (y:ys) dl
+          | p y       = go ys (dl . (y:))
+          | otherwise = go ys dl
+
+------------------------------------------------------------
+-- | proj
+-- >>> type Test = Alg NN.Double (HatBase CountUnit)
+-- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
+-- >>> y = 2:@Not:<Yen .+ 2:@Hat:<Amount :: Test
+-- >>> proj [Hat:<Yen] $ x .+ y
+-- 1.00:@Hat:<Yen
+--
+-- >>> type Test = Alg NN.Double (HatBase CountUnit)
+-- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
+-- >>> y = 2:@Not:<Yen .+ 2:@Hat:<Amount :: Test
+-- >>> proj [HatNot:<Amount] $ x .+ y
+-- 2.00:@Hat:<Amount .+ 1.00:@Not:<Amount
+--
+-- >>> type Test = Alg NN.Double (HatBase (AccountTitles, CountUnit))
+-- >>> x = 1:@Hat:<(Cash,Yen) .+ 1:@Not:<(Products,Amount) :: Test
+-- >>> y = 2:@Not:<(Cash,Yen) .+ 2:@Hat:<(Deposits,Yen) :: Test
+-- >>> proj [Hat:<((.#),Yen)] $ x .+ y
+-- 1.00:@Hat:<(Cash,Yen) .+ 2.00:@Hat:<(Deposits,Yen)
+--
+-- >>> type Test = HatBase CountUnit
+-- >>> compareHatBase (Not:<(.#) :: Test) (Not:<Yen :: Test)
+-- EQ
+--
+-- >>> type Test = Alg NN.Double (HatBase CountUnit)
+-- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
+-- >>> y = 2:@Not:<Yen .+ 2:@Hat:<Amount :: Test
+-- >>> proj [Not:<(.#)] $ x .+ y
+-- 2.00:@Not:<Yen .+ 1.00:@Not:<Amount
+--
+------------------------------------------------------------
+
+proj :: (HatVal v, HatBaseClass b)  => [b] -> Alg v b -> Alg v b
+proj []     _         = Zero
+proj _     Zero       = Zero
+proj (b:bs) (v:@b2)
+    |  b .== b2       = v:@b2
+    | otherwise       = proj bs (v:@b2)
+proj (b:bs) (Liner m) = case dToList (go (b:bs) m) of
+                            []                -> Zero
+                            [(b,Pair [] [n])] -> n:@(merge Not b)
+                            [(b,Pair [h] [])] -> h:@(merge Hat b)
+                            [(b,Pair ns hs)]  -> Liner $ Map.singleton b (Pair ns hs)
+                            xs                -> Liner $ Map.fromListWith pairAppend xs
     where
+    {-# INLINE go #-}
+    go :: (HatVal v, HatBaseClass b)
+       => [b]
+       -> Map.HashMap (BasePart b) (Pair v)
+       -> DList (BasePart b, Pair v)
+    go [] _ = dnil
+    go (b:bs)  m
+        | null m                 = dnil
+        | haveWiledcard (base b) = dappend (Map.foldrWithKey (f b) dnil m)
+                                 $ go bs m
+
+        | otherwise = case Map.lookup (base b) m of
+                            Nothing -> go bs m
+                            Just Pair {_hatSide = hs
+                                      ,_notSide = ns} -> let res = case hat b of
+                                                                    Hat    -> ((base b), nullPair {_hatSide = hs})
+                                                                    Not    -> ((base b), nullPair {_notSide = ns})
+                                                                    HatNot -> ((base b), Pair {_hatSide = hs
+                                                                                              ,_notSide = ns})
+                                                       in dappend (dsingle res) (go bs m)
     {-# INLINE f #-}
-    f ::(HatVal n, HatBaseClass b)  => [b] -> Alg n b  -> Bool
-    f _   Zero       = False
-    f []  _          = False
-    f [b] (v:@eb)    = b .== eb
-    f bs  (v:@eb)    = L.or $ L.map (\x -> eb .== x) bs
-    f [b] xs         = error $ "error at proj : you should use (.+) instead of (:+)."
-    f bs  xs         = error $ "error at proj : you should use (.+) instead of (:+)."
+    f ::  (HatVal v, HatBaseClass b)
+       => b
+       -> BasePart b
+       -> Pair v
+       -> DList (BasePart b,Pair v)
+       -> DList (BasePart b,Pair v)
+    f b bp Pair {_hatSide=hs, _notSide=ns} accDList
+        | (base b) .== bp = let res = case hat b of
+                                        Hat    -> (bp, nullPair {_hatSide = hs})
+                                        Not    -> (bp, nullPair {_notSide = ns})
+                                        HatNot -> (bp, Pair {_hatSide = hs
+                                                            ,_notSide = ns})
+                          in dappend (dsingle res) accDList
+        | otherwise       = accDList
+
+------------------------------------------------------------------
 
 -- | proj devit algs の代わりに Elem に Text や Int などがある場合は projCredit を使う
 projCredit :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
@@ -607,25 +861,12 @@ projDebit = filter (\x -> (whichSide . _hatBase) x == Credit)
 projByAccountTitle :: (HatVal n, ExBaseClass b) => AccountTitles -> Alg n b -> Alg n b
 projByAccountTitle at alg = filter (f at) alg
     where
-        f :: (ExBaseClass b) => AccountTitles -> Alg n b -> Bool
+        f :: (HatVal n,ExBaseClass b) => AccountTitles -> Alg n b -> Bool
         f at Zero = False
         f at x    = ((getAccountTitle ._hatBase) x) .== at
 
-{-# INLINE projNorm #-}
 projNorm :: (HatVal n, HatBaseClass b) => [b] -> Alg n b -> n
 projNorm bs alg  = norm $ (.-) $ proj bs alg
-
--- | Baseの大小（==Algの大小）でソート
-
-sort :: (HatVal n, HatBaseClass b) => Alg n b -> Alg n b
-sort Zero      = Zero
-sort (v :@ b)  = (v :@ b)
-sort (x :+ y)  = foldl1 (.+) $ L.sort $ toList (x .+ y)
-
-
--- | normの大小でソート
-normSort :: Alg n b -> Alg n b
-normSort = undefined
 
 
 -- | 流動資産の取得
