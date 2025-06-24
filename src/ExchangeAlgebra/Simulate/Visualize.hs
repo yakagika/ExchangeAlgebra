@@ -1,4 +1,3 @@
-
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GADTs               #-}
 
@@ -30,6 +29,8 @@ module ExchangeAlgebra.Simulate.Visualize   (gridLine
                                             ,plotLineVector) where
 
 import              ExchangeAlgebra.Simulate
+import qualified    CSV.Text                    as CSV
+import qualified    Data.Text as T
 import qualified    Data.List as L
 import              Graphics.Rendering.Chart.Easy            hiding ( (:<),(.~))
 import              Graphics.Rendering.Chart.Backend.Cairo
@@ -563,3 +564,40 @@ plotLineVector f idx wld outDir titleStr = do
       { _font_size   = 15
       , _font_weight = FontWeightBold
       }
+
+
+type Header = T.Text
+-- | 与えられた関数の出力をCSVの時系列データにする
+writeFuncResults :: ( StateTime t
+                    , Show x
+                    , Num x)
+                 => [(Header,(a RealWorld -> t -> ST RealWorld x))] -- ^ ヘッダーと関数のペア
+                 -> (t,t) -- ^ 出力する時系列
+                 -> a RealWorld
+                 -> FilePath
+                 -> IO ()
+writeFuncResults funcs (tStart,tEnd) wld path = do
+    -- 各関数の結果を時系列で計算
+    results <- stToIO $ do
+        CM.forM funcs $ \(header, func) -> do
+            -- 各時点での値を計算
+            timeSeries <- CM.forM [tStart .. tEnd] $ \t -> do
+                val <- func wld t
+                return (t, val)
+            return (header, timeSeries)
+    
+    -- CSV形式に変換
+    let headers = [T.pack "Time"] ++ map fst funcs
+    let timePoints = [tStart .. tEnd]
+    let csvData = [headers] ++
+            [ [T.pack (show t)] ++
+                [ case lookup t values of
+                    Just v  -> T.pack (show v)
+                    Nothing -> T.empty
+                | (_, values) <- results
+                ]
+            | t <- timePoints
+            ]
+    
+    -- CSVファイルに出力
+    CSV.writeCSV path csvData 

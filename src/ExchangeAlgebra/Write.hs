@@ -1,5 +1,3 @@
-
-
 {- |
     Module     : ExchangeAlgebra
     Copyright  : (c) Kaya Akagi. 2018-2019
@@ -251,4 +249,5 @@ writeIOMatrix path arr = do
     result' <- readIORef result
     CSV.writeCSV path result'
 
+------------------------------------------------------------------
 
