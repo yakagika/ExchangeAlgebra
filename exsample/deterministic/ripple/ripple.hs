@@ -26,8 +26,13 @@ import qualified    ExchangeAlgebra.Simulate as ES
 import qualified    ExchangeAlgebra.Simulate
 import qualified    ExchangeAlgebra.Simulate.Visualize as ESV
 
+-- for python visualization
+import              System.IO
+import              System.Process
+import              System.Exit
 
 -- Other
+
 import qualified    Data.Map.Strict         as M
 import qualified    Data.Text               as T
 
@@ -228,6 +233,21 @@ main = do
     writeIOMatrix  (csv_dir ++ "rippleEffectABM.csv") reABM
     ------------------------------------------------------------------
     print "printing..."
+
+    -- output csv for Python 
+    let header_func = [(T.pack $ "Production_" ++ show i, \w t -> getTermProduction Amount w t i) | i <- [fstEnt..lastEnt]]
+
+    forConcurrently_ envNames $ \n -> do
+        let wld = resMap Map.! n
+        ESV.writeFuncResults header_func (initTerm,lastTerm) wld (csv_dir ++ n ++ "/" ++ "production.csv")
+
+    -- visualize with python
+    exitCode <- rawSystem "python" ["exsample/deterministic/ripple/visualize_ripple.py"]
+    case exitCode of
+        ExitSuccess -> print "Python visualization completed successfully"
+        ExitFailure n -> print $ "Python visualization failed with exit code: " ++ show n
+
+    -- visualize bia Haskell
     forConcurrently_ envNames $ \n -> do
         let fs = [getTermProduction Amount
                  ,getTermStock Amount

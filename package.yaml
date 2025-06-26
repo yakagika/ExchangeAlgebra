@@ -43,6 +43,7 @@ dependencies:
 - statistics
 - hashable
 - unordered-containers
+- process
 
 library:
   source-dirs: src

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: a1241b35d00e9194045507d3c8ed2b9cbdb547762d856b7fd081485ca4ecd8ce
+-- hash: 993c13c22e640bb7dc6dd964b25aebb171f4733277f2a54904186d13ea2b2e6e
 
 name:           exchangealgebra
 version:        0.3.0.0
@@ -58,6 +58,7 @@ library
     , non-negative
     , numeric-prelude
     , parallel
+    , process
     , random
     , scientific
     , statistics
@@ -92,6 +93,7 @@ executable ebex1
     , non-negative
     , numeric-prelude
     , parallel
+    , process
     , random
     , scientific
     , statistics
@@ -126,6 +128,7 @@ executable ebex2
     , non-negative
     , numeric-prelude
     , parallel
+    , process
     , random
     , scientific
     , statistics
@@ -161,6 +164,7 @@ executable ripple
     , non-negative
     , numeric-prelude
     , parallel
+    , process
     , random
     , scientific
     , statistics
@@ -196,6 +200,7 @@ executable rippleWithStock
     , non-negative
     , numeric-prelude
     , parallel
+    , process
     , random
     , scientific
     , statistics
@@ -230,6 +235,7 @@ test-suite ExchangeAlgebra-doctest
     , non-negative
     , numeric-prelude
     , parallel
+    , process
     , random
     , scientific
     , statistics
@@ -265,6 +271,7 @@ test-suite ExchangeAlgebra-test
     , non-negative
     , numeric-prelude
     , parallel
+    , process
     , random
     , scientific
     , statistics

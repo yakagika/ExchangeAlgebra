@@ -26,7 +26,8 @@ module ExchangeAlgebra.Simulate.Visualize   (gridLine
                                             ,plotLine
                                             ,plotMultiLines
                                             ,plotWldsDiffLine
-                                            ,plotLineVector) where
+                                            ,plotLineVector
+                                            ,writeFuncResults) where
 
 import              ExchangeAlgebra.Simulate
 import qualified    CSV.Text                    as CSV
