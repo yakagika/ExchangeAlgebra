@@ -1,4 +1,3 @@
-
 {-# LANGUAGE FlexibleInstances  #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -34,6 +33,12 @@ import qualified    ExchangeAlgebra.Simulate.Visualize as ESV
 import qualified    Data.Map.Strict         as M
 import qualified    Data.Text               as T
 
+-- for python visualization
+import              System.IO
+import              System.Process
+import              System.Exit
+
+
 import qualified    Control.Monad                   as CM
 import              Control.Monad
 import              Control.Monad.State
@@ -56,6 +61,7 @@ import Debug.Trace
 -- * directories
 
 fig_dir = "exsample/deterministic/ripple/result/fig/withStock/"
+csv_dir = "exsample/deterministic/ripple/result/csv/withStock/"
 
 ------------------------------------------------------------------
 
@@ -293,12 +299,26 @@ main = do
     print "start simulation"
     results <- mapConcurrently (runSimulation gen) envs
 
-
     let resMap = Map.fromList
                $ zip envNames results
 
     ------------------------------------------------------------------
     print "printing..."
+    -- output csv for Python
+    let header_func_prod   = [(T.pack $ "Production_" ++ show i, \w t -> getTermProduction Amount w t i) | i <- [fstEnt..lastEnt]]
+        header_func_stock  = [(T.pack $ "Stock_" ++ show i, \w t -> getTermStock Amount w t i) | i <- [fstEnt..lastEnt]]
+        header_func_profit = [(T.pack $ "Profit_" ++ show i, \w t -> getTermProfit w t i) | i <- [fstEnt..lastEnt]]
+        header_func_sales  = [(T.pack $ "Sales_" ++ show i, \w t -> getTermSales Amount w t i) | i <- [fstEnt..lastEnt]]
+        header_func_demand = [(T.pack $ "Demand_" ++ show i, \w t -> getTermDemand w t i) | i <- [fstEnt..lastEnt]]
+
+    forConcurrently_ envNames $ \n -> do
+        let wld = resMap Map.! n
+        ESV.writeFuncResults header_func_prod   (initTerm,lastTerm) wld (csv_dir ++ n ++ "/production.csv")
+        ESV.writeFuncResults header_func_stock  (initTerm,lastTerm) wld (csv_dir ++ n ++ "/stock.csv")
+        ESV.writeFuncResults header_func_profit (initTerm,lastTerm) wld (csv_dir ++ n ++ "/profit.csv")
+        ESV.writeFuncResults header_func_sales  (initTerm,lastTerm) wld (csv_dir ++ n ++ "/sales.csv")
+        ESV.writeFuncResults header_func_demand (initTerm,lastTerm) wld (csv_dir ++ n ++ "/demand.csv")
+
     forConcurrently_ envNames $ \n -> do
         let fs = [getTermProduction Amount
                  ,getTermStock Amount
@@ -358,3 +378,9 @@ main = do
                        (fig_dir ++ n ++ "/")
                        "Comparison of production volume"
         else return ()
+
+    -- visualize with python
+    exitCode <- rawSystem "python" ["exsample/deterministic/ripple/visualize_rippleWithStock.py"]
+    case exitCode of
+        ExitSuccess -> print "Python visualization completed successfully"
+        ExitFailure n -> print $ "Python visualization failed with exit code: " ++ show n

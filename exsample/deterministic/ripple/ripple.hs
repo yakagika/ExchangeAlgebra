@@ -1,4 +1,3 @@
-
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
@@ -235,11 +234,19 @@ main = do
     print "printing..."
 
     -- output csv for Python 
-    let header_func = [(T.pack $ "Production_" ++ show i, \w t -> getTermProduction Amount w t i) | i <- [fstEnt..lastEnt]]
+    let header_func_prod   = [(T.pack $ "Production_" ++ show i, \w t -> getTermProduction Amount w t i) | i <- [fstEnt..lastEnt]]
+        header_func_stock  = [(T.pack $ "Stock_" ++ show i, \w t -> getTermStock Amount w t i) | i <- [fstEnt..lastEnt]]
+        header_func_profit = [(T.pack $ "Profit_" ++ show i, \w t -> getTermProfit w t i) | i <- [fstEnt..lastEnt]]
+        header_func_sales  = [(T.pack $ "Sales_" ++ show i, \w t -> getTermSales Amount w t i) | i <- [fstEnt..lastEnt]]
+        header_func_demand = [(T.pack $ "Demand_" ++ show i, \w t -> getTermDemand w t i) | i <- [fstEnt..lastEnt]]
 
     forConcurrently_ envNames $ \n -> do
         let wld = resMap Map.! n
-        ESV.writeFuncResults header_func (initTerm,lastTerm) wld (csv_dir ++ n ++ "/" ++ "production.csv")
+        ESV.writeFuncResults header_func_prod   (initTerm,lastTerm) wld (csv_dir ++ n ++ "/production.csv")
+        ESV.writeFuncResults header_func_stock  (initTerm,lastTerm) wld (csv_dir ++ n ++ "/stock.csv")
+        ESV.writeFuncResults header_func_profit (initTerm,lastTerm) wld (csv_dir ++ n ++ "/profit.csv")
+        ESV.writeFuncResults header_func_sales  (initTerm,lastTerm) wld (csv_dir ++ n ++ "/sales.csv")
+        ESV.writeFuncResults header_func_demand (initTerm,lastTerm) wld (csv_dir ++ n ++ "/demand.csv")
 
     -- visualize with python
     exitCode <- rawSystem "python" ["exsample/deterministic/ripple/visualize_ripple.py"]
