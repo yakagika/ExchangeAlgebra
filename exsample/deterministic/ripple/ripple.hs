@@ -86,6 +86,8 @@ event' wld t ToPrice
     | t == lastTerm =  readURef (_prices wld) >>= \pt
                     -> modifyURef (_ledger wld) $ \le
                     -> EJT.transfer le (toCashTable pt)
+
+
     | otherwise = return ()
 
 ------------------------------------------------------------------
@@ -124,6 +126,7 @@ event' wld t Production = do
     -- 定常的な生産量
     sp <- readURef (_sp wld)
     forM_ industries $ \e1 -> do
+
         -- 自社製品の不足分(Hat分)を生産する
         let short = norm
                   $ EJ.projWithBase [Hat:<(Products,e1,e1,Amount)]
@@ -136,10 +139,10 @@ event' wld t Production = do
             trace ("--------------------------") return ()
             trace (show t ++ "-pl: " ++ show plan) return ()
         -}
+
         when (plan > 0 ) $ do
             op <- getOneProduction wld t e1  -- 1単位の生産簿記を取得
             journal wld (plan .* op)  -- 生産処理を記帳
-
 
 ------------------------------------------------------------------
 -- 発注量を計算

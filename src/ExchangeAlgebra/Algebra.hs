@@ -500,10 +500,11 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
         where
             {-# INLINE f #-}
             f (Pair hs ns) = let (h, n) = (sum hs,sum ns)
-                           in case compare h n of
-                                GT -> Just (Pair [h - n] [])
-                                LT -> Just (Pair [] [n - h])
-                                EQ -> Nothing
+                           in case isNearlyNum h n 1e-13 of -- 精度 13桁
+                                        True -> Nothing
+                                        False -> case compare h n of
+                                                    GT -> Just (Pair [h - n] [])
+                                                    LT -> Just (Pair [] [n - h])
 
     {-# INLINE compress #-}
     compress Zero       = Zero
