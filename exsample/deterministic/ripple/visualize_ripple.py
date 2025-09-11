@@ -55,7 +55,7 @@ def plot_comparison_and_difference(csv_basename, ylabel=None):
     plt.close(fig)
 
 # 各指標について実行
-for name in ['stock', 'profit', 'sales', 'demand']:
+for name in ['production','stock', 'profit', 'sales', 'demand']:
     plot_comparison_and_difference(name)
 
 # --- ここから追加: stock, profit, sales, demand の個別描画 ---

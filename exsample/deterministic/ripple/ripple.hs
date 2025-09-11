@@ -166,7 +166,8 @@ event' wld t Order = do
                         trace (show t ++ "-sm(" ++ show e2 ++ "): " ++ show short_material) return ()
                     -}
                     -- 次の期に発注する
-                    order wld (t+1) Relation {_supplier = e2, _customer = e1} short_material
+                    readTime <- getOrderLeadTime wld t e2
+                    order wld (t+readTime) Relation {_supplier = e2, _customer = e1} short_material
 
 ------------------------------------------------------------------
 -- 最終需要部門が購入したものを消費する
@@ -189,10 +190,12 @@ main = do
     let seed = 42
     let gen = mkStdGen seed
         defaultEnv = InitVar {_initInv             = 0
-                             ,_stockOutRate        = 0.1
-                             ,_materialOutRate     = 0.1
+                             ,_stockOutRate        = Map.fromList [(e,0.1) | e <- [fstEnt..lastEnt]]
+                             ,_materialOutRate     = Map.fromList [(e,0.1) | e <- [fstEnt..lastEnt]]
+                             ,_orderLeadTime       = Map.fromList [(e,1)   | e <- [fstEnt..lastEnt]]
+                             ,_orderInterval       = Map.fromList [(e,1)   | e <- [fstEnt..lastEnt]]
                              ,_addedDemand         = 0
-                             ,_addedDemandTerm     = 20
+                             ,_addedDemandTerm     = 50
                              ,_addedTo             = 9
                              ,_finalDemand         = 300
                              ,_finalDemandSector   = 10

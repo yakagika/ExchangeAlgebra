@@ -237,7 +237,8 @@ event' wld t Order = do
                     trace (show t ++ "-tl(" ++ show e2 ++ "): " ++ show total) return ()
                 -}
                 -- 次の期に発注する
-                order wld (t+1) Relation {_supplier = e2, _customer = e1} total
+                readTime <- getOrderLeadTime wld t e2
+                order wld (t+readTime) Relation {_supplier = e2, _customer = e1} total
 
 ------------------------------------------------------------------
 -- 最終需要部門が購入したものを消費する
@@ -260,21 +261,24 @@ main = do
     let seed = 42
     let gen = mkStdGen seed
         defaultEnv = InitVar {_initInv             = 100
-                             ,_stockOutRate        = 0.1
-                             ,_materialOutRate     = 0.1
+                             ,_stockOutRate        = Map.fromList [(e,0.05) | e <- [fstEnt..lastEnt]]
+                             ,_materialOutRate     = Map.fromList [(e,0.05) | e <- [fstEnt..lastEnt]]
+                             ,_orderLeadTime       = Map.fromList [(e,1)   | e <- [fstEnt..lastEnt]]
+                             ,_orderInterval       = Map.fromList [(e,1)   | e <- [fstEnt..lastEnt]]
                              ,_addedDemand         = 0
-                             ,_addedDemandTerm     = 20
+                             ,_addedDemandTerm     = 50
                              ,_addedTo             = 9
                              ,_finalDemand         = 300
                              ,_finalDemandSector   = 10
                              ,_inhouseRatio        = 0.4
                              ,_steadyProduction    = 0}
 
-        smallStockEnv   = defaultEnv {_stockOutRate = 0.1}
-        largeStockEnv   = defaultEnv {_stockOutRate = 0.05}
-        defaultAddedEnv = defaultEnv    {_addedDemand = 20}
-        smallAddedEnv   = smallStockEnv {_addedDemand = 20}
-        largeAddedEnv   = largeStockEnv {_addedDemand = 20}
+        smallStockEnv   = defaultEnv {_stockOutRate = Map.fromList [(e,0.10) | e <- [fstEnt..lastEnt]]}
+        largeStockEnv   = defaultEnv {_stockOutRate = Map.fromList [(e,0.01) | e <- [fstEnt..lastEnt]]}
+        defaultAddedEnv = defaultEnv    {_addedDemand = 10}
+        smallAddedEnv   = smallStockEnv {_addedDemand = 10}
+        largeAddedEnv   = largeStockEnv {_addedDemand = 10}
+        multipleEnv = defaultEnv {_stockOutRate = Map.fromList [(e,0.01 + 0.09 * fst (randomR (0.0, 1.0) gen)) | e <- [fstEnt..lastEnt]]}
 
 {- For Test
         envs =  [defaultEnv]
@@ -287,14 +291,16 @@ main = do
                 ,largeStockEnv
                 ,defaultAddedEnv
                 ,smallAddedEnv
-                ,largeAddedEnv]
+                ,largeAddedEnv
+                ,multipleEnv]
 
         envNames = ["default"
-                   ,"smallstock"
-                   ,"largestock"
+                   ,"small"
+                   ,"large"
                    ,"default-added"
-                   ,"smallstock-added"
-                   ,"largestock-added"]
+                   ,"small-added"
+                   ,"large-added"
+                   ,"multiple"]
     ------------------------------------------------------------------
     print "start simulation"
     results <- mapConcurrently (runSimulation gen) envs
@@ -310,6 +316,9 @@ main = do
         header_func_profit = [(T.pack $ "Profit_" ++ show i, \w t -> getTermProfit w t i) | i <- [fstEnt..lastEnt]]
         header_func_sales  = [(T.pack $ "Sales_" ++ show i, \w t -> getTermSales Amount w t i) | i <- [fstEnt..lastEnt]]
         header_func_demand = [(T.pack $ "Demand_" ++ show i, \w t -> getTermDemand w t i) | i <- [fstEnt..lastEnt]]
+        header_func_material = [(T.pack $ "Material_" ++ show i, \w t -> getTermMaterialTotal Amount w t i) | i <- [fstEnt..lastEnt]]
+        header_func_input    = [(T.pack $ "Input_" ++ show i, \w t -> getTermInputTotal Amount w t i) | i <- [fstEnt..lastEnt]]
+        header_func_order    = [(T.pack $ "Order_" ++ show i, \w t -> getPlaceOrderTotal w t i) | i <- [fstEnt..lastEnt]]
 
     forConcurrently_ envNames $ \n -> do
         let wld = resMap Map.! n
@@ -318,18 +327,49 @@ main = do
         ESV.writeFuncResults header_func_profit (initTerm,lastTerm) wld (csv_dir ++ n ++ "/profit.csv")
         ESV.writeFuncResults header_func_sales  (initTerm,lastTerm) wld (csv_dir ++ n ++ "/sales.csv")
         ESV.writeFuncResults header_func_demand (initTerm,lastTerm) wld (csv_dir ++ n ++ "/demand.csv")
+        ESV.writeFuncResults header_func_material (initTerm,lastTerm) wld (csv_dir ++ n ++ "/material.csv")
+        ESV.writeFuncResults header_func_input (initTerm,lastTerm) wld (csv_dir ++ n ++ "/input.csv")
+        ESV.writeFuncResults header_func_order (initTerm,lastTerm) wld (csv_dir ++ n ++ "/order.csv")
 
+    ------------------------------------------------------------------
+    print "printing tables ..."
+    -- ABM Ripple Effect
+
+    smallRippleEffect <- culcRippleEffect (resMap Map.! "small")
+                                            (resMap Map.! "small-added")
+                                            smallAddedEnv
+    writeIOMatrix  (csv_dir ++ "rippleEffectSmall.csv") smallRippleEffect
+
+    defaultRippleEffect <- culcRippleEffect (resMap Map.! "default")
+                                            (resMap Map.! "default-added")
+                                            defaultAddedEnv
+    writeIOMatrix  (csv_dir ++ "rippleEffectDefault.csv") defaultRippleEffect
+
+
+    largeRippleEffect <- culcRippleEffect (resMap Map.! "large")
+                                            (resMap Map.! "large-added")
+                                            largeAddedEnv
+    writeIOMatrix  (csv_dir ++ "rippleEffectLarge.csv") largeRippleEffect
+
+    ------------------------------------------------------------------
+    {-
     forConcurrently_ envNames $ \n -> do
         let fs = [getTermProduction Amount
                  ,getTermStock Amount
                  ,getTermProfit
                  ,getTermSales Amount
-                 ,getTermDemand]
+                 ,getTermDemand
+                 ,getTermMaterialTotal Amount
+                 ,getTermInputTotal Amount
+                 ,getPlaceOrderTotal]
             fnames = ["Production"
                      ,"Stock"
                      ,"Profit"
                      ,"Sales"
-                     ,"Demand"]
+                     ,"Demand"
+                     ,"Material"
+                     ,"InputTotal"
+                     ,"PlaceOrderTotal"]
 
         forConcurrently_ (zip fs fnames) $ \ (f, fn) -> do
             ESV.plotLineVector f ((fstEnt,initTerm),(lastEnt -1,lastTerm))
@@ -349,38 +389,46 @@ main = do
                        [(resMap Map.! n),(resMap Map.! "default")]
                        (fig_dir ++ n ++ "/")
                        "Comparison of production volume"
-        else if n == "largestock-added"
+        else if n == "large-added"
             then do
                 ESV.plotWldsDiffLine (getTermProduction Amount)
                          (fstEnt,lastEnt -1)
-                         ((resMap Map.! n),(resMap Map.! "largestock"))
+                         ((resMap Map.! n),(resMap Map.! "large"))
                          (fig_dir ++ n ++ "/")
                          "Difference in production volume"
 
                 ESV.plotMultiLines ["added","normal"]
                        [getTermProduction Amount,getTermProduction Amount]
                        (fstEnt,lastEnt -1)
-                       [(resMap Map.! n),(resMap Map.! "largestock")]
+                       [(resMap Map.! n),(resMap Map.! "large")]
                        (fig_dir ++ n ++ "/")
                        "Comparison of production volume"
-        else if n == "smallstock-added"
+        else if n == "small-added"
             then do
                 ESV.plotWldsDiffLine (getTermProduction Amount)
                          (fstEnt,lastEnt -1)
-                         ((resMap Map.! n),(resMap Map.! "smallstock"))
+                         ((resMap Map.! n),(resMap Map.! "small"))
                          (fig_dir ++ n ++ "/")
                          "Difference in production volume"
 
                 ESV.plotMultiLines ["added","normal"]
                        [getTermProduction Amount,getTermProduction Amount]
                        (fstEnt,lastEnt -1)
-                       [(resMap Map.! n),(resMap Map.! "smallstock")]
+                       [(resMap Map.! n),(resMap Map.! "small")]
                        (fig_dir ++ n ++ "/")
                        "Comparison of production volume"
         else return ()
-
+    -}
     -- visualize with python
-    exitCode <- rawSystem "python" ["exsample/deterministic/ripple/visualize_rippleWithStock.py"]
+    ------------------------------------------------------------------
+    putStrLn "Running Python visualization..."
+    (exitCode, stdout, stderr) <- readProcessWithExitCode "python" ["exsample/deterministic/ripple/visualize_rippleWithStock.py"] ""
     case exitCode of
-        ExitSuccess -> print "Python visualization completed successfully"
-        ExitFailure n -> print $ "Python visualization failed with exit code: " ++ show n
+        ExitSuccess -> do
+            putStrLn "Python visualization completed successfully"
+            putStrLn "Python output:"
+            putStr stdout
+        ExitFailure n -> do
+            putStrLn $ "Python visualization failed with exit code: " ++ show n
+            putStrLn "Python stderr:"
+            putStr stderr

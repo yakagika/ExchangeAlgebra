@@ -73,8 +73,10 @@ addedTerm = 50
 ------------------------------------------------------------------
 
 data InitVar = InitVar {_initInv           :: Double -- 初期在庫保有量
-                       ,_stockOutRate      :: Double -- 製品在庫欠品許容率
-                       ,_materialOutRate   :: Double -- 原材料在庫欠品許容率
+                       ,_stockOutRate      :: Map.Map Entity Double -- 製品在庫欠品許容率
+                       ,_materialOutRate   :: Map.Map Entity Double -- 原材料在庫欠品許容率
+                       ,_orderLeadTime     :: Map.Map Entity Int -- 発注リードタイム (これに従って,入庫までの期間を変える)
+                       ,_orderInterval     :: Map.Map Entity Int -- 発注間隔
                        ,_addedDemand       :: Double -- 追加需要量
                        ,_addedDemandTerm   :: Int    -- 追加需要の発生時期
                        ,_addedTo           :: Int    -- 追加需要の受注者
@@ -83,7 +85,6 @@ data InitVar = InitVar {_initInv           :: Double -- 初期在庫保有量
                        ,_inhouseRatio      :: Double -- 内製部門比率
                        ,_steadyProduction  :: Double -- 定常的な生産
                        } deriving (Eq, Show)
-
 
 instance InitVariables InitVar where
 
@@ -275,6 +276,92 @@ getPrice wld t c =  readURef (_prices wld) >>= \pt
 -- | 製造原価を計算する
 getCost = undefined
 
+------------------------------------------------------------------
+-- ** 発注リードタイム
+------------------------------------------------------------------
+
+-- | 発注リードタイム
+type OrderLeadTime = Int
+
+-- | エージェントごとの発注リードタイム
+type OrderLeadTimeTable = M.Map Entity OrderLeadTime
+
+-- | 発注リードタイムの状態系
+newtype OrderLeadTimes s = OrderLeadTimes (STRef s OrderLeadTimeTable)
+
+instance UpdatableSTRef OrderLeadTimes s OrderLeadTimeTable where
+   _unwrapURef (OrderLeadTimes x) = x
+   _wrapURef x = (OrderLeadTimes x)
+
+-- | 発注リードタイムの初期状態
+--  Initial state of order lead time for each entity
+-- 各エージェントの発注リードタイムの初期状態
+
+initOrderLeadTimes :: InitVar -> ST s (OrderLeadTimes s)
+initOrderLeadTimes v = do
+    let orderLeadTime = _orderLeadTime v
+    newURef
+        $ M.fromList    [(e, orderLeadTime M.! e)
+                        | e <- [fstEnt .. lastEnt]]
+
+-- ** STArray s (ID, Term) Double
+-- 発注リードタイムは固定
+instance Updatable Term InitVar OrderLeadTimes s where
+    type Inner OrderLeadTimes s = STRef s OrderLeadTimeTable
+    unwrap (OrderLeadTimes a) = a
+    initialize _ _ v = initOrderLeadTimes v
+    updatePattern _ = return DoNothing
+
+-- | 発注リードタイムの取得
+getOrderLeadTime :: World s -> Term -> Entity -> ST s OrderLeadTime
+getOrderLeadTime wld t e = readURef (_orderLeadTimes wld) >>= \olt
+                         -> case M.lookup e olt of
+                            Nothing -> error "order lead time is empty"
+                            Just x  -> return x
+
+
+------------------------------------------------------------------
+-- ** 発注間隔
+------------------------------------------------------------------
+
+-- | 発注間隔
+type OrderInterval = Int
+
+-- | エージェントごとの発注間隔
+type OrderIntervalTable = M.Map Entity OrderInterval
+
+-- | 発注間隔の状態系
+newtype OrderIntervals s = OrderIntervals (STRef s OrderIntervalTable)
+
+instance UpdatableSTRef OrderIntervals s OrderIntervalTable where
+   _unwrapURef (OrderIntervals x) = x
+   _wrapURef x = (OrderIntervals x)
+
+-- | 発注間隔の初期状態
+--  Initial state of order interval for each entity
+-- 各エージェントの発注間隔の初期状態
+
+initOrderIntervals :: InitVar -> ST s (OrderIntervals s)
+initOrderIntervals v = do
+    let orderInterval = _orderInterval v
+    newURef
+        $ M.fromList    [(e, orderInterval M.! e)
+                        | e <- [fstEnt .. lastEnt]]
+
+-- ** STArray s (ID, Term) Double
+-- 発注間隔は固定
+instance Updatable Term InitVar OrderIntervals s where
+    type Inner OrderIntervals s = STRef s OrderIntervalTable
+    unwrap (OrderIntervals a) = a
+    initialize _ _ v = initOrderIntervals v
+    updatePattern _ = return DoNothing
+
+-- | 発注間隔の取得
+getOrderInterval :: World s -> Term -> Entity -> ST s OrderInterval
+getOrderInterval wld t e = readURef (_orderIntervals wld) >>= \oit
+                         -> case M.lookup e oit of
+                            Nothing -> error "order interval is empty"
+                            Just x  -> return x
 
 ------------------------------------------------------------------
 -- ** 製品在庫
@@ -290,12 +377,12 @@ type SafetyStock = Double
 -- | 欠品許容率(製品在庫,原材料在庫)
 type OutRatio = Double
 
+
 -- | 製品在庫における安全係数
 -- 正規分布における欠品許容率のZ値
 type SafetyStockFactor = Double
 
 -- | エージェントごとの製品在庫の安全係数
--- 今回は全エージェント一定だがエージェントごとに変更可能
 type SSFTable = M.Map Entity SafetyStockFactor
 
 -- 欠品許容率から安全係数(z値)を計算するプログラム
@@ -303,7 +390,7 @@ type SSFTable = M.Map Entity SafetyStockFactor
 calculateSafetyFactor :: OutRatio -> SafetyStockFactor
 calculateSafetyFactor stockoutRate
   | stockoutRate <= 0 || stockoutRate >= 1 = error "The acceptable stock-out rate must be greater than 0 and less than 1."
-  | otherwise = quantile standard (1 - stockoutRate)
+  | otherwise =  Statistics.Distribution.quantile standard (1 - stockoutRate) -- 標準正規分布の分位点を計算
   where
     standard = normalDistr 0 1
 
@@ -318,11 +405,17 @@ instance UpdatableSTRef SSFs s SSFTable where
 -- 今回は全て同一比率
 -- この比率次第でサプライチェーンがスタックする?
 
--- 価格履歴の初期状態
+-- | 製品在庫の安全係数の初期状態
+--  Initial state of safety stock factor for finished goods inventory
+-- 製品在庫の安全係数の初期状態
+-- 欠品許容率,発注リードタイム,発注間隔から安全係数を計算
+
 initSSFs :: InitVar -> ST s (SSFs s)
-initSSFs v   = newURef
-            $ M.fromList    [(e, calculateSafetyFactor (_stockOutRate v))
-                            | e <- [fstEnt .. lastEnt]]
+initSSFs v   = do
+    let stockoutRate = _stockOutRate v
+    newURef
+        $ M.fromList    [(e, calculateSafetyFactor  (stockoutRate M.! e))
+                        | e <- [fstEnt .. lastEnt]]
 
 -- ** STArray s (ID, Term) Double
 -- 価格は固定
@@ -357,8 +450,10 @@ instance UpdatableSTRef SMFs s SMFTable where
 
 -- 原材料在庫比率の初期状態
 initSMFs :: InitVar -> ST s (SMFs s)
-initSMFs v = newURef
-           $ M.fromList  [(e,calculateSafetyFactor (_materialOutRate v))
+initSMFs v = do
+    let stockoutRate = _materialOutRate v
+    newURef
+           $ M.fromList  [(e,calculateSafetyFactor  (stockoutRate M.! e))
                          | e <- [fstEnt .. lastEnt]]
 
 -- ** STArray s (ID, Term) Double
@@ -535,6 +630,8 @@ data World s = World { _ledger  :: Ledger s -- ^ 元帳
                      , _prices  :: Prices s -- ^ 価格テーブル
                      , _ics     :: ICTable s  -- ^ 投入係数
                      , _orders  :: OrderTable s -- ^ 発注量
+                     , _orderLeadTimes :: OrderLeadTimes s -- ^ 発注リードタイム
+                     , _orderIntervals :: OrderIntervals s -- ^ 発注間隔
                      , _smf     :: SMFs s  -- ^ 原材料在庫の安全係数
                      , _ssf     :: SSFs s -- ^ 製品在庫の安全係数
                      , _sp      :: SP s -- ^ 定常的な生産量
@@ -576,6 +673,17 @@ getOrderTotal wld t e1
                           [fstEnt .. lastEnt]
         return $ sum values
 
+-- | 総発注量の取得 = Orderの残り + 購入量
+getPlaceOrderTotal :: World s -> Term -> Entity -> ST s Double
+getPlaceOrderTotal wld t e1
+    | t < 1 = return 0
+    | otherwise = do
+        purchase <- getTermPurchase Amount wld t e1
+        let arr = (_orders wld)
+        values <- CM.mapM (\e2 -> readUArray arr (t, Relation {_supplier = e2
+                                                              ,_customer = e1}))
+                          [fstEnt .. lastEnt]
+        return $ (sum values) + purchase
 
 -- | 適正在庫
 -- 安全在庫 + 10期の需要の平均
@@ -588,18 +696,21 @@ getAppropriateStock wld t e
 
 -- | 安全製品在庫の計算
 -- 安全在庫＝安全係数×使用量の標準偏差×√（発注リードタイム＋発注間隔）
--- 発注リードタイム + 発注間隔 = 1として
--- 安全在庫＝安全係数×需要量の標準偏差 で計算
 -- 使用量 = 販売量
 -- 今期を含めた10期分の販売量の標準偏差を利用
 getSafetyStock :: World s -> Term -> Entity -> ST s SafetyStock
 getSafetyStock wld t e = readURef (_ssf wld) >>= \ssf -- 安全係数
                        -> demandStdDev wld t e >>= \ stdDev -- 標準偏差
+                       -> getOrderLeadTime wld t e >>= \ leadTime
+                       -> getOrderInterval wld t e >>= \ interval
                        -> case M.lookup e ssf of
                                     Nothing -> error "ssf is empty"
-                                    Just x  -> return (x * stdDev)
+                                    Just ss -> return $ (*) (ss * stdDev)  
+                                                      $ sqrt 
+                                                      $ fromIntegral 
+                                                      $ leadTime + interval
     where
-    -- | 今期を含めた5期分の販売量の標準偏差
+    -- | 今期を含めた10期分の需要量の標準偏差
     {-# INLINE demandStdDev #-}
     demandStdDev :: World s -> Term -> Entity -> ST s Double
     demandStdDev wld t e
@@ -627,9 +738,14 @@ getSafetyMaterial :: World s -> Term -> Entity -> Entity -> ST s SafetyMaterial
 getSafetyMaterial wld t e1 e2
     =  readURef (_smf wld) >>= \ smf
     -> inputStdDev wld t e1 e2 >>= \ stdDev -- 標準偏差
+    -> getOrderLeadTime wld t e1 >>= \ leadTime
+    -> getOrderInterval wld t e1 >>= \ interval
     -> case M.lookup e1 smf of
         Nothing -> error "ssf is empty"
-        Just x  -> return (x * stdDev)
+        Just sm  -> return $ (*) (sm * stdDev)  
+                           $ sqrt 
+                           $ fromIntegral 
+                           $ leadTime + interval
     where
     -- | 今期を含めた10期分のe1によるe2の中間投入量の標準偏差
     inputStdDev :: World s -> Term -> Entity -> Entity -> ST s Double
@@ -664,6 +780,7 @@ getTermStock c wld t e = do
         Amount  -> return $ norm $ EJT.transfer temp $ toAmountTable pt
         _       -> return $ norm $ temp
 
+
 -- | 一期の原材料在庫保有量を取得する
 getTermMaterial :: CountUnit -> World s -> Term -> Entity -> Entity ->  ST s Double
 getTermMaterial c wld t e1 e2 = do
@@ -672,6 +789,21 @@ getTermMaterial c wld t e1 e2 = do
     let temp = EJ.projWithBase [Not :<(Products, e2, e1, (.#))]
              $ (.-)
              $ termJournal t le
+    case c of
+        Yen     -> return $ norm $ EJT.transfer temp $ toCashTable pt
+        Amount  -> return $ norm $ EJT.transfer temp $ toAmountTable pt
+        _       -> return $ norm $ temp
+
+-- | 一期の原材料在庫保有総量(自家投入を除く)を取得する
+getTermMaterialTotal :: CountUnit -> World s -> Term -> Entity ->  ST s Double
+getTermMaterialTotal c wld t e = do
+    pt <- readURef (_prices wld)
+    le <- readURef (_ledger wld)
+    let temp = fromList 
+             $ L.map (\e2 -> EJ.projWithBase [Not :<(Products,e2, e, (.#))]
+             $ (.-)
+             $ termJournal t le)
+             [e2 | e2 <- [fstEnt .. lastEnt], e2 /= e]
     case c of
         Yen     -> return $ norm $ EJT.transfer temp $ toCashTable pt
         Amount  -> return $ norm $ EJT.transfer temp $ toAmountTable pt
@@ -689,6 +821,20 @@ getTermProduction c wld t e = do
         Yen     -> return $ norm $ EJT.transfer temp $ toCashTable pt
         Amount  -> return $ norm $ EJT.transfer temp $ toAmountTable pt
         _       -> return $ norm $ temp
+
+
+-- | 一期の中間投入量を取得する
+getTermInputTotal :: CountUnit -> World s -> Term -> Entity -> ST s Double
+getTermInputTotal c wld t e = do
+    pt <- readURef (_prices wld)
+    le <- readURef (_ledger wld)
+    let temp = EJ.projWithNoteBase [(Production,t)] [Hat:<(Products, (.#), e, (.#))]
+             $ termJournal t le
+    case c of
+        Yen     -> return $ norm $ EJT.transfer temp $ toCashTable pt
+        Amount  -> return $ norm $ EJT.transfer temp $ toAmountTable pt
+        _       -> return $ norm $ temp
+
 
 -- | 一期の利益を取得する
 getTermProfit :: World s -> Term -> Entity -> ST s Double
@@ -712,6 +858,17 @@ getTermSales c wld t e = do
         Amount  -> return $ norm $ EJT.transfer temp $ toAmountTable pt
         _       -> return $ norm $ temp
 
+-- | 一期の購入量を取得する
+getTermPurchase :: CountUnit -> World s -> Term -> Entity -> ST s Double
+getTermPurchase c wld t e = do
+    pt <- readURef (_prices wld)
+    le <- readURef (_ledger wld)
+    let temp = EJ.projWithNoteBase [(SalesPurchase,t)] [Not:<(Products, (.#),e,(.#))]
+             $ termJournal t le
+    case c of
+        Yen     -> return $ norm $ EJT.transfer temp $ toCashTable pt
+        Amount  -> return $ norm $ EJT.transfer temp $ toAmountTable pt
+        _       -> return $ norm $ temp
 
 -- | 一期の総需要を取得する
 -- 発注の残りと販売量の和
@@ -735,6 +892,7 @@ getOneProduction wld t c = do
         -- 生産と投入の合計
         !result = (1 :@ Not :<(Products, c, c, Amount) .| (Production,t)) .+ totalInput
     return result
+    
 
 -- | 生産可能量の計算
 -- 現在の原材料在庫に基づいて生産可能量を計算する
