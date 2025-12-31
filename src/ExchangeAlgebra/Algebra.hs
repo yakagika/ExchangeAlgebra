@@ -48,6 +48,7 @@ module ExchangeAlgebra.Algebra
     , HatVal(..)
     , Alg(..)
     , isZero
+    , (.@)
     , (<@)
     , vals
     , bases

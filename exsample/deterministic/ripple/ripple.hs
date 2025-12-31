@@ -44,7 +44,6 @@ import              Data.Array.IO
 import              Data.Array (Array)
 import              Data.STRef
 import qualified    Data.List                       as L
-import qualified    Data.Map.Strict                 as Map
 import System.Random -- 乱数
 import Control.Concurrent.Async (mapConcurrently,forConcurrently_)
 
@@ -190,10 +189,10 @@ main = do
     let seed = 42
     let gen = mkStdGen seed
         defaultEnv = InitVar {_initInv             = 0
-                             ,_stockOutRate        = Map.fromList [(e,0.1) | e <- [fstEnt..lastEnt]]
-                             ,_materialOutRate     = Map.fromList [(e,0.1) | e <- [fstEnt..lastEnt]]
-                             ,_orderLeadTime       = Map.fromList [(e,1)   | e <- [fstEnt..lastEnt]]
-                             ,_orderInterval       = Map.fromList [(e,1)   | e <- [fstEnt..lastEnt]]
+                             ,_stockOutRate        = M.fromList [(e,0.1) | e <- [fstEnt..lastEnt]]
+                             ,_materialOutRate     = M.fromList [(e,0.1) | e <- [fstEnt..lastEnt]]
+                             ,_orderLeadTime       = M.fromList [(e,1)   | e <- [fstEnt..lastEnt]]
+                             ,_orderInterval       = M.fromList [(e,1)   | e <- [fstEnt..lastEnt]]
                              ,_addedDemand         = 0
                              ,_addedDemandTerm     = 50
                              ,_addedTo             = 9
@@ -212,18 +211,18 @@ main = do
     results <- mapConcurrently (runSimulation gen) envs
 
 
-    let resMap = Map.fromList
+    let resMap = M.fromList
                $ zip envNames results
 
 
     ------------------------------------------------------------------
     print "printing tables ..."
     -- coefficient Table
-    matWithFinalDemand <- getInputCoefficients (resMap Map.! "default") (fstEnt,lastEnt)
+    matWithFinalDemand <- getInputCoefficients (resMap M.! "default") (fstEnt,lastEnt)
     writeIOMatrix (csv_dir ++ "io.csv") matWithFinalDemand
 
 
-    mat <- getInputCoefficients (resMap Map.! "default") (fstEnt,lastEnt -1)
+    mat <- getInputCoefficients (resMap M.! "default") (fstEnt,lastEnt -1)
 
     -- Basic Ripple Effect
     li  <- leontiefInverse mat
@@ -232,8 +231,8 @@ main = do
     writeIOMatrix (csv_dir ++ "rippleEffect.csv") re
 
     -- ABM Ripple Effect
-    reABM <- culcRippleEffect (resMap Map.! "default")
-                              (resMap Map.! "default-added")
+    reABM <- culcRippleEffect (resMap M.! "default")
+                              (resMap M.! "default-added")
                               defaultAddedEnv
     writeIOMatrix  (csv_dir ++ "rippleEffectABM.csv") reABM
     ------------------------------------------------------------------
@@ -247,7 +246,7 @@ main = do
         header_func_demand = [(T.pack $ "Demand_" ++ show i, \w t -> getTermDemand w t i) | i <- [fstEnt..lastEnt]]
 
     forConcurrently_ envNames $ \n -> do
-        let wld = resMap Map.! n
+        let wld = resMap M.! n
         ESV.writeFuncResults header_func_prod   (initTerm,lastTerm) wld (csv_dir ++ n ++ "/production.csv")
         ESV.writeFuncResults header_func_stock  (initTerm,lastTerm) wld (csv_dir ++ n ++ "/stock.csv")
         ESV.writeFuncResults header_func_profit (initTerm,lastTerm) wld (csv_dir ++ n ++ "/profit.csv")
@@ -275,20 +274,20 @@ main = do
 
         forConcurrently_ (zip fs fnames) $ \ (f, fn) -> do
             ESV.plotLineVector f ((fstEnt,initTerm),(lastEnt -1,lastTerm))
-                               (resMap Map.! n) (fig_dir ++ n ++ "/") fn
+                               (resMap M.! n) (fig_dir ++ n ++ "/") fn
 
         if n == "default-added"
             then do
                 ESV.plotWldsDiffLine (getTermProduction Amount)
                          (fstEnt,lastEnt -1)
-                         ((resMap Map.! n),(resMap Map.! "default"))
+                         ((resMap M.! n),(resMap M.! "default"))
                          (fig_dir ++ n ++ "/")
                          "Difference in production volume"
 
                 ESV.plotMultiLines ["added","normal"]
                        [getTermProduction Amount,getTermProduction Amount]
                        (fstEnt,lastEnt -1)
-                       [(resMap Map.! n),(resMap Map.! "default")]
+                       [(resMap M.! n),(resMap M.! "default")]
                        (fig_dir ++ n ++ "/")
                        "Comparison of production volume"
         else return ()

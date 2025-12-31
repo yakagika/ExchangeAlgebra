@@ -40,7 +40,6 @@ import              Data.Array.IO
 import              Data.Array (Array)
 import              Data.STRef
 import qualified    Data.List                       as L
-import qualified    Data.Map.Strict                 as Map
 import GHC.Generics
 import System.Random
 import Data.Coerce
@@ -58,6 +57,9 @@ import Debug.Trace
 -- *  状態系の導入
 ------------------------------------------------------------------
 
+-- 期
+type Term = Prelude.Int
+
 instance StateTime Term where
     initTerm = 1
     lastTerm = 100
@@ -73,10 +75,10 @@ addedTerm = 50
 ------------------------------------------------------------------
 
 data InitVar = InitVar {_initInv           :: Double -- 初期在庫保有量
-                       ,_stockOutRate      :: Map.Map Entity Double -- 製品在庫欠品許容率
-                       ,_materialOutRate   :: Map.Map Entity Double -- 原材料在庫欠品許容率
-                       ,_orderLeadTime     :: Map.Map Entity Int -- 発注リードタイム (これに従って,入庫までの期間を変える)
-                       ,_orderInterval     :: Map.Map Entity Int -- 発注間隔
+                       ,_stockOutRate      :: M.Map Entity Double -- 製品在庫欠品許容率
+                       ,_materialOutRate   :: M.Map Entity Double -- 原材料在庫欠品許容率
+                       ,_orderLeadTime     :: M.Map Entity Int -- 発注リードタイム (これに従って,入庫までの期間を変える)
+                       ,_orderInterval     :: M.Map Entity Int -- 発注間隔
                        ,_addedDemand       :: Double -- 追加需要量
                        ,_addedDemandTerm   :: Int    -- 追加需要の発生時期
                        ,_addedTo           :: Int    -- 追加需要の受注者
@@ -110,8 +112,6 @@ lastEnt = 10
 industries = [fstEnt .. lastEnt -1]
 finalDemandSector = lastEnt
 
--- 期
-type Term = Prelude.Int
 
 -- ExBaseをインスタンス宣言する
 -- 会計勘定科目の位置のみ指定すればOK
@@ -835,15 +835,14 @@ getTermInputTotal c wld t e = do
         Amount  -> return $ norm $ EJT.transfer temp $ toAmountTable pt
         _       -> return $ norm $ temp
 
-
 -- | 一期の利益を取得する
 getTermProfit :: World s -> Term -> Entity -> ST s Double
 getTermProfit wld t e = do
     le <- readURef (_ledger wld)
     let !termTr = termJournal t le
         !tr    = EJT.grossProfitTransfer termTr
-        !plus  = norm $ EJ.projWithBase [Not:<(Cash,(.#),e,Yen)] tr
-        !minus = norm $ EJ.projWithBase [Hat:<(Cash,(.#),e,Yen)] tr
+        !plus  = norm $ EJ.projWithBase [Not:<(GrossProfit,(.#),e,Yen)] tr
+        !minus = norm $ EJ.projWithBase [Hat:<(GrossProfit,(.#),e,Yen)] tr
     return (plus - minus)
 
 -- | 一期の販売量を取得する
@@ -962,7 +961,7 @@ culcRippleEffect notAdded added iv = do
     return result
 
 
--- 記帳
+-- | 記帳
 journal :: World s ->  Transaction -> ST s ()
 journal wld Zero = return ()
 journal wld js   = modifyURef (_ledger wld) (\x -> x .+ js)

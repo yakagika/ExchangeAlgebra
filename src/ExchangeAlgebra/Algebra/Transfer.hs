@@ -454,8 +454,9 @@ incomeSummaryAccount alg =  let (dc,diff) = diffRL alg
 netIncomeTransfer :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 netIncomeTransfer = createTransfer
     $  (toNot wiledcard) .~ NetIncome :-> (toNot wiledcard) .~ RetainedEarnings |% id
-    ++ (toNot wiledcard) .~ NetLoss   :-> (toNot wiledcard) .~ RetainedEarnings |% id
-
+    ++ (toHat wiledcard) .~ NetIncome :-> (toHat wiledcard) .~ RetainedEarnings |% id
+    ++ (toNot wiledcard) .~ NetLoss   :-> (toHat wiledcard) .~ RetainedEarnings |% id
+    ++ (toHat wiledcard) .~ NetLoss   :-> (toNot wiledcard) .~ RetainedEarnings |% id
 
 -- **  仕分け
 

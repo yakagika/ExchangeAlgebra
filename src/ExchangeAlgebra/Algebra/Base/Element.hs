@@ -23,7 +23,10 @@
 {-# LANGUAGE Strict                     #-}
 {-# LANGUAGE DeriveGeneric              #-}
 
-module ExchangeAlgebra.Algebra.Base.Element where
+module ExchangeAlgebra.Algebra.Base.Element
+    ( module ExchangeAlgebra.Algebra.Base.Element
+    , module Data.Hashable
+    , module GHC.Generics) where
 
 import qualified    Data.Text           as T
 import              Data.Text           (Text)

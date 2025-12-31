@@ -1,5 +1,5 @@
 name:                exchangealgebra
-version:             0.3.0.0
+version:             0.4.0.0
 github:              "yakagika/ExchangeAlgebra"
 license:             MIT
 author:              "Kaya Akagi"
@@ -68,6 +68,26 @@ executables:
     main:                elementaryBookkeepingEx2.hs
     source-dirs:         exsample/basic
 
+  ebex3:
+    <<: *exe-defaults
+    main:                elementaryBookkeepingEx3.hs
+    source-dirs:         exsample/basic
+
+  ebex4:
+    <<: *exe-defaults
+    main:                elementaryBookkeepingEx4.hs
+    source-dirs:         exsample/basic
+
+  ebex5:
+    <<: *exe-defaults
+    main:                elementaryBookkeepingEx5.hs
+    source-dirs:         exsample/basic
+
+  sim1:
+    <<: *exe-defaults
+    main:                simulateEx1.hs
+    source-dirs:         exsample/basic
+
   rippleWithStock:
     <<: *exe-defaults
     main:                rippleWithStock.hs
@@ -78,6 +98,10 @@ executables:
     main:                ripple.hs
     source-dirs:         exsample/deterministic/ripple
 
+  cge:
+    <<: *exe-defaults
+    main:                stdcge.hs
+    source-dirs:         exsample/optimization/CGE
 
 tests:
   ExchangeAlgebra-test:

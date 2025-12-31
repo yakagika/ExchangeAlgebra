@@ -34,6 +34,7 @@ module ExchangeAlgebra.Journal
     , Redundant(..)
     , Exchange(..)
     , pattern (:@)
+    , (.@)
     , Note(..)
     , Journal(..)
     , pattern ExchangeAlgebra.Journal.Zero
@@ -56,7 +57,8 @@ import              ExchangeAlgebra.Algebra ( HatVal(..)
                                             , Alg(..)
                                             , Redundant(..)
                                             , Exchange(..)
-                                            , pattern (:@))
+                                            , pattern (:@)
+                                            , (.@))
 import qualified    Data.List               as L    ( foldr1
                                                     , foldr
                                                     , map
