@@ -56,7 +56,6 @@ import Debug.Trace
 
 ------------------------------------------------------------------
 -- * directories
-
 fig_dir = "exsample/deterministic/ripple/result/fig/withoutStock/"
 csv_dir = "exsample/deterministic/ripple/result/csv/withoutStock/"
 

@@ -158,16 +158,18 @@ class UpdatableSTRef wrapper s b | wrapper s -> b where
   modifyURef x f = modifySTRef (_unwrapURef x) f
 
 
--- | modifyArray
+
+{-# INLINE modifyArray #-}
+modifyArray ::(MArray a t m, Ix i) => a i t -> i -> (t -> t) -> m ()
+modifyArray ar e f = readArray ar e >>= \ x -> writeArray ar e (f x)
+
+
+-- | for newtype A s = A (STArray s x y)
 -- example:
 -- newtype UArray s = UArray (STArray s (Int,Int) Double)
 -- instance UpdatableSTArray UArray s (Int,Int) Double where
 --   _unwrapUArray (UArray arr) = arr
 --   _wrapUArray arr = UArray arr
-
-{-# INLINE modifyArray #-}
-modifyArray ::(MArray a t m, Ix i) => a i t -> i -> (t -> t) -> m ()
-modifyArray ar e f = readArray ar e >>= \ x -> writeArray ar e (f x)
 
 class (Ix b) => UpdatableSTArray wrapper s b c | wrapper s -> b c where
   _unwrapUArray :: wrapper s -> STArray s b c

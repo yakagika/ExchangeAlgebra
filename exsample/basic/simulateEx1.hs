@@ -49,25 +49,6 @@ instance Note Term where
     plank = -1
 
 ------------------------------------------------------------------
--- * イベントの定義
-------------------------------------------------------------------
-
-data EventName = SalesPurchase
-               | Production
-               | Plank
-               deriving (Ord, Show, Enum, Eq, Bounded, Generic)
-
--- Note にするための宣言
-instance Hashable EventName where
-
-instance Note EventName where
-    plank = Plank
-
--- Event にするための宣言
-instance Event EventName where
-
-
-------------------------------------------------------------------
 -- ** 初期化用のパラメータ定義
 ------------------------------------------------------------------
 
@@ -78,6 +59,25 @@ data InitVar = InitVar {_initStock         :: Double -- 初期保有量
 
 instance InitVariables InitVar where
 
+
+------------------------------------------------------------------
+-- * イベントの定義
+------------------------------------------------------------------
+
+data EventName = SalesPurchase
+               | Production
+               | Plank
+               deriving (Ord, Show, Enum, Eq, Bounded, Generic)
+
+instance Hashable EventName where
+
+instance Note EventName where
+    plank = Plank
+
+-- Event にするための宣言
+instance Event EventName where
+
+
 ------------------------------------------------------------------
 -- * 状態系の定義
 ------------------------------------------------------------------
@@ -86,17 +86,19 @@ instance InitVariables InitVar where
 -- ** 定常的な生産
 ------------------------------------------------------------------
 type StedyProd = Double
+
+-- |STRef として定義
 newtype SP s = SP (STRef s StedyProd)
 
+-- | UpdatableSTRef としてインスタンス宣言
 instance UpdatableSTRef SP s StedyProd where
    _unwrapURef (SP x) = x
    _wrapURef x = (SP x)
 
--- ** STArray s (ID, Term) Double
--- 価格は固定
+-- | Updatable としてインスタンス宣言
 instance Updatable Term InitVar SP s where
     type Inner SP s = STRef s StedyProd
-    unwrap (SP a) = a
+    unwrap = _unwrapURef
     initialize _ _ e = newURef (_steadyProduction e)
     updatePattern _ = return DoNothing
 
@@ -106,22 +108,22 @@ instance Updatable Term InitVar SP s where
 ------------------------------------------------------------------
 
 -- | 取引主体ID
-type Entity = Int
+type Company = Int
 
-fstEnt = 1
-lastEnt = 6
+fstC = 1
+lastC = 6
 
 -- | 主体の集合
-entities = [fstEnt .. lastEnt]
+companies = [fstC .. lastC]
 
 -- 交換代数元にするための宣言
-instance Element Entity where
+instance Element Company where
     wiledcard = -1
-instance BaseClass Entity where
+instance BaseClass Company where
 
 type HatBase2 = HatBase ( AccountTitles
-                         , Entity  -- 財を区別するためのID
-                         , Entity) -- 経済主体ID
+                         , Company  -- 財を区別するためのID
+                         , Company) -- 経済主体ID
 
 instance ExBaseClass HatBase2 where
     getAccountTitle (h :< (a,c,e))   = a
@@ -143,12 +145,12 @@ initLedger :: Double -> ST s (Ledger s)
 initLedger d = newURef
              $ EJ.fromList
              [ d :@ Not :<(Products,e,e) .| (plank,initTerm)
-             | e <- entities]
+             | e <- companies]
 
 -- 一般化の適用
 instance Updatable Term InitVar Ledger s where
     type Inner Ledger s = STRef s Transaction
-    unwrap (Ledger a) = a
+    unwrap = _unwrapURef
 
     initialize _ _ e = initLedger (_initStock e)
 
@@ -171,8 +173,8 @@ instance Updatable Term InitVar Ledger s where
 -- 投入係数行列
 type InputCoefficient = Double
 
-type Col = Entity
-type Row = Entity
+type Col = Company
+type Row = Company
 -- | (Commodity1, Commodity2) の配列
 newtype ICTable s = ICTable (STArray s (Row, Col) InputCoefficient)
 
@@ -188,25 +190,25 @@ generateRandomList g n = let (xs, g') = runState (replicateM n (state $ randomR 
                        in (ys, g')
 
 -- ** 1つの Term に対する投入係数を生成 (乱数を使用, 列和 = 1)
-initTermCoefficients :: StdGen -> Double -> M.Map Entity [InputCoefficient]
+initTermCoefficients :: StdGen -> Double -> M.Map Company [InputCoefficient]
 initTermCoefficients g inhouseRatio =
     let generateRow g =
-            let (vals, g') = generateRandomList g lastEnt
+            let (vals, g') = generateRandomList g lastC
                 total = sum vals
                 normalized = L.map (\x -> (x / total)*inhouseRatio) vals -- 祖付加価値分差し引き
             in (normalized, g')
-        (rows, _) = foldl (\(m, g0) c2 -> let (row, g1) = generateRow g0 in (M.insert c2 row m, g1)) (M.empty, g) entities
+        (rows, _) = foldl (\(m, g0) c2 -> let (row, g1) = generateRow g0 in (M.insert c2 row m, g1)) (M.empty, g) companies
     in rows
 
 
 -- ** 生産関数の初期状態 (STArray を使用, Term ごとに固定)
 initICTables :: StdGen -> Double -> ST s (ICTable s)
 initICTables g inhouseRatio = do
-    arr <- newUArray ((fstEnt, fstEnt), (lastEnt, lastEnt)) 0  -- 初期値は0
+    arr <- newUArray ((fstC, fstC), (lastC, lastC)) 0  -- 初期値は0
     let termCoefficients = initTermCoefficients g inhouseRatio
-    forM_ entities $ \c2 -> do
+    forM_ companies $ \c2 -> do
         let row = termCoefficients M.! c2  -- Term ごとに固定
-        forM_ (zip entities row) $ \(c1, coef) ->
+        forM_ (zip companies row) $ \(c1, coef) ->
             writeUArray arr (c1, c2) coef
     return arr
 
@@ -233,10 +235,10 @@ data World s = World { _ledger  :: Ledger s -- ^ 元帳
 -- * 汎用関数の定義
 ------------------------------------------------------------------
 -- | 一単位の財の簿記を取得する
-getOneProduction :: World s -> Term -> Entity -> ST s Transaction
+getOneProduction :: World s -> Term -> Company -> ST s Transaction
 getOneProduction wld t c = do
     let arr =  (_ics wld)  -- ICTable を取得
-    inputs <- CM.forM entities $ \c2 -> do
+    inputs <- CM.forM companies $ \c2 -> do
         -- c を生産するために必要な c2 の投入係数
         coef <- readUArray arr (c2, c)
         -- c2 の消費を記録
@@ -249,7 +251,7 @@ getOneProduction wld t c = do
 
 
 -- | 一期の製品在庫保有量を取得する
-getTermStock :: World s -> Term -> Entity ->  ST s Double
+getTermStock :: World s -> Term -> Company ->  ST s Double
 getTermStock wld t e = do
     le <- readURef (_ledger wld)
     let plusStock = norm
@@ -264,7 +266,7 @@ getTermStock wld t e = do
     return $ plusStock - minusStock
 
 -- | 一期の粗利益を取得する
-getTermGrossProfit :: World s -> Term -> Entity -> ST s Double
+getTermGrossProfit :: World s -> Term -> Company -> ST s Double
 getTermGrossProfit wld t e = do
     le <- readURef (_ledger wld)
     let termTr = termJournal t le
@@ -284,7 +286,7 @@ termJournal t = EJ.filterWithNote (\(e,t') _ -> t' == t )
 
 -- | 投入係数の取得
 -- 1単位の e1 の生産に必要な e2
-getInputCoefficient :: World s -> Entity -> Entity -> ST s InputCoefficient
+getInputCoefficient :: World s -> Company -> Company -> ST s InputCoefficient
 getInputCoefficient wld e1 e2 =  do
                 let ics = (_ics wld)
                 readUArray ics (e2,e1)
@@ -293,7 +295,7 @@ getInputCoefficient wld e1 e2 =  do
 -- | 初期の投入係数行列の取得
 -- 1期の投入係数行列を取得する
 -- 最終需要を抜かした9*9
-getInputCoefficients :: World RealWorld -> (Entity,Entity) -> IO (IOArray (Entity,Entity) Double)
+getInputCoefficients :: World RealWorld -> (Company,Company) -> IO (IOArray (Company,Company) Double)
 getInputCoefficients wld (i,j) = do
     let arr = (_ics wld)
     result <- newArray ((i, i), (j, j)) 0
@@ -323,9 +325,9 @@ event' wld t SalesPurchase = do
     le <- readURef (_ledger wld)
 
     -- 各経済主体が不足している原材料を購入する
-    forM_ entities $ \e1 -> do
+    forM_ companies $ \e1 -> do
         -- e2に対する購入量を計算する
-        forM_ entities $ \e2 -> do
+        forM_ companies $ \e2 -> do
                 when (e1 /= e2) $ do
                     -- 原材料在庫の不足分
                     let short = norm
@@ -347,7 +349,7 @@ event' wld t Production = do
     le <- readURef (_ledger wld)
     -- 定常的な生産量
     sp <- readURef (_sp wld)
-    forM_ entities $ \e1 -> do
+    forM_ companies $ \e1 -> do
         op <- getOneProduction wld t e1  -- 1単位の生産簿記を取得
         journal wld (sp .* op)  -- 生産処理を記帳
 
@@ -384,13 +386,13 @@ main = do
     ------------------------------------------------------------------
     print "writing data..."
     -- coefficient Table
-    matWithFinalDemand <- getInputCoefficients (resMap M.! "default-prod") (fstEnt,lastEnt)
+    matWithFinalDemand <- getInputCoefficients (resMap M.! "default-prod") (fstC,lastC)
     writeIOMatrix (csv_dir ++ "io.csv") matWithFinalDemand
 
     let header_func_stock  = [(T.pack $ "Stock_" ++ show i, \w t -> getTermStock w t i)
-                             | i <- [fstEnt..lastEnt]]
+                             | i <- [fstC..lastC]]
         header_func_profit = [(T.pack $ "Profit_" ++ show i, \w t -> getTermGrossProfit w t i)
-                             | i <- [fstEnt..lastEnt]]
+                             | i <- [fstC..lastC]]
 
     forConcurrently_ envNames $ \n -> do
         let wld = resMap M.! n
@@ -401,13 +403,13 @@ main = do
     print "visualizing with Haskell..."
     forConcurrently_ envNames $ \n -> do
         ESV.plotLineVector getTermStock
-                           ((fstEnt,initTerm),(lastEnt,lastTerm))
+                           ((fstC,initTerm),(lastC,lastTerm))
                            (resMap M.! n)
                            (fig_dir ++ n ++ "/")
                            "Stock"
 
         ESV.plotLineVector getTermGrossProfit
-                   ((fstEnt,initTerm),(lastEnt,lastTerm))
+                   ((fstC,initTerm),(lastC,lastTerm))
                    (resMap M.! n)
                    (fig_dir ++ n ++ "/")
                    "GrossPrifit"

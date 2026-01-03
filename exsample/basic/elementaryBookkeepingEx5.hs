@@ -28,3 +28,4 @@ main = do
            :: AlgC
         z = EA.fromList (Prelude.map f bs)
     print $ norm $ (.-) $ proj [HatNot:<(Sales,1)] z
+    -- > 10000.0
