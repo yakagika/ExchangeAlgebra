@@ -54,6 +54,7 @@ module ExchangeAlgebra.Algebra
     , bases
     , fromList
     , toList
+    , sigma
     , toASCList
     , map
     , filter
@@ -581,6 +582,17 @@ bases (Liner m) = Map.foldlWithKey f [] m
 
 fromList ::(HatVal v, HatBaseClass b ) => [Alg v b] -> Alg v b
 fromList = mconcat
+
+
+
+-- | sigma 
+--
+-- >>> type Test = Alg NN.Double (HatBase CountUnit)
+-- >>> sigma [1,2] (\x -> x:@Hat:<Yen)
+-- 1.00:@Hat:<Yen .+ 2.00:@Hat:<Yen
+
+sigma :: (HatVal v, HatBaseClass b) => [a] -> (a -> Alg v b) -> Alg v b
+sigma xs f = mconcat [f x | x <- xs]
 
 -- | convert Alg n b to List
 --

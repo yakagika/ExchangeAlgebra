@@ -61,6 +61,7 @@ import Debug.Trace
 fig_dir = "exsample/stochastic/CGE/result/fig/"
 csv_dir = "exsample/stochastic/CGE/result/csv/"
 
+{-
 -- 状態系の定義
 -- deriving Generic をしていれば
 -- 空のインスタンス宣言で自動でinitSS,updateSSが使えるようになる
@@ -317,3 +318,8 @@ main = do
                        (fig_dir ++ n ++ "/")
                        "Comparison of production volume"
         else return ()
+
+-}
+
+main = do 
+    return ()

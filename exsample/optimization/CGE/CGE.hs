@@ -10,10 +10,10 @@
 {-# LANGUAGE TypeFamilies #-}
 
 {-
-Module for Ripple Effect Analysis
+Module for Computable General Equilibrium Analysis
 -}
 
-module RippleEffect where
+module CGE where
 
 -- Original
 import              ExchangeAlgebraJournal

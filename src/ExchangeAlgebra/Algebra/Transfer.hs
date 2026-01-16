@@ -197,21 +197,21 @@ size (TransTable s _ _ _ _ _) = s
 --    + 6 < e 1 > + 6 ^ < e A > + 2 ^ < e 2 > + 4 < e A > + 2 ^ < e 3 >
 --
 --
--- >>> type Test = Alg NN.Double (HatBase (AccountTitles, CountUnit))
+-- >>> type Test = Alg Double (HatBase (AccountTitles, CountUnit))
 -- >>> x = 1:@Hat:<(Cash,Yen) .+ 1:@Not:<(Products,Amount) :: Test
 -- >>> y = 2:@Not:<(Cash,Yen) .+ 2:@Hat:<(Deposits,Yen) :: Test
 -- >>> transfer (x .+ y) $ table $ Not:<(Products,Amount) :-> Not:<(Products,Yen) |% id ++  Hat:<(Products,Amount) :-> Hat:<(Products,Yen) |% id
 -- 1.00:@Hat:<(Cash,Yen) .+ 2.00:@Not:<(Cash,Yen) .+ 2.00:@Hat:<(Deposits,Yen) .+ 1.00:@Not:<(Products,Yen)
 --
 -- ワイルドカードはマッチングするが変換されない
---  >>> type Test = Alg NN.Double (HatBase (AccountTitles, CountUnit))
+--  >>> type Test = Alg Double (HatBase (AccountTitles, CountUnit))
 -- >>> x = 1:@Hat:<(Cash,Yen) .+ 1:@Not:<(Products,Amount) :: Test
 -- >>> y = 2:@Not:<(Cash,Yen) .+ 2:@Hat:<(Deposits,Yen) :: Test
 -- >>> transfer (x .+ y) $ table $ HatNot:<(Products,Amount) :-> HatNot:<(Products,Yen) |% id
 -- 1.00:@Hat:<(Cash,Yen) .+ 2.00:@Not:<(Cash,Yen) .+ 2.00:@Hat:<(Deposits,Yen) .+ 1.00:@Not:<(Products,Yen)
 --
 -- >>> instance Element Int where wiledcard = -1
--- >>> type Test = Alg NN.Double (HatBase (AccountTitles, Int,CountUnit))
+-- >>> type Test = Alg Double (HatBase (AccountTitles, Int,CountUnit))
 -- >>> x = 1:@Hat:<(Cash,(.#),Yen) .+ 1:@Not:<(Products,1,Yen) :: Test
 -- >>> transfer x $ table $ HatNot:<((.#),(.#),Yen) :-> HatNot:<((.#),(.#),Amount) |% id
 -- 1.00:@Hat:<(Cash,-1,Amount) .+ 1.00:@Not:<(Products,1,Amount)
@@ -366,7 +366,7 @@ lookup k = k `seq` go
 
 -- | make TransTable from list
 --
--- >>> ExchangeAlgebraMap.Algebra.Transfer.fromList [(Hat:<(Cash),Hat:<(Building),(id :: NN.Double -> NN.Double) ),(Not:<(Building),Not:<(Cash),id)]
+-- >>> ExchangeAlgebra.Algebra.Transfer.fromList [(Hat:<(Cash),Hat:<(Building),(id :: NN.Double -> NN.Double) ),(Not:<(Building),Not:<(Cash),id)]
 -- [(Hat:<Cash,Hat:<Building,<function>),(Not:<Building,Not:<Cash,<function>)]
 
 fromList :: (HatVal n, HatBaseClass b) => [(b,b,(n -> n))] -> TransTable n b
@@ -481,8 +481,7 @@ grossProfitTransfer
 
 -- | Ordinary Profit Transfer
 --
--- >>>  import qualified Number.NonNegative as NN
--- >>>  type Test = Alg NN.Double (HatBase (CountUnit, AccountTitles))
+-- >>>  type Test = Alg Double (HatBase (CountUnit, AccountTitles))
 -- >>>  x = 2279.0:@Not:<(Yen,Depreciation) .+ 500475.0:@Not:<(Yen,InterestEarned) :: Test
 -- >>>  ordinaryProfitTransfer x
 -- 2279.00:@Hat:<(Yen,OrdinaryProfit) .+ 500475.00:@Not:<(Yen,OrdinaryProfit)

@@ -5,5 +5,4 @@ import Test.DocTest
 main :: IO ()
 main = doctest  [ "-isrc"
                 , "src/ExchangeAlgebra.hs"
-                , "src/ExchangeAlgebraMap.hs"
-                , "src/ExchangeAlgebraMapJournal.hs"]
+                , "src/ExchangeAlgebraJournal.hs"]

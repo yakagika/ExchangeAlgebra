@@ -115,7 +115,7 @@ grossProfitTransfer = EJ.map EAT.grossProfitTransfer
 -- >>> type Test = Journal String Double (HatBase (CountUnit, AccountTitles))
 -- >>> x = 2279.0:@Not:<(Yen,Depreciation) .| "A" :: Test
 -- >>> y = 500475.0:@Not:<(Yen,InterestEarned) .| "B" :: Test
--- >>> ExchangeAlgebraMap.Journal.Transfer.ordinaryProfitTransfer ( x .+ y)
+-- >>> ExchangeAlgebra.Journal.Transfer.ordinaryProfitTransfer ( x .+ y)
 -- 2279.00:@Hat:<(Yen,OrdinaryProfit).|"A" .+ 500475.00:@Not:<(Yen,OrdinaryProfit).|"B"
 
 ordinaryProfitTransfer :: (Note n, HatVal v, ExBaseClass b) => Journal n v b -> Journal n v b
