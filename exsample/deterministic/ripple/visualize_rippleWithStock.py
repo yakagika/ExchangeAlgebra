@@ -2,6 +2,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import re
+try:
+    from scipy.stats import wilcoxon
+    _has_scipy = True
+except Exception:
+    _has_scipy = False
 
 # CSVファイル名
 csv_dir = 'exsample/deterministic/ripple/result/csv/withStock/'
@@ -257,6 +263,363 @@ for csv_basename in ['production', 'stock']:
 
 # production差分の比較グラフを作成
 plot_production_differences()
+
+# --- seed 別CSVから差分の平均±SDエンベロープを作成 ---
+def _collect_seed_files(case, basename):
+    """case 配下の *_seed<INT>.csv を収集して {seed: path} を返す"""
+    case_dir = os.path.join(csv_dir, case)
+    if not os.path.isdir(case_dir):
+        return {}
+    pattern = re.compile(rf"^{re.escape(basename)}_seed(\d+)\.csv$")
+    seed_map = {}
+    for fname in os.listdir(case_dir):
+        m = pattern.match(fname)
+        if m:
+            seed_map[int(m.group(1))] = os.path.join(case_dir, fname)
+    return seed_map
+
+
+def _load_diff_series(case_base, case_added, basename="production", use_abs=True):
+    """seed ごとの差分時系列(added - base)を返す。各seedは行平均系列。"""
+    base_files = _collect_seed_files(case_base, basename)
+    added_files = _collect_seed_files(case_added, basename)
+    common_seeds = sorted(set(base_files.keys()) & set(added_files.keys()))
+
+    if not common_seeds:
+        print(f"Warning: no common seeds for {case_base} vs {case_added}")
+        return None, None
+
+    diffs = []
+    time = None
+    for sd in common_seeds:
+        df_base = pd.read_csv(base_files[sd])
+        df_added = pd.read_csv(added_files[sd])
+
+        # Time で揃え、共通列のみを使用して整合性を担保
+        common_cols = [c for c in df_base.columns if c != "Time" and c in df_added.columns]
+        if not common_cols:
+            print(f"Warning: no common columns for seed {sd} in {case_base} vs {case_added}")
+            continue
+
+        df_base = df_base[["Time"] + common_cols]
+        df_added = df_added[["Time"] + common_cols]
+        merged = df_base.merge(df_added, on="Time", suffixes=("_base", "_added"))
+        if merged.empty:
+            print(f"Warning: no common Time rows for seed {sd} in {case_base} vs {case_added}")
+            continue
+
+        if time is None:
+            time = merged["Time"].to_numpy()
+
+        base_vals = merged[[f"{c}_base" for c in common_cols]].apply(pd.to_numeric, errors="coerce").to_numpy()
+        added_vals = merged[[f"{c}_added" for c in common_cols]].apply(pd.to_numeric, errors="coerce").to_numpy()
+
+        # 行平均の差分（各時点でエージェント平均との差分を平均）
+        row_mean_diff = (added_vals - base_vals).mean(axis=1)
+        diffs.append(np.abs(row_mean_diff) if use_abs else row_mean_diff)
+
+    return time, np.vstack(diffs)
+
+
+def plot_seeded_diff_envelope():
+    pairs = [
+        ("small", "small-added", "Small", "blue"),
+        ("default", "default-added", "Default", "red"),
+        ("large", "large-added", "Large", "green"),
+    ]
+
+    fig, ax = plt.subplots(1, 1, figsize=(12, 6))
+    any_plotted = False
+    mean_series_by_label = []
+
+    for base, added, label, color in pairs:
+        time, diff_matrix = _load_diff_series(base, added, "production", use_abs=True)
+        if diff_matrix is None:
+            continue
+        mean = diff_matrix.mean(axis=0)
+        sd = diff_matrix.std(axis=0, ddof=1) if diff_matrix.shape[0] > 1 else np.zeros_like(mean)
+        ax.plot(time, mean, color=color, linewidth=2, label=f"{label} mean")
+        ax.fill_between(time, mean - sd, mean + sd, color=color, alpha=0.2, label=f"{label} ±SD")
+        mean_series_by_label.append((label, mean))
+        any_plotted = True
+
+    if not any_plotted:
+        print("Warning: no seed-diff data available for envelope plot")
+        return
+
+    ax.axhline(y=0, color="black", linestyle="--", alpha=0.5)
+    ax.set_title("Production Difference Envelope (Added - Normal)\nMean ± SD across seeds")
+    ax.set_xlabel("Time")
+    ax.set_ylabel("Production Difference (mean across agents)")
+    # 差分は正負が混在するため symlog を使う
+    ax.set_yscale("symlog", linthresh=0.1)
+    ax.grid(True, alpha=0.3)
+    ax.legend(loc="upper left")
+
+    outdir = os.path.join(fig_dir, "seed_envelope")
+    os.makedirs(outdir, exist_ok=True)
+    plt.tight_layout()
+    plt.savefig(os.path.join(outdir, "production_diff_envelope_mean_sd.png"), dpi=300)
+    plt.close(fig)
+
+    # mean 系列の箱ひげ図は別関数で作成
+
+
+def plot_mean_boxplot_signed():
+    """mean系列（符号付き）の箱ひげ図を作成する"""
+    pairs = [
+        ("small", "small-added", "Small"),
+        ("default", "default-added", "Default"),
+        ("large", "large-added", "Large"),
+    ]
+    mean_series_by_label = []
+    for base, added, label in pairs:
+        time, diff_matrix = _load_diff_series(base, added, "production", use_abs=False)
+        if diff_matrix is None:
+            continue
+        mean = diff_matrix.mean(axis=0)
+        mean_series_by_label.append((label, mean))
+
+    if not mean_series_by_label:
+        print("Warning: no data available for mean boxplot")
+        return
+
+    outdir = os.path.join(fig_dir, "seed_envelope")
+    os.makedirs(outdir, exist_ok=True)
+    fig, ax = plt.subplots(1, 1, figsize=(8, 5))
+    labels = [lbl for lbl, _ in mean_series_by_label]
+    data = [series for _, series in mean_series_by_label]
+    ax.boxplot(data, labels=labels, showfliers=True)
+    ax.set_title("Distribution of Mean Production Difference (Added - Normal)\nAcross Time")
+    ax.set_ylabel("Mean Production Difference")
+    ax.axhline(y=0, color="black", linestyle="--", alpha=0.5)
+    # 正負を含むため symlog を使用
+    ax.set_yscale("symlog", linthresh=0.1)
+    ax.grid(True, axis="y", alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(os.path.join(outdir, "production_diff_mean_boxplot_signed.png"), dpi=300)
+    plt.close(fig)
+
+
+plot_seeded_diff_envelope()
+plot_mean_boxplot_signed()
+
+# --- Seedごとの振幅指標 → 対応検定 ---
+def _load_mean_series_per_seed(case_name, basename="production"):
+    """seedごとの行平均系列（Timeで整合）を {seed: series} で返す"""
+    files = _collect_seed_files(case_name, basename)
+    if not files:
+        return {}
+    series_by_seed = {}
+    for sd, path in files.items():
+        df = pd.read_csv(path)
+        if "Time" not in df.columns:
+            continue
+        cols = [c for c in df.columns if c != "Time"]
+        if not cols:
+            continue
+        vals = df[cols].apply(pd.to_numeric, errors="coerce").to_numpy()
+        series_by_seed[sd] = vals.mean(axis=1)
+    return series_by_seed
+
+
+import numpy as np
+
+# SciPy (Friedman / Wilcoxon)
+_has_scipy = True
+try:
+    from scipy.stats import friedmanchisquare, wilcoxon
+except Exception:
+    _has_scipy = False
+
+
+import numpy as np
+
+# SciPy (Friedman / Wilcoxon)
+_has_scipy = True
+try:
+    from scipy.stats import friedmanchisquare, wilcoxon
+except Exception:
+    _has_scipy = False
+
+
+def _align_seed_series(base_series, added_series):
+    common = sorted(set(base_series.keys()) & set(added_series.keys()))
+    if not common:
+        return [], []
+    pairs = [(base_series[s], added_series[s]) for s in common]
+    return common, pairs
+
+
+# ===== 指標：差分系列 d(t)=added-normal の max|d(t)| =====
+
+def _amplitude_maxabs(x):
+    x = np.asarray(x, dtype=float)
+    return float(np.nanmax(np.abs(x)))
+
+
+def _amplitude_log_maxabs(x, eps=1e-12):
+    return float(np.log(_amplitude_maxabs(x) + eps))
+
+
+# ===== 多重比較補正 =====
+
+def _holm_adjust(pvals):
+    pvals = np.asarray(pvals, dtype=float)
+    m = len(pvals)
+    order = np.argsort(pvals)
+    adj = np.empty(m, dtype=float)
+
+    prev = 0.0
+    for k, idx in enumerate(order):
+        val = min(1.0, (m - k) * pvals[idx])
+        val = max(prev, val)
+        adj[idx] = val
+        prev = val
+    return adj
+
+
+def _run_wilcoxon_greater(diffs):
+    diffs = np.asarray(diffs, dtype=float)
+    diffs = diffs[np.isfinite(diffs)]
+    if len(diffs) == 0 or np.all(diffs == 0):
+        return np.nan
+    if not _has_scipy:
+        return np.nan
+    res = wilcoxon(diffs, alternative="greater", zero_method="zsplit")
+    return float(res.pvalue)
+
+
+# ===== Cliff's delta =====
+
+def cliffs_delta(x, y):
+    """
+    Cliff's delta: δ = P(X>Y) - P(Y>X)
+    x, y: 1D arrays (finite values expected). Ties contribute 0.
+    Returns: (delta, n_x, n_y)
+    """
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    x = x[np.isfinite(x)]
+    y = y[np.isfinite(y)]
+    if len(x) == 0 or len(y) == 0:
+        return np.nan, int(len(x)), int(len(y))
+
+    # O(n*m) but fine for ~100 seeds; simple and transparent.
+    gt = 0
+    lt = 0
+    for xi in x:
+        gt += int(np.sum(xi > y))
+        lt += int(np.sum(xi < y))
+
+    n = len(x) * len(y)
+    delta = (gt - lt) / n
+    return float(delta), int(len(x)), int(len(y))
+
+
+def _delta_label(delta):
+    """慣例的な大きさカテゴリ（参考）"""
+    if not np.isfinite(delta):
+        return "NA"
+    ad = abs(delta)
+    if ad < 0.147:
+        return "negligible"
+    if ad < 0.33:
+        return "small"
+    if ad < 0.474:
+        return "medium"
+    return "large"
+
+
+def run_amplitude_tests_friedman_maxabs_with_cliffs_delta():
+    base_conds = ["small", "default", "large"]
+    added_conds = ["small-added", "default-added", "large-added"]
+
+    series_base = {c: _load_mean_series_per_seed(c, "production") for c in base_conds}
+    series_added = {c: _load_mean_series_per_seed(c, "production") for c in added_conds}
+
+    amp_max = {}
+    amp_log = {}
+
+    for base, added in zip(base_conds, added_conds):
+        seeds, pairs = _align_seed_series(series_base[base], series_added[added])
+        if not pairs:
+            print(f"Warning: no common seeds for {base} vs {added}")
+            continue
+
+        max_map = {}
+        log_map = {}
+        for s, (x_base, x_added) in zip(seeds, pairs):
+            d = np.asarray(x_added, dtype=float) - np.asarray(x_base, dtype=float)
+            max_map[s] = _amplitude_maxabs(d)
+            log_map[s] = _amplitude_log_maxabs(d)
+
+        amp_max[base] = max_map
+        amp_log[base] = log_map
+
+    if not all(c in amp_max for c in base_conds):
+        print("Warning: missing condition maps; cannot run Friedman.")
+        return
+
+    common_seeds = sorted(
+        set(amp_max["small"]) &
+        set(amp_max["default"]) &
+        set(amp_max["large"])
+    )
+    if not common_seeds:
+        print("Warning: no common seeds across all conditions.")
+        return
+
+    small_max = np.array([amp_max["small"][s] for s in common_seeds])
+    def_max   = np.array([amp_max["default"][s] for s in common_seeds])
+    large_max = np.array([amp_max["large"][s] for s in common_seeds])
+
+    small_log = np.array([amp_log["small"][s] for s in common_seeds])
+    def_log   = np.array([amp_log["default"][s] for s in common_seeds])
+    large_log = np.array([amp_log["large"][s] for s in common_seeds])
+
+    print(f"Common seeds: n={len(common_seeds)}")
+
+    if not _has_scipy:
+        print("Warning: scipy not available; cannot run Friedman/Wilcoxon.")
+        return
+
+    fr_max = friedmanchisquare(small_max, def_max, large_max)
+    fr_log = friedmanchisquare(small_log, def_log, large_log)
+
+    print(f"[Friedman] max|d(t)|: stat={fr_max.statistic:.6g}, p={fr_max.pvalue:.6g}")
+    print(f"[Friedman] log(max|d|+eps): stat={fr_log.statistic:.6g}, p={fr_log.pvalue:.6g}")
+
+    def posthoc_with_effects(label, a, b, c):
+        # one-sided Wilcoxon for ordered alternative
+        p1 = _run_wilcoxon_greater(b - a)  # Default > Small
+        p2 = _run_wilcoxon_greater(c - b)  # Large > Default
+        raw = np.array([p1, p2])
+        adj = _holm_adjust(raw)
+
+        # Cliff's delta (effect size) for the same comparisons
+        d1, nx1, ny1 = cliffs_delta(b, a)  # Default vs Small
+        d2, nx2, ny2 = cliffs_delta(c, b)  # Large vs Default
+
+        print(f"[Post-hoc Wilcoxon one-sided + Holm] {label}")
+        print(f"  Default > Small: raw p={raw[0]:.6g}, Holm p={adj[0]:.6g} | "
+              f"Cliff's δ={d1:.4g} ({_delta_label(d1)}) [n={nx1}x{ny1}]")
+        print(f"  Large > Default: raw p={raw[1]:.6g}, Holm p={adj[1]:.6g} | "
+              f"Cliff's δ={d2:.4g} ({_delta_label(d2)}) [n={nx2}x{ny2}]")
+
+    if fr_max.pvalue < 0.05:
+        posthoc_with_effects("max|d(t)|", small_max, def_max, large_max)
+    else:
+        print("max|d(t)|: Friedman not significant; skip post-hoc.")
+
+    if fr_log.pvalue < 0.05:
+        posthoc_with_effects("log(max|d|+eps)", small_log, def_log, large_log)
+    else:
+        print("log(max|d|+eps): Friedman not significant; skip post-hoc.")
+
+
+# 実行
+run_amplitude_tests_friedman_maxabs_with_cliffs_delta()
 
 # --- default-addedケースにおける複数ペアの比較グラフ ---
 def plot_comparison_pairs():

@@ -315,32 +315,31 @@ getInputCoefficients wld (i,j) = do
 instance StateSpace Term InitVar EventName World s where
     event = event'
 
+short :: Company -> Company -> Term -> World s -> ST s Double
+short i j t wld = do
+        le <- readURef (_ledger wld)
+        return $ norm
+               $ EJ.projWithBase [Hat:<(Products,j, i)]
+               $ (.-) $ termJournal t le
+
+purchases :: Term -> World s -> ST s Transaction
+purchases t wld =
+    sigmaM companies $ \i
+        -> sigmaM (companies L.\\ [i]) $ \j
+        -> short i j t wld >>= \o
+        -> return $ o :@ Hat :<(Products, j, j)   -- 受注側 販売財
+                 .+ o :@ Not :<(Sales,(.#),j)     -- 受注側 販売益
+                 .+ o :@ Not :<(Products, j, i)   -- 発注側 購入財
+                 .+ o :@ Not :<(Purchases,(.#),i) -- 発注側 購入額
+                 .| (SalesPurchase,t)
 
 event' :: World s -> Term -> EventName -> ST s ()
 
 ------------------------------------------------------------------
 -- 不足分を販売・購入する
 event' wld t SalesPurchase = do
-    -- 簿記の状態を取得
-    le <- readURef (_ledger wld)
-
-    -- 各経済主体が不足している原材料を購入する
-    forM_ companies $ \e1 -> do
-        -- e2に対する購入量を計算する
-        forM_ companies $ \e2 -> do
-                when (e1 /= e2) $ do
-                    -- 原材料在庫の不足分
-                    let short = norm
-                              $ EJ.projWithBase [Hat:<(Products,e2,e1)]
-                              $ (.-) $ termJournal t le
-
-                    -- 受注がゼロでない場合に販売処理を実施
-                    -- 在庫の有無に関わらず販売
-                    let toAdd = short :@ Hat :<(Products, e2, e2)  -- 受注側 販売財
-                             .+ short :@ Not :<(Sales,(.#),e2)     -- 受注側 販売益
-                             .+ short :@ Not :<(Products, e2, e1)  -- 発注側 購入財
-                             .+ short :@ Not :<(Purchases,(.#),e1) -- 発注側 購入額
-                    journal wld (toAdd .| (SalesPurchase,t))
+    toAdd <- purchases t wld
+    journal wld toAdd
 
 ------------------------------------------------------------------
 -- | 定常的な生産分を生産する

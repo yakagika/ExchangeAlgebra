@@ -41,6 +41,8 @@ module ExchangeAlgebra.Journal
     , (.|)
     , toAlg
     , fromList
+    , sigma
+    , sigmaM
     , map
     , insert
     , projWithNote
@@ -76,6 +78,7 @@ import Control.Parallel.Strategies (using,parTraversable, rdeepseq, NFData,runEv
 import qualified Data.Set as S
 import Data.Hashable
 import qualified Data.Text as T
+import qualified Control.Monad as CM
 
 -- | 摘要のクラス
 class (Show a, Eq a,Ord a, Hashable a) => Note a where
@@ -219,6 +222,16 @@ fromList :: (HatVal v, HatBaseClass b, Note n)
 fromList []     = mempty
 fromList [x]    = x
 fromList (x:xs) = x .+ (fromList xs)
+
+------------------------------------------------------------------
+-- | sigma
+sigma :: (HatVal v, HatBaseClass b, Note n) => [a] -> (a -> Journal n v b) -> Journal n v b
+sigma xs f = fromList [f x | x <- xs]
+
+sigmaM :: (Monoid m, Monad m0) => [a] -> (a -> m0 m) -> m0 m
+sigmaM xs f = mconcat <$> CM.forM xs f
+
+
 ------------------------------------------------------------------
 toAlg :: (HatVal v, HatBaseClass b, Note n)
       => Journal n v b -> Alg v b

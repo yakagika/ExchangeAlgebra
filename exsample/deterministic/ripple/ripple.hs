@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances      #-}
+e{-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE Strict                 #-}

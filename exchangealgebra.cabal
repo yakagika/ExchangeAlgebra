@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 77671c06acc20b99fdb22ff10889d23413641c3cf4e059ee3c9988a695c63d74
+-- hash: 11a8135dbf49b8f339087ce7bc1a8211f7c1c3733d28826c7e399c109815caeb
 
 name:           exchangealgebra
 version:        0.4.0.0
@@ -324,6 +324,42 @@ executable rippleWithStock
   hs-source-dirs:
       exsample/deterministic/ripple
   ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N -fwrite-ide-info
+  build-depends:
+      Chart
+    , Chart-cairo
+    , array
+    , async
+    , base
+    , bifunctors
+    , containers
+    , csv-parser
+    , deepseq
+    , exchangealgebra
+    , hashable
+    , lens
+    , mtl
+    , non-negative
+    , numeric-prelude
+    , parallel
+    , process
+    , random
+    , scientific
+    , statistics
+    , text
+    , time
+    , unicode-show
+    , unordered-containers
+    , vector
+  default-language: Haskell2010
+
+executable rippleWithStockMultiSeeds
+  main-is: rippleWithStockMultiSeeds.hs
+  other-modules:
+      RippleEffect
+      Paths_exchangealgebra
+  hs-source-dirs:
+      exsample/deterministic/ripple
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N10
   build-depends:
       Chart
     , Chart-cairo
