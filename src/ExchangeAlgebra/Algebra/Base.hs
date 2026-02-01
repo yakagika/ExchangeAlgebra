@@ -329,7 +329,7 @@ class (HatBaseClass a) => ExBaseClass a where
 
         | L.elem (getAccountTitle b)
             [ Depreciation
-            , CostOfGoodsSold
+            , SalesCost
             , BusinessTrip
             , Commutation
             , UtilitiesExpense
@@ -430,7 +430,7 @@ class (HatBaseClass a) => ExBaseClass a where
         f ReserveDepositPayable          = Current
         f CentralBankNotePayable         = Current
         f Depreciation                   = Other
-        f CostOfGoodsSold                = Other
+        f SalesCost                      = Other
         f BusinessTrip                   = Other
         f Commutation                    = Other
         f UtilitiesExpense               = Other

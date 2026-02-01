@@ -37,6 +37,7 @@ module ExchangeAlgebra.Journal.Transfer
     , (.->)
     , (|%)
     , ExchangeAlgebra.Journal.Transfer.transfer
+    , ExchangeAlgebra.Journal.Transfer.incomeSummaryAccount
     , ExchangeAlgebra.Journal.Transfer.netIncomeTransfer
     , ExchangeAlgebra.Journal.Transfer.grossProfitTransfer
     , ExchangeAlgebra.Journal.Transfer.ordinaryProfitTransfer

@@ -157,7 +157,7 @@ data  AccountTitles = Cash                            -- ^ 資産 現金
                     | ReserveDepositPayable           -- ^ 負債 未払金
                     | CentralBankNotePayable          -- ^ 負債 中央銀行手形
                     | Depreciation                    -- ^ 費用 減価償却費
-                    | CostOfGoodsSold                 -- ^ 費用 売上原価
+                    | SalesCost                       -- ^ 費用 売上原価
                     | BusinessTrip                    -- ^ 費用 旅費交通費
                     | Commutation                     -- ^ 費用 通信費
                     | UtilitiesExpense                -- ^ 費用 水道光熱費

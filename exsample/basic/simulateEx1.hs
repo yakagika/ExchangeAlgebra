@@ -122,12 +122,13 @@ instance Element Company where
 instance BaseClass Company where
 
 type HatBase2 = HatBase ( AccountTitles
-                         , Company  -- 財を区別するためのID
-                         , Company) -- 経済主体ID
+                         , Company      -- 財を区別するためのID
+                         , Company      -- 経済主体ID
+                         , CountUnit) -- 単位系
 
 instance ExBaseClass HatBase2 where
-    getAccountTitle (h :< (a,c,e))   = a
-    setAccountTitle (h :< (a,c,e)) b = h :< (b,c,e)
+    getAccountTitle (h :< (a,c,e,u))   = a
+    setAccountTitle (h :< (a,c,e,u)) b = h :< (b,c,e,u)
 
 
 -- | 取引
@@ -144,7 +145,7 @@ instance UpdatableSTRef Ledger s Transaction where
 initLedger :: Double -> ST s (Ledger s)
 initLedger d = newURef
              $ EJ.fromList
-             [ d :@ Not :<(Products,e,e) .| (plank,initTerm)
+             [ d :@ Not :<(Products,e,e,Amount) .| (plank,initTerm)
              | e <- companies]
 
 -- 一般化の適用
@@ -242,11 +243,11 @@ getOneProduction wld t c = do
         -- c を生産するために必要な c2 の投入係数
         coef <- readUArray arr (c2, c)
         -- c2 の消費を記録
-        return $ coef :@ Hat :<(Products, c2, c) .| (Production,t)
+        return $ coef :@ Hat :<(Products, c2, c, Amount) .| (Production,t)
         -- すべての中間投入を結合
     let totalInput = EJ.fromList inputs
         -- 生産と投入の合計
-        result = (1 :@ Not :<(Products, c, c) .| (Production,t)) .+ totalInput
+        result = (1 :@ Not :<(Products, c, c, Amount) .| (Production,t)) .+ totalInput
     return result
 
 
@@ -255,11 +256,11 @@ getTermStock :: World s -> Term -> Company ->  ST s Double
 getTermStock wld t e = do
     le <- readURef (_ledger wld)
     let plusStock = norm
-                  $ EJ.projWithBase [Not:<(Products,e,e)]
+                  $ EJ.projWithBase [Not:<(Products,e,e,Amount)]
                   $ (.-)
                   $ termJournal t le
         minusStock = norm
-                  $ EJ.projWithBase [Hat:<(Products,e,e)]
+                  $ EJ.projWithBase [Hat:<(Products,e,e,Amount)]
                   $ (.-)
                   $ termJournal t le
 
@@ -271,8 +272,8 @@ getTermGrossProfit wld t e = do
     le <- readURef (_ledger wld)
     let termTr = termJournal t le
         tr    = EJT.grossProfitTransfer termTr
-        plus  = norm $ EJ.projWithBase [Not:<(GrossProfit,(.#),e)] tr
-        minus = norm $ EJ.projWithBase [Hat:<(GrossProfit,(.#),e)] tr
+        plus  = norm $ EJ.projWithBase [Not:<(GrossProfit,(.#),e,Yen)] tr
+        minus = norm $ EJ.projWithBase [Hat:<(GrossProfit,(.#),e,Yen)] tr
     return (plus - minus)
 
 -- | 記帳
@@ -315,23 +316,25 @@ getInputCoefficients wld (i,j) = do
 instance StateSpace Term InitVar EventName World s where
     event = event'
 
-short :: Company -> Company -> Term -> World s -> ST s Double
-short i j t wld = do
-        le <- readURef (_ledger wld)
-        return $ norm
-               $ EJ.projWithBase [Hat:<(Products,j, i)]
-               $ (.-) $ termJournal t le
+short :: Company -> Company -> Term -> Transaction -> Double
+short i j t le
+    = norm $ EJ.projWithBase [Hat:<(Products,j, i,Amount)]
+           $ (.-)
+           $ termJournal t le
 
 purchases :: Term -> World s -> ST s Transaction
-purchases t wld =
-    sigmaM companies $ \i
-        -> sigmaM (companies L.\\ [i]) $ \j
-        -> short i j t wld >>= \o
-        -> return $ o :@ Hat :<(Products, j, j)   -- 受注側 販売財
-                 .+ o :@ Not :<(Sales,(.#),j)     -- 受注側 販売益
-                 .+ o :@ Not :<(Products, j, i)   -- 発注側 購入財
-                 .+ o :@ Not :<(Purchases,(.#),i) -- 発注側 購入額
-                 .| (SalesPurchase,t)
+purchases t wld = do
+    le <- readURef (_ledger wld)
+    let o i j= short i j t le
+    return $ sigma companies $ \i
+           -> sigma (companies L.\\ [i]) $ \j
+           -> (o i j) :@ Not :<(Products, j, i, Amount) -- 発注側 購入財
+           .+ (o i j) :@ Hat :<(Cash,(.#),i,Yen)        -- 発注側 購入額
+           .+ (o i j) :@ Not :<(Purchases,(.#),i,Yen)   -- 発注額 仕入高
+           .+ (o i j) :@ Not :<(Cash,(.#),j,Yen)        -- 受注側 販売額
+           .+ (o i j) :@ Not :<(Sales,(.#),j,Yen)       -- 受注側 売上高
+           .+ (o i j) :@ Hat :<(Products, j, j,Amount)  -- 受注側 販売材
+           .| (SalesPurchase,t)
 
 event' :: World s -> Term -> EventName -> ST s ()
 
@@ -411,7 +414,7 @@ main = do
                    ((fstC,initTerm),(lastC,lastTerm))
                    (resMap M.! n)
                    (fig_dir ++ n ++ "/")
-                   "GrossPrifit"
+                   "GrossProfit"
 
     print "visualizing with Python..."
     exitCode <- rawSystem "python" ["exsample/basic/visualize_simulateEx1.py"]
