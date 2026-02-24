@@ -112,7 +112,7 @@ instance Updatable Term InitVar SP s where
 type Company = Int
 
 fstC = 1
-lastC = 6
+lastC = 1000
 
 -- | 主体の集合
 companies = [fstC .. lastC]
@@ -373,8 +373,8 @@ event' wld t Plank = return ()
 ------------------------------------------------------------------
 
 -- * directories
-fig_dir = "exsample/basic/result/fig/simulateEx1/"
-csv_dir = "exsample/basic/result/csv/simulateEx1/"
+fig_dir = "exsample/basic/result/fig/simulateEx2/"
+csv_dir = "exsample/basic/result/csv/simulateEx2/"
 
 main :: IO ()
 main = do
@@ -387,20 +387,16 @@ main = do
         plusEnv = defaultEnv {_steadyProduction = 12 }
         envs =  [defaultEnv,plusEnv]
         envNames = ["default-prod","plus-prod"]
+    ------------------------------------------------------------------
+    
 
     ------------------------------------------------------------------
     print "start simulation"
     results <- mapConcurrently (runSimulation gen) envs
     let resMap = M.fromList
                $ zip envNames results
-
-
     ------------------------------------------------------------------
     print "writing data..."
-    -- coefficient Table
-    matWithFinalDemand <- getInputCoefficients (resMap M.! "default-prod") (fstC,lastC)
-    writeIOMatrix (csv_dir ++ "io.csv") matWithFinalDemand
-
     let header_func_stock  = [(T.pack $ "Stock_" ++ show i, \w t -> getTermStock w t i)
                              | i <- [fstC..lastC]]
         header_func_profit = [(T.pack $ "Profit_" ++ show i, \w t -> getTermGrossProfit w t i)
@@ -410,26 +406,4 @@ main = do
         let wld = resMap M.! n
         ESV.writeFuncResults header_func_stock  (initTerm,lastTerm) wld (csv_dir ++ n ++ "/stock.csv")
         ESV.writeFuncResults header_func_profit (initTerm,lastTerm) wld (csv_dir ++ n ++ "/profit.csv")
-
-    ------------------------------------------------------------------
-    print "visualizing with Haskell..."
-    forConcurrently_ envNames $ \n -> do
-        ESV.plotLineVector getTermStock
-                           ((fstC,initTerm),(lastC,lastTerm))
-                           (resMap M.! n)
-                           (fig_dir ++ n ++ "/")
-                           "Stock"
-
-        ESV.plotLineVector getTermGrossProfit
-                   ((fstC,initTerm),(lastC,lastTerm))
-                   (resMap M.! n)
-                   (fig_dir ++ n ++ "/")
-                   "GrossProfit"
-
-    print "visualizing with Python..."
-    exitCode <- rawSystem "python" ["exsample/basic/visualize_simulateEx1.py"]
-    case exitCode of
-        ExitSuccess -> print "Python visualization completed successfully"
-        ExitFailure n -> print $ "Python visualization failed with exit code: " ++ show n
-
     print "end"

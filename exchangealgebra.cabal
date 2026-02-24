@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 11a8135dbf49b8f339087ce7bc1a8211f7c1c3733d28826c7e399c109815caeb
+-- hash: ff53172955331d25a3db52d140833bc39db5c3e15e716831f3547510e002dd2b
 
 name:           exchangealgebra
 version:        0.4.0.0
@@ -390,6 +390,41 @@ executable rippleWithStockMultiSeeds
 
 executable sim1
   main-is: simulateEx1.hs
+  other-modules:
+      Paths_exchangealgebra
+  hs-source-dirs:
+      exsample/basic
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N -fwrite-ide-info
+  build-depends:
+      Chart
+    , Chart-cairo
+    , array
+    , async
+    , base
+    , bifunctors
+    , containers
+    , csv-parser
+    , deepseq
+    , exchangealgebra
+    , hashable
+    , lens
+    , mtl
+    , non-negative
+    , numeric-prelude
+    , parallel
+    , process
+    , random
+    , scientific
+    , statistics
+    , text
+    , time
+    , unicode-show
+    , unordered-containers
+    , vector
+  default-language: Haskell2010
+
+executable sim2
+  main-is: simulateEx2.hs
   other-modules:
       Paths_exchangealgebra
   hs-source-dirs:

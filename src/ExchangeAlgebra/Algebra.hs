@@ -81,7 +81,9 @@ import              Prelude             hiding (map, head, filter,tail, traverse
 import qualified    Data.Time           as Time
 import              Data.Time
 import qualified    Data.HashMap.Strict     as Map
-import qualified    Data.Foldable       as Foldable (foldMap,foldl)
+import qualified    Data.Foldable       as Foldable (foldMap,foldl')
+import qualified    Data.Sequence       as Seq
+import              Data.Sequence       (Seq)
 import qualified    Data.Maybe          as Maybe
 import qualified    Number.NonNegative  as NN  -- 非負の実数
 import              Numeric.NonNegative.Class (C)
@@ -259,8 +261,8 @@ instance HatVal Prelude.Double where
                     || x < 0
 
 data Pair v where
- Pair :: {_hatSide :: [v]
-         ,_notSide :: [v]} -> Pair v
+ Pair :: {_hatSide :: Seq v
+         ,_notSide :: Seq v} -> Pair v
          deriving (Eq)
 
 
@@ -290,16 +292,18 @@ instance (HatVal v) => Ord (Pair v) where
 
 {-# INLINE nullPair #-}
 nullPair :: Pair v
-nullPair = Pair [] []
+nullPair = Pair Seq.empty Seq.empty
 
 {-# INLINE isNullPair #-}
 isNullPair :: Pair v -> Bool
-isNullPair (Pair [] []) = True
-isNullPair _            = False
+isNullPair (Pair hs ns) = Seq.null hs && Seq.null ns
 
 {-# INLINE pairAppend #-}
 pairAppend :: Pair v -> Pair v -> Pair v
-pairAppend (Pair x1 y1) (Pair x2 y2) = Pair (x1 ++ x2) (y1 ++ y2)
+pairAppend (Pair x1 y1) (Pair x2 y2) =
+    let !hs = x1 Seq.>< x2
+        !ns = y1 Seq.>< y2
+    in Pair hs ns
 
 -- | 代数元 数値と基底のペア
 data  Alg v b where
@@ -434,26 +438,26 @@ union (Liner m1) (Liner m2) = Liner (Map.unionWith pairAppend m1 m2)
 
 {-# INLINE insert #-}
 insert :: (HatVal v,HatBaseClass b) => b -> v -> Alg v b ->  Alg v b
-insert b v Zero       = v .@ b
-insert b1 v1 (v2:@b2) = case isHat b1 of
+insert !b !v Zero       = v .@ b
+insert !b1 !v1 (v2:@b2) = case isHat b1 of
                             True  -> insert b2 v2
                                    $ Liner
                                    $ Map.singleton (base b1)
-                                   $ nullPair {_hatSide = [v1]}
+                                   $ nullPair {_hatSide = Seq.singleton v1}
                             False -> insert b2 v2
                                    $ Liner
                                    $ Map.singleton (base b1)
-                                   $ nullPair {_notSide = [v1]}
-insert b v (Liner m)  = case isHat b of
+                                   $ nullPair {_notSide = Seq.singleton v1}
+insert !b !v (Liner m)  = case isHat b of
                         True  -> Liner
                                $ Map.insertWith pairAppend
                                                 (base b)
-                                                nullPair {_hatSide = [v]}
+                                                nullPair {_hatSide = Seq.singleton v}
                                                 m
                         False -> Liner
                                $ Map.insertWith pairAppend
                                                 (base b)
-                                                nullPair {_notSide =[v]}
+                                                nullPair {_notSide = Seq.singleton v}
                                                 m
 
 ------------------------------------------------------------------
@@ -468,7 +472,7 @@ instance (HatVal n, HatBaseClass b) => Monoid (Alg n b) where
 
 {-# INLINE unions #-}
 unions :: (HatVal n, Foldable f, HatBaseClass b) => f (Alg n b) -> Alg n b
-unions ts = Foldable.foldl union Zero ts
+unions ts = Foldable.foldl' union Zero ts
 
 ------------------------------------------------------------------
 -- Redundant
@@ -486,11 +490,11 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
     0  .*  x         = Zero
     x  .* (v:@b)     = (x * v) :@ b
     x  .* (Liner ms) = Liner
-                     $ Map.map (\ (Pair hs ns) -> Pair (L.map (x *) hs) (L.map (x *) ns)) ms
+                     $ Map.map (\ (Pair hs ns) -> Pair (fmap (x *) hs) (fmap (x *) ns)) ms
 
     norm Zero       = 0
     norm (v:@b)     = v
-    norm (Liner ms) = Map.foldl (\ x (Pair hs ns) -> x + sum hs + sum ns) 0 ms
+    norm (Liner ms) = Map.foldl' (\ !x (Pair hs ns) -> x + sum hs + sum ns) 0 ms
 
     {-# INLINE (.-) #-}
     (.-) Zero = Zero
@@ -505,14 +509,15 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
                            in case isNearlyNum h n 1e-13 of -- 精度 13桁
                                         True -> Nothing
                                         False -> case compare h n of
-                                                    GT -> Just (Pair [h - n] [])
-                                                    LT -> Just (Pair [] [n - h])
+                                                    GT -> Just (Pair (Seq.singleton (h - n)) Seq.empty)
+                                                    LT -> Just (Pair Seq.empty (Seq.singleton (n - h)))
 
     {-# INLINE compress #-}
     compress Zero       = Zero
     compress (v:@b)     = v:@b
     compress (Liner m)  = Liner
-                        $ Map.map (\ (Pair hs ns) -> Pair [sum hs] [sum ns]) m
+                        $ Map.map (\ (Pair hs ns) -> Pair (Seq.singleton (sum hs))
+                                                          (Seq.singleton (sum ns))) m
 
 
 instance (HatVal n, ExBaseClass b) =>  Exchange Alg n b where
@@ -549,7 +554,16 @@ instance (HatVal n, ExBaseClass b) =>  Exchange Alg n b where
 vals :: (HatVal v, HatBaseClass b) => Alg v b -> [v]
 vals Zero = []
 vals (v:@b) = [v]
-vals (Liner m) = Map.foldl (\ xs (Pair hs ns) -> xs ++ hs ++ ns) [] m
+vals (Liner m) =
+    reverse $
+        Map.foldl'
+            (\acc (Pair hs ns) ->
+                Foldable.foldl' (flip (:))
+                    (Foldable.foldl' (flip (:)) acc hs)
+                    ns
+            )
+            []
+            m
 
 
 -- | bases
@@ -557,11 +571,11 @@ vals (Liner m) = Map.foldl (\ xs (Pair hs ns) -> xs ++ hs ++ ns) [] m
 bases :: (HatVal v, HatBaseClass b) => Alg v b -> [b]
 bases Zero = []
 bases (v:@b) = [b]
-bases (Liner m) = Map.foldlWithKey f [] m
+bases (Liner m) = Map.foldlWithKey' f [] m
     where
         f ::  (HatVal v, HatBaseClass b) => [b] -> BasePart b -> Pair v ->  [b]
         f xs b (Pair {_hatSide = hs, _notSide = ns})
-            = L.foldl' (g Not b) (L.foldl' (g Hat b) xs hs) hs
+            = Foldable.foldl' (g Not b) (Foldable.foldl' (g Hat b) xs hs) hs
 
         g ::  (HatVal v, HatBaseClass b) => Hat -> BasePart b -> [b] -> v -> [b]
         g h b ys v = (merge h b):ys
@@ -592,7 +606,7 @@ fromList = mconcat
 -- 1.00:@Hat:<Yen .+ 2.00:@Hat:<Yen
 
 sigma :: (HatVal v, HatBaseClass b) => [a] -> (a -> Alg v b) -> Alg v b
-sigma xs f = mconcat [f x | x <- xs]
+sigma xs f = L.foldl' (\acc x -> acc <> f x) Zero xs
 
 -- | convert Alg n b to List
 --
@@ -605,11 +619,11 @@ sigma xs f = mconcat [f x | x <- xs]
 toList :: (HatVal v, HatBaseClass b) => Alg v b -> [Alg v b]
 toList Zero       = []
 toList (v:@b)     = [v:@b]
-toList (Liner m)  = Map.foldlWithKey f [] m
+toList (Liner m)  = Map.foldlWithKey' f [] m
     where
         f :: (HatVal v, HatBaseClass b) =>  [Alg v b] -> BasePart b -> Pair v -> [Alg v b]
         f xs b Pair {_hatSide = hs, _notSide = ns}
-            = L.foldl' (g Hat b) (L.foldl' (g Not b) xs ns) hs
+            = Foldable.foldl' (g Hat b) (Foldable.foldl' (g Not b) xs ns) hs
 
         g :: (HatVal v, HatBaseClass b) => Hat -> BasePart b -> [Alg v b] -> v -> [Alg v b]
         g h b ys v
@@ -642,67 +656,70 @@ map f (v:@b)    = let  v2:@b2 = f (v:@b)
                 in case isZeroValue v2 of
                     True  -> Zero
                     False -> (v2 :@ b2)
-map f (Liner m) = case dToList (Map.foldrWithKey (p f) dnil m)of
-                    []                -> Zero
-                    [(b,Pair [] [n])] -> n:@(merge Not b)
-                    [(b,Pair [h] [])] -> h:@(merge Hat b)
-                    [(b,Pair ns hs)]  -> Liner $ Map.singleton b (Pair ns hs)
-                    xs                -> Liner $ Map.fromListWith pairAppend xs
+map f (Liner m) = mkAlgFromMap $ (Map.foldrWithKey (p f) dnilMap m) Map.empty
     where
+        {-# INLINE dnilMap #-}
+        dnilMap = id
+        {-# INLINE dappendMap #-}
+        dappendMap = (.)
+        {-# INLINE dsingleMap #-}
+        dsingleMap (bp, p') = Map.insertWith pairAppend bp p'
+
         {-# INLINE p #-}
         p :: (HatVal v, HatBaseClass b)
           => (Alg v b -> Alg v b)
           -> BasePart b
           -> Pair v
-          -> DList (BasePart b,Pair v)
-          -> DList (BasePart b,Pair v)
+          -> DMap (BasePart b) (Pair v)
+          -> DMap (BasePart b) (Pair v)
         p f b Pair {_hatSide=hs, _notSide=ns} accDList =
             let (dl1, hs2) = q f Hat b hs
                 (dl2, ns2) = q f Not b ns
-                prefix     = dappend dl1 dl2
-            in case (null hs2, null ns2) of
-                (True,True)   -> dappend prefix accDList
-                (True,False)  -> dappend prefix
-                               . dappend (dsingle (b, nullPair{_notSide = ns2}))
+                prefix     = dappendMap dl1 dl2
+            in case (Seq.null hs2, Seq.null ns2) of
+                (True,True)   -> dappendMap prefix accDList
+                (True,False)  -> dappendMap prefix
+                               . dappendMap (dsingleMap (b, nullPair{_notSide = ns2}))
                                $ accDList
-                (False,True)  -> dappend prefix
-                               . dappend (dsingle (b, nullPair{_hatSide = hs2}))
+                (False,True)  -> dappendMap prefix
+                               . dappendMap (dsingleMap (b, nullPair{_hatSide = hs2}))
                                $ accDList
-                (False,False) -> dappend prefix
-                               . dappend (dsingle (b, Pair hs2 ns2))
+                (False,False) -> dappendMap prefix
+                               . dappendMap (dsingleMap (b, Pair hs2 ns2))
                                $ accDList
         {-# INLINE q #-}
         q :: (HatVal v, HatBaseClass b)
           => (Alg v b -> Alg v b)
           -> Hat
           -> BasePart b
-          -> [v]
-          -> (DList (BasePart b,Pair v),[v])
-        q f h b vs = L.foldl' (r f h b) (dnil,[]) vs
+          -> Seq v
+          -> (DMap (BasePart b) (Pair v), Seq v)
+        q f h b vs = Foldable.foldl' (r f h b) (dnilMap, Seq.empty) vs
 
         {-# INLINE r #-}
         r  :: (HatVal v, HatBaseClass b)
            => (Alg v b -> Alg v b)
            -> Hat
            -> BasePart b
-           -> (DList (BasePart b,Pair v),[v])
+           -> (DMap (BasePart b) (Pair v), Seq v)
            -> v
-           -> (DList (BasePart b,Pair v),[v])
+           -> (DMap (BasePart b) (Pair v), Seq v)
         r f h b (dlAcc,vsAcc) v = case f (v:@(merge h b)) of
                             Zero   ->  (dlAcc, vsAcc)
                             ------------------------------------------------------------------
                             v2:@b2
                                 | isZeroValue v2 ->  (dlAcc, vsAcc)
-                                | b2 .== (merge h b) -> (dlAcc, v2 : vsAcc)
-                                | isHat (hat b2)     -> (dappend dlAcc (dsingle ( base b2
-                                                                       ,nullPair{_hatSide=[v2]}))
+                                | b2 .== (merge h b) -> (dlAcc, v2 Seq.<| vsAcc)
+                                | isHat (hat b2)     -> (dappendMap dlAcc (dsingleMap ( base b2
+                                                                          ,nullPair{_hatSide = Seq.singleton v2}))
                                                         ,vsAcc )
-                                | otherwise          -> (dappend dlAcc (dsingle ( base b2
-                                                                       ,nullPair{_notSide=[v2]} ))
+                                | otherwise          -> (dappendMap dlAcc (dsingleMap ( base b2
+                                                                          ,nullPair{_notSide = Seq.singleton v2} ))
                                                         ,vsAcc )
 
 -- 差分リストを定義
 type DList a = [a] -> [a]
+type DMap k v = Map.HashMap k v -> Map.HashMap k v
 
 {-# INLINE dnil #-}
 dnil :: DList a
@@ -755,7 +772,7 @@ filter f (Liner m) =
                       ns' = filterSide basePart Not ns
                   in
                     -- 両方とも空になればエントリ削除 (Nothing)
-                    if null hs' && null ns'
+                    if Seq.null hs' && Seq.null ns'
                        then Nothing
                        else Just (Pair hs' ns'))
              m
@@ -767,19 +784,9 @@ filter f (Liner m) =
     -- basePart と Hat/Not を元に「v:@(merge h basePart)」を作り，
     -- 与えられた述語 f を満たすか判定するためのフィルタ関数
     ----------------------------------------------------------------
-    -- filterSide :: BasePart b -> Hat -> [v] -> [v]
+    -- filterSide :: BasePart b -> Hat -> Seq v -> Seq v
     {-# INLINE filterSide #-}
-    filterSide bp h = dfilter (\val -> f (val :@ merge h bp))
-
-    -- | 差分リストを用いた手実装filter
-    {-# INLINE dfilter #-}
-    dfilter :: (a -> Bool) -> [a] -> [a]
-    dfilter p xs = go xs id
-      where
-        go []     dl = dl []
-        go (y:ys) dl
-          | p y       = go ys (dl . (y:))
-          | otherwise = go ys dl
+    filterSide bp h = Seq.filter (\val -> f (val :@ merge h bp))
 
 ------------------------------------------------------------
 -- | proj
@@ -819,22 +826,24 @@ proj _     Zero       = Zero
 proj (b:bs) (v:@b2)
     |  b .== b2       = v:@b2
     | otherwise       = proj bs (v:@b2)
-proj (b:bs) (Liner m) = case dToList (go (b:bs) m) of
-                            []                -> Zero
-                            [(b,Pair [] [n])] -> n:@(merge Not b)
-                            [(b,Pair [h] [])] -> h:@(merge Hat b)
-                            [(b,Pair ns hs)]  -> Liner $ Map.singleton b (Pair ns hs)
-                            xs                -> Liner $ Map.fromListWith pairAppend xs
+proj (b:bs) (Liner m) = mkAlgFromMap $ go (b:bs) m Map.empty
     where
+    {-# INLINE dnilMap #-}
+    dnilMap = id
+    {-# INLINE dappendMap #-}
+    dappendMap = (.)
+    {-# INLINE dsingleMap #-}
+    dsingleMap (bp, p') = Map.insertWith pairAppend bp p'
+
     {-# INLINE go #-}
     go :: (HatVal v, HatBaseClass b)
        => [b]
        -> Map.HashMap (BasePart b) (Pair v)
-       -> DList (BasePart b, Pair v)
-    go [] _ = dnil
+       -> DMap (BasePart b) (Pair v)
+    go [] _ = dnilMap
     go (b:bs)  m
-        | null m                 = dnil
-        | haveWiledcard (base b) = dappend (Map.foldrWithKey (f b) dnil m)
+        | null m                 = dnilMap
+        | haveWiledcard (base b) = dappendMap (Map.foldrWithKey (f b) dnilMap m)
                                  $ go bs m
 
         | otherwise = case Map.lookup (base b) m of
@@ -845,22 +854,37 @@ proj (b:bs) (Liner m) = case dToList (go (b:bs) m) of
                                                                     Not    -> ((base b), nullPair {_notSide = ns})
                                                                     HatNot -> ((base b), Pair {_hatSide = hs
                                                                                               ,_notSide = ns})
-                                                       in dappend (dsingle res) (go bs m)
+                                                       in dappendMap (dsingleMap res) (go bs m)
     {-# INLINE f #-}
     f ::  (HatVal v, HatBaseClass b)
        => b
        -> BasePart b
        -> Pair v
-       -> DList (BasePart b,Pair v)
-       -> DList (BasePart b,Pair v)
+       -> DMap (BasePart b) (Pair v)
+       -> DMap (BasePart b) (Pair v)
     f b bp Pair {_hatSide=hs, _notSide=ns} accDList
         | (base b) .== bp = let res = case hat b of
                                         Hat    -> (bp, nullPair {_hatSide = hs})
                                         Not    -> (bp, nullPair {_notSide = ns})
                                         HatNot -> (bp, Pair {_hatSide = hs
                                                             ,_notSide = ns})
-                          in dappend (dsingle res) accDList
+                          in dappendMap (dsingleMap res) accDList
         | otherwise       = accDList
+
+{-# INLINE mkAlgFromMap #-}
+mkAlgFromMap :: (HatVal v, HatBaseClass b) => Map.HashMap (BasePart b) (Pair v) -> Alg v b
+mkAlgFromMap m
+    | Map.null m = Zero
+    | otherwise  = case Map.toList m of
+        [(b, p)] -> Maybe.fromMaybe (Liner $ Map.singleton b p) (singlePairToAlg b p)
+        _                  -> Liner m
+
+{-# INLINE singlePairToAlg #-}
+singlePairToAlg :: (HatVal v, HatBaseClass b) => BasePart b -> Pair v -> Maybe (Alg v b)
+singlePairToAlg b (Pair hs ns) = case (Seq.viewl hs, Seq.viewl ns) of
+    (Seq.EmptyL, n Seq.:< nsRest) | Seq.null nsRest -> Just (n :@ merge Not b)
+    (h Seq.:< hsRest, Seq.EmptyL) | Seq.null hsRest -> Just (h :@ merge Hat b)
+    _                                                 -> Nothing
 
 ------------------------------------------------------------------
 

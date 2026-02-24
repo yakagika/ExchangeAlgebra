@@ -88,6 +88,11 @@ executables:
     main:                simulateEx1.hs
     source-dirs:         exsample/basic
 
+  sim2:
+    <<: *exe-defaults
+    main:                simulateEx2.hs
+    source-dirs:         exsample/basic
+
   rippleWithStock:
     <<: *exe-defaults
     main:                rippleWithStock.hs

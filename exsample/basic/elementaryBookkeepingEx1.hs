@@ -66,7 +66,7 @@ q3A = q3 .+ y :@Not :<RetainedEarnings
 -- 4章 例題
 ------------------------------------------------------------------
 exp4 :: MinTransaction
-exp4    = 600000 :@Not:<CostOfGoodsSold  -- 売上原価
+exp4    = 600000 :@Not:<SalesCost        -- 売上原価
        .+ 520000 :@Not:<WageExpenditure  -- 給料
        .+ 80000  :@Not:<BusinessTrip     -- 旅費交通費
        .+ 70000  :@Not:<Commutation      -- 通信費
