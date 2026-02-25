@@ -34,7 +34,6 @@ import qualified    Data.Text           as T
 import              Data.Text           (Text)
 import qualified    Data.Time           as Time
 import              Data.Time
-import Data.Fixed (Pico)
 import GHC.Generics (Generic)
 import Data.Hashable
 import Data.Typeable (Typeable, cast, typeOf)
@@ -50,9 +49,7 @@ class (Eq a, Ord a, Show a, Hashable a, Typeable a) => Element a where
 
     {-# INLINE haveWiledcard #-}
     haveWiledcard :: a -> Bool
-    haveWiledcard a
-        | isWiledcard a = True
-        | otherwise     = False
+    haveWiledcard = isWiledcard
 
     {-# INLINE isWiledcard #-}
     isWiledcard     :: a -> Bool
@@ -76,10 +73,7 @@ class (Eq a, Ord a, Show a, Hashable a, Typeable a) => Element a where
     -- | wiledcard を等しいとみなす ==
     {-# INLINE (.==)  #-}
     (.==) :: a -> a -> Bool
-    (.==) a b
-        | a == b       = True
-        | equal a b    = True
-        | otherwise    = False
+    (.==) a b = a == b || equal a b
 
     -- | wiledcard を等しいとみなす /=
     {-# INLINE (./=) #-}
@@ -89,32 +83,30 @@ class (Eq a, Ord a, Show a, Hashable a, Typeable a) => Element a where
     {-# INLINE compareElement #-}
     compareElement :: a -> a -> Ordering
     compareElement x y
-        | x .== y    = EQ
-        | otherwise  = compare x y
+        | x .== y = EQ
+        | otherwise = compare x y
 
     (.<) :: a -> a -> Bool
-    (.<) x y | compareElement x y == LT     = True
-             | otherwise                    = False
+    (.<) x y = compareElement x y == LT
 
     (.>) :: a -> a -> Bool
-    (.>) x y | compareElement x y == GT     = True
-             | otherwise                    = False
+    (.>) x y = compareElement x y == GT
 
     (.<=) :: a -> a -> Bool
-    (.<=) x y | compareElement x y == LT || compareElement x y == EQ    = True
-              | otherwise                                               = False
+    (.<=) x y = compareElement x y /= GT
 
     (.>=) :: a -> a -> Bool
-    (.>=) x y | compareElement x y == GT || compareElement x y == EQ    = True
-              | otherwise                                               = False
+    (.>=) x y = compareElement x y /= LT
 
     maxElement :: a -> a -> a
-    maxElement x y  | x .>= y    = x
-                    | otherwise  = y
+    maxElement x y
+        | x .>= y = x
+        | otherwise = y
 
     minElement :: a -> a -> a
-    minElement x y  | x .<= y    = x
-                    | otherwise  = y
+    minElement x y
+        | x .<= y = x
+        | otherwise = y
 
 data AxisKey = forall a. Element a => AxisKey !a
 
@@ -281,9 +273,8 @@ instance (Element a ,Element b)
 
     {-# INLINE haveWiledcard #-}
     haveWiledcard (a,b)
-        | isWiledcard a = True
-        | isWiledcard b = True
-        | otherwise     = False
+        = isWiledcard a
+       || isWiledcard b
 
     {-# INLINE equal #-}
     equal (a1, a2) (b1, b2)
@@ -316,10 +307,9 @@ instance (Element a, Element b, Element c)
 
     {-# INLINE haveWiledcard #-}
     haveWiledcard (a,b,c)
-        | isWiledcard a = True
-        | isWiledcard b = True
-        | isWiledcard c = True
-        | otherwise     = False
+        = isWiledcard a
+       || isWiledcard b
+       || isWiledcard c
 
 
     {-# INLINE equal #-}
@@ -357,11 +347,10 @@ instance (Element a, Element b, Element c, Element d)
 
     {-# INLINE haveWiledcard #-}
     haveWiledcard (a,b,c,d)
-        | isWiledcard a = True
-        | isWiledcard b = True
-        | isWiledcard c = True
-        | isWiledcard d = True
-        | otherwise     = False
+        = isWiledcard a
+       || isWiledcard b
+       || isWiledcard c
+       || isWiledcard d
 
     {-# INLINE equal #-}
     equal (a1, a2, a3, a4) (b1, b2, b3, b4)
@@ -401,12 +390,11 @@ instance (Element a, Element b, Element c, Element d, Element e)
 
     {-# INLINE haveWiledcard #-}
     haveWiledcard (a,b,c,d,e)
-        | isWiledcard a = True
-        | isWiledcard b = True
-        | isWiledcard c = True
-        | isWiledcard d = True
-        | isWiledcard e = True
-        | otherwise     = False
+        = isWiledcard a
+       || isWiledcard b
+       || isWiledcard c
+       || isWiledcard d
+       || isWiledcard e
 
     {-# INLINE equal #-}
     equal (a1, a2, a3, a4, a5) (b1, b2, b3, b4, b5)
@@ -448,13 +436,12 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f)
 
     {-# INLINE haveWiledcard #-}
     haveWiledcard (a,b,c,d,e,f)
-        | isWiledcard a = True
-        | isWiledcard b = True
-        | isWiledcard c = True
-        | isWiledcard d = True
-        | isWiledcard e = True
-        | isWiledcard f = True
-        | otherwise     = False
+        = isWiledcard a
+       || isWiledcard b
+       || isWiledcard c
+       || isWiledcard d
+       || isWiledcard e
+       || isWiledcard f
 
     {-# INLINE equal #-}
     equal (a1, a2, a3, a4, a5, a6) (b1, b2, b3, b4, b5, b6)
@@ -487,6 +474,7 @@ instance {-# OVERLAPPING #-} (Element a, Element b, Element c, Element d, Elemen
 
 instance (Element a, Element b, Element c, Element d, Element e, Element f, Element g)
     => Element (a, b, c, d, e, f, g) where
+    {-# INLINE wiledcard #-}
     wiledcard = ( wiledcard
                 , wiledcard
                 , wiledcard
@@ -497,13 +485,13 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f, Elem
 
     {-# INLINE haveWiledcard #-}
     haveWiledcard (a,b,c,d,e,f,g)
-        | isWiledcard a = True
-        | isWiledcard b = True
-        | isWiledcard c = True
-        | isWiledcard d = True
-        | isWiledcard e = True
-        | isWiledcard g = True
-        | otherwise     = False
+        = isWiledcard a
+       || isWiledcard b
+       || isWiledcard c
+       || isWiledcard d
+       || isWiledcard e
+       || isWiledcard f
+       || isWiledcard g
 
     {-# INLINE equal #-}
     equal (a1, a2, a3, a4, a5, a6, a7) (b1, b2, b3, b4, b5, b6, b7)

@@ -108,7 +108,7 @@ fstC :: Company
 fstC = 1
 
 lastC :: Company
-lastC = 50
+lastC = 100
 
 -- | 主体の集合
 companies :: [Company]

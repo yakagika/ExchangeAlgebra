@@ -35,10 +35,7 @@ module ExchangeAlgebra.Algebra.Base
 
 import ExchangeAlgebra.Algebra.Base.Element
 
-import qualified    Data.Time           as Time
-import              Data.Time
-import qualified    Data.List           as L (foldr1, map, length, elem,sort,foldl1,filter, or, and, sum)
-import              Prelude             hiding (map, head, filter,tail, traverse, mapM)
+import              Data.Time           (Day, TimeOfDay)
 import GHC.Stack (HasCallStack, callStack, prettyCallStack)
 import GHC.Generics (Generic)
 import Data.Hashable
@@ -172,31 +169,10 @@ instance Eq (HatBase a) where
 
 instance Ord (HatBase a) where
     {-# INLINE compare #-}
-    compare (h :< b) (h' :< b')
-        | b == b' = compare h h'
-        | b >  b'  = GT
-        | b <  b'  = LT
-
-    (<) x y | compare x y == LT = True
-            | otherwise         = False
-
-    (>) x y | compare x y == GT = True
-            | otherwise         = False
-
-
-    (<=) x y | compare x y == LT = True
-             | compare x y == EQ = True
-             | otherwise         = False
-
-    (>=) x y | compare x y == GT = True
-             | compare x y == EQ = True
-             | otherwise         = False
-
-    max x y | x >= y    = x
-            | otherwise = y
-
-    min x y | x <= y    = x
-            | otherwise = y
+    compare (h :< b) (h' :< b') =
+        case compare b b' of
+            EQ -> compare h h'
+            x  -> x
 
 instance (BaseClass a) => Hashable (HatBase a) where
      hashWithSalt salt (h:<b) = salt `hashWithSalt` h
@@ -234,9 +210,8 @@ instance (BaseClass a) => Element (HatBase a) where
     wiledcard = HatNot :<wiledcard
 
     haveWiledcard (h:<b)
-        | isWiledcard h   = True
-        | haveWiledcard b = True
-        | otherwise       = False
+        = isWiledcard h
+       || haveWiledcard b
 
     {-# INLINE equal #-}
     equal (h1:<b1) (h2:<b2) = h1 .== h2 && b1 .== b2
@@ -287,14 +262,64 @@ data Side   = Credit -- 貸方
             | Side -- wiledecard
             deriving (Ord, Show, Eq)
 
+{-# INLINE switchSide #-}
 switchSide :: Side -> Side
 switchSide Credit = Debit
 switchSide Debit  = Credit
+switchSide Side   = Side
 
 data FixedCurrent   = Fixed
                     | Current
                     | Other
                     deriving (Show, Eq)
+
+{-# INLINE classifyAccountDivision #-}
+classifyAccountDivision :: HasCallStack => AccountTitles -> AccountDivision
+classifyAccountDivision AccountTitle                 = customError "this is wiledcard AccountTitle"
+classifyAccountDivision CapitalStock                 = Equity
+classifyAccountDivision RetainedEarnings            = Equity
+classifyAccountDivision LongTermLoansPayable        = Liability
+classifyAccountDivision ShortTermLoansPayable       = Liability
+classifyAccountDivision LoansPayable                = Liability
+classifyAccountDivision ReserveForDepreciation      = Liability
+classifyAccountDivision DepositPayable              = Liability
+classifyAccountDivision LongTermNationalBondsPayable  = Liability
+classifyAccountDivision ShortTermNationalBondsPayable = Liability
+classifyAccountDivision ReserveDepositPayable       = Liability
+classifyAccountDivision CentralBankNotePayable      = Liability
+classifyAccountDivision Depreciation                = Cost
+classifyAccountDivision SalesCost                   = Cost
+classifyAccountDivision BusinessTrip                = Cost
+classifyAccountDivision Commutation                 = Cost
+classifyAccountDivision UtilitiesExpense            = Cost
+classifyAccountDivision RentExpense                 = Cost
+classifyAccountDivision AdvertisingExpense          = Cost
+classifyAccountDivision DeliveryExpenses            = Cost
+classifyAccountDivision SuppliesExpenses            = Cost
+classifyAccountDivision MiscellaneousExpenses       = Cost
+classifyAccountDivision WageExpenditure             = Cost
+classifyAccountDivision InterestExpense             = Cost
+classifyAccountDivision TaxesExpense                = Cost
+classifyAccountDivision ConsumptionExpenditure      = Cost
+classifyAccountDivision SubsidyExpense              = Cost
+classifyAccountDivision CentralBankPaymentExpense   = Cost
+classifyAccountDivision Purchases                   = Cost
+classifyAccountDivision NetIncome                   = Cost
+classifyAccountDivision ValueAdded                  = Revenue
+classifyAccountDivision SubsidyIncome               = Revenue
+classifyAccountDivision NationalBondInterestEarned  = Revenue
+classifyAccountDivision DepositInterestEarned       = Revenue
+classifyAccountDivision GrossProfit                 = Revenue
+classifyAccountDivision OrdinaryProfit              = Revenue
+classifyAccountDivision InterestEarned              = Revenue
+classifyAccountDivision ReceiptFee                  = Revenue
+classifyAccountDivision RentalIncome                = Revenue
+classifyAccountDivision WageEarned                  = Revenue
+classifyAccountDivision TaxesRevenue                = Revenue
+classifyAccountDivision CentralBankPaymentIncome    = Revenue
+classifyAccountDivision Sales                       = Revenue
+classifyAccountDivision NetLoss                     = Revenue
+classifyAccountDivision _                           = Assets
 
 -- | BaseClass ⊃ HatBaseClass ⊃ ExBaseClass
 class (HatBaseClass a) => ExBaseClass a where
@@ -308,76 +333,23 @@ class (HatBaseClass a) => ExBaseClass a where
 
     {-# INLINE whatDiv #-}
     whatDiv     :: a -> AccountDivision
-    whatDiv b
-        | isWiledcard (getAccountTitle b)        = error
-                                                 $ "this is wiledcard"
-                                                 ++ show (getAccountTitle b)
-
-        | getAccountTitle b == CapitalStock      = Equity
-        | getAccountTitle b == RetainedEarnings  = Equity
-
-        | L.elem (getAccountTitle b)
-            [ LongTermLoansPayable
-            , ShortTermLoansPayable
-            , LoansPayable
-            , ReserveForDepreciation
-            , DepositPayable
-            , LongTermNationalBondsPayable
-            , ShortTermNationalBondsPayable
-            , ReserveDepositPayable
-            , CentralBankNotePayable]         = Liability
-
-        | L.elem (getAccountTitle b)
-            [ Depreciation
-            , SalesCost
-            , BusinessTrip
-            , Commutation
-            , UtilitiesExpense
-            , RentExpense
-            , AdvertisingExpense
-            , DeliveryExpenses
-            , SuppliesExpenses
-            , MiscellaneousExpenses
-            , WageExpenditure
-            , InterestExpense
-            , TaxesExpense
-            , ConsumptionExpenditure
-            , SubsidyExpense
-            , CentralBankPaymentExpense
-            , Purchases
-            , NetIncome]                      = Cost
-
-        | L.elem (getAccountTitle b)
-            [ ValueAdded
-            , SubsidyIncome
-            , NationalBondInterestEarned
-            , DepositInterestEarned
-            , GrossProfit
-            , OrdinaryProfit
-            , InterestEarned
-            , ReceiptFee
-            , RentalIncome
-            , WageEarned
-            , TaxesRevenue
-            , CentralBankPaymentIncome
-            , Sales
-            , NetLoss]                        = Revenue
-        | otherwise                           = Assets
+    whatDiv = classifyAccountDivision . getAccountTitle
 
     {-# INLINE whatPIMO #-}
     whatPIMO    :: a -> PIMO
-    whatPIMO x
-        | whatDiv x == Assets       = PS
-        | whatDiv x == Equity       = MS
-        | whatDiv x == Liability    = MS
-        | whatDiv x == Cost         = OUT
-        | whatDiv x == Revenue      = IN
+    whatPIMO x =
+        case whatDiv x of
+            Assets    -> PS
+            Equity    -> MS
+            Liability -> MS
+            Cost      -> OUT
+            Revenue   -> IN
 
     {-# INLINE whichSide #-}
     whichSide   :: a -> Side
-    whichSide x
-        | hat x == Not  = f $ whatDiv x
-        | otherwise     = switchSide $ f $ whatDiv x
+    whichSide x =
+        let side = f (whatDiv x)
+        in if hat x == Not then side else switchSide side
         where
             {-# INLINE f #-}
             f Assets    = Credit
