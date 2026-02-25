@@ -80,7 +80,7 @@ instance (Element e1, Element e2, Element e3, Element e4, Element e5, Element e6
 -- ** HatBase
 ------------------------------------------------------------------
 
-class (BaseClass a, BaseClass (BasePart a)) => HatBaseClass a where
+class (BaseClass a, BaseClass (BasePart a), AxisDecompose (BasePart a)) => HatBaseClass a where
     type BasePart a
     base    :: (BaseClass (BasePart a)) => a -> BasePart a
     hat     :: a    -> Hat
@@ -252,7 +252,7 @@ instance (BaseClass a) => Element (HatBase a) where
 
 instance (BaseClass a) => BaseClass (HatBase a) where
 
-instance (BaseClass a) => HatBaseClass (HatBase a) where
+instance (BaseClass a, AxisDecompose a) => HatBaseClass (HatBase a) where
     type BasePart (HatBase a) = a
 
     hat  = _hat
@@ -571,5 +571,3 @@ instance ExBaseClass (HatBase (AccountTitles, Name, CountUnit, Subject,  Day)) w
 instance ExBaseClass (HatBase (AccountTitles, Name, CountUnit, Subject, Day, TimeOfDay)) where
     getAccountTitle (h:< (a, n, c, s, d, t))   = a
     setAccountTitle (h:< (a, n, c, s, d, t)) b = h:< (b, n, c, s, d, t)
-
-

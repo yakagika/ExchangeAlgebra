@@ -54,7 +54,7 @@ _exe-defs: &exe-defaults
   ghc-options: [-O2
                ,-threaded
                ,-rtsopts
-               ,-with-rtsopts=-N
+               ,-with-rtsopts=-N4
                ,-fwrite-ide-info]
 
 executables:

@@ -15,6 +15,7 @@ import qualified ExchangeAlgebra.Simulate as ES
 import qualified ExchangeAlgebra.Simulate.Visualize as ESV
 
 -- 外部ライブラリ
+import qualified Data.HashMap.Strict     as HM
 import qualified Data.Map.Strict         as M
 import qualified Data.List               as L
 import qualified Data.Text               as T
@@ -135,6 +136,14 @@ instance ExBaseClass HatBase2 where
 -- | 取引
 type Transaction = EJ.Journal (EventName,Term) Double HatBase2
 
+compressPreviousTerm :: Term -> Transaction -> Transaction
+compressPreviousTerm t (EJ.Journal hm) =
+    EJ.Journal $
+        L.foldl'
+            (\acc ev -> HM.adjust compress (ev, t) acc)
+            hm
+            [fstEvent .. lastEvent]
+
 -- | 元帳
 newtype Ledger s = Ledger (STRef s Transaction)
 
@@ -159,13 +168,15 @@ instance Updatable Term InitVar Ledger s where
     updatePattern _  = return Modify
 
     -- 過去のTermを次の期のTermに変更して追加する
-    modify g t e x  =  readURef x >>= \le
-                    -> let added = f1 t (termJournal (t-1) le)
-                    in modifyURef x (\z -> z .+ added)
-        where
-        f1 t x = EJ.gather (plank, t) $ f2 x
-        f2     = EJT.finalStockTransfer
-               . (.-)
+    modify g t e x = do
+        le <- readURef x
+        let added = f1 t (termJournal (t - 1) le)
+            next = compressPreviousTerm (t - 1) (le .+ added)
+        writeURef x next
+      where
+        f1 t' y = EJ.gather (plank, t') $ f2 y
+        f2 = EJT.finalStockTransfer
+           . (.-)
 
 
 ------------------------------------------------------------------
@@ -256,14 +267,9 @@ getOneProduction wld t c = do
 getTermStock :: World s -> Term -> Company ->  ST s Double
 getTermStock wld t e = do
     le <- readURef (_ledger wld)
-    let plusStock = norm
-                  $ EJ.projWithBase [Not:<(Products,e,e,Amount)]
-                  $ (.-)
-                  $ termJournal t le
-        minusStock = norm
-                  $ EJ.projWithBase [Hat:<(Products,e,e,Amount)]
-                  $ (.-)
-                  $ termJournal t le
+    let tj = (.-) $ termJournal t le
+        plusStock = norm $ EJ.projWithBase [Not:<(Products,e,e,Amount)] tj
+        minusStock = norm $ EJ.projWithBase [Hat:<(Products,e,e,Amount)] tj
 
     return $ plusStock - minusStock
 

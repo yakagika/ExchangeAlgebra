@@ -72,8 +72,6 @@ import              Data.Array.IO
 import              Data.STRef
 import qualified    Control.Monad                   as CM
 import              Data.Array
-import              System.IO
-import Data.List (intersperse)
 
 ------------------------------------------------------------------
 class (Eq t, Show t, Ord t, Enum t, Ix t) => StateTime t where
@@ -118,19 +116,20 @@ class (StateTime t,InitVariables v)
 
     {-# INLINE copy #-}
     copy :: StdGen -> t -> v -> (a s) -> ST s ()
-    copy g t v x    = undefined
+    copy _ _ _ _ = undefined
 
     {-# INLINE modify #-}
     modify :: StdGen -> t -> v -> (a s) -> ST s ()
-    modify g t v x  = undefined
+    modify _ _ _ _ = undefined
 
     {-# INLINE update #-}
     update :: StdGen -> t -> v -> (a s) -> ST s ()
-    update g t v x  =  updatePattern x >>= \p
-                    -> case p of
-                            DoNothing -> return ()
-                            Copy      -> copy   g t v x
-                            Modify    -> modify g t v x
+    update g t v x = do
+        p <- updatePattern x
+        case p of
+            DoNothing -> return ()
+            Copy      -> copy g t v x
+            Modify    -> modify g t v x
 
 
 -- | for newtype A s = A (STRef s B)
@@ -146,22 +145,25 @@ class UpdatableSTRef wrapper s b | wrapper s -> b where
   _wrapURef :: STRef s b -> wrapper s
 
   newURef    :: b -> ST s (wrapper s)
-  newURef b = _wrapURef <$> newSTRef b
+  newURef b = b `seq` (_wrapURef <$> newSTRef b)
 
   readURef   :: wrapper s -> ST s b
   readURef = readSTRef . _unwrapURef
 
   writeURef  :: wrapper s -> b -> ST s ()
-  writeURef = writeSTRef . _unwrapURef
+  writeURef x v = v `seq` writeSTRef (_unwrapURef x) v
 
   modifyURef :: wrapper s -> (b -> b) -> ST s ()
-  modifyURef x f = modifySTRef (_unwrapURef x) f
+  modifyURef x f = modifySTRef' (_unwrapURef x) f
 
 
 
 {-# INLINE modifyArray #-}
 modifyArray ::(MArray a t m, Ix i) => a i t -> i -> (t -> t) -> m ()
-modifyArray ar e f = readArray ar e >>= \ x -> writeArray ar e (f x)
+modifyArray ar e f = do
+  x <- readArray ar e
+  let y = f x
+  y `seq` writeArray ar e y
 
 
 -- | for newtype A s = A (STArray s x y)
@@ -180,13 +182,13 @@ class (Ix b) => UpdatableSTArray wrapper s b c | wrapper s -> b c where
   getUBounds = getBounds . _unwrapUArray
 
   newUArray    :: (b,b) -> c -> ST s (wrapper s)
-  newUArray b c = _wrapUArray <$> newArray b c
+  newUArray b c = c `seq` (_wrapUArray <$> newArray b c)
 
   readUArray   :: wrapper s -> b -> ST s c
   readUArray arr = readArray (_unwrapUArray arr)
 
   writeUArray  :: wrapper s -> b -> c -> ST s ()
-  writeUArray arr = writeArray (_unwrapUArray arr)
+  writeUArray arr idx v = v `seq` writeArray (_unwrapUArray arr) idx v
 
   modifyUArray :: wrapper s -> b -> (c -> c) -> ST s ()
   modifyUArray x f = modifyArray (_unwrapUArray x) f
@@ -243,18 +245,19 @@ simulate g wld v = loop g wld initTerm v
   loop :: (StateSpace t v e a s)
        => StdGen -> a s -> t -> v -> ST s ()
   loop g wld t v
-    | t == lastTerm =  updateAll g t v wld >>= \_
-                    -> eventAll wld t
-    | otherwise     =  updateAll g t v wld >>= \_
-                    -> eventAll wld t
-                    >> loop g wld (nextTerm t) v
+    | t == lastTerm = updateAll g t v wld >> eventAll wld t
+    | otherwise = do
+        updateAll g t v wld
+        eventAll wld t
+        loop g wld (nextTerm t) v
 
 -- | 初期化 → 指定されたイベントの実行までをこなす
 runSimulation :: (StateSpace t v e a RealWorld)
               => StdGen -> v ->  IO (a RealWorld)
-runSimulation gen v = stToIO $ initAll gen initTerm v >>= \wld
-                    -> simulate gen wld v
-                    >> return wld
+runSimulation gen v = stToIO $ do
+    wld <- initAll gen initTerm v
+    simulate gen wld v
+    pure wld
 
 -- Genericを用いた自動導出のための補助型クラス
 class  (StateTime t,InitVariables v)
@@ -325,9 +328,6 @@ inverse mat = do
                 modifyArray inv (k,j) (\x -> x - factor * iVal)
 
     return inv
-
-  where
-    modifyArray arr ix f = readArray arr ix >>= writeArray arr ix . f
 
 {- | Calculate Leontief's Inverse Matrix
 ex.

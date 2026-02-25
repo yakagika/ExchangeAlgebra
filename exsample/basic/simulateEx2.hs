@@ -10,11 +10,10 @@ import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Journal  as EJ
 import qualified ExchangeAlgebra.Journal.Transfer as EJT
 
-import qualified ExchangeAlgebra.Simulate
-import qualified ExchangeAlgebra.Simulate as ES
 import qualified ExchangeAlgebra.Simulate.Visualize as ESV
 
 -- 外部ライブラリ
+import qualified Data.HashMap.Strict     as HM
 import qualified Data.Map.Strict         as M
 import qualified Data.List               as L
 import qualified Data.Text               as T
@@ -24,15 +23,9 @@ import           Control.Monad.State
 import           Control.Monad.ST
 import           Data.Array.ST
 import           Data.Array.IO
-import           Data.Array (Array)
 import           Data.STRef
 import           System.Random
 import Control.Concurrent.Async (mapConcurrently,forConcurrently_)
-
--- for python visualization
-import              System.IO
-import              System.Process
-import              System.Exit
 
 
 ------------------------------------------------------------------
@@ -43,8 +36,8 @@ type Term = Int
 instance StateTime Term where
     initTerm = 1
     lastTerm = 100
-    nextTerm = \x -> x + 1
-    prevTerm = \x -> x - 1
+    nextTerm x = x + 1
+    prevTerm x = x - 1
 
 instance Note Term where
     plank = -1
@@ -111,10 +104,14 @@ instance Updatable Term InitVar SP s where
 -- | 取引主体ID
 type Company = Int
 
+fstC :: Company
 fstC = 1
-lastC = 1000
+
+lastC :: Company
+lastC = 50
 
 -- | 主体の集合
+companies :: [Company]
 companies = [fstC .. lastC]
 
 -- 交換代数元にするための宣言
@@ -134,6 +131,14 @@ instance ExBaseClass HatBase2 where
 
 -- | 取引
 type Transaction = EJ.Journal (EventName,Term) Double HatBase2
+
+compressPreviousTerm :: Term -> Transaction -> Transaction
+compressPreviousTerm t (EJ.Journal hm) =
+    EJ.Journal $
+        L.foldl'
+            (\acc ev -> HM.adjust compress (ev, t) acc)
+            hm
+            [fstEvent .. lastEvent]
 
 -- | 元帳
 newtype Ledger s = Ledger (STRef s Transaction)
@@ -159,13 +164,15 @@ instance Updatable Term InitVar Ledger s where
     updatePattern _  = return Modify
 
     -- 過去のTermを次の期のTermに変更して追加する
-    modify g t e x  =  readURef x >>= \le
-                    -> let added = f1 t (termJournal (t-1) le)
-                    in modifyURef x (\z -> z .+ added)
-        where
-        f1 t x = EJ.gather (plank, t) $ f2 x
-        f2     = EJT.finalStockTransfer
-               . (.-)
+    modify g t e x = do
+        le <- readURef x
+        let added = f1 t (termJournal (t - 1) le)
+            next = compressPreviousTerm (t - 1) (le .+ added)
+        writeURef x next
+      where
+        f1 t' y = EJ.gather (plank, t') $ f2 y
+        f2 = EJT.finalStockTransfer
+           . (.-)
 
 
 ------------------------------------------------------------------
@@ -174,6 +181,7 @@ instance Updatable Term InitVar Ledger s where
 
 -- 投入係数行列
 type InputCoefficient = Double
+type SparseInputs = M.Map Company [(Company, InputCoefficient)]
 
 type Col = Company
 type Row = Company
@@ -183,6 +191,13 @@ newtype ICTable s = ICTable (STArray s (Row, Col) InputCoefficient)
 instance UpdatableSTArray ICTable s (Row, Col) InputCoefficient where
   _unwrapUArray (ICTable arr) = arr
   _wrapUArray arr = ICTable arr
+
+-- | 非ゼロ投入係数の疎キャッシュ
+newtype ICSparse s = ICSparse (STRef s (Maybe SparseInputs))
+
+instance UpdatableSTRef ICSparse s (Maybe SparseInputs) where
+   _unwrapURef (ICSparse x) = x
+   _wrapURef x = ICSparse x
 
 -- | 乱数リストを生成 (0 ~ 1.0 の範囲)
 generateRandomList :: StdGen -> Prelude.Int -> ([Double], StdGen)
@@ -223,12 +238,19 @@ instance Updatable Term InitVar ICTable s where
     initialize g _ e = initICTables g (_inhouseRatio e)
     updatePattern _ = return DoNothing
 
+instance Updatable Term InitVar ICSparse s where
+    type Inner ICSparse s = STRef s (Maybe SparseInputs)
+    unwrap = _unwrapURef
+    initialize _ _ _ = newURef Nothing
+    updatePattern _ = return DoNothing
+
 ------------------------------------------------------------------
 -- * World の定義
 ------------------------------------------------------------------
 -- | 状態空間の定義
 data World s = World { _ledger  :: Ledger s -- ^ 元帳
                      , _ics     :: ICTable s  -- ^ 投入係数
+                     , _icSparse :: ICSparse s -- ^ 非ゼロ投入係数キャッシュ
                      , _sp      :: SP s -- ^ 定常的な生産量
                      }
                      deriving (Generic)
@@ -239,43 +261,55 @@ data World s = World { _ledger  :: Ledger s -- ^ 元帳
 -- | 一単位の財の簿記を取得する
 getOneProduction :: World s -> Term -> Company -> ST s Transaction
 getOneProduction wld t c = do
-    let arr =  (_ics wld)  -- ICTable を取得
-    inputs <- CM.forM companies $ \c2 -> do
-        -- c を生産するために必要な c2 の投入係数
-        coef <- readUArray arr (c2, c)
-        -- c2 の消費を記録
-        return $ coef :@ Hat :<(Products, c2, c, Amount) .| (Production,t)
-        -- すべての中間投入を結合
-    let totalInput = EJ.fromList inputs
+    sparseInputs <- getSparseInputs wld
+    let inputs = M.findWithDefault [] c sparseInputs
+        totalInput = EJ.fromList
+            [ coef :@ Hat :<(Products, c2, c, Amount) .| (Production,t)
+            | (c2, coef) <- inputs
+            ]
         -- 生産と投入の合計
         result = (1 :@ Not :<(Products, c, c, Amount) .| (Production,t)) .+ totalInput
     return result
+
+buildSparseInputs :: World s -> ST s SparseInputs
+buildSparseInputs wld = do
+    let arr = _ics wld
+    rows <- CM.forM companies $ \outC -> do
+        revInputs <- foldM
+            (\acc inC -> do
+                coef <- readUArray arr (inC, outC)
+                if coef > 0
+                    then return ((inC, coef) : acc)
+                    else return acc
+            )
+            []
+            companies
+        return (outC, reverse revInputs)
+    return $ M.fromList rows
+
+getSparseInputs :: World s -> ST s SparseInputs
+getSparseInputs wld = do
+    let cacheRef = _icSparse wld
+    cache <- readURef cacheRef
+    case cache of
+        Just sparse -> return sparse
+        Nothing -> do
+            sparse <- buildSparseInputs wld
+            writeURef cacheRef (Just sparse)
+            return sparse
 
 
 -- | 一期の製品在庫保有量を取得する
 getTermStock :: World s -> Term -> Company ->  ST s Double
 getTermStock wld t e = do
     le <- readURef (_ledger wld)
-    let plusStock = norm
-                  $ EJ.projWithBase [Not:<(Products,e,e,Amount)]
-                  $ (.-)
-                  $ termJournal t le
-        minusStock = norm
-                  $ EJ.projWithBase [Hat:<(Products,e,e,Amount)]
-                  $ (.-)
-                  $ termJournal t le
-
-    return $ plusStock - minusStock
+    return $ stockByAlg e (termAlgAt t le)
 
 -- | 一期の粗利益を取得する
 getTermGrossProfit :: World s -> Term -> Company -> ST s Double
 getTermGrossProfit wld t e = do
     le <- readURef (_ledger wld)
-    let termTr = termJournal t le
-        tr    = EJT.grossProfitTransfer termTr
-        plus  = norm $ EJ.projWithBase [Not:<(GrossProfit,(.#),e,Yen)] tr
-        minus = norm $ EJ.projWithBase [Hat:<(GrossProfit,(.#),e,Yen)] tr
-    return (plus - minus)
+    return $ grossProfitByAlg e (grossProfitAlgAt t le)
 
 -- | 記帳
 journal :: World s ->  Transaction -> ST s ()
@@ -286,12 +320,67 @@ journal wld js   = modifyURef (_ledger wld) (\x -> x .+ js)
 termJournal :: Term -> Transaction -> Transaction
 termJournal t = EJ.filterWithNote (\(e,t') _ -> t' == t )
 
+termAlgAt :: Term -> Transaction -> EA.Alg Double HatBase2
+termAlgAt t = EJ.toAlg . (.-) . termJournal t
+
+grossProfitAlgAt :: Term -> Transaction -> EA.Alg Double HatBase2
+grossProfitAlgAt t = EJ.toAlg . EJT.grossProfitTransfer . termJournal t
+
+projNormBy :: [HatBase2] -> EA.Alg Double HatBase2 -> Double
+projNormBy bs = norm . EA.proj bs
+
+balanceBy :: [HatBase2] -> [HatBase2] -> EA.Alg Double HatBase2 -> Double
+balanceBy plusBases minusBases alg =
+    projNormBy plusBases alg - projNormBy minusBases alg
+
+stockByAlg :: Company -> EA.Alg Double HatBase2 -> Double
+stockByAlg e =
+    balanceBy
+        [Not :<(Products,e,e,Amount)]
+        [Hat :<(Products,e,e,Amount)]
+
+grossProfitByAlg :: Company -> EA.Alg Double HatBase2 -> Double
+grossProfitByAlg e =
+    balanceBy
+        [Not :<(GrossProfit,(.#),e,Yen)]
+        [Hat :<(GrossProfit,(.#),e,Yen)]
+
+data TermAnalysis = TermAnalysis
+  { _taTermAlg        :: EA.Alg Double HatBase2
+  , _taGrossProfitAlg :: EA.Alg Double HatBase2
+  }
+
+newtype AnalysisCache = AnalysisCache
+  { _analysisByTerm :: M.Map Term TermAnalysis
+  }
+
+buildAnalysisCache :: Transaction -> AnalysisCache
+buildAnalysisCache le =
+    AnalysisCache $ M.fromList
+        [ (t, analyze t)
+        | t <- [initTerm .. lastTerm]
+        ]
+  where
+    analyze t = TermAnalysis (termAlgAt t le) (grossProfitAlgAt t le)
+
+lookupTermAnalysis :: AnalysisCache -> Term -> TermAnalysis
+lookupTermAnalysis (AnalysisCache hm) t =
+    case M.lookup t hm of
+        Just x  -> x
+        Nothing -> error ("term analysis not found: " ++ show t)
+
+stockByAnalysis :: Company -> TermAnalysis -> Double
+stockByAnalysis e = stockByAlg e . _taTermAlg
+
+grossProfitByAnalysis :: Company -> TermAnalysis -> Double
+grossProfitByAnalysis e = grossProfitByAlg e . _taGrossProfitAlg
+
 -- | 投入係数の取得
 -- 1単位の e1 の生産に必要な e2
 getInputCoefficient :: World s -> Company -> Company -> ST s InputCoefficient
-getInputCoefficient wld e1 e2 =  do
-                let ics = (_ics wld)
-                readUArray ics (e2,e1)
+getInputCoefficient wld e1 e2 = do
+    let ics = _ics wld
+    readUArray ics (e2,e1)
 
 
 -- | 初期の投入係数行列の取得
@@ -328,23 +417,27 @@ buildShortageMap t le =
     let termAlg = EJ.toAlg $ (.-) $ termJournal t le
     in L.foldl' go M.empty (EA.toList termAlg)
   where
-    go acc (v :@ (Hat :< (Products, j, i, Amount))) = M.insertWith (+) (i, j) v acc
+    go acc (v :@ (Hat :< (Products, j, i, Amount)))
+        | v > 0     = M.insertWith (+) (i, j) v acc
+        | otherwise = acc
     go acc _                                         = acc
 
 purchases :: Term -> World s -> ST s Transaction
 purchases t wld = do
     le <- readURef (_ledger wld)
     let shortageMap = buildShortageMap t le
-        o i j = M.findWithDefault 0 (i, j) shortageMap
-    return $ sigma companies $ \i
-           -> sigma (companies L.\\ [i]) $ \j
-           -> (o i j) :@ Not :<(Products, j, i, Amount) -- 発注側 購入財
-           .+ (o i j) :@ Hat :<(Cash,(.#),i,Yen)        -- 発注側 購入額
-           .+ (o i j) :@ Not :<(Purchases,(.#),i,Yen)   -- 発注額 仕入高
-           .+ (o i j) :@ Not :<(Cash,(.#),j,Yen)        -- 受注側 販売額
-           .+ (o i j) :@ Not :<(Sales,(.#),j,Yen)       -- 受注側 売上高
-           .+ (o i j) :@ Hat :<(Products, j, j,Amount)  -- 受注側 販売材
-           .| (SalesPurchase,t)
+        toEntries ((i, j), amount)
+            | i == j = []
+            | amount <= 0 = []
+            | otherwise =
+                [ amount :@ Not :<(Products, j, i, Amount) .| (SalesPurchase,t)
+                , amount :@ Hat :<(Cash,(.#),i,Yen) .| (SalesPurchase,t)
+                , amount :@ Not :<(Purchases,(.#),i,Yen) .| (SalesPurchase,t)
+                , amount :@ Not :<(Cash,(.#),j,Yen) .| (SalesPurchase,t)
+                , amount :@ Not :<(Sales,(.#),j,Yen) .| (SalesPurchase,t)
+                , amount :@ Hat :<(Products, j, j,Amount) .| (SalesPurchase,t)
+                ]
+    return $ EJ.fromList (concatMap toEntries (M.toList shortageMap))
 
 event' :: World s -> Term -> EventName -> ST s ()
 
@@ -372,38 +465,54 @@ event' wld t Plank = return ()
 -- * 実行
 ------------------------------------------------------------------
 
--- * directories
-fig_dir = "exsample/basic/result/fig/simulateEx2/"
+type CachedMetric = TermAnalysis -> ST RealWorld Double
+
+type CachedHeaders = [(T.Text, CachedMetric)]
+
+csv_dir :: FilePath
 csv_dir = "exsample/basic/result/csv/simulateEx2/"
+
+stockHeaders :: CachedHeaders
+stockHeaders =
+    [ (T.pack $ "Stock_" ++ show i, \ta -> return (stockByAnalysis i ta))
+    | i <- [fstC..lastC]
+    ]
+
+profitHeaders :: CachedHeaders
+profitHeaders =
+    [ (T.pack $ "Profit_" ++ show i, \ta -> return (grossProfitByAnalysis i ta))
+    | i <- [fstC..lastC]
+    ]
+
+writeSimulationResult :: FilePath -> World RealWorld -> IO ()
+writeSimulationResult outDir wld = do
+    le <- stToIO $ readURef (_ledger wld)
+    let analysis = buildAnalysisCache le
+        ctx _ t = return (lookupTermAnalysis analysis t)
+    ESV.writeFuncResultsWithContext ctx stockHeaders  (initTerm,lastTerm) wld (outDir ++ "/stock.csv")
+    ESV.writeFuncResultsWithContext ctx profitHeaders (initTerm,lastTerm) wld (outDir ++ "/profit.csv")
+
+simulationEnvs :: [InitVar]
+simulationEnvs = [defaultEnv, plusEnv]
+  where
+    defaultEnv = InitVar
+        { _initStock = 20
+        , _inhouseRatio = 0.4
+        , _steadyProduction = 10
+        }
+    plusEnv = defaultEnv {_steadyProduction = 12}
+
+simulationEnvNames :: [String]
+simulationEnvNames = ["default-prod", "plus-prod"]
 
 main :: IO ()
 main = do
     let seed = 2025
-    let gen = mkStdGen seed
-        defaultEnv = InitVar {_initStock           = 20
-                             ,_inhouseRatio        = 0.4
-                             ,_steadyProduction    = 10}
-
-        plusEnv = defaultEnv {_steadyProduction = 12 }
-        envs =  [defaultEnv,plusEnv]
-        envNames = ["default-prod","plus-prod"]
-    ------------------------------------------------------------------
-    
-
-    ------------------------------------------------------------------
+        gen = mkStdGen seed
     print "start simulation"
-    results <- mapConcurrently (runSimulation gen) envs
-    let resMap = M.fromList
-               $ zip envNames results
-    ------------------------------------------------------------------
+    results <- mapConcurrently (runSimulation gen) simulationEnvs
+    let resMap = M.fromList (zip simulationEnvNames results)
     print "writing data..."
-    let header_func_stock  = [(T.pack $ "Stock_" ++ show i, \w t -> getTermStock w t i)
-                             | i <- [fstC..lastC]]
-        header_func_profit = [(T.pack $ "Profit_" ++ show i, \w t -> getTermGrossProfit w t i)
-                             | i <- [fstC..lastC]]
-
-    forConcurrently_ envNames $ \n -> do
-        let wld = resMap M.! n
-        ESV.writeFuncResults header_func_stock  (initTerm,lastTerm) wld (csv_dir ++ n ++ "/stock.csv")
-        ESV.writeFuncResults header_func_profit (initTerm,lastTerm) wld (csv_dir ++ n ++ "/profit.csv")
+    forConcurrently_ simulationEnvNames $ \envName ->
+        writeSimulationResult (csv_dir ++ envName) (resMap M.! envName)
     print "end"

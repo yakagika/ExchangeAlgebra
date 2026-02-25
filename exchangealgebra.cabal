@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: ff53172955331d25a3db52d140833bc39db5c3e15e716831f3547510e002dd2b
+-- hash: 9f9b1a3440c65e710232a2d26e5449f82c08d9787137635fa5a8b7507a5d1f3c
 
 name:           exchangealgebra
 version:        0.4.0.0
@@ -76,7 +76,7 @@ executable cge
       Paths_exchangealgebra
   hs-source-dirs:
       exsample/optimization/CGE
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
   build-depends:
       Chart
     , Chart-cairo
@@ -111,7 +111,7 @@ executable ebex1
       Paths_exchangealgebra
   hs-source-dirs:
       exsample/basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
   build-depends:
       Chart
     , Chart-cairo
@@ -146,7 +146,7 @@ executable ebex2
       Paths_exchangealgebra
   hs-source-dirs:
       exsample/basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
   build-depends:
       Chart
     , Chart-cairo
@@ -181,7 +181,7 @@ executable ebex3
       Paths_exchangealgebra
   hs-source-dirs:
       exsample/basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
   build-depends:
       Chart
     , Chart-cairo
@@ -216,7 +216,7 @@ executable ebex4
       Paths_exchangealgebra
   hs-source-dirs:
       exsample/basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
   build-depends:
       Chart
     , Chart-cairo
@@ -251,7 +251,7 @@ executable ebex5
       Paths_exchangealgebra
   hs-source-dirs:
       exsample/basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
   build-depends:
       Chart
     , Chart-cairo
@@ -287,7 +287,7 @@ executable ripple
       Paths_exchangealgebra
   hs-source-dirs:
       exsample/deterministic/ripple
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
   build-depends:
       Chart
     , Chart-cairo
@@ -323,7 +323,7 @@ executable rippleWithStock
       Paths_exchangealgebra
   hs-source-dirs:
       exsample/deterministic/ripple
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
   build-depends:
       Chart
     , Chart-cairo
@@ -394,7 +394,7 @@ executable sim1
       Paths_exchangealgebra
   hs-source-dirs:
       exsample/basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
   build-depends:
       Chart
     , Chart-cairo
@@ -429,7 +429,7 @@ executable sim2
       Paths_exchangealgebra
   hs-source-dirs:
       exsample/basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
   build-depends:
       Chart
     , Chart-cairo

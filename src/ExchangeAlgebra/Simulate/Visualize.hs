@@ -27,11 +27,12 @@ module ExchangeAlgebra.Simulate.Visualize   (gridLine
                                             ,plotMultiLines
                                             ,plotWldsDiffLine
                                             ,plotLineVector
-                                            ,writeFuncResults) where
+                                            ,writeFuncResults
+                                            ,writeFuncResultsWithContext) where
 
 import              ExchangeAlgebra.Simulate
-import qualified    CSV.Text                    as CSV
 import qualified    Data.Text as T
+import qualified    Data.Text.IO as TIO
 import qualified    Data.List as L
 import              Graphics.Rendering.Chart.Easy            hiding ( (:<),(.~))
 import              Graphics.Rendering.Chart.Backend.Cairo
@@ -43,8 +44,8 @@ import              Control.Monad.ST
 import qualified    Data.Vector.Unboxed      as VU
 import qualified    Data.Vector.Unboxed.Mutable as VUM
 import              Data.Array.ST
-import              Data.STRef
 import qualified Data.Set as Set
+import              System.IO (IOMode(WriteMode), withFile)
 
 type Title          = String
 type FileName       = String
@@ -54,6 +55,12 @@ type TimeSeries t    = (Label, [[(t, Double)]])
 type TimeSerieses t  = [(TimeSeries t)]
 type GridColumns t   = [TimeSerieses t]
 type GridMatrix t    = [GridColumns t]
+
+chunkN :: Int -> [a] -> [[a]]
+chunkN _ [] = []
+chunkN n xs =
+    let (front, back) = splitAt n xs
+     in front : chunkN n back
 
 
 ------------------------------------------------------------------
@@ -144,45 +151,19 @@ gridLine  :: (Ord a, Show a, Ix a, StateTime t)
                     => STArray s (a,t) Double
                     -> ST s (GridMatrix t)
 gridLine arr = do
-        grid    <- newSTRef [] :: ST s (STRef s (GridMatrix t))
-        col     <- newSTRef [] :: ST s (STRef s (GridColumns t))
-        count   <- newSTRef 1  :: ST s (STRef s Int)
+    idx <- getBounds arr
+    let as = Set.toAscList
+           $ Set.fromList
+           $ L.map fst
+           $ range idx
 
-        idx <- getBounds arr
-        let as = Set.toAscList
-               $ Set.fromList
-               $ L.map fst
-               $ range idx
+    cells <- CM.forM as $ \e -> do
+        xs <- CM.forM [initTerm .. lastTerm] $ \t -> do
+            v <- readArray arr (e, t)
+            pure (t, v)
+        pure [(show e, [xs])]
 
-        CM.forM_ as ( \e -> do
-            count' <- readSTRef count
-            case count' >= 3 of
-                True    ->  do
-                            xs  <- CM.forM [initTerm .. lastTerm] ( \t
-                                -> readArray arr (e,t) >>= \v
-                                -> return (t, v))
-                            col' <- readSTRef col
-                            modifySTRef grid (\x -> x ++ [col' ++ [[(show e, [xs])]]])
-                            writeSTRef  count 1
-                            writeSTRef  col []
-                ------------------------------------------------------------------
-                False   ->  case e == L.last as of
-                                True  ->    do
-                                            xs  <- CM.forM [initTerm .. lastTerm] ( \t
-                                                -> readArray arr (e,t) >>= \v
-                                                -> return (t, v))
-                                            col' <- readSTRef col
-                                            modifySTRef grid (\x -> x ++ [col' ++ [[(show e, [xs])]]])
-                                            writeSTRef  count 1
-                                            writeSTRef  col []
-                                False ->    do
-                                            xs  <- CM.forM [initTerm .. lastTerm] ( \t
-                                                -> readArray arr (e,t) >>= \v
-                                                -> return (t, v))
-                                            modifySTRef col (\x -> x ++ [[(show e, [xs])]])
-                                            modifySTRef count (+ 1))
-
-        readSTRef grid >>= return
+    pure (chunkN 3 cells)
 
 ------------------------------------------------------------------
 -- ** Multi lines
@@ -289,19 +270,14 @@ gridLines
   -> [STArray s (a, t) Double]
   -> ST s (GridMatrix t)
 gridLines xs arrs = do
-    -- GridMatrix全体，列(3つ毎に1列にまとめたい等)，カウンタを用意
-    gridRef  <- newSTRef []        :: ST s (STRef s (GridMatrix t))
-    colRef   <- newSTRef []        :: ST s (STRef s (GridColumns t))
-    countRef <- newSTRef 1  :: ST s (STRef s Int)
     idx <- getBounds (head arrs)
     let as = Set.toAscList
            $ Set.fromList
            $ L.map fst
            $ range idx
 
-    CM.forM_ as $ \ e -> do
-      count' <- readSTRef countRef
-      timeVals <- CM.forM arrs $ \ arr -> do
+    cells <- CM.forM as $ \e -> do
+      timeVals <- CM.forM arrs $ \arr -> do
             -- シリーズごとのタイム系列
             ts <- CM.forM [initTerm .. lastTerm] $ \ t -> do
                         v <- readArray arr (e,t)
@@ -312,35 +288,9 @@ gridLines xs arrs = do
       -- シリーズが複数あるので TimeSerieses = [TimeSeries]
       let cell = map (\(l,vs) -> (show e ++ "_" ++ show l, [vs]))
                $ zip xs timeVals
+      pure cell
 
-      -------------------------------------------------------------------------
-      -- 以下は gridPathSingleLine と同じく, 3つで1カラムにまとめるロジック
-      -------------------------------------------------------------------------
-      if count' >= 3
-        then do
-          col' <- readSTRef colRef
-          -- いままで溜めたcol'に今回のセルを追加して，
-          -- それらをひとまとめ(1列分)としてgridRefに積む
-          modifySTRef gridRef (\acc -> acc ++ [col' ++ [cell]])
-          -- カラムとカウンタをリセット
-          writeSTRef colRef []
-          writeSTRef countRef 1
-
-        else if e == last as
-          then do
-            -- 最後の要素の場合は，ここまで溜まったものをまとめて追加
-            col' <- readSTRef colRef
-            modifySTRef gridRef (\acc -> acc ++ [col' ++ [cell]])
-            writeSTRef colRef []
-            writeSTRef countRef 1
-
-          else do
-            -- まだ3列に達していない場合は，colRefに追加のみ
-            modifySTRef colRef (\acc -> acc ++ [cell])
-            modifySTRef countRef (+1)
-
-    -- すべて終わったらGridMatrixを返す
-    readSTRef gridRef
+    pure (chunkN 3 cells)
 
 ------------------------------------------------------------------
 plotWldsDiffLine :: ( StateTime t
@@ -465,19 +415,8 @@ gridLineVector ((i1,t1),(i2,t2)) vec = do
     let iVals  = [fromEnum i1 .. fromEnum i2]
     let iCount = length iVals
     let tVals  = [fromEnum t1 .. fromEnum t2]
-    let tCount = length tVals
-
-    -- 3セルごとに区切りを入れるためのカウンタ
-    -- そしてカラムのリスト, 最終的なグリッド(行)のリストを STRef で管理
-    -- (元コード gridLine と同様のロジック)
-    gridRef  <- newSTRef []        -- :: ST s (GridMatrix t)
-    colRef   <- newSTRef []        -- :: ST s (GridColumns t)
-    countRef <- newSTRef (1 :: Int)
-
-    -- i を順番にたどりつつ、3つたまるごとに1列を作る
-    CM.forM_ iVals $ \ie -> do
+    cells <- CM.forM iVals $ \ie -> do
       let iVal = (toEnum (ie :: Int) :: i)  -- i :: i
-      count' <- readSTRef countRef
       -- (t,値) の列を取り出す
       let series :: [(t, Double)]
           series =
@@ -488,29 +427,9 @@ gridLineVector ((i1,t1),(i2,t2)) vec = do
           -- [[(t,Double)]] の形にする
           ts :: [(Label, [[(t,Double)]])]
           ts = [(show iVal, [series])]
+      pure ts
 
-      if count' >= 3
-        then do
-          -- 3つ目に達したら、今までのもの + 今回の分を1列として grid に積む
-          oldCol <- readSTRef colRef  -- :: GridColumns t
-          modifySTRef gridRef (\acc -> acc ++ [ oldCol ++ [ts] ])
-          -- リセット
-          writeSTRef colRef []
-          writeSTRef countRef 1
-        else if ie == last iVals
-          then do
-            -- 最後の i の場合もまとめて push
-            oldCol <- readSTRef colRef
-            modifySTRef gridRef (\acc -> acc ++ [ oldCol ++ [ts] ])
-            writeSTRef colRef []
-            writeSTRef countRef 1
-          else do
-            -- まだ3セルに達してないし、最後でもないときは colRef に追加のみ
-            modifySTRef colRef (\acc -> acc ++ [ts])
-            modifySTRef countRef (+1)
-
-    -- 完了したら取り出す
-    readSTRef gridRef
+    pure (chunkN 3 cells)
   where
     -- flattenIndex iCount iIndex tIndex = tIndex * iCount + iIndex
     flattenIndex :: Int -> Int -> Int -> Int
@@ -568,37 +487,58 @@ plotLineVector f idx wld outDir titleStr = do
 
 
 type Header = T.Text
--- | 与えられた関数の出力をCSVの時系列データにする
-writeFuncResults :: ( StateTime t
-                    , Show x
-                    , Num x)
-                 => [(Header,(a RealWorld -> t -> ST RealWorld x))] -- ^ ヘッダーと関数のペア
-                 -> (t,t) -- ^ 出力する時系列
-                 -> a RealWorld
-                 -> FilePath
-                 -> IO ()
-writeFuncResults funcs (tStart,tEnd) wld path = do
-    -- 各関数の結果を時系列で計算
-    results <- stToIO $ do
-        CM.forM funcs $ \(header, func) -> do
-            -- 各時点での値を計算
-            timeSeries <- CM.forM [tStart .. tEnd] $ \t -> do
-                val <- func wld t
-                return (t, val)
-            return (header, timeSeries)
-    
-    -- CSV形式に変換
-    let headers = [T.pack "Time"] ++ map fst funcs
-    let timePoints = [tStart .. tEnd]
-    let csvData = [headers] ++
-            [ [T.pack (show t)] ++
-                [ case lookup t values of
-                    Just v  -> T.pack (show v)
-                    Nothing -> T.empty
-                | (_, values) <- results
-                ]
-            | t <- timePoints
-            ]
-    
-    -- CSVファイルに出力
-    CSV.writeCSV path csvData 
+
+-- | 1期ごとの文脈を作ってから、複数の関数をまとめて評価しCSVに出力する。
+--   各期の文脈を共有するため、重い前処理(例: termJournal, transfer)を1回にできる。
+writeFuncResultsWithContext
+  :: ( StateTime t
+     , Show x
+     , Num x
+     )
+  => (a RealWorld -> t -> ST RealWorld c)
+  -> [(Header, c -> ST RealWorld x)]
+  -> (t,t)
+  -> a RealWorld
+  -> FilePath
+  -> IO ()
+writeFuncResultsWithContext buildCtx funcs (tStart,tEnd) wld path = do
+    withFile path WriteMode $ \h -> do
+        TIO.hPutStrLn h (toCsvRow (T.pack "Time" : map fst funcs))
+        CM.forM_ [tStart .. tEnd] $ \t -> do
+            vals <- stToIO $ do
+                ctx <- buildCtx wld t
+                CM.forM funcs $ \(_, f) -> f ctx
+            let row = T.pack (show t) : map (T.pack . show) vals
+            TIO.hPutStrLn h (toCsvRow row)
+
+-- | 与えられた関数の出力をCSVの時系列データにする。
+--   既存シグネチャは維持しつつ、内部はterm-major評価 + ストリーミング出力に変更。
+writeFuncResults
+  :: ( StateTime t
+     , Show x
+     , Num x
+     )
+  => [(Header,(a RealWorld -> t -> ST RealWorld x))]
+  -> (t,t)
+  -> a RealWorld
+  -> FilePath
+  -> IO ()
+writeFuncResults funcs range wld path =
+    writeFuncResultsWithContext
+        (\_ t -> return t)
+        (map (\(header, f) -> (header, \t -> f wld t)) funcs)
+        range
+        wld
+        path
+
+{-# INLINE toCsvRow #-}
+toCsvRow :: [T.Text] -> T.Text
+toCsvRow = T.intercalate (T.pack ",") . map escapeCsv
+
+{-# INLINE escapeCsv #-}
+escapeCsv :: T.Text -> T.Text
+escapeCsv t
+    | T.any isSpecial t = T.concat [T.pack "\"", T.replace (T.pack "\"") (T.pack "\"\"") t, T.pack "\""]
+    | otherwise         = t
+  where
+    isSpecial c = c == ',' || c == '"' || c == '\n' || c == '\r'

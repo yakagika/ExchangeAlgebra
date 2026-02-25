@@ -544,4 +544,3 @@ finalStockTransfer  = (.-)
                     . ordinaryProfitTransfer
                     . grossProfitTransfer
 
-

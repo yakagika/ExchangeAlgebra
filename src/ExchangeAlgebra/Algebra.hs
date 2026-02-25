@@ -12,6 +12,7 @@
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE RankNTypes                 #-}
 {-# LANGUAGE GADTs                      #-}
+{-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE StrictData                 #-}
 {-# LANGUAGE Strict                     #-}
 {-# LANGUAGE PatternSynonyms            #-}
@@ -76,11 +77,13 @@ import              ExchangeAlgebra.Algebra.Base
 import              Debug.Trace
 import qualified    Data.Text           as T
 import              Data.Text           (Text)
-import qualified    Data.List           as L (foldl', map, length, elem,sort,filter, or, and,any, sum, concat)
+import qualified    Data.List           as L (foldl', map, length, elem,sort,sortOn,filter, or, and,any, sum, concat)
 import              Prelude             hiding (map, head, filter,tail, traverse, mapM)
 import qualified    Data.Time           as Time
 import              Data.Time
 import qualified    Data.HashMap.Strict     as Map
+import qualified    Data.IntMap.Strict      as IntMap
+import qualified    Data.IntSet             as IntSet
 import qualified    Data.Foldable       as Foldable (foldMap,foldl')
 import qualified    Data.Sequence       as Seq
 import              Data.Sequence       (Seq)
@@ -123,6 +126,8 @@ instance Nearly NN.Double where
     isNearly = isNearlyNum
 
 {-# INLINE isNearlyNum #-}
+-- | Complexity: O(1)
+-- Assumes primitive numeric operations and comparisons are constant time.
 isNearlyNum :: (Show a, Num a, Ord a) => a -> a -> a -> Bool
 isNearlyNum x y t
     | x == y    = True
@@ -261,8 +266,8 @@ instance HatVal Prelude.Double where
                     || x < 0
 
 data Pair v where
- Pair :: {_hatSide :: Seq v
-         ,_notSide :: Seq v} -> Pair v
+ Pair :: {_hatSide :: !(Seq v)
+         ,_notSide :: !(Seq v)} -> Pair v
          deriving (Eq)
 
 
@@ -291,14 +296,18 @@ instance (HatVal v) => Ord (Pair v) where
             | otherwise = y
 
 {-# INLINE nullPair #-}
+-- | Complexity: O(1)
 nullPair :: Pair v
 nullPair = Pair Seq.empty Seq.empty
 
 {-# INLINE isNullPair #-}
+-- | Complexity: O(1)
 isNullPair :: Pair v -> Bool
 isNullPair (Pair hs ns) = Seq.null hs && Seq.null ns
 
 {-# INLINE pairAppend #-}
+-- | Complexity: O(log(min(h1,h2)) + log(min(n1,n2)))
+-- where h1/h2 and n1/n2 are the lengths of the appended 'Seq's on each side.
 pairAppend :: Pair v -> Pair v -> Pair v
 pairAppend (Pair x1 y1) (Pair x2 y2) =
     let !hs = x1 Seq.>< x2
@@ -308,14 +317,89 @@ pairAppend (Pair x1 y1) (Pair x2 y2) =
 -- | 代数元 数値と基底のペア
 data  Alg v b where
         Zero  :: Alg v b
-        (:@)  :: {_val :: v, _hatBase :: b} -> Alg v b
-        Liner :: {_realg :: Map.HashMap (BasePart b) (Pair v)} ->  Alg v b
+        (:@)  :: {_val :: !v, _hatBase :: !b} -> Alg v b
+        Liner :: { _realg       :: !(Map.HashMap (BasePart b) (Pair v))
+                 , _axisPosting :: ~(IntMap.IntMap (Map.HashMap AxisKey IntSet.IntSet))
+                 , _bpToId      :: ~(Map.HashMap (BasePart b) Int)
+                 , _idToBp      :: ~(IntMap.IntMap (BasePart b))
+                 , _nextBpId    :: ~Int
+                 , _allBpIds    :: ~IntSet.IntSet
+                 } ->  Alg v b
 
+type AxisPosting = IntMap.IntMap (Map.HashMap AxisKey IntSet.IntSet)
+
+{-# INLINE emptyAxisPosting #-}
+-- | Complexity: O(1)
+emptyAxisPosting :: AxisPosting
+emptyAxisPosting = IntMap.empty
+
+{-# INLINE insertAxisPosting #-}
+-- | Complexity: O(d * (hash-insert + intset-insert))
+-- In practice this is near O(d), where d is the number of axes in 'BasePart'.
+insertAxisPosting :: [AxisKey] -> Int -> AxisPosting -> AxisPosting
+insertAxisPosting !keys !bpId !idx =
+    snd $ L.foldl' step (0 :: Int, idx) keys
+  where
+    step (!axis, !acc) !k =
+        let !axisMap = IntMap.findWithDefault Map.empty axis acc
+            !ids0 = Map.lookupDefault IntSet.empty k axisMap
+            !ids1 = IntSet.insert bpId ids0
+            !axisMap' = Map.insert k ids1 axisMap
+            !acc' = IntMap.insert axis axisMap' acc
+        in (axis + 1, acc')
+
+{-# INLINE queryAxisPosting #-}
+-- | Complexity: O(d + intersection cost)
+-- d is the number of axes; intersections are performed in ascending set-size order.
+queryAxisPosting :: [AxisKey] -> AxisPosting -> IntSet.IntSet -> IntSet.IntSet
+queryAxisPosting !keys !idx !allIds =
+    case matchedSets of
+        Left ()  -> IntSet.empty
+        Right [] -> allIds
+        Right xs ->
+            let !(x:rest) = L.sortOn IntSet.size xs
+            in L.foldl' IntSet.intersection x rest
+  where
+    matchedSets =
+        L.foldl' collect (Right []) (zip [0 :: Int ..] keys)
+
+    collect (Left ()) _ = Left ()
+    collect (Right acc) (!axis, !k)
+        | axisIsWildcard k = Right acc
+        | otherwise =
+            case IntMap.lookup axis idx of
+                Nothing -> Left ()
+                Just axisMap -> case Map.lookup k axisMap of
+                    Nothing -> Left ()
+                    Just ids -> Right (ids : acc)
+
+{-# INLINE linerFromMap #-}
+-- | Complexity: O(n * d * (hash-insert + intset-insert))
+-- n is the number of distinct base keys in the map.
+linerFromMap :: (HatBaseClass b)
+             => Map.HashMap (BasePart b) (Pair v)
+             -> Alg v b
+linerFromMap m = Liner m idx bpToId idToBp nextBpId allIds
+  where
+    ~(idx, bpToId, idToBp, nextBpId, allIds) =
+        Map.foldlWithKey'
+            (\(!idxAcc, !bpToIdAcc, !idToBpAcc, !nextId, !allIdsAcc) bp _ ->
+                let !bpId = nextId
+                    !idx' = insertAxisPosting (toAxisKeys bp) bpId idxAcc
+                    !bpToId' = Map.insert bp bpId bpToIdAcc
+                    !idToBp' = IntMap.insert bpId bp idToBpAcc
+                    !allIds' = IntSet.insert bpId allIdsAcc
+                in (idx', bpToId', idToBp', bpId + 1, allIds'))
+            (emptyAxisPosting, Map.empty, IntMap.empty, 0, IntSet.empty)
+            m
+
+-- | Complexity: O(1)
 isZero :: Alg v b -> Bool
 isZero Zero = True
 isZero _    = False
 
 {-# INLINE singleton #-}
+-- | Complexity: O(1)
 singleton :: (HatVal v, HatBaseClass b) => v -> b -> Alg v b
 singleton v b | isZeroValue v  = Zero
               | isErrorValue v = error  $ "errorValue at (.@) val: "
@@ -325,9 +409,11 @@ singleton v b | isZeroValue v  = Zero
               | otherwise      = v :@ b
 
 {-# INLINE (.@) #-}
+-- | Complexity: O(1)
 (.@) :: (HatVal n, HatBaseClass b) => n -> b -> Alg n b
 (.@) v b = singleton v b
 
+-- | Complexity: O(1) plus Applicative effects.
 (<@) :: (HatVal n, Applicative f, HatBaseClass b)
      => f n  -> b -> f (Alg n b)
 (<@) v b = (.@) <$> v <*> (pure b)
@@ -337,6 +423,8 @@ infixr 6 :@
 infixr 6 .@
 infixr 6 <@
 
+-- | Complexity: O(digits(v))
+-- Formatting cost is proportional to the textual precision of the number.
 showV ::  (HatVal v) => v -> String
 showV v = D.formatScientific D.Generic (Just 2) (D.fromFloatDigits v)
 
@@ -345,7 +433,7 @@ instance (HatVal v, HatBaseClass b) =>  Eq (Alg v b) where
     (==) Zero _    = False
     (==) _    Zero = False
     (==) (v1:@b1) (v2:@b2) = (v1 == v2) && (b1 == b2)
-    (==) (Liner m1) (Liner m2) = m1 == m2
+    (==) (Liner m1 _ _ _ _ _) (Liner m2 _ _ _ _ _) = m1 == m2
     (==) _ _ = False
     (/=) x y = not (x == y)
 
@@ -355,14 +443,14 @@ instance (HatVal v, HatBaseClass b) => Ord (Alg v b) where
     compare Zero _ = LT
     compare _ Zero = GT
 
-    compare (v:@b) (Liner m) = LT
-    compare (Liner m) (v:@b) = GT
+    compare (v:@b) (Liner _ _ _ _ _ _) = LT
+    compare (Liner _ _ _ _ _ _) (v:@b) = GT
     compare (v1:@b1) (v2:@b2)
         | b1 == b2 = compare v1 v2
         | b1 >  b2  = GT
         | b1 <  b2  = LT
 
-    compare (Liner m1) (Liner m2) = compare m1 m2
+    compare (Liner m1 _ _ _ _ _) (Liner m2 _ _ _ _ _) = compare m1 m2
 
     (<) x y | compare x y == LT = True
             | otherwise         = False
@@ -398,7 +486,7 @@ instance (HatVal v, HatBaseClass b) => Show (Alg v b) where
 instance NFData (Alg v b) where
     rnf Zero      = Zero `seq` ()
     rnf (v:@b)    = v `seq` b `seq` ()
-    rnf (Liner m) = Map.foldrWithKey (\k v acc -> k `seq` v `seq` acc) () m
+    rnf (Liner m _ _ _ _ _) = Map.foldrWithKey (\k v acc -> k `seq` v `seq` acc) () m
 ------------------------------------------------------------------
 -- Semigroup
 ------------------------------------------------------------------
@@ -418,6 +506,10 @@ instance  (HatVal n, HatBaseClass b) => Semigroup (Alg n b) where
 -- >>> union x y
 -- 1.00:@Hat:<Yen .+ 2.00:@Hat:<Yen .+ 1.00:@Not:<Amount .+ 2.00:@Not:<Amount
 {-# INLINE union #-}
+-- | Complexity:
+--   - singleton/singleton and singleton/liner cases: O(n * d * index-build)
+--   - liner/liner case: O(n + m) for map union plus O((n+m) * d * index-build)
+-- where n and m are distinct key counts on each side.
 union :: (HatVal n, HatBaseClass b) =>  Alg n b -> Alg n b -> Alg n b
 union Zero x  = x
 union x Zero  = x
@@ -433,32 +525,34 @@ union x (v:@b) = insert b v x
 union (v:@b) x = insert b v x
 
 -- In the case of multiple elements
-union (Liner m1) (Liner m2) = Liner (Map.unionWith pairAppend m1 m2)
+union (Liner m1 _ _ _ _ _) (Liner m2 _ _ _ _ _) = linerFromMap (Map.unionWith pairAppend m1 m2)
 
 
 {-# INLINE insert #-}
+-- | Complexity:
+--   - into Zero or singleton: O(1) to O(d * index-build)
+--   - into Liner: O(n * d * index-build) due to rebuilding 'linerFromMap'
+-- where n is the number of distinct base keys after insertion.
 insert :: (HatVal v,HatBaseClass b) => b -> v -> Alg v b ->  Alg v b
+insert _ v x | isZeroValue v = x
 insert !b !v Zero       = v .@ b
 insert !b1 !v1 (v2:@b2) = case isHat b1 of
                             True  -> insert b2 v2
-                                   $ Liner
+                                   $ linerFromMap
                                    $ Map.singleton (base b1)
                                    $ nullPair {_hatSide = Seq.singleton v1}
                             False -> insert b2 v2
-                                   $ Liner
+                                   $ linerFromMap
                                    $ Map.singleton (base b1)
                                    $ nullPair {_notSide = Seq.singleton v1}
-insert !b !v (Liner m)  = case isHat b of
-                        True  -> Liner
-                               $ Map.insertWith pairAppend
-                                                (base b)
-                                                nullPair {_hatSide = Seq.singleton v}
-                                                m
-                        False -> Liner
-                               $ Map.insertWith pairAppend
-                                                (base b)
-                                                nullPair {_notSide = Seq.singleton v}
-                                                m
+insert !b !v (Liner m _ _ _ _ _)  = case isHat b of
+                        True  -> insertLiner (nullPair {_hatSide = Seq.singleton v})
+                        False -> insertLiner (nullPair {_notSide = Seq.singleton v})
+  where
+    !bp = base b
+    insertLiner !pairToInsert =
+        let !m' = Map.insertWith pairAppend bp pairToInsert m
+        in linerFromMap m'
 
 ------------------------------------------------------------------
 -- Monoid
@@ -471,6 +565,8 @@ instance (HatVal n, HatBaseClass b) => Monoid (Alg n b) where
     mconcat = unions
 
 {-# INLINE unions #-}
+-- | Complexity: O(sum of 'union' costs over the fold)
+-- For a long list this is typically the dominant construction cost.
 unions :: (HatVal n, Foldable f, HatBaseClass b) => f (Alg n b) -> Alg n b
 unions ts = Foldable.foldl' union Zero ts
 
@@ -481,28 +577,38 @@ unions ts = Foldable.foldl' union Zero ts
 instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
     (.^) Zero       = Zero
     (.^) (n:@ b)    = n :@ (revHat b)
-    (.^) (Liner ms) = Liner
-                    $ Map.map (\ (Pair hs ns) -> Pair ns hs) ms
+    (.^) (Liner ms idx bpToId idToBp nextBpId allIds) = Liner
+                    (Map.map (\ (Pair hs ns) -> Pair ns hs) ms)
+                    idx
+                    bpToId
+                    idToBp
+                    nextBpId
+                    allIds
 
     (.+) = mappend
 
     x  .*  Zero      = Zero
     0  .*  x         = Zero
     x  .* (v:@b)     = (x * v) :@ b
-    x  .* (Liner ms) = Liner
-                     $ Map.map (\ (Pair hs ns) -> Pair (fmap (x *) hs) (fmap (x *) ns)) ms
+    x  .* (Liner ms idx bpToId idToBp nextBpId allIds) = Liner
+                     (Map.map (\ (Pair hs ns) -> Pair (fmap (x *) hs) (fmap (x *) ns)) ms)
+                     idx
+                     bpToId
+                     idToBp
+                     nextBpId
+                     allIds
 
     norm Zero       = 0
     norm (v:@b)     = v
-    norm (Liner ms) = Map.foldl' (\ !x (Pair hs ns) -> x + sum hs + sum ns) 0 ms
+    norm (Liner ms _ _ _ _ _) = Map.foldl' (\ !x (Pair hs ns) -> x + Foldable.foldl' (+) 0 hs + Foldable.foldl' (+) 0 ns) 0 ms
 
     {-# INLINE (.-) #-}
     (.-) Zero = Zero
     (.-) (v:@b) = v:@b
-    (.-) (Liner m) = let !res = Map.mapMaybe f m
+    (.-) (Liner m _ _ _ _ _) = let !res = Map.mapMaybe f m
                    in case null res of
                         True -> Zero
-                        False -> Liner res
+                        False -> linerFromMap res
         where
             {-# INLINE f #-}
             f (Pair hs ns) = let (h, n) = (sum hs,sum ns)
@@ -515,9 +621,14 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
     {-# INLINE compress #-}
     compress Zero       = Zero
     compress (v:@b)     = v:@b
-    compress (Liner m)  = Liner
-                        $ Map.map (\ (Pair hs ns) -> Pair (Seq.singleton (sum hs))
-                                                          (Seq.singleton (sum ns))) m
+    compress (Liner m idx bpToId idToBp nextBpId allIds)  = Liner
+                        (Map.map (\ (Pair hs ns) -> Pair (Seq.singleton (sum hs))
+                                                          (Seq.singleton (sum ns))) m)
+                        idx
+                        bpToId
+                        idToBp
+                        nextBpId
+                        allIds
 
 
 instance (HatVal n, ExBaseClass b) =>  Exchange Alg n b where
@@ -551,10 +662,11 @@ instance (HatVal n, ExBaseClass b) =>  Exchange Alg n b where
 
 -- | vals
 -- get vals
+-- Complexity: O(s), where s is total number of scalar entries stored in all pairs.
 vals :: (HatVal v, HatBaseClass b) => Alg v b -> [v]
 vals Zero = []
 vals (v:@b) = [v]
-vals (Liner m) =
+vals (Liner m _ _ _ _ _) =
     reverse $
         Map.foldl'
             (\acc (Pair hs ns) ->
@@ -568,10 +680,11 @@ vals (Liner m) =
 
 -- | bases
 -- get bases
+-- Complexity: O(s), where s is total number of scalar entries stored in all pairs.
 bases :: (HatVal v, HatBaseClass b) => Alg v b -> [b]
 bases Zero = []
 bases (v:@b) = [b]
-bases (Liner m) = Map.foldlWithKey' f [] m
+bases (Liner m _ _ _ _ _) = Map.foldlWithKey' f [] m
     where
         f ::  (HatVal v, HatBaseClass b) => [b] -> BasePart b -> Pair v ->  [b]
         f xs b (Pair {_hatSide = hs, _notSide = ns})
@@ -582,6 +695,7 @@ bases (Liner m) = Map.foldlWithKey' f [] m
 
 {-# INLINE fromList #-}
 -- | convert List to Alg n b
+-- Complexity: O(sum of 'union' costs), because this is implemented via 'mconcat'.
 --
 -- >>> type Test = Alg NN.Double (HatBase AccountTitles)
 -- >>> xs = [1:@Hat:<Cash,1:@Not:<Deposits, 2:@Hat:<Cash, 2:@Not:<Deposits] :: [Test]
@@ -600,6 +714,7 @@ fromList = mconcat
 
 
 -- | sigma 
+-- Complexity: O(sum of 'union' costs over produced elements).
 --
 -- >>> type Test = Alg NN.Double (HatBase CountUnit)
 -- >>> sigma [1,2] (\x -> x:@Hat:<Yen)
@@ -609,6 +724,7 @@ sigma :: (HatVal v, HatBaseClass b) => [a] -> (a -> Alg v b) -> Alg v b
 sigma xs f = L.foldl' (\acc x -> acc <> f x) Zero xs
 
 -- | convert Alg n b to List
+-- Complexity: O(s), where s is total number of scalar entries.
 --
 -- >>> toList (10:@Hat:<(Cash) .+ 10:@Hat:<(Deposits) .+ Zero :: Alg NN.Double (HatBase AccountTitles))
 -- [10.00:@Hat:<Deposits,10.00:@Hat:<Cash]
@@ -619,7 +735,7 @@ sigma xs f = L.foldl' (\acc x -> acc <> f x) Zero xs
 toList :: (HatVal v, HatBaseClass b) => Alg v b -> [Alg v b]
 toList Zero       = []
 toList (v:@b)     = [v:@b]
-toList (Liner m)  = Map.foldlWithKey' f [] m
+toList (Liner m _ _ _ _ _)  = Map.foldlWithKey' f [] m
     where
         f :: (HatVal v, HatBaseClass b) =>  [Alg v b] -> BasePart b -> Pair v -> [Alg v b]
         f xs b Pair {_hatSide = hs, _notSide = ns}
@@ -631,11 +747,13 @@ toList (Liner m)  = Map.foldlWithKey' f [] m
             | otherwise     = (v :@ (merge h b)):ys
 
 {-# INLINE toASCList #-}
+-- | Complexity: O(s log s), dominated by sorting the list representation.
 toASCList :: (HatVal v, HatBaseClass b) => Alg v b -> [Alg v b]
 toASCList = L.sort . toList
 
 
 -- | map
+-- Complexity: O(s + c), where s is traversed scalar entries and c is transformed output size.
 --
 -- >>> type Test = Alg Double (HatBase CountUnit)
 -- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
@@ -656,7 +774,7 @@ map f (v:@b)    = let  v2:@b2 = f (v:@b)
                 in case isZeroValue v2 of
                     True  -> Zero
                     False -> (v2 :@ b2)
-map f (Liner m) = mkAlgFromMap $ (Map.foldrWithKey (p f) dnilMap m) Map.empty
+map f (Liner m _ _ _ _ _) = mkAlgFromMap $ (Map.foldrWithKey (p f) dnilMap m) Map.empty
     where
         {-# INLINE dnilMap #-}
         dnilMap = id
@@ -722,28 +840,34 @@ type DList a = [a] -> [a]
 type DMap k v = Map.HashMap k v -> Map.HashMap k v
 
 {-# INLINE dnil #-}
+-- | Complexity: O(1)
 dnil :: DList a
 dnil = id
 
 {-# INLINE dappend #-}
+-- | Complexity: O(1)
 dappend :: DList a -> DList a -> DList a
 dappend = (.)  -- 関数合成
 
 {-# INLINE dsingle #-}
+-- | Complexity: O(1)
 dsingle :: a -> DList a
 dsingle x = \rest -> x : rest
 
 {-# INLINE dToList #-}
+-- | Complexity: O(k), where k is the resulting list length.
 dToList :: DList a -> [a]
 dToList dl = dl []
 
 {-# INLINE dFromList #-}
+-- | Complexity: O(k) to capture the prefix list xs.
 dFromList :: [a] -> DList a
 dFromList xs = (xs ++)
 
 
 {-# INLINE filter #-}
 -- | filter
+-- Complexity: O(s), where s is total number of scalar entries.
 --
 -- >>> type Test = Alg Double (HatBase CountUnit)
 -- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
@@ -763,7 +887,7 @@ filter f Zero                 = Zero
 filter f (v:@b) | f (v:@b)    = v:@b
                 | otherwise   = Zero
 
-filter f (Liner m) =
+filter f (Liner m _ _ _ _ _) =
     -- mapMaybeWithKey で新しい Map を構築
     let m' = Map.mapMaybeWithKey
                (\basePart (Pair hs ns) ->
@@ -778,7 +902,7 @@ filter f (Liner m) =
              m
     in
       -- 結果の Map が空なら Zero, そうでなければ Liner m'
-      if Map.null m' then Zero else Liner m'
+      if Map.null m' then Zero else linerFromMap m'
   where
     ----------------------------------------------------------------
     -- basePart と Hat/Not を元に「v:@(merge h basePart)」を作り，
@@ -790,6 +914,11 @@ filter f (Liner m) =
 
 ------------------------------------------------------------
 -- | proj
+-- Complexity:
+--   - exact single-key path: expected O(1)
+--   - wildcard single-key path: O(queryAxisPosting + c * verify)
+--   - multi-pattern path: O(sum pattern costs + union costs)
+-- where c is candidate count returned by the posting index.
 -- >>> type Test = Alg NN.Double (HatBase CountUnit)
 -- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
 -- >>> y = 2:@Not:<Yen .+ 2:@Hat:<Amount :: Test
@@ -823,63 +952,47 @@ filter f (Liner m) =
 proj :: (HatVal v, HatBaseClass b)  => [b] -> Alg v b -> Alg v b
 proj []     _         = Zero
 proj _     Zero       = Zero
+proj [b] (v:@b2)
+    | b .== b2  = v:@b2
+    | otherwise = Zero
+proj [b] (Liner m idx _ idToBp _ allIds)
+    | haveWiledcard (base b) = mkAlgFromMap $
+        let !ids = queryAxisPosting (toAxisKeys (base b)) idx allIds
+        in IntSet.foldl'
+            (\acc bpId -> case IntMap.lookup bpId idToBp of
+                Nothing -> acc
+                Just bp -> case Map.lookup bp m of
+                    Nothing -> acc
+                    Just p  -> if (base b) .== bp
+                        then Map.insert bp (choose bp p) acc
+                        else acc)
+            Map.empty
+            ids
+    | otherwise = case Map.lookup (base b) m of
+        Nothing -> Zero
+        Just p  -> mkAlgFromMap $ Map.singleton (base b) (choose (base b) p)
+  where
+    choose _ Pair {_hatSide = hs, _notSide = ns} =
+        case hat b of
+            Hat    -> nullPair {_hatSide = hs}
+            Not    -> nullPair {_notSide = ns}
+            HatNot -> Pair {_hatSide = hs, _notSide = ns}
 proj (b:bs) (v:@b2)
     |  b .== b2       = v:@b2
     | otherwise       = proj bs (v:@b2)
-proj (b:bs) (Liner m) = mkAlgFromMap $ go (b:bs) m Map.empty
-    where
-    {-# INLINE dnilMap #-}
-    dnilMap = id
-    {-# INLINE dappendMap #-}
-    dappendMap = (.)
-    {-# INLINE dsingleMap #-}
-    dsingleMap (bp, p') = Map.insertWith pairAppend bp p'
-
-    {-# INLINE go #-}
-    go :: (HatVal v, HatBaseClass b)
-       => [b]
-       -> Map.HashMap (BasePart b) (Pair v)
-       -> DMap (BasePart b) (Pair v)
-    go [] _ = dnilMap
-    go (b:bs)  m
-        | null m                 = dnilMap
-        | haveWiledcard (base b) = dappendMap (Map.foldrWithKey (f b) dnilMap m)
-                                 $ go bs m
-
-        | otherwise = case Map.lookup (base b) m of
-                            Nothing -> go bs m
-                            Just Pair {_hatSide = hs
-                                      ,_notSide = ns} -> let res = case hat b of
-                                                                    Hat    -> ((base b), nullPair {_hatSide = hs})
-                                                                    Not    -> ((base b), nullPair {_notSide = ns})
-                                                                    HatNot -> ((base b), Pair {_hatSide = hs
-                                                                                              ,_notSide = ns})
-                                                       in dappendMap (dsingleMap res) (go bs m)
-    {-# INLINE f #-}
-    f ::  (HatVal v, HatBaseClass b)
-       => b
-       -> BasePart b
-       -> Pair v
-       -> DMap (BasePart b) (Pair v)
-       -> DMap (BasePart b) (Pair v)
-    f b bp Pair {_hatSide=hs, _notSide=ns} accDList
-        | (base b) .== bp = let res = case hat b of
-                                        Hat    -> (bp, nullPair {_hatSide = hs})
-                                        Not    -> (bp, nullPair {_notSide = ns})
-                                        HatNot -> (bp, Pair {_hatSide = hs
-                                                            ,_notSide = ns})
-                          in dappendMap (dsingleMap res) accDList
-        | otherwise       = accDList
+proj (b:bs) a@(Liner _ _ _ _ _ _) = L.foldl' (\acc q -> union acc (proj [q] a)) Zero (b:bs)
 
 {-# INLINE mkAlgFromMap #-}
+-- | Complexity: O(n) to inspect shape and possibly rebuild index.
 mkAlgFromMap :: (HatVal v, HatBaseClass b) => Map.HashMap (BasePart b) (Pair v) -> Alg v b
 mkAlgFromMap m
     | Map.null m = Zero
     | otherwise  = case Map.toList m of
-        [(b, p)] -> Maybe.fromMaybe (Liner $ Map.singleton b p) (singlePairToAlg b p)
-        _                  -> Liner m
+        [(b, p)] -> Maybe.fromMaybe (linerFromMap $ Map.singleton b p) (singlePairToAlg b p)
+        _        -> linerFromMap m
 
 {-# INLINE singlePairToAlg #-}
+-- | Complexity: O(1)
 singlePairToAlg :: (HatVal v, HatBaseClass b) => BasePart b -> Pair v -> Maybe (Alg v b)
 singlePairToAlg b (Pair hs ns) = case (Seq.viewl hs, Seq.viewl ns) of
     (Seq.EmptyL, n Seq.:< nsRest) | Seq.null nsRest -> Just (n :@ merge Not b)
@@ -889,13 +1002,16 @@ singlePairToAlg b (Pair hs ns) = case (Seq.viewl hs, Seq.viewl ns) of
 ------------------------------------------------------------------
 
 -- | proj devit algs の代わりに Elem に Text や Int などがある場合は projCredit を使う
+-- Complexity: O(s), implemented via 'filter'.
 projCredit :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projCredit = filter (\x -> (whichSide . _hatBase) x == Credit)
 
 -- | proj debit algs の代わりに Elem に Text や Int などがある場合は projDebit を使う
+-- Complexity: O(s), implemented via 'filter'.
 projDebit :: (HatVal n, ExBaseClass b)  => Alg n b -> Alg n b
 projDebit = filter (\x -> (whichSide . _hatBase) x == Credit)
 
+-- | Complexity: O(s), implemented via 'filter'.
 projByAccountTitle :: (HatVal n, ExBaseClass b) => AccountTitles -> Alg n b -> Alg n b
 projByAccountTitle at alg = filter (f at) alg
     where
@@ -903,17 +1019,20 @@ projByAccountTitle at alg = filter (f at) alg
         f at Zero = False
         f at x    = ((getAccountTitle ._hatBase) x) .== at
 
+-- | Complexity: O(cost(proj) + cost(bar) + cost(norm)).
 projNorm :: (HatVal n, HatBaseClass b) => [b] -> Alg n b -> n
 projNorm bs alg  = norm $ (.-) $ proj bs alg
 
 
 -- | 流動資産の取得
+-- Complexity: O(s), a constant-depth composition of filters.
 projCurrentAssets :: ( HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projCurrentAssets  = (filter (\x -> (fixedCurrent . _hatBase) x == Current))
                    . (filter (\x -> (whatDiv . _hatBase) x      == Assets))
                    . projDebit
 
 -- | 固定資産
+-- Complexity: O(s), a constant-depth composition of filters.
 projFixedAssets :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projFixedAssets = (filter (\x -> (fixedCurrent . _hatBase) x == Fixed))
                 . (filter (\x -> (whatDiv . _hatBase) x      == Assets))
@@ -921,24 +1040,28 @@ projFixedAssets = (filter (\x -> (fixedCurrent . _hatBase) x == Fixed))
 
 -- | 繰延資産
 -- 税法固有の繰延資産は、「投資その他の資産」に長期前払費用等の適当な項目を付して表示する。
+-- Complexity: O(s), a constant-depth composition of filters.
 projDeferredAssets :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projDeferredAssets  = (filter (\x -> (fixedCurrent . _hatBase) x == Other))
                     . (filter (\x -> (whatDiv . _hatBase) x      == Assets))
                     . projDebit
 
 -- | 流動負債
+-- Complexity: O(s), a constant-depth composition of filters.
 projCurrentLiability :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projCurrentLiability  = (filter (\x -> (fixedCurrent . _hatBase) x == Current))
                       . (filter (\x -> (whatDiv . _hatBase) x      == Liability))
                       . projCredit
 
 -- | 固定負債
+-- Complexity: O(s), a constant-depth composition of filters.
 projFixedLiability :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projFixedLiability  = (filter (\x -> (fixedCurrent . _hatBase) x == Fixed))
                     . (filter (\x -> (whatDiv . _hatBase) x      == Liability))
                     . projCredit
 
 -- | 株主資本
+-- Complexity: O(1) currently (undefined placeholder).
 projCapitalStock :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projCapitalStock = undefined
 
@@ -946,6 +1069,7 @@ projCapitalStock = undefined
 -- * バランス
 
 {- | バランスしていない場合の処理 -}
+-- Complexity: O(1) currently (undefined placeholder).
 forceBalance = undefined
 
 
@@ -958,4 +1082,5 @@ forceBalance = undefined
 -}
 
 rounding :: NN.Double -> NN.Double
+-- Complexity: O(1)
 rounding = fromIntegral . ceiling

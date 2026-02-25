@@ -31,70 +31,72 @@ import qualified    CSV.Text                    as CSV
 import qualified    Data.List                   as L
 import qualified    Data.Text                   as T
 
-import              Data.IORef
 import              Control.Monad
 import qualified    Data.Set as Set
 import              Data.Array.IO
--- Day
-import qualified    Data.Time           as Time
-import              Data.Time
+import              Data.Time           (Day)
 
 tshow :: (Show a) => a -> T.Text
 tshow = T.pack . show
 
 -- | BalanceSheet貸借対照表の形でCSVで出力する
 writeBS :: (HatVal n, HatBaseClass b, ExBaseClass b) => FilePath -> Alg n b -> IO ()
-writeBS path alg
-    =  let transferd       = ET.finalStockTransfer alg
-    in let debitSide       = decR transferd
-    in let creditSide      = decL transferd
-    in let assets          = creditSide
-    in let liability       = EA.filter (\x -> whatDiv (_hatBase x) == Liability) debitSide
-    in let equity          = EA.filter (\x -> whatDiv (_hatBase x) == Equity) debitSide
-    in let debitTotal      = T.pack $ show $ EA.norm debitSide
-    in let creditTotal     = T.pack $ show $ EA.norm creditSide
-    in let assetsText      = L.map (T.pack . show) $ L.map (getAccountTitle . _hatBase) (EA.toList assets)
-    in let assetsValue     = L.map (T.pack . show) $ L.map _val (EA.toList assets)
-    in let liabilityText   = L.map (T.pack . show) $ L.map (getAccountTitle . _hatBase) (EA.toList liability)
-    in let liabilityValue  = L.map (T.pack . show) $ L.map _val (EA.toList liability)
-    in let equityText      = L.map (T.pack . show) $ L.map (getAccountTitle . _hatBase) (EA.toList equity)
-    in let equityValue     = L.map (T.pack . show) $ L.map _val (EA.toList equity)
-    in let result          = CSV.transpose
-                           [[T.pack "Asset"]       ++ assetsText     ++ [T.pack "Total"]
-                           ,[T.empty]              ++ assetsValue    ++ [creditTotal]
-                           ,[T.pack "Liability"]   ++ liabilityText  ++ [T.pack "Equity"] ++ equityText  ++ [T.pack "Total"]
-                           ,[T.empty]              ++ liabilityValue ++ [T.empty]         ++ equityValue ++ [debitTotal]]
-    in CSV.writeCSV path result
+writeBS path alg = CSV.writeCSV path result
+  where
+    transferred = ET.finalStockTransfer alg
+    debitSide = decR transferred
+    creditSide = decL transferred
+    assets = creditSide
+    liability = EA.filter (\x -> whatDiv (_hatBase x) == Liability) debitSide
+    equity = EA.filter (\x -> whatDiv (_hatBase x) == Equity) debitSide
+    debitTotal = tshow (EA.norm debitSide)
+    creditTotal = tshow (EA.norm creditSide)
+    assetsText = L.map (tshow . getAccountTitle . _hatBase) (EA.toList assets)
+    assetsValue = L.map (tshow . _val) (EA.toList assets)
+    liabilityText = L.map (tshow . getAccountTitle . _hatBase) (EA.toList liability)
+    liabilityValue = L.map (tshow . _val) (EA.toList liability)
+    equityText = L.map (tshow . getAccountTitle . _hatBase) (EA.toList equity)
+    equityValue = L.map (tshow . _val) (EA.toList equity)
+    result = CSV.transpose
+      [ [T.pack "Asset"] ++ assetsText ++ [T.pack "Total"]
+      , [T.empty] ++ assetsValue ++ [creditTotal]
+      , [T.pack "Liability"] ++ liabilityText ++ [T.pack "Equity"] ++ equityText ++ [T.pack "Total"]
+      , [T.empty] ++ liabilityValue ++ [T.empty] ++ equityValue ++ [debitTotal]
+      ]
 
 -- | Profit and Loss Statement 損益計算書の形でCSVで出力する
 writePL :: (HatVal n, HatBaseClass b, ExBaseClass b) => FilePath -> Alg n b -> IO ()
-writePL path alg
-    =  let debitSide       = decR alg
-    in let creditSide      = decL alg
-    in let cost            = EA.filter (\x -> whatDiv (_hatBase x) == Cost) creditSide
-    in let revenue         = EA.filter (\x -> whatDiv (_hatBase x) == Revenue) debitSide
-    in let debitTotal      = T.pack $ show $ EA.norm cost
-    in let creditTotal     = T.pack $ show $ EA.norm revenue
-    in let costText        = L.map (T.pack . show) $ L.map (getAccountTitle . _hatBase) (EA.toList cost)
-    in let costValue       = L.map (T.pack . show) $ L.map _val (EA.toList cost)
-    in let revenueText     = L.map (T.pack . show) $ L.map (getAccountTitle . _hatBase) (EA.toList revenue)
-    in let revenueValue    = L.map (T.pack . show) $ L.map _val (EA.toList revenue)
-    in let (ct,rt) = toSameLength costText revenueText
-    in let (cv,rv) = toSameLength costValue revenueValue
-    in let result          = CSV.transpose
-                           [[T.pack "Cost"]       ++ ct ++ [T.pack "Total"]
-                           ,[T.empty]             ++ cv ++ [creditTotal]
-                           ,[T.pack "Revenue"]    ++ rt ++ [T.pack "Total"]
-                           ,[T.empty]             ++ rv ++ [debitTotal]]
-    in CSV.writeCSV path result
+writePL path alg = CSV.writeCSV path result
+  where
+    debitSide = decR alg
+    creditSide = decL alg
+    cost = EA.filter (\x -> whatDiv (_hatBase x) == Cost) creditSide
+    revenue = EA.filter (\x -> whatDiv (_hatBase x) == Revenue) debitSide
+    debitTotal = tshow (EA.norm cost)
+    creditTotal = tshow (EA.norm revenue)
+    costText = L.map (tshow . getAccountTitle . _hatBase) (EA.toList cost)
+    costValue = L.map (tshow . _val) (EA.toList cost)
+    revenueText = L.map (tshow . getAccountTitle . _hatBase) (EA.toList revenue)
+    revenueValue = L.map (tshow . _val) (EA.toList revenue)
+    (ct, rt) = toSameLength costText revenueText
+    (cv, rv) = toSameLength costValue revenueValue
+    result = CSV.transpose
+      [ [T.pack "Cost"] ++ ct ++ [T.pack "Total"]
+      , [T.empty] ++ cv ++ [creditTotal]
+      , [T.pack "Revenue"] ++ rt ++ [T.pack "Total"]
+      , [T.empty] ++ rv ++ [debitTotal]
+      ]
 
 -- | 同じ長さのリストに揃える関数
 toSameLength :: [T.Text] -> [T.Text] -> ([T.Text],[T.Text])
-toSameLength xs ys
-    = case (compare (Prelude.length xs) (Prelude.length ys)) of
-        EQ -> (xs,ys)
-        LT -> (xs ++ (take ((Prelude.length ys) - (Prelude.length xs)) (repeat T.empty)),ys)
-        GT -> (xs,ys ++ (take ((Prelude.length xs) - (Prelude.length ys)) (repeat T.empty)))
+toSameLength xs ys =
+    case compare lx ly of
+        EQ -> (xs, ys)
+        LT -> (xs ++ replicate (ly - lx) T.empty, ys)
+        GT -> (xs, ys ++ replicate (lx - ly) T.empty)
+  where
+    lx = Prelude.length xs
+    ly = Prelude.length ys
 
 -- | Journal Entry 仕訳
 -- 日付,勘定科目,金額を借方,貸方別に記録
@@ -104,40 +106,25 @@ writeJournal :: (HatVal n, HatBaseClass b, ExBaseClass b)
              -> (b -> Day)
              -> IO ()
 writeJournal path alg f = do
-    let debitSide       = decR alg
-    let creditSide      = decL alg
-    let debitTotal      = T.pack $ show $ EA.norm debitSide
-    let creditTotal     = T.pack $ show $ EA.norm creditSide
-    let days     =  L.sort $ Set.toList . Set.fromList $ L.map (f . _hatBase) $ EA.toList alg
-    ds <- newIORef [(T.pack "Day")]
-    dt <- newIORef [(T.pack "Debit")]
-    dv <- newIORef [(T.pack "Amount")]
-    ct <- newIORef [(T.pack "Credit")]
-    cv <- newIORef [(T.pack "Amount")]
-    forM_ days $ \d -> do
+    let days = L.sort $ Set.toList . Set.fromList $ L.map (f . _hatBase) $ EA.toList alg
+    rows <- forM days $ \d -> do
         let da = EA.filter (\y -> (f . _hatBase) y == d) alg
         let dl = decL da
         let dr = decR da
-        let dlTexts = L.map (T.pack . show) $ L.map (getAccountTitle . _hatBase) $ EA.toList dl
-        let drTexts = L.map (T.pack . show) $ L.map (getAccountTitle . _hatBase) $ EA.toList dr
-        let dlValues = L.map (T.pack . show) $ L.map _val $ EA.toList dl
-        let drValues = L.map (T.pack . show) $ L.map _val $ EA.toList dr
-        let (dt',ct') = toSameLength dlTexts drTexts
-        let (dv',cv') = toSameLength dlValues drValues
-        let (ds',_) = toSameLength [(T.pack . show) d] cv'
-        modifyIORef ds (++ ds')
-        modifyIORef dt (++ dt')
-        modifyIORef dv (++ dv')
-        modifyIORef ct (++ ct')
-        modifyIORef cv (++ cv')
-    ds' <- readIORef ds
-    dt' <- readIORef dt
-    dv' <- readIORef dv
-    ct' <- readIORef ct
-    cv' <- readIORef cv
-
-    let result = CSV.transpose [ds',dt',dv',ct',cv']
-    CSV.writeCSV path result
+        let dlTexts = L.map (tshow . getAccountTitle . _hatBase) (EA.toList dl)
+        let drTexts = L.map (tshow . getAccountTitle . _hatBase) (EA.toList dr)
+        let dlValues = L.map (tshow . _val) (EA.toList dl)
+        let drValues = L.map (tshow . _val) (EA.toList dr)
+        let (dt', ct') = toSameLength dlTexts drTexts
+        let (dv', cv') = toSameLength dlValues drValues
+        let (ds', _) = toSameLength [tshow d] cv'
+        pure (ds', dt', dv', ct', cv')
+    let ds = [T.pack "Day"] ++ concatMap (\(a,_,_,_,_) -> a) rows
+    let dt = [T.pack "Debit"] ++ concatMap (\(_,a,_,_,_) -> a) rows
+    let dv = [T.pack "Amount"] ++ concatMap (\(_,_,a,_,_) -> a) rows
+    let ct = [T.pack "Credit"] ++ concatMap (\(_,_,_,a,_) -> a) rows
+    let cv = [T.pack "Amount"] ++ concatMap (\(_,_,_,_,a) -> a) rows
+    CSV.writeCSV path (CSV.transpose [ds, dt, dv, ct, cv])
 
 
 -- | Account 勘定口座
@@ -147,7 +134,7 @@ writeAccountOf :: (HatVal n, HatBaseClass b, ExBaseClass b)
              -> Alg n b
              -> (b -> Day)
              -> IO ()
-writeAccountOf path alg f = undefined
+writeAccountOf _ _ _ _ = undefined
 
 
 -- | 合計残高試算表
@@ -165,47 +152,38 @@ writeCompoundTrialBalance path alg = do
                  $ Set.toList . Set.fromList
                  $ L.map (getAccountTitle . _hatBase)
                  $ EA.toList alg
-    result             <- newIORef ([header] :: [[T.Text]])
-    debitBalanceTotal  <- newIORef zeroValue
-    debitTotal         <- newIORef zeroValue
-    creditBalanceTotal <- newIORef zeroValue
-    creditTotal        <- newIORef zeroValue
-    ------------------------------------------------------------------
-    forM_ accounts $ \a -> do
+    let (lines', debitBalanceTotal, debitTotal, creditBalanceTotal, creditTotal) =
+            L.foldl' step ([], zeroValue, zeroValue, zeroValue, zeroValue) accounts
+    let totalLine = [ tshow debitBalanceTotal
+                    , tshow creditTotal
+                    , T.pack "Total"
+                    , tshow debitTotal
+                    , tshow creditBalanceTotal
+                    ]
+    CSV.writeCSV path (header : lines' ++ [totalLine])
+  where
+    step (accLines, dbt, dt, cbt, ct) a =
         let xs = projByAccountTitle a alg
-        let xr = norm $ decR xs
-        modifyIORef debitTotal (+ xr)
-        let xl = norm $ decL xs
-        modifyIORef creditTotal (+ xl)
-        let (dc,diff) = diffRL xs
-        case dc of
-            Credit -> modifyIORef debitBalanceTotal (+ diff)
-            Debit  -> modifyIORef creditBalanceTotal (+ diff)
-
-        let line  = case dc of
-                Credit  -> [(T.pack . show) diff
-                           ,(T.pack . show) xl
-                           ,(T.pack . show) a
-                           ,(T.pack . show) xr
-                           ,T.empty]
-                Debit   -> [T.empty
-                           ,(T.pack . show) xl
-                           ,(T.pack . show) a
-                           ,(T.pack . show) xr
-                           ,(T.pack . show) diff]
-        modifyIORef result (\x -> x ++ [line])
-    ------------------------------------------------------------------
-    debitBalanceTotal'  <- readIORef debitBalanceTotal
-    debitTotal'         <- readIORef debitTotal
-    creditBalanceTotal' <- readIORef creditBalanceTotal
-    creditTotal'        <- readIORef creditTotal
-    modifyIORef result  $ \x -> x ++ [[(T.pack . show) debitBalanceTotal'
-                                      ,(T.pack . show) creditTotal'
-                                      ,T.pack "Total"
-                                      ,(T.pack . show) debitTotal'
-                                      ,(T.pack . show) creditBalanceTotal']]
-    result' <- readIORef result
-    CSV.writeCSV path result'
+            xr = norm (decR xs)
+            xl = norm (decL xs)
+            (dc, diff) = diffRL xs
+            (dbt', cbt') = case dc of
+                Credit -> (dbt + diff, cbt)
+                Debit  -> (dbt, cbt + diff)
+            line = case dc of
+                Credit -> [ tshow diff
+                          , tshow xl
+                          , tshow a
+                          , tshow xr
+                          , T.empty
+                          ]
+                Debit  -> [ T.empty
+                          , tshow xl
+                          , tshow a
+                          , tshow xr
+                          , tshow diff
+                          ]
+         in (accLines ++ [line], dbt', dt + xr, cbt', ct + xl)
 
 
 ------------------------------------------------------------------
@@ -216,19 +194,13 @@ writeCompoundTrialBalance path alg = do
 writeTermIO :: (HatVal n,BaseClass b, StateTime t, Ix b, Ix t, Enum b)
             => FilePath -> t -> IOArray (t, b, b) n  -> IO ()
 writeTermIO path t arr = do
-            ((tMin, c1Min, c2Min), (tMax, c1Max, c2Max)) <- getBounds arr
-            let rows = [c1Min .. c1Max]
-            let cols = [c2Min .. c2Max]
-            result <- newIORef ([(T.pack ""):(L.map tshow cols)] :: [[T.Text]])
-            forM_ rows $ \r -> do
-                line <- newIORef ([tshow r] :: [T.Text])
-                forM_ cols $ \c -> do
-                    v <- readArray arr (t,r,c)
-                    modifyIORef line (\xs -> xs ++ [tshow v])
-                line' <- readIORef line
-                modifyIORef result (\xs -> xs ++ [line'])
-            result' <- readIORef result
-            CSV.writeCSV path result'
+    ((_, c1Min, c2Min), (_, c1Max, c2Max)) <- getBounds arr
+    let rows = [c1Min .. c1Max]
+    let cols = [c2Min .. c2Max]
+    body <- forM rows $ \r -> do
+        vals <- forM cols $ \c -> tshow <$> readArray arr (t, r, c)
+        pure (tshow r : vals)
+    CSV.writeCSV path ((T.pack "" : L.map tshow cols) : body)
 
 -- | 与えられたInput-Output TableをCSVとして出力する
 -- CSVとして出力する関数
@@ -238,16 +210,9 @@ writeIOMatrix path arr = do
     ((r1, c1), (r2, c2)) <- getBounds arr
     let rows = [r1 .. r2]
     let cols = [c1 .. c2]
-    result <- newIORef ([(T.pack ""):(L.map tshow cols)] :: [[T.Text]])
-    forM_ rows $ \r -> do
-        line <- newIORef ([tshow r] :: [T.Text])
-        forM_ cols $ \c -> do
-            v <- readArray arr (r, c)
-            modifyIORef line (\xs -> xs ++ [T.pack (show v)])
-        line' <- readIORef line
-        modifyIORef result (\xs -> xs ++ [line'])
-    result' <- readIORef result
-    CSV.writeCSV path result'
+    body <- forM rows $ \r -> do
+        vals <- forM cols $ \c -> tshow <$> readArray arr (r, c)
+        pure (tshow r : vals)
+    CSV.writeCSV path ((T.pack "" : L.map tshow cols) : body)
 
 ------------------------------------------------------------------
-

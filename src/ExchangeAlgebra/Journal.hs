@@ -25,7 +25,6 @@
 {-# LANGUAGE ViewPatterns               #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE PatternSynonyms, ViewPatterns #-}
 
 module ExchangeAlgebra.Journal
     ( module ExchangeAlgebra.Algebra.Base
@@ -61,20 +60,9 @@ import              ExchangeAlgebra.Algebra ( HatVal(..)
                                             , Exchange(..)
                                             , pattern (:@)
                                             , (.@))
-import qualified    Data.List               as L    ( foldr1
-                                                    , foldr
-                                                    , map
-                                                    , length
-                                                    , elem
-                                                    , sort
-                                                    , foldl1
-                                                    , filter
-                                                    , or
-                                                    , and
-                                                    , sum)
-import              Prelude                 hiding (map, head, filter,tail, traverse, mapM)
+import              Prelude                 hiding (map, filter)
 import qualified    Data.HashMap.Strict as Map
-import Control.Parallel.Strategies (using,parTraversable, rdeepseq, NFData,runEval)
+import Control.Parallel.Strategies (using,parTraversable, rdeepseq, NFData)
 import qualified Data.Set as S
 import Data.Hashable
 import qualified Data.Text as T
@@ -110,8 +98,8 @@ data Journal n v b where
 
 isZero :: (HatVal v, HatBaseClass b, Note n)
        => Journal n v b -> Bool
-isZero (Journal js) | null js   = True
-                    | otherwise = False
+-- | Complexity: O(1)
+isZero (Journal js) = Map.null js
 
 pattern Zero :: (HatVal v, HatBaseClass b, Note n) => Journal n v b
 pattern Zero <- (isZero -> True)
@@ -119,6 +107,7 @@ pattern Zero <- (isZero -> True)
         Zero = Journal Map.empty
 
 -- | smart constructer of :||
+-- Complexity: O(1)
 (.|) :: (HatVal v, HatBaseClass b, Note n)
       => Alg v b -> n -> Journal n v b
 (.|) alg n = Journal (Map.singleton n alg)
@@ -137,11 +126,11 @@ instance (HatVal v, HatBaseClass b, Note n) => Show (Journal n v b) where
             f k a t | isPlank k = if t == ""
                                     then show a
                                     else t ++ " .+ " ++ show a
-                    | otherwise = L.foldr (\x y -> if y == ""
-                                                then show x ++ ".|" ++ show k
-                                                else y ++ " .+ " ++ show x ++ ".|" ++ show k)
-                                          t
-                                          (EA.toASCList a)
+                    | otherwise = foldr (\x y -> if y == ""
+                                              then show x ++ ".|" ++ show k
+                                              else y ++ " .+ " ++ show x ++ ".|" ++ show k)
+                                        t
+                                        (EA.toASCList a)
 ------------------------------------------------------------------
 
 instance  (HatVal v, HatBaseClass b, Note n) => Semigroup (Journal n v b) where
@@ -161,6 +150,8 @@ instance  (HatVal v, HatBaseClass b, Note n) => Semigroup (Journal n v b) where
 
 addJournal :: (HatVal v, HatBaseClass b, Note n)
            => Journal n v b -> Journal n v b -> Journal n v b
+-- | Complexity: O(jx + jy + overlap-merge-cost)
+-- where jx/jy are note counts in each journal.
 addJournal (Journal xs) (Journal ys) = Journal (Map.unionWith (.+) xs ys)
 
 
@@ -170,7 +161,7 @@ instance (HatVal v, HatBaseClass b, Note n) => Monoid (Journal n v b) where
     mappend = (<>)
 
 instance (HatVal v, HatBaseClass b, Note n) => Redundant (Journal n) v b where
-    (.^) = parMap (.^)
+    (.^) = map (.^)
 
     (.+) = mappend
 
@@ -180,21 +171,21 @@ instance (HatVal v, HatBaseClass b, Note n) => Redundant (Journal n) v b where
 
     (.-) x = map (.-) (gather plank x)
 
-    compress = parMap compress
+    compress = map compress
 
 
 instance (Note n, HatVal v, ExBaseClass b) =>  Exchange (Journal n) v b where
     -- | filter Debit side
-    decR js = parMap (EA.filter (\x -> x /= EA.Zero && (whichSide . EA._hatBase) x == Debit)) js
+    decR js = map (EA.filter (\x -> x /= EA.Zero && (whichSide . EA._hatBase) x == Debit)) js
 
     -- | filter Credit side
-    decL xs = parMap (EA.filter (\x -> x /= EA.Zero && (whichSide . EA._hatBase) x == Credit)) xs
+    decL xs = map (EA.filter (\x -> x /= EA.Zero && (whichSide . EA._hatBase) x == Credit)) xs
 
     -- | filter Plus Stock
-    decP xs = parMap (EA.filter (\x -> x /= EA.Zero && (isHat . EA._hatBase ) x)) xs
+    decP xs = map (EA.filter (\x -> x /= EA.Zero && (isHat . EA._hatBase ) x)) xs
 
     -- | filter Minus Stock
-    decM xs = parMap (EA.filter (\x -> x /= EA.Zero && (not. isHat. EA._hatBase) x)) xs
+    decM xs = map (EA.filter (\x -> x /= EA.Zero && (not. isHat. EA._hatBase) x)) xs
 
     -- | check Credit Debit balance
     balance xs  | (norm . decR) xs == (norm . decL) xs = True
@@ -219,15 +210,16 @@ instance (Note n, HatVal v, ExBaseClass b) =>  Exchange (Journal n) v b where
 
 fromList :: (HatVal v, HatBaseClass b, Note n)
          => [Journal n v b] -> Journal n v b
-fromList []     = mempty
-fromList [x]    = x
-fromList (x:xs) = x .+ (fromList xs)
+-- | Complexity: O(sum of addJournal costs)
+fromList = foldr (.+) mempty
 
 ------------------------------------------------------------------
 -- | sigma
+-- Complexity: O(sum of addJournal costs over generated terms)
 sigma :: (HatVal v, HatBaseClass b, Note n) => [a] -> (a -> Journal n v b) -> Journal n v b
-sigma xs f = fromList [f x | x <- xs]
+sigma xs f = foldr ((.+) . f) mempty xs
 
+-- | Complexity: O(m + monoid-combine-cost), where m is input length.
 sigmaM :: (Monoid m, Monad m0) => [a] -> (a -> m0 m) -> m0 m
 sigmaM xs f = mconcat <$> CM.forM xs f
 
@@ -235,19 +227,23 @@ sigmaM xs f = mconcat <$> CM.forM xs f
 ------------------------------------------------------------------
 toAlg :: (HatVal v, HatBaseClass b, Note n)
       => Journal n v b -> Alg v b
-toAlg = EA.fromList . Map.elems . _journal
+-- | Complexity: O(j + sum of Alg union costs), where j is note count.
+toAlg (Journal js) = Map.foldl' (.+) EA.Zero js
 
 ------------------------------------------------------------------
 map :: (HatVal v, HatBaseClass b, Note n)
     => (Alg v b -> Alg v b) -> Journal n v b -> Journal n v b
+-- | Complexity: O(j * cost(f)), where j is note count.
 map f (Journal js) = Journal (Map.map f js)
 
 
 parallelMap :: (NFData b, Ord k) => (a -> b) -> Map.HashMap k a -> Map.HashMap k b
+-- | Complexity: O(j * cost(f)) total work; wall-clock may improve with parallelism.
 parallelMap f m = Map.map f m `using` parTraversable rdeepseq
 
 parMap :: (HatVal v, HatBaseClass b, Note n)
     => (Alg v b -> Alg v b) -> Journal n v b -> Journal n v b
+-- | Complexity: O(j * cost(f)) total work; parallel scheduling overhead applies.
 parMap f (Journal js) = Journal (parallelMap f js)
 
 -- | insert
@@ -261,6 +257,7 @@ parMap f (Journal js) = Journal (parallelMap f js)
 
 insert :: (HatVal v, HatBaseClass b, Note n)
         => Journal n v b -> Journal n v b -> Journal n v b
+-- | Complexity: O(jx + jy) expected, based on hash-map union.
 insert (Journal xs) (Journal ys) = Journal (Map.union xs ys)
 
 
@@ -276,6 +273,15 @@ insert (Journal xs) (Journal ys) = Journal (Map.union xs ys)
 
 projWithNote :: (HatVal v, HatBaseClass b, Note n)
              => [n] -> Journal n v b -> Journal n v b
+-- | Complexity:
+--   - wildcard note present: O(1)
+--   - single note: expected O(1)
+--   - multi-note: O(p + j), where p is filter-list length and j is note count.
+projWithNote ns (Journal js)
+    | any isPlank ns = Journal js
+projWithNote [n] (Journal js) = Journal $ case Map.lookup n js of
+    Nothing -> Map.empty
+    Just a  -> Map.singleton n a
 projWithNote ns (Journal js) = Journal $ Map.filterWithKey (\k _ -> S.member k nsSet) js
   where
     nsSet = S.fromList ns
@@ -291,7 +297,8 @@ projWithNote ns (Journal js) = Journal $ Map.filterWithKey (\k _ -> S.member k n
 
 projWithBase :: (HatVal v, HatBaseClass b, Note n)
              => [b] -> Journal n v b -> Journal n v b
-projWithBase [] js = mempty
+-- | Complexity: O(j * cost(EA.proj bs)), where j is note count.
+projWithBase [] _ = mempty
 projWithBase xs js = map (EA.proj xs) js
 
 ------------------------------------------------------------------
@@ -306,13 +313,19 @@ projWithBase xs js = map (EA.proj xs) js
 
 projWithNoteBase :: (HatVal v, HatBaseClass b, Note n)
                  => [n] -> [b] -> Journal n v b -> Journal n v b
-projWithNoteBase [] [] js = mempty
+-- | Complexity: O(cost(projWithNote) + selected-notes * cost(EA.proj bs)).
+projWithNoteBase _ [] _ = mempty
+projWithNoteBase ns bs js | any isPlank ns = projWithBase bs js
+projWithNoteBase [n] bs (Journal js) = Journal $ case Map.lookup n js of
+    Nothing -> Map.empty
+    Just a  -> Map.singleton n (EA.proj bs a)
 projWithNoteBase [] bs js = projWithBase bs js
 projWithNoteBase ns bs js = projWithBase bs $ projWithNote ns js
 
 ------------------------------------------------------------------
 filterWithNote :: (HatVal v, HatBaseClass b, Note n)
              => (n -> Alg v b -> Bool) -> Journal n v b -> Journal n v b
+-- | Complexity: O(j), where j is note count.
 filterWithNote f (Journal js) = Journal (Map.filterWithKey f js)
 
 ------------------------------------------------------------------
@@ -327,14 +340,8 @@ filterWithNote f (Journal js) = Journal (Map.filterWithKey f js)
 
 gather :: (HatVal v, HatBaseClass b, Note n)
        => n -> Journal n v b -> Journal n v b
+-- | Complexity: O(cost(toAlg js))
 gather n js = (toAlg js) .| n
-
-
-
-
-
-
-
 
 
 

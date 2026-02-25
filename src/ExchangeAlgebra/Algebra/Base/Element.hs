@@ -19,6 +19,8 @@
 -}
 
 {-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE UndecidableInstances       #-}
+{-# LANGUAGE ExistentialQuantification  #-}
 {-# LANGUAGE StrictData                 #-}
 {-# LANGUAGE Strict                     #-}
 {-# LANGUAGE DeriveGeneric              #-}
@@ -35,13 +37,14 @@ import              Data.Time
 import Data.Fixed (Pico)
 import GHC.Generics (Generic)
 import Data.Hashable
+import Data.Typeable (Typeable, cast, typeOf)
 
 ------------------------------------------------------------------
 -- * Element 基底の要素
 ------------------------------------------------------------------
 
 -- | Element Class 基底の要素になるためにはこれのインスタンスになる必要がある
-class (Eq a, Ord a, Show a, Hashable a) => Element a where
+class (Eq a, Ord a, Show a, Hashable a, Typeable a) => Element a where
 
     wiledcard       :: a        -- ^ 検索等に用いるワイルドカード
 
@@ -112,6 +115,27 @@ class (Eq a, Ord a, Show a, Hashable a) => Element a where
     minElement :: a -> a -> a
     minElement x y  | x .<= y    = x
                     | otherwise  = y
+
+data AxisKey = forall a. Element a => AxisKey !a
+
+instance Eq AxisKey where
+    AxisKey x == AxisKey y = case cast y of
+        Nothing -> False
+        Just y' -> x == y'
+
+instance Hashable AxisKey where
+    hashWithSalt salt (AxisKey x) = salt `hashWithSalt` (typeOf x) `hashWithSalt` x
+
+{-# INLINE axisIsWildcard #-}
+axisIsWildcard :: AxisKey -> Bool
+axisIsWildcard (AxisKey x) = isWiledcard x
+
+class (Element a) => AxisDecompose a where
+    toAxisKeys :: a -> [AxisKey]
+
+instance {-# OVERLAPPABLE #-} Element a => AxisDecompose a where
+    {-# INLINE toAxisKeys #-}
+    toAxisKeys a = [AxisKey a]
 
 {-# INLINE (.#) #-}
 (.#) :: Element a => a
@@ -277,6 +301,11 @@ instance (Element a ,Element b)
             EQ -> compareElement a2 b2
             x  -> x
 
+instance {-# OVERLAPPING #-} (Element a, Element b)
+    => AxisDecompose (a, b) where
+    {-# INLINE toAxisKeys #-}
+    toAxisKeys (a, b) = [AxisKey a, AxisKey b]
+
 instance (Element a, Element b, Element c)
     => Element (a, b, c) where
 
@@ -309,6 +338,11 @@ instance (Element a, Element b, Element c)
     compareElement (a1, a2, a3) (b1, b2, b3)
         = compareElement ((a1, a2), a3)
                          ((b1, b2), b3)
+
+instance {-# OVERLAPPING #-} (Element a, Element b, Element c)
+    => AxisDecompose (a, b, c) where
+    {-# INLINE toAxisKeys #-}
+    toAxisKeys (a, b, c) = [AxisKey a, AxisKey b, AxisKey c]
 
 
 instance (Element a, Element b, Element c, Element d)
@@ -347,6 +381,11 @@ instance (Element a, Element b, Element c, Element d)
     compareElement (a1, a2, a3, a4) (b1, b2, b3, b4)
         = compareElement ((a1, a2, a3), a4)
                          ((b1, b2, b3), b4)
+
+instance {-# OVERLAPPING #-} (Element a, Element b, Element c, Element d)
+    => AxisDecompose (a, b, c, d) where
+    {-# INLINE toAxisKeys #-}
+    toAxisKeys (a, b, c, d) = [AxisKey a, AxisKey b, AxisKey c, AxisKey d]
 
 
 instance (Element a, Element b, Element c, Element d, Element e)
@@ -389,6 +428,11 @@ instance (Element a, Element b, Element c, Element d, Element e)
     compareElement (a1, a2, a3, a4, a5) (b1, b2, b3, b4, b5)
         = compareElement ((a1, a2, a3, a4), a5)
                          ((b1, b2, b3, b4), b5)
+
+instance {-# OVERLAPPING #-} (Element a, Element b, Element c, Element d, Element e)
+    => AxisDecompose (a, b, c, d, e) where
+    {-# INLINE toAxisKeys #-}
+    toAxisKeys (a, b, c, d, e) = [AxisKey a, AxisKey b, AxisKey c, AxisKey d, AxisKey e]
 
 
 instance (Element a, Element b, Element c, Element d, Element e, Element f)
@@ -435,6 +479,11 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f)
         = compareElement ((a1, a2, a3, a4, a5), a6)
                          ((b1, b2, b3, b4, b5), b6)
 
+instance {-# OVERLAPPING #-} (Element a, Element b, Element c, Element d, Element e, Element f)
+    => AxisDecompose (a, b, c, d, e, f) where
+    {-# INLINE toAxisKeys #-}
+    toAxisKeys (a, b, c, d, e, f) = [AxisKey a, AxisKey b, AxisKey c, AxisKey d, AxisKey e, AxisKey f]
+
 
 instance (Element a, Element b, Element c, Element d, Element e, Element f, Element g)
     => Element (a, b, c, d, e, f, g) where
@@ -480,3 +529,8 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f, Elem
     compareElement (a1, a2, a3, a4, a5, a6, a7) (b1, b2, b3, b4, b5, b6, b7)
         = compareElement ((a1, a2, a3, a4, a5, a6), a7)
                          ((b1, b2, b3, b4, b5, b6), b7)
+
+instance {-# OVERLAPPING #-} (Element a, Element b, Element c, Element d, Element e, Element f, Element g)
+    => AxisDecompose (a, b, c, d, e, f, g) where
+    {-# INLINE toAxisKeys #-}
+    toAxisKeys (a, b, c, d, e, f, g) = [AxisKey a, AxisKey b, AxisKey c, AxisKey d, AxisKey e, AxisKey f, AxisKey g]
