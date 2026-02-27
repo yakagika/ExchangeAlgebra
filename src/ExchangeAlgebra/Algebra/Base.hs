@@ -39,6 +39,7 @@ import              Data.Time           (Day, TimeOfDay)
 import GHC.Stack (HasCallStack, callStack, prettyCallStack)
 import GHC.Generics (Generic)
 import Data.Hashable
+import qualified Data.Binary as Binary
 
 customError :: HasCallStack => String -> a
 customError msg = error (msg ++ "\nCallStack:\n" ++ prettyCallStack callStack)
@@ -102,6 +103,7 @@ data Hat    = Hat
             deriving (Enum, Eq, Ord, Show, Generic)
 
 instance Hashable Hat where
+instance Binary.Binary Hat
 
 instance Element Hat where
     wiledcard = HatNot
@@ -122,6 +124,7 @@ instance Show BaseForSingleHat where
     show _ = ""
 
 instance Hashable BaseForSingleHat where
+instance Binary.Binary BaseForSingleHat
 
 instance Element BaseForSingleHat where
     wiledcard = BaseForSingleHat
@@ -157,6 +160,10 @@ instance HatBaseClass Hat where
 
 data HatBase a where
      (:<)  :: (BaseClass a) => {_hat :: Hat,  _base :: a } -> HatBase a
+
+instance (BaseClass a, Binary.Binary a) => Binary.Binary (HatBase a) where
+    put (h :< b) = Binary.put h >> Binary.put b
+    get = (:<) <$> Binary.get <*> Binary.get
 
 instance Show (HatBase a) where
     show (h :< b) = show h ++ ":<" ++ show b
