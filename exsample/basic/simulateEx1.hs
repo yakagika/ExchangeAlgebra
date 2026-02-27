@@ -137,11 +137,11 @@ instance ExBaseClass HatBase2 where
 type Transaction = EJ.Journal (EventName,Term) Double HatBase2
 
 compressPreviousTerm :: Term -> Transaction -> Transaction
-compressPreviousTerm t (EJ.Journal hm) =
-    EJ.Journal $
+compressPreviousTerm t le =
+    EJ.fromMap $
         L.foldl'
             (\acc ev -> HM.adjust compress (ev, t) acc)
-            hm
+            (EJ.toMap le)
             [fstEvent .. lastEvent]
 
 -- | 元帳

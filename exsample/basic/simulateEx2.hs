@@ -9,6 +9,7 @@ import           ExchangeAlgebraJournal
 import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Journal  as EJ
 import qualified ExchangeAlgebra.Journal.Transfer as EJT
+import qualified ExchangeAlgebra.Simulate as ES
 
 import qualified ExchangeAlgebra.Simulate.Visualize as ESV
 
@@ -26,6 +27,8 @@ import           Data.Array.IO
 import           Data.STRef
 import           System.Random
 import Control.Concurrent.Async (mapConcurrently,forConcurrently_)
+import           System.Directory (createDirectoryIfMissing)
+import qualified Data.Binary as Binary
 
 
 ------------------------------------------------------------------
@@ -64,6 +67,7 @@ data EventName = SalesPurchase
                deriving (Ord, Show, Enum, Eq, Bounded, Generic)
 
 instance Hashable EventName where
+instance Binary.Binary EventName
 
 instance Note EventName where
     plank = Plank
@@ -133,11 +137,11 @@ instance ExBaseClass HatBase2 where
 type Transaction = EJ.Journal (EventName,Term) Double HatBase2
 
 compressPreviousTerm :: Term -> Transaction -> Transaction
-compressPreviousTerm t (EJ.Journal hm) =
-    EJ.Journal $
+compressPreviousTerm t le =
+    EJ.fromMap $
         L.foldl'
             (\acc ev -> HM.adjust compress (ev, t) acc)
-            hm
+            (EJ.toMap le)
             [fstEvent .. lastEvent]
 
 -- | 元帳
@@ -327,7 +331,7 @@ grossProfitAlgAt :: Term -> Transaction -> EA.Alg Double HatBase2
 grossProfitAlgAt t = EJ.toAlg . EJT.grossProfitTransfer . termJournal t
 
 projNormBy :: [HatBase2] -> EA.Alg Double HatBase2 -> Double
-projNormBy bs = norm . EA.proj bs
+projNormBy bs = EA.projNorm bs
 
 balanceBy :: [HatBase2] -> [HatBase2] -> EA.Alg Double HatBase2 -> Double
 balanceBy plusBases minusBases alg =
@@ -509,8 +513,25 @@ main :: IO ()
 main = do
     let seed = 2025
         gen = mkStdGen seed
+        spillDir = csv_dir ++ "spill/"
     print "start simulation"
-    results <- mapConcurrently (runSimulation gen) simulationEnvs
+    createDirectoryIfMissing True spillDir
+    let runWithSpill (envName, env) = do
+            let opts :: ES.SpillOptions Term World Transaction
+                opts = ((ES.mkBinarySpillOptions 10 (spillDir ++ envName ++ ".bin")
+                        (\wld -> readURef (_ledger wld)))
+                        :: ES.SpillOptions Term World Transaction)
+                        { ES.spillDeletePolicy = ES.KeepRecentTerms 2
+                        , ES.spillWriteChunk   = \h range payload -> do
+                            putStrLn $ "[" ++ envName ++ "] spill chunk: " ++ show range
+                            ES.defaultBinarySpillWriter h range payload
+                        , ES.spillDeleteRange  = \(_, delEnd) wld ->
+                            modifyURef (_ledger wld) $
+                                EJ.filterWithNote (\(_, t') _ -> t' > delEnd)
+                        }
+            putStrLn $ "[" ++ envName ++ "] simulation start"
+            ES.runSimulationWithSpill opts gen env
+    results <- mapConcurrently runWithSpill (zip simulationEnvNames simulationEnvs)
     let resMap = M.fromList (zip simulationEnvNames results)
     print "writing data..."
     forConcurrently_ simulationEnvNames $ \envName ->

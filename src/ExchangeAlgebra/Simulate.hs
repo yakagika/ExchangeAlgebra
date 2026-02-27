@@ -57,7 +57,15 @@ module ExchangeAlgebra.Simulate
     ,modifyArray
     ,Event(..)
     ,eventAll
+    ,SpillOptions(..)
+    ,SpillDeletePolicy(..)
+    ,mkSpillOptions
+    ,mkBinarySpillOptions
+    ,defaultSpillWriter
+    ,defaultBinarySpillWriter
+    ,readBinarySpillFile
     ,runSimulation
+    ,runSimulationWithSpill
     ,leontiefInverse
     ,rippleEffect) where
 
@@ -72,6 +80,9 @@ import              Data.Array.IO
 import              Data.STRef
 import qualified    Control.Monad                   as CM
 import              Data.Array
+import              System.IO (Handle, IOMode(..), withFile, hPutStrLn, hPutStr)
+import qualified    Data.ByteString.Lazy            as BL
+import qualified    Data.Binary                     as Binary
 
 ------------------------------------------------------------------
 class (Eq t, Show t, Ord t, Enum t, Ix t) => StateTime t where
@@ -235,6 +246,78 @@ eventAll :: forall t v e a s. (StateSpace t v e a s) => a s -> t ->  ST s ()
 eventAll wld t =  CM.forM_ [fstEvent .. lastEvent]
                 $ \e -> event wld t e
 
+-- | Spill configuration for periodic external logging.
+-- `spillExtract` selects accounting payload from world.
+-- `spillWriteChunk` controls on-disk format.
+data SpillOptions t a payload = SpillOptions
+    { spillEveryTerms :: !Int
+    , spillFilePath   :: FilePath
+    , spillExtract    :: a RealWorld -> ST RealWorld payload
+    , spillWriteChunk :: Handle -> (t, t) -> payload -> IO ()
+    , spillDeletePolicy :: SpillDeletePolicy t
+    , spillDeleteRange  :: (t, t) -> a RealWorld -> ST RealWorld ()
+    }
+
+-- | Policy to decide which term range to evict after each spill.
+data SpillDeletePolicy t
+    = NoDelete
+    | DeleteSpilledChunk
+    | KeepRecentTerms Int
+
+mkSpillOptions :: (Show t)
+               => Int
+               -> FilePath
+               -> (a RealWorld -> ST RealWorld String)
+               -> SpillOptions t a String
+mkSpillOptions interval path extractF =
+    SpillOptions
+    { spillEveryTerms = max 1 interval
+    , spillFilePath = path
+    , spillExtract = extractF
+    , spillWriteChunk = defaultSpillWriter
+    , spillDeletePolicy = NoDelete
+    , spillDeleteRange = \_ _ -> pure ()
+    }
+
+mkBinarySpillOptions :: (Binary.Binary t, Binary.Binary payload)
+                     => Int
+                     -> FilePath
+                     -> (a RealWorld -> ST RealWorld payload)
+                     -> SpillOptions t a payload
+mkBinarySpillOptions interval path extractF =
+    SpillOptions
+    { spillEveryTerms = max 1 interval
+    , spillFilePath = path
+    , spillExtract = extractF
+    , spillWriteChunk = defaultBinarySpillWriter
+    , spillDeletePolicy = NoDelete
+    , spillDeleteRange = \_ _ -> pure ()
+    }
+
+defaultSpillWriter :: (Show t) => Handle -> (t, t) -> String -> IO ()
+defaultSpillWriter h (tStart, tEnd) payload = do
+    hPutStrLn h ("# chunk " ++ show tStart ++ " " ++ show tEnd)
+    hPutStr h payload
+    hPutStrLn h "\n# end-chunk"
+
+defaultBinarySpillWriter :: (Binary.Binary t, Binary.Binary payload)
+                         => Handle -> (t, t) -> payload -> IO ()
+defaultBinarySpillWriter h range payload =
+    BL.hPut h $ Binary.encode (range, payload)
+
+readBinarySpillFile :: (Binary.Binary t, Binary.Binary payload)
+                    => FilePath
+                    -> IO [((t, t), payload)]
+readBinarySpillFile path = do
+    bytes <- BL.readFile path
+    pure (go bytes)
+  where
+    go bs
+        | BL.null bs = []
+        | otherwise  = case Binary.decodeOrFail bs of
+            Left _ -> []
+            Right (rest, _, entry) -> entry : go rest
+
 -- | Simulation
 {-# INLINE simulate #-}
 simulate :: (StateSpace t v e a s)
@@ -258,6 +341,55 @@ runSimulation gen v = stToIO $ do
     wld <- initAll gen initTerm v
     simulate gen wld v
     pure wld
+
+-- | Run simulation with periodic spill.
+-- This function keeps existing behavior and additionally writes extracted
+-- accounting payload every N terms (and at the last term).
+runSimulationWithSpill :: (StateSpace t v e a RealWorld)
+                       => SpillOptions t a payload
+                       -> StdGen
+                       -> v
+                       -> IO (a RealWorld)
+runSimulationWithSpill opts gen v = do
+    wld <- stToIO $ initAll gen initTerm v
+    tStart <- stToIO $ initT v wld
+    tEnd <- stToIO $ lastT v wld
+    withFile (spillFilePath opts) WriteMode $ \h ->
+        loop h wld tStart tStart tEnd
+  where
+    shouldSpill chunkStart t isLast =
+        isLast || (fromEnum t - fromEnum chunkStart + 1 >= spillEveryTerms opts)
+
+    backBy n x
+        | n <= 0 = x
+        | otherwise = backBy (n - 1) (prevTerm x)
+
+    deleteRangeForChunk (chunkStart, chunkEnd) = case spillDeletePolicy opts of
+        NoDelete -> Nothing
+        DeleteSpilledChunk -> Just (chunkStart, chunkEnd)
+        KeepRecentTerms keepN ->
+            let deleteEnd = backBy keepN chunkEnd
+            in if deleteEnd < chunkStart
+                then Nothing
+                else Just (chunkStart, deleteEnd)
+
+    spillChunk h chunkStart t wld = do
+        payload <- stToIO $ spillExtract opts wld
+        spillWriteChunk opts h (chunkStart, t) payload
+        case deleteRangeForChunk (chunkStart, t) of
+            Nothing -> pure ()
+            Just delRange -> stToIO $ spillDeleteRange opts delRange wld
+
+    loop h wld t chunkStart tEnd = do
+        stToIO $ updateAll gen t v wld
+        stToIO $ eventAll wld t
+        let isLast = t == tEnd
+        nextChunkStart <- if shouldSpill chunkStart t isLast
+            then spillChunk h chunkStart t wld >> pure (nextTerm t)
+            else pure chunkStart
+        if isLast
+            then pure wld
+            else loop h wld (nextTerm t) nextChunkStart tEnd
 
 -- Genericを用いた自動導出のための補助型クラス
 class  (StateTime t,InitVariables v)

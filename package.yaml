@@ -44,6 +44,9 @@ dependencies:
 - hashable
 - unordered-containers
 - process
+- binary
+- bytestring
+- directory
 
 library:
   source-dirs: src

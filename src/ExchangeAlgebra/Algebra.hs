@@ -84,7 +84,7 @@ import              Data.Time
 import qualified    Data.HashMap.Strict     as Map
 import qualified    Data.IntMap.Strict      as IntMap
 import qualified    Data.IntSet             as IntSet
-import qualified    Data.Foldable       as Foldable (foldMap,foldl')
+import qualified    Data.Foldable       as Foldable (foldMap,foldl',toList)
 import qualified    Data.Sequence       as Seq
 import              Data.Sequence       (Seq)
 import qualified    Data.Maybe          as Maybe
@@ -98,6 +98,7 @@ import Control.DeepSeq
 import Control.Parallel.Strategies (rpar, rseq, runEval, using, Strategy, rdeepseq)
 import GHC.Stack (HasCallStack, callStack, prettyCallStack)
 import Data.Hashable
+import qualified Data.Binary as Binary
 
 ------------------------------------------------------------------
 -- * 丸め込み判定
@@ -270,6 +271,15 @@ data Pair v where
          ,_notSide :: !(Seq v)} -> Pair v
          deriving (Eq)
 
+instance (Binary.Binary v) => Binary.Binary (Pair v) where
+    put (Pair hs ns) = do
+        Binary.put (Foldable.toList hs)
+        Binary.put (Foldable.toList ns)
+    get = do
+        hs <- Binary.get
+        ns <- Binary.get
+        pure (Pair (Seq.fromList hs) (Seq.fromList ns))
+
 
 instance (HatVal v) => Ord (Pair v) where
     {-# INLINE compare #-}
@@ -325,6 +335,28 @@ data  Alg v b where
                  , _nextBpId    :: ~Int
                  , _allBpIds    :: ~IntSet.IntSet
                  } ->  Alg v b
+
+instance ( HatBaseClass b
+         , Binary.Binary v
+         , Binary.Binary b
+         , Binary.Binary (BasePart b)
+         ) => Binary.Binary (Alg v b) where
+    put Zero = Binary.put (0 :: Int)
+    put (v :@ b) = do
+        Binary.put (1 :: Int)
+        Binary.put v
+        Binary.put b
+    put (Liner m _ _ _ _ _) = do
+        Binary.put (2 :: Int)
+        Binary.put (Map.toList m)
+
+    get = do
+        tag <- Binary.get
+        case (tag :: Int) of
+            0 -> pure Zero
+            1 -> (:@) <$> Binary.get <*> Binary.get
+            2 -> linerFromMap . Map.fromList <$> Binary.get
+            _ -> fail ("Binary decode failure for Alg: unknown tag " ++ show tag)
 
 type AxisPosting = IntMap.IntMap (Map.HashMap AxisKey IntSet.IntSet)
 
@@ -955,32 +987,58 @@ proj _     Zero       = Zero
 proj [b] (v:@b2)
     | b .== b2  = v:@b2
     | otherwise = Zero
-proj [b] (Liner m idx _ idToBp _ allIds)
-    | haveWiledcard (base b) = mkAlgFromMap $
-        let !ids = queryAxisPosting (toAxisKeys (base b)) idx allIds
-        in IntSet.foldl'
-            (\acc bpId -> case IntMap.lookup bpId idToBp of
-                Nothing -> acc
-                Just bp -> case Map.lookup bp m of
-                    Nothing -> acc
-                    Just p  -> if (base b) .== bp
-                        then Map.insert bp (choose bp p) acc
-                        else acc)
-            Map.empty
-            ids
-    | otherwise = case Map.lookup (base b) m of
-        Nothing -> Zero
-        Just p  -> mkAlgFromMap $ Map.singleton (base b) (choose (base b) p)
-  where
-    choose _ Pair {_hatSide = hs, _notSide = ns} =
-        case hat b of
-            Hat    -> nullPair {_hatSide = hs}
-            Not    -> nullPair {_notSide = ns}
-            HatNot -> Pair {_hatSide = hs, _notSide = ns}
+proj [b] (Liner m idx _ idToBp _ allIds) =
+    mkAlgFromMap $ projSingleMap b m idx idToBp allIds
 proj (b:bs) (v:@b2)
     |  b .== b2       = v:@b2
     | otherwise       = proj bs (v:@b2)
-proj (b:bs) a@(Liner _ _ _ _ _ _) = L.foldl' (\acc q -> union acc (proj [q] a)) Zero (b:bs)
+proj (b:bs) (Liner m idx _ idToBp _ allIds) =
+    mkAlgFromMap $
+        L.foldl'
+            (\acc q -> Map.unionWith pairAppend acc (projSingleMap q m idx idToBp allIds))
+            Map.empty
+            (b:bs)
+
+{-# INLINE choosePairByHat #-}
+-- | Complexity: O(1)
+choosePairByHat :: Hat -> Pair v -> Pair v
+choosePairByHat h Pair {_hatSide = hs, _notSide = ns} =
+    case h of
+        Hat    -> nullPair {_hatSide = hs}
+        Not    -> nullPair {_notSide = ns}
+        HatNot -> Pair {_hatSide = hs, _notSide = ns}
+
+{-# INLINE projSingleMap #-}
+-- | Complexity:
+--   - wildcard path: O(queryAxisPosting + c * verify)
+--   - exact path: expected O(1)
+projSingleMap
+    :: (HatBaseClass b)
+    => b
+    -> Map.HashMap (BasePart b) (Pair v)
+    -> AxisPosting
+    -> IntMap.IntMap (BasePart b)
+    -> IntSet.IntSet
+    -> Map.HashMap (BasePart b) (Pair v)
+projSingleMap b m idx idToBp allIds
+    | haveWiledcard bp =
+        let !ids = queryAxisPosting (toAxisKeys bp) idx allIds
+        in IntSet.foldl'
+            (\acc bpId -> case IntMap.lookup bpId idToBp of
+                Nothing -> acc
+                Just bp0 -> case Map.lookup bp0 m of
+                    Nothing -> acc
+                    Just p  -> if bp .== bp0
+                        then Map.insert bp0 (choosePairByHat h p) acc
+                        else acc)
+            Map.empty
+            ids
+    | otherwise = case Map.lookup bp m of
+        Nothing -> Map.empty
+        Just p  -> Map.singleton bp (choosePairByHat h p)
+  where
+    !bp = base b
+    !h = hat b
 
 {-# INLINE mkAlgFromMap #-}
 -- | Complexity: O(n) to inspect shape and possibly rebuild index.
@@ -1009,7 +1067,7 @@ projCredit = filter (\x -> (whichSide . _hatBase) x == Credit)
 -- | proj debit algs の代わりに Elem に Text や Int などがある場合は projDebit を使う
 -- Complexity: O(s), implemented via 'filter'.
 projDebit :: (HatVal n, ExBaseClass b)  => Alg n b -> Alg n b
-projDebit = filter (\x -> (whichSide . _hatBase) x == Credit)
+projDebit = filter (\x -> (whichSide . _hatBase) x == Debit)
 
 -- | Complexity: O(s), implemented via 'filter'.
 projByAccountTitle :: (HatVal n, ExBaseClass b) => AccountTitles -> Alg n b -> Alg n b
@@ -1021,7 +1079,34 @@ projByAccountTitle at alg = filter (f at) alg
 
 -- | Complexity: O(cost(proj) + cost(bar) + cost(norm)).
 projNorm :: (HatVal n, HatBaseClass b) => [b] -> Alg n b -> n
-projNorm bs alg  = norm $ (.-) $ proj bs alg
+projNorm [] _ = 0
+projNorm _ Zero = 0
+projNorm bs (v :@ b)
+    | L.any (.== b) bs = v
+    | otherwise        = 0
+projNorm [b] (Liner m idx _ idToBp _ allIds) =
+    foldProjectedNorm (projSingleMap b m idx idToBp allIds)
+projNorm bs (Liner m idx _ idToBp _ allIds) =
+    foldProjectedNorm $
+        L.foldl'
+            (\acc q -> Map.unionWith pairAppend acc (projSingleMap q m idx idToBp allIds))
+            Map.empty
+            bs
+
+{-# INLINE foldProjectedNorm #-}
+-- | Complexity: O(k), where k is the number of projected base keys.
+foldProjectedNorm :: (HatVal n) => Map.HashMap k (Pair n) -> n
+foldProjectedNorm = Map.foldl' (\acc p -> acc + barNormPair p) 0
+
+{-# INLINE barNormPair #-}
+-- | Complexity: O(h + n), where h/n are side lengths within the pair.
+barNormPair :: (HatVal n) => Pair n -> n
+barNormPair (Pair hs ns) =
+    let !h = Foldable.foldl' (+) 0 hs
+        !n = Foldable.foldl' (+) 0 ns
+    in if isNearlyNum h n 1e-13
+        then 0
+        else if h > n then h - n else n - h
 
 
 -- | 流動資産の取得

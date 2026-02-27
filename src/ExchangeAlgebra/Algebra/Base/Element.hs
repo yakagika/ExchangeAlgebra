@@ -37,6 +37,7 @@ import              Data.Time
 import GHC.Generics (Generic)
 import Data.Hashable
 import Data.Typeable (Typeable, cast, typeOf)
+import qualified Data.Binary as Binary
 
 ------------------------------------------------------------------
 -- * Element 基底の要素
@@ -208,6 +209,7 @@ data  AccountTitles = Cash                            -- ^ 資産 現金
                     deriving (Show, Ord, Eq, Enum, Generic)
 
 instance Hashable AccountTitles where
+instance Binary.Binary AccountTitles
 
 instance Element AccountTitles where
     {-# INLINE wiledcard #-}
@@ -243,6 +245,7 @@ data CountUnit  = Yen
                 deriving (Show, Ord, Eq, Enum,Generic)
 
 instance Hashable CountUnit where
+instance Binary.Binary CountUnit
 
 instance Element CountUnit where
 
