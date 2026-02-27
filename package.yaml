@@ -58,6 +58,7 @@ _exe-defs: &exe-defaults
                ,-threaded
                ,-rtsopts
                ,-with-rtsopts=-N4
+               ,'-optl-Wl,-no_warn_duplicate_libraries'
                ,-fwrite-ide-info]
 
 executables:
@@ -109,6 +110,7 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N10
+    - -optl-Wl,-no_warn_duplicate_libraries
 
 
   ripple:
@@ -130,6 +132,7 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     - -O1
+    - -optl-Wl,-no_warn_duplicate_libraries
     dependencies:
     - exchangealgebra
 
@@ -140,6 +143,7 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     - -O1
+    - -optl-Wl,-no_warn_duplicate_libraries
     dependencies:
     - exchangealgebra
     - doctest

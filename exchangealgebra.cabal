@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 6ee1f19181a241fb9c412303a6d12bebbdb778ba2d12fe91a2d231130a3f2600
+-- hash: 9725106009602f97fd6399f47705bead4bd93e2a33cdc1f4e0e954971ab5486e
 
 name:           exchangealgebra
 version:        0.4.0.0
@@ -79,7 +79,7 @@ executable cge
       Paths_exchangealgebra
   hs-source-dirs:
       exsample/optimization/CGE
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
   build-depends:
       Chart
     , Chart-cairo
@@ -117,7 +117,7 @@ executable ebex1
       Paths_exchangealgebra
   hs-source-dirs:
       exsample/basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
   build-depends:
       Chart
     , Chart-cairo
@@ -155,7 +155,7 @@ executable ebex2
       Paths_exchangealgebra
   hs-source-dirs:
       exsample/basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
   build-depends:
       Chart
     , Chart-cairo
@@ -193,7 +193,7 @@ executable ebex3
       Paths_exchangealgebra
   hs-source-dirs:
       exsample/basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
   build-depends:
       Chart
     , Chart-cairo
@@ -231,7 +231,7 @@ executable ebex4
       Paths_exchangealgebra
   hs-source-dirs:
       exsample/basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
   build-depends:
       Chart
     , Chart-cairo
@@ -269,7 +269,7 @@ executable ebex5
       Paths_exchangealgebra
   hs-source-dirs:
       exsample/basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
   build-depends:
       Chart
     , Chart-cairo
@@ -308,7 +308,7 @@ executable ripple
       Paths_exchangealgebra
   hs-source-dirs:
       exsample/deterministic/ripple
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
   build-depends:
       Chart
     , Chart-cairo
@@ -347,7 +347,7 @@ executable rippleWithStock
       Paths_exchangealgebra
   hs-source-dirs:
       exsample/deterministic/ripple
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
   build-depends:
       Chart
     , Chart-cairo
@@ -386,7 +386,7 @@ executable rippleWithStockMultiSeeds
       Paths_exchangealgebra
   hs-source-dirs:
       exsample/deterministic/ripple
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N10
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N10 -optl-Wl,-no_warn_duplicate_libraries
   build-depends:
       Chart
     , Chart-cairo
@@ -424,7 +424,7 @@ executable sim1
       Paths_exchangealgebra
   hs-source-dirs:
       exsample/basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
   build-depends:
       Chart
     , Chart-cairo
@@ -462,7 +462,7 @@ executable sim2
       Paths_exchangealgebra
   hs-source-dirs:
       exsample/basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
   build-depends:
       Chart
     , Chart-cairo
@@ -499,7 +499,7 @@ test-suite ExchangeAlgebra-doctest
   main-is: test/doctests.hs
   other-modules:
       Paths_exchangealgebra
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O1
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O1 -optl-Wl,-no_warn_duplicate_libraries
   build-depends:
       Chart
     , Chart-cairo
@@ -539,7 +539,7 @@ test-suite ExchangeAlgebra-test
       Paths_exchangealgebra
   hs-source-dirs:
       test
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O1
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O1 -optl-Wl,-no_warn_duplicate_libraries
   build-depends:
       Chart
     , Chart-cairo
