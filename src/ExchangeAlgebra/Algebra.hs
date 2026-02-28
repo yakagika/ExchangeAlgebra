@@ -775,7 +775,7 @@ sigma xs f = L.foldl' (\acc x -> acc <> f x) Zero xs
 -- Complexity: O(s), where s is total number of scalar entries.
 --
 -- >>> toList (10:@Hat:<(Cash) .+ 10:@Hat:<(Deposits) .+ Zero :: Alg NN.Double (HatBase AccountTitles))
--- [10.00:@Hat:<Deposits,10.00:@Hat:<Cash]
+-- [10.00:@Hat:<Cash,10.00:@Hat:<Deposits]
 --
 -- you need define type variables to use this for Zero
 -- >>> toList Zero :: [Alg NN.Double (HatBase AccountTitles)]

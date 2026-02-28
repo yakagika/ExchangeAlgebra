@@ -74,7 +74,7 @@ class (Eq a, Ord a, Show a, Hashable a, Typeable a) => Element a where
     -- | wiledcard を等しいとみなす ==
     {-# INLINE (.==)  #-}
     (.==) :: a -> a -> Bool
-    (.==) a b = a == b || equal a b
+    (.==) a b = a == b || (haveWiledcard a || haveWiledcard b) && equal a b
 
     -- | wiledcard を等しいとみなす /=
     {-# INLINE (./=) #-}
@@ -209,7 +209,14 @@ data  AccountTitles = Cash                            -- ^ 資産 現金
                     deriving (Show, Ord, Eq, Enum, Generic)
 
 instance Hashable AccountTitles where
-instance Binary.Binary AccountTitles
+    {-# INLINE hashWithSalt #-}
+    hashWithSalt salt x = hashWithSalt salt (fromEnum x)
+
+instance Binary.Binary AccountTitles where
+    {-# INLINE put #-}
+    put = Binary.putWord8 . fromIntegral . fromEnum
+    {-# INLINE get #-}
+    get = toEnum . fromIntegral <$> Binary.getWord8
 
 instance Element AccountTitles where
     {-# INLINE wiledcard #-}
@@ -245,7 +252,14 @@ data CountUnit  = Yen
                 deriving (Show, Ord, Eq, Enum,Generic)
 
 instance Hashable CountUnit where
-instance Binary.Binary CountUnit
+    {-# INLINE hashWithSalt #-}
+    hashWithSalt salt x = hashWithSalt salt (fromEnum x)
+
+instance Binary.Binary CountUnit where
+    {-# INLINE put #-}
+    put = Binary.putWord8 . fromIntegral . fromEnum
+    {-# INLINE get #-}
+    get = toEnum . fromIntegral <$> Binary.getWord8
 
 instance Element CountUnit where
 
