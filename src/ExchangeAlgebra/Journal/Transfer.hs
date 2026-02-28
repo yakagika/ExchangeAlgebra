@@ -54,6 +54,7 @@ import              ExchangeAlgebra.Algebra.Transfer (TransTable (..)
                                                     , TransTableParts
                                                     , (.->)
                                                     , (|%)
+                                                    , finalStockTransferStep
                                                     , retainedEarningTransfer
                                                     , ordinaryProfitTransfer
                                                     , grossProfitTransfer)
@@ -128,9 +129,5 @@ retainedEarningTransfer = EJ.map EAT.retainedEarningTransfer
 
 -- | Final Stock Transfer (損益勘定)
 finalStockTransfer ::(Note n, HatVal v, ExBaseClass b) =>  Journal n v b -> Journal n v b
-finalStockTransfer  = (.-)
-                    . ExchangeAlgebra.Journal.Transfer.retainedEarningTransfer
-                    . ExchangeAlgebra.Journal.Transfer.ordinaryProfitTransfer
-                    . ExchangeAlgebra.Journal.Transfer.grossProfitTransfer
-
+finalStockTransfer = (.-) . EJ.map finalStockTransferStep
 

@@ -8,6 +8,7 @@ module Main (main) where
 
 import           ExchangeAlgebraJournal
 import qualified ExchangeAlgebra.Algebra  as EA
+import qualified ExchangeAlgebra.Algebra.Transfer as EAT
 import qualified ExchangeAlgebra.Journal  as EJ
 import qualified ExchangeAlgebra.Journal.Transfer as EJT
 import qualified ExchangeAlgebra.Simulate as ES
@@ -108,6 +109,62 @@ testProjWithNoteNorm = do
         actual2 = EJ.projWithNoteNorm ns2 bs journalSample
     assertNear "Journal.projWithNoteNorm (selected notes)" expected1 actual1
     assertNear "Journal.projWithNoteNorm (plank wildcard)" expected2 actual2
+
+-- ================================================================
+-- Transfer regression tests
+-- ================================================================
+
+type TransferAlg = EA.Alg Double SimHatBase2
+type TransferJournal = EJ.Journal String Double SimHatBase2
+
+transferAlgSample :: TransferAlg
+transferAlgSample = EA.fromList
+    [ 7  :@ Not :<(WageExpenditure, 1, 1, Yen)
+    , 3  :@ Hat :<(Depreciation, 2, 2, Yen)
+    , 11 :@ Not :<(Purchases, 3, 3, Yen)
+    , 13 :@ Not :<(ValueAdded, 1, 2, Yen)
+    , 17 :@ Hat :<(Sales, 2, 1, Yen)
+    , 19 :@ Not :<(InterestEarned, 4, 4, Yen)
+    , 23 :@ Hat :<(InterestExpense, 5, 5, Yen)
+    , 29 :@ Not :<(TaxesRevenue, 2, 2, Yen)
+    , 31 :@ Hat :<(TaxesExpense, 3, 3, Yen)
+    , 37 :@ Not :<(WageEarned, 6, 6, Yen)
+    , 41 :@ Hat :<(ConsumptionExpenditure, 6, 6, Yen)
+    , 43 :@ Not :<(CentralBankPaymentIncome, 1, 1, Yen)
+    , 47 :@ Hat :<(CentralBankPaymentExpense, 1, 1, Yen)
+    , 53 :@ Not :<(GrossProfit, 7, 7, Yen)
+    , 59 :@ Hat :<(OrdinaryProfit, 8, 8, Yen)
+    , 61 :@ Not :<(Cash, 1, 1, Yen)
+    ]
+
+transferJournalSample :: TransferJournal
+transferJournalSample = EJ.fromList
+    [ transferAlgSample .| "A"
+    , ((5 :@ Not :<(Sales, 2, 1, Yen)) .+ (2 :@ Hat :<(WageExpenditure, 1, 1, Yen))) .| "B"
+    , ((3 :@ Hat :<(TaxesExpense, 3, 3, Yen)) .+ (4 :@ Not :<(InterestEarned, 4, 4, Yen))) .| "C"
+    ]
+
+testFinalStockTransferAlgEquivalence :: IO ()
+testFinalStockTransferAlgEquivalence = do
+    let ref =
+            (.-)
+                . EAT.retainedEarningTransfer
+                . EAT.ordinaryProfitTransfer
+                . EAT.grossProfitTransfer
+                $ transferAlgSample
+        actual = EAT.finalStockTransfer transferAlgSample
+    assertEqual "Algebra.finalStockTransfer matches composed transfer" ref actual
+
+testFinalStockTransferJournalEquivalence :: IO ()
+testFinalStockTransferJournalEquivalence = do
+    let ref =
+            (.-)
+                . EJT.retainedEarningTransfer
+                . EJT.ordinaryProfitTransfer
+                . EJT.grossProfitTransfer
+                $ transferJournalSample
+        actual = EJT.finalStockTransfer transferJournalSample
+    assertEqual "Journal.finalStockTransfer matches composed transfer" (EJ.toMap ref) (EJ.toMap actual)
 
 -- ================================================================
 -- SimulateEx1 reproduction (default scenario only, no parallelism)
@@ -400,4 +457,6 @@ main = do
     testProjNormFastPath
     testProjWithBaseNorm
     testProjWithNoteNorm
+    testFinalStockTransferAlgEquivalence
+    testFinalStockTransferJournalEquivalence
     testSimulateEx1Default

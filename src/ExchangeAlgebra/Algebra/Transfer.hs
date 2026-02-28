@@ -45,6 +45,7 @@ module ExchangeAlgebra.Algebra.Transfer
     , grossProfitTransfer
     , ordinaryProfitTransfer
     , retainedEarningTransfer
+    , finalStockTransferStep
     , finalStockTransfer
     ) where
 
@@ -68,6 +69,7 @@ import qualified    Data.Foldable       as Foldable
 import              Data.Foldable                   ( Foldable())
 import              Data.Bits                       ( shiftL
                                                     , shiftR)
+import qualified    Data.HashMap.Strict as HM
 import              Utils.Containers.Internal.StrictPair
 import              Debug.Trace
 
@@ -217,17 +219,93 @@ size (TransTable s _ _ _ _ _) = s
 -- 1.00:@Hat:<(Cash,-1,Amount) .+ 1.00:@Not:<(Products,1,Amount)
 
 
+data IndexedRule n b
+    = IndexedUnique !b !(n -> n) !b
+    | IndexedAmbiguous
+
+data TransferIndex n b = TransferIndex
+    { tiTree :: !(TransTable n b)
+    , tiByHatTitle :: !(HM.HashMap (Hat, AccountTitles) (IndexedRule n b))
+    }
+
+{-# INLINE transferWithResolver #-}
+transferWithResolver :: (HatVal n, HatBaseClass b)
+                     => (b -> Maybe ((n -> n), b))
+                     -> Alg n b
+                     -> Alg n b
+transferWithResolver resolve = EA.map step
+  where
+    step (v :@ hb) = case resolve hb of
+        Nothing -> v :@ hb
+        Just (f, hb') ->
+            let !v' = f v
+            in if isZeroValue v'
+                then Zero
+                else v' :@ hb'
+    step x = x
+
+{-# INLINE resolveByTree #-}
+resolveByTree :: (HatVal n, HatBaseClass b)
+              => TransTable n b
+              -> b
+              -> Maybe ((n -> n), b)
+resolveByTree NullTable _ = Nothing
+resolveByTree (TransTable _ hb2 f a l r) hb1
+    | hb1 ./= hb2 = case compareElement hb1 hb2 of
+        LT -> resolveByTree l hb1
+        GT -> resolveByTree r hb1
+        EQ -> error $ "transfer: " ++ show hb1 ++ "," ++ show hb2
+    | otherwise = Just (f, ignoreWiledcard hb1 a)
+
+{-# INLINE ruleEntries #-}
+ruleEntries :: TransTable n b -> [(b, n -> n, b)]
+ruleEntries NullTable = []
+ruleEntries (TransTable _ b f a l r) =
+    ruleEntries l ++ ((b, f, a) : ruleEntries r)
+
+{-# INLINE baseKey #-}
+baseKey :: (ExBaseClass b) => b -> Maybe (Hat, AccountTitles)
+baseKey b
+    | isWiledcard h = Nothing
+    | haveWiledcard at = Nothing
+    | otherwise = Just (h, at)
+  where
+    h = hat b
+    at = getAccountTitle b
+
+buildTransferIndex :: (HatVal n, ExBaseClass b) => TransTable n b -> TransferIndex n b
+buildTransferIndex t =
+    TransferIndex t $
+        Foldable.foldl' addRule HM.empty (ruleEntries t)
+  where
+    addRule acc (before, f, after) =
+        case baseKey before of
+            Nothing -> acc
+            Just k ->
+                HM.alter
+                    (\entry -> case entry of
+                        Nothing -> Just (IndexedUnique before f after)
+                        Just _ -> Just IndexedAmbiguous
+                    )
+                    k
+                    acc
+
+{-# INLINE resolveByIndex #-}
+resolveByIndex :: (HatVal n, ExBaseClass b)
+               => TransferIndex n b
+               -> b
+               -> Maybe ((n -> n), b)
+resolveByIndex idx hb =
+    case baseKey hb >>= (`HM.lookup` tiByHatTitle idx) of
+        Just (IndexedUnique before f after)
+            | hb .== before -> Just (f, ignoreWiledcard hb after)
+            | otherwise -> resolveByTree (tiTree idx) hb
+        _ -> resolveByTree (tiTree idx) hb
+
 {-# INLINE transfer #-}
 transfer :: (HatVal n, HatBaseClass b) => Alg n b -> TransTable n b -> Alg n b
-transfer alg NullTable                              = alg
-transfer Zero (TransTable _ b f a l r)              = Zero
-transfer (v:@ hb1) (TransTable _ hb2 f a l r)
-    | hb1 ./= hb2 = case compareElement hb1 hb2 of
-            LT -> transfer (v :@ hb1) l
-            GT -> transfer (v :@ hb1) r
-            EQ -> error $ "transfer: " ++ show hb1 ++ "," ++ show hb2
-    | hb1 .== hb2 = (f v) :@ ignoreWiledcard hb1 a
-transfer xs tt = EA.map (\x -> transfer x tt) xs
+transfer alg NullTable = alg
+transfer alg tt = transferWithResolver (resolveByTree tt) alg
 
 {-# INLINE singleton #-}
 singleton :: (HatVal n,HatBaseClass b) => b ->(n -> n) -> b -> TransTable n b
@@ -438,7 +516,10 @@ instance (HatVal n) => Show (n -> n) where
     show f = "<function>"
 
 createTransfer :: (HatVal n, ExBaseClass b) => [(b,b,(n -> n))] -> (Alg n b -> Alg n b)
-createTransfer tt = \ts -> transfer ts $ table tt
+createTransfer tt =
+    let !tb = table tt
+        !idx = buildTransferIndex tb
+    in \ts -> transferWithResolver (resolveByIndex idx) ts
 
 -- * 決算振替仕訳
 
@@ -537,10 +618,44 @@ retainedEarningTransfer
   $  (toNot wiledcard) .~ OrdinaryProfit            :-> (toNot wiledcard) .~ RetainedEarnings |% id
   ++ (toHat wiledcard) .~ OrdinaryProfit            :-> (toHat wiledcard) .~ RetainedEarnings |% id
 
+data FinalStockSide
+    = FinalStockKeep
+    | FinalStockFlip
+
+{-# INLINE finalStockRule #-}
+finalStockRule :: AccountTitles -> Maybe FinalStockSide
+finalStockRule title = case title of
+    WageExpenditure           -> Just FinalStockFlip
+    Depreciation              -> Just FinalStockFlip
+    Purchases                 -> Just FinalStockFlip
+    InterestExpense           -> Just FinalStockFlip
+    TaxesExpense              -> Just FinalStockFlip
+    SubsidyExpense            -> Just FinalStockFlip
+    ConsumptionExpenditure    -> Just FinalStockFlip
+    CentralBankPaymentExpense -> Just FinalStockFlip
+    ValueAdded                -> Just FinalStockKeep
+    Sales                     -> Just FinalStockKeep
+    GrossProfit               -> Just FinalStockKeep
+    InterestEarned            -> Just FinalStockKeep
+    SubsidyIncome             -> Just FinalStockKeep
+    TaxesRevenue              -> Just FinalStockKeep
+    CentralBankPaymentIncome  -> Just FinalStockKeep
+    WageEarned                -> Just FinalStockKeep
+    OrdinaryProfit            -> Just FinalStockKeep
+    _                         -> Nothing
+
+{-# INLINE finalStockTransferStep #-}
+finalStockTransferStep :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+finalStockTransferStep = EA.map go
+  where
+    go (v :@ hb) = case finalStockRule (getAccountTitle hb) of
+        Nothing -> v :@ hb
+        Just FinalStockKeep ->
+            v :@ setAccountTitle hb RetainedEarnings
+        Just FinalStockFlip ->
+            v :@ setAccountTitle (revHat hb) RetainedEarnings
+    go x = x
+
 -- | Final Stock Transfer (損益勘定)
 finalStockTransfer ::(HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
-finalStockTransfer  = (.-)
-                    . retainedEarningTransfer
-                    . ordinaryProfitTransfer
-                    . grossProfitTransfer
-
+finalStockTransfer = (.-) . finalStockTransferStep
