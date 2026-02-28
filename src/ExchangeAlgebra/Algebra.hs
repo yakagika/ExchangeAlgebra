@@ -54,6 +54,8 @@ module ExchangeAlgebra.Algebra
     , fromList
     , toList
     , sigma
+    , sigma2When
+    , sigmaFromMap
     , toASCList
     , map
     , filter
@@ -83,6 +85,7 @@ import              Data.Time
 import qualified    Data.HashMap.Strict     as Map
 import qualified    Data.IntMap.Strict      as IntMap
 import qualified    Data.IntSet             as IntSet
+import qualified    Data.Map.Strict         as M
 import qualified    Data.Foldable       as Foldable (foldMap,foldl',toList)
 import qualified    Data.Sequence       as Seq
 import              Data.Sequence       (Seq)
@@ -601,6 +604,34 @@ instance (HatVal n, HatBaseClass b) => Monoid (Alg n b) where
 unions :: (HatVal n, Foldable f, HatBaseClass b) => f (Alg n b) -> Alg n b
 unions ts = Foldable.foldl' union Zero ts
 
+{-# INLINE mergeAlgMap #-}
+mergeAlgMap :: (HatVal n, HatBaseClass b)
+            => Map.HashMap (BasePart b) (Pair n)
+            -> Alg n b
+            -> Map.HashMap (BasePart b) (Pair n)
+mergeAlgMap !acc Zero = acc
+mergeAlgMap !acc (v :@ b)
+    | isZeroValue v = acc
+    | otherwise =
+        let !p = if isHat b
+                 then nullPair {_hatSide = Seq.singleton v}
+                 else nullPair {_notSide = Seq.singleton v}
+        in Map.insertWith pairAppend (base b) p acc
+mergeAlgMap !acc (Liner m _ _ _ _ _)
+    | Map.null m = acc
+    | otherwise = Map.unionWith pairAppend acc m
+
+{-# INLINE mergeAlgMapIfNonZero #-}
+mergeAlgMapIfNonZero :: (HatVal n, HatBaseClass b)
+                     => Map.HashMap (BasePart b) (Pair n)
+                     -> Alg n b
+                     -> Map.HashMap (BasePart b) (Pair n)
+mergeAlgMapIfNonZero !acc Zero = acc
+mergeAlgMapIfNonZero !acc alg@(v :@ _)
+    | isZeroValue v = acc
+    | otherwise = mergeAlgMap acc alg
+mergeAlgMapIfNonZero !acc alg = mergeAlgMap acc alg
+
 {-# INLINE unionsMerge #-}
 -- | Merge multiple Algs by directly combining their internal HashMaps,
 -- building the AxisPosting index only once at the end.
@@ -608,15 +639,6 @@ unionsMerge :: (HatVal n, Foldable f, HatBaseClass b) => f (Alg n b) -> Alg n b
 unionsMerge ts =
     let !m = Foldable.foldl' mergeAlgMap Map.empty ts
     in mkAlgFromMap m
-  where
-    {-# INLINE mergeAlgMap #-}
-    mergeAlgMap !acc Zero = acc
-    mergeAlgMap !acc (v :@ b) =
-        let !p = if isHat b
-                 then nullPair {_hatSide = Seq.singleton v}
-                 else nullPair {_notSide = Seq.singleton v}
-        in Map.insertWith pairAppend (base b) p acc
-    mergeAlgMap !acc (Liner m _ _ _ _ _) = Map.unionWith pairAppend acc m
 
 ------------------------------------------------------------------
 -- Redundant
@@ -768,8 +790,38 @@ fromList = mconcat
 -- >>> sigma [1,2] (\x -> x:@Hat:<Yen)
 -- 1.00:@Hat:<Yen .+ 2.00:@Hat:<Yen
 
+{-# INLINE sigma #-}
 sigma :: (HatVal v, HatBaseClass b) => [a] -> (a -> Alg v b) -> Alg v b
-sigma xs f = L.foldl' (\acc x -> acc <> f x) Zero xs
+sigma xs f = mkAlgFromMap $ L.foldl' step Map.empty xs
+  where
+    step !acc !x = mergeAlgMapIfNonZero acc (f x)
+
+{-# INLINE sigma2When #-}
+sigma2When :: (HatVal v, HatBaseClass b)
+           => [a]
+           -> [c]
+           -> (a -> c -> Bool)
+           -> (a -> c -> Alg v b)
+           -> Alg v b
+sigma2When xs ys cond f =
+    mkAlgFromMap $ L.foldl' outer Map.empty xs
+  where
+    outer !acc !x = L.foldl' (inner x) acc ys
+    inner !x !acc !y
+        | cond x y = mergeAlgMapIfNonZero acc (f x y)
+        | otherwise = acc
+
+{-# INLINE sigmaFromMap #-}
+sigmaFromMap :: (HatVal v, HatBaseClass b, Ord k)
+             => M.Map k v
+             -> (k -> v -> Alg v b)
+             -> Alg v b
+sigmaFromMap kvs f =
+    mkAlgFromMap $ M.foldlWithKey' step Map.empty kvs
+  where
+    step !acc !k !v
+        | isZeroValue v = acc
+        | otherwise = mergeAlgMapIfNonZero acc (f k v)
 
 -- | convert Alg n b to List
 -- Complexity: O(s), where s is total number of scalar entries.

@@ -382,76 +382,35 @@ getInputCoefficients world (i, j) = do
 instance StateSpace Term InitVar EventName World s where
     event = event'
 
-short :: Company -> Company -> Term -> Transaction -> Double
-short i j t ledger =
-    norm $
-        EJ.projWithBase [Hat :<(Products, j, i, Amount)]
-            ((.-) (termJournal t ledger))
+type ShortageMap = M.Map (Company, Company) Double
 
-data PurchasesAccum = PurchasesAccum
-    { _paMoves :: [EA.Alg Double HatBase2]
-    , _paBuyerCash :: M.Map Company Double
-    , _paBuyerPurchases :: M.Map Company Double
-    , _paSellerCash :: M.Map Company Double
-    , _paSellerSales :: M.Map Company Double
-    , _paSellerProducts :: M.Map Company Double
-    }
-
-emptyPurchasesAccum :: PurchasesAccum
-emptyPurchasesAccum = PurchasesAccum [] M.empty M.empty M.empty M.empty M.empty
-
-accumulateShortage :: Company -> Company -> Double -> PurchasesAccum -> PurchasesAccum
-accumulateShortage i j amount acc =
-    PurchasesAccum
-        { _paMoves =
-            (amount :@ Not :<(Products, j, i, Amount)) : _paMoves acc
-        , _paBuyerCash = M.insertWith (+) i amount (_paBuyerCash acc)
-        , _paBuyerPurchases = M.insertWith (+) i amount (_paBuyerPurchases acc)
-        , _paSellerCash = M.insertWith (+) j amount (_paSellerCash acc)
-        , _paSellerSales = M.insertWith (+) j amount (_paSellerSales acc)
-        , _paSellerProducts = M.insertWith (+) j amount (_paSellerProducts acc)
-        }
-
-buildPurchasesAlg :: Term -> Transaction -> EA.Alg Double HatBase2
-buildPurchasesAlg t ledger =
-    case _paMoves acc of
-        [] -> EA.Zero
-        _ -> EA.unionsMerge postings
+buildShortageMap :: Term -> Transaction -> ShortageMap
+buildShortageMap t ledger =
+    L.foldl' collect M.empty (EA.toList termAlg)
   where
     termAlg = EJ.toAlg ((.-) (termJournal t ledger))
-    acc = L.foldl' collect emptyPurchasesAccum (EA.toList termAlg)
 
-    collect ac (v :@ (Hat :< (Products, j, i, Amount)))
-        | v > 0 && i /= j = accumulateShortage i j v ac
-        | otherwise = ac
-    collect ac _ = ac
+    collect acc (v :@ (Hat :< (Products, j, i, Amount)))
+        | v > 0 && i /= j = M.insertWith (+) (i, j) v acc
+        | otherwise = acc
+    collect acc _ = acc
 
-    postings =
-        reverse (_paMoves acc)
-            ++ [ amount :@ Hat :<(Cash, (.#), i, Yen)
-               | (i, amount) <- M.toList (_paBuyerCash acc)
-               ]
-            ++ [ amount :@ Not :<(Purchases, (.#), i, Yen)
-               | (i, amount) <- M.toList (_paBuyerPurchases acc)
-               ]
-            ++ [ amount :@ Not :<(Cash, (.#), j, Yen)
-               | (j, amount) <- M.toList (_paSellerCash acc)
-               ]
-            ++ [ amount :@ Not :<(Sales, (.#), j, Yen)
-               | (j, amount) <- M.toList (_paSellerSales acc)
-               ]
-            ++ [ amount :@ Hat :<(Products, j, j, Amount)
-               | (j, amount) <- M.toList (_paSellerProducts acc)
-               ]
+purchasePosting :: Double -> Company -> Company -> EA.Alg Double HatBase2
+purchasePosting amount i j =
+    amount :@ Not :<(Products, j, i, Amount)
+    .+ amount :@ Hat :<(Cash, (.#), i, Yen)
+    .+ amount :@ Not :<(Purchases, (.#), i, Yen)
+    .+ amount :@ Not :<(Cash, (.#), j, Yen)
+    .+ amount :@ Not :<(Sales, (.#), j, Yen)
+    .+ amount :@ Hat :<(Products, j, j, Amount)
 
 purchases :: Term -> World s -> ST s Transaction
 purchases t world = do
     ledger <- readURef (_ledger world)
-    let purchaseAlg = buildPurchasesAlg t ledger
+    let shortageMap = buildShortageMap t ledger
     return $
-        case purchaseAlg of
-            EA.Zero -> Zero
-            _ -> purchaseAlg .| (SalesPurchase, t)
+        EJ.sigmaOnFromMap (SalesPurchase, t) shortageMap $ \(i, j) amount ->
+            purchasePosting amount i j
 
 event' :: World s -> Term -> EventName -> ST s ()
 

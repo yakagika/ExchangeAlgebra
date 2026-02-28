@@ -44,6 +44,9 @@ module ExchangeAlgebra.Journal
     , fromMap
     , fromList
     , sigma
+    , sigma2When
+    , sigmaOn
+    , sigmaOnFromMap
     , sigmaM
     , map
     , insert
@@ -69,6 +72,8 @@ import              Prelude                 hiding (map, filter)
 import qualified    Data.HashMap.Strict     as Map
 import              Control.Parallel.Strategies (using, parTraversable, rdeepseq, NFData)
 import qualified    Data.Set                as S
+import qualified    Data.List               as L
+import qualified    Data.Map.Strict         as M
 import              Data.Hashable
 import qualified    Data.Text               as T
 import qualified    Control.Monad           as CM
@@ -267,9 +272,75 @@ fromList = foldr (.+) mempty
 
 ------------------------------------------------------------------
 -- | sigma
+{-# INLINE mergeJournalMap #-}
+mergeJournalMap :: (HatVal v, HatBaseClass b, Note n)
+                => Map.HashMap n (Alg v b)
+                -> Journal n v b
+                -> Map.HashMap n (Alg v b)
+mergeJournalMap !acc (Journal base delta _)
+    | Map.null base && Map.null delta = acc
+    | otherwise =
+        let !acc1 = Map.foldlWithKey' mergeOne acc base
+        in Map.foldlWithKey' mergeOne acc1 delta
+  where
+    mergeOne !m !n !alg
+        | EA.isZero alg = m
+        | otherwise = Map.insertWith (.+) n alg m
+
+{-# INLINE mergeJournalMapIfNonZero #-}
+mergeJournalMapIfNonZero :: (HatVal v, HatBaseClass b, Note n)
+                         => Map.HashMap n (Alg v b)
+                         -> Journal n v b
+                         -> Map.HashMap n (Alg v b)
+mergeJournalMapIfNonZero !acc js
+    | isZero js = acc
+    | otherwise = mergeJournalMap acc js
+
+{-# INLINE sigma #-}
 sigma :: (HatVal v, HatBaseClass b, Note n)
       => [a] -> (a -> Journal n v b) -> Journal n v b
-sigma xs f = foldr ((.+) . f) mempty xs
+sigma xs f = fromMap $ L.foldl' step Map.empty xs
+  where
+    step !acc !x = mergeJournalMapIfNonZero acc (f x)
+
+{-# INLINE sigma2When #-}
+sigma2When :: (HatVal v, HatBaseClass b, Note n)
+           => [a]
+           -> [c]
+           -> (a -> c -> Bool)
+           -> (a -> c -> Journal n v b)
+           -> Journal n v b
+sigma2When xs ys cond f =
+    fromMap $ L.foldl' outer Map.empty xs
+  where
+    outer !acc !x = L.foldl' (inner x) acc ys
+    inner !x !acc !y
+        | cond x y = mergeJournalMapIfNonZero acc (f x y)
+        | otherwise = acc
+
+{-# INLINE sigmaOn #-}
+sigmaOn :: (HatVal v, HatBaseClass b, Note n)
+        => n
+        -> [a]
+        -> (a -> Alg v b)
+        -> Journal n v b
+sigmaOn n xs f =
+    let !alg = EA.sigma xs f
+    in if EA.isZero alg
+        then mempty
+        else alg .| n
+
+{-# INLINE sigmaOnFromMap #-}
+sigmaOnFromMap :: (HatVal v, HatBaseClass b, Note n, Ord k)
+               => n
+               -> M.Map k v
+               -> (k -> v -> Alg v b)
+               -> Journal n v b
+sigmaOnFromMap n kvs f =
+    let !alg = EA.sigmaFromMap kvs f
+    in if EA.isZero alg
+        then mempty
+        else alg .| n
 
 sigmaM :: (Monoid m, Monad m0) => [a] -> (a -> m0 m) -> m0 m
 sigmaM xs f = mconcat <$> CM.forM xs f

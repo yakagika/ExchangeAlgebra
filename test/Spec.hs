@@ -110,6 +110,131 @@ testProjWithNoteNorm = do
     assertNear "Journal.projWithNoteNorm (selected notes)" expected1 actual1
     assertNear "Journal.projWithNoteNorm (plank wildcard)" expected2 actual2
 
+testSigmaMergePath :: IO ()
+testSigmaMergePath = do
+    let xs = [1 .. 5 :: Int]
+        f :: Int -> TestAlg
+        f i
+            | i == 3 = EA.Zero
+            | odd i = fromIntegral i :@ (Hat :< Yen)
+            | otherwise = fromIntegral i :@ (Not :< Amount)
+        expected :: TestAlg
+        expected = EA.unionsMerge (L.map f xs)
+        actual :: TestAlg
+        actual = EA.sigma xs f
+    assertEqual "Alg.sigma bulk-merge path matches unionsMerge" expected actual
+
+testSigma2When :: IO ()
+testSigma2When = do
+    let xs = [1 .. 3 :: Int]
+        ys = [1 .. 4 :: Int]
+        cond i j = i /= j && even (i + j)
+        f :: Int -> Int -> TestAlg
+        f i j =
+            let v = fromIntegral (i * 10 + j)
+            in if odd i
+                then v :@ (Hat :< Yen)
+                else v :@ (Not :< Amount)
+        expected :: TestAlg
+        expected =
+            EA.unionsMerge
+                [ f i j
+                | i <- xs
+                , j <- ys
+                , cond i j
+                ]
+        actual :: TestAlg
+        actual = EA.sigma2When xs ys cond f
+    assertEqual "Alg.sigma2When matches list-comprehension sum" expected actual
+
+testSigmaFromMap :: IO ()
+testSigmaFromMap = do
+    let kvs = M.fromList
+            [ ((1, 2), 5.0)
+            , ((2, 3), 0.0)
+            , ((3, 1), 7.0)
+            ] :: M.Map (Int, Int) Double
+        f :: (Int, Int) -> Double -> TestAlg
+        f (i, j) v
+            | i < j = v :@ (Hat :< Yen)
+            | otherwise = v :@ (Not :< Amount)
+        expected :: TestAlg
+        expected = EA.unionsMerge
+            [ f (1, 2) 5.0
+            , f (3, 1) 7.0
+            ]
+        actual :: TestAlg
+        actual = EA.sigmaFromMap kvs f
+    assertEqual "Alg.sigmaFromMap iterates non-zero map entries only" expected actual
+
+testJournalSigmaMergePath :: IO ()
+testJournalSigmaMergePath = do
+    let xs = [1 .. 4 :: Int]
+        f :: Int -> TestJournal
+        f i = case i of
+            1 -> (1 :@ (Hat :< Yen)) .| "A"
+            2 -> EJ.Zero
+            3 -> (EA.Zero :: TestAlg) .| "A"
+            _ -> (2 :@ (Not :< Amount)) .| "B"
+        expected :: TestJournal
+        expected = EJ.fromMap $ HM.fromList
+            [ ("A", 1 :@ (Hat :< Yen))
+            , ("B", 2 :@ (Not :< Amount))
+            ]
+        actual = EJ.sigma xs f
+    assertEqual "Journal.sigma bulk-merge path skips zero postings" (EJ.toMap expected) (EJ.toMap actual)
+
+testJournalSigma2When :: IO ()
+testJournalSigma2When = do
+    let xs = [1 .. 3 :: Int]
+        ys = [1 .. 3 :: Int]
+        cond i j = i < j
+        f :: Int -> Int -> TestJournal
+        f i j
+            | i == 1 && j == 2 = (EA.Zero :: TestAlg) .| "N"
+            | odd (i + j) = (fromIntegral (i + j) :@ (Hat :< Yen)) .| "N"
+            | otherwise = EJ.Zero
+        expected :: TestJournal
+        expected = EJ.fromMap $ HM.fromList [("N", 5 :@ (Hat :< Yen))]
+        actual = EJ.sigma2When xs ys cond f
+    assertEqual "Journal.sigma2When matches filtered pair sum" (EJ.toMap expected) (EJ.toMap actual)
+
+testJournalSigmaOn :: IO ()
+testJournalSigmaOn = do
+    let xs = [1 .. 4 :: Int]
+        f :: Int -> TestAlg
+        f i
+            | i <= 2 = EA.Zero
+            | otherwise = fromIntegral i :@ (Hat :< Yen)
+        expected :: TestJournal
+        expected = (EA.sigma xs f) .| "SalesPurchase"
+        actual :: TestJournal
+        actual = EJ.sigmaOn "SalesPurchase" xs f
+        zeroExpected = EJ.Zero :: TestJournal
+        zeroActual = EJ.sigmaOn "SalesPurchase" xs (\_ -> EA.Zero :: TestAlg)
+    assertEqual "Journal.sigmaOn attaches note after EA.sigma" (EJ.toMap expected) (EJ.toMap actual)
+    assertEqual "Journal.sigmaOn returns Zero when EA.sigma is Zero" (EJ.toMap zeroExpected) (EJ.toMap zeroActual)
+
+testJournalSigmaOnFromMap :: IO ()
+testJournalSigmaOnFromMap = do
+    let kvs = M.fromList
+            [ ((1, 2), 4.0)
+            , ((2, 3), 0.0)
+            , ((2, 1), 6.0)
+            ] :: M.Map (Int, Int) Double
+        f :: (Int, Int) -> Double -> TestAlg
+        f (i, j) v
+            | i < j = v :@ (Hat :< Yen)
+            | otherwise = v :@ (Not :< Amount)
+        expected :: TestJournal
+        expected = (EA.sigmaFromMap kvs f) .| "SalesPurchase"
+        actual :: TestJournal
+        actual = EJ.sigmaOnFromMap "SalesPurchase" kvs f
+        zeroActual :: TestJournal
+        zeroActual = EJ.sigmaOnFromMap "SalesPurchase" (M.singleton (1, 1) 0.0) f
+    assertEqual "Journal.sigmaOnFromMap matches EA.sigmaFromMap + note" (EJ.toMap expected) (EJ.toMap actual)
+    assertEqual "Journal.sigmaOnFromMap returns Zero for empty-effective map" (EJ.toMap (EJ.Zero :: TestJournal)) (EJ.toMap zeroActual)
+
 -- ================================================================
 -- Transfer regression tests
 -- ================================================================
@@ -457,6 +582,13 @@ main = do
     testProjNormFastPath
     testProjWithBaseNorm
     testProjWithNoteNorm
+    testSigmaMergePath
+    testSigma2When
+    testSigmaFromMap
+    testJournalSigmaMergePath
+    testJournalSigma2When
+    testJournalSigmaOn
+    testJournalSigmaOnFromMap
     testFinalStockTransferAlgEquivalence
     testFinalStockTransferJournalEquivalence
     testSimulateEx1Default
