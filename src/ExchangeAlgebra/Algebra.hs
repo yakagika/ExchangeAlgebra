@@ -68,7 +68,8 @@ module ExchangeAlgebra.Algebra
     , projCurrentLiability
     , projFixedLiability
     , projCapitalStock
-    , rounding)where
+    , rounding
+    , unionsMerge)where
 
 import              ExchangeAlgebra.Algebra.Base
 
@@ -599,6 +600,23 @@ instance (HatVal n, HatBaseClass b) => Monoid (Alg n b) where
 -- For a long list this is typically the dominant construction cost.
 unions :: (HatVal n, Foldable f, HatBaseClass b) => f (Alg n b) -> Alg n b
 unions ts = Foldable.foldl' union Zero ts
+
+{-# INLINE unionsMerge #-}
+-- | Merge multiple Algs by directly combining their internal HashMaps,
+-- building the AxisPosting index only once at the end.
+unionsMerge :: (HatVal n, Foldable f, HatBaseClass b) => f (Alg n b) -> Alg n b
+unionsMerge ts =
+    let !m = Foldable.foldl' mergeAlgMap Map.empty ts
+    in mkAlgFromMap m
+  where
+    {-# INLINE mergeAlgMap #-}
+    mergeAlgMap !acc Zero = acc
+    mergeAlgMap !acc (v :@ b) =
+        let !p = if isHat b
+                 then nullPair {_hatSide = Seq.singleton v}
+                 else nullPair {_notSide = Seq.singleton v}
+        in Map.insertWith pairAppend (base b) p acc
+    mergeAlgMap !acc (Liner m _ _ _ _ _) = Map.unionWith pairAppend acc m
 
 ------------------------------------------------------------------
 -- Redundant

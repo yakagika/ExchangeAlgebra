@@ -26,3 +26,4 @@ cabal.project.local~
 .HTF/
 .example/optimization
 .ghc.environment.*
+*.bin

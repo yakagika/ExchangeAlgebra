@@ -1,13 +1,33 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
+
 module Main (main) where
 
 import           ExchangeAlgebraJournal
-import qualified ExchangeAlgebra.Algebra as EA
-import qualified ExchangeAlgebra.Journal as EJ
-import qualified Data.List as L
-import           System.Exit (exitFailure)
+import qualified ExchangeAlgebra.Algebra  as EA
+import qualified ExchangeAlgebra.Journal  as EJ
+import qualified ExchangeAlgebra.Journal.Transfer as EJT
+import qualified ExchangeAlgebra.Simulate as ES
 
-type TestAlg = EA.Alg Double (HatBase CountUnit)
-type TestJournal = EJ.Journal String Double (HatBase CountUnit)
+import qualified Data.HashMap.Strict as HM
+import qualified Data.Map.Strict     as M
+import qualified Data.List           as L
+import qualified Data.Text           as T
+import           Control.Monad       (forM_)
+import           Control.Monad.ST
+import           Data.Array.ST
+import           Data.STRef
+import           System.Exit         (exitFailure)
+import           System.Random       (StdGen, mkStdGen, randomR)
+import           Control.Monad       (replicateM)
+import           Control.Monad.State (runState, state)
+
+-- ================================================================
+-- Unit test helpers
+-- ================================================================
 
 eps :: Double
 eps = 1e-9
@@ -29,6 +49,13 @@ assertNear label expected actual
         putStrLn ("  expected: " ++ show expected)
         putStrLn ("  actual  : " ++ show actual)
         exitFailure
+
+-- ================================================================
+-- Existing pure algebra tests
+-- ================================================================
+
+type TestAlg = EA.Alg Double (HatBase CountUnit)
+type TestJournal = EJ.Journal String Double (HatBase CountUnit)
 
 algSample :: TestAlg
 algSample =
@@ -82,9 +109,295 @@ testProjWithNoteNorm = do
     assertNear "Journal.projWithNoteNorm (selected notes)" expected1 actual1
     assertNear "Journal.projWithNoteNorm (plank wildcard)" expected2 actual2
 
+-- ================================================================
+-- SimulateEx1 reproduction (default scenario only, no parallelism)
+-- ================================================================
+
+type SimTerm = Int
+
+instance StateTime SimTerm where
+    initTerm = 1
+    lastTerm = 100
+    nextTerm x = x + 1
+    prevTerm x = x - 1
+
+instance Note SimTerm where
+    plank = -1
+
+data SimInitVar = SimInitVar
+    { _simInitStock        :: Double
+    , _simSteadyProduction :: Double
+    , _simInhouseRatio     :: Double
+    } deriving (Eq, Show)
+
+instance InitVariables SimInitVar where
+
+data SimEvent
+    = SimSalesPurchase
+    | SimProduction
+    | SimPlank
+    deriving (Ord, Show, Enum, Eq, Bounded, Generic)
+
+instance Hashable SimEvent where
+
+instance Note SimEvent where
+    plank = SimPlank
+
+instance Event SimEvent where
+
+type SimCompany = Int
+
+instance Element SimCompany where
+    wiledcard = -1
+
+instance BaseClass SimCompany where
+
+simFstC, simLastC :: SimCompany
+simFstC = 1
+simLastC = 6
+
+simCompanies :: [SimCompany]
+simCompanies = [simFstC .. simLastC]
+
+type SimHatBase2 = HatBase (AccountTitles, SimCompany, SimCompany, CountUnit)
+
+instance ExBaseClass SimHatBase2 where
+    getAccountTitle (h :< (a, _, _, _)) = a
+    setAccountTitle (h :< (_, c, e, u)) b = h :< (b, c, e, u)
+
+type SimTransaction = EJ.Journal (SimEvent, SimTerm) Double SimHatBase2
+
+simCompressPreviousTerm :: SimTerm -> SimTransaction -> SimTransaction
+simCompressPreviousTerm t le =
+    EJ.fromMap $
+        L.foldl' (\acc ev -> HM.adjust compress (ev, t) acc)
+                 (EJ.toMap le)
+                 [fstEvent .. lastEvent]
+
+newtype SimLedger s = SimLedger (STRef s SimTransaction)
+
+instance UpdatableSTRef SimLedger s SimTransaction where
+    _unwrapURef (SimLedger x) = x
+    _wrapURef x = SimLedger x
+
+simInitLedger :: Double -> ST s (SimLedger s)
+simInitLedger d = newURef $ EJ.fromList
+    [ d :@ Not :<(Products, e, e, Amount) .| (plank, initTerm)
+    | e <- simCompanies
+    ]
+
+instance Updatable SimTerm SimInitVar SimLedger s where
+    type Inner SimLedger s = STRef s SimTransaction
+    unwrap = _unwrapURef
+    initialize _ _ e = simInitLedger (_simInitStock e)
+    updatePattern _ = return Modify
+    modify _ t _ x = do
+        le <- readURef x
+        let added = EJ.gather (plank, t)
+                  $ EJT.finalStockTransfer
+                  $ (.-) $ simTermJournal (t - 1) le
+            next = simCompressPreviousTerm (t - 1) (le .+ added)
+        writeURef x next
+
+type SimInputCoefficient = Double
+
+newtype SimICTable s = SimICTable (STArray s (SimCompany, SimCompany) SimInputCoefficient)
+
+instance UpdatableSTArray SimICTable s (SimCompany, SimCompany) SimInputCoefficient where
+    _unwrapUArray (SimICTable arr) = arr
+    _wrapUArray arr = SimICTable arr
+
+simGenerateRandomList :: StdGen -> Int -> ([Double], StdGen)
+simGenerateRandomList g n =
+    let (xs, g') = runState (replicateM n (state (randomR (0, 1.0))))
+                            (updateGen g 1000)
+        ys = L.map (\v -> if v < 0.1 then 0 else v) xs
+    in (ys, g')
+
+simInitTermCoefficients :: StdGen -> Double -> M.Map SimCompany [SimInputCoefficient]
+simInitTermCoefficients g inhouseRatio =
+    fst $ L.foldl' buildRow (M.empty, g) simCompanies
+  where
+    buildRow (acc, g0) c2 =
+        let (row, g1) = generateRow g0
+        in (M.insert c2 row acc, g1)
+    generateRow g0 =
+        let (vals, g1) = simGenerateRandomList g0 simLastC
+            total = sum vals
+            normalized = L.map (\v -> (v / total) * inhouseRatio) vals
+        in (normalized, g1)
+
+simInitICTables :: StdGen -> Double -> ST s (SimICTable s)
+simInitICTables g inhouseRatio = do
+    arr <- newUArray ((simFstC, simFstC), (simLastC, simLastC)) 0
+    let termCoefficients = simInitTermCoefficients g inhouseRatio
+    forM_ simCompanies $ \c2 -> do
+        let row = termCoefficients M.! c2
+        forM_ (zip simCompanies row) $ \(c1, coef) ->
+            writeUArray arr (c1, c2) coef
+    return arr
+
+instance Updatable SimTerm SimInitVar SimICTable s where
+    type Inner SimICTable s = STArray s (SimCompany, SimCompany) SimInputCoefficient
+    unwrap (SimICTable a) = a
+    initialize g _ e = simInitICTables g (_simInhouseRatio e)
+    updatePattern _ = return DoNothing
+
+type SimSteadyProd = Double
+
+newtype SimSP s = SimSP (STRef s SimSteadyProd)
+
+instance UpdatableSTRef SimSP s SimSteadyProd where
+    _unwrapURef (SimSP x) = x
+    _wrapURef x = SimSP x
+
+instance Updatable SimTerm SimInitVar SimSP s where
+    type Inner SimSP s = STRef s SimSteadyProd
+    unwrap = _unwrapURef
+    initialize _ _ e = newURef (_simSteadyProduction e)
+    updatePattern _ = return DoNothing
+
+data SimWorld s = SimWorld
+    { _simLedger :: SimLedger s
+    , _simIcs    :: SimICTable s
+    , _simSp     :: SimSP s
+    } deriving (Generic)
+
+-- helper functions
+
+simTermJournal :: SimTerm -> SimTransaction -> SimTransaction
+simTermJournal t = EJ.filterWithNote (\(_, t') _ -> t' == t)
+
+simGetOneProduction :: SimWorld s -> SimTerm -> SimCompany -> ST s SimTransaction
+simGetOneProduction wld t c = do
+    let arr = _simIcs wld
+    inputs <- mapM (\c2 -> do
+        coef <- readUArray arr (c2, c)
+        return $ coef :@ Hat :<(Products, c2, c, Amount) .| (SimProduction, t)
+        ) simCompanies
+    let totalInput = EJ.fromList inputs
+        result = (1 :@ Not :<(Products, c, c, Amount) .| (SimProduction, t)) .+ totalInput
+    return result
+
+simJournal :: SimWorld s -> SimTransaction -> ST s ()
+simJournal _ Zero = return ()
+simJournal wld js = modifyURef (_simLedger wld) (\x -> x .+ js)
+
+simBuildShortageMap :: SimTerm -> SimTransaction -> M.Map (SimCompany, SimCompany) Double
+simBuildShortageMap t le =
+    let termAlg = EJ.toAlg $ (.-) $ simTermJournal t le
+    in L.foldl' go M.empty (EA.toList termAlg)
+  where
+    go acc (v :@ (Hat :< (Products, j, i, Amount))) = M.insertWith (+) (i, j) v acc
+    go acc _ = acc
+
+simPurchases :: SimTerm -> SimWorld s -> ST s SimTransaction
+simPurchases t wld = do
+    le <- readURef (_simLedger wld)
+    let shortageMap = simBuildShortageMap t le
+        o i j = M.findWithDefault 0 (i, j) shortageMap
+    return $ sigma simCompanies $ \i
+           -> sigma (simCompanies L.\\ [i]) $ \j
+           -> (o i j) :@ Not :<(Products, j, i, Amount)
+           .+ (o i j) :@ Hat :<(Cash, (.#), i, Yen)
+           .+ (o i j) :@ Not :<(Purchases, (.#), i, Yen)
+           .+ (o i j) :@ Not :<(Cash, (.#), j, Yen)
+           .+ (o i j) :@ Not :<(Sales, (.#), j, Yen)
+           .+ (o i j) :@ Hat :<(Products, j, j, Amount)
+           .| (SimSalesPurchase, t)
+
+instance StateSpace SimTerm SimInitVar SimEvent SimWorld s where
+    event = simEvent
+
+simEvent :: SimWorld s -> SimTerm -> SimEvent -> ST s ()
+
+simEvent wld t SimSalesPurchase = do
+    toAdd <- simPurchases t wld
+    simJournal wld toAdd
+
+simEvent wld t SimProduction = do
+    sp <- readURef (_simSp wld)
+    forM_ simCompanies $ \e1 -> do
+        op <- simGetOneProduction wld t e1
+        simJournal wld (sp .* op)
+
+simEvent _ _ SimPlank = return ()
+
+simGetTermStock :: SimWorld s -> SimTerm -> SimCompany -> ST s Double
+simGetTermStock wld t e = do
+    le <- readURef (_simLedger wld)
+    let tj = (.-) $ simTermJournal t le
+        plusStock  = norm $ EJ.projWithBase [Not :<(Products, e, e, Amount)] tj
+        minusStock = norm $ EJ.projWithBase [Hat :<(Products, e, e, Amount)] tj
+    return $ plusStock - minusStock
+
+simGetTermGrossProfit :: SimWorld s -> SimTerm -> SimCompany -> ST s Double
+simGetTermGrossProfit wld t e = do
+    le <- readURef (_simLedger wld)
+    let termTr = simTermJournal t le
+        tr     = EJT.grossProfitTransfer termTr
+        plus   = norm $ EJ.projWithBase [Not :<(GrossProfit, (.#), e, Yen)] tr
+        minus  = norm $ EJ.projWithBase [Hat :<(GrossProfit, (.#), e, Yen)] tr
+    return (plus - minus)
+
+-- ================================================================
+-- Simulation integration test
+-- ================================================================
+
+simEps :: Double
+simEps = 1e-6
+
+assertSimNear :: String -> Double -> Double -> IO ()
+assertSimNear label expected actual
+    | abs (expected - actual) <= simEps = putStrLn ("[PASS] " ++ label)
+    | otherwise = do
+        putStrLn ("[FAIL] " ++ label)
+        putStrLn ("  expected: " ++ show expected)
+        putStrLn ("  actual  : " ++ show actual)
+        exitFailure
+
+testSimulateEx1Default :: IO ()
+testSimulateEx1Default = do
+    let gen = mkStdGen 2025
+        defaultEnv = SimInitVar
+            { _simInitStock        = 20
+            , _simInhouseRatio     = 0.4
+            , _simSteadyProduction = 10
+            }
+
+    wld <- ES.runSimulation gen defaultEnv
+
+    -- Stock at term 1 for each company
+    stocks1 <- stToIO $ mapM (simGetTermStock wld 1) simCompanies
+    -- Stock at term 50 for each company
+    stocks50 <- stToIO $ mapM (simGetTermStock wld 50) simCompanies
+    -- Stock at term 100 for each company
+    stocks100 <- stToIO $ mapM (simGetTermStock wld 100) simCompanies
+    -- Gross profit at term 50 for each company
+    profits50 <- stToIO $ mapM (simGetTermGrossProfit wld 50) simCompanies
+
+    -- Stock at t=1
+    assertSimNear "sim1 stock(t=1,c=1)" 28.487224703666264 (stocks1 !! 0)
+    assertSimNear "sim1 stock(t=1,c=3)" 30.0               (stocks1 !! 2)
+    assertSimNear "sim1 stock(t=1,c=6)" 29.01925920375148  (stocks1 !! 5)
+    -- Stock at t=50
+    assertSimNear "sim1 stock(t=50,c=1)" 304.9028131162567  (stocks50 !! 0)
+    assertSimNear "sim1 stock(t=50,c=4)" 292.4764622201871  (stocks50 !! 3)
+    -- Stock at t=100
+    assertSimNear "sim1 stock(t=100,c=1)" 586.9595359862476  (stocks100 !! 0)
+    assertSimNear "sim1 stock(t=100,c=6)" 592.9260354913148  (stocks100 !! 5)
+    -- Gross profit at t=50
+    assertSimNear "sim1 profit(t=50,c=1)" 0.35886554260018855 (profits50 !! 0)
+    assertSimNear "sim1 profit(t=50,c=2)" 1.572544209772035   (profits50 !! 1)
+
+-- ================================================================
+-- Main
+-- ================================================================
+
 main :: IO ()
 main = do
     testProjMultiPatternOnePass
     testProjNormFastPath
     testProjWithBaseNorm
     testProjWithNoteNorm
+    testSimulateEx1Default

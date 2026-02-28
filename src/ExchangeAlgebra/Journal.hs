@@ -212,6 +212,12 @@ instance (HatVal v, HatBaseClass b, Note n) => Semigroup (Journal n v b) where
     (<>) = addJournal
 
 -- | (.+) for Journal
+--
+-- >>> type Test = Journal String Double (HatBase AccountTitles)
+-- >>> x = 20.00:@Not:<Cash .+ 20.00:@Hat:<Deposits .| "Withdrawal" :: Test
+-- >>> y = 10.00:@Hat:<Cash .+ 10.00:@Not:<Deposits .| "Deposits" :: Test
+-- >>> x .+ y
+-- 10.00:@Not:<Deposits.|"Deposits" .+ 10.00:@Hat:<Cash.|"Deposits" .+ 20.00:@Hat:<Deposits.|"Withdrawal" .+ 20.00:@Not:<Cash.|"Withdrawal"
 addJournal :: (HatVal v, HatBaseClass b, Note n)
            => Journal n v b -> Journal n v b -> Journal n v b
 -- | Complexity:
@@ -249,11 +255,18 @@ instance (Note n, HatVal v, ExBaseClass b) => Exchange (Journal n) v b where
         l = (norm . decL) xs
 
 ------------------------------------------------------------------
+-- | fromList
+--
+-- >>> type Test = Journal String Double (HatBase AccountTitles)
+-- >>> x = [(1.00:@Hat:<Cash .| z) | z <- ["Loan Payment","Purchace Apple"]] :: [Test]
+-- >>> fromList x
+-- 1.00:@Hat:<Cash.|"Loan Payment" .+ 1.00:@Hat:<Cash.|"Purchace Apple"
 fromList :: (HatVal v, HatBaseClass b, Note n)
          => [Journal n v b] -> Journal n v b
 fromList = foldr (.+) mempty
 
 ------------------------------------------------------------------
+-- | sigma
 sigma :: (HatVal v, HatBaseClass b, Note n)
       => [a] -> (a -> Journal n v b) -> Journal n v b
 sigma xs f = foldr ((.+) . f) mempty xs
@@ -264,13 +277,14 @@ sigmaM xs f = mconcat <$> CM.forM xs f
 ------------------------------------------------------------------
 toAlg :: (HatVal v, HatBaseClass b, Note n)
       => Journal n v b -> Alg v b
+-- | Complexity: O(total base keys across all notes).
 toAlg (Journal base delta _) =
-    let !z = Map.foldl' (.+) EA.Zero base
-    in Map.foldl' (.+) z delta
+    EA.unionsMerge (Map.elems base ++ Map.elems delta)
 
 ------------------------------------------------------------------
 map :: (HatVal v, HatBaseClass b, Note n)
     => (Alg v b -> Alg v b) -> Journal n v b -> Journal n v b
+-- | Complexity: O(j * cost(f)), where j is note count.
 map f = fromMap . Map.map f . toMap
 
 parallelMap :: (NFData b, Ord k) => (a -> b) -> Map.HashMap k a -> Map.HashMap k b
@@ -281,11 +295,27 @@ parMap :: (HatVal v, HatBaseClass b, Note n)
 parMap f = fromMap . parallelMap f . toMap
 
 -- | insert x y : x の note が優先される
+--
+-- >>> type Test = Journal String Double (HatBase AccountTitles)
+-- >>> x = 10.00:@Not:<Cash .| "A" :: Test
+-- >>> y = 20.00:@Not:<Cash .| "B" :: Test
+-- >>> z = 30.00:@Hat:<Cash .| "A" :: Test
+-- >>> insert z (x .+ y)
+-- 30.00:@Hat:<Cash.|"A" .+ 20.00:@Not:<Cash.|"B"
 insert :: (HatVal v, HatBaseClass b, Note n)
         => Journal n v b -> Journal n v b -> Journal n v b
 insert x y = fromMap (Map.union (toMap x) (toMap y))
 
 ------------------------------------------------------------------
+-- | projWithNote
+-- Projecting with Note.
+--
+-- >>> type Test = Journal String Double (HatBase CountUnit)
+-- >>> x = 1.00:@Hat:<Yen .+ 1.00:@Not:<Amount .| "cat"  :: Test
+-- >>> y = 2.00:@Hat:<Yen .+ 2.00:@Not:<Amount .| "dog"  :: Test
+-- >>> z = 3.00:@Hat:<Yen .+ 3.00:@Not:<Amount .| "fish" :: Test
+-- >>> projWithNote ["dog","cat"] (x .+ y .+ z)
+-- 2.00:@Not:<Amount.|"dog" .+ 2.00:@Hat:<Yen.|"dog" .+ 1.00:@Not:<Amount.|"cat" .+ 1.00:@Hat:<Yen.|"cat"
 projWithNote :: (HatVal v, HatBaseClass b, Note n)
              => [n] -> Journal n v b -> Journal n v b
 projWithNote ns js
@@ -303,6 +333,15 @@ projWithNote ns js =
         (S.fromList ns)
 
 ------------------------------------------------------------------
+-- | projWithBase
+-- Projecting with Base.
+--
+-- >>> type Test = Journal String Double (HatBase CountUnit)
+-- >>> x = 1.00:@Hat:<Yen .+ 1.00:@Not:<Amount .| "cat"  :: Test
+-- >>> y = 2.00:@Not:<Yen .+ 2.00:@Hat:<Amount .| "dog"  :: Test
+-- >>> z = 3.00:@Hat:<Yen .+ 3.00:@Not:<Amount .| "fish" :: Test
+-- >>> projWithBase [Not:<Amount] (x .+ y .+ z)
+-- 3.00:@Not:<Amount.|"fish" .+ 1.00:@Not:<Amount.|"cat"
 projWithBase :: (HatVal v, HatBaseClass b, Note n)
              => [b] -> Journal n v b -> Journal n v b
 {-# INLINE [0] projWithBase #-}
@@ -316,6 +355,15 @@ projWithBaseNorm bs js =
     Map.foldl' (\acc alg -> acc + EA.projNorm bs alg) 0 (toMap js)
 
 ------------------------------------------------------------------
+-- | projWithNoteBase
+-- Projecting with Note and Base.
+--
+-- >>> type Test = Journal String Double (HatBase CountUnit)
+-- >>> x = 1.00:@Hat:<Yen .+ 1.00:@Not:<Amount .| "cat"  :: Test
+-- >>> y = 2.00:@Not:<Yen .+ 2.00:@Hat:<Amount .| "dog"  :: Test
+-- >>> z = 3.00:@Hat:<Yen .+ 3.00:@Not:<Amount .| "fish" :: Test
+-- >>> projWithNoteBase ["dog","fish"] [Not:<Amount] (x .+ y .+ z)
+-- 3.00:@Not:<Amount.|"fish"
 projWithNoteBase :: (HatVal v, HatBaseClass b, Note n)
                  => [n] -> [b] -> Journal n v b -> Journal n v b
 {-# INLINE [0] projWithNoteBase #-}
@@ -362,9 +410,20 @@ projWithNoteNorm ns bs js =
 ------------------------------------------------------------------
 filterWithNote :: (HatVal v, HatBaseClass b, Note n)
                => (n -> Alg v b -> Bool) -> Journal n v b -> Journal n v b
-filterWithNote f = fromMap . Map.filterWithKey f . toMap
+filterWithNote f (Journal base delta ver) =
+    let !base'  = Map.filterWithKey f base
+        !delta' = Map.filterWithKey f delta
+    in Journal base' delta' ver
 
 ------------------------------------------------------------------
+-- | gather
+-- Gathers all Alg into one on the given Note.
+--
+-- >>> type Test = Journal String Double (EA.HatBase EA.AccountTitles)
+-- >>> x = 20.00:@Not:<Cash .+ 20.00:@Hat:<Deposits .| "Withdrawal" :: Test
+-- >>> y = 10.00:@Hat:<Cash .+ 10.00:@Not:<Deposits .| "Deposits" :: Test
+-- >>> gather "A" (x .+ y)
+-- 10.00:@Not:<Deposits.|"A" .+ 20.00:@Hat:<Deposits.|"A" .+ 20.00:@Not:<Cash.|"A" .+ 10.00:@Hat:<Cash.|"A"
 gather :: (HatVal v, HatBaseClass b, Note n)
        => n -> Journal n v b -> Journal n v b
 gather n js = (toAlg js) .| n
