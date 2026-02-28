@@ -224,14 +224,6 @@ instance Element AccountTitles where
 
 
 
-{- |
-
-勘定科目の全体と
-必要となる処理に関して,体系的に包括された参考文献
-それをコピーすれば必要十分な文献
-
--}
-
 -- | Name :: 品目の名前
 type Name = Text
 
