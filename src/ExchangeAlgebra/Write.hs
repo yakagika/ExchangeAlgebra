@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {- |
     Module     : ExchangeAlgebra
     Copyright  : (c) Kaya Akagi. 2018-2019
@@ -22,6 +23,7 @@ module ExchangeAlgebra.Write where
 
 import qualified    ExchangeAlgebra.Algebra     as EA
 import              ExchangeAlgebra.Algebra
+import qualified    ExchangeAlgebra.Journal     as EJ
 
 import qualified    ExchangeAlgebra.Algebra.Transfer    as ET
 
@@ -30,6 +32,7 @@ import              ExchangeAlgebra.Simulate
 import qualified    CSV.Text                    as CSV
 import qualified    Data.List                   as L
 import qualified    Data.Text                   as T
+import qualified    Data.Binary                 as Binary
 
 import              Control.Monad
 import qualified    Data.Set as Set
@@ -214,5 +217,41 @@ writeIOMatrix path arr = do
         vals <- forM cols $ \c -> tshow <$> readArray arr (r, c)
         pure (tshow r : vals)
     CSV.writeCSV path ((T.pack "" : L.map tshow cols) : body)
+
+------------------------------------------------------------------
+-- Spill Restore Utilities
+------------------------------------------------------------------
+
+-- | Restore full journal from spilled chunks and current in-memory remainder.
+-- The in-memory part is filtered to terms greater than the latest spilled end
+-- so duplicated terms are not double-counted.
+restoreJournalFromBinarySpill
+    :: ( Binary.Binary t
+       , Ord t
+       , Binary.Binary (EJ.Journal n v b)
+       , EJ.Note n
+       , HatVal v
+       , HatBaseClass b
+       )
+    => FilePath
+    -> (n -> t)
+    -> EJ.Journal n v b
+    -> IO (EJ.Journal n v b)
+restoreJournalFromBinarySpill spillPath noteToTerm currentLedger = do
+    chunks <- readBinarySpillFile spillPath
+    let spilled = L.foldl' (\acc (_, j) -> acc .+ j) mempty chunks
+        latestEnd = L.foldl'
+            (\acc ((_, tEnd), _) ->
+                case acc of
+                    Nothing -> Just tEnd
+                    Just x -> Just (max x tEnd)
+            )
+            Nothing
+            chunks
+        remainder = case latestEnd of
+            Nothing -> currentLedger
+            Just tEnd ->
+                EJ.filterWithNote (\n _ -> noteToTerm n > tEnd) currentLedger
+    pure (spilled .+ remainder)
 
 ------------------------------------------------------------------

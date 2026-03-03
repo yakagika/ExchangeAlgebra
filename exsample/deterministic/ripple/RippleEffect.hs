@@ -153,9 +153,6 @@ instance Note EventName where
 
 instance Event EventName where
 
-instance Note Term where
-    plank = -1
-
 -- | 取引
 type Transaction = EJ.Journal (EventName,Term) Double VEHatBase
 

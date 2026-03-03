@@ -53,6 +53,7 @@ module ExchangeAlgebra.Algebra
     , bases
     , fromList
     , toList
+    , foldEntries
     , sigma
     , sigma2When
     , sigmaFromMap
@@ -64,6 +65,8 @@ module ExchangeAlgebra.Algebra
     , projDebit
     , projByAccountTitle
     , projNorm
+    , balanceBy
+    , foldEntriesToMap
     , projCurrentAssets
     , projFixedAssets
     , projDeferredAssets
@@ -86,7 +89,7 @@ import qualified    Data.HashMap.Strict     as Map
 import qualified    Data.IntMap.Strict      as IntMap
 import qualified    Data.IntSet             as IntSet
 import qualified    Data.Map.Strict         as M
-import qualified    Data.Foldable       as Foldable (foldMap,foldl',toList)
+import qualified    Data.Foldable       as Foldable (foldMap,foldl',foldr,toList)
 import qualified    Data.Sequence       as Seq
 import              Data.Sequence       (Seq)
 import qualified    Data.Maybe          as Maybe
@@ -275,12 +278,23 @@ data Pair v where
 
 instance (Binary.Binary v) => Binary.Binary (Pair v) where
     put (Pair hs ns) = do
-        Binary.put (Foldable.toList hs)
-        Binary.put (Foldable.toList ns)
+        Binary.put (Seq.length hs :: Int)
+        Foldable.foldr (\x k -> Binary.put x >> k) (pure ()) hs
+        Binary.put (Seq.length ns :: Int)
+        Foldable.foldr (\x k -> Binary.put x >> k) (pure ()) ns
     get = do
-        hs <- Binary.get
-        ns <- Binary.get
-        pure (Pair (Seq.fromList hs) (Seq.fromList ns))
+        hsLen <- Binary.get :: Binary.Get Int
+        hs <- go hsLen Seq.empty
+        nsLen <- Binary.get :: Binary.Get Int
+        ns <- go nsLen Seq.empty
+        pure (Pair hs ns)
+      where
+        go :: Binary.Binary a => Int -> Seq a -> Binary.Get (Seq a)
+        go n !acc
+            | n <= 0 = pure acc
+            | otherwise = do
+                x <- Binary.get
+                go (n - 1) (acc Seq.|> x)
 
 
 instance (HatVal v) => Ord (Pair v) where
@@ -350,15 +364,28 @@ instance ( HatBaseClass b
         Binary.put b
     put (Liner m _ _ _ _ _) = do
         Binary.put (2 :: Int)
-        Binary.put (Map.toList m)
+        Binary.put (Map.size m :: Int)
+        Map.foldrWithKey
+            (\bp p k -> Binary.put bp >> Binary.put p >> k)
+            (pure ())
+            m
 
     get = do
         tag <- Binary.get
         case (tag :: Int) of
             0 -> pure Zero
             1 -> (:@) <$> Binary.get <*> Binary.get
-            2 -> linerFromMap . Map.fromList <$> Binary.get
+            2 -> do
+                n <- Binary.get :: Binary.Get Int
+                linerFromMap <$> go n Map.empty
             _ -> fail ("Binary decode failure for Alg: unknown tag " ++ show tag)
+      where
+        go n !acc
+            | n <= 0 = pure acc
+            | otherwise = do
+                bp <- Binary.get
+                p <- Binary.get
+                go (n - 1) (Map.insert bp p acc)
 
 type AxisPosting = IntMap.IntMap (Map.HashMap AxisKey IntSet.IntSet)
 
@@ -846,6 +873,26 @@ toList (Liner m _ _ _ _ _)  = Map.foldlWithKey' f [] m
             | isZeroValue v = ys
             | otherwise     = (v :@ (merge h b)):ys
 
+{-# INLINE foldEntries #-}
+-- | Strict left fold over scalar entries without building an intermediate list.
+foldEntries :: (HatVal v, HatBaseClass b)
+            => (acc -> v -> b -> acc)
+            -> acc
+            -> Alg v b
+            -> acc
+foldEntries _ !acc Zero = acc
+foldEntries f !acc (v :@ b)
+    | isZeroValue v = acc
+    | otherwise = f acc v b
+foldEntries f !acc (Liner m _ _ _ _ _) =
+    Map.foldlWithKey' step acc m
+  where
+    step !acc0 !bp (Pair hs ns) =
+        let !hatBase = merge Hat bp
+            !notBase = merge Not bp
+            !acc1 = Foldable.foldl' (\a v -> if isZeroValue v then a else f a v hatBase) acc0 hs
+        in Foldable.foldl' (\a v -> if isZeroValue v then a else f a v notBase) acc1 ns
+
 {-# INLINE toASCList #-}
 -- | Complexity: O(s log s), dominated by sorting the list representation.
 toASCList :: (HatVal v, HatBaseClass b) => Alg v b -> [Alg v b]
@@ -1176,6 +1223,43 @@ barNormPair (Pair hs ns) =
         then 0
         else if h > n then h - n else n - h
 
+
+-- | Compute the net balance as the difference of two projections.
+-- @balanceBy plusBases minusBases alg@ computes
+-- @projNorm plusBases alg - projNorm minusBases alg@.
+--
+-- Useful for calculating stock quantities, profits, etc.
+--
+-- >>> type T = Alg Double (HatBase AccountTitles)
+-- >>> let alg = 100 :@ Not:<Cash .+ 30 :@ Hat:<Cash :: T
+-- >>> balanceBy [Not:<Cash] [Hat:<Cash] alg
+-- 70.0
+--
+-- >>> balanceBy [Hat:<Cash] [Not:<Cash] alg
+-- -70.0
+balanceBy :: (HatVal n, HatBaseClass b) => [b] -> [b] -> Alg n b -> n
+balanceBy plusBases minusBases alg =
+    projNorm plusBases alg - projNorm minusBases alg
+
+-- | Fold algebra entries into a @Map@, combining values with @(+)@.
+--
+-- The selector function examines each entry @(v, b)@ and optionally returns
+-- a @(key, value)@ pair. Values for duplicate keys are summed.
+--
+-- >>> type T = Alg Double (HatBase AccountTitles)
+-- >>> let alg = 10 :@ Hat:<Cash .+ 20 :@ Hat:<Deposits .+ 5 :@ Hat:<Cash :: T
+-- >>> let f v (Hat :< a) = Just (a, v); f _ _ = Nothing
+-- >>> foldEntriesToMap f alg
+-- fromList [(Cash,15.0),(Deposits,20.0)]
+foldEntriesToMap :: (HatVal v, HatBaseClass b, Ord k)
+                 => (v -> b -> Maybe (k, v))
+                 -> Alg v b
+                 -> M.Map k v
+foldEntriesToMap f = foldEntries step M.empty
+  where
+    step acc v b = case f v b of
+        Just (k, v') -> M.insertWith (+) k v' acc
+        Nothing      -> acc
 
 -- | 流動資産の取得
 -- Complexity: O(s), a constant-depth composition of filters.

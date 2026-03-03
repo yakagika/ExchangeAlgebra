@@ -27,3 +27,5 @@ cabal.project.local~
 .example/optimization
 .ghc.environment.*
 *.bin
+.claude/
+.stack-local/

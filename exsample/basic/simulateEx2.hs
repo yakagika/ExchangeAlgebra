@@ -14,7 +14,7 @@ import qualified ExchangeAlgebra.Journal.Transfer as EJT
 import qualified ExchangeAlgebra.Simulate as ES
 import qualified ExchangeAlgebra.Simulate.Visualize as ESV
 
-import           Control.Concurrent.Async (forConcurrently_, mapConcurrently)
+import           Control.Concurrent.Async (forConcurrently_)
 import           Control.Monad (foldM, forM, forM_, replicateM)
 import           Control.Monad.ST (RealWorld, ST, stToIO)
 import           Control.Monad.State (runState, state)
@@ -37,11 +37,6 @@ type Term = Int
 instance StateTime Term where
     initTerm = 1
     lastTerm = 100
-    nextTerm x = x + 1
-    prevTerm x = x - 1
-
-instance Note Term where
-    plank = -1
 
 ------------------------------------------------------------------
 -- * Simulation Parameters
@@ -81,9 +76,7 @@ type SteadyProd = Double
 
 newtype SP s = SP (STRef s SteadyProd)
 
-instance UpdatableSTRef SP s SteadyProd where
-   _unwrapURef (SP x) = x
-   _wrapURef x = SP x
+instance UpdatableSTRef SP s SteadyProd
 
 instance Updatable Term InitVar SP s where
     type Inner SP s = STRef s SteadyProd
@@ -133,9 +126,7 @@ compressPreviousTerm t ledger =
 
 newtype Ledger s = Ledger (STRef s Transaction)
 
-instance UpdatableSTRef Ledger s Transaction where
-   _unwrapURef (Ledger x) = x
-   _wrapURef x = Ledger x
+instance UpdatableSTRef Ledger s Transaction
 
 -- | Initial ledger: each company starts with own product stock.
 initLedger :: Double -> ST s (Ledger s)
@@ -174,16 +165,12 @@ type Row = Company
 
 newtype ICTable s = ICTable (STArray s (Row, Col) InputCoefficient)
 
-instance UpdatableSTArray ICTable s (Row, Col) InputCoefficient where
-  _unwrapUArray (ICTable arr) = arr
-  _wrapUArray arr = ICTable arr
+instance UpdatableSTArray ICTable s (Row, Col) InputCoefficient
 
 -- | Sparse cache for non-zero input coefficients.
 newtype ICSparse s = ICSparse (STRef s (Maybe SparseInputs))
 
-instance UpdatableSTRef ICSparse s (Maybe SparseInputs) where
-   _unwrapURef (ICSparse x) = x
-   _wrapURef x = ICSparse x
+instance UpdatableSTRef ICSparse s (Maybe SparseInputs)
 
 -- | Generate random values in [0, 1], then sparsify tiny values to zero.
 generateRandomList :: StdGen -> Int -> ([Double], StdGen)
@@ -308,22 +295,15 @@ termAlgAt t = EJ.toAlg . (.-) . termJournal t
 grossProfitAlgAt :: Term -> Transaction -> EA.Alg Double HatBase2
 grossProfitAlgAt t = EJ.toAlg . EJT.grossProfitTransfer . termJournal t
 
-projNormBy :: [HatBase2] -> EA.Alg Double HatBase2 -> Double
-projNormBy bases = EA.projNorm bases
-
-balanceBy :: [HatBase2] -> [HatBase2] -> EA.Alg Double HatBase2 -> Double
-balanceBy plusBases minusBases alg =
-    projNormBy plusBases alg - projNormBy minusBases alg
-
 stockByAlg :: Company -> EA.Alg Double HatBase2 -> Double
 stockByAlg e =
-    balanceBy
+    EA.balanceBy
         [Not :<(Products, e, e, Amount)]
         [Hat :<(Products, e, e, Amount)]
 
 grossProfitByAlg :: Company -> EA.Alg Double HatBase2 -> Double
 grossProfitByAlg e =
-    balanceBy
+    EA.balanceBy
         [Not :<(GrossProfit, (.#), e, Yen)]
         [Hat :<(GrossProfit, (.#), e, Yen)]
 
@@ -386,14 +366,14 @@ type ShortageMap = M.Map (Company, Company) Double
 
 buildShortageMap :: Term -> Transaction -> ShortageMap
 buildShortageMap t ledger =
-    L.foldl' collect M.empty (EA.toList termAlg)
+    EA.foldEntriesToMap collect termAlg
   where
     termAlg = EJ.toAlg ((.-) (termJournal t ledger))
 
-    collect acc (v :@ (Hat :< (Products, j, i, Amount)))
-        | v > 0 && i /= j = M.insertWith (+) (i, j) v acc
-        | otherwise = acc
-    collect acc _ = acc
+    collect v (Hat :< (Products, j, i, Amount))
+        | v > 0 && i /= j = Just ((i, j), v)
+        | otherwise = Nothing
+    collect _ _ = Nothing
 
 purchasePosting :: Double -> Company -> Company -> EA.Alg Double HatBase2
 purchasePosting amount i j =
@@ -458,9 +438,10 @@ profitHeaders =
     | i <- [fstC .. lastC]
     ]
 
-writeSimulationResult :: FilePath -> World RealWorld -> IO ()
-writeSimulationResult outDir world = do
-    ledger <- stToIO (readURef (_ledger world))
+writeSimulationResult :: FilePath -> FilePath -> World RealWorld -> IO ()
+writeSimulationResult outDir spillPath world = do
+    currentLedger <- stToIO (readURef (_ledger world))
+    ledger <- restoreJournalFromBinarySpill spillPath snd currentLedger
     let analysis = buildAnalysisCache ledger
         context _ t = return (lookupTermAnalysis analysis t)
     ESV.writeFuncResultsWithContext context stockHeaders (initTerm, lastTerm) world (outDir ++ "/stock.csv")
@@ -487,6 +468,9 @@ buildSpillOptions spillDir envName =
         :: ES.SpillOptions Term World Transaction
     )
         { ES.spillDeletePolicy = ES.KeepRecentTerms spillKeepRecentTerms
+        , ES.spillExtractChunk = Just $ \(chunkStart, chunkEnd) world -> do
+            ledger <- readURef (_ledger world)
+            return $ EJ.filterWithNote (\(_, t') _ -> t' >= chunkStart && t' <= chunkEnd) ledger
         , ES.spillWriteChunk = \handle range payload -> do
             putStrLn ("[" ++ envName ++ "] spill chunk: " ++ show range)
             ES.defaultBinarySpillWriter handle range payload
@@ -495,27 +479,28 @@ buildSpillOptions spillDir envName =
                 EJ.filterWithNote (\(_, t') _ -> t' > deleteEnd)
         }
 
-runScenario :: StdGen -> FilePath -> (String, InitVar) -> IO (World RealWorld)
-runScenario gen spillDir (envName, env) = do
-    putStrLn ("[" ++ envName ++ "] simulation start")
-    ES.runSimulationWithSpill (buildSpillOptions spillDir envName) gen env
-
 main :: IO ()
 main = do
     let gen = mkStdGen simulationSeed
         spillDir = csv_dir ++ "spill/"
-        scenarioNames = L.map fst simulationScenarios
 
     print "start simulation"
     createDirectoryIfMissing True spillDir
 
-    results <- mapConcurrently (runScenario gen spillDir) simulationScenarios
-    let resultMap = M.fromList (zip scenarioNames results)
+    _resultMap <- ES.runScenariosWithSpill
+        (buildSpillOptions spillDir)
+        gen
+        simulationScenarios
 
+    {- culc ledger with spill data
     print "writing data..."
-    forConcurrently_ scenarioNames $ \envName ->
-        case M.lookup envName resultMap of
-            Just world -> writeSimulationResult (csv_dir ++ envName) world
+    forConcurrently_ (L.map fst simulationScenarios) $ \envName ->
+        case M.lookup envName _resultMap of
+            Just world ->
+                writeSimulationResult
+                    (csv_dir ++ envName)
+                    (spillDir ++ envName ++ ".bin")
+                    world
             Nothing -> error ("simulation result not found: " ++ envName)
-
+    -}
     print "end"

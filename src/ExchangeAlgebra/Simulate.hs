@@ -65,10 +65,14 @@ module ExchangeAlgebra.Simulate
     ,readBinarySpillFile
     ,runSimulation
     ,runSimulationWithSpill
+    ,runScenarios
+    ,runScenariosWithSpill
     ,leontiefInverse
     ,rippleEffect) where
 
 import              Control.Monad
+import              Control.Concurrent.Async (mapConcurrently)
+import              Data.Coerce (Coercible, coerce)
 import              GHC.Generics
 import              System.Random
 import              Data.Ix
@@ -79,16 +83,34 @@ import              Data.Array.IO
 import              Data.STRef
 import qualified    Control.Monad                   as CM
 import              Data.Array
+import qualified    Data.Map.Strict                 as M
 import              System.IO (Handle, IOMode(..), withFile, hPutStrLn, hPutStr)
 import qualified    Data.ByteString.Lazy            as BL
 import qualified    Data.Binary                     as Binary
 
 ------------------------------------------------------------------
+-- | Type class defining the time axis for simulations.
+--
+-- @nextTerm@ and @prevTerm@ have default implementations via @succ@ / @pred@,
+-- so for uniformly-spaced time axes only @initTerm@ and @lastTerm@ need to be defined.
+--
+-- @
+-- type Term = Int
+--
+-- instance StateTime Term where
+--     initTerm = 1
+--     lastTerm = 100
+--     -- nextTerm and prevTerm use the defaults (succ, pred)
+-- @
 class (Eq t, Show t, Ord t, Enum t, Ix t) => StateTime t where
     initTerm :: t
     lastTerm :: t
+    -- | Return the next term. Defaults to @succ@.
     nextTerm :: t -> t
+    nextTerm = succ
+    -- | Return the previous term. Defaults to @pred@.
     prevTerm :: t -> t
+    prevTerm = pred
 
 -- | Parameters for initialisation
 -- Referenced during initialisation
@@ -142,17 +164,34 @@ class (StateTime t,InitVariables v)
             Modify    -> modify g t v x
 
 
--- | for newtype A s = A (STRef s B)
--- example:
--- newtype URef s = URef (STRef s Int)
--- instance UpdatableRef URef s Int where
---     _unwrapU (URef x) = x
---     _wrapU x = (URef x)
-
+-- | Type class for newtype wrappers around @STRef@.
+--
+-- @_unwrapURef@ and @_wrapURef@ have @Coercible@-based default implementations,
+-- so newtype wrappers only need an empty instance declaration.
+--
+-- @
+-- newtype SP s = SP (STRef s Double)
+--
+-- -- Empty instance is sufficient thanks to Coercible defaults
+-- instance UpdatableSTRef SP s Double
+--
+-- -- Previous boilerplate (no longer needed):
+-- -- instance UpdatableSTRef SP s Double where
+-- --     _unwrapURef (SP x) = x
+-- --     _wrapURef x = SP x
+-- @
 class UpdatableSTRef wrapper s b | wrapper s -> b where
+  -- | Unwrap to the inner @STRef@.
+  -- For newtype wrappers, the @Coercible@ default is used.
   _unwrapURef :: wrapper s -> STRef s b
+  default _unwrapURef :: (Coercible (wrapper s) (STRef s b)) => wrapper s -> STRef s b
+  _unwrapURef = coerce
 
+  -- | Wrap an @STRef@ into the newtype.
+  -- For newtype wrappers, the @Coercible@ default is used.
   _wrapURef :: STRef s b -> wrapper s
+  default _wrapURef :: (Coercible (STRef s b) (wrapper s)) => STRef s b -> wrapper s
+  _wrapURef = coerce
 
   newURef    :: b -> ST s (wrapper s)
   newURef b = b `seq` (_wrapURef <$> newSTRef b)
@@ -176,17 +215,34 @@ modifyArray ar e f = do
   y `seq` writeArray ar e y
 
 
--- | for newtype A s = A (STArray s x y)
--- example:
--- newtype UArray s = UArray (STArray s (Int,Int) Double)
--- instance UpdatableSTArray UArray s (Int,Int) Double where
---   _unwrapUArray (UArray arr) = arr
---   _wrapUArray arr = UArray arr
-
+-- | Type class for newtype wrappers around @STArray@.
+--
+-- @_unwrapUArray@ and @_wrapUArray@ have @Coercible@-based default implementations,
+-- so newtype wrappers only need an empty instance declaration.
+--
+-- @
+-- newtype ICTable s = ICTable (STArray s (Int, Int) Double)
+--
+-- -- Empty instance is sufficient thanks to Coercible defaults
+-- instance UpdatableSTArray ICTable s (Int, Int) Double
+--
+-- -- Previous boilerplate (no longer needed):
+-- -- instance UpdatableSTArray ICTable s (Int, Int) Double where
+-- --     _unwrapUArray (ICTable arr) = arr
+-- --     _wrapUArray arr = ICTable arr
+-- @
 class (Ix b) => UpdatableSTArray wrapper s b c | wrapper s -> b c where
+  -- | Unwrap to the inner @STArray@.
+  -- For newtype wrappers, the @Coercible@ default is used.
   _unwrapUArray :: wrapper s -> STArray s b c
+  default _unwrapUArray :: (Coercible (wrapper s) (STArray s b c)) => wrapper s -> STArray s b c
+  _unwrapUArray = coerce
 
+  -- | Wrap an @STArray@ into the newtype.
+  -- For newtype wrappers, the @Coercible@ default is used.
   _wrapUArray :: STArray s b c -> wrapper s
+  default _wrapUArray :: (Coercible (STArray s b c) (wrapper s)) => STArray s b c -> wrapper s
+  _wrapUArray = coerce
 
   getUBounds :: wrapper s -> ST s (b,b)
   getUBounds = getBounds . _unwrapUArray
@@ -252,6 +308,7 @@ data SpillOptions t a payload = SpillOptions
     { spillEveryTerms :: !Int
     , spillFilePath   :: FilePath
     , spillExtract    :: a RealWorld -> ST RealWorld payload
+    , spillExtractChunk :: Maybe ((t, t) -> a RealWorld -> ST RealWorld payload)
     , spillWriteChunk :: Handle -> (t, t) -> payload -> IO ()
     , spillDeletePolicy :: SpillDeletePolicy t
     , spillDeleteRange  :: (t, t) -> a RealWorld -> ST RealWorld ()
@@ -273,6 +330,7 @@ mkSpillOptions interval path extractF =
     { spillEveryTerms = max 1 interval
     , spillFilePath = path
     , spillExtract = extractF
+    , spillExtractChunk = Nothing
     , spillWriteChunk = defaultSpillWriter
     , spillDeletePolicy = NoDelete
     , spillDeleteRange = \_ _ -> pure ()
@@ -288,6 +346,7 @@ mkBinarySpillOptions interval path extractF =
     { spillEveryTerms = max 1 interval
     , spillFilePath = path
     , spillExtract = extractF
+    , spillExtractChunk = Nothing
     , spillWriteChunk = defaultBinarySpillWriter
     , spillDeletePolicy = NoDelete
     , spillDeleteRange = \_ _ -> pure ()
@@ -353,8 +412,10 @@ runSimulationWithSpill opts gen v = do
     wld <- stToIO $ initAll gen initTerm v
     tStart <- stToIO $ initT v wld
     tEnd <- stToIO $ lastT v wld
-    withFile (spillFilePath opts) WriteMode $ \h ->
-        loop h wld tStart tStart tEnd
+    withFile (spillFilePath opts) WriteMode $ \h -> do
+        (wld', lastSpilledEnd) <- loop h wld tStart tStart tEnd Nothing
+        spillFinalRemainder h wld' tStart tEnd lastSpilledEnd
+        pure wld'
   where
     shouldSpill chunkStart t isLast =
         isLast || (fromEnum t - fromEnum chunkStart + 1 >= spillEveryTerms opts)
@@ -373,22 +434,70 @@ runSimulationWithSpill opts gen v = do
                 else Just (chunkStart, deleteEnd)
 
     spillChunk h chunkStart t wld = do
-        payload <- stToIO $ spillExtract opts wld
+        payload <- case spillExtractChunk opts of
+            Just extractChunk -> stToIO $ extractChunk (chunkStart, t) wld
+            Nothing -> stToIO $ spillExtract opts wld
         spillWriteChunk opts h (chunkStart, t) payload
         case deleteRangeForChunk (chunkStart, t) of
             Nothing -> pure ()
             Just delRange -> stToIO $ spillDeleteRange opts delRange wld
 
-    loop h wld t chunkStart tEnd = do
+    spillFinalRemainder h wld tStart tEnd lastSpilledEnd =
+        let remainderStart = case lastSpilledEnd of
+                Nothing -> tStart
+                Just x -> nextTerm x
+        in when (remainderStart <= tEnd) $
+            spillChunk h remainderStart tEnd wld
+
+    loop h wld t chunkStart tEnd lastSpilledEnd = do
         stToIO $ updateAll gen t v wld
         stToIO $ eventAll wld t
         let isLast = t == tEnd
-        nextChunkStart <- if shouldSpill chunkStart t isLast
-            then spillChunk h chunkStart t wld >> pure (nextTerm t)
-            else pure chunkStart
+        (nextChunkStart, nextLastSpilledEnd) <- if shouldSpill chunkStart t isLast
+            then spillChunk h chunkStart t wld >> pure (nextTerm t, Just t)
+            else pure (chunkStart, lastSpilledEnd)
         if isLast
-            then pure wld
-            else loop h wld (nextTerm t) nextChunkStart tEnd
+            then pure (wld, nextLastSpilledEnd)
+            else loop h wld (nextTerm t) nextChunkStart tEnd nextLastSpilledEnd
+
+-- | Run multiple simulation scenarios concurrently and return results as a @Map@.
+--
+-- Each scenario is a @(name, parameters)@ pair. All scenarios share the same
+-- random seed and are executed in parallel.
+--
+-- @
+-- let gen = mkStdGen 2025
+--     scenarios = [(\"default\", defaultEnv), (\"plus\", plusEnv)]
+-- results <- runScenarios gen scenarios
+-- -- results :: Map String (World RealWorld)
+-- @
+runScenarios :: (StateSpace t v e a RealWorld)
+             => StdGen -> [(String, v)] -> IO (M.Map String (a RealWorld))
+runScenarios gen scenarios = do
+    results <- mapConcurrently (\(_, v) -> runSimulation gen v) scenarios
+    pure $ M.fromList $ zip (fmap fst scenarios) results
+
+-- | Run multiple simulation scenarios concurrently with periodic spill.
+--
+-- The spill options builder receives the scenario name, allowing per-scenario
+-- file paths and logging.
+--
+-- @
+-- results <- runScenariosWithSpill
+--     (\\name -> mkBinarySpillOptions 50 (dir ++ name ++ \".bin\") extract)
+--     gen
+--     scenarios
+-- @
+runScenariosWithSpill :: (StateSpace t v e a RealWorld)
+                      => (String -> SpillOptions t a payload)
+                      -> StdGen
+                      -> [(String, v)]
+                      -> IO (M.Map String (a RealWorld))
+runScenariosWithSpill buildOpts gen scenarios = do
+    results <- mapConcurrently
+        (\(name, v) -> runSimulationWithSpill (buildOpts name) gen v)
+        scenarios
+    pure $ M.fromList $ zip (fmap fst scenarios) results
 
 -- Genericを用いた自動導出のための補助型クラス
 class  (StateTime t,InitVariables v)

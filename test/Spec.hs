@@ -22,6 +22,7 @@ import           Control.Monad.ST
 import           Data.Array.ST
 import           Data.STRef
 import           System.Exit         (exitFailure)
+import           System.IO           (IOMode(WriteMode), withFile)
 import           System.Random       (StdGen, mkStdGen, randomR)
 import           Control.Monad       (replicateM)
 import           Control.Monad.State (runState, state)
@@ -291,6 +292,35 @@ testFinalStockTransferJournalEquivalence = do
         actual = EJT.finalStockTransfer transferJournalSample
     assertEqual "Journal.finalStockTransfer matches composed transfer" (EJ.toMap ref) (EJ.toMap actual)
 
+type SpillRestoreJournal = EJ.Journal (String, Int) Double (HatBase CountUnit)
+
+testRestoreJournalFromBinarySpill :: IO ()
+testRestoreJournalFromBinarySpill = do
+    let spillPath = "/tmp/exchangealgebra_spill_restore_test.bin"
+        chunk1 :: SpillRestoreJournal
+        chunk1 = EJ.fromList
+            [ (1 :@ (Hat :< Yen)) .| ("A", 1)
+            , (2 :@ (Not :< Amount)) .| ("B", 2)
+            ]
+        chunk2 :: SpillRestoreJournal
+        chunk2 = (3 :@ (Hat :< Yen)) .| ("C", 3)
+        currentLedger :: SpillRestoreJournal
+        currentLedger = EJ.fromList
+            [ (4 :@ (Not :< Amount)) .| ("Tail", 4)
+            , (8 :@ (Hat :< Yen)) .| ("AlreadySpilled", 2)
+            ]
+        expected :: SpillRestoreJournal
+        expected = chunk1 .+ chunk2 .+ ((4 :@ (Not :< Amount)) .| ("Tail", 4))
+
+    withFile spillPath WriteMode $ \h -> do
+        ES.defaultBinarySpillWriter h (1 :: Int, 2 :: Int) chunk1
+        ES.defaultBinarySpillWriter h (3 :: Int, 3 :: Int) chunk2
+
+    actual <- restoreJournalFromBinarySpill spillPath snd currentLedger
+    assertEqual "Write.restoreJournalFromBinarySpill merges spill + tail remainder"
+        (EJ.toMap expected)
+        (EJ.toMap actual)
+
 -- ================================================================
 -- SimulateEx1 reproduction (default scenario only, no parallelism)
 -- ================================================================
@@ -300,12 +330,6 @@ type SimTerm = Int
 instance StateTime SimTerm where
     initTerm = 1
     lastTerm = 100
-    nextTerm x = x + 1
-    prevTerm x = x - 1
-
-instance Note SimTerm where
-    plank = -1
-
 data SimInitVar = SimInitVar
     { _simInitStock        :: Double
     , _simSteadyProduction :: Double
@@ -591,4 +615,5 @@ main = do
     testJournalSigmaOnFromMap
     testFinalStockTransferAlgEquivalence
     testFinalStockTransferJournalEquivalence
+    testRestoreJournalFromBinarySpill
     testSimulateEx1Default

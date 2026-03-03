@@ -79,11 +79,28 @@ import qualified    Data.Text               as T
 import qualified    Control.Monad           as CM
 import qualified    Data.Binary             as Binary
 
--- | 摘要のクラス
+-- | Type class for journal annotations (notes attached to postings).
+-- @plank@ represents a blank note (analogous to @mempty@ in @Monoid@).
 class (Show a, Eq a, Ord a, Hashable a) => Note a where
     plank :: a
     isPlank :: a -> Bool
     isPlank x = x == plank
+
+-- | Default instance for using @Int@ as a time axis (Term).
+-- @plank = -1@ is distinguished from non-negative term numbers.
+--
+-- In simulations, typically used as @type Term = Int@.
+--
+-- >>> (plank :: Int)
+-- -1
+--
+-- >>> isPlank (0 :: Int)
+-- False
+--
+-- >>> isPlank (-1 :: Int)
+-- True
+instance Note Int where
+    plank = -1
 
 instance Note String where
     plank = ""
