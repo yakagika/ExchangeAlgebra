@@ -5,10 +5,10 @@
 
     Released under the OWL license
 
-    Package for Exchange Algebra defined by Hirosh Deguch.
+    Package for Exchange Algebra defined by Hiroshi Deguchi.
 
-    Exchange Algebra is a algebraic description of bokkkeeping system.
-    Details are bellow.
+    Exchange Algebra is an algebraic description of bookkeeping system.
+    Details are below.
 
     <https://www.springer.com/gp/book/9784431209850>
 
@@ -63,7 +63,7 @@ import              ExchangeAlgebra.Journal hiding ()
 
 import qualified    Number.NonNegative  as NN       ( Double
                                                     , fromNumber
-                                                    , toNumber,T) -- 非負の実数
+                                                    , toNumber,T) -- Non-negative real numbers
 import qualified    Data.Maybe          as Maybe
 import              Text.Show.Unicode               ( ushow)
 import              GHC.Exts                        ( reallyUnsafePtrEquality#
@@ -82,7 +82,10 @@ import              Debug.Trace
 
 
 
--- | タプルの内, ワイルドカードは変換しない
+-- | Apply transfer transformations to each Note entry in a Journal.
+-- Wildcard portions within tuples are not transformed and retain their original values.
+--
+-- Complexity: O(j * s) (j = number of Notes, s = number of scalar entries per Note)
 {-# INLINE transfer #-}
 transfer :: (HatVal v, HatBaseClass b, Note n)
                       => Journal n v b -> TransTable v b -> Journal n v b
@@ -92,9 +95,12 @@ createTransfer :: (Note n, HatVal v, ExBaseClass b)
                => [(b,b,(v -> v))] -> (Journal n v b -> Journal n v b)
 createTransfer tt = \ts -> transfer ts $ EAT.table tt
 
--- * 決算振替仕訳
+-- * Closing transfer entries
 
--- | Income Summary Account 当期純利益の算定
+-- | Compute net income for the current period (Income Summary Account).
+-- Calculate the debit-credit difference and add it as NetIncome or NetLoss to the plank Note.
+--
+-- Complexity: O(s) (s = total number of scalar entries)
 incomeSummaryAccount :: (Note n, HatVal v, ExBaseClass b) => Journal n v b -> Journal n v b
 incomeSummaryAccount js =  let (dc,diff) = diffRL js
                          in let x = case dc of
@@ -102,13 +108,17 @@ incomeSummaryAccount js =  let (dc,diff) = diffRL js
                                         Credit -> diff :@ (toNot wiledcard) .~ NetLoss
                          in js .+  ( x .| plank)
 
--- | 当期純利益の振替
+-- | Net income transfer (Journal version). Transfer NetIncome/NetLoss to RetainedEarnings for each Note.
+--
+-- Complexity: O(j * s) (j = number of Notes, s = number of scalar entries per Note)
 netIncomeTransfer :: (Note n, HatVal v, ExBaseClass b) => Journal n v b -> Journal n v b
 netIncomeTransfer = EJ.map EAT.netIncomeTransfer
 
--- **  仕分け
+-- ** Journalizing
 
--- | Gross Profit Transfer
+-- | Gross profit transfer (Journal version). Aggregate sales and cost accounts into GrossProfit for each Note.
+--
+-- Complexity: O(j * s)
 grossProfitTransfer :: (Note n, HatVal v, ExBaseClass b) => Journal n v b -> Journal n v b
 grossProfitTransfer = EJ.map EAT.grossProfitTransfer
 
@@ -123,11 +133,15 @@ grossProfitTransfer = EJ.map EAT.grossProfitTransfer
 ordinaryProfitTransfer :: (Note n, HatVal v, ExBaseClass b) => Journal n v b -> Journal n v b
 ordinaryProfitTransfer = EJ.map EAT.ordinaryProfitTransfer
 
--- | Retained Earning Transfer
+-- | Retained earnings transfer (Journal version). Transfer OrdinaryProfit to RetainedEarnings for each Note.
+--
+-- Complexity: O(j * s)
 retainedEarningTransfer :: (Note n, HatVal v, ExBaseClass b) => Journal n v b -> Journal n v b
 retainedEarningTransfer = EJ.map EAT.retainedEarningTransfer
 
--- | Final Stock Transfer (損益勘定)
+-- | Income summary account (Journal version). Transfer all cost and revenue accounts to RetainedEarnings, then offset using the Bar operation.
+--
+-- Complexity: O(j * s)
 finalStockTransfer ::(Note n, HatVal v, ExBaseClass b) =>  Journal n v b -> Journal n v b
 finalStockTransfer = (.-) . EJ.map finalStockTransferStep
 

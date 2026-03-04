@@ -8,10 +8,10 @@
 
     Released under the OWL license
 
-    Package for Exchange Algebra defined by Hirosh Deguch.
+    Package for Exchange Algebra defined by Hiroshi Deguchi.
 
-    Exchange Algebra is a algebraic description of bokkkeeping system.
-    Details are bellow.
+    Exchange Algebra is an algebraic description of bookkeeping system.
+    Details are below.
 
     <https://www.springer.com/gp/book/9784431209850>
 
@@ -70,7 +70,10 @@ chunkN n xs =
 -- ** Single Line
 ------------------------------------------------------------------
 
--- | 各エージェントの指定された出力をグリッドで分割して折れ線グラフにする
+-- | Plot the specified output of each agent as a line graph divided into a grid.
+-- Splits into grid columns of 3, and outputs as a PNG file.
+--
+-- Complexity: O(|range| * T) (T = number of terms)
 plotLine
     :: ( StateTime t
        , Enum t
@@ -81,10 +84,10 @@ plotLine
        , Enum i
        )
     => (a RealWorld -> t -> i -> ST RealWorld Double)
-    -> (i,i)  -- ^ 範囲 (start, end)
-    -> a RealWorld                 -- ^ worldなどの状態
-    -> FileName                    -- ^ 出力ファイルを置くディレクトリ名
-    -> Title                       -- ^ グラフのタイトル
+    -> (i,i)  -- ^ Range (start, end)
+    -> a RealWorld                 -- ^ World state or similar
+    -> FileName                    -- ^ Directory name for output files
+    -> Title                       -- ^ Graph title
     -> IO ()
 plotLine f (start,end) wld fileDir titleStr = do
     gridMatrix <- funcArray f (start,end) wld
@@ -95,28 +98,28 @@ plotLine f (start,end) wld fileDir titleStr = do
             $ createTitle titleStr `wideAbove` gridRenderable
 
   where
-    -- | グリッド全体を垂直方向に並べて1つのGridを作成
+    -- | Arrange the entire grid vertically to create a single Grid
     createGrid = aboveN . map createRow
 
-    -- | 各行を横方向に並べて1つの行を作成
+    -- | Arrange each row horizontally to create a single row
     createRow = besideN . map createColumn
 
-    -- | 各カラムに含まれる時系列データをプロットとして配置
+    -- | Plot the time series data contained in each column
     createColumn seriesGroup = layoutToGrid $ execEC $ do
         CM.forM_ seriesGroup $ \(label, seriesData) ->
             plot $ linePlot label seriesData
 
-    -- | 1つの時系列データをラインプロットとして描画
+    -- | Render a single time series as a line plot
     linePlot label seriesData = liftEC $ do
         plot_lines_values .= [concat seriesData]
         plot_lines_title  .= label
         plot_lines_style . line_color .= opaque blue
 
-    -- | グラフのタイトルを設定
+    -- | Set the graph title
     createTitle name = setPickFn nullPickFn $
         label titleStyle HTA_Centre VTA_Centre name
 
-    -- | タイトルのフォントスタイルを定義
+    -- | Define the title font style
     titleStyle :: FontStyle
     titleStyle = def
         { _font_size   = 15
@@ -132,7 +135,7 @@ funcArray :: ( StateTime t
              , Ix i
              , Enum i)
           => (a RealWorld -> t -> i -> ST RealWorld Double)
-          -> (i,i)  -- ^ 範囲 (start, end)
+          -> (i,i)  -- ^ Range (start, end)
           -> a RealWorld
           -> IO (GridMatrix t)
 
@@ -146,7 +149,10 @@ funcArray f (start,end) wld = stToIO $ do
 
 
 
--- | データをグリッドに分割する
+-- | Split STArray data into a grid with 3 columns and return as a GridMatrix.
+-- Each cell contains the time series data for one agent (index).
+--
+-- Complexity: O(|agents| * T) (T = number of terms)
 gridLine  :: (Ord a, Show a, Ix a, StateTime t)
                     => STArray s (a,t) Double
                     -> ST s (GridMatrix t)
@@ -183,7 +189,10 @@ colorPalette =
   , opaque violet
   ]
 
--- | 複数のラインを各グリッドにプロットする
+-- | Plot the results of multiple worlds/functions with color coding in each grid cell.
+-- Used for comparing different scenarios.
+--
+-- Complexity: O(|worlds| * |range| * T)
 {-# INLINE plotMultiLines #-}
 plotMultiLines
     ::  ( StateTime t
@@ -195,11 +204,11 @@ plotMultiLines
        , Enum i
        )
     => [Label]
-    -> [(a RealWorld -> t -> i -> ST RealWorld Double)]  -- ^ グラフ用データを生成する関数
-    -> (i,i)  -- ^ 範囲 (start, end)
-    -> [a RealWorld]               -- ^ worldなどの状態
-    -> FilePath                    -- ^ 出力先ディレクトリ
-    -> String                      -- ^ グラフタイトル
+    -> [(a RealWorld -> t -> i -> ST RealWorld Double)]  -- ^ Functions to generate graph data
+    -> (i,i)  -- ^ Range (start, end)
+    -> [a RealWorld]               -- ^ World states or similar
+    -> FilePath                    -- ^ Output directory
+    -> String                      -- ^ Graph title
     -> IO ()
 plotMultiLines xs fs (start,end) wlds fileDir titleStr = do
     gridMatrix <- funcArrays xs fs (start,end) wlds
@@ -209,28 +218,28 @@ plotMultiLines xs fs (start,end) wlds fileDir titleStr = do
             $ gridToRenderable
             $ createTitle titleStr `wideAbove` gridRenderable
   where
-    -- | グリッド全体を垂直方向に配置
+    -- | Arrange the entire grid vertically
     createGrid = aboveN . map createRow
 
-    -- | 各行のグリッドを水平方向に配置
+    -- | Arrange each row's grid horizontally
     createRow = besideN . map createColumn
 
-    -- | 各カラムに含まれる複数の時系列データをプロット（色分け）
+    -- | Plot multiple time series in each column with color coding
     createColumn seriesGroup = layoutToGrid $ execEC $
         CM.forM_ (zip [0..] seriesGroup) $ \(index, (label, seriesData)) ->
             plot $ linePlot index label seriesData
 
-    -- | 時系列データをカラーラインプロットとして描画
+    -- | Render time series data as a colored line plot
     linePlot idx label seriesData = liftEC $ do
         plot_lines_values .= [concat seriesData]
         plot_lines_title  .= label
         plot_lines_style . line_color .= colorPalette !! (idx `mod` length colorPalette)
 
-    -- | グラフのタイトルを設定
+    -- | Set the graph title
     createTitle name = setPickFn nullPickFn $
         label titleStyle HTA_Centre VTA_Centre name
 
-    -- | タイトルのフォントスタイル
+    -- | Title font style
     titleStyle :: FontStyle
     titleStyle = def
         { _font_size   = 15
@@ -247,7 +256,7 @@ funcArrays :: ( StateTime t
              , Enum i)
           => [Label]
           -> [(a RealWorld -> t -> i -> ST RealWorld Double)]
-          -> (i,i)  -- ^ 範囲 (start, end)
+          -> (i,i)  -- ^ Range (start, end)
           -> [a RealWorld]
           -> IO (GridMatrix t)
 
@@ -262,8 +271,8 @@ funcArrays xs fs (start,end) wlds = stToIO $ do
     gridLines xs arrs
 
 
--- | gridLine を拡張して,
---   同じセル内に複数の系列をまとめて入れる
+-- | Extension of gridLine that
+--   groups multiple series into the same cell
 gridLines
   :: (Ord a, Show a, Ix a, StateTime t)
   => [Label]
@@ -278,14 +287,14 @@ gridLines xs arrs = do
 
     cells <- CM.forM as $ \e -> do
       timeVals <- CM.forM arrs $ \arr -> do
-            -- シリーズごとのタイム系列
+            -- Time series for each series
             ts <- CM.forM [initTerm .. lastTerm] $ \ t -> do
                         v <- readArray arr (e,t)
                         return (t, v)
             return ts
-      -- 同じセルに2系列をまとめる
-      -- (String, [[(Term, Double)]]) がTimeSeriesの型
-      -- シリーズが複数あるので TimeSerieses = [TimeSeries]
+      -- Group two series into the same cell
+      -- TimeSeries has type (String, [[(Term, Double)]])
+      -- Multiple series form TimeSerieses = [TimeSeries]
       let cell = map (\(l,vs) -> (show e ++ "_" ++ show l, [vs]))
                $ zip xs timeVals
       pure cell
@@ -293,6 +302,10 @@ gridLines xs arrs = do
     pure (chunkN 3 cells)
 
 ------------------------------------------------------------------
+-- | Plot the difference between two worlds in a grid.
+-- Each cell plots @f wld1 t i - f wld2 t i@.
+--
+-- Complexity: O(|range| * T)
 plotWldsDiffLine :: ( StateTime t
                , Enum t
                , PlotValue t
@@ -304,8 +317,8 @@ plotWldsDiffLine :: ( StateTime t
             => (a RealWorld -> t -> i -> ST RealWorld Double)
             -> (i,i)
             -> (a RealWorld, a RealWorld)
-            -> FilePath                    -- ^ 出力先ディレクトリ
-            -> String                      -- ^ グラフタイトル
+            -> FilePath                    -- ^ Output directory
+            -> String                      -- ^ Graph title
             -> IO ()
 
 plotWldsDiffLine f (start,end) wlds fileDir titleStr = do
@@ -317,28 +330,28 @@ plotWldsDiffLine f (start,end) wlds fileDir titleStr = do
             $ createTitle titleStr `wideAbove` gridRenderable
 
   where
-    -- | グリッド全体を垂直方向に並べて1つのGridを作成
+    -- | Arrange the entire grid vertically to create a single Grid
     createGrid = aboveN . map createRow
 
-    -- | 各行を横方向に並べて1つの行を作成
+    -- | Arrange each row horizontally to create a single row
     createRow = besideN . map createColumn
 
-    -- | 各カラムに含まれる時系列データをプロットとして配置
+    -- | Plot the time series data contained in each column
     createColumn seriesGroup = layoutToGrid $ execEC $ do
         CM.forM_ seriesGroup $ \(label, seriesData) ->
             plot $ linePlot label seriesData
 
-    -- | 1つの時系列データをラインプロットとして描画
+    -- | Render a single time series as a line plot
     linePlot label seriesData = liftEC $ do
         plot_lines_values .= [concat seriesData]
         plot_lines_title  .= label
         plot_lines_style . line_color .= opaque blue
 
-    -- | グラフのタイトルを設定
+    -- | Set the graph title
     createTitle name = setPickFn nullPickFn $
         label titleStyle HTA_Centre VTA_Centre name
 
-    -- | タイトルのフォントスタイルを定義
+    -- | Define the title font style
     titleStyle :: FontStyle
     titleStyle = def
         { _font_size   = 15
@@ -354,7 +367,7 @@ funcDiffArray :: ( StateTime t
                  , Ix i
                  , Enum i)
               => (a RealWorld -> t -> i -> ST RealWorld Double)
-              -> (i,i)  -- ^ 範囲 (start, end)
+              -> (i,i)  -- ^ Range (start, end)
               -> (a RealWorld,a RealWorld)
               -> IO (GridMatrix t)
 
@@ -369,26 +382,26 @@ funcDiffArray f (start,end) wlds = stToIO $ do
     gridLine arr
 
 --------------------------------------------------------------------------------
--- 1. Vector を使って (i, t) → Double の配列を作る関数
+-- 1. Function to create an (i, t) -> Double array using Vector
 --------------------------------------------------------------------------------
 
--- | もとの funcArray に対応。 (i, t) を 2次元として、そこに f wld t i の値を加算します。
---   内部実装を STArray から Unboxed Vector に変えた版。
+-- | Corresponds to the original funcArray. Treats (i, t) as a 2D index and stores the value of f wld t i.
+--   A version that replaces the internal implementation from STArray with Unboxed Vector.
 funcArrayVector
   :: ( Show i, Enum i, Enum t, StateTime t )
-  => (a RealWorld -> t -> i -> ST RealWorld Double)  -- ^ 計算する関数 f
-  -> ((i,t),(i,t))                                   -- ^ 範囲 (start, end)
-  -> a RealWorld                                     -- ^ worldなど
-  -> ST RealWorld (GridMatrix t)                -- ^ 完成した不変 Vector を返す
+  => (a RealWorld -> t -> i -> ST RealWorld Double)  -- ^ Computation function f
+  -> ((i,t),(i,t))                                   -- ^ Range (start, end)
+  -> a RealWorld                                     -- ^ World state or similar
+  -> ST RealWorld (GridMatrix t)                -- ^ Returns the completed immutable Vector
 funcArrayVector f ((i1,t1),(i2,t2)) wld = do
     let iCount = fromEnum i2 - fromEnum i1 + 1
         tCount = fromEnum t2 - fromEnum t1 + 1
         totalCount = iCount * tCount
 
-    -- 長さ totalCount の Mutable Vector を 0.0 で初期化
+    -- Initialize a Mutable Vector of length totalCount with 0.0
     mvec <- VUM.replicate totalCount 0.0
 
-    -- 2重ループで f wld t i を計算して書き込み
+    -- Compute and write f wld t i in a nested loop
     CM.forM_ [fromEnum t1 .. fromEnum t2] $ \te -> do
       let t = toEnum te
       CM.forM_ [fromEnum i1 .. fromEnum i2] $ \ie -> do
@@ -397,34 +410,34 @@ funcArrayVector f ((i1,t1),(i2,t2)) wld = do
                 + (ie - fromEnum i1)
         VUM.write mvec idx =<< f wld t i
 
-    -- 最後に Immutable な Vector に freeze
+    -- Finally freeze into an immutable Vector
     gridLineVector ((i1,t1),(i2,t2)) =<< VU.freeze mvec
 
 --------------------------------------------------------------------------------
--- 2. Vector から GridMatrix t を組み立てる (もとの gridLine 相当)
+-- 2. Build GridMatrix t from a Vector (equivalent to the original gridLine)
 --------------------------------------------------------------------------------
 
--- | (i, t) の2次元データを、3セル区切りでカラムを作り、最終的に GridMatrix にする。
+-- | Convert 2D (i, t) data into columns split every 3 cells, forming a GridMatrix.
 gridLineVector
   :: forall t i. ( Enum i, Enum t, StateTime t, Show i )
   => ((i,t),(i,t))           -- ^ (start, end)
-  -> VU.Vector Double -- ^ 要素数 = (end - start + 1) * (lastTerm - initTerm + 1)
+  -> VU.Vector Double -- ^ Element count = (end - start + 1) * (lastTerm - initTerm + 1)
   -> ST RealWorld (GridMatrix t)
 gridLineVector ((i1,t1),(i2,t2)) vec = do
-    -- i の取りうる値一覧 (昇順)
+    -- List of possible values of i (ascending)
     let iVals  = [fromEnum i1 .. fromEnum i2]
     let iCount = length iVals
     let tVals  = [fromEnum t1 .. fromEnum t2]
     cells <- CM.forM iVals $ \ie -> do
       let iVal = (toEnum (ie :: Int) :: i)  -- i :: i
-      -- (t,値) の列を取り出す
+      -- Extract the (t, value) series
       let series :: [(t, Double)]
           series =
             [ (toEnum te, VU.unsafeIndex vec (flattenIndex iCount (ie - fromEnum i1) (te - fromEnum t1)))
             | te <- tVals
             ]
-          -- TimeSeries の型は (Label, [[(t,Double)]]) なので
-          -- [[(t,Double)]] の形にする
+          -- TimeSeries has type (Label, [[(t,Double)]]) so
+          -- shape it into [[(t,Double)]]
           ts :: [(Label, [[(t,Double)]])]
           ts = [(show iVal, [series])]
       pure ts
@@ -436,22 +449,27 @@ gridLineVector ((i1,t1),(i2,t2)) vec = do
     flattenIndex width x y = y * width + x
 
 --------------------------------------------------------------------------------
--- 3. 実際に Vector ベースで (i, t) の折れ線グラフを描画する関数
+-- 3. Function to draw (i, t) line graphs using a Vector-based approach
 --------------------------------------------------------------------------------
 
+-- | Draw line graphs using Unboxed Vectors.
+-- Equivalent to 'plotLine', but uses Unboxed Vectors instead of STArray internally,
+-- providing better memory efficiency for large-scale data.
+--
+-- Complexity: O(|range| * T)
 plotLineVector
   :: ( Enum i, Enum t, StateTime t, Show i, PlotValue t )
   => (a RealWorld -> t -> i -> ST RealWorld Double)
   -> ((i,t),(i,t))    -- ^ (start, end)
-  -> a RealWorld      -- ^ world
-  -> FilePath         -- ^ 出力先ディレクトリ
-  -> String           -- ^ グラフタイトル
+  -> a RealWorld      -- ^ World state
+  -> FilePath         -- ^ Output directory
+  -> String           -- ^ Graph title
   -> IO ()
 plotLineVector f idx wld outDir titleStr = do
-    -- 2. GridMatrix へ変換 (gridLineVector)
+    -- 2. Convert to GridMatrix (gridLineVector)
     gridMatrix :: GridMatrix t <- stToIO $ funcArrayVector f idx wld
 
-    -- 3. Chart の描画
+    -- 3. Render the chart
     let gridRenderable = createGrid gridMatrix
     CM.void $ renderableToFile def (outDir ++ "/" ++ titleStr ++ ".png")
             $ fillBackground def
@@ -459,13 +477,13 @@ plotLineVector f idx wld outDir titleStr = do
             $ createTitle titleStr `wideAbove` gridRenderable
 
   where
-    -- | グリッド全体を垂直方向に並べる
+    -- | Arrange the entire grid vertically
     createGrid = aboveN . map createRow
 
-    -- | 1行 (GridColumns t) は横方向に並べる
+    -- | Arrange one row (GridColumns t) horizontally
     createRow = besideN . map createColumn
 
-    -- | 1カラム (TimeSerieses t) に含まれる複数の TimeSeries をプロット
+    -- | Plot multiple TimeSeries contained in one column (TimeSerieses t)
     createColumn seriesGroup = layoutToGrid $ execEC $ do
       CM.forM_ seriesGroup $ \(label, seriesData) ->
         plot $ linePlot label seriesData
@@ -488,8 +506,11 @@ plotLineVector f idx wld outDir titleStr = do
 
 type Header = T.Text
 
--- | 1期ごとの文脈を作ってから、複数の関数をまとめて評価しCSVに出力する。
---   各期の文脈を共有するため、重い前処理(例: termJournal, transfer)を1回にできる。
+-- | Build a context for each term, then evaluate multiple functions together and output to CSV.
+-- By sharing each term's context, expensive preprocessing (e.g., termJournal, transfer) is reduced to once per term.
+-- Uses streaming output, so memory usage does not depend on the number of terms.
+--
+-- Complexity: O(T * (cost(buildCtx) + |funcs| * cost(f)))
 writeFuncResultsWithContext
   :: ( StateTime t
      , Show x
@@ -511,8 +532,10 @@ writeFuncResultsWithContext buildCtx funcs (tStart,tEnd) wld path = do
             let row = T.pack (show t) : map (T.pack . show) vals
             TIO.hPutStrLn h (toCsvRow row)
 
--- | 与えられた関数の出力をCSVの時系列データにする。
---   既存シグネチャは維持しつつ、内部はterm-major評価 + ストリーミング出力に変更。
+-- | Output the results of given functions as CSV time series data.
+-- Internally uses streaming output via 'writeFuncResultsWithContext'.
+--
+-- Complexity: O(T * |funcs| * cost(f))
 writeFuncResults
   :: ( StateTime t
      , Show x

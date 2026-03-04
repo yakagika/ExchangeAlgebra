@@ -6,10 +6,10 @@
 
     Released under the OWL license
 
-    Package for Exchange Algebra defined by Hirosh Deguch.
+    Package for Exchange Algebra defined by Hiroshi Deguchi.
 
-    Exchange Algebra is a algebraic description of bokkkeeping system.
-    Details are bellow.
+    Exchange Algebra is an algebraic description of bookkeeping system.
+    Details are below.
 
     <https://www.springer.com/gp/book/9784431209850>
 
@@ -39,10 +39,16 @@ import qualified    Data.Set as Set
 import              Data.Array.IO
 import              Data.Time           (Day)
 
+-- | Helper to convert from Show to Text.
+--
+-- Complexity: O(show cost)
 tshow :: (Show a) => a -> T.Text
 tshow = T.pack . show
 
--- | BalanceSheet貸借対照表の形でCSVで出力する
+-- | Output a Balance Sheet in CSV format.
+-- Internally applies 'finalStockTransfer', then decomposes into assets, liabilities, and equity for output.
+--
+-- Complexity: O(s) (s = total number of scalar entries)
 writeBS :: (HatVal n, HatBaseClass b, ExBaseClass b) => FilePath -> Alg n b -> IO ()
 writeBS path alg = CSV.writeCSV path result
   where
@@ -67,7 +73,10 @@ writeBS path alg = CSV.writeCSV path result
       , [T.empty] ++ liabilityValue ++ [T.empty] ++ equityValue ++ [debitTotal]
       ]
 
--- | Profit and Loss Statement 損益計算書の形でCSVで出力する
+-- | Output a Profit and Loss Statement in CSV format.
+-- Decomposes into costs and revenues for output.
+--
+-- Complexity: O(s) (s = total number of scalar entries)
 writePL :: (HatVal n, HatBaseClass b, ExBaseClass b) => FilePath -> Alg n b -> IO ()
 writePL path alg = CSV.writeCSV path result
   where
@@ -90,7 +99,9 @@ writePL path alg = CSV.writeCSV path result
       , [T.empty] ++ rv ++ [debitTotal]
       ]
 
--- | 同じ長さのリストに揃える関数
+-- | Pad two lists to the same length. Appends empty text to the shorter list.
+--
+-- Complexity: O(max(|xs|, |ys|))
 toSameLength :: [T.Text] -> [T.Text] -> ([T.Text],[T.Text])
 toSameLength xs ys =
     case compare lx ly of
@@ -101,8 +112,10 @@ toSameLength xs ys =
     lx = Prelude.length xs
     ly = Prelude.length ys
 
--- | Journal Entry 仕訳
--- 日付,勘定科目,金額を借方,貸方別に記録
+-- | Output journal entries in CSV format.
+-- Groups by date and records the debit/credit account titles and amounts for each day.
+--
+-- Complexity: O(s * log d) (s = number of entries, d = number of distinct dates)
 writeJournal :: (HatVal n, HatBaseClass b, ExBaseClass b)
              => FilePath
              -> Alg n b
@@ -130,7 +143,9 @@ writeJournal path alg f = do
     CSV.writeCSV path (CSV.transpose [ds, dt, dv, ct, cv])
 
 
--- | Account 勘定口座
+-- | Output account ledgers in CSV format.
+--
+-- __Note__: Not yet implemented. Calling this will raise an exception.
 writeAccountOf :: (HatVal n, HatBaseClass b, ExBaseClass b)
              => [AccountTitles]
              -> FilePath
@@ -140,7 +155,10 @@ writeAccountOf :: (HatVal n, HatBaseClass b, ExBaseClass b)
 writeAccountOf _ _ _ _ = undefined
 
 
--- | 合計残高試算表
+-- | Output a Compound Trial Balance in CSV format.
+-- Calculates the debit total, credit total, and balance for each account title and outputs as a table.
+--
+-- Complexity: O(s * a) (s = number of entries, a = number of distinct account titles)
 writeCompoundTrialBalance :: (HatVal n, HatBaseClass b, ExBaseClass b)
                            => FilePath
                            -> Alg n b
@@ -193,7 +211,10 @@ writeCompoundTrialBalance path alg = do
 -- Write Functions for Simulation
 ------------------------------------------------------------------
 
--- | 複数年の産業連関表
+-- | Output the Input-Output Table for a specified term in CSV format.
+-- Outputs a slice of the specified term from a 3D array (term, row industry, column industry).
+--
+-- Complexity: O(r * c) (r = number of rows, c = number of columns)
 writeTermIO :: (HatVal n,BaseClass b, StateTime t, Ix b, Ix t, Enum b)
             => FilePath -> t -> IOArray (t, b, b) n  -> IO ()
 writeTermIO path t arr = do
@@ -205,9 +226,9 @@ writeTermIO path t arr = do
         pure (tshow r : vals)
     CSV.writeCSV path ((T.pack "" : L.map tshow cols) : body)
 
--- | 与えられたInput-Output TableをCSVとして出力する
--- CSVとして出力する関数
--- 与えられた波及効果をCSVとして出力する
+-- | Output a 2D IOArray (Input-Output Table or ripple effect matrix) in CSV format.
+--
+-- Complexity: O(r * c) (r = number of rows, c = number of columns)
 writeIOMatrix :: FilePath -> IOArray (Int, Int) Double -> IO ()
 writeIOMatrix path arr = do
     ((r1, c1), (r2, c2)) <- getBounds arr
@@ -222,9 +243,11 @@ writeIOMatrix path arr = do
 -- Spill Restore Utilities
 ------------------------------------------------------------------
 
--- | Restore full journal from spilled chunks and current in-memory remainder.
--- The in-memory part is filtered to terms greater than the latest spilled end
--- so duplicated terms are not double-counted.
+-- | Restore a complete Journal from spilled binary chunks and the current in-memory Journal.
+-- The in-memory portion is narrowed to only terms after the last spill range,
+-- so duplicate terms are not double-counted.
+--
+-- Complexity: O(file size + number of chunks * union cost)
 restoreJournalFromBinarySpill
     :: ( Binary.Binary t
        , Ord t

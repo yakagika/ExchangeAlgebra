@@ -5,10 +5,10 @@
 
     Released under the OWL license
 
-    Package for Exchange Algebra defined by Hirosh Deguch.
+    Package for Exchange Algebra defined by Hiroshi Deguchi.
 
-    Exchange Algebra is a algebraic description of bokkkeeping system.
-    Details are bellow.
+    Exchange Algebra is an algebraic description of bookkeeping system.
+    Details are below.
 
     <https://www.springer.com/gp/book/9784431209850>
 
@@ -45,13 +45,13 @@ customError :: HasCallStack => String -> a
 customError msg = error (msg ++ "\nCallStack:\n" ++ prettyCallStack callStack)
 
 ------------------------------------------------------------------
--- * Base 基底の条件
+-- * Base conditions
 ------------------------------------------------------------------
 
 -- ** Base
 ------------------------------------------------------------------
-{- | 基底の定義
-    これを継承すれば取り敢えず基底になれる
+{- | Base class definition.
+    Any type that is an instance of this class qualifies as a base.
 -}
 
 class (Element a) =>  BaseClass a where
@@ -78,25 +78,37 @@ instance (Element e1, Element e2, Element e3, Element e4, Element e5, Element e6
 -- ** HatBase
 ------------------------------------------------------------------
 
+-- | Type class for bases with a Hat component. Provides functionality to decompose and
+-- compose a base into its Hat part and BasePart. Manages the credit (Hat) / debit (Not)
+-- distinction at the base level in exchange algebra.
 class (BaseClass a, BaseClass (BasePart a), AxisDecompose (BasePart a)) => HatBaseClass a where
+    -- | The type of the base part excluding the Hat.
     type BasePart a
+    -- | Extract the base part excluding the Hat. Complexity: O(1)
     base    :: (BaseClass (BasePart a)) => a -> BasePart a
+    -- | Extract the Hat part. Complexity: O(1)
     hat     :: a    -> Hat
 
+    -- | Reconstruct a base from a Hat and a BasePart. Complexity: O(1)
     merge :: Hat -> BasePart a -> a
 
+    -- | Convert to the Hat side. Complexity: O(1)
     toHat   :: a    -> a
+    -- | Convert to the Not side. Complexity: O(1)
     toNot   :: a    -> a
-    revHat  :: a    -> a     -- reverse Hat
+    -- | Reverse Hat/Not. Complexity: O(1)
+    revHat  :: a    -> a
+    -- | Test whether the base is Hat. Complexity: O(1)
     isHat   :: a    -> Bool
+    -- | Test whether the base is Not. Complexity: O(1)
     isNot   :: a    -> Bool
 
-
+    -- | Compare bases with Hat. Defaults to 'compareBase'. Complexity: O(k)
     compareHatBase :: a -> a -> Ordering
     compareHatBase = compareBase
 
 ------------------------------------------------------------------
--- | Hat の定義
+-- | Hat definition
 data Hat    = Hat
             | Not
             | HatNot
@@ -158,6 +170,8 @@ instance HatBaseClass Hat where
     isNot  = not . isHat
 ------------------------------------------------------------------
 
+-- | Base with Hat. Attaches a Hat (credit-increase) / Not (debit-increase) label to a base
+-- element such as an account title. Use the constructor @(:<)@ as in @Hat :< Cash@.
 data HatBase a where
      (:<)  :: (BaseClass a) => {_hat :: Hat,  _base :: a } -> HatBase a
 
@@ -264,22 +278,33 @@ instance (BaseClass a, AxisDecompose a) => HatBaseClass (HatBase a) where
 ------------------------------------------------------------
 -- * Define ExBase
 ------------------------------------------------------------
-data Side   = Credit -- 貸方
-            | Debit  -- 借方
-            | Side -- wiledecard
+
+-- | Credit/Debit distinction. Credit is the credit side, Debit is the debit side.
+-- Side is a wildcard.
+data Side   = Credit -- ^ Credit side
+            | Debit  -- ^ Debit side
+            | Side   -- ^ Wildcard
             deriving (Ord, Show, Eq)
 
+-- | Reverse the credit/debit side. Swaps Credit and Debit.
+-- The wildcard Side is returned unchanged.
+--
+-- Complexity: O(1)
 {-# INLINE switchSide #-}
 switchSide :: Side -> Side
 switchSide Credit = Debit
 switchSide Debit  = Credit
 switchSide Side   = Side
 
-data FixedCurrent   = Fixed
-                    | Current
-                    | Other
+-- | Fixed/Current distinction. Used for classifying account titles as fixed or current.
+data FixedCurrent   = Fixed   -- ^ Fixed
+                    | Current -- ^ Current
+                    | Other   -- ^ Other (expenses, revenues, etc.)
                     deriving (Show, Eq)
 
+-- | Classify an account title into an account division (Assets/Equity/Liability/Cost/Revenue).
+--
+-- Complexity: O(1)
 {-# INLINE classifyAccountDivision #-}
 classifyAccountDivision :: HasCallStack => AccountTitles -> AccountDivision
 classifyAccountDivision AccountTitle                 = customError "this is wiledcard AccountTitle"
@@ -329,19 +354,28 @@ classifyAccountDivision NetLoss                     = Revenue
 classifyAccountDivision _                           = Assets
 
 -- | BaseClass ⊃ HatBaseClass ⊃ ExBaseClass
+--
+-- Extended type class for bases that carry an account title.
+-- Provides access to and modification of account titles, account divisions, PIMO classification,
+-- credit/debit determination, and fixed/current classification.
 class (HatBaseClass a) => ExBaseClass a where
+    -- | Retrieve the account title from a base. Complexity: O(1)
     getAccountTitle :: a -> AccountTitles
 
+    -- | Change the account title of a base. Complexity: O(1)
     setAccountTitle :: a -> AccountTitles -> a
 
+    -- | Account title setter operator. An alias for @setAccountTitle@. Complexity: O(1)
     {-# INLINE (.~) #-}
     (.~) :: a -> AccountTitles -> a
     (.~) = setAccountTitle
 
+    -- | Retrieve the account division (Assets/Equity/Liability/Cost/Revenue). Complexity: O(1)
     {-# INLINE whatDiv #-}
     whatDiv     :: a -> AccountDivision
     whatDiv = classifyAccountDivision . getAccountTitle
 
+    -- | Retrieve the PIMO classification (PS/IN/MS/OUT). Complexity: O(1)
     {-# INLINE whatPIMO #-}
     whatPIMO    :: a -> PIMO
     whatPIMO x =
@@ -352,6 +386,8 @@ class (HatBaseClass a) => ExBaseClass a where
             Cost      -> OUT
             Revenue   -> IN
 
+    -- | Determine whether a base belongs to the Credit or Debit side.
+    -- Takes the Hat/Not reversal into account. Complexity: O(1)
     {-# INLINE whichSide #-}
     whichSide   :: a -> Side
     whichSide x =
@@ -365,15 +401,16 @@ class (HatBaseClass a) => ExBaseClass a where
             f Equity    = Debit
             f Revenue   = Debit
 
-    -- credit :: [a] -- ^ Elem に Text や Int などがある場合は projCredit を使う
+    -- credit :: [a] -- ^ Use projCredit when Elem contains Text, Int, etc.
     -- credit = L.filter (\x -> whichSide x == Credit) [toEnum 0 ..]
 
-    -- debit :: [a] -- ^ Elem に Text や Int などがある場合は projDebit を使う
+    -- debit :: [a] -- ^ Use projDebit when Elem contains Text, Int, etc.
     -- debit = L.filter (\x -> whichSide x == Debit) [toEnum 0 ..]
 
-    -- | 流動/固定の区別
-    -- 要チェック
-
+    -- | Retrieve the fixed/current classification.
+    -- Returns Current, Fixed, or Other based on the account title.
+    --
+    -- Complexity: O(1)
     {-# INLINE fixedCurrent #-}
     fixedCurrent :: a -> FixedCurrent
     fixedCurrent b = f (getAccountTitle b)
@@ -390,7 +427,7 @@ class (HatBaseClass a) => ExBaseClass a where
         f Machinery                      = Fixed
         f Building                       = Fixed
         f Vehicle                        = Fixed
-        f StockInvestment                = Other  -- 注意
+        f StockInvestment                = Other  -- Note
         f EquipmentInvestment            = Fixed
         f LongTermLoansReceivable        = Fixed
         f ShortTermLoansReceivable       = Current
@@ -442,14 +479,20 @@ class (HatBaseClass a) => ExBaseClass a where
         f AccountTitle                   = Other
 
 
+-- | Type class for determining correspondences between account divisions.
+-- Tests whether two account divisions form a pair in double-entry bookkeeping
+-- (e.g., Assets <=> Liability).
+--
+-- Complexity: O(1)
 class AccountBase a where
+    -- | Test whether two account divisions are in a corresponding relationship.
     (<=>) :: a -> a -> Bool
 
-data AccountDivision = Assets       -- ^ 資産
-                     | Equity       -- ^ 資本
-                     | Liability    -- ^ 負債
-                     | Cost         -- ^ 費用
-                     | Revenue      -- ^ 収益
+data AccountDivision = Assets       -- ^ Assets
+                     | Equity       -- ^ Equity
+                     | Liability    -- ^ Liability
+                     | Cost         -- ^ Cost
+                     | Revenue      -- ^ Revenue
                      deriving (Ord, Show, Eq)
 
 instance AccountBase AccountDivision where
@@ -463,10 +506,12 @@ instance AccountBase AccountDivision where
     Equity      <=> Cost            = True
     _ <=> _ = False
 
-data PIMO   = PS
-            | IN
-            | MS
-            | OUT
+-- | PIMO classification. Categories in exchange algebra: Product Stock (PS), Income (IN),
+-- Money Stock (MS), and Outflow (OUT).
+data PIMO   = PS  -- ^ Product Stock (Assets: production stock)
+            | IN  -- ^ Income (Revenue: income flow)
+            | MS  -- ^ Money Stock (Liability/Equity: monetary stock)
+            | OUT -- ^ Outflow (Cost: expenditure flow)
             deriving (Ord, Show, Eq)
 
 instance AccountBase PIMO where
@@ -482,37 +527,38 @@ instance AccountBase PIMO where
 
 
 ------------------------------------------------------------------
--- * シンプルな基底 増やしたければ増やせる
--- 同じ呼び出し関数を使うためにタプルにしている.
--- DuplicateRecordFields 拡張 よりも制限が少なく 見た目が良いためにこちらを選択
+-- * Simple bases (can be extended as needed)
+-- Tuples are used so that the same accessor functions can be shared.
+-- This approach was chosen over the DuplicateRecordFields extension
+-- because it has fewer restrictions and looks cleaner.
 ------------------------------------------------------------------
 
--- ** 要素数 1
--- *** 勘定科目のみ (交換代数基底)
+-- ** 1-element bases
+-- *** Account title only (exchange algebra base)
 instance BaseClass AccountTitles where
 
 instance ExBaseClass (HatBase AccountTitles) where
     getAccountTitle (h :< a)   = a
     setAccountTitle (h :< a) b = h :< b
 
--- ***  名前のみ(冗長代数基底)
+-- *** Name only (redundant algebra base)
 instance BaseClass Name where
 
--- *** CountUnitのみ(冗長代数基底)
+-- *** CountUnit only (redundant algebra base)
 instance BaseClass CountUnit where
 
--- *** Dayのみ(冗長代数基底)
+-- *** Day only (redundant algebra base)
 instance BaseClass Day where
 
--- *** TimeOfDayのみ(冗長代数基底)
+-- *** TimeOfDay only (redundant algebra base)
 instance BaseClass TimeOfDay where
 
 -- ***
 
 
--- ** 要素数2
+-- ** 2-element bases
 
--- | 基礎的なBaseClass 要素数 2
+-- | Basic BaseClass with 2 elements
 
 instance ExBaseClass (HatBase (AccountTitles, Day)) where
     getAccountTitle (h:< (a, d))   = a
@@ -526,27 +572,27 @@ instance ExBaseClass (HatBase (CountUnit, AccountTitles)) where
     getAccountTitle (h:< (u, a))   = a
     setAccountTitle (h:< (u, a)) b = h:< (u, b)
 
--- ** 要素数 3
--- | 基礎的なBaseClass 要素数 3
+-- ** 3-element bases
+-- | Basic BaseClass with 3 elements
 instance ExBaseClass (HatBase (AccountTitles, Name, CountUnit)) where
     getAccountTitle (h:< (a, n, c))   = a
     setAccountTitle (h:< (a, n, c)) b = h:< (b, n, c)
 
--- ** 要素数 4
--- | 基礎的なBaseClass 要素数 4
+-- ** 4-element bases
+-- | Basic BaseClass with 4 elements
 instance ExBaseClass (HatBase (AccountTitles, Name, CountUnit, Subject)) where
     getAccountTitle (h:< (a, n, c, s))   = a
     setAccountTitle (h:< (a, n, c, s)) b = h:< (b, n, c, s)
 
--- ** 要素数 5
--- | 基礎的なBaseClass 要素数 5
+-- ** 5-element bases
+-- | Basic BaseClass with 5 elements
 instance ExBaseClass (HatBase (AccountTitles, Name, CountUnit, Subject,  Day)) where
     getAccountTitle (h:< (a, n, c, s, d))   = a
     setAccountTitle (h:< (a, n, c, s, d)) b = h:< (b, n, c, s, d)
 
 
--- ** 要素数 5
--- | 基礎的なBaseClass 要素数 6
+-- ** 6-element bases
+-- | Basic BaseClass with 6 elements
 instance ExBaseClass (HatBase (AccountTitles, Name, CountUnit, Subject, Day, TimeOfDay)) where
     getAccountTitle (h:< (a, n, c, s, d, t))   = a
     setAccountTitle (h:< (a, n, c, s, d, t)) b = h:< (b, n, c, s, d, t)

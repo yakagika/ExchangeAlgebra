@@ -26,10 +26,10 @@
 
     Released under the OWL license
 
-    Package for Exchange Algebra defined by Hirosh Deguch.
+    Package for Exchange Algebra defined by Hiroshi Deguchi.
 
-    Exchange Algebra is a algebraic description of bokkkeeping system.
-    Details are bellow.
+    Exchange Algebra is an algebraic description of bookkeeping system.
+    Details are below.
 
     <https://www.springer.com/gp/book/9784431209850>
 
@@ -93,7 +93,7 @@ import qualified    Data.Foldable       as Foldable (foldMap,foldl',foldr,toList
 import qualified    Data.Sequence       as Seq
 import              Data.Sequence       (Seq)
 import qualified    Data.Maybe          as Maybe
-import qualified    Number.NonNegative  as NN  -- 非負の実数
+import qualified    Number.NonNegative  as NN  -- Non-negative real numbers
 import              Numeric.NonNegative.Class (C)
 import              Data.Bifunctor
 import              Data.Biapplicative
@@ -106,9 +106,14 @@ import Data.Hashable
 import qualified Data.Binary as Binary
 
 ------------------------------------------------------------------
--- * 丸め込み判定
+-- * Approximate equality
 ------------------------------------------------------------------
+
+-- | Type class providing approximate equality for numeric values.
+-- Performs equality comparison with tolerance for floating-point rounding errors.
 class (Eq a, Ord a) => Nearly a where
+    -- | @isNearly x y t@ : Returns True if the difference between x and y is within the tolerance t.
+    -- Complexity: O(1)
     isNearly     :: a -> a -> a -> Bool
 
 instance Nearly Int where
@@ -145,10 +150,11 @@ isNearlyNum x y t
 -- * Algebra
 ------------------------------------------------------------
 ------------------------------------------------------------------
--- ** Definition of Reducduncy (これを継承すれば冗長代数になる)
+-- ** Definition of Redundancy (subclassing this makes a redundant algebra)
 ------------------------------------------------------------------
 
--- | Reduncdant Class
+-- | Type class for Redundant Algebra.
+-- Provides fundamental exchange algebra operations: hat, bar, norm, scalar product, and compress.
 --
 --  Redundant ⊃ Exchange
 --
@@ -175,27 +181,36 @@ isNearlyNum x y t
 -- 5.00:@Hat:<Cash .+ 13.00:@Not:<Cash
 
 class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
-    -- |
+    -- | Hat operation. Flips Hat/Not on all elements.
+    -- Complexity: O(1) for singleton, O(n) for Liner (n is the number of base keys)
     (.^) :: a n b -> a n b
 
-    -- | bar calculation
+    -- | Bar operation. Cancels Hat/Not on the same base and retains only the difference.
+    -- Complexity: O(n) (n is the number of base keys)
     (.-) :: a n b -> a n b
 
+    -- | Alias for bar operation. Identical to @(.-)@.
     bar :: a n b -> a n b
     bar = (.-)
 
-    -- | compress same Base algebras keep dividing different Hat Values
+    -- | Aggregates values on the same base. Sums while preserving the Hat/Not distinction.
+    -- Complexity: O(n) (n is the number of base keys)
     compress :: a n b -> a n b
 
-    -- | + calculation; alias of <> in monoid
+    -- | Addition of algebra elements. Alias for the Monoid @<>@ operation.
+    -- Complexity: O(union cost)
     (.+) :: a n b -> a n b -> a n b
 
-    -- | multiplication
+    -- | Scalar product. Multiplies all element values by a scalar.
+    -- Complexity: O(1) for singleton, O(n) for Liner
     (.*) :: n -> a n b -> a n b
 
-    -- | get value part
+    -- | Norm. Returns the sum of all element values.
+    -- Complexity: O(n) (n is the number of base keys)
     norm :: a n b -> n
 
+    -- | Addition in an Applicative context.
+    -- Complexity: O(union cost)
     {-# INLINE (<+) #-}
     (<+) :: (Applicative f) => f (a n b) -> f (a n b) -> f (a n b)
     (<+) x y = (.+) <$> x <*> y
@@ -209,19 +224,31 @@ infixr 3 <+
 ------------------------------------------------------------
 -- ** Definition of Exchange Algebra
 ------------------------------------------------------------
+
+-- | Type class for Exchange Algebra. In addition to Redundant Algebra, provides
+-- debit(R)/credit(L) decomposition, stock increase(P)/decrease(M) decomposition, and balance checking.
 class (Redundant a n b ) => Exchange a n b where
-    decR :: a n b -> a n b       -- ^ R-L decomposition
+    -- | Extracts only the debit side elements. Complexity: O(s)
+    decR :: a n b -> a n b
+    -- | Extracts only the credit side elements. Complexity: O(s)
     decL :: a n b -> a n b
-    decP :: a n b -> a n b       -- ^ P-M decomposition
+    -- | Extracts only the Hat (stock increase) side elements. Complexity: O(s)
+    decP :: a n b -> a n b
+    -- | Extracts only the Not (stock decrease) side elements. Complexity: O(s)
     decM :: a n b -> a n b
-    balance :: a n b -> Bool     -- ^ norm Balance
-    diffRL :: a n b -> (Side, n)   -- ^ if not balanced, the R-L difference
+    -- | Checks whether the norms of debit and credit sides are equal. Complexity: O(s)
+    balance :: a n b -> Bool
+    -- | Returns the debit-credit difference as a (Side, difference) pair. Complexity: O(s)
+    diffRL :: a n b -> (Side, n)
 
 
 ------------------------------------------------------------------
 -- * Algebra
 ------------------------------------------------------------------
 
+-- | Type class for algebra element values.
+-- Provides zero-value and error-value predicates.
+-- Instances are defined for 'Double' and 'NN.Double' (non-negative reals).
 class   ( Show n
         , Ord n
         , Eq n
@@ -230,13 +257,16 @@ class   ( Show n
         , RealFloat n
         , Num n) => HatVal n where
 
+        -- | Zero value. Complexity: O(1)
         zeroValue :: n
 
+        -- | Tests whether the value is zero. Complexity: O(1)
         isZeroValue :: n -> Bool
         isZeroValue x
             | zeroValue == x = True
             | otherwise      = False
 
+        -- | Tests whether the value is an error value (NaN, Infinity, etc.). Complexity: O(1)
         isErrorValue :: n -> Bool
 
 
@@ -277,6 +307,8 @@ data Pair v where
          deriving (Eq)
 
 instance (Binary.Binary v) => Binary.Binary (Pair v) where
+    {-# INLINABLE put #-}
+    {-# INLINABLE get #-}
     put (Pair hs ns) = do
         Binary.put (Seq.length hs :: Int)
         Foldable.foldr (\x k -> Binary.put x >> k) (pure ()) hs
@@ -340,7 +372,8 @@ pairAppend (Pair x1 y1) (Pair x2 y2) =
         !ns = y1 Seq.>< y2
     in Pair hs ns
 
--- | 代数元 数値と基底のペア
+-- | Algebra element. An element of exchange algebra consisting of a value-base pair.
+-- Zero is the zero element, @(:@)@ is a singleton, and Liner is a HashMap-based multi-element representation.
 data  Alg v b where
         Zero  :: Alg v b
         (:@)  :: {_val :: !v, _hatBase :: !b} -> Alg v b
@@ -357,6 +390,8 @@ instance ( HatBaseClass b
          , Binary.Binary b
          , Binary.Binary (BasePart b)
          ) => Binary.Binary (Alg v b) where
+    {-# INLINABLE put #-}
+    {-# INLINABLE get #-}
     put Zero = Binary.put (0 :: Int)
     put (v :@ b) = do
         Binary.put (1 :: Int)
@@ -454,7 +489,9 @@ linerFromMap m = Liner m idx bpToId idToBp nextBpId allIds
             (emptyAxisPosting, Map.empty, IntMap.empty, 0, IntSet.empty)
             m
 
--- | Complexity: O(1)
+-- | Tests whether the algebra element is zero (empty).
+--
+-- Complexity: O(1)
 isZero :: Alg v b -> Bool
 isZero Zero = True
 isZero _    = False
@@ -470,11 +507,16 @@ singleton v b | isZeroValue v  = Zero
               | otherwise      = v :@ b
 
 {-# INLINE (.@) #-}
--- | Complexity: O(1)
+-- | Smart constructor that builds an algebra element from a value and a base.
+-- Returns Zero for zero values, and throws an exception for error values.
+--
+-- Complexity: O(1)
 (.@) :: (HatVal n, HatBaseClass b) => n -> b -> Alg n b
 (.@) v b = singleton v b
 
--- | Complexity: O(1) plus Applicative effects.
+-- | Constructs an algebra element in an Applicative context. Lifted version of @(.@)@.
+--
+-- Complexity: O(1) + Applicative effects
 (<@) :: (HatVal n, Applicative f, HatBaseClass b)
      => f n  -> b -> f (Alg n b)
 (<@) v b = (.@) <$> v <*> (pure b)
@@ -620,7 +662,7 @@ insert !b !v (Liner m _ _ _ _ _)  = case isHat b of
 ------------------------------------------------------------------
 
 instance (HatVal n, HatBaseClass b) => Monoid (Alg n b) where
-    -- 単位元
+    -- Identity element
     mempty = Zero
     mappend = (<>)
     mconcat = unions
@@ -708,24 +750,37 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
                         False -> linerFromMap res
         where
             {-# INLINE f #-}
-            f (Pair hs ns) = let (h, n) = (sum hs,sum ns)
-                           in case isNearlyNum h n 1e-13 of -- 精度 13桁
-                                        True -> Nothing
-                                        False -> case compare h n of
-                                                    GT -> Just (Pair (Seq.singleton (h - n)) Seq.empty)
-                                                    LT -> Just (Pair Seq.empty (Seq.singleton (n - h)))
+            f p@(Pair hs ns) =
+                let !h = Foldable.foldl' (+) 0 hs
+                    !n = Foldable.foldl' (+) 0 ns
+                in case isNearlyNum h n 1e-13 of -- precision 13 digits
+                    True -> Nothing
+                    False -> case (Seq.length hs, Seq.length ns) of
+                        -- Already in canonical form: singleton on winning side, empty on other
+                        (1, 0) | h > n -> Just p
+                        (0, 1) | n > h -> Just p
+                        _ -> case compare h n of
+                            GT -> Just (Pair (Seq.singleton (h - n)) Seq.empty)
+                            LT -> Just (Pair Seq.empty (Seq.singleton (n - h)))
 
     {-# INLINE compress #-}
     compress Zero       = Zero
     compress (v:@b)     = v:@b
     compress (Liner m idx bpToId idToBp nextBpId allIds)  = Liner
-                        (Map.map (\ (Pair hs ns) -> Pair (Seq.singleton (sum hs))
-                                                          (Seq.singleton (sum ns))) m)
+                        (Map.map compressPair m)
                         idx
                         bpToId
                         idToBp
                         nextBpId
                         allIds
+      where
+        {-# INLINE compressPair #-}
+        compressPair p@(Pair hs ns) = case (Seq.length hs, Seq.length ns) of
+            (1, 1) -> p  -- already singleton on both sides, reuse
+            (1, 0) -> p  -- already singleton + empty, reuse
+            (0, 1) -> p  -- already empty + singleton, reuse
+            _      -> Pair (Seq.singleton (Foldable.foldl' (+) 0 hs))
+                           (Seq.singleton (Foldable.foldl' (+) 0 ns))
 
 
 instance (HatVal n, ExBaseClass b) =>  Exchange Alg n b where
@@ -754,12 +809,12 @@ instance (HatVal n, ExBaseClass b) =>  Exchange Alg n b where
         l = (norm . decL) xs
 
 ------------------------------------------------------------------
--- * 基本の関数
+-- * Basic functions
 ------------------------------------------------------------------
 
--- | vals
--- get vals
--- Complexity: O(s), where s is total number of scalar entries stored in all pairs.
+-- | Returns all values contained in the algebra element as a list.
+--
+-- Complexity: O(s) (s is the total number of scalar entries)
 vals :: (HatVal v, HatBaseClass b) => Alg v b -> [v]
 vals Zero = []
 vals (v:@b) = [v]
@@ -775,9 +830,9 @@ vals (Liner m _ _ _ _ _) =
             m
 
 
--- | bases
--- get bases
--- Complexity: O(s), where s is total number of scalar entries stored in all pairs.
+-- | Returns all bases contained in the algebra element as a list.
+--
+-- Complexity: O(s) (s is the total number of scalar entries)
 bases :: (HatVal v, HatBaseClass b) => Alg v b -> [b]
 bases Zero = []
 bases (v:@b) = [b]
@@ -810,7 +865,7 @@ fromList = mconcat
 
 
 
--- | sigma 
+-- | Summation function that applies a function to each element of a list and sums the results.
 -- Complexity: O(sum of 'union' costs over produced elements).
 --
 -- >>> type Test = Alg NN.Double (HatBase CountUnit)
@@ -823,6 +878,10 @@ sigma xs f = mkAlgFromMap $ L.foldl' step Map.empty xs
   where
     step !acc !x = mergeAlgMapIfNonZero acc (f x)
 
+-- | Conditional summation over a double loop. For all combinations of two lists,
+-- applies the function only to pairs that satisfy the condition and sums the results.
+--
+-- Complexity: O(|xs| * |ys| * union cost)
 {-# INLINE sigma2When #-}
 sigma2When :: (HatVal v, HatBaseClass b)
            => [a]
@@ -838,6 +897,9 @@ sigma2When xs ys cond f =
         | cond x y = mergeAlgMapIfNonZero acc (f x y)
         | otherwise = acc
 
+-- | Summation using keys and values from a Map. Skips entries with zero values.
+--
+-- Complexity: O(|map| * union cost)
 {-# INLINE sigmaFromMap #-}
 sigmaFromMap :: (HatVal v, HatBaseClass b, Ord k)
              => M.Map k v
@@ -850,8 +912,8 @@ sigmaFromMap kvs f =
         | isZeroValue v = acc
         | otherwise = mergeAlgMapIfNonZero acc (f k v)
 
--- | convert Alg n b to List
--- Complexity: O(s), where s is total number of scalar entries.
+-- | Converts an algebra element to a list.
+-- Complexity: O(s) (s is the total number of scalar entries)
 --
 -- >>> toList (10:@Hat:<(Cash) .+ 10:@Hat:<(Deposits) .+ Zero :: Alg NN.Double (HatBase AccountTitles))
 -- [10.00:@Hat:<Cash,10.00:@Hat:<Deposits]
@@ -982,7 +1044,7 @@ map f (Liner m _ _ _ _ _) = mkAlgFromMap $ (Map.foldrWithKey (p f) dnilMap m) Ma
                                                                           ,nullPair{_notSide = Seq.singleton v2} ))
                                                         ,vsAcc )
 
--- 差分リストを定義
+-- Difference list definition
 type DList a = [a] -> [a]
 type DMap k v = Map.HashMap k v -> Map.HashMap k v
 
@@ -994,7 +1056,7 @@ dnil = id
 {-# INLINE dappend #-}
 -- | Complexity: O(1)
 dappend :: DList a -> DList a -> DList a
-dappend = (.)  -- 関数合成
+dappend = (.)  -- Function composition
 
 {-# INLINE dsingle #-}
 -- | Complexity: O(1)
@@ -1035,25 +1097,25 @@ filter f (v:@b) | f (v:@b)    = v:@b
                 | otherwise   = Zero
 
 filter f (Liner m _ _ _ _ _) =
-    -- mapMaybeWithKey で新しい Map を構築
+    -- Build a new Map using mapMaybeWithKey
     let m' = Map.mapMaybeWithKey
                (\basePart (Pair hs ns) ->
-                  -- hs, ns それぞれをフィルタ
+                  -- Filter each of hs and ns
                   let hs' = filterSide basePart Hat hs
                       ns' = filterSide basePart Not ns
                   in
-                    -- 両方とも空になればエントリ削除 (Nothing)
+                    -- Remove the entry (Nothing) if both become empty
                     if Seq.null hs' && Seq.null ns'
                        then Nothing
                        else Just (Pair hs' ns'))
              m
     in
-      -- 結果の Map が空なら Zero, そうでなければ Liner m'
+      -- If the resulting Map is empty, return Zero; otherwise Liner m'
       if Map.null m' then Zero else linerFromMap m'
   where
     ----------------------------------------------------------------
-    -- basePart と Hat/Not を元に「v:@(merge h basePart)」を作り，
-    -- 与えられた述語 f を満たすか判定するためのフィルタ関数
+    -- Filter function that constructs "v:@(merge h basePart)" from
+    -- basePart and Hat/Not, and tests whether it satisfies predicate f
     ----------------------------------------------------------------
     -- filterSide :: BasePart b -> Hat -> Seq v -> Seq v
     {-# INLINE filterSide #-}
@@ -1174,17 +1236,23 @@ singlePairToAlg b (Pair hs ns) = case (Seq.viewl hs, Seq.viewl ns) of
 
 ------------------------------------------------------------------
 
--- | proj devit algs の代わりに Elem に Text や Int などがある場合は projCredit を使う
--- Complexity: O(s), implemented via 'filter'.
+-- | Projects only the credit side elements.
+-- Use this instead of decL when the base contains non-Enum elements such as Text or Int.
+--
+-- Complexity: O(s) (s is the total number of scalar entries)
 projCredit :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projCredit = filter (\x -> (whichSide . _hatBase) x == Credit)
 
--- | proj debit algs の代わりに Elem に Text や Int などがある場合は projDebit を使う
--- Complexity: O(s), implemented via 'filter'.
+-- | Projects only the debit side elements.
+-- Use this instead of decR when the base contains non-Enum elements such as Text or Int.
+--
+-- Complexity: O(s) (s is the total number of scalar entries)
 projDebit :: (HatVal n, ExBaseClass b)  => Alg n b -> Alg n b
 projDebit = filter (\x -> (whichSide . _hatBase) x == Debit)
 
--- | Complexity: O(s), implemented via 'filter'.
+-- | Projects only the elements matching the specified account title.
+--
+-- Complexity: O(s) (s is the total number of scalar entries)
 projByAccountTitle :: (HatVal n, ExBaseClass b) => AccountTitles -> Alg n b -> Alg n b
 projByAccountTitle at alg = filter (f at) alg
     where
@@ -1261,63 +1329,71 @@ foldEntriesToMap f = foldEntries step M.empty
         Just (k, v') -> M.insertWith (+) k v' acc
         Nothing      -> acc
 
--- | 流動資産の取得
--- Complexity: O(s), a constant-depth composition of filters.
+-- | Projects only current assets.
+-- Extracts asset items classified as current from the debit side.
+--
+-- Complexity: O(s) (s is the total number of scalar entries)
 projCurrentAssets :: ( HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projCurrentAssets  = (filter (\x -> (fixedCurrent . _hatBase) x == Current))
                    . (filter (\x -> (whatDiv . _hatBase) x      == Assets))
                    . projDebit
 
--- | 固定資産
--- Complexity: O(s), a constant-depth composition of filters.
+-- | Projects only fixed assets.
+-- Extracts asset items classified as fixed from the debit side.
+--
+-- Complexity: O(s) (s is the total number of scalar entries)
 projFixedAssets :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projFixedAssets = (filter (\x -> (fixedCurrent . _hatBase) x == Fixed))
                 . (filter (\x -> (whatDiv . _hatBase) x      == Assets))
                 . projDebit
 
--- | 繰延資産
--- 税法固有の繰延資産は、「投資その他の資産」に長期前払費用等の適当な項目を付して表示する。
--- Complexity: O(s), a constant-depth composition of filters.
+-- | Projects only deferred assets.
+-- Tax-specific deferred assets are presented under "investments and other assets" with appropriate items such as long-term prepaid expenses.
+--
+-- Complexity: O(s) (s is the total number of scalar entries)
 projDeferredAssets :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projDeferredAssets  = (filter (\x -> (fixedCurrent . _hatBase) x == Other))
                     . (filter (\x -> (whatDiv . _hatBase) x      == Assets))
                     . projDebit
 
--- | 流動負債
--- Complexity: O(s), a constant-depth composition of filters.
+-- | Projects only current liabilities.
+-- Extracts liability items classified as current from the credit side.
+--
+-- Complexity: O(s) (s is the total number of scalar entries)
 projCurrentLiability :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projCurrentLiability  = (filter (\x -> (fixedCurrent . _hatBase) x == Current))
                       . (filter (\x -> (whatDiv . _hatBase) x      == Liability))
                       . projCredit
 
--- | 固定負債
--- Complexity: O(s), a constant-depth composition of filters.
+-- | Projects only fixed liabilities.
+-- Extracts liability items classified as fixed from the credit side.
+--
+-- Complexity: O(s) (s is the total number of scalar entries)
 projFixedLiability :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projFixedLiability  = (filter (\x -> (fixedCurrent . _hatBase) x == Fixed))
                     . (filter (\x -> (whatDiv . _hatBase) x      == Liability))
                     . projCredit
 
--- | 株主資本
--- Complexity: O(1) currently (undefined placeholder).
+-- | Projects only capital stock.
+--
+-- __Note__: Not yet implemented. Calling this will throw an exception.
 projCapitalStock :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projCapitalStock = undefined
 
 
--- * バランス
+-- * Balance
 
-{- | バランスしていない場合の処理 -}
+{- | Handling when the balance does not hold -}
 -- Complexity: O(1) currently (undefined placeholder).
 forceBalance = undefined
 
 
--- * 端数処理
+-- * Rounding
 
-{- | 端数処理
-割り算と掛け算に利用
-基本的には切り上げで処理する
-勘定科目の乗除には全てこれを適用
--}
-
-rounding :: NN.Double -> NN.Double
+-- | Rounding (ceiling).
+-- Applied to the results of division and multiplication; uses ceiling rounding by default.
+-- This should be applied to all multiplication and division of account titles.
+--
 -- Complexity: O(1)
+rounding :: NN.Double -> NN.Double
 rounding = fromIntegral . ceiling
