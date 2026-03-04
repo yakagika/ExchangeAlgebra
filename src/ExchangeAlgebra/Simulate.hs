@@ -5,10 +5,10 @@
 
     Released under the OWL license
 
-    Package for Exchange Algebra defined by Hirosh Deguch.
+    Package for Exchange Algebra defined by Hiroshi Deguchi.
 
-    Exchange Algebra is a algebraic description of bokkkeeping system.
-    Details are bellow.
+    Exchange Algebra is an algebraic description of bookkeeping system.
+    Details are below.
 
     <https://www.springer.com/gp/book/9784431209850>
 
@@ -112,36 +112,43 @@ class (Eq t, Show t, Ord t, Enum t, Ix t) => StateTime t where
     prevTerm :: t -> t
     prevTerm = pred
 
--- | Parameters for initialisation
--- Referenced during initialisation
--- Values referred to during simulation should be in Updatable
+-- | Type class for initialization parameters.
+-- Parameters referenced during initialization at the start of a simulation.
+-- Values referenced during simulation execution should be included in 'Updatable'.
 class (Eq e, Show e) => InitVariables e where
 
 ------------------------------------------------------------------
+-- | Type class for event types.
+-- Used to enumerate events executed at each term of the simulation.
+-- By default, 'minBound' / 'maxBound' from 'Bounded' are used.
 class (Ord e, Show e, Enum e, Eq e, Bounded e) => Event e where
+    -- | The first event. Defaults to @minBound@.
     fstEvent :: e
     fstEvent = minBound
+    -- | The last event. Defaults to @maxBound@.
     lastEvent :: e
     lastEvent = maxBound
 
 ------------------------------------------------------------------
--- | A parameter that indicates the pattern for updating the value to the next period
-data UpdatePattern = Copy         -- | Copy the previous state
-                   | Modify       -- | Modyfy the previous state
-                   | DoNothing    -- | Do nothing (if the initialisation has generated the state for all periods)
+-- | Update pattern for advancing to the next term. Specifies how each Updatable field is updated.
+data UpdatePattern = Copy         -- ^ Copy the previous term's state as-is
+                   | Modify       -- ^ Update by modifying the previous term's state
+                   | DoNothing    -- ^ Do nothing (used when all terms are pre-generated during initialization)
                    deriving (Show, Eq)
 
 ------------------------------------------------------------------
--- | Elements of StateSpace
+-- | Type class for updatable fields that constitute a StateSpace.
+-- Provides an interface for initialization, copying, and modification.
+-- Through Generic-based automatic derivation, initAll/updateAll of StateSpace are auto-implemented.
 class (StateTime t,InitVariables v)
       => Updatable t v (a :: Type -> Type) s | a s -> t v where
     type Inner a s
     unwrap :: a s -> Inner a s
 
-    -- StdGenは現状は全てのインスタンスの初期化で同じ値を返す.
-    -- (乱数生成器を更新していない)
-    -- 現状異なる乱数をインスタンスごとに利用したい場合は,updateGenなどを利用
-    -- 同一の乱数生成器を更新して使えるようにする予定
+    -- Currently StdGen returns the same value for all instance initializations
+    -- (the random number generator is not being advanced).
+    -- To use different random numbers per instance, use updateGen or similar.
+    -- Planned: allow advancing a shared random number generator across instances.
     initialize    :: StdGen -> t -> v -> ST s (a s)
 
     updatePattern :: (a s) -> ST s UpdatePattern
@@ -207,6 +214,9 @@ class UpdatableSTRef wrapper s b | wrapper s -> b where
 
 
 
+-- | Modify the value at a given index of an array using a function. Evaluates strictly before writing back.
+--
+-- Complexity: O(1)
 {-# INLINE modifyArray #-}
 modifyArray ::(MArray a t m, Ix i) => a i t -> i -> (t -> t) -> m ()
 modifyArray ar e f = do
@@ -260,42 +270,47 @@ class (Ix b) => UpdatableSTArray wrapper s b c | wrapper s -> b c where
   modifyUArray x f = modifyArray (_unwrapUArray x) f
 
 ------------------------------------------------------------------
+-- | Type class defining the world state for a simulation.
+-- Initialize with initAll, update state each term with updateAll, and execute event processing with event.
+-- Through DefaultSignatures with Generic, initAll and updateAll can be automatically derived.
 class (StateTime t,InitVariables v, Event e)
       => StateSpace t v e (a :: Type -> Type) s | a s -> t v e where
     {-# INLINE initAll #-}
     initAll ::  StdGen -> t -> v -> ST s (a s)
 
-    -- DefaultSignatures 拡張
+    -- DefaultSignatures extension
     default initAll :: (Generic (a s), GUpdatable t v (Rep (a s)) s)
                     =>  StdGen -> t -> v ->  ST s (a s)
     initAll g t v = GHC.Generics.to <$> gInitialize g t v
 
-    -- DefaultSignatures 拡張
+    -- DefaultSignatures extension
     {-# INLINE updateAll #-}
     updateAll :: StdGen -> t -> v -> a s -> ST s ()
     default updateAll :: (Generic (a s), GUpdatable t v (Rep (a s)) s)
                       => StdGen -> t -> v -> a s -> ST s ()
     updateAll g t v a = gUpdate g t v (GHC.Generics.from a)
 
-    -- イベント処理
+    -- Event processing
     event :: a s -> t -> e -> ST s ()
 
-    -- 開始期を指定する
+    -- Specify the starting term
     initT :: v ->  a s -> ST s t
     initT _ _ = return initTerm
 
-    -- 終了期を指定する
+    -- Specify the ending term
     lastT :: v -> a s -> ST s t
     lastT _ _ = return lastTerm
 
-    -- | 乱数シードを定義する(デフォルト42)
-    -- 乱数シードを明示的に定義することも可能
-    -- 現状使い道なし
+    -- | Define the random seed (default 42).
+    -- The random seed can also be explicitly defined.
+    -- Currently unused.
     randomSeeds :: a s -> ST s Int
     randomSeeds _ = return 42
 
 
--- | Event全体を結合
+-- | Execute all events in order. Calls @event@ from @fstEvent@ through @lastEvent@.
+--
+-- Complexity: O(|events| * cost(event))
 {-# INLINE eventAll #-}
 eventAll :: forall t v e a s. (StateSpace t v e a s) => a s -> t ->  ST s ()
 eventAll wld t =  CM.forM_ [fstEvent .. lastEvent]
@@ -320,6 +335,10 @@ data SpillDeletePolicy t
     | DeleteSpilledChunk
     | KeepRecentTerms Int
 
+-- | Construct text-format SpillOptions.
+-- interval is the spill interval (in terms), path is the output file path.
+--
+-- Complexity: O(1)
 mkSpillOptions :: (Show t)
                => Int
                -> FilePath
@@ -336,6 +355,10 @@ mkSpillOptions interval path extractF =
     , spillDeleteRange = \_ _ -> pure ()
     }
 
+-- | Construct binary-format SpillOptions.
+-- Spills in a format that can be restored with 'readBinarySpillFile'.
+--
+-- Complexity: O(1)
 mkBinarySpillOptions :: (Binary.Binary t, Binary.Binary payload)
                      => Int
                      -> FilePath
@@ -352,17 +375,26 @@ mkBinarySpillOptions interval path extractF =
     , spillDeleteRange = \_ _ -> pure ()
     }
 
+-- | Default text-format spill writer.
+-- Writes the chunk range and payload as text to the handle.
 defaultSpillWriter :: (Show t) => Handle -> (t, t) -> String -> IO ()
 defaultSpillWriter h (tStart, tEnd) payload = do
     hPutStrLn h ("# chunk " ++ show tStart ++ " " ++ show tEnd)
     hPutStr h payload
     hPutStrLn h "\n# end-chunk"
 
+-- | Default binary-format spill writer.
+-- Writes the chunk range and payload to the handle using 'Binary.encode'.
 defaultBinarySpillWriter :: (Binary.Binary t, Binary.Binary payload)
                          => Handle -> (t, t) -> payload -> IO ()
 defaultBinarySpillWriter h range payload =
     BL.hPut h $ Binary.encode (range, payload)
 
+-- | Read a binary spill file and return it as a list of chunks.
+-- Used to restore files written by 'defaultBinarySpillWriter'.
+-- When decoding fails, the remaining data is truncated.
+--
+-- Complexity: O(file size)
 readBinarySpillFile :: (Binary.Binary t, Binary.Binary payload)
                     => FilePath
                     -> IO [((t, t), payload)]
@@ -392,7 +424,10 @@ simulate g wld v = loop g wld initTerm v
         eventAll wld t
         loop g wld (nextTerm t) v
 
--- | 初期化 → 指定されたイベントの実行までをこなす
+-- | Run a simulation from initialization through the final term.
+-- Build the world state with initAll, then repeat updateAll followed by eventAll for each term.
+--
+-- Complexity: O(T * (updateAll + eventAll)) (T = number of terms)
 runSimulation :: (StateSpace t v e a RealWorld)
               => StdGen -> v ->  IO (a RealWorld)
 runSimulation gen v = stToIO $ do
@@ -499,46 +534,46 @@ runScenariosWithSpill buildOpts gen scenarios = do
         scenarios
     pure $ M.fromList $ zip (fmap fst scenarios) results
 
--- Genericを用いた自動導出のための補助型クラス
+-- Helper type class for Generic-based automatic derivation
 class  (StateTime t,InitVariables v)
         => GUpdatable t v a s where
     gInitialize :: StdGen  -> t -> v -> ST s (a s)
 
     gUpdate :: StdGen -> t -> v -> a s -> ST s ()
 
--- コンストラクタに対するGUpdatableのインスタンス
+-- GUpdatable instance for constructors
 instance (StateTime t,InitVariables v)
         => GUpdatable t v U1 s where
     gInitialize _ _ _ = return U1
     gUpdate _ _ _ _ = return ()
 
--- | プリミティブ型に対するGUpdatableのインスタンス
+-- | GUpdatable instance for primitive types
 instance (StateTime t, InitVariables v, Updatable t v a s)
         => GUpdatable t v (K1 i (a s)) s where
     gInitialize g t v = K1 <$> initialize g t v
     gUpdate g t v (K1 x) = update g t v x
 
--- |直和型に対するGUpdatableのインスタンス
+-- | GUpdatable instance for sum types
 instance (StateTime t, InitVariables v, GUpdatable t v p s, GUpdatable t v q s)
         => GUpdatable t v (p :+: q) s where
     gInitialize g t v = gInitialize g t v
     gUpdate g t v (L1 p) = gUpdate g t v p
     gUpdate g t v (R1 q) = gUpdate g t v q
 
--- | レコードフィールドに対するGUpdatableのインスタンス
+-- | GUpdatable instance for product types (record fields)
 instance (StateTime t, InitVariables v, GUpdatable t v p s, GUpdatable t v q s)
         => GUpdatable t v (p :*: q) s where
     gInitialize g t v = (:*:) <$> gInitialize g t v <*> gInitialize g t v
     gUpdate g t v (x :*: y) = gUpdate g t v y >> gUpdate g t v x
 
--- メタデータに対するGUpdatableのインスタンス
+-- GUpdatable instance for metadata wrappers
 instance (StateTime t, InitVariables v, GUpdatable t v f s)
-        => GUpdatable t v (M1 p l f) s where -- メタデータは無視する
+        => GUpdatable t v (M1 p l f) s where -- Metadata is ignored
     gInitialize g t v = M1 <$> gInitialize g t v
     gUpdate g t v (M1 f) = gUpdate g t v f
 
 ------------------------------------------------------------------
--- * Rippele Effect Analysis
+-- * Ripple Effect Analysis
 ------------------------------------------------------------------
 
 -- | Generate Identity Matrix
@@ -575,7 +610,7 @@ main :: IO ()
 main = do
     mat <- newListArray ((1,1),(2,2)) [0.2, 0.3, 0.4, 0.1]
     result <- leontiefInverse mat
-    putStrLn "Leontief Inverse (波及効果行列):"
+    putStrLn "Leontief Inverse (ripple effect matrix):"
     writeLeontiefInverse "output.csv" result
 -}
 
@@ -588,8 +623,10 @@ leontiefInverse a = do
         writeArray temp (i,j) (if i == j then 1 - val else -val)
     inverse temp
 
--- | 逆行列を利用して実際の需要増加量を計算する
--- 産業に1単位の需要増加があった場合の波及効果を計算する
+-- | Calculate the ripple effect of a demand increase in a specific industry using the inverse matrix.
+-- Returns the ripple effect on each industry when a one-unit demand increase occurs in the specified industry.
+--
+-- Complexity: O(n) (n = number of industries)
 rippleEffect :: Int -> IOArray (Int, Int) Double -> IO (IOArray (Int, Int) Double)
 rippleEffect industry inverseArr = do
     ((r1,c1),(r2,c2)) <- getBounds inverseArr
@@ -601,30 +638,40 @@ rippleEffect industry inverseArr = do
 
 
 ------------------------------------------------------------------
--- * 乱数関連
+-- * Random number utilities
 ------------------------------------------------------------------
 
--- ** 正規分布
+-- ** Normal distribution
 -- cf. https://hackage.haskell.org/package/normaldistribution-1.1.0.3/docs/src/Data-Random-Normal.html
 
--- | box muller methodによる正規分布の近似計算
+-- | Approximate normal distribution using the Box-Muller method (internal function).
+-- Generates a pair of standard normal random numbers from a pair of uniform random numbers.
+--
+-- Complexity: O(1)
 boxMuller :: Floating a => a -> a -> (a,a)
 boxMuller u1 u2 = (r * cos t, r * sin t) where r = sqrt (-2 * log u1)
                                                t = 2 * pi * u2
 
+-- | Generate a random number following the standard normal distribution N(0,1). Uses the Box-Muller method.
+--
+-- Complexity: O(1)
 normal :: (RandomGen g, Random a, Floating a) => g -> (a,g)
 normal g0 = (fst $ boxMuller u1 u2, g2)
   where
      (u1,g1) = randomR (0,1) g0
      (u2,g2) = randomR (0,1) g1
 
+-- | Generate a random number following the normal distribution N(mean, sigma) with specified mean and standard deviation.
+--
+-- Complexity: O(1)
 normal' :: (RandomGen g, Random a, Floating a) => (a,a) -> g -> (a,g)
 normal' (mean, sigma) g = (x * sigma + mean, g') where (x, g') = normal g
 
--- | 乱数発生器を指定された回数更新する
--- 実装上一つの乱数生成器を複数の変数で使い回すことになる
--- 特に初期化において,同じ乱数が発生するので,
--- 適当な回数更新を繰り返す必要がある
+-- | Advance the random number generator a specified number of times.
+-- When sharing a single random number generator across multiple variables,
+-- repeat the advancement an appropriate number of times to avoid generating the same random numbers, especially during initialization.
+--
+-- Complexity: O(n)
 updateGen :: (RandomGen g) => g -> Prelude.Int -> g
 updateGen g n
     | n <= 1     = g'

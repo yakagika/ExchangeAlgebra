@@ -5,10 +5,10 @@
 
     Released under the OWL license
 
-    Package for Exchange Algebra defined by Hirosh Deguch.
+    Package for Exchange Algebra defined by Hiroshi Deguchi.
 
-    Exchange Algebra is a algebraic description of bokkkeeping system.
-    Details are bellow.
+    Exchange Algebra is an algebraic description of bookkeeping system.
+    Details are below.
 
     <https://www.springer.com/gp/book/9784431209850>
 
@@ -117,8 +117,8 @@ instance (Note a, Note b, Note c) => Note (a, b, c) where
 instance (Note a, Note b, Note c, Note d) => Note (a, b, c, d) where
     plank = (plank, plank, plank, plank)
 
--- | 摘要の付随した取引データ
---   base + delta の2層で保持し、更新は基本的に delta に追記する。
+-- | Transaction data with annotations.
+--   Stored in a base + delta two-layer structure; updates are appended to the delta layer.
 data Journal n v b where
      Journal :: (Note n, HatVal v, HatBaseClass b)
             => { _jBase    :: !(Map.HashMap n (Alg v b))
@@ -129,11 +129,18 @@ data Journal n v b where
 deltaCompactThreshold :: Int
 deltaCompactThreshold = 128
 
+-- | Construct a Journal from a HashMap.
+--
+-- Complexity: O(1)
 {-# INLINE fromMap #-}
 fromMap :: (HatVal v, HatBaseClass b, Note n)
         => Map.HashMap n (Alg v b) -> Journal n v b
 fromMap m = Journal m Map.empty 0
 
+-- | Retrieve all entries of a Journal as a HashMap.
+-- Merges the base and delta layers.
+--
+-- Complexity: O(n) where n is the number of Notes
 {-# INLINE toMap #-}
 toMap :: (HatVal v, HatBaseClass b, Note n)
       => Journal n v b -> Map.HashMap n (Alg v b)
@@ -190,12 +197,31 @@ instance ( Note n
          , Binary.Binary n
          , Binary.Binary (Alg v b)
          ) => Binary.Binary (Journal n v b) where
-    put = Binary.put . Map.toList . toMap
-    get = fromMap . Map.fromList <$> Binary.get
+    {-# INLINABLE put #-}
+    {-# INLINABLE get #-}
+    put j = do
+        let !m = toMap j
+        Binary.put (Map.size m :: Int)
+        Map.foldrWithKey
+            (\n alg k -> Binary.put n >> Binary.put alg >> k)
+            (pure ())
+            m
+    get = do
+        n <- Binary.get :: Binary.Get Int
+        fromMap <$> go n Map.empty
+      where
+        go !remaining !acc
+            | remaining <= 0 = pure acc
+            | otherwise = do
+                k <- Binary.get
+                v <- Binary.get
+                go (remaining - 1) (Map.insert k v acc)
 
+-- | Test whether the Journal is empty (zero).
+--
+-- Complexity: O(1)
 isZero :: (HatVal v, HatBaseClass b, Note n)
        => Journal n v b -> Bool
--- | Complexity: O(1)
 isZero (Journal base delta _) = Map.null base && Map.null delta
 
 pattern Zero :: (HatVal v, HatBaseClass b, Note n) => Journal n v b
@@ -203,7 +229,8 @@ pattern Zero <- (isZero -> True)
     where
         Zero = Journal Map.empty Map.empty 0
 
--- | smart constructer of :||
+-- | Smart constructor that attaches a Note (annotation) to an algebra element to build a Journal.
+--
 -- Complexity: O(1)
 (.|) :: (HatVal v, HatBaseClass b, Note n)
       => Alg v b -> n -> Journal n v b
@@ -233,7 +260,9 @@ instance (HatVal v, HatBaseClass b, Note n) => Semigroup (Journal n v b) where
     {-# INLINE (<>) #-}
     (<>) = addJournal
 
--- | (.+) for Journal
+-- | Journal addition. Appends right-hand entries to the left-hand side.
+--
+-- Complexity: Amortized O(size(rhs)); O(n) compaction when the delta exceeds the threshold
 --
 -- >>> type Test = Journal String Double (HatBase AccountTitles)
 -- >>> x = 20.00:@Not:<Cash .+ 20.00:@Hat:<Deposits .| "Withdrawal" :: Test
@@ -242,8 +271,6 @@ instance (HatVal v, HatBaseClass b, Note n) => Semigroup (Journal n v b) where
 -- 10.00:@Not:<Deposits.|"Deposits" .+ 10.00:@Hat:<Cash.|"Deposits" .+ 20.00:@Hat:<Deposits.|"Withdrawal" .+ 20.00:@Not:<Cash.|"Withdrawal"
 addJournal :: (HatVal v, HatBaseClass b, Note n)
            => Journal n v b -> Journal n v b -> Journal n v b
--- | Complexity:
---   amortized O(size(rhs)) updates, plus occasional compaction.
 addJournal lhs rhs = appendMap (toMap rhs) lhs
 
 instance (HatVal v, HatBaseClass b, Note n) => Monoid (Journal n v b) where
@@ -288,7 +315,6 @@ fromList :: (HatVal v, HatBaseClass b, Note n)
 fromList = foldr (.+) mempty
 
 ------------------------------------------------------------------
--- | sigma
 {-# INLINE mergeJournalMap #-}
 mergeJournalMap :: (HatVal v, HatBaseClass b, Note n)
                 => Map.HashMap n (Alg v b)
@@ -313,6 +339,9 @@ mergeJournalMapIfNonZero !acc js
     | isZero js = acc
     | otherwise = mergeJournalMap acc js
 
+-- | Summation function that applies a function to each list element and sums the resulting Journals.
+--
+-- Complexity: O(|xs| * union cost)
 {-# INLINE sigma #-}
 sigma :: (HatVal v, HatBaseClass b, Note n)
       => [a] -> (a -> Journal n v b) -> Journal n v b
@@ -320,6 +349,10 @@ sigma xs f = fromMap $ L.foldl' step Map.empty xs
   where
     step !acc !x = mergeJournalMapIfNonZero acc (f x)
 
+-- | Conditional summation over a double loop (Journal version).
+-- Applies the function only to pairs that satisfy the condition across all combinations of two lists, and sums the results.
+--
+-- Complexity: O(|xs| * |ys| * union cost)
 {-# INLINE sigma2When #-}
 sigma2When :: (HatVal v, HatBaseClass b, Note n)
            => [a]
@@ -335,6 +368,10 @@ sigma2When xs ys cond f =
         | cond x y = mergeJournalMapIfNonZero acc (f x y)
         | otherwise = acc
 
+-- | Sum each list element as an Alg on the specified Note and store the result in a Journal.
+-- Returns an empty Journal if the result is zero.
+--
+-- Complexity: O(|xs| * union cost)
 {-# INLINE sigmaOn #-}
 sigmaOn :: (HatVal v, HatBaseClass b, Note n)
         => n
@@ -347,6 +384,10 @@ sigmaOn n xs f =
         then mempty
         else alg .| n
 
+-- | Sum Alg values from Map keys and values on the specified Note and store the result in a Journal.
+-- Map version of 'sigmaOn'.
+--
+-- Complexity: O(|map| * union cost)
 {-# INLINE sigmaOnFromMap #-}
 sigmaOnFromMap :: (HatVal v, HatBaseClass b, Note n, Ord k)
                => n
@@ -359,20 +400,27 @@ sigmaOnFromMap n kvs f =
         then mempty
         else alg .| n
 
+-- | Summation in a monadic context. Applies a monadic function to each element and mconcats the results.
+--
+-- Complexity: O(|xs| * cost(f))
 sigmaM :: (Monoid m, Monad m0) => [a] -> (a -> m0 m) -> m0 m
 sigmaM xs f = mconcat <$> CM.forM xs f
 
 ------------------------------------------------------------------
+-- | Combine entries from all Notes in a Journal into a single Alg.
+--
+-- Complexity: O(total number of base keys across all Notes)
 toAlg :: (HatVal v, HatBaseClass b, Note n)
       => Journal n v b -> Alg v b
--- | Complexity: O(total base keys across all notes).
 toAlg (Journal base delta _) =
     EA.unionsMerge (Map.elems base ++ Map.elems delta)
 
 ------------------------------------------------------------------
+-- | Apply function f to the entry of each Note in the Journal.
+--
+-- Complexity: O(j * cost(f)) where j is the number of Notes
 map :: (HatVal v, HatBaseClass b, Note n)
     => (Alg v b -> Alg v b) -> Journal n v b -> Journal n v b
--- | Complexity: O(j * cost(f)), where j is note count.
 map f = fromMap . Map.map f . toMap
 
 parallelMap :: (NFData b, Ord k) => (a -> b) -> Map.HashMap k a -> Map.HashMap k b
@@ -382,7 +430,7 @@ parMap :: (HatVal v, HatBaseClass b, Note n)
     => (Alg v b -> Alg v b) -> Journal n v b -> Journal n v b
 parMap f = fromMap . parallelMap f . toMap
 
--- | insert x y : x の note が優先される
+-- | Insert x into y. If x's Note already exists in y, it is overwritten with x's value.
 --
 -- >>> type Test = Journal String Double (HatBase AccountTitles)
 -- >>> x = 10.00:@Not:<Cash .| "A" :: Test
@@ -392,6 +440,7 @@ parMap f = fromMap . parallelMap f . toMap
 -- 30.00:@Hat:<Cash.|"A" .+ 20.00:@Not:<Cash.|"B"
 insert :: (HatVal v, HatBaseClass b, Note n)
         => Journal n v b -> Journal n v b -> Journal n v b
+-- Complexity: O(n + m) where n, m are the number of Notes in each Journal
 insert x y = fromMap (Map.union (toMap x) (toMap y))
 
 ------------------------------------------------------------------
@@ -436,6 +485,10 @@ projWithBase :: (HatVal v, HatBaseClass b, Note n)
 projWithBase [] _ = mempty
 projWithBase bs js = fromMap $ Map.map (EA.proj bs) (toMap js)
 
+-- | Directly compute the norm after filtering by the specified bases.
+-- Equivalent to @norm (projWithBase bs js)@ but without constructing an intermediate Journal.
+--
+-- Complexity: O(j * proj cost) where j is the number of Notes
 projWithBaseNorm :: (HatVal v, HatBaseClass b, Note n)
                  => [b] -> Journal n v b -> v
 projWithBaseNorm [] _ = 0
@@ -471,6 +524,10 @@ projWithNoteBase ns bs js =
         Map.empty
         (S.fromList ns)
 
+-- | Directly compute the norm after filtering by the specified Notes and bases.
+-- Equivalent to @norm (projWithNoteBase ns bs js)@ but without constructing an intermediate Journal.
+--
+-- Complexity: O(|ns| * proj cost)
 projWithNoteNorm :: (HatVal v, HatBaseClass b, Note n)
                  => [n] -> [b] -> Journal n v b -> v
 projWithNoteNorm _ [] _ = 0
@@ -496,6 +553,10 @@ projWithNoteNorm ns bs js =
   #-}
 
 ------------------------------------------------------------------
+-- | Filter by a predicate on Note-entry pairs.
+-- Applies the filter to both the base and delta layers.
+--
+-- Complexity: O(n) where n is the number of Notes
 filterWithNote :: (HatVal v, HatBaseClass b, Note n)
                => (n -> Alg v b -> Bool) -> Journal n v b -> Journal n v b
 filterWithNote f (Journal base delta ver) =

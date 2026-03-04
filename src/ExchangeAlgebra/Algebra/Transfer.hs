@@ -5,10 +5,10 @@
 
     Released under the OWL license
 
-    Package for Exchange Algebra defined by Hirosh Deguch.
+    Package for Exchange Algebra defined by Hiroshi Deguchi.
 
-    Exchange Algebra is a algebraic description of bokkkeeping system.
-    Details are bellow.
+    Exchange Algebra is an algebraic description of bookkeeping systems.
+    Details are below.
 
     <https://www.springer.com/gp/book/9784431209850>
 
@@ -55,7 +55,7 @@ import              ExchangeAlgebra.Algebra
 
 import qualified    Number.NonNegative  as NN       ( Double
                                                     , fromNumber
-                                                    , toNumber,T) -- 非負の実数
+                                                    , toNumber,T) -- Non-negative real numbers
 import qualified    Data.Maybe          as Maybe
 import              Text.Show.Unicode               ( ushow)
 import              GHC.Exts                        ( reallyUnsafePtrEquality#
@@ -74,24 +74,28 @@ import              Utils.Containers.Internal.StrictPair
 import              Debug.Trace
 
 ------------------------------------------------------------------
--- * 基本計算処理
+-- * Core computation
 ------------------------------------------------------------------
--- ** 振替
+-- ** Transfer transformation
 type Size = Int
 
--- | 振替変換テーブル
+-- | Transfer transformation table
 data TransTable n b where
      NullTable   :: (HatVal n, HatBaseClass b) => TransTable n b
      TransTable  :: (HatVal n, HatBaseClass b)
                  => { _size       :: Size
-                    , _before     :: b                  {- ^ 変換前の基底 -}
-                    , _transFunc  :: (n -> n)           {- ^ 値の変換用の関数 -}
-                    , _after      :: b                  {- ^ 変換後の基底 -}
+                    , _before     :: b                  {- ^ Base before transformation -}
+                    , _transFunc  :: (n -> n)           {- ^ Value transformation function -}
+                    , _after      :: b                  {- ^ Base after transformation -}
                     , _left       :: TransTable n b
                     , _right      :: TransTable n b }
                     -> TransTable n b
 
+-- | Tests whether the transfer table is empty.
+--
+-- Complexity: O(1)
 {-# INLINE isNullTable #-}
+isNullTable :: TransTable n b -> Bool
 isNullTable NullTable = True
 isNullTable _         = False
 
@@ -183,13 +187,13 @@ size (TransTable s _ _ _ _ _) = s
 
 
 -- | transfer
--- 振替変換は、交換代数元の要素の基底を別の基底に振り替える変換となります。
--- 振替変換では、変換 対象の値は変わりません。例えば、次のような交換代数元 a があり、
--- a = 6^ < e1 > +2 < e2 > +2 < e3 > +4 < e4 > +5^ < e5 > 変換定義 t を次のように定義した場合、
+-- Transfer transformation replaces the bases of algebra elements with other bases.
+-- The values of the transformed entries remain unchanged. For example, given an algebra element a:
+-- a = 6^ < e1 > +2 < e2 > +2 < e3 > +4 < e4 > +5^ < e5 > and the following transformation definition t:
 -- ( from) < e1 > -> (to) < eA >
 -- ( from) < e2 > -> (to) < eA >
 -- ( from) < e3 > -> (to) < eA >
--- 変換結果 r は、次のようになります。
+-- The transformation result r is as follows:
 -- r = 6^ < e1 > +2 < e2 > +2 < e3 > +4 < e4 > +5^ < e5 >
 --    +  6 < e 1 > + 6 ^ < e A >
 --    + 2 ^ < e 2 > + 2 < e A >
@@ -205,7 +209,7 @@ size (TransTable s _ _ _ _ _) = s
 -- >>> transfer (x .+ y) $ table $ Not:<(Products,Amount) :-> Not:<(Products,Yen) |% id ++  Hat:<(Products,Amount) :-> Hat:<(Products,Yen) |% id
 -- 1.00:@Hat:<(Cash,Yen) .+ 2.00:@Not:<(Cash,Yen) .+ 2.00:@Hat:<(Deposits,Yen) .+ 1.00:@Not:<(Products,Yen)
 --
--- ワイルドカードはマッチングするが変換されない
+-- Wildcards match but are not transformed
 --  >>> type Test = Alg Double (HatBase (AccountTitles, CountUnit))
 -- >>> x = 1:@Hat:<(Cash,Yen) .+ 1:@Not:<(Products,Amount) :: Test
 -- >>> y = 2:@Not:<(Cash,Yen) .+ 2:@Hat:<(Deposits,Yen) :: Test
@@ -346,7 +350,7 @@ insertR kx0 = go kx0 kx0
                where !r' = go orig bx fx ax r
             EQ -> t
 
--- | 価格テーブルを変更する
+-- | Update the transformation function in the table
 updateFunction:: (HatVal n,HatBaseClass b) => b -> (n -> n) -> b -> TransTable n b ->  TransTable n b
 updateFunction b = go b b
     where
@@ -404,7 +408,7 @@ balanceR :: (HatVal n, HatBaseClass b) =>  b -> (n -> n) -> b -> TransTable n b 
 balanceR b f a l r = case l of
   NullTable -> case r of
            NullTable
-                    -> TransTable 1 b f a NullTable NullTable -- 終端,始端はNull
+                    -> TransTable 1 b f a NullTable NullTable -- Leaf nodes are Null
 
            (TransTable _ _ _ _ NullTable NullTable)
                     -> TransTable 2 b f a NullTable r
@@ -490,9 +494,13 @@ fromList ((b1,a1, f1)  : xs0)   | not_ordered b1 xs0 = a1 `seq` fromList' (Trans
 table ::  (HatVal n, HatBaseClass b) => [(b,b,(n -> n))] -> TransTable n b
 table = ExchangeAlgebra.Algebra.Transfer.fromList
 
+-- | A part of a transfer rule. Represents a source-to-target base pair in @from :-> to@ form.
 data TransTableParts b where
   (:->)   :: (HatBaseClass b) => b -> b -> TransTableParts b
 
+-- | Transfer rule construction operator. @from .-> to@ produces a 'TransTableParts'.
+--
+-- Complexity: O(1)
 {-# INLINE (.->) #-}
 (.->) :: (HatBaseClass b) => b -> b -> TransTableParts b
 (.->) b1 b2  = b1 :-> b2
@@ -515,15 +523,19 @@ infixr 7 |%
 instance (HatVal n) => Show (n -> n) where
     show f = "<function>"
 
+-- | Build an indexed fast transfer function from a list of transfer rules.
+-- More efficient than @transfer@ when repeatedly applying the same TransTable.
+--
+-- Complexity: Build O(r log r) (r = number of rules); apply O(s) (s = number of entries)
 createTransfer :: (HatVal n, ExBaseClass b) => [(b,b,(n -> n))] -> (Alg n b -> Alg n b)
 createTransfer tt =
     let !tb = table tt
         !idx = buildTransferIndex tb
     in \ts -> transferWithResolver (resolveByIndex idx) ts
 
--- * 決算振替仕訳
+-- * Closing transfer entries
 
--- | Income Summary Account 当期純利益の算定
+-- | Income Summary Account: compute net income for the current period.
 incomeSummaryAccount :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 incomeSummaryAccount alg =  let (dc,diff) = diffRL alg
                          in let x = case dc of
@@ -531,7 +543,9 @@ incomeSummaryAccount alg =  let (dc,diff) = diffRL alg
                                         Credit -> diff :@ (toNot wiledcard) .~ NetLoss
                          in alg .+  x
 
--- | 当期純利益の振替
+-- | Net income transfer. Transfers NetIncome/NetLoss to RetainedEarnings.
+--
+-- Complexity: O(s) (s = total number of scalar entries)
 netIncomeTransfer :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 netIncomeTransfer = createTransfer
     $  (toNot wiledcard) .~ NetIncome :-> (toNot wiledcard) .~ RetainedEarnings |% id
@@ -539,9 +553,12 @@ netIncomeTransfer = createTransfer
     ++ (toNot wiledcard) .~ NetLoss   :-> (toHat wiledcard) .~ RetainedEarnings |% id
     ++ (toHat wiledcard) .~ NetLoss   :-> (toNot wiledcard) .~ RetainedEarnings |% id
 
--- **  仕分け
+-- ** Journalizing
 
--- | Gross Profit Transfer
+-- | Transfer to Gross Profit.
+-- Consolidates Sales, Purchases, WageExpenditure, Depreciation, and ValueAdded into GrossProfit.
+--
+-- Complexity: O(s) (s = total number of scalar entries)
 grossProfitTransfer :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 grossProfitTransfer
     =  createTransfer
@@ -611,7 +628,10 @@ ordinaryProfitTransfer
   ++ (toHat wiledcard) .~ CentralBankPaymentExpense :-> (toNot wiledcard) .~ OrdinaryProfit |% id
 
 
--- | Retained Earning Transfer
+-- | Transfer to Retained Earnings.
+-- Transfers OrdinaryProfit to RetainedEarnings.
+--
+-- Complexity: O(s) (s = total number of scalar entries)
 retainedEarningTransfer :: (HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
 retainedEarningTransfer
   = createTransfer
@@ -644,6 +664,11 @@ finalStockRule title = case title of
     OrdinaryProfit            -> Just FinalStockKeep
     _                         -> Nothing
 
+-- | Internal step of the final stock transfer from income statement to retained earnings.
+-- Cost accounts are transferred to RetainedEarnings with Hat/Not flipped;
+-- revenue accounts are transferred to RetainedEarnings as-is.
+--
+-- Complexity: O(s) (s = total number of scalar entries)
 {-# INLINE finalStockTransferStep #-}
 finalStockTransferStep :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 finalStockTransferStep = EA.map go
@@ -656,6 +681,9 @@ finalStockTransferStep = EA.map go
             v :@ setAccountTitle (revHat hb) RetainedEarnings
     go x = x
 
--- | Final Stock Transfer (損益勘定)
+-- | Final Stock Transfer (closing entries).
+-- Transfers all cost and revenue accounts to RetainedEarnings and cancels via the bar operation.
+--
+-- Complexity: O(s) (s = total number of scalar entries)
 finalStockTransfer ::(HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
 finalStockTransfer = (.-) . finalStockTransferStep

@@ -5,10 +5,10 @@
 
     Released under the OWL license
 
-    Package for Exchange Algebra defined by Hirosh Deguch.
+    Package for Exchange Algebra defined by Hiroshi Deguchi.
 
-    Exchange Algebra is a algebraic description of bokkkeeping system.
-    Details are bellow.
+    Exchange Algebra is an algebraic description of bookkeeping system.
+    Details are below.
 
     <https://www.springer.com/gp/book/9784431209850>
 
@@ -40,24 +40,41 @@ import Data.Typeable (Typeable, cast, typeOf)
 import qualified Data.Binary as Binary
 
 ------------------------------------------------------------------
--- * Element 基底の要素
+-- * Element (components of bases)
 ------------------------------------------------------------------
 
--- | Element Class 基底の要素になるためにはこれのインスタンスになる必要がある
+-- | Element Class: a type must be an instance of this class to serve as a component of a basis.
+--
+-- Each component of a basis must be an instance of this type class.
+-- It provides wildcard-based pattern matching, enabling flexible basis
+-- specification in transfer transformations and projections.
 class (Eq a, Ord a, Show a, Hashable a, Typeable a) => Element a where
 
-    wiledcard       :: a        -- ^ 検索等に用いるワイルドカード
+    -- | The wildcard value. Used for pattern matching in search, transfer transformation, etc.
+    --
+    -- Complexity: O(1)
+    wiledcard       :: a
 
+    -- | Determines whether the element itself or any of its internal components contains a wildcard.
+    -- For tuple elements, returns True if any component is a wildcard.
+    --
+    -- Complexity: O(k) (k is the number of tuple components; O(1) for primitive types)
     {-# INLINE haveWiledcard #-}
     haveWiledcard :: a -> Bool
     haveWiledcard = isWiledcard
 
+    -- | Determines whether the value is exactly the wildcard.
+    --
+    -- Complexity: O(1)
     {-# INLINE isWiledcard #-}
     isWiledcard     :: a -> Bool
     isWiledcard a = a == wiledcard
 
-    -- | ワイルドカードを無視した変換
-    --  transfer で利用する
+    -- | Wildcard-ignoring transformation.
+    -- If @after@ is a wildcard, returns @before@.
+    -- Used inside transfer to fill wildcard positions in the target basis with the original values.
+    --
+    -- Complexity: O(k) (k is the number of tuple components; O(1) for primitive types)
     {-# INLINE ignoreWiledcard #-}
     ignoreWiledcard :: a -> a -> a
     ignoreWiledcard before after
@@ -65,50 +82,83 @@ class (Eq a, Ord a, Show a, Hashable a, Typeable a) => Element a where
         | isWiledcard after = before
         | otherwise         = after
 
+    -- | Wildcard-aware equality test.
+    -- Returns True if either operand is a wildcard.
+    --
+    -- Complexity: O(k) (k is the number of tuple components; O(1) for primitive types)
     {-# INLINE equal #-}
     equal :: a -> a -> Bool
     equal a b | isWiledcard a = True
               | isWiledcard b = True
               | otherwise     = a == b
 
-    -- | wiledcard を等しいとみなす ==
+    -- | Equality operator that treats wildcards as equal.
+    -- Unlike '==', @(.==)@ matches tuples that partially contain wildcards.
+    --
+    -- Complexity: O(k) (k is the number of tuple components; O(1) for primitive types)
     {-# INLINE (.==)  #-}
     (.==) :: a -> a -> Bool
     (.==) a b = a == b || (haveWiledcard a || haveWiledcard b) && equal a b
 
-    -- | wiledcard を等しいとみなす /=
+    -- | Inequality operator that treats wildcards as equal. Negation of @(.==)@.
+    --
+    -- Complexity: O(k)
     {-# INLINE (./=) #-}
     (./=) :: a -> a -> Bool
     (./=) a b = not (a .== b)
 
+    -- | Wildcard-aware comparison.
+    -- Returns EQ if the two values are equal under @(.==)@.
+    --
+    -- Complexity: O(k)
     {-# INLINE compareElement #-}
     compareElement :: a -> a -> Ordering
     compareElement x y
         | x .== y = EQ
         | otherwise = compare x y
 
+    -- | Wildcard-aware less-than comparison.
+    --
+    -- Complexity: O(k)
     (.<) :: a -> a -> Bool
     (.<) x y = compareElement x y == LT
 
+    -- | Wildcard-aware greater-than comparison.
+    --
+    -- Complexity: O(k)
     (.>) :: a -> a -> Bool
     (.>) x y = compareElement x y == GT
 
+    -- | Wildcard-aware less-than-or-equal comparison.
+    --
+    -- Complexity: O(k)
     (.<=) :: a -> a -> Bool
     (.<=) x y = compareElement x y /= GT
 
+    -- | Wildcard-aware greater-than-or-equal comparison.
+    --
+    -- Complexity: O(k)
     (.>=) :: a -> a -> Bool
     (.>=) x y = compareElement x y /= LT
 
+    -- | Wildcard-aware maximum.
+    --
+    -- Complexity: O(k)
     maxElement :: a -> a -> a
     maxElement x y
         | x .>= y = x
         | otherwise = y
 
+    -- | Wildcard-aware minimum.
+    --
+    -- Complexity: O(k)
     minElement :: a -> a -> a
     minElement x y
         | x .<= y = x
         | otherwise = y
 
+-- | An existential type that holds each axis of a basis with its type erased.
+-- Used to decompose multi-dimensional bases (tuples) into per-axis keys for indexing.
 data AxisKey = forall a. Element a => AxisKey !a
 
 instance Eq AxisKey where
@@ -123,6 +173,11 @@ instance Hashable AxisKey where
 axisIsWildcard :: AxisKey -> Bool
 axisIsWildcard (AxisKey x) = isWiledcard x
 
+-- | A type class for decomposing a basis element into a list of per-axis 'AxisKey's.
+-- Overlapping instances are defined for tuple types so that each component
+-- is decomposed into a separate 'AxisKey'.
+--
+-- Complexity: O(k) (k is the number of tuple components)
 class (Element a) => AxisDecompose a where
     toAxisKeys :: a -> [AxisKey]
 
@@ -130,6 +185,10 @@ instance {-# OVERLAPPABLE #-} Element a => AxisDecompose a where
     {-# INLINE toAxisKeys #-}
     toAxisKeys a = [AxisKey a]
 
+-- | Shorthand notation for the wildcard. An alias for @wiledcard@.
+-- Write @(.#)@ when specifying patterns in projections and transfer transformations.
+--
+-- Complexity: O(1)
 {-# INLINE (.#) #-}
 (.#) :: Element a => a
 (.#) = wiledcard
@@ -137,75 +196,75 @@ instance {-# OVERLAPPABLE #-} Element a => AxisDecompose a where
 infix 4 .==
 infix 4 ./=
 ------------------------------------------------------------------
--- * Elm
+-- * Elements
 ------------------------------------------------------------------
 
 -- ** Account Titles
 
 -- | The current version 0.1.0.0 will be completely changed shortly, especially this section.
-data  AccountTitles = Cash                            -- ^ 資産 現金
-                    | Deposits                        -- ^ 資産 普通預金
-                    | CurrentDeposits                 -- ^ 資産 当座預金
-                    | Securities                      -- ^ 資産 有価証券
-                    | InvestmentSecurities            -- ^ 資産 投資有価証券
-                    | LongTermNationalBonds           -- ^ 資産 長期国債
-                    | ShortTermNationalBonds          -- ^ 資産 短期国債
-                    | Products                        -- ^ 資産 商品
-                    | Machinery                       -- ^ 資産 機械設備 備品
-                    | Building                        -- ^ 資産 不動産
-                    | Vehicle                         -- ^ 資産 車両 運搬具
-                    | StockInvestment                 -- ^ 資産 株式投資
-                    | EquipmentInvestment             -- ^ 資産 設備投資
-                    | LongTermLoansReceivable         -- ^ 資産 貸付金
-                    | AccountsReceivable              -- ^ 資産 債権 売掛金
-                    | ShortTermLoansReceivable        -- ^ 資産 短期貸付金
-                    | ReserveDepositReceivable        -- ^ 資産 預金準備金
-                    | Gold                            -- ^ 資産 金
-                    | GovernmentService               -- ^ 資産 政府支出
-                    | CapitalStock                    -- ^ 資本 資本金
-                    | RetainedEarnings                -- ^ 資本 利益剰余金
-                    | LongTermLoansPayable            -- ^ 負債 長期借入金
-                    | ShortTermLoansPayable           -- ^ 負債 短期借入金
-                    | LoansPayable                    -- ^ 負債 借入金
-                    | ReserveForDepreciation          -- ^ 負債 償却準備金
-                    | DepositPayable                  -- ^ 負債 預り金
-                    | LongTermNationalBondsPayable    -- ^ 負債 長期国債 借入金
-                    | ShortTermNationalBondsPayable   -- ^ 負債 短期国債 借入金
-                    | ReserveDepositPayable           -- ^ 負債 未払金
-                    | CentralBankNotePayable          -- ^ 負債 中央銀行手形
-                    | Depreciation                    -- ^ 費用 減価償却費
-                    | SalesCost                       -- ^ 費用 売上原価
-                    | BusinessTrip                    -- ^ 費用 旅費交通費
-                    | Commutation                     -- ^ 費用 通信費
-                    | UtilitiesExpense                -- ^ 費用 水道光熱費
-                    | RentExpense                     -- ^ 費用 支払家賃
-                    | AdvertisingExpense              -- ^ 費用 広告宣伝費
-                    | DeliveryExpenses                -- ^ 費用 発送費
-                    | SuppliesExpenses                -- ^ 費用 消耗品費
-                    | MiscellaneousExpenses           -- ^ 費用 雑費
-                    | WageExpenditure                 -- ^ 費用 給料
-                    | InterestExpense                 -- ^ 費用 支払利息
-                    | TaxesExpense                    -- ^ 費用 税
-                    | ConsumptionExpenditure          -- ^ 費用 消耗品費
-                    | SubsidyExpense                  -- ^ 費用 補助金支出
-                    | CentralBankPaymentExpense       -- ^ 費用
-                    | Purchases                       -- ^ 費用 仕入
-                    | NetIncome                       -- ^ 費用 当期純利益
-                    | ValueAdded                      -- ^ 収益 付加価値
-                    | SubsidyIncome                   -- ^ 収益 補助金
-                    | NationalBondInterestEarned      -- ^ 収益 国際受取利息
-                    | DepositInterestEarned           -- ^ 収益 預金受取利息
-                    | GrossProfit                     -- ^ 収益 売上総利益
-                    | OrdinaryProfit                  -- ^ 収益 経常利益
-                    | InterestEarned                  -- ^ 収益 受取利息
-                    | ReceiptFee                      -- ^ 収益 受取手数料
-                    | RentalIncome                    -- ^ 収益 受取家賃
-                    | WageEarned                      -- ^ 収益 賃金収入
-                    | TaxesRevenue                    -- ^ 収益 税収
-                    | CentralBankPaymentIncome        -- ^ 収益
-                    | Sales                           -- ^ 収益 売上
-                    | NetLoss                         -- ^ 収益 当期純損失
-                    | AccountTitle                    -- ^ ワイルドカード
+data  AccountTitles = Cash                            -- ^ Asset: Cash
+                    | Deposits                        -- ^ Asset: Savings deposits
+                    | CurrentDeposits                 -- ^ Asset: Current deposits
+                    | Securities                      -- ^ Asset: Securities
+                    | InvestmentSecurities            -- ^ Asset: Investment securities
+                    | LongTermNationalBonds           -- ^ Asset: Long-term national bonds
+                    | ShortTermNationalBonds          -- ^ Asset: Short-term national bonds
+                    | Products                        -- ^ Asset: Products
+                    | Machinery                       -- ^ Asset: Machinery and equipment
+                    | Building                        -- ^ Asset: Real estate
+                    | Vehicle                         -- ^ Asset: Vehicles
+                    | StockInvestment                 -- ^ Asset: Stock investment
+                    | EquipmentInvestment             -- ^ Asset: Equipment investment
+                    | LongTermLoansReceivable         -- ^ Asset: Loans receivable
+                    | AccountsReceivable              -- ^ Asset: Accounts receivable
+                    | ShortTermLoansReceivable        -- ^ Asset: Short-term loans receivable
+                    | ReserveDepositReceivable        -- ^ Asset: Reserve deposit receivable
+                    | Gold                            -- ^ Asset: Gold
+                    | GovernmentService               -- ^ Asset: Government service expenditure
+                    | CapitalStock                    -- ^ Equity: Capital stock
+                    | RetainedEarnings                -- ^ Equity: Retained earnings
+                    | LongTermLoansPayable            -- ^ Liability: Long-term loans payable
+                    | ShortTermLoansPayable           -- ^ Liability: Short-term loans payable
+                    | LoansPayable                    -- ^ Liability: Loans payable
+                    | ReserveForDepreciation          -- ^ Liability: Reserve for depreciation
+                    | DepositPayable                  -- ^ Liability: Deposits received
+                    | LongTermNationalBondsPayable    -- ^ Liability: Long-term national bonds payable
+                    | ShortTermNationalBondsPayable   -- ^ Liability: Short-term national bonds payable
+                    | ReserveDepositPayable           -- ^ Liability: Accounts payable
+                    | CentralBankNotePayable          -- ^ Liability: Central bank notes payable
+                    | Depreciation                    -- ^ Expense: Depreciation
+                    | SalesCost                       -- ^ Expense: Cost of sales
+                    | BusinessTrip                    -- ^ Expense: Travel and transportation
+                    | Commutation                     -- ^ Expense: Communication
+                    | UtilitiesExpense                -- ^ Expense: Utilities
+                    | RentExpense                     -- ^ Expense: Rent
+                    | AdvertisingExpense              -- ^ Expense: Advertising
+                    | DeliveryExpenses                -- ^ Expense: Delivery
+                    | SuppliesExpenses                -- ^ Expense: Supplies
+                    | MiscellaneousExpenses           -- ^ Expense: Miscellaneous
+                    | WageExpenditure                 -- ^ Expense: Wages
+                    | InterestExpense                 -- ^ Expense: Interest expense
+                    | TaxesExpense                    -- ^ Expense: Taxes
+                    | ConsumptionExpenditure          -- ^ Expense: Consumables
+                    | SubsidyExpense                  -- ^ Expense: Subsidy expenditure
+                    | CentralBankPaymentExpense       -- ^ Expense
+                    | Purchases                       -- ^ Expense: Purchases
+                    | NetIncome                       -- ^ Expense: Net income
+                    | ValueAdded                      -- ^ Revenue: Value added
+                    | SubsidyIncome                   -- ^ Revenue: Subsidy income
+                    | NationalBondInterestEarned      -- ^ Revenue: National bond interest earned
+                    | DepositInterestEarned           -- ^ Revenue: Deposit interest earned
+                    | GrossProfit                     -- ^ Revenue: Gross profit
+                    | OrdinaryProfit                  -- ^ Revenue: Ordinary profit
+                    | InterestEarned                  -- ^ Revenue: Interest earned
+                    | ReceiptFee                      -- ^ Revenue: Receipt fee
+                    | RentalIncome                    -- ^ Revenue: Rental income
+                    | WageEarned                      -- ^ Revenue: Wage income
+                    | TaxesRevenue                    -- ^ Revenue: Tax revenue
+                    | CentralBankPaymentIncome        -- ^ Revenue
+                    | Sales                           -- ^ Revenue: Sales
+                    | NetLoss                         -- ^ Revenue: Net loss
+                    | AccountTitle                    -- ^ Wildcard
                     deriving (Show, Ord, Eq, Enum, Generic)
 
 instance Hashable AccountTitles where
@@ -224,17 +283,17 @@ instance Element AccountTitles where
 
 
 
--- | Name :: 品目の名前
+-- | Name :: Name of an item
 type Name = Text
 
--- | 勘定科目の主体
+-- | Subject of an account title
 type Subject = Text
 instance Element Text where
 
     {-# INLINE wiledcard #-}
     wiledcard   = T.empty
 
--- | 通貨単位 又は 物量
+-- | Currency unit or physical quantity
 data CountUnit  = Yen
                 | Dollar
                 | Euro
@@ -259,12 +318,12 @@ instance Element CountUnit where
     wiledcard = CountUnit
 
 
--- TimeOfDay は内部で時,分,秒 (Pico) を保持しているので,それぞれをハッシュ化する
+-- TimeOfDay internally holds hour, minute, and second (Pico), so each is hashed individually
 instance Hashable TimeOfDay where
   hashWithSalt salt (TimeOfDay hour min sec) =
     salt `hashWithSalt` hour `hashWithSalt` min `hashWithSalt` sec
 
--- Day は内部で ModifiedJulianDay 形式の Integer を保持しているのでそれを利用
+-- Day internally holds an Integer in ModifiedJulianDay format, so that is used for hashing
 instance Hashable Day where
   hashWithSalt salt day = hashWithSalt salt (toModifiedJulianDay day)
 
