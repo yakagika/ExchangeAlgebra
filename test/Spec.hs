@@ -58,6 +58,7 @@ assertNear label expected actual
 
 type TestAlg = EA.Alg Double (HatBase CountUnit)
 type TestJournal = EJ.Journal String Double (HatBase CountUnit)
+type AxisJournal = EJ.Journal (String, Int) Double (HatBase CountUnit)
 
 algSample :: TestAlg
 algSample =
@@ -235,6 +236,43 @@ testJournalSigmaOnFromMap = do
         zeroActual = EJ.sigmaOnFromMap "SalesPurchase" (M.singleton (1, 1) 0.0) f
     assertEqual "Journal.sigmaOnFromMap matches EA.sigmaFromMap + note" (EJ.toMap expected) (EJ.toMap actual)
     assertEqual "Journal.sigmaOnFromMap returns Zero for empty-effective map" (EJ.toMap (EJ.Zero :: TestJournal)) (EJ.toMap zeroActual)
+
+testFilterByAxisEquivalent :: IO ()
+testFilterByAxisEquivalent = do
+    let ledger :: AxisJournal
+        ledger = EJ.fromList
+            [ (10 :@ (Hat :< Yen)) .| ("A", 1)
+            , (20 :@ (Not :< Amount)) .| ("B", 1)
+            , (30 :@ (Hat :< Yen)) .| ("A", 2)
+            ]
+        expected = EJ.filterWithNote (\(_, t') _ -> t' == 1) ledger
+        actual = EJ.filterByAxis 1 (EJ.NoteAxisKey (1 :: Int)) ledger
+        mismatch = EJ.filterByAxis 1 (EJ.NoteAxisKey ("1" :: String)) ledger
+    assertEqual "Journal.filterByAxis matches filterWithNote on axis=1"
+        (EJ.toMap expected)
+        (EJ.toMap actual)
+    assertEqual "Journal.filterByAxis type mismatch returns empty"
+        (EJ.toMap (EJ.Zero :: AxisJournal))
+        (EJ.toMap mismatch)
+
+testFilterByAxisWithDeltaUpdates :: IO ()
+testFilterByAxisWithDeltaUpdates = do
+    let base :: AxisJournal
+        base = EJ.fromMap $ HM.fromList
+            [ (("A", 1), 10 :@ (Hat :< Yen))
+            , (("C", 2), 5 :@ (Not :< Amount))
+            ]
+        rhs :: AxisJournal
+        rhs = EJ.fromMap $ HM.fromList
+            [ (("A", 1), 3 :@ (Not :< Amount))
+            , (("B", 1), 7 :@ (Hat :< Yen))
+            ]
+        ledger = base .+ rhs
+        expected = EJ.filterWithNote (\(_, t') _ -> t' == 1) ledger
+        actual = EJ.filterByAxis 1 (EJ.NoteAxisKey (1 :: Int)) ledger
+    assertEqual "Journal.filterByAxis works after append updates"
+        (EJ.toMap expected)
+        (EJ.toMap actual)
 
 -- ================================================================
 -- Transfer regression tests
@@ -613,6 +651,8 @@ main = do
     testJournalSigma2When
     testJournalSigmaOn
     testJournalSigmaOnFromMap
+    testFilterByAxisEquivalent
+    testFilterByAxisWithDeltaUpdates
     testFinalStockTransferAlgEquivalence
     testFinalStockTransferJournalEquivalence
     testRestoreJournalFromBinarySpill
