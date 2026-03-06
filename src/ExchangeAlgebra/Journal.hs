@@ -26,6 +26,7 @@
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE BangPatterns               #-}
+{-# LANGUAGE ExistentialQuantification  #-}
 
 module ExchangeAlgebra.Journal
     ( module ExchangeAlgebra.Algebra.Base
@@ -36,6 +37,7 @@ module ExchangeAlgebra.Journal
     , pattern (:@)
     , (.@)
     , Note(..)
+    , NoteAxisKey(..)
     , Journal(..)
     , pattern ExchangeAlgebra.Journal.Zero
     , (.|)
@@ -56,6 +58,7 @@ module ExchangeAlgebra.Journal
     , projWithBaseNorm
     , projWithNoteNorm
     , filterWithNote
+    , filterByAxis
     , gather
     ) where
 
@@ -70,6 +73,10 @@ import              ExchangeAlgebra.Algebra ( HatVal(..)
                                             , (.@))
 import              Prelude                 hiding (map, filter)
 import qualified    Data.HashMap.Strict     as Map
+import qualified    Data.IntMap.Strict      as IntMap
+import              Data.IntMap.Strict      (IntMap)
+import qualified    Data.HashSet            as HSet
+import              Data.HashSet            (HashSet)
 import              Control.Parallel.Strategies (using, parTraversable, rdeepseq, NFData)
 import qualified    Data.Set                as S
 import qualified    Data.List               as L
@@ -78,13 +85,104 @@ import              Data.Hashable
 import qualified    Data.Text               as T
 import qualified    Control.Monad           as CM
 import qualified    Data.Binary             as Binary
+import              Data.Typeable           (Typeable, cast, typeOf)
+
+------------------------------------------------------------------
+-- * NoteAxisKey
+------------------------------------------------------------------
+
+-- | An existential type that holds each axis of a Note with its type erased.
+-- Used to decompose multi-dimensional Note types (tuples) into per-axis keys
+-- for indexing, mirroring how 'AxisKey' works for basis elements in 'Alg'.
+data NoteAxisKey = forall a. (Eq a, Hashable a, Typeable a) => NoteAxisKey !a
+
+instance Eq NoteAxisKey where
+    NoteAxisKey x == NoteAxisKey y = case cast y of
+        Nothing -> False
+        Just y' -> x == y'
+
+instance Hashable NoteAxisKey where
+    hashWithSalt salt (NoteAxisKey x) = salt `hashWithSalt` typeOf x `hashWithSalt` x
+
+------------------------------------------------------------------
+-- * NoteAxisPosting
+------------------------------------------------------------------
+
+-- | Per-axis index for Note keys.
+-- Maps axis_number -> axis_value -> set of Notes.
+-- Mirrors 'AxisPosting' in 'Alg'.
+type NoteAxisPosting n = IntMap (Map.HashMap NoteAxisKey (HashSet n))
+
+{-# INLINE emptyNoteAxisPosting #-}
+emptyNoteAxisPosting :: NoteAxisPosting n
+emptyNoteAxisPosting = IntMap.empty
+
+{-# INLINE insertNoteAxisPosting #-}
+-- | Complexity: O(d) where d is the number of axes in the Note
+insertNoteAxisPosting :: (Eq n, Hashable n) => [NoteAxisKey] -> n -> NoteAxisPosting n -> NoteAxisPosting n
+insertNoteAxisPosting !keys !note !idx =
+    snd $ L.foldl' step (0 :: Int, idx) keys
+  where
+    step (!axis, !acc) !k =
+        let !axisMap = IntMap.findWithDefault Map.empty axis acc
+            !notes0 = Map.lookupDefault HSet.empty k axisMap
+            !notes1 = HSet.insert note notes0
+            !axisMap' = Map.insert k notes1 axisMap
+            !acc' = IntMap.insert axis axisMap' acc
+        in (axis + 1, acc')
+
+{-# INLINE deleteNoteAxisPosting #-}
+-- | Complexity: O(d) where d is the number of axes in the Note
+deleteNoteAxisPosting :: (Eq n, Hashable n) => [NoteAxisKey] -> n -> NoteAxisPosting n -> NoteAxisPosting n
+deleteNoteAxisPosting !keys !note !idx =
+    snd $ L.foldl' step (0 :: Int, idx) keys
+  where
+    step (!axis, !acc) !k =
+        case IntMap.lookup axis acc of
+            Nothing -> (axis + 1, acc)
+            Just axisMap ->
+                case Map.lookup k axisMap of
+                    Nothing -> (axis + 1, acc)
+                    Just notes0 ->
+                        let !notes1 = HSet.delete note notes0
+                            !axisMap' = if HSet.null notes1
+                                        then Map.delete k axisMap
+                                        else Map.insert k notes1 axisMap
+                            !acc' = if Map.null axisMap'
+                                    then IntMap.delete axis acc
+                                    else IntMap.insert axis axisMap' acc
+                        in (axis + 1, acc')
+
+{-# INLINE queryNoteAxisPosting #-}
+-- | Query the NoteAxisPosting index for a single axis.
+-- Returns the set of Notes whose value matches on the specified axis.
+--
+-- Complexity: O(1) (two map lookups)
+queryNoteAxisPosting :: Int -> NoteAxisKey -> NoteAxisPosting n -> HashSet n
+queryNoteAxisPosting !axis !key !idx =
+    case IntMap.lookup axis idx of
+        Nothing -> HSet.empty
+        Just axisMap -> Map.lookupDefault HSet.empty key axisMap
+
+------------------------------------------------------------------
+-- * Note
+------------------------------------------------------------------
 
 -- | Type class for journal annotations (notes attached to postings).
 -- @plank@ represents a blank note (analogous to @mempty@ in @Monoid@).
-class (Show a, Eq a, Ord a, Hashable a) => Note a where
+--
+-- @toNoteAxisKeys@ decomposes a Note into per-axis keys for AxisPosting
+-- indexing, mirroring how @toAxisKeys@ works for basis elements.
+-- For tuple Note types, each component becomes a separate axis.
+-- The default returns a single axis containing the Note itself.
+class (Show a, Eq a, Ord a, Hashable a, Typeable a) => Note a where
     plank :: a
     isPlank :: a -> Bool
     isPlank x = x == plank
+    -- | Decompose a Note into per-axis keys for AxisPosting indexing.
+    -- Default: single axis with the Note itself.
+    toNoteAxisKeys :: a -> [NoteAxisKey]
+    toNoteAxisKeys a = [NoteAxisKey a]
 
 -- | Default instance for using @Int@ as a time axis (Term).
 -- @plank = -1@ is distinguished from non-negative term numbers.
@@ -110,32 +208,61 @@ instance Note T.Text where
 
 instance (Note a, Note b) => Note (a, b) where
     plank = (plank, plank)
+    toNoteAxisKeys (a, b) = [NoteAxisKey a, NoteAxisKey b]
 
 instance (Note a, Note b, Note c) => Note (a, b, c) where
     plank = (plank, plank, plank)
+    toNoteAxisKeys (a, b, c) = [NoteAxisKey a, NoteAxisKey b, NoteAxisKey c]
 
 instance (Note a, Note b, Note c, Note d) => Note (a, b, c, d) where
     plank = (plank, plank, plank, plank)
+    toNoteAxisKeys (a, b, c, d) = [NoteAxisKey a, NoteAxisKey b, NoteAxisKey c, NoteAxisKey d]
+
+------------------------------------------------------------------
+-- * Journal
+------------------------------------------------------------------
 
 -- | Transaction data with annotations.
---   Stored in a base + delta two-layer structure; updates are appended to the delta layer.
+--   Stored in a base + delta two-layer structure with per-axis indices.
+--   Base index is lazy (built on first axis query), while delta index is updated incrementally.
+--   Updates are appended only to delta and periodically compacted into base.
 data Journal n v b where
      Journal :: (Note n, HatVal v, HatBaseClass b)
-            => { _jBase    :: !(Map.HashMap n (Alg v b))
-               , _jDelta   :: !(Map.HashMap n (Alg v b))
-               , _jVersion :: !Int
+            => { _jBase      :: !(Map.HashMap n (Alg v b))
+               , _jDelta     :: !(Map.HashMap n (Alg v b))
+               , _jVersion   :: !Int
+               , _jBaseAxis  :: NoteAxisPosting n
+               , _jDeltaAxis :: !(NoteAxisPosting n)
                } -> Journal n v b
 
 deltaCompactThreshold :: Int
 deltaCompactThreshold = 128
 
+-- | Build Note axis index from map keys.
+{-# INLINE buildNoteAxisPosting #-}
+buildNoteAxisPosting :: Note n => Map.HashMap n a -> NoteAxisPosting n
+buildNoteAxisPosting =
+    Map.foldlWithKey'
+        (\acc n _ -> insertNoteAxisPosting (toNoteAxisKeys n) n acc)
+        emptyNoteAxisPosting
+
+-- | Smart constructor for Journal.
+-- Base axis index is lazy; delta axis index is built eagerly.
+{-# INLINE mkJournal #-}
+mkJournal :: (Note n, HatVal v, HatBaseClass b)
+          => Map.HashMap n (Alg v b) -> Map.HashMap n (Alg v b) -> Int -> Journal n v b
+mkJournal base delta ver = Journal base delta ver baseIdx deltaIdx
+  where
+    ~baseIdx = buildNoteAxisPosting base
+    !deltaIdx = buildNoteAxisPosting delta
+
 -- | Construct a Journal from a HashMap.
 --
--- Complexity: O(1)
+-- Complexity: O(1). Base axis index is built lazily on first axis query.
 {-# INLINE fromMap #-}
 fromMap :: (HatVal v, HatBaseClass b, Note n)
         => Map.HashMap n (Alg v b) -> Journal n v b
-fromMap m = Journal m Map.empty 0
+fromMap m = mkJournal m Map.empty 0
 
 -- | Retrieve all entries of a Journal as a HashMap.
 -- Merges the base and delta layers.
@@ -149,12 +276,13 @@ toMap = materializeMap
 {-# INLINE materializeMap #-}
 materializeMap :: (HatVal v, HatBaseClass b, Note n)
                => Journal n v b -> Map.HashMap n (Alg v b)
-materializeMap (Journal base delta _) = Map.unionWith (.+) base delta
+materializeMap (Journal base delta _ _ _) =
+    Map.unionWith (.+) base delta
 
 {-# INLINE lookupNote #-}
 lookupNote :: (HatVal v, HatBaseClass b, Note n)
            => n -> Journal n v b -> Maybe (Alg v b)
-lookupNote n (Journal base delta _) =
+lookupNote n (Journal base delta _ _ _) =
     case (Map.lookup n delta, Map.lookup n base) of
         (Nothing, Nothing) -> Nothing
         (Just d, Nothing)  -> Just d
@@ -164,32 +292,27 @@ lookupNote n (Journal base delta _) =
 {-# INLINE compactIfNeeded #-}
 compactIfNeeded :: (HatVal v, HatBaseClass b, Note n)
                 => Journal n v b -> Journal n v b
-compactIfNeeded j@(Journal base delta ver)
+compactIfNeeded j@(Journal base delta ver _ _)
     | Map.size delta < deltaCompactThreshold = j
-    | otherwise = Journal (Map.unionWith (.+) base delta) Map.empty (ver + 1)
+    | otherwise = mkJournal (Map.unionWith (.+) base delta) Map.empty (ver + 1)
 
 {-# INLINE appendMap #-}
 appendMap :: (HatVal v, HatBaseClass b, Note n)
           => Map.HashMap n (Alg v b) -> Journal n v b -> Journal n v b
-appendMap rhs j@(Journal base delta ver)
+appendMap rhs j@(Journal base delta ver baseAxis deltaAxis)
     | Map.null rhs = j
-    | otherwise = compactIfNeeded $ Journal base' delta' (ver + 1)
+    | otherwise = compactIfNeeded $ Journal base delta' (ver + 1) baseAxis deltaAxis'
   where
-    (base', delta') = Map.foldlWithKey' step (base, delta) rhs
+    (delta', deltaAxis') = Map.foldlWithKey' step (delta, deltaAxis) rhs
 
-    step (!bAcc, !dAcc) !k !v =
-        case Map.lookup k dAcc of
-            Just dv ->
-                let !d' = Map.insert k (dv .+ v) dAcc
-                in (bAcc, d')
-            Nothing -> case Map.lookup k bAcc of
-                Just bv ->
-                    let !b' = Map.delete k bAcc
-                        !d' = Map.insert k (bv .+ v) dAcc
-                    in (b', d')
-                Nothing ->
-                    let !d' = Map.insert k v dAcc
-                    in (bAcc, d')
+    step (!dAcc, !idxAcc) !k !v =
+        let !dMerged = case Map.lookup k dAcc of
+                Nothing -> v
+                Just dv -> dv .+ v
+            !keys = toNoteAxisKeys k
+        in if EA.isZero dMerged
+            then (Map.delete k dAcc, deleteNoteAxisPosting keys k idxAcc)
+            else (Map.insert k dMerged dAcc, insertNoteAxisPosting keys k idxAcc)
 
 instance ( Note n
          , HatVal v
@@ -222,19 +345,19 @@ instance ( Note n
 -- Complexity: O(1)
 isZero :: (HatVal v, HatBaseClass b, Note n)
        => Journal n v b -> Bool
-isZero (Journal base delta _) = Map.null base && Map.null delta
+isZero (Journal base delta _ _ _) = Map.null base && Map.null delta
 
 pattern Zero :: (HatVal v, HatBaseClass b, Note n) => Journal n v b
 pattern Zero <- (isZero -> True)
     where
-        Zero = Journal Map.empty Map.empty 0
+        Zero = mkJournal Map.empty Map.empty 0
 
 -- | Smart constructor that attaches a Note (annotation) to an algebra element to build a Journal.
 --
 -- Complexity: O(1)
 (.|) :: (HatVal v, HatBaseClass b, Note n)
       => Alg v b -> n -> Journal n v b
-(.|) alg n = Journal Map.empty (Map.singleton n alg) 1
+(.|) alg n = mkJournal Map.empty (Map.singleton n alg) 1
 
 infixr 2 .|
 
@@ -274,7 +397,7 @@ addJournal :: (HatVal v, HatBaseClass b, Note n)
 addJournal lhs rhs = appendMap (toMap rhs) lhs
 
 instance (HatVal v, HatBaseClass b, Note n) => Monoid (Journal n v b) where
-    mempty = Journal Map.empty Map.empty 0
+    mempty = mkJournal Map.empty Map.empty 0
     mappend = (<>)
 
 instance (HatVal v, HatBaseClass b, Note n) => Redundant (Journal n) v b where
@@ -320,7 +443,7 @@ mergeJournalMap :: (HatVal v, HatBaseClass b, Note n)
                 => Map.HashMap n (Alg v b)
                 -> Journal n v b
                 -> Map.HashMap n (Alg v b)
-mergeJournalMap !acc (Journal base delta _)
+mergeJournalMap !acc (Journal base delta _ _ _)
     | Map.null base && Map.null delta = acc
     | otherwise =
         let !acc1 = Map.foldlWithKey' mergeOne acc base
@@ -412,11 +535,12 @@ sigmaM xs f = mconcat <$> CM.forM xs f
 -- Complexity: O(total number of base keys across all Notes)
 toAlg :: (HatVal v, HatBaseClass b, Note n)
       => Journal n v b -> Alg v b
-toAlg (Journal base delta _) =
+toAlg (Journal base delta _ _ _) =
     EA.unionsMerge (Map.elems base ++ Map.elems delta)
 
 ------------------------------------------------------------------
 -- | Apply function f to the entry of each Note in the Journal.
+-- Applies to merged Note entries (base + delta), preserving semantics.
 --
 -- Complexity: O(j * cost(f)) where j is the number of Notes
 map :: (HatVal v, HatBaseClass b, Note n)
@@ -559,10 +683,46 @@ projWithNoteNorm ns bs js =
 -- Complexity: O(n) where n is the number of Notes
 filterWithNote :: (HatVal v, HatBaseClass b, Note n)
                => (n -> Alg v b -> Bool) -> Journal n v b -> Journal n v b
-filterWithNote f (Journal base delta ver) =
-    let !base'  = Map.filterWithKey f base
+filterWithNote f (Journal base delta ver _ _) =
+    let !base' = Map.filterWithKey f base
         !delta' = Map.filterWithKey f delta
-    in Journal base' delta' ver
+    in mkJournal base' delta' ver
+
+-- | Efficiently filter a Journal to entries whose Note matches on the specified axis.
+-- Uses base/delta NoteAxisPosting indices for O(|result|) retrieval after index construction.
+--
+-- Axis numbers are 0-indexed. For a Note type @(EventName, Term)@:
+--
+--   * axis 0 corresponds to EventName
+--   * axis 1 corresponds to Term
+--
+-- For non-tuple Note types, axis 0 is the only valid axis.
+--
+-- Complexity: O(|result|) after index construction; O(n) for first base-axis query on a Journal value
+--
+-- >>> type Test = Journal (String, Int) Double (HatBase AccountTitles)
+-- >>> x = 10.00:@Not:<Cash .| ("A", 1) :: Test
+-- >>> y = 20.00:@Hat:<Cash .| ("B", 1) :: Test
+-- >>> z = 30.00:@Not:<Cash .| ("A", 2) :: Test
+-- >>> filterByAxis 0 (NoteAxisKey "A") (x .+ y .+ z)
+-- 30.00:@Not:<Cash.|("A",2) .+ 10.00:@Not:<Cash.|("A",1)
+--
+-- >>> filterByAxis 1 (NoteAxisKey (1 :: Int)) (x .+ y .+ z)
+-- 20.00:@Hat:<Cash.|("B",1) .+ 10.00:@Not:<Cash.|("A",1)
+{-# INLINE filterByAxis #-}
+filterByAxis :: (HatVal v, HatBaseClass b, Note n)
+             => Int -> NoteAxisKey -> Journal n v b -> Journal n v b
+filterByAxis axis key j@(Journal _ _ _ baseIdx deltaIdx) =
+    let !matched = HSet.union
+            (queryNoteAxisPosting axis key baseIdx)
+            (queryNoteAxisPosting axis key deltaIdx)
+        !result = HSet.foldl'
+            (\acc n -> case lookupNote n j of
+                Nothing  -> acc
+                Just alg -> Map.insert n alg acc)
+            Map.empty
+            matched
+    in fromMap result
 
 ------------------------------------------------------------------
 -- | gather
