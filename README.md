@@ -10,7 +10,8 @@ Details are bellow.
 
 <https://www.springer.com/gp/book/9784431209850>
 
-_Note_ : Haddock Documents are in the /haddock
+_Note_ : Haddock Documents are in the 
+[haddock/index.html](https://htmlpreview.github.io/?https://raw.githubusercontent.com/yakagika/ExchangeAlgebra/master/haddock/index.html).
 
 
 **Licens**
