@@ -5,15 +5,2203 @@
 -- | Please see the README on GitHub at
 --   <a>https://github.com/githubuser/ExchangeAlgebra#readme</a>
 @package exchangealgebra
-@version 0.1.0.0
+@version 0.4.0.0
 
 
--- | Released under the MIT license
+-- | Released under the OWL license
 --   
---   Package for Exchange Algebra defined by Hirosh Deguch.
+--   Package for Exchange Algebra defined by Hiroshi Deguchi.
 --   
---   Exchange Algebra is a algebraic description of bokkkeeping system.
---   Details are bellow.
+--   Exchange Algebra is an algebraic description of bookkeeping system.
+--   Details are below.
+--   
+--   <a>https://www.springer.com/gp/book/9784431209850</a>
+--   
+--   
+--   <a>https://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/82987/1/0809-7.pdf</a>
+--   
+--   _Note_ : The current version 0.1.0.0 will be completely changed
+--   shortly, especially in the accounts settings section.
+module ExchangeAlgebra.Algebra.Base.Element
+
+-- | Name :: Name of an item
+type Name = Text
+
+-- | Element Class: a type must be an instance of this class to serve as a
+--   component of a basis.
+--   
+--   Each component of a basis must be an instance of this type class. It
+--   provides wildcard-based pattern matching, enabling flexible basis
+--   specification in transfer transformations and projections.
+class (Eq a, Ord a, Show a, Hashable a, Typeable a) => Element a
+
+-- | The wildcard value. Used for pattern matching in search, transfer
+--   transformation, etc.
+--   
+--   Complexity: O(1)
+wiledcard :: Element a => a
+
+-- | Determines whether the element itself or any of its internal
+--   components contains a wildcard. For tuple elements, returns True if
+--   any component is a wildcard.
+--   
+--   Complexity: O(k) (k is the number of tuple components; O(1) for
+--   primitive types)
+haveWiledcard :: Element a => a -> Bool
+
+-- | Determines whether the value is exactly the wildcard.
+--   
+--   Complexity: O(1)
+isWiledcard :: Element a => a -> Bool
+
+-- | Wildcard-ignoring transformation. If <tt>after</tt> is a wildcard,
+--   returns <tt>before</tt>. Used inside transfer to fill wildcard
+--   positions in the target basis with the original values.
+--   
+--   Complexity: O(k) (k is the number of tuple components; O(1) for
+--   primitive types)
+ignoreWiledcard :: Element a => a -> a -> a
+
+-- | Wildcard-aware equality test. Returns True if either operand is a
+--   wildcard.
+--   
+--   Complexity: O(k) (k is the number of tuple components; O(1) for
+--   primitive types)
+equal :: Element a => a -> a -> Bool
+
+-- | Equality operator that treats wildcards as equal. Unlike <a>==</a>,
+--   <tt>(.==)</tt> matches tuples that partially contain wildcards.
+--   
+--   Complexity: O(k) (k is the number of tuple components; O(1) for
+--   primitive types)
+(.==) :: Element a => a -> a -> Bool
+
+-- | Inequality operator that treats wildcards as equal. Negation of
+--   <tt>(.==)</tt>.
+--   
+--   Complexity: O(k)
+(./=) :: Element a => a -> a -> Bool
+
+-- | Wildcard-aware comparison. Returns EQ if the two values are equal
+--   under <tt>(.==)</tt>.
+--   
+--   Complexity: O(k)
+compareElement :: Element a => a -> a -> Ordering
+
+-- | Wildcard-aware less-than comparison.
+--   
+--   Complexity: O(k)
+(.<) :: Element a => a -> a -> Bool
+
+-- | Wildcard-aware greater-than comparison.
+--   
+--   Complexity: O(k)
+(.>) :: Element a => a -> a -> Bool
+
+-- | Wildcard-aware less-than-or-equal comparison.
+--   
+--   Complexity: O(k)
+(.<=) :: Element a => a -> a -> Bool
+
+-- | Wildcard-aware greater-than-or-equal comparison.
+--   
+--   Complexity: O(k)
+(.>=) :: Element a => a -> a -> Bool
+
+-- | Wildcard-aware maximum.
+--   
+--   Complexity: O(k)
+maxElement :: Element a => a -> a -> a
+
+-- | Wildcard-aware minimum.
+--   
+--   Complexity: O(k)
+minElement :: Element a => a -> a -> a
+infix 4 .==
+infix 4 ./=
+
+-- | An existential type that holds each axis of a basis with its type
+--   erased. Used to decompose multi-dimensional bases (tuples) into
+--   per-axis keys for indexing.
+data AxisKey
+AxisKey :: !a -> AxisKey
+
+-- | A type class for decomposing a basis element into a list of per-axis
+--   <a>AxisKey</a>s. Overlapping instances are defined for tuple types so
+--   that each component is decomposed into a separate <a>AxisKey</a>.
+--   
+--   Complexity: O(k) (k is the number of tuple components)
+class (Element a) => AxisDecompose a
+toAxisKeys :: AxisDecompose a => a -> [AxisKey]
+
+-- | The current version 0.1.0.0 will be completely changed shortly,
+--   especially this section.
+data AccountTitles
+
+-- | Asset: Cash
+Cash :: AccountTitles
+
+-- | Asset: Savings deposits
+Deposits :: AccountTitles
+
+-- | Asset: Current deposits
+CurrentDeposits :: AccountTitles
+
+-- | Asset: Securities
+Securities :: AccountTitles
+
+-- | Asset: Investment securities
+InvestmentSecurities :: AccountTitles
+
+-- | Asset: Long-term national bonds
+LongTermNationalBonds :: AccountTitles
+
+-- | Asset: Short-term national bonds
+ShortTermNationalBonds :: AccountTitles
+
+-- | Asset: Products
+Products :: AccountTitles
+
+-- | Asset: Machinery and equipment
+Machinery :: AccountTitles
+
+-- | Asset: Real estate
+Building :: AccountTitles
+
+-- | Asset: Vehicles
+Vehicle :: AccountTitles
+
+-- | Asset: Stock investment
+StockInvestment :: AccountTitles
+
+-- | Asset: Equipment investment
+EquipmentInvestment :: AccountTitles
+
+-- | Asset: Loans receivable
+LongTermLoansReceivable :: AccountTitles
+
+-- | Asset: Accounts receivable
+AccountsReceivable :: AccountTitles
+
+-- | Asset: Short-term loans receivable
+ShortTermLoansReceivable :: AccountTitles
+
+-- | Asset: Reserve deposit receivable
+ReserveDepositReceivable :: AccountTitles
+
+-- | Asset: Gold
+Gold :: AccountTitles
+
+-- | Asset: Government service expenditure
+GovernmentService :: AccountTitles
+
+-- | Equity: Capital stock
+CapitalStock :: AccountTitles
+
+-- | Equity: Retained earnings
+RetainedEarnings :: AccountTitles
+
+-- | Liability: Long-term loans payable
+LongTermLoansPayable :: AccountTitles
+
+-- | Liability: Short-term loans payable
+ShortTermLoansPayable :: AccountTitles
+
+-- | Liability: Loans payable
+LoansPayable :: AccountTitles
+
+-- | Liability: Reserve for depreciation
+ReserveForDepreciation :: AccountTitles
+
+-- | Liability: Deposits received
+DepositPayable :: AccountTitles
+
+-- | Liability: Long-term national bonds payable
+LongTermNationalBondsPayable :: AccountTitles
+
+-- | Liability: Short-term national bonds payable
+ShortTermNationalBondsPayable :: AccountTitles
+
+-- | Liability: Accounts payable
+ReserveDepositPayable :: AccountTitles
+
+-- | Liability: Central bank notes payable
+CentralBankNotePayable :: AccountTitles
+
+-- | Expense: Depreciation
+Depreciation :: AccountTitles
+
+-- | Expense: Cost of sales
+SalesCost :: AccountTitles
+
+-- | Expense: Travel and transportation
+BusinessTrip :: AccountTitles
+
+-- | Expense: Communication
+Commutation :: AccountTitles
+
+-- | Expense: Utilities
+UtilitiesExpense :: AccountTitles
+
+-- | Expense: Rent
+RentExpense :: AccountTitles
+
+-- | Expense: Advertising
+AdvertisingExpense :: AccountTitles
+
+-- | Expense: Delivery
+DeliveryExpenses :: AccountTitles
+
+-- | Expense: Supplies
+SuppliesExpenses :: AccountTitles
+
+-- | Expense: Miscellaneous
+MiscellaneousExpenses :: AccountTitles
+
+-- | Expense: Wages
+WageExpenditure :: AccountTitles
+
+-- | Expense: Interest expense
+InterestExpense :: AccountTitles
+
+-- | Expense: Taxes
+TaxesExpense :: AccountTitles
+
+-- | Expense: Consumables
+ConsumptionExpenditure :: AccountTitles
+
+-- | Expense: Subsidy expenditure
+SubsidyExpense :: AccountTitles
+
+-- | Expense
+CentralBankPaymentExpense :: AccountTitles
+
+-- | Expense: Purchases
+Purchases :: AccountTitles
+
+-- | Expense: Net income
+NetIncome :: AccountTitles
+
+-- | Revenue: Value added
+ValueAdded :: AccountTitles
+
+-- | Revenue: Subsidy income
+SubsidyIncome :: AccountTitles
+
+-- | Revenue: National bond interest earned
+NationalBondInterestEarned :: AccountTitles
+
+-- | Revenue: Deposit interest earned
+DepositInterestEarned :: AccountTitles
+
+-- | Revenue: Gross profit
+GrossProfit :: AccountTitles
+
+-- | Revenue: Ordinary profit
+OrdinaryProfit :: AccountTitles
+
+-- | Revenue: Interest earned
+InterestEarned :: AccountTitles
+
+-- | Revenue: Receipt fee
+ReceiptFee :: AccountTitles
+
+-- | Revenue: Rental income
+RentalIncome :: AccountTitles
+
+-- | Revenue: Wage income
+WageEarned :: AccountTitles
+
+-- | Revenue: Tax revenue
+TaxesRevenue :: AccountTitles
+
+-- | Revenue
+CentralBankPaymentIncome :: AccountTitles
+
+-- | Revenue: Sales
+Sales :: AccountTitles
+
+-- | Revenue: Net loss
+NetLoss :: AccountTitles
+
+-- | Wildcard
+AccountTitle :: AccountTitles
+
+-- | Subject of an account title
+type Subject = Text
+
+-- | Currency unit or physical quantity
+data CountUnit
+Yen :: CountUnit
+Dollar :: CountUnit
+Euro :: CountUnit
+CNY :: CountUnit
+Amount :: CountUnit
+CountUnit :: CountUnit
+
+-- | Shorthand notation for the wildcard. An alias for <tt>wiledcard</tt>.
+--   Write <tt>(.#)</tt> when specifying patterns in projections and
+--   transfer transformations.
+--   
+--   Complexity: O(1)
+(.#) :: Element a => a
+axisIsWildcard :: AxisKey -> Bool
+
+-- | Representable types of kind <tt>*</tt>. This class is derivable in GHC
+--   with the <tt>DeriveGeneric</tt> flag on.
+--   
+--   A <a>Generic</a> instance must satisfy the following laws:
+--   
+--   <pre>
+--   <a>from</a> . <a>to</a> ≡ <a>id</a>
+--   <a>to</a> . <a>from</a> ≡ <a>id</a>
+--   </pre>
+class () => Generic a
+instance GHC.Generics.Generic ExchangeAlgebra.Algebra.Base.Element.AccountTitles
+instance GHC.Enum.Enum ExchangeAlgebra.Algebra.Base.Element.AccountTitles
+instance GHC.Classes.Eq ExchangeAlgebra.Algebra.Base.Element.AccountTitles
+instance GHC.Classes.Ord ExchangeAlgebra.Algebra.Base.Element.AccountTitles
+instance GHC.Show.Show ExchangeAlgebra.Algebra.Base.Element.AccountTitles
+instance GHC.Generics.Generic ExchangeAlgebra.Algebra.Base.Element.CountUnit
+instance GHC.Enum.Enum ExchangeAlgebra.Algebra.Base.Element.CountUnit
+instance GHC.Classes.Eq ExchangeAlgebra.Algebra.Base.Element.CountUnit
+instance GHC.Classes.Ord ExchangeAlgebra.Algebra.Base.Element.CountUnit
+instance GHC.Show.Show ExchangeAlgebra.Algebra.Base.Element.CountUnit
+instance Data.Hashable.Class.Hashable ExchangeAlgebra.Algebra.Base.Element.CountUnit
+instance Data.Binary.Class.Binary ExchangeAlgebra.Algebra.Base.Element.CountUnit
+instance ExchangeAlgebra.Algebra.Base.Element.Element ExchangeAlgebra.Algebra.Base.Element.CountUnit
+instance Data.Hashable.Class.Hashable ExchangeAlgebra.Algebra.Base.Element.AccountTitles
+instance Data.Binary.Class.Binary ExchangeAlgebra.Algebra.Base.Element.AccountTitles
+instance ExchangeAlgebra.Algebra.Base.Element.Element ExchangeAlgebra.Algebra.Base.Element.AccountTitles
+instance ExchangeAlgebra.Algebra.Base.Element.Element a => ExchangeAlgebra.Algebra.Base.Element.AxisDecompose a
+instance (ExchangeAlgebra.Algebra.Base.Element.Element a, ExchangeAlgebra.Algebra.Base.Element.Element b) => ExchangeAlgebra.Algebra.Base.Element.AxisDecompose (a, b)
+instance (ExchangeAlgebra.Algebra.Base.Element.Element a, ExchangeAlgebra.Algebra.Base.Element.Element b, ExchangeAlgebra.Algebra.Base.Element.Element c) => ExchangeAlgebra.Algebra.Base.Element.AxisDecompose (a, b, c)
+instance (ExchangeAlgebra.Algebra.Base.Element.Element a, ExchangeAlgebra.Algebra.Base.Element.Element b, ExchangeAlgebra.Algebra.Base.Element.Element c, ExchangeAlgebra.Algebra.Base.Element.Element d) => ExchangeAlgebra.Algebra.Base.Element.AxisDecompose (a, b, c, d)
+instance (ExchangeAlgebra.Algebra.Base.Element.Element a, ExchangeAlgebra.Algebra.Base.Element.Element b, ExchangeAlgebra.Algebra.Base.Element.Element c, ExchangeAlgebra.Algebra.Base.Element.Element d, ExchangeAlgebra.Algebra.Base.Element.Element e) => ExchangeAlgebra.Algebra.Base.Element.AxisDecompose (a, b, c, d, e)
+instance (ExchangeAlgebra.Algebra.Base.Element.Element a, ExchangeAlgebra.Algebra.Base.Element.Element b, ExchangeAlgebra.Algebra.Base.Element.Element c, ExchangeAlgebra.Algebra.Base.Element.Element d, ExchangeAlgebra.Algebra.Base.Element.Element e, ExchangeAlgebra.Algebra.Base.Element.Element f) => ExchangeAlgebra.Algebra.Base.Element.AxisDecompose (a, b, c, d, e, f)
+instance (ExchangeAlgebra.Algebra.Base.Element.Element a, ExchangeAlgebra.Algebra.Base.Element.Element b, ExchangeAlgebra.Algebra.Base.Element.Element c, ExchangeAlgebra.Algebra.Base.Element.Element d, ExchangeAlgebra.Algebra.Base.Element.Element e, ExchangeAlgebra.Algebra.Base.Element.Element f, ExchangeAlgebra.Algebra.Base.Element.Element g) => ExchangeAlgebra.Algebra.Base.Element.AxisDecompose (a, b, c, d, e, f, g)
+instance GHC.Classes.Eq ExchangeAlgebra.Algebra.Base.Element.AxisKey
+instance Data.Hashable.Class.Hashable ExchangeAlgebra.Algebra.Base.Element.AxisKey
+instance ExchangeAlgebra.Algebra.Base.Element.Element Data.Text.Internal.Text
+instance ExchangeAlgebra.Algebra.Base.Element.Element Data.Time.LocalTime.Internal.TimeOfDay.TimeOfDay
+instance ExchangeAlgebra.Algebra.Base.Element.Element Data.Time.Calendar.Days.Day
+instance (ExchangeAlgebra.Algebra.Base.Element.Element a, ExchangeAlgebra.Algebra.Base.Element.Element b) => ExchangeAlgebra.Algebra.Base.Element.Element (a, b)
+instance (ExchangeAlgebra.Algebra.Base.Element.Element a, ExchangeAlgebra.Algebra.Base.Element.Element b, ExchangeAlgebra.Algebra.Base.Element.Element c) => ExchangeAlgebra.Algebra.Base.Element.Element (a, b, c)
+instance (ExchangeAlgebra.Algebra.Base.Element.Element a, ExchangeAlgebra.Algebra.Base.Element.Element b, ExchangeAlgebra.Algebra.Base.Element.Element c, ExchangeAlgebra.Algebra.Base.Element.Element d) => ExchangeAlgebra.Algebra.Base.Element.Element (a, b, c, d)
+instance (ExchangeAlgebra.Algebra.Base.Element.Element a, ExchangeAlgebra.Algebra.Base.Element.Element b, ExchangeAlgebra.Algebra.Base.Element.Element c, ExchangeAlgebra.Algebra.Base.Element.Element d, ExchangeAlgebra.Algebra.Base.Element.Element e) => ExchangeAlgebra.Algebra.Base.Element.Element (a, b, c, d, e)
+instance (ExchangeAlgebra.Algebra.Base.Element.Element a, ExchangeAlgebra.Algebra.Base.Element.Element b, ExchangeAlgebra.Algebra.Base.Element.Element c, ExchangeAlgebra.Algebra.Base.Element.Element d, ExchangeAlgebra.Algebra.Base.Element.Element e, ExchangeAlgebra.Algebra.Base.Element.Element f) => ExchangeAlgebra.Algebra.Base.Element.Element (a, b, c, d, e, f)
+instance (ExchangeAlgebra.Algebra.Base.Element.Element a, ExchangeAlgebra.Algebra.Base.Element.Element b, ExchangeAlgebra.Algebra.Base.Element.Element c, ExchangeAlgebra.Algebra.Base.Element.Element d, ExchangeAlgebra.Algebra.Base.Element.Element e, ExchangeAlgebra.Algebra.Base.Element.Element f, ExchangeAlgebra.Algebra.Base.Element.Element g) => ExchangeAlgebra.Algebra.Base.Element.Element (a, b, c, d, e, f, g)
+instance Data.Hashable.Class.Hashable Data.Time.LocalTime.Internal.TimeOfDay.TimeOfDay
+instance Data.Hashable.Class.Hashable Data.Time.Calendar.Days.Day
+
+
+-- | Released under the OWL license
+--   
+--   Package for Exchange Algebra defined by Hiroshi Deguchi.
+--   
+--   Exchange Algebra is an algebraic description of bookkeeping system.
+--   Details are below.
+--   
+--   <a>https://www.springer.com/gp/book/9784431209850</a>
+--   
+--   
+--   <a>https://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/82987/1/0809-7.pdf</a>
+--   
+--   _Note_ : The current version 0.1.0.0 will be completely changed
+--   shortly, especially in the accounts settings section.
+module ExchangeAlgebra.Algebra.Base
+
+-- | Type class for bases with a Hat component. Provides functionality to
+--   decompose and compose a base into its Hat part and BasePart. Manages
+--   the credit (Hat) / debit (Not) distinction at the base level in
+--   exchange algebra.
+class (BaseClass a, BaseClass (BasePart a), AxisDecompose (BasePart a)) => HatBaseClass a where {
+    
+    -- | The type of the base part excluding the Hat.
+    type BasePart a;
+}
+
+-- | Extract the base part excluding the Hat. Complexity: O(1)
+base :: (HatBaseClass a, BaseClass (BasePart a)) => a -> BasePart a
+
+-- | Extract the Hat part. Complexity: O(1)
+hat :: HatBaseClass a => a -> Hat
+
+-- | Reconstruct a base from a Hat and a BasePart. Complexity: O(1)
+merge :: HatBaseClass a => Hat -> BasePart a -> a
+
+-- | Convert to the Hat side. Complexity: O(1)
+toHat :: HatBaseClass a => a -> a
+
+-- | Convert to the Not side. Complexity: O(1)
+toNot :: HatBaseClass a => a -> a
+
+-- | Reverse Hat/Not. Complexity: O(1)
+revHat :: HatBaseClass a => a -> a
+
+-- | Test whether the base is Hat. Complexity: O(1)
+isHat :: HatBaseClass a => a -> Bool
+
+-- | Test whether the base is Not. Complexity: O(1)
+isNot :: HatBaseClass a => a -> Bool
+
+-- | Compare bases with Hat. Defaults to <a>compareBase</a>. Complexity:
+--   O(k)
+compareHatBase :: HatBaseClass a => a -> a -> Ordering
+
+-- | Base class definition. Any type that is an instance of this class
+--   qualifies as a base.
+class (Element a) => BaseClass a
+compareBase :: BaseClass a => a -> a -> Ordering
+
+-- | Hat definition
+data Hat
+Hat :: Hat
+Not :: Hat
+HatNot :: Hat
+data BaseForSingleHat
+BaseForSingleHat :: BaseForSingleHat
+
+-- | Base with Hat. Attaches a Hat (credit-increase) / Not (debit-increase)
+--   label to a base element such as an account title. Use the constructor
+--   <tt>(:&lt;)</tt> as in <tt>Hat :&lt; Cash</tt>.
+data HatBase a
+[:<] :: BaseClass a => Hat -> a -> HatBase a
+
+-- | Credit/Debit distinction. Credit is the credit side, Debit is the
+--   debit side. Side is a wildcard.
+data Side
+
+-- | Credit side
+Credit :: Side
+
+-- | Debit side
+Debit :: Side
+
+-- | Wildcard
+Side :: Side
+
+-- | Fixed/Current distinction. Used for classifying account titles as
+--   fixed or current.
+data FixedCurrent
+
+-- | Fixed
+Fixed :: FixedCurrent
+
+-- | Current
+Current :: FixedCurrent
+
+-- | Other (expenses, revenues, etc.)
+Other :: FixedCurrent
+data AccountDivision
+
+-- | Assets
+Assets :: AccountDivision
+
+-- | Equity
+Equity :: AccountDivision
+
+-- | Liability
+Liability :: AccountDivision
+
+-- | Cost
+Cost :: AccountDivision
+
+-- | Revenue
+Revenue :: AccountDivision
+
+-- | BaseClass ⊃ HatBaseClass ⊃ ExBaseClass
+--   
+--   Extended type class for bases that carry an account title. Provides
+--   access to and modification of account titles, account divisions, PIMO
+--   classification, credit<i>debit determination, and fixed</i>current
+--   classification.
+class (HatBaseClass a) => ExBaseClass a
+
+-- | Retrieve the account title from a base. Complexity: O(1)
+getAccountTitle :: ExBaseClass a => a -> AccountTitles
+
+-- | Change the account title of a base. Complexity: O(1)
+setAccountTitle :: ExBaseClass a => a -> AccountTitles -> a
+
+-- | Account title setter operator. An alias for <tt>setAccountTitle</tt>.
+--   Complexity: O(1)
+(.~) :: ExBaseClass a => a -> AccountTitles -> a
+
+-- | Retrieve the account division
+--   (Assets<i>Equity</i>Liability<i>Cost</i>Revenue). Complexity: O(1)
+whatDiv :: ExBaseClass a => a -> AccountDivision
+
+-- | Retrieve the PIMO classification (PS<i>IN</i>MS/OUT). Complexity: O(1)
+whatPIMO :: ExBaseClass a => a -> PIMO
+
+-- | Determine whether a base belongs to the Credit or Debit side. Takes
+--   the Hat/Not reversal into account. Complexity: O(1)
+whichSide :: ExBaseClass a => a -> Side
+
+-- | Retrieve the fixed/current classification. Returns Current, Fixed, or
+--   Other based on the account title.
+--   
+--   Complexity: O(1)
+fixedCurrent :: ExBaseClass a => a -> FixedCurrent
+
+-- | PIMO classification. Categories in exchange algebra: Product Stock
+--   (PS), Income (IN), Money Stock (MS), and Outflow (OUT).
+data PIMO
+
+-- | Product Stock (Assets: production stock)
+PS :: PIMO
+
+-- | Income (Revenue: income flow)
+IN :: PIMO
+
+-- | Money Stock (Liability/Equity: monetary stock)
+MS :: PIMO
+
+-- | Outflow (Cost: expenditure flow)
+OUT :: PIMO
+
+-- | Type class for determining correspondences between account divisions.
+--   Tests whether two account divisions form a pair in double-entry
+--   bookkeeping (e.g., Assets <a>=</a> Liability).
+--   
+--   Complexity: O(1)
+class AccountBase a
+
+-- | Test whether two account divisions are in a corresponding
+--   relationship.
+(<=>) :: AccountBase a => a -> a -> Bool
+customError :: HasCallStack => String -> a
+
+-- | Reverse the credit/debit side. Swaps Credit and Debit. The wildcard
+--   Side is returned unchanged.
+--   
+--   Complexity: O(1)
+switchSide :: Side -> Side
+
+-- | Classify an account title into an account division
+--   (Assets<i>Equity</i>Liability<i>Cost</i>Revenue).
+--   
+--   Complexity: O(1)
+classifyAccountDivision :: HasCallStack => AccountTitles -> AccountDivision
+instance GHC.Generics.Generic ExchangeAlgebra.Algebra.Base.Hat
+instance GHC.Show.Show ExchangeAlgebra.Algebra.Base.Hat
+instance GHC.Classes.Ord ExchangeAlgebra.Algebra.Base.Hat
+instance GHC.Classes.Eq ExchangeAlgebra.Algebra.Base.Hat
+instance GHC.Enum.Enum ExchangeAlgebra.Algebra.Base.Hat
+instance GHC.Generics.Generic ExchangeAlgebra.Algebra.Base.BaseForSingleHat
+instance GHC.Classes.Ord ExchangeAlgebra.Algebra.Base.BaseForSingleHat
+instance GHC.Classes.Eq ExchangeAlgebra.Algebra.Base.BaseForSingleHat
+instance GHC.Classes.Eq ExchangeAlgebra.Algebra.Base.Side
+instance GHC.Show.Show ExchangeAlgebra.Algebra.Base.Side
+instance GHC.Classes.Ord ExchangeAlgebra.Algebra.Base.Side
+instance GHC.Classes.Eq ExchangeAlgebra.Algebra.Base.FixedCurrent
+instance GHC.Show.Show ExchangeAlgebra.Algebra.Base.FixedCurrent
+instance GHC.Classes.Eq ExchangeAlgebra.Algebra.Base.AccountDivision
+instance GHC.Show.Show ExchangeAlgebra.Algebra.Base.AccountDivision
+instance GHC.Classes.Ord ExchangeAlgebra.Algebra.Base.AccountDivision
+instance GHC.Classes.Eq ExchangeAlgebra.Algebra.Base.PIMO
+instance GHC.Show.Show ExchangeAlgebra.Algebra.Base.PIMO
+instance GHC.Classes.Ord ExchangeAlgebra.Algebra.Base.PIMO
+instance ExchangeAlgebra.Algebra.Base.ExBaseClass (ExchangeAlgebra.Algebra.Base.HatBase ExchangeAlgebra.Algebra.Base.Element.AccountTitles)
+instance ExchangeAlgebra.Algebra.Base.ExBaseClass (ExchangeAlgebra.Algebra.Base.HatBase (ExchangeAlgebra.Algebra.Base.Element.AccountTitles, Data.Time.Calendar.Days.Day))
+instance ExchangeAlgebra.Algebra.Base.ExBaseClass (ExchangeAlgebra.Algebra.Base.HatBase (ExchangeAlgebra.Algebra.Base.Element.AccountTitles, ExchangeAlgebra.Algebra.Base.Element.Name))
+instance ExchangeAlgebra.Algebra.Base.ExBaseClass (ExchangeAlgebra.Algebra.Base.HatBase (ExchangeAlgebra.Algebra.Base.Element.CountUnit, ExchangeAlgebra.Algebra.Base.Element.AccountTitles))
+instance ExchangeAlgebra.Algebra.Base.ExBaseClass (ExchangeAlgebra.Algebra.Base.HatBase (ExchangeAlgebra.Algebra.Base.Element.AccountTitles, ExchangeAlgebra.Algebra.Base.Element.Name, ExchangeAlgebra.Algebra.Base.Element.CountUnit))
+instance ExchangeAlgebra.Algebra.Base.ExBaseClass (ExchangeAlgebra.Algebra.Base.HatBase (ExchangeAlgebra.Algebra.Base.Element.AccountTitles, ExchangeAlgebra.Algebra.Base.Element.Name, ExchangeAlgebra.Algebra.Base.Element.CountUnit, ExchangeAlgebra.Algebra.Base.Element.Subject))
+instance ExchangeAlgebra.Algebra.Base.ExBaseClass (ExchangeAlgebra.Algebra.Base.HatBase (ExchangeAlgebra.Algebra.Base.Element.AccountTitles, ExchangeAlgebra.Algebra.Base.Element.Name, ExchangeAlgebra.Algebra.Base.Element.CountUnit, ExchangeAlgebra.Algebra.Base.Element.Subject, Data.Time.Calendar.Days.Day))
+instance ExchangeAlgebra.Algebra.Base.ExBaseClass (ExchangeAlgebra.Algebra.Base.HatBase (ExchangeAlgebra.Algebra.Base.Element.AccountTitles, ExchangeAlgebra.Algebra.Base.Element.Name, ExchangeAlgebra.Algebra.Base.Element.CountUnit, ExchangeAlgebra.Algebra.Base.Element.Subject, Data.Time.Calendar.Days.Day, Data.Time.LocalTime.Internal.TimeOfDay.TimeOfDay))
+instance ExchangeAlgebra.Algebra.Base.AccountBase ExchangeAlgebra.Algebra.Base.PIMO
+instance ExchangeAlgebra.Algebra.Base.AccountBase ExchangeAlgebra.Algebra.Base.AccountDivision
+instance (ExchangeAlgebra.Algebra.Base.BaseClass a, Data.Binary.Class.Binary a) => Data.Binary.Class.Binary (ExchangeAlgebra.Algebra.Base.HatBase a)
+instance GHC.Show.Show (ExchangeAlgebra.Algebra.Base.HatBase a)
+instance GHC.Classes.Eq (ExchangeAlgebra.Algebra.Base.HatBase a)
+instance GHC.Classes.Ord (ExchangeAlgebra.Algebra.Base.HatBase a)
+instance ExchangeAlgebra.Algebra.Base.BaseClass a => Data.Hashable.Class.Hashable (ExchangeAlgebra.Algebra.Base.HatBase a)
+instance ExchangeAlgebra.Algebra.Base.BaseClass a => ExchangeAlgebra.Algebra.Base.Element.Element (ExchangeAlgebra.Algebra.Base.HatBase a)
+instance ExchangeAlgebra.Algebra.Base.BaseClass a => ExchangeAlgebra.Algebra.Base.BaseClass (ExchangeAlgebra.Algebra.Base.HatBase a)
+instance (ExchangeAlgebra.Algebra.Base.BaseClass a, ExchangeAlgebra.Algebra.Base.Element.AxisDecompose a) => ExchangeAlgebra.Algebra.Base.HatBaseClass (ExchangeAlgebra.Algebra.Base.HatBase a)
+instance GHC.Show.Show ExchangeAlgebra.Algebra.Base.BaseForSingleHat
+instance Data.Hashable.Class.Hashable ExchangeAlgebra.Algebra.Base.BaseForSingleHat
+instance Data.Binary.Class.Binary ExchangeAlgebra.Algebra.Base.BaseForSingleHat
+instance ExchangeAlgebra.Algebra.Base.Element.Element ExchangeAlgebra.Algebra.Base.BaseForSingleHat
+instance ExchangeAlgebra.Algebra.Base.BaseClass ExchangeAlgebra.Algebra.Base.BaseForSingleHat
+instance ExchangeAlgebra.Algebra.Base.HatBaseClass ExchangeAlgebra.Algebra.Base.Hat
+instance Data.Hashable.Class.Hashable ExchangeAlgebra.Algebra.Base.Hat
+instance Data.Binary.Class.Binary ExchangeAlgebra.Algebra.Base.Hat
+instance ExchangeAlgebra.Algebra.Base.Element.Element ExchangeAlgebra.Algebra.Base.Hat
+instance ExchangeAlgebra.Algebra.Base.BaseClass ExchangeAlgebra.Algebra.Base.Hat
+instance (ExchangeAlgebra.Algebra.Base.Element.Element e1, ExchangeAlgebra.Algebra.Base.Element.Element e2) => ExchangeAlgebra.Algebra.Base.BaseClass (e1, e2)
+instance (ExchangeAlgebra.Algebra.Base.Element.Element e1, ExchangeAlgebra.Algebra.Base.Element.Element e2, ExchangeAlgebra.Algebra.Base.Element.Element e3) => ExchangeAlgebra.Algebra.Base.BaseClass (e1, e2, e3)
+instance (ExchangeAlgebra.Algebra.Base.Element.Element e1, ExchangeAlgebra.Algebra.Base.Element.Element e2, ExchangeAlgebra.Algebra.Base.Element.Element e3, ExchangeAlgebra.Algebra.Base.Element.Element e4) => ExchangeAlgebra.Algebra.Base.BaseClass (e1, e2, e3, e4)
+instance (ExchangeAlgebra.Algebra.Base.Element.Element e1, ExchangeAlgebra.Algebra.Base.Element.Element e2, ExchangeAlgebra.Algebra.Base.Element.Element e3, ExchangeAlgebra.Algebra.Base.Element.Element e4, ExchangeAlgebra.Algebra.Base.Element.Element e5) => ExchangeAlgebra.Algebra.Base.BaseClass (e1, e2, e3, e4, e5)
+instance (ExchangeAlgebra.Algebra.Base.Element.Element e1, ExchangeAlgebra.Algebra.Base.Element.Element e2, ExchangeAlgebra.Algebra.Base.Element.Element e3, ExchangeAlgebra.Algebra.Base.Element.Element e4, ExchangeAlgebra.Algebra.Base.Element.Element e5, ExchangeAlgebra.Algebra.Base.Element.Element e6) => ExchangeAlgebra.Algebra.Base.BaseClass (e1, e2, e3, e4, e5, e6)
+instance ExchangeAlgebra.Algebra.Base.BaseClass ExchangeAlgebra.Algebra.Base.Element.AccountTitles
+instance ExchangeAlgebra.Algebra.Base.BaseClass ExchangeAlgebra.Algebra.Base.Element.Name
+instance ExchangeAlgebra.Algebra.Base.BaseClass ExchangeAlgebra.Algebra.Base.Element.CountUnit
+instance ExchangeAlgebra.Algebra.Base.BaseClass Data.Time.Calendar.Days.Day
+instance ExchangeAlgebra.Algebra.Base.BaseClass Data.Time.LocalTime.Internal.TimeOfDay.TimeOfDay
+
+
+-- | Released under the OWL license
+--   
+--   Package for Exchange Algebra defined by Hiroshi Deguchi.
+--   
+--   Exchange Algebra is an algebraic description of bookkeeping system.
+--   Details are below.
+--   
+--   <a>https://www.springer.com/gp/book/9784431209850</a>
+--   
+--   
+--   <a>https://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/82987/1/0809-7.pdf</a>
+module ExchangeAlgebra.Algebra
+
+-- | Type class providing approximate equality for numeric values. Performs
+--   equality comparison with tolerance for floating-point rounding errors.
+class (Eq a, Ord a) => Nearly a
+
+-- | Complexity: O(1) Assumes primitive numeric operations and comparisons
+--   are constant time.
+isNearlyNum :: (Show a, Num a, Ord a) => a -> a -> a -> Bool
+
+-- | Type class for Redundant Algebra. Provides fundamental exchange
+--   algebra operations: hat, bar, norm, scalar product, and compress.
+--   
+--   Redundant ⊃ Exchange
+--   
+--   hat calculation &gt;&gt;&gt; (.^) (10:<tt>Not:&lt;Cash .+
+--   10:</tt>Hat:&lt;Deposits) 10.00:<tt>Hat:&lt;Cash .+
+--   10.00:</tt>Not:&lt;Deposits
+--   
+--   bar calculation &gt;&gt;&gt; x = 10:<tt>Not:&lt;Cash .+
+--   10:</tt>Hat:&lt;Deposits &gt;&gt;&gt; y = 5:<tt>Hat:&lt;Cash .+
+--   5:</tt>Not:&lt;Deposits &gt;&gt;&gt; (.-) $ x .+ y
+--   5.00:<tt>Not:&lt;Cash .+ 5.00:</tt>Hat:&lt;Deposits
+--   
+--   norm calculation &gt;&gt;&gt; norm $ 10:<tt>Not:&lt;Cash .+
+--   10:</tt>Hat:&lt;Deposits 20.0
+--   
+--   (.*) calculation &gt;&gt;&gt; (.*) 5 $ 10:<tt>Not:&lt;Cash .+
+--   10:</tt>Hat:&lt;Deposits 50.00:<tt>Not:&lt;Cash .+
+--   50.00:</tt>Hat:&lt;Deposits
+--   
+--   compress calculation &gt;&gt;&gt; compress $ 10:<tt>Not:&lt;Cash .+
+--   5:</tt>Hat:&lt;Cash .+ 3:<tt>Not:&lt;Cash 5.00:</tt>Hat:&lt;Cash .+
+--   13.00:@Not:&lt;Cash
+class (HatVal n, HatBaseClass b, Monoid (a n b)) => Redundant a n b
+
+-- | Hat operation. Flips Hat/Not on all elements. Complexity: O(1) for
+--   singleton, O(n) for Liner (n is the number of base keys)
+(.^) :: Redundant a n b => a n b -> a n b
+
+-- | Bar operation. Cancels Hat/Not on the same base and retains only the
+--   difference. Complexity: O(n) (n is the number of base keys)
+(.-) :: Redundant a n b => a n b -> a n b
+
+-- | Alias for bar operation. Identical to <tt>(.-)</tt>.
+bar :: Redundant a n b => a n b -> a n b
+
+-- | Aggregates values on the same base. Sums while preserving the Hat/Not
+--   distinction. Complexity: O(n) (n is the number of base keys)
+compress :: Redundant a n b => a n b -> a n b
+
+-- | Addition of algebra elements. Alias for the Monoid <tt>&lt;&gt;</tt>
+--   operation. Complexity: O(union cost)
+(.+) :: Redundant a n b => a n b -> a n b -> a n b
+
+-- | Scalar product. Multiplies all element values by a scalar. Complexity:
+--   O(1) for singleton, O(n) for Liner
+(.*) :: Redundant a n b => n -> a n b -> a n b
+
+-- | Norm. Returns the sum of all element values. Complexity: O(n) (n is
+--   the number of base keys)
+norm :: Redundant a n b => a n b -> n
+
+-- | Addition in an Applicative context. Complexity: O(union cost)
+(<+) :: (Redundant a n b, Applicative f) => f (a n b) -> f (a n b) -> f (a n b)
+infixr 7 .^
+infixr 2 .-
+infixr 3 .+
+infixr 3 <+
+
+-- | Type class for Exchange Algebra. In addition to Redundant Algebra,
+--   provides debit(R)<i>credit(L) decomposition, stock
+--   increase(P)</i>decrease(M) decomposition, and balance checking.
+class (Redundant a n b) => Exchange a n b
+
+-- | Extracts only the debit side elements. Complexity: O(s)
+decR :: Exchange a n b => a n b -> a n b
+
+-- | Extracts only the credit side elements. Complexity: O(s)
+decL :: Exchange a n b => a n b -> a n b
+
+-- | Extracts only the Hat (stock increase) side elements. Complexity: O(s)
+decP :: Exchange a n b => a n b -> a n b
+
+-- | Extracts only the Not (stock decrease) side elements. Complexity: O(s)
+decM :: Exchange a n b => a n b -> a n b
+
+-- | Checks whether the norms of debit and credit sides are equal.
+--   Complexity: O(s)
+balance :: Exchange a n b => a n b -> Bool
+
+-- | Returns the debit-credit difference as a (Side, difference) pair.
+--   Complexity: O(s)
+diffRL :: Exchange a n b => a n b -> (Side, n)
+
+-- | Type class for algebra element values. Provides zero-value and
+--   error-value predicates. Instances are defined for <a>Double</a> and
+--   <a>Double</a> (non-negative reals).
+class (Show n, Ord n, Eq n, Nearly n, Fractional n, RealFloat n, Num n) => HatVal n
+
+-- | Zero value. Complexity: O(1)
+zeroValue :: HatVal n => n
+
+-- | Tests whether the value is zero. Complexity: O(1)
+isZeroValue :: HatVal n => n -> Bool
+
+-- | Tests whether the value is an error value (NaN, Infinity, etc.).
+--   Complexity: O(1)
+isErrorValue :: HatVal n => n -> Bool
+
+-- | Algebra element. An element of exchange algebra consisting of a
+--   value-base pair. Zero is the zero element, <tt>(:</tt>)@ is a
+--   singleton, and Liner is a HashMap-based multi-element representation.
+data Alg v b
+[Zero] :: Alg v b
+[:@] :: !v -> !b -> Alg v b
+[Liner] :: !HashMap (BasePart b) (Pair v) -> ~IntMap (HashMap AxisKey IntSet) -> ~HashMap (BasePart b) Int -> ~IntMap (BasePart b) -> ~Int -> ~IntSet -> Alg v b
+infixr 6 :@
+
+-- | Tests whether the algebra element is zero (empty).
+--   
+--   Complexity: O(1)
+isZero :: Alg v b -> Bool
+
+-- | Smart constructor that builds an algebra element from a value and a
+--   base. Returns Zero for zero values, and throws an exception for error
+--   values.
+--   
+--   Complexity: O(1)
+(.@) :: (HatVal n, HatBaseClass b) => n -> b -> Alg n b
+infixr 6 .@
+
+-- | Constructs an algebra element in an Applicative context. Lifted
+--   version of <tt>(.</tt>)@.
+--   
+--   Complexity: O(1) + Applicative effects
+(<@) :: (HatVal n, Applicative f, HatBaseClass b) => f n -> b -> f (Alg n b)
+infixr 6 <@
+
+-- | Returns all values contained in the algebra element as a list.
+--   
+--   Complexity: O(s) (s is the total number of scalar entries)
+vals :: (HatVal v, HatBaseClass b) => Alg v b -> [v]
+
+-- | Returns all bases contained in the algebra element as a list.
+--   
+--   Complexity: O(s) (s is the total number of scalar entries)
+bases :: (HatVal v, HatBaseClass b) => Alg v b -> [b]
+
+-- | convert List to Alg n b Complexity: O(sum of <a>union</a> costs),
+--   because this is implemented via <a>mconcat</a>.
+--   
+--   <pre>
+--   &gt;&gt;&gt; type Test = Alg NN.Double (HatBase AccountTitles)
+--   
+--   &gt;&gt;&gt; xs = [1:@Hat:&lt;Cash,1:@Not:&lt;Deposits, 2:@Hat:&lt;Cash, 2:@Not:&lt;Deposits] :: [Test]
+--   
+--   &gt;&gt;&gt; fromList xs
+--   1.00:@Hat:&lt;Cash .+ 2.00:@Hat:&lt;Cash .+ 1.00:@Not:&lt;Deposits .+ 2.00:@Not:&lt;Deposits
+--   </pre>
+--   
+--   <pre>
+--   &gt;&gt;&gt; type Test = Alg NN.Double (HatBase CountUnit)
+--   
+--   &gt;&gt;&gt; x = 1:@Hat:&lt;Yen .+ 1:@Not:&lt;Amount :: Test
+--   
+--   &gt;&gt;&gt; y = 2:@Hat:&lt;Yen .+ 2:@Not:&lt;Amount :: Test
+--   
+--   &gt;&gt;&gt; fromList [x,y]
+--   1.00:@Hat:&lt;Yen .+ 2.00:@Hat:&lt;Yen .+ 1.00:@Not:&lt;Amount .+ 2.00:@Not:&lt;Amount
+--   </pre>
+fromList :: (HatVal v, HatBaseClass b) => [Alg v b] -> Alg v b
+
+-- | Converts an algebra element to a list. Complexity: O(s) (s is the
+--   total number of scalar entries)
+--   
+--   <pre>
+--   &gt;&gt;&gt; toList (10:@Hat:&lt;(Cash) .+ 10:@Hat:&lt;(Deposits) .+ Zero :: Alg NN.Double (HatBase AccountTitles))
+--   [10.00:@Hat:&lt;Cash,10.00:@Hat:&lt;Deposits]
+--   </pre>
+--   
+--   you need define type variables to use this for Zero &gt;&gt;&gt;
+--   toList Zero :: [Alg NN.Double (HatBase AccountTitles)] []
+toList :: (HatVal v, HatBaseClass b) => Alg v b -> [Alg v b]
+
+-- | Strict left fold over scalar entries without building an intermediate
+--   list.
+foldEntries :: (HatVal v, HatBaseClass b) => (acc -> v -> b -> acc) -> acc -> Alg v b -> acc
+
+-- | Summation function that applies a function to each element of a list
+--   and sums the results. Complexity: O(sum of <a>union</a> costs over
+--   produced elements).
+--   
+--   <pre>
+--   &gt;&gt;&gt; type Test = Alg NN.Double (HatBase CountUnit)
+--   
+--   &gt;&gt;&gt; sigma [1,2] (\x -&gt; x:@Hat:&lt;Yen)
+--   1.00:@Hat:&lt;Yen .+ 2.00:@Hat:&lt;Yen
+--   </pre>
+sigma :: (HatVal v, HatBaseClass b) => [a] -> (a -> Alg v b) -> Alg v b
+
+-- | Conditional summation over a double loop. For all combinations of two
+--   lists, applies the function only to pairs that satisfy the condition
+--   and sums the results.
+--   
+--   Complexity: O(|xs| * |ys| * union cost)
+sigma2When :: (HatVal v, HatBaseClass b) => [a] -> [c] -> (a -> c -> Bool) -> (a -> c -> Alg v b) -> Alg v b
+
+-- | Summation using keys and values from a Map. Skips entries with zero
+--   values.
+--   
+--   Complexity: O(|map| * union cost)
+sigmaFromMap :: (HatVal v, HatBaseClass b, Ord k) => Map k v -> (k -> v -> Alg v b) -> Alg v b
+
+-- | Complexity: O(s log s), dominated by sorting the list representation.
+toASCList :: (HatVal v, HatBaseClass b) => Alg v b -> [Alg v b]
+
+-- | map Complexity: O(s + c), where s is traversed scalar entries and c is
+--   transformed output size.
+--   
+--   <pre>
+--   &gt;&gt;&gt; type Test = Alg Double (HatBase CountUnit)
+--   
+--   &gt;&gt;&gt; x = 1:@Hat:&lt;Yen .+ 1:@Not:&lt;Amount :: Test
+--   
+--   &gt;&gt;&gt; y = 2:@Not:&lt;Yen .+ 2:@Hat:&lt;Amount :: Test
+--   
+--   &gt;&gt;&gt; map (\ (x:@hb) -&gt;  x:@(toHat hb)) $ x .+ y
+--   1.00:@Hat:&lt;Yen .+ 2.00:@Hat:&lt;Yen .+ 1.00:@Hat:&lt;Amount .+ 2.00:@Hat:&lt;Amount
+--   </pre>
+--   
+--   <pre>
+--   &gt;&gt;&gt; type Test = Alg Double Hat
+--   
+--   &gt;&gt;&gt; x = 1:@Hat .+ 1:@Not :: Test
+--   
+--   &gt;&gt;&gt; y = 2:@Not .+ 2:@Hat :: Test
+--   
+--   &gt;&gt;&gt; map (\ (x:@hb) -&gt; (2 * x):@hb) $ x .+ y
+--   2.00:@Hat .+ 4.00:@Hat .+ 2.00:@Not .+ 4.00:@Not
+--   </pre>
+map :: (HasCallStack, HatVal v, HatBaseClass b) => (Alg v b -> Alg v b) -> Alg v b -> Alg v b
+
+-- | filter Complexity: O(s), where s is total number of scalar entries.
+--   
+--   <pre>
+--   &gt;&gt;&gt; type Test = Alg Double (HatBase CountUnit)
+--   
+--   &gt;&gt;&gt; x = 1:@Hat:&lt;Yen .+ 1:@Not:&lt;Amount :: Test
+--   
+--   &gt;&gt;&gt; y = 2:@Not:&lt;Yen .+ 2:@Hat:&lt;Amount :: Test
+--   
+--   &gt;&gt;&gt; filter (isHat . _hatBase) $ x .+ y
+--   1.00:@Hat:&lt;Yen .+ 2.00:@Hat:&lt;Amount
+--   </pre>
+--   
+--   <pre>
+--   &gt;&gt;&gt; type Test = Alg Double (HatBase CountUnit)
+--   
+--   &gt;&gt;&gt; x = 1:@Hat:&lt;Yen .+ 1:@Not:&lt;Amount :: Test
+--   
+--   &gt;&gt;&gt; y = 2:@Not:&lt;Yen .+ 2:@Hat:&lt;Amount :: Test
+--   
+--   &gt;&gt;&gt; filter ((1 &lt;). _val) $ x .+ y
+--   2.00:@Not:&lt;Yen .+ 2.00:@Hat:&lt;Amount
+--   </pre>
+filter :: (HatVal v, HatBaseClass b) => (Alg v b -> Bool) -> Alg v b -> Alg v b
+
+-- | proj Complexity: - exact single-key path: expected O(1) - wildcard
+--   single-key path: O(queryAxisPosting + c * verify) - multi-pattern
+--   path: O(sum pattern costs + union costs) where c is candidate count
+--   returned by the posting index. &gt;&gt;&gt; type Test = Alg NN.Double
+--   (HatBase CountUnit) &gt;&gt;&gt; x = 1:<tt>Hat:&lt;Yen .+
+--   1:</tt>Not:&lt;Amount :: Test &gt;&gt;&gt; y = 2:<tt>Not:&lt;Yen .+
+--   2:</tt>Hat:&lt;Amount :: Test &gt;&gt;&gt; proj [Hat:&lt;Yen] $ x .+ y
+--   1.00:@Hat:&lt;Yen
+--   
+--   <pre>
+--   &gt;&gt;&gt; type Test = Alg NN.Double (HatBase CountUnit)
+--   
+--   &gt;&gt;&gt; x = 1:@Hat:&lt;Yen .+ 1:@Not:&lt;Amount :: Test
+--   
+--   &gt;&gt;&gt; y = 2:@Not:&lt;Yen .+ 2:@Hat:&lt;Amount :: Test
+--   
+--   &gt;&gt;&gt; proj [HatNot:&lt;Amount] $ x .+ y
+--   2.00:@Hat:&lt;Amount .+ 1.00:@Not:&lt;Amount
+--   </pre>
+--   
+--   <pre>
+--   &gt;&gt;&gt; type Test = Alg NN.Double (HatBase (AccountTitles, CountUnit))
+--   
+--   &gt;&gt;&gt; x = 1:@Hat:&lt;(Cash,Yen) .+ 1:@Not:&lt;(Products,Amount) :: Test
+--   
+--   &gt;&gt;&gt; y = 2:@Not:&lt;(Cash,Yen) .+ 2:@Hat:&lt;(Deposits,Yen) :: Test
+--   
+--   &gt;&gt;&gt; proj [Hat:&lt;((.#),Yen)] $ x .+ y
+--   1.00:@Hat:&lt;(Cash,Yen) .+ 2.00:@Hat:&lt;(Deposits,Yen)
+--   </pre>
+--   
+--   <pre>
+--   &gt;&gt;&gt; type Test = HatBase CountUnit
+--   
+--   &gt;&gt;&gt; compareHatBase (Not:&lt;(.#) :: Test) (Not:&lt;Yen :: Test)
+--   EQ
+--   </pre>
+--   
+--   <pre>
+--   &gt;&gt;&gt; type Test = Alg NN.Double (HatBase CountUnit)
+--   
+--   &gt;&gt;&gt; x = 1:@Hat:&lt;Yen .+ 1:@Not:&lt;Amount :: Test
+--   
+--   &gt;&gt;&gt; y = 2:@Not:&lt;Yen .+ 2:@Hat:&lt;Amount :: Test
+--   
+--   &gt;&gt;&gt; proj [Not:&lt;(.#)] $ x .+ y
+--   2.00:@Not:&lt;Yen .+ 1.00:@Not:&lt;Amount
+--   </pre>
+proj :: (HatVal v, HatBaseClass b) => [b] -> Alg v b -> Alg v b
+
+-- | Projects only the credit side elements. Use this instead of decL when
+--   the base contains non-Enum elements such as Text or Int.
+--   
+--   Complexity: O(s) (s is the total number of scalar entries)
+projCredit :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+
+-- | Projects only the debit side elements. Use this instead of decR when
+--   the base contains non-Enum elements such as Text or Int.
+--   
+--   Complexity: O(s) (s is the total number of scalar entries)
+projDebit :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+
+-- | Projects only the elements matching the specified account title.
+--   
+--   Complexity: O(s) (s is the total number of scalar entries)
+projByAccountTitle :: (HatVal n, ExBaseClass b) => AccountTitles -> Alg n b -> Alg n b
+
+-- | Complexity: O(cost(proj) + cost(bar) + cost(norm)).
+projNorm :: (HatVal n, HatBaseClass b) => [b] -> Alg n b -> n
+
+-- | Compute the net balance as the difference of two projections.
+--   <tt>balanceBy plusBases minusBases alg</tt> computes <tt>projNorm
+--   plusBases alg - projNorm minusBases alg</tt>.
+--   
+--   Useful for calculating stock quantities, profits, etc.
+--   
+--   <pre>
+--   &gt;&gt;&gt; type T = Alg Double (HatBase AccountTitles)
+--   
+--   &gt;&gt;&gt; let alg = 100 :@ Not:&lt;Cash .+ 30 :@ Hat:&lt;Cash :: T
+--   
+--   &gt;&gt;&gt; balanceBy [Not:&lt;Cash] [Hat:&lt;Cash] alg
+--   70.0
+--   </pre>
+--   
+--   <pre>
+--   &gt;&gt;&gt; balanceBy [Hat:&lt;Cash] [Not:&lt;Cash] alg
+--   -70.0
+--   </pre>
+balanceBy :: (HatVal n, HatBaseClass b) => [b] -> [b] -> Alg n b -> n
+
+-- | Fold algebra entries into a <tt>Map</tt>, combining values with
+--   <tt>(+)</tt>.
+--   
+--   The selector function examines each entry <tt>(v, b)</tt> and
+--   optionally returns a <tt>(key, value)</tt> pair. Values for duplicate
+--   keys are summed.
+--   
+--   <pre>
+--   &gt;&gt;&gt; type T = Alg Double (HatBase AccountTitles)
+--   
+--   &gt;&gt;&gt; let alg = 10 :@ Hat:&lt;Cash .+ 20 :@ Hat:&lt;Deposits .+ 5 :@ Hat:&lt;Cash :: T
+--   
+--   &gt;&gt;&gt; let f v (Hat :&lt; a) = Just (a, v); f _ _ = Nothing
+--   
+--   &gt;&gt;&gt; foldEntriesToMap f alg
+--   fromList [(Cash,15.0),(Deposits,20.0)]
+--   </pre>
+foldEntriesToMap :: (HatVal v, HatBaseClass b, Ord k) => (v -> b -> Maybe (k, v)) -> Alg v b -> Map k v
+
+-- | Projects only current assets. Extracts asset items classified as
+--   current from the debit side.
+--   
+--   Complexity: O(s) (s is the total number of scalar entries)
+projCurrentAssets :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+
+-- | Projects only fixed assets. Extracts asset items classified as fixed
+--   from the debit side.
+--   
+--   Complexity: O(s) (s is the total number of scalar entries)
+projFixedAssets :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+
+-- | Projects only deferred assets. Tax-specific deferred assets are
+--   presented under "investments and other assets" with appropriate items
+--   such as long-term prepaid expenses.
+--   
+--   Complexity: O(s) (s is the total number of scalar entries)
+projDeferredAssets :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+
+-- | Projects only current liabilities. Extracts liability items classified
+--   as current from the credit side.
+--   
+--   Complexity: O(s) (s is the total number of scalar entries)
+projCurrentLiability :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+
+-- | Projects only fixed liabilities. Extracts liability items classified
+--   as fixed from the credit side.
+--   
+--   Complexity: O(s) (s is the total number of scalar entries)
+projFixedLiability :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+
+-- | Projects only capital stock.
+--   
+--   <b>Note</b>: Not yet implemented. Calling this will throw an
+--   exception.
+projCapitalStock :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+
+-- | Rounding (ceiling). Applied to the results of division and
+--   multiplication; uses ceiling rounding by default. This should be
+--   applied to all multiplication and division of account titles.
+--   
+--   Complexity: O(1)
+rounding :: Double -> Double
+
+-- | Merge multiple Algs by directly combining their internal HashMaps,
+--   building the AxisPosting index only once at the end.
+unionsMerge :: (HatVal n, Foldable f, HatBaseClass b) => f (Alg n b) -> Alg n b
+instance GHC.Classes.Eq v => GHC.Classes.Eq (ExchangeAlgebra.Algebra.Pair v)
+instance (ExchangeAlgebra.Algebra.Base.HatBaseClass b, Data.Binary.Class.Binary v, Data.Binary.Class.Binary b, Data.Binary.Class.Binary (ExchangeAlgebra.Algebra.Base.BasePart b)) => Data.Binary.Class.Binary (ExchangeAlgebra.Algebra.Alg v b)
+instance (ExchangeAlgebra.Algebra.HatVal v, ExchangeAlgebra.Algebra.Base.HatBaseClass b) => GHC.Classes.Eq (ExchangeAlgebra.Algebra.Alg v b)
+instance (ExchangeAlgebra.Algebra.HatVal v, ExchangeAlgebra.Algebra.Base.HatBaseClass b) => GHC.Classes.Ord (ExchangeAlgebra.Algebra.Alg v b)
+instance (ExchangeAlgebra.Algebra.HatVal v, ExchangeAlgebra.Algebra.Base.HatBaseClass b) => GHC.Show.Show (ExchangeAlgebra.Algebra.Alg v b)
+instance Control.DeepSeq.NFData (ExchangeAlgebra.Algebra.Alg v b)
+instance (ExchangeAlgebra.Algebra.HatVal n, ExchangeAlgebra.Algebra.Base.HatBaseClass b) => GHC.Base.Semigroup (ExchangeAlgebra.Algebra.Alg n b)
+instance (ExchangeAlgebra.Algebra.HatVal n, ExchangeAlgebra.Algebra.Base.HatBaseClass b) => GHC.Base.Monoid (ExchangeAlgebra.Algebra.Alg n b)
+instance (ExchangeAlgebra.Algebra.HatVal n, ExchangeAlgebra.Algebra.Base.HatBaseClass b) => ExchangeAlgebra.Algebra.Redundant ExchangeAlgebra.Algebra.Alg n b
+instance (ExchangeAlgebra.Algebra.HatVal n, ExchangeAlgebra.Algebra.Base.ExBaseClass b) => ExchangeAlgebra.Algebra.Exchange ExchangeAlgebra.Algebra.Alg n b
+instance Data.Binary.Class.Binary v => Data.Binary.Class.Binary (ExchangeAlgebra.Algebra.Pair v)
+instance ExchangeAlgebra.Algebra.HatVal v => GHC.Classes.Ord (ExchangeAlgebra.Algebra.Pair v)
+instance ExchangeAlgebra.Algebra.HatVal Numeric.NonNegative.Wrapper.Double
+instance ExchangeAlgebra.Algebra.HatVal GHC.Types.Double
+instance ExchangeAlgebra.Algebra.Nearly GHC.Types.Int
+instance ExchangeAlgebra.Algebra.Nearly GHC.Num.Integer.Integer
+instance ExchangeAlgebra.Algebra.Nearly GHC.Types.Float
+instance ExchangeAlgebra.Algebra.Nearly GHC.Types.Double
+instance ExchangeAlgebra.Algebra.Nearly Numeric.NonNegative.Wrapper.Double
+instance GHC.Float.RealFloat Numeric.NonNegative.Wrapper.Double
+
+
+-- | Released under the OWL license
+--   
+--   Package for Exchange Algebra defined by Hiroshi Deguchi.
+--   
+--   Exchange Algebra is an algebraic description of bookkeeping systems.
+--   Details are below.
+--   
+--   <a>https://www.springer.com/gp/book/9784431209850</a>
+--   
+--   
+--   <a>https://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/82987/1/0809-7.pdf</a>
+--   
+--   _Note_ : The current version 0.1.0.0 will be completely changed
+--   shortly, especially in the accounts settings section.
+module ExchangeAlgebra.Algebra.Transfer
+
+-- | Transfer transformation table
+data TransTable n b
+[NullTable] :: (HatVal n, HatBaseClass b) => TransTable n b
+[TransTable] :: (HatVal n, HatBaseClass b) => Size -> b -> (n -> n) -> b -> TransTable n b -> TransTable n b -> TransTable n b
+
+-- | Tests whether the transfer table is empty.
+--   
+--   Complexity: O(1)
+isNullTable :: TransTable n b -> Bool
+transfer :: (HatVal n, HatBaseClass b) => Alg n b -> TransTable n b -> Alg n b
+
+-- | make TransTable from list same as fromList &gt;&gt;&gt; table $
+--   Hat:<a>:-</a> Hat:<a>|% (id :: NN.Double -</a> NN.Double) ++
+--   Hat:<a>:-</a> Hat:&lt;(Cash) |% id
+--   [(Hat:<a>Cash,Hat:&lt;Building,&lt;function</a>),(Hat:<a>Building,Hat:&lt;Cash,&lt;function</a>)]
+table :: (HatVal n, HatBaseClass b) => [(b, b, n -> n)] -> TransTable n b
+
+-- | A part of a transfer rule. Represents a source-to-target base pair in
+--   <tt>from :-&gt; to</tt> form.
+data TransTableParts b
+
+-- | Transfer rule construction operator. <tt>from .-&gt; to</tt> produces
+--   a <a>TransTableParts</a>.
+--   
+--   Complexity: O(1)
+(.->) :: HatBaseClass b => b -> b -> TransTableParts b
+infixr 8 .->
+
+-- | Syntax to make list for makeList
+--   
+--   <pre>
+--   &gt;&gt;&gt; Hat:&lt;(Yen,Cash):-&gt; Hat:&lt;(Yen,Building) |% (id :: NN.Double -&gt; NN.Double) ++ Not:&lt;(Yen,Building)  :-&gt; Not:&lt;(Yen, Cash)  |% id
+--   [(Hat:&lt;(Yen,Cash),Hat:&lt;(Yen,Building),&lt;function&gt;),(Not:&lt;(Yen,Building),Not:&lt;(Yen,Cash),&lt;function&gt;)]
+--   </pre>
+(|%) :: (HatVal n, HatBaseClass b) => TransTableParts b -> (n -> n) -> [(b, b, n -> n)]
+infixr 7 |%
+
+-- | Build an indexed fast transfer function from a list of transfer rules.
+--   More efficient than <tt>transfer</tt> when repeatedly applying the
+--   same TransTable.
+--   
+--   Complexity: Build O(r log r) (r = number of rules); apply O(s) (s =
+--   number of entries)
+createTransfer :: (HatVal n, ExBaseClass b) => [(b, b, n -> n)] -> Alg n b -> Alg n b
+
+-- | Income Summary Account: compute net income for the current period.
+incomeSummaryAccount :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+
+-- | Net income transfer. Transfers NetIncome/NetLoss to RetainedEarnings.
+--   
+--   Complexity: O(s) (s = total number of scalar entries)
+netIncomeTransfer :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+
+-- | Transfer to Gross Profit. Consolidates Sales, Purchases,
+--   WageExpenditure, Depreciation, and ValueAdded into GrossProfit.
+--   
+--   Complexity: O(s) (s = total number of scalar entries)
+grossProfitTransfer :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+
+-- | Ordinary Profit Transfer
+--   
+--   <pre>
+--   &gt;&gt;&gt; type Test = Alg Double (HatBase (CountUnit, AccountTitles))
+--   
+--   &gt;&gt;&gt; x = 2279.0:@Not:&lt;(Yen,Depreciation) .+ 500475.0:@Not:&lt;(Yen,InterestEarned) :: Test
+--   
+--   &gt;&gt;&gt; ordinaryProfitTransfer x
+--   2279.00:@Hat:&lt;(Yen,OrdinaryProfit) .+ 500475.00:@Not:&lt;(Yen,OrdinaryProfit)
+--   </pre>
+ordinaryProfitTransfer :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+
+-- | Transfer to Retained Earnings. Transfers OrdinaryProfit to
+--   RetainedEarnings.
+--   
+--   Complexity: O(s) (s = total number of scalar entries)
+retainedEarningTransfer :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+
+-- | Internal step of the final stock transfer from income statement to
+--   retained earnings. Cost accounts are transferred to RetainedEarnings
+--   with Hat/Not flipped; revenue accounts are transferred to
+--   RetainedEarnings as-is.
+--   
+--   Complexity: O(s) (s = total number of scalar entries)
+finalStockTransferStep :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+
+-- | Final Stock Transfer (closing entries). Transfers all cost and revenue
+--   accounts to RetainedEarnings and cancels via the bar operation.
+--   
+--   Complexity: O(s) (s = total number of scalar entries)
+finalStockTransfer :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+instance ExchangeAlgebra.Algebra.Base.HatBaseClass b => GHC.Show.Show (ExchangeAlgebra.Algebra.Transfer.TransTableParts b)
+instance ExchangeAlgebra.Algebra.Base.HatBaseClass b => GHC.Show.Show (ExchangeAlgebra.Algebra.Transfer.TransTable n b)
+instance (ExchangeAlgebra.Algebra.HatVal n, ExchangeAlgebra.Algebra.Base.HatBaseClass b) => GHC.Base.Semigroup (ExchangeAlgebra.Algebra.Transfer.TransTable n b)
+instance (ExchangeAlgebra.Algebra.HatVal n, ExchangeAlgebra.Algebra.Base.HatBaseClass b) => GHC.Base.Monoid (ExchangeAlgebra.Algebra.Transfer.TransTable n b)
+instance ExchangeAlgebra.Algebra.HatVal n => GHC.Show.Show (n -> n)
+
+
+-- | Released under the OWL license
+--   
+--   Package for Exchange Algebra defined by Hiroshi Deguchi.
+--   
+--   Exchange Algebra is an algebraic description of bookkeeping system.
+--   Details are below.
+--   
+--   <a>https://www.springer.com/gp/book/9784431209850</a>
+--   
+--   
+--   <a>https://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/82987/1/0809-7.pdf</a>
+module ExchangeAlgebra.Journal
+
+-- | Type class for algebra element values. Provides zero-value and
+--   error-value predicates. Instances are defined for <a>Double</a> and
+--   <a>Double</a> (non-negative reals).
+class (Show n, Ord n, Eq n, Nearly n, Fractional n, RealFloat n, Num n) => HatVal n
+
+-- | Zero value. Complexity: O(1)
+zeroValue :: HatVal n => n
+
+-- | Tests whether the value is zero. Complexity: O(1)
+isZeroValue :: HatVal n => n -> Bool
+
+-- | Tests whether the value is an error value (NaN, Infinity, etc.).
+--   Complexity: O(1)
+isErrorValue :: HatVal n => n -> Bool
+
+-- | Type class for bases with a Hat component. Provides functionality to
+--   decompose and compose a base into its Hat part and BasePart. Manages
+--   the credit (Hat) / debit (Not) distinction at the base level in
+--   exchange algebra.
+class (BaseClass a, BaseClass (BasePart a), AxisDecompose (BasePart a)) => HatBaseClass a where {
+    
+    -- | The type of the base part excluding the Hat.
+    type BasePart a;
+}
+
+-- | Extract the base part excluding the Hat. Complexity: O(1)
+base :: (HatBaseClass a, BaseClass (BasePart a)) => a -> BasePart a
+
+-- | Extract the Hat part. Complexity: O(1)
+hat :: HatBaseClass a => a -> Hat
+
+-- | Reconstruct a base from a Hat and a BasePart. Complexity: O(1)
+merge :: HatBaseClass a => Hat -> BasePart a -> a
+
+-- | Convert to the Hat side. Complexity: O(1)
+toHat :: HatBaseClass a => a -> a
+
+-- | Convert to the Not side. Complexity: O(1)
+toNot :: HatBaseClass a => a -> a
+
+-- | Reverse Hat/Not. Complexity: O(1)
+revHat :: HatBaseClass a => a -> a
+
+-- | Test whether the base is Hat. Complexity: O(1)
+isHat :: HatBaseClass a => a -> Bool
+
+-- | Test whether the base is Not. Complexity: O(1)
+isNot :: HatBaseClass a => a -> Bool
+
+-- | Compare bases with Hat. Defaults to <a>compareBase</a>. Complexity:
+--   O(k)
+compareHatBase :: HatBaseClass a => a -> a -> Ordering
+
+-- | Type class for Redundant Algebra. Provides fundamental exchange
+--   algebra operations: hat, bar, norm, scalar product, and compress.
+--   
+--   Redundant ⊃ Exchange
+--   
+--   hat calculation &gt;&gt;&gt; (.^) (10:<tt>Not:&lt;Cash .+
+--   10:</tt>Hat:&lt;Deposits) 10.00:<tt>Hat:&lt;Cash .+
+--   10.00:</tt>Not:&lt;Deposits
+--   
+--   bar calculation &gt;&gt;&gt; x = 10:<tt>Not:&lt;Cash .+
+--   10:</tt>Hat:&lt;Deposits &gt;&gt;&gt; y = 5:<tt>Hat:&lt;Cash .+
+--   5:</tt>Not:&lt;Deposits &gt;&gt;&gt; (.-) $ x .+ y
+--   5.00:<tt>Not:&lt;Cash .+ 5.00:</tt>Hat:&lt;Deposits
+--   
+--   norm calculation &gt;&gt;&gt; norm $ 10:<tt>Not:&lt;Cash .+
+--   10:</tt>Hat:&lt;Deposits 20.0
+--   
+--   (.*) calculation &gt;&gt;&gt; (.*) 5 $ 10:<tt>Not:&lt;Cash .+
+--   10:</tt>Hat:&lt;Deposits 50.00:<tt>Not:&lt;Cash .+
+--   50.00:</tt>Hat:&lt;Deposits
+--   
+--   compress calculation &gt;&gt;&gt; compress $ 10:<tt>Not:&lt;Cash .+
+--   5:</tt>Hat:&lt;Cash .+ 3:<tt>Not:&lt;Cash 5.00:</tt>Hat:&lt;Cash .+
+--   13.00:@Not:&lt;Cash
+class (HatVal n, HatBaseClass b, Monoid (a n b)) => Redundant a n b
+
+-- | Hat operation. Flips Hat/Not on all elements. Complexity: O(1) for
+--   singleton, O(n) for Liner (n is the number of base keys)
+(.^) :: Redundant a n b => a n b -> a n b
+
+-- | Bar operation. Cancels Hat/Not on the same base and retains only the
+--   difference. Complexity: O(n) (n is the number of base keys)
+(.-) :: Redundant a n b => a n b -> a n b
+
+-- | Alias for bar operation. Identical to <tt>(.-)</tt>.
+bar :: Redundant a n b => a n b -> a n b
+
+-- | Aggregates values on the same base. Sums while preserving the Hat/Not
+--   distinction. Complexity: O(n) (n is the number of base keys)
+compress :: Redundant a n b => a n b -> a n b
+
+-- | Addition of algebra elements. Alias for the Monoid <tt>&lt;&gt;</tt>
+--   operation. Complexity: O(union cost)
+(.+) :: Redundant a n b => a n b -> a n b -> a n b
+
+-- | Scalar product. Multiplies all element values by a scalar. Complexity:
+--   O(1) for singleton, O(n) for Liner
+(.*) :: Redundant a n b => n -> a n b -> a n b
+
+-- | Norm. Returns the sum of all element values. Complexity: O(n) (n is
+--   the number of base keys)
+norm :: Redundant a n b => a n b -> n
+
+-- | Addition in an Applicative context. Complexity: O(union cost)
+(<+) :: (Redundant a n b, Applicative f) => f (a n b) -> f (a n b) -> f (a n b)
+infixr 7 .^
+infixr 2 .-
+infixr 3 .+
+infixr 3 <+
+
+-- | Type class for Exchange Algebra. In addition to Redundant Algebra,
+--   provides debit(R)<i>credit(L) decomposition, stock
+--   increase(P)</i>decrease(M) decomposition, and balance checking.
+class (Redundant a n b) => Exchange a n b
+
+-- | Extracts only the debit side elements. Complexity: O(s)
+decR :: Exchange a n b => a n b -> a n b
+
+-- | Extracts only the credit side elements. Complexity: O(s)
+decL :: Exchange a n b => a n b -> a n b
+
+-- | Extracts only the Hat (stock increase) side elements. Complexity: O(s)
+decP :: Exchange a n b => a n b -> a n b
+
+-- | Extracts only the Not (stock decrease) side elements. Complexity: O(s)
+decM :: Exchange a n b => a n b -> a n b
+
+-- | Checks whether the norms of debit and credit sides are equal.
+--   Complexity: O(s)
+balance :: Exchange a n b => a n b -> Bool
+
+-- | Returns the debit-credit difference as a (Side, difference) pair.
+--   Complexity: O(s)
+diffRL :: Exchange a n b => a n b -> (Side, n)
+pattern (:@) :: () => !v -> !b -> Alg v b
+infixr 6 :@
+
+-- | Smart constructor that builds an algebra element from a value and a
+--   base. Returns Zero for zero values, and throws an exception for error
+--   values.
+--   
+--   Complexity: O(1)
+(.@) :: (HatVal n, HatBaseClass b) => n -> b -> Alg n b
+infixr 6 .@
+
+-- | Type class for journal annotations (notes attached to postings).
+--   <tt>plank</tt> represents a blank note (analogous to <tt>mempty</tt>
+--   in <tt>Monoid</tt>).
+--   
+--   <tt>toNoteAxisKeys</tt> decomposes a Note into per-axis keys for
+--   AxisPosting indexing, mirroring how <tt>toAxisKeys</tt> works for
+--   basis elements. For tuple Note types, each component becomes a
+--   separate axis. The default returns a single axis containing the Note
+--   itself.
+class (Show a, Eq a, Ord a, Hashable a, Typeable a) => Note a
+plank :: Note a => a
+isPlank :: Note a => a -> Bool
+
+-- | Decompose a Note into per-axis keys for AxisPosting indexing. Default:
+--   single axis with the Note itself.
+toNoteAxisKeys :: Note a => a -> [NoteAxisKey]
+
+-- | An existential type that holds each axis of a Note with its type
+--   erased. Used to decompose multi-dimensional Note types (tuples) into
+--   per-axis keys for indexing, mirroring how <a>AxisKey</a> works for
+--   basis elements in <a>Alg</a>.
+data NoteAxisKey
+NoteAxisKey :: !a -> NoteAxisKey
+
+-- | Transaction data with annotations. Stored in a base + delta two-layer
+--   structure with per-axis indices. Base index is lazy (built on first
+--   axis query), while delta index is updated incrementally. Updates are
+--   appended only to delta and periodically compacted into base.
+data Journal n v b
+[Journal] :: (Note n, HatVal v, HatBaseClass b) => !HashMap n (Alg v b) -> !HashMap n (Alg v b) -> !Int -> NoteAxisPosting n -> !NoteAxisPosting n -> Journal n v b
+pattern Zero :: (HatVal v, HatBaseClass b, Note n) => Journal n v b
+
+-- | Smart constructor that attaches a Note (annotation) to an algebra
+--   element to build a Journal.
+--   
+--   Complexity: O(1)
+(.|) :: (HatVal v, HatBaseClass b, Note n) => Alg v b -> n -> Journal n v b
+infixr 2 .|
+
+-- | Combine entries from all Notes in a Journal into a single Alg.
+--   
+--   Complexity: O(total number of base keys across all Notes)
+toAlg :: (HatVal v, HatBaseClass b, Note n) => Journal n v b -> Alg v b
+
+-- | Retrieve all entries of a Journal as a HashMap. Merges the base and
+--   delta layers.
+--   
+--   Complexity: O(n) where n is the number of Notes
+toMap :: (HatVal v, HatBaseClass b, Note n) => Journal n v b -> HashMap n (Alg v b)
+
+-- | Construct a Journal from a HashMap.
+--   
+--   Complexity: O(1). Base axis index is built lazily on first axis query.
+fromMap :: (HatVal v, HatBaseClass b, Note n) => HashMap n (Alg v b) -> Journal n v b
+
+-- | fromList
+--   
+--   <pre>
+--   &gt;&gt;&gt; type Test = Journal String Double (HatBase AccountTitles)
+--   
+--   &gt;&gt;&gt; x = [(1.00:@Hat:&lt;Cash .| z) | z &lt;- ["Loan Payment","Purchace Apple"]] :: [Test]
+--   
+--   &gt;&gt;&gt; fromList x
+--   1.00:@Hat:&lt;Cash.|"Loan Payment" .+ 1.00:@Hat:&lt;Cash.|"Purchace Apple"
+--   </pre>
+fromList :: (HatVal v, HatBaseClass b, Note n) => [Journal n v b] -> Journal n v b
+
+-- | Summation function that applies a function to each list element and
+--   sums the resulting Journals.
+--   
+--   Complexity: O(|xs| * union cost)
+sigma :: (HatVal v, HatBaseClass b, Note n) => [a] -> (a -> Journal n v b) -> Journal n v b
+
+-- | Conditional summation over a double loop (Journal version). Applies
+--   the function only to pairs that satisfy the condition across all
+--   combinations of two lists, and sums the results.
+--   
+--   Complexity: O(|xs| * |ys| * union cost)
+sigma2When :: (HatVal v, HatBaseClass b, Note n) => [a] -> [c] -> (a -> c -> Bool) -> (a -> c -> Journal n v b) -> Journal n v b
+
+-- | Sum each list element as an Alg on the specified Note and store the
+--   result in a Journal. Returns an empty Journal if the result is zero.
+--   
+--   Complexity: O(|xs| * union cost)
+sigmaOn :: (HatVal v, HatBaseClass b, Note n) => n -> [a] -> (a -> Alg v b) -> Journal n v b
+
+-- | Sum Alg values from Map keys and values on the specified Note and
+--   store the result in a Journal. Map version of <a>sigmaOn</a>.
+--   
+--   Complexity: O(|map| * union cost)
+sigmaOnFromMap :: (HatVal v, HatBaseClass b, Note n, Ord k) => n -> Map k v -> (k -> v -> Alg v b) -> Journal n v b
+
+-- | Summation in a monadic context. Applies a monadic function to each
+--   element and mconcats the results.
+--   
+--   Complexity: O(|xs| * cost(f))
+sigmaM :: (Monoid m, Monad m0) => [a] -> (a -> m0 m) -> m0 m
+
+-- | Apply function f to the entry of each Note in the Journal. Applies to
+--   merged Note entries (base + delta), preserving semantics.
+--   
+--   Complexity: O(j * cost(f)) where j is the number of Notes
+map :: (HatVal v, HatBaseClass b, Note n) => (Alg v b -> Alg v b) -> Journal n v b -> Journal n v b
+
+-- | Insert x into y. If x's Note already exists in y, it is overwritten
+--   with x's value.
+--   
+--   <pre>
+--   &gt;&gt;&gt; type Test = Journal String Double (HatBase AccountTitles)
+--   
+--   &gt;&gt;&gt; x = 10.00:@Not:&lt;Cash .| "A" :: Test
+--   
+--   &gt;&gt;&gt; y = 20.00:@Not:&lt;Cash .| "B" :: Test
+--   
+--   &gt;&gt;&gt; z = 30.00:@Hat:&lt;Cash .| "A" :: Test
+--   
+--   &gt;&gt;&gt; insert z (x .+ y)
+--   30.00:@Hat:&lt;Cash.|"A" .+ 20.00:@Not:&lt;Cash.|"B"
+--   </pre>
+insert :: (HatVal v, HatBaseClass b, Note n) => Journal n v b -> Journal n v b -> Journal n v b
+
+-- | projWithNote Projecting with Note.
+--   
+--   <pre>
+--   &gt;&gt;&gt; type Test = Journal String Double (HatBase CountUnit)
+--   
+--   &gt;&gt;&gt; x = 1.00:@Hat:&lt;Yen .+ 1.00:@Not:&lt;Amount .| "cat"  :: Test
+--   
+--   &gt;&gt;&gt; y = 2.00:@Hat:&lt;Yen .+ 2.00:@Not:&lt;Amount .| "dog"  :: Test
+--   
+--   &gt;&gt;&gt; z = 3.00:@Hat:&lt;Yen .+ 3.00:@Not:&lt;Amount .| "fish" :: Test
+--   
+--   &gt;&gt;&gt; projWithNote ["dog","cat"] (x .+ y .+ z)
+--   2.00:@Not:&lt;Amount.|"dog" .+ 2.00:@Hat:&lt;Yen.|"dog" .+ 1.00:@Not:&lt;Amount.|"cat" .+ 1.00:@Hat:&lt;Yen.|"cat"
+--   </pre>
+projWithNote :: (HatVal v, HatBaseClass b, Note n) => [n] -> Journal n v b -> Journal n v b
+
+-- | projWithBase Projecting with Base.
+--   
+--   <pre>
+--   &gt;&gt;&gt; type Test = Journal String Double (HatBase CountUnit)
+--   
+--   &gt;&gt;&gt; x = 1.00:@Hat:&lt;Yen .+ 1.00:@Not:&lt;Amount .| "cat"  :: Test
+--   
+--   &gt;&gt;&gt; y = 2.00:@Not:&lt;Yen .+ 2.00:@Hat:&lt;Amount .| "dog"  :: Test
+--   
+--   &gt;&gt;&gt; z = 3.00:@Hat:&lt;Yen .+ 3.00:@Not:&lt;Amount .| "fish" :: Test
+--   
+--   &gt;&gt;&gt; projWithBase [Not:&lt;Amount] (x .+ y .+ z)
+--   3.00:@Not:&lt;Amount.|"fish" .+ 1.00:@Not:&lt;Amount.|"cat"
+--   </pre>
+projWithBase :: (HatVal v, HatBaseClass b, Note n) => [b] -> Journal n v b -> Journal n v b
+
+-- | projWithNoteBase Projecting with Note and Base.
+--   
+--   <pre>
+--   &gt;&gt;&gt; type Test = Journal String Double (HatBase CountUnit)
+--   
+--   &gt;&gt;&gt; x = 1.00:@Hat:&lt;Yen .+ 1.00:@Not:&lt;Amount .| "cat"  :: Test
+--   
+--   &gt;&gt;&gt; y = 2.00:@Not:&lt;Yen .+ 2.00:@Hat:&lt;Amount .| "dog"  :: Test
+--   
+--   &gt;&gt;&gt; z = 3.00:@Hat:&lt;Yen .+ 3.00:@Not:&lt;Amount .| "fish" :: Test
+--   
+--   &gt;&gt;&gt; projWithNoteBase ["dog","fish"] [Not:&lt;Amount] (x .+ y .+ z)
+--   3.00:@Not:&lt;Amount.|"fish"
+--   </pre>
+projWithNoteBase :: (HatVal v, HatBaseClass b, Note n) => [n] -> [b] -> Journal n v b -> Journal n v b
+
+-- | Directly compute the norm after filtering by the specified bases.
+--   Equivalent to <tt>norm (projWithBase bs js)</tt> but without
+--   constructing an intermediate Journal.
+--   
+--   Complexity: O(j * proj cost) where j is the number of Notes
+projWithBaseNorm :: (HatVal v, HatBaseClass b, Note n) => [b] -> Journal n v b -> v
+
+-- | Directly compute the norm after filtering by the specified Notes and
+--   bases. Equivalent to <tt>norm (projWithNoteBase ns bs js)</tt> but
+--   without constructing an intermediate Journal.
+--   
+--   Complexity: O(|ns| * proj cost)
+projWithNoteNorm :: (HatVal v, HatBaseClass b, Note n) => [n] -> [b] -> Journal n v b -> v
+
+-- | Filter by a predicate on Note-entry pairs. Applies the filter to both
+--   the base and delta layers.
+--   
+--   Complexity: O(n) where n is the number of Notes
+filterWithNote :: (HatVal v, HatBaseClass b, Note n) => (n -> Alg v b -> Bool) -> Journal n v b -> Journal n v b
+
+-- | Efficiently filter a Journal to entries whose Note matches on the
+--   specified axis. Uses base/delta NoteAxisPosting indices for
+--   O(|result|) retrieval after index construction.
+--   
+--   Axis numbers are 0-indexed. For a Note type <tt>(EventName,
+--   Term)</tt>:
+--   
+--   <ul>
+--   <li>axis 0 corresponds to EventName</li>
+--   <li>axis 1 corresponds to Term</li>
+--   </ul>
+--   
+--   For non-tuple Note types, axis 0 is the only valid axis.
+--   
+--   Complexity: O(|result|) after index construction; O(n) for first
+--   base-axis query on a Journal value
+--   
+--   <pre>
+--   &gt;&gt;&gt; type Test = Journal (String, Int) Double (HatBase AccountTitles)
+--   
+--   &gt;&gt;&gt; x = 10.00:@Not:&lt;Cash .| ("A", 1) :: Test
+--   
+--   &gt;&gt;&gt; y = 20.00:@Hat:&lt;Cash .| ("B", 1) :: Test
+--   
+--   &gt;&gt;&gt; z = 30.00:@Not:&lt;Cash .| ("A", 2) :: Test
+--   
+--   &gt;&gt;&gt; filterByAxis 0 (NoteAxisKey "A") (x .+ y .+ z)
+--   30.00:@Not:&lt;Cash.|("A",2) .+ 10.00:@Not:&lt;Cash.|("A",1)
+--   </pre>
+--   
+--   <pre>
+--   &gt;&gt;&gt; filterByAxis 1 (NoteAxisKey (1 :: Int)) (x .+ y .+ z)
+--   20.00:@Hat:&lt;Cash.|("B",1) .+ 10.00:@Not:&lt;Cash.|("A",1)
+--   </pre>
+filterByAxis :: (HatVal v, HatBaseClass b, Note n) => Int -> NoteAxisKey -> Journal n v b -> Journal n v b
+
+-- | gather Gathers all Alg into one on the given Note.
+--   
+--   <pre>
+--   &gt;&gt;&gt; type Test = Journal String Double (EA.HatBase EA.AccountTitles)
+--   
+--   &gt;&gt;&gt; x = 20.00:@Not:&lt;Cash .+ 20.00:@Hat:&lt;Deposits .| "Withdrawal" :: Test
+--   
+--   &gt;&gt;&gt; y = 10.00:@Hat:&lt;Cash .+ 10.00:@Not:&lt;Deposits .| "Deposits" :: Test
+--   
+--   &gt;&gt;&gt; gather "A" (x .+ y)
+--   10.00:@Not:&lt;Deposits.|"A" .+ 20.00:@Hat:&lt;Deposits.|"A" .+ 20.00:@Not:&lt;Cash.|"A" .+ 10.00:@Hat:&lt;Cash.|"A"
+--   </pre>
+gather :: (HatVal v, HatBaseClass b, Note n) => n -> Journal n v b -> Journal n v b
+instance (ExchangeAlgebra.Journal.Note n, ExchangeAlgebra.Algebra.HatVal v, ExchangeAlgebra.Algebra.Base.HatBaseClass b, Data.Binary.Class.Binary n, Data.Binary.Class.Binary (ExchangeAlgebra.Algebra.Alg v b)) => Data.Binary.Class.Binary (ExchangeAlgebra.Journal.Journal n v b)
+instance (ExchangeAlgebra.Algebra.HatVal v, ExchangeAlgebra.Algebra.Base.HatBaseClass b, ExchangeAlgebra.Journal.Note n) => GHC.Show.Show (ExchangeAlgebra.Journal.Journal n v b)
+instance (ExchangeAlgebra.Algebra.HatVal v, ExchangeAlgebra.Algebra.Base.HatBaseClass b, ExchangeAlgebra.Journal.Note n) => GHC.Base.Semigroup (ExchangeAlgebra.Journal.Journal n v b)
+instance (ExchangeAlgebra.Algebra.HatVal v, ExchangeAlgebra.Algebra.Base.HatBaseClass b, ExchangeAlgebra.Journal.Note n) => GHC.Base.Monoid (ExchangeAlgebra.Journal.Journal n v b)
+instance (ExchangeAlgebra.Algebra.HatVal v, ExchangeAlgebra.Algebra.Base.HatBaseClass b, ExchangeAlgebra.Journal.Note n) => ExchangeAlgebra.Algebra.Redundant (ExchangeAlgebra.Journal.Journal n) v b
+instance (ExchangeAlgebra.Journal.Note n, ExchangeAlgebra.Algebra.HatVal v, ExchangeAlgebra.Algebra.Base.ExBaseClass b) => ExchangeAlgebra.Algebra.Exchange (ExchangeAlgebra.Journal.Journal n) v b
+instance ExchangeAlgebra.Journal.Note GHC.Types.Int
+instance ExchangeAlgebra.Journal.Note GHC.Base.String
+instance ExchangeAlgebra.Journal.Note Data.Text.Internal.Text
+instance (ExchangeAlgebra.Journal.Note a, ExchangeAlgebra.Journal.Note b) => ExchangeAlgebra.Journal.Note (a, b)
+instance (ExchangeAlgebra.Journal.Note a, ExchangeAlgebra.Journal.Note b, ExchangeAlgebra.Journal.Note c) => ExchangeAlgebra.Journal.Note (a, b, c)
+instance (ExchangeAlgebra.Journal.Note a, ExchangeAlgebra.Journal.Note b, ExchangeAlgebra.Journal.Note c, ExchangeAlgebra.Journal.Note d) => ExchangeAlgebra.Journal.Note (a, b, c, d)
+instance GHC.Classes.Eq ExchangeAlgebra.Journal.NoteAxisKey
+instance Data.Hashable.Class.Hashable ExchangeAlgebra.Journal.NoteAxisKey
+
+
+-- | Released under the OWL license
+--   
+--   Package for Exchange Algebra defined by Hiroshi Deguchi.
+--   
+--   Exchange Algebra is an algebraic description of bookkeeping system.
+--   Details are below.
+--   
+--   <a>https://www.springer.com/gp/book/9784431209850</a>
+--   
+--   
+--   <a>https://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/82987/1/0809-7.pdf</a>
+--   
+--   _Note_ : The current version 0.1.0.0 will be completely changed
+--   shortly, especially in the accounts settings section.
+module ExchangeAlgebra.Journal.Transfer
+
+-- | Transfer transformation table
+data TransTable n b
+[NullTable] :: (HatVal n, HatBaseClass b) => TransTable n b
+[TransTable] :: (HatVal n, HatBaseClass b) => Size -> b -> (n -> n) -> b -> TransTable n b -> TransTable n b -> TransTable n b
+
+-- | Tests whether the transfer table is empty.
+--   
+--   Complexity: O(1)
+isNullTable :: TransTable n b -> Bool
+
+-- | make TransTable from list same as fromList &gt;&gt;&gt; table $
+--   Hat:<a>:-</a> Hat:<a>|% (id :: NN.Double -</a> NN.Double) ++
+--   Hat:<a>:-</a> Hat:&lt;(Cash) |% id
+--   [(Hat:<a>Cash,Hat:&lt;Building,&lt;function</a>),(Hat:<a>Building,Hat:&lt;Cash,&lt;function</a>)]
+table :: (HatVal n, HatBaseClass b) => [(b, b, n -> n)] -> TransTable n b
+
+-- | A part of a transfer rule. Represents a source-to-target base pair in
+--   <tt>from :-&gt; to</tt> form.
+data TransTableParts b
+
+-- | Transfer rule construction operator. <tt>from .-&gt; to</tt> produces
+--   a <a>TransTableParts</a>.
+--   
+--   Complexity: O(1)
+(.->) :: HatBaseClass b => b -> b -> TransTableParts b
+infixr 8 .->
+
+-- | Syntax to make list for makeList
+--   
+--   <pre>
+--   &gt;&gt;&gt; Hat:&lt;(Yen,Cash):-&gt; Hat:&lt;(Yen,Building) |% (id :: NN.Double -&gt; NN.Double) ++ Not:&lt;(Yen,Building)  :-&gt; Not:&lt;(Yen, Cash)  |% id
+--   [(Hat:&lt;(Yen,Cash),Hat:&lt;(Yen,Building),&lt;function&gt;),(Not:&lt;(Yen,Building),Not:&lt;(Yen,Cash),&lt;function&gt;)]
+--   </pre>
+(|%) :: (HatVal n, HatBaseClass b) => TransTableParts b -> (n -> n) -> [(b, b, n -> n)]
+infixr 7 |%
+
+-- | Apply transfer transformations to each Note entry in a Journal.
+--   Wildcard portions within tuples are not transformed and retain their
+--   original values.
+--   
+--   Complexity: O(j * s) (j = number of Notes, s = number of scalar
+--   entries per Note)
+transfer :: (HatVal v, HatBaseClass b, Note n) => Journal n v b -> TransTable v b -> Journal n v b
+
+-- | Compute net income for the current period (Income Summary Account).
+--   Calculate the debit-credit difference and add it as NetIncome or
+--   NetLoss to the plank Note.
+--   
+--   Complexity: O(s) (s = total number of scalar entries)
+incomeSummaryAccount :: (Note n, HatVal v, ExBaseClass b) => Journal n v b -> Journal n v b
+
+-- | Net income transfer (Journal version). Transfer NetIncome/NetLoss to
+--   RetainedEarnings for each Note.
+--   
+--   Complexity: O(j * s) (j = number of Notes, s = number of scalar
+--   entries per Note)
+netIncomeTransfer :: (Note n, HatVal v, ExBaseClass b) => Journal n v b -> Journal n v b
+
+-- | Gross profit transfer (Journal version). Aggregate sales and cost
+--   accounts into GrossProfit for each Note.
+--   
+--   Complexity: O(j * s)
+grossProfitTransfer :: (Note n, HatVal v, ExBaseClass b) => Journal n v b -> Journal n v b
+
+-- | Ordinary Profit Transfer
+--   
+--   <pre>
+--   &gt;&gt;&gt; type Test = Journal String Double (HatBase (CountUnit, AccountTitles))
+--   
+--   &gt;&gt;&gt; x = 2279.0:@Not:&lt;(Yen,Depreciation) .| "A" :: Test
+--   
+--   &gt;&gt;&gt; y = 500475.0:@Not:&lt;(Yen,InterestEarned) .| "B" :: Test
+--   
+--   &gt;&gt;&gt; ExchangeAlgebra.Journal.Transfer.ordinaryProfitTransfer ( x .+ y)
+--   2279.00:@Hat:&lt;(Yen,OrdinaryProfit).|"A" .+ 500475.00:@Not:&lt;(Yen,OrdinaryProfit).|"B"
+--   </pre>
+ordinaryProfitTransfer :: (Note n, HatVal v, ExBaseClass b) => Journal n v b -> Journal n v b
+
+-- | Retained earnings transfer (Journal version). Transfer OrdinaryProfit
+--   to RetainedEarnings for each Note.
+--   
+--   Complexity: O(j * s)
+retainedEarningTransfer :: (Note n, HatVal v, ExBaseClass b) => Journal n v b -> Journal n v b
+
+-- | Income summary account (Journal version). Transfer all cost and
+--   revenue accounts to RetainedEarnings, then offset using the Bar
+--   operation.
+--   
+--   Complexity: O(j * s)
+finalStockTransfer :: (Note n, HatVal v, ExBaseClass b) => Journal n v b -> Journal n v b
+
+
+-- | Released under the OWL license
+--   
+--   Package for Exchange Algebra defined by Hiroshi Deguchi.
+--   
+--   Exchange Algebra is an algebraic description of bookkeeping system.
+--   Details are below.
+--   
+--   <a>https://www.springer.com/gp/book/9784431209850</a>
+--   
+--   
+--   <a>https://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/82987/1/0809-7.pdf</a>
+module ExchangeAlgebra.Simulate
+
+-- | Type class defining the time axis for simulations.
+--   
+--   <tt>nextTerm</tt> and <tt>prevTerm</tt> have default implementations
+--   via <tt>succ</tt> / <tt>pred</tt>, so for uniformly-spaced time axes
+--   only <tt>initTerm</tt> and <tt>lastTerm</tt> need to be defined.
+--   
+--   <pre>
+--   type Term = Int
+--   
+--   instance StateTime Term where
+--       initTerm = 1
+--       lastTerm = 100
+--       -- nextTerm and prevTerm use the defaults (succ, pred)
+--   </pre>
+class (Eq t, Show t, Ord t, Enum t, Ix t) => StateTime t
+initTerm :: StateTime t => t
+lastTerm :: StateTime t => t
+
+-- | Return the next term. Defaults to <tt>succ</tt>.
+nextTerm :: StateTime t => t -> t
+
+-- | Return the previous term. Defaults to <tt>pred</tt>.
+prevTerm :: StateTime t => t -> t
+
+-- | Update pattern for advancing to the next term. Specifies how each
+--   Updatable field is updated.
+data UpdatePattern
+
+-- | Copy the previous term's state as-is
+Copy :: UpdatePattern
+
+-- | Update by modifying the previous term's state
+Modify :: UpdatePattern
+
+-- | Do nothing (used when all terms are pre-generated during
+--   initialization)
+DoNothing :: UpdatePattern
+
+-- | Type class for updatable fields that constitute a StateSpace. Provides
+--   an interface for initialization, copying, and modification. Through
+--   Generic-based automatic derivation, initAll/updateAll of StateSpace
+--   are auto-implemented.
+class (StateTime t, InitVariables v) => Updatable t v (a :: Type -> Type) s | a s -> t v where {
+    type Inner a s;
+}
+unwrap :: Updatable t v a s => a s -> Inner a s
+initialize :: Updatable t v a s => StdGen -> t -> v -> ST s (a s)
+updatePattern :: Updatable t v a s => a s -> ST s UpdatePattern
+copy :: Updatable t v a s => StdGen -> t -> v -> a s -> ST s ()
+modify :: Updatable t v a s => StdGen -> t -> v -> a s -> ST s ()
+update :: Updatable t v a s => StdGen -> t -> v -> a s -> ST s ()
+initAll :: StateSpace t v e a s => StdGen -> t -> v -> ST s (a s)
+updateAll :: StateSpace t v e a s => StdGen -> t -> v -> a s -> ST s ()
+
+-- | Type class defining the world state for a simulation. Initialize with
+--   initAll, update state each term with updateAll, and execute event
+--   processing with event. Through DefaultSignatures with Generic, initAll
+--   and updateAll can be automatically derived.
+class (StateTime t, InitVariables v, Event e) => StateSpace t v e (a :: Type -> Type) s | a s -> t v e
+event :: StateSpace t v e a s => a s -> t -> e -> ST s ()
+
+-- | Define the random seed (default 42). The random seed can also be
+--   explicitly defined. Currently unused.
+randomSeeds :: StateSpace t v e a s => a s -> ST s Int
+
+-- | Generate a random number following the standard normal distribution
+--   N(0,1). Uses the Box-Muller method.
+--   
+--   Complexity: O(1)
+normal :: (RandomGen g, Random a, Floating a) => g -> (a, g)
+
+-- | Generate a random number following the normal distribution N(mean,
+--   sigma) with specified mean and standard deviation.
+--   
+--   Complexity: O(1)
+normal' :: (RandomGen g, Random a, Floating a) => (a, a) -> g -> (a, g)
+
+-- | Advance the random number generator a specified number of times. When
+--   sharing a single random number generator across multiple variables,
+--   repeat the advancement an appropriate number of times to avoid
+--   generating the same random numbers, especially during initialization.
+--   
+--   Complexity: O(n)
+updateGen :: RandomGen g => g -> Int -> g
+
+-- | Type class for initialization parameters. Parameters referenced during
+--   initialization at the start of a simulation. Values referenced during
+--   simulation execution should be included in <a>Updatable</a>.
+class (Eq e, Show e) => InitVariables e
+
+-- | Type class for newtype wrappers around <tt>STRef</tt>.
+--   
+--   <tt>_unwrapURef</tt> and <tt>_wrapURef</tt> have
+--   <tt>Coercible</tt>-based default implementations, so newtype wrappers
+--   only need an empty instance declaration.
+--   
+--   <pre>
+--   newtype SP s = SP (STRef s Double)
+--   
+--   -- Empty instance is sufficient thanks to Coercible defaults
+--   instance UpdatableSTRef SP s Double
+--   
+--   -- Previous boilerplate (no longer needed):
+--   -- instance UpdatableSTRef SP s Double where
+--   --     _unwrapURef (SP x) = x
+--   --     _wrapURef x = SP x
+--   </pre>
+class UpdatableSTRef wrapper s b | wrapper s -> b
+
+-- | Unwrap to the inner <tt>STRef</tt>. For newtype wrappers, the
+--   <tt>Coercible</tt> default is used.
+_unwrapURef :: UpdatableSTRef wrapper s b => wrapper s -> STRef s b
+
+-- | Unwrap to the inner <tt>STRef</tt>. For newtype wrappers, the
+--   <tt>Coercible</tt> default is used.
+_unwrapURef :: (UpdatableSTRef wrapper s b, Coercible (wrapper s) (STRef s b)) => wrapper s -> STRef s b
+
+-- | Wrap an <tt>STRef</tt> into the newtype. For newtype wrappers, the
+--   <tt>Coercible</tt> default is used.
+_wrapURef :: UpdatableSTRef wrapper s b => STRef s b -> wrapper s
+
+-- | Wrap an <tt>STRef</tt> into the newtype. For newtype wrappers, the
+--   <tt>Coercible</tt> default is used.
+_wrapURef :: (UpdatableSTRef wrapper s b, Coercible (STRef s b) (wrapper s)) => STRef s b -> wrapper s
+newURef :: UpdatableSTRef wrapper s b => b -> ST s (wrapper s)
+readURef :: UpdatableSTRef wrapper s b => wrapper s -> ST s b
+writeURef :: UpdatableSTRef wrapper s b => wrapper s -> b -> ST s ()
+modifyURef :: UpdatableSTRef wrapper s b => wrapper s -> (b -> b) -> ST s ()
+
+-- | Type class for newtype wrappers around <tt>STArray</tt>.
+--   
+--   <tt>_unwrapUArray</tt> and <tt>_wrapUArray</tt> have
+--   <tt>Coercible</tt>-based default implementations, so newtype wrappers
+--   only need an empty instance declaration.
+--   
+--   <pre>
+--   newtype ICTable s = ICTable (STArray s (Int, Int) Double)
+--   
+--   -- Empty instance is sufficient thanks to Coercible defaults
+--   instance UpdatableSTArray ICTable s (Int, Int) Double
+--   
+--   -- Previous boilerplate (no longer needed):
+--   -- instance UpdatableSTArray ICTable s (Int, Int) Double where
+--   --     _unwrapUArray (ICTable arr) = arr
+--   --     _wrapUArray arr = ICTable arr
+--   </pre>
+class (Ix b) => UpdatableSTArray wrapper s b c | wrapper s -> b c
+
+-- | Unwrap to the inner <tt>STArray</tt>. For newtype wrappers, the
+--   <tt>Coercible</tt> default is used.
+_unwrapUArray :: UpdatableSTArray wrapper s b c => wrapper s -> STArray s b c
+
+-- | Unwrap to the inner <tt>STArray</tt>. For newtype wrappers, the
+--   <tt>Coercible</tt> default is used.
+_unwrapUArray :: (UpdatableSTArray wrapper s b c, Coercible (wrapper s) (STArray s b c)) => wrapper s -> STArray s b c
+
+-- | Wrap an <tt>STArray</tt> into the newtype. For newtype wrappers, the
+--   <tt>Coercible</tt> default is used.
+_wrapUArray :: UpdatableSTArray wrapper s b c => STArray s b c -> wrapper s
+
+-- | Wrap an <tt>STArray</tt> into the newtype. For newtype wrappers, the
+--   <tt>Coercible</tt> default is used.
+_wrapUArray :: (UpdatableSTArray wrapper s b c, Coercible (STArray s b c) (wrapper s)) => STArray s b c -> wrapper s
+getUBounds :: UpdatableSTArray wrapper s b c => wrapper s -> ST s (b, b)
+newUArray :: UpdatableSTArray wrapper s b c => (b, b) -> c -> ST s (wrapper s)
+readUArray :: UpdatableSTArray wrapper s b c => wrapper s -> b -> ST s c
+writeUArray :: UpdatableSTArray wrapper s b c => wrapper s -> b -> c -> ST s ()
+modifyUArray :: UpdatableSTArray wrapper s b c => wrapper s -> b -> (c -> c) -> ST s ()
+
+-- | Modify the value at a given index of an array using a function.
+--   Evaluates strictly before writing back.
+--   
+--   Complexity: O(1)
+modifyArray :: (MArray a t m, Ix i) => a i t -> i -> (t -> t) -> m ()
+
+-- | Type class for event types. Used to enumerate events executed at each
+--   term of the simulation. By default, <a>minBound</a> / <a>maxBound</a>
+--   from <a>Bounded</a> are used.
+class (Ord e, Show e, Enum e, Eq e, Bounded e) => Event e
+
+-- | The first event. Defaults to <tt>minBound</tt>.
+fstEvent :: Event e => e
+
+-- | The last event. Defaults to <tt>maxBound</tt>.
+lastEvent :: Event e => e
+
+-- | Execute all events in order. Calls <tt>event</tt> from
+--   <tt>fstEvent</tt> through <tt>lastEvent</tt>.
+--   
+--   Complexity: O(|events| * cost(event))
+eventAll :: forall t v e a s. StateSpace t v e a s => a s -> t -> ST s ()
+
+-- | Spill configuration for periodic external logging. <a>spillExtract</a>
+--   selects accounting payload from world. <a>spillWriteChunk</a> controls
+--   on-disk format.
+data SpillOptions t a payload
+SpillOptions :: !Int -> FilePath -> (a RealWorld -> ST RealWorld payload) -> Maybe ((t, t) -> a RealWorld -> ST RealWorld payload) -> (Handle -> (t, t) -> payload -> IO ()) -> SpillDeletePolicy t -> ((t, t) -> a RealWorld -> ST RealWorld ()) -> SpillOptions t a payload
+[spillEveryTerms] :: SpillOptions t a payload -> !Int
+[spillFilePath] :: SpillOptions t a payload -> FilePath
+[spillExtract] :: SpillOptions t a payload -> a RealWorld -> ST RealWorld payload
+[spillExtractChunk] :: SpillOptions t a payload -> Maybe ((t, t) -> a RealWorld -> ST RealWorld payload)
+[spillWriteChunk] :: SpillOptions t a payload -> Handle -> (t, t) -> payload -> IO ()
+[spillDeletePolicy] :: SpillOptions t a payload -> SpillDeletePolicy t
+[spillDeleteRange] :: SpillOptions t a payload -> (t, t) -> a RealWorld -> ST RealWorld ()
+
+-- | Policy to decide which term range to evict after each spill.
+data SpillDeletePolicy t
+NoDelete :: SpillDeletePolicy t
+DeleteSpilledChunk :: SpillDeletePolicy t
+KeepRecentTerms :: Int -> SpillDeletePolicy t
+
+-- | Construct text-format SpillOptions. interval is the spill interval (in
+--   terms), path is the output file path.
+--   
+--   Complexity: O(1)
+mkSpillOptions :: Show t => Int -> FilePath -> (a RealWorld -> ST RealWorld String) -> SpillOptions t a String
+
+-- | Construct binary-format SpillOptions. Spills in a format that can be
+--   restored with <a>readBinarySpillFile</a>.
+--   
+--   Complexity: O(1)
+mkBinarySpillOptions :: (Binary t, Binary payload) => Int -> FilePath -> (a RealWorld -> ST RealWorld payload) -> SpillOptions t a payload
+
+-- | Default text-format spill writer. Writes the chunk range and payload
+--   as text to the handle.
+defaultSpillWriter :: Show t => Handle -> (t, t) -> String -> IO ()
+
+-- | Default binary-format spill writer. Writes the chunk range and payload
+--   to the handle using <a>encode</a>.
+defaultBinarySpillWriter :: (Binary t, Binary payload) => Handle -> (t, t) -> payload -> IO ()
+
+-- | Read a binary spill file and return it as a list of chunks. Used to
+--   restore files written by <a>defaultBinarySpillWriter</a>. When
+--   decoding fails, the remaining data is truncated.
+--   
+--   Complexity: O(file size)
+readBinarySpillFile :: (Binary t, Binary payload) => FilePath -> IO [((t, t), payload)]
+
+-- | Run a simulation from initialization through the final term. Build the
+--   world state with initAll, then repeat updateAll followed by eventAll
+--   for each term.
+--   
+--   Complexity: O(T * (updateAll + eventAll)) (T = number of terms)
+runSimulation :: StateSpace t v e a RealWorld => StdGen -> v -> IO (a RealWorld)
+
+-- | Run simulation with periodic spill. This function keeps existing
+--   behavior and additionally writes extracted accounting payload every N
+--   terms (and at the last term).
+runSimulationWithSpill :: StateSpace t v e a RealWorld => SpillOptions t a payload -> StdGen -> v -> IO (a RealWorld)
+
+-- | Run multiple simulation scenarios concurrently and return results as a
+--   <tt>Map</tt>.
+--   
+--   Each scenario is a <tt>(name, parameters)</tt> pair. All scenarios
+--   share the same random seed and are executed in parallel.
+--   
+--   <pre>
+--   let gen = mkStdGen 2025
+--       scenarios = [("default", defaultEnv), ("plus", plusEnv)]
+--   results &lt;- runScenarios gen scenarios
+--   -- results :: Map String (World RealWorld)
+--   </pre>
+runScenarios :: StateSpace t v e a RealWorld => StdGen -> [(String, v)] -> IO (Map String (a RealWorld))
+
+-- | Run multiple simulation scenarios concurrently with periodic spill.
+--   
+--   The spill options builder receives the scenario name, allowing
+--   per-scenario file paths and logging.
+--   
+--   <pre>
+--   results &lt;- runScenariosWithSpill
+--       (\name -&gt; mkBinarySpillOptions 50 (dir ++ name ++ ".bin") extract)
+--       gen
+--       scenarios
+--   </pre>
+runScenariosWithSpill :: StateSpace t v e a RealWorld => (String -> SpillOptions t a payload) -> StdGen -> [(String, v)] -> IO (Map String (a RealWorld))
+
+-- | Calculate Leontief's Inverse Matrix ex. main :: IO () main = do mat
+--   &lt;- newListArray ((1,1),(2,2)) [0.2, 0.3, 0.4, 0.1] result &lt;-
+--   leontiefInverse mat putStrLn "Leontief Inverse (ripple effect
+--   matrix):" writeLeontiefInverse "output.csv" result
+leontiefInverse :: IOArray (Int, Int) Double -> IO (IOArray (Int, Int) Double)
+
+-- | Calculate the ripple effect of a demand increase in a specific
+--   industry using the inverse matrix. Returns the ripple effect on each
+--   industry when a one-unit demand increase occurs in the specified
+--   industry.
+--   
+--   Complexity: O(n) (n = number of industries)
+rippleEffect :: Int -> IOArray (Int, Int) Double -> IO (IOArray (Int, Int) Double)
+instance GHC.Classes.Eq ExchangeAlgebra.Simulate.UpdatePattern
+instance GHC.Show.Show ExchangeAlgebra.Simulate.UpdatePattern
+instance (ExchangeAlgebra.Simulate.StateTime t, ExchangeAlgebra.Simulate.InitVariables v) => ExchangeAlgebra.Simulate.GUpdatable t v GHC.Generics.U1 s
+instance (ExchangeAlgebra.Simulate.StateTime t, ExchangeAlgebra.Simulate.InitVariables v, ExchangeAlgebra.Simulate.Updatable t v a s) => ExchangeAlgebra.Simulate.GUpdatable t v (GHC.Generics.K1 i (a s)) s
+instance (ExchangeAlgebra.Simulate.StateTime t, ExchangeAlgebra.Simulate.InitVariables v, ExchangeAlgebra.Simulate.GUpdatable t v p s, ExchangeAlgebra.Simulate.GUpdatable t v q s) => ExchangeAlgebra.Simulate.GUpdatable t v (p GHC.Generics.:+: q) s
+instance (ExchangeAlgebra.Simulate.StateTime t, ExchangeAlgebra.Simulate.InitVariables v, ExchangeAlgebra.Simulate.GUpdatable t v p s, ExchangeAlgebra.Simulate.GUpdatable t v q s) => ExchangeAlgebra.Simulate.GUpdatable t v (p GHC.Generics.:*: q) s
+instance (ExchangeAlgebra.Simulate.StateTime t, ExchangeAlgebra.Simulate.InitVariables v, ExchangeAlgebra.Simulate.GUpdatable t v f s) => ExchangeAlgebra.Simulate.GUpdatable t v (GHC.Generics.M1 p l f) s
+
+
+-- | Released under the OWL license
+--   
+--   Package for Exchange Algebra defined by Hiroshi Deguchi.
+--   
+--   Exchange Algebra is an algebraic description of bookkeeping system.
+--   Details are below.
+--   
+--   <a>https://www.springer.com/gp/book/9784431209850</a>
+--   
+--   
+--   <a>https://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/82987/1/0809-7.pdf</a>
+--   
+--   _Note_ : The current version 0.1.0.0 will be completely changed
+--   shortly, especially in the accounts settings section.
+module ExchangeAlgebra.Simulate.Visualize
+
+-- | Split STArray data into a grid with 3 columns and return as a
+--   GridMatrix. Each cell contains the time series data for one agent
+--   (index).
+--   
+--   Complexity: O(|agents| * T) (T = number of terms)
+gridLine :: (Ord a, Show a, Ix a, StateTime t) => STArray s (a, t) Double -> ST s (GridMatrix t)
+
+-- | Plot the specified output of each agent as a line graph divided into a
+--   grid. Splits into grid columns of 3, and outputs as a PNG file.
+--   
+--   Complexity: O(|range| * T) (T = number of terms)
+plotLine :: (StateTime t, Enum t, PlotValue t, Ord i, Show i, Ix i, Enum i) => (a RealWorld -> t -> i -> ST RealWorld Double) -> (i, i) -> a RealWorld -> FileName -> Title -> IO ()
+
+-- | Plot the results of multiple worlds/functions with color coding in
+--   each grid cell. Used for comparing different scenarios.
+--   
+--   Complexity: O(|worlds| * |range| * T)
+plotMultiLines :: (StateTime t, Enum t, PlotValue t, Ord i, Show i, Ix i, Enum i) => [Label] -> [a RealWorld -> t -> i -> ST RealWorld Double] -> (i, i) -> [a RealWorld] -> FilePath -> String -> IO ()
+
+-- | Plot the difference between two worlds in a grid. Each cell plots
+--   <tt>f wld1 t i - f wld2 t i</tt>.
+--   
+--   Complexity: O(|range| * T)
+plotWldsDiffLine :: (StateTime t, Enum t, PlotValue t, Ord i, Show i, Ix i, Enum i) => (a RealWorld -> t -> i -> ST RealWorld Double) -> (i, i) -> (a RealWorld, a RealWorld) -> FilePath -> String -> IO ()
+
+-- | Draw line graphs using Unboxed Vectors. Equivalent to <a>plotLine</a>,
+--   but uses Unboxed Vectors instead of STArray internally, providing
+--   better memory efficiency for large-scale data.
+--   
+--   Complexity: O(|range| * T)
+plotLineVector :: (Enum i, Enum t, StateTime t, Show i, PlotValue t) => (a RealWorld -> t -> i -> ST RealWorld Double) -> ((i, t), (i, t)) -> a RealWorld -> FilePath -> String -> IO ()
+
+-- | Output the results of given functions as CSV time series data.
+--   Internally uses streaming output via
+--   <a>writeFuncResultsWithContext</a>.
+--   
+--   Complexity: O(T * |funcs| * cost(f))
+writeFuncResults :: (StateTime t, Show x, Num x) => [(Header, a RealWorld -> t -> ST RealWorld x)] -> (t, t) -> a RealWorld -> FilePath -> IO ()
+
+-- | Build a context for each term, then evaluate multiple functions
+--   together and output to CSV. By sharing each term's context, expensive
+--   preprocessing (e.g., termJournal, transfer) is reduced to once per
+--   term. Uses streaming output, so memory usage does not depend on the
+--   number of terms.
+--   
+--   Complexity: O(T * (cost(buildCtx) + |funcs| * cost(f)))
+writeFuncResultsWithContext :: (StateTime t, Show x, Num x) => (a RealWorld -> t -> ST RealWorld c) -> [(Header, c -> ST RealWorld x)] -> (t, t) -> a RealWorld -> FilePath -> IO ()
+
+
+-- | Released under the OWL license
+--   
+--   Package for Exchange Algebra defined by Hiroshi Deguchi.
+--   
+--   Exchange Algebra is an algebraic description of bookkeeping system.
+--   Details are below.
+--   
+--   <a>https://www.springer.com/gp/book/9784431209850</a>
+--   
+--   
+--   <a>https://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/82987/1/0809-7.pdf</a>
+--   
+--   _Note_ : The current version 0.1.0.0 will be completely changed
+--   shortly, especially in the accounts settings section.
+module ExchangeAlgebra.Write
+
+-- | Helper to convert from Show to Text.
+--   
+--   Complexity: O(show cost)
+tshow :: Show a => a -> Text
+
+-- | Output a Balance Sheet in CSV format. Internally applies
+--   <tt>finalStockTransfer</tt>, then decomposes into assets, liabilities,
+--   and equity for output.
+--   
+--   Complexity: O(s) (s = total number of scalar entries)
+writeBS :: (HatVal n, HatBaseClass b, ExBaseClass b) => FilePath -> Alg n b -> IO ()
+
+-- | Output a Profit and Loss Statement in CSV format. Decomposes into
+--   costs and revenues for output.
+--   
+--   Complexity: O(s) (s = total number of scalar entries)
+writePL :: (HatVal n, HatBaseClass b, ExBaseClass b) => FilePath -> Alg n b -> IO ()
+
+-- | Pad two lists to the same length. Appends empty text to the shorter
+--   list.
+--   
+--   Complexity: O(max(|xs|, |ys|))
+toSameLength :: [Text] -> [Text] -> ([Text], [Text])
+
+-- | Output journal entries in CSV format. Groups by date and records the
+--   debit/credit account titles and amounts for each day.
+--   
+--   Complexity: O(s * log d) (s = number of entries, d = number of
+--   distinct dates)
+writeJournal :: (HatVal n, HatBaseClass b, ExBaseClass b) => FilePath -> Alg n b -> (b -> Day) -> IO ()
+
+-- | Output account ledgers in CSV format.
+--   
+--   <b>Note</b>: Not yet implemented. Calling this will raise an
+--   exception.
+writeAccountOf :: (HatVal n, HatBaseClass b, ExBaseClass b) => [AccountTitles] -> FilePath -> Alg n b -> (b -> Day) -> IO ()
+
+-- | Output a Compound Trial Balance in CSV format. Calculates the debit
+--   total, credit total, and balance for each account title and outputs as
+--   a table.
+--   
+--   Complexity: O(s * a) (s = number of entries, a = number of distinct
+--   account titles)
+writeCompoundTrialBalance :: (HatVal n, HatBaseClass b, ExBaseClass b) => FilePath -> Alg n b -> IO ()
+
+-- | Output the Input-Output Table for a specified term in CSV format.
+--   Outputs a slice of the specified term from a 3D array (term, row
+--   industry, column industry).
+--   
+--   Complexity: O(r * c) (r = number of rows, c = number of columns)
+writeTermIO :: (HatVal n, BaseClass b, StateTime t, Ix b, Ix t, Enum b) => FilePath -> t -> IOArray (t, b, b) n -> IO ()
+
+-- | Output a 2D IOArray (Input-Output Table or ripple effect matrix) in
+--   CSV format.
+--   
+--   Complexity: O(r * c) (r = number of rows, c = number of columns)
+writeIOMatrix :: FilePath -> IOArray (Int, Int) Double -> IO ()
+
+-- | Restore a complete Journal from spilled binary chunks and the current
+--   in-memory Journal. The in-memory portion is narrowed to only terms
+--   after the last spill range, so duplicate terms are not double-counted.
+--   
+--   Complexity: O(file size + number of chunks * union cost)
+restoreJournalFromBinarySpill :: (Binary t, Ord t, Binary (Journal n v b), Note n, HatVal v, HatBaseClass b) => FilePath -> (n -> t) -> Journal n v b -> IO (Journal n v b)
+
+
+-- | Released under the OWL license
+--   
+--   Package for Exchange Algebra defined by Hiroshi Deguchi.
+--   
+--   Exchange Algebra is an algebraic description of bookkeeping systems.
+--   Details are below.
 --   
 --   <a>https://www.springer.com/gp/book/9784431209850</a>
 --   
@@ -23,190 +2211,20 @@
 --   _Note_ : The current version 0.1.0.0 will be completely changed
 --   shortly, especially in the accounts settings section.
 module ExchangeAlgebra
-class (Ord a, Show a, Eq a) => Name a
-class (Ord a, Show a, Eq a) => Unit a
-class (Ord a, Show a, Eq a) => Subject a
-class (Show a, Eq a, Ord a) => Base a
-getHat :: Base a => a -> Hat
-revHat :: Base a => a -> a
-isHat :: Base a => a -> Bool
-data Hat
-Hat :: Hat
-Not :: Hat
 
--- | Definition of Reducduncy
-class Redundant a
-(.^) :: Redundant a => a -> a
-(.~) :: Redundant a => a -> a
-norm :: Redundant a => a -> Double
-data Alg b
-[Zero] :: Alg b
-[:@] :: Base b => {val :: !Double, base :: !b} -> Alg b
-[:+] :: Base b => !Alg b -> !Alg b -> Alg b
-infixr 7 :@
-infixr 5 :+
 
--- | :+ の Evaluationに相当する
-(.+) :: Base b => Alg b -> Alg b -> Alg b
-infixr 5 .+
-vals :: Alg b -> [Double]
-bases :: Alg b -> [Maybe b]
-length :: Alg b -> Int
-isZero :: Alg b -> Bool
-isSingle :: Alg b -> Bool
-isSIngle :: () => Alg b -> Bool
-isFormula :: Alg b -> Bool
-fromList :: Base b => [Alg b] -> Alg b
-toList :: Alg b -> [Alg b]
-head :: Alg b -> Alg b
-tail :: Alg b -> Alg b
-map :: (Alg b -> Alg b) -> Alg b -> Alg b
-filter :: (Alg b -> Bool) -> Alg b -> [Alg b]
-
--- | projection
-proj :: Base b => b -> Alg b -> Alg b
-projNorm :: Base b => b -> Alg b -> Double
-transfer :: Base b => b -> b -> Alg b -> Alg b
-
--- | Baseの大小（==Algの大小）でソート
-sort :: Ord b => Alg b -> Alg b
-
--- | normの大小でソート
-normSort :: Alg b -> Alg b
-
--- | Exchange これを継承すれば交換代数になる
-class (Redundant a) => Exchange a
-subject :: Exchange a => a -> AccountTitles
-unit :: Exchange a => a -> CountUnit
-decR :: Exchange a => a -> a
-decL :: Exchange a => a -> a
-decP :: Exchange a => a -> a
-decM :: Exchange a => a -> a
-balance :: Exchange a => a -> Bool
-class (Base a) => ExBase a
-whatDiv :: ExBase a => a -> AccountDivision
-whatPIMO :: ExBase a => a -> PIMO
-whichSide :: ExBase a => a -> Side
-class AccountBase a
-(<=>) :: AccountBase a => a -> a -> Bool
-data AccountDivision
-Assets :: AccountDivision
-Equity :: AccountDivision
-Liability :: AccountDivision
-Cost :: AccountDivision
-Revenue :: AccountDivision
-data PIMO
-PS :: PIMO
-IN :: PIMO
-MS :: PIMO
-OUT :: PIMO
-data Side
-Credit :: Side
-Debit :: Side
-switchSide :: Side -> Side
-
--- | The current version 0.1.0.0 will be completely changed shortly,
---   especially this section.
-data AccountTitles
-
--- | Bellows are Assets
-Cash :: AccountTitles
-Deposits :: AccountTitles
-NationalBonds :: AccountTitles
-Products :: Text -> AccountTitles
-[detail] :: AccountTitles -> Text
-StockInvectment :: AccountTitles
-EquipmentInvestment :: AccountTitles
-LoansReceivable :: AccountTitles
-ReserveDepositReceivable :: AccountTitles
-Gold :: AccountTitles
-GovernmentService :: AccountTitles
-
--- | Bellows are Equity
-CapitalStock :: AccountTitles
-RetainedEarnings :: AccountTitles
-
--- | Bellows are Liability
-LoansPayable :: AccountTitles
-ReserveForDepreciation :: AccountTitles
-DepositPayable :: AccountTitles
-NationalBondsPayable :: AccountTitles
-ReserveDepositPayable :: AccountTitles
-CentralBankNotePayable :: AccountTitles
-
--- | Bellows are Cost
-Depreciation :: AccountTitles
-WageExpenditure :: AccountTitles
-InterestExpense :: AccountTitles
-TaxesExpense :: AccountTitles
-ConsumptionExpenditure :: AccountTitles
-SubsidyExpense :: AccountTitles
-CentralBankPaymentExpence :: AccountTitles
-
--- | Bellows are Revenue
-ValueAdded :: AccountTitles
-SubsidyIncome :: AccountTitles
-NationalBondInterestEarned :: AccountTitles
-DepositInterestEarned :: AccountTitles
-GrossProfit :: AccountTitles
-OrdinaryProfit :: AccountTitles
-InterestEarned :: AccountTitles
-WageEarned :: AccountTitles
-TaxesRevenue :: AccountTitles
-CentralBankPaymentIncome :: AccountTitles
-data CountUnit
-Yen :: CountUnit
-Amount :: CountUnit
-type JustRedundant = Alg Hat
-
--- | Base only with Subject.
-data Base1 h s
-[SBase] :: Subject u => Hat -> u -> Base1 Hat u
-(.<) :: () => a -> b -> (a, b)
-infixr 8 .<
-data MDBase h u s
-[:<] :: (Unit u, Subject s) => !Hat -> !(u, s) -> MDBase Hat u s
-infixr 7 :<
-type ExMDBase = MDBase Hat CountUnit AccountTitles
-type Ex2Base = MDBase Hat CountUnit AccountTitles
-type Ex2Alg = Alg Ex2Base
-instance GHC.Classes.Eq ExchangeAlgebra.CountUnit
-instance GHC.Show.Show ExchangeAlgebra.CountUnit
-instance GHC.Classes.Ord ExchangeAlgebra.CountUnit
-instance GHC.Classes.Eq ExchangeAlgebra.AccountTitles
-instance GHC.Show.Show ExchangeAlgebra.AccountTitles
-instance GHC.Classes.Eq ExchangeAlgebra.Side
-instance GHC.Show.Show ExchangeAlgebra.Side
-instance GHC.Classes.Ord ExchangeAlgebra.Side
-instance GHC.Classes.Eq ExchangeAlgebra.PIMO
-instance GHC.Show.Show ExchangeAlgebra.PIMO
-instance GHC.Classes.Ord ExchangeAlgebra.PIMO
-instance GHC.Classes.Eq ExchangeAlgebra.AccountDivision
-instance GHC.Show.Show ExchangeAlgebra.AccountDivision
-instance GHC.Classes.Ord ExchangeAlgebra.AccountDivision
-instance GHC.Classes.Eq ExchangeAlgebra.Hat
-instance GHC.Classes.Ord ExchangeAlgebra.Hat
-instance ExchangeAlgebra.Exchange ExchangeAlgebra.Ex2Alg
-instance ExchangeAlgebra.ExBase ExchangeAlgebra.ExMDBase
-instance (ExchangeAlgebra.Unit b, ExchangeAlgebra.Subject c) => GHC.Classes.Eq (ExchangeAlgebra.MDBase h b c)
-instance GHC.Show.Show (ExchangeAlgebra.MDBase h a b)
-instance (ExchangeAlgebra.Unit u, ExchangeAlgebra.Subject s) => ExchangeAlgebra.Base (ExchangeAlgebra.MDBase ExchangeAlgebra.Hat u s)
-instance (ExchangeAlgebra.Unit u, ExchangeAlgebra.Subject s) => GHC.Classes.Ord (ExchangeAlgebra.MDBase ExchangeAlgebra.Hat u s)
-instance ExchangeAlgebra.Unit ExchangeAlgebra.CountUnit
-instance ExchangeAlgebra.Subject ExchangeAlgebra.AccountTitles
-instance GHC.Enum.Enum ExchangeAlgebra.AccountTitles
-instance GHC.Classes.Ord ExchangeAlgebra.AccountTitles
-instance ExchangeAlgebra.AccountBase ExchangeAlgebra.PIMO
-instance ExchangeAlgebra.AccountBase ExchangeAlgebra.AccountDivision
-instance GHC.Show.Show b => GHC.Show.Show (ExchangeAlgebra.Alg b)
-instance (ExchangeAlgebra.Base b, GHC.Classes.Ord b, GHC.Classes.Eq b) => GHC.Classes.Eq (ExchangeAlgebra.Alg b)
-instance (ExchangeAlgebra.Base b, GHC.Classes.Ord b) => GHC.Classes.Ord (ExchangeAlgebra.Alg b)
-instance ExchangeAlgebra.Base b => GHC.Base.Semigroup (ExchangeAlgebra.Alg b)
-instance ExchangeAlgebra.Base b => GHC.Base.Monoid (ExchangeAlgebra.Alg b)
-instance ExchangeAlgebra.Base b => ExchangeAlgebra.Redundant (ExchangeAlgebra.Alg b)
-instance ExchangeAlgebra.Base ExchangeAlgebra.Hat
-instance GHC.Show.Show ExchangeAlgebra.Hat
-instance ExchangeAlgebra.Name Data.Text.Internal.Text
-
-module Lib
-someFunc :: IO ()
+-- | Released under the OWL license
+--   
+--   Package for Exchange Algebra defined by Hiroshi Deguchi.
+--   
+--   Exchange Algebra is an algebraic description of bookkeeping systems.
+--   Details are below.
+--   
+--   <a>https://www.springer.com/gp/book/9784431209850</a>
+--   
+--   
+--   <a>https://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/82987/1/0809-7.pdf</a>
+--   
+--   _Note_ : The current version 0.1.0.0 will be completely changed
+--   shortly, especially in the accounts settings section.
+module ExchangeAlgebraJournal

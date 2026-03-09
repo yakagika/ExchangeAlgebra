@@ -318,6 +318,7 @@ main = do
             header_func_demand = [(T.pack $ "Demand_" ++ show i, \w t -> getTermDemand w t i) | i <- [fstEnt..lastEnt]]
             header_func_material = [(T.pack $ "Material_" ++ show i, \w t -> getTermMaterialTotal Amount w t i) | i <- [fstEnt..lastEnt]]
             header_func_input    = [(T.pack $ "Input_" ++ show i, \w t -> getTermInputTotal Amount w t i) | i <- [fstEnt..lastEnt]]
+            header_func_purchase = [(T.pack $ "Purchase_" ++ show i, \w t -> getTermPurchase Amount w t i) | i <- [fstEnt..lastEnt]]
             header_func_order    = [(T.pack $ "Order_" ++ show i, \w t -> getPlaceOrderTotal w t i) | i <- [fstEnt..lastEnt]]
 
         CM.forM_ envNames $ \n -> do
@@ -330,6 +331,7 @@ main = do
             ESV.writeFuncResults header_func_demand (initTerm,lastTerm) wld (baseDir ++ "demand"     ++ seedSuffix ++ ".csv")
             ESV.writeFuncResults header_func_material (initTerm,lastTerm) wld (baseDir ++ "material" ++ seedSuffix ++ ".csv")
             ESV.writeFuncResults header_func_input (initTerm,lastTerm) wld (baseDir ++ "input"       ++ seedSuffix ++ ".csv")
+            ESV.writeFuncResults header_func_purchase (initTerm,lastTerm) wld (baseDir ++ "purchases" ++ seedSuffix ++ ".csv")
             ESV.writeFuncResults header_func_order (initTerm,lastTerm) wld (baseDir ++ "order"       ++ seedSuffix ++ ".csv")
 
         ------------------------------------------------------------------
