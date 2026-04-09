@@ -894,33 +894,39 @@ def plot_comparison_pairs(start_time=50):
         sd2 = np.nanstd(matrix2, axis=0, ddof=1) if n_seed > 1 else np.zeros_like(mean2)
         sd_diff = np.nanstd(diff_matrix, axis=0, ddof=1) if n_seed > 1 else np.zeros_like(mean_diff)
 
-        # Seed横断のエンベロープ図（系列1・系列2・差分）
-        fig, axes = plt.subplots(2, 1, figsize=(12, 9), sharex=True)
-        ax_top, ax_bottom = axes
-
-        ax_top.plot(time, mean1, color=pair["color1"], linewidth=2, label=f'{pair["label1"]} mean')
-        ax_top.fill_between(time, mean1 - sd1, mean1 + sd1, color=pair["color1"], alpha=0.2,
-                            label=f'{pair["label1"]} ±SD')
-        ax_top.plot(time, mean2, color=pair["color2"], linewidth=2, label=f'{pair["label2"]} mean')
-        ax_top.fill_between(time, mean2 - sd2, mean2 + sd2, color=pair["color2"], alpha=0.2,
-                            label=f'{pair["label2"]} ±SD')
-        ax_top.set_title(f'{pair["title"]} (default-added, t >= {start_time})\nMean ± SD across seeds (n={n_seed})')
-        ax_top.set_ylabel("Volume (mean across agents)")
-        ax_top.grid(True, alpha=0.3)
-        ax_top.legend(loc="upper left")
-
-        ax_bottom.plot(time, mean_diff, color=pair["diff_color"], linewidth=2,
-                       label=f'{pair["label1"]} - {pair["label2"]} mean')
-        ax_bottom.fill_between(time, mean_diff - sd_diff, mean_diff + sd_diff,
-                               color=pair["diff_color"], alpha=0.2, label="Difference ±SD")
-        ax_bottom.axhline(y=0, color="black", linestyle="--", alpha=0.5)
-        ax_bottom.set_xlabel("Time")
-        ax_bottom.set_ylabel("Difference")
-        ax_bottom.grid(True, alpha=0.3)
-        ax_bottom.legend(loc="upper left")
-
+        # エンベロープ図 - 上段（系列1 vs 系列2）
+        fig, ax = plt.subplots(1, 1, figsize=(12, 5))
+        ax.plot(time, mean1, color=pair["color1"], linewidth=2, label=f'{pair["label1"]} mean')
+        ax.fill_between(time, mean1 - sd1, mean1 + sd1, color=pair["color1"], alpha=0.2,
+                        label=f'{pair["label1"]} ±SD')
+        ax.plot(time, mean2, color=pair["color2"], linewidth=2, label=f'{pair["label2"]} mean')
+        ax.fill_between(time, mean2 - sd2, mean2 + sd2, color=pair["color2"], alpha=0.2,
+                        label=f'{pair["label2"]} ±SD')
+        ax.set_title(f'{pair["title"]} (t >= {start_time}, n={n_seed})\nMean ± SD across seeds', fontsize=13)
+        ax.set_xlabel("Time", fontsize=12)
+        ax.set_ylabel("Volume", fontsize=12)
+        ax.tick_params(labelsize=11)
+        ax.grid(True, alpha=0.3)
+        ax.legend(loc="upper left", fontsize=11)
         plt.tight_layout()
-        plt.savefig(os.path.join(outdir, f'{pair["name"]}_seed_envelope.png'), dpi=300)
+        plt.savefig(os.path.join(outdir, f'{pair["name"]}_seed_envelope_upper.png'), dpi=300)
+        plt.close(fig)
+
+        # エンベロープ図 - 下段（差分）
+        fig, ax = plt.subplots(1, 1, figsize=(12, 5))
+        ax.plot(time, mean_diff, color=pair["diff_color"], linewidth=2,
+                label=f'{pair["label1"]} - {pair["label2"]} mean')
+        ax.fill_between(time, mean_diff - sd_diff, mean_diff + sd_diff,
+                        color=pair["diff_color"], alpha=0.2, label="Difference ±SD")
+        ax.axhline(y=0, color="black", linestyle="--", alpha=0.5)
+        ax.set_title(f'{pair["title"]} Difference (t >= {start_time}, n={n_seed})\nMean ± SD across seeds', fontsize=13)
+        ax.set_xlabel("Time", fontsize=12)
+        ax.set_ylabel("Difference", fontsize=12)
+        ax.tick_params(labelsize=11)
+        ax.grid(True, alpha=0.3)
+        ax.legend(loc="upper left", fontsize=11)
+        plt.tight_layout()
+        plt.savefig(os.path.join(outdir, f'{pair["name"]}_seed_envelope_lower.png'), dpi=300)
         plt.close(fig)
 
         # Seedごとの統計指標を保存（0-1正規化は使わない）
@@ -1010,24 +1016,40 @@ def plot_comparison_pairs(start_time=50):
         plt.savefig(os.path.join(outdir, f'{pair["name"]}_seed_boxplot.png'), dpi=300)
         plt.close(fig)
 
-        # 比率ボックスプロット（1を基準）
-        fig, axes = plt.subplots(2, 2, figsize=(12, 9))
-        axes = axes.flatten()
-        for i, (key, title) in enumerate(plot_cfg):
+        # 比率ボックスプロット - 上段（Amplitude + Std over Time）
+        upper_cfg = [("amp", "Amplitude (max-min) Ratio"), ("std", "Std over Time Ratio")]
+        fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+        for i, (key, title) in enumerate(upper_cfg):
             ax = axes[i]
             ratio = pd.to_numeric(metrics[f"{key}_ratio"], errors="coerce")
             ratio = ratio[np.isfinite(ratio.to_numpy(dtype=float))]
             ax.boxplot([ratio], tick_labels=[f'{pair["label1"]}/{pair["label2"]}'], showfliers=True)
             ax.axhline(y=1.0, color="black", linestyle="--", alpha=0.5)
-            ax.set_title(f"{title} Ratio")
+            ax.set_title(title, fontsize=13)
+            ax.tick_params(labelsize=11)
             ax.grid(True, axis="y", alpha=0.3)
-
         plt.suptitle(
-            f'{pair["title"]} Ratio Boxplots (t >= {start_time}, n={n_seed})\n'
-            f'Baseline: ratio = 1'
+            f'{pair["title"]} Ratio Boxplots (t >= {start_time}, n={n_seed})\nBaseline: ratio = 1',
+            fontsize=13
         )
-        plt.tight_layout(rect=[0, 0, 1, 0.93])
-        plt.savefig(os.path.join(outdir, f'{pair["name"]}_seed_ratio_boxplot.png'), dpi=300)
+        plt.tight_layout(rect=[0, 0, 1, 0.88])
+        plt.savefig(os.path.join(outdir, f'{pair["name"]}_seed_ratio_boxplot_upper.png'), dpi=300)
+        plt.close(fig)
+
+        # 比率ボックスプロット - 下段（CV + Std of logdiff）
+        lower_cfg = [("cv", "CV = std / |mean| Ratio"), ("logdiff_std", "Std of diff(log1p(x)) Ratio")]
+        fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+        for i, (key, title) in enumerate(lower_cfg):
+            ax = axes[i]
+            ratio = pd.to_numeric(metrics[f"{key}_ratio"], errors="coerce")
+            ratio = ratio[np.isfinite(ratio.to_numpy(dtype=float))]
+            ax.boxplot([ratio], tick_labels=[f'{pair["label1"]}/{pair["label2"]}'], showfliers=True)
+            ax.axhline(y=1.0, color="black", linestyle="--", alpha=0.5)
+            ax.set_title(title, fontsize=13)
+            ax.tick_params(labelsize=11)
+            ax.grid(True, axis="y", alpha=0.3)
+        plt.tight_layout()
+        plt.savefig(os.path.join(outdir, f'{pair["name"]}_seed_ratio_boxplot_lower.png'), dpi=300)
         plt.close(fig)
 
         # 旧名互換（参照される可能性があるため残す）
@@ -1065,6 +1087,18 @@ def plot_comparison_pairs(start_time=50):
 
 # 複数ペアの比較グラフ（Seed別）を作成
 plot_comparison_pairs()
+
+# 生成した upper/lower PNG を LaTeX fig ディレクトリへコピー
+import shutil as _shutil
+_latex_fig_dir = "/Users/akagi/Documents/Conference/SystemsResearch/2026/WileyNJDv5_Template/fig"
+_seed_outdir = os.path.join(fig_dir, "seed_comparison", "default-added")
+for _fname in os.listdir(_seed_outdir):
+    if (_fname.endswith("_seed_ratio_boxplot_upper.png")
+            or _fname.endswith("_seed_ratio_boxplot_lower.png")
+            or _fname.endswith("_seed_envelope_upper.png")
+            or _fname.endswith("_seed_envelope_lower.png")):
+        _shutil.copy2(os.path.join(_seed_outdir, _fname), os.path.join(_latex_fig_dir, _fname))
+        print(f"Copied {_fname} -> {_latex_fig_dir}")
 
 # --- 変動率の比較グラフ ---
 def plot_variation_rate_graphs():
