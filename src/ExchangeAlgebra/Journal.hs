@@ -409,8 +409,8 @@ instance (HatVal v, HatBaseClass b, Note n) => Redundant (Journal n) v b where
     compress = map compress
 
 instance (Note n, HatVal v, ExBaseClass b) => Exchange (Journal n) v b where
-    decR js = map (EA.filter (\x -> x /= EA.Zero && (whichSide . EA._hatBase) x == Debit)) js
-    decL xs = map (EA.filter (\x -> x /= EA.Zero && (whichSide . EA._hatBase) x == Credit)) xs
+    decR js = map (EA.filter (\x -> x /= EA.Zero && (whichSide . EA._hatBase) x == Credit)) js
+    decL xs = map (EA.filter (\x -> x /= EA.Zero && (whichSide . EA._hatBase) x == Debit)) xs
     decP xs = map (EA.filter (\x -> x /= EA.Zero && (isHat . EA._hatBase) x)) xs
     decM xs = map (EA.filter (\x -> x /= EA.Zero && (not . isHat . EA._hatBase) x)) xs
 
@@ -419,8 +419,8 @@ instance (Note n, HatVal v, ExBaseClass b) => Exchange (Journal n) v b where
         | otherwise                            = False
 
     diffRL xs
-        | r > l     = (Debit, r - l)
-        | l > r     = (Credit, l - r)
+        | r > l     = (Credit, r - l)
+        | l > r     = (Debit, l - r)
         | otherwise = (Side, 0)
       where
         r = (norm . decR) xs

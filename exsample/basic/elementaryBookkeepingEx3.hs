@@ -48,8 +48,8 @@ main = do
     let x6 = 100.@Not :<(Cash, Main.Yen) :: RedAlg
     print $ (whatDiv  . _hatBase) x6   -- > Assets
     print $ (whatPIMO . _hatBase) x6   -- > PS
-    print $ (whichSide . _hatBase) x6  -- > Credit
-    print $ (whichSide . _hatBase) $ (.^) x6 -- > Debit
+    print $ (whichSide . _hatBase) x6  -- > Debit
+    print $ (whichSide . _hatBase) $ (.^) x6 -- > Credit
 
     print $ decR x3 -- > 3000.00:@Hat:<(Deposits,Yen)
     print $ decL x3 -- > 3000.00:@Not:<(Cash,Yen)

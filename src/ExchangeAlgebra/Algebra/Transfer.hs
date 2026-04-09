@@ -539,8 +539,8 @@ createTransfer tt =
 incomeSummaryAccount :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 incomeSummaryAccount alg =  let (dc,diff) = diffRL alg
                          in let x = case dc of
-                                        Debit  -> diff :@ (toNot wiledcard) .~ NetIncome
-                                        Credit -> diff :@ (toNot wiledcard) .~ NetLoss
+                                        Credit -> diff :@ (toNot wiledcard) .~ NetIncome
+                                        Debit  -> diff :@ (toNot wiledcard) .~ NetLoss
                          in alg .+  x
 
 -- | Net income transfer. Transfers NetIncome/NetLoss to RetainedEarnings.

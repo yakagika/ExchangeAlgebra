@@ -170,7 +170,7 @@ instance HatBaseClass Hat where
     isNot  = not . isHat
 ------------------------------------------------------------------
 
--- | Base with Hat. Attaches a Hat (credit-increase) / Not (debit-increase) label to a base
+-- | Base with Hat. Attaches a Hat (decrease) / Not (increase) label to a base
 -- element such as an account title. Use the constructor @(:<)@ as in @Hat :< Cash@.
 data HatBase a where
      (:<)  :: (BaseClass a) => {_hat :: Hat,  _base :: a } -> HatBase a
@@ -395,11 +395,11 @@ class (HatBaseClass a) => ExBaseClass a where
         in if hat x == Not then side else switchSide side
         where
             {-# INLINE f #-}
-            f Assets    = Credit
-            f Cost      = Credit
-            f Liability = Debit
-            f Equity    = Debit
-            f Revenue   = Debit
+            f Assets    = Debit
+            f Cost      = Debit
+            f Liability = Credit
+            f Equity    = Credit
+            f Revenue   = Credit
 
     -- credit :: [a] -- ^ Use projCredit when Elem contains Text, Int, etc.
     -- credit = L.filter (\x -> whichSide x == Credit) [toEnum 0 ..]

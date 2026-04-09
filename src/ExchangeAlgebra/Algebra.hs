@@ -784,11 +784,11 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
 
 
 instance (HatVal n, ExBaseClass b) =>  Exchange Alg n b where
-    -- | filter Debit side
-    decR xs = filter (\x -> x /= Zero && (whichSide . _hatBase) x == Debit) xs
-
     -- | filter Credit side
-    decL xs = filter (\x -> x /= Zero && (whichSide . _hatBase) x == Credit) xs
+    decR xs = filter (\x -> x /= Zero && (whichSide . _hatBase) x == Credit) xs
+
+    -- | filter Debit side
+    decL xs = filter (\x -> x /= Zero && (whichSide . _hatBase) x == Debit) xs
 
     -- | filter Plus Stock
     decP xs = filter (\x -> x /= Zero && (isHat . _hatBase ) x) xs
@@ -801,8 +801,8 @@ instance (HatVal n, ExBaseClass b) =>  Exchange Alg n b where
                 | otherwise                            = False
 
     -- |
-    diffRL xs  | r > l = (Debit, r - l)
-               | l > r = (Credit, l -r)
+    diffRL xs  | r > l = (Credit, r - l)
+               | l > r = (Debit, l -r)
                | otherwise = (Side,0)
         where
         r = (norm . decR) xs
@@ -1124,9 +1124,10 @@ filter f (Liner m _ _ _ _ _) =
 ------------------------------------------------------------
 -- | proj
 -- Complexity:
---   - exact single-key path: expected O(1)
---   - wildcard single-key path: O(queryAxisPosting + c * verify)
---   - multi-pattern path: O(sum pattern costs + union costs)
+--  exact single-key path: expected O(1)
+--  wildcard single-key path: O(queryAxisPosting + c * verify)
+--  multi-pattern path: O(sum pattern costs + union costs)
+--
 -- where c is candidate count returned by the posting index.
 -- >>> type Test = Alg NN.Double (HatBase CountUnit)
 -- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test

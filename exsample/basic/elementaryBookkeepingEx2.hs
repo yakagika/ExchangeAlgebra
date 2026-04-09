@@ -146,7 +146,7 @@ main = do
     print $ (whatPIMO . _hatBase) x
     -- >>> PS
     print $ (whichSide . _hatBase) x
-    -- >>> Credit
+    -- >>> Debit
     let y = 100 :@Hat:<(Cash, d 2024 1 2) :: ADTransaction
     print $ (whichSide . _hatBase) y
     --- >>> Debit
