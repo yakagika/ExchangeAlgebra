@@ -28,4 +28,6 @@ cabal.project.local~
 .ghc.environment.*
 *.bin
 .claude/
+.codex/
+AGENTS.md
 .stack-local/
