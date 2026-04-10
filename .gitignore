@@ -30,4 +30,5 @@ cabal.project.local~
 .claude/
 .codex/
 AGENTS.md
+HACKAGE_TODO.md
 .stack-local/

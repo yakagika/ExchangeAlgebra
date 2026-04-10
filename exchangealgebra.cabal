@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 9725106009602f97fd6399f47705bead4bd93e2a33cdc1f4e0e954971ab5486e
+-- hash: 927c8fa79a86e2c7c3aafdeb9d5b4314b05bf5372750685c7a18cbee790b835c
 
 name:           exchangealgebra
 version:        0.4.0.0
@@ -52,7 +52,6 @@ library
     , binary
     , bytestring
     , containers
-    , csv-parser
     , deepseq
     , directory
     , hashable
@@ -90,7 +89,6 @@ executable cge
     , binary
     , bytestring
     , containers
-    , csv-parser
     , deepseq
     , directory
     , exchangealgebra
@@ -128,7 +126,6 @@ executable ebex1
     , binary
     , bytestring
     , containers
-    , csv-parser
     , deepseq
     , directory
     , exchangealgebra
@@ -166,7 +163,6 @@ executable ebex2
     , binary
     , bytestring
     , containers
-    , csv-parser
     , deepseq
     , directory
     , exchangealgebra
@@ -204,7 +200,6 @@ executable ebex3
     , binary
     , bytestring
     , containers
-    , csv-parser
     , deepseq
     , directory
     , exchangealgebra
@@ -242,7 +237,6 @@ executable ebex4
     , binary
     , bytestring
     , containers
-    , csv-parser
     , deepseq
     , directory
     , exchangealgebra
@@ -280,7 +274,6 @@ executable ebex5
     , binary
     , bytestring
     , containers
-    , csv-parser
     , deepseq
     , directory
     , exchangealgebra
@@ -319,7 +312,6 @@ executable ripple
     , binary
     , bytestring
     , containers
-    , csv-parser
     , deepseq
     , directory
     , exchangealgebra
@@ -358,7 +350,6 @@ executable rippleWithStock
     , binary
     , bytestring
     , containers
-    , csv-parser
     , deepseq
     , directory
     , exchangealgebra
@@ -397,7 +388,6 @@ executable rippleWithStockMultiSeeds
     , binary
     , bytestring
     , containers
-    , csv-parser
     , deepseq
     , directory
     , exchangealgebra
@@ -435,7 +425,6 @@ executable sim1
     , binary
     , bytestring
     , containers
-    , csv-parser
     , deepseq
     , directory
     , exchangealgebra
@@ -473,7 +462,6 @@ executable sim2
     , binary
     , bytestring
     , containers
-    , csv-parser
     , deepseq
     , directory
     , exchangealgebra
@@ -510,7 +498,6 @@ test-suite ExchangeAlgebra-doctest
     , binary
     , bytestring
     , containers
-    , csv-parser
     , deepseq
     , directory
     , doctest
@@ -550,7 +537,6 @@ test-suite ExchangeAlgebra-test
     , binary
     , bytestring
     , containers
-    , csv-parser
     , deepseq
     , directory
     , exchangealgebra

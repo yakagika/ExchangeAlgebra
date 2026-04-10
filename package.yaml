@@ -29,7 +29,6 @@ dependencies:
 - unicode-show
 - non-negative
 - bifunctors
-- csv-parser
 - array
 - Chart
 - Chart-cairo

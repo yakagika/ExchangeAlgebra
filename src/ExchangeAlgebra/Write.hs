@@ -19,7 +19,25 @@
 
 -}
 
-module ExchangeAlgebra.Write where
+module ExchangeAlgebra.Write
+    ( -- * CSV utilities
+      writeCSV
+    , csvTranspose
+      -- * Balance Sheet / P&L / Journal output
+    , writeBS
+    , writePL
+    , writeJournal
+    , writeAccountOf
+    , writeCompoundTrialBalance
+      -- * Simulation output
+    , writeTermIO
+    , writeIOMatrix
+      -- * Spill / Restore
+    , restoreJournalFromBinarySpill
+      -- * Helpers
+    , tshow
+    , toSameLength
+    ) where
 
 import qualified    ExchangeAlgebra.Algebra     as EA
 import              ExchangeAlgebra.Algebra
@@ -29,7 +47,6 @@ import qualified    ExchangeAlgebra.Algebra.Transfer    as ET
 
 import              ExchangeAlgebra.Simulate
 
-import qualified    CSV.Text                    as CSV
 import qualified    Data.List                   as L
 import qualified    Data.Text                   as T
 import qualified    Data.Binary                 as Binary
@@ -38,6 +55,28 @@ import              Control.Monad
 import qualified    Data.Set as Set
 import              Data.Array.IO
 import              Data.Time           (Day)
+import              System.IO           (openFile, IOMode(WriteMode), hClose)
+import qualified    Data.Text.IO        as TIO
+
+-- | Transpose a matrix of Text, padding shorter rows with empty Text.
+csvTranspose :: [[T.Text]] -> [[T.Text]]
+csvTranspose [] = []
+csvTranspose mx = [ [ getCell r i | r <- mx ] | i <- [0 .. maxLen - 1] ]
+  where
+    maxLen = L.maximum (L.map L.length mx)
+    getCell row i
+        | i < L.length row = row !! i
+        | otherwise        = T.empty
+
+-- | Write a matrix of Text as a CSV file. Each cell is quoted.
+writeCSV :: FilePath -> [[T.Text]] -> IO ()
+writeCSV path rows = do
+    h <- openFile path WriteMode
+    mapM_ (TIO.hPutStrLn h . toCsvLine) rows
+    hClose h
+  where
+    toCsvLine = T.intercalate (T.pack ",") . L.map quoteCell
+    quoteCell t = T.concat [T.pack "\"", T.replace (T.pack "\"") (T.pack "\"\"") t, T.pack "\""]
 
 -- | Helper to convert from Show to Text.
 --
@@ -50,7 +89,7 @@ tshow = T.pack . show
 --
 -- Complexity: O(s) (s = total number of scalar entries)
 writeBS :: (HatVal n, HatBaseClass b, ExBaseClass b) => FilePath -> Alg n b -> IO ()
-writeBS path alg = CSV.writeCSV path result
+writeBS path alg = writeCSV path result
   where
     transferred = ET.finalStockTransfer alg
     debitSide = decR transferred
@@ -66,7 +105,7 @@ writeBS path alg = CSV.writeCSV path result
     liabilityValue = L.map (tshow . _val) (EA.toList liability)
     equityText = L.map (tshow . getAccountTitle . _hatBase) (EA.toList equity)
     equityValue = L.map (tshow . _val) (EA.toList equity)
-    result = CSV.transpose
+    result = csvTranspose
       [ [T.pack "Asset"] ++ assetsText ++ [T.pack "Total"]
       , [T.empty] ++ assetsValue ++ [creditTotal]
       , [T.pack "Liability"] ++ liabilityText ++ [T.pack "Equity"] ++ equityText ++ [T.pack "Total"]
@@ -78,7 +117,7 @@ writeBS path alg = CSV.writeCSV path result
 --
 -- Complexity: O(s) (s = total number of scalar entries)
 writePL :: (HatVal n, HatBaseClass b, ExBaseClass b) => FilePath -> Alg n b -> IO ()
-writePL path alg = CSV.writeCSV path result
+writePL path alg = writeCSV path result
   where
     debitSide = decR alg
     creditSide = decL alg
@@ -92,7 +131,7 @@ writePL path alg = CSV.writeCSV path result
     revenueValue = L.map (tshow . _val) (EA.toList revenue)
     (ct, rt) = toSameLength costText revenueText
     (cv, rv) = toSameLength costValue revenueValue
-    result = CSV.transpose
+    result = csvTranspose
       [ [T.pack "Cost"] ++ ct ++ [T.pack "Total"]
       , [T.empty] ++ cv ++ [creditTotal]
       , [T.pack "Revenue"] ++ rt ++ [T.pack "Total"]
@@ -140,7 +179,7 @@ writeJournal path alg f = do
     let dv = [T.pack "Amount"] ++ concatMap (\(_,_,a,_,_) -> a) rows
     let ct = [T.pack "Credit"] ++ concatMap (\(_,_,_,a,_) -> a) rows
     let cv = [T.pack "Amount"] ++ concatMap (\(_,_,_,_,a) -> a) rows
-    CSV.writeCSV path (CSV.transpose [ds, dt, dv, ct, cv])
+    writeCSV path (csvTranspose [ds, dt, dv, ct, cv])
 
 
 -- | Output account ledgers in CSV format.
@@ -181,7 +220,7 @@ writeCompoundTrialBalance path alg = do
                     , tshow debitTotal
                     , tshow creditBalanceTotal
                     ]
-    CSV.writeCSV path (header : lines' ++ [totalLine])
+    writeCSV path (header : lines' ++ [totalLine])
   where
     step (accLines, dbt, dt, cbt, ct) a =
         let xs = projByAccountTitle a alg
@@ -224,7 +263,7 @@ writeTermIO path t arr = do
     body <- forM rows $ \r -> do
         vals <- forM cols $ \c -> tshow <$> readArray arr (t, r, c)
         pure (tshow r : vals)
-    CSV.writeCSV path ((T.pack "" : L.map tshow cols) : body)
+    writeCSV path ((T.pack "" : L.map tshow cols) : body)
 
 -- | Output a 2D IOArray (Input-Output Table or ripple effect matrix) in CSV format.
 --
@@ -237,7 +276,7 @@ writeIOMatrix path arr = do
     body <- forM rows $ \r -> do
         vals <- forM cols $ \c -> tshow <$> readArray arr (r, c)
         pure (tshow r : vals)
-    CSV.writeCSV path ((T.pack "" : L.map tshow cols) : body)
+    writeCSV path ((T.pack "" : L.map tshow cols) : body)
 
 ------------------------------------------------------------------
 -- Spill Restore Utilities

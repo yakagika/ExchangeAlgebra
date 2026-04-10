@@ -12,17 +12,20 @@ import qualified ExchangeAlgebra.Algebra.Transfer as EAT
 import qualified ExchangeAlgebra.Journal  as EJ
 import qualified ExchangeAlgebra.Journal.Transfer as EJT
 import qualified ExchangeAlgebra.Simulate as ES
+import qualified ExchangeAlgebra.Write    as EW
 
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Map.Strict     as M
 import qualified Data.List           as L
 import qualified Data.Text           as T
+import qualified Data.Text.IO        as TIO
 import           Control.Monad       (forM_)
 import           Control.Monad.ST
 import           Data.Array.ST
 import           Data.STRef
 import           System.Exit         (exitFailure)
 import           System.IO           (IOMode(WriteMode), withFile)
+import           System.Directory    (removeFile)
 import           System.Random       (StdGen, mkStdGen, randomR)
 import           Control.Monad       (replicateM)
 import           Control.Monad.State (runState, state)
@@ -635,6 +638,78 @@ testSimulateEx1Default = do
     assertSimNear "sim1 profit(t=50,c=2)" 1.572544209772035   (profits50 !! 1)
 
 -- ================================================================
+-- CSV Write tests
+-- ================================================================
+
+testCsvTranspose :: IO ()
+testCsvTranspose = do
+    -- Square matrix
+    let input1 = [ [T.pack "a", T.pack "b"]
+                 , [T.pack "c", T.pack "d"] ]
+        expected1 = [ [T.pack "a", T.pack "c"]
+                    , [T.pack "b", T.pack "d"] ]
+    assertEqual "CSV.transpose square matrix" expected1 (EW.csvTranspose input1)
+
+    -- Ragged matrix (shorter rows padded with empty)
+    let input2 = [ [T.pack "a", T.pack "b", T.pack "c"]
+                 , [T.pack "d"] ]
+        expected2 = [ [T.pack "a", T.pack "d"]
+                    , [T.pack "b", T.empty]
+                    , [T.pack "c", T.empty] ]
+    assertEqual "CSV.transpose ragged matrix" expected2 (EW.csvTranspose input2)
+
+    -- Single row
+    let input3 = [[T.pack "x", T.pack "y", T.pack "z"]]
+        expected3 = [[T.pack "x"], [T.pack "y"], [T.pack "z"]]
+    assertEqual "CSV.transpose single row" expected3 (EW.csvTranspose input3)
+
+    -- Empty
+    assertEqual "CSV.transpose empty" ([] :: [[T.Text]]) (EW.csvTranspose [])
+
+testCsvWriteCSV :: IO ()
+testCsvWriteCSV = do
+    let path = "/tmp/exchangealgebra_csv_test.csv"
+        input = [ [T.pack "Name", T.pack "Value"]
+                , [T.pack "Alice", T.pack "100"]
+                , [T.pack "Bob", T.pack "200"] ]
+    EW.writeCSV path input
+    raw <- readFileStrict path
+    -- Each cell should be quoted
+    let lns = lines raw
+    assertEqual "CSV writeCSV line count" 3 (length lns)
+    assertEqual "CSV writeCSV header" "\"Name\",\"Value\"" (lns !! 0)
+    assertEqual "CSV writeCSV row 1"  "\"Alice\",\"100\"" (lns !! 1)
+    assertEqual "CSV writeCSV row 2"  "\"Bob\",\"200\""   (lns !! 2)
+    removeFile path
+
+testCsvWriteCSVWithQuotes :: IO ()
+testCsvWriteCSVWithQuotes = do
+    let path = "/tmp/exchangealgebra_csv_quote_test.csv"
+        input = [[T.pack "say \"hello\"", T.pack "a,b"]]
+    EW.writeCSV path input
+    raw <- readFileStrict path
+    let lns = lines raw
+    -- Internal quotes should be escaped as ""
+    assertEqual "CSV writeCSV escapes quotes" "\"say \"\"hello\"\"\",\"a,b\"" (lns !! 0)
+    removeFile path
+
+testCsvWriteCSVEmpty :: IO ()
+testCsvWriteCSVEmpty = do
+    let path = "/tmp/exchangealgebra_csv_empty_test.csv"
+        input = [[T.pack "", T.pack "x"]]
+    EW.writeCSV path input
+    raw <- readFileStrict path
+    let lns = lines raw
+    assertEqual "CSV writeCSV empty cell" "\"\",\"x\"" (lns !! 0)
+    removeFile path
+
+-- | Strict file read helper for tests
+readFileStrict :: FilePath -> IO String
+readFileStrict p = do
+    bs <- TIO.readFile p
+    return (T.unpack bs)
+
+-- ================================================================
 -- Main
 -- ================================================================
 
@@ -657,3 +732,7 @@ main = do
     testFinalStockTransferJournalEquivalence
     testRestoreJournalFromBinarySpill
     testSimulateEx1Default
+    testCsvTranspose
+    testCsvWriteCSV
+    testCsvWriteCSVWithQuotes
+    testCsvWriteCSVEmpty
