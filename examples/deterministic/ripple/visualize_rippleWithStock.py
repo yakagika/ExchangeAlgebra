@@ -10,8 +10,8 @@ except Exception:
     _has_scipy = False
 
 # CSVファイル名
-csv_dir = 'exsample/deterministic/ripple/result/csv/withStock/'
-fig_dir = 'exsample/deterministic/ripple/result/fig/withStock/'
+csv_dir = 'examples/deterministic/ripple/result/csv/withStock/'
+fig_dir = 'examples/deterministic/ripple/result/fig/withStock/'
 
 cases = ['default', 'default-added', 'small', 'small-added', 'large', 'large-added']
 

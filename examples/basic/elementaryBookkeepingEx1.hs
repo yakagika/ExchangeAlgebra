@@ -242,30 +242,30 @@ netIncomeTransfer'
 main :: IO ()
 main = do
     print exp3
-    writeBS "exsample/result/csv/exp3.csv" exp3
+    writeBS "examples/result/csv/exp3.csv" exp3
     print "---"
     print q3A
-    writeBS "exsample/result/csv/q3.csv" q3A
+    writeBS "examples/result/csv/q3.csv" q3A
     print "---"
     print exp4
-    writePL "exsample/result/csv/exp4.csv" exp4
+    writePL "examples/result/csv/exp4.csv" exp4
     print "---"
     print q4A
     print q4A'
-    writeBS "exsample/result/csv/q4.csv" q4A
+    writeBS "examples/result/csv/q4.csv" q4A
     print "---"
     print exp5_A
-    writeJournal "exsample/result/csv/exp5.csv" exp5_A getDay
+    writeJournal "examples/result/csv/exp5.csv" exp5_A getDay
     print "---"
     print cashDebitTotal
     print cashCreditTotal
     print cashBalance1
     print cashBalance2
-    writeCompoundTrialBalance "exsample/result/csv/q7.csv" q7
+    writeCompoundTrialBalance "examples/result/csv/q7.csv" q7
     print "---"
     print exp8
     print $ incomeSummaryAccount exp8
     print $ netIncomeTransfer $ incomeSummaryAccount exp8
     print $ netIncomeTransfer' $ incomeSummaryAccount exp8
-    writePL "exsample/result/csv/exp8A.csv" $ incomeSummaryAccount exp8
+    writePL "examples/result/csv/exp8A.csv" $ incomeSummaryAccount exp8
 

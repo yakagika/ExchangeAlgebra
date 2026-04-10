@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # CSVファイル名
-csv_dir = 'exsample/deterministic/ripple/result/csv/withoutStock/'
-fig_dir = 'exsample/deterministic/ripple/result/fig/withoutStock/'
+csv_dir = 'examples/deterministic/ripple/result/csv/withoutStock/'
+fig_dir = 'examples/deterministic/ripple/result/fig/withoutStock/'
 
 cases = ['default','default-added']
 
