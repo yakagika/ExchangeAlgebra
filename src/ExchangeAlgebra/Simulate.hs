@@ -78,8 +78,8 @@ import              System.Random
 import              Data.Ix
 import              Data.Kind
 import              Control.Monad.ST
-import              Data.Array.ST
-import              Data.Array.IO
+import              Data.Array.ST                   hiding (modifyArray)
+import              Data.Array.IO                   hiding (modifyArray)
 import              Data.STRef
 import qualified    Control.Monad                   as CM
 import              Data.Array

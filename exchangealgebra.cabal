@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 727f8559236743f8e019d7f350441d20ef052f26cd907211def6004fc3b97d69
+-- hash: 7fb5212f467c35f65bd305774fddbe14a5a3ad01c12f9bec9d17b02585aba704
 
 name:           exchangealgebra
 version:        0.4.0.0
@@ -56,7 +56,7 @@ library
     , containers >=0.6 && <0.8
     , deepseq >=1.4 && <1.6
     , directory ==1.3.*
-    , hashable ==1.4.*
+    , hashable >=1.4 && <1.6
     , lens >=5.2 && <5.4
     , mtl ==2.3.*
     , non-negative >=0.1.2 && <0.2
@@ -94,7 +94,7 @@ executable cge
     , deepseq >=1.4 && <1.6
     , directory ==1.3.*
     , exchangealgebra
-    , hashable ==1.4.*
+    , hashable >=1.4 && <1.6
     , lens >=5.2 && <5.4
     , mtl ==2.3.*
     , non-negative >=0.1.2 && <0.2
@@ -131,7 +131,7 @@ executable ebex1
     , deepseq >=1.4 && <1.6
     , directory ==1.3.*
     , exchangealgebra
-    , hashable ==1.4.*
+    , hashable >=1.4 && <1.6
     , lens >=5.2 && <5.4
     , mtl ==2.3.*
     , non-negative >=0.1.2 && <0.2
@@ -168,7 +168,7 @@ executable ebex2
     , deepseq >=1.4 && <1.6
     , directory ==1.3.*
     , exchangealgebra
-    , hashable ==1.4.*
+    , hashable >=1.4 && <1.6
     , lens >=5.2 && <5.4
     , mtl ==2.3.*
     , non-negative >=0.1.2 && <0.2
@@ -205,7 +205,7 @@ executable ebex3
     , deepseq >=1.4 && <1.6
     , directory ==1.3.*
     , exchangealgebra
-    , hashable ==1.4.*
+    , hashable >=1.4 && <1.6
     , lens >=5.2 && <5.4
     , mtl ==2.3.*
     , non-negative >=0.1.2 && <0.2
@@ -242,7 +242,7 @@ executable ebex4
     , deepseq >=1.4 && <1.6
     , directory ==1.3.*
     , exchangealgebra
-    , hashable ==1.4.*
+    , hashable >=1.4 && <1.6
     , lens >=5.2 && <5.4
     , mtl ==2.3.*
     , non-negative >=0.1.2 && <0.2
@@ -279,7 +279,7 @@ executable ebex5
     , deepseq >=1.4 && <1.6
     , directory ==1.3.*
     , exchangealgebra
-    , hashable ==1.4.*
+    , hashable >=1.4 && <1.6
     , lens >=5.2 && <5.4
     , mtl ==2.3.*
     , non-negative >=0.1.2 && <0.2
@@ -317,7 +317,7 @@ executable ripple
     , deepseq >=1.4 && <1.6
     , directory ==1.3.*
     , exchangealgebra
-    , hashable ==1.4.*
+    , hashable >=1.4 && <1.6
     , lens >=5.2 && <5.4
     , mtl ==2.3.*
     , non-negative >=0.1.2 && <0.2
@@ -355,7 +355,7 @@ executable rippleWithStock
     , deepseq >=1.4 && <1.6
     , directory ==1.3.*
     , exchangealgebra
-    , hashable ==1.4.*
+    , hashable >=1.4 && <1.6
     , lens >=5.2 && <5.4
     , mtl ==2.3.*
     , non-negative >=0.1.2 && <0.2
@@ -393,7 +393,7 @@ executable rippleWithStockMultiSeeds
     , deepseq >=1.4 && <1.6
     , directory ==1.3.*
     , exchangealgebra
-    , hashable ==1.4.*
+    , hashable >=1.4 && <1.6
     , lens >=5.2 && <5.4
     , mtl ==2.3.*
     , non-negative >=0.1.2 && <0.2
@@ -430,7 +430,7 @@ executable sim1
     , deepseq >=1.4 && <1.6
     , directory ==1.3.*
     , exchangealgebra
-    , hashable ==1.4.*
+    , hashable >=1.4 && <1.6
     , lens >=5.2 && <5.4
     , mtl ==2.3.*
     , non-negative >=0.1.2 && <0.2
@@ -467,7 +467,7 @@ executable sim2
     , deepseq >=1.4 && <1.6
     , directory ==1.3.*
     , exchangealgebra
-    , hashable ==1.4.*
+    , hashable >=1.4 && <1.6
     , lens >=5.2 && <5.4
     , mtl ==2.3.*
     , non-negative >=0.1.2 && <0.2
@@ -504,7 +504,7 @@ test-suite ExchangeAlgebra-doctest
     , directory ==1.3.*
     , doctest
     , exchangealgebra
-    , hashable ==1.4.*
+    , hashable >=1.4 && <1.6
     , lens >=5.2 && <5.4
     , mtl ==2.3.*
     , non-negative >=0.1.2 && <0.2
@@ -542,7 +542,7 @@ test-suite ExchangeAlgebra-test
     , deepseq >=1.4 && <1.6
     , directory ==1.3.*
     , exchangealgebra
-    , hashable ==1.4.*
+    , hashable >=1.4 && <1.6
     , lens >=5.2 && <5.4
     , mtl ==2.3.*
     , non-negative >=0.1.2 && <0.2
