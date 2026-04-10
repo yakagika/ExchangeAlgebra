@@ -4,11 +4,13 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 927c8fa79a86e2c7c3aafdeb9d5b4314b05bf5372750685c7a18cbee790b835c
+-- hash: 727f8559236743f8e019d7f350441d20ef052f26cd907211def6004fc3b97d69
 
 name:           exchangealgebra
 version:        0.4.0.0
-description:    Please see the README on GitHub at <https://github.com/githubuser/ExchangeAlgebra#readme>
+synopsis:       Exchange Algebra - an algebraic framework for bookkeeping and economic simulation
+description:    Please see the README on GitHub at <https://github.com/yakagika/ExchangeAlgebra#readme>
+category:       Accounting, Finance, Math
 homepage:       https://github.com/yakagika/ExchangeAlgebra#readme
 bug-reports:    https://github.com/yakagika/ExchangeAlgebra/issues
 author:         Kaya Akagi
@@ -43,32 +45,32 @@ library
   hs-source-dirs:
       src
   build-depends:
-      Chart
-    , Chart-cairo
-    , array
-    , async
-    , base
-    , bifunctors
-    , binary
-    , bytestring
-    , containers
-    , deepseq
-    , directory
-    , hashable
-    , lens
-    , mtl
-    , non-negative
-    , numeric-prelude
-    , parallel
-    , process
-    , random
-    , scientific
-    , statistics
-    , text
-    , time
-    , unicode-show
-    , unordered-containers
-    , vector
+      Chart ==1.9.*
+    , Chart-cairo ==1.9.*
+    , array >=0.5.5 && <0.6
+    , async ==2.2.*
+    , base >=4.17 && <5
+    , bifunctors >=5.6 && <5.8
+    , binary ==0.8.*
+    , bytestring >=0.11 && <0.13
+    , containers >=0.6 && <0.8
+    , deepseq >=1.4 && <1.6
+    , directory ==1.3.*
+    , hashable ==1.4.*
+    , lens >=5.2 && <5.4
+    , mtl ==2.3.*
+    , non-negative >=0.1.2 && <0.2
+    , numeric-prelude >=0.4.4 && <0.5
+    , parallel ==3.2.*
+    , process ==1.6.*
+    , random ==1.2.*
+    , scientific >=0.3.7 && <0.4
+    , statistics ==0.16.*
+    , text >=2.0 && <2.2
+    , time >=1.12 && <1.15
+    , unicode-show ==0.1.*
+    , unordered-containers >=0.2.19 && <0.3
+    , vector ==0.13.*
   default-language: Haskell2010
 
 executable cge
@@ -80,33 +82,33 @@ executable cge
       exsample/optimization/CGE
   ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
   build-depends:
-      Chart
-    , Chart-cairo
-    , array
-    , async
-    , base
-    , bifunctors
-    , binary
-    , bytestring
-    , containers
-    , deepseq
-    , directory
+      Chart ==1.9.*
+    , Chart-cairo ==1.9.*
+    , array >=0.5.5 && <0.6
+    , async ==2.2.*
+    , base >=4.17 && <5
+    , bifunctors >=5.6 && <5.8
+    , binary ==0.8.*
+    , bytestring >=0.11 && <0.13
+    , containers >=0.6 && <0.8
+    , deepseq >=1.4 && <1.6
+    , directory ==1.3.*
     , exchangealgebra
-    , hashable
-    , lens
-    , mtl
-    , non-negative
-    , numeric-prelude
-    , parallel
-    , process
-    , random
-    , scientific
-    , statistics
-    , text
-    , time
-    , unicode-show
-    , unordered-containers
-    , vector
+    , hashable ==1.4.*
+    , lens >=5.2 && <5.4
+    , mtl ==2.3.*
+    , non-negative >=0.1.2 && <0.2
+    , numeric-prelude >=0.4.4 && <0.5
+    , parallel ==3.2.*
+    , process ==1.6.*
+    , random ==1.2.*
+    , scientific >=0.3.7 && <0.4
+    , statistics ==0.16.*
+    , text >=2.0 && <2.2
+    , time >=1.12 && <1.15
+    , unicode-show ==0.1.*
+    , unordered-containers >=0.2.19 && <0.3
+    , vector ==0.13.*
   default-language: Haskell2010
 
 executable ebex1
@@ -117,33 +119,33 @@ executable ebex1
       exsample/basic
   ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
   build-depends:
-      Chart
-    , Chart-cairo
-    , array
-    , async
-    , base
-    , bifunctors
-    , binary
-    , bytestring
-    , containers
-    , deepseq
-    , directory
+      Chart ==1.9.*
+    , Chart-cairo ==1.9.*
+    , array >=0.5.5 && <0.6
+    , async ==2.2.*
+    , base >=4.17 && <5
+    , bifunctors >=5.6 && <5.8
+    , binary ==0.8.*
+    , bytestring >=0.11 && <0.13
+    , containers >=0.6 && <0.8
+    , deepseq >=1.4 && <1.6
+    , directory ==1.3.*
     , exchangealgebra
-    , hashable
-    , lens
-    , mtl
-    , non-negative
-    , numeric-prelude
-    , parallel
-    , process
-    , random
-    , scientific
-    , statistics
-    , text
-    , time
-    , unicode-show
-    , unordered-containers
-    , vector
+    , hashable ==1.4.*
+    , lens >=5.2 && <5.4
+    , mtl ==2.3.*
+    , non-negative >=0.1.2 && <0.2
+    , numeric-prelude >=0.4.4 && <0.5
+    , parallel ==3.2.*
+    , process ==1.6.*
+    , random ==1.2.*
+    , scientific >=0.3.7 && <0.4
+    , statistics ==0.16.*
+    , text >=2.0 && <2.2
+    , time >=1.12 && <1.15
+    , unicode-show ==0.1.*
+    , unordered-containers >=0.2.19 && <0.3
+    , vector ==0.13.*
   default-language: Haskell2010
 
 executable ebex2
@@ -154,33 +156,33 @@ executable ebex2
       exsample/basic
   ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
   build-depends:
-      Chart
-    , Chart-cairo
-    , array
-    , async
-    , base
-    , bifunctors
-    , binary
-    , bytestring
-    , containers
-    , deepseq
-    , directory
+      Chart ==1.9.*
+    , Chart-cairo ==1.9.*
+    , array >=0.5.5 && <0.6
+    , async ==2.2.*
+    , base >=4.17 && <5
+    , bifunctors >=5.6 && <5.8
+    , binary ==0.8.*
+    , bytestring >=0.11 && <0.13
+    , containers >=0.6 && <0.8
+    , deepseq >=1.4 && <1.6
+    , directory ==1.3.*
     , exchangealgebra
-    , hashable
-    , lens
-    , mtl
-    , non-negative
-    , numeric-prelude
-    , parallel
-    , process
-    , random
-    , scientific
-    , statistics
-    , text
-    , time
-    , unicode-show
-    , unordered-containers
-    , vector
+    , hashable ==1.4.*
+    , lens >=5.2 && <5.4
+    , mtl ==2.3.*
+    , non-negative >=0.1.2 && <0.2
+    , numeric-prelude >=0.4.4 && <0.5
+    , parallel ==3.2.*
+    , process ==1.6.*
+    , random ==1.2.*
+    , scientific >=0.3.7 && <0.4
+    , statistics ==0.16.*
+    , text >=2.0 && <2.2
+    , time >=1.12 && <1.15
+    , unicode-show ==0.1.*
+    , unordered-containers >=0.2.19 && <0.3
+    , vector ==0.13.*
   default-language: Haskell2010
 
 executable ebex3
@@ -191,33 +193,33 @@ executable ebex3
       exsample/basic
   ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
   build-depends:
-      Chart
-    , Chart-cairo
-    , array
-    , async
-    , base
-    , bifunctors
-    , binary
-    , bytestring
-    , containers
-    , deepseq
-    , directory
+      Chart ==1.9.*
+    , Chart-cairo ==1.9.*
+    , array >=0.5.5 && <0.6
+    , async ==2.2.*
+    , base >=4.17 && <5
+    , bifunctors >=5.6 && <5.8
+    , binary ==0.8.*
+    , bytestring >=0.11 && <0.13
+    , containers >=0.6 && <0.8
+    , deepseq >=1.4 && <1.6
+    , directory ==1.3.*
     , exchangealgebra
-    , hashable
-    , lens
-    , mtl
-    , non-negative
-    , numeric-prelude
-    , parallel
-    , process
-    , random
-    , scientific
-    , statistics
-    , text
-    , time
-    , unicode-show
-    , unordered-containers
-    , vector
+    , hashable ==1.4.*
+    , lens >=5.2 && <5.4
+    , mtl ==2.3.*
+    , non-negative >=0.1.2 && <0.2
+    , numeric-prelude >=0.4.4 && <0.5
+    , parallel ==3.2.*
+    , process ==1.6.*
+    , random ==1.2.*
+    , scientific >=0.3.7 && <0.4
+    , statistics ==0.16.*
+    , text >=2.0 && <2.2
+    , time >=1.12 && <1.15
+    , unicode-show ==0.1.*
+    , unordered-containers >=0.2.19 && <0.3
+    , vector ==0.13.*
   default-language: Haskell2010
 
 executable ebex4
@@ -228,33 +230,33 @@ executable ebex4
       exsample/basic
   ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
   build-depends:
-      Chart
-    , Chart-cairo
-    , array
-    , async
-    , base
-    , bifunctors
-    , binary
-    , bytestring
-    , containers
-    , deepseq
-    , directory
+      Chart ==1.9.*
+    , Chart-cairo ==1.9.*
+    , array >=0.5.5 && <0.6
+    , async ==2.2.*
+    , base >=4.17 && <5
+    , bifunctors >=5.6 && <5.8
+    , binary ==0.8.*
+    , bytestring >=0.11 && <0.13
+    , containers >=0.6 && <0.8
+    , deepseq >=1.4 && <1.6
+    , directory ==1.3.*
     , exchangealgebra
-    , hashable
-    , lens
-    , mtl
-    , non-negative
-    , numeric-prelude
-    , parallel
-    , process
-    , random
-    , scientific
-    , statistics
-    , text
-    , time
-    , unicode-show
-    , unordered-containers
-    , vector
+    , hashable ==1.4.*
+    , lens >=5.2 && <5.4
+    , mtl ==2.3.*
+    , non-negative >=0.1.2 && <0.2
+    , numeric-prelude >=0.4.4 && <0.5
+    , parallel ==3.2.*
+    , process ==1.6.*
+    , random ==1.2.*
+    , scientific >=0.3.7 && <0.4
+    , statistics ==0.16.*
+    , text >=2.0 && <2.2
+    , time >=1.12 && <1.15
+    , unicode-show ==0.1.*
+    , unordered-containers >=0.2.19 && <0.3
+    , vector ==0.13.*
   default-language: Haskell2010
 
 executable ebex5
@@ -265,33 +267,33 @@ executable ebex5
       exsample/basic
   ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
   build-depends:
-      Chart
-    , Chart-cairo
-    , array
-    , async
-    , base
-    , bifunctors
-    , binary
-    , bytestring
-    , containers
-    , deepseq
-    , directory
+      Chart ==1.9.*
+    , Chart-cairo ==1.9.*
+    , array >=0.5.5 && <0.6
+    , async ==2.2.*
+    , base >=4.17 && <5
+    , bifunctors >=5.6 && <5.8
+    , binary ==0.8.*
+    , bytestring >=0.11 && <0.13
+    , containers >=0.6 && <0.8
+    , deepseq >=1.4 && <1.6
+    , directory ==1.3.*
     , exchangealgebra
-    , hashable
-    , lens
-    , mtl
-    , non-negative
-    , numeric-prelude
-    , parallel
-    , process
-    , random
-    , scientific
-    , statistics
-    , text
-    , time
-    , unicode-show
-    , unordered-containers
-    , vector
+    , hashable ==1.4.*
+    , lens >=5.2 && <5.4
+    , mtl ==2.3.*
+    , non-negative >=0.1.2 && <0.2
+    , numeric-prelude >=0.4.4 && <0.5
+    , parallel ==3.2.*
+    , process ==1.6.*
+    , random ==1.2.*
+    , scientific >=0.3.7 && <0.4
+    , statistics ==0.16.*
+    , text >=2.0 && <2.2
+    , time >=1.12 && <1.15
+    , unicode-show ==0.1.*
+    , unordered-containers >=0.2.19 && <0.3
+    , vector ==0.13.*
   default-language: Haskell2010
 
 executable ripple
@@ -303,33 +305,33 @@ executable ripple
       exsample/deterministic/ripple
   ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
   build-depends:
-      Chart
-    , Chart-cairo
-    , array
-    , async
-    , base
-    , bifunctors
-    , binary
-    , bytestring
-    , containers
-    , deepseq
-    , directory
+      Chart ==1.9.*
+    , Chart-cairo ==1.9.*
+    , array >=0.5.5 && <0.6
+    , async ==2.2.*
+    , base >=4.17 && <5
+    , bifunctors >=5.6 && <5.8
+    , binary ==0.8.*
+    , bytestring >=0.11 && <0.13
+    , containers >=0.6 && <0.8
+    , deepseq >=1.4 && <1.6
+    , directory ==1.3.*
     , exchangealgebra
-    , hashable
-    , lens
-    , mtl
-    , non-negative
-    , numeric-prelude
-    , parallel
-    , process
-    , random
-    , scientific
-    , statistics
-    , text
-    , time
-    , unicode-show
-    , unordered-containers
-    , vector
+    , hashable ==1.4.*
+    , lens >=5.2 && <5.4
+    , mtl ==2.3.*
+    , non-negative >=0.1.2 && <0.2
+    , numeric-prelude >=0.4.4 && <0.5
+    , parallel ==3.2.*
+    , process ==1.6.*
+    , random ==1.2.*
+    , scientific >=0.3.7 && <0.4
+    , statistics ==0.16.*
+    , text >=2.0 && <2.2
+    , time >=1.12 && <1.15
+    , unicode-show ==0.1.*
+    , unordered-containers >=0.2.19 && <0.3
+    , vector ==0.13.*
   default-language: Haskell2010
 
 executable rippleWithStock
@@ -341,33 +343,33 @@ executable rippleWithStock
       exsample/deterministic/ripple
   ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
   build-depends:
-      Chart
-    , Chart-cairo
-    , array
-    , async
-    , base
-    , bifunctors
-    , binary
-    , bytestring
-    , containers
-    , deepseq
-    , directory
+      Chart ==1.9.*
+    , Chart-cairo ==1.9.*
+    , array >=0.5.5 && <0.6
+    , async ==2.2.*
+    , base >=4.17 && <5
+    , bifunctors >=5.6 && <5.8
+    , binary ==0.8.*
+    , bytestring >=0.11 && <0.13
+    , containers >=0.6 && <0.8
+    , deepseq >=1.4 && <1.6
+    , directory ==1.3.*
     , exchangealgebra
-    , hashable
-    , lens
-    , mtl
-    , non-negative
-    , numeric-prelude
-    , parallel
-    , process
-    , random
-    , scientific
-    , statistics
-    , text
-    , time
-    , unicode-show
-    , unordered-containers
-    , vector
+    , hashable ==1.4.*
+    , lens >=5.2 && <5.4
+    , mtl ==2.3.*
+    , non-negative >=0.1.2 && <0.2
+    , numeric-prelude >=0.4.4 && <0.5
+    , parallel ==3.2.*
+    , process ==1.6.*
+    , random ==1.2.*
+    , scientific >=0.3.7 && <0.4
+    , statistics ==0.16.*
+    , text >=2.0 && <2.2
+    , time >=1.12 && <1.15
+    , unicode-show ==0.1.*
+    , unordered-containers >=0.2.19 && <0.3
+    , vector ==0.13.*
   default-language: Haskell2010
 
 executable rippleWithStockMultiSeeds
@@ -379,33 +381,33 @@ executable rippleWithStockMultiSeeds
       exsample/deterministic/ripple
   ghc-options: -threaded -rtsopts -with-rtsopts=-N10 -optl-Wl,-no_warn_duplicate_libraries
   build-depends:
-      Chart
-    , Chart-cairo
-    , array
-    , async
-    , base
-    , bifunctors
-    , binary
-    , bytestring
-    , containers
-    , deepseq
-    , directory
+      Chart ==1.9.*
+    , Chart-cairo ==1.9.*
+    , array >=0.5.5 && <0.6
+    , async ==2.2.*
+    , base >=4.17 && <5
+    , bifunctors >=5.6 && <5.8
+    , binary ==0.8.*
+    , bytestring >=0.11 && <0.13
+    , containers >=0.6 && <0.8
+    , deepseq >=1.4 && <1.6
+    , directory ==1.3.*
     , exchangealgebra
-    , hashable
-    , lens
-    , mtl
-    , non-negative
-    , numeric-prelude
-    , parallel
-    , process
-    , random
-    , scientific
-    , statistics
-    , text
-    , time
-    , unicode-show
-    , unordered-containers
-    , vector
+    , hashable ==1.4.*
+    , lens >=5.2 && <5.4
+    , mtl ==2.3.*
+    , non-negative >=0.1.2 && <0.2
+    , numeric-prelude >=0.4.4 && <0.5
+    , parallel ==3.2.*
+    , process ==1.6.*
+    , random ==1.2.*
+    , scientific >=0.3.7 && <0.4
+    , statistics ==0.16.*
+    , text >=2.0 && <2.2
+    , time >=1.12 && <1.15
+    , unicode-show ==0.1.*
+    , unordered-containers >=0.2.19 && <0.3
+    , vector ==0.13.*
   default-language: Haskell2010
 
 executable sim1
@@ -416,33 +418,33 @@ executable sim1
       exsample/basic
   ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
   build-depends:
-      Chart
-    , Chart-cairo
-    , array
-    , async
-    , base
-    , bifunctors
-    , binary
-    , bytestring
-    , containers
-    , deepseq
-    , directory
+      Chart ==1.9.*
+    , Chart-cairo ==1.9.*
+    , array >=0.5.5 && <0.6
+    , async ==2.2.*
+    , base >=4.17 && <5
+    , bifunctors >=5.6 && <5.8
+    , binary ==0.8.*
+    , bytestring >=0.11 && <0.13
+    , containers >=0.6 && <0.8
+    , deepseq >=1.4 && <1.6
+    , directory ==1.3.*
     , exchangealgebra
-    , hashable
-    , lens
-    , mtl
-    , non-negative
-    , numeric-prelude
-    , parallel
-    , process
-    , random
-    , scientific
-    , statistics
-    , text
-    , time
-    , unicode-show
-    , unordered-containers
-    , vector
+    , hashable ==1.4.*
+    , lens >=5.2 && <5.4
+    , mtl ==2.3.*
+    , non-negative >=0.1.2 && <0.2
+    , numeric-prelude >=0.4.4 && <0.5
+    , parallel ==3.2.*
+    , process ==1.6.*
+    , random ==1.2.*
+    , scientific >=0.3.7 && <0.4
+    , statistics ==0.16.*
+    , text >=2.0 && <2.2
+    , time >=1.12 && <1.15
+    , unicode-show ==0.1.*
+    , unordered-containers >=0.2.19 && <0.3
+    , vector ==0.13.*
   default-language: Haskell2010
 
 executable sim2
@@ -453,33 +455,33 @@ executable sim2
       exsample/basic
   ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
   build-depends:
-      Chart
-    , Chart-cairo
-    , array
-    , async
-    , base
-    , bifunctors
-    , binary
-    , bytestring
-    , containers
-    , deepseq
-    , directory
+      Chart ==1.9.*
+    , Chart-cairo ==1.9.*
+    , array >=0.5.5 && <0.6
+    , async ==2.2.*
+    , base >=4.17 && <5
+    , bifunctors >=5.6 && <5.8
+    , binary ==0.8.*
+    , bytestring >=0.11 && <0.13
+    , containers >=0.6 && <0.8
+    , deepseq >=1.4 && <1.6
+    , directory ==1.3.*
     , exchangealgebra
-    , hashable
-    , lens
-    , mtl
-    , non-negative
-    , numeric-prelude
-    , parallel
-    , process
-    , random
-    , scientific
-    , statistics
-    , text
-    , time
-    , unicode-show
-    , unordered-containers
-    , vector
+    , hashable ==1.4.*
+    , lens >=5.2 && <5.4
+    , mtl ==2.3.*
+    , non-negative >=0.1.2 && <0.2
+    , numeric-prelude >=0.4.4 && <0.5
+    , parallel ==3.2.*
+    , process ==1.6.*
+    , random ==1.2.*
+    , scientific >=0.3.7 && <0.4
+    , statistics ==0.16.*
+    , text >=2.0 && <2.2
+    , time >=1.12 && <1.15
+    , unicode-show ==0.1.*
+    , unordered-containers >=0.2.19 && <0.3
+    , vector ==0.13.*
   default-language: Haskell2010
 
 test-suite ExchangeAlgebra-doctest
@@ -489,34 +491,34 @@ test-suite ExchangeAlgebra-doctest
       Paths_exchangealgebra
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -O1 -optl-Wl,-no_warn_duplicate_libraries
   build-depends:
-      Chart
-    , Chart-cairo
-    , array
-    , async
-    , base
-    , bifunctors
-    , binary
-    , bytestring
-    , containers
-    , deepseq
-    , directory
+      Chart ==1.9.*
+    , Chart-cairo ==1.9.*
+    , array >=0.5.5 && <0.6
+    , async ==2.2.*
+    , base >=4.17 && <5
+    , bifunctors >=5.6 && <5.8
+    , binary ==0.8.*
+    , bytestring >=0.11 && <0.13
+    , containers >=0.6 && <0.8
+    , deepseq >=1.4 && <1.6
+    , directory ==1.3.*
     , doctest
     , exchangealgebra
-    , hashable
-    , lens
-    , mtl
-    , non-negative
-    , numeric-prelude
-    , parallel
-    , process
-    , random
-    , scientific
-    , statistics
-    , text
-    , time
-    , unicode-show
-    , unordered-containers
-    , vector
+    , hashable ==1.4.*
+    , lens >=5.2 && <5.4
+    , mtl ==2.3.*
+    , non-negative >=0.1.2 && <0.2
+    , numeric-prelude >=0.4.4 && <0.5
+    , parallel ==3.2.*
+    , process ==1.6.*
+    , random ==1.2.*
+    , scientific >=0.3.7 && <0.4
+    , statistics ==0.16.*
+    , text >=2.0 && <2.2
+    , time >=1.12 && <1.15
+    , unicode-show ==0.1.*
+    , unordered-containers >=0.2.19 && <0.3
+    , vector ==0.13.*
   default-language: Haskell2010
 
 test-suite ExchangeAlgebra-test
@@ -528,31 +530,31 @@ test-suite ExchangeAlgebra-test
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -O1 -optl-Wl,-no_warn_duplicate_libraries
   build-depends:
-      Chart
-    , Chart-cairo
-    , array
-    , async
-    , base
-    , bifunctors
-    , binary
-    , bytestring
-    , containers
-    , deepseq
-    , directory
+      Chart ==1.9.*
+    , Chart-cairo ==1.9.*
+    , array >=0.5.5 && <0.6
+    , async ==2.2.*
+    , base >=4.17 && <5
+    , bifunctors >=5.6 && <5.8
+    , binary ==0.8.*
+    , bytestring >=0.11 && <0.13
+    , containers >=0.6 && <0.8
+    , deepseq >=1.4 && <1.6
+    , directory ==1.3.*
     , exchangealgebra
-    , hashable
-    , lens
-    , mtl
-    , non-negative
-    , numeric-prelude
-    , parallel
-    , process
-    , random
-    , scientific
-    , statistics
-    , text
-    , time
-    , unicode-show
-    , unordered-containers
-    , vector
+    , hashable ==1.4.*
+    , lens >=5.2 && <5.4
+    , mtl ==2.3.*
+    , non-negative >=0.1.2 && <0.2
+    , numeric-prelude >=0.4.4 && <0.5
+    , parallel ==3.2.*
+    , process ==1.6.*
+    , random ==1.2.*
+    , scientific >=0.3.7 && <0.4
+    , statistics ==0.16.*
+    , text >=2.0 && <2.2
+    , time >=1.12 && <1.15
+    , unicode-show ==0.1.*
+    , unordered-containers >=0.2.19 && <0.3
+    , vector ==0.13.*
   default-language: Haskell2010
