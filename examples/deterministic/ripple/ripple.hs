@@ -14,7 +14,7 @@
 -}
 
 -- Original
-import              CGE
+import              RippleEffect
 import              ExchangeAlgebraJournal
 import qualified    ExchangeAlgebra.Journal  as EJ
 import qualified    ExchangeAlgebra.Journal.Transfer as EJT
@@ -44,7 +44,6 @@ import              Data.Array.IO
 import              Data.Array (Array)
 import              Data.STRef
 import qualified    Data.List                       as L
-import qualified    Data.Map.Strict                 as Map
 import System.Random -- 乱数
 import Control.Concurrent.Async (mapConcurrently,forConcurrently_)
 
@@ -57,11 +56,9 @@ import Debug.Trace
 
 ------------------------------------------------------------------
 -- * directories
+fig_dir = "examples/deterministic/ripple/result/fig/withoutStock/"
+csv_dir = "examples/deterministic/ripple/result/csv/withoutStock/"
 
-fig_dir = "exsample/stochastic/CGE/result/fig/"
-csv_dir = "exsample/stochastic/CGE/result/csv/"
-
-{-
 -- 状態系の定義
 -- deriving Generic をしていれば
 -- 空のインスタンス宣言で自動でinitSS,updateSSが使えるようになる
@@ -91,56 +88,6 @@ event' wld t ToPrice
 
     | otherwise = return ()
 
-
-------------------------------------------------------------------
--- | 不足分を生産する
--- 要素価格,価格所与で生産量を決める
--- 前回の生産量を元に利潤が上がれば生産量を増やし,減れば生産量を減らす
--- 増減の量は1%ずつ?
--- 合成生産要素の生産量がターゲット?
-
-event' wld t Production = do
-    -- 簿記
-    le <- readURef (_ledger wld)
-    -- 価格
-    pt <- readURef (_prices wld)
-    -- 直接税率
-    directTaxRate <- getDirectTaxRate wld t
-    -- 生産税率
-    productionTaxRate <- getProductionTaxRate wld t
-    -- 輸入関税率
-    importTariffRate <- getImportTariffRate wld t
-    
-    -- 合成財の生産
-    
-    -- 生産量
-    forM_ industries $ \e1 -> do
-
-        -- 合成生産要素の生産
-
-
-        -- 生産要素の生産
-
-
-
-        -- 自社製品の不足分(Hat分)を生産する
-        let short = norm
-                  $ EJ.projWithBase [Hat:<(Products,e1,e1,Amount)]
-                  $ (.-) $ termJournal t le
-
-        -- 不足分生産する
-        let plan = max short sp
-        {-
-        when (e1 == 1) $ do
-            trace ("--------------------------") return ()
-            trace (show t ++ "-pl: " ++ show plan) return ()
-        -}
-
-        when (plan > 0 ) $ do
-            op <- getOneProduction wld t e1  -- 1単位の生産簿記を取得
-            journal wld (plan .* op)  -- 生産処理を記帳
-
-
 ------------------------------------------------------------------
 -- 受注分販売・購入する
 -- 在庫を受注の割合で販売する
@@ -169,6 +116,31 @@ event' wld t SalesPurchase = do
                     -- 受注を減らす
                     writeUArray os (t, Relation {_supplier = e1,_customer = e2}) 0
 
+------------------------------------------------------------------
+-- | 不足分を生産する
+-- 投入制約なし
+event' wld t Production = do
+    le <- readURef (_ledger wld)
+    -- 定常的な生産量
+    sp <- readURef (_sp wld)
+    forM_ industries $ \e1 -> do
+
+        -- 自社製品の不足分(Hat分)を生産する
+        let short = norm
+                  $ EJ.projWithBase [Hat:<(Products,e1,e1,Amount)]
+                  $ (.-) $ termJournal t le
+
+        -- 不足分生産する
+        let plan = max short sp
+        {-
+        when (e1 == 1) $ do
+            trace ("--------------------------") return ()
+            trace (show t ++ "-pl: " ++ show plan) return ()
+        -}
+
+        when (plan > 0 ) $ do
+            op <- getOneProduction wld t e1  -- 1単位の生産簿記を取得
+            journal wld (plan .* op)  -- 生産処理を記帳
 
 ------------------------------------------------------------------
 -- 発注量を計算
@@ -216,10 +188,10 @@ main = do
     let seed = 42
     let gen = mkStdGen seed
         defaultEnv = InitVar {_initInv             = 0
-                             ,_stockOutRate        = Map.fromList [(e,0.1) | e <- [fstEnt..lastEnt]]
-                             ,_materialOutRate     = Map.fromList [(e,0.1) | e <- [fstEnt..lastEnt]]
-                             ,_orderLeadTime       = Map.fromList [(e,1)   | e <- [fstEnt..lastEnt]]
-                             ,_orderInterval       = Map.fromList [(e,1)   | e <- [fstEnt..lastEnt]]
+                             ,_stockOutRate        = M.fromList [(e,0.1) | e <- [fstEnt..lastEnt]]
+                             ,_materialOutRate     = M.fromList [(e,0.1) | e <- [fstEnt..lastEnt]]
+                             ,_orderLeadTime       = M.fromList [(e,1)   | e <- [fstEnt..lastEnt]]
+                             ,_orderInterval       = M.fromList [(e,1)   | e <- [fstEnt..lastEnt]]
                              ,_addedDemand         = 0
                              ,_addedDemandTerm     = 50
                              ,_addedTo             = 9
@@ -238,18 +210,18 @@ main = do
     results <- mapConcurrently (runSimulation gen) envs
 
 
-    let resMap = Map.fromList
+    let resMap = M.fromList
                $ zip envNames results
 
 
     ------------------------------------------------------------------
     print "printing tables ..."
     -- coefficient Table
-    matWithFinalDemand <- getInputCoefficients (resMap Map.! "default") (fstEnt,lastEnt)
+    matWithFinalDemand <- getInputCoefficients (resMap M.! "default") (fstEnt,lastEnt)
     writeIOMatrix (csv_dir ++ "io.csv") matWithFinalDemand
 
 
-    mat <- getInputCoefficients (resMap Map.! "default") (fstEnt,lastEnt -1)
+    mat <- getInputCoefficients (resMap M.! "default") (fstEnt,lastEnt -1)
 
     -- Basic Ripple Effect
     li  <- leontiefInverse mat
@@ -258,8 +230,8 @@ main = do
     writeIOMatrix (csv_dir ++ "rippleEffect.csv") re
 
     -- ABM Ripple Effect
-    reABM <- culcRippleEffect (resMap Map.! "default")
-                              (resMap Map.! "default-added")
+    reABM <- culcRippleEffect (resMap M.! "default")
+                              (resMap M.! "default-added")
                               defaultAddedEnv
     writeIOMatrix  (csv_dir ++ "rippleEffectABM.csv") reABM
     ------------------------------------------------------------------
@@ -273,7 +245,7 @@ main = do
         header_func_demand = [(T.pack $ "Demand_" ++ show i, \w t -> getTermDemand w t i) | i <- [fstEnt..lastEnt]]
 
     forConcurrently_ envNames $ \n -> do
-        let wld = resMap Map.! n
+        let wld = resMap M.! n
         ESV.writeFuncResults header_func_prod   (initTerm,lastTerm) wld (csv_dir ++ n ++ "/production.csv")
         ESV.writeFuncResults header_func_stock  (initTerm,lastTerm) wld (csv_dir ++ n ++ "/stock.csv")
         ESV.writeFuncResults header_func_profit (initTerm,lastTerm) wld (csv_dir ++ n ++ "/profit.csv")
@@ -281,7 +253,7 @@ main = do
         ESV.writeFuncResults header_func_demand (initTerm,lastTerm) wld (csv_dir ++ n ++ "/demand.csv")
 
     -- visualize with python
-    exitCode <- rawSystem "python" ["exsample/deterministic/ripple/visualize_ripple.py"]
+    exitCode <- rawSystem "python" ["examples/deterministic/ripple/visualize_ripple.py"]
     case exitCode of
         ExitSuccess -> print "Python visualization completed successfully"
         ExitFailure n -> print $ "Python visualization failed with exit code: " ++ show n
@@ -301,25 +273,20 @@ main = do
 
         forConcurrently_ (zip fs fnames) $ \ (f, fn) -> do
             ESV.plotLineVector f ((fstEnt,initTerm),(lastEnt -1,lastTerm))
-                               (resMap Map.! n) (fig_dir ++ n ++ "/") fn
+                               (resMap M.! n) (fig_dir ++ n ++ "/") fn
 
         if n == "default-added"
             then do
                 ESV.plotWldsDiffLine (getTermProduction Amount)
                          (fstEnt,lastEnt -1)
-                         ((resMap Map.! n),(resMap Map.! "default"))
+                         ((resMap M.! n),(resMap M.! "default"))
                          (fig_dir ++ n ++ "/")
                          "Difference in production volume"
 
                 ESV.plotMultiLines ["added","normal"]
                        [getTermProduction Amount,getTermProduction Amount]
                        (fstEnt,lastEnt -1)
-                       [(resMap Map.! n),(resMap Map.! "default")]
+                       [(resMap M.! n),(resMap M.! "default")]
                        (fig_dir ++ n ++ "/")
                        "Comparison of production volume"
         else return ()
-
--}
-
-main = do 
-    return ()

@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # CSVファイル名
-csv_dir = 'exsample/basic/result/csv/simulateEx1/'
-fig_dir = 'exsample/basic/result/fig/simulateEx1/'
+csv_dir = 'examples/basic/result/csv/simulateEx1/'
+fig_dir = 'examples/basic/result/fig/simulateEx1/'
 
 cases = ['default-prod','plus-prod']
 

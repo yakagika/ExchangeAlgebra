@@ -1,0 +1,104 @@
+name:                exchangealgebra-examples
+version:             0.4.0.0
+license:             MIT
+author:              "Kaya Akagi"
+maintainer:          "kaya3728@gmail.com"
+copyright:           "2019 Kaya Akagi"
+
+synopsis:            Example executables for the exchangealgebra library
+category:            Accounting, Finance, Math
+description:         |
+  Example programs that demonstrate the @exchangealgebra@ library.
+  Not intended for Hackage publication.
+
+dependencies:
+- base                  >= 4.17    && < 5
+- exchangealgebra       == 0.4.*
+- text                  >= 2.0     && < 2.2
+- containers            >= 0.6     && < 0.8
+- numeric-prelude       >= 0.4.4   && < 0.5
+- non-negative          >= 0.1.2   && < 0.2
+- array                 >= 0.5.5   && < 0.6
+- random                >= 1.2     && < 1.3
+- mtl                   >= 2.3     && < 2.4
+- parallel              >= 3.2     && < 3.3
+- vector                >= 0.13    && < 0.14
+- async                 >= 2.2     && < 2.3
+- statistics            >= 0.16    && < 0.17
+- hashable              >= 1.4     && < 1.6
+- unordered-containers  >= 0.2.19  && < 0.3
+- process               >= 1.6     && < 1.7
+- directory             >= 1.3     && < 1.4
+- bytestring            >= 0.11    && < 0.13
+- binary                >= 0.8     && < 0.9
+- time                  >= 1.12    && < 1.15
+- deepseq               >= 1.4     && < 1.6
+
+_exe-defs: &exe-defaults
+  ghc-options: [-O2
+               ,-threaded
+               ,-rtsopts
+               ,-with-rtsopts=-N4
+               ,'-optl-Wl,-no_warn_duplicate_libraries'
+               ,-fwrite-ide-info]
+
+executables:
+  ebex1:
+    <<: *exe-defaults
+    main:                elementaryBookkeepingEx1.hs
+    source-dirs:         basic
+
+  ebex2:
+    <<: *exe-defaults
+    main:                elementaryBookkeepingEx2.hs
+    source-dirs:         basic
+
+  ebex3:
+    <<: *exe-defaults
+    main:                elementaryBookkeepingEx3.hs
+    source-dirs:         basic
+
+  ebex4:
+    <<: *exe-defaults
+    main:                elementaryBookkeepingEx4.hs
+    source-dirs:         basic
+
+  ebex5:
+    <<: *exe-defaults
+    main:                elementaryBookkeepingEx5.hs
+    source-dirs:         basic
+
+  sim1:
+    <<: *exe-defaults
+    main:                simulateEx1.hs
+    source-dirs:         basic
+
+  sim2:
+    <<: *exe-defaults
+    main:                simulateEx2.hs
+    source-dirs:         basic
+
+  rippleWithStock:
+    <<: *exe-defaults
+    main:                rippleWithStock.hs
+    source-dirs:         deterministic/ripple
+
+  rippleWithStockMultiSeeds:
+    <<: *exe-defaults
+    main:                rippleWithStockMultiSeeds.hs
+    source-dirs:         deterministic/ripple
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N10
+    - -optl-Wl,-no_warn_duplicate_libraries
+
+  ripple:
+    <<: *exe-defaults
+    main:                ripple.hs
+    source-dirs:         deterministic/ripple
+
+  cge:
+    <<: *exe-defaults
+    main:                stdcge.hs
+    source-dirs:         optimization/CGE

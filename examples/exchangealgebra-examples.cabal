@@ -1,0 +1,362 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.37.0.
+--
+-- see: https://github.com/sol/hpack
+
+name:           exchangealgebra-examples
+version:        0.4.0.0
+synopsis:       Example executables for the exchangealgebra library
+description:    Example programs that demonstrate the @exchangealgebra@ library.
+                Not intended for Hackage publication.
+category:       Accounting, Finance, Math
+author:         Kaya Akagi
+maintainer:     kaya3728@gmail.com
+copyright:      2019 Kaya Akagi
+license:        MIT
+build-type:     Simple
+
+executable cge
+  main-is: stdcge.hs
+  other-modules:
+      CGE
+      Paths_exchangealgebra_examples
+  hs-source-dirs:
+      optimization/CGE
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
+  build-depends:
+      array >=0.5.5 && <0.6
+    , async ==2.2.*
+    , base >=4.17 && <5
+    , binary ==0.8.*
+    , bytestring >=0.11 && <0.13
+    , containers >=0.6 && <0.8
+    , deepseq >=1.4 && <1.6
+    , directory ==1.3.*
+    , exchangealgebra ==0.4.*
+    , hashable >=1.4 && <1.6
+    , mtl ==2.3.*
+    , non-negative >=0.1.2 && <0.2
+    , numeric-prelude >=0.4.4 && <0.5
+    , parallel ==3.2.*
+    , process ==1.6.*
+    , random ==1.2.*
+    , statistics ==0.16.*
+    , text >=2.0 && <2.2
+    , time >=1.12 && <1.15
+    , unordered-containers >=0.2.19 && <0.3
+    , vector ==0.13.*
+  default-language: Haskell2010
+
+executable ebex1
+  main-is: elementaryBookkeepingEx1.hs
+  other-modules:
+      Paths_exchangealgebra_examples
+  hs-source-dirs:
+      basic
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
+  build-depends:
+      array >=0.5.5 && <0.6
+    , async ==2.2.*
+    , base >=4.17 && <5
+    , binary ==0.8.*
+    , bytestring >=0.11 && <0.13
+    , containers >=0.6 && <0.8
+    , deepseq >=1.4 && <1.6
+    , directory ==1.3.*
+    , exchangealgebra ==0.4.*
+    , hashable >=1.4 && <1.6
+    , mtl ==2.3.*
+    , non-negative >=0.1.2 && <0.2
+    , numeric-prelude >=0.4.4 && <0.5
+    , parallel ==3.2.*
+    , process ==1.6.*
+    , random ==1.2.*
+    , statistics ==0.16.*
+    , text >=2.0 && <2.2
+    , time >=1.12 && <1.15
+    , unordered-containers >=0.2.19 && <0.3
+    , vector ==0.13.*
+  default-language: Haskell2010
+
+executable ebex2
+  main-is: elementaryBookkeepingEx2.hs
+  other-modules:
+      Paths_exchangealgebra_examples
+  hs-source-dirs:
+      basic
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
+  build-depends:
+      array >=0.5.5 && <0.6
+    , async ==2.2.*
+    , base >=4.17 && <5
+    , binary ==0.8.*
+    , bytestring >=0.11 && <0.13
+    , containers >=0.6 && <0.8
+    , deepseq >=1.4 && <1.6
+    , directory ==1.3.*
+    , exchangealgebra ==0.4.*
+    , hashable >=1.4 && <1.6
+    , mtl ==2.3.*
+    , non-negative >=0.1.2 && <0.2
+    , numeric-prelude >=0.4.4 && <0.5
+    , parallel ==3.2.*
+    , process ==1.6.*
+    , random ==1.2.*
+    , statistics ==0.16.*
+    , text >=2.0 && <2.2
+    , time >=1.12 && <1.15
+    , unordered-containers >=0.2.19 && <0.3
+    , vector ==0.13.*
+  default-language: Haskell2010
+
+executable ebex3
+  main-is: elementaryBookkeepingEx3.hs
+  other-modules:
+      Paths_exchangealgebra_examples
+  hs-source-dirs:
+      basic
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
+  build-depends:
+      array >=0.5.5 && <0.6
+    , async ==2.2.*
+    , base >=4.17 && <5
+    , binary ==0.8.*
+    , bytestring >=0.11 && <0.13
+    , containers >=0.6 && <0.8
+    , deepseq >=1.4 && <1.6
+    , directory ==1.3.*
+    , exchangealgebra ==0.4.*
+    , hashable >=1.4 && <1.6
+    , mtl ==2.3.*
+    , non-negative >=0.1.2 && <0.2
+    , numeric-prelude >=0.4.4 && <0.5
+    , parallel ==3.2.*
+    , process ==1.6.*
+    , random ==1.2.*
+    , statistics ==0.16.*
+    , text >=2.0 && <2.2
+    , time >=1.12 && <1.15
+    , unordered-containers >=0.2.19 && <0.3
+    , vector ==0.13.*
+  default-language: Haskell2010
+
+executable ebex4
+  main-is: elementaryBookkeepingEx4.hs
+  other-modules:
+      Paths_exchangealgebra_examples
+  hs-source-dirs:
+      basic
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
+  build-depends:
+      array >=0.5.5 && <0.6
+    , async ==2.2.*
+    , base >=4.17 && <5
+    , binary ==0.8.*
+    , bytestring >=0.11 && <0.13
+    , containers >=0.6 && <0.8
+    , deepseq >=1.4 && <1.6
+    , directory ==1.3.*
+    , exchangealgebra ==0.4.*
+    , hashable >=1.4 && <1.6
+    , mtl ==2.3.*
+    , non-negative >=0.1.2 && <0.2
+    , numeric-prelude >=0.4.4 && <0.5
+    , parallel ==3.2.*
+    , process ==1.6.*
+    , random ==1.2.*
+    , statistics ==0.16.*
+    , text >=2.0 && <2.2
+    , time >=1.12 && <1.15
+    , unordered-containers >=0.2.19 && <0.3
+    , vector ==0.13.*
+  default-language: Haskell2010
+
+executable ebex5
+  main-is: elementaryBookkeepingEx5.hs
+  other-modules:
+      Paths_exchangealgebra_examples
+  hs-source-dirs:
+      basic
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
+  build-depends:
+      array >=0.5.5 && <0.6
+    , async ==2.2.*
+    , base >=4.17 && <5
+    , binary ==0.8.*
+    , bytestring >=0.11 && <0.13
+    , containers >=0.6 && <0.8
+    , deepseq >=1.4 && <1.6
+    , directory ==1.3.*
+    , exchangealgebra ==0.4.*
+    , hashable >=1.4 && <1.6
+    , mtl ==2.3.*
+    , non-negative >=0.1.2 && <0.2
+    , numeric-prelude >=0.4.4 && <0.5
+    , parallel ==3.2.*
+    , process ==1.6.*
+    , random ==1.2.*
+    , statistics ==0.16.*
+    , text >=2.0 && <2.2
+    , time >=1.12 && <1.15
+    , unordered-containers >=0.2.19 && <0.3
+    , vector ==0.13.*
+  default-language: Haskell2010
+
+executable ripple
+  main-is: ripple.hs
+  other-modules:
+      RippleEffect
+      Paths_exchangealgebra_examples
+  hs-source-dirs:
+      deterministic/ripple
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
+  build-depends:
+      array >=0.5.5 && <0.6
+    , async ==2.2.*
+    , base >=4.17 && <5
+    , binary ==0.8.*
+    , bytestring >=0.11 && <0.13
+    , containers >=0.6 && <0.8
+    , deepseq >=1.4 && <1.6
+    , directory ==1.3.*
+    , exchangealgebra ==0.4.*
+    , hashable >=1.4 && <1.6
+    , mtl ==2.3.*
+    , non-negative >=0.1.2 && <0.2
+    , numeric-prelude >=0.4.4 && <0.5
+    , parallel ==3.2.*
+    , process ==1.6.*
+    , random ==1.2.*
+    , statistics ==0.16.*
+    , text >=2.0 && <2.2
+    , time >=1.12 && <1.15
+    , unordered-containers >=0.2.19 && <0.3
+    , vector ==0.13.*
+  default-language: Haskell2010
+
+executable rippleWithStock
+  main-is: rippleWithStock.hs
+  other-modules:
+      RippleEffect
+      Paths_exchangealgebra_examples
+  hs-source-dirs:
+      deterministic/ripple
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
+  build-depends:
+      array >=0.5.5 && <0.6
+    , async ==2.2.*
+    , base >=4.17 && <5
+    , binary ==0.8.*
+    , bytestring >=0.11 && <0.13
+    , containers >=0.6 && <0.8
+    , deepseq >=1.4 && <1.6
+    , directory ==1.3.*
+    , exchangealgebra ==0.4.*
+    , hashable >=1.4 && <1.6
+    , mtl ==2.3.*
+    , non-negative >=0.1.2 && <0.2
+    , numeric-prelude >=0.4.4 && <0.5
+    , parallel ==3.2.*
+    , process ==1.6.*
+    , random ==1.2.*
+    , statistics ==0.16.*
+    , text >=2.0 && <2.2
+    , time >=1.12 && <1.15
+    , unordered-containers >=0.2.19 && <0.3
+    , vector ==0.13.*
+  default-language: Haskell2010
+
+executable rippleWithStockMultiSeeds
+  main-is: rippleWithStockMultiSeeds.hs
+  other-modules:
+      RippleEffect
+      Paths_exchangealgebra_examples
+  hs-source-dirs:
+      deterministic/ripple
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N10 -optl-Wl,-no_warn_duplicate_libraries
+  build-depends:
+      array >=0.5.5 && <0.6
+    , async ==2.2.*
+    , base >=4.17 && <5
+    , binary ==0.8.*
+    , bytestring >=0.11 && <0.13
+    , containers >=0.6 && <0.8
+    , deepseq >=1.4 && <1.6
+    , directory ==1.3.*
+    , exchangealgebra ==0.4.*
+    , hashable >=1.4 && <1.6
+    , mtl ==2.3.*
+    , non-negative >=0.1.2 && <0.2
+    , numeric-prelude >=0.4.4 && <0.5
+    , parallel ==3.2.*
+    , process ==1.6.*
+    , random ==1.2.*
+    , statistics ==0.16.*
+    , text >=2.0 && <2.2
+    , time >=1.12 && <1.15
+    , unordered-containers >=0.2.19 && <0.3
+    , vector ==0.13.*
+  default-language: Haskell2010
+
+executable sim1
+  main-is: simulateEx1.hs
+  other-modules:
+      Paths_exchangealgebra_examples
+  hs-source-dirs:
+      basic
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
+  build-depends:
+      array >=0.5.5 && <0.6
+    , async ==2.2.*
+    , base >=4.17 && <5
+    , binary ==0.8.*
+    , bytestring >=0.11 && <0.13
+    , containers >=0.6 && <0.8
+    , deepseq >=1.4 && <1.6
+    , directory ==1.3.*
+    , exchangealgebra ==0.4.*
+    , hashable >=1.4 && <1.6
+    , mtl ==2.3.*
+    , non-negative >=0.1.2 && <0.2
+    , numeric-prelude >=0.4.4 && <0.5
+    , parallel ==3.2.*
+    , process ==1.6.*
+    , random ==1.2.*
+    , statistics ==0.16.*
+    , text >=2.0 && <2.2
+    , time >=1.12 && <1.15
+    , unordered-containers >=0.2.19 && <0.3
+    , vector ==0.13.*
+  default-language: Haskell2010
+
+executable sim2
+  main-is: simulateEx2.hs
+  other-modules:
+      Paths_exchangealgebra_examples
+  hs-source-dirs:
+      basic
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
+  build-depends:
+      array >=0.5.5 && <0.6
+    , async ==2.2.*
+    , base >=4.17 && <5
+    , binary ==0.8.*
+    , bytestring >=0.11 && <0.13
+    , containers >=0.6 && <0.8
+    , deepseq >=1.4 && <1.6
+    , directory ==1.3.*
+    , exchangealgebra ==0.4.*
+    , hashable >=1.4 && <1.6
+    , mtl ==2.3.*
+    , non-negative >=0.1.2 && <0.2
+    , numeric-prelude >=0.4.4 && <0.5
+    , parallel ==3.2.*
+    , process ==1.6.*
+    , random ==1.2.*
+    , statistics ==0.16.*
+    , text >=2.0 && <2.2
+    , time >=1.12 && <1.15
+    , unordered-containers >=0.2.19 && <0.3
+    , vector ==0.13.*
+  default-language: Haskell2010

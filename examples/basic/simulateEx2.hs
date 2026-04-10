@@ -417,7 +417,7 @@ type CachedMetric = TermAnalysis -> ST RealWorld Double
 type CachedHeaders = [(T.Text, CachedMetric)]
 
 csv_dir :: FilePath
-csv_dir = "exsample/basic/result/csv/simulateEx2/"
+csv_dir = "examples/basic/result/csv/simulateEx2/"
 
 spillChunkTerms :: Int
 spillChunkTerms = 50
