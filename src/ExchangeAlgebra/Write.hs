@@ -85,7 +85,7 @@ tshow :: (Show a) => a -> T.Text
 tshow = T.pack . show
 
 -- | Output a Balance Sheet in CSV format.
--- Internally applies 'finalStockTransfer', then decomposes into assets, liabilities, and equity for output.
+-- Internally applies @finalStockTransfer@, then decomposes into assets, liabilities, and equity for output.
 --
 -- Complexity: O(s) (s = total number of scalar entries)
 writeBS :: (HatVal n, HatBaseClass b, ExBaseClass b) => FilePath -> Alg n b -> IO ()

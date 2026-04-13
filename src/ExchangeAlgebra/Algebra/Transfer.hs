@@ -32,7 +32,8 @@
 
 
 module ExchangeAlgebra.Algebra.Transfer
-    ( TransTable (..)
+    ( Size
+    , TransTable (..)
     , isNullTable
     , transfer
     , table

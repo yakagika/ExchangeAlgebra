@@ -22,7 +22,15 @@
 -}
 
 
-module ExchangeAlgebra.Simulate.Visualize   (gridLine
+module ExchangeAlgebra.Simulate.Visualize   (Title
+                                            ,FileName
+                                            ,Label
+                                            ,GridColumns
+                                            ,GridMatrix
+                                            ,TimeSeries
+                                            ,TimeSerieses
+                                            ,Header
+                                            ,gridLine
                                             ,plotLine
                                             ,plotMultiLines
                                             ,plotWldsDiffLine

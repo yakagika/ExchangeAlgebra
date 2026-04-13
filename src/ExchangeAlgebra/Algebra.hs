@@ -40,11 +40,12 @@
 
 module ExchangeAlgebra.Algebra
     ( module ExchangeAlgebra.Algebra.Base
-    , Nearly
+    , Nearly(..)
     , isNearlyNum
     , Redundant(..)
     , Exchange(..)
     , HatVal(..)
+    , Pair(..)
     , Alg(..)
     , isZero
     , (.@)
@@ -248,7 +249,7 @@ class (Redundant a n b ) => Exchange a n b where
 
 -- | Type class for algebra element values.
 -- Provides zero-value and error-value predicates.
--- Instances are defined for 'Double' and 'NN.Double' (non-negative reals).
+-- Instances are defined for @Double@ and @NN.Double@ (non-negative reals).
 class   ( Show n
         , Ord n
         , Eq n
@@ -431,7 +432,7 @@ emptyAxisPosting = IntMap.empty
 
 {-# INLINE insertAxisPosting #-}
 -- | Complexity: O(d * (hash-insert + intset-insert))
--- In practice this is near O(d), where d is the number of axes in 'BasePart'.
+-- In practice this is near O(d), where d is the number of axes in the base part.
 insertAxisPosting :: [AxisKey] -> Int -> AxisPosting -> AxisPosting
 insertAxisPosting !keys !bpId !idx =
     snd $ L.foldl' step (0 :: Int, idx) keys
@@ -668,7 +669,7 @@ instance (HatVal n, HatBaseClass b) => Monoid (Alg n b) where
     mconcat = unions
 
 {-# INLINE unions #-}
--- | Complexity: O(sum of 'union' costs over the fold)
+-- | Complexity: O(sum of HashMap union costs over the fold)
 -- For a long list this is typically the dominant construction cost.
 unions :: (HatVal n, Foldable f, HatBaseClass b) => f (Alg n b) -> Alg n b
 unions ts = Foldable.foldl' union Zero ts
@@ -847,7 +848,7 @@ bases (Liner m _ _ _ _ _) = Map.foldlWithKey' f [] m
 
 {-# INLINE fromList #-}
 -- | convert List to Alg n b
--- Complexity: O(sum of 'union' costs), because this is implemented via 'mconcat'.
+-- Complexity: O(sum of HashMap union costs), because this is implemented via 'mconcat'.
 --
 -- >>> type Test = Alg NN.Double (HatBase AccountTitles)
 -- >>> xs = [1:@Hat:<Cash,1:@Not:<Deposits, 2:@Hat:<Cash, 2:@Not:<Deposits] :: [Test]
@@ -866,7 +867,7 @@ fromList = mconcat
 
 
 -- | Summation function that applies a function to each element of a list and sums the results.
--- Complexity: O(sum of 'union' costs over produced elements).
+-- Complexity: O(sum of HashMap union costs over produced elements).
 --
 -- >>> type Test = Alg NN.Double (HatBase CountUnit)
 -- >>> sigma [1,2] (\x -> x:@Hat:<Yen)

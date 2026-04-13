@@ -38,6 +38,7 @@ module ExchangeAlgebra.Journal
     , (.@)
     , Note(..)
     , NoteAxisKey(..)
+    , NoteAxisPosting
     , Journal(..)
     , pattern ExchangeAlgebra.Journal.Zero
     , (.|)
@@ -93,7 +94,7 @@ import              Data.Typeable           (Typeable, cast, typeOf)
 
 -- | An existential type that holds each axis of a Note with its type erased.
 -- Used to decompose multi-dimensional Note types (tuples) into per-axis keys
--- for indexing, mirroring how 'AxisKey' works for basis elements in 'Alg'.
+-- for indexing, mirroring how @AxisKey@ works for basis elements in 'Alg'.
 data NoteAxisKey = forall a. (Eq a, Hashable a, Typeable a) => NoteAxisKey !a
 
 instance Eq NoteAxisKey where
@@ -110,7 +111,7 @@ instance Hashable NoteAxisKey where
 
 -- | Per-axis index for Note keys.
 -- Maps axis_number -> axis_value -> set of Notes.
--- Mirrors 'AxisPosting' in 'Alg'.
+-- Mirrors @AxisPosting@ in 'Alg'.
 type NoteAxisPosting n = IntMap (Map.HashMap NoteAxisKey (HashSet n))
 
 {-# INLINE emptyNoteAxisPosting #-}

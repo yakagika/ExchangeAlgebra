@@ -173,9 +173,9 @@ instance Hashable AxisKey where
 axisIsWildcard :: AxisKey -> Bool
 axisIsWildcard (AxisKey x) = isWiledcard x
 
--- | A type class for decomposing a basis element into a list of per-axis 'AxisKey's.
+-- | A type class for decomposing a basis element into a list of per-axis t'AxisKey's.
 -- Overlapping instances are defined for tuple types so that each component
--- is decomposed into a separate 'AxisKey'.
+-- is decomposed into a separate t'AxisKey'.
 --
 -- Complexity: O(k) (k is the number of tuple components)
 class (Element a) => AxisDecompose a where
