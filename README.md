@@ -1,16 +1,17 @@
 # exchangealgebra
 
-`exchangealgebra` は、出口弘氏による [交換代数 (Exchange Algebra)](https://www.springer.com/gp/book/9784431209850) を
-Haskell で表現するライブラリです。簿記をスカラー倍付き基底代数の元として扱い、仕訳・決算・振替・
-シミュレーションを関数合成と射影で記述します。
+`exchangealgebra` is a Haskell library for [Exchange Algebra](https://www.springer.com/gp/book/9784431209850),
+an algebraic description of bookkeeping systems developed by Hiroshi Deguchi. It treats bookkeeping entries
+as elements of a scaled basis algebra, so journaling, closing, transfer, and simulation can be written as
+function composition and projection.
 
-- 書籍:  <https://www.springer.com/gp/book/9784431209850>
-- 解説: <https://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/82987/1/0809-7.pdf>
+- Book: <https://www.springer.com/gp/book/9784431209850>
+- Paper: <https://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/82987/1/0809-7.pdf>
 - Haddock: [haddock/index.html](https://htmlpreview.github.io/?https://raw.githubusercontent.com/yakagika/ExchangeAlgebra/master/haddock/index.html)
 
 ## Installation
 
-Hackage に登録されるまでは、Stack の `extra-deps` で Git URL を指定して利用してください。
+Until this package is published on Hackage, use Stack's `extra-deps` to pull it from Git:
 
 ```yaml
 # stack.yaml
@@ -25,107 +26,111 @@ dependencies:
   - exchangealgebra
 ```
 
-Hackage 登録後は `extra-deps: [exchangealgebra-X.Y.Z.W]` で単純指定できるようになります。
+Once it is on Hackage, a simple `extra-deps: [exchangealgebra-X.Y.Z.W]` entry will be enough.
 
-要件:
-- GHC 9.10 系（Stackage `lts-24.4` で検証）
-- Cabal 3.0 以上
-- `Chart` / `Chart-cairo` が transitive に Cairo/Pango/Freetype の system library を要求します
-  （macOS: `brew install cairo pango`）
+Requirements:
+- GHC 9.10 (tested with Stackage `lts-24.4`)
+- Cabal 3.0 or later
+- `Chart` / `Chart-cairo` transitively require the Cairo / Pango / Freetype system libraries
+  (on macOS: `brew install cairo pango`)
 
 ## Module Overview
 
-公開モジュールは 2 系統に分かれます。
+The public modules are organised into two parallel layers.
 
-### 基礎層 (Algebra)
+### Foundation layer (Algebra)
 
-|モジュール|役割|
+|Module|Role|
 |---|---|
-|`ExchangeAlgebra.Algebra`|代数の本体: `Alg` 型、`HatVal` / `BaseClass`、加算 `.+` / 反転 `.^` / bar `.-` / 射影 `proj`|
-|`ExchangeAlgebra.Algebra.Base`|基底クラス (`BaseClass`, `HatBaseClass`, `ExBaseClass`) と基底表示|
-|`ExchangeAlgebra.Algebra.Base.Element`|`Element` 型クラス（ワイルドカード付きの基底成分）|
-|`ExchangeAlgebra.Algebra.Transfer`|振替変換 (`TransTable`, `(.->)`, `transfer`, `finalStockTransfer`)|
+|`ExchangeAlgebra.Algebra`|Core algebra: the `Alg` type, `HatVal` / `BaseClass`, addition `.+` / hat `.^` / bar `.-` / projection `proj`|
+|`ExchangeAlgebra.Algebra.Base`|Basis classes (`BaseClass`, `HatBaseClass`, `ExBaseClass`) and basis display helpers|
+|`ExchangeAlgebra.Algebra.Base.Element`|The `Element` type class (wildcard-aware basis components)|
+|`ExchangeAlgebra.Algebra.Transfer`|Transfer rewriting (`TransTable`, `(.->)`, `transfer`, `finalStockTransfer`)|
 
-### 仕訳層 (Journal) — メタデータ付き基底代数
+### Journal layer — metadata-aware basis algebra
 
-|モジュール|役割|
+|Module|Role|
 |---|---|
-|`ExchangeAlgebra.Journal`|`Journal n v b` (Note 付き仕訳集合)、`sigmaOn`, `filterByAxis`, `projWithNote` など|
-|`ExchangeAlgebra.Journal.Transfer`|Journal 向け振替 API（Algebra.Transfer のラッパ）|
+|`ExchangeAlgebra.Journal`|`Journal n v b` (journal entries carrying a `Note`), `sigmaOn`, `filterByAxis`, `projWithNote`, …|
+|`ExchangeAlgebra.Journal.Transfer`|Transfer API specialised for `Journal` (thin wrappers over `Algebra.Transfer`)|
 
-### シミュレーション・入出力層
+### Simulation / IO layer
 
-|モジュール|役割|
+|Module|Role|
 |---|---|
-|`ExchangeAlgebra.Simulate`|`StateSpace`, `Updatable`, `runSimulation`, spill-to-disk, 波及効果 (`rippleEffect`, `leontiefInverse`)|
-|`ExchangeAlgebra.Simulate.Visualize`|Chart/Cairo による PNG 可視化（後述の注意点あり）|
-|`ExchangeAlgebra.Write`|CSV 出力 (`writeBS`, `writePL`, `writeIOMatrix`, `writeCSV`)、spill のバイナリ復元|
+|`ExchangeAlgebra.Simulate`|`StateSpace`, `Updatable`, `runSimulation`, spill-to-disk, ripple-effect utilities (`rippleEffect`, `leontiefInverse`)|
+|`ExchangeAlgebra.Simulate.Visualize`|Chart/Cairo based PNG rendering (see the caveats below)|
+|`ExchangeAlgebra.Write`|CSV output (`writeBS`, `writePL`, `writeIOMatrix`, `writeCSV`) and binary-spill restore helpers|
 
-### 入口モジュール
+### Umbrella entry modules
 
-|モジュール|内容|
+|Module|Content|
 |---|---|
-|`ExchangeAlgebra` (top-level)|Algebra 層の umbrella。`Algebra`, `Algebra.Transfer`, `Write`, `Simulate` を re-export|
-|`ExchangeAlgebra.Journal`|Journal 層の umbrella。`Algebra.Base` を re-export するので型クラス経由の拡張（独自 `Element` 等）はここからも可能|
+|`ExchangeAlgebra` (top level)|Umbrella for the Algebra layer: re-exports `Algebra`, `Algebra.Transfer`, `Write`, and `Simulate`|
+|`ExchangeAlgebra.Journal`|Umbrella for the Journal layer. Re-exports `Algebra.Base`, so user-defined `Element` instances are available through this import as well|
 
-`ExchangeAlgebra` と `ExchangeAlgebra.Journal` の両方を unqualified に import すると
-`sigma`, `fromList`, `map`, `filter` などで名前衝突します。下記「推奨 import パターン」を参照。
+Importing both `ExchangeAlgebra` and `ExchangeAlgebra.Journal` unqualified causes name
+collisions on `sigma`, `fromList`, `map`, `filter`, and friends. See the recommended import
+patterns below.
 
-## 推奨 import パターン
+## Recommended import patterns
 
-### 単一期の簡単な帳簿
+### Simple single-period bookkeeping
 
 ```haskell
-import ExchangeAlgebra                          -- Algebra 系 umbrella
+import ExchangeAlgebra                          -- Algebra-layer umbrella
 
 main = do
     let e = 100 :@ Hat :< Cash .+ 100 :@ Not :< Sales
     putStr (showBS e)
 ```
 
-### Journal ベース（複数期・メタデータ・シミュレーション）
+### Journal-based work (multi-period, notes, simulation)
 
 ```haskell
-import           ExchangeAlgebra.Journal        -- 型クラスと Journal をまとめて取り込む
+import           ExchangeAlgebra.Journal        -- pulls in the type classes and the Journal API
 import qualified ExchangeAlgebra.Algebra           as EA
 import qualified ExchangeAlgebra.Journal           as EJ
 import qualified ExchangeAlgebra.Journal.Transfer  as EJT
 import qualified ExchangeAlgebra.Simulate          as ES
-import           ExchangeAlgebra.Simulate          -- StateSpace, Updatable 等の型クラスを unqualified で
-import           ExchangeAlgebra.Write             -- writeBS / writeIOMatrix 等
+import           ExchangeAlgebra.Simulate          -- unqualified, for StateSpace, Updatable, etc.
+import           ExchangeAlgebra.Write             -- writeBS / writeIOMatrix and friends
 ```
 
-Journal 中心のコードでも、`Alg` 型や `EA.proj` など **Algebra 層を qualified で併用する**のが
-このライブラリの標準的な書き方です。
+Even in Journal-centric code you will frequently reach into the Algebra layer (for the `Alg`
+type or `EA.proj`, for example). **Using Journal as the unqualified umbrella and pulling the
+Algebra layer in as `EA` qualified is the idiomatic style for this library.**
 
-## 可視化について（重要）
+## A note on visualization
 
-`ExchangeAlgebra.Simulate.Visualize` で Chart ベースの PNG 出力機能を提供していますが、
-**実運用では CSV 出力 + 外部 Python スクリプトによる可視化を推奨します**。
+`ExchangeAlgebra.Simulate.Visualize` provides Chart-based PNG rendering, but **we recommend
+writing CSV output and visualising it from a separate Python script** for production-quality
+plotting.
 
-### なぜか
+### Why
 
-- Chart/Chart-cairo は system の cairo/pango/freetype を要求し、ビルド環境のセットアップが重い
-- 学術用途では matplotlib / seaborn / pandas などの Python エコシステムの方が柔軟
-- CSV を中間フォーマットとすることで、論文のためのプロット整形と計算を分離できる
-- R / Julia / Excel など別ツールにも同じ CSV を流用できる
+- Chart / Chart-cairo transitively pull in cairo / pango / freetype system libraries, which
+  makes the build environment heavier to set up.
+- For academic work, matplotlib / seaborn / pandas are more flexible than Chart.
+- Using CSV as an intermediate format cleanly separates "compute" from "plot".
+- The same CSVs can be reused with R / Julia / Excel if you need them.
 
-### 推奨ワークフロー例
+### Recommended workflow
 
 ```haskell
--- Haskell 側: 計算結果を CSV に書き出す
+-- Haskell side: write the simulation outputs to CSV
 import           ExchangeAlgebra.Write           (writeIOMatrix)
 import qualified ExchangeAlgebra.Simulate.Visualize as ESV
-                                                  -- writeFuncResults 等を qualified で使う
+                                                  -- qualified access to writeFuncResults etc.
 
 main = do
-    -- ... simulation ...
+    -- ... run the simulation ...
     writeIOMatrix "result/io.csv" matrix
     ESV.writeFuncResults header range world "result/profit.csv"
 ```
 
 ```bash
-# 可視化側: uv の PEP 723 inline script で独立実行
+# Plotting side: run a standalone script with uv + PEP 723 inline deps
 uv run --script visualize.py
 ```
 
@@ -140,39 +145,40 @@ df = pd.read_csv("result/profit.csv")
 df.plot(); plt.savefig("result/profit.png")
 ```
 
-この手順の具体例は `examples/` サブパッケージにあります（`examples/README.md` 参照）。
+Concrete runnable examples of this pattern live under the `examples/` sub-package
+(see [examples/README.md](examples/README.md)).
 
-### Chart 機能を使う場合
+### If you still want to plot from Haskell
 
-既存ワークフローで Haskell 完結を希望する場合、`ExchangeAlgebra.Simulate.Visualize` の
-`plotLineVector`, `plotMultiLines`, `plotWldsDiffLine` がそのまま使えます。PNG を直接書き出します。
+If keeping everything in Haskell is important to your workflow, `plotLineVector`,
+`plotMultiLines`, and `plotWldsDiffLine` in `ExchangeAlgebra.Simulate.Visualize` write PNGs
+directly and work without any Python setup.
 
 ## Examples
 
-具体的な使用例は `examples/` サブパッケージで提供しています。詳細は
-[examples/README.md](examples/README.md) を参照してください。
+Runnable usage examples are collected in the `examples/` sub-package. See
+[examples/README.md](examples/README.md) for details.
 
 ```bash
 stack build
-stack exec -- ebex1      # 初級簿記の例
-stack exec -- sim1       # 100期のシミュレーション (+ Python可視化)
-stack exec -- ripple     # 10エージェントの波及効果
-stack exec -- cge        # CGE モデル
+stack exec -- ebex1      # Introductory bookkeeping example
+stack exec -- sim1       # 100-term simulation (+ Python visualization)
+stack exec -- ripple     # 10-agent ripple-effect simulation
+stack exec -- cge        # CGE model
 ```
 
 ## Documentation
 
 - Haddock: <https://htmlpreview.github.io/?https://raw.githubusercontent.com/yakagika/ExchangeAlgebra/master/haddock/index.html>
-- チュートリアル・解説記事は今後 [論文](#) ベースで整備予定
+- A tutorial / guided walkthrough is planned, based on an upcoming paper.
 
 ## License
 
-MIT ライセンスと Open World License (OWL) のデュアルライセンス。
-詳細は `LICENSE` を参照。
+Dual licensed under MIT and the Open World License (OWL). See `LICENSE` for details.
 
 ## References
 
-- 出口弘. *A Mathematical Theory of Economic Behaviour* (Springer).
+- Hiroshi Deguchi. *A Mathematical Theory of Economic Behaviour* (Springer).
   <https://www.springer.com/gp/book/9784431209850>
-- 出口弘. 交換代数 (PDF).
+- Hiroshi Deguchi. Exchange Algebra (PDF).
   <https://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/82987/1/0809-7.pdf>
