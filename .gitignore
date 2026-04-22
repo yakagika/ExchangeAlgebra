@@ -32,3 +32,6 @@ cabal.project.local~
 AGENTS.md
 HACKAGE_TODO.md
 .stack-local/
+
+# Example execution outputs (regenerated on each run)
+examples/**/result/
