@@ -29,7 +29,7 @@ cabal.project.local~
 *.bin
 .claude/
 .codex/
-AGENTS.md
+CLAUDE.md
 HACKAGE_TODO.md
 .stack-local/
 
