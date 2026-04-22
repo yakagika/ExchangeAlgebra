@@ -11,9 +11,55 @@ This sub-package is **not** published to Hackage; it ships only via this reposit
   - Linux / Windows: <https://docs.astral.sh/uv/getting-started/installation/>
   - Target version: 0.5 or later (for PEP 723 inline script metadata support).
 
+## Obtaining the code
+
+Pick whichever clone strategy fits your workflow.
+
+### Full clone (simplest, recommended)
+
+```bash
+git clone https://github.com/yakagika/ExchangeAlgebra.git
+cd ExchangeAlgebra
+```
+
+The repository is lightweight now that generated outputs are `.gitignore`d. This is
+the only option that works **before** the first Hackage release, because the examples
+sub-package currently depends on the local library source via the root `stack.yaml`.
+
+### Sparse checkout (fetch only the `examples/` subtree)
+
+Requires Git 2.25+. History-preserving.
+
+```bash
+git clone --no-checkout --filter=blob:none https://github.com/yakagika/ExchangeAlgebra.git
+cd ExchangeAlgebra
+git sparse-checkout set --cone examples
+git checkout master
+```
+
+### Snapshot only (no Git history) via `degit`
+
+Fastest if you do not need history; produces a clean directory.
+
+```bash
+npx degit yakagika/ExchangeAlgebra/examples my-examples
+cd my-examples
+```
+
+### Note on standalone builds
+
+**Until the first Hackage release**, sparse-checkout / `degit` alone is not enough to
+build the examples: the root `stack.yaml` is required to resolve `exchangealgebra`
+as a local package. Use a full clone for now, or copy the sources you want into
+your own Stack project.
+
+A companion `examples/stack.yaml` will be added together with the first Hackage
+release, pinning `exchangealgebra-X.Y.Z.W` via `extra-deps`. After that, sparse-checkout
+or `degit` plus `cd examples && stack build` will be a complete standalone workflow.
+
 ## Building & Running
 
-From the repository root:
+From the repository root (full-clone case):
 
 ```bash
 stack build

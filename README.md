@@ -34,6 +34,47 @@ Requirements:
 - `Chart` / `Chart-cairo` transitively require the Cairo / Pango / Freetype system libraries
   (on macOS: `brew install cairo pango`)
 
+## How to consume this package
+
+Three common use cases:
+
+### 1. Use it as a library dependency
+
+Add `exchangealgebra` to your project's `build-depends` via the Git `extra-deps`
+entry above (or the Hackage pin once published). The `examples/` directory is
+**not** needed for this; it is only shipped in this Git repository.
+
+### 2. Run the bundled examples
+
+Clone the repository and build from the root:
+
+```bash
+git clone https://github.com/yakagika/ExchangeAlgebra.git
+cd ExchangeAlgebra
+stack build
+stack exec -- sim1        # or ebex1, ripple, cge, ...
+```
+
+See the [examples directory](https://github.com/yakagika/ExchangeAlgebra/tree/master/examples)
+for the full catalogue and runtime prerequisites (uv for Python plots,
+output directories, etc.).
+
+### 3. Copy or fork a single example
+
+If you want to start from one example without pulling the whole repository,
+[`degit`](https://github.com/Rich-Harris/degit) (or its maintained successor `tiged`)
+lets you grab just the subtree without git history:
+
+```bash
+npx degit yakagika/ExchangeAlgebra/examples my-examples
+cd my-examples
+# then edit freely as a starting point
+```
+
+A Git sparse-checkout with a standalone `examples/stack.yaml` is planned so that
+`cd examples && stack build` works after a sparse-clone; this will land together
+with the first Hackage release.
+
 ## Module Overview
 
 The public modules are organised into two parallel layers.
@@ -146,7 +187,7 @@ df.plot(); plt.savefig("result/profit.png")
 ```
 
 Concrete runnable examples of this pattern live under the `examples/` sub-package
-(see [examples/README.md](examples/README.md)).
+(see [the examples directory on GitHub](https://github.com/yakagika/ExchangeAlgebra/tree/master/examples)).
 
 ### If you still want to plot from Haskell
 
@@ -156,8 +197,9 @@ directly and work without any Python setup.
 
 ## Examples
 
-Runnable usage examples are collected in the `examples/` sub-package. See
-[examples/README.md](examples/README.md) for details.
+Runnable usage examples are collected in the `examples/` sub-package on GitHub.
+See the [examples directory](https://github.com/yakagika/ExchangeAlgebra/tree/master/examples)
+and its [README](https://github.com/yakagika/ExchangeAlgebra/blob/master/examples/README.md) for details.
 
 ```bash
 stack build
