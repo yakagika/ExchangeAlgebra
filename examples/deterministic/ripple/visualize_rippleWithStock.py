@@ -1097,18 +1097,6 @@ def plot_comparison_pairs(start_time=50):
 # 複数ペアの比較グラフ（Seed別）を作成
 plot_comparison_pairs()
 
-# 生成した upper/lower PNG を LaTeX fig ディレクトリへコピー
-import shutil as _shutil
-_latex_fig_dir = "/Users/akagi/Documents/Conference/SystemsResearch/2026/WileyNJDv5_Template/fig"
-_seed_outdir = os.path.join(fig_dir, "seed_comparison", "default-added")
-for _fname in os.listdir(_seed_outdir):
-    if (_fname.endswith("_seed_ratio_boxplot_upper.png")
-            or _fname.endswith("_seed_ratio_boxplot_lower.png")
-            or _fname.endswith("_seed_envelope_upper.png")
-            or _fname.endswith("_seed_envelope_lower.png")):
-        _shutil.copy2(os.path.join(_seed_outdir, _fname), os.path.join(_latex_fig_dir, _fname))
-        print(f"Copied {_fname} -> {_latex_fig_dir}")
-
 # --- 変動率の比較グラフ ---
 def plot_variation_rate_graphs():
     """default-addedケースにおける複数のペアの変動率比較グラフを作成（標準偏差と変動幅表示付き）"""
