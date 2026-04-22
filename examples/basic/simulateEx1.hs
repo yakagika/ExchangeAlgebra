@@ -431,7 +431,7 @@ main = do
                    "GrossProfit"
 
     print "visualizing with Python..."
-    exitCode <- rawSystem "python" ["examples/basic/visualize_simulateEx1.py"]
+    exitCode <- rawSystem "uv" ["run", "--script", "examples/basic/visualize_simulateEx1.py"]
     case exitCode of
         ExitSuccess -> print "Python visualization completed successfully"
         ExitFailure n -> print $ "Python visualization failed with exit code: " ++ show n

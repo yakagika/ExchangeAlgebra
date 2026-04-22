@@ -1,3 +1,11 @@
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#     "pandas>=2.0",
+#     "matplotlib>=3.7",
+#     "numpy>=1.24",
+# ]
+# ///
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np

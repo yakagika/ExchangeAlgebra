@@ -282,7 +282,7 @@ main = do
         ESV.writeFuncResults header_func_demand (initTerm,lastTerm) wld (csv_dir ++ n ++ "/demand.csv")
 
     -- visualize with python
-    exitCode <- rawSystem "python" ["examples/deterministic/ripple/visualize_ripple.py"]
+    exitCode <- rawSystem "uv" ["run", "--script", "examples/deterministic/ripple/visualize_ripple.py"]
     case exitCode of
         ExitSuccess -> print "Python visualization completed successfully"
         ExitFailure n -> print $ "Python visualization failed with exit code: " ++ show n

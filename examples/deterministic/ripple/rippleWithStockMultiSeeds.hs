@@ -356,7 +356,7 @@ main = do
     -- visualize with python
     ------------------------------------------------------------------
     putStrLn "Running Python visualization..."
-    (exitCode, stdout, stderr) <- readProcessWithExitCode "python" ["examples/deterministic/ripple/visualize_rippleWithStock.py"] ""
+    (exitCode, stdout, stderr) <- readProcessWithExitCode "uv" ["run", "--script", "examples/deterministic/ripple/visualize_rippleWithStock.py"] ""
     case exitCode of
         ExitSuccess -> do
             putStrLn "Python visualization completed successfully"
