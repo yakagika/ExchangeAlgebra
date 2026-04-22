@@ -96,8 +96,6 @@ import              Data.Sequence       (Seq)
 import qualified    Data.Maybe          as Maybe
 import qualified    Number.NonNegative  as NN  -- Non-negative real numbers
 import              Numeric.NonNegative.Class (C)
-import              Data.Bifunctor
-import              Data.Biapplicative
 import              Algebra.Additive (C)
 import qualified    Data.Scientific     as D (Scientific, fromFloatDigits, formatScientific, FPFormat(..))
 import Control.DeepSeq

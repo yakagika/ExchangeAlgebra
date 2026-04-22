@@ -6,13 +6,15 @@
 
 module Main (main) where
 
-import           ExchangeAlgebraJournal
+import           ExchangeAlgebra.Journal
 import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Algebra.Transfer as EAT
 import qualified ExchangeAlgebra.Journal  as EJ
 import qualified ExchangeAlgebra.Journal.Transfer as EJT
 import qualified ExchangeAlgebra.Simulate as ES
+import           ExchangeAlgebra.Simulate
 import qualified ExchangeAlgebra.Write    as EW
+import           ExchangeAlgebra.Write
 
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Map.Strict     as M

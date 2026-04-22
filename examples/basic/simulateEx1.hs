@@ -5,14 +5,15 @@
 {-# LANGUAGE TypeFamilies #-}
 
 -- ライブラリ内 module
-import           ExchangeAlgebraJournal
+import           ExchangeAlgebra.Journal
 import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Journal  as EJ
 import qualified ExchangeAlgebra.Journal.Transfer as EJT
 
-import qualified ExchangeAlgebra.Simulate
+import           ExchangeAlgebra.Simulate
 import qualified ExchangeAlgebra.Simulate as ES
 import qualified ExchangeAlgebra.Simulate.Visualize as ESV
+import           ExchangeAlgebra.Write
 
 -- 外部ライブラリ
 import qualified Data.HashMap.Strict     as HM

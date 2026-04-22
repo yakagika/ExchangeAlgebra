@@ -7,12 +7,14 @@
 -- This executable runs the larger simulation example (sim2).
 -- It also spills ledger chunks to binary files during simulation.
 
-import           ExchangeAlgebraJournal
+import           ExchangeAlgebra.Journal
 import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Journal  as EJ
 import qualified ExchangeAlgebra.Journal.Transfer as EJT
 import qualified ExchangeAlgebra.Simulate as ES
+import           ExchangeAlgebra.Simulate
 import qualified ExchangeAlgebra.Simulate.Visualize as ESV
+import           ExchangeAlgebra.Write
 
 import           Control.Concurrent.Async (forConcurrently_)
 import           Control.Monad (foldM, forM, forM_, replicateM)

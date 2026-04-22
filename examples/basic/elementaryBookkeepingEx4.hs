@@ -2,7 +2,7 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 
-import ExchangeAlgebraJournal
+import ExchangeAlgebra.Journal
 import ExchangeAlgebra.Algebra.Transfer
 import Data.Time
 

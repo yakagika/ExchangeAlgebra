@@ -16,14 +16,14 @@ Module for Computable General Equilibrium Analysis
 module CGE where
 
 -- Original
-import              ExchangeAlgebraJournal
+import              ExchangeAlgebra.Journal
 import qualified    ExchangeAlgebra.Journal  as EJ
 import qualified    ExchangeAlgebra.Journal.Transfer as EJT
 import              ExchangeAlgebra.Journal.Transfer ((.->)
                                                         ,(|%))
 
 import qualified    ExchangeAlgebra.Simulate as ES
-import qualified    ExchangeAlgebra.Simulate
+import              ExchangeAlgebra.Simulate
 import qualified    ExchangeAlgebra.Simulate.Visualize as ESV
 
 

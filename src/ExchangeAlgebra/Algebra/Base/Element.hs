@@ -1,5 +1,5 @@
 {- |
-    Module     : ExchangeAlgebra.Element
+    Module     : ExchangeAlgebra.Algebra.Base.Element
     Copyright  : (c) Kaya Akagi. 2018-2019
     Maintainer : akagi_kaya@icloud.com
 
@@ -14,7 +14,28 @@
 
     <https://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/82987/1/0809-7.pdf>
 
-    _Note_ : The current version 0.1.0.0 will be completely changed shortly, especially in the accounts settings section.
+    == Extending with user-defined types
+
+    To use your own type as a basis component, declare an 'Element' instance.
+    A single distinguished value must serve as the wildcard used by the
+    transfer engine and by projection operations:
+
+    @
+    data Company = CompanyA | CompanyB | CompanyWildcard
+      deriving (Eq, Ord, Show, Generic, Hashable, Typeable)
+
+    instance Element Company where
+      wiledcard = CompanyWildcard
+    @
+
+    == Import guidance
+
+    User code rarely needs to import this module directly. The 'Element'
+    class and its associated symbols are re-exported from
+    "ExchangeAlgebra.Algebra.Base", and transitively from
+    "ExchangeAlgebra.Algebra", "ExchangeAlgebra.Journal", and the top-level
+    "ExchangeAlgebra". The module path of this file may be reorganized in
+    future versions; prefer importing from the higher-level modules.
 
 -}
 

@@ -23,7 +23,6 @@ dependencies:
 - numeric-prelude       >= 0.4.4   && < 0.5
 - unicode-show          >= 0.1     && < 0.2
 - non-negative          >= 0.1.2   && < 0.2
-- bifunctors            >= 5.6     && < 5.8
 - array                 >= 0.5.5   && < 0.6
 - Chart                 >= 1.9     && < 1.10
 - Chart-cairo           >= 1.9     && < 1.10

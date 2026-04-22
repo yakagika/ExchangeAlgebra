@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 4cac97221733cd089b0561fa55c7389bad336bb636e521cf042bf05423beb41a
+-- hash: d7f252581bc76598f53d62c0984c6701a8c5410eba2999a31a1357d4fc3e9751
 
 name:           exchangealgebra
 version:        0.4.0.0
@@ -39,7 +39,6 @@ library
       ExchangeAlgebra.Simulate
       ExchangeAlgebra.Simulate.Visualize
       ExchangeAlgebra.Write
-      ExchangeAlgebraJournal
   other-modules:
       Paths_exchangealgebra
   hs-source-dirs:
@@ -50,7 +49,6 @@ library
     , array >=0.5.5 && <0.6
     , async ==2.2.*
     , base >=4.17 && <5
-    , bifunctors >=5.6 && <5.8
     , binary ==0.8.*
     , bytestring >=0.11 && <0.13
     , containers >=0.6 && <0.8
@@ -81,7 +79,6 @@ test-suite ExchangeAlgebra-doctest
     , array >=0.5.5 && <0.6
     , async ==2.2.*
     , base >=4.17 && <5
-    , bifunctors >=5.6 && <5.8
     , binary ==0.8.*
     , bytestring >=0.11 && <0.13
     , containers >=0.6 && <0.8
@@ -116,7 +113,6 @@ test-suite ExchangeAlgebra-test
     , array >=0.5.5 && <0.6
     , async ==2.2.*
     , base >=4.17 && <5
-    , bifunctors >=5.6 && <5.8
     , binary ==0.8.*
     , bytestring >=0.11 && <0.13
     , containers >=0.6 && <0.8

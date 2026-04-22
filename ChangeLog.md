@@ -36,11 +36,25 @@ First release prepared for Hackage publication.
 
 ### Build / packaging
 - Bumped Stackage resolver from `lts-22.6` (GHC 9.6.3) to `lts-24.4` (GHC 9.10.2).
-- Added explicit version bounds for all 26 library dependencies.
+- Added explicit version bounds for all library dependencies.
 - Added `synopsis`, `category`, and corrected `description` URL in `package.yaml`.
 - Removed Git-only `csv-parser` (CSVParserT) dependency, replaced with
   in-tree `writeCSV` / `csvTranspose` in `ExchangeAlgebra.Write`.
 - Added CSV write tests (`testCsvWriteCSV`, `testCsvTranspose`, etc.).
+- Removed unused `bifunctors` dependency (dead import in `ExchangeAlgebra.Algebra`).
+
+### Breaking changes
+- Removed the non-hierarchical top-level module `ExchangeAlgebraJournal`.
+  Use `ExchangeAlgebra.Journal` (for the Journal data model) or the
+  top-level `ExchangeAlgebra` (for the Algebra data model) instead.
+  The `ExchangeAlgebra` top-level remains an Algebra-layer umbrella; Journal
+  users should import `ExchangeAlgebra.Journal` as the unqualified umbrella
+  and qualify `ExchangeAlgebra.Algebra` as needed.
+
+### Documentation
+- Added extension guidance and import guidance to the Haddock of
+  `ExchangeAlgebra.Algebra.Base.Element`, clarifying that user code should
+  import `Element` via the higher-level umbrella modules.
 
 ## 0.3.0.0
 
