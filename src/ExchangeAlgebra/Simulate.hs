@@ -5,6 +5,11 @@
 
     Released under the OWL license
 
+    State-space framework for Exchange-Algebra-based simulation:
+    'StateSpace', 'Updatable', 'runSimulation', ripple-effect utilities
+    ('rippleEffect', 'leontiefInverse'), spill-to-disk ledger support,
+    and parallel scenario execution ('runScenarios').
+
     Package for Exchange Algebra defined by Hiroshi Deguchi.
 
     Exchange Algebra is an algebraic description of bookkeeping system.
@@ -14,6 +19,20 @@
 
     <https://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/82987/1/0809-7.pdf>
 
+    == Application note
+
+    The design of this module — the accounting state space as the minimal
+    unit for agent-based simulation, and the ripple-effect utilities — is
+    described in:
+
+    Kaya Akagi. /Accounting State Space as the Minimal Unit for Economic/
+    /Agent-Based Modeling: Advancing Ripple Effect Analysis in Real-Time/
+    /Economy./ Research Square, preprint (Version 1), posted 5 January 2026.
+    <https://doi.org/10.21203/rs.3.rs-8485050/v1>
+
+    Runnable companions to the preprint live in the repository under
+    @examples\/deterministic\/ripple\/@
+    (<https://github.com/yakagika/ExchangeAlgebra/tree/master/examples/deterministic/ripple>).
 
 -}
 

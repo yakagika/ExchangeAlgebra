@@ -5,6 +5,11 @@ an algebraic description of bookkeeping systems developed by Hiroshi Deguchi. It
 as elements of a scaled basis algebra, so journaling, closing, transfer, and simulation can be written as
 function composition and projection.
 
+The library is used in the preprint
+[*Accounting State Space as the Minimal Unit for Economic Agent-Based Modeling*](https://doi.org/10.21203/rs.3.rs-8485050/v1)
+(Akagi, 2026) as the minimal unit for economic agent-based simulation and
+ripple-effect analysis. See the [Publications section](#publications-using-this-library) for citation details.
+
 - Book: <https://www.springer.com/gp/book/9784431209850>
 - Paper: <https://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/82987/1/0809-7.pdf>
 - Haddock: [haddock/index.html](https://htmlpreview.github.io/?https://raw.githubusercontent.com/yakagika/ExchangeAlgebra/master/haddock/index.html)
@@ -217,6 +222,22 @@ stack exec -- cge        # CGE model
 ## License
 
 Dual licensed under MIT and the Open World License (OWL). See `LICENSE` for details.
+
+## Publications using this library
+
+- Kaya Akagi.
+  *Accounting State Space as the Minimal Unit for Economic Agent-Based
+  Modeling: Advancing Ripple Effect Analysis in Real-Time Economy.*
+  Research Square, preprint (Version 1), posted 5 January 2026.
+  DOI: [10.21203/rs.3.rs-8485050/v1](https://doi.org/10.21203/rs.3.rs-8485050/v1)
+
+  The ripple-effect simulations reported in this preprint are driven by
+  `ExchangeAlgebra.Simulate` and the ripple example family under
+  [`examples/deterministic/ripple/`](https://github.com/yakagika/ExchangeAlgebra/tree/master/examples/deterministic/ripple).
+
+If you use this library in academic work, please cite the preprint above.
+A `CITATION.cff` file at the repository root provides BibTeX and
+plain-text forms via GitHub's "Cite this repository" button.
 
 ## References
 

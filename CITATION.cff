@@ -1,0 +1,46 @@
+cff-version: 1.2.0
+message: >-
+  If you use this library in academic work, please cite both the software
+  itself and the preprint below (set as the preferred citation).
+title: exchangealgebra
+abstract: >-
+  A Haskell library implementing Hiroshi Deguchi's Exchange Algebra, an
+  algebraic description of bookkeeping systems. Provides bookkeeping
+  representation, journal entries with note metadata, transfer rewriting,
+  CSV/Chart IO, and a state-space simulation framework with ripple-effect
+  and Leontief-inverse utilities.
+type: software
+authors:
+  - family-names: Akagi
+    given-names: Kaya
+    email: kaya3728@gmail.com
+version: 0.4.0.0
+license: MIT
+repository-code: https://github.com/yakagika/ExchangeAlgebra
+url: https://github.com/yakagika/ExchangeAlgebra
+keywords:
+  - haskell
+  - exchange-algebra
+  - bookkeeping
+  - accounting
+  - agent-based-modeling
+  - ripple-effect
+  - simulation
+  - leontief
+
+preferred-citation:
+  type: article
+  title: >-
+    Accounting State Space as the Minimal Unit for Economic Agent-Based
+    Modeling: Advancing Ripple Effect Analysis in Real-Time Economy
+  authors:
+    - family-names: Akagi
+      given-names: Kaya
+  year: 2026
+  month: 1
+  date-published: "2026-01-05"
+  publisher:
+    name: Research Square
+  doi: 10.21203/rs.3.rs-8485050/v1
+  url: https://doi.org/10.21203/rs.3.rs-8485050/v1
+  notes: Preprint, Version 1.

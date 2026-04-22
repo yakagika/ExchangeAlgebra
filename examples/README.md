@@ -114,6 +114,15 @@ run.
 Shared module:
 - `deterministic/ripple/RippleEffect.hs` — `World` / `Event` / initialization code shared by the three ripple executables.
 
+**Reference.** This family of examples accompanies the preprint by Kaya Akagi,
+*"Accounting State Space as the Minimal Unit for Economic Agent-Based Modeling:
+Advancing Ripple Effect Analysis in Real-Time Economy"* (Research Square,
+preprint v1, 2026-01-05, [DOI 10.21203/rs.3.rs-8485050/v1](https://doi.org/10.21203/rs.3.rs-8485050/v1)).
+The simulations reported in the preprint can be reproduced by running
+`rippleWithStock` or `rippleWithStockMultiSeeds` and then generating plots
+with the companion `visualize_rippleWithStock.py` script (see
+"Python visualization" below).
+
 ### `optimization/CGE/` — Computable General Equilibrium
 
 |Executable|Source|Summary|
