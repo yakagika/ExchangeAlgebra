@@ -915,7 +915,7 @@ sigmaFromMap kvs f =
 -- Complexity: O(s) (s is the total number of scalar entries)
 --
 -- >>> toList (10:@Hat:<(Cash) .+ 10:@Hat:<(Deposits) .+ Zero :: Alg NN.Double (HatBase AccountTitles))
--- [10.00:@Hat:<Cash,10.00:@Hat:<Deposits]
+-- [10.00:@Hat:<Deposits,10.00:@Hat:<Cash]
 --
 -- you need define type variables to use this for Zero
 -- >>> toList Zero :: [Alg NN.Double (HatBase AccountTitles)]

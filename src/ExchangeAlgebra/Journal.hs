@@ -433,7 +433,7 @@ instance (Note n, HatVal v, ExBaseClass b) => Exchange (Journal n) v b where
 -- >>> type Test = Journal String Double (HatBase AccountTitles)
 -- >>> x = [(1.00:@Hat:<Cash .| z) | z <- ["Loan Payment","Purchace Apple"]] :: [Test]
 -- >>> fromList x
--- 1.00:@Hat:<Cash.|"Loan Payment" .+ 1.00:@Hat:<Cash.|"Purchace Apple"
+-- 1.00:@Hat:<Cash.|"Purchace Apple" .+ 1.00:@Hat:<Cash.|"Loan Payment"
 fromList :: (HatVal v, HatBaseClass b, Note n)
          => [Journal n v b] -> Journal n v b
 fromList = foldr (.+) mempty
@@ -562,7 +562,7 @@ parMap f = fromMap . parallelMap f . toMap
 -- >>> y = 20.00:@Not:<Cash .| "B" :: Test
 -- >>> z = 30.00:@Hat:<Cash .| "A" :: Test
 -- >>> insert z (x .+ y)
--- 30.00:@Hat:<Cash.|"A" .+ 20.00:@Not:<Cash.|"B"
+-- 20.00:@Not:<Cash.|"B" .+ 30.00:@Hat:<Cash.|"A"
 insert :: (HatVal v, HatBaseClass b, Note n)
         => Journal n v b -> Journal n v b -> Journal n v b
 -- Complexity: O(n + m) where n, m are the number of Notes in each Journal
@@ -577,7 +577,7 @@ insert x y = fromMap (Map.union (toMap x) (toMap y))
 -- >>> y = 2.00:@Hat:<Yen .+ 2.00:@Not:<Amount .| "dog"  :: Test
 -- >>> z = 3.00:@Hat:<Yen .+ 3.00:@Not:<Amount .| "fish" :: Test
 -- >>> projWithNote ["dog","cat"] (x .+ y .+ z)
--- 2.00:@Not:<Amount.|"dog" .+ 2.00:@Hat:<Yen.|"dog" .+ 1.00:@Not:<Amount.|"cat" .+ 1.00:@Hat:<Yen.|"cat"
+-- 1.00:@Not:<Amount.|"cat" .+ 1.00:@Hat:<Yen.|"cat" .+ 2.00:@Not:<Amount.|"dog" .+ 2.00:@Hat:<Yen.|"dog"
 projWithNote :: (HatVal v, HatBaseClass b, Note n)
              => [n] -> Journal n v b -> Journal n v b
 projWithNote ns js
@@ -706,10 +706,10 @@ filterWithNote f (Journal base delta ver _ _) =
 -- >>> y = 20.00:@Hat:<Cash .| ("B", 1) :: Test
 -- >>> z = 30.00:@Not:<Cash .| ("A", 2) :: Test
 -- >>> filterByAxis 0 (NoteAxisKey "A") (x .+ y .+ z)
--- 30.00:@Not:<Cash.|("A",2) .+ 10.00:@Not:<Cash.|("A",1)
+-- 10.00:@Not:<Cash.|("A",1) .+ 30.00:@Not:<Cash.|("A",2)
 --
 -- >>> filterByAxis 1 (NoteAxisKey (1 :: Int)) (x .+ y .+ z)
--- 20.00:@Hat:<Cash.|("B",1) .+ 10.00:@Not:<Cash.|("A",1)
+-- 10.00:@Not:<Cash.|("A",1) .+ 20.00:@Hat:<Cash.|("B",1)
 {-# INLINE filterByAxis #-}
 filterByAxis :: (HatVal v, HatBaseClass b, Note n)
              => Int -> NoteAxisKey -> Journal n v b -> Journal n v b
