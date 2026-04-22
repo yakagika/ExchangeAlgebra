@@ -241,7 +241,9 @@ plain-text forms via GitHub's "Cite this repository" button.
 
 ## References
 
-- Hiroshi Deguchi. *A Mathematical Theory of Economic Behaviour* (Springer).
-  <https://www.springer.com/gp/book/9784431209850>
+- Hiroshi Deguchi. *Economics as an Agent-Based Complex System:
+  Toward Agent-Based Social Systems Sciences.* Springer, 2004.
+  ISBN 978-4-431-20985-0.
+  <https://openlibrary.org/isbn/9784431209850>
 - Hiroshi Deguchi. Exchange Algebra (PDF).
   <https://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/82987/1/0809-7.pdf>
