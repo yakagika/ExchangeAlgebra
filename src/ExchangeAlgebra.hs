@@ -23,25 +23,21 @@
     "ExchangeAlgebra.Write", and "ExchangeAlgebra.Simulate". It is the
     recommended entry point for simple single-period bookkeeping:
 
-    @
-    import ExchangeAlgebra
-
-    -- A minimal exchange: 100 units of cash debited, 100 credited to sales.
-    entry :: 'Alg' 'Double' ('HatBase' 'AccountTitles')
-    entry = 100 ':\@' 'Hat' ':<' 'Cash' '.+' 100 ':\@' 'Not' ':<' 'Sales'
-    @
+    > import ExchangeAlgebra
+    >
+    > -- A minimal exchange: 100 units of cash debited, 100 credited to sales.
+    > entry :: Alg Double (HatBase AccountTitles)
+    > entry = 100 :@ Hat :< Cash .+ 100 :@ Not :< Sales
 
     For multi-period simulation or metadata-aware journals (notes, axes),
     switch to the Journal layer. The two umbrellas export overlapping
     names (@sigma@, @fromList@, @map@, @filter@, …), so Journal-centric
     code should use qualified imports for the Algebra layer:
 
-    @
-    import           "ExchangeAlgebra.Journal"          -- umbrella + type classes
-    import qualified "ExchangeAlgebra.Algebra"          as EA
-    import qualified "ExchangeAlgebra.Journal"          as EJ
-    import qualified "ExchangeAlgebra.Journal.Transfer" as EJT
-    @
+    > import           ExchangeAlgebra.Journal          -- umbrella + type classes
+    > import qualified ExchangeAlgebra.Algebra          as EA
+    > import qualified ExchangeAlgebra.Journal          as EJ
+    > import qualified ExchangeAlgebra.Journal.Transfer as EJT
 
     == Full examples
 
