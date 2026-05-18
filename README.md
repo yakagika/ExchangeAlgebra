@@ -83,9 +83,9 @@ cd my-examples
 # then edit freely as a starting point
 ```
 
-A Git sparse-checkout with a standalone `examples/stack.yaml` is planned so that
-`cd examples && stack build` works after a sparse-clone; this will land together
-with the first Hackage release.
+A standalone `examples/stack.yaml` (pinned to the Hackage release) is checked in,
+so `cd examples && stack build` works after a sparse-clone or `degit` without
+needing the rest of the repository.
 
 ## Module Overview
 

@@ -1,0 +1,20 @@
+# Standalone stack.yaml for the exchangealgebra-examples sub-package.
+#
+# Intended for users who sparse-clone or `degit` only the examples/
+# subtree. Running `stack build` from inside this directory pulls the
+# upstream library from Hackage.
+#
+# Developers working in this repository should build from the repository
+# root using /stack.yaml, which treats `..` and `examples/` as local
+# packages so edits to src/ are picked up immediately. See the project's
+# CLAUDE.md for the rationale of keeping both files.
+#
+# On every Hackage release, the version pinned below must be bumped to
+# the new exchangealgebra version (HACKAGE_TODO.md Phase 6 checklist).
+resolver: lts-24.4
+
+packages:
+- '.'
+
+extra-deps:
+- exchangealgebra-0.4.0.0

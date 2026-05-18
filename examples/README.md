@@ -22,9 +22,9 @@ git clone https://github.com/yakagika/ExchangeAlgebra.git
 cd ExchangeAlgebra
 ```
 
-The repository is lightweight now that generated outputs are `.gitignore`d. This is
-the only option that works **before** the first Hackage release, because the examples
-sub-package currently depends on the local library source via the root `stack.yaml`.
+The repository is lightweight now that generated outputs are `.gitignore`d. With
+a full clone the root `stack.yaml` is used, which treats `..` and `examples/` as
+local packages — convenient for developers who also want to edit the library source.
 
 ### Sparse checkout (fetch only the `examples/` subtree)
 
@@ -46,16 +46,21 @@ npx degit yakagika/ExchangeAlgebra/examples my-examples
 cd my-examples
 ```
 
-### Note on standalone builds
+### Standalone builds
 
-**Until the first Hackage release**, sparse-checkout / `degit` alone is not enough to
-build the examples: the root `stack.yaml` is required to resolve `exchangealgebra`
-as a local package. Use a full clone for now, or copy the sources you want into
-your own Stack project.
+A companion `examples/stack.yaml` is checked in, pinning the released
+`exchangealgebra-0.4.0.0` from Hackage via `extra-deps`. So after a sparse
+checkout or `degit`, the following just works:
 
-A companion `examples/stack.yaml` will be added together with the first Hackage
-release, pinning `exchangealgebra-X.Y.Z.W` via `extra-deps`. After that, sparse-checkout
-or `degit` plus `cd examples && stack build` will be a complete standalone workflow.
+```bash
+cd examples       # or my-examples in the degit case
+stack build
+stack exec -- ebex1
+```
+
+Inside the full repository, building from the root (`/stack.yaml`) treats `..` and
+`examples/` as local packages and ignores `examples/stack.yaml`. Run the standalone
+flow only if you specifically want to verify the Hackage-version experience.
 
 ## Building & Running
 
