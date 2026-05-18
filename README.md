@@ -16,13 +16,12 @@ ripple-effect analysis. See the [Publications section](#publications-using-this-
 
 ## Installation
 
-Until this package is published on Hackage, use Stack's `extra-deps` to pull it from Git:
+The package is on Hackage. Pin a specific version in your Stack project:
 
 ```yaml
 # stack.yaml
 extra-deps:
-  - git: https://github.com/yakagika/ExchangeAlgebra.git
-    commit: <commit-sha>
+  - exchangealgebra-0.4.0.0
 ```
 
 ```yaml
@@ -31,7 +30,14 @@ dependencies:
   - exchangealgebra
 ```
 
-Once it is on Hackage, a simple `extra-deps: [exchangealgebra-X.Y.Z.W]` entry will be enough.
+If you need an unreleased revision, you can also point `extra-deps` at a
+specific Git commit instead:
+
+```yaml
+extra-deps:
+  - git: https://github.com/yakagika/ExchangeAlgebra.git
+    commit: <commit-sha>
+```
 
 Requirements:
 - GHC 9.10 (tested with Stackage `lts-24.4`)
@@ -45,9 +51,10 @@ Three common use cases:
 
 ### 1. Use it as a library dependency
 
-Add `exchangealgebra` to your project's `build-depends` via the Git `extra-deps`
-entry above (or the Hackage pin once published). The `examples/` directory is
-**not** needed for this; it is only shipped in this Git repository.
+Add `exchangealgebra` to your project's `build-depends` via the Hackage
+`extra-deps` pin above (or the Git pin for unreleased revisions). The
+`examples/` directory is **not** needed for this; it is only shipped in
+this Git repository.
 
 ### 2. Run the bundled examples
 

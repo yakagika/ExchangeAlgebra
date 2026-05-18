@@ -1,6 +1,6 @@
 # Changelog for ExchangeAlgebra
 
-## 0.4.0.0 - 2026-04-10
+## 0.4.0.0 - 2026-05-18
 
 First release prepared for Hackage publication.
 
