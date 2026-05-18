@@ -1,10 +1,10 @@
 name:                exchangealgebra
 version:             0.4.0.0
 github:              "yakagika/ExchangeAlgebra"
-license:             MIT
+license:             OtherLicense
 author:              "Kaya Akagi"
-maintainer:          "kaya3728@gmail.com"
-copyright:           "2019 Kaya Akagi"
+maintainer:          "yakagika@icloud.com"
+copyright:           "2018-2026 Kaya Akagi"
 
 extra-source-files:
 - README.md

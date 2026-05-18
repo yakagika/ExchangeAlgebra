@@ -1,7 +1,7 @@
 {- |
     Module     : ExchangeAlgebra.Algebra.Base.Element
-    Copyright  : (c) Kaya Akagi. 2018-2019
-    Maintainer : akagi_kaya@icloud.com
+    Copyright  : (c) Kaya Akagi. 2018-2026
+    Maintainer : yakagika@icloud.com
 
     Released under the OWL license
 
@@ -222,7 +222,6 @@ infix 4 ./=
 
 -- ** Account Titles
 
--- | The current version 0.1.0.0 will be completely changed shortly, especially this section.
 data  AccountTitles = Cash                            -- ^ Asset: Cash
                     | Deposits                        -- ^ Asset: Savings deposits
                     | CurrentDeposits                 -- ^ Asset: Current deposits

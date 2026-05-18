@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d7f252581bc76598f53d62c0984c6701a8c5410eba2999a31a1357d4fc3e9751
+-- hash: b82362d388c7bd4bf8ed038200e10484428d995a6bab1ebd91c900e9f8c1acbe
 
 name:           exchangealgebra
 version:        0.4.0.0
@@ -14,9 +14,9 @@ category:       Accounting, Finance, Math
 homepage:       https://github.com/yakagika/ExchangeAlgebra#readme
 bug-reports:    https://github.com/yakagika/ExchangeAlgebra/issues
 author:         Kaya Akagi
-maintainer:     kaya3728@gmail.com
-copyright:      2019 Kaya Akagi
-license:        MIT
+maintainer:     yakagika@icloud.com
+copyright:      2018-2026 Kaya Akagi
+license:        OtherLicense
 license-file:   LICENSE
 build-type:     Simple
 extra-source-files:

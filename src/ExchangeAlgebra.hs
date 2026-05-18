@@ -2,8 +2,8 @@
 
 {- |
     Module     : ExchangeAlgebra
-    Copyright  : (c) Kaya Akagi. 2018-2019
-    Maintainer : akagi_kaya@icloud.com
+    Copyright  : (c) Kaya Akagi. 2018-2026
+    Maintainer : yakagika@icloud.com
 
     Released under the OWL license
 
@@ -52,8 +52,6 @@
 
     See the repository's @README.md@ for installation and consumption
     patterns.
-
-    _Note_ : The current version 0.1.0.0 will be completely changed shortly, especially in the accounts settings section.
 
 -}
 

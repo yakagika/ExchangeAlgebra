@@ -1,6 +1,6 @@
 {- |
     Module     : ExchangeAlgebra.Simulate
-    Copyright  : (c) Kaya Akagi. 2024
+    Copyright  : (c) Kaya Akagi. 2018-2026
     Maintainer : yakagika@icloud.com
 
     Released under the OWL license

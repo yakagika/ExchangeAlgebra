@@ -1,7 +1,7 @@
 {- |
     Module     : ExchangeAlgebra.Journal
-    Copyright  : (c) Kaya Akagi. 2018-2019
-    Maintainer : akagi_kaya@icloud.com
+    Copyright  : (c) Kaya Akagi. 2018-2026
+    Maintainer : yakagika@icloud.com
 
     Released under the OWL license
 
