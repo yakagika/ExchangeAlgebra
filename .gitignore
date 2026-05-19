@@ -31,6 +31,7 @@ cabal.project.local~
 .codex/
 CLAUDE.md
 HACKAGE_TODO.md
+ROAD_MAP.md
 .stack-local/
 
 # Example execution outputs (regenerated on each run)
