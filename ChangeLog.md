@@ -1,5 +1,23 @@
 # Changelog for ExchangeAlgebra
 
+## Unreleased
+
+### Added
+- `nearlyEqScaled` — scale-aware approximate equality
+  (`|x - y| <= atol + rtol * max |x| |y|`, with `atol = 1e-13`, `rtol = 1e-12`).
+
+### Changed
+- Reconciliation comparators (`bar` / `(.-)`, `balance`, `diffRL`, `barNormPair`) now use a
+  scale-aware tolerance instead of a fixed `1e-13` absolute tolerance. **Behaviour change:**
+  near-balanced values at large magnitudes no longer retain floating-point rounding noise as a
+  spurious residual, and `balance` / `diffRL` no longer use exact `==` / `>` comparisons.
+- `isNearlyNum` returns `False` (instead of raising `error`) when a NaN makes every ordered
+  comparison fail, so non-finite inputs can no longer crash the check.
+
+### Internal
+- `Journal.toAlg` avoids materializing an intermediate `Map.elems base` list.
+- Removed an unused `Control.Parallel.Strategies` import from `ExchangeAlgebra.Algebra`.
+
 ## 0.4.0.0 - 2026-05-18
 
 First release prepared for Hackage publication.
