@@ -434,6 +434,14 @@ instance (Note n, HatVal v, ExBaseClass b) => Exchange (Journal n) v b where
 -- >>> x = [(1.00:@Hat:<Cash .| z) | z <- ["Loan Payment","Purchace Apple"]] :: [Test]
 -- >>> fromList x
 -- 1.00:@Hat:<Cash.|"Purchace Apple" .+ 1.00:@Hat:<Cash.|"Loan Payment"
+--
+-- NOTE: kept as @foldr (.+) mempty@ deliberately. A strict @foldl'@ merge was
+-- tried (plan WI-1) but it changes the accumulation order. This is a redundant
+-- algebra that preserves same-base postings as an ordered sequence (audit trail),
+-- and 'Double' addition is non-associative, so reordering shifts the last-ULP
+-- result of 'norm' and breaks exact-value tests (doctest here + sim1). Reordering
+-- is an observable behaviour change, not a transparent optimization.
+-- See plans/in-progress/LAZY_EVAL_AUDIT.md (WI-1) for the safe redesign.
 fromList :: (HatVal v, HatBaseClass b, Note n)
          => [Journal n v b] -> Journal n v b
 fromList = foldr (.+) mempty
@@ -527,6 +535,13 @@ sigmaOnFromMap n kvs f =
 -- | Summation in a monadic context. Applies a monadic function to each element and mconcats the results.
 --
 -- Complexity: O(|xs| * cost(f))
+--
+-- NOTE: kept as @mconcat <$> forM xs f@ deliberately. A strict @foldM@ left fold
+-- was tried (plan WI-3) but it changes the '<>' association order, which for
+-- 'Alg'/'Journal' reorders the audit-trail sequence and (via non-associative
+-- 'Double' addition) shifts 'norm' results. Although the 'Monoid' laws make the
+-- value equal in exact arithmetic, it is observably different under floating point.
+-- See plans/in-progress/LAZY_EVAL_AUDIT.md (WI-3).
 sigmaM :: (Monoid m, Monad m0) => [a] -> (a -> m0 m) -> m0 m
 sigmaM xs f = mconcat <$> CM.forM xs f
 
@@ -537,7 +552,10 @@ sigmaM xs f = mconcat <$> CM.forM xs f
 toAlg :: (HatVal v, HatBaseClass b, Note n)
       => Journal n v b -> Alg v b
 toAlg (Journal base delta _ _ _) =
-    EA.unionsMerge (Map.elems base ++ Map.elems delta)
+    -- Fold base's elements directly onto delta's element list instead of
+    -- @Map.elems base ++ Map.elems delta@, which avoids materializing the
+    -- separate @Map.elems base@ list and the @(++)@ traversal.
+    EA.unionsMerge (Map.foldr (:) (Map.elems delta) base)
 
 ------------------------------------------------------------------
 -- | Apply function f to the entry of each Note in the Journal.

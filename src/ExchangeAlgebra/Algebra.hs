@@ -99,7 +99,6 @@ import              Numeric.NonNegative.Class (C)
 import              Algebra.Additive (C)
 import qualified    Data.Scientific     as D (Scientific, fromFloatDigits, formatScientific, FPFormat(..))
 import Control.DeepSeq
-import Control.Parallel.Strategies (rpar, rseq, runEval, using, Strategy, rdeepseq)
 import GHC.Stack (HasCallStack, callStack, prettyCallStack)
 import Data.Hashable
 import qualified Data.Binary as Binary
