@@ -18,6 +18,11 @@
 - `Journal.toAlg` avoids materializing an intermediate `Map.elems base` list.
 - Removed an unused `Control.Parallel.Strategies` import from `ExchangeAlgebra.Algebra`.
 
+### Documentation
+- Documented the spill-to-disk path (`runSimulationWithSpill` / `runScenariosWithSpill` with
+  `SpillDeletePolicy`) as the recommended approach for constant-memory large-scale simulations,
+  in the README and the `ExchangeAlgebra.Simulate` module header (example: `sim2`).
+
 ## 0.4.0.0 - 2026-05-18
 
 First release prepared for Hackage publication.

@@ -154,6 +154,37 @@ Even in Journal-centric code you will frequently reach into the Algebra layer (f
 type or `EA.proj`, for example). **Using Journal as the unqualified umbrella and pulling the
 Algebra layer in as `EA` qualified is the idiomatic style for this library.**
 
+## Large-scale simulations (constant memory)
+
+`runSimulation` keeps the entire world state in memory for the whole run, so peak memory
+grows with the number of terms. For long horizons or large agent populations, use the
+**spill-to-disk** variants instead — they periodically write ledger chunks to disk and evict
+old terms, so peak memory becomes **independent of the number of terms**:
+
+```haskell
+import qualified ExchangeAlgebra.Simulate as ES
+
+opts :: ES.SpillOptions Term World Transaction
+opts = (ES.mkBinarySpillOptions everyNTerms spillPath extractPayload)
+         -- keep only the most recent N terms resident; older terms live on disk
+         { ES.spillDeletePolicy = ES.KeepRecentTerms 2 }
+
+main = do
+    _world <- ES.runSimulationWithSpill opts gen env
+    -- restore spilled chunks later with ES.readBinarySpillFile / restoreJournalFromBinarySpill
+    pure ()
+```
+
+- `ES.runSimulationWithSpill` / `ES.runScenariosWithSpill` are drop-in replacements for
+  `runSimulation` / `runScenarios` that add periodic spilling.
+- `ES.SpillDeletePolicy` bounds resident memory: `KeepRecentTerms n` keeps a sliding window,
+  `DeleteSpilledChunk` evicts each chunk right after it is written, `NoDelete` keeps everything.
+- Restore spilled data with `ES.readBinarySpillFile` (binary format) or the
+  `restoreJournalFromBinarySpill` helper.
+
+A runnable end-to-end example (multi-scenario run with binary spill, `KeepRecentTerms`, and
+restore) is `examples/basic/simulateEx2.hs` (the `sim2` executable).
+
 ## A note on visualization
 
 `ExchangeAlgebra.Simulate.Visualize` provides Chart-based PNG rendering, but **we recommend
@@ -217,6 +248,7 @@ and its [README](https://github.com/yakagika/ExchangeAlgebra/blob/master/example
 stack build
 stack exec -- ebex1      # Introductory bookkeeping example
 stack exec -- sim1       # 100-term simulation (+ Python visualization)
+stack exec -- sim2       # spill-to-disk simulation (constant memory, binary spill + restore)
 stack exec -- ripple     # 10-agent ripple-effect simulation
 stack exec -- cge        # CGE model
 ```

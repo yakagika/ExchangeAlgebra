@@ -19,6 +19,17 @@
 
     <https://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/82987/1/0809-7.pdf>
 
+    == Large-scale runs (constant memory)
+
+    'runSimulation' keeps the whole world state resident for the entire run, so
+    peak memory grows with the number of terms. For long horizons or large agent
+    populations, prefer the spill-to-disk variants 'runSimulationWithSpill' /
+    'runScenariosWithSpill': they periodically write ledger chunks to disk and,
+    with a 'SpillDeletePolicy' (@'KeepRecentTerms' n@ for a sliding window, or
+    'DeleteSpilledChunk'), evict old terms so peak memory is independent of the
+    term count. Spilled data is restored with 'readBinarySpillFile'. A runnable
+    example is @examples\/basic\/simulateEx2.hs@ (the @sim2@ executable).
+
     == Application note
 
     The design of this module — the accounting state space as the minimal
