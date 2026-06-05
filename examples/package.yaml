@@ -102,3 +102,17 @@ executables:
     <<: *exe-defaults
     main:                stdcge.hs
     source-dirs:         optimization/CGE
+
+benchmarks:
+  # Performance roadmap benchmark harness (ROAD_MAP "ベンチマーク基盤の整備").
+  # criterion is scoped to this component only, so the library and the example
+  # executables do not gain the dependency.
+  bench-core:
+    main:                Bench.hs
+    source-dirs:         benchmark
+    dependencies:
+    - criterion          >= 1.6 && < 1.7
+    ghc-options:
+    - -O2
+    - -rtsopts
+    - '-optl-Wl,-no_warn_duplicate_libraries'
