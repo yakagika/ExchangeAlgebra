@@ -415,14 +415,13 @@ instance (Note n, HatVal v, ExBaseClass b) => Exchange (Journal n) v b where
     decP xs = map (EA.filter (\x -> x /= EA.Zero && (isHat . EA._hatBase) x)) xs
     decM xs = map (EA.filter (\x -> x /= EA.Zero && (not . isHat . EA._hatBase) x)) xs
 
-    balance xs
-        | (norm . decR) xs == (norm . decL) xs = True
-        | otherwise                            = False
+    -- scale-aware tolerance (WI-12), consistent with Alg's Exchange instance
+    balance xs = EA.nearlyEqScaled ((norm . decR) xs) ((norm . decL) xs)
 
     diffRL xs
-        | r > l     = (Credit, r - l)
-        | l > r     = (Debit, l - r)
-        | otherwise = (Side, 0)
+        | EA.nearlyEqScaled r l = (Side, 0)
+        | r > l                 = (Credit, r - l)
+        | otherwise             = (Debit, l - r)
       where
         r = (norm . decR) xs
         l = (norm . decL) xs
