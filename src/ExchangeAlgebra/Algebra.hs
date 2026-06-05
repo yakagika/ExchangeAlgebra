@@ -42,6 +42,7 @@ module ExchangeAlgebra.Algebra
     ( module ExchangeAlgebra.Algebra.Base
     , Nearly(..)
     , isNearlyNum
+    , nearlyEqScaled
     , Redundant(..)
     , Exchange(..)
     , HatVal(..)
@@ -137,12 +138,39 @@ instance Nearly NN.Double where
 {-# INLINE isNearlyNum #-}
 -- | Complexity: O(1)
 -- Assumes primitive numeric operations and comparisons are constant time.
+--
+-- NOTE: this is an /absolute/-tolerance test (@|x - y| <= |t|@); it does not
+-- scale with magnitude. For large values, rounding error easily exceeds a small
+-- fixed @t@, while for small values it can swallow a real residual. Internal
+-- accounting reconciliation uses 'nearlyEqScaled' instead. The final guard
+-- returns 'False' (was: 'error') when a NaN makes every ordered comparison fail,
+-- so a non-finite input can no longer crash the check.
 isNearlyNum :: (Show a, Num a, Ord a) => a -> a -> a -> Bool
 isNearlyNum x y t
     | x == y    = True
     | x >  y    = abs (x - y) <= abs t
     | x <  y    = abs (y - x) <= abs t
-    | otherwise = error $ "on isNearlyNum: " ++ show x ++ ", " ++ show y
+    | otherwise = False   -- NaN: not nearly-equal to anything
+
+{-# INLINE nearlyEqScaled #-}
+-- | Scale-aware approximate equality for accounting reconciliation:
+--
+-- @|x - y| <= atol + rtol * max |x| |y|@,  with @atol = 1e-13@, @rtol = 1e-12@.
+--
+-- The absolute floor @atol@ handles values near zero; the relative term @rtol@
+-- lets the threshold track magnitude, so the test stays meaningful for large
+-- balances (where a fixed @1e-13@ was far too strict and retained pure rounding
+-- noise as a spurious residual). Returns 'False' if either argument is a
+-- non-finite error value (NaN/Inf), so error values never read as nearly equal.
+--
+-- Complexity: O(1)
+nearlyEqScaled :: (HatVal n) => n -> n -> Bool
+nearlyEqScaled x y
+    | isErrorValue x || isErrorValue y = False
+    | otherwise = abs (x - y) <= atol + rtol * max (abs x) (abs y)
+  where
+    atol = 1e-13
+    rtol = 1e-12
 
 ------------------------------------------------------------
 -- * Algebra
@@ -751,7 +779,7 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
             f p@(Pair hs ns) =
                 let !h = Foldable.foldl' (+) 0 hs
                     !n = Foldable.foldl' (+) 0 ns
-                in case isNearlyNum h n 1e-13 of -- precision 13 digits
+                in case nearlyEqScaled h n of -- scale-aware tolerance (WI-11)
                     True -> Nothing
                     False -> case (Seq.length hs, Seq.length ns) of
                         -- Already in canonical form: singleton on winning side, empty on other
@@ -794,14 +822,13 @@ instance (HatVal n, ExBaseClass b) =>  Exchange Alg n b where
     -- | filter Minus Stock
     decM xs = filter (\x -> x /= Zero && (not. isHat. _hatBase) x) xs
 
-    -- | check Credit Debit balance
-    balance xs  | (norm . decR) xs == (norm . decL) xs = True
-                | otherwise                            = False
+    -- | check Credit Debit balance (scale-aware tolerance, WI-12)
+    balance xs = nearlyEqScaled ((norm . decR) xs) ((norm . decL) xs)
 
-    -- |
-    diffRL xs  | r > l = (Credit, r - l)
-               | l > r = (Debit, l -r)
-               | otherwise = (Side,0)
+    -- | (scale-aware tolerance, WI-12); near-equal sides report (Side, 0)
+    diffRL xs  | nearlyEqScaled r l = (Side, 0)
+               | r > l              = (Credit, r - l)
+               | otherwise          = (Debit, l - r)
         where
         r = (norm . decR) xs
         l = (norm . decL) xs
@@ -1286,7 +1313,7 @@ barNormPair :: (HatVal n) => Pair n -> n
 barNormPair (Pair hs ns) =
     let !h = Foldable.foldl' (+) 0 hs
         !n = Foldable.foldl' (+) 0 ns
-    in if isNearlyNum h n 1e-13
+    in if nearlyEqScaled h n
         then 0
         else if h > n then h - n else n - h
 

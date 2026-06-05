@@ -705,6 +705,27 @@ testCsvWriteCSVEmpty = do
     assertEqual "CSV writeCSV empty cell" "\"\",\"x\"" (lns !! 0)
     removeFile path
 
+-- | Regression tests for scale-aware numeric tolerance (WI-11/12/14).
+-- These exercise large magnitudes that the previous fixed @1e-13@ absolute
+-- tolerance handled incorrectly (retaining pure rounding noise as a residual);
+-- small-scale behavior is unchanged. See plans LAZY_EVAL_AUDIT.md s4.6.
+testNumericToleranceScaleAware :: IO ()
+testNumericToleranceScaleAware = do
+    assertEqual "nearlyEqScaled: large-scale rounding treated as equal"
+        True  (EA.nearlyEqScaled (1e10 + 0.1 + 0.2) (1e10 + 0.3 :: Double))
+    assertEqual "isNearlyNum 1e-13: large-scale rounding rejected (documents old flaw)"
+        False (EA.isNearlyNum (1e10 + 0.1 + 0.2) (1e10 + 0.3) (1e-13 :: Double))
+    assertEqual "nearlyEqScaled: small-scale noise treated as equal"
+        True  (EA.nearlyEqScaled (0.1 + 0.2) (0.3 :: Double))
+    assertEqual "nearlyEqScaled: genuine residual kept (not swallowed)"
+        False (EA.nearlyEqScaled (1e10 + 5.0) (1e10 :: Double))
+    assertEqual "nearlyEqScaled: NaN guarded (no crash, not equal)"
+        False (EA.nearlyEqScaled (0/0) (1.0 :: Double))
+    let big = (1e10 :@ (Hat :< Yen)) .+ (0.1 :@ (Hat :< Yen)) .+ (0.2 :@ (Hat :< Yen))
+           .+ (1e10 :@ (Not :< Yen)) .+ (0.3 :@ (Not :< Yen)) :: TestAlg
+    assertEqual "bar cancels balanced large-scale element to Zero"
+        True (EA.isZero ((.-) big))
+
 -- | Strict file read helper for tests
 readFileStrict :: FilePath -> IO String
 readFileStrict p = do
@@ -721,6 +742,7 @@ main = do
     testProjNormFastPath
     testProjWithBaseNorm
     testProjWithNoteNorm
+    testNumericToleranceScaleAware
     testSigmaMergePath
     testSigma2When
     testSigmaFromMap
