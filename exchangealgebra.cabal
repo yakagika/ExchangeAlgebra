@@ -4,10 +4,10 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 7d4bb7802873f6ce2b4888ce4717621e5ccc4400b73ebc12b9d4ea69f0e994b5
+-- hash: fe5fab919197e65dce7b698dc174e0447987248ecd7a81108d260e187a1a248f
 
 name:           exchangealgebra
-version:        0.4.1.0
+version:        0.4.1.1
 synopsis:       Exchange Algebra for bookkeeping and economic simulation
 description:    Please see the README on GitHub at <https://github.com/yakagika/ExchangeAlgebra#readme>
 category:       Accounting, Finance, Math

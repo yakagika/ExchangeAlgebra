@@ -144,6 +144,25 @@ testBasesNotSideRegression = do
     assertEqual "bases Hat label count" 1 hatCount
     assertEqual "bases Not label count" 3 notCount
 
+-- | Regression test for the @union@ zero-singleton base-relabel bug
+-- (Algebra.hs). When one operand of @(.+)@ is a /zero-valued/ singleton on base
+-- @b1@ and the other a /real/ singleton on a different base @b2@, the result must
+-- keep the real value on its OWN base (@v2:@b2@), not relabel it onto the zero
+-- posting's base. The old code returned @v2:@b1@ / @v1:@b2@, which silently moved
+-- a value to the wrong base — preserving @norm@ but corrupting per-base projection.
+testUnionZeroSingletonBase :: IO ()
+testUnionZeroSingletonBase = do
+    let zb = 0 :@ (Hat :< Yen)    :: TestAlg   -- zero value, base Yen
+        rb = 5 :@ (Hat :< Amount) :: TestAlg   -- real value, base Amount
+    assertEqual "union zero(.+)real keeps real value on its own base"
+        rb (EA.proj [Hat :< Amount] (zb .+ rb))
+    assertEqual "union real(.+)zero keeps real value on its own base"
+        rb (EA.proj [Hat :< Amount] (rb .+ zb))
+    assertEqual "union zero(.+)real: nothing relabeled onto the zero's base"
+        (EA.Zero :: TestAlg) (EA.proj [Hat :< Yen] (zb .+ rb))
+    assertEqual "union real(.+)zero: nothing relabeled onto the zero's base"
+        (EA.Zero :: TestAlg) (EA.proj [Hat :< Yen] (rb .+ zb))
+
 testSigmaMergePath :: IO ()
 testSigmaMergePath = do
     let xs = [1 .. 5 :: Int]
@@ -655,13 +674,13 @@ testSimulateEx1Default = do
     -- Stock at t=1
     assertSimNear "sim1 stock(t=1,c=1)" 28.487224703666264 (stocks1 !! 0)
     assertSimNear "sim1 stock(t=1,c=3)" 30.0               (stocks1 !! 2)
-    assertSimNear "sim1 stock(t=1,c=6)" 29.01925920375148  (stocks1 !! 5)
+    assertSimNear "sim1 stock(t=1,c=6)" 30.0               (stocks1 !! 5)  -- re-baselined: union zero-base fix removed a phantom self-input
     -- Stock at t=50
     assertSimNear "sim1 stock(t=50,c=1)" 304.9028131162567  (stocks50 !! 0)
     assertSimNear "sim1 stock(t=50,c=4)" 292.4764622201871  (stocks50 !! 3)
     -- Stock at t=100
     assertSimNear "sim1 stock(t=100,c=1)" 586.9595359862476  (stocks100 !! 0)
-    assertSimNear "sim1 stock(t=100,c=6)" 592.9260354913148  (stocks100 !! 5)
+    assertSimNear "sim1 stock(t=100,c=6)" 767.960563480499   (stocks100 !! 5)  -- re-baselined: union zero-base fix (bug compounded over terms)
     -- Gross profit at t=50
     assertSimNear "sim1 profit(t=50,c=1)" 0.35886554260018855 (profits50 !! 0)
     assertSimNear "sim1 profit(t=50,c=2)" 1.572544209772035   (profits50 !! 1)
@@ -771,6 +790,7 @@ main = do
     testProjWithNoteNorm
     testBasesNotSideRegression
     testNumericToleranceScaleAware
+    testUnionZeroSingletonBase
     testSigmaMergePath
     testSigma2When
     testSigmaFromMap

@@ -643,11 +643,17 @@ union :: (HatVal n, HatBaseClass b) =>  Alg n b -> Alg n b -> Alg n b
 union Zero x  = x
 union x Zero  = x
 -- singletons
+-- NOTE: a zero-valued singleton contributes nothing, so the result must keep the
+-- /nonzero/ value on its OWN base. Earlier code returned @v2:@b1@ / @v1:@b2@,
+-- relabeling the surviving value onto the zero posting's base — this preserved
+-- 'norm' but silently moved the value to the wrong base, corrupting per-base
+-- projection and making construction order observable (raw @(:@)@ on a sparsified
+-- zero coefficient builds an explicit @0:@base@ singleton). Keep @v2:@b2@ / @v1:@b1@.
 union (v1:@b1) (v2:@b2)
     | isZeroValue v1 = case isZeroValue v2 of
                             True  -> Zero
-                            False -> v2:@b1
-    | isZeroValue v2 = v1:@b2
+                            False -> v2:@b2
+    | isZeroValue v2 = v1:@b1
     | otherwise      = insert b2 v2 (v1:@b1)
 -- If one side is a singleton
 union x (v:@b) = insert b v x

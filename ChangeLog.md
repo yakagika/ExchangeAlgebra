@@ -1,5 +1,24 @@
 # Changelog for ExchangeAlgebra
 
+## 0.4.1.1 - 2026-06-07
+
+### Fixed
+- `union` (and therefore `(.+)` / `mappend` / `fromList`) misassociated a value
+  with the wrong base when one operand was a **zero-valued singleton**. For
+  `(v1:@b1) .+ (v2:@b2)` with `isZeroValue v1`, the result was `v2:@b1` — the
+  surviving nonzero value relabeled onto the *zero posting's* base (symmetrically
+  `v1:@b2` when `v2` was zero). A zero contributes nothing, so the result must be
+  `v2:@b2` / `v1:@b1` (the nonzero value on its **own** base).
+  The bug preserved `norm` (the total was unchanged) but corrupted **per-base
+  projection** (`proj` / `projWithBase` / `balanceBy` / stock & profit queries):
+  a value silently moved to a neighboring base. It was construction-order
+  sensitive — ledgers that build explicit `0:@base` singletons via the raw `(:@)`
+  constructor (e.g. sparsified input coefficients in agent-based simulations)
+  would, depending on accumulation order, invent a phantom posting on an adjacent
+  base. In the bundled simulation example this shifted a company's reported stock
+  by up to ~30% over 100 terms. One-line fix in `Algebra.hs union`, covered by the
+  new `testUnionZeroSingletonBase` unit test. (Independently confirmed root cause.)
+
 ## 0.4.1.0 - 2026-06-06
 
 ### Added
