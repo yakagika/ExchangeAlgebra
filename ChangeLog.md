@@ -1,10 +1,20 @@
 # Changelog for ExchangeAlgebra
 
-## Unreleased
+## 0.4.1.0 - 2026-06-06
 
 ### Added
 - `nearlyEqScaled` — scale-aware approximate equality
   (`|x - y| <= atol + rtol * max |x| |y|`, with `atol = 1e-13`, `rtol = 1e-12`).
+
+### Fixed
+- `bases` ignored the `_notSide` Seq and iterated `_hatSide` twice
+  (`src/ExchangeAlgebra/Algebra.hs`, regression existed since the introduction of the
+  HashMap-backed `Liner` representation). The previous implementation produced
+  `length (bases x) != length (vals x)` whenever the Hat-side and Not-side Seqs of any
+  base had different lengths, dropped entries whose Hat-side Seq was empty, and
+  duplicated Hat-side entries with the wrong label. A 1-character fix
+  (`hs` → `ns` in the outer fold) restores the intended behaviour, covered by a
+  new `testBasesNotSideRegression` unit test.
 
 ### Changed
 - Reconciliation comparators (`bar` / `(.-)`, `balance`, `diffRL`, `barNormPair`) now use a
@@ -22,6 +32,8 @@
 - Documented the spill-to-disk path (`runSimulationWithSpill` / `runScenariosWithSpill` with
   `SpillDeletePolicy`) as the recommended approach for constant-memory large-scale simulations,
   in the README and the `ExchangeAlgebra.Simulate` module header (example: `sim2`).
+- Added the original axiomatic source (Deguchi & Nakano, *Axiomatic Foundations of Vector
+  Accounting*, Systems Research 3(1):31–39, 1986) to the README References section.
 
 ## 0.4.0.0 - 2026-05-18
 

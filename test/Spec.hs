@@ -117,6 +117,33 @@ testProjWithNoteNorm = do
     assertNear "Journal.projWithNoteNorm (selected notes)" expected1 actual1
     assertNear "Journal.projWithNoteNorm (plank wildcard)" expected2 actual2
 
+-- | Regression test for the `bases` typo bug.
+--
+-- Before the fix at Algebra.hs:868, `bases` ignored the `_notSide` Seq and
+-- iterated `_hatSide` twice (with `Hat` and `Not` labels). As a result,
+-- `length (bases x) != length (vals x)` whenever Hat/Not Seq lengths differed.
+--
+-- This test constructs an Alg where the Hat Seq for `Yen` has length 1 and
+-- the Not Seq has length 2, plus a separate basis whose Hat Seq is empty.
+-- That makes the divergence detectable in both directions.
+testBasesNotSideRegression :: IO ()
+testBasesNotSideRegression = do
+    let alg :: TestAlg
+        alg =  (100 :@ (Hat :< Yen))      -- Yen: hatSide = [100]
+            .+ (50  :@ (Not :< Yen))      -- Yen: notSide = [50]
+            .+ (30  :@ (Not :< Yen))      -- Yen: notSide = [50, 30]
+            .+ (20  :@ (Not :< Amount))   -- Amount: notSide = [20], hatSide = []
+        vs = EA.vals alg
+        bs = EA.bases alg
+        hatCount = length (L.filter isHat bs)
+        notCount = length (L.filter (not . isHat) bs)
+    -- vals and bases must agree on total count (one label per scalar entry)
+    assertEqual "bases/vals same length (regression for hs/ns typo)"
+        (length vs) (length bs)
+    -- Expected: 1 Hat label (Hat:<Yen) and 3 Not labels (50:<Yen, 30:<Yen, 20:<Amount)
+    assertEqual "bases Hat label count" 1 hatCount
+    assertEqual "bases Not label count" 3 notCount
+
 testSigmaMergePath :: IO ()
 testSigmaMergePath = do
     let xs = [1 .. 5 :: Int]
@@ -742,6 +769,7 @@ main = do
     testProjNormFastPath
     testProjWithBaseNorm
     testProjWithNoteNorm
+    testBasesNotSideRegression
     testNumericToleranceScaleAware
     testSigmaMergePath
     testSigma2When

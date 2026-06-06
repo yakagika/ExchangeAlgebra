@@ -865,7 +865,7 @@ bases (Liner m _ _ _ _ _) = Map.foldlWithKey' f [] m
     where
         f ::  (HatVal v, HatBaseClass b) => [b] -> BasePart b -> Pair v ->  [b]
         f xs b (Pair {_hatSide = hs, _notSide = ns})
-            = Foldable.foldl' (g Not b) (Foldable.foldl' (g Hat b) xs hs) hs
+            = Foldable.foldl' (g Not b) (Foldable.foldl' (g Hat b) xs hs) ns
 
         g ::  (HatVal v, HatBaseClass b) => Hat -> BasePart b -> [b] -> v -> [b]
         g h b ys v = (merge h b):ys

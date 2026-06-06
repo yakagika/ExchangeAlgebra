@@ -280,6 +280,18 @@ plain-text forms via GitHub's "Cite this repository" button.
 
 ## References
 
+- Hiroshi Deguchi and Bunpei Nakano.
+  *Axiomatic Foundations of Vector Accounting.*
+  Systems Research, Vol. 3, No. 1, pp. 31–39, 1986.
+  Pergamon Press.
+  DOI: [10.1002/sres.3850030105](https://doi.org/10.1002/sres.3850030105)
+
+  The axiomatic origin of Exchange Algebra. This paper formalises double-entry
+  bookkeeping as an accounting vector space over the extended basis
+  `Γ = Λ ∪ Λ̂` (account titles and their dual hats), introduces the five
+  transaction axioms, and derives the debit/credit partition and the balance
+  principle (`|y_L| = |y_R|`) purely algebraically.
+
 - Hiroshi Deguchi. *Economics as an Agent-Based Complex System:
   Toward Agent-Based Social Systems Sciences.* Springer, 2004.
   ISBN 978-4-431-20985-0.
