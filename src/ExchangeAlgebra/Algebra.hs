@@ -205,6 +205,24 @@ nearlyEqScaled x y
 -- compress calculation
 -- >>> compress $ 10:@Not:<Cash .+ 5:@Hat:<Cash .+ 3:@Not:<Cash
 -- 5.00:@Hat:<Cash .+ 13.00:@Not:<Cash
+--
+-- == Redundant-algebra axioms (Akagi 2026, Appendix A, Definition 6)
+--
+-- The operations above satisfy the following /axioms/ (the paper states five;
+-- they are verified as QuickCheck properties in @test\/Spec.hs@, see
+-- @axiomProperties@):
+--
+--   1. Hat involution:        @(.^) ((.^) x) = x@
+--   2. Scalar on an element:   @a '.*' (v ':@' b) = (a*v) ':@' b@
+--   3. Scalar distribution:    @a '.*' (x '.+' y) = (a '.*' x) '.+' (a '.*' y)@
+--   4. Norm homogeneity:       @'norm' (a '.*' x) = a * 'norm' x@  (for @a >= 0@)
+--   5. Norm additivity:        @'norm' (x '.+' y) = 'norm' x + 'norm' y@
+--
+-- Derived lemmas (also property-tested): @'bar'@ idempotence
+-- (@'bar' ('bar' x) = 'bar' x@), 'Zero' identity, and associativity of @('.+')@.
+-- Note @('.+')@ accumulates same-base postings as an ordered sequence (the
+-- /redundancy/), so 'Show' \/ 'Eq' observe that order; for the exact value type
+-- 'ExchangeAlgebra.Value.NNDecimal', 'norm' \/ 'bar' are order-independent.
 
 class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
     -- | Hat operation. Flips Hat/Not on all elements.
@@ -231,7 +249,16 @@ class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
     -- Complexity: O(1) for singleton, O(n) for Liner
     (.*) :: n -> a n b -> a n b
 
-    -- | Norm. Returns the sum of all element values.
+    -- | Norm. Sum of all element values (both Hat and Not sides), i.e. the
+    -- homomorphism from the algebra into the value domain @n@ (Akagi 2026,
+    -- Appendix A, Definition 6). It is /additive/: @norm (x '.+' y) = norm x +
+    -- norm y@ (axiom 5), and /homogeneous/: @norm (a '.*' x) = a * norm x@ for
+    -- @a >= 0@ (axiom 4). Because it sums both sides it does not cancel Hat
+    -- against Not; @norm ('bar' x) <= norm x@ (bar discards the cancelled part).
+    --
+    -- >>> norm (100:@Not:<Cash .+ 50:@Not:<Sales :: Alg NN.Double (HatBase AccountTitles))
+    -- 150.0
+    --
     -- Complexity: O(n) (n is the number of base keys)
     norm :: a n b -> n
 
