@@ -68,6 +68,10 @@ Selectable value type: `Double` (default, fast) vs an exact non-negative
   per-(note,base) net is construction-order independent.
 - Documented the Definition 6 axioms on the `Redundant` class and `norm` (Haddock
   only), cross-referencing the property suite.
+- Benchmark/CI scaffolding: `simulateEx2` agent count and horizon are now
+  env-configurable (`EA_LASTC`, `EA_LASTTERM`; defaults 200 / 100) for end-to-end
+  scale benchmarking; added a GitHub Actions CI workflow (build + test + doctest,
+  bench build-only).
 
 ## 0.4.1.1 - 2026-06-07
 

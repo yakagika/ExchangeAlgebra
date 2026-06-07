@@ -30,16 +30,36 @@ import qualified Data.Map.Strict as M
 import           Data.STRef (STRef)
 import qualified Data.Text as T
 import           System.Directory (createDirectoryIfMissing)
+import           System.Environment (lookupEnv)
+import           System.IO.Unsafe (unsafePerformIO)
 import           System.Random (StdGen, mkStdGen, randomR)
+import           Text.Read (readMaybe)
+import           Data.Maybe (fromMaybe)
+
+------------------------------------------------------------------
+-- * Benchmark scale knobs (env-configurable; defaults reproduce the example)
+--
+-- Let the end-to-end simulation be benchmarked at different scales without
+-- recompiling, e.g. @EA_LASTC=1000 EA_LASTTERM=200 stack exec sim2@. This is an
+-- example-local convenience (unsafePerformIO on a CAF); the library never reads
+-- the environment.
+------------------------------------------------------------------
+{-# NOINLINE envInt #-}
+envInt :: String -> Int -> Int
+envInt name def = unsafePerformIO (maybe def (fromMaybe def . readMaybe) <$> lookupEnv name)
 
 ------------------------------------------------------------------
 -- * Time Axis
 ------------------------------------------------------------------
 type Term = Int
 
+{-# NOINLINE simLastTerm #-}
+simLastTerm :: Term
+simLastTerm = envInt "EA_LASTTERM" 100
+
 instance StateTime Term where
     initTerm = 1
-    lastTerm = 100
+    lastTerm = simLastTerm
 
 ------------------------------------------------------------------
 -- * Simulation Parameters
@@ -95,8 +115,9 @@ type Company = Int
 fstC :: Company
 fstC = 1
 
+{-# NOINLINE lastC #-}
 lastC :: Company
-lastC = 200
+lastC = envInt "EA_LASTC" 200
 
 companies :: [Company]
 companies = [fstC .. lastC]
