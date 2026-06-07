@@ -28,10 +28,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y pkg-config libcairo2-dev libpango1.0-dev libglib2.0-dev
 
+      # Provide GHC 9.10.2 (matches resolver lts-24.4) via ghcup, plus stack.
+      # We then run stack with --system-ghc so it uses this GHC instead of
+      # downloading its own bindist (whose configure step fails on the runner
+      # toolchain: gcc rejects --target=x86_64-unknown-linux).
       - uses: haskell-actions/setup@v2
         with:
           enable-stack: true
           stack-version: latest
+          ghc-version: '9.10.2'
 
       - name: Cache Stack
         uses: actions/cache@v4
@@ -48,4 +53,4 @@ jobs:
       # suite (incl. the QuickCheck axiom properties) and the doctests. The
       # benchmark is built but not run (--no-run-benchmarks) to keep CI fast.
       - name: Build + test + doctest (bench build-only)
-        run: stack build --test --bench --no-run-benchmarks
+        run: stack build --system-ghc --no-install-ghc --test --bench --no-run-benchmarks
