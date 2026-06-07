@@ -944,6 +944,44 @@ axiomProperties = do
             in netByBase viaList == netByBase viaFoldr
                && netByBase viaFoldr == netByBase viaFoldl
 
+-- ================================================================
+-- Journal-algebra axiom properties (Phase 1.5)
+-- ================================================================
+
+type NNJournal = EJ.Journal String NNDecimal (HatBase CountUnit)
+
+genNote :: Gen String
+genNote = elements ["a", "b", "c"]
+
+genPosNN :: Gen NNDecimal               -- strictly positive (avoids zero-note drop)
+genPosNN = (\d -> realToFrac (1 + d)) <$> genNNDouble
+
+genJournalN :: Gen NNJournal
+genJournalN = sized $ \n -> do
+    k  <- choose (0, min 30 n)
+    ps <- vectorOf k ((,,) <$> genPosNN <*> genBase <*> genNote)
+    pure (EJ.fromList [ (v :@ b) .| nt | (v, b, nt) <- ps ])
+
+-- per-(note, base) signed net; exact (Rational)
+netJournal :: NNJournal -> M.Map (String, CountUnit) Rational
+netJournal j = M.fromList
+    [ ((nt, u), r)
+    | (nt, alg) <- HM.toList (EJ.toMap j)
+    , (u, r)    <- M.toList (netByBase alg) ]
+
+journalProperties :: IO ()
+journalProperties = do
+    quickProp "journal: norm additivity (norm(j1.+j2) = norm j1 + norm j2, NNDecimal)" $
+        forAll genJournalN $ \j1 -> forAll genJournalN $ \j2 ->
+            norm (j1 .+ j2) == norm j1 + norm j2
+    quickProp "journal: Hat preserves the note set" $
+        forAll genJournalN $ \j ->
+            L.sort (HM.keys (EJ.toMap ((.^) j))) == L.sort (HM.keys (EJ.toMap j))
+    quickProp "journal: fromList per-(note,base) net is construction-order independent (NNDecimal)" $
+        forAll (listOf ((,,) <$> genPosNN <*> genBase <*> genNote)) $ \ps ->
+            let js = [ (v :@ b) .| nt | (v, b, nt) <- ps ] :: [NNJournal]
+            in netJournal (EJ.fromList js) == netJournal (foldr (.+) mempty js)
+
 main :: IO ()
 main = do
     testProjMultiPatternOnePass
@@ -973,3 +1011,4 @@ main = do
     testCsvWriteCSVWithQuotes
     testCsvWriteCSVEmpty
     axiomProperties
+    journalProperties

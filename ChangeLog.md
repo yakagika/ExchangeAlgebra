@@ -52,6 +52,10 @@ Selectable value type: `Double` (default, fast) vs an exact non-negative
   identity, associativity), plus two regression generalizations: `union` preserves
   the per-base net even for zero-valued singletons (the 0.4.1.1 bug class), and
   `NNDecimal` `fromList` per-base nets are construction-order independent.
+  Journal-level properties: `norm` additivity, Hat preserves the note set, and
+  per-(note,base) net is construction-order independent.
+- Documented the Definition 6 axioms on the `Redundant` class and `norm` (Haddock
+  only), cross-referencing the property suite.
 
 ## 0.4.1.1 - 2026-06-07
 
