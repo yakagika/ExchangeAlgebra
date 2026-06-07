@@ -39,8 +39,12 @@ _exe-defs: &exe-defaults
                ,-threaded
                ,-rtsopts
                ,-with-rtsopts=-N4
-               ,'-optl-Wl,-no_warn_duplicate_libraries'
                ,-fwrite-ide-info]
+  # -no_warn_duplicate_libraries is a macOS (ld64) flag; GNU ld rejects it.
+  # Inherited by every exe via '<<: *exe-defaults' (merges the 'when' key too).
+  when:
+  - condition: os(darwin)
+    ghc-options: ['-optl-Wl,-no_warn_duplicate_libraries']
 
 executables:
   ebex1:
@@ -87,11 +91,12 @@ executables:
     <<: *exe-defaults
     main:                rippleWithStockMultiSeeds.hs
     source-dirs:         deterministic/ripple
+    # overrides the anchor's ghc-options (-N10); the macOS-only flag comes from
+    # the inherited 'when: os(darwin)' in *exe-defaults.
     ghc-options:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N10
-    - -optl-Wl,-no_warn_duplicate_libraries
 
   ripple:
     <<: *exe-defaults
@@ -115,4 +120,7 @@ benchmarks:
     ghc-options:
     - -O2
     - -rtsopts
-    - '-optl-Wl,-no_warn_duplicate_libraries'
+    when:
+    - condition: os(darwin)
+      ghc-options:
+      - '-optl-Wl,-no_warn_duplicate_libraries'

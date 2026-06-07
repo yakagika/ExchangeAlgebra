@@ -23,7 +23,7 @@ executable cge
       Paths_exchangealgebra_examples
   hs-source-dirs:
       optimization/CGE
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
   build-depends:
       array >=0.5.5 && <0.6
     , async ==2.2.*
@@ -47,6 +47,8 @@ executable cge
     , unordered-containers >=0.2.19 && <0.3
     , vector ==0.13.*
   default-language: Haskell2010
+  if os(darwin)
+    ghc-options: -optl-Wl,-no_warn_duplicate_libraries
 
 executable ebex1
   main-is: elementaryBookkeepingEx1.hs
@@ -54,7 +56,7 @@ executable ebex1
       Paths_exchangealgebra_examples
   hs-source-dirs:
       basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
   build-depends:
       array >=0.5.5 && <0.6
     , async ==2.2.*
@@ -78,6 +80,8 @@ executable ebex1
     , unordered-containers >=0.2.19 && <0.3
     , vector ==0.13.*
   default-language: Haskell2010
+  if os(darwin)
+    ghc-options: -optl-Wl,-no_warn_duplicate_libraries
 
 executable ebex2
   main-is: elementaryBookkeepingEx2.hs
@@ -85,7 +89,7 @@ executable ebex2
       Paths_exchangealgebra_examples
   hs-source-dirs:
       basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
   build-depends:
       array >=0.5.5 && <0.6
     , async ==2.2.*
@@ -109,6 +113,8 @@ executable ebex2
     , unordered-containers >=0.2.19 && <0.3
     , vector ==0.13.*
   default-language: Haskell2010
+  if os(darwin)
+    ghc-options: -optl-Wl,-no_warn_duplicate_libraries
 
 executable ebex3
   main-is: elementaryBookkeepingEx3.hs
@@ -116,7 +122,7 @@ executable ebex3
       Paths_exchangealgebra_examples
   hs-source-dirs:
       basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
   build-depends:
       array >=0.5.5 && <0.6
     , async ==2.2.*
@@ -140,6 +146,8 @@ executable ebex3
     , unordered-containers >=0.2.19 && <0.3
     , vector ==0.13.*
   default-language: Haskell2010
+  if os(darwin)
+    ghc-options: -optl-Wl,-no_warn_duplicate_libraries
 
 executable ebex4
   main-is: elementaryBookkeepingEx4.hs
@@ -147,7 +155,7 @@ executable ebex4
       Paths_exchangealgebra_examples
   hs-source-dirs:
       basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
   build-depends:
       array >=0.5.5 && <0.6
     , async ==2.2.*
@@ -171,6 +179,8 @@ executable ebex4
     , unordered-containers >=0.2.19 && <0.3
     , vector ==0.13.*
   default-language: Haskell2010
+  if os(darwin)
+    ghc-options: -optl-Wl,-no_warn_duplicate_libraries
 
 executable ebex5
   main-is: elementaryBookkeepingEx5.hs
@@ -178,7 +188,7 @@ executable ebex5
       Paths_exchangealgebra_examples
   hs-source-dirs:
       basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
   build-depends:
       array >=0.5.5 && <0.6
     , async ==2.2.*
@@ -202,6 +212,8 @@ executable ebex5
     , unordered-containers >=0.2.19 && <0.3
     , vector ==0.13.*
   default-language: Haskell2010
+  if os(darwin)
+    ghc-options: -optl-Wl,-no_warn_duplicate_libraries
 
 executable ripple
   main-is: ripple.hs
@@ -210,7 +222,7 @@ executable ripple
       Paths_exchangealgebra_examples
   hs-source-dirs:
       deterministic/ripple
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
   build-depends:
       array >=0.5.5 && <0.6
     , async ==2.2.*
@@ -234,6 +246,8 @@ executable ripple
     , unordered-containers >=0.2.19 && <0.3
     , vector ==0.13.*
   default-language: Haskell2010
+  if os(darwin)
+    ghc-options: -optl-Wl,-no_warn_duplicate_libraries
 
 executable rippleWithStock
   main-is: rippleWithStock.hs
@@ -242,7 +256,7 @@ executable rippleWithStock
       Paths_exchangealgebra_examples
   hs-source-dirs:
       deterministic/ripple
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
   build-depends:
       array >=0.5.5 && <0.6
     , async ==2.2.*
@@ -266,6 +280,8 @@ executable rippleWithStock
     , unordered-containers >=0.2.19 && <0.3
     , vector ==0.13.*
   default-language: Haskell2010
+  if os(darwin)
+    ghc-options: -optl-Wl,-no_warn_duplicate_libraries
 
 executable rippleWithStockMultiSeeds
   main-is: rippleWithStockMultiSeeds.hs
@@ -274,7 +290,7 @@ executable rippleWithStockMultiSeeds
       Paths_exchangealgebra_examples
   hs-source-dirs:
       deterministic/ripple
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N10 -optl-Wl,-no_warn_duplicate_libraries
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N10
   build-depends:
       array >=0.5.5 && <0.6
     , async ==2.2.*
@@ -298,6 +314,8 @@ executable rippleWithStockMultiSeeds
     , unordered-containers >=0.2.19 && <0.3
     , vector ==0.13.*
   default-language: Haskell2010
+  if os(darwin)
+    ghc-options: -optl-Wl,-no_warn_duplicate_libraries
 
 executable sim1
   main-is: simulateEx1.hs
@@ -305,7 +323,7 @@ executable sim1
       Paths_exchangealgebra_examples
   hs-source-dirs:
       basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
   build-depends:
       array >=0.5.5 && <0.6
     , async ==2.2.*
@@ -329,6 +347,8 @@ executable sim1
     , unordered-containers >=0.2.19 && <0.3
     , vector ==0.13.*
   default-language: Haskell2010
+  if os(darwin)
+    ghc-options: -optl-Wl,-no_warn_duplicate_libraries
 
 executable sim2
   main-is: simulateEx2.hs
@@ -336,7 +356,7 @@ executable sim2
       Paths_exchangealgebra_examples
   hs-source-dirs:
       basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
   build-depends:
       array >=0.5.5 && <0.6
     , async ==2.2.*
@@ -360,6 +380,8 @@ executable sim2
     , unordered-containers >=0.2.19 && <0.3
     , vector ==0.13.*
   default-language: Haskell2010
+  if os(darwin)
+    ghc-options: -optl-Wl,-no_warn_duplicate_libraries
 
 benchmark bench-core
   type: exitcode-stdio-1.0
@@ -368,7 +390,7 @@ benchmark bench-core
       Paths_exchangealgebra_examples
   hs-source-dirs:
       benchmark
-  ghc-options: -O2 -rtsopts -optl-Wl,-no_warn_duplicate_libraries
+  ghc-options: -O2 -rtsopts
   build-depends:
       array >=0.5.5 && <0.6
     , async ==2.2.*
@@ -393,3 +415,5 @@ benchmark bench-core
     , unordered-containers >=0.2.19 && <0.3
     , vector ==0.13.*
   default-language: Haskell2010
+  if os(darwin)
+    ghc-options: -optl-Wl,-no_warn_duplicate_libraries
