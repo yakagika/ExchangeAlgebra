@@ -32,6 +32,7 @@ import           System.Directory    (removeFile)
 import           System.Random       (StdGen, mkStdGen, randomR)
 import           Control.Monad       (replicateM)
 import           Control.Monad.State (runState, state)
+import           Test.QuickCheck
 
 -- ================================================================
 -- Unit test helpers
@@ -842,6 +843,107 @@ readFileStrict p = do
 -- Main
 -- ================================================================
 
+-- ================================================================
+-- Redundant-algebra axiom property tests (QuickCheck)
+--
+-- Encodes the Definition 6 axioms (paper Appendix A) + derived lemmas as
+-- QuickCheck properties, plus regression generalizations for the union
+-- zero-base bug and construction-order independence. Property suite, additive.
+-- ================================================================
+
+type NNAlg = EA.Alg NNDecimal (HatBase CountUnit)
+
+-- run a QuickCheck property in the existing IO-style harness
+quickProp :: Testable p => String -> p -> IO ()
+quickProp label p = do
+    r <- quickCheckWithResult stdArgs { maxSuccess = 200, chatty = False } p
+    if isSuccess r
+        then putStrLn ("[PASS] " ++ label)
+        else do putStrLn ("[FAIL] " ++ label); putStr (output r); exitFailure
+
+-- generators: concrete (non-wildcard) bases, intentional collisions
+genUnit :: Gen CountUnit
+genUnit = elements [Yen, Dollar, Amount]
+
+genSide :: Gen Hat
+genSide = elements [Hat, Not]
+
+genBase :: Gen (HatBase CountUnit)
+genBase = (:<) <$> genSide <*> genUnit
+
+genNNDouble :: Gen Double          -- non-negative, finite
+genNNDouble = do
+    NonNegative x <- arbitrary
+    if isNaN x || isInfinite x then genNNDouble else pure x
+
+genAlgD :: Gen TestAlg
+genAlgD = sized $ \n -> do
+    k  <- choose (0, min 40 n)
+    ps <- vectorOf k ((,) <$> genNNDouble <*> genBase)
+    pure (EA.fromList [ v .@ b | (v, b) <- ps ])
+
+genAlgN :: Gen NNAlg
+genAlgN = sized $ \n -> do
+    k  <- choose (0, min 40 n)
+    ps <- vectorOf k ((,) <$> (realToFrac <$> genNNDouble) <*> genBase)
+    pure (EA.fromList [ v .@ b | (v, b) <- ps ])
+
+-- exact per-base signed net (Not +, Hat -) via Rational; the observable
+-- accounting content. Robust to seq order; catches base misassociation.
+netByBase :: (HatVal v, Real v) => EA.Alg v (HatBase CountUnit) -> M.Map CountUnit Rational
+netByBase = EA.foldEntries step M.empty
+  where
+    step m v b = M.insertWith (+) (part b) (signed v b) m
+    part (_ :< u) = u
+    signed v b = if isHat b then negate (toRational v) else toRational v
+
+epsEq :: Double -> Double -> Bool
+epsEq a b = abs (a - b) <= 1e-9 * (1 + max (abs a) (abs b))
+
+axiomProperties :: IO ()
+axiomProperties = do
+    -- Definition 6 axioms (Double; semantic equality via exact per-base nets)
+    quickProp "axiom: Hat involution (x^^ = x)" $
+        forAll genAlgD $ \x -> netByBase ((.^) ((.^) x)) == netByBase x
+    quickProp "axiom: scalar on singleton (a*(v:@b) = (a*v):@b)" $
+        forAll genNNDouble $ \a -> forAll genNNDouble $ \v -> forAll genBase $ \b ->
+            netByBase (a .* (v .@ b)) == netByBase (((a * v) .@ b) :: TestAlg)
+    quickProp "axiom: scalar distributes over (.+)" $
+        forAll genNNDouble $ \a -> forAll genAlgD $ \x -> forAll genAlgD $ \y ->
+            netByBase (a .* (x .+ y)) == netByBase ((a .* x) .+ (a .* y))
+    quickProp "axiom: norm additivity (norm(x+y) = norm x + norm y)" $
+        forAll genAlgD $ \x -> forAll genAlgD $ \y ->
+            epsEq (norm (x .+ y)) (norm x + norm y)
+    quickProp "axiom: norm homogeneity (norm(a*x) = a*norm x, a>=0)" $
+        forAll genNNDouble $ \a -> forAll genAlgD $ \x ->
+            epsEq (norm (a .* x)) (a * norm x)
+    -- derived lemmas
+    quickProp "lemma: bar idempotent (bar(bar x) = bar x)" $
+        forAll genAlgD $ \x -> netByBase (bar (bar x)) == netByBase (bar x)
+    quickProp "lemma: zero identity (x .+ Zero = x)" $
+        forAll genAlgD $ \x -> netByBase (x .+ EA.Zero) == netByBase x
+    quickProp "lemma: (.+) associative" $
+        forAll genAlgD $ \x -> forAll genAlgD $ \y -> forAll genAlgD $ \z ->
+            netByBase ((x .+ y) .+ z) == netByBase (x .+ (y .+ z))
+    -- regression: union must not relabel a value onto a zero posting's base
+    -- (the 0.4.1.1 bug; raw (:@) so zero-valued singletons are exercised)
+    quickProp "regression: union preserves per-base net (zero-base bug)" $
+        forAll genNNDouble $ \v1 -> forAll genBase $ \b1 ->
+        forAll genNNDouble $ \v2 -> forAll genBase $ \b2 ->
+            let s1 = v1 :@ b1 :: TestAlg
+                s2 = v2 :@ b2 :: TestAlg
+            in netByBase (s1 .+ s2)
+                 == M.unionWith (+) (netByBase s1) (netByBase s2)
+    -- construction-order independence for the exact value type (NNDecimal)
+    quickProp "NNDecimal: fromList per-base net is construction-order independent" $
+        forAll (listOf ((,) <$> (realToFrac <$> genNNDouble) <*> genBase)) $ \ps ->
+            let singles = [ v :@ b | (v, b) <- ps ] :: [NNAlg]
+                viaList  = EA.fromList singles
+                viaFoldr = foldr   (.+) EA.Zero singles
+                viaFoldl = L.foldl' (.+) EA.Zero singles
+            in netByBase viaList == netByBase viaFoldr
+               && netByBase viaFoldr == netByBase viaFoldl
+
 main :: IO ()
 main = do
     testProjMultiPatternOnePass
@@ -870,3 +972,4 @@ main = do
     testCsvWriteCSV
     testCsvWriteCSVWithQuotes
     testCsvWriteCSVEmpty
+    axiomProperties

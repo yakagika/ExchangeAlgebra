@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 0a74d3bef2148b67dd3d8ba7bd2b86a451cb3bc1562894ededa04a0107b81660
+-- hash: c57c95d1a5c934a9a7a03898935c1bd648790d622f01c8d43526db895e6c742a
 
 name:           exchangealgebra
 version:        0.5.0.0
@@ -114,6 +114,7 @@ test-suite ExchangeAlgebra-test
       Chart ==1.9.*
     , Chart-cairo ==1.9.*
     , Decimal ==0.5.*
+    , QuickCheck >=2.14 && <3
     , array >=0.5.5 && <0.6
     , async ==2.2.*
     , base >=4.17 && <5

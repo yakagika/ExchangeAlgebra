@@ -45,6 +45,14 @@ Selectable value type: `Double` (default, fast) vs an exact non-negative
   (`ripple/*`, `CGE`) intentionally stay `Double`, demonstrating the Double side of
   the selectable value type.
 
+### Internal (testing)
+- Added a QuickCheck property suite (test dep `QuickCheck`) encoding the Definition 6
+  redundant-algebra axioms (Hat involution, scalar on element, scalar distribution,
+  norm additivity, norm homogeneity) and derived lemmas (bar idempotent, zero
+  identity, associativity), plus two regression generalizations: `union` preserves
+  the per-base net even for zero-valued singletons (the 0.4.1.1 bug class), and
+  `NNDecimal` `fromList` per-base nets are construction-order independent.
+
 ## 0.4.1.1 - 2026-06-07
 
 ### Fixed
