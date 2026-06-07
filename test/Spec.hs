@@ -32,6 +32,7 @@ import           System.Directory    (removeFile)
 import           System.Random       (StdGen, mkStdGen, randomR)
 import           Control.Monad       (replicateM)
 import           Control.Monad.State (runState, state)
+import           Control.Exception   (try, evaluate, SomeException)
 import           Test.QuickCheck
 
 -- ================================================================
@@ -250,6 +251,25 @@ testUnionZeroSingletonBase = do
         (EA.Zero :: TestAlg) (EA.proj [Hat :< Yen] (zb .+ rb))
     assertEqual "union real(.+)zero: nothing relabeled onto the zero's base"
         (EA.Zero :: TestAlg) (EA.proj [Hat :< Yen] (rb .+ zb))
+
+-- | Regression for audit divergence C: scalar product (.*) must reject a
+-- negative / non-finite scalar instead of silently producing negative
+-- (out-of-domain) postings. (Pre-fix, (.*) used raw (:@) and bypassed the
+-- isErrorValue check that (.@) performs.)
+testScalarRejectsNegative :: IO ()
+testScalarRejectsNegative = do
+    let xD = 10 :@ (Not :< Yen) :: TestAlg
+    rD <- try (evaluate (norm ((-1) .* xD))) :: IO (Either SomeException Double)
+    case rD of
+        Left _  -> putStrLn "[PASS] (.*) rejects negative scalar (Double)"
+        Right v -> do putStrLn ("[FAIL] (.*) negative scalar leaked (Double): " ++ show v); exitFailure
+    let xN = 10 :@ (Not :< Yen) :: EA.Alg NNDecimal (HatBase CountUnit)
+    rN <- try (evaluate (norm ((-1) .* xN))) :: IO (Either SomeException NNDecimal)
+    case rN of
+        Left _  -> putStrLn "[PASS] (.*) rejects negative scalar (NNDecimal)"
+        Right v -> do putStrLn ("[FAIL] (.*) negative scalar leaked (NNDecimal): " ++ show v); exitFailure
+    -- non-negative scalar still works
+    assertNear "(.*) non-negative scalar works" 20.0 (norm (2 .* xD))
 
 testJournalSigmaMergePath :: IO ()
 testJournalSigmaMergePath = do
@@ -1001,6 +1021,7 @@ main = do
     testSigmaFromMap
     testJournalFromListStrict
     testUnionZeroSingletonBase
+    testScalarRejectsNegative
     testJournalSigmaMergePath
     testJournalSigma2When
     testJournalSigmaOn

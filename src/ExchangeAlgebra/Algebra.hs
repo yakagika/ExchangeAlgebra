@@ -820,6 +820,12 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
 
     x  .*  Zero      = Zero
     0  .*  x         = Zero
+    -- The algebra is over non-negative values: reject a negative / non-finite
+    -- scalar instead of silently producing out-of-domain (negative) postings.
+    -- One check on the scalar suffices — x >= 0 and the existing values are >= 0,
+    -- so x*v stays non-negative and the cheap raw fmap below is safe.
+    x  .*  _ | isErrorValue x =
+        error ("(.*): non-negative finite scalar required, got " ++ show x)
     x  .* (v:@b)     = (x * v) :@ b
     x  .* (Liner ms idx bpToId idToBp nextBpId allIds) = Liner
                      (Map.map (\ (Pair hs ns) -> Pair (fmap (x *) hs) (fmap (x *) ns)) ms)

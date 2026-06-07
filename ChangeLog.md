@@ -24,6 +24,13 @@ Selectable value type: `Double` (default, fast) vs an exact non-negative
   trade-off, and the `fromList` ordering contract).
 
 ### Changed (breaking — target 0.5.0.0)
+- `(.*)` (scalar product) now **rejects a negative / non-finite scalar** with an
+  `error`, instead of silently producing out-of-domain (negative) postings (the
+  algebra is over non-negative values; audit divergence C). The check is on the
+  scalar only — `0 .* x = Zero` and non-negative scalars are unchanged, and the
+  fast internal value map is preserved. Covered by `testScalarRejectsNegative`;
+  the bundled `ripple`/`CGE` Double examples are unaffected (their production
+  amounts stay non-negative).
 - `HatVal` no longer has `RealFloat` as a superclass; it gains a `showValue ::
   n -> String` method. This lets non-floating-point value types (e.g. an exact
   `Decimal`) become `HatVal` instances. The `Double` / `NN.Double` instances render
