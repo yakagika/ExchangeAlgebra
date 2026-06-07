@@ -1,5 +1,50 @@
 # Changelog for ExchangeAlgebra
 
+## 0.5.0.0 - 2026-06-07
+
+Selectable value type: `Double` (default, fast) vs an exact non-negative
+`Decimal` (`NNDecimal`) for determinism/auditability. **Breaking** (PVP major):
+`HatVal` lost its `RealFloat` superclass and gained `showValue`. See the README
+"Choosing a value type" and "Migrating to 0.5.0.0" sections.
+
+### Added
+- `ExchangeAlgebra.Value` with `NNDecimal`, an exact non-negative decimal value type
+  (wraps `Data.Decimal.Decimal`) usable as the `v` in `Alg v b` / `Journal n v b`.
+  Numeric literals work directly (derived `Num`/`Fractional`). Because decimal addition
+  is exact and associative, `norm` / `bar` results are independent of construction order
+  (unlike `Double`). Ships `bankersRound` (round-half-to-even, the unbiased financial
+  default) and `ceilingRound`. New dependency: `Decimal`.
+- README gains a "Choosing a value type" section (Double vs NNDecimal comparison
+  table, the simulation boundary pattern, the large-scale precision×memory
+  trade-off, and the `fromList` ordering contract).
+
+### Changed (breaking — target 0.5.0.0)
+- `HatVal` no longer has `RealFloat` as a superclass; it gains a `showValue ::
+  n -> String` method. This lets non-floating-point value types (e.g. an exact
+  `Decimal`) become `HatVal` instances. The `Double` / `NN.Double` instances render
+  byte-for-byte identically to before (the old internal `showV` was inlined into
+  each instance's `showValue`). `Fractional` is kept, so numeric literals still
+  work for value types. Downstream code that relied on `HatVal n => RealFloat n`,
+  or defined its own `HatVal` instance, must adapt (add `showValue`).
+- `Journal.fromList` is now a strict left fold (`L.foldl' (.+) mempty`) instead of
+  the lazy right fold (`foldr (.+) mempty`). It is `O(N)` and ~15× faster at
+  N=10000 / ~40× at N=20000 in the core benchmark (the lazy right fold built a deep
+  thunk that was expensive to force). The posting **multiset is preserved**; the
+  only change is the accumulation order of same-note/same-base postings within one
+  `Alg` sequence. That `Seq` order is observable through `Eq` / `Show` / `toAlg` /
+  `Binary`, and for `Double` through the last-ULP of `norm` / `bar`. For the exact
+  `NNDecimal` value type the order never affects `norm` / `bar` / balance. (The
+  interim `fromListFast`, added during staging, was folded back into `fromList`.)
+
+### Changed (examples / tests)
+- The bundled bookkeeping and simulation examples (`elementaryBookkeepingEx1–5`,
+  `simulateEx1`, `simulateEx2`) and the test suite's simulation now use the exact
+  `NNDecimal` ledger value type, following the boundary pattern (ABM
+  parameters/coefficients/random draws stay `Double` and convert at the ledger
+  boundary; reported stocks/profits convert back). The numeric-method examples
+  (`ripple/*`, `CGE`) intentionally stay `Double`, demonstrating the Double side of
+  the selectable value type.
+
 ## 0.4.1.1 - 2026-06-07
 
 ### Fixed
@@ -7,17 +52,16 @@
   with the wrong base when one operand was a **zero-valued singleton**. For
   `(v1:@b1) .+ (v2:@b2)` with `isZeroValue v1`, the result was `v2:@b1` — the
   surviving nonzero value relabeled onto the *zero posting's* base (symmetrically
-  `v1:@b2` when `v2` was zero). A zero contributes nothing, so the result must be
-  `v2:@b2` / `v1:@b1` (the nonzero value on its **own** base).
-  The bug preserved `norm` (the total was unchanged) but corrupted **per-base
-  projection** (`proj` / `projWithBase` / `balanceBy` / stock & profit queries):
-  a value silently moved to a neighboring base. It was construction-order
-  sensitive — ledgers that build explicit `0:@base` singletons via the raw `(:@)`
-  constructor (e.g. sparsified input coefficients in agent-based simulations)
-  would, depending on accumulation order, invent a phantom posting on an adjacent
-  base. In the bundled simulation example this shifted a company's reported stock
-  by up to ~30% over 100 terms. One-line fix in `Algebra.hs union`, covered by the
-  new `testUnionZeroSingletonBase` unit test. (Independently confirmed root cause.)
+  `v1:@b2`). A zero contributes nothing, so the result must be `v2:@b2` / `v1:@b1`
+  (the nonzero value on its **own** base). The bug preserved `norm` (the total was
+  unchanged) but corrupted **per-base projection** (`proj` / `projWithBase` /
+  `balanceBy` / stock & profit queries): a value silently moved to a neighboring
+  base. It was construction-order sensitive — ledgers that build explicit
+  `0:@base` singletons via the raw `(:@)` constructor (e.g. sparsified input
+  coefficients in agent-based simulations) would, depending on accumulation order,
+  invent a phantom posting on an adjacent base. In the bundled simulation example
+  this shifted a company's reported stock by up to ~30% over 100 terms. One-line
+  fix in `Algebra.hs union`, covered by the new `testUnionZeroSingletonBase` test.
 
 ## 0.4.1.0 - 2026-06-06
 

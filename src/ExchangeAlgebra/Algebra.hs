@@ -273,14 +273,29 @@ class (Redundant a n b ) => Exchange a n b where
 ------------------------------------------------------------------
 
 -- | Type class for algebra element values.
--- Provides zero-value and error-value predicates.
--- Instances are defined for @Double@ and @NN.Double@ (non-negative reals).
+-- Provides zero-value / error-value predicates and a representation-specific
+-- renderer ('showValue').
+-- Instances are defined for @Double@ and @NN.Double@ (non-negative reals);
+-- a non-negative exact-decimal instance (@NNDecimal@) is planned.
+--
+-- DESIGN NOTE (2026-06-06, selectable value type — Double vs exact Decimal):
+-- The @RealFloat@ superclass was intentionally *removed* so that exact,
+-- non-floating-point value types (the planned @NNDecimal@ = non-negative
+-- 'Data.Decimal.Decimal') can be 'HatVal' instances and give construction-order
+-- -independent, exact summation. @RealFloat@ was only ever needed in two places:
+--   * @showV@ (rendering via 'Data.Scientific.fromFloatDigits') — now replaced by
+--     the per-instance 'showValue' method, so each representation formats itself;
+--   * the @Double@/@NN.Double@ 'isErrorValue' (NaN/Infinity tests) — these stay
+--     inside the floating-point instances, which may require @RealFloat@ locally.
+-- @Fractional@ is *kept*: 'Data.Decimal' provides it (so numeric literals like
+-- @0.08@ still work without wrapping), and only an @Integer@ instance would need
+-- it dropped. @Integer@ is intentionally out of scope — it cannot represent the
+-- fractional / relative prices that the ABM simulations depend on.
 class   ( Show n
         , Ord n
         , Eq n
         , Nearly n
         , Fractional n
-        , RealFloat n
         , Num n) => HatVal n where
 
         -- | Zero value. Complexity: O(1)
@@ -292,8 +307,17 @@ class   ( Show n
             | zeroValue == x = True
             | otherwise      = False
 
-        -- | Tests whether the value is an error value (NaN, Infinity, etc.). Complexity: O(1)
+        -- | Tests whether the value is an error value (NaN, Infinity, negative, …).
+        -- Complexity: O(1)
         isErrorValue :: n -> Bool
+
+        -- | Render the value for the 'Show' instance of 'Alg'.
+        -- Per-instance because formatting is representation-specific: floating-point
+        -- types format to a fixed number of decimal places via 'Data.Scientific',
+        -- whereas exact decimal types print their own canonical form. This replaces
+        -- the former floating-point-only @showV@, which hard-wired @RealFloat@
+        -- through @fromFloatDigits@ and so blocked exact value types.
+        showValue :: n -> String
 
 
 instance RealFloat NN.Double where
@@ -317,6 +341,10 @@ instance HatVal NN.Double where
     {-# INLINE isErrorValue #-}
     isErrorValue x  =  isNaN        (NN.toNumber x)
                     || isInfinite   (NN.toNumber x)
+    -- Identical formatting to the old top-level @showV@ (fixed 2-decimal
+    -- Scientific rendering); moved here so the class no longer needs @RealFloat@.
+    {-# INLINE showValue #-}
+    showValue = D.formatScientific D.Generic (Just 2) . D.fromFloatDigits
 
 instance HatVal Prelude.Double where
     {-# INLINE zeroValue #-}
@@ -326,6 +354,9 @@ instance HatVal Prelude.Double where
     isErrorValue x  =  isNaN        x
                     || isInfinite   x
                     || x < 0
+    -- Identical formatting to the old top-level @showV@ (see NN.Double above).
+    {-# INLINE showValue #-}
+    showValue = D.formatScientific D.Generic (Just 2) . D.fromFloatDigits
 
 data Pair v where
  Pair :: {_hatSide :: !(Seq v)
@@ -552,10 +583,11 @@ infixr 6 :@
 infixr 6 .@
 infixr 6 <@
 
--- | Complexity: O(digits(v))
--- Formatting cost is proportional to the textual precision of the number.
-showV ::  (HatVal v) => v -> String
-showV v = D.formatScientific D.Generic (Just 2) (D.fromFloatDigits v)
+-- NOTE: the former top-level @showV@ (which hard-wired @RealFloat@ via
+-- @fromFloatDigits@) has been replaced by the per-instance 'showValue' method of
+-- 'HatVal', so that exact value types can render themselves. The 'Show' instance
+-- of 'Alg' below now calls 'showValue'. The @Double@/@NN.Double@ 'showValue'
+-- implementations reproduce the old formatting byte-for-byte.
 
 instance (HatVal v, HatBaseClass b) =>  Eq (Alg v b) where
     (==) Zero Zero = True
@@ -603,7 +635,7 @@ instance (HatVal v, HatBaseClass b) => Ord (Alg v b) where
 
 instance (HatVal v, HatBaseClass b) => Show (Alg v b) where
     show Zero       = "0"
-    show (v:@b)     = (showV v) ++ ":@" ++ show b
+    show (v:@b)     = (showValue v) ++ ":@" ++ show b
     show xs = let ls = toASCList xs
             in  go ls
         where

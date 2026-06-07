@@ -126,6 +126,67 @@ Importing both `ExchangeAlgebra` and `ExchangeAlgebra.Journal` unqualified cause
 collisions on `sigma`, `fromList`, `map`, `filter`, and friends. See the recommended import
 patterns below.
 
+## Choosing a value type
+
+The value parameter `v` in `Alg v b` / `Journal n v b` is selectable. Two value
+types are provided; pick per workload.
+
+| | `Double` (default) | `NNDecimal` (`ExchangeAlgebra.Value`) |
+|---|---|---|
+| Representation | IEEE-754 binary float | exact non-negative base-10 decimal (wraps `Data.Decimal`) |
+| Decimal prices / ratios | approximate | **exact** |
+| Tax / proration (`*`, `/`) | rounding noise | exact intermediates; round explicitly with `bankersRound` / `ceilingRound` |
+| Construction-order independence | ✗ — addition is non-associative, so the order same-base postings are summed shifts the last-ULP of `norm` / `bar` | ✓ — addition is exact & associative, so `norm` / `bar` / balance are identical regardless of build order |
+| Determinism / auditability | not bit-reproducible across reorderings | bit-reproducible |
+| Memory per value | ~16 B | ~40 B + indirection (~2.5×) |
+| Speed | fastest | slower (boxed `Integer` mantissa arithmetic) |
+| Typical use | agent-based models, relative-price dynamics, numeric methods (Leontief inverse, optimization) | audited ledgers, bookkeeping, anywhere a total must be reproducible |
+
+```haskell
+import ExchangeAlgebra.Value (NNDecimal)
+type Ledger = Journal Term NNDecimal (HatBase AccountTitles)
+entry = 10.5 :@ Hat:<Cash .+ 2 :@ Not:<Sales   -- numeric literals work directly
+```
+
+**Boundary pattern (simulations).** Keep ABM parameters, input coefficients and
+random draws as `Double`, and convert (`realToFrac`) only where a value *enters
+the ledger*; convert reported stocks/profits back to `Double` for visualization.
+The ledger arithmetic in between is then exact. The bundled bookkeeping and
+simulation examples follow this pattern; the numeric-method examples
+(`ripple/*`, `CGE`) stay `Double` because they are inherently floating-point.
+
+**Large scale: precision × memory trade-off.** Retaining every posting is `O(n)`
+regardless of value type; `NNDecimal` adds a constant factor (~2.5× per value box)
+on top. For very large simulations weigh exactness against that overhead — or use
+the spill-to-disk path (below) to keep memory constant.
+
+**`fromList` ordering contract.** `EJ.fromList` is a strict `O(N)` left fold. It
+preserves the *multiset* of postings exactly. When two postings collide on the
+same note **and** base they land in one ordered sequence; that sequence's order is
+observable through `Eq` / `Show` / `toAlg` / `Binary`, and for `Double` through the
+last-ULP of `norm` / `bar`. For `NNDecimal` the order never affects
+`norm` / `bar` / balance. (`Integer` is intentionally not offered — it cannot
+represent the fractional relative prices the ABM work depends on.)
+
+### Migrating to 0.5.0.0
+
+`0.5.0.0` is a major (breaking) release. Most users need no changes — `Double`
+ledgers keep working and render identically. Two things to know:
+
+- **Custom `HatVal` instances**: `HatVal` dropped its `RealFloat` superclass and
+  added `showValue :: n -> String`. If you defined your own `HatVal` instance, add
+  a `showValue` (how the value prints inside `Alg`'s `Show`). If you relied on
+  `HatVal n => RealFloat n` in a signature, add the `RealFloat` constraint
+  explicitly. The built-in `Double` / `NN.Double` instances are unchanged.
+- **`fromList` accumulation order**: now a strict left fold. The multiset is
+  preserved, but if you compared `Show` / `Eq` / serialized output of a
+  `fromList`-built journal byte-for-byte, the same-(note,base) sequence order may
+  differ. Switch such ledgers to `NNDecimal` for order-independent results, or
+  compare via `norm` / `bar` / `balanceBy` rather than raw structure.
+
+(`0.5.0.0` also includes the `union` zero-base correctness fix first shipped in
+`0.4.1.1`; see the changelog.)
+
 ## Recommended import patterns
 
 ### Simple single-period bookkeeping

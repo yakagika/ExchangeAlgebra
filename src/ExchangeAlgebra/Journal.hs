@@ -427,23 +427,43 @@ instance (Note n, HatVal v, ExBaseClass b) => Exchange (Journal n) v b where
         l = (norm . decL) xs
 
 ------------------------------------------------------------------
--- | fromList
+-- | Build a 'Journal' from a list of postings. @O(N)@ via a strict left fold
+-- (@L.foldl' (.+) mempty@).
+--
+-- == Why a strict left fold
+--
+-- This was previously a lazy right fold (@foldr (.+) mempty@), kept that way to
+-- freeze the same-base accumulation order for 'Double' (whose addition is
+-- non-associative, so reordering shifts the last-ULP of 'norm'). The strict left
+-- fold is far cheaper at scale — the lazy right fold builds a deep right-nested
+-- thunk that is expensive to force (≈40x at N=20000, ~15x at N=10000 in the core
+-- benchmark). The fold direction was switched to the fast version once the
+-- audited/exact path moved to 'ExchangeAlgebra.Value.NNDecimal'; see
+-- plans/in-progress/LAZY_EVAL_AUDIT.md and SELECTABLE_VALUE_TYPE_PLAN.md.
+--
+-- == Behaviour contract
+--
+-- 'fromList' preserves the /multiset/ of postings exactly (no posting is added,
+-- dropped, or merged across bases that would otherwise be kept apart). When two
+-- postings collide on the /same note key and same base/ (and therefore land in
+-- one 'ExchangeAlgebra.Algebra.Alg' sequence) the strict left fold orders that
+-- @Seq@ opposite to the old lazy right fold. That order is observable through
+-- 'Eq' \/ 'Show' \/ 'toAlg' \/ 'Binary', and for 'Double' through the last-ULP of
+-- 'norm' \/ 'bar' (IEEE-754 addition is non-associative). Postings that differ in
+-- note or base land in separate map entries and are unaffected.
+--
+-- For an /exact/ value type ('ExchangeAlgebra.Value.NNDecimal') addition is
+-- associative, so 'norm' \/ 'bar' \/ balance are independent of construction order
+-- (the fold direction here, parallel merges, etc.). Use 'NNDecimal' when you need
+-- deterministic, auditable totals.
 --
 -- >>> type Test = Journal String Double (HatBase AccountTitles)
 -- >>> x = [(1.00:@Hat:<Cash .| z) | z <- ["Loan Payment","Purchace Apple"]] :: [Test]
 -- >>> fromList x
 -- 1.00:@Hat:<Cash.|"Purchace Apple" .+ 1.00:@Hat:<Cash.|"Loan Payment"
---
--- NOTE: kept as @foldr (.+) mempty@ deliberately. A strict @foldl'@ merge was
--- tried (plan WI-1) but it changes the accumulation order. This is a redundant
--- algebra that preserves same-base postings as an ordered sequence (audit trail),
--- and 'Double' addition is non-associative, so reordering shifts the last-ULP
--- result of 'norm' and breaks exact-value tests (doctest here + sim1). Reordering
--- is an observable behaviour change, not a transparent optimization.
--- See plans/in-progress/LAZY_EVAL_AUDIT.md (WI-1) for the safe redesign.
 fromList :: (HatVal v, HatBaseClass b, Note n)
          => [Journal n v b] -> Journal n v b
-fromList = foldr (.+) mempty
+fromList = L.foldl' (.+) mempty
 
 ------------------------------------------------------------------
 {-# INLINE mergeJournalMap #-}

@@ -1,13 +1,13 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.37.0.
+-- This file has been generated from package.yaml by hpack version 0.39.1.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: fe5fab919197e65dce7b698dc174e0447987248ecd7a81108d260e187a1a248f
+-- hash: 0a74d3bef2148b67dd3d8ba7bd2b86a451cb3bc1562894ededa04a0107b81660
 
 name:           exchangealgebra
-version:        0.4.1.1
+version:        0.5.0.0
 synopsis:       Exchange Algebra for bookkeeping and economic simulation
 description:    Please see the README on GitHub at <https://github.com/yakagika/ExchangeAlgebra#readme>
 category:       Accounting, Finance, Math
@@ -38,6 +38,7 @@ library
       ExchangeAlgebra.Journal.Transfer
       ExchangeAlgebra.Simulate
       ExchangeAlgebra.Simulate.Visualize
+      ExchangeAlgebra.Value
       ExchangeAlgebra.Write
   other-modules:
       Paths_exchangealgebra
@@ -46,6 +47,7 @@ library
   build-depends:
       Chart ==1.9.*
     , Chart-cairo ==1.9.*
+    , Decimal ==0.5.*
     , array >=0.5.5 && <0.6
     , async ==2.2.*
     , base >=4.17 && <5
@@ -76,6 +78,7 @@ test-suite ExchangeAlgebra-doctest
   build-depends:
       Chart ==1.9.*
     , Chart-cairo ==1.9.*
+    , Decimal ==0.5.*
     , array >=0.5.5 && <0.6
     , async ==2.2.*
     , base >=4.17 && <5
@@ -110,6 +113,7 @@ test-suite ExchangeAlgebra-test
   build-depends:
       Chart ==1.9.*
     , Chart-cairo ==1.9.*
+    , Decimal ==0.5.*
     , array >=0.5.5 && <0.6
     , async ==2.2.*
     , base >=4.17 && <5

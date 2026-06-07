@@ -56,9 +56,11 @@ module ExchangeAlgebra
     ( module ExchangeAlgebra.Algebra
     , module ExchangeAlgebra.Algebra.Transfer
     , module ExchangeAlgebra.Write
-    , module ExchangeAlgebra.Simulate ) where
+    , module ExchangeAlgebra.Simulate
+    , module ExchangeAlgebra.Value ) where
 
 import              ExchangeAlgebra.Algebra
 import              ExchangeAlgebra.Algebra.Transfer
 import              ExchangeAlgebra.Write
 import              ExchangeAlgebra.Simulate
+import              ExchangeAlgebra.Value    -- NNDecimal (exact non-negative value type)

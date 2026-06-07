@@ -1,5 +1,5 @@
 name:                exchangealgebra
-version:             0.4.1.1
+version:             0.5.0.0
 github:              "yakagika/ExchangeAlgebra"
 license:             OtherLicense
 author:              "Kaya Akagi"
@@ -37,6 +37,7 @@ dependencies:
 - unordered-containers  >= 0.2.19  && < 0.3
 - binary                >= 0.8     && < 0.9
 - bytestring            >= 0.11    && < 0.13
+- Decimal               >= 0.5     && < 0.6
 
 library:
   source-dirs: src
