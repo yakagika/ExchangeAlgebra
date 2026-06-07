@@ -14,6 +14,11 @@ Selectable value type: `Double` (default, fast) vs an exact non-negative
   is exact and associative, `norm` / `bar` results are independent of construction order
   (unlike `Double`). Ships `bankersRound` (round-half-to-even, the unbiased financial
   default) and `ceilingRound`. New dependency: `Decimal`.
+- `ExchangeAlgebra.Algebra.mapBasePart :: (BasePart b -> BasePart b') -> Alg v b ->
+  Alg v b'` — relabel the base part of every element while preserving the Hat/Not
+  structure and the redundancy (ordered sequences); colliding targets are
+  concatenated, so `norm` is preserved. (Hat is left untouched; the type expresses
+  the Hat/Not-preserving intent, per the redundant-algebra design.)
 - README gains a "Choosing a value type" section (Double vs NNDecimal comparison
   table, the simulation boundary pattern, the large-scale precision×memory
   trade-off, and the `fromList` ordering contract).

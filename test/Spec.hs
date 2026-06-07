@@ -943,6 +943,11 @@ axiomProperties = do
                 viaFoldl = L.foldl' (.+) EA.Zero singles
             in netByBase viaList == netByBase viaFoldr
                && netByBase viaFoldr == netByBase viaFoldl
+    -- mapBasePart (Phase 3): identity + norm preservation (no value lost on collision)
+    quickProp "mapBasePart id preserves per-base net (NNDecimal)" $
+        forAll genAlgN $ \x -> netByBase (EA.mapBasePart id x :: NNAlg) == netByBase x
+    quickProp "mapBasePart preserves norm under base collapse (NNDecimal)" $
+        forAll genAlgN $ \x -> norm (EA.mapBasePart (const Amount) x :: NNAlg) == norm x
 
 -- ================================================================
 -- Journal-algebra axiom properties (Phase 1.5)

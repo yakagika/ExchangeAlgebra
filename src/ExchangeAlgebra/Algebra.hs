@@ -61,6 +61,7 @@ module ExchangeAlgebra.Algebra
     , sigmaFromMap
     , toASCList
     , map
+    , mapBasePart
     , filter
     , proj
     , projCredit
@@ -1210,6 +1211,33 @@ filter f (Liner m _ _ _ _ _) =
     -- filterSide :: BasePart b -> Hat -> Seq v -> Seq v
     {-# INLINE filterSide #-}
     filterSide bp h = Seq.filter (\val -> f (val :@ merge h bp))
+
+------------------------------------------------------------
+-- | Relabel the /base part/ of every element, preserving the Hat\/Not structure
+-- and the redundancy (the ordered Hat- and Not-side sequences). Only the
+-- 'BasePart' is rewritten by @f@; the Hat\/Not side and the values are untouched.
+-- When @f@ maps two distinct base parts onto the same target, their sequences are
+-- concatenated (pair-append), so no value is lost — hence @'norm'@ is preserved.
+-- Preserving wildcards (@(.#)@) is the caller's responsibility (in @f@).
+--
+-- Complexity: O(n) over distinct base keys (rebuilds the posting index once).
+--
+-- >>> type T = Alg NN.Double (HatBase CountUnit)
+-- >>> mapBasePart id (10:@Hat:<Yen :: T) :: T
+-- 10.00:@Hat:<Yen
+--
+-- >>> norm (mapBasePart (const Amount) (10:@Not:<Yen .+ 5:@Not:<Dollar :: T) :: T)
+-- 15.0
+mapBasePart :: (HatVal v, HatBaseClass b, HatBaseClass b')
+            => (BasePart b -> BasePart b') -> Alg v b -> Alg v b'
+mapBasePart _ Zero     = Zero
+mapBasePart f (v :@ b) = singleton v (merge (hat b) (f (base b)))
+mapBasePart f (Liner m _ _ _ _ _) =
+    mkAlgFromMap $
+        Map.foldlWithKey'
+            (\acc bp p -> Map.insertWith pairAppend (f bp) p acc)
+            Map.empty
+            m
 
 ------------------------------------------------------------
 -- | proj
