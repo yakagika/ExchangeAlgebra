@@ -10,11 +10,6 @@ import qualified    ExchangeAlgebra         as EA
 import              ExchangeAlgebra
 import qualified    ExchangeAlgebra.Algebra.Transfer as ET
 
--- Other
-import qualified    Number.NonNegative      as NN
-import qualified    Numeric                 as N
-import              Number.NonNegative
-
 -- Day
 import qualified    Data.Time           as Time
 import              Data.Time
@@ -24,7 +19,7 @@ import              Data.Time
 type MinBase = EA.HatBase EA.AccountTitles
 
 -- | 取引情報
-type MinTransaction = EA.Alg NN.Double MinBase
+type MinTransaction = EA.Alg NNDecimal MinBase
 
 
 -- ** 3章例題
@@ -109,7 +104,7 @@ q4A' = ET.incomeSummaryAccount q4
 type ADBase = EA.HatBase (EA.AccountTitles,Day)
 
 -- | 取引情報
-type ADTransaction = EA.Alg NN.Double ADBase
+type ADTransaction = EA.Alg NNDecimal ADBase
 
 d = fromGregorian
 

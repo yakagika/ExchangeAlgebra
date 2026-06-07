@@ -4,6 +4,7 @@
 
 import ExchangeAlgebra.Journal
 import ExchangeAlgebra.Algebra.Transfer
+import ExchangeAlgebra.Value (NNDecimal)
 import Data.Time
 
 data Unit = Yen
@@ -30,7 +31,7 @@ d = fromGregorian
 instance Note Day where
     plank = d 2023 12 31
 
-type Transaction = Journal Day Double HatBase2
+type Transaction = Journal Day NNDecimal HatBase2
 
 
 main :: IO ()

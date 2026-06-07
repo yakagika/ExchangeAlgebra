@@ -16,7 +16,7 @@ instance ExBaseClass HatBaseC where
     getAccountTitle (h :<(a,c)) = a
     setAccountTitle (h :<(a,c)) b = h :<(b,c)
 
-type AlgC = Alg Double HatBaseC
+type AlgC = Alg NNDecimal HatBaseC
 
 main :: IO ()
 main = do 

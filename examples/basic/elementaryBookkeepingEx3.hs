@@ -20,7 +20,7 @@ instance BaseClass Unit where
 
 type HatBase2 = HatBase (AccountTitles, Unit)
 
-type RedAlg = Alg Double HatBase2
+type RedAlg = Alg NNDecimal HatBase2
 
 instance ExBaseClass HatBase2 where
     getAccountTitle (h :<(a,u)) = a

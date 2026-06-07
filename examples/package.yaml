@@ -13,7 +13,7 @@ description:         |
 
 dependencies:
 - base                  >= 4.17    && < 5
-- exchangealgebra       == 0.4.*
+- exchangealgebra       == 0.5.*
 - text                  >= 2.0     && < 2.2
 - containers            >= 0.6     && < 0.8
 - numeric-prelude       >= 0.4.4   && < 0.5

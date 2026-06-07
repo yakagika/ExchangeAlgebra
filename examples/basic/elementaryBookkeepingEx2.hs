@@ -11,11 +11,6 @@ import              ExchangeAlgebra
 import qualified    ExchangeAlgebra.Algebra.Transfer as ET
 import              ExchangeAlgebra.Simulate
 
--- Other
-import qualified    Number.NonNegative      as NN
-import qualified    Numeric                 as N
-import              Number.NonNegative
-
 -- Day
 import qualified    Data.Time           as Time
 import              Data.Time
@@ -25,14 +20,14 @@ import              Data.Time
 type MinBase = EA.HatBase EA.AccountTitles
 
 -- | 取引情報
-type MinTransaction = EA.Alg NN.Double MinBase
+type MinTransaction = EA.Alg NNDecimal MinBase
 
 -- 時間をいれる
 -- | 勘定科目と時間の基底
 type ADBase = EA.HatBase (EA.AccountTitles,Day)
 
 -- | 取引情報
-type ADTransaction = EA.Alg NN.Double ADBase
+type ADTransaction = EA.Alg NNDecimal ADBase
 
 d = fromGregorian
 
@@ -149,21 +144,21 @@ main = do
     -- >>> Debit
     let y = 100 :@Hat:<(Cash, d 2024 1 2) :: ADTransaction
     print $ (whichSide . _hatBase) y
-    --- >>> Debit
+    --- >>> Credit
 
     print $ projByAccountTitle Cash t1_10
-    --- >>> 3000000 :@Not :<(Cash,d 2024 1 10)
+    --- >>> 3000000:@Not:<(Cash,2024-01-10)
 
     print $ decL t1_10
-    --- >>> 3000000 :@Not :<(Cash,d 2024 1 10)
+    --- >>> 3000000:@Not:<(Cash,2024-01-10)
     print $ decR t1_10
-    --- >>> 3000000.0:@Hat:<(Deposits,2024-01-10)
+    --- >>> 3000000:@Hat:<(Deposits,2024-01-10)
     print $ norm $ decR t1_10
-    --- >>> 3000000.0
+    --- >>> 3000000
     let z  = 100 :@Not:<(Cash, d 2024 1 2)
           .+  50 :@Hat:<(Cash, d 2024 1 2) :: ADTransaction
     print $ bar z
-    -- >>> 50.0:@Not:<(Cash,2024-01-02)
+    -- >>> 50:@Not:<(Cash,2024-01-02)
 
     let t_total  = t1_5 .+ t1_10 .+ t1_15 .+ t1_20 .+ t1_25
                 .+ t2_1 .+ t2_10 .+ t2_15 .+ t2_20
@@ -171,31 +166,25 @@ main = do
     writeCompoundTrialBalance "examples/result/csv/t_total_CTB.csv" t_total
 
     print $ (norm (decR sample)) - (norm (decL sample))
-    -- >>> 220000.0
+    -- >>> 220000
     print $ diffRL sample
-    -- >>>(Debit,220000.0)
+    -- >>> (Credit,220000)
 
     print $ sample .+ 220000 :@Not:<NetIncome
-    -- >>> 1000000.0:@Not:<Sales .+ 600000.0:@Not:<Purchases
-    --  .+ 180000.0:@Not:<WageExpenditure
-    --  .+ 220000.0:@Not:<NetIncome
+    -- >>> 180000:@Not:<WageExpenditure .+ 600000:@Not:<Purchases
+    --  .+ 220000:@Not:<NetIncome .+ 1000000:@Not:<Sales
     print $ incomeSummaryAccount sample
-    -- >>> 1000000.0:@Not:<Sales .+ 600000.0:@Not:<Purchases
-    --  .+ 180000.0:@Not:<WageExpenditure
-    --  .+ 220000.0:@Not:<NetIncome
+    -- >>> 180000:@Not:<WageExpenditure .+ 600000:@Not:<Purchases
+    --  .+ 220000:@Not:<NetIncome .+ 1000000:@Not:<Sales
 
     let sample2 = incomeSummaryAccount sample
     writePL "examples/result/csv/sample_PL.csv" sample2
 
     let tf = createTransfer $ Not:<NetIncome .-> Not:<RetainedEarnings |% id
     print $ tf $ incomeSummaryAccount sample
-    -- >>> 1000000.0:@Not:<Sales
-    --  .+ 600000.0:@Not:<Purchases
-    --  .+ 180000.0:@Not:<WageExpenditure
-    --  .+ 220000.0:@Not:<RetainedEarnings
+    -- >>> 220000:@Not:<RetainedEarnings .+ 180000:@Not:<WageExpenditure
+    --  .+ 600000:@Not:<Purchases .+ 1000000:@Not:<Sales
     print $ netIncomeTransfer $ incomeSummaryAccount sample
-    -- >>> 1000000.0:@Not:<Sales
-    --  .+ 600000.0:@Not:<Purchases
-    --  .+ 180000.0:@Not:<WageExpenditure
-    --  .+ 220000.0:@Not:<RetainedEarnings
+    -- >>> 220000:@Not:<RetainedEarnings .+ 180000:@Not:<WageExpenditure
+    --  .+ 600000:@Not:<Purchases .+ 1000000:@Not:<Sales
 

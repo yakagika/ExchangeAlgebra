@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.37.0.
+-- This file has been generated from package.yaml by hpack version 0.39.1.
 --
 -- see: https://github.com/sol/hpack
 
@@ -33,7 +33,7 @@ executable cge
     , containers >=0.6 && <0.8
     , deepseq >=1.4 && <1.6
     , directory ==1.3.*
-    , exchangealgebra ==0.4.*
+    , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
     , non-negative >=0.1.2 && <0.2
@@ -64,7 +64,7 @@ executable ebex1
     , containers >=0.6 && <0.8
     , deepseq >=1.4 && <1.6
     , directory ==1.3.*
-    , exchangealgebra ==0.4.*
+    , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
     , non-negative >=0.1.2 && <0.2
@@ -95,7 +95,7 @@ executable ebex2
     , containers >=0.6 && <0.8
     , deepseq >=1.4 && <1.6
     , directory ==1.3.*
-    , exchangealgebra ==0.4.*
+    , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
     , non-negative >=0.1.2 && <0.2
@@ -126,7 +126,7 @@ executable ebex3
     , containers >=0.6 && <0.8
     , deepseq >=1.4 && <1.6
     , directory ==1.3.*
-    , exchangealgebra ==0.4.*
+    , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
     , non-negative >=0.1.2 && <0.2
@@ -157,7 +157,7 @@ executable ebex4
     , containers >=0.6 && <0.8
     , deepseq >=1.4 && <1.6
     , directory ==1.3.*
-    , exchangealgebra ==0.4.*
+    , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
     , non-negative >=0.1.2 && <0.2
@@ -188,7 +188,7 @@ executable ebex5
     , containers >=0.6 && <0.8
     , deepseq >=1.4 && <1.6
     , directory ==1.3.*
-    , exchangealgebra ==0.4.*
+    , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
     , non-negative >=0.1.2 && <0.2
@@ -220,7 +220,7 @@ executable ripple
     , containers >=0.6 && <0.8
     , deepseq >=1.4 && <1.6
     , directory ==1.3.*
-    , exchangealgebra ==0.4.*
+    , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
     , non-negative >=0.1.2 && <0.2
@@ -252,7 +252,7 @@ executable rippleWithStock
     , containers >=0.6 && <0.8
     , deepseq >=1.4 && <1.6
     , directory ==1.3.*
-    , exchangealgebra ==0.4.*
+    , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
     , non-negative >=0.1.2 && <0.2
@@ -284,7 +284,7 @@ executable rippleWithStockMultiSeeds
     , containers >=0.6 && <0.8
     , deepseq >=1.4 && <1.6
     , directory ==1.3.*
-    , exchangealgebra ==0.4.*
+    , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
     , non-negative >=0.1.2 && <0.2
@@ -315,7 +315,7 @@ executable sim1
     , containers >=0.6 && <0.8
     , deepseq >=1.4 && <1.6
     , directory ==1.3.*
-    , exchangealgebra ==0.4.*
+    , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
     , non-negative >=0.1.2 && <0.2
@@ -346,7 +346,7 @@ executable sim2
     , containers >=0.6 && <0.8
     , deepseq >=1.4 && <1.6
     , directory ==1.3.*
-    , exchangealgebra ==0.4.*
+    , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
     , non-negative >=0.1.2 && <0.2
@@ -379,7 +379,7 @@ benchmark bench-core
     , criterion ==1.6.*
     , deepseq >=1.4 && <1.6
     , directory ==1.3.*
-    , exchangealgebra ==0.4.*
+    , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
     , non-negative >=0.1.2 && <0.2

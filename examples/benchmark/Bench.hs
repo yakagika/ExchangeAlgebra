@@ -81,6 +81,8 @@ main = defaultMain
         [ env (pure (mkAlgs n)) $ \xs ->
             bench (show n) $ whnf (norm . EA.proj projKey . EA.fromList) xs
         | n <- sizes ]
+    -- fromList is a strict left fold (L.foldl' (.+) mempty); ~15x at N=10000,
+    -- wider at larger N (the old lazy right fold was super-linear to force).
     , bgroup "Journal/fromList+projWithBaseNorm"
         [ env (pure (mkJournals n)) $ \js ->
             bench (show n) $ whnf (EJ.projWithBaseNorm projKey . EJ.fromList) js

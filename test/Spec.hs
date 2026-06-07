@@ -11,6 +11,7 @@ import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Algebra.Transfer as EAT
 import qualified ExchangeAlgebra.Journal  as EJ
 import qualified ExchangeAlgebra.Journal.Transfer as EJT
+import           ExchangeAlgebra.Value    (NNDecimal, bankersRound)
 import qualified ExchangeAlgebra.Simulate as ES
 import           ExchangeAlgebra.Simulate
 import qualified ExchangeAlgebra.Write    as EW
@@ -144,25 +145,6 @@ testBasesNotSideRegression = do
     assertEqual "bases Hat label count" 1 hatCount
     assertEqual "bases Not label count" 3 notCount
 
--- | Regression test for the @union@ zero-singleton base-relabel bug
--- (Algebra.hs). When one operand of @(.+)@ is a /zero-valued/ singleton on base
--- @b1@ and the other a /real/ singleton on a different base @b2@, the result must
--- keep the real value on its OWN base (@v2:@b2@), not relabel it onto the zero
--- posting's base. The old code returned @v2:@b1@ / @v1:@b2@, which silently moved
--- a value to the wrong base — preserving @norm@ but corrupting per-base projection.
-testUnionZeroSingletonBase :: IO ()
-testUnionZeroSingletonBase = do
-    let zb = 0 :@ (Hat :< Yen)    :: TestAlg   -- zero value, base Yen
-        rb = 5 :@ (Hat :< Amount) :: TestAlg   -- real value, base Amount
-    assertEqual "union zero(.+)real keeps real value on its own base"
-        rb (EA.proj [Hat :< Amount] (zb .+ rb))
-    assertEqual "union real(.+)zero keeps real value on its own base"
-        rb (EA.proj [Hat :< Amount] (rb .+ zb))
-    assertEqual "union zero(.+)real: nothing relabeled onto the zero's base"
-        (EA.Zero :: TestAlg) (EA.proj [Hat :< Yen] (zb .+ rb))
-    assertEqual "union real(.+)zero: nothing relabeled onto the zero's base"
-        (EA.Zero :: TestAlg) (EA.proj [Hat :< Yen] (rb .+ zb))
-
 testSigmaMergePath :: IO ()
 testSigmaMergePath = do
     let xs = [1 .. 5 :: Int]
@@ -219,6 +201,54 @@ testSigmaFromMap = do
         actual :: TestAlg
         actual = EA.sigmaFromMap kvs f
     assertEqual "Alg.sigmaFromMap iterates non-zero map entries only" expected actual
+
+testJournalFromListStrict :: IO ()
+testJournalFromListStrict = do
+    -- fromList is now a strict left fold (L.foldl' (.+) mempty). Verify it still
+    -- preserves the posting multiset by matching the old lazy right-fold reference
+    -- (foldr (.+) mempty). Colliding note keys (i `mod` 30) force same-note/same-base
+    -- postings into one Alg sequence, where the two folds accumulate in opposite
+    -- order; with NNDecimal (exact, associative) the aggregate (norm) is identical.
+    let mk i = ((fromIntegral (i `mod` 7 + 1) :: NNDecimal)
+                  :@ ((if even i then Hat else Not) :< ([Yen, Amount] !! (i `mod` 2))))
+               .| show (i `mod` 30)
+        xs :: [Journal String NNDecimal (HatBase CountUnit)]
+        xs = [ mk i | i <- [1 .. 400 :: Int] ]
+        strict  = EJ.fromList xs
+        lazyRef = foldr (.+) mempty xs
+    -- exact value type ⇒ norm identical regardless of seq order (multiset preserved)
+    assertEqual "Journal.fromList (strict): norm matches lazy foldr reference (NNDecimal exact)"
+        (norm strict) (norm lazyRef)
+    -- distinct note keys ⇒ no seq collision ⇒ exact structural equality with foldr
+    let ys :: [Journal String NNDecimal (HatBase CountUnit)]
+        ys = [ ((fromIntegral i :: NNDecimal) :@ (Not :< Yen)) .| show i
+             | i <- [1 .. 20 :: Int] ]
+    assertEqual "Journal.fromList (strict): structurally equal to foldr for distinct notes"
+        (EJ.toMap (EJ.fromList ys)) (EJ.toMap (foldr (.+) mempty ys))
+
+-- | Regression test for the @union@ zero-singleton base-relabel bug
+-- (Algebra.hs). When one operand of @(.+)@ is a /zero-valued/ singleton on base
+-- @b1@ and the other a /real/ singleton on a different base @b2@, the result must
+-- keep the real value on its OWN base (@v2:@b2@), not relabel it onto the zero
+-- posting's base. The old code returned @v2:@b1@ / @v1:@b2@, which silently moved
+-- a value to the wrong base. It preserved @norm@ (total unchanged) but corrupted
+-- per-base projection, and surfaced as construction-order-dependent simulation
+-- results (sparsified coefficients build explicit @0:@base@ singletons via raw
+-- @(:@)@). See plans/in-progress/SELECTABLE_VALUE_TYPE_PLAN.md (Stage D).
+testUnionZeroSingletonBase :: IO ()
+testUnionZeroSingletonBase = do
+    let zb = 0 :@ (Hat :< Yen)    :: TestAlg   -- zero value, base Yen
+        rb = 5 :@ (Hat :< Amount) :: TestAlg   -- real value, base Amount
+    -- both fold directions of the singleton/singleton union
+    assertEqual "union zero(.+)real keeps real value on its own base"
+        rb (EA.proj [Hat :< Amount] (zb .+ rb))
+    assertEqual "union real(.+)zero keeps real value on its own base"
+        rb (EA.proj [Hat :< Amount] (rb .+ zb))
+    -- the real value must NOT appear on the zero posting's base
+    assertEqual "union zero(.+)real: nothing relabeled onto the zero's base"
+        (EA.Zero :: TestAlg) (EA.proj [Hat :< Yen] (zb .+ rb))
+    assertEqual "union real(.+)zero: nothing relabeled onto the zero's base"
+        (EA.Zero :: TestAlg) (EA.proj [Hat :< Yen] (rb .+ zb))
 
 testJournalSigmaMergePath :: IO ()
 testJournalSigmaMergePath = do
@@ -460,7 +490,11 @@ instance ExBaseClass SimHatBase2 where
     getAccountTitle (h :< (a, _, _, _)) = a
     setAccountTitle (h :< (_, c, e, u)) b = h :< (b, c, e, u)
 
-type SimTransaction = EJ.Journal (SimEvent, SimTerm) Double SimHatBase2
+-- Accounting value type is NNDecimal (exact): ledger arithmetic is exact and
+-- construction-order-independent. ABM parameters / input coefficients / random
+-- draws remain Double and are converted (realToFrac) at the boundary where they
+-- enter the ledger; reported stock/profit convert back to Double.
+type SimTransaction = EJ.Journal (SimEvent, SimTerm) NNDecimal SimHatBase2
 
 simCompressPreviousTerm :: SimTerm -> SimTransaction -> SimTransaction
 simCompressPreviousTerm t le =
@@ -477,7 +511,7 @@ instance UpdatableSTRef SimLedger s SimTransaction where
 
 simInitLedger :: Double -> ST s (SimLedger s)
 simInitLedger d = newURef $ EJ.fromList
-    [ d :@ Not :<(Products, e, e, Amount) .| (plank, initTerm)
+    [ realToFrac d :@ Not :<(Products, e, e, Amount) .| (plank, initTerm)  -- Double param -> NNDecimal
     | e <- simCompanies
     ]
 
@@ -568,7 +602,7 @@ simGetOneProduction wld t c = do
     let arr = _simIcs wld
     inputs <- mapM (\c2 -> do
         coef <- readUArray arr (c2, c)
-        return $ coef :@ Hat :<(Products, c2, c, Amount) .| (SimProduction, t)
+        return $ realToFrac coef :@ Hat :<(Products, c2, c, Amount) .| (SimProduction, t)  -- Double coef -> NNDecimal
         ) simCompanies
     let totalInput = EJ.fromList inputs
         result = (1 :@ Not :<(Products, c, c, Amount) .| (SimProduction, t)) .+ totalInput
@@ -578,7 +612,9 @@ simJournal :: SimWorld s -> SimTransaction -> ST s ()
 simJournal _ Zero = return ()
 simJournal wld js = modifyURef (_simLedger wld) (\x -> x .+ js)
 
-simBuildShortageMap :: SimTerm -> SimTransaction -> M.Map (SimCompany, SimCompany) Double
+-- Values come from the NNDecimal ledger (via EA.toList), so the shortage map is
+-- NNDecimal-valued; no conversion is needed and the amounts re-enter the ledger exactly.
+simBuildShortageMap :: SimTerm -> SimTransaction -> M.Map (SimCompany, SimCompany) NNDecimal
 simBuildShortageMap t le =
     let termAlg = EJ.toAlg $ (.-) $ simTermJournal t le
     in L.foldl' go M.empty (EA.toList termAlg)
@@ -614,7 +650,7 @@ simEvent wld t SimProduction = do
     sp <- readURef (_simSp wld)
     forM_ simCompanies $ \e1 -> do
         op <- simGetOneProduction wld t e1
-        simJournal wld (sp .* op)
+        simJournal wld (realToFrac sp .* op)  -- Double steady-production multiplier -> NNDecimal scalar
 
 simEvent _ _ SimPlank = return ()
 
@@ -624,7 +660,7 @@ simGetTermStock wld t e = do
     let tj = (.-) $ simTermJournal t le
         plusStock  = norm $ EJ.projWithBase [Not :<(Products, e, e, Amount)] tj
         minusStock = norm $ EJ.projWithBase [Hat :<(Products, e, e, Amount)] tj
-    return $ plusStock - minusStock
+    return $ realToFrac (plusStock - minusStock)  -- exact NNDecimal stock -> Double for reporting
 
 simGetTermGrossProfit :: SimWorld s -> SimTerm -> SimCompany -> ST s Double
 simGetTermGrossProfit wld t e = do
@@ -633,7 +669,7 @@ simGetTermGrossProfit wld t e = do
         tr     = EJT.grossProfitTransfer termTr
         plus   = norm $ EJ.projWithBase [Not :<(GrossProfit, (.#), e, Yen)] tr
         minus  = norm $ EJ.projWithBase [Hat :<(GrossProfit, (.#), e, Yen)] tr
-    return (plus - minus)
+    return $ realToFrac (plus - minus)  -- exact NNDecimal -> Double for reporting
 
 -- ================================================================
 -- Simulation integration test
@@ -680,7 +716,7 @@ testSimulateEx1Default = do
     assertSimNear "sim1 stock(t=50,c=4)" 292.4764622201871  (stocks50 !! 3)
     -- Stock at t=100
     assertSimNear "sim1 stock(t=100,c=1)" 586.9595359862476  (stocks100 !! 0)
-    assertSimNear "sim1 stock(t=100,c=6)" 767.960563480499   (stocks100 !! 5)  -- re-baselined: union zero-base fix (bug compounded over terms)
+    assertSimNear "sim1 stock(t=100,c=6)" 767.9605634804993  (stocks100 !! 5)  -- re-baselined: union zero-base fix (bug compounded over terms)
     -- Gross profit at t=50
     assertSimNear "sim1 profit(t=50,c=1)" 0.35886554260018855 (profits50 !! 0)
     assertSimNear "sim1 profit(t=50,c=2)" 1.572544209772035   (profits50 !! 1)
@@ -772,6 +808,30 @@ testNumericToleranceScaleAware = do
     assertEqual "bar cancels balanced large-scale element to Zero"
         True (EA.isZero ((.-) big))
 
+-- | Smoke test for the exact non-negative decimal value type 'NNDecimal' (Stage B).
+-- The point of an exact value type is that summation is associative, so @norm@ is
+-- *independent of construction order* — the property that makes the fromList O(N)
+-- optimization safe (Stage D). Note the raw @Seq@ order (and hence @toMap@/@Eq@)
+-- still depends on construction; only the numeric results are order-independent.
+testNNDecimalExactOrderIndependent :: IO ()
+testNNDecimalExactOrderIndependent = do
+    assertEqual "NNDecimal: 0.1 + 0.2 == 0.3 exactly"
+        True (0.1 + 0.2 == (0.3 :: NNDecimal))
+    let mk i = ((fromIntegral (i `mod` 7 + 1) :: NNDecimal)
+                  :@ ((if even i then Hat else Not) :< ([Yen, Amount] !! (i `mod` 2))))
+               .| show (i `mod` 150)
+        xs       :: [Journal String NNDecimal (HatBase CountUnit)]
+        xs       = [ mk i | i <- [1 .. 400 :: Int] ]
+        viaFoldr = foldr (.+) mempty xs
+        viaFoldl = L.foldl' (.+) mempty xs
+    -- exact ⇒ norm is identical for the two construction orders
+    assertEqual "NNDecimal Journal: norm is construction-order-independent"
+        (norm viaFoldr) (norm viaFoldl)
+    -- banker's rounding (round half to even)
+    assertEqual "bankersRound 0 2.5 = 2 (half to even)" (2 :: NNDecimal) (bankersRound 0 2.5)
+    assertEqual "bankersRound 0 3.5 = 4 (half to even)" (4 :: NNDecimal) (bankersRound 0 3.5)
+    assertEqual "bankersRound 2 0.125 = 0.12 (half to even)" (0.12 :: NNDecimal) (bankersRound 2 0.125)
+
 -- | Strict file read helper for tests
 readFileStrict :: FilePath -> IO String
 readFileStrict p = do
@@ -790,10 +850,12 @@ main = do
     testProjWithNoteNorm
     testBasesNotSideRegression
     testNumericToleranceScaleAware
-    testUnionZeroSingletonBase
+    testNNDecimalExactOrderIndependent
     testSigmaMergePath
     testSigma2When
     testSigmaFromMap
+    testJournalFromListStrict
+    testUnionZeroSingletonBase
     testJournalSigmaMergePath
     testJournalSigma2When
     testJournalSigmaOn

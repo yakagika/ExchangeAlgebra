@@ -9,6 +9,7 @@ import           ExchangeAlgebra.Journal
 import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Journal  as EJ
 import qualified ExchangeAlgebra.Journal.Transfer as EJT
+import           ExchangeAlgebra.Value    (NNDecimal)  -- exact accounting value type
 
 import           ExchangeAlgebra.Simulate
 import qualified ExchangeAlgebra.Simulate as ES
@@ -132,7 +133,10 @@ instance ExBaseClass HatBase2 where
 
 
 -- | 取引
-type Transaction = EJ.Journal (EventName,Term) Double HatBase2
+-- Accounting value type is NNDecimal (exact, construction-order-independent).
+-- ABM params / coefficients / random draws stay Double and convert (realToFrac)
+-- at the boundary where they enter the ledger; reported stock/profit convert back.
+type Transaction = EJ.Journal (EventName,Term) NNDecimal HatBase2
 
 compressPreviousTerm :: Term -> Transaction -> Transaction
 compressPreviousTerm t le =
@@ -153,7 +157,7 @@ instance UpdatableSTRef Ledger s Transaction where
 initLedger :: Double -> ST s (Ledger s)
 initLedger d = newURef
              $ EJ.fromList
-             [ d :@ Not :<(Products,e,e,Amount) .| (plank,initTerm)
+             [ realToFrac d :@ Not :<(Products,e,e,Amount) .| (plank,initTerm)
              | e <- companies]
 
 -- 一般化の適用
@@ -252,8 +256,10 @@ getOneProduction wld t c = do
     inputs <- CM.forM companies $ \c2 -> do
         -- c を生産するために必要な c2 の投入係数
         coef <- readUArray arr (c2, c)
-        -- c2 の消費を記録
-        return $ coef :@ Hat :<(Products, c2, c, Amount) .| (Production,t)
+        -- c2 の消費を記録（係数 0 は明示的に Zero へ正規化し、0:@base のゼロ投稿を作らない）
+        return $ if coef == 0
+                    then EJ.Zero
+                    else realToFrac coef :@ Hat :<(Products, c2, c, Amount) .| (Production,t)
         -- すべての中間投入を結合
     let totalInput = EJ.fromList inputs
         -- 生産と投入の合計
@@ -269,7 +275,7 @@ getTermStock wld t e = do
         plusStock = norm $ EJ.projWithBase [Not:<(Products,e,e,Amount)] tj
         minusStock = norm $ EJ.projWithBase [Hat:<(Products,e,e,Amount)] tj
 
-    return $ plusStock - minusStock
+    return $ realToFrac (plusStock - minusStock)  -- exact NNDecimal -> Double for reporting
 
 -- | 一期の粗利益を取得する
 getTermGrossProfit :: World s -> Term -> Company -> ST s Double
@@ -279,7 +285,7 @@ getTermGrossProfit wld t e = do
         tr    = EJT.grossProfitTransfer termTr
         plus  = norm $ EJ.projWithBase [Not:<(GrossProfit,(.#),e,Yen)] tr
         minus = norm $ EJ.projWithBase [Hat:<(GrossProfit,(.#),e,Yen)] tr
-    return (plus - minus)
+    return $ realToFrac (plus - minus)  -- exact NNDecimal -> Double for reporting
 
 -- | 記帳
 journal :: World s ->  Transaction -> ST s ()
@@ -321,13 +327,13 @@ getInputCoefficients wld (i,j) = do
 instance StateSpace Term InitVar EventName World s where
     event = event'
 
-short :: Company -> Company -> Term -> Transaction -> Double
+short :: Company -> Company -> Term -> Transaction -> NNDecimal
 short i j t le
     = norm $ EJ.projWithBase [Hat:<(Products,j, i,Amount)]
            $ (.-)
            $ termJournal t le
 
-buildShortageMap :: Term -> Transaction -> M.Map (Company, Company) Double
+buildShortageMap :: Term -> Transaction -> M.Map (Company, Company) NNDecimal
 buildShortageMap t le =
     let termAlg = EJ.toAlg $ (.-) $ termJournal t le
     in L.foldl' go M.empty (EA.toList termAlg)
@@ -367,7 +373,7 @@ event' wld t Production = do
     sp <- readURef (_sp wld)
     forM_ companies $ \e1 -> do
         op <- getOneProduction wld t e1  -- 1単位の生産簿記を取得
-        journal wld (sp .* op)  -- 生産処理を記帳
+        journal wld (realToFrac sp .* op)  -- 生産処理を記帳
 
 ------------------------------------------------------------------
 event' wld t Plank = return ()
