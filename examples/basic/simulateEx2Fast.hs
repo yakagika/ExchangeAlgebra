@@ -1,0 +1,540 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
+
+-- sim2fast: the MoneyDouble (fast IEEE-754) twin of `simulateEx2` (which stays
+-- MoneyDecimal as the exact/audit demo). Same model and spill path; only the
+-- ledger value type differs. This is the performance-roadmap baseline — the
+-- value-type arithmetic cost that dominated the MoneyDecimal profile (~68%) is
+-- gone here, so re-profiling this binary surfaces the *next* bottleneck
+-- (structural ops / all-pairs / spill) that the parallel/F1 work targets.
+-- See plans/in-progress/ROAD_MAP.md "MoneyDouble 基盤での再優先付け".
+
+import           ExchangeAlgebra.Journal
+import qualified ExchangeAlgebra.Algebra  as EA
+import qualified ExchangeAlgebra.Journal  as EJ
+import qualified ExchangeAlgebra.Journal.Transfer as EJT
+import           ExchangeAlgebra.Value    (MoneyDouble)  -- fast IEEE-754 money value type
+import qualified ExchangeAlgebra.Simulate as ES
+import           ExchangeAlgebra.Simulate
+import qualified ExchangeAlgebra.Simulate.Visualize as ESV
+import           ExchangeAlgebra.Write
+
+import           Control.Concurrent.Async (forConcurrently_)
+import           Control.Monad (foldM, forM, forM_, replicateM)
+import           Control.Monad.ST (RealWorld, ST, stToIO)
+import           Control.Monad.State (runState, state)
+import           Data.Array.IO (IOArray, newArray, writeArray)
+import           Data.Array.ST (STArray)
+import qualified Data.Binary as Binary
+import qualified Data.HashMap.Strict as HM
+import qualified Data.List as L
+import qualified Data.Map.Strict as M
+import           Data.STRef (STRef)
+import qualified Data.Text as T
+import           System.Directory (createDirectoryIfMissing)
+import           System.Environment (lookupEnv)
+import           System.IO.Unsafe (unsafePerformIO)
+import           System.Random (StdGen, mkStdGen, randomR)
+import           Text.Read (readMaybe)
+import           Data.Maybe (fromMaybe)
+
+------------------------------------------------------------------
+-- * Benchmark scale knobs (env-configurable; defaults reproduce the example)
+--
+-- Let the end-to-end simulation be benchmarked at different scales without
+-- recompiling, e.g. @EA_LASTC=1000 EA_LASTTERM=200 stack exec sim2@. This is an
+-- example-local convenience (unsafePerformIO on a CAF); the library never reads
+-- the environment.
+------------------------------------------------------------------
+{-# NOINLINE envInt #-}
+envInt :: String -> Int -> Int
+envInt name def = unsafePerformIO (maybe def (fromMaybe def . readMaybe) <$> lookupEnv name)
+
+------------------------------------------------------------------
+-- * Time Axis
+------------------------------------------------------------------
+type Term = Int
+
+{-# NOINLINE simLastTerm #-}
+simLastTerm :: Term
+simLastTerm = envInt "EA_LASTTERM" 100
+
+instance StateTime Term where
+    initTerm = 1
+    lastTerm = simLastTerm
+
+------------------------------------------------------------------
+-- * Simulation Parameters
+------------------------------------------------------------------
+data InitVar = InitVar
+    { _initStock :: Double
+    , _steadyProduction :: Double
+    , _inhouseRatio :: Double
+    }
+    deriving (Eq, Show)
+
+instance InitVariables InitVar where
+
+------------------------------------------------------------------
+-- * Events
+------------------------------------------------------------------
+data EventName
+    = SalesPurchase
+    | Production
+    | Plank
+    deriving (Ord, Show, Enum, Eq, Bounded, Generic)
+
+instance Hashable EventName where
+instance Binary.Binary EventName
+
+instance Note EventName where
+    plank = Plank
+
+instance Event EventName where
+
+------------------------------------------------------------------
+-- * Stateful Components
+------------------------------------------------------------------
+-- ** Steady production amount
+------------------------------------------------------------------
+type SteadyProd = Double
+
+newtype SP s = SP (STRef s SteadyProd)
+
+instance UpdatableSTRef SP s SteadyProd
+
+instance Updatable Term InitVar SP s where
+    type Inner SP s = STRef s SteadyProd
+    unwrap = _unwrapURef
+    initialize _ _ env = newURef (_steadyProduction env)
+    updatePattern _ = return DoNothing
+
+------------------------------------------------------------------
+-- ** Exchange algebra definitions
+------------------------------------------------------------------
+type Company = Int
+
+fstC :: Company
+fstC = 1
+
+{-# NOINLINE lastC #-}
+lastC :: Company
+lastC = envInt "EA_LASTC" 200
+
+companies :: [Company]
+companies = [fstC .. lastC]
+
+instance Element Company where
+    wiledcard = -1
+
+instance BaseClass Company where
+
+type HatBase2 = HatBase
+    ( AccountTitles
+    , Company
+    , Company
+    , CountUnit
+    )
+
+instance ExBaseClass HatBase2 where
+    getAccountTitle (h :< (a, c, e, u)) = a
+    setAccountTitle (h :< (a, c, e, u)) b = h :< (b, c, e, u)
+
+-- Accounting value type is MoneyDouble (fast IEEE-754; NOT exact -- see simulateEx2 for the exact MoneyDecimal twin).
+-- ABM params / coefficients / random draws stay Double and convert (realToFrac)
+-- at the boundary where they enter the ledger; reported stock/profit convert back.
+type Transaction = EJ.Journal (EventName, Term) MoneyDouble HatBase2
+
+-- | Compress postings for one finished term to reduce retained structure size.
+compressPreviousTerm :: Term -> Transaction -> Transaction
+compressPreviousTerm t ledger =
+    EJ.fromMap $
+        L.foldl' compressEvent (EJ.toMap ledger) [fstEvent .. lastEvent]
+  where
+    compressEvent acc ev = HM.adjust compress (ev, t) acc
+
+newtype Ledger s = Ledger (STRef s Transaction)
+
+instance UpdatableSTRef Ledger s Transaction
+
+-- | Initial ledger: each company starts with own product stock.
+initLedger :: Double -> ST s (Ledger s)
+initLedger initialStock =
+    newURef $
+        EJ.fromList
+            [ realToFrac initialStock :@ Not :<(Products, e, e, Amount) .| (plank, initTerm)
+            | e <- companies
+            ]
+
+instance Updatable Term InitVar Ledger s where
+    type Inner Ledger s = STRef s Transaction
+    unwrap = _unwrapURef
+
+    initialize _ _ env = initLedger (_initStock env)
+    updatePattern _ = return Modify
+
+    -- Carry forward final stock from previous term into the current term.
+    modify _ t _ ledgerRef = do
+        ledger <- readURef ledgerRef
+        let carryOver = carryForwardFinalStock t (termJournal (t - 1) ledger)
+            nextLedger = compressPreviousTerm (t - 1) (ledger .+ carryOver)
+        writeURef ledgerRef nextLedger
+      where
+        carryForwardFinalStock currentTerm =
+            EJ.gather (plank, currentTerm) . EJT.finalStockTransfer . (.-)
+
+------------------------------------------------------------------
+-- ** Input coefficient table
+------------------------------------------------------------------
+type InputCoefficient = Double
+type SparseInputs = M.Map Company [(Company, InputCoefficient)]
+
+type Col = Company
+type Row = Company
+
+newtype ICTable s = ICTable (STArray s (Row, Col) InputCoefficient)
+
+instance UpdatableSTArray ICTable s (Row, Col) InputCoefficient
+
+-- | Sparse cache for non-zero input coefficients.
+newtype ICSparse s = ICSparse (STRef s (Maybe SparseInputs))
+
+instance UpdatableSTRef ICSparse s (Maybe SparseInputs)
+
+-- | Generate random values in [0, 1], then sparsify tiny values to zero.
+generateRandomList :: StdGen -> Int -> ([Double], StdGen)
+generateRandomList gen n =
+    let draw = replicateM n (state (randomR (0, 1.0)))
+        (xs, gen') = runState draw (updateGen gen 1000)
+        ys = L.map (\x -> if x < 0.1 then 0 else x) xs
+    in (ys, gen')
+
+-- | Build one-term coefficient rows; each row sum is scaled by inhouseRatio.
+initTermCoefficients :: StdGen -> Double -> M.Map Company [InputCoefficient]
+initTermCoefficients gen inhouseRatio =
+    fst $ L.foldl' buildRow (M.empty, gen) companies
+  where
+    buildRow (acc, g0) c2 =
+        let (row, g1) = generateRow g0
+        in (M.insert c2 row acc, g1)
+
+    generateRow g0 =
+        let (vals, g1) = generateRandomList g0 lastC
+            total = sum vals
+            normalized = L.map (\x -> (x / total) * inhouseRatio) vals
+        in (normalized, g1)
+
+-- | Initialize fixed input coefficients for all terms in this example.
+initICTables :: StdGen -> Double -> ST s (ICTable s)
+initICTables gen inhouseRatio = do
+    arr <- newUArray ((fstC, fstC), (lastC, lastC)) 0
+    let termCoefficients = initTermCoefficients gen inhouseRatio
+    forM_ companies $ \c2 -> do
+        let row = termCoefficients M.! c2
+        forM_ (zip companies row) $ \(c1, coef) ->
+            writeUArray arr (c1, c2) coef
+    return arr
+
+instance Updatable Term InitVar ICTable s where
+    type Inner ICTable s = STArray s (Row, Col) InputCoefficient
+    unwrap (ICTable a) = a
+    initialize gen _ env = initICTables gen (_inhouseRatio env)
+    updatePattern _ = return DoNothing
+
+instance Updatable Term InitVar ICSparse s where
+    type Inner ICSparse s = STRef s (Maybe SparseInputs)
+    unwrap = _unwrapURef
+    initialize _ _ _ = newURef Nothing
+    updatePattern _ = return DoNothing
+
+------------------------------------------------------------------
+-- * World
+------------------------------------------------------------------
+data World s = World
+    { _ledger :: Ledger s
+    , _ics :: ICTable s
+    , _icSparse :: ICSparse s
+    , _sp :: SP s
+    }
+    deriving (Generic)
+
+------------------------------------------------------------------
+-- * Shared Helpers
+------------------------------------------------------------------
+-- | Build journal entries for one unit of production of company c.
+getOneProduction :: World s -> Term -> Company -> ST s Transaction
+getOneProduction world t c = do
+    sparseInputs <- getSparseInputs world
+    let inputs = M.findWithDefault [] c sparseInputs
+        totalInput = EJ.fromList
+            [ realToFrac coef :@ Hat :<(Products, c2, c, Amount) .| (Production, t)
+            | (c2, coef) <- inputs
+            ]
+        output = 1 :@ Not :<(Products, c, c, Amount) .| (Production, t)
+    return (output .+ totalInput)
+
+buildSparseInputs :: World s -> ST s SparseInputs
+buildSparseInputs world = do
+    let arr = _ics world
+    rows <- forM companies $ \outC -> do
+        revInputs <- foldM
+            (\acc inC -> do
+                coef <- readUArray arr (inC, outC)
+                if coef > 0
+                    then return ((inC, coef) : acc)
+                    else return acc
+            )
+            []
+            companies
+        return (outC, reverse revInputs)
+    return (M.fromList rows)
+
+getSparseInputs :: World s -> ST s SparseInputs
+getSparseInputs world = do
+    let cacheRef = _icSparse world
+    cache <- readURef cacheRef
+    case cache of
+        Just sparse -> return sparse
+        Nothing -> do
+            sparse <- buildSparseInputs world
+            writeURef cacheRef (Just sparse)
+            return sparse
+
+getTermStock :: World s -> Term -> Company -> ST s Double
+getTermStock world t e = do
+    ledger <- readURef (_ledger world)
+    return (realToFrac (stockByAlg e (termAlgAt t ledger)))  -- MoneyDouble -> Double for reporting
+
+getTermGrossProfit :: World s -> Term -> Company -> ST s Double
+getTermGrossProfit world t e = do
+    ledger <- readURef (_ledger world)
+    return (realToFrac (grossProfitByAlg e (grossProfitAlgAt t ledger)))  -- MoneyDouble -> Double for reporting
+
+journal :: World s -> Transaction -> ST s ()
+journal _ Zero = return ()
+journal world js = modifyURef (_ledger world) (\x -> x .+ js)
+
+-- | Extract journal entries for a specific term.
+-- Uses NoteAxisPosting index via filterByAxis instead of scanning all Note keys.
+-- For Note type (EventName, Term), the Term is at axis 1.
+termJournal :: Term -> Transaction -> Transaction
+termJournal t = EJ.filterByAxis 1 (EJ.NoteAxisKey t)
+
+termAlgAt :: Term -> Transaction -> EA.Alg MoneyDouble HatBase2
+termAlgAt t = EJ.toAlg . (.-) . termJournal t
+
+grossProfitAlgAt :: Term -> Transaction -> EA.Alg MoneyDouble HatBase2
+grossProfitAlgAt t = EJ.toAlg . EJT.grossProfitTransfer . termJournal t
+
+stockByAlg :: Company -> EA.Alg MoneyDouble HatBase2 -> MoneyDouble
+stockByAlg e =
+    EA.balanceBy
+        [Not :<(Products, e, e, Amount)]
+        [Hat :<(Products, e, e, Amount)]
+
+grossProfitByAlg :: Company -> EA.Alg MoneyDouble HatBase2 -> MoneyDouble
+grossProfitByAlg e =
+    EA.balanceBy
+        [Not :<(GrossProfit, (.#), e, Yen)]
+        [Hat :<(GrossProfit, (.#), e, Yen)]
+
+data TermAnalysis = TermAnalysis
+    { _taTermAlg :: EA.Alg MoneyDouble HatBase2
+    , _taGrossProfitAlg :: EA.Alg MoneyDouble HatBase2
+    }
+
+newtype AnalysisCache = AnalysisCache
+    { _analysisByTerm :: M.Map Term TermAnalysis
+    }
+
+buildAnalysisCache :: Transaction -> AnalysisCache
+buildAnalysisCache ledger =
+    AnalysisCache $
+        M.fromList
+            [ (t, analyze t)
+            | t <- [initTerm .. lastTerm]
+            ]
+  where
+    analyze t = TermAnalysis (termAlgAt t ledger) (grossProfitAlgAt t ledger)
+
+lookupTermAnalysis :: AnalysisCache -> Term -> TermAnalysis
+lookupTermAnalysis (AnalysisCache byTerm) t =
+    case M.lookup t byTerm of
+        Just x -> x
+        Nothing -> error ("term analysis not found: " ++ show t)
+
+stockByAnalysis :: Company -> TermAnalysis -> Double
+stockByAnalysis e = realToFrac . stockByAlg e . _taTermAlg  -- MoneyDouble -> Double for reporting
+
+grossProfitByAnalysis :: Company -> TermAnalysis -> Double
+grossProfitByAnalysis e = realToFrac . grossProfitByAlg e . _taGrossProfitAlg  -- MoneyDouble -> Double for reporting
+
+-- | Input coefficient: required amount of e2 to produce one unit of e1.
+getInputCoefficient :: World s -> Company -> Company -> ST s InputCoefficient
+getInputCoefficient world e1 e2 = do
+    let ics = _ics world
+    readUArray ics (e2, e1)
+
+-- | Export initial input coefficient matrix into an IOArray for inspection.
+getInputCoefficients :: World RealWorld -> (Company, Company) -> IO (IOArray (Company, Company) Double)
+getInputCoefficients world (i, j) = do
+    let arr = _ics world
+    result <- newArray ((i, i), (j, j)) 0
+    forM_ [i .. j] $ \e1 ->
+        forM_ [i .. j] $ \e2 -> do
+            c <- stToIO (readUArray arr (e1, e2))
+            writeArray result (e1, e2) c
+    return result
+
+------------------------------------------------------------------
+-- * Event behavior
+------------------------------------------------------------------
+-- Empty instance is enough because EventName derives Generic.
+instance StateSpace Term InitVar EventName World s where
+    event = event'
+
+type ShortageMap = M.Map (Company, Company) MoneyDouble
+
+buildShortageMap :: Term -> Transaction -> ShortageMap
+buildShortageMap t ledger =
+    EA.foldEntriesToMap collect termAlg
+  where
+    termAlg = EJ.toAlg ((.-) (termJournal t ledger))
+
+    collect v (Hat :< (Products, j, i, Amount))
+        | v > 0 && i /= j = Just ((i, j), v)
+        | otherwise = Nothing
+    collect _ _ = Nothing
+
+purchasePosting :: MoneyDouble -> Company -> Company -> EA.Alg MoneyDouble HatBase2
+purchasePosting amount i j =
+    amount :@ Not :<(Products, j, i, Amount)
+    .+ amount :@ Hat :<(Cash, (.#), i, Yen)
+    .+ amount :@ Not :<(Purchases, (.#), i, Yen)
+    .+ amount :@ Not :<(Cash, (.#), j, Yen)
+    .+ amount :@ Not :<(Sales, (.#), j, Yen)
+    .+ amount :@ Hat :<(Products, j, j, Amount)
+
+purchases :: Term -> World s -> ST s Transaction
+purchases t world = do
+    ledger <- readURef (_ledger world)
+    let shortageMap = buildShortageMap t ledger
+    return $
+        EJ.sigmaOnFromMap (SalesPurchase, t) shortageMap $ \(i, j) amount ->
+            purchasePosting amount i j
+
+event' :: World s -> Term -> EventName -> ST s ()
+
+-- Fill shortages by sales/purchases between companies.
+event' world t SalesPurchase = do
+    toAdd <- purchases t world
+    journal world toAdd
+
+-- Produce steady output without input constraints.
+event' world t Production = do
+    sp <- readURef (_sp world)
+    forM_ companies $ \e1 -> do
+        oneUnitProduction <- getOneProduction world t e1
+        journal world (realToFrac sp .* oneUnitProduction)
+
+event' _ _ Plank = return ()
+
+------------------------------------------------------------------
+-- * Output and main routine
+------------------------------------------------------------------
+type CachedMetric = TermAnalysis -> ST RealWorld Double
+type CachedHeaders = [(T.Text, CachedMetric)]
+
+csv_dir :: FilePath
+csv_dir = "examples/basic/result/csv/simulateEx2Fast/"
+
+spillChunkTerms :: Int
+spillChunkTerms = 50
+
+spillKeepRecentTerms :: Int
+spillKeepRecentTerms = 2
+
+simulationSeed :: Int
+simulationSeed = 2025
+
+stockHeaders :: CachedHeaders
+stockHeaders =
+    [ (T.pack ("Stock_" ++ show i), \ta -> return (stockByAnalysis i ta))
+    | i <- [fstC .. lastC]
+    ]
+
+profitHeaders :: CachedHeaders
+profitHeaders =
+    [ (T.pack ("Profit_" ++ show i), \ta -> return (grossProfitByAnalysis i ta))
+    | i <- [fstC .. lastC]
+    ]
+
+writeSimulationResult :: FilePath -> FilePath -> World RealWorld -> IO ()
+writeSimulationResult outDir spillPath world = do
+    currentLedger <- stToIO (readURef (_ledger world))
+    ledger <- restoreJournalFromBinarySpill spillPath snd currentLedger
+    let analysis = buildAnalysisCache ledger
+        context _ t = return (lookupTermAnalysis analysis t)
+    ESV.writeFuncResultsWithContext context stockHeaders (initTerm, lastTerm) world (outDir ++ "/stock.csv")
+    ESV.writeFuncResultsWithContext context profitHeaders (initTerm, lastTerm) world (outDir ++ "/profit.csv")
+
+simulationScenarios :: [(String, InitVar)]
+simulationScenarios =
+    [ ("default-prod", defaultEnv)
+    , ("plus-prod", defaultEnv { _steadyProduction = 12 })
+    ]
+  where
+    defaultEnv = InitVar
+        { _initStock = 20
+        , _inhouseRatio = 0.4
+        , _steadyProduction = 10
+        }
+
+buildSpillOptions :: FilePath -> String -> ES.SpillOptions Term World Transaction
+buildSpillOptions spillDir envName =
+    ( ES.mkBinarySpillOptions
+        spillChunkTerms
+        (spillDir ++ envName ++ ".bin")
+        (\world -> readURef (_ledger world))
+        :: ES.SpillOptions Term World Transaction
+    )
+        { ES.spillDeletePolicy = ES.KeepRecentTerms spillKeepRecentTerms
+        , ES.spillExtractChunk = Just $ \(chunkStart, chunkEnd) world -> do
+            ledger <- readURef (_ledger world)
+            return $ EJ.filterWithNote (\(_, t') _ -> t' >= chunkStart && t' <= chunkEnd) ledger
+        , ES.spillWriteChunk = \handle range payload -> do
+            putStrLn ("[" ++ envName ++ "] spill chunk: " ++ show range)
+            ES.defaultBinarySpillWriter handle range payload
+        , ES.spillDeleteRange = \(_, deleteEnd) world ->
+            modifyURef (_ledger world) $
+                EJ.filterWithNote (\(_, t') _ -> t' > deleteEnd)
+        }
+
+main :: IO ()
+main = do
+    let gen = mkStdGen simulationSeed
+        spillDir = csv_dir ++ "spill/"
+
+    print "start simulation"
+    createDirectoryIfMissing True spillDir
+
+    _resultMap <- ES.runScenariosWithSpill
+        (buildSpillOptions spillDir)
+        gen
+        simulationScenarios
+
+    {- culc ledger with spill data
+    print "writing data..."
+    forConcurrently_ (L.map fst simulationScenarios) $ \envName ->
+        case M.lookup envName _resultMap of
+            Just world ->
+                writeSimulationResult
+                    (csv_dir ++ envName)
+                    (spillDir ++ envName ++ ".bin")
+                    world
+            Nothing -> error ("simulation result not found: " ++ envName)
+    -}
+    print "end"

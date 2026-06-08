@@ -82,6 +82,12 @@ executables:
     main:                simulateEx2.hs
     source-dirs:         basic
 
+  # MoneyDouble (fast FP) twin of sim2, used as the performance-roadmap baseline.
+  sim2fast:
+    <<: *exe-defaults
+    main:                simulateEx2Fast.hs
+    source-dirs:         basic
+
   rippleWithStock:
     <<: *exe-defaults
     main:                rippleWithStock.hs
