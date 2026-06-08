@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- | Core micro-benchmarks for the exchangealgebra library.
@@ -16,10 +17,35 @@
 -- Each benchmark drives a scalar-producing pipeline (ending in 'norm' or
 -- 'projWithBaseNorm') so 'whnf' forces the whole computation, and inputs are
 -- constructed inside 'env' so their cost is excluded from the timed region.
+--
+-- == HatBase key-hashing study (2026-06-08)
+--
+-- The MoneyDouble re-profile (sim2fast) showed HashMap *key hashing* of the
+-- @BasePart b@ key — for @HatBase2@ a 4-tuple @(AccountTitles,Company,Company,
+-- CountUnit)@ — is the new dominant cost (~33%). The @hash/*@ and @container/*@
+-- groups below isolate that cost and compare key representations WITHOUT
+-- touching the library, to find the highest-ROI lever before any change:
+--
+--   * V0 tuple    — baseline (current behaviour: 4 chained mixes per key)
+--   * V1 packed   — same Eq as the tuple, but Hashable packs to one Word64 (1 mix)
+--   * V2 word     — key IS a Word64 (the "intern" ceiling, as a value)
+--   * V3 hashed   — 'Data.Hashable.Hashed' (cache the hash in the key)
+--   * V4 intmap   — Data.IntMap keyed by the packed Int (no hashing at all)
+--   * V5 ordmap   — Data.Map keyed by the tuple (Ord compare instead of hashing)
+--
+-- Layer A (@hash/*@) measures pure hashing; Layer B (@container/*@) measures the
+-- build / lookup / union operations where that hashing actually bites.
 module Main (main) where
 
 import           Criterion.Main
 import           Control.DeepSeq          (NFData (..))
+import           Data.Bits                ((.&.), (.|.), shiftL)
+import qualified Data.HashMap.Strict      as HM
+import           Data.Hashable            (Hashable (..), Hashed, hashed)
+import qualified Data.IntMap.Strict       as IM
+import           Data.List                (foldl')
+import qualified Data.Map.Strict          as M
+import           Data.Word                (Word64)
 
 import           ExchangeAlgebra.Journal  -- constructors / operators: :@ :< .+ .| Hat Not Cash ...
 import qualified ExchangeAlgebra.Algebra  as EA
@@ -32,6 +58,11 @@ type J = EJ.Journal Int Double (HatBase AccountTitles)
 -- (Library Alg already has an NFData instance.) Bench-local orphan.
 instance NFData (EJ.Journal n v b) where
     rnf j = j `seq` ()
+
+-- Bench-local NFData for the enum axes so the 4-tuple keys can be realized in
+-- 'env'. These are nullary-constructor enums, so 'seq' reaches normal form.
+instance NFData AccountTitles where rnf x = x `seq` ()
+instance NFData CountUnit    where rnf x = x `seq` ()
 
 -- Rotate over a handful of asset/revenue titles and both Hat/Not sides.
 bases4 :: [AccountTitles]
@@ -58,6 +89,85 @@ sizes = [1000, 10000]
 
 projKey :: [HatBase AccountTitles]
 projKey = [Hat :< Cash]
+
+------------------------------------------------------------------
+-- * HatBase key-hashing study
+------------------------------------------------------------------
+
+-- | The real Alg HashMap key for @HatBase2@: @BasePart (HatBase a) = a@, here the
+-- 4-tuple. AccountTitles/CountUnit hash via @fromEnum@; Company is an Int with
+-- wildcard @-1@. The tuple Hashable chains a mix per component (4 mixes/key).
+type Key4 = (AccountTitles, Int, Int, CountUnit)
+
+-- | V1: identical Eq to the tuple, but the hash packs the 4 axes into one Word64
+-- and mixes once. Measures "make the hash cheaper, same key type" (lever L1).
+newtype PK = PK Key4 deriving (Eq)
+instance NFData PK where rnf (PK k) = rnf k
+instance Hashable PK where
+    {-# INLINE hashWithSalt #-}
+    hashWithSalt s (PK k) = hashWithSalt s (packKey k)
+
+-- | V2: the key *is* a Word64 (the interning ceiling, as a value — lever L3 upper
+-- bound without the merge-time id reconciliation machinery).
+newtype KW = KW Word64 deriving (Eq, NFData, Hashable)
+
+-- | Pack @(account, company1, company2, unit)@ into a Word64 and mix once.
+-- Injective for the representable ranges (account/unit < 256, company in
+-- [-1, 2^24-2]); out-of-range only collides (HashMap falls back to Eq), it is
+-- never incorrect. The @+1@ offset makes the wildcard company @-1@ encode as 0,
+-- so no negative shows up in the field.
+packKey :: Key4 -> Word64
+packKey (a, c1, c2, u) =
+        (fromIntegral (fromEnum a) .&. 0xFF)
+    .|. ((fromIntegral (fromEnum u) .&. 0xFF) `shiftL` 8)
+    .|. (encComp c1 `shiftL` 16)
+    .|. (encComp c2 `shiftL` 40)
+  where
+    encComp :: Int -> Word64
+    encComp x = fromIntegral (x + 1) .&. 0xFFFFFF
+{-# INLINE packKey #-}
+
+-- | @m@ companies → @m*m@ distinct keys, mirroring the all-pairs trade network.
+mkKeys :: Int -> [Key4]
+mkKeys m =
+    [ (acct, c1, c2, unit)
+    | c1 <- [1 .. m]
+    , c2 <- [1 .. m]
+    , let acct = bases4 !! ((c1 + c2) `mod` 4)
+          unit = if even (c1 * c2) then Amount else Yen
+    ]
+
+-- Container builders (one per key representation). insertWith (+) so colliding
+-- keys combine, exactly like the Pair-merge in the real Liner.
+buildHM :: [Key4] -> HM.HashMap Key4 Double
+buildHM = foldl' (\m k -> HM.insertWith (+) k 1 m) HM.empty
+
+buildPK :: [Key4] -> HM.HashMap PK Double
+buildPK = foldl' (\m k -> HM.insertWith (+) (PK k) 1 m) HM.empty
+
+buildKW :: [Key4] -> HM.HashMap KW Double
+buildKW = foldl' (\m k -> HM.insertWith (+) (KW (packKey k)) 1 m) HM.empty
+
+buildHashed :: [Key4] -> HM.HashMap (Hashed Key4) Double
+buildHashed = foldl' (\m k -> HM.insertWith (+) (hashed k) 1 m) HM.empty
+
+buildIM :: [Key4] -> IM.IntMap Double
+buildIM = foldl' (\m k -> IM.insertWith (+) (fromIntegral (packKey k)) 1 m) IM.empty
+
+buildM :: [Key4] -> M.Map Key4 Double
+buildM = foldl' (\m k -> M.insertWith (+) k 1 m) M.empty
+
+-- Pure hashing fold (Layer A): hash every key, sum the salts.
+hashFold :: Hashable a => [a] -> Int
+hashFold = foldl' (\acc k -> acc + hashWithSalt 0 k) 0
+{-# INLINE hashFold #-}
+
+-- Companies per size: m → m*m keys. 40²=1600, 120²=14400 distinct bases.
+hashMs :: [Int]
+hashMs = [40, 120]
+
+label :: Int -> String
+label m = "N=" ++ show (m * m)
 
 main :: IO ()
 main = defaultMain
@@ -87,4 +197,88 @@ main = defaultMain
         [ env (pure (mkJournals n)) $ \js ->
             bench (show n) $ whnf (EJ.projWithBaseNorm projKey . EJ.fromList) js
         | n <- sizes ]
+
+    ------------------------------------------------------------------
+    -- Layer A: pure key hashing (HatBase key-hashing study)
+    ------------------------------------------------------------------
+    , bgroup "hash/tuple"
+        [ env (pure (mkKeys m)) $ \ks -> bench (label m) $ whnf hashFold ks
+        | m <- hashMs ]
+    , bgroup "hash/packed"
+        [ env (pure (fmap PK (mkKeys m))) $ \ks -> bench (label m) $ whnf hashFold ks
+        | m <- hashMs ]
+    , bgroup "hash/word"
+        [ env (pure (fmap (KW . packKey) (mkKeys m))) $ \ks -> bench (label m) $ whnf hashFold ks
+        | m <- hashMs ]
+    , bgroup "hash/hashed"
+        [ env (pure (fmap hashed (mkKeys m))) $ \ks -> bench (label m) $ whnf hashFold ks
+        | m <- hashMs ]
+    , bgroup "hash/int"
+        [ env (pure (fmap (fromIntegral . packKey) (mkKeys m) :: [Int])) $ \ks ->
+            bench (label m) $ whnf hashFold ks
+        | m <- hashMs ]
+
+    ------------------------------------------------------------------
+    -- Layer B1: container build (insertWith over all keys)
+    ------------------------------------------------------------------
+    , bgroup "container-build/tuple"
+        [ env (pure (mkKeys m)) $ \ks -> bench (label m) $ nf buildHM ks | m <- hashMs ]
+    , bgroup "container-build/packed"
+        [ env (pure (mkKeys m)) $ \ks -> bench (label m) $ nf buildPK ks | m <- hashMs ]
+    , bgroup "container-build/word"
+        [ env (pure (mkKeys m)) $ \ks -> bench (label m) $ nf buildKW ks | m <- hashMs ]
+    , bgroup "container-build/hashed"
+        [ env (pure (mkKeys m)) $ \ks -> bench (label m) $ nf buildHashed ks | m <- hashMs ]
+    , bgroup "container-build/intmap"
+        [ env (pure (mkKeys m)) $ \ks -> bench (label m) $ nf buildIM ks | m <- hashMs ]
+    , bgroup "container-build/ordmap"
+        [ env (pure (mkKeys m)) $ \ks -> bench (label m) $ nf buildM ks | m <- hashMs ]
+
+    ------------------------------------------------------------------
+    -- Layer B2: lookup (map prebuilt in env; sum lookups of every key)
+    ------------------------------------------------------------------
+    , bgroup "container-lookup/tuple"
+        [ env (pure (let ks = mkKeys m in (ks, buildHM ks))) $ \ ~(ks, mp) ->
+            bench (label m) $ whnf (\m' -> foldl' (\a k -> a + HM.lookupDefault 0 k m') 0 ks) mp
+        | m <- hashMs ]
+    , bgroup "container-lookup/packed"
+        [ env (pure (let ks = mkKeys m in (fmap PK ks, buildPK ks))) $ \ ~(ks, mp) ->
+            bench (label m) $ whnf (\m' -> foldl' (\a k -> a + HM.lookupDefault 0 k m') 0 ks) mp
+        | m <- hashMs ]
+    , bgroup "container-lookup/word"
+        [ env (pure (let ks = mkKeys m in (fmap (KW . packKey) ks, buildKW ks))) $ \ ~(ks, mp) ->
+            bench (label m) $ whnf (\m' -> foldl' (\a k -> a + HM.lookupDefault 0 k m') 0 ks) mp
+        | m <- hashMs ]
+    , bgroup "container-lookup/intmap"
+        [ env (pure (let ks = mkKeys m in (fmap (fromIntegral . packKey) ks :: [Int], buildIM ks))) $ \ ~(ks, mp) ->
+            bench (label m) $ whnf (\m' -> foldl' (\a k -> a + IM.findWithDefault 0 k m') 0 ks) mp
+        | m <- hashMs ]
+    , bgroup "container-lookup/ordmap"
+        [ env (pure (let ks = mkKeys m in (ks, buildM ks))) $ \ ~(ks, mp) ->
+            bench (label m) $ whnf (\m' -> foldl' (\a k -> a + M.findWithDefault 0 k m') 0 ks) mp
+        | m <- hashMs ]
+
+    ------------------------------------------------------------------
+    -- Layer B3: union with full key overlap (re-hashing on merge)
+    ------------------------------------------------------------------
+    , bgroup "container-union/tuple"
+        [ env (pure (let ks = mkKeys m in (buildHM ks, buildHM ks))) $ \ ~(a, b) ->
+            bench (label m) $ whnf (\(x, y) -> HM.size (HM.unionWith (+) x y)) (a, b)
+        | m <- hashMs ]
+    , bgroup "container-union/packed"
+        [ env (pure (let ks = mkKeys m in (buildPK ks, buildPK ks))) $ \ ~(a, b) ->
+            bench (label m) $ whnf (\(x, y) -> HM.size (HM.unionWith (+) x y)) (a, b)
+        | m <- hashMs ]
+    , bgroup "container-union/word"
+        [ env (pure (let ks = mkKeys m in (buildKW ks, buildKW ks))) $ \ ~(a, b) ->
+            bench (label m) $ whnf (\(x, y) -> HM.size (HM.unionWith (+) x y)) (a, b)
+        | m <- hashMs ]
+    , bgroup "container-union/hashed"
+        [ env (pure (let ks = mkKeys m in (buildHashed ks, buildHashed ks))) $ \ ~(a, b) ->
+            bench (label m) $ whnf (\(x, y) -> HM.size (HM.unionWith (+) x y)) (a, b)
+        | m <- hashMs ]
+    , bgroup "container-union/intmap"
+        [ env (pure (let ks = mkKeys m in (buildIM ks, buildIM ks))) $ \ ~(a, b) ->
+            bench (label m) $ whnf (\(x, y) -> IM.size (IM.unionWith (+) x y)) (a, b)
+        | m <- hashMs ]
     ]
