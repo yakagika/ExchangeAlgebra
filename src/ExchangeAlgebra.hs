@@ -63,4 +63,4 @@ import              ExchangeAlgebra.Algebra
 import              ExchangeAlgebra.Algebra.Transfer
 import              ExchangeAlgebra.Write
 import              ExchangeAlgebra.Simulate
-import              ExchangeAlgebra.Value    -- NNDecimal (exact non-negative value type)
+import              ExchangeAlgebra.Value    -- MoneyDecimal (exact non-negative value type)

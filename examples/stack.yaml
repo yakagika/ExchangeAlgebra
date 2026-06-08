@@ -10,7 +10,7 @@
 # CLAUDE.md for the rationale of keeping both files.
 #
 # RELEASE-HOLD MODE (develop branch, pre-0.5.0.0):
-# The examples on `develop` use the unreleased 0.5.0.0 API (NNDecimal), which is
+# The examples on `develop` use the unreleased 0.5.0.0 API (MoneyDecimal), which is
 # not yet on Hackage. So instead of a Hackage version pin we point at a git commit
 # of the library on `develop`. This keeps standalone (degit examples/) builds
 # working against the unreleased API. On the 0.5.0.0 Hackage release this reverts

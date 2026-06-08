@@ -11,7 +11,7 @@ import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Algebra.Transfer as EAT
 import qualified ExchangeAlgebra.Journal  as EJ
 import qualified ExchangeAlgebra.Journal.Transfer as EJT
-import           ExchangeAlgebra.Value    (NNDecimal, bankersRound)
+import           ExchangeAlgebra.Value    (MoneyDecimal, bankersRound)
 import qualified ExchangeAlgebra.Simulate as ES
 import           ExchangeAlgebra.Simulate
 import qualified ExchangeAlgebra.Write    as EW
@@ -210,20 +210,20 @@ testJournalFromListStrict = do
     -- preserves the posting multiset by matching the old lazy right-fold reference
     -- (foldr (.+) mempty). Colliding note keys (i `mod` 30) force same-note/same-base
     -- postings into one Alg sequence, where the two folds accumulate in opposite
-    -- order; with NNDecimal (exact, associative) the aggregate (norm) is identical.
-    let mk i = ((fromIntegral (i `mod` 7 + 1) :: NNDecimal)
+    -- order; with MoneyDecimal (exact, associative) the aggregate (norm) is identical.
+    let mk i = ((fromIntegral (i `mod` 7 + 1) :: MoneyDecimal)
                   :@ ((if even i then Hat else Not) :< ([Yen, Amount] !! (i `mod` 2))))
                .| show (i `mod` 30)
-        xs :: [Journal String NNDecimal (HatBase CountUnit)]
+        xs :: [Journal String MoneyDecimal (HatBase CountUnit)]
         xs = [ mk i | i <- [1 .. 400 :: Int] ]
         strict  = EJ.fromList xs
         lazyRef = foldr (.+) mempty xs
     -- exact value type ⇒ norm identical regardless of seq order (multiset preserved)
-    assertEqual "Journal.fromList (strict): norm matches lazy foldr reference (NNDecimal exact)"
+    assertEqual "Journal.fromList (strict): norm matches lazy foldr reference (MoneyDecimal exact)"
         (norm strict) (norm lazyRef)
     -- distinct note keys ⇒ no seq collision ⇒ exact structural equality with foldr
-    let ys :: [Journal String NNDecimal (HatBase CountUnit)]
-        ys = [ ((fromIntegral i :: NNDecimal) :@ (Not :< Yen)) .| show i
+    let ys :: [Journal String MoneyDecimal (HatBase CountUnit)]
+        ys = [ ((fromIntegral i :: MoneyDecimal) :@ (Not :< Yen)) .| show i
              | i <- [1 .. 20 :: Int] ]
     assertEqual "Journal.fromList (strict): structurally equal to foldr for distinct notes"
         (EJ.toMap (EJ.fromList ys)) (EJ.toMap (foldr (.+) mempty ys))
@@ -263,11 +263,11 @@ testScalarRejectsNegative = do
     case rD of
         Left _  -> putStrLn "[PASS] (.*) rejects negative scalar (Double)"
         Right v -> do putStrLn ("[FAIL] (.*) negative scalar leaked (Double): " ++ show v); exitFailure
-    let xN = 10 :@ (Not :< Yen) :: EA.Alg NNDecimal (HatBase CountUnit)
-    rN <- try (evaluate (norm ((-1) .* xN))) :: IO (Either SomeException NNDecimal)
+    let xN = 10 :@ (Not :< Yen) :: EA.Alg MoneyDecimal (HatBase CountUnit)
+    rN <- try (evaluate (norm ((-1) .* xN))) :: IO (Either SomeException MoneyDecimal)
     case rN of
-        Left _  -> putStrLn "[PASS] (.*) rejects negative scalar (NNDecimal)"
-        Right v -> do putStrLn ("[FAIL] (.*) negative scalar leaked (NNDecimal): " ++ show v); exitFailure
+        Left _  -> putStrLn "[PASS] (.*) rejects negative scalar (MoneyDecimal)"
+        Right v -> do putStrLn ("[FAIL] (.*) negative scalar leaked (MoneyDecimal): " ++ show v); exitFailure
     -- non-negative scalar still works
     assertNear "(.*) non-negative scalar works" 20.0 (norm (2 .* xD))
 
@@ -511,11 +511,11 @@ instance ExBaseClass SimHatBase2 where
     getAccountTitle (h :< (a, _, _, _)) = a
     setAccountTitle (h :< (_, c, e, u)) b = h :< (b, c, e, u)
 
--- Accounting value type is NNDecimal (exact): ledger arithmetic is exact and
+-- Accounting value type is MoneyDecimal (exact): ledger arithmetic is exact and
 -- construction-order-independent. ABM parameters / input coefficients / random
 -- draws remain Double and are converted (realToFrac) at the boundary where they
 -- enter the ledger; reported stock/profit convert back to Double.
-type SimTransaction = EJ.Journal (SimEvent, SimTerm) NNDecimal SimHatBase2
+type SimTransaction = EJ.Journal (SimEvent, SimTerm) MoneyDecimal SimHatBase2
 
 simCompressPreviousTerm :: SimTerm -> SimTransaction -> SimTransaction
 simCompressPreviousTerm t le =
@@ -532,7 +532,7 @@ instance UpdatableSTRef SimLedger s SimTransaction where
 
 simInitLedger :: Double -> ST s (SimLedger s)
 simInitLedger d = newURef $ EJ.fromList
-    [ realToFrac d :@ Not :<(Products, e, e, Amount) .| (plank, initTerm)  -- Double param -> NNDecimal
+    [ realToFrac d :@ Not :<(Products, e, e, Amount) .| (plank, initTerm)  -- Double param -> MoneyDecimal
     | e <- simCompanies
     ]
 
@@ -623,7 +623,7 @@ simGetOneProduction wld t c = do
     let arr = _simIcs wld
     inputs <- mapM (\c2 -> do
         coef <- readUArray arr (c2, c)
-        return $ realToFrac coef :@ Hat :<(Products, c2, c, Amount) .| (SimProduction, t)  -- Double coef -> NNDecimal
+        return $ realToFrac coef :@ Hat :<(Products, c2, c, Amount) .| (SimProduction, t)  -- Double coef -> MoneyDecimal
         ) simCompanies
     let totalInput = EJ.fromList inputs
         result = (1 :@ Not :<(Products, c, c, Amount) .| (SimProduction, t)) .+ totalInput
@@ -633,9 +633,9 @@ simJournal :: SimWorld s -> SimTransaction -> ST s ()
 simJournal _ Zero = return ()
 simJournal wld js = modifyURef (_simLedger wld) (\x -> x .+ js)
 
--- Values come from the NNDecimal ledger (via EA.toList), so the shortage map is
--- NNDecimal-valued; no conversion is needed and the amounts re-enter the ledger exactly.
-simBuildShortageMap :: SimTerm -> SimTransaction -> M.Map (SimCompany, SimCompany) NNDecimal
+-- Values come from the MoneyDecimal ledger (via EA.toList), so the shortage map is
+-- MoneyDecimal-valued; no conversion is needed and the amounts re-enter the ledger exactly.
+simBuildShortageMap :: SimTerm -> SimTransaction -> M.Map (SimCompany, SimCompany) MoneyDecimal
 simBuildShortageMap t le =
     let termAlg = EJ.toAlg $ (.-) $ simTermJournal t le
     in L.foldl' go M.empty (EA.toList termAlg)
@@ -671,7 +671,7 @@ simEvent wld t SimProduction = do
     sp <- readURef (_simSp wld)
     forM_ simCompanies $ \e1 -> do
         op <- simGetOneProduction wld t e1
-        simJournal wld (realToFrac sp .* op)  -- Double steady-production multiplier -> NNDecimal scalar
+        simJournal wld (realToFrac sp .* op)  -- Double steady-production multiplier -> MoneyDecimal scalar
 
 simEvent _ _ SimPlank = return ()
 
@@ -681,7 +681,7 @@ simGetTermStock wld t e = do
     let tj = (.-) $ simTermJournal t le
         plusStock  = norm $ EJ.projWithBase [Not :<(Products, e, e, Amount)] tj
         minusStock = norm $ EJ.projWithBase [Hat :<(Products, e, e, Amount)] tj
-    return $ realToFrac (plusStock - minusStock)  -- exact NNDecimal stock -> Double for reporting
+    return $ realToFrac (plusStock - minusStock)  -- exact MoneyDecimal stock -> Double for reporting
 
 simGetTermGrossProfit :: SimWorld s -> SimTerm -> SimCompany -> ST s Double
 simGetTermGrossProfit wld t e = do
@@ -690,7 +690,7 @@ simGetTermGrossProfit wld t e = do
         tr     = EJT.grossProfitTransfer termTr
         plus   = norm $ EJ.projWithBase [Not :<(GrossProfit, (.#), e, Yen)] tr
         minus  = norm $ EJ.projWithBase [Hat :<(GrossProfit, (.#), e, Yen)] tr
-    return $ realToFrac (plus - minus)  -- exact NNDecimal -> Double for reporting
+    return $ realToFrac (plus - minus)  -- exact MoneyDecimal -> Double for reporting
 
 -- ================================================================
 -- Simulation integration test
@@ -829,29 +829,29 @@ testNumericToleranceScaleAware = do
     assertEqual "bar cancels balanced large-scale element to Zero"
         True (EA.isZero ((.-) big))
 
--- | Smoke test for the exact non-negative decimal value type 'NNDecimal' (Stage B).
+-- | Smoke test for the exact non-negative decimal value type 'MoneyDecimal' (Stage B).
 -- The point of an exact value type is that summation is associative, so @norm@ is
 -- *independent of construction order* — the property that makes the fromList O(N)
 -- optimization safe (Stage D). Note the raw @Seq@ order (and hence @toMap@/@Eq@)
 -- still depends on construction; only the numeric results are order-independent.
-testNNDecimalExactOrderIndependent :: IO ()
-testNNDecimalExactOrderIndependent = do
-    assertEqual "NNDecimal: 0.1 + 0.2 == 0.3 exactly"
-        True (0.1 + 0.2 == (0.3 :: NNDecimal))
-    let mk i = ((fromIntegral (i `mod` 7 + 1) :: NNDecimal)
+testMoneyDecimalExactOrderIndependent :: IO ()
+testMoneyDecimalExactOrderIndependent = do
+    assertEqual "MoneyDecimal: 0.1 + 0.2 == 0.3 exactly"
+        True (0.1 + 0.2 == (0.3 :: MoneyDecimal))
+    let mk i = ((fromIntegral (i `mod` 7 + 1) :: MoneyDecimal)
                   :@ ((if even i then Hat else Not) :< ([Yen, Amount] !! (i `mod` 2))))
                .| show (i `mod` 150)
-        xs       :: [Journal String NNDecimal (HatBase CountUnit)]
+        xs       :: [Journal String MoneyDecimal (HatBase CountUnit)]
         xs       = [ mk i | i <- [1 .. 400 :: Int] ]
         viaFoldr = foldr (.+) mempty xs
         viaFoldl = L.foldl' (.+) mempty xs
     -- exact ⇒ norm is identical for the two construction orders
-    assertEqual "NNDecimal Journal: norm is construction-order-independent"
+    assertEqual "MoneyDecimal Journal: norm is construction-order-independent"
         (norm viaFoldr) (norm viaFoldl)
     -- banker's rounding (round half to even)
-    assertEqual "bankersRound 0 2.5 = 2 (half to even)" (2 :: NNDecimal) (bankersRound 0 2.5)
-    assertEqual "bankersRound 0 3.5 = 4 (half to even)" (4 :: NNDecimal) (bankersRound 0 3.5)
-    assertEqual "bankersRound 2 0.125 = 0.12 (half to even)" (0.12 :: NNDecimal) (bankersRound 2 0.125)
+    assertEqual "bankersRound 0 2.5 = 2 (half to even)" (2 :: MoneyDecimal) (bankersRound 0 2.5)
+    assertEqual "bankersRound 0 3.5 = 4 (half to even)" (4 :: MoneyDecimal) (bankersRound 0 3.5)
+    assertEqual "bankersRound 2 0.125 = 0.12 (half to even)" (0.12 :: MoneyDecimal) (bankersRound 2 0.125)
 
 -- | Strict file read helper for tests
 readFileStrict :: FilePath -> IO String
@@ -871,7 +871,7 @@ readFileStrict p = do
 -- zero-base bug and construction-order independence. Property suite, additive.
 -- ================================================================
 
-type NNAlg = EA.Alg NNDecimal (HatBase CountUnit)
+type NNAlg = EA.Alg MoneyDecimal (HatBase CountUnit)
 
 -- run a QuickCheck property in the existing IO-style harness
 quickProp :: Testable p => String -> p -> IO ()
@@ -954,8 +954,8 @@ axiomProperties = do
                 s2 = v2 :@ b2 :: TestAlg
             in netByBase (s1 .+ s2)
                  == M.unionWith (+) (netByBase s1) (netByBase s2)
-    -- construction-order independence for the exact value type (NNDecimal)
-    quickProp "NNDecimal: fromList per-base net is construction-order independent" $
+    -- construction-order independence for the exact value type (MoneyDecimal)
+    quickProp "MoneyDecimal: fromList per-base net is construction-order independent" $
         forAll (listOf ((,) <$> (realToFrac <$> genNNDouble) <*> genBase)) $ \ps ->
             let singles = [ v :@ b | (v, b) <- ps ] :: [NNAlg]
                 viaList  = EA.fromList singles
@@ -964,21 +964,21 @@ axiomProperties = do
             in netByBase viaList == netByBase viaFoldr
                && netByBase viaFoldr == netByBase viaFoldl
     -- mapBasePart (Phase 3): identity + norm preservation (no value lost on collision)
-    quickProp "mapBasePart id preserves per-base net (NNDecimal)" $
+    quickProp "mapBasePart id preserves per-base net (MoneyDecimal)" $
         forAll genAlgN $ \x -> netByBase (EA.mapBasePart id x :: NNAlg) == netByBase x
-    quickProp "mapBasePart preserves norm under base collapse (NNDecimal)" $
+    quickProp "mapBasePart preserves norm under base collapse (MoneyDecimal)" $
         forAll genAlgN $ \x -> norm (EA.mapBasePart (const Amount) x :: NNAlg) == norm x
 
 -- ================================================================
 -- Journal-algebra axiom properties (Phase 1.5)
 -- ================================================================
 
-type NNJournal = EJ.Journal String NNDecimal (HatBase CountUnit)
+type NNJournal = EJ.Journal String MoneyDecimal (HatBase CountUnit)
 
 genNote :: Gen String
 genNote = elements ["a", "b", "c"]
 
-genPosNN :: Gen NNDecimal               -- strictly positive (avoids zero-note drop)
+genPosNN :: Gen MoneyDecimal               -- strictly positive (avoids zero-note drop)
 genPosNN = (\d -> realToFrac (1 + d)) <$> genNNDouble
 
 genJournalN :: Gen NNJournal
@@ -996,13 +996,13 @@ netJournal j = M.fromList
 
 journalProperties :: IO ()
 journalProperties = do
-    quickProp "journal: norm additivity (norm(j1.+j2) = norm j1 + norm j2, NNDecimal)" $
+    quickProp "journal: norm additivity (norm(j1.+j2) = norm j1 + norm j2, MoneyDecimal)" $
         forAll genJournalN $ \j1 -> forAll genJournalN $ \j2 ->
             norm (j1 .+ j2) == norm j1 + norm j2
     quickProp "journal: Hat preserves the note set" $
         forAll genJournalN $ \j ->
             L.sort (HM.keys (EJ.toMap ((.^) j))) == L.sort (HM.keys (EJ.toMap j))
-    quickProp "journal: fromList per-(note,base) net is construction-order independent (NNDecimal)" $
+    quickProp "journal: fromList per-(note,base) net is construction-order independent (MoneyDecimal)" $
         forAll (listOf ((,,) <$> genPosNN <*> genBase <*> genNote)) $ \ps ->
             let js = [ (v :@ b) .| nt | (v, b, nt) <- ps ] :: [NNJournal]
             in netJournal (EJ.fromList js) == netJournal (foldr (.+) mempty js)
@@ -1015,7 +1015,7 @@ main = do
     testProjWithNoteNorm
     testBasesNotSideRegression
     testNumericToleranceScaleAware
-    testNNDecimalExactOrderIndependent
+    testMoneyDecimalExactOrderIndependent
     testSigmaMergePath
     testSigma2When
     testSigmaFromMap

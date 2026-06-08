@@ -8,7 +8,7 @@
 
     Released under the OWL license
 
-    Exact, non-negative decimal value type ('NNDecimal') for use as the @v@
+    Exact, non-negative decimal value type ('MoneyDecimal') for use as the @v@
     parameter of @Alg v b@ / @Journal n v b@.
 
     == Why this exists (DESIGN, 2026-06-06)
@@ -23,7 +23,7 @@
         FP_SUMMATION_SURVEY.md). This is acceptable for relative-price ABM work where
         speed matters, but it is not deterministic/auditable.
 
-      * @NNDecimal@   — exact base-10 fixed-point (a non-negative 'Data.Decimal').
+      * @MoneyDecimal@   — exact base-10 fixed-point (a non-negative 'Data.Decimal').
         Addition is /exact and associative/, so results are independent of
         construction order: the fromList fold direction, parallel merges, etc. no
         longer change the answer. This is the right choice for audited ledgers and
@@ -37,12 +37,12 @@
 
     Numeric literals work without wrapping, because 'Num'/'Fractional' are derived:
 
-    > type Ledger = Journal Term NNDecimal (HatBase AccountTitles)
-    > entry = 10.5 :@ Hat:<Cash .+ 2 :@ Not:<Sales   -- 10.5 and 2 are NNDecimal literals
+    > type Ledger = Journal Term MoneyDecimal (HatBase AccountTitles)
+    > entry = 10.5 :@ Hat:<Cash .+ 2 :@ Not:<Sales   -- 10.5 and 2 are MoneyDecimal literals
 
     == Rounding
 
-    The core algebra only adds/subtracts, which is exact for 'NNDecimal' and needs no
+    The core algebra only adds/subtracts, which is exact for 'MoneyDecimal' and needs no
     rounding. Rounding is only needed by /multiplication and division/ (tax ratios,
     proration, scalar product) at the point a monetary amount is /finalised/. Use
     'bankersRound': it rounds half-to-even (the unbiased financial default; also GHC's
@@ -52,10 +52,12 @@
     varies by company), so the rounding function is explicit and swappable.
 -}
 module ExchangeAlgebra.Value
-    ( NNDecimal(..)
+    ( MoneyDecimal(..)
     , toDecimal
     , bankersRound
     , ceilingRound
+    , MoneyDouble(..)
+    , toDouble
     ) where
 
 import           ExchangeAlgebra.Algebra (HatVal (..), Nearly (..))
@@ -71,61 +73,97 @@ import qualified Data.Binary             as Binary
 -- it is not enforced by the constructor (intermediate subtraction inside @bar@/@(.-)@
 -- can produce negatives), but 'isErrorValue' reports @x < 0@ so the @(.@)@ smart
 -- constructor rejects negative postings.
-newtype NNDecimal = NNDecimal Decimal
+newtype MoneyDecimal = MoneyDecimal Decimal
   -- Num/Fractional are derived so numeric literals (@10.5@, @0.08@) work directly,
-  -- with no @NNDecimal@ wrapper at use sites. Show/Eq/Ord delegate to 'Decimal'.
+  -- with no @MoneyDecimal@ wrapper at use sites. Show/Eq/Ord delegate to 'Decimal'.
   -- 'Real' (and thus 'toRational') is derived so values can be converted to/from
   -- @Double@ via 'realToFrac' at the simulation boundary: ABM parameters, input
-  -- coefficients and random draws stay 'Double', and are converted to 'NNDecimal'
+  -- coefficients and random draws stay 'Double', and are converted to 'MoneyDecimal'
   -- only where they enter a ledger; final stock/profit amounts convert back for
   -- reporting. The ledger arithmetic in between is exact.
   deriving newtype (Eq, Ord, Show, Num, Fractional, Real)
 
 -- | Project out the underlying 'Decimal'.
-toDecimal :: NNDecimal -> Decimal
-toDecimal (NNDecimal d) = d
+toDecimal :: MoneyDecimal -> Decimal
+toDecimal (MoneyDecimal d) = d
 
 -- 'Nearly': for an exact type there is no rounding noise to tolerate, so the
 -- tolerance argument is ignored and equality is exact. (Contrast the @Double@
 -- instance, which uses a scale-aware tolerance.)
-instance Nearly NNDecimal where
+instance Nearly MoneyDecimal where
     {-# INLINE isNearly #-}
     isNearly x y _ = x == y
 
-instance HatVal NNDecimal where
+instance HatVal MoneyDecimal where
     {-# INLINE zeroValue #-}
-    zeroValue = NNDecimal 0
+    zeroValue = MoneyDecimal 0
     -- Exact decimals have no NaN/Infinity; the only "error value" is a negative
     -- amount, which violates the non-negativity invariant of the algebra.
     {-# INLINE isErrorValue #-}
-    isErrorValue (NNDecimal x) = x < 0
+    isErrorValue (MoneyDecimal x) = x < 0
     -- Render exactly (e.g. "0.3", "12.34"); unlike the Double instance there is no
     -- fixed-2-decimal formatting, because the decimal value is already exact.
     {-# INLINE showValue #-}
-    showValue (NNDecimal x) = show x
+    showValue (MoneyDecimal x) = show x
 
 -- 'Binary'/'Hashable' are defined here (not orphan) because 'Data.Decimal' ships
 -- neither, and 'Alg'/'Journal' serialisation and the binary spill path require
 -- @Binary v@. Both go through the (places, mantissa) structure of 'Decimal'.
-instance Binary.Binary NNDecimal where
+instance Binary.Binary MoneyDecimal where
     {-# INLINE put #-}
-    put (NNDecimal (Decimal places mantissa)) = do
+    put (MoneyDecimal (Decimal places mantissa)) = do
         Binary.put (places :: Word8)
         Binary.put (mantissa :: Integer)
     {-# INLINE get #-}
     get = do
         places   <- Binary.get :: Binary.Get Word8
         mantissa <- Binary.get :: Binary.Get Integer
-        pure (NNDecimal (Decimal places mantissa))
+        pure (MoneyDecimal (Decimal places mantissa))
 
-instance Hashable NNDecimal where
+instance Hashable MoneyDecimal where
     {-# INLINE hashWithSalt #-}
-    hashWithSalt s (NNDecimal (Decimal places mantissa)) =
+    hashWithSalt s (MoneyDecimal (Decimal places mantissa)) =
         s `hashWithSalt` places `hashWithSalt` mantissa
 
-instance NFData NNDecimal where
+instance NFData MoneyDecimal where
     {-# INLINE rnf #-}
-    rnf (NNDecimal (Decimal places mantissa)) = rnf places `seq` rnf mantissa
+    rnf (MoneyDecimal (Decimal places mantissa)) = rnf places `seq` rnf mantissa
+
+------------------------------------------------------------------
+-- * MoneyDouble — fast IEEE-754 value type
+------------------------------------------------------------------
+
+-- | A fast IEEE-754 money value (wraps 'Prelude.Double').
+--
+-- This is the @newtype@ counterpart of the bare-@Double@ instance: a dedicated,
+-- domain-specific money type so a ledger value cannot be silently confused with
+-- an ABM coefficient, a random draw, or any other raw 'Double'. Every instance
+-- it needs is owned here (via @deriving newtype@), so — exactly like
+-- 'MoneyDecimal' — there are no orphan instances. Use 'MoneyDouble' for the same
+-- speed as bare 'Double' while keeping the value type distinct in signatures.
+--
+-- Trade-off vs 'MoneyDecimal': addition is /non-associative/ (FP), so @norm@ \/
+-- @bar@ can differ in the last ULP depending on construction order. It is fast
+-- and runs everywhere bare 'Double' does (subtraction is signed, so the
+-- intermediate negatives that arise inside @bar@\/@(.-)@ are fine — unlike
+-- @Number.NonNegative.Double@, whose @(-)@ /errors/ on a negative result).
+--
+-- Non-negativity is the same /soft/ invariant as for 'MoneyDecimal' and bare
+-- 'Double': not enforced by the constructor, but 'isErrorValue' reports
+-- @isNaN x || isInfinite x || x < 0@, so the @(.\@)@ smart constructor and
+-- @(.*)@ reject negative\/non-finite values.
+newtype MoneyDouble = MoneyDouble Double
+  -- All instances are coerced from the existing bare-'Double' instances
+  -- ('Nearly'/'HatVal' live in "ExchangeAlgebra.Algebra"; 'Binary'/'Hashable'/
+  -- 'NFData' come from the binary/hashable/deepseq packages), so 'MoneyDouble'
+  -- is a zero-cost wrapper with identical numeric behaviour and 2-decimal
+  -- 'showValue' formatting.
+  deriving newtype ( Eq, Ord, Show, Num, Fractional, Real, RealFrac
+                   , Nearly, HatVal, Hashable, NFData, Binary.Binary )
+
+-- | Project out the underlying 'Prelude.Double'.
+toDouble :: MoneyDouble -> Double
+toDouble (MoneyDouble d) = d
 
 -- | Round a value to @n@ decimal places using /banker's rounding/
 -- (round-half-to-even): the unbiased financial default. Ties go to the nearest
@@ -136,11 +174,11 @@ instance NFData NNDecimal where
 -- Apply at the point a monetary amount is finalised after multiplication/division
 -- (tax, proration, scalar product). The core algebra (add/subtract) is exact and
 -- needs no rounding.
-bankersRound :: Word8 -> NNDecimal -> NNDecimal
-bankersRound places (NNDecimal d) = NNDecimal (roundTo' round places d)
+bankersRound :: Word8 -> MoneyDecimal -> MoneyDecimal
+bankersRound places (MoneyDecimal d) = MoneyDecimal (roundTo' round places d)
 
 -- | Round a value to @n@ decimal places by rounding /up/ (ceiling). This preserves
 -- the previous library default (@rounding = ceiling@) and suits jurisdictions whose
 -- rules round up. Prefer 'bankersRound' unless a ceiling rule is specifically required.
-ceilingRound :: Word8 -> NNDecimal -> NNDecimal
-ceilingRound places (NNDecimal d) = NNDecimal (roundTo' ceiling places d)
+ceilingRound :: Word8 -> MoneyDecimal -> MoneyDecimal
+ceilingRound places (MoneyDecimal d) = MoneyDecimal (roundTo' ceiling places d)

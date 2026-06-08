@@ -11,7 +11,7 @@ import           ExchangeAlgebra.Journal
 import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Journal  as EJ
 import qualified ExchangeAlgebra.Journal.Transfer as EJT
-import           ExchangeAlgebra.Value    (NNDecimal)  -- exact accounting value type
+import           ExchangeAlgebra.Value    (MoneyDecimal)  -- exact accounting value type
 import qualified ExchangeAlgebra.Simulate as ES
 import           ExchangeAlgebra.Simulate
 import qualified ExchangeAlgebra.Simulate.Visualize as ESV
@@ -138,10 +138,10 @@ instance ExBaseClass HatBase2 where
     getAccountTitle (h :< (a, c, e, u)) = a
     setAccountTitle (h :< (a, c, e, u)) b = h :< (b, c, e, u)
 
--- Accounting value type is NNDecimal (exact, construction-order-independent).
+-- Accounting value type is MoneyDecimal (exact, construction-order-independent).
 -- ABM params / coefficients / random draws stay Double and convert (realToFrac)
 -- at the boundary where they enter the ledger; reported stock/profit convert back.
-type Transaction = EJ.Journal (EventName, Term) NNDecimal HatBase2
+type Transaction = EJ.Journal (EventName, Term) MoneyDecimal HatBase2
 
 -- | Compress postings for one finished term to reduce retained structure size.
 compressPreviousTerm :: Term -> Transaction -> Transaction
@@ -301,12 +301,12 @@ getSparseInputs world = do
 getTermStock :: World s -> Term -> Company -> ST s Double
 getTermStock world t e = do
     ledger <- readURef (_ledger world)
-    return (realToFrac (stockByAlg e (termAlgAt t ledger)))  -- exact NNDecimal -> Double for reporting
+    return (realToFrac (stockByAlg e (termAlgAt t ledger)))  -- exact MoneyDecimal -> Double for reporting
 
 getTermGrossProfit :: World s -> Term -> Company -> ST s Double
 getTermGrossProfit world t e = do
     ledger <- readURef (_ledger world)
-    return (realToFrac (grossProfitByAlg e (grossProfitAlgAt t ledger)))  -- exact NNDecimal -> Double for reporting
+    return (realToFrac (grossProfitByAlg e (grossProfitAlgAt t ledger)))  -- exact MoneyDecimal -> Double for reporting
 
 journal :: World s -> Transaction -> ST s ()
 journal _ Zero = return ()
@@ -318,27 +318,27 @@ journal world js = modifyURef (_ledger world) (\x -> x .+ js)
 termJournal :: Term -> Transaction -> Transaction
 termJournal t = EJ.filterByAxis 1 (EJ.NoteAxisKey t)
 
-termAlgAt :: Term -> Transaction -> EA.Alg NNDecimal HatBase2
+termAlgAt :: Term -> Transaction -> EA.Alg MoneyDecimal HatBase2
 termAlgAt t = EJ.toAlg . (.-) . termJournal t
 
-grossProfitAlgAt :: Term -> Transaction -> EA.Alg NNDecimal HatBase2
+grossProfitAlgAt :: Term -> Transaction -> EA.Alg MoneyDecimal HatBase2
 grossProfitAlgAt t = EJ.toAlg . EJT.grossProfitTransfer . termJournal t
 
-stockByAlg :: Company -> EA.Alg NNDecimal HatBase2 -> NNDecimal
+stockByAlg :: Company -> EA.Alg MoneyDecimal HatBase2 -> MoneyDecimal
 stockByAlg e =
     EA.balanceBy
         [Not :<(Products, e, e, Amount)]
         [Hat :<(Products, e, e, Amount)]
 
-grossProfitByAlg :: Company -> EA.Alg NNDecimal HatBase2 -> NNDecimal
+grossProfitByAlg :: Company -> EA.Alg MoneyDecimal HatBase2 -> MoneyDecimal
 grossProfitByAlg e =
     EA.balanceBy
         [Not :<(GrossProfit, (.#), e, Yen)]
         [Hat :<(GrossProfit, (.#), e, Yen)]
 
 data TermAnalysis = TermAnalysis
-    { _taTermAlg :: EA.Alg NNDecimal HatBase2
-    , _taGrossProfitAlg :: EA.Alg NNDecimal HatBase2
+    { _taTermAlg :: EA.Alg MoneyDecimal HatBase2
+    , _taGrossProfitAlg :: EA.Alg MoneyDecimal HatBase2
     }
 
 newtype AnalysisCache = AnalysisCache
@@ -362,10 +362,10 @@ lookupTermAnalysis (AnalysisCache byTerm) t =
         Nothing -> error ("term analysis not found: " ++ show t)
 
 stockByAnalysis :: Company -> TermAnalysis -> Double
-stockByAnalysis e = realToFrac . stockByAlg e . _taTermAlg  -- exact NNDecimal -> Double for reporting
+stockByAnalysis e = realToFrac . stockByAlg e . _taTermAlg  -- exact MoneyDecimal -> Double for reporting
 
 grossProfitByAnalysis :: Company -> TermAnalysis -> Double
-grossProfitByAnalysis e = realToFrac . grossProfitByAlg e . _taGrossProfitAlg  -- exact NNDecimal -> Double for reporting
+grossProfitByAnalysis e = realToFrac . grossProfitByAlg e . _taGrossProfitAlg  -- exact MoneyDecimal -> Double for reporting
 
 -- | Input coefficient: required amount of e2 to produce one unit of e1.
 getInputCoefficient :: World s -> Company -> Company -> ST s InputCoefficient
@@ -391,7 +391,7 @@ getInputCoefficients world (i, j) = do
 instance StateSpace Term InitVar EventName World s where
     event = event'
 
-type ShortageMap = M.Map (Company, Company) NNDecimal
+type ShortageMap = M.Map (Company, Company) MoneyDecimal
 
 buildShortageMap :: Term -> Transaction -> ShortageMap
 buildShortageMap t ledger =
@@ -404,7 +404,7 @@ buildShortageMap t ledger =
         | otherwise = Nothing
     collect _ _ = Nothing
 
-purchasePosting :: NNDecimal -> Company -> Company -> EA.Alg NNDecimal HatBase2
+purchasePosting :: MoneyDecimal -> Company -> Company -> EA.Alg MoneyDecimal HatBase2
 purchasePosting amount i j =
     amount :@ Not :<(Products, j, i, Amount)
     .+ amount :@ Hat :<(Cash, (.#), i, Yen)

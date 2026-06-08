@@ -9,7 +9,7 @@ import           ExchangeAlgebra.Journal
 import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Journal  as EJ
 import qualified ExchangeAlgebra.Journal.Transfer as EJT
-import           ExchangeAlgebra.Value    (NNDecimal)  -- exact accounting value type
+import           ExchangeAlgebra.Value    (MoneyDecimal)  -- exact accounting value type
 
 import           ExchangeAlgebra.Simulate
 import qualified ExchangeAlgebra.Simulate as ES
@@ -133,10 +133,10 @@ instance ExBaseClass HatBase2 where
 
 
 -- | 取引
--- Accounting value type is NNDecimal (exact, construction-order-independent).
+-- Accounting value type is MoneyDecimal (exact, construction-order-independent).
 -- ABM params / coefficients / random draws stay Double and convert (realToFrac)
 -- at the boundary where they enter the ledger; reported stock/profit convert back.
-type Transaction = EJ.Journal (EventName,Term) NNDecimal HatBase2
+type Transaction = EJ.Journal (EventName,Term) MoneyDecimal HatBase2
 
 compressPreviousTerm :: Term -> Transaction -> Transaction
 compressPreviousTerm t le =
@@ -275,7 +275,7 @@ getTermStock wld t e = do
         plusStock = norm $ EJ.projWithBase [Not:<(Products,e,e,Amount)] tj
         minusStock = norm $ EJ.projWithBase [Hat:<(Products,e,e,Amount)] tj
 
-    return $ realToFrac (plusStock - minusStock)  -- exact NNDecimal -> Double for reporting
+    return $ realToFrac (plusStock - minusStock)  -- exact MoneyDecimal -> Double for reporting
 
 -- | 一期の粗利益を取得する
 getTermGrossProfit :: World s -> Term -> Company -> ST s Double
@@ -285,7 +285,7 @@ getTermGrossProfit wld t e = do
         tr    = EJT.grossProfitTransfer termTr
         plus  = norm $ EJ.projWithBase [Not:<(GrossProfit,(.#),e,Yen)] tr
         minus = norm $ EJ.projWithBase [Hat:<(GrossProfit,(.#),e,Yen)] tr
-    return $ realToFrac (plus - minus)  -- exact NNDecimal -> Double for reporting
+    return $ realToFrac (plus - minus)  -- exact MoneyDecimal -> Double for reporting
 
 -- | 記帳
 journal :: World s ->  Transaction -> ST s ()
@@ -327,13 +327,13 @@ getInputCoefficients wld (i,j) = do
 instance StateSpace Term InitVar EventName World s where
     event = event'
 
-short :: Company -> Company -> Term -> Transaction -> NNDecimal
+short :: Company -> Company -> Term -> Transaction -> MoneyDecimal
 short i j t le
     = norm $ EJ.projWithBase [Hat:<(Products,j, i,Amount)]
            $ (.-)
            $ termJournal t le
 
-buildShortageMap :: Term -> Transaction -> M.Map (Company, Company) NNDecimal
+buildShortageMap :: Term -> Transaction -> M.Map (Company, Company) MoneyDecimal
 buildShortageMap t le =
     let termAlg = EJ.toAlg $ (.-) $ termJournal t le
     in L.foldl' go M.empty (EA.toList termAlg)

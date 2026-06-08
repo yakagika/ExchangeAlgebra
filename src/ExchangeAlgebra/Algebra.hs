@@ -223,7 +223,7 @@ nearlyEqScaled x y
 -- (@'bar' ('bar' x) = 'bar' x@), 'Zero' identity, and associativity of @('.+')@.
 -- Note @('.+')@ accumulates same-base postings as an ordered sequence (the
 -- /redundancy/), so 'Show' \/ 'Eq' observe that order; for the exact value type
--- 'ExchangeAlgebra.Value.NNDecimal', 'norm' \/ 'bar' are order-independent.
+-- 'ExchangeAlgebra.Value.MoneyDecimal', 'norm' \/ 'bar' are order-independent.
 
 class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
     -- | Hat operation. Flips Hat/Not on all elements.
@@ -304,11 +304,11 @@ class (Redundant a n b ) => Exchange a n b where
 -- Provides zero-value / error-value predicates and a representation-specific
 -- renderer ('showValue').
 -- Instances are defined for @Double@ and @NN.Double@ (non-negative reals);
--- a non-negative exact-decimal instance (@NNDecimal@) is planned.
+-- a non-negative exact-decimal instance (@MoneyDecimal@) is planned.
 --
 -- DESIGN NOTE (2026-06-06, selectable value type — Double vs exact Decimal):
 -- The @RealFloat@ superclass was intentionally *removed* so that exact,
--- non-floating-point value types (the planned @NNDecimal@ = non-negative
+-- non-floating-point value types (the planned @MoneyDecimal@ = non-negative
 -- 'Data.Decimal.Decimal') can be 'HatVal' instances and give construction-order
 -- -independent, exact summation. @RealFloat@ was only ever needed in two places:
 --   * @showV@ (rendering via 'Data.Scientific.fromFloatDigits') — now replaced by

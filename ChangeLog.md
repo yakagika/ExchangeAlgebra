@@ -2,24 +2,36 @@
 
 ## 0.5.0.0 - 2026-06-07
 
-Selectable value type: `Double` (default, fast) vs an exact non-negative
-`Decimal` (`NNDecimal`) for determinism/auditability. **Breaking** (PVP major):
+Selectable value type: `Double` (default, fast) / `MoneyDouble` (typed fast FP)
+vs an exact non-negative `Decimal` (`MoneyDecimal`) for determinism/auditability.
+**Breaking** (PVP major):
 `HatVal` lost its `RealFloat` superclass and gained `showValue`. See the README
 "Choosing a value type" and "Migrating to 0.5.0.0" sections.
 
 ### Added
-- `ExchangeAlgebra.Value` with `NNDecimal`, an exact non-negative decimal value type
+- `ExchangeAlgebra.Value` with `MoneyDecimal`, an exact non-negative decimal value type
   (wraps `Data.Decimal.Decimal`) usable as the `v` in `Alg v b` / `Journal n v b`.
   Numeric literals work directly (derived `Num`/`Fractional`). Because decimal addition
   is exact and associative, `norm` / `bar` results are independent of construction order
   (unlike `Double`). Ships `bankersRound` (round-half-to-even, the unbiased financial
   default) and `ceilingRound`. New dependency: `Decimal`.
+- `ExchangeAlgebra.Value.MoneyDouble`, a zero-cost `newtype` over `Double` for a fast
+  IEEE-754 value type that is *typed* as money (distinct from bare `Double`
+  coefficients / random draws) yet has identical speed and precision. All its
+  instances (`HatVal`/`Nearly`/`Binary`/`Hashable`/`NFData`, plus the numeric
+  classes) are derived from the bare-`Double` instances via `deriving newtype`, so —
+  like `MoneyDecimal` — there are no orphan instances. Its subtraction is signed, so
+  the negative intermediates that arise inside `bar`/`(.-)` are fine (unlike
+  `Number.NonNegative.Double`, whose `(-)` errors on a negative result, making it
+  unusable as a value type). Measured: `MoneyDouble` matches `MoneyDecimal` exactly
+  where a result is exactly representable but diverges in the last ULP at scale, and
+  runs ~5–7× faster with ~15% less memory than `MoneyDecimal` in `sim2`.
 - `ExchangeAlgebra.Algebra.mapBasePart :: (BasePart b -> BasePart b') -> Alg v b ->
   Alg v b'` — relabel the base part of every element while preserving the Hat/Not
   structure and the redundancy (ordered sequences); colliding targets are
   concatenated, so `norm` is preserved. (Hat is left untouched; the type expresses
   the Hat/Not-preserving intent, per the redundant-algebra design.)
-- README gains a "Choosing a value type" section (Double vs NNDecimal comparison
+- README gains a "Choosing a value type" section (Double vs MoneyDecimal comparison
   table, the simulation boundary pattern, the large-scale precision×memory
   trade-off, and the `fromList` ordering contract).
 
@@ -45,13 +57,13 @@ Selectable value type: `Double` (default, fast) vs an exact non-negative
   only change is the accumulation order of same-note/same-base postings within one
   `Alg` sequence. That `Seq` order is observable through `Eq` / `Show` / `toAlg` /
   `Binary`, and for `Double` through the last-ULP of `norm` / `bar`. For the exact
-  `NNDecimal` value type the order never affects `norm` / `bar` / balance. (The
+  `MoneyDecimal` value type the order never affects `norm` / `bar` / balance. (The
   interim `fromListFast`, added during staging, was folded back into `fromList`.)
 
 ### Changed (examples / tests)
 - The bundled bookkeeping and simulation examples (`elementaryBookkeepingEx1–5`,
   `simulateEx1`, `simulateEx2`) and the test suite's simulation now use the exact
-  `NNDecimal` ledger value type, following the boundary pattern (ABM
+  `MoneyDecimal` ledger value type, following the boundary pattern (ABM
   parameters/coefficients/random draws stay `Double` and convert at the ledger
   boundary; reported stocks/profits convert back). The numeric-method examples
   (`ripple/*`, `CGE`) intentionally stay `Double`, demonstrating the Double side of
@@ -63,7 +75,7 @@ Selectable value type: `Double` (default, fast) vs an exact non-negative
   norm additivity, norm homogeneity) and derived lemmas (bar idempotent, zero
   identity, associativity), plus two regression generalizations: `union` preserves
   the per-base net even for zero-valued singletons (the 0.4.1.1 bug class), and
-  `NNDecimal` `fromList` per-base nets are construction-order independent.
+  `MoneyDecimal` `fromList` per-base nets are construction-order independent.
   Journal-level properties: `norm` additivity, Hat preserves the note set, and
   per-(note,base) net is construction-order independent.
 - Documented the Definition 6 axioms on the `Redundant` class and `norm` (Haddock

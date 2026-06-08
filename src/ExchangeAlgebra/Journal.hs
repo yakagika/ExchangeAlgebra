@@ -438,7 +438,7 @@ instance (Note n, HatVal v, ExBaseClass b) => Exchange (Journal n) v b where
 -- fold is far cheaper at scale — the lazy right fold builds a deep right-nested
 -- thunk that is expensive to force (≈40x at N=20000, ~15x at N=10000 in the core
 -- benchmark). The fold direction was switched to the fast version once the
--- audited/exact path moved to 'ExchangeAlgebra.Value.NNDecimal'; see
+-- audited/exact path moved to 'ExchangeAlgebra.Value.MoneyDecimal'; see
 -- plans/in-progress/LAZY_EVAL_AUDIT.md and SELECTABLE_VALUE_TYPE_PLAN.md.
 --
 -- == Behaviour contract
@@ -452,9 +452,9 @@ instance (Note n, HatVal v, ExBaseClass b) => Exchange (Journal n) v b where
 -- 'norm' \/ 'bar' (IEEE-754 addition is non-associative). Postings that differ in
 -- note or base land in separate map entries and are unaffected.
 --
--- For an /exact/ value type ('ExchangeAlgebra.Value.NNDecimal') addition is
+-- For an /exact/ value type ('ExchangeAlgebra.Value.MoneyDecimal') addition is
 -- associative, so 'norm' \/ 'bar' \/ balance are independent of construction order
--- (the fold direction here, parallel merges, etc.). Use 'NNDecimal' when you need
+-- (the fold direction here, parallel merges, etc.). Use 'MoneyDecimal' when you need
 -- deterministic, auditable totals.
 --
 -- >>> type Test = Journal String Double (HatBase AccountTitles)

@@ -128,25 +128,46 @@ patterns below.
 
 ## Choosing a value type
 
-The value parameter `v` in `Alg v b` / `Journal n v b` is selectable. Two value
-types are provided; pick per workload.
+The value parameter `v` in `Alg v b` / `Journal n v b` is selectable. Pick per
+workload. The bare `Double` is the default; `ExchangeAlgebra.Value` adds two
+`newtype` money types — `MoneyDouble` (fast, FP) and `MoneyDecimal` (exact).
 
-| | `Double` (default) | `NNDecimal` (`ExchangeAlgebra.Value`) |
-|---|---|---|
-| Representation | IEEE-754 binary float | exact non-negative base-10 decimal (wraps `Data.Decimal`) |
-| Decimal prices / ratios | approximate | **exact** |
-| Tax / proration (`*`, `/`) | rounding noise | exact intermediates; round explicitly with `bankersRound` / `ceilingRound` |
-| Construction-order independence | ✗ — addition is non-associative, so the order same-base postings are summed shifts the last-ULP of `norm` / `bar` | ✓ — addition is exact & associative, so `norm` / `bar` / balance are identical regardless of build order |
-| Determinism / auditability | not bit-reproducible across reorderings | bit-reproducible |
-| Memory per value | ~16 B | ~40 B + indirection (~2.5×) |
-| Speed | fastest | slower (boxed `Integer` mantissa arithmetic) |
-| Typical use | agent-based models, relative-price dynamics, numeric methods (Leontief inverse, optimization) | audited ledgers, bookkeeping, anywhere a total must be reproducible |
+| | `Double` (default) | `MoneyDouble` (`…Value`) | `MoneyDecimal` (`…Value`) |
+|---|---|---|---|
+| Representation | IEEE-754 binary float | `newtype` over `Double` (identical bits) | exact non-negative base-10 decimal (wraps `Data.Decimal`) |
+| Distinct money type | ✗ — a bare numeric type | ✓ — can't be silently mixed with coefficients / draws | ✓ |
+| Decimal prices / ratios | approximate | approximate | **exact** |
+| Tax / proration (`*`, `/`) | rounding noise | rounding noise | exact intermediates; round explicitly with `bankersRound` / `ceilingRound` |
+| Construction-order independence | ✗ — addition is non-associative, so the order same-base postings are summed shifts the last-ULP of `norm` / `bar` | ✗ — identical to `Double` | ✓ — addition is exact & associative, so `norm` / `bar` / balance are identical regardless of build order |
+| Determinism / auditability | not bit-reproducible across reorderings | not bit-reproducible | bit-reproducible |
+| Memory per value | ~16 B | ~16 B (zero-cost wrapper) | ~40 B + indirection (~2.5×) |
+| Speed | fastest | fastest (= `Double`) | slower (boxed `Integer` mantissa arithmetic) |
+| Typical use | numeric methods (Leontief inverse, optimization), quick ABM | ABM where you want a *typed* money value distinct from raw `Double` | audited ledgers, bookkeeping, anywhere a total must be reproducible |
 
 ```haskell
-import ExchangeAlgebra.Value (NNDecimal)
-type Ledger = Journal Term NNDecimal (HatBase AccountTitles)
+import ExchangeAlgebra.Value (MoneyDecimal)        -- or MoneyDouble
+type Ledger = Journal Term MoneyDecimal (HatBase AccountTitles)
 entry = 10.5 :@ Hat:<Cash .+ 2 :@ Not:<Sales   -- numeric literals work directly
 ```
+
+**FP vs exact, made concrete (measured).** In the bundled `sim1`, the same
+stock value matches both types where it lands on an exactly-representable result
+(`stock(t=1, c=6) = 30.0` under `MoneyDouble` *and* `MoneyDecimal`), but diverges
+in the last ULP once FP rounding accumulates over terms
+(`stock(t=100, c=6)`: `767.960563480499` under `MoneyDouble` vs
+`767.9605634804993` under `MoneyDecimal`). The cost of that exactness is real and
+was measured: in `sim2` (all-pairs purchases over a spill-to-disk ledger),
+`MoneyDecimal` ran **~5–7× slower** in wall-clock and used **~15% more memory**
+than `MoneyDouble` (consistent at `EA_LASTC`/`EA_LASTTERM` of 40/30 and 80/50 —
+e.g. 23.3 s → 4.4 s and 1.42 GB → 1.19 GB at 80/50). The boxed `Integer`-mantissa
+decimal arithmetic dominates the runtime, so this is the exactness ↔ speed
+trade-off in concrete numbers. `MoneyDouble` is exactly as fast as
+bare `Double` (a zero-cost wrapper) and runs everywhere `Double` does — its
+subtraction is *signed*, so the negative intermediates that arise inside
+`bar` / `(.-)` are fine. (`Number.NonNegative.Double` is **not** a usable value
+type for this reason: its `(-)` *errors* on a negative result, which the algebra's
+netting produces constantly. Use `MoneyDouble` for a non-negative-by-convention FP
+money type instead.)
 
 **Boundary pattern (simulations).** Keep ABM parameters, input coefficients and
 random draws as `Double`, and convert (`realToFrac`) only where a value *enters
@@ -156,7 +177,7 @@ simulation examples follow this pattern; the numeric-method examples
 (`ripple/*`, `CGE`) stay `Double` because they are inherently floating-point.
 
 **Large scale: precision × memory trade-off.** Retaining every posting is `O(n)`
-regardless of value type; `NNDecimal` adds a constant factor (~2.5× per value box)
+regardless of value type; `MoneyDecimal` adds a constant factor (~2.5× per value box)
 on top. For very large simulations weigh exactness against that overhead — or use
 the spill-to-disk path (below) to keep memory constant.
 
@@ -164,7 +185,7 @@ the spill-to-disk path (below) to keep memory constant.
 preserves the *multiset* of postings exactly. When two postings collide on the
 same note **and** base they land in one ordered sequence; that sequence's order is
 observable through `Eq` / `Show` / `toAlg` / `Binary`, and for `Double` through the
-last-ULP of `norm` / `bar`. For `NNDecimal` the order never affects
+last-ULP of `norm` / `bar`. For `MoneyDecimal` the order never affects
 `norm` / `bar` / balance. (`Integer` is intentionally not offered — it cannot
 represent the fractional relative prices the ABM work depends on.)
 
@@ -181,7 +202,7 @@ ledgers keep working and render identically. Two things to know:
 - **`fromList` accumulation order**: now a strict left fold. The multiset is
   preserved, but if you compared `Show` / `Eq` / serialized output of a
   `fromList`-built journal byte-for-byte, the same-(note,base) sequence order may
-  differ. Switch such ledgers to `NNDecimal` for order-independent results, or
+  differ. Switch such ledgers to `MoneyDecimal` for order-independent results, or
   compare via `norm` / `bar` / `balanceBy` rather than raw structure.
 
 (`0.5.0.0` also includes the `union` zero-base correctness fix first shipped in

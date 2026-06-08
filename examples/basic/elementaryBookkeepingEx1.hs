@@ -19,7 +19,7 @@ import              Data.Time
 type MinBase = EA.HatBase EA.AccountTitles
 
 -- | 取引情報
-type MinTransaction = EA.Alg NNDecimal MinBase
+type MinTransaction = EA.Alg MoneyDecimal MinBase
 
 
 -- ** 3章例題
@@ -104,7 +104,7 @@ q4A' = ET.incomeSummaryAccount q4
 type ADBase = EA.HatBase (EA.AccountTitles,Day)
 
 -- | 取引情報
-type ADTransaction = EA.Alg NNDecimal ADBase
+type ADTransaction = EA.Alg MoneyDecimal ADBase
 
 d = fromGregorian
 
