@@ -271,6 +271,34 @@ testScalarRejectsNegative = do
     -- non-negative scalar still works
     assertNear "(.*) non-negative scalar works" 20.0 (norm (2 .* xD))
 
+-- Step 1 (concrete projection keeps the axis index lazy): the module is compiled
+-- @Strict@, so a concrete (non-wildcard) 'projNorm' must NOT force the lazy
+-- @_axisPosting@ index (it should be a plain 'Map.lookup'); a wildcard 'projNorm'
+-- must use (force) it. We poison the index fields with 'error' and check which
+-- projection crashes. Guards the projExactMap/projWildMap split.
+testProjConcreteNoIndexForce :: IO ()
+testProjConcreteNoIndexForce = do
+    let alg :: EA.Alg Double SimHatBase2
+        alg = EA.fromList [ 10 :@ Not :< (Cash, 1, 1, Yen)
+                          , 20 :@ Not :< (Products, 2, 2, Amount)
+                          , 30 :@ Hat :< (Cash, 3, 3, Yen) ]
+    case alg of
+      EA.Liner m _ _ _ _ _ -> do
+        let poison = EA.Liner m (error "POISON") (error "POISON")
+                                (error "POISON") (error "POISON") (error "POISON")
+        rc <- try (evaluate (EA.projNorm [Not :< (Cash, 1, 1, Yen)] poison))
+                :: IO (Either SomeException Double)
+        case rc of
+          Right v | v == 10.0 -> putStrLn "[PASS] concrete projNorm does not force the axis index"
+          Right v             -> do putStrLn ("[FAIL] concrete projNorm wrong value: " ++ show v); exitFailure
+          Left _              -> do putStrLn "[FAIL] concrete projNorm forced the (poisoned) axis index"; exitFailure
+        rw <- try (evaluate (EA.projNorm [Not :< (Cash, (.#), 1, Yen)] poison))
+                :: IO (Either SomeException Double)
+        case rw of
+          Left _   -> putStrLn "[PASS] wildcard projNorm uses the axis index (forced, as required)"
+          Right v  -> do putStrLn ("[FAIL] wildcard projNorm did not use the index: " ++ show v); exitFailure
+      _ -> do putStrLn "[FAIL] expected a Liner"; exitFailure
+
 testJournalSigmaMergePath :: IO ()
 testJournalSigmaMergePath = do
     let xs = [1 .. 4 :: Int]
@@ -1022,6 +1050,7 @@ main = do
     testJournalFromListStrict
     testUnionZeroSingletonBase
     testScalarRejectsNegative
+    testProjConcreteNoIndexForce
     testJournalSigmaMergePath
     testJournalSigma2When
     testJournalSigmaOn

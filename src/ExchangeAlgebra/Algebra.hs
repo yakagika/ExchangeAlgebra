@@ -1289,15 +1289,23 @@ proj _     Zero       = Zero
 proj [b] (v:@b2)
     | b .== b2  = v:@b2
     | otherwise = Zero
-proj [b] (Liner m idx _ idToBp _ allIds) =
-    mkAlgFromMap $ projSingleMap b m idx idToBp allIds
+-- Index fields bound lazily (@~@) so a concrete (non-wildcard) base never forces
+-- the axis index (the module is @Strict@; see 'projExactMap').
+proj [b] (Liner m ~idx _ ~idToBp _ ~allIds) =
+    mkAlgFromMap $
+        if haveWiledcard (base b)
+            then projWildMap  b m idx idToBp allIds
+            else projExactMap b m
 proj (b:bs) (v:@b2)
     |  b .== b2       = v:@b2
     | otherwise       = proj bs (v:@b2)
-proj (b:bs) (Liner m idx _ idToBp _ allIds) =
+proj (b:bs) (Liner m ~idx _ ~idToBp _ ~allIds) =
     mkAlgFromMap $
         L.foldl'
-            (\acc q -> Map.unionWith pairAppend acc (projSingleMap q m idx idToBp allIds))
+            (\acc q -> Map.unionWith pairAppend acc
+                 (if haveWiledcard (base q)
+                     then projWildMap  q m idx idToBp allIds
+                     else projExactMap q m))
             Map.empty
             (b:bs)
 
@@ -1310,11 +1318,38 @@ choosePairByHat h Pair {_hatSide = hs, _notSide = ns} =
         Not    -> nullPair {_notSide = ns}
         HatNot -> Pair {_hatSide = hs, _notSide = ns}
 
-{-# INLINE projSingleMap #-}
--- | Complexity:
---   - wildcard path: O(queryAxisPosting + c * verify)
---   - exact path: expected O(1)
-projSingleMap
+{-# INLINE projExactMap #-}
+-- | Exact (non-wildcard) single-base projection: a direct 'Map.lookup' on the
+-- @_realg@ map. It does NOT reference the axis index, so the concrete projection
+-- path can keep that lazy index unforced.
+--
+-- This matters because the module is compiled @{-\# LANGUAGE Strict \#-}@: handing
+-- the (lazy) index to a helper that takes it as a strict argument would force its
+-- whole construction even for a concrete lookup that never needs it. Callers
+-- therefore dispatch on 'haveWiledcard' BEFORE touching the index, binding the
+-- index fields lazily (@~@) and only mentioning them on the wildcard branch.
+-- Guarded by the poison-index regression test in the test suite.
+--
+-- Complexity: expected O(1).
+projExactMap
+    :: (HatBaseClass b)
+    => b
+    -> Map.HashMap (BasePart b) (Pair v)
+    -> Map.HashMap (BasePart b) (Pair v)
+projExactMap b m = case Map.lookup bp m of
+        Nothing -> Map.empty
+        Just p  -> Map.singleton bp (choosePairByHat h p)
+  where
+    !bp = base b
+    !h  = hat b
+
+{-# INLINE projWildMap #-}
+-- | Wildcard single-base projection: resolves candidates through the axis index
+-- ('queryAxisPosting'), so it necessarily forces the index. Only invoked when
+-- 'haveWiledcard' holds.
+--
+-- Complexity: O(queryAxisPosting + c * verify).
+projWildMap
     :: (HatBaseClass b)
     => b
     -> Map.HashMap (BasePart b) (Pair v)
@@ -1322,22 +1357,18 @@ projSingleMap
     -> IntMap.IntMap (BasePart b)
     -> IntSet.IntSet
     -> Map.HashMap (BasePart b) (Pair v)
-projSingleMap b m idx idToBp allIds
-    | haveWiledcard bp =
-        let !ids = queryAxisPosting (toAxisKeys bp) idx allIds
-        in IntSet.foldl'
-            (\acc bpId -> case IntMap.lookup bpId idToBp of
+projWildMap b m idx idToBp allIds =
+    let !ids = queryAxisPosting (toAxisKeys bp) idx allIds
+    in IntSet.foldl'
+        (\acc bpId -> case IntMap.lookup bpId idToBp of
+            Nothing -> acc
+            Just bp0 -> case Map.lookup bp0 m of
                 Nothing -> acc
-                Just bp0 -> case Map.lookup bp0 m of
-                    Nothing -> acc
-                    Just p  -> if bp .== bp0
-                        then Map.insert bp0 (choosePairByHat h p) acc
-                        else acc)
-            Map.empty
-            ids
-    | otherwise = case Map.lookup bp m of
-        Nothing -> Map.empty
-        Just p  -> Map.singleton bp (choosePairByHat h p)
+                Just p  -> if bp .== bp0
+                    then Map.insert bp0 (choosePairByHat h p) acc
+                    else acc)
+        Map.empty
+        ids
   where
     !bp = base b
     !h = hat b
@@ -1392,12 +1423,20 @@ projNorm _ Zero = 0
 projNorm bs (v :@ b)
     | L.any (.== b) bs = v
     | otherwise        = 0
-projNorm [b] (Liner m idx _ idToBp _ allIds) =
-    foldProjectedNorm (projSingleMap b m idx idToBp allIds)
-projNorm bs (Liner m idx _ idToBp _ allIds) =
+-- Index fields bound lazily (@~@); a concrete base uses 'projExactMap' (a plain
+-- 'Map.lookup') and never forces the axis index. See 'projExactMap'.
+projNorm [b] (Liner m ~idx _ ~idToBp _ ~allIds) =
+    foldProjectedNorm $
+        if haveWiledcard (base b)
+            then projWildMap  b m idx idToBp allIds
+            else projExactMap b m
+projNorm bs (Liner m ~idx _ ~idToBp _ ~allIds) =
     foldProjectedNorm $
         L.foldl'
-            (\acc q -> Map.unionWith pairAppend acc (projSingleMap q m idx idToBp allIds))
+            (\acc q -> Map.unionWith pairAppend acc
+                 (if haveWiledcard (base q)
+                     then projWildMap  q m idx idToBp allIds
+                     else projExactMap q m))
             Map.empty
             bs
 

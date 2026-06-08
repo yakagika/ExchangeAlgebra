@@ -60,6 +60,19 @@ vs an exact non-negative `Decimal` (`MoneyDecimal`) for determinism/auditability
   `MoneyDecimal` value type the order never affects `norm` / `bar` / balance. (The
   interim `fromListFast`, added during staging, was folded back into `fromList`.)
 
+### Performance (non-breaking)
+- Concrete (non-wildcard) `proj` / `projNorm` no longer force/build the lazy axis
+  index. The module is compiled `Strict`, so passing the index to the shared
+  projection helper previously forced its full construction even for an exact
+  single-base lookup that only needs a `Map.lookup`. The helper is now split into
+  `projExactMap` (index-free) and `projWildMap` (uses the index), and callers
+  dispatch on `haveWiledcard` with the index fields bound lazily — so an exact
+  projection is a plain `Map.lookup` and a wildcard projection still uses the
+  index. Measured ~4× faster for repeated concrete projections over a large
+  ledger (more for workloads that rebuild the projected algebra per query, e.g.
+  per-company stock reporting). Results are unchanged; guarded by a poison-index
+  regression test.
+
 ### Changed (examples / tests)
 - The bundled bookkeeping and simulation examples (`elementaryBookkeepingEx1–5`,
   `simulateEx1`, `simulateEx2`) and the test suite's simulation now use the exact
