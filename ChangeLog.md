@@ -31,6 +31,13 @@ vs an exact non-negative `Decimal` (`MoneyDecimal`) for determinism/auditability
   structure and the redundancy (ordered sequences); colliding targets are
   concatenated, so `norm` is preserved. (Hat is left untouched; the type expresses
   the Hat/Not-preserving intent, per the redundant-algebra design.)
+- `ExchangeAlgebra.Algebra.balanceMapBy :: (BasePart b -> Maybe k) -> Alg v b ->
+  Map k v` — the bucketed form of `balanceBy`: nets each entry by a key projected
+  from its `BasePart` (Not adds, Hat subtracts) in a single fold, replacing one
+  wildcard projection per key. For per-key reporting (e.g. per-company stock /
+  profit) this turns `O(keys * entries)` into `O(entries)`; the result equals the
+  per-key `balanceBy` up to floating-point reassociation. Returns *signed* net
+  balances, so use a signed value type (`Double` / `MoneyDouble` / `MoneyDecimal`).
 - README gains a "Choosing a value type" section (Double vs MoneyDecimal comparison
   table, the simulation boundary pattern, the large-scale precision×memory
   trade-off, and the `fromList` ordering contract).

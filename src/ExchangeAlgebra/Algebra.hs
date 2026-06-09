@@ -69,6 +69,7 @@ module ExchangeAlgebra.Algebra
     , projByAccountTitle
     , projNorm
     , balanceBy
+    , balanceMapBy
     , foldEntriesToMap
     , projCurrentAssets
     , projFixedAssets
@@ -1472,6 +1473,40 @@ barNormPair (Pair hs ns) =
 balanceBy :: (HatVal n, HatBaseClass b) => [b] -> [b] -> Alg n b -> n
 balanceBy plusBases minusBases alg =
     projNorm plusBases alg - projNorm minusBases alg
+
+-- | Aggregate the net balance of an 'Alg' by a key, in a single pass.
+--
+-- @balanceMapBy keyOf@ is the bucketed form of 'balanceBy': for every entry it
+-- projects the (side-stripped) 'BasePart' to a bucket key with @keyOf@ ('Nothing'
+-- drops the entry), and nets each bucket using the Hat\/Not convention (Not adds,
+-- Hat subtracts) — exactly @projNorm [Not:<k] - projNorm [Hat:<k]@ per key.
+-- @keyOf@ sees only the 'BasePart', not the Hat\/Not side, so it cannot split one
+-- key across sides.
+--
+-- This replaces @[ (k, balanceBy [Not:<k] [Hat:<k] alg) | k <- keys ]@ — one
+-- wildcard projection per key — with a single fold; the result is identical up to
+-- floating-point reassociation. For per-key reporting over many keys this is the
+-- difference between @O(keys * entries)@ and @O(entries)@.
+--
+-- The values are /signed/ net balances and may be negative, so use a signed value
+-- type (e.g. 'Double', @MoneyDouble@, @MoneyDecimal@); a non-negative-only type
+-- such as @Number.NonNegative.Double@ is unsuitable here. Keys whose net is zero
+-- are kept (like 'foldEntriesToMap'); filter afterwards if undesired.
+--
+-- Complexity: O(total number of entries) — a single fold, no per-key projection.
+--
+-- >>> type T = Alg Double (HatBase AccountTitles)
+-- >>> let alg = 100 :@ Not:<Cash .+ 30 :@ Hat:<Cash .+ 50 :@ Not:<Deposits :: T
+-- >>> balanceMapBy Just alg
+-- fromList [(Cash,70.0),(Deposits,50.0)]
+{-# INLINE balanceMapBy #-}
+balanceMapBy :: (HatVal v, HatBaseClass b, Ord k)
+             => (BasePart b -> Maybe k) -> Alg v b -> M.Map k v
+balanceMapBy keyOf = foldEntriesToMap step
+  where
+    step v b = case keyOf (base b) of
+        Nothing -> Nothing
+        Just k  -> Just (k, if isHat b then negate v else v)
 
 -- | Fold algebra entries into a @Map@, combining values with @(+)@.
 --
