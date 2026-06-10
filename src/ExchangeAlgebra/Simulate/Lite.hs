@@ -149,6 +149,7 @@ import           Data.IORef                 (newIORef, readIORef, writeIORef)
 import           System.IO                  (Handle, IOMode(AppendMode), withFile)
 import           System.Random              (StdGen, mkStdGen)
 import           Control.Parallel.Strategies (parListChunk, rdeepseq, using)
+import           Control.DeepSeq            (deepseq)
 import qualified Data.Binary                as Binary
 import qualified Data.HashMap.Strict        as HM
 
@@ -453,6 +454,17 @@ enumFromThenToInclusive from0 to0
 -- agent gets a 'StdGen' derived purely from
 -- @('specSeed', termIx, stageIx, agentIx)@, so the result is independent of the
 -- evaluation order or the 'Par' policy.
+--
+-- Under 'ParChunk' the FIRST message is forced to normal form in the calling
+-- thread before the remaining messages are sparked. Every message reaches the
+-- shared snapshot @view@ through lazily-built index structures (the Journal's
+-- note-axis index, each Alg's base index); if many sparks race to force those
+-- shared thunks, the RTS's duplicate-work suspension can re-enter its own
+-- blackhole and abort with a spurious @<<loop>>@ (observed intermittently at
+-- @-N4@; the thunk graph is acyclic — sequential evaluation never loops).
+-- Forcing one message first materialises the shared structure in a single
+-- thread, so the sparks only evaluate agent-local work. Pure values: the
+-- result is unchanged (DET-2 asserts exact equality).
 runStage :: SimSpec w t n v b
          -> w SnapT
          -> t
@@ -466,7 +478,10 @@ runStage spec view t termIx stageIx (StageFor _ agents f) =
                 | (agentIx, a) <- zip [0 ..] agents ]
     in case specParallel spec of
          Sequential   -> msgs
-         ParChunk c    -> msgs `using` parListChunk (max 1 c) rdeepseq
+         ParChunk c    -> case msgs of
+             []       -> []
+             (m : ms) -> m `deepseq`
+                 (m : (ms `using` parListChunk (max 1 c) rdeepseq))
 
 -- | Deterministically derive an agent's generator from the seed and the
 -- @(term, stage, agent)@ coordinates only — never from scheduling. Uses a hash

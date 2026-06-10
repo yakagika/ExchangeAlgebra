@@ -116,6 +116,18 @@
   per-key wildcard `balanceBy` loop, `balanceMapBy`, `decBy`+`norm`, and
   `postFromNetBy` at K=200/1000 keys.
 
+### Fixed
+
+- `Simulate.Lite`: under `ParChunk`, the first stage message is now forced to
+  normal form in the calling thread before the remaining messages are sparked.
+  Previously all sparks raced to force the shared snapshot's lazily-built index
+  structures, which could abort a run with a spurious RTS `<<loop>>`
+  (intermittent, scheduling-dependent — the thunk graph is acyclic and
+  sequential runs are unaffected). Results are unchanged (pure values;
+  determinism tests assert exact equality). The library and example executables
+  are also compiled with `-feager-blackholing`, as recommended by GHC for
+  programs using sparks.
+
 ## 0.5.0.0 - 2026-06-07
 
 Selectable value type: `Double` (default, fast) / `MoneyDouble` (typed fast FP)
