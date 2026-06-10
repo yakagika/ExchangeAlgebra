@@ -3,6 +3,34 @@
 ## Unreleased
 
 ### Added
+- `ExchangeAlgebra.Simulate.Policy` — a declarative vocabulary for managing the
+  size of a long simulation's audit trail, decided once when the ledger is
+  built. A `LedgerPolicy` bundles three orthogonal choices: **retention**
+  (`Retention` = `RetainAll` | `RetainRecent Int`, the resident-history window),
+  **spill** (`spillTo :: Maybe FilePath`, an optional binary backup of evicted
+  terms), and **compaction** (`Compaction` = `FullAudit` | `CompressClosedTerms`).
+  `CompressClosedTerms` applies `compress` only to *closed* terms — it is
+  norm- and balance-preserving (only the within-term posting sequence is
+  collapsed) and the in-progress term always keeps its full audit trail; per the
+  prohibition on implicit `bar`/`compress` it is reachable only through this
+  named policy. The term a `Note` belongs to is fixed by the `HasTermAxis` class
+  (type family `TermOf n`, method `termOf`): **the term is the last component of
+  the Note**, with shipped `(e, t)` and `(e1, e2, t)` instances and a one-line
+  instance for bespoke Notes. Two bridges connect the policy to the existing
+  spill engine: `policySpillOptions` builds a binary `SpillOptions` for the
+  classic `runSimulationWithSpill`, deriving the per-chunk extraction and the
+  eviction range from `termOf` (replacing the ~20 lines of hand-written
+  `filterWithNote` plumbing), and `restoreLedger` rebuilds the full ledger from a
+  spill file plus the in-memory remainder (lossless with an exact value type).
+  `defaultLedgerPolicy` (`RetainAll` / `Nothing` / `FullAudit`) is exactly the
+  classic full-audit behaviour. **Data-loss note:** `spillTo = Nothing` together
+  with `RetainRecent w` *discards* evicted terms with no backup — documented
+  prominently. `Simulate.Lite` gains `runLiteWithPolicy`, an `IO` runner whose
+  BSP loop is identical to `runLite` but which, at each term boundary, compresses
+  closed terms (under `CompressClosedTerms`) and evicts/spills out-of-window
+  terms (under `RetainRecent`); under `defaultLedgerPolicy` it is observationally
+  equal to `runLite`. The existing `SpillOptions`, `runSimulationWithSpill` and
+  `runLite` are unchanged.
 - `ExchangeAlgebra.Simulate.Network` — separates a market's *trade relation*
   from its *technology*. `TradeNetwork k` is a sparse directed "who may supply
   whom" graph (edge `(i, j)` = supplier `i` of buyer `j`); `InputCoefficients

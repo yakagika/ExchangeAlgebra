@@ -135,23 +135,37 @@ module ExchangeAlgebra.Simulate.Lite
     , mkSimSpec
       -- * Runner
     , runLite
+      -- * Policy-driven runner
+    , runLiteWithPolicy
     ) where
 
 import           GHC.Generics
 import           Data.Kind                  (Type)
-import           Control.Monad              (forM_)
-import           Control.Monad.ST           (ST, runST)
+import           Control.Monad              (forM_, when)
+import           Control.Monad.ST           (ST, runST, RealWorld, stToIO)
 import           Data.STRef                 (STRef, newSTRef, readSTRef, writeSTRef, modifySTRef')
 import           Data.Hashable              (hash)
+import           Data.IORef                 (newIORef, readIORef, writeIORef)
+import           System.IO                  (Handle, IOMode(AppendMode), withFile)
 import           System.Random              (StdGen, mkStdGen)
 import           Control.Parallel.Strategies (parListChunk, rdeepseq, using)
+import qualified Data.Binary                as Binary
+import qualified Data.HashMap.Strict        as HM
 
 import           ExchangeAlgebra.Journal           ( Journal
                                                    , Note
                                                    , HatVal
                                                    , HatBaseClass
-                                                   , sigma )
-import qualified ExchangeAlgebra.Algebra    as EA   ((.+))
+                                                   , sigma
+                                                   , toMap
+                                                   , fromMap
+                                                   , filterWithNote )
+import qualified ExchangeAlgebra.Algebra    as EA   ((.+), compress)
+import           ExchangeAlgebra.Simulate          (StateTime, defaultBinarySpillWriter)
+import           ExchangeAlgebra.Simulate.Policy    ( LedgerPolicy(..)
+                                                    , Retention(..)
+                                                    , Compaction(..)
+                                                    , HasTermAxis(..) )
 
 ------------------------------------------------------------------
 -- * Term-boundary field rules
@@ -462,3 +476,143 @@ deriveGen :: Int -> Int -> Int -> Int -> StdGen
 deriveGen seed0 termIx stageIx agentIx =
     mkStdGen (hash (seed0, termIx, stageIx, agentIx))
 {-# INLINE deriveGen #-}
+
+------------------------------------------------------------------
+-- * Policy-driven runner
+------------------------------------------------------------------
+
+-- | Run a 'SimSpec' under a declarative 'LedgerPolicy', returning in 'IO'
+-- (because spill writes a file). The BSP loop is /identical/ to 'runLite' — per
+-- term, per stage: snapshot, run agents, flatten-once commit — and the term
+-- range, seed, stages, parallelism and per-agent generators are all the same.
+-- The only additions happen at each term boundary, /after/ the stages have
+-- committed and the 'Field' rules have fired:
+--
+--   1. __compaction__ — if @'compaction' = 'CompressClosedTerms'@, every entry
+--      of a /closed/ term (term @<@ the current term @t@) is 'EA.compress'ed.
+--      This is norm- and balance-preserving; only the within-term posting
+--      sequence is collapsed. The in-progress term is never touched.
+--   2. __retention / spill__ — if @'retain' = 'RetainRecent' w@, terms with
+--      @'termOf' n '<=' t - w@ are evicted from the in-memory ledger. If
+--      @'spillTo' = 'Just' path@, each newly-closed-and-evicted term is first
+--      appended to that binary file (compatible with 'defaultBinarySpillWriter',
+--      so 'ExchangeAlgebra.Simulate.Policy.restoreLedger' can read it back).
+--
+-- Under 'ExchangeAlgebra.Simulate.Policy.defaultLedgerPolicy' nothing is
+-- compacted, evicted or spilled, so the result is observationally equal to
+-- @'runLite' spec wInit k@ (see the equivalence test).
+--
+-- __Data loss warning.__ @'spillTo' = 'Nothing'@ together with
+-- @'RetainRecent' w@ /discards/ evicted terms — they are written nowhere and
+-- cannot be restored. Use it only when the older history is genuinely not
+-- needed; otherwise set @'spillTo' = 'Just' path@.
+runLiteWithPolicy
+    :: forall w t n v b r.
+       ( forall s. LiteWorld w s
+       , HatVal v, HatBaseClass b
+       , HasTermAxis n, TermOf n ~ t
+       , StateTime t
+       , Binary.Binary t, Binary.Binary (Journal n v b) )
+    => LedgerPolicy
+    -> SimSpec w t n v b
+    -> w InitT
+    -> (w SnapT -> r)
+    -> IO r
+runLiteWithPolicy pol spec wInit k = do
+    let (from0, to0) = specTerms spec
+        terms        = zip [0 :: Int ..] (enumFromThenToInclusive from0 to0)
+        stages       = zip [0 :: Int ..] (specStages spec)
+        window       = case retain pol of
+                          RetainAll      -> Nothing
+                          RetainRecent w -> Just (max 0 w)
+    -- High-water mark of the most recent term already spilled (so each closed
+    -- term is written to disk at most once). 'Nothing' = nothing spilled yet.
+    spilledRef <- newIORef (Nothing :: Maybe t)
+    wr <- stToIO (gInitR wInit)
+    let -- Run one full term (all stages, then Field rules). Mirrors 'runLite'.
+        runTerm :: Int -> t -> ST RealWorld ()
+        runTerm termIx t = do
+            forM_ stages $ \(stageIx, st) -> do
+                view <- gFreezeR wr
+                let msgs  = runStage spec view t termIx stageIx st
+                    delta = sigma msgs id :: Journal n v b
+                modifySTRef' (specLedger spec wr) (\acc -> acc EA..+ delta)
+            gCommitR wInit wr
+
+        -- Apply 'CompressClosedTerms' to entries strictly before term @t@.
+        compactClosed :: t -> ST RealWorld ()
+        compactClosed t = case compaction pol of
+            FullAudit           -> pure ()
+            CompressClosedTerms ->
+                modifySTRef' (specLedger spec wr)
+                  (compressClosedTerms t)
+
+    withMaybeSpillHandle (spillTo pol) $ \mh ->
+        forM_ terms $ \(termIx, t) -> do
+            stToIO (runTerm termIx t)
+            stToIO (compactClosed t)
+            -- retention / spill at the term boundary
+            case window of
+              Nothing -> pure ()
+              Just w  -> do
+                let boundary = backByTerms w t   -- evict terms <= boundary
+                spilledHi <- readIORef spilledRef
+                -- spill newly-closed terms (spilledHi, boundary] before deleting
+                case mh of
+                  Nothing -> pure ()
+                  Just h  -> when (firstUnspilled spilledHi <= boundary) $ do
+                    ledger <- stToIO (readSTRef (specLedger spec wr))
+                    let lo    = firstUnspilled spilledHi
+                        chunk = filterWithNote
+                                  (\nn _ -> let tt = termOf nn
+                                            in tt >= lo && tt <= boundary)
+                                  ledger
+                    defaultBinarySpillWriter h (lo, boundary) chunk
+                -- delete evicted terms from memory (whether or not spilled)
+                stToIO $ modifySTRef' (specLedger spec wr)
+                           (filterWithNote (\nn _ -> termOf nn > boundary))
+                writeIORef spilledRef (Just boundary)
+    final <- stToIO (gFreezeR wr)
+    pure (k final)
+  where
+    gInitR :: forall s. LiteWorld w s => w InitT -> ST s (w (RefT s))
+    gInitR = gInit
+    gFreezeR :: forall s. LiteWorld w s => w (RefT s) -> ST s (w SnapT)
+    gFreezeR = gFreeze
+    gCommitR :: forall s. LiteWorld w s => w InitT -> w (RefT s) -> ST s ()
+    gCommitR = gCommit
+
+    -- The first term that has not yet been spilled, given the high-water mark.
+    firstUnspilled :: Maybe t -> t
+    firstUnspilled Nothing     = fst (specTerms spec)
+    firstUnspilled (Just hi)   = succ hi
+
+-- | Open the spill file in 'AppendMode' if a path is given; otherwise run the
+-- continuation with no handle. Append (not truncate) so each term boundary adds
+-- one chunk to a single file across the whole run.
+withMaybeSpillHandle :: Maybe FilePath -> (Maybe Handle -> IO a) -> IO a
+withMaybeSpillHandle Nothing     act = act Nothing
+withMaybeSpillHandle (Just path) act = withFile path AppendMode (act . Just)
+
+-- | Eviction upper bound for a @w@-term resident window ending at @t@: the
+-- resident window is the most recent @w@ terms @[t-w+1 .. t]@, so every term
+-- @<= backByTerms w t@ (= @t - w@) is evicted. Computed by stepping back @w@
+-- times via 'pred'. When the boundary is below the spec's first term,
+-- 'filterWithNote' simply keeps everything (nothing matches the delete
+-- predicate), so no clamping is needed.
+backByTerms :: (Enum t) => Int -> t -> t
+backByTerms w t = go w t
+  where
+    go n x | n <= 0    = x
+           | otherwise = go (n - 1) (pred x)
+
+-- | Apply 'EA.compress' to the entry of every Note whose term is strictly
+-- before @t@ (a /closed/ term), leaving the in-progress term untouched. Uses
+-- 'toMap'\/'fromMap' so the traversal order does not affect the result.
+compressClosedTerms
+    :: (HasTermAxis n, TermOf n ~ t, Ord t, HatVal v, HatBaseClass b)
+    => t -> Journal n v b -> Journal n v b
+compressClosedTerms t j =
+    fromMap (HM.mapWithKey
+               (\nn alg -> if termOf nn < t then EA.compress alg else alg)
+               (toMap j))
