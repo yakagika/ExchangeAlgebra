@@ -14,6 +14,13 @@ import qualified ExchangeAlgebra.Journal.Transfer as EJT
 import           ExchangeAlgebra.Value    (MoneyDecimal, bankersRound)
 import qualified ExchangeAlgebra.Simulate as ES
 import           ExchangeAlgebra.Simulate
+import qualified ExchangeAlgebra.Simulate.Lite as Lite
+import           ExchangeAlgebra.Simulate.Lite
+                     ( InitT, RefT, SnapT, HK
+                     , Field(..), carry, resetEach, updateEach
+                     , Stage, stage, stageFor
+                     , Par(..), SimSpec, mkSimSpec, runLite )
+import           ExchangeAlgebra.Value    (MoneyDouble)
 import qualified ExchangeAlgebra.Write    as EW
 import           ExchangeAlgebra.Write
 
@@ -34,6 +41,8 @@ import           Control.Monad       (replicateM)
 import           Control.Monad.State (runState, state)
 import           Control.Exception   (try, evaluate, SomeException)
 import           Test.QuickCheck
+import           GHC.Generics        (Generic)
+import           System.Random       (randomR)
 
 -- ================================================================
 -- Unit test helpers
@@ -1140,6 +1149,202 @@ quotientProperties = do
     assertEqual "sentinel: mapBasePart (bar x) keeps both sides (no cross-base netting)"
         200 (norm (EA.mapBasePart (const Amount) (bar xPi) :: NNAlg))
 
+-- ================================================================
+-- Simulate.Lite tests (Phase 2, feat/simulate-lite)
+-- ================================================================
+
+-- A concrete Note type for the Lite models: (event tag, term index).
+type LNote   = (String, Int)
+type LBaseD  = HatBase AccountTitles
+type LedgerD = Journal LNote MoneyDouble LBaseD     -- IEEE-754 path (DET-1, BSP, equiv)
+type LBaseM  = HatBase AccountTitles
+type LedgerM = Journal LNote MoneyDecimal LBaseM    -- exact path (DET-2)
+
+------------------------------------------------------------------
+-- Lite test 1: boilerplate acceptance example (3 fields, 2 stages).
+-- The body of this function (the World record, the two stages, the spec and
+-- the run) is the "~20 line" boilerplate the design targets.
+------------------------------------------------------------------
+
+-- A product-only HKD world: a ledger, a scalar price, a scalar tax rate.
+data MiniW f = MiniW
+  { mwLedger :: HK f LedgerD
+  , mwPrice  :: HK f MoneyDouble
+  , mwTax    :: HK f Double
+  } deriving Generic
+
+-- stage A: each agent buys 1 unit at the snapshot price (a pure message).
+buyStage :: Stage MiniW Int LNote MoneyDouble LBaseD
+buyStage = stageFor "buy" [1 .. 5 :: Int] $ \w t _g i ->
+    let amt = mwPrice w * fromIntegral i
+    in ((amt .@ Not :< Purchases) .+ (amt .@ Hat :< Cash)) .| ("buy", t)
+
+-- stage B: a single bookkeeping step paying tax on the snapshot price.
+taxStage :: Stage MiniW Int LNote MoneyDouble LBaseD
+taxStage = stage "tax" $ \w t ->
+    let amt = mwPrice w * realToFrac (mwTax w)
+    in ((amt .@ Not :< Sales) .+ (amt .@ Hat :< Cash)) .| ("tax", t)
+
+miniSpec :: SimSpec MiniW Int LNote MoneyDouble LBaseD
+miniSpec = mkSimSpec (1, 3) 42 mwLedger [buyStage, taxStage]
+
+testLiteBoilerplate :: IO ()
+testLiteBoilerplate = do
+    let w0 = MiniW { mwLedger = carry mempty
+                   , mwPrice  = carry 10
+                   , mwTax    = carry 0.1 }
+        n  = runLite miniSpec w0 (realToFrac . norm . mwLedger)
+    -- 3 terms * (sum_{i=1..5} 10*i*2  +  10*0.1*2) = 3 * (300 + 2) = 906
+    assertNear "Lite: boilerplate mini-model runs (norm)" 906.0 n
+
+------------------------------------------------------------------
+-- Lite test 2 (DET-2): MoneyDecimal Sequential vs ParChunk exact match.
+------------------------------------------------------------------
+
+data DecW f = DecW
+  { dwLedger :: HK f LedgerM
+  } deriving Generic
+
+decStage :: Stage DecW Int LNote MoneyDecimal LBaseM
+decStage = stageFor "post" [1 .. 50 :: Int] $ \_w t g i ->
+    let (k, _) = randomR (1, 9 :: Int) g
+        amt    = fromIntegral (i + k) :: MoneyDecimal
+    in ((amt .@ Not :< Purchases) .+ (amt .@ Hat :< Cash)) .| ("post", t)
+
+decSpec :: Par -> SimSpec DecW Int LNote MoneyDecimal LBaseM
+decSpec par = (mkSimSpec (1, 4) 7 dwLedger [decStage]) { Lite.specParallel = par }
+
+testLiteDet2 :: IO ()
+testLiteDet2 = do
+    let w0 = DecW { dwLedger = carry mempty }
+        runP par = runLite (decSpec par) w0 (toMap . dwLedger)
+        seqMap = runP Sequential
+        parMap = runP (ParChunk 8)
+    assertEqual "Lite DET-2: Sequential and ParChunk produce identical ledgers (exact)"
+        seqMap parMap
+
+------------------------------------------------------------------
+-- Lite test 3 (DET-1): MoneyDouble reproducibility across two runs.
+------------------------------------------------------------------
+
+testLiteDet1 :: IO ()
+testLiteDet1 = do
+    let w0 = MiniW { mwLedger = carry mempty
+                   , mwPrice  = carry 10
+                   , mwTax    = carry 0.1 }
+        n1 = runLite miniSpec w0 (realToFrac . norm . mwLedger)
+        n2 = runLite miniSpec w0 (realToFrac . norm . mwLedger)
+    assertNear "Lite DET-1: same spec run twice gives same norm" n1 n2
+
+------------------------------------------------------------------
+-- Lite test 4 (BSP intra-stage invisibility sentinel).
+-- Every agent in a stage reads the SAME snapshot. We encode the snapshot
+-- ledger's norm into each agent's message; if a later agent could see an
+-- earlier agent's write within the same stage, the encoded norms would differ
+-- from the all-zero baseline (the ledger starts empty for term 1 stage 0).
+------------------------------------------------------------------
+
+data BspW f = BspW
+  { bwLedger :: HK f LedgerD
+  } deriving Generic
+
+-- each agent posts (1 + norm-of-snapshot-ledger). On term 1, stage 0, the
+-- snapshot ledger is empty for every agent, so each posts exactly 1.0.
+bspStage :: Stage BspW Int LNote MoneyDouble LBaseD
+bspStage = stageFor "bsp" [1 .. 10 :: Int] $ \w t _g _i ->
+    let seenNorm = norm (bwLedger w)          -- must be 0 for ALL agents (BSP)
+        amt = 1 + realToFrac seenNorm :: MoneyDouble
+    in ((amt .@ Not :< Purchases) .+ (amt .@ Hat :< Cash)) .| ("bsp", t)
+
+bspSpec :: SimSpec BspW Int LNote MoneyDouble LBaseD
+bspSpec = mkSimSpec (1, 1) 0 bwLedger [bspStage]
+
+testLiteBspInvisibility :: IO ()
+testLiteBspInvisibility = do
+    let w0 = BspW { bwLedger = carry mempty }
+        n  = runLite bspSpec w0 (realToFrac . norm . bwLedger)
+    -- 10 agents each post Not:<Purchases 1.0 + Hat:<Cash 1.0 = norm 20.
+    -- If intra-stage writes were visible, later agents would post > 1.0 and the
+    -- norm would exceed 20.
+    assertNear "Lite BSP: intra-stage invisibility (all agents see empty ledger)"
+        20.0 n
+
+------------------------------------------------------------------
+-- Lite test 5: gate toy-model equivalence (3 terms, agents [1..10], norm 3300).
+-- Rebuilds the gate-report.md prototype with the Lite API; same norm.
+------------------------------------------------------------------
+
+data GateW f = GateW
+  { gwLedger :: HK f LedgerD
+  , gwPrice  :: HK f MoneyDouble
+  } deriving Generic
+
+gateStage :: Stage GateW Int LNote MoneyDouble LBaseD
+gateStage = stageFor "buy" [1 .. 10 :: Int] $ \w t _g i ->
+    let amt = gwPrice w * fromIntegral i
+    in ((amt .@ Not :< Purchases) .+ (amt .@ Hat :< Cash)) .| ("buy", t)
+
+gateSpec :: SimSpec GateW Int LNote MoneyDouble LBaseD
+gateSpec = mkSimSpec (1, 3) 1 gwLedger [gateStage]
+
+testLiteGateEquivalence :: IO ()
+testLiteGateEquivalence = do
+    let w0 = GateW { gwLedger = carry mempty, gwPrice = carry 10 }
+        n  = runLite gateSpec w0 (realToFrac . norm . gwLedger)
+    -- norm = 3 terms * sum_{i=1..10} (10*i*2) = 3 * 2 * 10 * 55 = 3300
+    assertNear "Lite: gate toy-model equivalence (norm 3300)" 3300.0 n
+
+------------------------------------------------------------------
+-- Lite test 6: term-boundary Field rules (Carry / ResetEach / UpdateEach).
+-- One agent posts (current price) each term; the three runs differ only in the
+-- price field's boundary rule, exercising each Field constructor.
+------------------------------------------------------------------
+
+data RuleW f = RuleW
+  { rwLedger :: HK f LedgerD
+  , rwPrice  :: HK f MoneyDouble
+  } deriving Generic
+
+ruleStage :: Stage RuleW Int LNote MoneyDouble LBaseD
+ruleStage = stage "post" $ \w t ->
+    let amt = rwPrice w
+    in ((amt .@ Not :< Purchases) .+ (amt .@ Hat :< Cash)) .| ("post", t)
+
+ruleSpec :: SimSpec RuleW Int LNote MoneyDouble LBaseD
+ruleSpec = mkSimSpec (1, 3) 0 rwLedger [ruleStage]
+
+runRule :: Field MoneyDouble -> Double
+runRule priceField =
+    let w0 = RuleW { rwLedger = carry mempty, rwPrice = priceField }
+    in realToFrac (runLite ruleSpec w0 (norm . rwLedger))
+       -- norm counts both Not:<Purchases and Hat:<Cash, hence 2 * price each term
+
+testLiteFieldRules :: IO ()
+testLiteFieldRules = do
+    -- Carry 10: price stays 10 every term -> 3 * 2 * 10 = 60
+    assertNear "Lite Field: Carry keeps the value" 60.0 (runRule (carry 10))
+    -- ResetEach 5: price reset to 5 at each boundary, but stage reads BEFORE
+    -- the term-1 boundary commit at the same value -> 3 * 2 * 5 = 30
+    assertNear "Lite Field: ResetEach restores each term" 30.0 (runRule (resetEach 5))
+    -- UpdateEach 10 (*2): term1 price 10, boundary doubles -> term2 20, term3 40.
+    -- norm = 2 * (10 + 20 + 40) = 140
+    assertNear "Lite Field: UpdateEach applies the step each boundary"
+        140.0 (runRule (updateEach 10 (* 2)))
+
+-- regression: the boundary rule must fire once per TERM, not per stage.
+-- (Parser pitfall: a trailing backtick operator after an inner lambda's
+-- do-block is swallowed into the lambda body, turning the term-boundary
+-- commit into a per-stage commit. Single-stage tests cannot see this.)
+-- 2 identical stages x UpdateEach 10 (*2): both stages must read the SAME
+-- price within a term -> norm = 2 entries * 2 stages * (10+20+40) = 280.
+-- The per-stage-commit bug yields 2 * (10+20 + 40+80 + 160+320) = 1260.
+testLiteBoundaryOncePerTerm :: IO ()
+testLiteBoundaryOncePerTerm =
+    assertNear "Lite: term boundary fires once per term (2 stages)" 280.0
+        (let spec2 = mkSimSpec (1, 3) 0 rwLedger [ruleStage, ruleStage]
+             w0 = RuleW { rwLedger = carry mempty, rwPrice = updateEach 10 (* 2) }
+         in realToFrac (runLite spec2 w0 (norm . rwLedger)))
+
 main :: IO ()
 main = do
     testProjMultiPatternOnePass
@@ -1170,6 +1375,13 @@ main = do
     testCsvWriteCSV
     testCsvWriteCSVWithQuotes
     testCsvWriteCSVEmpty
+    testLiteBoilerplate
+    testLiteDet2
+    testLiteDet1
+    testLiteBspInvisibility
+    testLiteGateEquivalence
+    testLiteFieldRules
+    testLiteBoundaryOncePerTerm
     axiomProperties
     journalProperties
     quotientProperties

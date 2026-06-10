@@ -80,6 +80,7 @@ import              Data.IntMap.Strict      (IntMap)
 import qualified    Data.HashSet            as HSet
 import              Data.HashSet            (HashSet)
 import              Control.Parallel.Strategies (using, parTraversable, rdeepseq, NFData)
+import              Control.DeepSeq             (rnf)
 import qualified    Data.Set                as S
 import qualified    Data.List               as L
 import qualified    Data.Map.Strict         as M
@@ -401,6 +402,21 @@ addJournal lhs rhs = appendMap (toMap rhs) lhs
 instance (HatVal v, HatBaseClass b, Note n) => Monoid (Journal n v b) where
     mempty = mkJournal Map.empty Map.empty 0
     mappend = (<>)
+
+-- | Shallow-structural 'NFData', mirroring the @'Alg' v b@ instance in
+-- "ExchangeAlgebra.Algebra": it forces the two-layer @base@ / @delta@ maps to
+-- WHNF on their spines and forces every contained 'Alg' (via the 'Alg' 'NFData'
+-- instance), but does not touch the lazily built axis indices (@_jBaseAxis@ /
+-- @_jDeltaAxis@), which are derived caches. This is enough for
+-- 'Control.Parallel.Strategies.rdeepseq' to fully evaluate journal "messages"
+-- before merging them in parallel.
+instance NFData (Journal n v b) where
+    rnf (Journal base delta ver _ _) =
+        Map.foldr  (\alg acc -> rnf alg `seq` acc)
+                   (Map.foldr (\alg acc -> rnf alg `seq` acc)
+                              (ver `seq` ())
+                              base)
+                   delta
 
 instance (HatVal v, HatBaseClass b, Note n) => Redundant (Journal n) v b where
     (.^) = map (.^)

@@ -3,6 +3,32 @@
 ## Unreleased
 
 ### Added
+- `ExchangeAlgebra.Simulate.Lite` — a small, additive front-end for agent-based
+  bookkeeping simulations with bulk-synchronous-parallel (BSP) semantics. It
+  sits beside the classic `ExchangeAlgebra.Simulate` (unchanged) and removes
+  most of its boilerplate: the world is a product-only higher-kinded record
+  (`HK` role tags `InitT` / `RefT s` / `SnapT`; only `deriving Generic`
+  needed — no per-field `Updatable` instances, no newtype wrappers), term
+  boundaries are declared per field (`carry` / `resetEach` / `updateEach`),
+  the term range and seed are runtime values (`SimSpec` via `mkSimSpec`), and
+  stages are pure functions from a read-only world snapshot to a `Journal`
+  "message" (`stage` / `stageFor`). `runLite` drives the BSP loop: per stage
+  it freezes the world once, runs every agent against that same snapshot
+  (sequentially or with fixed-chunk parallelism, `Par`), merges the messages
+  in one pass (via `sigma`) and commits them to the ledger; per-field rules
+  fire once per term (regression-tested with a multi-stage model).
+  Determinism: per-agent generators derive purely from
+  (seed, term, stage, agent); with the exact `MoneyDecimal` value type the
+  parallel and sequential runs agree exactly (tested), and with `MoneyDouble`
+  a fixed schedule is run-to-run reproducible (tested). Note the BSP semantic
+  difference from the classic engine: within a stage, agents cannot observe
+  each other's same-stage postings (covered by a sentinel test). A minimal
+  model is ~20 lines versus ~90 with the classic instances.
+- `instance NFData (Journal n v b)` (shallow-structural, mirroring the `Alg`
+  instance): forces the base/delta map spines and each contained `Alg`,
+  leaving the lazily built axis indices untouched. Used by `Simulate.Lite`'s
+  parallel stage evaluation; generally useful for `parMap rdeepseq` over
+  journals.
 - `ExchangeAlgebra.Algebra.decBy :: Ord k => (b -> Maybe k) -> Alg v b ->
   Map k (Alg v b)` — quotient decomposition (dec_κ): one-pass partition of an
   algebra along the classes induced by a classifier on the full `HatBase`.
