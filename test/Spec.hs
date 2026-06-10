@@ -15,6 +15,15 @@ import           ExchangeAlgebra.Value    (MoneyDecimal, bankersRound)
 import qualified ExchangeAlgebra.Simulate as ES
 import           ExchangeAlgebra.Simulate
 import qualified ExchangeAlgebra.Simulate.Lite as Lite
+import           ExchangeAlgebra.Simulate.Network
+                     ( TradeNetwork, InputCoefficients, NetworkError(..)
+                     , tradeNetwork, inputCoefficients
+                     , nodes, edges, suppliersOf, buyersOf, edgeCount
+                     , coefficient, inputsOf, sigmaEdges
+                     , completeNetwork, kRegular, erdosRenyi, scaleFree, sectorBlock
+                     , CoefOptions(..), defaultCoefOptions, randomCoefficients
+                     , networkFromTable, coefficientsFromTable, fromCoefficientMatrix
+                     , parseEdgeCsv, parseCoefCsv )
 import           ExchangeAlgebra.Simulate.Lite
                      ( InitT, RefT, SnapT, HK
                      , Field(..), carry, resetEach, updateEach
@@ -1345,6 +1354,135 @@ testLiteBoundaryOncePerTerm =
              w0 = RuleW { rwLedger = carry mempty, rwPrice = updateEach 10 (* 2) }
          in realToFrac (runLite spec2 w0 (norm . rwLedger)))
 
+-- ================================================================
+-- Simulate.Network tests (Phase 3, feat/trade-network)
+--
+-- Property + unit tests for the TradeNetwork / InputCoefficients separation,
+-- the deterministic generators, the smart-constructor invariants, and the
+-- edge-summation sigmaEdges. All read-outs are Ord-ascending (no hash order).
+-- ================================================================
+
+type NetJD = Journal (Int, Int) MoneyDecimal (HatBase CountUnit)
+
+-- a tiny per-edge journal builder used by the sigmaEdges equivalence test
+edgeJ :: Int -> Int -> NetJD
+edgeJ i j = ((fromIntegral (i + 2 * j) :: MoneyDecimal) .@ Not :< Amount) .| (i, j)
+
+-- Test 1: completeNetwork makes sigmaEdges coincide with the all-pairs sum.
+-- "The notation is unchanged; only the set Σ runs over changes."
+testNetCompleteEquiv :: IO ()
+testNetCompleteEquiv = do
+    let ks = [1 .. 6 :: Int]
+        viaEdges = sigmaEdges (completeNetwork ks) edgeJ          :: NetJD
+        viaPairs = EJ.sigma2When ks ks (/=) edgeJ                 :: NetJD
+    assertEqual "Network: sigmaEdges complete == all-pairs sigma2When (exact)"
+        (toMap viaPairs) (toMap viaEdges)
+
+-- Test 2: determinism (DET-1). Same StdGen -> identical edges for every
+-- generator, checked by running each twice and comparing.
+testNetDeterminism :: IO ()
+testNetDeterminism = do
+    let ks = [1 .. 30 :: Int]
+        g  = mkStdGen 42
+        twice f = assertEqual ("Network DET-1: " ++ fst f) (edges (snd f g)) (edges (snd f g))
+    twice ("kRegular",   \s -> kRegular   s ks 4)
+    twice ("erdosRenyi", \s -> erdosRenyi s ks 0.3)
+    twice ("scaleFree",  \s -> scaleFree  s ks 3)
+    twice ("sectorBlock",\s -> sectorBlock s [(k, k `mod` 3) | k <- ks] (\(a,b) -> if a==b then 0.5 else 0.1))
+
+-- Test 3: smart constructors reject the four illegal cases.
+testNetSmartConstructor :: IO ()
+testNetSmartConstructor = do
+    assertEqual "Network: self-loop rejected"
+        (Left SelfLoop) (tradeNetwork [1,2] [(1,1)] :: Either NetworkError (TradeNetwork Int))
+    assertEqual "Network: duplicate edge rejected"
+        (Left DuplicateEdge) (tradeNetwork [1,2] [(1,2),(1,2)] :: Either NetworkError (TradeNetwork Int))
+    let Right g = tradeNetwork [1,2,3] [(1,3)] :: Either NetworkError (TradeNetwork Int)
+    assertEqual "Network: coefficient outside network rejected"
+        (Left CoefOutsideNetwork)
+        (inputCoefficients g [(2,3,0.5)] :: Either NetworkError (InputCoefficients Int Double))
+    assertEqual "Network: negative coefficient rejected"
+        (Left NegativeCoefficient)
+        (inputCoefficients g [(1,3,-0.5)] :: Either NetworkError (InputCoefficients Int Double))
+    assertEqual "Network: duplicate coefficient rejected"
+        (Left DuplicateCoefficient)
+        (inputCoefficients g [(1,3,0.2),(1,3,0.3)] :: Either NetworkError (InputCoefficients Int Double))
+
+-- Test 4: Hawkins-Simon — every buyer's column sum is strictly below 1.
+testNetHawkinsSimon :: IO ()
+testNetHawkinsSimon = do
+    let g  = completeNetwork [1 .. 12 :: Int]
+        a  = randomCoefficients (mkStdGen 11) defaultCoefOptions g :: InputCoefficients Int Double
+        ok = all (\j -> sum (Prelude.map snd (inputsOf a j)) < 1.0) (nodes g)
+    assertEqual "Network: randomCoefficients (hawkinsSimon) all column sums < 1" True ok
+
+-- Test 5: generator structure.
+testNetGeneratorStructure :: IO ()
+testNetGeneratorStructure = do
+    let ks = [1 .. 8 :: Int]
+        kr = kRegular (mkStdGen 3) ks 3 :: TradeNetwork Int
+    assertEqual "Network: kRegular in-degree = min k (N-1)"
+        (replicate (length ks) 3)
+        (Prelude.map (length . suppliersOf kr) (nodes kr))
+    -- erdosRenyi p=1 == complete, p=0 == empty
+    assertEqual "Network: erdosRenyi p=1 == completeNetwork edges"
+        (edges (completeNetwork ks))
+        (edges (erdosRenyi (mkStdGen 0) ks 1.0 :: TradeNetwork Int))
+    assertEqual "Network: erdosRenyi p=0 has no edges"
+        0 (edgeCount (erdosRenyi (mkStdGen 0) ks 0.0 :: TradeNetwork Int))
+    -- scaleFree edge count is deterministic: C(m+1,2) + (N-m-1)*m
+    let n = length ks; m = 2
+        expected = (m * (m + 1) `div` 2) + (n - m - 1) * m
+    assertEqual "Network: scaleFree edge count matches preferential-attachment formula"
+        expected (edgeCount (scaleFree (mkStdGen 9) ks m :: TradeNetwork Int))
+
+-- Test 6: out/in adjacency consistency on an arbitrary generated network.
+-- (i,j) in edges  <=>  i in suppliersOf j  <=>  j in buyersOf i
+testNetAdjacencyConsistency :: IO ()
+testNetAdjacencyConsistency = do
+    let ks = [1 .. 25 :: Int]
+        g  = erdosRenyi (mkStdGen 77) ks 0.25 :: TradeNetwork Int
+        es = edges g
+        fwd = all (\(i,j) -> i `elem` suppliersOf g j && j `elem` buyersOf g i) es
+        -- and the reverse: every (i,j) reconstructed from suppliersOf equals edges
+        viaSuppliers = L.sort [ (i, j) | j <- nodes g, i <- suppliersOf g j ]
+        viaBuyers    = L.sort [ (i, j) | i <- nodes g, j <- buyersOf g i ]
+    assertEqual "Network: edges <=> suppliersOf (forward)" True fwd
+    assertEqual "Network: edges == reconstruction from suppliersOf" (L.sort es) viaSuppliers
+    assertEqual "Network: edges == reconstruction from buyersOf" (L.sort es) viaBuyers
+
+-- Test 7: CSV round-trip — parse . render == id (render is a test helper).
+renderEdgeCsv :: [(T.Text, T.Text)] -> T.Text
+renderEdgeCsv rows = T.unlines (T.pack "from,to" : [ a <> T.pack "," <> b | (a, b) <- rows ])
+
+renderCoefCsv :: [(T.Text, T.Text, Double)] -> T.Text
+renderCoefCsv rows =
+    T.unlines (T.pack "from,to,coef" :
+        [ a <> T.pack "," <> b <> T.pack "," <> T.pack (show c) | (a, b, c) <- rows ])
+
+testNetCsvRoundTrip :: IO ()
+testNetCsvRoundTrip = do
+    let eRows = [(T.pack "a", T.pack "b"), (T.pack "b", T.pack "c"), (T.pack "a", T.pack "c")]
+    assertEqual "Network: edge CSV parse . render == id"
+        (Right eRows) (parseEdgeCsv (renderEdgeCsv eRows))
+    let cRows = [(T.pack "a", T.pack "b", 0.25), (T.pack "b", T.pack "c", 0.5)]
+    assertEqual "Network: coef CSV parse . render == id"
+        (Right cRows) (parseCoefCsv (renderCoefCsv cRows))
+    -- ingestion helpers agree with the network/coefficient invariants
+    let Right (g, a) = coefficientsFromTable [(1,3,0.2),(2,3,0.5)]
+                         :: Either NetworkError (TradeNetwork Int, InputCoefficients Int Double)
+    assertEqual "Network: coefficientsFromTable edges" [(1,3),(2,3)] (edges g)
+    assertEqual "Network: coefficientsFromTable inputsOf" [(1,0.2),(2,0.5)] (inputsOf a 3)
+    -- fromCoefficientMatrix drops zero cells from the support
+    let m i j = if i < j then fromIntegral (i + j) else 0 :: Double
+        (gm, am) = fromCoefficientMatrix [1,2,3 :: Int] m
+    assertEqual "Network: fromCoefficientMatrix support drops zeros"
+        [(1,2),(1,3),(2,3)] (edges gm)
+    assertEqual "Network: fromCoefficientMatrix coefficient" (Just 4.0) (coefficient am 1 3)
+    -- networkFromTable derives nodes from rows
+    let Right gt = networkFromTable [(1,2),(2,3)] :: Either NetworkError (TradeNetwork Int)
+    assertEqual "Network: networkFromTable derives node set" [1,2,3] (nodes gt)
+
 main :: IO ()
 main = do
     testProjMultiPatternOnePass
@@ -1382,6 +1520,13 @@ main = do
     testLiteGateEquivalence
     testLiteFieldRules
     testLiteBoundaryOncePerTerm
+    testNetCompleteEquiv
+    testNetDeterminism
+    testNetSmartConstructor
+    testNetHawkinsSimon
+    testNetGeneratorStructure
+    testNetAdjacencyConsistency
+    testNetCsvRoundTrip
     axiomProperties
     journalProperties
     quotientProperties

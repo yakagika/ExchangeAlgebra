@@ -3,6 +3,34 @@
 ## Unreleased
 
 ### Added
+- `ExchangeAlgebra.Simulate.Network` — separates a market's *trade relation*
+  from its *technology*. `TradeNetwork k` is a sparse directed "who may supply
+  whom" graph (edge `(i, j)` = supplier `i` of buyer `j`); `InputCoefficients
+  k v` is the matching sparse, buyer-major coefficient table, with the invariant
+  `supp(A) ⊆ edges(G)` enforced by the smart constructors. All three types are
+  abstract (no exported constructors) and every read-out (`nodes`, `edges`,
+  `suppliersOf`, `buyersOf`, `inputsOf`, `coefficient`, `edgeCount`) is returned
+  in ascending order, so results never depend on hash-table iteration. The key
+  operation `sigmaEdges g f` runs the familiar Σ notation over a network's
+  *edges* (cost `O(E)`) instead of over all ordered pairs (`O(N²)`); with
+  `completeNetwork` the two coincide exactly
+  (`sigmaEdges (completeNetwork ks) f == sigma2When ks ks (/=) f`), so an
+  all-pairs model can adopt a sparse market structure without changing its Σ.
+  Includes deterministic network generators driven by an explicit `StdGen`
+  (`completeNetwork`, `kRegular`, `erdosRenyi`, `scaleFree` Barabási–Albert,
+  `sectorBlock` stochastic-block), random coefficient generation with an
+  optional Hawkins–Simon (productivity) column-sum rescale (`randomCoefficients`
+  / `CoefOptions` / `defaultCoefOptions`), long-form table and dense-matrix
+  ingestion (`networkFromTable`, `coefficientsFromTable`, `fromCoefficientMatrix`),
+  and a tiny dependency-free CSV reader for the fixed `from,to[,coef]` schemas
+  (`parseEdgeCsv`, `parseCoefCsv`, `readEdgeCsv`, `readCoefCsv`). Smart
+  constructors reject self-loops, duplicate edges, out-of-network coefficients,
+  negative coefficients, and duplicate coefficients with a `NetworkError`
+  (nothing is silently merged or dropped). The network types carry `Show` / `Eq`
+  / `NFData`. No `Updatable` instance is provided (the `Updatable` functional
+  dependency makes one impossible for the library to supply); the Haddock shows
+  a three-line `UpdatableSTRef` wrapper for the classic `Simulate` engine, and
+  in `Simulate.Lite` a network is simply a `carry` field.
 - `ExchangeAlgebra.Simulate.Lite` — a small, additive front-end for agent-based
   bookkeeping simulations with bulk-synchronous-parallel (BSP) semantics. It
   sits beside the classic `ExchangeAlgebra.Simulate` (unchanged) and removes
