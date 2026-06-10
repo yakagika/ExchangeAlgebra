@@ -1698,20 +1698,28 @@ data MktW v f = MktW
   , mkCoef   :: HK f (InputCoefficients MktFirm v)
   } deriving Generic
 
--- previous-term inventory-connected demand (one-pass balanceMapBy), mirroring
--- MarketModel.demandMap.
+-- own-product classifier shared by the mirror.
+mktOwnerOfProduct :: BasePart MktBase -> Maybe MktFirm
+mktOwnerOfProduct bp = case bp of
+    (Products, o, c, _) | o == c -> Just o
+    _                            -> Nothing
+
+-- opening stock read from the ("carryover", t) note (indexed per-note),
+-- mirroring MarketModel.openingMap (carryover-based O(term) inventory).
+mktOpening :: (HatVal v, Real v)
+           => Int -> Journal MktNote v MktBase -> M.Map MktFirm v
+mktOpening t ledger =
+    EA.balanceMapBy mktOwnerOfProduct
+        (EJ.toAlg (EJ.projWithNote [("carryover", t)] ledger))
+
+-- inventory-connected demand from opening stock, mirroring MarketModel.demandMap.
 mktDemand :: (HatVal v, Real v)
-          => Double -> [MktFirm] -> Journal MktNote v MktBase -> M.Map MktFirm Double
-mktDemand target fs ledger =
-    let alg    = EJ.toAlg ledger
-        invMap = EA.balanceMapBy ownerOfProduct alg
+          => Double -> Int -> [MktFirm] -> Journal MktNote v MktBase -> M.Map MktFirm Double
+mktDemand target t fs ledger =
+    let opening = mktOpening t ledger
     in M.fromList
-         [ (j, max 0 (target - realToFrac (M.findWithDefault 0 j invMap)))
+         [ (j, max 0 (target - realToFrac (M.findWithDefault 0 j opening)))
          | j <- fs ]
-  where
-    ownerOfProduct bp = case bp of
-        (Products, o, c, _) | o == c -> Just o
-        _                            -> Nothing
 
 mktPurchase :: (HatVal v) => v -> MktFirm -> MktFirm -> EA.Alg v MktBase
 mktPurchase amt i j =
@@ -1727,21 +1735,25 @@ mktOrderAmt :: (HatVal v, Real v)
 mktOrderAmt coef dm i j =
     realToFrac (maybe 0 id (coefficient coef i j)) * M.findWithDefault 0 j dm
 
-mktTradeSimple :: (HatVal v, Real v) => Double -> Stage (MktW v) Int MktNote v MktBase
-mktTradeSimple target = stage "trade" $ \w t ->
+-- per-firm trade stage (stageFor over the firm list), mirroring
+-- MarketModel.tradeStageSimple: buyer j folds its in-edges (suppliersOf).
+mktTradeSimple :: (HatVal v, Real v) => [MktFirm] -> Double -> Stage (MktW v) Int MktNote v MktBase
+mktTradeSimple fs target = stageFor "trade" fs $ \w t _g j ->
     let net = mkNet w; coef = mkCoef w
-        dm  = mktDemand target (nodes net) (mkLedger w)
-        per (i, j) = let amt = realToFrac (mktOrderAmt coef dm i j)
-                     in if amt <= 0 then mempty else mktPurchase amt i j
-        alg = EA.sigma (edges net) per
+        dm  = mktDemand target t fs (mkLedger w)
+        sup = suppliersOf net j
+        one i = let amt = realToFrac (mktOrderAmt coef dm i j)
+                in if amt <= 0 then mempty else mktPurchase amt i j
+        alg = EA.sigma sup one
     in if EA.isZero alg then mempty else alg .| ("trade", t)
 
-mktTradeTuned :: (HatVal v, Real v) => Double -> Stage (MktW v) Int MktNote v MktBase
-mktTradeTuned target = stage "trade" $ \w t ->
+mktTradeTuned :: (HatVal v, Real v) => [MktFirm] -> Double -> Stage (MktW v) Int MktNote v MktBase
+mktTradeTuned fs target = stageFor "trade" fs $ \w t _g j ->
     let net = mkNet w; coef = mkCoef w
-        dm  = mktDemand target (nodes net) (mkLedger w)
-        accum = L.foldl' step M.empty (edges net)
-        step acc (i, j) =
+        dm  = mktDemand target t fs (mkLedger w)
+        sup = suppliersOf net j
+        accum = L.foldl' step M.empty sup
+        step acc i =
             let amt = realToFrac (mktOrderAmt coef dm i j)
             in if amt <= 0 then acc
                else L.foldl' (\m (b, v) -> M.insertWith (+) b v m) acc
@@ -1751,27 +1763,38 @@ mktTradeTuned target = stage "trade" $ \w t ->
                       , (Not :< (Cash,      i, i, Yen),    amt)
                       , (Not :< (Sales,     i, i, Yen),    amt)
                       , (Hat :< (Products,  i, i, Amount), amt) ]
-    in EJ.sigmaOnFromMap ("trade", t) accum (\b v -> v .@ b)
+        alg = EA.sigmaFromMap accum (\b v -> v .@ b)
+    in if EA.isZero alg then mempty else alg .| ("trade", t)
 
-mktProduction :: (HatVal v, Real v) => Double -> Stage (MktW v) Int MktNote v MktBase
-mktProduction target = stage "production" $ \w t ->
-    let net = mkNet w
-        dm  = mktDemand target (nodes net) (mkLedger w)
-        perFirm j = let amt = realToFrac (M.findWithDefault 0 j dm)
-                    in if amt <= 0 then mempty
-                       else (amt .@ Hat :< (Products,  j, j, Amount))
-                         .+ (amt .@ Not :< (SalesCost, j, j, Yen))
-        alg = EA.sigma (nodes net) perFirm
-    in if EA.isZero alg then mempty else alg .| ("production", t)
+mktProduction :: (HatVal v, Real v) => [MktFirm] -> Double -> Stage (MktW v) Int MktNote v MktBase
+mktProduction fs target = stageFor "production" fs $ \w t _g j ->
+    let dm  = mktDemand target t fs (mkLedger w)
+        amt = realToFrac (M.findWithDefault 0 j dm)
+    in if amt <= 0 then mempty
+       else ((amt .@ Hat :< (Products,  j, j, Amount))
+          .+ (amt .@ Not :< (SalesCost, j, j, Yen)))
+            .| ("production", t)
 
 mktReport :: (HatVal v) => Stage (MktW v) Int MktNote v MktBase
 mktReport = stage "report" $ \w t ->
-    let flow = EJ.toAlg (EJ.filterWithNote (\(_, tt) _ -> tt == t) (mkLedger w))
+    let flow = EJ.toAlg (EJ.projWithNote [("trade", t), ("production", t)] (mkLedger w))
         shortageK b = case b of
             Hat :< (Products, o, c, _) | o == c -> Just o
             _                                   -> Nothing
         sh = EA.postFromNetBy shortageK (\j v -> v .@ Not :< (Products, j, j, Amount)) flow
     in if EA.isZero sh then mempty else sh .| ("report", t)
+
+-- carryover stage (mirror): net this term's own-product stock and roll the
+-- positive surplus into ("carryover", t+1). Mirrors MarketModel.carryoverStage.
+mktCarryover :: (HatVal v, Real v) => Stage (MktW v) Int MktNote v MktBase
+mktCarryover = stage "closing" $ \w t ->
+    let termAlg = EJ.toAlg (EJ.filterByAxis 1 (NoteAxisKey (t :: Int)) (mkLedger w))
+        netMap  = EA.balanceMapBy mktOwnerOfProduct termAlg
+        perFirm (j, v) =
+            if v <= 0 then mempty
+            else ((v .@ Hat :< (Products, j, j, Amount)) .| ("closing",   t))
+              <> ((v .@ Not :< (Products, j, j, Amount)) .| ("carryover", t + 1))
+    in mconcat [ perFirm kv | kv <- M.toList netMap ]
 
 -- a fixed small (G, A) used by both equivalence tests.
 mktBuild :: (HatVal v) => Int -> (TradeNetwork MktFirm, InputCoefficients MktFirm v)
@@ -1785,10 +1808,12 @@ mktBuild n =
 mktSpec :: (HatVal v, Real v)
         => Bool -> Int -> Int -> Par -> SimSpec (MktW v) Int MktNote v MktBase
 mktSpec tuned n lastT par =
+    let fs = [1 .. n] in
     (mkSimSpec (1, lastT) 2025 mkLedger
-        [ (if tuned then mktTradeTuned else mktTradeSimple) 10
-        , mktProduction 10
-        , mktReport ])
+        [ (if tuned then mktTradeTuned else mktTradeSimple) fs 10
+        , mktProduction fs 10
+        , mktReport
+        , mktCarryover ])
       { Lite.specParallel = par }
 
 mktW0 :: (HatVal v) => Int -> MktW v InitT
@@ -1842,12 +1867,45 @@ testMarketShortagePositive = do
         cnet     = completeNetwork [1 .. 8 :: MktFirm]
         ccoef    = randomCoefficients gA defaultCoefOptions cnet :: InputCoefficients MktFirm MoneyDecimal
         cw0      = MktW { mkLedger = carry mempty, mkNet = carry cnet, mkCoef = carry ccoef }
+        cfs      = [1 .. 8 :: MktFirm]
         cspec    = (mkSimSpec (1, 3) 2025 mkLedger
-                      [ mktTradeSimple 10, mktProduction 10, mktReport ])
+                      [ mktTradeSimple cfs 10, mktProduction cfs 10, mktReport, mktCarryover ])
         cNorm    = runLite cspec cw0 (norm . mkLedger) :: MoneyDecimal
         _        = gG
     assertEqual "Market: complete-network run produces a positive ledger norm"
         True (cNorm > 0)
+
+-- (d) WINDOW-TRANSPARENCY SENTINEL (Phase 5 fix, modification 3):
+-- the carryover bookkeeping makes the model self-contained per term, so a
+-- RetainRecent window must NOT change the observable result. Assert that
+-- RetainRecent 2 (+ spill) and RetainAll produce the EXACT SAME final-term
+-- report norm AND final carryover map (MoneyDecimal, so equality is exact).
+-- This permanently guards against the bug this round fixed (a full-ledger
+-- inventory sweep silently re-reading a window-truncated net: 9974.74 vs
+-- 9993.56). N=40, T=8 so the window (2) is strictly smaller than the history.
+testMarketWindowTransparent :: IO ()
+testMarketWindowTransparent = withTempSpill "market_window" $ \path -> do
+    let n = 40; lastT = 8
+        spec = mktSpec False n lastT Sequential
+        w0   = mktW0 n
+        -- project the two observables we pin: the final-term report norm and the
+        -- final carryover map (the next-term opening, keyed by firm).
+        project final =
+            let lj = mkLedger final :: MktLedgM
+                reportN = norm (EJ.projWithNote [("report", lastT)] lj) :: MoneyDecimal
+                carryM  = EA.balanceMapBy mktOwnerOfProduct
+                            (EJ.toAlg (EJ.projWithNote [("carryover", lastT + 1)] lj))
+                          :: M.Map MktFirm MoneyDecimal
+            in (reportN, carryM)
+        polAll = Policy.defaultLedgerPolicy { Policy.retain = Policy.RetainAll }
+        polWin = Policy.defaultLedgerPolicy
+                   { Policy.retain = Policy.RetainRecent 2, Policy.spillTo = Just path }
+    (allN, allM) <- runLiteWithPolicy polAll spec w0 project
+    (winN, winM) <- runLiteWithPolicy polWin spec w0 project
+    assertEqual "Market window-transparency: final report norm equal under RetainAll vs RetainRecent 2 + spill"
+        allN winN
+    assertEqual "Market window-transparency: final carryover map equal under RetainAll vs RetainRecent 2 + spill"
+        allM winM
 
 main :: IO ()
 main = do
@@ -1903,6 +1961,7 @@ main = do
     testMarketSimpleTunedEqual
     testMarketSeqParEqual
     testMarketShortagePositive
+    testMarketWindowTransparent
     axiomProperties
     journalProperties
     quotientProperties

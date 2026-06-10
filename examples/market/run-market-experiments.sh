@@ -61,11 +61,13 @@ run_one () {
   out="$(env "${envs[@]}" stack exec --system-ghc "$exe" -- +RTS "-N${cores}" -s 2>&1)"
 
   local elapsed maxres prod
-  # Robust elapsed extraction: pull the "<num>s elapsed" token directly,
-  # regardless of whitespace/parenthesis layout in the "Total time" line.
-  # GHC prints e.g. "Total   time  123.905s  (106.894s elapsed)"; a column
-  # split on $5 mis-fields when there is no space after ')'. Match the token.
-  elapsed=$(printf '%s\n' "$out" | grep -oE '[0-9.]+s elapsed' | head -1 | grep -oE '[0-9.]+')
+  # Robust elapsed extraction: take the "<num>s elapsed" token from the *Total*
+  # line specifically (anchored to "Total" so it cannot match the INIT/MUT/GC
+  # lines, which also print "Ns elapsed"), regardless of whitespace/parenthesis
+  # layout. GHC prints e.g. "Total   time  123.905s  (106.894s elapsed)"; an
+  # awk $5 column split mis-fields when there is no space after ')'.
+  elapsed=$(printf '%s\n' "$out" | grep -E '^[[:space:]]*Total[[:space:]]+time' \
+              | grep -oE '[0-9.]+s elapsed' | head -1 | grep -oE '[0-9.]+')
   maxres=$(printf '%s\n'  "$out" | awk '/maximum residency/ {gsub(/,/,"",$1); print $1}')
   prod=$(printf '%s\n'    "$out" | awk '/Productivity/ {print $2}')
 
