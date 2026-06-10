@@ -72,7 +72,7 @@ stack exec -- <executable-name>
 ```
 
 See the list below for the available executables. The first `stack build` compiles all
-eleven of them at once.
+of them at once.
 
 ### Output directories must exist before running
 
@@ -83,6 +83,7 @@ repository). Create the expected directories up front:
 ```bash
 # Run from the repository root — creates every output directory used by the examples
 mkdir -p examples/result/csv                                              # ebex1, ebex2
+mkdir -p examples/basic/result/csv                                        # ebex6, ebex7, ebex8, ebex9
 mkdir -p examples/basic/result/csv/simulateEx1                            # sim1 CSV
 mkdir -p examples/basic/result/fig/simulateEx1                            # sim1 PNG
 mkdir -p examples/basic/result/csv/simulateEx2                            # sim2 CSV
@@ -105,6 +106,10 @@ run.
 |`ebex3`|`basic/elementaryBookkeepingEx3.hs`|Introduces a custom `Element` (currency unit `Unit`) for multi-currency bookkeeping|
 |`ebex4`|`basic/elementaryBookkeepingEx4.hs`|`Journal` carrying `Note = Day`, i.e. date-annotated entries|
 |`ebex5`|`basic/elementaryBookkeepingEx5.hs`|Uses `sigma` to aggregate 100 companies|
+|`ebex6`|`basic/elementaryBookkeepingEx6.hs`|Lecture ch.9-15: cash over/short, petty cash, bank overdraft, 3-account-method trade (with returns), advances, credit-card receivables, notes, electronically-recorded claims/obligations, sundry receivables/payables. Trial-balance CSV|
+|`ebex7`|`basic/elementaryBookkeepingEx7.hs`|Lecture ch.16-18: bad debts / allowance for doubtful accounts (replenishment & reset methods), fixed-asset acquisition & disposal (gain/loss, indirect method), depreciation (indirect/direct, monthly proration). Uses `ExchangeAlgebra.Bookkeeping` builders|
+|`ebex8`|`basic/elementaryBookkeepingEx8.hs`|Lecture ch.19-23: share issuance, dividends + legal reserve, correction entries via `reversingEntry` (the seq audit trail is shown with `writeAccountOf`), the four deferral/accrual accounts + next-period reversal, consumption-tax & corporate-income-tax settlement|
+|`ebex9`|`basic/elementaryBookkeepingEx9.hs`|Lecture ch.24-25: full accounting cycle showcase — period transactions → closing adjustments (COGS / depreciation / allowance / deferral) → 8-column worksheet (`writeWorksheet`) → income-summary closing → post-closing trial balance (`writePostClosingTrialBalance`) → B/S & P/L|
 |`sim1`|`basic/simulateEx1.hs`|100-term simulation (6 companies, input coefficients, Haskell + Python plots)|
 |`sim2`|`basic/simulateEx2.hs`|A larger version of `sim1` (200 companies) with spill-to-disk|
 
@@ -177,7 +182,7 @@ uv run --script examples/basic/visualize_simulateEx1.py
 
 ### Examples that do not need Python
 
-`ebex1`〜`ebex5` and `sim2` do not call any Python script, so they run fine without `uv`.
+`ebex1`〜`ebex9` and `sim2` do not call any Python script, so they run fine without `uv`.
 
 ## Troubleshooting
 

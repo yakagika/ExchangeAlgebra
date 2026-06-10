@@ -77,6 +77,26 @@ executables:
     main:                elementaryBookkeepingEx5.hs
     source-dirs:         basic
 
+  ebex6:
+    <<: *exe-defaults
+    main:                elementaryBookkeepingEx6.hs
+    source-dirs:         basic
+
+  ebex7:
+    <<: *exe-defaults
+    main:                elementaryBookkeepingEx7.hs
+    source-dirs:         basic
+
+  ebex8:
+    <<: *exe-defaults
+    main:                elementaryBookkeepingEx8.hs
+    source-dirs:         basic
+
+  ebex9:
+    <<: *exe-defaults
+    main:                elementaryBookkeepingEx9.hs
+    source-dirs:         basic
+
   sim1:
     <<: *exe-defaults
     main:                simulateEx1.hs
