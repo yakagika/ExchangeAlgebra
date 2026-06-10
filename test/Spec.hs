@@ -215,6 +215,8 @@ accountTitleClassTable =
     , (GainOnSalesOfFixedAssets,      Revenue,   Credit, Other)
     , (RecoveryOfBadDebts,            Revenue,   Credit, Other)
     , (MiscellaneousIncome,           Revenue,   Credit, Other)
+    -- Phase B addition: Revenue (収益)
+    , (ReversalOfAllowanceForDoubtfulAccounts, Revenue, Credit, Other)
     ]
 
 testAccountTitleClassification :: IO ()

@@ -405,6 +405,7 @@ classifyAccountDivision CommunicationExpenses       = Cost
 classifyAccountDivision GainOnSalesOfFixedAssets    = Revenue
 classifyAccountDivision RecoveryOfBadDebts          = Revenue
 classifyAccountDivision MiscellaneousIncome         = Revenue
+classifyAccountDivision ReversalOfAllowanceForDoubtfulAccounts = Revenue
 classifyAccountDivision _                           = Assets
 
 -- | BaseClass ⊃ HatBaseClass ⊃ ExBaseClass
@@ -587,6 +588,7 @@ class (HatBaseClass a) => ExBaseClass a where
         f GainOnSalesOfFixedAssets       = Other
         f RecoveryOfBadDebts             = Other
         f MiscellaneousIncome            = Other
+        f ReversalOfAllowanceForDoubtfulAccounts = Other
         f AccountTitle                   = Other
 
 

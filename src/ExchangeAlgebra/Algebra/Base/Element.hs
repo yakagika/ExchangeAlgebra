@@ -343,6 +343,7 @@ data  AccountTitles = Cash                            -- ^ Asset: Cash (現金)
                     | GainOnSalesOfFixedAssets        -- ^ Revenue: Gain on sales of fixed assets (固定資産売却益)
                     | RecoveryOfBadDebts              -- ^ Revenue: Recovery of bad debts written off (償却債権取立益)
                     | MiscellaneousIncome             -- ^ Revenue: Miscellaneous income (雑益)
+                    | ReversalOfAllowanceForDoubtfulAccounts -- ^ Revenue: Reversal of allowance for doubtful accounts (貸倒引当金戻入). Credit counterpart used by the 差額補充法/洗替法 when the estimated allowance is smaller than the existing balance (the excess of 'AllowanceForDoubtfulAccounts' is released).
                     | AccountTitle                    -- ^ Wildcard (ワイルドカード — 任意の科目にマッチ。projWithBase 等の問い合わせ用で, 実 posting には使わない)
                     deriving (Show, Ord, Eq, Enum, Generic, Bounded)
 
