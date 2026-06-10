@@ -1813,6 +1813,11 @@ testMarketSimpleTunedEqual = do
         tunedL  = runLite (mktSpec True  30 5 Sequential) (mktW0 30) mkLedger
     assertEqual "Market: tradeStageSimple == tradeStageTuned (MoneyDecimal, exact per-base net)"
         (nettedMktMap simpleL) (nettedMktMap tunedL)
+    -- gross volume must also agree: bar-equality alone cannot detect an
+    -- accidental early Hat/Not netting in the tuned path (bar is idempotent,
+    -- but the pre-bar norm would shrink). norm pins the gross posting volume.
+    assertEqual "Market: simple/tuned gross volume (norm) agrees (no early netting)"
+        (norm simpleL) (norm tunedL)
 
 -- (b) DET-2: Sequential ≡ ParChunk, exactly, under MoneyDecimal (simple path).
 testMarketSeqParEqual :: IO ()
