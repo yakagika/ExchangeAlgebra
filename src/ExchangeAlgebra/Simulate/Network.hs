@@ -458,21 +458,35 @@ scaleFree gen ks m0 =
     nodeSet = S.fromList ks
     xs      = S.toAscList nodeSet
     m       = max 1 m0
-    builtEdges = reverse (snd (foldl' addNode (gen, []) (zip [0 ..] xs)))
+    -- State threads the generator, the edge accumulator and an incremental
+    -- degree table (@node ↦ current degree@). The degree table replaces the
+    -- O(E) rescan that the naive @degree i = length (filter …) acc@ performed
+    -- for every candidate at every node: each added edge bumps both endpoints'
+    -- degrees in O(log N), so the per-node weight list is built without ever
+    -- touching @acc@. The weights produced are bit-for-bit identical to the
+    -- rescan version, so the generated network is unchanged.
+    (_, builtEdges0, _) = foldl' addNode (gen, [], M.empty) (zip [0 ..] xs)
+    builtEdges = reverse builtEdges0
 
-    -- addNode :: (StdGen, [(k,k)]) -> (Int, k) -> (StdGen, [(k,k)])
-    addNode st@(_, acc) (ix, j)
+    -- addNode :: (StdGen, [(k,k)], Map k Int)
+    --         -> (Int, k) -> (StdGen, [(k,k)], Map k Int)
+    addNode st@(g0, acc, deg) (ix, j)
       | ix == 0   = st                                   -- first node: nothing to attach to
       | ix <= m   =                                      -- seed phase: attach to all earlier nodes
           let suppliers = take ix xs
-          in (fst st, [ (i, j) | i <- suppliers ] ++ acc)
+              newEdges  = [ (i, j) | i <- suppliers ]
+          in (g0, newEdges ++ acc, bumpEdges newEdges deg)
       | otherwise =                                      -- preferential attachment
           let present       = take ix xs                 -- nodes already added
-              degree i      = length (filter (\(s, _) -> s == i) acc)
-                            + length (filter (\(_, t) -> t == i) acc)
+              degree i      = M.findWithDefault 0 i deg
               weighted      = [ (i, fromIntegral (1 + degree i) :: Double) | i <- present ]
-              (chosen, g1)  = sampleWeightedWithout (fst st) m weighted
-          in (g1, [ (i, j) | i <- chosen ] ++ acc)
+              (chosen, g1)  = sampleWeightedWithout g0 m weighted
+              newEdges      = [ (i, j) | i <- chosen ]
+          in (g1, newEdges ++ acc, bumpEdges newEdges deg)
+
+    -- Increment both endpoints' degree counts for each newly added edge.
+    bumpEdges es d = foldl' (\d' (i, t) -> bump i (bump t d')) d es
+    bump k = M.insertWith (+) k 1
 
 -- | A stochastic block network: each node carries a sector label, and an
 -- ordered pair @(i, j)@ (@i /= j@) becomes an edge with probability
@@ -513,9 +527,13 @@ data CoefOptions = CoefOptions
     -- ^ Inclusive @(lo, hi)@ range each raw coefficient is drawn from.
   , hawkinsSimon :: !Bool
     -- ^ When 'True', each buyer's column (its suppliers' coefficients) is
-    --   rescaled so the column sum is strictly below @1@, guaranteeing
-    --   productivity (a sufficient Hawkins–Simon condition). When 'False' the
-    --   raw draws are used as-is.
+    --   kept strictly below a column sum of @1@, guaranteeing productivity (a
+    --   sufficient Hawkins–Simon condition). The rescaling is __shrink-only__:
+    --   a column whose raw sum is already @< 1@ is left untouched, and only a
+    --   column whose raw sum is @>= 1@ is scaled down (to @0.95@ of its sum).
+    --   This preserves the heterogeneity of the raw draws instead of forcing
+    --   every column to one common sum. When 'False' the raw draws are used
+    --   as-is.
   } deriving (Eq, Show)
 
 instance NFData CoefOptions where
@@ -528,9 +546,12 @@ defaultCoefOptions = CoefOptions { coefRange = (0, 1), hawkinsSimon = True }
 -- | Draw a coefficient for every edge of a network, deterministically from the
 -- given 'StdGen'. Values are drawn in 'Double' and converted via 'realToFrac'
 -- (so the value type @v@ does not need a @Random@ instance). With
--- 'hawkinsSimon' on, each buyer's column is normalised to sum to @0.95@ of @1@
--- (strictly below 1), which is a sufficient condition for the Leontief system
--- to be productive.
+-- 'hawkinsSimon' on, the rescaling is __shrink-only__: a column whose raw sum
+-- is already strictly below @1@ is kept as drawn, and only a column whose raw
+-- sum reaches @1@ is scaled down to @0.95@ of that sum. Either way every column
+-- sum ends strictly below @1@, a sufficient condition for the Leontief system
+-- to be productive, while the natural spread of the raw draws is preserved
+-- (columns are /not/ all forced to one common sum).
 --
 -- The result satisfies @supp(A) = edges(G)@ by construction, so it always
 -- round-trips back through 'inputCoefficients' without error.
@@ -559,10 +580,12 @@ randomCoefficients gen opts g =
     normalise
       | hawkinsSimon opts = M.map rescaleCol
       | otherwise         = M.map (M.map realToFrac)
+    -- Shrink-only Hawkins–Simon: leave a productive column (raw sum < 1)
+    -- untouched, and only scale a column down when its raw sum reaches 1.
     rescaleCol col =
         let total = sum (M.elems col)
-        in if total <= 0
-            then M.map (const (realToFrac (0 :: Double))) col
+        in if total < 1
+            then M.map realToFrac col
             else M.map (\x -> realToFrac (x / total * target)) col
     target = 0.95 :: Double
 
