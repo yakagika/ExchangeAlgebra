@@ -18,39 +18,57 @@
   line of difference). The value type is a /type/, so it cannot be switched at
   run time — hence two executables, one model.
 
-  == What the model does (heavy stages, E3)
+  == What the model does (heavy stages, E3; carryover bookkeeping, Phase 5 fix)
 
-  Every term runs three BSP stages (each a pure map from the read-only snapshot
-  to messages), in declared order:
+  Every term runs four BSP stages (each a pure map from the read-only snapshot
+  to messages), in declared order. The model is __self-contained per term__ in
+  the classic carry-forward sense (cf. @simulateEx2@'s @finalStockTransfer@): a
+  firm's stock at the /start/ of term @t@ is held on a single
+  @("carryover", t)@ note, and the /closing/ stage of term @t@ nets that period
+  and rolls the surplus into @("carryover", t+1)@. This keeps every per-term
+  inventory read at @O(\\#firms)@ (indexed by term axis) regardless of how long
+  the history is — no full-ledger @balanceMapBy@ sweep — and makes the inventory
+  semantics __window-transparent__: @("carryover", t)@ carries the term value
+  @t@, so a @RetainRecent w@ run (w ≥ 1) never evicts the opening stock a term
+  needs.
 
-    1. __trade__ — orders flow along the trade network's in-edges. For each edge
-       @(i, j)@ (supplier @i@, buyer @j@) the buyer orders
-       @a_{ij} · demand_j@ of supplier @i@'s product, booked as a /6-entry/
-       bilateral posting (the @simulateEx2@\/Gate @purchasePosting@ shape).
-       @demand_j@ is __inventory-connected__ (E3): it is
-       @max(0, target − prevNetInventory_j)@, where @prevNetInventory_j@ is read
-       from the /previous/ term's ledger snapshot in __one pass__ via
-       'EA.balanceMapBy' (no per-firm projection loop).
+    1. __trade__ — orders flow along the trade network's in-edges. Each firm
+       @j@ folds its in-edges @suppliersOf g j@ into a /6-entry/ bilateral
+       posting per supplier (the @simulateEx2@\/Gate @purchasePosting@ shape).
+       The order amount is @a_{ij} · demand_j@ where @demand_j@ is
+       __inventory-connected__: @max(0, target − opening_j)@ and @opening_j@ is
+       firm @j@'s stock read from this term's @("carryover", t)@ note __by an
+       indexed per-note projection__ (@O(\\log + \\#firms)@), not a ledger-wide
+       sweep. This stage is run per firm via 'stageFor', so 'ParChunk' actually
+       fans the work out across firms.
 
-    2. __production__ — each firm consumes the inputs it ordered (a
-       coefficient-weighted draw on its input stock) and books the matching
-       output of its own product. This is the @input(coef × demand) → output@
-       Leontief step, kept as genuine accounting work (no busy-loop).
+    2. __production__ — each firm consumes @demand_j@ units of its own product
+       (a usage-cost line). This is the demand-satisfaction step, kept as
+       genuine accounting work, also fanned out per firm via 'stageFor'.
 
     3. __report__ — a per-firm one-pass aggregation ('EA.postFromNetBy', the
        §2A flagship): the term's net product position is classified by owning
        firm and any net /shortage/ (Hat product) is turned, in one O(m) pass,
        into an explicit replenishment marker.
 
+    4. __closing__ (carryover) — a single aggregate stage that nets this term's
+       own-product position per firm (@balanceMapBy@ over this term's entries
+       only, indexed by the term axis) and, for each firm with positive net
+       stock @v@, posts the matched pair
+       @v .\@ Hat :< (Products, j, j, Amount) .| ("closing", t)@ and
+       @v .\@ Not :< (Products, j, j, Amount) .| ("carryover", t+1)@. The
+       cumulative net is invariant (the pair telescopes), exactly as
+       @finalStockTransfer@ does.
+
   == simple \/ tuned trade stage (E4)
 
-  'tradeStageSimple' writes the trade Σ the natural way ('sigmaEdges' of a
-  6-entry @.\@@ posting per edge). 'tradeStageTuned' computes the /same/ journal
-  by manually fusing the per-base accumulation with the lower-level
-  'EA.foldEntriesToMap' \/ 'EJ.sigmaOnFromMap' API. With an exact value type
-  ('MoneyDecimal') the two are __bit-for-bit identical__ (asserted in the test
-  suite); the difference is only in evaluation strategy, measured by the
-  experiment harness.
+  'tradeStageSimple' writes the trade Σ the natural way (a 6-entry @.\@@ posting
+  per in-edge, summed per firm). 'tradeStageTuned' computes the /same/ per-firm
+  journal by manually fusing the per-base accumulation into a
+  'M.insertWith'-accumulated map rebuilt with 'EA.sigmaFromMap'. With an exact
+  value type ('MoneyDecimal') the two are __bit-for-bit identical__ after @bar@
+  (asserted in the test suite); the difference is only in evaluation strategy,
+  measured by the experiment harness.
 
   == Determinism
 
@@ -83,6 +101,9 @@ module MarketModel
       -- * The other heavy stages
     , productionStage
     , reportStage
+    , carryoverStage
+      -- * Inventory read-out (indexed, per-firm)
+    , openingMap
       -- * Spec assembly and run
     , marketSpec
     , RunResult(..)
@@ -104,7 +125,7 @@ import qualified ExchangeAlgebra.Algebra       as EA
 import           ExchangeAlgebra.Simulate.Lite
                      ( HK, InitT
                      , carry
-                     , Stage, stage
+                     , Stage, stage, stageFor
                      , Par(..)
                      , SimSpec, mkSimSpec, specParallel
                      , runLite, runLiteWithPolicy )
@@ -114,7 +135,7 @@ import           ExchangeAlgebra.Simulate.Network
                      ( TradeNetwork, InputCoefficients
                      , completeNetwork, kRegular, erdosRenyi, scaleFree
                      , defaultCoefOptions, randomCoefficients
-                     , nodes, edges, edgeCount, coefficient )
+                     , edgeCount, coefficient, suppliersOf )
 
 ------------------------------------------------------------------
 -- * Model types
@@ -295,35 +316,42 @@ buildCoef :: (HatVal v) => StdGen -> TradeNetwork Firm -> InputCoefficients Firm
 buildCoef g net = randomCoefficients g defaultCoefOptions net
 
 ------------------------------------------------------------------
--- * Inventory-connected demand (E3, one pass)
+-- * Inventory read-out (carryover-indexed, per-firm) + demand
 ------------------------------------------------------------------
 
--- | Each firm's order-driving demand this term, read from the /previous/ term's
--- ledger snapshot in __one pass__: @demand_j = max(0, target − netInventory_j)@.
+-- | Classify a base by the owning firm IFF it is that firm's own product stock
+-- @(Products, j, j, _)@. (BasePart strips the Hat/Not side.)
+ownerOfProduct :: BasePart MBase -> Maybe Firm
+ownerOfProduct bp = case bp of
+    (Products, o, c, _) | o == c -> Just o
+    _                            -> Nothing
+
+-- | Firm @j@'s /opening/ stock at the start of term @t@: the net value held on
+-- the @("carryover", t)@ note's own-product base. This is an __indexed,
+-- per-note read__ — 'EJ.projWithNote' resolves the single note in
+-- @O(\\log + \\#firms)@ via the Journal's note index, then 'EA.balanceMapBy'
+-- nets only /that note's/ bases (@\\#firms@ entries) — never a full-ledger
+-- sweep. Window-transparent: @("carryover", t)@ has term value @t@, so a
+-- @RetainRecent w@ run (w ≥ 1) still has it resident when term @t@ runs.
 --
--- @netInventory_j@ is the signed net of firm @j@'s own @Products@ base (Not adds,
--- Hat subtracts). 'EA.balanceMapBy' computes all firms' nets in a single fold
--- over the snapshot ledger's algebra — no per-firm projection loop (which would
--- be the O(N·proj) shape this whole proposal removes).
---
--- Returns a total map @Firm -> demand@ defaulting to @target@ for firms with no
--- recorded inventory yet (term 1).
+-- Term 1 has no carryover note yet, so every firm reads @0@ (and demand falls
+-- back to the full @target@), exactly the original skeleton's behaviour.
+openingMap :: forall v. (HatVal v, Real v)
+           => Int -> Journal MNote v MBase -> M.Map Firm v
+openingMap t ledger =
+    EA.balanceMapBy ownerOfProduct
+        (EJ.toAlg (EJ.projWithNote [("carryover", t)] ledger))
+
+-- | Each firm's order-driving demand this term:
+-- @demand_j = max(0, target − opening_j)@, where @opening_j@ is read by
+-- 'openingMap' (indexed per-note, not a ledger sweep). Returns a total map.
 demandMap :: forall v. (HatVal v, Real v)
-          => Double -> [Firm] -> Journal MNote v MBase -> M.Map Firm Double
-demandMap target fs ledger =
-    let !alg     = EJ.toAlg ledger
-        -- one pass: net product inventory per owning firm.
-        invMap   = EA.balanceMapBy ownerOfProduct alg :: M.Map Firm v
+          => Double -> Int -> [Firm] -> Journal MNote v MBase -> M.Map Firm Double
+demandMap target t fs ledger =
+    let !opening = openingMap t ledger :: M.Map Firm v
     in M.fromList
-         [ (j, max 0 (target - realToFrac (M.findWithDefault 0 j invMap)))
+         [ (j, max 0 (target - realToFrac (M.findWithDefault 0 j opening)))
          | j <- fs ]
-  where
-    -- classify a base by the owning firm IFF it is that firm's own product
-    -- stock @(Products, j, j, _)@. (BasePart strips the Hat/Not side.)
-    ownerOfProduct :: BasePart MBase -> Maybe Firm
-    ownerOfProduct bp = case bp of
-        (Products, o, c, _) | o == c -> Just o
-        _                            -> Nothing
 
 ------------------------------------------------------------------
 -- * Trade stages (E4): simple and tuned, exact-equal under MoneyDecimal
@@ -351,49 +379,49 @@ orderAmount coef dm i j =
         d = M.findWithDefault 0 j dm
     in a * d
 
--- | __simple__ trade stage: the natural Σ over edges. For each edge a 6-entry
--- posting is built with '.\@'\/'.+' and the edge sum is taken with 'sigmaEdges'.
+-- | __simple__ trade stage, fanned out __per firm__ ('stageFor' over the firm
+-- list, so 'ParChunk' sparks each firm's in-edge fold independently). Buyer @j@
+-- folds its in-edges @suppliersOf g j@ into a Σ of 6-entry postings (the
+-- Gate\/@simulateEx2@ @purchasePosting@ shape), one posting per supplier @i@.
+-- Every edge @(i,j)@ is owned by exactly one buyer @j@, so the per-firm
+-- partition posts each edge exactly once (no double counting).
 tradeStageSimple :: forall v. (HatVal v, Real v)
-                 => Double -> Stage (World v) Int MNote v MBase
-tradeStageSimple target = stage "trade" $ \w t ->
+                 => [Firm] -> Double -> Stage (World v) Int MNote v MBase
+tradeStageSimple fs target = stageFor "trade" fs $ \w t _g j ->
     let net  = wNet w
         coef = wCoef w
-        fs   = nodes net
-        dm   = demandMap target fs (wLedger w)
-        per (i, j) = let amt = realToFrac (orderAmount coef dm i j) :: v
-                     in if amt <= 0 then mempty
-                        else purchasePosting amt i j
-        -- sum the per-edge 6-entry postings into one Alg, then attach one note.
-        alg = EA.sigma (edges net) per
+        dm   = demandMap target t fs (wLedger w)
+        sup  = suppliersOf net j
+        one i = let amt = realToFrac (orderAmount coef dm i j) :: v
+                in if amt <= 0 then mempty else purchasePosting amt i j
+        alg = EA.sigma sup one
     in if EA.isZero alg then mempty else alg .| ("trade", t)
 
--- | __tuned__ trade stage: the /same/ journal, computed by manually fusing the
--- per-base accumulation. Each edge contributes six @(base, value)@ pairs into a
--- single 'EA.foldEntriesToMap'-style accumulator, then 'EJ.sigmaOnFromMap'
--- rebuilds one journal in one shot. With an exact value type the result is
--- bit-for-bit identical to 'tradeStageSimple' (the per-base values are summed in
--- the same key order); with FP it is deterministic but may reassociate.
+-- | __tuned__ trade stage: the /same/ journal (after @bar@), also per-firm
+-- token, with firm @j@'s in-edges fused into one base->value map
+-- ('M.insertWith') rebuilt with 'EA.sigmaFromMap'. With an exact value type the
+-- per-firm journals merge to a result @bar@-identical to 'tradeStageSimple';
+-- with FP it is deterministic but may reassociate.
 tradeStageTuned :: forall v. (HatVal v, Real v)
-                => Double -> Stage (World v) Int MNote v MBase
-tradeStageTuned target = stage "trade" $ \w t ->
+                => [Firm] -> Double -> Stage (World v) Int MNote v MBase
+tradeStageTuned fs target = stageFor "trade" fs $ \w t _g j ->
     let net  = wNet w
         coef = wCoef w
-        fs   = nodes net
-        dm   = demandMap target fs (wLedger w)
-        -- fold every edge's six contributions into one base->value map.
-        accum = foldl' step M.empty (edges net)
-        step acc (i, j) =
+        dm   = demandMap target t fs (wLedger w)
+        sup  = suppliersOf net j
+        accum = foldl' step M.empty sup
+        step acc i =
             let amt = realToFrac (orderAmount coef dm i j) :: v
             in if amt <= 0 then acc
-               else foldl' (\m (b, v) -> M.insertWith (+) b v m) acc
+               else foldl' (\m (b, vv) -> M.insertWith (+) b vv m) acc
                       [ (Not :< (Products,  j, j, Amount), amt)
                       , (Hat :< (Cash,      j, j, Yen),    amt)
                       , (Not :< (Purchases, j, j, Yen),    amt)
                       , (Not :< (Cash,      i, i, Yen),    amt)
                       , (Not :< (Sales,     i, i, Yen),    amt)
                       , (Hat :< (Products,  i, i, Amount), amt) ]
-    -- rebuild a single journal on the ("trade", t) note from the merged map.
-    in EJ.sigmaOnFromMap ("trade", t) accum (\b v -> v .@ b)
+        alg = EA.sigmaFromMap accum (\b vv -> vv .@ b)
+    in if EA.isZero alg then mempty else alg .| ("trade", t)
 
 ------------------------------------------------------------------
 -- * Production stage (E3 b): demand-driven consumption of own product
@@ -412,18 +440,14 @@ tradeStageTuned target = stage "trade" $ \w t ->
 -- strict /shortage/ @demand_j · (1 − Σ_i a_{ij}) > 0@, which the report turns into
 -- a replenishment marker.
 productionStage :: forall v. (HatVal v, Real v)
-                => Double -> Stage (World v) Int MNote v MBase
-productionStage target = stage "production" $ \w t ->
-    let net  = wNet w
-        fs   = nodes net
-        dm   = demandMap target fs (wLedger w)
-        perFirm j =
-            let amt = realToFrac (M.findWithDefault 0 j dm) :: v
-            in if amt <= 0 then mempty
-               else (amt .@ Hat :< (Products,    j, j, Amount))   -- consume own product
-                 .+ (amt .@ Not :< (SalesCost,   j, j, Yen))      -- as a usage-cost line
-        alg = EA.sigma fs perFirm
-    in if EA.isZero alg then mempty else alg .| ("production", t)
+                => [Firm] -> Double -> Stage (World v) Int MNote v MBase
+productionStage fs target = stageFor "production" fs $ \w t _g j ->
+    let dm   = demandMap target t fs (wLedger w)
+        amt  = realToFrac (M.findWithDefault 0 j dm) :: v
+    in if amt <= 0 then mempty
+       else ((amt .@ Hat :< (Products,    j, j, Amount))   -- consume own product
+          .+ (amt .@ Not :< (SalesCost,   j, j, Yen)))      -- as a usage-cost line
+            .| ("production", t)
 
 ------------------------------------------------------------------
 -- * Report stage (E3 c, §2A flagship): per-firm one-pass aggregation
@@ -435,15 +459,19 @@ productionStage target = stage "production" $ \w t ->
 -- (@Hat:<(Products, j, j, _)@) it emits, in one O(m) pass keyed by the owning
 -- firm, an explicit replenishment marker for exactly the shortfall.
 --
--- This reads the /current/ term's flow off the snapshot ledger restricted to
--- this term, so it summarises what trade+production just did.
+-- This reads only this term's __trade + production flow__ (the
+-- @("trade", t)@\/@("production", t)@ notes, indexed) — deliberately /excluding/
+-- the @("carryover", t)@ opening note — so the shortage is exactly
+-- @consumed − received = demand_j · (1 − Σ_i a_{ij}) > 0@ (Hawkins–Simon), the
+-- same quantity the report measured before carryover bookkeeping was added.
 reportStage :: forall v. (HatVal v)
             => Stage (World v) Int MNote v MBase
 reportStage = stage "report" $ \w t ->
     let ledger   = wLedger w
-        -- this term's flow only (Note's term axis is the last component).
-        termJ    = EJ.filterWithNote (\(_, tt) _ -> tt == t) ledger
-        flow     = EJ.toAlg termJ
+        -- this term's trade+production flow only (indexed per-note read);
+        -- excludes the ("carryover", t) opening stock and the ("closing", t)
+        -- roll-out (which is posted in a later stage anyway).
+        flow     = EJ.toAlg (EJ.projWithNote [("trade", t), ("production", t)] ledger)
         shortageK b = case b of
             Hat :< (Products, o, c, _) | o == c -> Just o
             _                                   -> Nothing
@@ -451,6 +479,41 @@ reportStage = stage "report" $ \w t ->
                      (\j v -> v .@ Not :< (Products, j, j, Amount))
                      flow
     in if EA.isZero shortage then mempty else shortage .| ("report", t)
+
+------------------------------------------------------------------
+-- * Closing / carryover stage (Phase 5 fix): per-term self-contained books
+------------------------------------------------------------------
+
+-- | The /closing/ stage — the last stage of every term. It nets firm @j@'s own
+-- product position over __this term's entries only__ (the @("carryover", t)@
+-- opening note plus the @("trade", t)@ receipts and @("production", t)@
+-- consumption), read by an __indexed term-axis query__ ('EJ.filterByAxis' on
+-- axis 1) so the cost is @O(\\#this-term-entries)@, never history-proportional.
+--
+-- For every firm whose net closing stock @v@ is strictly positive it posts the
+-- matched carry-forward pair (the @finalStockTransfer@ shape):
+--
+--   * @v .\@ Hat :< (Products, j, j, Amount) .| ("closing", t)@   — close the books
+--   * @v .\@ Not :< (Products, j, j, Amount) .| ("carryover", t+1)@ — open next term
+--
+-- The pair telescopes, so the ledger-wide cumulative own-product net is
+-- /unchanged/ by closing; it only re-labels the surplus onto a single
+-- next-term note so the next term's @opening_j@ is a single indexed read. Firms
+-- with non-positive net stock carry nothing forward (their next opening is 0),
+-- which is the steady shortage regime (Hawkins–Simon).
+carryoverStage :: forall v. (HatVal v, Real v)
+               => Stage (World v) Int MNote v MBase
+carryoverStage = stage "closing" $ \w t ->
+    let -- this term's entries only (indexed by the term axis = axis 1).
+        termAlg = EJ.toAlg (EJ.filterByAxis 1 (NoteAxisKey (t :: Int)) (wLedger w))
+        netMap  = EA.balanceMapBy ownerOfProduct termAlg :: M.Map Firm v
+        -- carry only strictly-positive closing stock forward.
+        perFirm (j, v) =
+            if v <= 0 then mempty
+            else ((v .@ Hat :< (Products, j, j, Amount)) .| ("closing",   t))
+              <> ((v .@ Not :< (Products, j, j, Amount)) .| ("carryover", t + 1))
+        out = mconcat [ perFirm kv | kv <- M.toList netMap ]
+    in out
 
 ------------------------------------------------------------------
 -- * Spec assembly and run
@@ -464,11 +527,13 @@ marketSpec :: forall v. (HatVal v, Real v)
            -> SimSpec (World v) Int MNote v MBase
 marketSpec useTuned mp =
     (mkSimSpec (1, mpT mp) (mpSeed mp) wLedger
-        [ tradeStage (mpTarget mp)
-        , productionStage (mpTarget mp)
-        , reportStage ])
+        [ tradeStage fs (mpTarget mp)
+        , productionStage fs (mpTarget mp)
+        , reportStage
+        , carryoverStage ])
       { specParallel = toPar (mpPar mp) }
   where
+    fs         = [1 .. mpN mp]
     tradeStage = if useTuned then tradeStageTuned else tradeStageSimple
     toPar ParSeq        = Sequential
     toPar (ParChunkN c) = ParChunk c
