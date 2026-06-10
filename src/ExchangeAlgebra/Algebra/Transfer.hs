@@ -535,12 +535,14 @@ createTransfer tt =
 -- * Closing transfer entries
 
 -- | Income Summary Account: compute net income for the current period.
+-- When the ledger is balanced (credit == debit, net income is zero), @diffRL@
+-- reports the wildcard 'Side'; in that case the input is returned unchanged.
 incomeSummaryAccount :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 incomeSummaryAccount alg =  let (dc,diff) = diffRL alg
-                         in let x = case dc of
-                                        Credit -> diff :@ (toNot wiledcard) .~ NetIncome
-                                        Debit  -> diff :@ (toNot wiledcard) .~ NetLoss
-                         in alg .+  x
+                         in case dc of
+                                Credit -> alg .+ (diff :@ (toNot wiledcard) .~ NetIncome)
+                                Debit  -> alg .+ (diff :@ (toNot wiledcard) .~ NetLoss)
+                                Side   -> alg
 
 -- | Net income transfer. Transfers NetIncome/NetLoss to RetainedEarnings.
 --

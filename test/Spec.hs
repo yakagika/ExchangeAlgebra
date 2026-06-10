@@ -381,6 +381,36 @@ testFinalStockTransferJournalEquivalence = do
         actual = EJT.finalStockTransfer transferJournalSample
     assertEqual "Journal.finalStockTransfer matches composed transfer" (EJ.toMap ref) (EJ.toMap actual)
 
+-- A ledger whose Debit and Credit sides are equal (net income is zero).
+-- @diffRL@ reports the wildcard 'Side' here, which used to crash
+-- @incomeSummaryAccount@ with "Non-exhaustive patterns" (regression for 0.4.1.2).
+balancedTransferAlg :: TransferAlg
+balancedTransferAlg = EA.fromList
+    [ 5 :@ Not :<(Cash,  1, 1, Yen)   -- Assets  -> Debit  side
+    , 5 :@ Not :<(Sales, 2, 1, Yen)   -- Revenue -> Credit side
+    ]
+
+balancedTransferJournal :: TransferJournal
+balancedTransferJournal = balancedTransferAlg .| "balanced"
+
+-- | Regression: a balanced ledger (credit == debit) must not crash
+-- @incomeSummaryAccount@; it returns the input unchanged.
+testIncomeSummaryBalancedAlg :: IO ()
+testIncomeSummaryBalancedAlg = do
+    let actual = EAT.incomeSummaryAccount balancedTransferAlg
+    assertEqual
+        "Algebra.incomeSummaryAccount on balanced ledger returns input unchanged"
+        (EA.toList balancedTransferAlg)
+        (EA.toList actual)
+
+testIncomeSummaryBalancedJournal :: IO ()
+testIncomeSummaryBalancedJournal = do
+    let actual = EJT.incomeSummaryAccount balancedTransferJournal
+    assertEqual
+        "Journal.incomeSummaryAccount on balanced ledger returns input unchanged"
+        (EJ.toMap balancedTransferJournal)
+        (EJ.toMap actual)
+
 type SpillRestoreJournal = EJ.Journal (String, Int) Double (HatBase CountUnit)
 
 testRestoreJournalFromBinarySpill :: IO ()
@@ -802,6 +832,8 @@ main = do
     testFilterByAxisWithDeltaUpdates
     testFinalStockTransferAlgEquivalence
     testFinalStockTransferJournalEquivalence
+    testIncomeSummaryBalancedAlg
+    testIncomeSummaryBalancedJournal
     testRestoreJournalFromBinarySpill
     testSimulateEx1Default
     testCsvTranspose

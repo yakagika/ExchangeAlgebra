@@ -97,14 +97,16 @@ createTransfer tt = \ts -> transfer ts $ EAT.table tt
 
 -- | Compute net income for the current period (Income Summary Account).
 -- Calculate the debit-credit difference and add it as NetIncome or NetLoss to the plank Note.
+-- When the ledger is balanced (credit == debit, net income is zero), @diffRL@ reports the
+-- wildcard 'Side'; in that case the journal is returned unchanged.
 --
 -- Complexity: O(s) (s = total number of scalar entries)
 incomeSummaryAccount :: (Note n, HatVal v, ExBaseClass b) => Journal n v b -> Journal n v b
 incomeSummaryAccount js =  let (dc,diff) = diffRL js
-                         in let x = case dc of
-                                        Credit  -> diff :@ (toNot wiledcard) .~ NetIncome
-                                        Debit -> diff :@ (toNot wiledcard) .~ NetLoss
-                         in js .+  ( x .| plank)
+                         in case dc of
+                                Credit -> js .+ ((diff :@ (toNot wiledcard) .~ NetIncome) .| plank)
+                                Debit  -> js .+ ((diff :@ (toNot wiledcard) .~ NetLoss)   .| plank)
+                                Side   -> js
 
 -- | Net income transfer (Journal version). Transfer NetIncome/NetLoss to RetainedEarnings for each Note.
 --
