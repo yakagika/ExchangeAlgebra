@@ -103,6 +103,8 @@ module MarketModel
     , reportStage
     , carryoverStage
       -- * Inventory read-out (indexed, per-firm)
+    , openingOf
+    , demandOf
     , openingMap
       -- * Spec assembly and run
     , marketSpec
@@ -342,16 +344,33 @@ openingMap t ledger =
     EA.balanceMapBy ownerOfProduct
         (EJ.toAlg (EJ.projWithNote [("carryover", t)] ledger))
 
--- | Each firm's order-driving demand this term:
--- @demand_j = max(0, target − opening_j)@, where @opening_j@ is read by
--- 'openingMap' (indexed per-note, not a ledger sweep). Returns a total map.
-demandMap :: forall v. (HatVal v, Real v)
-          => Double -> Int -> [Firm] -> Journal MNote v MBase -> M.Map Firm Double
-demandMap target t fs ledger =
-    let !opening = openingMap t ledger :: M.Map Firm v
-    in M.fromList
-         [ (j, max 0 (target - realToFrac (M.findWithDefault 0 j opening)))
-         | j <- fs ]
+-- | Firm @j@'s /opening/ stock at the start of term @t@, read for a __single
+-- firm__ without building the all-firm map. This is the per-agent hot path:
+-- 'EJ.projWithNote' resolves the one @("carryover", t)@ note in @O(\\log)@ via
+-- the Journal's note index, then 'EA.balanceBy' nets only firm @j@'s own-product
+-- base @(Products, j, j, Amount)@ by two /concrete/ (wildcard-free) projections
+-- — each a @Map.lookup@ in @O(\\log \\#firms)@ — so the whole read is
+-- @O(\\log + \\log \\#firms)@. Calling this once per firm in a stage is
+-- @O(N \\log N)@ for the term, /not/ the @O(N^2)@ of rebuilding the all-firm
+-- 'openingMap' inside every per-agent lambda.
+--
+-- Term 1 has no carryover note yet, so every firm reads @0@ (and demand falls
+-- back to the full @target@), exactly the original skeleton's behaviour.
+openingOf :: forall v. (HatVal v, Real v)
+          => Int -> Firm -> Journal MNote v MBase -> v
+openingOf t j ledger =
+    EA.balanceBy [Not :< (Products, j, j, Amount)]
+                 [Hat :< (Products, j, j, Amount)]
+                 (EJ.toAlg (EJ.projWithNote [("carryover", t)] ledger))
+
+-- | Firm @j@'s order-driving demand this term:
+-- @demand_j = max(0, target − opening_j)@, read for a __single firm__ via
+-- 'openingOf' (indexed per-note + per-base, not a ledger sweep nor an all-firm
+-- map). This is what the per-agent trade and production stages call.
+demandOf :: forall v. (HatVal v, Real v)
+         => Double -> Int -> Firm -> Journal MNote v MBase -> Double
+demandOf target t j ledger =
+    max 0 (target - realToFrac (openingOf t j ledger :: v))
 
 ------------------------------------------------------------------
 -- * Trade stages (E4): simple and tuned, exact-equal under MoneyDecimal
@@ -371,12 +390,13 @@ purchasePosting amt i j =
   .+   amt .@ Hat :< (Products,  i, i, Amount)    -- goods leave supplier i's stock
 
 -- | The per-edge order amount @a_{ij} · demand_j@ as a 'Double' (the unit the
--- demand and coefficients live in); the caller converts to @v@.
+-- demand and coefficients live in); the caller converts to @v@. @demand_j@ is
+-- the buyer @j@'s single demand value (every in-edge of @j@ shares it), read
+-- once per firm by the caller via 'demandOf'.
 orderAmount :: (HatVal v, Real v)
-            => InputCoefficients Firm v -> M.Map Firm Double -> Firm -> Firm -> Double
-orderAmount coef dm i j =
+            => InputCoefficients Firm v -> Double -> Firm -> Firm -> Double
+orderAmount coef d i j =
     let a = realToFrac (fromMaybe 0 (coefficient coef i j)) :: Double
-        d = M.findWithDefault 0 j dm
     in a * d
 
 -- | __simple__ trade stage, fanned out __per firm__ ('stageFor' over the firm
@@ -390,9 +410,9 @@ tradeStageSimple :: forall v. (HatVal v, Real v)
 tradeStageSimple fs target = stageFor "trade" fs $ \w t _g j ->
     let net  = wNet w
         coef = wCoef w
-        dm   = demandMap target t fs (wLedger w)
+        d    = demandOf target t j (wLedger w)    -- buyer j's single demand (indexed read)
         sup  = suppliersOf net j
-        one i = let amt = realToFrac (orderAmount coef dm i j) :: v
+        one i = let amt = realToFrac (orderAmount coef d i j) :: v
                 in if amt <= 0 then mempty else purchasePosting amt i j
         alg = EA.sigma sup one
     in if EA.isZero alg then mempty else alg .| ("trade", t)
@@ -407,11 +427,11 @@ tradeStageTuned :: forall v. (HatVal v, Real v)
 tradeStageTuned fs target = stageFor "trade" fs $ \w t _g j ->
     let net  = wNet w
         coef = wCoef w
-        dm   = demandMap target t fs (wLedger w)
+        d    = demandOf target t j (wLedger w)    -- buyer j's single demand (indexed read)
         sup  = suppliersOf net j
         accum = foldl' step M.empty sup
         step acc i =
-            let amt = realToFrac (orderAmount coef dm i j) :: v
+            let amt = realToFrac (orderAmount coef d i j) :: v
             in if amt <= 0 then acc
                else foldl' (\m (b, vv) -> M.insertWith (+) b vv m) acc
                       [ (Not :< (Products,  j, j, Amount), amt)
@@ -442,8 +462,7 @@ tradeStageTuned fs target = stageFor "trade" fs $ \w t _g j ->
 productionStage :: forall v. (HatVal v, Real v)
                 => [Firm] -> Double -> Stage (World v) Int MNote v MBase
 productionStage fs target = stageFor "production" fs $ \w t _g j ->
-    let dm   = demandMap target t fs (wLedger w)
-        amt  = realToFrac (M.findWithDefault 0 j dm) :: v
+    let amt  = realToFrac (demandOf target t j (wLedger w)) :: v   -- firm j's own demand (indexed read)
     in if amt <= 0 then mempty
        else ((amt .@ Hat :< (Products,    j, j, Amount))   -- consume own product
           .+ (amt .@ Not :< (SalesCost,   j, j, Yen)))      -- as a usage-cost line

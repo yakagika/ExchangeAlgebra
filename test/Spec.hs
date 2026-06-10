@@ -1712,14 +1712,20 @@ mktOpening t ledger =
     EA.balanceMapBy mktOwnerOfProduct
         (EJ.toAlg (EJ.projWithNote [("carryover", t)] ledger))
 
--- inventory-connected demand from opening stock, mirroring MarketModel.demandMap.
-mktDemand :: (HatVal v, Real v)
-          => Double -> Int -> [MktFirm] -> Journal MktNote v MktBase -> M.Map MktFirm Double
-mktDemand target t fs ledger =
-    let opening = mktOpening t ledger
-    in M.fromList
-         [ (j, max 0 (target - realToFrac (M.findWithDefault 0 j opening)))
-         | j <- fs ]
+-- single-firm opening read (indexed per-note + per-base), mirroring
+-- MarketModel.openingOf: balanceBy over firm j's own-product base only.
+mktOpeningOf :: (HatVal v, Real v)
+             => Int -> MktFirm -> Journal MktNote v MktBase -> v
+mktOpeningOf t j ledger =
+    EA.balanceBy [Not :< (Products, j, j, Amount)]
+                 [Hat :< (Products, j, j, Amount)]
+                 (EJ.toAlg (EJ.projWithNote [("carryover", t)] ledger))
+
+-- single-firm inventory-connected demand, mirroring MarketModel.demandOf.
+mktDemandOf :: (HatVal v, Real v)
+            => Double -> Int -> MktFirm -> Journal MktNote v MktBase -> Double
+mktDemandOf target t j ledger =
+    max 0 (target - realToFrac (mktOpeningOf t j ledger))
 
 mktPurchase :: (HatVal v) => v -> MktFirm -> MktFirm -> EA.Alg v MktBase
 mktPurchase amt i j =
@@ -1731,18 +1737,18 @@ mktPurchase amt i j =
   .+   amt .@ Hat :< (Products,  i, i, Amount)
 
 mktOrderAmt :: (HatVal v, Real v)
-            => InputCoefficients MktFirm v -> M.Map MktFirm Double -> MktFirm -> MktFirm -> Double
-mktOrderAmt coef dm i j =
-    realToFrac (maybe 0 id (coefficient coef i j)) * M.findWithDefault 0 j dm
+            => InputCoefficients MktFirm v -> Double -> MktFirm -> MktFirm -> Double
+mktOrderAmt coef d i j =
+    realToFrac (maybe 0 id (coefficient coef i j)) * d
 
 -- per-firm trade stage (stageFor over the firm list), mirroring
 -- MarketModel.tradeStageSimple: buyer j folds its in-edges (suppliersOf).
 mktTradeSimple :: (HatVal v, Real v) => [MktFirm] -> Double -> Stage (MktW v) Int MktNote v MktBase
 mktTradeSimple fs target = stageFor "trade" fs $ \w t _g j ->
     let net = mkNet w; coef = mkCoef w
-        dm  = mktDemand target t fs (mkLedger w)
+        d   = mktDemandOf target t j (mkLedger w)
         sup = suppliersOf net j
-        one i = let amt = realToFrac (mktOrderAmt coef dm i j)
+        one i = let amt = realToFrac (mktOrderAmt coef d i j)
                 in if amt <= 0 then mempty else mktPurchase amt i j
         alg = EA.sigma sup one
     in if EA.isZero alg then mempty else alg .| ("trade", t)
@@ -1750,11 +1756,11 @@ mktTradeSimple fs target = stageFor "trade" fs $ \w t _g j ->
 mktTradeTuned :: (HatVal v, Real v) => [MktFirm] -> Double -> Stage (MktW v) Int MktNote v MktBase
 mktTradeTuned fs target = stageFor "trade" fs $ \w t _g j ->
     let net = mkNet w; coef = mkCoef w
-        dm  = mktDemand target t fs (mkLedger w)
+        d   = mktDemandOf target t j (mkLedger w)
         sup = suppliersOf net j
         accum = L.foldl' step M.empty sup
         step acc i =
-            let amt = realToFrac (mktOrderAmt coef dm i j)
+            let amt = realToFrac (mktOrderAmt coef d i j)
             in if amt <= 0 then acc
                else L.foldl' (\m (b, v) -> M.insertWith (+) b v m) acc
                       [ (Not :< (Products,  j, j, Amount), amt)
@@ -1768,8 +1774,7 @@ mktTradeTuned fs target = stageFor "trade" fs $ \w t _g j ->
 
 mktProduction :: (HatVal v, Real v) => [MktFirm] -> Double -> Stage (MktW v) Int MktNote v MktBase
 mktProduction fs target = stageFor "production" fs $ \w t _g j ->
-    let dm  = mktDemand target t fs (mkLedger w)
-        amt = realToFrac (M.findWithDefault 0 j dm)
+    let amt = realToFrac (mktDemandOf target t j (mkLedger w))
     in if amt <= 0 then mempty
        else ((amt .@ Hat :< (Products,  j, j, Amount))
           .+ (amt .@ Not :< (SalesCost, j, j, Yen)))
