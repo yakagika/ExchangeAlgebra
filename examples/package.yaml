@@ -114,13 +114,24 @@ executables:
     main:                stdcge.hs
     source-dirs:         optimization/CGE
 
-  # Phase 3 (feat/trade-network) skeleton: Lite (pure BSP stage) + a separated
-  # (G, A) market structure (erdosRenyi network + randomCoefficients) + sigmaEdges
-  # purchasing + postFromNetBy shortage. Prints a stdout summary; no output dir.
+  # Phase 5 (feat/market-scale-experiments): the market-scale experiment. The
+  # value-type-polymorphic model lives in MarketModel; marketEx1 (MoneyDouble)
+  # and marketEx1d (MoneyDecimal) are thin twin mains that differ only in v.
+  # Heavy stages (trade 6-entry posting / production / report 1-pass), env
+  # parameters (EA_N/EA_T/EA_K/EA_NET/EA_PAR/EA_RETAIN/EA_SPILL/EA_SEED/EA_TARGET),
+  # inventory-connected demand. 'other-modules' is set explicitly so the two
+  # Main twins do not collide via stack's source-dir auto-discovery.
   marketEx1:
     <<: *exe-defaults
     main:                marketEx1.hs
     source-dirs:         market
+    other-modules:       MarketModel
+
+  marketEx1d:
+    <<: *exe-defaults
+    main:                marketEx1d.hs
+    source-dirs:         market
+    other-modules:       MarketModel
 
 benchmarks:
   # Performance roadmap benchmark harness (ROAD_MAP "ベンチマーク基盤の整備").
