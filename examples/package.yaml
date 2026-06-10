@@ -114,6 +114,14 @@ executables:
     main:                stdcge.hs
     source-dirs:         optimization/CGE
 
+  # Phase 3 (feat/trade-network) skeleton: Lite (pure BSP stage) + a separated
+  # (G, A) market structure (erdosRenyi network + randomCoefficients) + sigmaEdges
+  # purchasing + postFromNetBy shortage. Prints a stdout summary; no output dir.
+  marketEx1:
+    <<: *exe-defaults
+    main:                marketEx1.hs
+    source-dirs:         market
+
 benchmarks:
   # Performance roadmap benchmark harness (ROAD_MAP "ベンチマーク基盤の整備").
   # criterion is scoped to this component only, so the library and the example
