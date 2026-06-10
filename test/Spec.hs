@@ -46,7 +46,7 @@ import           Data.STRef
 import           System.Exit         (exitFailure)
 import           System.IO           (IOMode(WriteMode), withFile)
 import           System.Directory    (removeFile)
-import           System.Random       (StdGen, mkStdGen, randomR)
+import           System.Random       (StdGen, mkStdGen, randomR, split)
 import           Control.Monad       (replicateM)
 import           Control.Monad.State (runState, state)
 import           Control.Exception   (try, evaluate, SomeException)
@@ -1670,6 +1670,180 @@ testNetCsvRoundTrip = do
     let Right gt = networkFromTable [(1,2),(2,3)] :: Either NetworkError (TradeNetwork Int)
     assertEqual "Network: networkFromTable derives node set" [1,2,3] (nodes gt)
 
+-- ================================================================
+-- MarketModel equivalence tests (Phase 5, feat/market-scale-experiments)
+--
+-- The examples/market/MarketModel.hs core cannot be imported here (it declares
+-- an orphan `instance StateTime Int` that would clash with the SICE harness's
+-- `instance StateTime SimTerm`), so the trade simple/tuned stages and a small
+-- BSP world are re-stated minimally (per the Phase 5 plan §2 commit 3 note).
+-- We check the two properties the plan puts in CI:
+--   (a) tradeStageSimple ≡ tradeStageTuned, EXACTLY, under MoneyDecimal;
+--   (b) Sequential ≡ ParChunk (DET-2) for the whole 3-stage model, exactly.
+-- (Perf ratios are out of CI; they live in run-market-experiments.sh.)
+-- ================================================================
+
+-- 4-axis base (AccountTitles, owner, counterparty, CountUnit), mirroring
+-- MarketModel.MBase. It is exactly the SICE harness's SimHatBase2, so we reuse
+-- that type (and its ExBaseClass / Element Int / BaseClass Int instances)
+-- instead of re-declaring them.
+type MktFirm  = SimCompany           -- = Int
+type MktNote  = (String, Int)
+type MktBase  = SimHatBase2          -- = HatBase (AccountTitles, Int, Int, CountUnit)
+type MktLedgM = Journal MktNote MoneyDecimal MktBase
+
+data MktW v f = MktW
+  { mkLedger :: HK f (Journal MktNote v MktBase)
+  , mkNet    :: HK f (TradeNetwork MktFirm)
+  , mkCoef   :: HK f (InputCoefficients MktFirm v)
+  } deriving Generic
+
+-- previous-term inventory-connected demand (one-pass balanceMapBy), mirroring
+-- MarketModel.demandMap.
+mktDemand :: (HatVal v, Real v)
+          => Double -> [MktFirm] -> Journal MktNote v MktBase -> M.Map MktFirm Double
+mktDemand target fs ledger =
+    let alg    = EJ.toAlg ledger
+        invMap = EA.balanceMapBy ownerOfProduct alg
+    in M.fromList
+         [ (j, max 0 (target - realToFrac (M.findWithDefault 0 j invMap)))
+         | j <- fs ]
+  where
+    ownerOfProduct bp = case bp of
+        (Products, o, c, _) | o == c -> Just o
+        _                            -> Nothing
+
+mktPurchase :: (HatVal v) => v -> MktFirm -> MktFirm -> EA.Alg v MktBase
+mktPurchase amt i j =
+       amt .@ Not :< (Products,  j, j, Amount)
+  .+   amt .@ Hat :< (Cash,      j, j, Yen)
+  .+   amt .@ Not :< (Purchases, j, j, Yen)
+  .+   amt .@ Not :< (Cash,      i, i, Yen)
+  .+   amt .@ Not :< (Sales,     i, i, Yen)
+  .+   amt .@ Hat :< (Products,  i, i, Amount)
+
+mktOrderAmt :: (HatVal v, Real v)
+            => InputCoefficients MktFirm v -> M.Map MktFirm Double -> MktFirm -> MktFirm -> Double
+mktOrderAmt coef dm i j =
+    realToFrac (maybe 0 id (coefficient coef i j)) * M.findWithDefault 0 j dm
+
+mktTradeSimple :: (HatVal v, Real v) => Double -> Stage (MktW v) Int MktNote v MktBase
+mktTradeSimple target = stage "trade" $ \w t ->
+    let net = mkNet w; coef = mkCoef w
+        dm  = mktDemand target (nodes net) (mkLedger w)
+        per (i, j) = let amt = realToFrac (mktOrderAmt coef dm i j)
+                     in if amt <= 0 then mempty else mktPurchase amt i j
+        alg = EA.sigma (edges net) per
+    in if EA.isZero alg then mempty else alg .| ("trade", t)
+
+mktTradeTuned :: (HatVal v, Real v) => Double -> Stage (MktW v) Int MktNote v MktBase
+mktTradeTuned target = stage "trade" $ \w t ->
+    let net = mkNet w; coef = mkCoef w
+        dm  = mktDemand target (nodes net) (mkLedger w)
+        accum = L.foldl' step M.empty (edges net)
+        step acc (i, j) =
+            let amt = realToFrac (mktOrderAmt coef dm i j)
+            in if amt <= 0 then acc
+               else L.foldl' (\m (b, v) -> M.insertWith (+) b v m) acc
+                      [ (Not :< (Products,  j, j, Amount), amt)
+                      , (Hat :< (Cash,      j, j, Yen),    amt)
+                      , (Not :< (Purchases, j, j, Yen),    amt)
+                      , (Not :< (Cash,      i, i, Yen),    amt)
+                      , (Not :< (Sales,     i, i, Yen),    amt)
+                      , (Hat :< (Products,  i, i, Amount), amt) ]
+    in EJ.sigmaOnFromMap ("trade", t) accum (\b v -> v .@ b)
+
+mktProduction :: (HatVal v, Real v) => Double -> Stage (MktW v) Int MktNote v MktBase
+mktProduction target = stage "production" $ \w t ->
+    let net = mkNet w
+        dm  = mktDemand target (nodes net) (mkLedger w)
+        perFirm j = let amt = realToFrac (M.findWithDefault 0 j dm)
+                    in if amt <= 0 then mempty
+                       else (amt .@ Hat :< (Products,  j, j, Amount))
+                         .+ (amt .@ Not :< (SalesCost, j, j, Yen))
+        alg = EA.sigma (nodes net) perFirm
+    in if EA.isZero alg then mempty else alg .| ("production", t)
+
+mktReport :: (HatVal v) => Stage (MktW v) Int MktNote v MktBase
+mktReport = stage "report" $ \w t ->
+    let flow = EJ.toAlg (EJ.filterWithNote (\(_, tt) _ -> tt == t) (mkLedger w))
+        shortageK b = case b of
+            Hat :< (Products, o, c, _) | o == c -> Just o
+            _                                   -> Nothing
+        sh = EA.postFromNetBy shortageK (\j v -> v .@ Not :< (Products, j, j, Amount)) flow
+    in if EA.isZero sh then mempty else sh .| ("report", t)
+
+-- a fixed small (G, A) used by both equivalence tests.
+mktBuild :: (HatVal v) => Int -> (TradeNetwork MktFirm, InputCoefficients MktFirm v)
+mktBuild n =
+    let (gG, gA) = split (mkStdGen 2025)
+        fs  = [1 .. n]
+        net = erdosRenyi gG fs 0.3
+        a   = randomCoefficients gA defaultCoefOptions net
+    in (net, a)
+
+mktSpec :: (HatVal v, Real v)
+        => Bool -> Int -> Int -> Par -> SimSpec (MktW v) Int MktNote v MktBase
+mktSpec tuned n lastT par =
+    (mkSimSpec (1, lastT) 2025 mkLedger
+        [ (if tuned then mktTradeTuned else mktTradeSimple) 10
+        , mktProduction 10
+        , mktReport ])
+      { Lite.specParallel = par }
+
+mktW0 :: (HatVal v) => Int -> MktW v InitT
+mktW0 n = let (net, a) = mktBuild n
+          in MktW { mkLedger = carry mempty, mkNet = carry net, mkCoef = carry a }
+
+-- (a) simple ≡ tuned, exactly, under MoneyDecimal (N=30, T=5).
+-- the redundant-algebra-correct "same result": net each note's Alg per base
+-- ('bar' drops the cancelled part and any zero-padding), keeping the Hat/Not
+-- side. simple and tuned differ ONLY in seq redundancy (simple keeps the
+-- per-edge posting sequence; tuned pre-sums per base), so they are equal exactly
+-- after netting. (norm additivity already holds; this is the stronger per-base
+-- exact check.)
+nettedMktMap :: Journal MktNote MoneyDecimal MktBase
+             -> HM.HashMap MktNote (EA.Alg MoneyDecimal MktBase)
+nettedMktMap = toMap . EJ.map EA.bar
+
+testMarketSimpleTunedEqual :: IO ()
+testMarketSimpleTunedEqual = do
+    let simpleL = runLite (mktSpec False 30 5 Sequential) (mktW0 30) mkLedger
+                    :: MktLedgM
+        tunedL  = runLite (mktSpec True  30 5 Sequential) (mktW0 30) mkLedger
+    assertEqual "Market: tradeStageSimple == tradeStageTuned (MoneyDecimal, exact per-base net)"
+        (nettedMktMap simpleL) (nettedMktMap tunedL)
+
+-- (b) DET-2: Sequential ≡ ParChunk, exactly, under MoneyDecimal (simple path).
+testMarketSeqParEqual :: IO ()
+testMarketSeqParEqual = do
+    let seqM = runLite (mktSpec False 30 5 Sequential)   (mktW0 30) (toMap . mkLedger)
+                 :: HM.HashMap MktNote (EA.Alg MoneyDecimal MktBase)
+        parM = runLite (mktSpec False 30 5 (ParChunk 8)) (mktW0 30) (toMap . mkLedger)
+    assertEqual "Market DET-2: Sequential == ParChunk (MoneyDecimal, exact)"
+        seqM parM
+
+-- (c) sanity: the report's net shortage is strictly positive (Hawkins-Simon),
+-- and the complete-network setting also runs (a participating-set sanity).
+testMarketShortagePositive :: IO ()
+testMarketShortagePositive = do
+    let finalSh = runLite (mktSpec False 24 4 Sequential) (mktW0 24)
+                    (\final -> norm (EJ.projWithNote [("report", 4)] (mkLedger final)))
+                    :: MoneyDecimal
+    assertEqual "Market: final-term net shortage is strictly positive (Hawkins-Simon)"
+        True (finalSh > 0)
+    -- complete network on a tiny N just exercises the dense edge set end-to-end.
+    let (gG, gA) = split (mkStdGen 2025)
+        cnet     = completeNetwork [1 .. 8 :: MktFirm]
+        ccoef    = randomCoefficients gA defaultCoefOptions cnet :: InputCoefficients MktFirm MoneyDecimal
+        cw0      = MktW { mkLedger = carry mempty, mkNet = carry cnet, mkCoef = carry ccoef }
+        cspec    = (mkSimSpec (1, 3) 2025 mkLedger
+                      [ mktTradeSimple 10, mktProduction 10, mktReport ])
+        cNorm    = runLite cspec cw0 (norm . mkLedger) :: MoneyDecimal
+        _        = gG
+    assertEqual "Market: complete-network run produces a positive ledger norm"
+        True (cNorm > 0)
+
 main :: IO ()
 main = do
     testProjMultiPatternOnePass
@@ -1721,6 +1895,9 @@ main = do
     testNetGeneratorStructure
     testNetAdjacencyConsistency
     testNetCsvRoundTrip
+    testMarketSimpleTunedEqual
+    testMarketSeqParEqual
+    testMarketShortagePositive
     axiomProperties
     journalProperties
     quotientProperties
