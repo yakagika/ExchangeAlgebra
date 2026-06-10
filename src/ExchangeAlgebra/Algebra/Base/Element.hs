@@ -284,8 +284,67 @@ data  AccountTitles = Cash                            -- ^ Asset: Cash
                     | CentralBankPaymentIncome        -- ^ Revenue
                     | Sales                           -- ^ Revenue: Sales
                     | NetLoss                         -- ^ Revenue: Net loss
+                    -- Elementary bookkeeping (日商簿記 3 級水準) additions.
+                    -- Appended before the 'AccountTitle' wildcard so that only the
+                    -- wildcard's Enum/Binary ordinal shifts (existing serialized
+                    -- bases remain compatible).
+                    --
+                    -- Assets (資産)
+                    | PettyCash                       -- ^ Asset: Petty cash (小口現金)
+                    | NotesReceivable                 -- ^ Asset: Notes receivable (受取手形)
+                    | ElectronicallyRecordedReceivable -- ^ Asset: Electronically recorded monetary claims (電子記録債権)
+                    | CreditCardReceivable            -- ^ Asset: Credit card receivable (クレジット売掛金)
+                    | NotesLoansReceivable            -- ^ Asset: Loans receivable on notes (手形貸付金)
+                    | MerchandiseInventory            -- ^ Asset: Merchandise inventory (繰越商品). Use under the periodic/3-account method (3 分法: Purchases\/Sales\/MerchandiseInventory). For the perpetual\/specific-identification method (分記法) use 'Products' instead.
+                    | AdvancesPaid                    -- ^ Asset: Advances paid (前払金)
+                    | PrepaidExpenses                 -- ^ Asset: Prepaid expenses (前払費用), deferral accrual account (経過勘定)
+                    | AccruedRevenue                  -- ^ Asset: Accrued revenue (未収収益), deferral accrual account (経過勘定)
+                    | OtherReceivables                -- ^ Asset: Other receivables (未収入金)
+                    | PaymentsOnBehalf                -- ^ Asset: Payments made on behalf (立替金)
+                    | SuspensePayments                -- ^ Asset: Suspense payments (仮払金)
+                    | ConsumptionTaxPaid              -- ^ Asset: Consumption tax paid (仮払消費税)
+                    | PrepaidCorporateIncomeTaxes     -- ^ Asset: Prepaid corporate income taxes (仮払法人税等)
+                    | Land                            -- ^ Asset: Land (土地)
+                    | Fixtures                        -- ^ Asset: Fixtures and equipment (備品)
+                    | Patent                          -- ^ Asset: Patent (特許権)
+                    | Trademark                       -- ^ Asset: Trademark (商標権)
+                    | Software                        -- ^ Asset: Software (ソフトウェア)
+                    | CashOverShort                   -- ^ Asset: Cash over and short (現金過不足), a temporary/suspense account cleared at closing to MiscellaneousIncome\/MiscellaneousLoss
+                    -- Liability (負債)
+                    | AccountsPayable                 -- ^ Liability: Accounts payable (買掛金)
+                    | NotesPayable                    -- ^ Liability: Notes payable (支払手形)
+                    | ElectronicallyRecordedObligations -- ^ Liability: Electronically recorded monetary obligations (電子記録債務)
+                    | NotesLoansPayable               -- ^ Liability: Loans payable on notes (手形借入金)
+                    | BankOverdraft                   -- ^ Liability: Bank overdraft (当座借越)
+                    | AdvancesReceived                -- ^ Liability: Advances received (前受金)
+                    | UnearnedRevenue                 -- ^ Liability: Unearned revenue (前受収益), deferral accrual account (経過勘定)
+                    | AccruedExpenses                 -- ^ Liability: Accrued expenses (未払費用), deferral accrual account (経過勘定)
+                    | OtherPayables                   -- ^ Liability: Other payables (未払金)
+                    | DepositsReceived                -- ^ Liability: Deposits received (預り金)
+                    | SuspenseReceipts                -- ^ Liability: Suspense receipts (仮受金)
+                    | ConsumptionTaxReceived          -- ^ Liability: Consumption tax received (仮受消費税)
+                    | AccruedConsumptionTax           -- ^ Liability: Accrued (unpaid) consumption tax (未払消費税)
+                    | AccruedCorporateIncomeTaxes     -- ^ Liability: Accrued (unpaid) corporate income taxes (未払法人税等)
+                    | UnpaidDividends                 -- ^ Liability: Unpaid dividends (未払配当金)
+                    | AllowanceForDoubtfulAccounts    -- ^ Liability: Allowance for doubtful accounts (貸倒引当金). Modeled as an independent credit-balance valuation account (評価勘定) classified under Liability: this keeps values non-negative and the Hat\/Not structure intact, deferring the B\/S contra-asset (deduction) presentation to the Write side, rather than adding a new AccountDivision (over-engineered at the 3-級 level).
+                    | AccumulatedDepreciation         -- ^ Liability: Accumulated depreciation (減価償却累計額), valuation account (評価勘定) under the indirect method (間接法). Classified under Liability for the same reason as 'AllowanceForDoubtfulAccounts'. This is the canonical bookkeeping account for accumulated depreciation; the existing 'ReserveForDepreciation' is retained as the legacy SNA\/macro-accounting name.
+                    -- Equity (資本)
+                    | LegalRetainedEarnings           -- ^ Equity: Legal (appropriated) retained earnings reserve (利益準備金)
+                    -- Cost (費用)
+                    | ProvisionForDoubtfulAccounts    -- ^ Cost: Provision for doubtful accounts (貸倒引当金繰入)
+                    | BadDebtLoss                     -- ^ Cost: Bad debt loss (貸倒損失)
+                    | LossOnSalesOfFixedAssets        -- ^ Cost: Loss on sales of fixed assets (固定資産売却損)
+                    | LossOnSalesOfNotesReceivable    -- ^ Cost: Loss on sales of notes receivable (手形売却損)
+                    | PaymentFees                     -- ^ Cost: Payment fees / fees paid (支払手数料), the debit counterpart of 'ReceiptFee'
+                    | MiscellaneousLoss               -- ^ Cost: Miscellaneous loss (雑損)
+                    | CorporateIncomeTaxes            -- ^ Cost: Corporate income taxes (法人税等)
+                    | CommunicationExpenses           -- ^ Cost: Communication expenses (通信費). Explicitly named counterpart of the legacy 'Commutation' (also "Communication"); 'Commutation' is retained for backward compatibility.
+                    -- Revenue (収益)
+                    | GainOnSalesOfFixedAssets        -- ^ Revenue: Gain on sales of fixed assets (固定資産売却益)
+                    | RecoveryOfBadDebts              -- ^ Revenue: Recovery of bad debts written off (償却債権取立益)
+                    | MiscellaneousIncome             -- ^ Revenue: Miscellaneous income (雑益)
                     | AccountTitle                    -- ^ Wildcard
-                    deriving (Show, Ord, Eq, Enum, Generic)
+                    deriving (Show, Ord, Eq, Enum, Generic, Bounded)
 
 instance Hashable AccountTitles where
     {-# INLINE hashWithSalt #-}

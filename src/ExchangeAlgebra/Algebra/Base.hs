@@ -349,6 +349,62 @@ classifyAccountDivision TaxesRevenue                = Revenue
 classifyAccountDivision CentralBankPaymentIncome    = Revenue
 classifyAccountDivision Sales                       = Revenue
 classifyAccountDivision NetLoss                     = Revenue
+-- Elementary bookkeeping additions (all written explicitly to prevent the
+-- wildcard from silently classifying a mis-divided title as Assets).
+-- Assets (資産)
+classifyAccountDivision PettyCash                   = Assets
+classifyAccountDivision NotesReceivable             = Assets
+classifyAccountDivision ElectronicallyRecordedReceivable = Assets
+classifyAccountDivision CreditCardReceivable        = Assets
+classifyAccountDivision NotesLoansReceivable        = Assets
+classifyAccountDivision MerchandiseInventory        = Assets
+classifyAccountDivision AdvancesPaid                = Assets
+classifyAccountDivision PrepaidExpenses             = Assets
+classifyAccountDivision AccruedRevenue              = Assets
+classifyAccountDivision OtherReceivables            = Assets
+classifyAccountDivision PaymentsOnBehalf            = Assets
+classifyAccountDivision SuspensePayments            = Assets
+classifyAccountDivision ConsumptionTaxPaid          = Assets
+classifyAccountDivision PrepaidCorporateIncomeTaxes = Assets
+classifyAccountDivision Land                        = Assets
+classifyAccountDivision Fixtures                    = Assets
+classifyAccountDivision Patent                      = Assets
+classifyAccountDivision Trademark                   = Assets
+classifyAccountDivision Software                    = Assets
+classifyAccountDivision CashOverShort               = Assets
+-- Liability (負債); valuation accounts (評価勘定) classified as Liability per design
+classifyAccountDivision AccountsPayable             = Liability
+classifyAccountDivision NotesPayable                = Liability
+classifyAccountDivision ElectronicallyRecordedObligations = Liability
+classifyAccountDivision NotesLoansPayable           = Liability
+classifyAccountDivision BankOverdraft               = Liability
+classifyAccountDivision AdvancesReceived            = Liability
+classifyAccountDivision UnearnedRevenue             = Liability
+classifyAccountDivision AccruedExpenses             = Liability
+classifyAccountDivision OtherPayables               = Liability
+classifyAccountDivision DepositsReceived            = Liability
+classifyAccountDivision SuspenseReceipts            = Liability
+classifyAccountDivision ConsumptionTaxReceived      = Liability
+classifyAccountDivision AccruedConsumptionTax       = Liability
+classifyAccountDivision AccruedCorporateIncomeTaxes = Liability
+classifyAccountDivision UnpaidDividends             = Liability
+classifyAccountDivision AllowanceForDoubtfulAccounts = Liability
+classifyAccountDivision AccumulatedDepreciation     = Liability
+-- Equity (資本)
+classifyAccountDivision LegalRetainedEarnings       = Equity
+-- Cost (費用)
+classifyAccountDivision ProvisionForDoubtfulAccounts = Cost
+classifyAccountDivision BadDebtLoss                 = Cost
+classifyAccountDivision LossOnSalesOfFixedAssets    = Cost
+classifyAccountDivision LossOnSalesOfNotesReceivable = Cost
+classifyAccountDivision PaymentFees                 = Cost
+classifyAccountDivision MiscellaneousLoss           = Cost
+classifyAccountDivision CorporateIncomeTaxes        = Cost
+classifyAccountDivision CommunicationExpenses       = Cost
+-- Revenue (収益)
+classifyAccountDivision GainOnSalesOfFixedAssets    = Revenue
+classifyAccountDivision RecoveryOfBadDebts          = Revenue
+classifyAccountDivision MiscellaneousIncome         = Revenue
 classifyAccountDivision _                           = Assets
 
 -- | BaseClass ⊃ HatBaseClass ⊃ ExBaseClass
@@ -427,6 +483,7 @@ class (HatBaseClass a) => ExBaseClass a where
         f Vehicle                        = Fixed
         f StockInvestment                = Other  -- Note
         f EquipmentInvestment            = Fixed
+        f AccountsReceivable             = Current
         f LongTermLoansReceivable        = Fixed
         f ShortTermLoansReceivable       = Current
         f ReserveDepositReceivable       = Current
@@ -473,7 +530,63 @@ class (HatBaseClass a) => ExBaseClass a where
         f WageEarned                     = Other
         f TaxesRevenue                   = Other
         f CentralBankPaymentIncome       = Other
+        f Sales                          = Other
         f NetLoss                        = Other
+        -- Elementary bookkeeping additions
+        -- Assets (資産)
+        f PettyCash                      = Current
+        f NotesReceivable                = Current
+        f ElectronicallyRecordedReceivable = Current
+        f CreditCardReceivable           = Current
+        f NotesLoansReceivable           = Current
+        f MerchandiseInventory           = Current
+        f AdvancesPaid                   = Current
+        f PrepaidExpenses                = Current
+        f AccruedRevenue                 = Current
+        f OtherReceivables               = Current
+        f PaymentsOnBehalf               = Current
+        f SuspensePayments               = Current
+        f ConsumptionTaxPaid             = Current
+        f PrepaidCorporateIncomeTaxes    = Current
+        f Land                           = Fixed
+        f Fixtures                       = Fixed
+        f Patent                         = Fixed
+        f Trademark                      = Fixed
+        f Software                       = Fixed
+        f CashOverShort                  = Other
+        -- Liability (負債)
+        f AccountsPayable                = Current
+        f NotesPayable                   = Current
+        f ElectronicallyRecordedObligations = Current
+        f NotesLoansPayable              = Current
+        f BankOverdraft                  = Current
+        f AdvancesReceived               = Current
+        f UnearnedRevenue                = Current
+        f AccruedExpenses                = Current
+        f OtherPayables                  = Current
+        f DepositsReceived               = Current
+        f SuspenseReceipts               = Current
+        f ConsumptionTaxReceived         = Current
+        f AccruedConsumptionTax          = Current
+        f AccruedCorporateIncomeTaxes    = Current
+        f UnpaidDividends                = Current
+        f AllowanceForDoubtfulAccounts   = Current
+        f AccumulatedDepreciation        = Fixed
+        -- Equity (資本)
+        f LegalRetainedEarnings          = Other
+        -- Cost (費用)
+        f ProvisionForDoubtfulAccounts   = Other
+        f BadDebtLoss                    = Other
+        f LossOnSalesOfFixedAssets       = Other
+        f LossOnSalesOfNotesReceivable   = Other
+        f PaymentFees                    = Other
+        f MiscellaneousLoss              = Other
+        f CorporateIncomeTaxes           = Other
+        f CommunicationExpenses          = Other
+        -- Revenue (収益)
+        f GainOnSalesOfFixedAssets       = Other
+        f RecoveryOfBadDebts             = Other
+        f MiscellaneousIncome            = Other
         f AccountTitle                   = Other
 
 

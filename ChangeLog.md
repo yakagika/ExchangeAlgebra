@@ -3,6 +3,26 @@
 ## Unreleased
 
 ### Added
+- `AccountTitles` — added ~49 account titles at the 日商簿記 3 級 (elementary
+  Japanese bookkeeping) level, each with an English/Japanese bilingual Haddock
+  gloss: assets (e.g. `PettyCash`, `NotesReceivable`, `MerchandiseInventory`,
+  `Land`, `Fixtures`, `Patent`, `CashOverShort`), liabilities (e.g.
+  `AccountsPayable`, `NotesPayable`, `BankOverdraft`, `AllowanceForDoubtfulAccounts`,
+  `AccumulatedDepreciation`), equity (`LegalRetainedEarnings`), costs (e.g.
+  `ProvisionForDoubtfulAccounts`, `BadDebtLoss`, `PaymentFees`, `MiscellaneousLoss`,
+  `CorporateIncomeTaxes`, `CommunicationExpenses`) and revenues (e.g.
+  `GainOnSalesOfFixedAssets`, `RecoveryOfBadDebts`, `MiscellaneousIncome`).
+  Valuation accounts (`AllowanceForDoubtfulAccounts`, `AccumulatedDepreciation`)
+  are classified under `Liability` (B/S contra-asset presentation deferred to the
+  Write side), keeping values non-negative and the Hat/Not structure intact. New
+  constructors are appended before the `AccountTitle` wildcard so existing
+  `Enum`/`Binary` ordinals are preserved. `AccountTitles` now also derives
+  `Bounded`. A new exhaustiveness table test pins `(whatDiv, whichSide,
+  fixedCurrent)` for every constructor and fails if a new title is left
+  unclassified, guarding against `classifyAccountDivision`'s wildcard silently
+  treating a title as `Assets`. This also completed the `fixedCurrent` cases for
+  the pre-existing `AccountsReceivable` (now `Current`) and `Sales` (now `Other`),
+  which previously had no case and would `error` on a non-exhaustive pattern.
 - `ExchangeAlgebra.Simulate.Policy` — a declarative vocabulary for managing the
   size of a long simulation's audit trail, decided once when the ledger is
   built. A `LedgerPolicy` bundles three orthogonal choices: **retention**

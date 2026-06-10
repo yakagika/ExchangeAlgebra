@@ -50,7 +50,7 @@ import           System.Random       (StdGen, mkStdGen, randomR, split)
 import           Control.Monad       (replicateM)
 import           Control.Monad.State (runState, state)
 import           Control.Exception   (try, evaluate, SomeException)
-import           Test.QuickCheck
+import           Test.QuickCheck hiding (Fixed)
 import           GHC.Generics        (Generic)
 import           System.Random       (randomR)
 
@@ -80,8 +80,164 @@ assertNear label expected actual
         exitFailure
 
 -- ================================================================
--- Existing pure algebra tests
+-- AccountTitles classification exhaustiveness (Phase A)
 -- ================================================================
+--
+-- Pins the (whatDiv, whichSide, fixedCurrent) classification of every
+-- AccountTitles constructor against an explicit expected table that encodes
+-- the Phase A design table. Any new constructor that is not added here makes
+-- the test fail (the [minBound .. maxBound] traversal will hit a title absent
+-- from the table), forcing the table to be kept in sync and guarding against
+-- classifyAccountDivision's wildcard silently classifying a title as Assets.
+--
+-- whichSide is evaluated on the @Not :< title@ base (no Hat reversal), so it
+-- equals the "home side" implied by whatDiv: Debit for Assets/Cost,
+-- Credit for Liability/Equity/Revenue.
+
+-- | Expected classification for every non-wildcard AccountTitles constructor.
+--   (title, expected whatDiv, expected whichSide on Not-base, expected fixedCurrent)
+accountTitleClassTable :: [(AccountTitles, AccountDivision, Side, FixedCurrent)]
+accountTitleClassTable =
+    -- Pre-existing titles
+    [ (Cash,                          Assets,    Debit,  Current)
+    , (Deposits,                      Assets,    Debit,  Current)
+    , (CurrentDeposits,               Assets,    Debit,  Current)
+    , (Securities,                    Assets,    Debit,  Current)
+    , (InvestmentSecurities,          Assets,    Debit,  Fixed)
+    , (LongTermNationalBonds,         Assets,    Debit,  Fixed)
+    , (ShortTermNationalBonds,        Assets,    Debit,  Current)
+    , (Products,                      Assets,    Debit,  Current)
+    , (Machinery,                     Assets,    Debit,  Fixed)
+    , (Building,                      Assets,    Debit,  Fixed)
+    , (Vehicle,                       Assets,    Debit,  Fixed)
+    , (StockInvestment,               Assets,    Debit,  Other)
+    , (EquipmentInvestment,           Assets,    Debit,  Fixed)
+    , (LongTermLoansReceivable,       Assets,    Debit,  Fixed)
+    , (AccountsReceivable,            Assets,    Debit,  Current)
+    , (ShortTermLoansReceivable,      Assets,    Debit,  Current)
+    , (ReserveDepositReceivable,      Assets,    Debit,  Current)
+    , (Gold,                          Assets,    Debit,  Fixed)
+    , (GovernmentService,             Assets,    Debit,  Current)
+    , (CapitalStock,                  Equity,    Credit, Other)
+    , (RetainedEarnings,              Equity,    Credit, Other)
+    , (LongTermLoansPayable,          Liability, Credit, Fixed)
+    , (ShortTermLoansPayable,         Liability, Credit, Current)
+    , (LoansPayable,                  Liability, Credit, Current)
+    , (ReserveForDepreciation,        Liability, Credit, Current)
+    , (DepositPayable,                Liability, Credit, Current)
+    , (LongTermNationalBondsPayable,  Liability, Credit, Fixed)
+    , (ShortTermNationalBondsPayable, Liability, Credit, Current)
+    , (ReserveDepositPayable,         Liability, Credit, Current)
+    , (CentralBankNotePayable,        Liability, Credit, Current)
+    , (Depreciation,                  Cost,      Debit,  Other)
+    , (SalesCost,                     Cost,      Debit,  Other)
+    , (BusinessTrip,                  Cost,      Debit,  Other)
+    , (Commutation,                   Cost,      Debit,  Other)
+    , (UtilitiesExpense,              Cost,      Debit,  Other)
+    , (RentExpense,                   Cost,      Debit,  Other)
+    , (AdvertisingExpense,            Cost,      Debit,  Other)
+    , (DeliveryExpenses,              Cost,      Debit,  Other)
+    , (SuppliesExpenses,              Cost,      Debit,  Other)
+    , (MiscellaneousExpenses,         Cost,      Debit,  Other)
+    , (WageExpenditure,               Cost,      Debit,  Other)
+    , (InterestExpense,               Cost,      Debit,  Other)
+    , (TaxesExpense,                  Cost,      Debit,  Other)
+    , (ConsumptionExpenditure,        Cost,      Debit,  Other)
+    , (SubsidyExpense,                Cost,      Debit,  Other)
+    , (CentralBankPaymentExpense,     Cost,      Debit,  Other)
+    , (Purchases,                     Cost,      Debit,  Other)
+    , (NetIncome,                     Cost,      Debit,  Other)
+    , (ValueAdded,                    Revenue,   Credit, Other)
+    , (SubsidyIncome,                 Revenue,   Credit, Other)
+    , (NationalBondInterestEarned,    Revenue,   Credit, Other)
+    , (DepositInterestEarned,         Revenue,   Credit, Other)
+    , (GrossProfit,                   Revenue,   Credit, Other)
+    , (OrdinaryProfit,                Revenue,   Credit, Other)
+    , (InterestEarned,                Revenue,   Credit, Other)
+    , (ReceiptFee,                    Revenue,   Credit, Other)
+    , (RentalIncome,                  Revenue,   Credit, Other)
+    , (WageEarned,                    Revenue,   Credit, Other)
+    , (TaxesRevenue,                  Revenue,   Credit, Other)
+    , (CentralBankPaymentIncome,      Revenue,   Credit, Other)
+    , (Sales,                         Revenue,   Credit, Other)
+    , (NetLoss,                       Revenue,   Credit, Other)
+    -- Phase A additions: Assets (資産)
+    , (PettyCash,                     Assets,    Debit,  Current)
+    , (NotesReceivable,               Assets,    Debit,  Current)
+    , (ElectronicallyRecordedReceivable, Assets, Debit,  Current)
+    , (CreditCardReceivable,          Assets,    Debit,  Current)
+    , (NotesLoansReceivable,          Assets,    Debit,  Current)
+    , (MerchandiseInventory,          Assets,    Debit,  Current)
+    , (AdvancesPaid,                  Assets,    Debit,  Current)
+    , (PrepaidExpenses,               Assets,    Debit,  Current)
+    , (AccruedRevenue,                Assets,    Debit,  Current)
+    , (OtherReceivables,              Assets,    Debit,  Current)
+    , (PaymentsOnBehalf,              Assets,    Debit,  Current)
+    , (SuspensePayments,              Assets,    Debit,  Current)
+    , (ConsumptionTaxPaid,            Assets,    Debit,  Current)
+    , (PrepaidCorporateIncomeTaxes,   Assets,    Debit,  Current)
+    , (Land,                          Assets,    Debit,  Fixed)
+    , (Fixtures,                      Assets,    Debit,  Fixed)
+    , (Patent,                        Assets,    Debit,  Fixed)
+    , (Trademark,                     Assets,    Debit,  Fixed)
+    , (Software,                      Assets,    Debit,  Fixed)
+    , (CashOverShort,                 Assets,    Debit,  Other)
+    -- Phase A additions: Liability (負債)
+    , (AccountsPayable,               Liability, Credit, Current)
+    , (NotesPayable,                  Liability, Credit, Current)
+    , (ElectronicallyRecordedObligations, Liability, Credit, Current)
+    , (NotesLoansPayable,             Liability, Credit, Current)
+    , (BankOverdraft,                 Liability, Credit, Current)
+    , (AdvancesReceived,              Liability, Credit, Current)
+    , (UnearnedRevenue,               Liability, Credit, Current)
+    , (AccruedExpenses,               Liability, Credit, Current)
+    , (OtherPayables,                 Liability, Credit, Current)
+    , (DepositsReceived,              Liability, Credit, Current)
+    , (SuspenseReceipts,              Liability, Credit, Current)
+    , (ConsumptionTaxReceived,        Liability, Credit, Current)
+    , (AccruedConsumptionTax,         Liability, Credit, Current)
+    , (AccruedCorporateIncomeTaxes,   Liability, Credit, Current)
+    , (UnpaidDividends,               Liability, Credit, Current)
+    , (AllowanceForDoubtfulAccounts,  Liability, Credit, Current)
+    , (AccumulatedDepreciation,       Liability, Credit, Fixed)
+    -- Phase A additions: Equity (資本)
+    , (LegalRetainedEarnings,         Equity,    Credit, Other)
+    -- Phase A additions: Cost (費用)
+    , (ProvisionForDoubtfulAccounts,  Cost,      Debit,  Other)
+    , (BadDebtLoss,                   Cost,      Debit,  Other)
+    , (LossOnSalesOfFixedAssets,      Cost,      Debit,  Other)
+    , (LossOnSalesOfNotesReceivable,  Cost,      Debit,  Other)
+    , (PaymentFees,                   Cost,      Debit,  Other)
+    , (MiscellaneousLoss,             Cost,      Debit,  Other)
+    , (CorporateIncomeTaxes,          Cost,      Debit,  Other)
+    , (CommunicationExpenses,         Cost,      Debit,  Other)
+    -- Phase A additions: Revenue (収益)
+    , (GainOnSalesOfFixedAssets,      Revenue,   Credit, Other)
+    , (RecoveryOfBadDebts,            Revenue,   Credit, Other)
+    , (MiscellaneousIncome,           Revenue,   Credit, Other)
+    ]
+
+testAccountTitleClassification :: IO ()
+testAccountTitleClassification = do
+    -- All non-wildcard constructors, derived from Bounded/Enum.
+    let allTitles  = [ t | t <- [minBound .. maxBound], t /= AccountTitle ]
+        tableMap   = M.fromList [ (t, (d, s, fc)) | (t, d, s, fc) <- accountTitleClassTable ]
+        -- A title is "covered" iff it appears in the expected table.
+        missing    = [ t | t <- allTitles, not (M.member t tableMap) ]
+        extra      = [ t | (t, _, _, _) <- accountTitleClassTable, t `notElem` allTitles ]
+    -- Guard: the table must list exactly the non-wildcard constructors.
+    assertEqual "AccountTitles class table covers every constructor (no missing)"
+        ([] :: [AccountTitles]) missing
+    assertEqual "AccountTitles class table has no stale entry (no extra)"
+        ([] :: [AccountTitles]) extra
+    -- Per-title classification must match the expected table.
+    forM_ allTitles $ \t -> do
+        let base    = Not :< t :: HatBase AccountTitles
+            actual  = (whatDiv base, whichSide base, fixedCurrent base)
+        case M.lookup t tableMap of
+            Just expected ->
+                assertEqual ("classification of " ++ show t) expected actual
+            Nothing -> return ()  -- already reported by the "missing" guard
 
 type TestAlg = EA.Alg Double (HatBase CountUnit)
 type TestJournal = EJ.Journal String Double (HatBase CountUnit)
@@ -1914,6 +2070,7 @@ testMarketWindowTransparent = withTempSpill "market_window" $ \path -> do
 
 main :: IO ()
 main = do
+    testAccountTitleClassification
     testProjMultiPatternOnePass
     testProjNormFastPath
     testProjWithBaseNorm
