@@ -567,7 +567,14 @@ runLiteWithPolicy pol spec wInit k = do
                                   (\nn _ -> let tt = termOf nn
                                             in tt >= lo && tt <= boundary)
                                   ledger
-                    defaultBinarySpillWriter h (lo, boundary) chunk
+                    -- Suppress empty spill chunks: at early term boundaries the
+                    -- eviction window may not yet cover any resident term, so the
+                    -- filtered chunk is empty. Writing it would emit a zero-entry
+                    -- record to the binary file (restored as a no-op, but still a
+                    -- wasted write); skip it. The high-water mark is still advanced
+                    -- below, so a later non-empty term in (lo, boundary] is not lost.
+                    when (not (HM.null (toMap chunk))) $
+                      defaultBinarySpillWriter h (lo, boundary) chunk
                 -- delete evicted terms from memory (whether or not spilled)
                 stToIO $ modifySTRef' (specLedger spec wr)
                            (filterWithNote (\nn _ -> termOf nn > boundary))
