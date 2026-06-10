@@ -3,6 +3,31 @@
 ## Unreleased
 
 ### Added
+- `ExchangeAlgebra.Write` — three closing-document CSV writers (and their pure
+  row-builders, for testing/composition). `writeWorksheet` / `worksheetRows`
+  render an 8-column worksheet (8 桁精算表): per account title, the
+  trial-balance, adjustment, profit-&-loss and balance-sheet debit/credit column
+  pairs. The trial-balance and adjustment columns come from the pre-adjustment
+  ledger and the adjustment entries respectively; the final balance of
+  `pre .+ adj` is routed by `whatDiv` (Cost/Revenue → P/L, Assets/Liability/
+  Equity → B/S). The closing row is the profit/loss balancing figure
+  (当期純利益/純損失) placed so each statement's debit/credit pair balances; since
+  `norm` is a homomorphism the P/L and B/S imbalances coincide — that equality is
+  the worksheet's own self-check (it is *not* enforced: an inconsistent input
+  still emits both figures so the discrepancy stays visible).
+  `writePostClosingTrialBalance` / `postClosingTrialBalanceRows` produce a
+  post-closing trial balance (繰越試算表) listing only the real
+  (Assets/Liability/Equity) accounts — nominal Cost/Revenue accounts are excluded
+  by construction. `writeAccountOf` (previously an unimplemented stub) and the new
+  `writeAccountOfJournal` / `accountLedgerRows` render the general ledger
+  (総勘定元帳 / T-account): every posting on a title is listed individually in
+  date order with **no aggregation**, so the redundant sequence is preserved as
+  the audit trail (`writeAccountOfJournal` additionally carries each posting's
+  note/摘要). The trial-balance and post-closing balances use an explicit
+  `diffRL` netting (the same aggregation as `writeCompoundTrialBalance`); no
+  implicit `bar`. All three have Haddock doctests on their pure row-builders and
+  unit tests (worksheet self-check P/L diff == B/S diff == net income; post-closing
+  TB excludes Cost/Revenue; ledger preserves posting count).
 - `ExchangeAlgebra.Bookkeeping` — a new module of *closing-adjustment entry
   builders* (決算整理仕訳) at the 日商簿記 3 級 level. Unlike
   `ExchangeAlgebra.Algebra.Transfer` (which relabels existing ledger balances),

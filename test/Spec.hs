@@ -46,6 +46,7 @@ import           Data.Array.ST
 import           Data.STRef
 import           System.Exit         (exitFailure)
 import           System.IO           (IOMode(WriteMode), withFile)
+import           Data.Time           (Day, fromGregorian)
 import           System.Directory    (removeFile)
 import           System.Random       (StdGen, mkStdGen, randomR, split)
 import           Control.Monad       (replicateM)
@@ -1436,6 +1437,98 @@ genBAlgM = sized $ \n -> do
                                     , Cash, InterestExpense ]
 
 -- ================================================================
+-- Closing-document Write functions (Phase D): worksheet,
+-- post-closing trial balance, account ledger
+-- ================================================================
+
+closingDocsTests :: IO ()
+closingDocsTests = do
+    -- A small balanced pre-adjustment ledger (ebex1-shaped):
+    --   opening capital 2,000,000; a cash sale of 500,000;
+    --   wages (cost) 140,000 paid in cash.
+    -- Pre-adjustment trial balance balances by construction.
+    let pre = (2000000 .@ (Not :< Cash))            -- 現金 (asset, debit)
+            .+ (2000000 .@ (Not :< CapitalStock))    -- 資本金 (equity, credit)
+            .+ (500000  .@ (Not :< Cash))            -- cash from sale (debit)
+            .+ (500000  .@ (Not :< Sales))           -- 売上 (revenue, credit)
+            .+ (140000  .@ (Hat :< Cash))            -- cash paid out (credit)
+            .+ (140000  .@ (Not :< WageExpenditure)) -- 給料 (cost, debit)
+            :: BAlg
+    -- one adjustment: accrue 10,000 of unpaid wages (費用の見越し)
+    let adj = (10000 .@ (Not :< WageExpenditure))    -- cost debit
+            .+ (10000 .@ (Not :< AccruedExpenses))    -- liability credit
+            :: BAlg
+    let combined = pre .+ adj
+
+    -- (1) Worksheet self-check: the P/L column imbalance must equal the
+    --     B/S column imbalance, and both equal the net income.
+    --     Each account's *net* balance (diffRL) is routed by division:
+    --       P/L: Sales net 500,000 (credit) vs WageExpenditure net 150,000
+    --            (debit) => net income 350,000.
+    --       B/S: Cash net 2,360,000 (debit) vs CapitalStock 2,000,000 +
+    --            AccruedExpenses 10,000 (credit) = 2,010,000 => 350,000.
+    --     We compute the column sums the same way worksheetRows does: per
+    --     account title, place the *net* balance into the debit or credit
+    --     column according to its balance side.
+    let titles = L.nub (EA.foldEntries (\acc _ b -> getAccountTitle b : acc) [] combined) :: [AccountTitles]
+        netSide t = EA.diffRL (EA.projByAccountTitle t combined) :: (Side, Double)
+        colSums divs =
+            L.foldl' (\(d,c) t ->
+                if classifyAccountDivision t `elem` divs
+                  then case netSide t of
+                         (Debit,  m) -> (d + m, c)
+                         (Credit, m) -> (d, c + m)
+                         _           -> (d, c)
+                  else (d, c)) (0,0) titles
+        (plD, plC) = colSums [Cost, Revenue]
+        (bsD, bsC) = colSums [Assets, Liability, Equity]
+        plDiff = abs (plD - plC)
+        bsDiff = abs (bsD - bsC)
+    assertNear "worksheet self-check: P/L diff = 350000" 350000 plDiff
+    assertNear "worksheet self-check: B/S diff = 350000" 350000 bsDiff
+    assertNear "worksheet self-check: P/L diff == B/S diff (= net income)" plDiff bsDiff
+
+    -- the rendered worksheet's net-income row must carry the same figure on
+    -- the P/L debit and B/S credit columns (positions 6 and 9, 1-based).
+    let wrows   = EW.worksheetRows pre adj
+        netRow' = last (init wrows)   -- penultimate-from-end: the Net row
+    assertEqual "worksheet: net row label is Net Income"
+        (T.pack "Net Income") (head netRow')
+    assertEqual "worksheet: net income on P/L debit column = 350000.0"
+        (T.pack "350000.0") (netRow' !! 5)
+    assertEqual "worksheet: net income on B/S credit column = 350000.0"
+        (T.pack "350000.0") (netRow' !! 8)
+
+    -- (2) Post-closing trial balance must contain only real accounts
+    --     (Assets/Liability/Equity) — no Cost/Revenue titles.
+    let pcrows = EW.postClosingTrialBalanceRows combined
+        titleCells = [ row !! 1 | row <- drop 1 pcrows ]  -- middle column = title
+        forbidden  = L.map (T.pack . show) [Sales, WageExpenditure]
+    assertEqual "post-closing TB excludes Cost/Revenue titles"
+        True (not (any (`elem` forbidden) titleCells))
+    assertEqual "post-closing TB includes Cash"
+        True (T.pack (show Cash) `elem` titleCells)
+    assertEqual "post-closing TB includes AccruedExpenses (liability)"
+        True (T.pack (show AccruedExpenses) `elem` titleCells)
+
+    -- (3) Account ledger preserves the seq: the number of posting lines for a
+    --     title equals the number of postings on that title (no aggregation).
+    --     Cash has 3 postings (2 debit, 1 credit) in `pre`.
+    let lrows     = EW.accountLedgerRows [Cash] pre (const dummyDay)
+        -- drop the 2 header rows (title + sub-header); the rest are postings.
+        bodyLines = drop 2 lrows
+        cashPostings = EA.foldEntries (\acc _ b -> if getAccountTitle b == Cash then acc + 1 else acc) (0 :: Int) pre
+        -- each body row holds at most one debit + one credit cell; count
+        -- non-empty value cells (debit col=1, credit col=3).
+        nonEmptyVals = Prelude.length
+            [ () | row <- bodyLines, c <- [1,3], not (T.null (row !! c)) ]
+    assertEqual "account ledger: Cash posting count preserved (= 3, no aggregation)"
+        cashPostings nonEmptyVals
+  where
+    dummyDay :: Day
+    dummyDay = fromGregorian 2024 4 1
+
+-- ================================================================
 -- Simulate.Lite tests (Phase 2, feat/simulate-lite)
 -- ================================================================
 
@@ -2248,3 +2341,4 @@ main = do
     journalProperties
     quotientProperties
     bookkeepingProperties
+    closingDocsTests
