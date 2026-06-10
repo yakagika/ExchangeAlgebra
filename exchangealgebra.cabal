@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c70fba9e0f0aaf9c6b2b212db5667a5c48fa4fbf7f8ea9ee0e2d68471ba47b6e
+-- hash: 0932322074f734642c76045413ac63c69b3028402f24e2e42e264690af1c6763
 
 name:           exchangealgebra
 version:        0.5.0.0
@@ -47,6 +47,7 @@ library
       Paths_exchangealgebra
   hs-source-dirs:
       src
+  ghc-options: -feager-blackholing
   build-depends:
       Chart ==1.9.*
     , Chart-cairo ==1.9.*

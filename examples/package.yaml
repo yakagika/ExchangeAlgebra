@@ -39,6 +39,11 @@ _exe-defs: &exe-defaults
                ,-threaded
                ,-rtsopts
                ,-with-rtsopts=-N4
+               # -feager-blackholing: see library note in ../package.yaml. The
+               # spark site (ParChunk over per-firm stages) lives in these exes,
+               # so the flag is needed here too, to avoid spurious <<loop>>
+               # under multi-capability runs (e.g. EA_PAR=par:16 +RTS -N4).
+               ,-feager-blackholing
                ,-fwrite-ide-info]
   # -no_warn_duplicate_libraries is a macOS (ld64) flag; GNU ld rejects it.
   # Inherited by every exe via '<<: *exe-defaults' (merges the 'when' key too).
@@ -103,6 +108,7 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N10
+    - -feager-blackholing
 
   ripple:
     <<: *exe-defaults

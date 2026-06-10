@@ -23,7 +23,7 @@ executable cge
       Paths_exchangealgebra_examples
   hs-source-dirs:
       optimization/CGE
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -feager-blackholing -fwrite-ide-info
   build-depends:
       array >=0.5.5 && <0.6
     , async ==2.2.*
@@ -56,7 +56,7 @@ executable ebex1
       Paths_exchangealgebra_examples
   hs-source-dirs:
       basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -feager-blackholing -fwrite-ide-info
   build-depends:
       array >=0.5.5 && <0.6
     , async ==2.2.*
@@ -89,7 +89,7 @@ executable ebex2
       Paths_exchangealgebra_examples
   hs-source-dirs:
       basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -feager-blackholing -fwrite-ide-info
   build-depends:
       array >=0.5.5 && <0.6
     , async ==2.2.*
@@ -122,7 +122,7 @@ executable ebex3
       Paths_exchangealgebra_examples
   hs-source-dirs:
       basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -feager-blackholing -fwrite-ide-info
   build-depends:
       array >=0.5.5 && <0.6
     , async ==2.2.*
@@ -155,7 +155,7 @@ executable ebex4
       Paths_exchangealgebra_examples
   hs-source-dirs:
       basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -feager-blackholing -fwrite-ide-info
   build-depends:
       array >=0.5.5 && <0.6
     , async ==2.2.*
@@ -188,7 +188,7 @@ executable ebex5
       Paths_exchangealgebra_examples
   hs-source-dirs:
       basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -feager-blackholing -fwrite-ide-info
   build-depends:
       array >=0.5.5 && <0.6
     , async ==2.2.*
@@ -221,7 +221,7 @@ executable marketEx1
       MarketModel
   hs-source-dirs:
       market
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -feager-blackholing -fwrite-ide-info
   build-depends:
       array >=0.5.5 && <0.6
     , async ==2.2.*
@@ -254,7 +254,7 @@ executable marketEx1d
       MarketModel
   hs-source-dirs:
       market
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -feager-blackholing -fwrite-ide-info
   build-depends:
       array >=0.5.5 && <0.6
     , async ==2.2.*
@@ -288,7 +288,7 @@ executable ripple
       Paths_exchangealgebra_examples
   hs-source-dirs:
       deterministic/ripple
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -feager-blackholing -fwrite-ide-info
   build-depends:
       array >=0.5.5 && <0.6
     , async ==2.2.*
@@ -322,7 +322,7 @@ executable rippleWithStock
       Paths_exchangealgebra_examples
   hs-source-dirs:
       deterministic/ripple
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -feager-blackholing -fwrite-ide-info
   build-depends:
       array >=0.5.5 && <0.6
     , async ==2.2.*
@@ -356,7 +356,7 @@ executable rippleWithStockMultiSeeds
       Paths_exchangealgebra_examples
   hs-source-dirs:
       deterministic/ripple
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N10
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N10 -feager-blackholing
   build-depends:
       array >=0.5.5 && <0.6
     , async ==2.2.*
@@ -389,7 +389,7 @@ executable sim1
       Paths_exchangealgebra_examples
   hs-source-dirs:
       basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -feager-blackholing -fwrite-ide-info
   build-depends:
       array >=0.5.5 && <0.6
     , async ==2.2.*
@@ -422,7 +422,7 @@ executable sim2
       Paths_exchangealgebra_examples
   hs-source-dirs:
       basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -feager-blackholing -fwrite-ide-info
   build-depends:
       array >=0.5.5 && <0.6
     , async ==2.2.*
@@ -455,7 +455,7 @@ executable sim2fast
       Paths_exchangealgebra_examples
   hs-source-dirs:
       basic
-  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -fwrite-ide-info
+  ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -feager-blackholing -fwrite-ide-info
   build-depends:
       array >=0.5.5 && <0.6
     , async ==2.2.*
