@@ -340,9 +340,13 @@ writeCompoundTrialBalance path alg = do
             xr = norm (decR xs)
             xl = norm (decL xs)
             (dc, diff) = diffRL xs
+            -- 'diffRL' returns the wildcard 'Side' with a zero difference when an
+            -- account nets to zero (e.g. a fully-cleared suspense account). Treat
+            -- that as no balance on either side (cf. 'sideCells').
             (dbt', cbt') = case dc of
                 Credit -> (dbt + diff, cbt)
                 Debit  -> (dbt, cbt + diff)
+                Side   -> (dbt, cbt)
             line = case dc of
                 Credit -> [ tshow diff
                           , tshow xl
@@ -355,6 +359,12 @@ writeCompoundTrialBalance path alg = do
                           , tshow a
                           , tshow xr
                           , tshow diff
+                          ]
+                Side   -> [ T.empty
+                          , tshow xl
+                          , tshow a
+                          , tshow xr
+                          , T.empty
                           ]
          in (accLines ++ [line], dbt', dt + xr, cbt', ct + xl)
 
