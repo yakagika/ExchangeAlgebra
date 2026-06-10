@@ -222,68 +222,68 @@ infix 4 ./=
 
 -- ** Account Titles
 
-data  AccountTitles = Cash                            -- ^ Asset: Cash
-                    | Deposits                        -- ^ Asset: Savings deposits
-                    | CurrentDeposits                 -- ^ Asset: Current deposits
-                    | Securities                      -- ^ Asset: Securities
-                    | InvestmentSecurities            -- ^ Asset: Investment securities
-                    | LongTermNationalBonds           -- ^ Asset: Long-term national bonds
-                    | ShortTermNationalBonds          -- ^ Asset: Short-term national bonds
-                    | Products                        -- ^ Asset: Products
-                    | Machinery                       -- ^ Asset: Machinery and equipment
-                    | Building                        -- ^ Asset: Real estate
-                    | Vehicle                         -- ^ Asset: Vehicles
-                    | StockInvestment                 -- ^ Asset: Stock investment
-                    | EquipmentInvestment             -- ^ Asset: Equipment investment
-                    | LongTermLoansReceivable         -- ^ Asset: Loans receivable
-                    | AccountsReceivable              -- ^ Asset: Accounts receivable
-                    | ShortTermLoansReceivable        -- ^ Asset: Short-term loans receivable
-                    | ReserveDepositReceivable        -- ^ Asset: Reserve deposit receivable
-                    | Gold                            -- ^ Asset: Gold
-                    | GovernmentService               -- ^ Asset: Government service expenditure
-                    | CapitalStock                    -- ^ Equity: Capital stock
-                    | RetainedEarnings                -- ^ Equity: Retained earnings
-                    | LongTermLoansPayable            -- ^ Liability: Long-term loans payable
-                    | ShortTermLoansPayable           -- ^ Liability: Short-term loans payable
-                    | LoansPayable                    -- ^ Liability: Loans payable
-                    | ReserveForDepreciation          -- ^ Liability: Reserve for depreciation
-                    | DepositPayable                  -- ^ Liability: Deposits received
-                    | LongTermNationalBondsPayable    -- ^ Liability: Long-term national bonds payable
-                    | ShortTermNationalBondsPayable   -- ^ Liability: Short-term national bonds payable
-                    | ReserveDepositPayable           -- ^ Liability: Accounts payable
-                    | CentralBankNotePayable          -- ^ Liability: Central bank notes payable
-                    | Depreciation                    -- ^ Expense: Depreciation
-                    | SalesCost                       -- ^ Expense: Cost of sales
-                    | BusinessTrip                    -- ^ Expense: Travel and transportation
-                    | Commutation                     -- ^ Expense: Communication
-                    | UtilitiesExpense                -- ^ Expense: Utilities
-                    | RentExpense                     -- ^ Expense: Rent
-                    | AdvertisingExpense              -- ^ Expense: Advertising
-                    | DeliveryExpenses                -- ^ Expense: Delivery
-                    | SuppliesExpenses                -- ^ Expense: Supplies
-                    | MiscellaneousExpenses           -- ^ Expense: Miscellaneous
-                    | WageExpenditure                 -- ^ Expense: Wages
-                    | InterestExpense                 -- ^ Expense: Interest expense
-                    | TaxesExpense                    -- ^ Expense: Taxes
-                    | ConsumptionExpenditure          -- ^ Expense: Consumables
-                    | SubsidyExpense                  -- ^ Expense: Subsidy expenditure
-                    | CentralBankPaymentExpense       -- ^ Expense
-                    | Purchases                       -- ^ Expense: Purchases
-                    | NetIncome                       -- ^ Expense: Net income
-                    | ValueAdded                      -- ^ Revenue: Value added
-                    | SubsidyIncome                   -- ^ Revenue: Subsidy income
-                    | NationalBondInterestEarned      -- ^ Revenue: National bond interest earned
-                    | DepositInterestEarned           -- ^ Revenue: Deposit interest earned
-                    | GrossProfit                     -- ^ Revenue: Gross profit
-                    | OrdinaryProfit                  -- ^ Revenue: Ordinary profit
-                    | InterestEarned                  -- ^ Revenue: Interest earned
-                    | ReceiptFee                      -- ^ Revenue: Receipt fee
-                    | RentalIncome                    -- ^ Revenue: Rental income
-                    | WageEarned                      -- ^ Revenue: Wage income
-                    | TaxesRevenue                    -- ^ Revenue: Tax revenue
-                    | CentralBankPaymentIncome        -- ^ Revenue
-                    | Sales                           -- ^ Revenue: Sales
-                    | NetLoss                         -- ^ Revenue: Net loss
+data  AccountTitles = Cash                            -- ^ Asset: Cash (現金)
+                    | Deposits                        -- ^ Asset: Savings deposits (普通預金)
+                    | CurrentDeposits                 -- ^ Asset: Current deposits (当座預金)
+                    | Securities                      -- ^ Asset: Securities (有価証券)
+                    | InvestmentSecurities            -- ^ Asset: Investment securities (投資有価証券)
+                    | LongTermNationalBonds           -- ^ Asset: Long-term national bonds (長期国債)
+                    | ShortTermNationalBonds          -- ^ Asset: Short-term national bonds (短期国債)
+                    | Products                        -- ^ Asset: Products (商品)。分記法用。3 分法 (仕入\/売上\/繰越商品) では 'MerchandiseInventory' を使う
+                    | Machinery                       -- ^ Asset: Machinery and equipment (機械装置)
+                    | Building                        -- ^ Asset: Real estate (建物)
+                    | Vehicle                         -- ^ Asset: Vehicles (車両運搬具)
+                    | StockInvestment                 -- ^ Asset: Stock investment (株式投資)
+                    | EquipmentInvestment             -- ^ Asset: Equipment investment (設備投資)
+                    | LongTermLoansReceivable         -- ^ Asset: Long-term loans receivable (長期貸付金)
+                    | AccountsReceivable              -- ^ Asset: Accounts receivable (売掛金)
+                    | ShortTermLoansReceivable        -- ^ Asset: Short-term loans receivable (短期貸付金)
+                    | ReserveDepositReceivable        -- ^ Asset: Reserve deposits, asset side (準備預金, 資産側 — 市中銀行が中央銀行に置く準備預金。SNA\/マクロ系)
+                    | Gold                            -- ^ Asset: Gold (金)
+                    | GovernmentService               -- ^ Asset: Government service (政府サービス。SNA\/マクロ系)
+                    | CapitalStock                    -- ^ Equity: Capital stock (資本金)
+                    | RetainedEarnings                -- ^ Equity: Retained earnings (繰越利益剰余金)
+                    | LongTermLoansPayable            -- ^ Liability: Long-term loans payable (長期借入金)
+                    | ShortTermLoansPayable           -- ^ Liability: Short-term loans payable (短期借入金)
+                    | LoansPayable                    -- ^ Liability: Loans payable (借入金)
+                    | ReserveForDepreciation          -- ^ Liability: Reserve for depreciation (減価償却引当金 — SNA\/マクロ系の旧称。簿記の間接法には 'AccumulatedDepreciation' (減価償却累計額) を使う)
+                    | DepositPayable                  -- ^ Liability: Deposits accepted (受入預金 — 銀行側の負債としての預金。SNA\/マクロ系。従業員等からの預り金は 'DepositsReceived')
+                    | LongTermNationalBondsPayable    -- ^ Liability: Long-term national bonds payable (長期国債, 発行側)
+                    | ShortTermNationalBondsPayable   -- ^ Liability: Short-term national bonds payable (短期国債, 発行側)
+                    | ReserveDepositPayable           -- ^ Liability: Reserve deposits, liability side (準備預金, 負債側 — 中央銀行が受け入れる準備預金。SNA\/マクロ系)。※簿記の買掛金は 'AccountsPayable' を使うこと (旧 examples が本科目を買掛金の代用にしていた経緯あり)
+                    | CentralBankNotePayable          -- ^ Liability: Central bank notes (発行銀行券。SNA\/マクロ系)
+                    | Depreciation                    -- ^ Expense: Depreciation (減価償却費)
+                    | SalesCost                       -- ^ Expense: Cost of sales (売上原価)
+                    | BusinessTrip                    -- ^ Expense: Travel and transportation (旅費交通費)
+                    | Commutation                     -- ^ Expense: Communication (通信費 — 旧称。新規コードでは 'CommunicationExpenses' を使う)
+                    | UtilitiesExpense                -- ^ Expense: Utilities (水道光熱費)
+                    | RentExpense                     -- ^ Expense: Rent (支払家賃)
+                    | AdvertisingExpense              -- ^ Expense: Advertising (広告宣伝費)
+                    | DeliveryExpenses                -- ^ Expense: Delivery (発送費)
+                    | SuppliesExpenses                -- ^ Expense: Supplies (消耗品費)
+                    | MiscellaneousExpenses           -- ^ Expense: Miscellaneous (雑費)
+                    | WageExpenditure                 -- ^ Expense: Wages (給料)
+                    | InterestExpense                 -- ^ Expense: Interest expense (支払利息)
+                    | TaxesExpense                    -- ^ Expense: Taxes (租税公課)
+                    | ConsumptionExpenditure          -- ^ Expense: Consumption expenditure (消費支出。SNA\/マクロ系)
+                    | SubsidyExpense                  -- ^ Expense: Subsidy expenditure (補助金支出。SNA\/マクロ系)
+                    | CentralBankPaymentExpense       -- ^ Expense: Central bank payment to treasury (国庫納付金支出。SNA\/マクロ系)
+                    | Purchases                       -- ^ Expense: Purchases (仕入)
+                    | NetIncome                       -- ^ Expense: Net income (当期純利益 — 決算振替用。借方側に立つため Expense 区分)
+                    | ValueAdded                      -- ^ Revenue: Value added (付加価値。SNA\/マクロ系)
+                    | SubsidyIncome                   -- ^ Revenue: Subsidy income (補助金収入。SNA\/マクロ系)
+                    | NationalBondInterestEarned      -- ^ Revenue: National bond interest earned (国債利息収入)
+                    | DepositInterestEarned           -- ^ Revenue: Deposit interest earned (預金利息収入)
+                    | GrossProfit                     -- ^ Revenue: Gross profit (売上総利益 — 決算振替用)
+                    | OrdinaryProfit                  -- ^ Revenue: Ordinary profit (経常利益 — 決算振替用)
+                    | InterestEarned                  -- ^ Revenue: Interest earned (受取利息)
+                    | ReceiptFee                      -- ^ Revenue: Receipt fee (受取手数料。支払側は 'PaymentFees')
+                    | RentalIncome                    -- ^ Revenue: Rental income (受取家賃)
+                    | WageEarned                      -- ^ Revenue: Wage income (賃金収入。SNA\/マクロ系)
+                    | TaxesRevenue                    -- ^ Revenue: Tax revenue (租税収入。SNA\/マクロ系)
+                    | CentralBankPaymentIncome        -- ^ Revenue: Central bank payment to treasury (国庫納付金収入。SNA\/マクロ系)
+                    | Sales                           -- ^ Revenue: Sales (売上)
+                    | NetLoss                         -- ^ Revenue: Net loss (当期純損失 — 決算振替用。貸方側に立つため Revenue 区分)
                     -- Elementary bookkeeping (日商簿記 3 級水準) additions.
                     -- Appended before the 'AccountTitle' wildcard so that only the
                     -- wildcard's Enum/Binary ordinal shifts (existing serialized
@@ -343,8 +343,12 @@ data  AccountTitles = Cash                            -- ^ Asset: Cash
                     | GainOnSalesOfFixedAssets        -- ^ Revenue: Gain on sales of fixed assets (固定資産売却益)
                     | RecoveryOfBadDebts              -- ^ Revenue: Recovery of bad debts written off (償却債権取立益)
                     | MiscellaneousIncome             -- ^ Revenue: Miscellaneous income (雑益)
-                    | AccountTitle                    -- ^ Wildcard
+                    | AccountTitle                    -- ^ Wildcard (ワイルドカード — 任意の科目にマッチ。projWithBase 等の問い合わせ用で, 実 posting には使わない)
                     deriving (Show, Ord, Eq, Enum, Generic, Bounded)
+
+-- Commutation の実用法は examples の文脈から「通信費」であることが確認済
+-- (2026-06-11 調査)。Enum/Binary 序数の安定のため削除はせず, 新名称への移行を促す。
+{-# DEPRECATED Commutation "通信費 (communication expenses) — use 'CommunicationExpenses' instead" #-}
 
 instance Hashable AccountTitles where
     {-# INLINE hashWithSalt #-}

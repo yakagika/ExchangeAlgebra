@@ -64,7 +64,7 @@ exp4 :: MinTransaction
 exp4    = 600000 :@Not:<SalesCost        -- 売上原価
        .+ 520000 :@Not:<WageExpenditure  -- 給料
        .+ 80000  :@Not:<BusinessTrip     -- 旅費交通費
-       .+ 70000  :@Not:<Commutation      -- 通信費
+       .+ 70000  :@Not:<CommunicationExpenses -- 通信費
        .+ 30000  :@Not:<SuppliesExpenses -- 消耗品費
        .+ 50000  :@Not:<UtilitiesExpense -- 水道光熱費
        .+ 300000 :@Not:<RentExpense      -- 支払家賃
@@ -81,7 +81,7 @@ q4       = 150000 :@Not:<ReceiptFee       -- 受取利息
         .+ 420000 :@Not:<RentExpense      -- 支払家賃
         .+ 2500000:@Not:<Sales            -- 売上高
         .+ 90000  :@Not:<UtilitiesExpense -- 水道光熱費
-        .+ 140000 :@Not:<Commutation      -- 通信費
+        .+ 140000 :@Not:<CommunicationExpenses -- 通信費
         .+ 840000 :@Not:<Purchases        -- 仕入
         .+ 220000 :@Not:<ReceiptFee       -- 受取手数料
 
