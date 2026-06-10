@@ -11,6 +11,7 @@ import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Algebra.Transfer as EAT
 import qualified ExchangeAlgebra.Journal  as EJ
 import qualified ExchangeAlgebra.Journal.Transfer as EJT
+import qualified ExchangeAlgebra.Bookkeeping as EB
 import           ExchangeAlgebra.Value    (MoneyDecimal, bankersRound)
 import qualified ExchangeAlgebra.Simulate as ES
 import           ExchangeAlgebra.Simulate
@@ -1318,6 +1319,123 @@ quotientProperties = do
         200 (norm (EA.mapBasePart (const Amount) (bar xPi) :: NNAlg))
 
 -- ================================================================
+-- Bookkeeping closing-adjustment builders (Phase B)
+-- ================================================================
+
+type BAlg  = EA.Alg Double      (HatBase AccountTitles)
+type BAlgM = EA.Alg MoneyDecimal (HatBase AccountTitles)
+
+mkA :: EB.MkBase (HatBase AccountTitles)
+mkA = (:<)
+
+-- balanced-ness: debit-side norm equals credit-side norm (貸借一致)
+isBalancedD :: BAlg -> Bool
+isBalancedD x = epsEq (norm (EA.decL x)) (norm (EA.decR x))
+
+bookkeepingProperties :: IO ()
+bookkeepingProperties = do
+    -- (1) balanced property: every builder produces a debit=credit entry
+    quickProp "bookkeeping: cogsAdjustmentEntries balanced" $
+        forAll genNNDouble $ \beg -> forAll genNNDouble $ \end ->
+            isBalancedD (EB.cogsAdjustmentEntries mkA beg end)
+    quickProp "bookkeeping: depreciationIndirectEntry balanced" $
+        forAll genNNDouble $ \amt -> isBalancedD (EB.depreciationIndirectEntry mkA amt)
+    quickProp "bookkeeping: depreciationDirectEntry balanced" $
+        forAll genNNDouble $ \amt -> isBalancedD (EB.depreciationDirectEntry mkA amt Fixtures)
+    quickProp "bookkeeping: allowanceReplenishmentEntry balanced" $
+        forAll genNNDouble $ \est -> forAll genNNDouble $ \cur ->
+            isBalancedD (EB.allowanceReplenishmentEntry mkA est cur)
+    quickProp "bookkeeping: allowanceResetEntries balanced" $
+        forAll genNNDouble $ \est -> forAll genNNDouble $ \cur ->
+            isBalancedD (EB.allowanceResetEntries mkA est cur)
+    quickProp "bookkeeping: prepaidExpenseEntry balanced" $
+        forAll genNNDouble $ \amt -> isBalancedD (EB.prepaidExpenseEntry mkA amt RentExpense)
+    quickProp "bookkeeping: unearnedRevenueEntry balanced" $
+        forAll genNNDouble $ \amt -> isBalancedD (EB.unearnedRevenueEntry mkA amt RentalIncome)
+    quickProp "bookkeeping: accruedRevenueEntry balanced" $
+        forAll genNNDouble $ \amt -> isBalancedD (EB.accruedRevenueEntry mkA amt InterestEarned)
+    quickProp "bookkeeping: accruedExpenseEntry balanced" $
+        forAll genNNDouble $ \amt -> isBalancedD (EB.accruedExpenseEntry mkA amt InterestExpense)
+    quickProp "bookkeeping: corporateTaxInterimEntry balanced" $
+        forAll genNNDouble $ \amt -> isBalancedD (EB.corporateTaxInterimEntry mkA amt)
+    -- consumption / corporate tax settlement: amounts where received >= paid,
+    -- total >= interim (the in-scope branch)
+    quickProp "bookkeeping: consumptionTaxSettlementEntry balanced (received>=paid)" $
+        forAll genNNDouble $ \paid -> forAll genNNDouble $ \extra ->
+            isBalancedD (EB.consumptionTaxSettlementEntry mkA paid (paid + extra))
+    quickProp "bookkeeping: corporateTaxSettlementEntries balanced (total>=interim)" $
+        forAll genNNDouble $ \interim -> forAll genNNDouble $ \extra ->
+            isBalancedD (EB.corporateTaxSettlementEntries mkA (interim + extra) interim)
+
+    -- (2) unit tests: expected bases/amounts on representative lecture figures
+    -- COGS (ch.24): beg 100,000 / end 50,000. In isolation this entry's
+    -- Purchases net = beg - end = +50,000 (so the Purchases balance becomes COGS),
+    -- and MerchandiseInventory net = end - beg = -50,000 (it replaces the opening
+    -- balance with the closing one, i.e. 100,000 - 50,000 leaves on the ledger).
+    let cogs = EB.cogsAdjustmentEntries mkA 100000 50000 :: BAlg
+    assertNear "cogs: Purchases net = beg - end (= cost of goods sold)"
+        50000 (signedNet Purchases cogs)
+    assertNear "cogs: MerchandiseInventory net = end - beg"
+        (-50000) (signedNet MerchandiseInventory cogs)
+    -- 差額補充法, estimate>current (ch.16): 1,400 - 1,000 -> provide 400
+    let repl1 = EB.allowanceReplenishmentEntry mkA 1400 1000 :: BAlg
+    assertNear "allowance(差額補充, shortfall): ProvisionForDoubtfulAccounts = 400"
+        400 (norm (EA.projByAccountTitle ProvisionForDoubtfulAccounts repl1))
+    assertNear "allowance(差額補充, shortfall): AllowanceForDoubtfulAccounts = 400"
+        400 (norm (EA.projByAccountTitle AllowanceForDoubtfulAccounts repl1))
+    -- 差額補充法, estimate<current (ch.16): 1,800 - 2,000 -> release 200
+    let repl2 = EB.allowanceReplenishmentEntry mkA 1800 2000 :: BAlg
+    assertNear "allowance(差額補充, excess): ReversalOfAllowanceForDoubtfulAccounts = 200"
+        200 (norm (EA.projByAccountTitle ReversalOfAllowanceForDoubtfulAccounts repl2))
+    -- estimate==current -> no entry
+    assertEqual "allowance(差額補充, equal): Zero"
+        True (EA.isZero (EB.allowanceReplenishmentEntry mkA 1500 1500 :: BAlg))
+    -- consumption tax (ch.23): paid 1,000 / received 20,000 -> unpaid 19,000
+    let ctax = EB.consumptionTaxSettlementEntry mkA 1000 20000 :: BAlg
+    assertNear "consumptionTax: AccruedConsumptionTax = received - paid = 19000"
+        19000 (norm (EA.projByAccountTitle AccruedConsumptionTax ctax))
+    -- corporate tax (ch.23): total 800,000 / interim 500,000 -> unpaid 300,000
+    let crp = EB.corporateTaxSettlementEntries mkA 800000 500000 :: BAlg
+    assertNear "corporateTax: AccruedCorporateIncomeTaxes = total - interim = 300000"
+        300000 (norm (EA.projByAccountTitle AccruedCorporateIncomeTaxes crp))
+    -- consumption-tax refund (received<paid) is rejected (out of 3-級 scope)
+    rRefund <- try (evaluate (norm (EB.consumptionTaxSettlementEntry mkA 5000 1000 :: BAlg)))
+                 :: IO (Either SomeException Double)
+    case rRefund of
+        Left _  -> putStrLn "[PASS] consumptionTaxSettlementEntry rejects received<paid"
+        Right _ -> do putStrLn "[FAIL] consumptionTaxSettlementEntry accepted refund"; exitFailure
+
+    -- (3) reversingEntry: involution + exact cancellation (MoneyDecimal exact)
+    quickProp "bookkeeping: reversingEntry is involution (MoneyDecimal)" $
+        forAll genBAlgM $ \x -> EB.reversingEntry (EB.reversingEntry x) == x
+    quickProp "bookkeeping: bar (x .+ reversingEntry x) == Zero (MoneyDecimal)" $
+        forAll genBAlgM $ \x -> bar (x .+ EB.reversingEntry x) == EA.Zero
+  where
+    -- exact per-account signed net (Not +, Hat -) for Double-based unit checks
+    signedNet :: AccountTitles -> BAlg -> Double
+    signedNet t = EA.foldEntries step 0
+      where step acc v b
+              | getAccountTitle b == t = if isHat b then acc - v else acc + v
+              | otherwise              = acc
+
+-- small exact MoneyDecimal algebra over AccountTitles bases (closing-adjustment
+-- shaped: a few postings on bookkeeping titles), for the reversal properties.
+genBAlgM :: Gen BAlgM
+genBAlgM = sized $ \n -> do
+    k  <- choose (0, min 8 n)
+    ps <- vectorOf k ((,) <$> genSmallMoney <*> genBookBase)
+    pure (EA.fromList [ v .@ b | (v, b) <- ps ])
+  where
+    genSmallMoney :: Gen MoneyDecimal
+    genSmallMoney = fromInteger <$> choose (1, 9999)
+    genBookBase :: Gen (HatBase AccountTitles)
+    genBookBase = (:<) <$> elements [Hat, Not]
+                       <*> elements [ Purchases, MerchandiseInventory, Depreciation
+                                    , AccumulatedDepreciation, PrepaidExpenses
+                                    , AccruedExpenses, AccruedConsumptionTax
+                                    , Cash, InterestExpense ]
+
+-- ================================================================
 -- Simulate.Lite tests (Phase 2, feat/simulate-lite)
 -- ================================================================
 
@@ -2129,3 +2247,4 @@ main = do
     axiomProperties
     journalProperties
     quotientProperties
+    bookkeepingProperties

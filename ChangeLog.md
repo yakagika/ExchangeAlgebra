@@ -3,6 +3,34 @@
 ## Unreleased
 
 ### Added
+- `ExchangeAlgebra.Bookkeeping` — a new module of *closing-adjustment entry
+  builders* (決算整理仕訳) at the 日商簿記 3 級 level. Unlike
+  `ExchangeAlgebra.Algebra.Transfer` (which relabels existing ledger balances),
+  these record fresh postings whose amounts come from outside the ledger
+  (period-end inventory, estimated allowance, depreciation, tax). The base
+  polymorphism is absorbed by a caller-supplied injection `type MkBase b = Hat ->
+  AccountTitles -> b`. Builders: `cogsAdjustmentEntries` (cost of goods sold under
+  the periodic/3-account method, 売上原価算定), `depreciationIndirectEntry` /
+  `depreciationDirectEntry` (減価償却, 間接法/直接法), `allowanceReplenishmentEntry`
+  (差額補充法) / `allowanceResetEntries` (洗替法) for the allowance for doubtful
+  accounts, the four deferral/accrual entries (経過勘定) `prepaidExpenseEntry` /
+  `unearnedRevenueEntry` / `accruedRevenueEntry` / `accruedExpenseEntry`,
+  `consumptionTaxSettlementEntry` (消費税確定; a tax refund `received < paid` is
+  rejected as out of 3-級 scope), and `corporateTaxInterimEntry` /
+  `corporateTaxSettlementEntries` (法人税等の中間納付・確定). `reversingEntry` is a
+  vocabulary alias for the Hat operation `(.^)`: it expresses the opening
+  reversing entry (再振替仕訳) and the correction entry
+  (訂正仕訳 = `reversingEntry wrong .+ correct`), whose redundant sequence is
+  retained as an audit trail of the correction. Every builder is constructed only
+  with the smart constructor `(.@)` (zero amounts normalise to `Zero`,
+  negative/non-finite amounts are rejected) and is debit-credit balanced
+  (`norm (decL x) == norm (decR x)`), verified as a QuickCheck property for all
+  builders plus unit tests on representative lecture figures.
+- `AccountTitles` — added `ReversalOfAllowanceForDoubtfulAccounts` (貸倒引当金戻入,
+  `Revenue`), the credit counterpart released by the allowance builders when the
+  estimate is below the current balance. Appended before the `AccountTitle`
+  wildcard (existing ordinals preserved) and added to the classification
+  exhaustiveness table.
 - `AccountTitles` — added ~49 account titles at the 日商簿記 3 級 (elementary
   Japanese bookkeeping) level, each with an English/Japanese bilingual Haddock
   gloss: assets (e.g. `PettyCash`, `NotesReceivable`, `MerchandiseInventory`,
