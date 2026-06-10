@@ -91,6 +91,38 @@ projKey :: [HatBase AccountTitles]
 projKey = [Hat :< Cash]
 
 ------------------------------------------------------------------
+-- * Quotient decomposition study (dec/*, Phase 1 feat/quotient-decomposition)
+--
+-- A/B for the dec_κ family: per-key reporting over K company keys, comparing
+--   (a) the naive loop — one wildcard balanceBy query per key (K queries),
+--   (b) balanceMapBy   — one-pass per-key net (P1c),
+--   (c) decBy + norm   — one-pass redundancy-preserving partition,
+--   (d) postFromNetBy  — fused classify→net→post.
+-- The input alg is prebuilt in 'env' so only the query side is timed.
+------------------------------------------------------------------
+
+-- bench-local orphans, same shape as examples/basic/simulateEx2.hs
+instance Element Int where
+    wiledcard = -1
+instance BaseClass Int where
+
+type CB = HatBase (AccountTitles, Int)
+type A2 = EA.Alg Double CB
+
+-- nc companies x 12 postings each (mixed Hat/Not over 4 titles)
+mkDecAlg :: Int -> A2
+mkDecAlg nc = EA.fromList
+    [ val .@ hb
+    | c <- [1 .. nc]
+    , i <- [1 .. (12 :: Int)]
+    , let val = fromIntegral (i `mod` 7 + 1) :: Double
+          hb  = (if even i then Hat else Not) :< (bases4 !! (i `mod` 4), c)
+    ]
+
+decNs :: [Int]
+decNs = [200, 1000]
+
+------------------------------------------------------------------
 -- * HatBase key-hashing study
 ------------------------------------------------------------------
 
@@ -197,6 +229,40 @@ main = defaultMain
         [ env (pure (mkJournals n)) $ \js ->
             bench (show n) $ whnf (EJ.projWithBaseNorm projKey . EJ.fromList) js
         | n <- sizes ]
+
+    ------------------------------------------------------------------
+    -- Quotient decomposition study (dec/*)
+    ------------------------------------------------------------------
+    , bgroup "dec/naive-balanceBy-per-key"
+        [ env (pure (mkDecAlg nc)) $ \x ->
+            bench ("K=" ++ show nc) $ whnf
+                (\a -> foldl'
+                    (\acc c -> acc + EA.balanceBy [Not :< ((.#), c)] [Hat :< ((.#), c)] a)
+                    0 [1 .. nc])
+                x
+        | nc <- decNs ]
+    , bgroup "dec/balanceMapBy"
+        [ env (pure (mkDecAlg nc)) $ \x ->
+            bench ("K=" ++ show nc) $ whnf
+                (\a -> M.foldl' (+) 0 (EA.balanceMapBy (\(_, c) -> Just c) a))
+                x
+        | nc <- decNs ]
+    , bgroup "dec/decBy+norm"
+        [ env (pure (mkDecAlg nc)) $ \x ->
+            bench ("K=" ++ show nc) $ whnf
+                (\a -> M.foldl' (\acc al -> acc + norm al) 0
+                           (EA.decBy (\(_ :< (_, c)) -> Just c) a))
+                x
+        | nc <- decNs ]
+    , bgroup "dec/postFromNetBy"
+        [ env (pure (mkDecAlg nc)) $ \x ->
+            bench ("K=" ++ show nc) $ whnf
+                (\a -> norm (EA.postFromNetBy
+                    (\b -> case b of (Hat :< (t, c)) -> Just (t, c); _ -> Nothing)
+                    (\(t, c) v -> v .@ (Not :< (t, c)))
+                    a))
+                x
+        | nc <- decNs ]
 
     ------------------------------------------------------------------
     -- Layer A: pure key hashing (HatBase key-hashing study)

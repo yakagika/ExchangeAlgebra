@@ -71,6 +71,8 @@ module ExchangeAlgebra.Algebra
     , balanceBy
     , balanceMapBy
     , foldEntriesToMap
+    , decBy
+    , postFromNetBy
     , projCurrentAssets
     , projFixedAssets
     , projDeferredAssets
@@ -1527,6 +1529,113 @@ foldEntriesToMap f = foldEntries step M.empty
     step acc v b = case f v b of
         Just (k, v') -> M.insertWith (+) k v' acc
         Nothing      -> acc
+
+-- | Quotient decomposition (dec_κ): partition an algebra along the equivalence
+-- classes induced by a classifier on the full 'HatBase', in a single pass.
+--
+-- For each entry, @keyOf@ maps its base (Hat\/Not state included) to a class
+-- key; @Nothing@ drops the entry as residual. Each class is returned as an
+-- 'Alg' that is exactly the restriction of the input to that class:
+-- __redundancy (the per-base value sequences) is fully preserved__ — no 'bar',
+-- no 'norm', no aggregation. The pieces reconstruct the input:
+-- @mconcat (M.elems (decBy keyOf x)) .+ residual == x@ (up to per-base
+-- sequence order).
+--
+-- This generalizes the decomposition operators of Deguchi & Nakano (1986)
+-- ('decR'\/'decL'\/'decP'\/'decM' are two-class special cases) and replaces
+-- per-class projection loops: one pass over the entries instead of one
+-- projection query per class.
+--
+-- Choosing between the per-key family:
+--
+-- +--------------------+----------------------------------+---------------------+
+-- | function           | returns                          | redundancy          |
+-- +====================+==================================+=====================+
+-- | 'decBy'            | @Map k (Alg v b)@ (structure)    | preserved           |
+-- +--------------------+----------------------------------+---------------------+
+-- | 'balanceMapBy'     | @Map k v@ (signed net per key)   | lost (bar-like)     |
+-- +--------------------+----------------------------------+---------------------+
+-- | 'foldEntriesToMap' | @Map k v@ (custom collection)    | lost                |
+-- +--------------------+----------------------------------+---------------------+
+-- | 'mapBasePart'      | @Alg v b'@ (base coarsening π_κ) | preserved           |
+-- +--------------------+----------------------------------+---------------------+
+--
+-- Note on 'bar': @bar@ commutes with 'decBy' componentwise iff @keyOf@ does not
+-- distinguish Hat\/Not (i.e. factors through 'base'). Side-sensitive classifiers
+-- (such as the ones underlying 'decP'\/'decM' or 'decL'\/'decR') do not commute
+-- with @bar@ — netting before or after such a split is a semantic choice.
+--
+-- Complexity: O(m) over distinct bases (single fold; per-class insert costs
+-- O(log k) in the result 'M.Map').
+--
+-- >>> type T = Alg Double (HatBase AccountTitles)
+-- >>> let alg = 100 :@ Not:<Cash .+ 30 :@ Hat:<Cash .+ 50 :@ Not:<Deposits :: T
+-- >>> M.toList (M.map norm (decBy (\(_ :< a) -> Just a) alg))
+-- [(Cash,130.0),(Deposits,50.0)]
+--
+-- >>> M.toList (M.map norm (decBy (\b -> if isHat b then Just () else Nothing) alg))
+-- [((),30.0)]
+{-# INLINE decBy #-}
+decBy :: (HatVal v, HatBaseClass b, Ord k)
+      => (b -> Maybe k)
+      -> Alg v b
+      -> M.Map k (Alg v b)
+decBy _  Zero = M.empty
+decBy kf a@(v :@ b)
+    | isZeroValue v = M.empty
+    | otherwise = case kf b of
+        Nothing -> M.empty
+        Just k  -> M.singleton k a
+decBy kf (Liner m _ _ _ _ _) =
+    M.map mkAlgFromMap (Map.foldlWithKey' step M.empty m)
+  where
+    step !acc !bp (Pair hs ns) =
+        let !acc1 = if Seq.null hs
+                then acc
+                else insertSide (merge Hat bp) bp (nullPair {_hatSide = hs}) acc
+        in if Seq.null ns
+                then acc1
+                else insertSide (merge Not bp) bp (nullPair {_notSide = ns}) acc1
+    {-# INLINE insertSide #-}
+    insertSide hb bp p acc = case kf hb of
+        Nothing -> acc
+        Just k  -> M.insertWith (Map.unionWith (flip pairAppend)) k (Map.singleton bp p) acc
+
+-- | Classify-net-post, fused: net the algebra per base ('bar' — explicit in the
+-- name), classify each netted entry with @keyOf@ (class totals are summed with
+-- @(+)@), then generate postings per class and bulk-merge them.
+--
+-- @postFromNetBy keyOf post x == sigmaFromMap (foldEntriesToMap collect (bar x)) post@
+-- where @collect@ pairs each netted entry with its class. The common
+-- \"shortage detection → purchase postings\" pattern becomes a single call:
+--
+-- @
+-- purchases = postFromNetBy shortageKey purchasePosting termAlg
+-- @
+--
+-- and runs in one pass over the netted entries — no per-pair projection loop
+-- (the naive all-pairs formulation costs O(N²) queries; this costs O(m)).
+--
+-- __This function applies 'bar' internally__ (per-base netting, the standard
+-- positive-part normalization). Redundancy of the input is not preserved in the
+-- intermediate; the output is whatever @post@ builds. If you need the
+-- redundancy-preserving split itself, use 'decBy'.
+--
+-- Complexity: O(m + Σ cost(post)).
+--
+-- >>> type T = Alg Double (HatBase AccountTitles)
+-- >>> let stock = 100 :@ Not:<Products .+ 130 :@ Hat:<Products .+ 20 :@ Not:<Cash :: T
+-- >>> let shortageKey b = case b of { Hat :< Products -> Just () ; _ -> Nothing }
+-- >>> norm (postFromNetBy shortageKey (\_ v -> v :@ Not:<Products .+ v :@ Hat:<Cash) stock)
+-- 60.0
+{-# INLINE postFromNetBy #-}
+postFromNetBy :: (HatVal v, HatBaseClass b, Ord k)
+              => (b -> Maybe k)
+              -> (k -> v -> Alg v b)
+              -> Alg v b
+              -> Alg v b
+postFromNetBy kf post x =
+    sigmaFromMap (foldEntriesToMap (\v b -> (\k -> (k, v)) <$> kf b) ((.-) x)) post
 
 -- | Projects only current assets.
 -- Extracts asset items classified as current from the debit side.

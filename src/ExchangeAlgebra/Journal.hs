@@ -50,6 +50,7 @@ module ExchangeAlgebra.Journal
     , sigma2When
     , sigmaOn
     , sigmaOnFromMap
+    , decTo
     , sigmaM
     , map
     , insert
@@ -550,6 +551,42 @@ sigmaOnFromMap n kvs f =
     in if EA.isZero alg
         then mempty
         else alg .| n
+
+-- | Quotient decomposition into the Journal (dec_κ landing on the graded
+-- carrier): partition an 'Alg' along the classes induced by a classifier and
+-- return the family as a 'Journal' keyed by the class 'Note'.
+--
+-- A 'Journal' is exactly a finite map @Note → Alg@ (paper Definition 12), i.e.
+-- the library's native \"keyed family of algebras\" — so the decomposition
+-- stays inside the algebra vocabulary (no external container in the result).
+-- Each note's entry is the redundancy-preserving restriction of the input to
+-- that class (same guarantees as 'EA.decBy'): no 'bar', no aggregation, and
+-- @norm (decTo keyOf x) + norm residual == norm x@ (norm additivity of the
+-- decomposition).
+--
+-- Entries classified to @Nothing@ or to 'plank' are dropped as residual
+-- ('plank' is the blank note and cannot carry a class).
+--
+-- Complexity: O(m) single pass (via 'EA.decBy') + O(k) journal construction.
+--
+-- >>> type TJ = Journal String Double (HatBase AccountTitles)
+-- >>> let alg = 100 :@ Not:<Cash .+ 30 :@ Hat:<Cash .+ 50 :@ Not:<Deposits :: Alg Double (HatBase AccountTitles)
+-- >>> let j = decTo (\(_ :< a) -> Just (if a == Cash then "cash" else "other")) alg :: TJ
+-- >>> norm j
+-- 180.0
+--
+-- >>> norm (projWithNote ["cash"] j)
+-- 130.0
+{-# INLINE decTo #-}
+decTo :: (HatVal v, HatBaseClass b, Note n)
+      => (b -> Maybe n)
+      -> Alg v b
+      -> Journal n v b
+decTo kf x =
+    fromMap $ Map.fromList
+        [ (n, alg)
+        | (n, alg) <- M.toList (EA.decBy kf x)
+        , not (isPlank n) ]
 
 -- | Summation in a monadic context. Applies a monadic function to each element and mconcats the results.
 --

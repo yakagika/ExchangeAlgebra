@@ -1,5 +1,39 @@
 # Changelog for ExchangeAlgebra
 
+## Unreleased
+
+### Added
+- `ExchangeAlgebra.Algebra.decBy :: Ord k => (b -> Maybe k) -> Alg v b ->
+  Map k (Alg v b)` — quotient decomposition (dec_κ): one-pass partition of an
+  algebra along the classes induced by a classifier on the full `HatBase`.
+  Each class is the redundancy-preserving restriction of the input (no `bar`,
+  no aggregation); the pieces reconstruct the input and `norm` is additive over
+  classes. Generalizes the Deguchi-Nakano (1986) decomposition operators
+  (`decR`/`decL`/`decP`/`decM` are two-class special cases). Replaces per-class
+  projection loops (`O(classes * query)`) with a single `O(entries)` fold.
+  `bar` commutes with `decBy` componentwise iff the classifier does not
+  distinguish Hat/Not (side-sensitive classifiers encode a semantic choice;
+  covered by sentinel tests).
+- `ExchangeAlgebra.Algebra.postFromNetBy :: Ord k => (b -> Maybe k) ->
+  (k -> v -> Alg v b) -> Alg v b -> Alg v b` — fused classify→net→post:
+  `bar` (explicit in the name), classify the netted entries, sum per class, and
+  bulk-merge the generated postings. The "shortage detection → purchase
+  postings" pattern becomes one call running in a single pass (the naive
+  all-pairs formulation costs `O(N^2)` per-pair queries).
+- `ExchangeAlgebra.Journal.decTo :: Note n' => (b -> Maybe n') -> Alg v b ->
+  Journal n' v b` — quotient decomposition landing on the `Journal` (the
+  library's native keyed family of algebras, paper Definition 12), keeping the
+  per-key result inside the algebra vocabulary (no external `Map` in the
+  result). Same redundancy/norm guarantees as `decBy`; `plank` cannot carry a
+  class (such entries join the residual).
+- Quotient-decomposition axiom property tests (reconstruction, norm additivity
+  over classes, componentwise `bar` commutation for base-part classifiers) plus
+  fixed sentinels for the side-sensitive non-commutation cases (`isHat`,
+  `whichSide`) and for `mapBasePart`'s coarsen-vs-net order sensitivity.
+- `bench-core` gains a `dec/*` group: per-key reporting A/B between the naive
+  per-key wildcard `balanceBy` loop, `balanceMapBy`, `decBy`+`norm`, and
+  `postFromNetBy` at K=200/1000 keys.
+
 ## 0.5.0.0 - 2026-06-07
 
 Selectable value type: `Double` (default, fast) / `MoneyDouble` (typed fast FP)

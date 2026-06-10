@@ -1035,6 +1035,111 @@ journalProperties = do
             let js = [ (v :@ b) .| nt | (v, b, nt) <- ps ] :: [NNJournal]
             in netJournal (EJ.fromList js) == netJournal (foldr (.+) mempty js)
 
+-- ================================================================
+-- Quotient decomposition properties (Phase 1, feat/quotient-decomposition)
+--
+-- Encodes the dec_κ / π_κ axioms of the scaling formalization
+-- (agent-notes/drafts/scaling-formalization.md §2, §7) as QuickCheck
+-- properties, plus fixed sentinels for the side-sensitive non-commutation
+-- cases that MUST NOT silently start commuting (they encode a semantic
+-- choice, not a bug).
+-- ================================================================
+
+-- proper classifier: factors through the base part (never sees Hat/Not)
+properKf :: HatBase CountUnit -> Maybe CountUnit
+properKf (_ :< u) = Just u
+
+-- partial proper classifier: Yen entries fall into the residual
+partialKf :: HatBase CountUnit -> Maybe CountUnit
+partialKf (_ :< Yen) = Nothing
+partialKf (_ :< u)   = Just u
+
+-- side-sensitive classifier: sees the Hat/Not state (like decP/decM)
+sideKf :: HatBase CountUnit -> Maybe Bool
+sideKf b = Just (isHat b)
+
+-- residual of a partial classifier (reference implementation via filter)
+residualOf :: (HatBase CountUnit -> Maybe CountUnit) -> NNAlg -> NNAlg
+residualOf kf = EA.filter (\s -> s /= EA.Zero && kf (EA._hatBase s) == Nothing)
+
+-- per-base nets with exact-zero entries dropped (bar drops zero-net bases,
+-- so commutation properties are compared modulo zero nets)
+nonZeroNet :: NNAlg -> M.Map CountUnit Rational
+nonZeroNet = M.filter (/= 0) . netByBase
+
+quotientProperties :: IO ()
+quotientProperties = do
+    -- reconstruction: Σ_k x_k (+ residual) = x  (formalization Prop 2.3)
+    quickProp "decBy: reconstruction, total classifier (MoneyDecimal)" $
+        forAll genAlgN $ \x ->
+            netByBase (mconcat (M.elems (EA.decBy properKf x))) == netByBase x
+    quickProp "decBy: reconstruction with residual, partial classifier" $
+        forAll genAlgN $ \x ->
+            netByBase (mconcat (M.elems (EA.decBy partialKf x)) .+ residualOf partialKf x)
+                == netByBase x
+    -- norm additivity over classes (formalization Prop 2.4(1))
+    quickProp "decBy: norm additivity over classes + residual (MoneyDecimal)" $
+        forAll genAlgN $ \x ->
+            norm x == L.foldl' (+) 0 (L.map norm (M.elems (EA.decBy partialKf x)))
+                      + norm (residualOf partialKf x)
+    -- proper classifier commutes with bar componentwise (Prop 2.4(4))
+    quickProp "decBy: bar commutes componentwise (proper classifier)" $
+        forAll genAlgN $ \x ->
+            M.filter (not . M.null) (M.map nonZeroNet (EA.decBy properKf (bar x)))
+                == M.filter (not . M.null) (M.map (nonZeroNet . bar) (EA.decBy properKf x))
+    -- decBy equals the naive per-class filter loop (semantics check)
+    quickProp "decBy: equals naive per-class filter (MoneyDecimal)" $
+        forAll genAlgN $ \x ->
+            let d = EA.decBy properKf x
+                naive k = EA.filter
+                    (\s -> s /= EA.Zero && properKf (EA._hatBase s) == Just k) x
+            in all (\(k, alg) -> netByBase alg == netByBase (naive k)) (M.toList d)
+    -- postFromNetBy equals an independent per-key projNorm pipeline
+    quickProp "postFromNetBy: equals per-key projNorm reference (MoneyDecimal)" $
+        forAll genAlgN $ \x ->
+            let kf b = if isHat b then Just (unitOf b) else Nothing
+                unitOf (_ :< u) = u
+                post u v = v .@ (Not :< u) :: NNAlg
+                viaApi = EA.postFromNetBy kf post x
+                viaRef = mconcat
+                    [ post u s
+                    | u <- [Yen, Dollar, Amount]
+                    , let s = EA.projNorm [Hat :< u] (bar x)
+                    , s /= 0 ]
+            in netByBase viaApi == netByBase viaRef
+    -- decTo: flatten reconstructs and norm is preserved (total classifier)
+    quickProp "decTo: toAlg . decTo reconstructs (total classifier, MoneyDecimal)" $
+        forAll genAlgN $ \x ->
+            let j = EJ.decTo (\(_ :< u) -> Just (show u)) x
+                    :: EJ.Journal String MoneyDecimal (HatBase CountUnit)
+            in netByBase (EJ.toAlg j) == netByBase x && norm j == norm x
+    -- sentinel: side-sensitive classifier does NOT commute with bar
+    -- (decP/decM-style split; x = v:@Not:<Yen .+ v:@Hat:<Yen nets to zero
+    --  globally but each side survives within its own class)
+    let xCancel = (5 .@ (Not :< Yen)) .+ (5 .@ (Hat :< Yen)) :: NNAlg
+        lhs = M.filter (not . EA.isZero) (M.map bar (EA.decBy sideKf xCancel))
+        rhs = EA.decBy sideKf (bar xCancel)
+    assertEqual "sentinel: side-sensitive decBy does not commute with bar"
+        True (M.keys lhs /= M.keys rhs)
+    -- sentinel: whichSide-style classifier is also side-sensitive
+    -- (Cash homeSide = Debit, so Hat flips it to Credit: the two sides of one
+    --  base land in different classes — Deguchi Def 2.13)
+    let xCash = (100 .@ (Not :< Cash)) .+ (100 .@ (Hat :< Cash))
+                    :: EA.Alg MoneyDecimal (HatBase AccountTitles)
+        bySide = EA.decBy (\b -> Just (whichSide b)) xCash
+    assertEqual "sentinel: whichSide splits one base across classes (side-sensitive)"
+        [Credit, Debit] (L.sort (M.keys bySide))
+    assertEqual "sentinel: whichSide decBy does not commute with bar"
+        True (M.filter (not . EA.isZero) (M.map bar bySide)
+                /= EA.decBy (\b -> Just (whichSide b)) (bar xCash))
+    -- sentinel: π_κ (mapBasePart, non-injective) does not commute with bar
+    -- (formalization §2.8: coarsen-then-net /= net-then-coarsen)
+    let xPi = (100 .@ (Not :< Yen)) .+ (100 .@ (Hat :< Dollar)) :: NNAlg
+    assertEqual "sentinel: bar (mapBasePart const) nets across the class"
+        0 (norm (bar (EA.mapBasePart (const Amount) xPi :: NNAlg)))
+    assertEqual "sentinel: mapBasePart (bar x) keeps both sides (no cross-base netting)"
+        200 (norm (EA.mapBasePart (const Amount) (bar xPi) :: NNAlg))
+
 main :: IO ()
 main = do
     testProjMultiPatternOnePass
@@ -1067,3 +1172,4 @@ main = do
     testCsvWriteCSVEmpty
     axiomProperties
     journalProperties
+    quotientProperties
