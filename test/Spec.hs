@@ -28,7 +28,8 @@ import           ExchangeAlgebra.Simulate.Lite
                      ( InitT, RefT, SnapT, HK
                      , Field(..), carry, resetEach, updateEach
                      , Stage, stage, stageFor
-                     , Par(..), SimSpec, mkSimSpec, runLite )
+                     , Par(..), SimSpec, mkSimSpec, runLite, runLiteWithPolicy )
+import qualified ExchangeAlgebra.Simulate.Policy as Policy
 import           ExchangeAlgebra.Value    (MoneyDouble)
 import qualified ExchangeAlgebra.Write    as EW
 import           ExchangeAlgebra.Write
@@ -1355,6 +1356,192 @@ testLiteBoundaryOncePerTerm =
          in realToFrac (runLite spec2 w0 (norm . rwLedger)))
 
 -- ================================================================
+-- Simulate.Policy tests (Phase 4, feat/ledger-policy)
+--
+-- LedgerPolicy = declarative retention / spill / compaction, applied at the
+-- term boundary by runLiteWithPolicy. The exact MoneyDecimal value type lets us
+-- assert lossless round-trips and norm/compaction invariants by strict equality.
+-- ================================================================
+
+-- A one-field world whose stage posts a few distinct bases per term, so that a
+-- closed term has redundant per-base sequences (exercising CompressClosedTerms)
+-- and a multi-term history (exercising RetainRecent + spill).
+data PolW f = PolW
+  { pwLedger :: HK f LedgerM
+  } deriving Generic
+
+-- A single-field world for the classic-bridge test: a constructor @a@ of kind
+-- @Type -> Type@ whose @a RealWorld@ is an @STRef RealWorld LedgerM@ (so it fits
+-- the @SpillOptions t a payload@ shape, where @a@ is applied to the state token).
+newtype LedgerRef s = LedgerRef (STRef s LedgerM)
+
+-- Each agent posts twice to the SAME base within the term, so the term's per-base
+-- posting sequence has length 2 before compress and length 1 after.
+polStage :: Stage PolW Int LNote MoneyDecimal LBaseM
+polStage = stageFor "post" [1 .. 4 :: Int] $ \_w t _g i ->
+    let amt = fromIntegral i :: MoneyDecimal
+        one = 1             :: MoneyDecimal
+        m1  = ((amt .@ Not :< Purchases) .+ (amt .@ Hat :< Cash)) .| ("post", t)
+        m2  = ((one .@ Not :< Purchases) .+ (one .@ Hat :< Cash)) .| ("post", t)
+    in m1 .+ m2 :: Journal LNote MoneyDecimal LBaseM
+
+polSpec :: SimSpec PolW Int LNote MoneyDecimal LBaseM
+polSpec = mkSimSpec (1, 5) 0 pwLedger [polStage]
+
+polW0 :: PolW InitT
+polW0 = PolW { pwLedger = carry mempty }
+
+-- run a temp spill file, returning (result, path); caller removes the file.
+withTempSpill :: String -> (FilePath -> IO a) -> IO a
+withTempSpill tag act = do
+    let path = "/tmp/exchangealgebra_policy_" ++ tag ++ ".bin"
+    -- ensure no stale file from a previous run (append-mode would accumulate)
+    _ <- try (removeFile path) :: IO (Either SomeException ())
+    r <- act path
+    _ <- try (removeFile path) :: IO (Either SomeException ())
+    pure r
+
+-- Test 1 (flagship): defaultLedgerPolicy is observationally equal to runLite.
+testPolicyEquivalence :: IO ()
+testPolicyEquivalence = do
+    let pureLedger = runLite polSpec polW0 (toMap . pwLedger)
+    polLedger <- runLiteWithPolicy Policy.defaultLedgerPolicy polSpec polW0 (toMap . pwLedger)
+    assertEqual "Policy: runLiteWithPolicy defaultLedgerPolicy == runLite (exact)"
+        pureLedger polLedger
+
+-- Test 2 (flagship): RetainRecent w + spillTo gives an in-memory window AND a
+-- lossless restore that equals the FullAudit ledger.
+testPolicyWindowRoundTrip :: IO ()
+testPolicyWindowRoundTrip = withTempSpill "window" $ \path -> do
+    let full = runLite polSpec polW0 (toMap . pwLedger)   -- FullAudit reference
+        pol  = Policy.defaultLedgerPolicy
+                 { Policy.retain  = Policy.RetainRecent 2
+                 , Policy.spillTo = Just path }
+    -- ONE policy run (append-mode spill: a second run would double the file),
+    -- projecting the live journal; we derive both checks from it.
+    residentJournal <- runLiteWithPolicy pol polSpec polW0 pwLedger
+    -- (a) in-memory ledger after the run contains ONLY the most recent 2 terms.
+    let residentMap   = toMap residentJournal
+        residentTerms = L.sort (L.nub [ t | (_, t) <- HM.keys residentMap ])
+    assertEqual "Policy: RetainRecent 2 leaves only the most recent 2 terms resident"
+        [4, 5] residentTerms
+    -- (b) restoreLedger (spill file + resident remainder) == FullAudit ledger.
+    restored <- Policy.restoreLedger path residentJournal :: IO LedgerM
+    assertEqual "Policy: restoreLedger (spill + remainder) == FullAudit ledger (lossless, exact)"
+        full (toMap restored)
+
+-- Test 3: CompressClosedTerms — norm/balance invariant, closed-term seq length 1,
+-- in-progress term keeps full redundancy.
+testPolicyCompressClosed :: IO ()
+testPolicyCompressClosed = do
+    let full = runLite polSpec polW0 (toMap . pwLedger)
+    compactedJ <- runLiteWithPolicy
+                    (Policy.defaultLedgerPolicy { Policy.compaction = Policy.CompressClosedTerms })
+                    polSpec polW0 pwLedger
+    let fullJ = runLite polSpec polW0 pwLedger
+    -- (a) norm is invariant under compaction.
+    assertEqual "Policy: CompressClosedTerms preserves norm (exact)"
+        (norm fullJ) (norm compactedJ)
+    -- (b) balance result unchanged (still balanced overall).
+    assertEqual "Policy: CompressClosedTerms preserves balance"
+        (EA.balance fullJ) (EA.balance compactedJ)
+    -- (c) each CLOSED term (1..4) has at most one posting per base/side: its Alg
+    --     compresses to itself (idempotent), so compress . entry == entry.
+    let compactedMap = toMap compactedJ
+        closedOk = all
+          (\((_, t), alg) -> t == (5 :: Int) || EA.compress alg == alg)
+          (HM.toList compactedMap)
+    assertEqual "Policy: closed terms are already compressed (compress is a no-op on them)"
+        True closedOk
+    -- (d) the in-progress term (5) keeps its redundancy: in the FULL ledger term
+    --     5's entry has a length-2 sequence, and the compacted ledger keeps the
+    --     SAME term-5 entry (untouched), i.e. it differs from its own compress.
+    let term5Full = HM.lookup ("post", 5) (toMap fullJ)
+        term5Comp = HM.lookup ("post", 5) compactedMap
+    assertEqual "Policy: in-progress term is untouched by CompressClosedTerms"
+        term5Full term5Comp
+    case term5Comp of
+      Just alg -> assertEqual "Policy: in-progress term retains its redundant sequence"
+                    False (EA.compress alg == alg)
+      Nothing  -> assertEqual "Policy: in-progress term present" True False
+
+-- Test 4: deletion-only (spillTo Nothing + RetainRecent) narrows the ledger to
+-- the window and reduces its norm by exactly the discarded terms' norm.
+testPolicyDeleteOnly :: IO ()
+testPolicyDeleteOnly = do
+    let pol = Policy.defaultLedgerPolicy { Policy.retain = Policy.RetainRecent 2 }
+    residentJournal <- runLiteWithPolicy pol polSpec polW0 pwLedger
+    let residentMap = toMap residentJournal
+        residentTerms = L.sort (L.nub [ t | (_, t) <- HM.keys residentMap ])
+        -- the FullAudit ledger restricted to the same window must match exactly
+        -- (deletion is just a filter; the kept terms are untouched).
+        full = runLite polSpec polW0 pwLedger
+        windowOfFull = EJ.filterWithNote (\(_, t) _ -> t >= 4) full
+    assertEqual "Policy: delete-only leaves only the window terms" [4, 5] residentTerms
+    assertEqual "Policy: delete-only window equals FullAudit restricted to the window (exact)"
+        (toMap windowOfFull) residentMap
+    -- norm strictly drops (terms 1..3 were discarded with no spill).
+    assertEqual "Policy: discarding older terms strictly reduces norm"
+        True (norm residentJournal < norm full)
+
+-- Test 5: DET — policy runs are reproducible and Sequential == ParChunk (exact).
+testPolicyDeterminism :: IO ()
+testPolicyDeterminism = withTempSpill "det" $ \_ -> do
+    let pol = Policy.defaultLedgerPolicy { Policy.retain = Policy.RetainRecent 3 }
+        specPar p = polSpec { Lite.specParallel = p }
+    r1 <- runLiteWithPolicy pol (specPar Sequential) polW0 (toMap . pwLedger)
+    r2 <- runLiteWithPolicy pol (specPar Sequential) polW0 (toMap . pwLedger)
+    rP <- runLiteWithPolicy pol (specPar (ParChunk 2)) polW0 (toMap . pwLedger)
+    assertEqual "Policy DET-1: same policy run twice is identical" r1 r2
+    assertEqual "Policy DET-2: Sequential == ParChunk under policy (exact)" r1 rP
+
+-- Test 6 (classic bridge): policySpillOptions drives the classic engine and the
+-- result restores losslessly, mirroring the existing binary-spill restore test.
+-- We exercise the derived chunk extraction + eviction directly (no full
+-- StateSpace needed) by checking the option fields it builds.
+testPolicyClassicBridge :: IO ()
+testPolicyClassicBridge = withTempSpill "bridge" $ \path -> do
+    -- Build a ledger spanning terms 1..3, spill terms 1..2 via the policy-derived
+    -- chunk extractor, keep term 3 as the remainder, then restore == whole ledger.
+    let pol = Policy.defaultLedgerPolicy
+                { Policy.retain = Policy.RetainRecent 1, Policy.spillTo = Just path }
+        whole :: LedgerM
+        whole = EJ.fromList
+            [ (1 .@ Not :< Purchases) .| ("post", 1)
+            , (2 .@ Not :< Purchases) .| ("post", 2)
+            , (3 .@ Not :< Purchases) .| ("post", 3) ]
+        -- the option built by the bridge; we use its spillExtractChunk to carve
+        -- terms 1..2 and write them, exactly as runSimulationWithSpill would.
+        opts = Policy.policySpillOptions pol 2
+                 (\(LedgerRef r) -> readSTRef r)
+                 (\f (LedgerRef r) -> modifySTRef' r f)
+                 :: ES.SpillOptions Int LedgerRef LedgerM
+    -- emulate a single spill of the [1,2] chunk + eviction of term <= 2.
+    ref <- LedgerRef <$> stToIO (newSTRef whole)
+    chunk <- case ES.spillExtractChunk opts of
+        Just extract -> stToIO (extract (1, 2) ref)
+        Nothing      -> error "policySpillOptions must set spillExtractChunk"
+    withFile path WriteMode $ \h -> ES.spillWriteChunk opts h (1, 2) chunk
+    stToIO (ES.spillDeleteRange opts (1, 2) ref)
+    let LedgerRef r0 = ref
+    remainder <- stToIO (readSTRef r0)
+    -- remainder is now only term 3; restore merges spill + remainder == whole.
+    restored <- Policy.restoreLedger path remainder :: IO LedgerM
+    assertEqual "Policy bridge: policySpillOptions chunk keeps spilled-range terms"
+        (toMap (EJ.filterWithNote (\(_, t) _ -> t >= 1 && t <= 2) whole)) (toMap chunk)
+    assertEqual "Policy bridge: after eviction the remainder is only the kept window"
+        (toMap (EJ.filterWithNote (\(_, t) _ -> t > 2) whole)) (toMap remainder)
+    assertEqual "Policy bridge: restore (spill + remainder) == whole ledger (lossless)"
+        (toMap whole) (toMap restored)
+
+-- Test 7 (HasTermAxis): termOf returns the LAST Note component for pair/triple.
+testPolicyHasTermAxis :: IO ()
+testPolicyHasTermAxis = do
+    assertEqual "Policy HasTermAxis: pair termOf = snd" (7 :: Int) (Policy.termOf ("e", 7 :: Int))
+    assertEqual "Policy HasTermAxis: triple termOf = 3rd" (9 :: Int)
+        (Policy.termOf ("e1", "e2", 9 :: Int))
+
+-- ================================================================
 -- Simulate.Network tests (Phase 3, feat/trade-network)
 --
 -- Property + unit tests for the TradeNetwork / InputCoefficients separation,
@@ -1520,6 +1707,13 @@ main = do
     testLiteGateEquivalence
     testLiteFieldRules
     testLiteBoundaryOncePerTerm
+    testPolicyEquivalence
+    testPolicyWindowRoundTrip
+    testPolicyCompressClosed
+    testPolicyDeleteOnly
+    testPolicyDeterminism
+    testPolicyClassicBridge
+    testPolicyHasTermAxis
     testNetCompleteEquiv
     testNetDeterminism
     testNetSmartConstructor
