@@ -54,10 +54,8 @@ import qualified ExchangeAlgebra.Journal  as EJ
 type A = EA.Alg Double (HatBase AccountTitles)
 type J = EJ.Journal Int Double (HatBase AccountTitles)
 
--- A shallow NFData for Journal, only so 'env' can realize benchmark inputs.
--- (Library Alg already has an NFData instance.) Bench-local orphan.
-instance NFData (EJ.Journal n v b) where
-    rnf j = j `seq` ()
+-- NFData (Journal n v b) comes from the library (ExchangeAlgebra.Journal)
+-- since the Simulate.Lite work; no bench-local orphan needed.
 
 -- Bench-local NFData for the enum axes so the 4-tuple keys can be realized in
 -- 'env'. These are nullary-constructor enums, so 'seq' reaches normal form.
