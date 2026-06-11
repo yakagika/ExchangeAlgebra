@@ -639,6 +639,67 @@ testFinalStockTransferJournalEquivalence = do
         actual = EJT.finalStockTransfer transferJournalSample
     assertEqual "Journal.finalStockTransfer matches composed transfer" (EJ.toMap ref) (EJ.toMap actual)
 
+-- | R1 sentinel: a /balanced/ ledger (credit total == debit total, net income
+-- zero) makes 'diffRL' report the wildcard 'Side'. Before the fix,
+-- 'incomeSummaryAccount' matched only Credit/Debit and crashed with
+-- "Non-exhaustive patterns". Run every closing-transfer function (Alg and
+-- Journal) over a balanced ledger and force the result; none may throw.
+--
+-- The ledger pairs equal Sales (Revenue/Credit) and WageExpenditure
+-- (Cost/Debit) amounts so @decR == decL@ (balanced).
+balancedAlgSample :: TransferAlg
+balancedAlgSample = EA.fromList
+    [ 50 :@ Not :<(Sales,            1, 1, Yen)   -- credit (revenue)
+    , 50 :@ Not :<(WageExpenditure,  1, 1, Yen)   -- debit  (cost)
+    , 20 :@ Not :<(Purchases,        2, 2, Yen)   -- debit  (cost)
+    , 20 :@ Not :<(InterestEarned,   2, 2, Yen)   -- credit (revenue)
+    ]
+
+balancedJournalSample :: TransferJournal
+balancedJournalSample = EJ.fromList
+    [ balancedAlgSample .| "A"
+    , ((10 :@ Not :<(Sales, 3, 3, Yen)) .+ (10 :@ Not :<(Purchases, 3, 3, Yen))) .| "B"
+    ]
+
+testIncomeSummaryBalancedNoCrash :: IO ()
+testIncomeSummaryBalancedNoCrash = do
+    -- confirm the ledger really is balanced (triggers the wildcard Side)
+    case EA.diffRL balancedAlgSample of
+        (Side, _) -> return ()
+        other     -> do putStrLn ("[FAIL] balanced sample not balanced: " ++ show (fst other))
+                        exitFailure
+    let algFns =
+            [ ("incomeSummaryAccount",  EAT.incomeSummaryAccount)
+            , ("netIncomeTransfer",     EAT.netIncomeTransfer)
+            , ("grossProfitTransfer",   EAT.grossProfitTransfer)
+            , ("ordinaryProfitTransfer",EAT.ordinaryProfitTransfer)
+            , ("retainedEarningTransfer",EAT.retainedEarningTransfer)
+            , ("finalStockTransfer",    EAT.finalStockTransfer)
+            ]
+        jFns =
+            [ ("incomeSummaryAccount",  EJT.incomeSummaryAccount)
+            , ("netIncomeTransfer",     EJT.netIncomeTransfer)
+            , ("grossProfitTransfer",   EJT.grossProfitTransfer)
+            , ("ordinaryProfitTransfer",EJT.ordinaryProfitTransfer)
+            , ("retainedEarningTransfer",EJT.retainedEarningTransfer)
+            , ("finalStockTransfer",    EJT.finalStockTransfer)
+            ]
+    forM_ algFns $ \(nm, f) -> do
+        r <- try (evaluate (EA.norm (f balancedAlgSample)))
+                :: IO (Either SomeException Double)
+        case r of
+            Right _ -> return ()
+            Left e  -> do putStrLn ("[FAIL] Alg." ++ nm ++ " threw on balanced ledger: " ++ show e)
+                          exitFailure
+    forM_ jFns $ \(nm, f) -> do
+        r <- try (evaluate (EA.norm (EJ.toAlg (f balancedJournalSample))))
+                :: IO (Either SomeException Double)
+        case r of
+            Right _ -> return ()
+            Left e  -> do putStrLn ("[FAIL] Journal." ++ nm ++ " threw on balanced ledger: " ++ show e)
+                          exitFailure
+    putStrLn "[PASS] all closing transfers identity-safe on balanced ledger (R1)"
+
 type SpillRestoreJournal = EJ.Journal (String, Int) Double (HatBase CountUnit)
 
 testRestoreJournalFromBinarySpill :: IO ()
@@ -2306,6 +2367,7 @@ main = do
     testFilterByAxisWithDeltaUpdates
     testFinalStockTransferAlgEquivalence
     testFinalStockTransferJournalEquivalence
+    testIncomeSummaryBalancedNoCrash
     testRestoreJournalFromBinarySpill
     testSimulateEx1Default
     testCsvTranspose

@@ -191,6 +191,15 @@
 
 ### Fixed
 
+- `incomeSummaryAccount` (both `ExchangeAlgebra.Algebra.Transfer` and
+  `ExchangeAlgebra.Journal.Transfer`): no longer crashes with
+  "Non-exhaustive patterns" on a balanced ledger (audit R1). When credit and
+  debit totals are equal, `diffRL` reports the wildcard `Side` and net income is
+  zero; the function now returns its input unchanged (balanced ledger = identity)
+  instead of matching only `Credit`/`Debit`. No `NetIncome`/`NetLoss` posting is
+  added in this case (appending a zero posting is not an identity for `Journal`,
+  since `(.|)` builds a singleton that drives version/compaction). A
+  balanced-ledger regression test now runs every closing transfer.
 - `Simulate.Lite`: under `ParChunk`, the first stage message is now forced to
   normal form in the calling thread before the remaining messages are sparked.
   Previously all sparks raced to force the shared snapshot's lazily-built index
