@@ -229,11 +229,18 @@ instance (Note a, Note b, Note c, Note d) => Note (a, b, c, d) where
 --   Stored in a base + delta two-layer structure with per-axis indices.
 --   Base index is lazy (built on first axis query), while delta index is updated incrementally.
 --   Updates are appended only to delta and periodically compacted into base.
+--
+--   __Invariants (do not hand-construct 'Journal').__ The constructor exposes
+--   internal cache\/index fields @_jBaseAxis@ and @_jDeltaAxis@, which must be
+--   exactly the Note axis indices ('buildNoteAxisPosting') of @_jBase@ and
+--   @_jDelta@ respectively. The axis-filtered query path ('filterByAxis') reads
+--   those indices, so a value whose indices disagree with its maps yields wrong
+--   answers silently (not an exception). Always build journals via 'fromMap',
+--   @mkJournal@, '(.|)', or 'fromList' — never by applying @Journal@ directly.
 data Journal n v b where
      Journal :: (Note n, HatVal v, HatBaseClass b)
             => { _jBase      :: !(Map.HashMap n (Alg v b))
                , _jDelta     :: !(Map.HashMap n (Alg v b))
-               , _jVersion   :: !Int
                , _jBaseAxis  :: NoteAxisPosting n
                , _jDeltaAxis :: !(NoteAxisPosting n)
                } -> Journal n v b
@@ -253,8 +260,8 @@ buildNoteAxisPosting =
 -- Base axis index is lazy; delta axis index is built eagerly.
 {-# INLINE mkJournal #-}
 mkJournal :: (Note n, HatVal v, HatBaseClass b)
-          => Map.HashMap n (Alg v b) -> Map.HashMap n (Alg v b) -> Int -> Journal n v b
-mkJournal base delta ver = Journal base delta ver baseIdx deltaIdx
+          => Map.HashMap n (Alg v b) -> Map.HashMap n (Alg v b) -> Journal n v b
+mkJournal base delta = Journal base delta baseIdx deltaIdx
   where
     ~baseIdx = buildNoteAxisPosting base
     !deltaIdx = buildNoteAxisPosting delta
@@ -265,7 +272,7 @@ mkJournal base delta ver = Journal base delta ver baseIdx deltaIdx
 {-# INLINE fromMap #-}
 fromMap :: (HatVal v, HatBaseClass b, Note n)
         => Map.HashMap n (Alg v b) -> Journal n v b
-fromMap m = mkJournal m Map.empty 0
+fromMap m = mkJournal m Map.empty
 
 -- | Retrieve all entries of a Journal as a HashMap.
 -- Merges the base and delta layers.
@@ -279,13 +286,13 @@ toMap = materializeMap
 {-# INLINE materializeMap #-}
 materializeMap :: (HatVal v, HatBaseClass b, Note n)
                => Journal n v b -> Map.HashMap n (Alg v b)
-materializeMap (Journal base delta _ _ _) =
+materializeMap (Journal base delta _ _) =
     Map.unionWith (.+) base delta
 
 {-# INLINE lookupNote #-}
 lookupNote :: (HatVal v, HatBaseClass b, Note n)
            => n -> Journal n v b -> Maybe (Alg v b)
-lookupNote n (Journal base delta _ _ _) =
+lookupNote n (Journal base delta _ _) =
     case (Map.lookup n delta, Map.lookup n base) of
         (Nothing, Nothing) -> Nothing
         (Just d, Nothing)  -> Just d
@@ -295,16 +302,16 @@ lookupNote n (Journal base delta _ _ _) =
 {-# INLINE compactIfNeeded #-}
 compactIfNeeded :: (HatVal v, HatBaseClass b, Note n)
                 => Journal n v b -> Journal n v b
-compactIfNeeded j@(Journal base delta ver _ _)
+compactIfNeeded j@(Journal base delta _ _)
     | Map.size delta < deltaCompactThreshold = j
-    | otherwise = mkJournal (Map.unionWith (.+) base delta) Map.empty (ver + 1)
+    | otherwise = mkJournal (Map.unionWith (.+) base delta) Map.empty
 
 {-# INLINE appendMap #-}
 appendMap :: (HatVal v, HatBaseClass b, Note n)
           => Map.HashMap n (Alg v b) -> Journal n v b -> Journal n v b
-appendMap rhs j@(Journal base delta ver baseAxis deltaAxis)
+appendMap rhs j@(Journal base delta baseAxis deltaAxis)
     | Map.null rhs = j
-    | otherwise = compactIfNeeded $ Journal base delta' (ver + 1) baseAxis deltaAxis'
+    | otherwise = compactIfNeeded $ Journal base delta' baseAxis deltaAxis'
   where
     (delta', deltaAxis') = Map.foldlWithKey' step (delta, deltaAxis) rhs
 
@@ -348,19 +355,19 @@ instance ( Note n
 -- Complexity: O(1)
 isZero :: (HatVal v, HatBaseClass b, Note n)
        => Journal n v b -> Bool
-isZero (Journal base delta _ _ _) = Map.null base && Map.null delta
+isZero (Journal base delta _ _) = Map.null base && Map.null delta
 
 pattern Zero :: (HatVal v, HatBaseClass b, Note n) => Journal n v b
 pattern Zero <- (isZero -> True)
     where
-        Zero = mkJournal Map.empty Map.empty 0
+        Zero = mkJournal Map.empty Map.empty
 
 -- | Smart constructor that attaches a Note (annotation) to an algebra element to build a Journal.
 --
 -- Complexity: O(1)
 (.|) :: (HatVal v, HatBaseClass b, Note n)
       => Alg v b -> n -> Journal n v b
-(.|) alg n = mkJournal Map.empty (Map.singleton n alg) 1
+(.|) alg n = mkJournal Map.empty (Map.singleton n alg)
 
 infixr 2 .|
 
@@ -400,7 +407,7 @@ addJournal :: (HatVal v, HatBaseClass b, Note n)
 addJournal lhs rhs = appendMap (toMap rhs) lhs
 
 instance (HatVal v, HatBaseClass b, Note n) => Monoid (Journal n v b) where
-    mempty = mkJournal Map.empty Map.empty 0
+    mempty = mkJournal Map.empty Map.empty
     mappend = (<>)
 
 -- | Shallow-structural 'NFData', mirroring the @'Alg' v b@ instance in
@@ -411,10 +418,10 @@ instance (HatVal v, HatBaseClass b, Note n) => Monoid (Journal n v b) where
 -- 'Control.Parallel.Strategies.rdeepseq' to fully evaluate journal "messages"
 -- before merging them in parallel.
 instance NFData (Journal n v b) where
-    rnf (Journal base delta ver _ _) =
+    rnf (Journal base delta _ _) =
         Map.foldr  (\alg acc -> rnf alg `seq` acc)
                    (Map.foldr (\alg acc -> rnf alg `seq` acc)
-                              (ver `seq` ())
+                              ()
                               base)
                    delta
 
@@ -488,7 +495,7 @@ mergeJournalMap :: (HatVal v, HatBaseClass b, Note n)
                 => Map.HashMap n (Alg v b)
                 -> Journal n v b
                 -> Map.HashMap n (Alg v b)
-mergeJournalMap !acc (Journal base delta _ _ _)
+mergeJournalMap !acc (Journal base delta _ _)
     | Map.null base && Map.null delta = acc
     | otherwise =
         let !acc1 = Map.foldlWithKey' mergeOne acc base
@@ -623,7 +630,7 @@ sigmaM xs f = mconcat <$> CM.forM xs f
 -- Complexity: O(total number of base keys across all Notes)
 toAlg :: (HatVal v, HatBaseClass b, Note n)
       => Journal n v b -> Alg v b
-toAlg (Journal base delta _ _ _) =
+toAlg (Journal base delta _ _) =
     -- Fold base's elements directly onto delta's element list instead of
     -- @Map.elems base ++ Map.elems delta@, which avoids materializing the
     -- separate @Map.elems base@ list and the @(++)@ traversal.
@@ -774,10 +781,10 @@ projWithNoteNorm ns bs js =
 -- Complexity: O(n) where n is the number of Notes
 filterWithNote :: (HatVal v, HatBaseClass b, Note n)
                => (n -> Alg v b -> Bool) -> Journal n v b -> Journal n v b
-filterWithNote f (Journal base delta ver _ _) =
+filterWithNote f (Journal base delta _ _) =
     let !base' = Map.filterWithKey f base
         !delta' = Map.filterWithKey f delta
-    in mkJournal base' delta' ver
+    in mkJournal base' delta'
 
 -- | Efficiently filter a Journal to entries whose Note matches on the specified axis.
 -- Uses base/delta NoteAxisPosting indices for O(|result|) retrieval after index construction.
@@ -803,7 +810,7 @@ filterWithNote f (Journal base delta ver _ _) =
 {-# INLINE filterByAxis #-}
 filterByAxis :: (HatVal v, HatBaseClass b, Note n)
              => Int -> NoteAxisKey -> Journal n v b -> Journal n v b
-filterByAxis axis key j@(Journal _ _ _ baseIdx deltaIdx) =
+filterByAxis axis key j@(Journal _ _ baseIdx deltaIdx) =
     let !matched = HSet.union
             (queryNoteAxisPosting axis key baseIdx)
             (queryNoteAxisPosting axis key deltaIdx)

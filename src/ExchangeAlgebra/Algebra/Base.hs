@@ -26,6 +26,15 @@
 {-# LANGUAGE ConstrainedClassMethods    #-}
 {-# LANGUAGE DeriveGeneric              #-}
 
+-- This module must keep classifying the deprecated 'Commutation' constructor
+-- (in 'classifyAccountDivision' and 'fixedCurrent'): a classifier has to cover
+-- every constructor, including deprecated ones, so the pattern matches cannot be
+-- removed. GHC offers no per-case suppression for deprecation warnings, so the
+-- narrowest available mechanism is this module-level pragma. It is safe here
+-- because 'Commutation' is currently the only @{-# DEPRECATED #-}@ symbol in the
+-- library, so nothing else is masked.
+{-# OPTIONS_GHC -Wno-deprecations #-}
+
 
 module ExchangeAlgebra.Algebra.Base
     ( module ExchangeAlgebra.Algebra.Base

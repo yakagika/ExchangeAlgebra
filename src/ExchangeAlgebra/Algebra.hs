@@ -484,6 +484,18 @@ pairUnion (Pair x1 y1) (Pair x2 y2) =
 
 -- | Algebra element. An element of exchange algebra consisting of a value-base pair.
 -- Zero is the zero element, @(:@)@ is a singleton, and Liner is a HashMap-based multi-element representation.
+--
+-- __Invariants (do not hand-construct @Liner@).__ The @Liner@ constructor carries
+-- internal cache\/index fields (@_axisPosting@, @_idToBp@, @_allBpIds@) that are
+-- /derived from/ @_realg@ and must stay consistent with it: @_axisPosting@,
+-- @_idToBp@ and @_allBpIds@ must be exactly the axis index, id↔base map and id set
+-- built from the keys of @_realg@ (as the internal @linerFromMap@ does). The
+-- wildcard projection path (@projWildMap@, @filterByAxis@) reads those indices and
+-- will return wrong answers (silently, not an exception) if they disagree with
+-- @_realg@. The fields @_bpToId@ and @_nextBpId@ are currently unmaintained
+-- /poison/ (reserved for a dormant scheme) — forcing them throws. Always build
+-- values via 'fromList' or the smart constructor '(.@)' rather than applying
+-- @Liner@ (or @(:@)@) directly.
 data  Alg v b where
         Zero  :: Alg v b
         (:@)  :: {_val :: !v, _hatBase :: !b} -> Alg v b
@@ -585,18 +597,33 @@ queryAxisPosting !keys !idx !allIds =
 linerFromMap :: (HatBaseClass b)
              => Map.HashMap (BasePart b) (Pair v)
              -> Alg v b
-linerFromMap m = Liner m idx bpToId idToBp nextBpId allIds
+-- | @_bpToId@ and @_nextBpId@ are reserved for the (currently dormant) P1a
+-- incremental-id scheme and are not consumed by any read path. We therefore skip
+-- building them and leave them as lazy poison: nothing forces them in normal
+-- operation (the wildcard 'proj' path uses @idx@/@idToBp@/@allIds@ only). Forcing
+-- either field is a bug, surfaced loudly here instead of silently returning a
+-- stale value. Guarded by a poison-field regression test.
+--
+-- NOTE: the @error@ thunks are written inline in the constructor application (the
+-- @Liner@ fields are lazy @~@) rather than as @where@-bindings, because this
+-- module is compiled @{-\# LANGUAGE Strict \#-}@, under which a @where@-bound thunk
+-- would be forced when 'linerFromMap' is evaluated.
+linerFromMap m =
+    Liner m idx
+        (error "Liner internal: _bpToId is not maintained (reserved for P1a); do not force")
+        idToBp
+        (error "Liner internal: _nextBpId is not maintained (reserved for P1a); do not force")
+        allIds
   where
-    ~(idx, bpToId, idToBp, nextBpId, allIds) =
+    ~(idx, idToBp, allIds) =
         Map.foldlWithKey'
-            (\(!idxAcc, !bpToIdAcc, !idToBpAcc, !nextId, !allIdsAcc) bp _ ->
-                let !bpId = nextId
+            (\(!idxAcc, !idToBpAcc, !allIdsAcc) bp _ ->
+                let !bpId = IntMap.size idToBpAcc
                     !idx' = insertAxisPosting (toAxisKeys bp) bpId idxAcc
-                    !bpToId' = Map.insert bp bpId bpToIdAcc
                     !idToBp' = IntMap.insert bpId bp idToBpAcc
                     !allIds' = IntSet.insert bpId allIdsAcc
-                in (idx', bpToId', idToBp', bpId + 1, allIds'))
-            (emptyAxisPosting, Map.empty, IntMap.empty, 0, IntSet.empty)
+                in (idx', idToBp', allIds'))
+            (emptyAxisPosting, IntMap.empty, IntSet.empty)
             m
 
 -- | Tests whether the algebra element is zero (empty).
@@ -1731,18 +1758,18 @@ projFixedLiability  = (filter (\x -> (fixedCurrent . _hatBase) x == Fixed))
                     . (filter (\x -> (whatDiv . _hatBase) x      == Liability))
                     . projCredit
 
--- | Projects only capital stock.
+-- | Projects only capital stock (equity).
+-- Extracts items classified under the 'Equity' division from the credit side.
 --
--- __Note__: Not yet implemented. Calling this will throw an exception.
+-- Complexity: O(s) (s is the total number of scalar entries)
+--
+-- >>> type Test = Alg NN.Double (HatBase AccountTitles)
+-- >>> x = 100:@Not:<CapitalStock .+ 30:@Not:<Cash .+ 20:@Not:<RetainedEarnings :: Test
+-- >>> norm (projCapitalStock x)
+-- 120.0
 projCapitalStock :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
-projCapitalStock = undefined
-
-
--- * Balance
-
-{- | Handling when the balance does not hold -}
--- Complexity: O(1) currently (undefined placeholder).
-forceBalance = undefined
+projCapitalStock  = (filter (\x -> (whatDiv . _hatBase) x == Equity))
+                  . projCredit
 
 
 -- * Rounding

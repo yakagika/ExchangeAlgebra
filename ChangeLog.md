@@ -188,6 +188,41 @@
 - `bench-core` gains a `dec/*` group: per-key reporting A/B between the naive
   per-key wildcard `balanceBy` loop, `balanceMapBy`, `decBy`+`norm`, and
   `postFromNetBy` at K=200/1000 keys.
+- `projCapitalStock` (`ExchangeAlgebra.Algebra`): now implemented (previously an
+  `undefined` placeholder that crashed when called, audit R3). It projects the
+  credit-side entries classified under the `Equity` division — the equity
+  counterpart of `projCurrentLiability` / `projFixedLiability`. Includes a Haddock
+  doctest.
+
+### Changed
+
+- `Liner` (`ExchangeAlgebra.Algebra`) and `Journal` (`ExchangeAlgebra.Journal`):
+  added Haddock documenting the constructor invariants (the internal axis/index
+  cache fields must stay consistent with `_realg` / `_jBase`/`_jDelta`, or the
+  wildcard projection / `filterByAxis` paths return wrong answers silently). Build
+  values via the smart constructors (`fromList`/`fromMap`/`(.@)`/`(.|)`), not by
+  applying the data constructors directly (audit R11, doc only).
+- `Updatable.copy` / `Updatable.modify` default methods
+  (`ExchangeAlgebra.Simulate`): the unoverridden default now raises a diagnostic
+  `error "Updatable.copy: default method not overridden"` (resp. `modify`) instead
+  of bare `undefined` (audit R4). Behaviour-equivalent for any instance that
+  overrides them.
+- `Liner` `_bpToId` / `_nextBpId` fields (`ExchangeAlgebra.Algebra`): no longer
+  built by `linerFromMap` (they were never read; reserved for a dormant
+  incremental-id scheme). They are now lazy `error` poison — forcing either throws
+  with an explanatory message — guarded by a regression test (audit R3/F6).
+  Normal projection (concrete and wildcard) never forces them.
+
+### Removed
+
+- `Journal` `_jVersion` field (`ExchangeAlgebra.Journal`): __breaking__. This
+  write-only counter was never observed by any read path (audit R3/F2). The
+  `Journal(..)` constructor now has one fewer field and the `_jVersion` record
+  accessor is gone; the internal `mkJournal` no longer takes a version argument.
+  The `Binary` instance is unaffected (it serialises via `toMap`/`fromMap` and
+  never touched `_jVersion`), so the on-disk/spill format is unchanged.
+- `forceBalance` (`ExchangeAlgebra.Algebra`): removed unused, unexported,
+  untyped `undefined` placeholder (audit R3).
 
 ### Fixed
 

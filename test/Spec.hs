@@ -531,6 +531,38 @@ testProjConcreteNoIndexForce = do
           Right v  -> do putStrLn ("[FAIL] wildcard projNorm did not use the index: " ++ show v); exitFailure
       _ -> do putStrLn "[FAIL] expected a Liner"; exitFailure
 
+-- The Liner @_bpToId@ and @_nextBpId@ fields are reserved for the dormant P1a
+-- incremental-id scheme and are not maintained by 'linerFromMap' (it leaves them
+-- as lazy 'error' poison). This guards two invariants: (1) normal projection
+-- (concrete + wildcard) never forces those poisoned fields, so 'projWildMap'
+-- stays green; (2) forcing the unused fields fails loudly (as designed) rather
+-- than returning a stale/empty value.
+testLinerReservedFieldsPoisoned :: IO ()
+testLinerReservedFieldsPoisoned = do
+    let alg :: EA.Alg Double SimHatBase2
+        alg = EA.fromList [ 10 :@ Not :< (Cash, 1, 1, Yen)
+                          , 20 :@ Not :< (Products, 2, 2, Amount)
+                          , 30 :@ Hat :< (Cash, 3, 3, Yen) ]
+    -- projWildMap path (and concrete path) must stay green without forcing the
+    -- reserved fields.
+    assertNear "wildcard projNorm green with reserved fields unmaintained"
+        10.0 (EA.projNorm [Not :< (Cash, (.#), 1, Yen)] alg)
+    assertNear "concrete projNorm green with reserved fields unmaintained"
+        10.0 (EA.projNorm [Not :< (Cash, 1, 1, Yen)] alg)
+    -- Forcing _bpToId / _nextBpId must error (poison), proving they are not
+    -- silently maintained.
+    case alg of
+      EA.Liner _ _ bpToId _ nextBpId _ -> do
+        rb <- (try (evaluate (HM.size bpToId)) :: IO (Either SomeException Int))
+        case rb of
+          Left _  -> putStrLn "[PASS] _bpToId is poisoned (forcing it errors as designed)"
+          Right _ -> do putStrLn "[FAIL] _bpToId was forced without error (unexpectedly maintained)"; exitFailure
+        rn <- (try (evaluate nextBpId) :: IO (Either SomeException Int))
+        case rn of
+          Left _  -> putStrLn "[PASS] _nextBpId is poisoned (forcing it errors as designed)"
+          Right _ -> do putStrLn "[FAIL] _nextBpId was forced without error (unexpectedly maintained)"; exitFailure
+      _ -> do putStrLn "[FAIL] expected a Liner"; exitFailure
+
 testJournalSigmaMergePath :: IO ()
 testJournalSigmaMergePath = do
     let xs = [1 .. 4 :: Int]
@@ -2415,6 +2447,7 @@ main = do
     testUnionZeroSingletonBase
     testScalarRejectsNegative
     testProjConcreteNoIndexForce
+    testLinerReservedFieldsPoisoned
     testJournalSigmaMergePath
     testJournalSigma2When
     testJournalSigmaOn

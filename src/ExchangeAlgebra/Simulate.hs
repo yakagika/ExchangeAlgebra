@@ -185,11 +185,11 @@ class (StateTime t,InitVariables v)
 
     {-# INLINE copy #-}
     copy :: StdGen -> t -> v -> (a s) -> ST s ()
-    copy _ _ _ _ = undefined
+    copy _ _ _ _ = error "Updatable.copy: default method not overridden"
 
     {-# INLINE modify #-}
     modify :: StdGen -> t -> v -> (a s) -> ST s ()
-    modify _ _ _ _ = undefined
+    modify _ _ _ _ = error "Updatable.modify: default method not overridden"
 
     {-# INLINE update #-}
     update :: StdGen -> t -> v -> (a s) -> ST s ()
