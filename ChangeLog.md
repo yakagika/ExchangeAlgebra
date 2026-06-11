@@ -314,6 +314,26 @@
   are also compiled with `-feager-blackholing`, as recommended by GHC for
   programs using sparks.
 
+### Documentation
+
+- Module-reachability policy made explicit (audit R10): `ExchangeAlgebra.Bookkeeping`,
+  `ExchangeAlgebra.Simulate.Lite`, `ExchangeAlgebra.Simulate.Network` and
+  `ExchangeAlgebra.Simulate.Policy` are __designed to be imported directly__ and
+  are intentionally not re-exported from the `ExchangeAlgebra` umbrella (re-export
+  would collide names with the Algebra layer or with each other). This is now
+  stated in the umbrella module's Haddock and in the README's import-patterns
+  section.
+
+### Internal
+
+- `-Wall` warning cleanup (audit R9): removed unused imports\/bindings, silenced
+  unused-match and name-shadowing warnings (mechanical, behaviour-preserving), and
+  documented the remaining audited non-exhaustive patterns in place (168 → 27
+  `-Wall` warnings; residual are doctest-only imports and out-of-scope categories
+  such as orphans\/x-partial\/type-defaults). No public API change beyond exporting
+  the previously-unused `balanceOf` (`ExchangeAlgebra.Write`) and `createTransfer`
+  (`ExchangeAlgebra.Journal.Transfer`).
+
 ## 0.5.0.0 - 2026-06-07
 
 Selectable value type: `Double` (default, fast) / `MoneyDouble` (typed fast FP)

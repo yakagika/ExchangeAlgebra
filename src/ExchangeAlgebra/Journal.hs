@@ -252,9 +252,9 @@ instance (Note a, Note b, Note c, Note d) => Note (a, b, c, d) where
 --   Base index is lazy (built on first axis query), while delta index is updated incrementally.
 --   Updates are appended only to delta and periodically compacted into base.
 --
---   __Invariants (do not hand-construct 'Journal').__ The constructor exposes
+--   __Invariants (do not hand-construct t'Journal').__ The constructor exposes
 --   internal cache\/index fields @_jBaseAxis@ and @_jDeltaAxis@, which must be
---   exactly the Note axis indices ('buildNoteAxisPosting') of @_jBase@ and
+--   exactly the Note axis indices (@buildNoteAxisPosting@) of @_jBase@ and
 --   @_jDelta@ respectively. The axis-filtered query path ('filterByAxis') reads
 --   those indices, so a value whose indices disagree with its maps yields wrong
 --   answers silently (not an exception). Always build journals via 'fromMap',
@@ -493,7 +493,7 @@ instance (Note n, HatVal v, ExBaseClass b) => Exchange (Journal n) v b where
         l = (norm . decL) xs
 
 ------------------------------------------------------------------
--- | Build a 'Journal' from a list of postings. @O(N)@ via a strict left fold
+-- | Build a t'Journal' from a list of postings. @O(N)@ via a strict left fold
 -- (@L.foldl' (.+) mempty@).
 --
 -- == Why a strict left fold
@@ -514,13 +514,14 @@ instance (Note n, HatVal v, ExBaseClass b) => Exchange (Journal n) v b where
 -- postings collide on the /same note key and same base/ (and therefore land in
 -- one 'ExchangeAlgebra.Algebra.Alg' sequence) the strict left fold orders that
 -- @Seq@ opposite to the old lazy right fold. That order is observable through
--- 'Eq' \/ 'Show' \/ 'toAlg' \/ 'Binary', and for 'Double' through the last-ULP of
+-- 'Eq' \/ 'Show' \/ 'toAlg' \/ @Binary@, and for 'Double' through the last-ULP of
 -- 'norm' \/ 'bar' (IEEE-754 addition is non-associative). Postings that differ in
 -- note or base land in separate map entries and are unaffected.
 --
 -- For an /exact/ value type ('ExchangeAlgebra.Value.MoneyDecimal') addition is
 -- associative, so 'norm' \/ 'bar' \/ balance are independent of construction order
--- (the fold direction here, parallel merges, etc.). Use 'MoneyDecimal' when you need
+-- (the fold direction here, parallel merges, etc.). Use
+-- 'ExchangeAlgebra.Value.MoneyDecimal' when you need
 -- deterministic, auditable totals.
 --
 -- >>> type Test = Journal String Double (HatBase AccountTitles)
@@ -619,9 +620,9 @@ sigmaOnFromMap n kvs f =
 
 -- | Quotient decomposition into the Journal (dec_κ landing on the graded
 -- carrier): partition an 'Alg' along the classes induced by a classifier and
--- return the family as a 'Journal' keyed by the class 'Note'.
+-- return the family as a t'Journal' keyed by the class 'Note'.
 --
--- A 'Journal' is exactly a finite map @Note → Alg@ (paper Definition 12), i.e.
+-- A t'Journal' is exactly a finite map @Note → Alg@ (paper Definition 12), i.e.
 -- the library's native \"keyed family of algebras\" — so the decomposition
 -- stays inside the algebra vocabulary (no external container in the result).
 -- Each note's entry is the redundancy-preserving restriction of the input to
@@ -659,7 +660,7 @@ decTo kf x =
 --
 -- NOTE: kept as @mconcat <$> forM xs f@ deliberately. A strict @foldM@ left fold
 -- was tried (plan WI-3) but it changes the '<>' association order, which for
--- 'Alg'/'Journal' reorders the audit-trail sequence and (via non-associative
+-- 'Alg'/t'Journal' reorders the audit-trail sequence and (via non-associative
 -- 'Double' addition) shifts 'norm' results. Although the 'Monoid' laws make the
 -- value equal in exact arithmetic, it is observably different under floating point.
 -- See plans/in-progress/LAZY_EVAL_AUDIT.md (WI-3).

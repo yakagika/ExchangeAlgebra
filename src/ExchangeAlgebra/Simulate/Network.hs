@@ -16,9 +16,9 @@
     A small, additive front-end that separates two concepts that the older
     examples conflated into a single dense @N×N@ coefficient matrix:
 
-      1. the __trade network__ ('TradeNetwork') — /who may trade with whom/, a
+      1. the __trade network__ (t'TradeNetwork') — /who may trade with whom/, a
          sparse directed relation; and
-      2. the __input coefficients__ ('InputCoefficients') — /the technology/,
+      2. the __input coefficients__ (t'InputCoefficients') — /the technology/,
          a sparse map of per-edge coefficients @a_{ij}@.
 
     In the dense-matrix style the support (non-zero cells) of the coefficient
@@ -54,7 +54,7 @@
 
     == Internal representation is private
 
-    'TradeNetwork', 'InputCoefficients' and 'NetworkError' are abstract: their
+    t'TradeNetwork', t'InputCoefficients' and 'NetworkError' are abstract: their
     constructors are not exported, so the invariants (out\/in adjacency agree,
     @supp(A) ⊆ edges(G)@, no self-loops, non-negative coefficients) cannot be
     broken from outside. Build values with the smart constructors and the
@@ -68,12 +68,12 @@
     network in a classic simulation, wrap it in your own @UpdatableSTRef@ cell:
 
     @
-    newtype NetCell s = NetCell ('Data.STRef.STRef' s ('TradeNetwork' Int))
-    instance UpdatableSTRef NetCell s ('TradeNetwork' Int)
+    newtype NetCell s = NetCell (Data.STRef.STRef s (TradeNetwork Int))
+    instance UpdatableSTRef NetCell s (TradeNetwork Int)
     @
 
     and read it inside an event with @readURef@. In the newer
-    "ExchangeAlgebra.Simulate.Lite" front-end the network is simply a @'carry'@
+    "ExchangeAlgebra.Simulate.Lite" front-end the network is simply a @carry@
     field (it never changes during a run), with no instance at all.
 -}
 
@@ -687,7 +687,7 @@ parseCoefCsv txt =
         _         -> Left ("coef field not a number: " ++ show c)
     row r         = Left ("coef row expected 3 fields, got " ++ show (length r))
 
--- | Read an edge CSV file into a 'TradeNetwork'. Combines parse and validation
+-- | Read an edge CSV file into a t'TradeNetwork'. Combines parse and validation
 -- errors into the @Left@ string.
 readEdgeCsv :: FilePath -> IO (Either String (TradeNetwork Text))
 readEdgeCsv fp = do
@@ -696,7 +696,7 @@ readEdgeCsv fp = do
       Left e    -> Left e
       Right es  -> either (Left . show) Right (networkFromTable es)
 
--- | Read a coefficient CSV file into a @('TradeNetwork', 'InputCoefficients')@
+-- | Read a coefficient CSV file into a @(t'TradeNetwork', t'InputCoefficients')@
 -- pair. Combines parse and validation errors into the @Left@ string.
 readCoefCsv :: FilePath -> IO (Either String (TradeNetwork Text, InputCoefficients Text Double))
 readCoefCsv fp = do
@@ -772,7 +772,7 @@ sampleWeightedWithout g0 n xs0 = go g0 (max 0 n) xs0 []
 -- * Small utilities
 ------------------------------------------------------------------
 
--- | Strict left 'foldM' over 'Either', short-circuiting on the first 'Left'.
+-- | Strict left @foldM@ over 'Either', short-circuiting on the first 'Left'.
 foldM' :: (b -> a -> Either e b) -> b -> [a] -> Either e b
 foldM' f = go
   where

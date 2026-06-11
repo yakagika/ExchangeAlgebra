@@ -453,7 +453,7 @@ pairAppend (Pair x1 y1) (Pair x2 y2) =
 -- Used by the multi-pattern 'proj'/'projNorm' paths where a query list is
 -- treated as a /set/: when several queries select the same posting (duplicate
 -- bases, or an exact base overlapping a wildcard query), the selected sides
--- come from the /same/ underlying 'Pair' in @_realg@, so the per-side
+-- come from the /same/ underlying t'Pair' in @_realg@, so the per-side
 -- sequences are identical. Taking each side from whichever operand supplies it
 -- (and keeping a single copy) therefore unions the selections without double
 -- counting. Contrast 'pairAppend', which concatenates and would duplicate.
@@ -1463,7 +1463,7 @@ projByAccountTitle at alg = filter (f at) alg
 -- (see 'proj'): overlapping or duplicate queries do not double count.
 --
 -- Note the semantics include the @bar@ netting: each projected base is reduced
--- to the non-negative net of its hat and not sides ('barNormPair'). Hence
+-- to the non-negative net of its hat and not sides (@barNormPair@). Hence
 --
 -- @projNorm bs x == norm (bar (proj bs x))@
 --
@@ -1486,7 +1486,7 @@ projNorm [b] (Liner m ~idx _ ~idToBp _ ~allIds) =
 -- Multi-pattern path: the query list is a /set/ (see 'proj'). Per-base results
 -- are merged with 'pairUnion' so overlapping/duplicate queries do not double
 -- count. Note 'projNorm' returns a bar-netted norm: 'foldProjectedNorm' applies
--- 'barNormPair' (net of hat/not sides) per base, so the result equals
+-- @barNormPair@ (net of hat/not sides) per base, so the result equals
 -- @norm (bar (proj bs x))@, not @norm (proj bs x)@.
 projNorm bs (Liner m ~idx _ ~idToBp _ ~allIds) =
     foldProjectedNorm $

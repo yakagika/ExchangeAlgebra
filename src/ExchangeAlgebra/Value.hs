@@ -8,7 +8,7 @@
 
     Released under the OWL license
 
-    Exact, non-negative decimal value type ('MoneyDecimal') for use as the @v@
+    Exact, non-negative decimal value type (t'MoneyDecimal') for use as the @v@
     parameter of @Alg v b@ / @Journal n v b@.
 
     == Why this exists (DESIGN, 2026-06-06)
@@ -42,7 +42,7 @@
 
     == Rounding
 
-    The core algebra only adds/subtracts, which is exact for 'MoneyDecimal' and needs no
+    The core algebra only adds/subtracts, which is exact for t'MoneyDecimal' and needs no
     rounding. Rounding is only needed by /multiplication and division/ (tax ratios,
     proration, scalar product) at the point a monetary amount is /finalised/. Use
     'bankersRound': it rounds half-to-even (the unbiased financial default; also GHC's
@@ -78,7 +78,7 @@ newtype MoneyDecimal = MoneyDecimal Decimal
   -- with no @MoneyDecimal@ wrapper at use sites. Show/Eq/Ord delegate to 'Decimal'.
   -- 'Real' (and thus 'toRational') is derived so values can be converted to/from
   -- @Double@ via 'realToFrac' at the simulation boundary: ABM parameters, input
-  -- coefficients and random draws stay 'Double', and are converted to 'MoneyDecimal'
+  -- coefficients and random draws stay 'Double', and are converted to t'MoneyDecimal'
   -- only where they enter a ledger; final stock/profit amounts convert back for
   -- reporting. The ledger arithmetic in between is exact.
   deriving newtype (Eq, Ord, Show, Num, Fractional, Real)
@@ -107,7 +107,7 @@ instance HatVal MoneyDecimal where
     showValue (MoneyDecimal x) = show x
 
 -- 'Binary'/'Hashable' are defined here (not orphan) because 'Data.Decimal' ships
--- neither, and 'Alg'/'Journal' serialisation and the binary spill path require
+-- neither, and 'Alg'/t'Journal' serialisation and the binary spill path require
 -- @Binary v@. Both go through the (places, mantissa) structure of 'Decimal'.
 instance Binary.Binary MoneyDecimal where
     {-# INLINE put #-}
@@ -139,23 +139,23 @@ instance NFData MoneyDecimal where
 -- domain-specific money type so a ledger value cannot be silently confused with
 -- an ABM coefficient, a random draw, or any other raw 'Double'. Every instance
 -- it needs is owned here (via @deriving newtype@), so — exactly like
--- 'MoneyDecimal' — there are no orphan instances. Use 'MoneyDouble' for the same
+-- t'MoneyDecimal' — there are no orphan instances. Use t'MoneyDouble' for the same
 -- speed as bare 'Double' while keeping the value type distinct in signatures.
 --
--- Trade-off vs 'MoneyDecimal': addition is /non-associative/ (FP), so @norm@ \/
+-- Trade-off vs t'MoneyDecimal': addition is /non-associative/ (FP), so @norm@ \/
 -- @bar@ can differ in the last ULP depending on construction order. It is fast
 -- and runs everywhere bare 'Double' does (subtraction is signed, so the
 -- intermediate negatives that arise inside @bar@\/@(.-)@ are fine — unlike
 -- @Number.NonNegative.Double@, whose @(-)@ /errors/ on a negative result).
 --
--- Non-negativity is the same /soft/ invariant as for 'MoneyDecimal' and bare
+-- Non-negativity is the same /soft/ invariant as for t'MoneyDecimal' and bare
 -- 'Double': not enforced by the constructor, but 'isErrorValue' reports
 -- @isNaN x || isInfinite x || x < 0@, so the @(.\@)@ smart constructor and
 -- @(.*)@ reject negative\/non-finite values.
 newtype MoneyDouble = MoneyDouble Double
   -- All instances are coerced from the existing bare-'Double' instances
   -- ('Nearly'/'HatVal' live in "ExchangeAlgebra.Algebra"; 'Binary'/'Hashable'/
-  -- 'NFData' come from the binary/hashable/deepseq packages), so 'MoneyDouble'
+  -- 'NFData' come from the binary/hashable/deepseq packages), so t'MoneyDouble'
   -- is a zero-cost wrapper with identical numeric behaviour and 2-decimal
   -- 'showValue' formatting.
   deriving newtype ( Eq, Ord, Show, Num, Fractional, Real, RealFrac

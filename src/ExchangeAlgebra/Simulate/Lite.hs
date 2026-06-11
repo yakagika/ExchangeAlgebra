@@ -35,8 +35,8 @@
          nesting, no sum types) whose fields are tagged by a /role/
          (@'InitT'@, @'RefT' s@, @'SnapT'@) via the 'HK' type family;
       2. a list of __stages__ ('Stage'); each stage maps its agents to
-         /messages/ ('Journal') purely from a read-only world snapshot; and
-      3. a 'SimSpec' bundling the term range, seed, the ledger field selector,
+         /messages/ (t'Journal') purely from a read-only world snapshot; and
+      3. a t'SimSpec' bundling the term range, seed, the ledger field selector,
          the stages, and a parallelism policy.
 
     'runLite' drives the BSP loop: per term, per stage, it freezes the world to
@@ -57,7 +57,7 @@
     | read-only view           | read each ref where needed       | one 'gFreeze' = @w 'SnapT'@      |
     +--------------------------+----------------------------------+----------------------------------+
     | per-agent step           | imperative @ST@ that may read     | pure @w 'SnapT' -> ... ->        |
-    |                          | /and write/ shared refs           | 'Journal'@ (a /message/)         |
+    |                          | /and write/ shared refs           | Journal@ (a /message/)         |
     +--------------------------+----------------------------------+----------------------------------+
     | term boundary update     | bespoke @Updatable@ logic         | declarative 'Field' rule         |
     |                          |                                  | (Carry\/ResetEach\/UpdateEach)   |
@@ -80,7 +80,7 @@
     Each agent's 'StdGen' is derived deterministically from
     @('specSeed', term index, stage index, agent index)@ only — never from
     wall-clock, thread scheduling, or the chosen 'Par' policy. Consequently a
-    'Sequential' run and a 'ParChunk' run of the same 'SimSpec' produce the same
+    'Sequential' run and a 'ParChunk' run of the same t'SimSpec' produce the same
     observable ledger (see the @DET-2@ test), and re-running is reproducible
     (@DET-1@).
 
@@ -102,7 +102,7 @@
     == Scope
 
     World records must be __product-only and non-nested__ (the generic traversal
-    in this module only handles @'M1'@ \/ @':*:'@ \/ @'K1'@). Snapshot-dependent
+    in this module only handles @M1@ \/ @:*:@ \/ @K1@). Snapshot-dependent
     term-boundary recomputation, ledger spill policies, and parallel speedup
     measurement are intentionally out of scope for this layer.
 -}
@@ -289,7 +289,7 @@ instance GLiteCommit s (K1 k (Field a)) (K1 k (STRef s a)) where
 -- | Constraint bundling everything a world type @w@ must satisfy to be driven
 -- by 'runLite' in the @s@ region. It is a single (method-less) class so that it
 -- can be used under a @forall s.@ quantified constraint in 'runLite' (a bare
--- 'ConstraintKinds' tuple synonym cannot). A product-only @deriving 'Generic'@
+-- @ConstraintKinds@ tuple synonym cannot). A product-only @deriving Generic@
 -- on @w@ is all the user has to supply; the catch-all instance discharges the
 -- rest automatically.
 class ( Generic (w InitT)
@@ -335,13 +335,13 @@ gCommit wi wr = gCommit' (from wi) (from wr)
 -- There are two constructors:
 --
 --   * 'StageFor' — the original, fully general stage. Each agent emits a
---     'Journal' directly, so the stage body is free to attach /any/ notes
+--     t'Journal' directly, so the stage body is free to attach /any/ notes
 --     (including several different notes from one agent). Built with 'stageFor'
 --     or 'stage'.
 --
 --   * 'StageTagged' — a /note-tagged/ stage whose note type is fixed to
 --     @(tag, t)@ by construction. Each agent emits a bare 'Alg' and the runner
---     attaches the single note @(stTag, t)@ in __one place__ ('runStage'). This
+--     attaches the single note @(stTag, t)@ in __one place__ (@runStage@). This
 --     removes the write-site note duplication of @alg '.|' (Tag, t)@ and ties
 --     the stage's tag to its note type at compile time. Built with 'stageOf'.
 --
@@ -353,7 +353,7 @@ gCommit wi wr = gCommit' (from wi) (from wr)
 -- rather than a silently empty projection. Use 'stageFor'\/'stage' when a single
 -- stage must emit __several different notes__ (e.g. a closing stage that posts
 -- both @(Closing, t)@ and @(Carryover, t+1)@): such a stage cannot be expressed
--- as a single auto-attached tag, so it keeps returning a 'Journal' itself.
+-- as a single auto-attached tag, so it keeps returning a t'Journal' itself.
 --
 -- The two constructors are observationally interchangeable for a one-note
 -- stage: @'stageOf' tag as f@ produces the same messages as
@@ -372,7 +372,7 @@ data Stage w t n v b where
               -> Stage w t (tag, t) v b
 
 -- | Build a stage that runs once per element of the given agent list, each
--- agent emitting a 'Journal' directly.
+-- agent emitting a t'Journal' directly.
 stageFor :: String
          -> [a]
          -> (w SnapT -> t -> StdGen -> a -> Journal n v b)
@@ -388,7 +388,7 @@ stage :: String
 stage name f = StageFor name [()] (\v t _g () -> f v t)
 
 -- | Build a __note-tagged__ stage: each agent emits a bare 'Alg' and the runner
--- attaches the single note @('stTag', t)@ once, in 'runStage'. The note type is
+-- attaches the single note @('stTag', t)@ once, in @runStage@. The note type is
 -- fixed to @(tag, t)@ by the result type, so the write-site tag (the @tag@
 -- argument) and any read-site @projWithNote [(tag, t)]@ are checked against the
 -- same constructor by the type-checker — a stringly-typed mismatch becomes a
@@ -397,10 +397,10 @@ stage name f = StageFor name [()] (\v t _g () -> f v t)
 -- Use this for any stage that emits __exactly one note tag__. For a stage that
 -- must post __several different notes__ (e.g. @(Closing, t)@ together with
 -- @(Carryover, t+1)@), keep using 'stageFor'\/'stage', which let the body return
--- a fully general 'Journal'.
+-- a fully general t'Journal'.
 --
 -- Determinism is unaffected: the per-agent 'StdGen' is still derived from
--- @('specSeed', termIx, stageIx, agentIx)@ only (see 'runStage'), and the note
+-- @('specSeed', termIx, stageIx, agentIx)@ only (see @runStage@), and the note
 -- attachment @'.|' (stTag, t)@ is a pure post-transform of each agent's 'Alg'.
 stageOf :: (Note tag)
         => tag
@@ -443,8 +443,8 @@ data SimSpec w t n v b = SimSpec
     -- ^ Agent-level parallelism policy.
   }
 
--- | Smart constructor for 'SimSpec' defaulting to 'Sequential'. Prefer this over
--- the raw record so that future, additive 'SimSpec' fields stay non-breaking.
+-- | Smart constructor for t'SimSpec' defaulting to 'Sequential'. Prefer this over
+-- the raw record so that future, additive t'SimSpec' fields stay non-breaking.
 mkSimSpec :: (t, t)
           -> Int
           -> (forall f. w f -> HK f (Journal n v b))
@@ -462,14 +462,14 @@ mkSimSpec terms seed ledger stages = SimSpec
 -- * Runner (BSP)
 ------------------------------------------------------------------
 
--- | Run a 'SimSpec' over the given initial world and project the final
+-- | Run a t'SimSpec' over the given initial world and project the final
 -- snapshot through a continuation.
 --
 -- The loop, per term @t@ in @['from'..'to']@ and per stage in declared order:
 --
 --   1. take one snapshot @view@ of the live world ('gFreeze');
 --   2. run every agent against /that/ snapshot (intra-stage invisibility),
---      producing one message ('Journal') each — sequentially or in fixed-size
+--      producing one message (t'Journal') each — sequentially or in fixed-size
 --      parallel chunks per 'specParallel';
 --   3. /flatten-once commit/: fold all messages into a single journal once
 --      with the public 'sigma' (which itself folds into a 'Data.HashMap',
@@ -576,7 +576,7 @@ deriveGen seed0 termIx stageIx agentIx =
 -- * Policy-driven runner
 ------------------------------------------------------------------
 
--- | Run a 'SimSpec' under a declarative 'LedgerPolicy', returning in 'IO'
+-- | Run a t'SimSpec' under a declarative t'LedgerPolicy', returning in 'IO'
 -- (because spill writes a file). The BSP loop is /identical/ to 'runLite' — per
 -- term, per stage: snapshot, run agents, flatten-once commit — and the term
 -- range, seed, stages, parallelism and per-agent generators are all the same.

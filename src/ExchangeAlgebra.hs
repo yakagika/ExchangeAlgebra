@@ -39,6 +39,25 @@
     > import qualified ExchangeAlgebra.Journal          as EJ
     > import qualified ExchangeAlgebra.Journal.Transfer as EJT
 
+    == Modules to import directly (not re-exported here)
+
+    This umbrella intentionally re-exports only the Algebra-layer modules
+    listed above. The following modules are __designed to be imported
+    directly__ and are deliberately /not/ re-exported from @ExchangeAlgebra@,
+    because they introduce names that would collide with the Algebra layer
+    (or with each other) and are better used under a qualified import:
+
+    * "ExchangeAlgebra.Bookkeeping" — double-entry adjusting\/closing entries.
+    * "ExchangeAlgebra.Simulate.Lite" — the lightweight simulation front-end.
+    * "ExchangeAlgebra.Simulate.Network" — trade-network generators.
+    * "ExchangeAlgebra.Simulate.Policy" — ledger\/spill policy configuration.
+
+    Import them explicitly when you need them, e.g.:
+
+    > import           ExchangeAlgebra
+    > import qualified ExchangeAlgebra.Bookkeeping     as BK
+    > import qualified ExchangeAlgebra.Simulate.Lite   as Lite
+
     == Full examples
 
     Runnable examples (elementary bookkeeping, ripple-effect simulations,

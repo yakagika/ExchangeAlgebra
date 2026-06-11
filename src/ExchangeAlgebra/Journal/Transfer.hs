@@ -77,7 +77,7 @@ createTransfer tt = \ts -> transfer ts $ EAT.table tt
 -- Calculate the debit-credit difference and add it as NetIncome or NetLoss to the plank Note.
 -- When the ledger is balanced (credit == debit, net income is zero), @diffRL@ reports the
 -- wildcard 'Side'; in that case the journal is returned unchanged (balanced ledger =
--- identity). Appending @Zero .| plank@ is not an identity for 'Journal' because @(.|)@ builds
+-- identity). Appending @Zero .| plank@ is not an identity for t'Journal' because @(.|)@ builds
 -- a @Map.singleton plank Zero@ and drives version/compaction, so the input is returned directly.
 --
 -- Complexity: O(s) (s = total number of scalar entries)

@@ -236,6 +236,21 @@ Even in Journal-centric code you will frequently reach into the Algebra layer (f
 type or `EA.proj`, for example). **Using Journal as the unqualified umbrella and pulling the
 Algebra layer in as `EA` qualified is the idiomatic style for this library.**
 
+### Modules to import directly (not re-exported by the umbrellas)
+
+`ExchangeAlgebra.Bookkeeping`, `ExchangeAlgebra.Simulate.Lite`,
+`ExchangeAlgebra.Simulate.Network`, and `ExchangeAlgebra.Simulate.Policy` are **by design
+imported directly** rather than re-exported from the `ExchangeAlgebra` umbrella. They
+introduce names that would otherwise collide with the Algebra layer (or with one another),
+so the package keeps them off the umbrella and expects an explicit (usually qualified)
+import:
+
+```haskell
+import           ExchangeAlgebra
+import qualified ExchangeAlgebra.Bookkeeping     as BK
+import qualified ExchangeAlgebra.Simulate.Lite   as Lite
+```
+
 ## Large-scale simulations (constant memory)
 
 `runSimulation` keeps the entire world state in memory for the whole run, so peak memory

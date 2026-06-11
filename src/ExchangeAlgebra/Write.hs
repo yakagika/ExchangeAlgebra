@@ -360,7 +360,7 @@ netGross (l, r)   -- l = debit gross, r = credit gross
 -- | Output a Compound Trial Balance in CSV format.
 -- Calculates the debit total, credit total, and balance for each account title and outputs as a table.
 --
--- Complexity: O(s) (single pass over s scalar entries; see 'accountGrossTotals')
+-- Complexity: O(s) (single pass over s scalar entries; see @accountGrossTotals@)
 writeCompoundTrialBalance :: (HatVal n, HatBaseClass b, ExBaseClass b)
                            => FilePath
                            -> Alg n b
@@ -498,7 +498,7 @@ sideCells (side, mag)
 -- ["Total","","","","","50.0","50.0","150.0","150.0"]
 --
 -- Complexity: O(s) (single pass per algebra over s scalar entries;
--- see 'accountGrossTotals').
+-- see @accountGrossTotals@).
 worksheetRows :: (HatVal n, HatBaseClass b, ExBaseClass b)
               => Alg n b   -- ^ pre-adjustment ledger (決算整理前残高)
               -> Alg n b   -- ^ adjustment entries     (決算整理仕訳)
@@ -636,7 +636,7 @@ writeWorksheet path pre adj = writeCSV path (worksheetRows pre adj)
 -- ["","LoansPayable","60.0"]
 -- ["60.0","Total","60.0"]
 --
--- Complexity: O(s) (single pass over s scalar entries; see 'accountGrossTotals').
+-- Complexity: O(s) (single pass over s scalar entries; see @accountGrossTotals@).
 postClosingTrialBalanceRows :: (HatVal n, HatBaseClass b, ExBaseClass b)
                             => Alg n b -> [[T.Text]]
 postClosingTrialBalanceRows alg =

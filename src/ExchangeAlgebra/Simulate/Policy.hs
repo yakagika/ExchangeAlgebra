@@ -17,7 +17,7 @@
     the point a ledger is built — how a long simulation should manage the size of
     its audit trail. Instead of hand-wiring 'ExchangeAlgebra.Simulate.SpillOptions'
     (seven fields plus 'filterWithNote' calls for term extraction and eviction),
-    the user declares a 'LedgerPolicy' and lets the plumbing be /derived from the
+    the user declares a t'LedgerPolicy' and lets the plumbing be /derived from the
     Note's term axis/.
 
     A policy answers three orthogonal questions:
@@ -27,21 +27,21 @@
       * __spill__ ('spillTo'): whether evicted terms are first written to a
         binary file (so they can be restored losslessly) or simply discarded;
       * __compaction__ ('Compaction'): whether /closed/ terms keep their full
-        per-entry audit sequence (@'FullAudit'@) or are 'compress'ed to one
+        per-entry audit sequence (@'FullAudit'@) or are @compress@ed to one
         Hat/Not pair per base (@'CompressClosedTerms'@).
 
     The three are independent. In particular @'spillTo' = 'Nothing'@ combined
     with @'RetainRecent' w@ means __evicted terms are destroyed, not written
     anywhere__ — there is no way to recover them. This is deliberate (it makes a
     bounded-memory run with no disk cost possible), but it is /lossy/; see
-    'LedgerPolicy'.
+    t'LedgerPolicy'.
 
     == Relation to the classic engine and to Lite
 
     This module only carries the /types/ and the two bridge helpers
     ('policySpillOptions', 'restoreLedger'). The actual term-boundary application
     of a policy in the BSP loop lives in "ExchangeAlgebra.Simulate.Lite"
-    (@runLiteWithPolicy@), and the classic 'runSimulationWithSpill' can be driven
+    (@runLiteWithPolicy@), and the classic @runSimulationWithSpill@ can be driven
     from a policy via 'policySpillOptions'. Nothing here changes the behaviour or
     signatures of the existing spill API; it is a thin declarative front-end over
     it.
@@ -91,14 +91,14 @@ import           Control.Monad.ST                  (ST, RealWorld)
 -- 'RetainAll' is the full audit trail (the default, equivalent to the classic
 -- engine's behaviour). @'RetainRecent' w@ keeps only the most recent @w@ terms
 -- resident; older terms are evicted at the term boundary (and, if 'spillTo' is
--- set, written to disk first — see 'LedgerPolicy').
+-- set, written to disk first — see t'LedgerPolicy').
 data Retention  = RetainAll | RetainRecent !Int
   deriving (Eq, Show)
 
 -- | How /closed/ (no-longer-advancing) terms are stored.
 --
 -- 'FullAudit' (the default) preserves every posting in its original sequence —
--- the complete audit trail. 'CompressClosedTerms' applies 'compress' to the
+-- the complete audit trail. 'CompressClosedTerms' applies @compress@ to the
 -- entries of each closed term, collapsing the redundant per-base posting
 -- sequence to a single Hat/Not pair per base. This is /norm-preserving and
 -- balance-preserving/ (only the within-term @seq@ redundancy is lost) and is
@@ -173,8 +173,9 @@ instance (Note e1, Note e2, Note t) => HasTermAxis (e1, e2, t) where
 -- * Bridges to the classic spill engine
 ------------------------------------------------------------------
 
--- | Build a binary 'SpillOptions' for the classic 'runSimulationWithSpill' from
--- a 'LedgerPolicy', deriving the per-chunk extraction and the eviction range
+-- | Build a binary t'ExchangeAlgebra.Simulate.SpillOptions' for the classic
+-- @runSimulationWithSpill@ from
+-- a t'LedgerPolicy', deriving the per-chunk extraction and the eviction range
 -- from the Note's term axis ('termOf'). This replaces the ~20 lines of
 -- hand-written 'filterWithNote' plumbing (cf. @simulateEx2@) with a single call.
 --
