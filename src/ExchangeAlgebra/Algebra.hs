@@ -460,6 +460,28 @@ pairAppend (Pair x1 y1) (Pair x2 y2) =
         !ns = y1 Seq.>< y2
     in Pair hs ns
 
+{-# INLINE pairUnion #-}
+-- | Set-style merge of two single-base projection results.
+--
+-- Used by the multi-pattern 'proj'/'projNorm' paths where a query list is
+-- treated as a /set/: when several queries select the same posting (duplicate
+-- bases, or an exact base overlapping a wildcard query), the selected sides
+-- come from the /same/ underlying 'Pair' in @_realg@, so the per-side
+-- sequences are identical. Taking each side from whichever operand supplies it
+-- (and keeping a single copy) therefore unions the selections without double
+-- counting. Contrast 'pairAppend', which concatenates and would duplicate.
+--
+-- Each operand is a side-restricted projection ('choosePairByHat'), so at most
+-- one of the two contributes a non-empty hat side and at most one a non-empty
+-- not side for a given base; @pairUnion@ keeps the non-empty one per side.
+--
+-- Complexity: O(1).
+pairUnion :: Pair v -> Pair v -> Pair v
+pairUnion (Pair x1 y1) (Pair x2 y2) =
+    let !hs = if Seq.null x1 then x2 else x1
+        !ns = if Seq.null y1 then y2 else y1
+    in Pair hs ns
+
 -- | Algebra element. An element of exchange algebra consisting of a value-base pair.
 -- Zero is the zero element, @(:@)@ is a singleton, and Liner is a HashMap-based multi-element representation.
 data  Alg v b where
@@ -1250,6 +1272,13 @@ mapBasePart f (Liner m _ _ _ _ _) =
 
 ------------------------------------------------------------
 -- | proj
+--
+-- Projects an 'Alg' onto the bases matching a query list. The query list is
+-- treated as a __set__: duplicate queries, or an exact base that also matches a
+-- wildcard query in the same list, select each underlying posting __at most
+-- once__ (no double counting). The result is the union of the selected
+-- @(base, side)@ cells.
+--
 -- Complexity:
 --  exact single-key path: expected O(1)
 --  wildcard single-key path: O(queryAxisPosting + c * verify)
@@ -1302,10 +1331,15 @@ proj [b] (Liner m ~idx _ ~idToBp _ ~allIds) =
 proj (b:bs) (v:@b2)
     |  b .== b2       = v:@b2
     | otherwise       = proj bs (v:@b2)
+-- Multi-pattern path: the query list is treated as a /set/. Overlapping or
+-- duplicate queries (e.g. a duplicated base, or an exact base subsumed by a
+-- wildcard) select the same posting only once. Per-base results are merged
+-- with 'pairUnion' (set union of the selected sides) rather than 'pairAppend'
+-- (concatenation), so no posting is double counted.
 proj (b:bs) (Liner m ~idx _ ~idToBp _ ~allIds) =
     mkAlgFromMap $
         L.foldl'
-            (\acc q -> Map.unionWith pairAppend acc
+            (\acc q -> Map.unionWith pairUnion acc
                  (if haveWiledcard (base q)
                      then projWildMap  q m idx idToBp allIds
                      else projExactMap q m))
@@ -1419,7 +1453,17 @@ projByAccountTitle at alg = filter (f at) alg
         f at Zero = False
         f at x    = ((getAccountTitle ._hatBase) x) .== at
 
--- | Complexity: O(cost(proj) + cost(bar) + cost(norm)).
+-- | Bar-netted norm of a projection. The query list is treated as a __set__
+-- (see 'proj'): overlapping or duplicate queries do not double count.
+--
+-- Note the semantics include the @bar@ netting: each projected base is reduced
+-- to the non-negative net of its hat and not sides ('barNormPair'). Hence
+--
+-- @projNorm bs x == norm (bar (proj bs x))@
+--
+-- which is /not/ the same as @norm (proj bs x)@ when a base carries both sides.
+--
+-- Complexity: O(cost(proj) + cost(bar) + cost(norm)).
 projNorm :: (HatVal n, HatBaseClass b) => [b] -> Alg n b -> n
 projNorm [] _ = 0
 projNorm _ Zero = 0
@@ -1433,10 +1477,15 @@ projNorm [b] (Liner m ~idx _ ~idToBp _ ~allIds) =
         if haveWiledcard (base b)
             then projWildMap  b m idx idToBp allIds
             else projExactMap b m
+-- Multi-pattern path: the query list is a /set/ (see 'proj'). Per-base results
+-- are merged with 'pairUnion' so overlapping/duplicate queries do not double
+-- count. Note 'projNorm' returns a bar-netted norm: 'foldProjectedNorm' applies
+-- 'barNormPair' (net of hat/not sides) per base, so the result equals
+-- @norm (bar (proj bs x))@, not @norm (proj bs x)@.
 projNorm bs (Liner m ~idx _ ~idToBp _ ~allIds) =
     foldProjectedNorm $
         L.foldl'
-            (\acc q -> Map.unionWith pairAppend acc
+            (\acc q -> Map.unionWith pairUnion acc
                  (if haveWiledcard (base q)
                      then projWildMap  q m idx idToBp allIds
                      else projExactMap q m))

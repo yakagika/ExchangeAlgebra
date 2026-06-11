@@ -200,6 +200,16 @@
   added in this case (appending a zero posting is not an identity for `Journal`,
   since `(.|)` builds a singleton that drives version/compaction). A
   balanced-ledger regression test now runs every closing transfer.
+- `proj` and `projNorm` (`ExchangeAlgebra.Algebra`): the multi-pattern paths now
+  use __set semantics__ — a query list is treated as a set, so duplicate queries
+  or an exact base overlapping a wildcard query select each posting __at most
+  once__ (audit R7). Previously the multi-pattern path merged per-query results
+  with sequence concatenation, double counting any posting matched by more than
+  one query (the single-pattern path already returned only the first match, so
+  the two paths disagreed). __Results of multi-pattern `proj`/`projNorm` can now
+  differ__ from prior releases when a query list contains overlapping or
+  duplicate patterns. The Haddock now documents the set semantics and the
+  `projNorm bs x == norm (bar (proj bs x))` identity (bar-netted norm).
 - `Simulate.Lite`: under `ParChunk`, the first stage message is now forced to
   normal form in the calling thread before the remaining messages are sparked.
   Previously all sparks raced to force the shared snapshot's lazily-built index

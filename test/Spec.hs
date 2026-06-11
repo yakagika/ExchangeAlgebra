@@ -262,21 +262,74 @@ journalSample = EJ.fromList [x, y, z]
     y = ((2 :@ (Not :< Yen)) .+ (2 :@ (Hat :< Amount))) .| "dog"  :: TestJournal
     z = ((3 :@ (Hat :< Yen)) .+ (3 :@ (Not :< Amount))) .| "fish" :: TestJournal
 
+-- | Multi-pattern 'proj' uses __set__ semantics: a duplicated query selects the
+-- same posting only once (no double counting). The de-duplicated query list and
+-- its de-duplicated counterpart must give identical results.
 testProjMultiPatternOnePass :: IO ()
 testProjMultiPatternOnePass = do
-    let qs :: [HatBase CountUnit]
-        qs = [Hat :< Yen, HatNot :< Amount, Hat :< Yen]
-        expected = L.foldl' (\acc q -> acc .+ EA.proj [q] algSample) EA.Zero qs
-        actual = EA.proj qs algSample
-    assertEqual "Alg.proj multi-pattern preserves behavior" expected actual
+    let qs, qsDedup :: [HatBase CountUnit]
+        qs      = [Hat :< Yen, HatNot :< Amount, Hat :< Yen]   -- Hat:<Yen duplicated
+        qsDedup = [Hat :< Yen, HatNot :< Amount]
+    -- duplicate query does not change the projection (set semantics)
+    assertEqual "Alg.proj treats query list as a set (duplicate exact)"
+        (EA.proj qsDedup algSample) (EA.proj qs algSample)
+    -- and the duplicated Hat:<Yen is counted once, not twice
+    assertEqual "Alg.proj no double counting (single Hat:<Yen)"
+        (EA.proj [Hat :< Yen] algSample)
+        (EA.proj [Hat :< Yen, Hat :< Yen] algSample)
 
+-- | 'projNorm' returns a bar-netted norm; the identity is
+-- @projNorm bs x == norm (bar (proj bs x))@ (not @norm (proj bs x)@), and the
+-- query list is a set (duplicates do not double count).
 testProjNormFastPath :: IO ()
 testProjNormFastPath = do
     let qs :: [HatBase CountUnit]
         qs = [Hat :< Yen, HatNot :< Amount, Hat :< Yen]
-        expected = norm $ (.-) $ EA.proj qs algSample
+        expected = norm $ EA.bar $ EA.proj qs algSample
         actual = EA.projNorm qs algSample
-    assertNear "Alg.projNorm fast path matches existing semantics" expected actual
+    assertNear "Alg.projNorm == norm . bar . proj (set semantics)" expected actual
+
+-- | R7 sentinel (a): a duplicated exact base must project the same as a single
+-- copy (MoneyDecimal exact: no floating tolerance needed).
+testProjDuplicateExact :: IO ()
+testProjDuplicateExact = do
+    let alg :: EA.Alg MoneyDecimal (HatBase CountUnit)
+        alg =  (10 :@ (Hat :< Yen))
+            .+ (3  :@ (Not :< Amount))
+        b = Hat :< Yen :: HatBase CountUnit
+    assertEqual "proj [b,b] == proj [b] (duplicate exact, MoneyDecimal)"
+        (EA.proj [b] alg) (EA.proj [b, b] alg)
+    assertEqual "projNorm [b,b] == projNorm [b] (duplicate exact)"
+        (EA.projNorm [b] alg) (EA.projNorm [b, b] alg)
+
+-- | R7 sentinel (b): an exact base together with a wildcard query that subsumes
+-- it must not double count the overlapping posting.
+testProjExactWildcardOverlap :: IO ()
+testProjExactWildcardOverlap = do
+    let alg :: EA.Alg MoneyDecimal (HatBase CountUnit)
+        alg =  (10 :@ (Hat :< Yen))
+            .+ (5  :@ (Not :< Amount))
+        exact = Hat :< Yen     :: HatBase CountUnit
+        wild  = Hat :< (.#)    :: HatBase CountUnit   -- subsumes Hat:<Yen
+    -- the wildcard already selects everything the exact base does, so the union
+    -- equals the wildcard alone (overlap counted once)
+    assertEqual "proj [exact,wild] == proj [wild] (overlap, no double count)"
+        (EA.proj [wild] alg) (EA.proj [exact, wild] alg)
+    assertEqual "projNorm [exact,wild] == projNorm [wild] (overlap)"
+        (EA.projNorm [wild] alg) (EA.projNorm [exact, wild] alg)
+
+-- | R7 sentinel (c): the bar-netted identity @projNorm bs x == norm (bar (proj
+-- bs x))@ holds on a base carrying both hat and not sides (where it differs from
+-- @norm (proj bs x)@).
+testProjNormBarIdentity :: IO ()
+testProjNormBarIdentity = do
+    let alg :: EA.Alg MoneyDecimal (HatBase CountUnit)
+        alg =  (10 :@ (Hat :< Yen))     -- Yen carries both sides
+            .+ (4  :@ (Not :< Yen))
+            .+ (7  :@ (Not :< Amount))
+        bs = [HatNot :< Yen, HatNot :< Amount] :: [HatBase CountUnit]
+    assertEqual "projNorm == norm . bar . proj (both-sided base, MoneyDecimal)"
+        (norm (EA.bar (EA.proj bs alg))) (EA.projNorm bs alg)
 
 testProjWithBaseNorm :: IO ()
 testProjWithBaseNorm = do
@@ -2347,6 +2400,9 @@ main = do
     testAccountTitleClassification
     testProjMultiPatternOnePass
     testProjNormFastPath
+    testProjDuplicateExact
+    testProjExactWildcardOverlap
+    testProjNormBarIdentity
     testProjWithBaseNorm
     testProjWithNoteNorm
     testBasesNotSideRegression
