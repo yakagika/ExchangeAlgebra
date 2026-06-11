@@ -118,7 +118,7 @@ module MarketModel
 import           GHC.Generics                  (Generic)
 import           Data.Hashable                 (Hashable)
 import           Data.Binary                   (Binary)
-import           Data.List                     (foldl')
+import           Data.List                     (foldl', sortOn)
 import           Data.Maybe                    (fromMaybe)
 import qualified Data.Map.Strict               as M
 import           System.Environment            (lookupEnv)
@@ -617,6 +617,16 @@ data RunResult = RunResult
 -- | Run the model under the parameters and return a 'RunResult'. When the
 -- retention is 'RetainAllT' and there is no spill path, the pure 'runLite' is
 -- used; otherwise 'runLiteWithPolicy' (IO) applies the window\/spill policy.
+--
+-- __Observable dump (additive, measurement-only).__ When the environment
+-- variable @EA_DUMP_OBSERVABLES@ names a path, the final-ledger per-firm
+-- observables ('observableRows') are written there as a 3-column CSV
+-- (@firm,observable,value@) /in addition to/ the normal run. This branch is
+-- pure-additive: it does not change the returned 'RunResult', the printed
+-- summary, nor any model number — it only reads the same final ledger the
+-- summary already cracks and serialises a deterministic, sorted projection of
+-- it. The dump feeds the Round 4 FP-error-profile comparison (Double vs
+-- Decimal); with @EA_DUMP_OBSERVABLES@ unset the model runs exactly as before.
 runMarket :: forall v.
              ( HatVal v, Real v, Binary v )
           => Bool -> MarketParams -> IO RunResult
@@ -631,11 +641,18 @@ runMarket useTuned mp = do
         tT    = mpT mp
         project final =
             ( realToFrac (norm (wLedger final))
-            , reportNorm (wLedger final) tT )
-    (fNorm, sNorm) <- case mpRetain mp of
+            , reportNorm (wLedger final) tT
+            , observableRows tT (wLedger final) )
+    (fNorm, sNorm, rows) <- case mpRetain mp of
         RetainAllT | mpSpill mp == Nothing ->
             pure (runLite spec w0 project)
         _ -> runLiteWithPolicy (policyOf mp) spec w0 project
+    -- additive: only writes when EA_DUMP_OBSERVABLES is set; never alters
+    -- the RunResult or the model numbers.
+    mdump <- lookupEnv "EA_DUMP_OBSERVABLES"
+    case mdump of
+      Just path | not (null path) -> writeObservableCsv path rows
+      _                           -> pure ()
     pure RunResult { rrFirms = nF, rrEdges = eC, rrTerms = tT
                    , rrFinalNorm = fNorm, rrShortage = sNorm }
   where
@@ -643,6 +660,67 @@ runMarket useTuned mp = do
     reportNorm :: Journal MNote v MBase -> Int -> Double
     reportNorm ledger tT =
         realToFrac (norm (EJ.projWithNote [(Report, tT)] ledger))
+
+-- | One row of the observable dump: @(firm, observable-name, value)@. The value
+-- is carried as the model's value type @v@ so the @Double@ and @Decimal@ runs
+-- serialise their /own/ exact representation; the comparison script does the
+-- string-level diff.
+type ObservableRow v = (Firm, String, v)
+
+-- | Per-firm final-ledger observables, sorted deterministically (by observable
+-- name then firm) so the two value-type runs emit row-aligned CSVs. Three
+-- classes, matching the Round 4 spec:
+--
+--   * @inventory@   — each firm's net own-product stock
+--     @net (Products, j, j, _)@ over the /whole/ ledger (cumulative carry).
+--   * @shortage@    — the final term's report note, net per owning firm
+--     (the replenishment marker = @demand · (1 − Σ a)@).
+--   * P&L by account — for each profit/loss title the per-firm net over the
+--     whole ledger: @cash@, @sales@, @purchases@, @salesCost@.
+--
+-- Pure read-only projection of the final ledger (no model state mutated); used
+-- only by the additive 'EA_DUMP_OBSERVABLES' branch of 'runMarket'.
+observableRows :: forall v. (HatVal v, Real v)
+               => Int -> Journal MNote v MBase -> [ObservableRow v]
+observableRows tT ledger =
+    let wholeAlg  = EJ.toAlg ledger
+        reportAlg = EJ.toAlg (EJ.projWithNote [(Report, tT)] ledger)
+        -- inventory: net own-product per firm over the whole ledger.
+        invMap    = EA.balanceMapBy ownerOfProduct wholeAlg :: M.Map Firm v
+        -- shortage: net own-product on the final report note, per firm.
+        shMap     = EA.balanceMapBy ownerOfProduct reportAlg :: M.Map Firm v
+        -- P&L: net per (account, owner) for the four flow accounts.
+        plMap acct = EA.balanceMapBy (ownerOfAccount acct) wholeAlg :: M.Map Firm v
+        rowsFor name m = [ (j, name, v) | (j, v) <- M.toList m ]
+    in concat
+         [ rowsFor "inventory" invMap
+         , rowsFor "shortage"  shMap
+         , rowsFor "cash"      (plMap Cash)
+         , rowsFor "sales"     (plMap Sales)
+         , rowsFor "purchases" (plMap Purchases)
+         , rowsFor "salesCost" (plMap SalesCost)
+         ]
+
+-- | Classify a base by owning firm IFF its account title is @acct@ and it is
+-- owner-tagged (@owner == counterparty@) — the per-firm net selector used for
+-- the P&L observables.
+ownerOfAccount :: AccountTitles -> BasePart MBase -> Maybe Firm
+ownerOfAccount acct bp = case bp of
+    (a, o, c, _) | a == acct && o == c -> Just o
+    _                                  -> Nothing
+
+-- | Serialise the observable rows to a @firm,observable,value@ CSV. The value
+-- is rendered via 'realToFrac' to 'Double' then 'show'n with full precision so
+-- the FP-profile script can parse a stable numeric column for /both/ value
+-- types. Rows are sorted by @(observable, firm)@ for a deterministic, diffable
+-- file.
+writeObservableCsv :: (HatVal v, Real v) => FilePath -> [ObservableRow v] -> IO ()
+writeObservableCsv path rows =
+    let sorted = sortOn (\(j, name, _) -> (name, j)) rows
+        line (j, name, v) =
+            show j ++ "," ++ name ++ "," ++ show (realToFrac v :: Double)
+        body = unlines ("firm,observable,value" : Prelude.map line sorted)
+    in writeFile path body
 
 -- | The 'Policy.LedgerPolicy' derived from the retention\/spill parameters.
 policyOf :: MarketParams -> Policy.LedgerPolicy
