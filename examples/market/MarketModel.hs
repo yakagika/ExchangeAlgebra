@@ -39,12 +39,14 @@
        __inventory-connected__: @max(0, target − opening_j)@ and @opening_j@ is
        firm @j@'s stock read from this term's @(Carryover, t)@ note __by an
        indexed per-note projection__ (@O(\\log + \\#firms)@), not a ledger-wide
-       sweep. This stage is run per firm via 'stageFor', so 'ParChunk' actually
-       fans the work out across firms.
+       sweep. This stage is run per firm via 'stageOf' (a single-note stage
+       tagged @(Trade, t)@), so 'ParChunk' actually fans the work out across
+       firms.
 
     2. __production__ — each firm consumes @demand_j@ units of its own product
        (a usage-cost line). This is the demand-satisfaction step, kept as
-       genuine accounting work, also fanned out per firm via 'stageFor'.
+       genuine accounting work, also fanned out per firm via 'stageOf' (tagged
+       @(Production, t)@).
 
     3. __report__ — a per-firm one-pass aggregation ('EA.postFromNetBy', the
        §2A flagship): the term's net product position is classified by owning
@@ -129,7 +131,7 @@ import qualified ExchangeAlgebra.Algebra       as EA
 import           ExchangeAlgebra.Simulate.Lite
                      ( HK, InitT
                      , carry
-                     , Stage, stage, stageFor
+                     , Stage, stage, stageOf
                      , Par(..)
                      , SimSpec, mkSimSpec, specParallel
                      , runLite, runLiteWithPolicy )
@@ -421,23 +423,27 @@ orderAmount coef d i j =
     let a = realToFrac (fromMaybe 0 (coefficient coef i j)) :: Double
     in a * d
 
--- | __simple__ trade stage, fanned out __per firm__ ('stageFor' over the firm
--- list, so 'ParChunk' sparks each firm's in-edge fold independently). Buyer @j@
+-- | __simple__ trade stage, fanned out __per firm__ ('stageOf' over the firm
+-- list, so 'ParChunk' sparks each firm's in-edge fold independently; the runner
+-- tags each firm's bare 'Alg' with the single note @(Trade, t)@). Buyer @j@
 -- folds its in-edges @suppliersOf g j@ into a Σ of 6-entry postings (the
 -- Gate\/@simulateEx2@ @purchasePosting@ shape), one posting per supplier @i@.
 -- Every edge @(i,j)@ is owned by exactly one buyer @j@, so the per-firm
 -- partition posts each edge exactly once (no double counting).
 tradeStageSimple :: forall v. (HatVal v, Real v)
                  => [Firm] -> Double -> Stage (World v) Int MNote v MBase
-tradeStageSimple fs target = stageFor "trade" fs $ \w t _g j ->
+tradeStageSimple fs target = stageOf Trade fs $ \w t _g j ->
+    -- Single-note stage (only writes (Trade, t)): emit the bare Alg and let the
+    -- runner attach (Trade, t) once. A zero result is dropped at the sigma
+    -- commit, so this is exactly equivalent to the old
+    -- @if isZero alg then mempty else alg .| (Trade, t)@.
     let net  = wNet w
         coef = wCoef w
         d    = demandOf target t j (wLedger w)    -- buyer j's single demand (indexed read)
         sup  = suppliersOf net j
         one i = let amt = realToFrac (orderAmount coef d i j) :: v
                 in if amt <= 0 then mempty else purchasePosting amt i j
-        alg = EA.sigma sup one
-    in if EA.isZero alg then mempty else alg .| (Trade, t)
+    in EA.sigma sup one
 
 -- | __tuned__ trade stage: the /same/ journal (after @bar@), also per-firm
 -- token, with firm @j@'s in-edges fused into one base->value map
@@ -446,7 +452,9 @@ tradeStageSimple fs target = stageFor "trade" fs $ \w t _g j ->
 -- with FP it is deterministic but may reassociate.
 tradeStageTuned :: forall v. (HatVal v, Real v)
                 => [Firm] -> Double -> Stage (World v) Int MNote v MBase
-tradeStageTuned fs target = stageFor "trade" fs $ \w t _g j ->
+tradeStageTuned fs target = stageOf Trade fs $ \w t _g j ->
+    -- Single-note stage: see 'tradeStageSimple' — the bare Alg is tagged with
+    -- (Trade, t) once by the runner; a zero result drops out at the commit.
     let net  = wNet w
         coef = wCoef w
         d    = demandOf target t j (wLedger w)    -- buyer j's single demand (indexed read)
@@ -462,8 +470,7 @@ tradeStageTuned fs target = stageFor "trade" fs $ \w t _g j ->
                       , (Not :< (Cash,      i, i, Yen),    amt)
                       , (Not :< (Sales,     i, i, Yen),    amt)
                       , (Hat :< (Products,  i, i, Amount), amt) ]
-        alg = EA.sigmaFromMap accum (\b vv -> vv .@ b)
-    in if EA.isZero alg then mempty else alg .| (Trade, t)
+    in EA.sigmaFromMap accum (\b vv -> vv .@ b)
 
 ------------------------------------------------------------------
 -- * Production stage (E3 b): demand-driven consumption of own product
@@ -483,12 +490,13 @@ tradeStageTuned fs target = stageFor "trade" fs $ \w t _g j ->
 -- a replenishment marker.
 productionStage :: forall v. (HatVal v, Real v)
                 => [Firm] -> Double -> Stage (World v) Int MNote v MBase
-productionStage fs target = stageFor "production" fs $ \w t _g j ->
+productionStage fs target = stageOf Production fs $ \w t _g j ->
+    -- Single-note stage: emit the bare Alg; the runner tags it (Production, t)
+    -- once. The zero (amt <= 0) case becomes the zero Alg, dropped at commit.
     let amt  = realToFrac (demandOf target t j (wLedger w)) :: v   -- firm j's own demand (indexed read)
     in if amt <= 0 then mempty
-       else ((amt .@ Hat :< (Products,    j, j, Amount))   -- consume own product
-          .+ (amt .@ Not :< (SalesCost,   j, j, Yen)))      -- as a usage-cost line
-            .| (Production, t)
+       else (amt .@ Hat :< (Products,    j, j, Amount))   -- consume own product
+         .+ (amt .@ Not :< (SalesCost,   j, j, Yen))       -- as a usage-cost line
 
 ------------------------------------------------------------------
 -- * Report stage (E3 c, §2A flagship): per-firm one-pass aggregation
@@ -507,7 +515,10 @@ productionStage fs target = stageFor "production" fs $ \w t _g j ->
 -- same quantity the report measured before carryover bookkeeping was added.
 reportStage :: forall v. (HatVal v)
             => Stage (World v) Int MNote v MBase
-reportStage = stage "report" $ \w t ->
+reportStage = stageOf Report [()] $ \w t _g () ->
+    -- Single-note aggregate stage (one (Report, t) marker): emit the bare Alg;
+    -- the runner attaches (Report, t) once. A zero shortage drops at commit, so
+    -- this matches the old @if isZero shortage then mempty else shortage .| ...@.
     let ledger   = wLedger w
         -- this term's trade+production flow only (indexed per-note read);
         -- excludes the (Carryover, t) opening stock and the (Closing, t)
@@ -516,10 +527,9 @@ reportStage = stage "report" $ \w t ->
         shortageK b = case b of
             Hat :< (Products, o, c, _) | o == c -> Just o
             _                                   -> Nothing
-        shortage = EA.postFromNetBy shortageK
+    in EA.postFromNetBy shortageK
                      (\j v -> v .@ Not :< (Products, j, j, Amount))
                      flow
-    in if EA.isZero shortage then mempty else shortage .| (Report, t)
 
 ------------------------------------------------------------------
 -- * Closing / carryover stage (Phase 5 fix): per-term self-contained books
@@ -544,6 +554,11 @@ reportStage = stage "report" $ \w t ->
 -- which is the steady shortage regime (Hawkins–Simon).
 carryoverStage :: forall v. (HatVal v, Real v)
                => Stage (World v) Int MNote v MBase
+-- NOTE: this stage stays on 'stage'/'stageFor' (not 'stageOf') because it is a
+-- __multi-note__ stage: each firm posts both a (Closing, t) line and a
+-- (Carryover, t+1) line. 'stageOf' auto-attaches a single tag, which cannot
+-- express two different notes from one agent, so the body keeps returning a
+-- fully general 'Journal'.
 carryoverStage = stage "closing" $ \w t ->
     let -- this term's entries only (indexed by the term axis = axis 1).
         termAlg = EJ.toAlg (EJ.filterByAxis 1 (NoteAxisKey (t :: Int)) (wLedger w))

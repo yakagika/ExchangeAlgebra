@@ -28,7 +28,7 @@ import           ExchangeAlgebra.Simulate.Network
 import           ExchangeAlgebra.Simulate.Lite
                      ( InitT, RefT, SnapT, HK
                      , Field(..), carry, resetEach, updateEach
-                     , Stage, stage, stageFor
+                     , Stage, stage, stageFor, stageOf
                      , Par(..), SimSpec, mkSimSpec, runLite, runLiteWithPolicy )
 import qualified ExchangeAlgebra.Simulate.Policy as Policy
 import           ExchangeAlgebra.Value    (MoneyDouble)
@@ -2272,17 +2272,18 @@ mktOrderAmt coef d i j =
 -- per-firm trade stage (stageFor over the firm list), mirroring
 -- MarketModel.tradeStageSimple: buyer j folds its in-edges (suppliersOf).
 mktTradeSimple :: (HatVal v, Real v) => [MktFirm] -> Double -> Stage (MktW v) Int MktNote v MktBase
-mktTradeSimple fs target = stageFor "trade" fs $ \w t _g j ->
+mktTradeSimple fs target = stageOf MktTrade fs $ \w t _g j ->
+    -- single-note stage: emit the bare Alg; the runner attaches (MktTrade, t).
     let net = mkNet w; coef = mkCoef w
         d   = mktDemandOf target t j (mkLedger w)
         sup = suppliersOf net j
         one i = let amt = realToFrac (mktOrderAmt coef d i j)
                 in if amt <= 0 then mempty else mktPurchase amt i j
-        alg = EA.sigma sup one
-    in if EA.isZero alg then mempty else alg .| (MktTrade, t)
+    in EA.sigma sup one
 
 mktTradeTuned :: (HatVal v, Real v) => [MktFirm] -> Double -> Stage (MktW v) Int MktNote v MktBase
-mktTradeTuned fs target = stageFor "trade" fs $ \w t _g j ->
+mktTradeTuned fs target = stageOf MktTrade fs $ \w t _g j ->
+    -- single-note stage: see 'mktTradeSimple'.
     let net = mkNet w; coef = mkCoef w
         d   = mktDemandOf target t j (mkLedger w)
         sup = suppliersOf net j
@@ -2297,25 +2298,24 @@ mktTradeTuned fs target = stageFor "trade" fs $ \w t _g j ->
                       , (Not :< (Cash,      i, i, Yen),    amt)
                       , (Not :< (Sales,     i, i, Yen),    amt)
                       , (Hat :< (Products,  i, i, Amount), amt) ]
-        alg = EA.sigmaFromMap accum (\b v -> v .@ b)
-    in if EA.isZero alg then mempty else alg .| (MktTrade, t)
+    in EA.sigmaFromMap accum (\b v -> v .@ b)
 
 mktProduction :: (HatVal v, Real v) => [MktFirm] -> Double -> Stage (MktW v) Int MktNote v MktBase
-mktProduction fs target = stageFor "production" fs $ \w t _g j ->
+mktProduction fs target = stageOf MktProduction fs $ \w t _g j ->
+    -- single-note stage: emit the bare Alg; the runner attaches (MktProduction, t).
     let amt = realToFrac (mktDemandOf target t j (mkLedger w))
     in if amt <= 0 then mempty
-       else ((amt .@ Hat :< (Products,  j, j, Amount))
-          .+ (amt .@ Not :< (SalesCost, j, j, Yen)))
-            .| (MktProduction, t)
+       else (amt .@ Hat :< (Products,  j, j, Amount))
+         .+ (amt .@ Not :< (SalesCost, j, j, Yen))
 
 mktReport :: (HatVal v) => Stage (MktW v) Int MktNote v MktBase
-mktReport = stage "report" $ \w t ->
+mktReport = stageOf MktReport [()] $ \w t _g () ->
+    -- single-note aggregate stage: emit the bare Alg; runner attaches (MktReport, t).
     let flow = EJ.toAlg (EJ.projWithNote [(MktTrade, t), (MktProduction, t)] (mkLedger w))
         shortageK b = case b of
             Hat :< (Products, o, c, _) | o == c -> Just o
             _                                   -> Nothing
-        sh = EA.postFromNetBy shortageK (\j v -> v .@ Not :< (Products, j, j, Amount)) flow
-    in if EA.isZero sh then mempty else sh .| (MktReport, t)
+    in EA.postFromNetBy shortageK (\j v -> v .@ Not :< (Products, j, j, Amount)) flow
 
 -- carryover stage (mirror): net this term's own-product stock and roll the
 -- positive surplus into (MktCarryover, t+1). Mirrors MarketModel.carryoverStage.
@@ -2440,6 +2440,63 @@ testMarketWindowTransparent = withTempSpill "market_window" $ \path -> do
     assertEqual "Market window-transparency: final carryover map equal under RetainAll vs RetainRecent 2 + spill"
         allM winM
 
+-- (e) stageOf AUTO-NOTE SENTINEL: a 'stageOf' stage and the equivalent manual
+-- 'stageFor' that writes @.| (tag, t)@ itself must produce the EXACT SAME ledger
+-- (MoneyDecimal, so equality is exact). This pins the semantics of the runner's
+-- single auto-attachment of @(stTag, t)@: moving the note from the stage body
+-- into 'runStage' changes nothing observable (incl. the zero-drop at the sigma
+-- commit). The manual stages below are byte-for-byte the bodies of the migrated
+-- mirror stages, but tagged explicitly with the OLD @if isZero then mempty@ form.
+mktTradeSimpleManual :: (HatVal v, Real v)
+                     => [MktFirm] -> Double -> Stage (MktW v) Int MktNote v MktBase
+mktTradeSimpleManual fs target = stageFor "trade" fs $ \w t _g j ->
+    let net = mkNet w; coef = mkCoef w
+        d   = mktDemandOf target t j (mkLedger w)
+        sup = suppliersOf net j
+        one i = let amt = realToFrac (mktOrderAmt coef d i j)
+                in if amt <= 0 then mempty else mktPurchase amt i j
+        alg = EA.sigma sup one
+    in if EA.isZero alg then mempty else alg .| (MktTrade, t)
+
+mktProductionManual :: (HatVal v, Real v)
+                    => [MktFirm] -> Double -> Stage (MktW v) Int MktNote v MktBase
+mktProductionManual fs target = stageFor "production" fs $ \w t _g j ->
+    let amt = realToFrac (mktDemandOf target t j (mkLedger w))
+    in if amt <= 0 then mempty
+       else ((amt .@ Hat :< (Products,  j, j, Amount))
+          .+ (amt .@ Not :< (SalesCost, j, j, Yen)))
+            .| (MktProduction, t)
+
+mktReportManual :: (HatVal v) => Stage (MktW v) Int MktNote v MktBase
+mktReportManual = stage "report" $ \w t ->
+    let flow = EJ.toAlg (EJ.projWithNote [(MktTrade, t), (MktProduction, t)] (mkLedger w))
+        shortageK b = case b of
+            Hat :< (Products, o, c, _) | o == c -> Just o
+            _                                   -> Nothing
+        sh = EA.postFromNetBy shortageK (\j v -> v .@ Not :< (Products, j, j, Amount)) flow
+    in if EA.isZero sh then mempty else sh .| (MktReport, t)
+
+-- the same 4-stage spec as 'mktSpec' but with the three single-note stages
+-- expressed via manual stageFor + explicit @.| (tag, t)@ (carryover unchanged).
+mktSpecManual :: (HatVal v, Real v)
+              => Int -> Int -> Par -> SimSpec (MktW v) Int MktNote v MktBase
+mktSpecManual n lastT par =
+    let fs = [1 .. n] in
+    (mkSimSpec (1, lastT) 2025 mkLedger
+        [ mktTradeSimpleManual fs 10
+        , mktProductionManual fs 10
+        , mktReportManual
+        , mktCarryover ])
+      { Lite.specParallel = par }
+
+testMarketStageOfAutoNote :: IO ()
+testMarketStageOfAutoNote = do
+    let stageOfL = runLite (mktSpec False 30 5 Sequential) (mktW0 30) (toMap . mkLedger)
+                     :: HM.HashMap MktNote (EA.Alg MoneyDecimal MktBase)
+        manualL  = runLite (mktSpecManual    30 5 Sequential) (mktW0 30) (toMap . mkLedger)
+    assertEqual "Market stageOf auto-note: stageOf ledger == manual stageFor + .| (tag, t) (MoneyDecimal, exact)"
+        stageOfL manualL
+
 main :: IO ()
 main = do
     testAccountTitleClassification
@@ -2501,6 +2558,7 @@ main = do
     testMarketSeqParEqual
     testMarketShortagePositive
     testMarketWindowTransparent
+    testMarketStageOfAutoNote
     axiomProperties
     journalProperties
     quotientProperties
