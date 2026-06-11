@@ -42,8 +42,6 @@ import qualified    Data.Text.IO as TIO
 import qualified    Data.List as L
 import              Graphics.Rendering.Chart.Easy            hiding ( (:<),(.~))
 import              Graphics.Rendering.Chart.Backend.Cairo
-import              Graphics.Rendering.Chart.Axis
-import              Graphics.Rendering.Chart.Axis.Int
 import              Graphics.Rendering.Chart.Grid
 import qualified    Control.Monad                   as CM
 import              Control.Monad.ST
@@ -112,13 +110,13 @@ plotLine f (start,end) wld fileDir titleStr = do
 
     -- | Plot the time series data contained in each column
     createColumn seriesGroup = layoutToGrid $ execEC $ do
-        CM.forM_ seriesGroup $ \(label, seriesData) ->
-            plot $ linePlot label seriesData
+        CM.forM_ seriesGroup $ \(seriesLabel, seriesData) ->
+            plot $ linePlot seriesLabel seriesData
 
     -- | Render a single time series as a line plot
-    linePlot label seriesData = liftEC $ do
+    linePlot seriesLabel seriesData = liftEC $ do
         plot_lines_values .= [concat seriesData]
-        plot_lines_title  .= label
+        plot_lines_title  .= seriesLabel
         plot_lines_style . line_color .= opaque blue
 
     -- | Set the graph title
@@ -232,13 +230,13 @@ plotMultiLines xs fs (start,end) wlds fileDir titleStr = do
 
     -- | Plot multiple time series in each column with color coding
     createColumn seriesGroup = layoutToGrid $ execEC $
-        CM.forM_ (zip [0..] seriesGroup) $ \(index, (label, seriesData)) ->
-            plot $ linePlot index label seriesData
+        CM.forM_ (zip [0..] seriesGroup) $ \(seriesIdx, (seriesLabel, seriesData)) ->
+            plot $ linePlot seriesIdx seriesLabel seriesData
 
     -- | Render time series data as a colored line plot
-    linePlot idx label seriesData = liftEC $ do
+    linePlot idx seriesLabel seriesData = liftEC $ do
         plot_lines_values .= [concat seriesData]
-        plot_lines_title  .= label
+        plot_lines_title  .= seriesLabel
         plot_lines_style . line_color .= colorPalette !! (idx `mod` length colorPalette)
 
     -- | Set the graph title
@@ -344,13 +342,13 @@ plotWldsDiffLine f (start,end) wlds fileDir titleStr = do
 
     -- | Plot the time series data contained in each column
     createColumn seriesGroup = layoutToGrid $ execEC $ do
-        CM.forM_ seriesGroup $ \(label, seriesData) ->
-            plot $ linePlot label seriesData
+        CM.forM_ seriesGroup $ \(seriesLabel, seriesData) ->
+            plot $ linePlot seriesLabel seriesData
 
     -- | Render a single time series as a line plot
-    linePlot label seriesData = liftEC $ do
+    linePlot seriesLabel seriesData = liftEC $ do
         plot_lines_values .= [concat seriesData]
-        plot_lines_title  .= label
+        plot_lines_title  .= seriesLabel
         plot_lines_style . line_color .= opaque blue
 
     -- | Set the graph title
@@ -452,7 +450,7 @@ gridLineVector ((i1,t1),(i2,t2)) vec = do
   where
     -- flattenIndex iCount iIndex tIndex = tIndex * iCount + iIndex
     flattenIndex :: Int -> Int -> Int -> Int
-    flattenIndex width x y = y * width + x
+    flattenIndex w x y = y * w + x
 
 --------------------------------------------------------------------------------
 -- 3. Function to draw (i, t) line graphs using a Vector-based approach
@@ -491,12 +489,12 @@ plotLineVector f idx wld outDir titleStr = do
 
     -- | Plot multiple TimeSeries contained in one column (TimeSerieses t)
     createColumn seriesGroup = layoutToGrid $ execEC $ do
-      CM.forM_ seriesGroup $ \(label, seriesData) ->
-        plot $ linePlot label seriesData
+      CM.forM_ seriesGroup $ \(seriesLabel, seriesData) ->
+        plot $ linePlot seriesLabel seriesData
 
-    linePlot label seriesData = liftEC $ do
+    linePlot seriesLabel seriesData = liftEC $ do
       plot_lines_values .= [concat seriesData]
-      plot_lines_title  .= label
+      plot_lines_title  .= seriesLabel
       plot_lines_style . line_color .= opaque blue
 
     createTitle name =
@@ -552,11 +550,11 @@ writeFuncResults
   -> a RealWorld
   -> FilePath
   -> IO ()
-writeFuncResults funcs range wld path =
+writeFuncResults funcs termRange wld path =
     writeFuncResultsWithContext
         (\_ t -> return t)
         (map (\(header, f) -> (header, \t -> f wld t)) funcs)
-        range
+        termRange
         wld
         path
 

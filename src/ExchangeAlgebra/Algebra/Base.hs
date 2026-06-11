@@ -44,8 +44,6 @@ import ExchangeAlgebra.Algebra.Base.Element
 
 import              Data.Time           (Day, TimeOfDay)
 import GHC.Stack (HasCallStack, callStack, prettyCallStack)
-import GHC.Generics (Generic)
-import Data.Hashable
 import qualified Data.Binary as Binary
 
 customError :: HasCallStack => String -> a
@@ -154,8 +152,15 @@ instance BaseClass BaseForSingleHat where
 instance HatBaseClass Hat where
     type BasePart Hat = BaseForSingleHat
     hat  = id
-    base x = BaseForSingleHat
+    base _ = BaseForSingleHat
 
+    -- NB. 'merge'\/'revHat'\/'isHat' below match only @Hat@ and @Not@. The third
+    -- 'Hat' constructor @HatNot@ is the formalization-only wildcard state (the
+    -- paper convention is the 2-state Hat\/Not; see CLAUDE.md "HatNot wildcard").
+    -- These methods are never invoked on a @HatNot@ label by library code, so the
+    -- non-exhaustive @-Wincomplete-patterns@ here is by design (audited). Adding a
+    -- @HatNot@ case would change behaviour (turn the pattern-match failure into a
+    -- different error), so it is intentionally left as-is rather than masked.
     merge Hat _ = Hat
     merge Not _ = Not
 
@@ -265,19 +270,19 @@ instance (BaseClass a, AxisDecompose a) => HatBaseClass (HatBase a) where
     merge = (:<)
 
     {-# INLINE toHat #-}
-    toHat (h:<b) = Hat:<b
+    toHat (_:<b) = Hat:<b
 
     {-# INLINE toNot #-}
-    toNot (h:<b) = Not:<b
+    toNot (_:<b) = Not:<b
 
     {-# INLINE revHat #-}
     revHat (Hat :< b) = Not :< b
     revHat (Not :< b) = Hat :< b
 
     {-# INLINE isHat #-}
-    isHat  (Hat :< b)    = True
-    isHat  (Not :< b)    = False
-    isHat  (HatNot :< b) = customError "called HatNot"
+    isHat  (Hat :< _)    = True
+    isHat  (Not :< _)    = False
+    isHat  (HatNot :< _) = customError "called HatNot"
 
     {-# INLINE isNot #-}
     isNot  = not . isHat
@@ -660,8 +665,8 @@ instance AccountBase PIMO where
 instance BaseClass AccountTitles where
 
 instance ExBaseClass (HatBase AccountTitles) where
-    getAccountTitle (h :< a)   = a
-    setAccountTitle (h :< a) b = h :< b
+    getAccountTitle (_ :< a)   = a
+    setAccountTitle (h :< _) b = h :< b
 
 -- *** Name only (redundant algebra base)
 instance BaseClass Name where
@@ -683,38 +688,38 @@ instance BaseClass TimeOfDay where
 -- | Basic BaseClass with 2 elements
 
 instance ExBaseClass (HatBase (AccountTitles, Day)) where
-    getAccountTitle (h:< (a, d))   = a
-    setAccountTitle (h:< (a, d)) b = h:< (b, d)
+    getAccountTitle (_:< (a, _))   = a
+    setAccountTitle (h:< (_, d)) b = h:< (b, d)
 
 instance ExBaseClass (HatBase (AccountTitles, Name)) where
-    getAccountTitle (h:< (a, n))   = a
-    setAccountTitle (h:< (a, n)) b = h:< (b, n)
+    getAccountTitle (_:< (a, _))   = a
+    setAccountTitle (h:< (_, n)) b = h:< (b, n)
 
 instance ExBaseClass (HatBase (CountUnit, AccountTitles)) where
-    getAccountTitle (h:< (u, a))   = a
-    setAccountTitle (h:< (u, a)) b = h:< (u, b)
+    getAccountTitle (_:< (_, a))   = a
+    setAccountTitle (h:< (u, _)) b = h:< (u, b)
 
 -- ** 3-element bases
 -- | Basic BaseClass with 3 elements
 instance ExBaseClass (HatBase (AccountTitles, Name, CountUnit)) where
-    getAccountTitle (h:< (a, n, c))   = a
-    setAccountTitle (h:< (a, n, c)) b = h:< (b, n, c)
+    getAccountTitle (_:< (a, _, _))   = a
+    setAccountTitle (h:< (_, n, c)) b = h:< (b, n, c)
 
 -- ** 4-element bases
 -- | Basic BaseClass with 4 elements
 instance ExBaseClass (HatBase (AccountTitles, Name, CountUnit, Subject)) where
-    getAccountTitle (h:< (a, n, c, s))   = a
-    setAccountTitle (h:< (a, n, c, s)) b = h:< (b, n, c, s)
+    getAccountTitle (_:< (a, _, _, _))   = a
+    setAccountTitle (h:< (_, n, c, s)) b = h:< (b, n, c, s)
 
 -- ** 5-element bases
 -- | Basic BaseClass with 5 elements
 instance ExBaseClass (HatBase (AccountTitles, Name, CountUnit, Subject,  Day)) where
-    getAccountTitle (h:< (a, n, c, s, d))   = a
-    setAccountTitle (h:< (a, n, c, s, d)) b = h:< (b, n, c, s, d)
+    getAccountTitle (_:< (a, _, _, _, _))   = a
+    setAccountTitle (h:< (_, n, c, s, d)) b = h:< (b, n, c, s, d)
 
 
 -- ** 6-element bases
 -- | Basic BaseClass with 6 elements
 instance ExBaseClass (HatBase (AccountTitles, Name, CountUnit, Subject, Day, TimeOfDay)) where
-    getAccountTitle (h:< (a, n, c, s, d, t))   = a
-    setAccountTitle (h:< (a, n, c, s, d, t)) b = h:< (b, n, c, s, d, t)
+    getAccountTitle (_:< (a, _, _, _, _, _))   = a
+    setAccountTitle (h:< (_, n, c, s, d, t)) b = h:< (b, n, c, s, d, t)

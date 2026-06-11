@@ -35,6 +35,7 @@ module ExchangeAlgebra.Journal.Transfer
     , (.->)
     , (|%)
     , ExchangeAlgebra.Journal.Transfer.transfer
+    , ExchangeAlgebra.Journal.Transfer.createTransfer
     , ExchangeAlgebra.Journal.Transfer.incomeSummaryAccount
     , ExchangeAlgebra.Journal.Transfer.netIncomeTransfer
     , ExchangeAlgebra.Journal.Transfer.grossProfitTransfer
@@ -43,7 +44,6 @@ module ExchangeAlgebra.Journal.Transfer
     , ExchangeAlgebra.Journal.Transfer.finalStockTransfer
     ) where
 
-import qualified    ExchangeAlgebra.Algebra as EA
 import              ExchangeAlgebra.Algebra hiding (map)
 import qualified    ExchangeAlgebra.Algebra.Transfer as EAT
 import              ExchangeAlgebra.Algebra.Transfer (TransTable (..)
@@ -52,31 +52,9 @@ import              ExchangeAlgebra.Algebra.Transfer (TransTable (..)
                                                     , TransTableParts
                                                     , (.->)
                                                     , (|%)
-                                                    , finalStockTransferStep
-                                                    , retainedEarningTransfer
-                                                    , ordinaryProfitTransfer
-                                                    , grossProfitTransfer)
+                                                    , finalStockTransferStep)
 import qualified    ExchangeAlgebra.Journal as EJ
 import              ExchangeAlgebra.Journal hiding ()
-
-import qualified    Number.NonNegative  as NN       ( Double
-                                                    , fromNumber
-                                                    , toNumber,T) -- Non-negative real numbers
-import qualified    Data.Maybe          as Maybe
-import              Text.Show.Unicode               ( ushow)
-import              GHC.Exts                        ( reallyUnsafePtrEquality#
-                                                    , isTrue#
-                                                    , build
-                                                    , lazy)
-import              Data.Semigroup                  ( Semigroup(stimes)
-                                                    , stimesIdempotentMonoid)
-import              Data.Monoid                     ( Monoid(..))
-import qualified    Data.Foldable       as Foldable
-import              Data.Foldable                   ( Foldable())
-import              Data.Bits                       ( shiftL
-                                                    , shiftR)
-import              Utils.Containers.Internal.StrictPair
-import              Debug.Trace
 
 
 

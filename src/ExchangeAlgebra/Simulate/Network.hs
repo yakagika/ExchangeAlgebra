@@ -117,7 +117,6 @@ module ExchangeAlgebra.Simulate.Network
     ) where
 
 import           Control.DeepSeq        (NFData (..))
-import           Data.List              (foldl')   -- re-exported by Prelude on newer base; kept explicit for clarity
 import qualified Data.Map.Strict        as M
 import           Data.Map.Strict        (Map)
 import           Data.Maybe             (fromMaybe)

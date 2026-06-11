@@ -67,7 +67,6 @@ module ExchangeAlgebra.Journal
 import qualified    ExchangeAlgebra.Algebra as EA
 import              ExchangeAlgebra.Algebra.Base
 import              ExchangeAlgebra.Algebra ( HatVal(..)
-                                            , HatBaseClass(..)
                                             , Alg(..)
                                             , Redundant(..)
                                             , Exchange(..)
@@ -79,12 +78,11 @@ import qualified    Data.IntMap.Strict      as IntMap
 import              Data.IntMap.Strict      (IntMap)
 import qualified    Data.HashSet            as HSet
 import              Data.HashSet            (HashSet)
-import              Control.Parallel.Strategies (using, parTraversable, rdeepseq, NFData)
+import              Control.Parallel.Strategies (NFData)
 import              Control.DeepSeq             (rnf)
 import qualified    Data.Set                as S
 import qualified    Data.List               as L
 import qualified    Data.Map.Strict         as M
-import              Data.Hashable
 import qualified    Data.Text               as T
 import qualified    Control.Monad           as CM
 import qualified    Data.Binary             as Binary
@@ -285,9 +283,9 @@ buildNoteAxisPosting =
 {-# INLINE mkJournal #-}
 mkJournal :: (Note n, HatVal v, HatBaseClass b)
           => Map.HashMap n (Alg v b) -> Map.HashMap n (Alg v b) -> Journal n v b
-mkJournal base delta = Journal base delta baseIdx deltaIdx
+mkJournal bs delta = Journal bs delta baseIdx deltaIdx
   where
-    ~baseIdx = buildNoteAxisPosting base
+    ~baseIdx = buildNoteAxisPosting bs
     !deltaIdx = buildNoteAxisPosting delta
 
 -- | Construct a Journal from a HashMap.
@@ -316,16 +314,16 @@ toMap = materializeMap
 -- (audit R5 / ROAD_MAP P1b).
 materializeMap :: (HatVal v, HatBaseClass b, Note n)
                => Journal n v b -> Map.HashMap n (Alg v b)
-materializeMap (Journal base delta _ _)
-    | Map.null delta = base
-    | Map.null base  = delta
-    | otherwise      = Map.unionWith (.+) base delta
+materializeMap (Journal bs delta _ _)
+    | Map.null delta = bs
+    | Map.null bs    = delta
+    | otherwise      = Map.unionWith (.+) bs delta
 
 {-# INLINE lookupNote #-}
 lookupNote :: (HatVal v, HatBaseClass b, Note n)
            => n -> Journal n v b -> Maybe (Alg v b)
-lookupNote n (Journal base delta _ _) =
-    case (Map.lookup n delta, Map.lookup n base) of
+lookupNote n (Journal bs delta _ _) =
+    case (Map.lookup n delta, Map.lookup n bs) of
         (Nothing, Nothing) -> Nothing
         (Just d, Nothing)  -> Just d
         (Nothing, Just b)  -> Just b
@@ -334,16 +332,16 @@ lookupNote n (Journal base delta _ _) =
 {-# INLINE compactIfNeeded #-}
 compactIfNeeded :: (HatVal v, HatBaseClass b, Note n)
                 => Journal n v b -> Journal n v b
-compactIfNeeded j@(Journal base delta _ _)
+compactIfNeeded j@(Journal bs delta _ _)
     | Map.size delta < deltaCompactThreshold = j
-    | otherwise = mkJournal (Map.unionWith (.+) base delta) Map.empty
+    | otherwise = mkJournal (Map.unionWith (.+) bs delta) Map.empty
 
 {-# INLINE appendMap #-}
 appendMap :: (HatVal v, HatBaseClass b, Note n)
           => Map.HashMap n (Alg v b) -> Journal n v b -> Journal n v b
-appendMap rhs j@(Journal base delta baseAxis deltaAxis)
+appendMap rhs j@(Journal bs delta baseAxis deltaAxis)
     | Map.null rhs = j
-    | otherwise = compactIfNeeded $ Journal base delta' baseAxis deltaAxis'
+    | otherwise = compactIfNeeded $ Journal bs delta' baseAxis deltaAxis'
   where
     (delta', deltaAxis') = Map.foldlWithKey' step (delta, deltaAxis) rhs
 
@@ -399,7 +397,7 @@ instance ( Note n
 -- Complexity: O(1)
 isZero :: (HatVal v, HatBaseClass b, Note n)
        => Journal n v b -> Bool
-isZero (Journal base delta _ _) = Map.null base && Map.null delta
+isZero (Journal bs delta _ _) = Map.null bs && Map.null delta
 
 pattern Zero :: (HatVal v, HatBaseClass b, Note n) => Journal n v b
 pattern Zero <- (isZero -> True)
@@ -462,11 +460,11 @@ instance (HatVal v, HatBaseClass b, Note n) => Monoid (Journal n v b) where
 -- 'Control.Parallel.Strategies.rdeepseq' to fully evaluate journal "messages"
 -- before merging them in parallel.
 instance NFData (Journal n v b) where
-    rnf (Journal base delta _ _) =
+    rnf (Journal bs delta _ _) =
         Map.foldr  (\alg acc -> rnf alg `seq` acc)
                    (Map.foldr (\alg acc -> rnf alg `seq` acc)
                               ()
-                              base)
+                              bs)
                    delta
 
 instance (HatVal v, HatBaseClass b, Note n) => Redundant (Journal n) v b where
@@ -539,10 +537,10 @@ mergeJournalMap :: (HatVal v, HatBaseClass b, Note n)
                 => Map.HashMap n (Alg v b)
                 -> Journal n v b
                 -> Map.HashMap n (Alg v b)
-mergeJournalMap !acc (Journal base delta _ _)
-    | Map.null base && Map.null delta = acc
+mergeJournalMap !acc (Journal bs delta _ _)
+    | Map.null bs && Map.null delta = acc
     | otherwise =
-        let !acc1 = Map.foldlWithKey' mergeOne acc base
+        let !acc1 = Map.foldlWithKey' mergeOne acc bs
         in Map.foldlWithKey' mergeOne acc1 delta
   where
     mergeOne !m !n !alg
@@ -674,11 +672,11 @@ sigmaM xs f = mconcat <$> CM.forM xs f
 -- Complexity: O(total number of base keys across all Notes)
 toAlg :: (HatVal v, HatBaseClass b, Note n)
       => Journal n v b -> Alg v b
-toAlg (Journal base delta _ _) =
+toAlg (Journal bs delta _ _) =
     -- Fold base's elements directly onto delta's element list instead of
     -- @Map.elems base ++ Map.elems delta@, which avoids materializing the
     -- separate @Map.elems base@ list and the @(++)@ traversal.
-    EA.unionsMerge (Map.foldr (:) (Map.elems delta) base)
+    EA.unionsMerge (Map.foldr (:) (Map.elems delta) bs)
 
 ------------------------------------------------------------------
 -- | Apply function f to the entry of each Note in the Journal.
@@ -689,12 +687,9 @@ map :: (HatVal v, HatBaseClass b, Note n)
     => (Alg v b -> Alg v b) -> Journal n v b -> Journal n v b
 map f = fromMap . Map.map f . toMap
 
-parallelMap :: (NFData b, Ord k) => (a -> b) -> Map.HashMap k a -> Map.HashMap k b
-parallelMap f m = Map.map f m `using` parTraversable rdeepseq
-
-parMap :: (HatVal v, HatBaseClass b, Note n)
-    => (Alg v b -> Alg v b) -> Journal n v b -> Journal n v b
-parMap f = fromMap . parallelMap f . toMap
+-- NB. The unused 'parallelMap'\/'parMap' helpers (a 'Control.Parallel.Strategies'
+-- based variant of 'map') were removed as dead code: neither was exported nor
+-- called. Reintroduce from history if a parallel journal map is needed.
 
 -- | Insert x into y. If x's Note already exists in y, it is overwritten with x's value.
 --
@@ -825,8 +820,8 @@ projWithNoteNorm ns bs js =
 -- Complexity: O(n) where n is the number of Notes
 filterWithNote :: (HatVal v, HatBaseClass b, Note n)
                => (n -> Alg v b -> Bool) -> Journal n v b -> Journal n v b
-filterWithNote f (Journal base delta _ _) =
-    let !base' = Map.filterWithKey f base
+filterWithNote f (Journal bs delta _ _) =
+    let !base' = Map.filterWithKey f bs
         !delta' = Map.filterWithKey f delta
     in mkJournal base' delta'
 

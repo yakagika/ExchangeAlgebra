@@ -404,8 +404,8 @@ instance Element CountUnit where
 
 -- TimeOfDay internally holds hour, minute, and second (Pico), so each is hashed individually
 instance Hashable TimeOfDay where
-  hashWithSalt salt (TimeOfDay hour min sec) =
-    salt `hashWithSalt` hour `hashWithSalt` min `hashWithSalt` sec
+  hashWithSalt salt (TimeOfDay hour minute sec) =
+    salt `hashWithSalt` hour `hashWithSalt` minute `hashWithSalt` sec
 
 -- Day internally holds an Integer in ModifiedJulianDay format, so that is used for hashing
 instance Hashable Day where

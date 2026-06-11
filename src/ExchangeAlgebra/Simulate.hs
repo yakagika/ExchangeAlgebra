@@ -112,7 +112,6 @@ import              Data.Array.ST                   hiding (modifyArray)
 import              Data.Array.IO                   hiding (modifyArray)
 import              Data.STRef
 import qualified    Control.Monad                   as CM
-import              Data.Array
 import qualified    Data.Map.Strict                 as M
 import              System.IO (Handle, IOMode(..), withFile, hPutStrLn, hPutStr)
 import qualified    Data.ByteString.Lazy            as BL
@@ -417,8 +416,8 @@ defaultSpillWriter h (tStart, tEnd) payload = do
 -- Writes the chunk range and payload to the handle using 'Binary.encode'.
 defaultBinarySpillWriter :: (Binary.Binary t, Binary.Binary payload)
                          => Handle -> (t, t) -> payload -> IO ()
-defaultBinarySpillWriter h range payload =
-    BL.hPut h $ Binary.encode (range, payload)
+defaultBinarySpillWriter h termRange payload =
+    BL.hPut h $ Binary.encode (termRange, payload)
 
 -- | Read a binary spill file and return it as a list of chunks.
 -- Used to restore files written by 'defaultBinarySpillWriter'.
@@ -447,12 +446,12 @@ simulate g wld v = loop g wld initTerm v
   {-# INLINE loop #-}
   loop :: (StateSpace t v e a s)
        => StdGen -> a s -> t -> v -> ST s ()
-  loop g wld t v
-    | t == lastTerm = updateAll g t v wld >> eventAll wld t
+  loop g' wld' t v'
+    | t == lastTerm = updateAll g' t v' wld' >> eventAll wld' t
     | otherwise = do
-        updateAll g t v wld
-        eventAll wld t
-        loop g wld (nextTerm t) v
+        updateAll g' t v' wld'
+        eventAll wld' t
+        loop g' wld' (nextTerm t) v'
 
 -- | Run a simulation from initialization through the final term.
 -- Build the world state with initAll, then repeat updateAll followed by eventAll for each term.
@@ -616,6 +615,9 @@ identity n = newArray ((1, 1), (n, n)) 0 >>= \arr -> do
 inverse :: IOArray (Int, Int) Double -> IO (IOArray (Int, Int) Double)
 inverse mat = do
     bnds <- getBounds mat
+    -- 'inverse' is only ever called on a 1-indexed square matrix, so the bounds
+    -- are @((1,1),(n,n))@; matching @((1,1),(n,_))@ is intentionally partial
+    -- (audited invariant) — a non-1-indexed matrix is a programmer error here.
     let ((1,1),(n,_)) = bnds
     inv <- identity n
 

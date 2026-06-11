@@ -41,6 +41,7 @@ module ExchangeAlgebra.Write
       -- * Spill / Restore
     , restoreJournalFromBinarySpill
       -- * Helpers
+    , balanceOf
     , tshow
     , toSameLength
     ) where
@@ -435,6 +436,9 @@ balanceOf t = diffRL . projByAccountTitle t
 sideCells :: (HatVal n) => (Side, n) -> (T.Text, T.Text)
 sideCells (side, mag)
     | mag == zeroValue = (T.empty, T.empty)
+    -- 'diffRL' returns the wildcard 'Side' only when the net magnitude is zero,
+    -- which the guard above has already handled; a non-zero balance is always
+    -- 'Debit' or 'Credit'. The non-exhaustive @case@ is by design (audited).
     | otherwise = case side of
         Debit  -> (tshow mag, T.empty)
         Credit -> (T.empty, tshow mag)
@@ -686,8 +690,8 @@ writeTermIO path t arr = do
     let rows = [c1Min .. c1Max]
     let cols = [c2Min .. c2Max]
     body <- forM rows $ \r -> do
-        vals <- forM cols $ \c -> tshow <$> readArray arr (t, r, c)
-        pure (tshow r : vals)
+        cells <- forM cols $ \c -> tshow <$> readArray arr (t, r, c)
+        pure (tshow r : cells)
     writeCSV path ((T.pack "" : L.map tshow cols) : body)
 
 -- | Output a 2D IOArray (Input-Output Table or ripple effect matrix) in CSV format.
@@ -699,8 +703,8 @@ writeIOMatrix path arr = do
     let rows = [r1 .. r2]
     let cols = [c1 .. c2]
     body <- forM rows $ \r -> do
-        vals <- forM cols $ \c -> tshow <$> readArray arr (r, c)
-        pure (tshow r : vals)
+        cells <- forM cols $ \c -> tshow <$> readArray arr (r, c)
+        pure (tshow r : cells)
     writeCSV path ((T.pack "" : L.map tshow cols) : body)
 
 ------------------------------------------------------------------

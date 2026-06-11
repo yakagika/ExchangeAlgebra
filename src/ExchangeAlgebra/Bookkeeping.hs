@@ -71,6 +71,8 @@ module ExchangeAlgebra.Bookkeeping
     ) where
 
 import           ExchangeAlgebra.Algebra
+-- 'MoneyDecimal' is used only by the Haddock doctest examples (which run in this
+-- module's import scope), not the module body; keep it imported for the doctests.
 import           ExchangeAlgebra.Value    (MoneyDecimal)
 import           GHC.Stack (HasCallStack)
 

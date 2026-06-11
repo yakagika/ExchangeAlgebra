@@ -84,28 +84,20 @@ module ExchangeAlgebra.Algebra
 
 import              ExchangeAlgebra.Algebra.Base
 
-import              Debug.Trace
-import qualified    Data.Text           as T
-import              Data.Text           (Text)
-import qualified    Data.List           as L (foldl', map, length, elem,sort,sortOn,filter, or, and,any, sum, concat)
+import qualified    Data.List           as L (foldl', sort,sortOn,any)
 import              Prelude             hiding (map, head, filter,tail, traverse, mapM)
-import qualified    Data.Time           as Time
-import              Data.Time
 import qualified    Data.HashMap.Strict     as Map
 import qualified    Data.IntMap.Strict      as IntMap
 import qualified    Data.IntSet             as IntSet
 import qualified    Data.Map.Strict         as M
-import qualified    Data.Foldable       as Foldable (foldMap,foldl',foldr,toList)
+import qualified    Data.Foldable       as Foldable (foldl',foldr)
 import qualified    Data.Sequence       as Seq
 import              Data.Sequence       (Seq)
 import qualified    Data.Maybe          as Maybe
 import qualified    Number.NonNegative  as NN  -- Non-negative real numbers
-import              Numeric.NonNegative.Class (C)
-import              Algebra.Additive (C)
-import qualified    Data.Scientific     as D (Scientific, fromFloatDigits, formatScientific, FPFormat(..))
+import qualified    Data.Scientific     as D (fromFloatDigits, formatScientific, FPFormat(..))
 import Control.DeepSeq
-import GHC.Stack (HasCallStack, callStack, prettyCallStack)
-import Data.Hashable
+import GHC.Stack (HasCallStack)
 import qualified Data.Binary as Binary
 
 ------------------------------------------------------------------
@@ -446,11 +438,6 @@ instance (HatVal v) => Ord (Pair v) where
 nullPair :: Pair v
 nullPair = Pair Seq.empty Seq.empty
 
-{-# INLINE isNullPair #-}
--- | Complexity: O(1)
-isNullPair :: Pair v -> Bool
-isNullPair (Pair hs ns) = Seq.null hs && Seq.null ns
-
 {-# INLINE pairAppend #-}
 -- | Complexity: O(log(min(h1,h2)) + log(min(n1,n2)))
 -- where h1/h2 and n1/n2 are the lengths of the appended 'Seq's on each side.
@@ -574,9 +561,13 @@ queryAxisPosting !keys !idx !allIds =
     case matchedSets of
         Left ()  -> IntSet.empty
         Right [] -> allIds
-        Right xs ->
-            let !(x:rest) = L.sortOn IntSet.size xs
-            in L.foldl' IntSet.intersection x rest
+        -- 'L.sortOn' preserves length, so a non-empty 'xs' sorts to a non-empty
+        -- list; matching @(x:rest)@ here (rather than on a lazy let-binding) makes
+        -- exhaustiveness explicit and avoids the partial pattern warning.
+        Right xs@(_:_) ->
+            case L.sortOn IntSet.size xs of
+                (x:rest) -> L.foldl' IntSet.intersection x rest
+                []       -> allIds  -- unreachable: xs is non-empty
   where
     matchedSets =
         L.foldl' collect (Right []) (zip [0 :: Int ..] keys)
@@ -684,12 +675,12 @@ instance (HatVal v, HatBaseClass b) => Ord (Alg v b) where
     compare Zero _ = LT
     compare _ Zero = GT
 
-    compare (v:@b) (Liner _ _ _ _ _ _) = LT
-    compare (Liner _ _ _ _ _ _) (v:@b) = GT
+    compare (_:@_) (Liner _ _ _ _ _ _) = LT
+    compare (Liner _ _ _ _ _ _) (_:@_) = GT
     compare (v1:@b1) (v2:@b2)
-        | b1 == b2 = compare v1 v2
+        | b1 == b2  = compare v1 v2
         | b1 >  b2  = GT
-        | b1 <  b2  = LT
+        | otherwise = LT   -- b1 < b2 (Ord is total; otherwise keeps it exhaustive)
 
     compare (Liner m1 _ _ _ _ _) (Liner m2 _ _ _ _ _) = compare m1 m2
 
@@ -870,8 +861,8 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
 
     (.+) = mappend
 
-    x  .*  Zero      = Zero
-    0  .*  x         = Zero
+    _  .*  Zero      = Zero
+    0  .*  _         = Zero
     -- The algebra is over non-negative values: reject a negative / non-finite
     -- scalar instead of silently producing out-of-domain (negative) postings.
     -- One check on the scalar suffices — x >= 0 and the existing values are >= 0,
@@ -888,7 +879,7 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
                      allIds
 
     norm Zero       = 0
-    norm (v:@b)     = v
+    norm (v:@_)     = v
     norm (Liner ms _ _ _ _ _) = Map.foldl' (\ !x (Pair hs ns) -> x + Foldable.foldl' (+) 0 hs + Foldable.foldl' (+) 0 ns) 0 ms
 
     {-# INLINE (.-) #-}
@@ -909,6 +900,12 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
                         -- Already in canonical form: singleton on winning side, empty on other
                         (1, 0) | h > n -> Just p
                         (0, 1) | n > h -> Just p
+                        -- @EQ@ is unreachable here: this branch is only entered
+                        -- when 'nearlyEqScaled' h n is False above, so h and n are
+                        -- not (even approximately) equal; @compare h n@ is GT or
+                        -- LT. The non-exhaustive @case@ is by design (audited) — a
+                        -- defensive @EQ@ arm would be dead code with no canonical
+                        -- result to return.
                         _ -> case compare h n of
                             GT -> Just (Pair (Seq.singleton (h - n)) Seq.empty)
                             LT -> Just (Pair Seq.empty (Seq.singleton (n - h)))
@@ -966,7 +963,7 @@ instance (HatVal n, ExBaseClass b) =>  Exchange Alg n b where
 -- Complexity: O(s) (s is the total number of scalar entries)
 vals :: (HatVal v, HatBaseClass b) => Alg v b -> [v]
 vals Zero = []
-vals (v:@b) = [v]
+vals (v:@_) = [v]
 vals (Liner m _ _ _ _ _) =
     reverse $
         Map.foldl'
@@ -984,7 +981,7 @@ vals (Liner m _ _ _ _ _) =
 -- Complexity: O(s) (s is the total number of scalar entries)
 bases :: (HatVal v, HatBaseClass b) => Alg v b -> [b]
 bases Zero = []
-bases (v:@b) = [b]
+bases (_:@b) = [b]
 bases (Liner m _ _ _ _ _) = Map.foldlWithKey' f [] m
     where
         f ::  (HatVal v, HatBaseClass b) => [b] -> BasePart b -> Pair v ->  [b]
@@ -992,7 +989,7 @@ bases (Liner m _ _ _ _ _) = Map.foldlWithKey' f [] m
             = Foldable.foldl' (g Not b) (Foldable.foldl' (g Hat b) xs hs) ns
 
         g ::  (HatVal v, HatBaseClass b) => Hat -> BasePart b -> [b] -> v -> [b]
-        g h b ys v = (merge h b):ys
+        g h b ys _ = (merge h b):ys
 
 {-# INLINE fromList #-}
 -- | convert List to Alg n b
@@ -1125,9 +1122,15 @@ toASCList = L.sort . toList
 -- >>> map (\ (x:@hb) -> (2 * x):@hb) $ x .+ y
 -- 2.00:@Hat .+ 4.00:@Hat .+ 2.00:@Not .+ 4.00:@Not
 
+-- NB. 'map' applies its function to one singleton posting at a time and requires
+-- the result to itself be a singleton @(v2 :@ b2)@ (or 'Zero', handled via the
+-- 'isZeroValue' check / the 'r' helper below). The @let v2:@b2 = ...@ and the
+-- @case fn (...)@ in 'r' therefore intentionally match only the @(:@)@ shape; a
+-- 'Zero'\/'Liner' result is outside this contract, so the non-exhaustive patterns
+-- are by design (audited). Adding catch-all arms would silently change behaviour.
 map :: (HasCallStack,HatVal v, HatBaseClass b)
      => (Alg v b -> Alg v b) -> Alg v b -> Alg v b
-map f Zero      = Zero
+map _ Zero      = Zero
 map f (v:@b)    = let  v2:@b2 = f (v:@b)
                 in case isZeroValue v2 of
                     True  -> Zero
@@ -1148,9 +1151,9 @@ map f (Liner m _ _ _ _ _) = mkAlgFromMap $ (Map.foldrWithKey (p f) dnilMap m) Ma
           -> Pair v
           -> DMap (BasePart b) (Pair v)
           -> DMap (BasePart b) (Pair v)
-        p f b Pair {_hatSide=hs, _notSide=ns} accDList =
-            let (dl1, hs2) = q f Hat b hs
-                (dl2, ns2) = q f Not b ns
+        p fn b Pair {_hatSide=hs, _notSide=ns} accDList =
+            let (dl1, hs2) = q fn Hat b hs
+                (dl2, ns2) = q fn Not b ns
                 prefix     = dappendMap dl1 dl2
             in case (Seq.null hs2, Seq.null ns2) of
                 (True,True)   -> dappendMap prefix accDList
@@ -1170,7 +1173,7 @@ map f (Liner m _ _ _ _ _) = mkAlgFromMap $ (Map.foldrWithKey (p f) dnilMap m) Ma
           -> BasePart b
           -> Seq v
           -> (DMap (BasePart b) (Pair v), Seq v)
-        q f h b vs = Foldable.foldl' (r f h b) (dnilMap, Seq.empty) vs
+        q fn h b vs = Foldable.foldl' (r fn h b) (dnilMap, Seq.empty) vs
 
         {-# INLINE r #-}
         r  :: (HatVal v, HatBaseClass b)
@@ -1180,7 +1183,7 @@ map f (Liner m _ _ _ _ _) = mkAlgFromMap $ (Map.foldrWithKey (p f) dnilMap m) Ma
            -> (DMap (BasePart b) (Pair v), Seq v)
            -> v
            -> (DMap (BasePart b) (Pair v), Seq v)
-        r f h b (dlAcc,vsAcc) v = case f (v:@(merge h b)) of
+        r fn h b (dlAcc,vsAcc) v = case fn (v:@(merge h b)) of
                             Zero   ->  (dlAcc, vsAcc)
                             ------------------------------------------------------------------
                             v2:@b2
@@ -1193,35 +1196,11 @@ map f (Liner m _ _ _ _ _) = mkAlgFromMap $ (Map.foldrWithKey (p f) dnilMap m) Ma
                                                                           ,nullPair{_notSide = Seq.singleton v2} ))
                                                         ,vsAcc )
 
--- Difference list definition
-type DList a = [a] -> [a]
+-- Difference-map (endo) used by 'map' to accumulate Liner rebuilds in O(1).
+-- NB. The plain difference-list helpers (dnil/dappend/dsingle/dToList/dFromList)
+-- and the unused 'DList' type alias were removed as dead code: only the DMap
+-- variants (dnilMap/dappendMap/dsingleMap, defined locally in 'map') are used.
 type DMap k v = Map.HashMap k v -> Map.HashMap k v
-
-{-# INLINE dnil #-}
--- | Complexity: O(1)
-dnil :: DList a
-dnil = id
-
-{-# INLINE dappend #-}
--- | Complexity: O(1)
-dappend :: DList a -> DList a -> DList a
-dappend = (.)  -- Function composition
-
-{-# INLINE dsingle #-}
--- | Complexity: O(1)
-dsingle :: a -> DList a
-dsingle x = \rest -> x : rest
-
-{-# INLINE dToList #-}
--- | Complexity: O(k), where k is the resulting list length.
-dToList :: DList a -> [a]
-dToList dl = dl []
-
-{-# INLINE dFromList #-}
--- | Complexity: O(k) to capture the prefix list xs.
-dFromList :: [a] -> DList a
-dFromList xs = (xs ++)
-
 
 {-# INLINE filter #-}
 -- | filter
@@ -1241,7 +1220,7 @@ dFromList xs = (xs ++)
 
 
 filter :: (HatVal v, HatBaseClass b) => (Alg v b -> Bool) -> Alg v b -> Alg v b
-filter f Zero                 = Zero
+filter _ Zero                 = Zero
 filter f (v:@b) | f (v:@b)    = v:@b
                 | otherwise   = Zero
 
@@ -1477,8 +1456,8 @@ projByAccountTitle :: (HatVal n, ExBaseClass b) => AccountTitles -> Alg n b -> A
 projByAccountTitle at alg = filter (f at) alg
     where
         f :: (HatVal n,ExBaseClass b) => AccountTitles -> Alg n b -> Bool
-        f at Zero = False
-        f at x    = ((getAccountTitle ._hatBase) x) .== at
+        f _ Zero = False
+        f t x    = ((getAccountTitle ._hatBase) x) .== t
 
 -- | Bar-netted norm of a projection. The query list is treated as a __set__
 -- (see 'proj'): overlapping or duplicate queries do not double count.

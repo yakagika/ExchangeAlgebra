@@ -51,26 +51,20 @@ module ExchangeAlgebra.Algebra.Transfer
 import qualified    ExchangeAlgebra.Algebra as EA
 import              ExchangeAlgebra.Algebra
 
-
-import qualified    Number.NonNegative  as NN       ( Double
-                                                    , fromNumber
-                                                    , toNumber,T) -- Non-negative real numbers
-import qualified    Data.Maybe          as Maybe
+-- NN is referenced only by the Haddock doctest examples (e.g. @id :: NN.Double ->
+-- NN.Double@), which run in this module's import scope; keep it imported.
+import qualified    Number.NonNegative  as NN       ( Double )
 import              Text.Show.Unicode               ( ushow)
 import              GHC.Exts                        ( reallyUnsafePtrEquality#
                                                     , isTrue#
-                                                    , build
                                                     , lazy)
 import              Data.Semigroup                  ( Semigroup(stimes)
                                                     , stimesIdempotentMonoid)
-import              Data.Monoid                     ( Monoid(..))
 import qualified    Data.Foldable       as Foldable
-import              Data.Foldable                   ( Foldable())
 import              Data.Bits                       ( shiftL
                                                     , shiftR)
 import qualified    Data.HashMap.Strict as HM
 import              Utils.Containers.Internal.StrictPair
-import              Debug.Trace
 
 ------------------------------------------------------------------
 -- * Core computation
@@ -100,7 +94,7 @@ isNullTable _         = False
 
 instance (HatBaseClass b) => Show (TransTable n b) where
     show NullTable                = "[]"
-    show (TransTable s b f a l r)                   = "[(" ++ ushow b
+    show (TransTable _ b _ a l r)                   = "[(" ++ ushow b
                                                     ++ ","
                                                     ++ ushow a
                                                     ++ ",<function>)"
@@ -173,11 +167,6 @@ insertMin kx fx x t
 {-# INLINE unions #-}
 unions :: (HatVal n, Foldable f, HatBaseClass b) => f (TransTable n b) -> TransTable n b
 unions ts = Foldable.foldl' union NullTable ts
-
-{-# INLINE null #-}
-null :: (HatBaseClass b) => TransTable n b -> Bool
-null NullTable = True
-null (TransTable _ _ _ _ _ _) = False
 
 {-# INLINE size #-}
 size :: (HatBaseClass b) => TransTable n b -> Size
@@ -349,24 +338,9 @@ insertR kx0 = go kx0 kx0
                where !r' = go orig bx fx ax r
             EQ -> t
 
--- | Update the transformation function in the table
-updateFunction:: (HatVal n,HatBaseClass b) => b -> (n -> n) -> b -> TransTable n b ->  TransTable n b
-updateFunction b = go b b
-    where
-    {-# INLINE go #-}
-    go :: (HatVal n,HatBaseClass b) =>  b -> b -> (n -> n) -> b -> TransTable n b -> TransTable n b
-    go orig !_  f  x NullTable = singleton (lazy orig) f x
-    go orig !kx fx x t@(TransTable sz ky fy y l r) =
-        case compareElement kx ky of
-            LT | l' `ptrEq` l -> t
-               | otherwise -> balanceL ky fy y l' r
-               where !l' = go orig kx fx x l
-            GT | r' `ptrEq` r -> t
-               | otherwise -> balanceR ky fy y l r'
-               where !r' = go orig kx fx x r
-            EQ | x `ptrEq` y && (lazy orig `seq` (orig `ptrEq` ky)) -> t
-               | otherwise -> TransTable sz (lazy orig) (fx . fy) x l r
-
+-- NB. The unused\/unexported 'updateFunction' helper (update the transformation
+-- function in the table) was removed as dead code; reintroduce from history if a
+-- function-update operation on 'TransTable' is needed.
 
 {-# INLINE ptrEq #-}
 ptrEq :: a -> a -> Bool
@@ -433,17 +407,8 @@ balanceR b f a l r = case l of
                    (_, _) -> error "Failure in Data.Map.balanceR"
               | otherwise -> TransTable (1+ls+rs) b f a l r
 
-lookup :: (HatVal n, HatBaseClass b) => b -> TransTable n b -> Maybe (TransTable n b)
-lookup k = k `seq` go
-  where
-    go NullTable = Nothing
-    go (TransTable s b f a l r) =
-        case compare k b of
-            LT -> go l
-            GT -> go r
-            EQ -> Just (TransTable s b f a l r)
-
-
+-- NB. The unused\/unexported 'lookup' helper (point lookup on 'TransTable') was
+-- removed as dead code; reintroduce from history if needed.
 
 -- | make TransTable from list
 --
@@ -520,7 +485,7 @@ infixr 8 :->
 infixr 7 |%
 
 instance (HatVal n) => Show (n -> n) where
-    show f = "<function>"
+    show _ = "<function>"
 
 -- | Build an indexed fast transfer function from a list of transfer rules.
 -- More efficient than @transfer@ when repeatedly applying the same TransTable.
