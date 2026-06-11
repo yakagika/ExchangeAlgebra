@@ -25,7 +25,7 @@
       deriving (Eq, Ord, Show, Generic, Hashable, Typeable)
 
     instance Element Company where
-      wiledcard = CompanyWildcard
+      wildcard = CompanyWildcard
     @
 
     == Import guidance
@@ -74,33 +74,33 @@ class (Eq a, Ord a, Show a, Hashable a, Typeable a) => Element a where
     -- | The wildcard value. Used for pattern matching in search, transfer transformation, etc.
     --
     -- Complexity: O(1)
-    wiledcard       :: a
+    wildcard       :: a
 
     -- | Determines whether the element itself or any of its internal components contains a wildcard.
     -- For tuple elements, returns True if any component is a wildcard.
     --
     -- Complexity: O(k) (k is the number of tuple components; O(1) for primitive types)
-    {-# INLINE haveWiledcard #-}
-    haveWiledcard :: a -> Bool
-    haveWiledcard = isWiledcard
+    {-# INLINE haveWildcard #-}
+    haveWildcard :: a -> Bool
+    haveWildcard = isWildcard
 
     -- | Determines whether the value is exactly the wildcard.
     --
     -- Complexity: O(1)
-    {-# INLINE isWiledcard #-}
-    isWiledcard     :: a -> Bool
-    isWiledcard a = a == wiledcard
+    {-# INLINE isWildcard #-}
+    isWildcard     :: a -> Bool
+    isWildcard a = a == wildcard
 
     -- | Wildcard-ignoring transformation.
     -- If @after@ is a wildcard, returns @before@.
     -- Used inside transfer to fill wildcard positions in the target basis with the original values.
     --
     -- Complexity: O(k) (k is the number of tuple components; O(1) for primitive types)
-    {-# INLINE ignoreWiledcard #-}
-    ignoreWiledcard :: a -> a -> a
-    ignoreWiledcard before after
+    {-# INLINE ignoreWildcard #-}
+    ignoreWildcard :: a -> a -> a
+    ignoreWildcard before after
         | before == after   = before
-        | isWiledcard after = before
+        | isWildcard after = before
         | otherwise         = after
 
     -- | Wildcard-aware equality test.
@@ -109,8 +109,8 @@ class (Eq a, Ord a, Show a, Hashable a, Typeable a) => Element a where
     -- Complexity: O(k) (k is the number of tuple components; O(1) for primitive types)
     {-# INLINE equal #-}
     equal :: a -> a -> Bool
-    equal a b | isWiledcard a = True
-              | isWiledcard b = True
+    equal a b | isWildcard a = True
+              | isWildcard b = True
               | otherwise     = a == b
 
     -- | Equality operator that treats wildcards as equal.
@@ -119,7 +119,7 @@ class (Eq a, Ord a, Show a, Hashable a, Typeable a) => Element a where
     -- Complexity: O(k) (k is the number of tuple components; O(1) for primitive types)
     {-# INLINE (.==)  #-}
     (.==) :: a -> a -> Bool
-    (.==) a b = a == b || (haveWiledcard a || haveWiledcard b) && equal a b
+    (.==) a b = a == b || (haveWildcard a || haveWildcard b) && equal a b
 
     -- | Inequality operator that treats wildcards as equal. Negation of @(.==)@.
     --
@@ -192,7 +192,7 @@ instance Hashable AxisKey where
 
 {-# INLINE axisIsWildcard #-}
 axisIsWildcard :: AxisKey -> Bool
-axisIsWildcard (AxisKey x) = isWiledcard x
+axisIsWildcard (AxisKey x) = isWildcard x
 
 -- | A type class for decomposing a basis element into a list of per-axis t'AxisKey's.
 -- Overlapping instances are defined for tuple types so that each component
@@ -206,13 +206,13 @@ instance {-# OVERLAPPABLE #-} Element a => AxisDecompose a where
     {-# INLINE toAxisKeys #-}
     toAxisKeys a = [AxisKey a]
 
--- | Shorthand notation for the wildcard. An alias for @wiledcard@.
+-- | Shorthand notation for the wildcard. An alias for @wildcard@.
 -- Write @(.#)@ when specifying patterns in projections and transfer transformations.
 --
 -- Complexity: O(1)
 {-# INLINE (.#) #-}
 (.#) :: Element a => a
-(.#) = wiledcard
+(.#) = wildcard
 
 infix 4 .==
 infix 4 ./=
@@ -362,8 +362,8 @@ instance Binary.Binary AccountTitles where
     get = toEnum . fromIntegral <$> Binary.getWord8
 
 instance Element AccountTitles where
-    {-# INLINE wiledcard #-}
-    wiledcard = AccountTitle
+    {-# INLINE wildcard #-}
+    wildcard = AccountTitle
 
 
 
@@ -374,8 +374,8 @@ type Name = Text
 type Subject = Text
 instance Element Text where
 
-    {-# INLINE wiledcard #-}
-    wiledcard   = T.empty
+    {-# INLINE wildcard #-}
+    wildcard   = T.empty
 
 -- | Currency unit or physical quantity
 data CountUnit  = Yen
@@ -398,8 +398,8 @@ instance Binary.Binary CountUnit where
 
 instance Element CountUnit where
 
-    {-# INLINE wiledcard #-}
-    wiledcard = CountUnit
+    {-# INLINE wildcard #-}
+    wildcard = CountUnit
 
 
 -- TimeOfDay internally holds hour, minute, and second (Pico), so each is hashed individually
@@ -412,31 +412,31 @@ instance Hashable Day where
   hashWithSalt salt day = hashWithSalt salt (toModifiedJulianDay day)
 
 instance Element TimeOfDay where
-    wiledcard = Time.midnight
+    wildcard = Time.midnight
 
 instance Element Day where
-    wiledcard =  ModifiedJulianDay 0
+    wildcard =  ModifiedJulianDay 0
 
 instance (Element a ,Element b)
     => Element (a, b) where
 
-    {-# INLINE wiledcard #-}
-    wiledcard = (wiledcard, wiledcard)
+    {-# INLINE wildcard #-}
+    wildcard = (wildcard, wildcard)
 
-    {-# INLINE haveWiledcard #-}
-    haveWiledcard (a,b)
-        = isWiledcard a
-       || isWiledcard b
+    {-# INLINE haveWildcard #-}
+    haveWildcard (a,b)
+        = isWildcard a
+       || isWildcard b
 
     {-# INLINE equal #-}
     equal (a1, a2) (b1, b2)
         =  (a1 .== b1)
         && (a2 .== b2)
 
-    {-# INLINE ignoreWiledcard #-}
-    ignoreWiledcard (a1, a2) (b1, b2)
-        = ( ignoreWiledcard a1 b1
-          , ignoreWiledcard a2 b2)
+    {-# INLINE ignoreWildcard #-}
+    ignoreWildcard (a1, a2) (b1, b2)
+        = ( ignoreWildcard a1 b1
+          , ignoreWildcard a2 b2)
 
     {-# INLINE compareElement #-}
     compareElement (a1, a2) (b1, b2)
@@ -452,16 +452,16 @@ instance {-# OVERLAPPING #-} (Element a, Element b)
 instance (Element a, Element b, Element c)
     => Element (a, b, c) where
 
-    {-# INLINE wiledcard #-}
-    wiledcard = ( wiledcard
-                , wiledcard
-                , wiledcard)
+    {-# INLINE wildcard #-}
+    wildcard = ( wildcard
+                , wildcard
+                , wildcard)
 
-    {-# INLINE haveWiledcard #-}
-    haveWiledcard (a,b,c)
-        = isWiledcard a
-       || isWiledcard b
-       || isWiledcard c
+    {-# INLINE haveWildcard #-}
+    haveWildcard (a,b,c)
+        = isWildcard a
+       || isWildcard b
+       || isWildcard c
 
 
     {-# INLINE equal #-}
@@ -470,11 +470,11 @@ instance (Element a, Element b, Element c)
         && (a2 .== b2)
         && (a3 .== b3)
 
-    {-# INLINE ignoreWiledcard #-}
-    ignoreWiledcard (a1, a2, a3) (b1, b2, b3)
-        = ( ignoreWiledcard a1 b1
-          , ignoreWiledcard a2 b2
-          , ignoreWiledcard a3 b3)
+    {-# INLINE ignoreWildcard #-}
+    ignoreWildcard (a1, a2, a3) (b1, b2, b3)
+        = ( ignoreWildcard a1 b1
+          , ignoreWildcard a2 b2
+          , ignoreWildcard a3 b3)
 
     {-# INLINE compareElement #-}
     compareElement (a1, a2, a3) (b1, b2, b3)
@@ -490,19 +490,19 @@ instance {-# OVERLAPPING #-} (Element a, Element b, Element c)
 instance (Element a, Element b, Element c, Element d)
     => Element (a, b, c, d) where
 
-    {-# INLINE wiledcard #-}
-    wiledcard = ( wiledcard
-                , wiledcard
-                , wiledcard
-                , wiledcard)
+    {-# INLINE wildcard #-}
+    wildcard = ( wildcard
+                , wildcard
+                , wildcard
+                , wildcard)
 
 
-    {-# INLINE haveWiledcard #-}
-    haveWiledcard (a,b,c,d)
-        = isWiledcard a
-       || isWiledcard b
-       || isWiledcard c
-       || isWiledcard d
+    {-# INLINE haveWildcard #-}
+    haveWildcard (a,b,c,d)
+        = isWildcard a
+       || isWildcard b
+       || isWildcard c
+       || isWildcard d
 
     {-# INLINE equal #-}
     equal (a1, a2, a3, a4) (b1, b2, b3, b4)
@@ -511,12 +511,12 @@ instance (Element a, Element b, Element c, Element d)
         && (a3 .== b3)
         && (a4 .== b4)
 
-    {-# INLINE ignoreWiledcard #-}
-    ignoreWiledcard (a1, a2, a3, a4) (b1, b2, b3, b4)
-        = ( ignoreWiledcard a1 b1
-          , ignoreWiledcard a2 b2
-          , ignoreWiledcard a3 b3
-          , ignoreWiledcard a4 b4)
+    {-# INLINE ignoreWildcard #-}
+    ignoreWildcard (a1, a2, a3, a4) (b1, b2, b3, b4)
+        = ( ignoreWildcard a1 b1
+          , ignoreWildcard a2 b2
+          , ignoreWildcard a3 b3
+          , ignoreWildcard a4 b4)
 
     {-# INLINE compareElement #-}
     compareElement (a1, a2, a3, a4) (b1, b2, b3, b4)
@@ -532,21 +532,21 @@ instance {-# OVERLAPPING #-} (Element a, Element b, Element c, Element d)
 instance (Element a, Element b, Element c, Element d, Element e)
     => Element (a, b, c, d, e) where
 
-    {-# INLINE wiledcard #-}
-    wiledcard = ( wiledcard
-                , wiledcard
-                , wiledcard
-                , wiledcard
-                , wiledcard)
+    {-# INLINE wildcard #-}
+    wildcard = ( wildcard
+                , wildcard
+                , wildcard
+                , wildcard
+                , wildcard)
 
 
-    {-# INLINE haveWiledcard #-}
-    haveWiledcard (a,b,c,d,e)
-        = isWiledcard a
-       || isWiledcard b
-       || isWiledcard c
-       || isWiledcard d
-       || isWiledcard e
+    {-# INLINE haveWildcard #-}
+    haveWildcard (a,b,c,d,e)
+        = isWildcard a
+       || isWildcard b
+       || isWildcard c
+       || isWildcard d
+       || isWildcard e
 
     {-# INLINE equal #-}
     equal (a1, a2, a3, a4, a5) (b1, b2, b3, b4, b5)
@@ -556,13 +556,13 @@ instance (Element a, Element b, Element c, Element d, Element e)
         && (a4 .== b4)
         && (a5 .== b5)
 
-    {-# INLINE ignoreWiledcard #-}
-    ignoreWiledcard (a1, a2, a3, a4, a5) (b1, b2, b3, b4, b5)
-        = ( ignoreWiledcard a1 b1
-          , ignoreWiledcard a2 b2
-          , ignoreWiledcard a3 b3
-          , ignoreWiledcard a4 b4
-          , ignoreWiledcard a5 b5)
+    {-# INLINE ignoreWildcard #-}
+    ignoreWildcard (a1, a2, a3, a4, a5) (b1, b2, b3, b4, b5)
+        = ( ignoreWildcard a1 b1
+          , ignoreWildcard a2 b2
+          , ignoreWildcard a3 b3
+          , ignoreWildcard a4 b4
+          , ignoreWildcard a5 b5)
 
     {-# INLINE compareElement #-}
     compareElement (a1, a2, a3, a4, a5) (b1, b2, b3, b4, b5)
@@ -578,22 +578,22 @@ instance {-# OVERLAPPING #-} (Element a, Element b, Element c, Element d, Elemen
 instance (Element a, Element b, Element c, Element d, Element e, Element f)
     => Element (a, b, c, d, e, f) where
 
-    {-# INLINE wiledcard #-}
-    wiledcard = ( wiledcard
-                , wiledcard
-                , wiledcard
-                , wiledcard
-                , wiledcard
-                , wiledcard)
+    {-# INLINE wildcard #-}
+    wildcard = ( wildcard
+                , wildcard
+                , wildcard
+                , wildcard
+                , wildcard
+                , wildcard)
 
-    {-# INLINE haveWiledcard #-}
-    haveWiledcard (a,b,c,d,e,f)
-        = isWiledcard a
-       || isWiledcard b
-       || isWiledcard c
-       || isWiledcard d
-       || isWiledcard e
-       || isWiledcard f
+    {-# INLINE haveWildcard #-}
+    haveWildcard (a,b,c,d,e,f)
+        = isWildcard a
+       || isWildcard b
+       || isWildcard c
+       || isWildcard d
+       || isWildcard e
+       || isWildcard f
 
     {-# INLINE equal #-}
     equal (a1, a2, a3, a4, a5, a6) (b1, b2, b3, b4, b5, b6)
@@ -604,14 +604,14 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f)
         && (a5 .== b5)
         && (a6 .== b6)
 
-    {-# INLINE ignoreWiledcard #-}
-    ignoreWiledcard (a1, a2, a3, a4, a5, a6) (b1, b2, b3, b4, b5, b6)
-        = ( ignoreWiledcard a1 b1
-          , ignoreWiledcard a2 b2
-          , ignoreWiledcard a3 b3
-          , ignoreWiledcard a4 b4
-          , ignoreWiledcard a5 b5
-          , ignoreWiledcard a6 b6)
+    {-# INLINE ignoreWildcard #-}
+    ignoreWildcard (a1, a2, a3, a4, a5, a6) (b1, b2, b3, b4, b5, b6)
+        = ( ignoreWildcard a1 b1
+          , ignoreWildcard a2 b2
+          , ignoreWildcard a3 b3
+          , ignoreWildcard a4 b4
+          , ignoreWildcard a5 b5
+          , ignoreWildcard a6 b6)
 
     {-# INLINE compareElement #-}
     compareElement (a1, a2, a3, a4, a5, a6) (b1, b2, b3, b4, b5, b6)
@@ -626,24 +626,24 @@ instance {-# OVERLAPPING #-} (Element a, Element b, Element c, Element d, Elemen
 
 instance (Element a, Element b, Element c, Element d, Element e, Element f, Element g)
     => Element (a, b, c, d, e, f, g) where
-    {-# INLINE wiledcard #-}
-    wiledcard = ( wiledcard
-                , wiledcard
-                , wiledcard
-                , wiledcard
-                , wiledcard
-                , wiledcard
-                , wiledcard)
+    {-# INLINE wildcard #-}
+    wildcard = ( wildcard
+                , wildcard
+                , wildcard
+                , wildcard
+                , wildcard
+                , wildcard
+                , wildcard)
 
-    {-# INLINE haveWiledcard #-}
-    haveWiledcard (a,b,c,d,e,f,g)
-        = isWiledcard a
-       || isWiledcard b
-       || isWiledcard c
-       || isWiledcard d
-       || isWiledcard e
-       || isWiledcard f
-       || isWiledcard g
+    {-# INLINE haveWildcard #-}
+    haveWildcard (a,b,c,d,e,f,g)
+        = isWildcard a
+       || isWildcard b
+       || isWildcard c
+       || isWildcard d
+       || isWildcard e
+       || isWildcard f
+       || isWildcard g
 
     {-# INLINE equal #-}
     equal (a1, a2, a3, a4, a5, a6, a7) (b1, b2, b3, b4, b5, b6, b7)
@@ -655,15 +655,15 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f, Elem
         && (a6 .== b6)
         && (a7 .== b7)
 
-    {-# INLINE ignoreWiledcard #-}
-    ignoreWiledcard (a1, a2, a3, a4, a5, a6, a7) (b1, b2, b3, b4, b5, b6, b7)
-        = ( ignoreWiledcard a1 b1
-          , ignoreWiledcard a2 b2
-          , ignoreWiledcard a3 b3
-          , ignoreWiledcard a4 b4
-          , ignoreWiledcard a5 b5
-          , ignoreWiledcard a6 b6
-          , ignoreWiledcard a7 b7)
+    {-# INLINE ignoreWildcard #-}
+    ignoreWildcard (a1, a2, a3, a4, a5, a6, a7) (b1, b2, b3, b4, b5, b6, b7)
+        = ( ignoreWildcard a1 b1
+          , ignoreWildcard a2 b2
+          , ignoreWildcard a3 b3
+          , ignoreWildcard a4 b4
+          , ignoreWildcard a5 b5
+          , ignoreWildcard a6 b6
+          , ignoreWildcard a7 b7)
 
     {-# INLINE compareElement #-}
     compareElement (a1, a2, a3, a4, a5, a6, a7) (b1, b2, b3, b4, b5, b6, b7)

@@ -1352,7 +1352,7 @@ proj [b] (v:@b2)
 -- the axis index (the module is @Strict@; see 'projExactMap').
 proj [b] (Liner m ~idx _ ~idToBp _ ~allIds) =
     mkAlgFromMap $
-        if haveWiledcard (base b)
+        if haveWildcard (base b)
             then projWildMap  b m idx idToBp allIds
             else projExactMap b m
 proj (b:bs) (v:@b2)
@@ -1367,7 +1367,7 @@ proj (b:bs) (Liner m ~idx _ ~idToBp _ ~allIds) =
     mkAlgFromMap $
         L.foldl'
             (\acc q -> Map.unionWith pairUnion acc
-                 (if haveWiledcard (base q)
+                 (if haveWildcard (base q)
                      then projWildMap  q m idx idToBp allIds
                      else projExactMap q m))
             Map.empty
@@ -1390,7 +1390,7 @@ choosePairByHat h Pair {_hatSide = hs, _notSide = ns} =
 -- This matters because the module is compiled @{-\# LANGUAGE Strict \#-}@: handing
 -- the (lazy) index to a helper that takes it as a strict argument would force its
 -- whole construction even for a concrete lookup that never needs it. Callers
--- therefore dispatch on 'haveWiledcard' BEFORE touching the index, binding the
+-- therefore dispatch on 'haveWildcard' BEFORE touching the index, binding the
 -- index fields lazily (@~@) and only mentioning them on the wildcard branch.
 -- Guarded by the poison-index regression test in the test suite.
 --
@@ -1410,7 +1410,7 @@ projExactMap b m = case Map.lookup bp m of
 {-# INLINE projWildMap #-}
 -- | Wildcard single-base projection: resolves candidates through the axis index
 -- ('queryAxisPosting'), so it necessarily forces the index. Only invoked when
--- 'haveWiledcard' holds.
+-- 'haveWildcard' holds.
 --
 -- Complexity: O(queryAxisPosting + c * verify).
 projWildMap
@@ -1501,7 +1501,7 @@ projNorm bs (v :@ b)
 -- 'Map.lookup') and never forces the axis index. See 'projExactMap'.
 projNorm [b] (Liner m ~idx _ ~idToBp _ ~allIds) =
     foldProjectedNorm $
-        if haveWiledcard (base b)
+        if haveWildcard (base b)
             then projWildMap  b m idx idToBp allIds
             else projExactMap b m
 -- Multi-pattern path: the query list is a /set/ (see 'proj'). Per-base results
@@ -1513,7 +1513,7 @@ projNorm bs (Liner m ~idx _ ~idToBp _ ~allIds) =
     foldProjectedNorm $
         L.foldl'
             (\acc q -> Map.unionWith pairUnion acc
-                 (if haveWiledcard (base q)
+                 (if haveWildcard (base q)
                      then projWildMap  q m idx idToBp allIds
                      else projExactMap q m))
             Map.empty

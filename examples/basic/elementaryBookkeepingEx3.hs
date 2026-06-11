@@ -13,7 +13,7 @@ data Unit = Yen
 instance Hashable Unit where
 
 instance Element Unit where
-    wiledcard = Unit
+    wildcard = Unit
 
 
 instance BaseClass Unit where

@@ -101,7 +101,7 @@ projKey = [Hat :< Cash]
 
 -- bench-local orphans, same shape as examples/basic/simulateEx2.hs
 instance Element Int where
-    wiledcard = -1
+    wildcard = -1
 instance BaseClass Int where
 
 type CB = HatBase (AccountTitles, Int)

@@ -119,7 +119,7 @@ companies = [fstC .. lastC]
 
 -- 交換代数元にするための宣言
 instance Element Company where
-    wiledcard = -1
+    wildcard = -1
 instance BaseClass Company where
 
 type HatBase2 = HatBase ( AccountTitles

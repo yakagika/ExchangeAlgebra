@@ -8,7 +8,7 @@ import qualified ExchangeAlgebra as EA
 type Company = Int
 
 instance Element Company where
-    wiledcard = 0
+    wildcard = 0
 
 type HatBaseC = HatBase (AccountTitles, Company)
 

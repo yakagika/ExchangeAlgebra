@@ -215,7 +215,7 @@ size (TransTable s _ _ _ _ _) = s
 -- >>> transfer (x .+ y) $ table $ HatNot:<(Products,Amount) :-> HatNot:<(Products,Yen) |% id
 -- 1.00:@Hat:<(Cash,Yen) .+ 2.00:@Not:<(Cash,Yen) .+ 2.00:@Hat:<(Deposits,Yen) .+ 1.00:@Not:<(Products,Yen)
 --
--- >>> instance Element Int where wiledcard = -1
+-- >>> instance Element Int where wildcard = -1
 -- >>> type Test = Alg Double (HatBase (AccountTitles, Int,CountUnit))
 -- >>> x = 1:@Hat:<(Cash,(.#),Yen) .+ 1:@Not:<(Products,1,Yen) :: Test
 -- >>> transfer x $ table $ HatNot:<((.#),(.#),Yen) :-> HatNot:<((.#),(.#),Amount) |% id
@@ -258,7 +258,7 @@ resolveByTree (TransTable _ hb2 f a l r) hb1
         LT -> resolveByTree l hb1
         GT -> resolveByTree r hb1
         EQ -> error $ "transfer: " ++ show hb1 ++ "," ++ show hb2
-    | otherwise = Just (f, ignoreWiledcard hb1 a)
+    | otherwise = Just (f, ignoreWildcard hb1 a)
 
 {-# INLINE ruleEntries #-}
 ruleEntries :: TransTable n b -> [(b, n -> n, b)]
@@ -269,8 +269,8 @@ ruleEntries (TransTable _ b f a l r) =
 {-# INLINE baseKey #-}
 baseKey :: (ExBaseClass b) => b -> Maybe (Hat, AccountTitles)
 baseKey b
-    | isWiledcard h = Nothing
-    | haveWiledcard at = Nothing
+    | isWildcard h = Nothing
+    | haveWildcard at = Nothing
     | otherwise = Just (h, at)
   where
     h = hat b
@@ -301,7 +301,7 @@ resolveByIndex :: (HatVal n, ExBaseClass b)
 resolveByIndex idx hb =
     case baseKey hb >>= (`HM.lookup` tiByHatTitle idx) of
         Just (IndexedUnique before f after)
-            | hb .== before -> Just (f, ignoreWiledcard hb after)
+            | hb .== before -> Just (f, ignoreWildcard hb after)
             | otherwise -> resolveByTree (tiTree idx) hb
         _ -> resolveByTree (tiTree idx) hb
 
@@ -541,8 +541,8 @@ createTransfer tt =
 incomeSummaryAccount :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 incomeSummaryAccount alg =  let (dc,diff) = diffRL alg
                          in case dc of
-                                Credit -> alg .+ (diff :@ (toNot wiledcard) .~ NetIncome)
-                                Debit  -> alg .+ (diff :@ (toNot wiledcard) .~ NetLoss)
+                                Credit -> alg .+ (diff :@ (toNot wildcard) .~ NetIncome)
+                                Debit  -> alg .+ (diff :@ (toNot wildcard) .~ NetLoss)
                                 Side   -> alg
 
 -- | Net income transfer. Transfers NetIncome/NetLoss to RetainedEarnings.
@@ -550,10 +550,10 @@ incomeSummaryAccount alg =  let (dc,diff) = diffRL alg
 -- Complexity: O(s) (s = total number of scalar entries)
 netIncomeTransfer :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 netIncomeTransfer = createTransfer
-    $  (toNot wiledcard) .~ NetIncome :-> (toNot wiledcard) .~ RetainedEarnings |% id
-    ++ (toHat wiledcard) .~ NetIncome :-> (toHat wiledcard) .~ RetainedEarnings |% id
-    ++ (toNot wiledcard) .~ NetLoss   :-> (toHat wiledcard) .~ RetainedEarnings |% id
-    ++ (toHat wiledcard) .~ NetLoss   :-> (toNot wiledcard) .~ RetainedEarnings |% id
+    $  (toNot wildcard) .~ NetIncome :-> (toNot wildcard) .~ RetainedEarnings |% id
+    ++ (toHat wildcard) .~ NetIncome :-> (toHat wildcard) .~ RetainedEarnings |% id
+    ++ (toNot wildcard) .~ NetLoss   :-> (toHat wildcard) .~ RetainedEarnings |% id
+    ++ (toHat wildcard) .~ NetLoss   :-> (toNot wildcard) .~ RetainedEarnings |% id
 
 -- ** Journalizing
 
@@ -564,20 +564,20 @@ netIncomeTransfer = createTransfer
 grossProfitTransfer :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 grossProfitTransfer
     =  createTransfer
-    $  (toNot wiledcard) .~ WageExpenditure :-> (toHat wiledcard) .~ GrossProfit |% id
-    ++ (toHat wiledcard) .~ WageExpenditure :-> (toNot wiledcard) .~ GrossProfit |% id
+    $  (toNot wildcard) .~ WageExpenditure :-> (toHat wildcard) .~ GrossProfit |% id
+    ++ (toHat wildcard) .~ WageExpenditure :-> (toNot wildcard) .~ GrossProfit |% id
     ------------------------------------------------------------------
-    ++ (toNot wiledcard) .~ Depreciation    :-> (toHat wiledcard) .~ GrossProfit |% id
-    ++ (toHat wiledcard) .~ Depreciation    :-> (toNot wiledcard) .~ GrossProfit |% id
+    ++ (toNot wildcard) .~ Depreciation    :-> (toHat wildcard) .~ GrossProfit |% id
+    ++ (toHat wildcard) .~ Depreciation    :-> (toNot wildcard) .~ GrossProfit |% id
     ------------------------------------------------------------------
-    ++ (toNot wiledcard) .~ ValueAdded      :-> (toNot wiledcard) .~ GrossProfit |% id
-    ++ (toHat wiledcard) .~ ValueAdded      :-> (toHat wiledcard) .~ GrossProfit |% id
+    ++ (toNot wildcard) .~ ValueAdded      :-> (toNot wildcard) .~ GrossProfit |% id
+    ++ (toHat wildcard) .~ ValueAdded      :-> (toHat wildcard) .~ GrossProfit |% id
     ------------------------------------------------------------------
-    ++ (toNot wiledcard) .~ Sales           :-> (toNot wiledcard) .~ GrossProfit |% id
-    ++ (toHat wiledcard) .~ Sales           :-> (toHat wiledcard) .~ GrossProfit |% id
+    ++ (toNot wildcard) .~ Sales           :-> (toNot wildcard) .~ GrossProfit |% id
+    ++ (toHat wildcard) .~ Sales           :-> (toHat wildcard) .~ GrossProfit |% id
     ------------------------------------------------------------------
-    ++ (toNot wiledcard) .~ Purchases       :-> (toHat wiledcard) .~ GrossProfit |% id
-    ++ (toHat wiledcard) .~ Purchases       :-> (toNot wiledcard) .~ GrossProfit |% id
+    ++ (toNot wildcard) .~ Purchases       :-> (toHat wildcard) .~ GrossProfit |% id
+    ++ (toHat wildcard) .~ Purchases       :-> (toNot wildcard) .~ GrossProfit |% id
 
 -- | Ordinary Profit Transfer
 --
@@ -589,45 +589,45 @@ grossProfitTransfer
 ordinaryProfitTransfer :: (HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
 ordinaryProfitTransfer
   = createTransfer
-  $  (toNot wiledcard) .~ GrossProfit               :-> (toNot wiledcard) .~ OrdinaryProfit |% id
-  ++ (toHat wiledcard) .~ GrossProfit               :-> (toHat wiledcard) .~ OrdinaryProfit |% id
+  $  (toNot wildcard) .~ GrossProfit               :-> (toNot wildcard) .~ OrdinaryProfit |% id
+  ++ (toHat wildcard) .~ GrossProfit               :-> (toHat wildcard) .~ OrdinaryProfit |% id
   ------------------------------------------------------------------
-  ++ (toNot wiledcard) .~ InterestEarned            :-> (toNot wiledcard) .~ OrdinaryProfit |% id
-  ++ (toHat wiledcard) .~ InterestEarned            :-> (toHat wiledcard) .~ OrdinaryProfit |% id
+  ++ (toNot wildcard) .~ InterestEarned            :-> (toNot wildcard) .~ OrdinaryProfit |% id
+  ++ (toHat wildcard) .~ InterestEarned            :-> (toHat wildcard) .~ OrdinaryProfit |% id
   ------------------------------------------------------------------
-  ++ (toNot wiledcard) .~ InterestExpense           :-> (toHat wiledcard) .~ OrdinaryProfit |% id
-  ++ (toHat wiledcard) .~ InterestExpense           :-> (toNot wiledcard) .~ OrdinaryProfit |% id
+  ++ (toNot wildcard) .~ InterestExpense           :-> (toHat wildcard) .~ OrdinaryProfit |% id
+  ++ (toHat wildcard) .~ InterestExpense           :-> (toNot wildcard) .~ OrdinaryProfit |% id
   ------------------------------------------------------------------
-  ++ (toNot wiledcard) .~ SubsidyIncome             :-> (toNot wiledcard) .~ OrdinaryProfit |% id
-  ++ (toHat wiledcard) .~ SubsidyIncome             :-> (toHat wiledcard) .~ OrdinaryProfit |% id
+  ++ (toNot wildcard) .~ SubsidyIncome             :-> (toNot wildcard) .~ OrdinaryProfit |% id
+  ++ (toHat wildcard) .~ SubsidyIncome             :-> (toHat wildcard) .~ OrdinaryProfit |% id
   ------------------------------------------------------------------
-  ++ (toNot wiledcard) .~ TaxesExpense              :-> (toHat wiledcard) .~ OrdinaryProfit |% id
-  ++ (toHat wiledcard) .~ TaxesExpense              :-> (toNot wiledcard) .~ OrdinaryProfit |% id
+  ++ (toNot wildcard) .~ TaxesExpense              :-> (toHat wildcard) .~ OrdinaryProfit |% id
+  ++ (toHat wildcard) .~ TaxesExpense              :-> (toNot wildcard) .~ OrdinaryProfit |% id
   -- Government
-  ++ (toNot wiledcard) .~ TaxesRevenue              :-> (toNot wiledcard) .~ OrdinaryProfit |% id
-  ++ (toHat wiledcard) .~ TaxesRevenue              :-> (toHat wiledcard) .~ OrdinaryProfit |% id
+  ++ (toNot wildcard) .~ TaxesRevenue              :-> (toNot wildcard) .~ OrdinaryProfit |% id
+  ++ (toHat wildcard) .~ TaxesRevenue              :-> (toHat wildcard) .~ OrdinaryProfit |% id
   ------------------------------------------------------------------
-  ++ (toNot wiledcard) .~ CentralBankPaymentIncome  :-> (toNot wiledcard) .~ OrdinaryProfit |% id
-  ++ (toHat wiledcard) .~ CentralBankPaymentIncome  :-> (toHat wiledcard) .~ OrdinaryProfit |% id
+  ++ (toNot wildcard) .~ CentralBankPaymentIncome  :-> (toNot wildcard) .~ OrdinaryProfit |% id
+  ++ (toHat wildcard) .~ CentralBankPaymentIncome  :-> (toHat wildcard) .~ OrdinaryProfit |% id
   ------------------------------------------------------------------
-  ++ (toNot wiledcard) .~ Depreciation              :-> (toHat wiledcard) .~ OrdinaryProfit |% id
-  ++ (toHat wiledcard) .~ Depreciation              :-> (toNot wiledcard) .~ OrdinaryProfit |% id
+  ++ (toNot wildcard) .~ Depreciation              :-> (toHat wildcard) .~ OrdinaryProfit |% id
+  ++ (toHat wildcard) .~ Depreciation              :-> (toNot wildcard) .~ OrdinaryProfit |% id
   ------------------------------------------------------------------
-  ++ (toNot wiledcard) .~ WageExpenditure           :-> (toHat wiledcard) .~ OrdinaryProfit |% id
-  ++ (toHat wiledcard) .~ WageExpenditure           :-> (toNot wiledcard) .~ OrdinaryProfit |% id
+  ++ (toNot wildcard) .~ WageExpenditure           :-> (toHat wildcard) .~ OrdinaryProfit |% id
+  ++ (toHat wildcard) .~ WageExpenditure           :-> (toNot wildcard) .~ OrdinaryProfit |% id
   ------------------------------------------------------------------
-  ++ (toNot wiledcard) .~ SubsidyExpense            :-> (toHat wiledcard) .~ OrdinaryProfit |% id
-  ++ (toHat wiledcard) .~ SubsidyExpense            :-> (toNot wiledcard) .~ OrdinaryProfit |% id
+  ++ (toNot wildcard) .~ SubsidyExpense            :-> (toHat wildcard) .~ OrdinaryProfit |% id
+  ++ (toHat wildcard) .~ SubsidyExpense            :-> (toNot wildcard) .~ OrdinaryProfit |% id
   ------------------------------------------------------------------
   -- Household
-  ++ (toNot wiledcard) .~ WageEarned                :-> (toNot wiledcard) .~ OrdinaryProfit |% id
-  ++ (toHat wiledcard) .~ WageEarned                :-> (toHat wiledcard) .~ OrdinaryProfit |% id
+  ++ (toNot wildcard) .~ WageEarned                :-> (toNot wildcard) .~ OrdinaryProfit |% id
+  ++ (toHat wildcard) .~ WageEarned                :-> (toHat wildcard) .~ OrdinaryProfit |% id
   ------------------------------------------------------------------
-  ++ (toNot wiledcard) .~ ConsumptionExpenditure    :-> (toHat wiledcard) .~ OrdinaryProfit |% id
-  ++ (toHat wiledcard) .~ ConsumptionExpenditure    :-> (toNot wiledcard) .~ OrdinaryProfit |% id
+  ++ (toNot wildcard) .~ ConsumptionExpenditure    :-> (toHat wildcard) .~ OrdinaryProfit |% id
+  ++ (toHat wildcard) .~ ConsumptionExpenditure    :-> (toNot wildcard) .~ OrdinaryProfit |% id
   -- CentralBank
-  ++ (toNot wiledcard) .~ CentralBankPaymentExpense :-> (toHat wiledcard) .~ OrdinaryProfit |% id
-  ++ (toHat wiledcard) .~ CentralBankPaymentExpense :-> (toNot wiledcard) .~ OrdinaryProfit |% id
+  ++ (toNot wildcard) .~ CentralBankPaymentExpense :-> (toHat wildcard) .~ OrdinaryProfit |% id
+  ++ (toHat wildcard) .~ CentralBankPaymentExpense :-> (toNot wildcard) .~ OrdinaryProfit |% id
 
 
 -- | Transfer to Retained Earnings.
@@ -637,8 +637,8 @@ ordinaryProfitTransfer
 retainedEarningTransfer :: (HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b
 retainedEarningTransfer
   = createTransfer
-  $  (toNot wiledcard) .~ OrdinaryProfit            :-> (toNot wiledcard) .~ RetainedEarnings |% id
-  ++ (toHat wiledcard) .~ OrdinaryProfit            :-> (toHat wiledcard) .~ RetainedEarnings |% id
+  $  (toNot wildcard) .~ OrdinaryProfit            :-> (toNot wildcard) .~ RetainedEarnings |% id
+  ++ (toHat wildcard) .~ OrdinaryProfit            :-> (toHat wildcard) .~ RetainedEarnings |% id
 
 data FinalStockSide
     = FinalStockKeep

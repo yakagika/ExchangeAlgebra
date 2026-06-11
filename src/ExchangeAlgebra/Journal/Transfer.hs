@@ -106,8 +106,8 @@ createTransfer tt = \ts -> transfer ts $ EAT.table tt
 incomeSummaryAccount :: (Note n, HatVal v, ExBaseClass b) => Journal n v b -> Journal n v b
 incomeSummaryAccount js =  let (dc,diff) = diffRL js
                          in case dc of
-                                Credit -> js .+ ((diff :@ (toNot wiledcard) .~ NetIncome) .| plank)
-                                Debit  -> js .+ ((diff :@ (toNot wiledcard) .~ NetLoss)   .| plank)
+                                Credit -> js .+ ((diff :@ (toNot wildcard) .~ NetIncome) .| plank)
+                                Debit  -> js .+ ((diff :@ (toNot wildcard) .~ NetLoss)   .| plank)
                                 Side   -> js
 
 -- | Net income transfer (Journal version). Transfer NetIncome/NetLoss to RetainedEarnings for each Note.

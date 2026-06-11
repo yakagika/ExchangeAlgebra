@@ -107,7 +107,7 @@ instance InitVariables InitVar where
 -- ** 簿記の状態空間の定義
 ------------------------------------------------------------------
 -- ExBase Elementをインスタンス宣言する
--- wiledcardのみ指定すればOK
+-- wildcardのみ指定すればOK
 
 -- 取引主体ID
 -- 一つが最終需要部門
@@ -130,7 +130,7 @@ isConsumer e = case e of
 instance Hashable Entity where
 
 instance Element Entity where
-    wiledcard = Entity
+    wildcard = Entity
 
 instance BaseClass Entity where
 
@@ -156,7 +156,7 @@ data Product = BRDD     -- ^ BREAD DOMESTIC
 instance Hashable Product where
 
 instance Element Product where
-    wiledcard = Product
+    wildcard = Product
 
 instance BaseClass Product where
 
@@ -286,8 +286,8 @@ instance Updatable Term InitVar Ledger s where
 inventoryCount ::  Transaction -> Transaction
 inventoryCount tr = EJT.transfer tr
                   $ EJT.table
-                  $ (toNot wiledcard) .~ Cash .-> (toNot wiledcard) .~ Sales     |% id
-                  ++(toHat wiledcard) .~ Cash .-> (toNot wiledcard) .~ Purchases |% id
+                  $ (toNot wildcard) .~ Cash .-> (toNot wildcard) .~ Sales     |% id
+                  ++(toHat wildcard) .~ Cash .-> (toNot wildcard) .~ Purchases |% id
 
 ------------------------------------------------------------------
 -- ** 直接税率

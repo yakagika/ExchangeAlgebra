@@ -196,6 +196,16 @@
 
 ### Changed
 
+- `Element` class wildcard methods (`ExchangeAlgebra.Algebra.Base.Element`):
+  __breaking__. The misspelt `wiledcard` method family is renamed to the correct
+  spelling, with no compatibility aliases (audit R2). Migration (旧名 → 新名):
+  `wiledcard` → `wildcard`, `haveWiledcard` → `haveWildcard`,
+  `isWiledcard` → `isWildcard`, `ignoreWiledcard` → `ignoreWildcard`. Any
+  `instance Element` defining `wiledcard` (and overriding `haveWiledcard` /
+  `isWiledcard` / `ignoreWiledcard`) must rename those method definitions; all
+  call sites use the new names. The `(.#)` wildcard shorthand is unchanged.
+  The bundled SICE-frozen examples were updated by mechanical identifier rename
+  only (the rename is compile-following and preserves their semantics/values).
 - `Liner` (`ExchangeAlgebra.Algebra`) and `Journal` (`ExchangeAlgebra.Journal`):
   added Haddock documenting the constructor invariants (the internal axis/index
   cache fields must stay consistent with `_realg` / `_jBase`/`_jDelta`, or the
@@ -328,7 +338,7 @@ vs an exact non-negative `Decimal` (`MoneyDecimal`) for determinism/auditability
   projection helper previously forced its full construction even for an exact
   single-base lookup that only needs a `Map.lookup`. The helper is now split into
   `projExactMap` (index-free) and `projWildMap` (uses the index), and callers
-  dispatch on `haveWiledcard` with the index fields bound lazily — so an exact
+  dispatch on `haveWildcard` with the index fields bound lazily — so an exact
   projection is a plain `Map.lookup` and a wildcard projection still uses the
   index. Measured ~4× faster for repeated concrete projections over a large
   ledger (more for workloads that rebuild the projected algebra per query, e.g.

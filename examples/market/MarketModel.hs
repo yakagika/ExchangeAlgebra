@@ -157,7 +157,7 @@ type MNote = (String, Int)
 type MBase = HatBase (AccountTitles, Firm, Firm, CountUnit)
 
 instance Element Firm where
-    wiledcard = -1
+    wildcard = -1
 instance BaseClass Firm where
 
 instance ExBaseClass MBase where

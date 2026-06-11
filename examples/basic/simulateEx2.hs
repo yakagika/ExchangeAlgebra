@@ -123,7 +123,7 @@ companies :: [Company]
 companies = [fstC .. lastC]
 
 instance Element Company where
-    wiledcard = -1
+    wildcard = -1
 
 instance BaseClass Company where
 

@@ -94,14 +94,14 @@ instance InitVariables InitVar where
 -- ** 簿記の状態空間の定義
 ------------------------------------------------------------------
 -- ExBase Elementをインスタンス宣言する
--- wiledcardのみ指定すればOK
+-- wildcardのみ指定すればOK
 
 -- 取引主体ID
 -- 一つが最終需要部門
 type Entity = Int
 
 instance Element Entity where
-    wiledcard = -1
+    wildcard = -1
 instance BaseClass Entity where
 
 -- 最小
@@ -206,8 +206,8 @@ instance Updatable Term InitVar Ledger s where
 inventoryCount ::  Transaction -> Transaction
 inventoryCount tr = EJT.transfer tr
                   $ EJT.table
-                  $ (toNot wiledcard) .~ Cash .-> (toNot wiledcard) .~ Sales     |% id
-                  ++(toHat wiledcard) .~ Cash .-> (toNot wiledcard) .~ Purchases |% id
+                  $ (toNot wildcard) .~ Cash .-> (toNot wildcard) .~ Sales     |% id
+                  ++(toHat wildcard) .~ Cash .-> (toNot wildcard) .~ Purchases |% id
 
 ------------------------------------------------------------------
 -- ** 価格の状態空間の定義

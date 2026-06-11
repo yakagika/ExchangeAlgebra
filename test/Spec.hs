@@ -847,7 +847,7 @@ instance Event SimEvent where
 type SimCompany = Int
 
 instance Element SimCompany where
-    wiledcard = -1
+    wildcard = -1
 
 instance BaseClass SimCompany where
 

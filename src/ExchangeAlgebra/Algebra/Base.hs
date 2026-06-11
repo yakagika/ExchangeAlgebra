@@ -125,7 +125,7 @@ instance Hashable Hat where
 instance Binary.Binary Hat
 
 instance Element Hat where
-    wiledcard = HatNot
+    wildcard = HatNot
 
     {-# INLINE equal #-}
     equal Hat Hat = True
@@ -146,7 +146,7 @@ instance Hashable BaseForSingleHat where
 instance Binary.Binary BaseForSingleHat
 
 instance Element BaseForSingleHat where
-    wiledcard = BaseForSingleHat
+    wildcard = BaseForSingleHat
     equal _ _ = True
 
 instance BaseClass BaseForSingleHat where
@@ -207,8 +207,8 @@ instance (BaseClass a) => Hashable (HatBase a) where
                                      `hashWithSalt` b
 
 -- | Element (HatBase a)
---  haveWiledcard
--- >>> haveWiledcard (HatNot:<Amount :: HatBase CountUnit)
+--  haveWildcard
+-- >>> haveWildcard (HatNot:<Amount :: HatBase CountUnit)
 -- True
 --
 -- (.==)
@@ -223,29 +223,29 @@ instance (BaseClass a) => Hashable (HatBase a) where
 -- >>> compareHatBase (Not:<Amount :: Test) (Not:<(.#) :: Test)
 -- EQ
 --
--- ignoreWiledcard
--- >>> ignoreWiledcard (Not:<(Products,Yen)) (Hat:<(Products,Amount))
+-- ignoreWildcard
+-- >>> ignoreWildcard (Not:<(Products,Yen)) (Hat:<(Products,Amount))
 -- Hat:<(Products,Amount)
 --
--- >>> ignoreWiledcard (Not:<(Products,Yen)) (Hat:<(Products,(.#)))
+-- >>> ignoreWildcard (Not:<(Products,Yen)) (Hat:<(Products,(.#)))
 -- Hat:<(Products,Yen)
 --
--- >>> ignoreWiledcard (Not:<(Cash,(.#))) (HatNot:<((.#),Amount))
+-- >>> ignoreWildcard (Not:<(Cash,(.#))) (HatNot:<((.#),Amount))
 -- Not:<(Cash,Amount)
 
 
 instance (BaseClass a) => Element (HatBase a) where
-    wiledcard = HatNot :<wiledcard
+    wildcard = HatNot :<wildcard
 
-    haveWiledcard (h:<b)
-        = isWiledcard h
-       || haveWiledcard b
+    haveWildcard (h:<b)
+        = isWildcard h
+       || haveWildcard b
 
     {-# INLINE equal #-}
     equal (h1:<b1) (h2:<b2) = h1 .== h2 && b1 .== b2
 
-    ignoreWiledcard (h1:<b1) (h2:<b2)
-        = (ignoreWiledcard h1 h2) :< (ignoreWiledcard b1 b2)
+    ignoreWildcard (h1:<b1) (h2:<b2)
+        = (ignoreWildcard h1 h2) :< (ignoreWildcard b1 b2)
 
 
     compareElement (h1:<b1) (h2:<b2)
@@ -314,7 +314,7 @@ data FixedCurrent   = Fixed   -- ^ Fixed
 -- Complexity: O(1)
 {-# INLINE classifyAccountDivision #-}
 classifyAccountDivision :: HasCallStack => AccountTitles -> AccountDivision
-classifyAccountDivision AccountTitle                 = customError "this is wiledcard AccountTitle"
+classifyAccountDivision AccountTitle                 = customError "this is wildcard AccountTitle"
 classifyAccountDivision CapitalStock                 = Equity
 classifyAccountDivision RetainedEarnings            = Equity
 classifyAccountDivision LongTermLoansPayable        = Liability
