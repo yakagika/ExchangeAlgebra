@@ -234,6 +234,17 @@
 - `forceBalance` (`ExchangeAlgebra.Algebra`): removed unused, unexported,
   untyped `undefined` placeholder (audit R3).
 
+### Performance
+
+- `Journal` append (`.+` / `addJournal`): two redundancies removed on the hot
+  commit path (audit R5 = ROAD_MAP P1b). `toMap` no longer copies when either
+  the base or the delta layer is empty, and appending to an *existing* note key
+  no longer re-inserts the (unchanged) note-axis index entry. Values, sequence
+  order (audit trail) and the public API are unchanged; the whole test suite
+  passes unmodified. Measured: append micro-benches alloc -29%/-36%
+  (base-only / same-note), end-to-end simulation alloc -4.5% with a small
+  wall-clock improvement.
+
 ### Fixed
 
 - `incomeSummaryAccount` (both `ExchangeAlgebra.Algebra.Transfer` and
