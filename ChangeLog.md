@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Added
+- `ExchangeAlgebra.Algebra.netPairMapBy` — the pair read-out of the paper's
+  class-net operator ν_κ (`def:class-net`, notes Def 2.7). For each bucket key it
+  returns a non-negative `(notTotal, hatTotal)` pair, built by netting each base's
+  two sides (bar-like cancellation) and summing the residual on the winning side
+  — `(Σ_{n>h}(n−h), Σ_{h>n}(h−n))`. `balanceMapBy` is its signed-difference
+  version: `balanceMapBy kf == fmap (\(n,h) -> n − h) . netPairMapBy kf`. Both
+  components are non-negative, so `netPairMapBy` is well-behaved on non-negative
+  value types (the `n − h` identity with `balanceMapBy` only holds on a signed
+  type such as `Double`/`MoneyDecimal`). Single pass; redundancy is intentionally
+  reduced (named, not an implicit `bar`).
 - `ExchangeAlgebra.Simulate.Lite` — `stageOf` / `StageTagged`: a note-tagged BSP
   stage whose note type is fixed to `(tag, t)` by construction. Each agent emits
   a bare `Alg v b`; the runner attaches the single note `(stTag, t)` in exactly

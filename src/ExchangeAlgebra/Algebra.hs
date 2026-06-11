@@ -70,6 +70,7 @@ module ExchangeAlgebra.Algebra
     , projNorm
     , balanceBy
     , balanceMapBy
+    , netPairMapBy
     , foldEntriesToMap
     , decBy
     , postFromNetBy
@@ -1565,6 +1566,64 @@ balanceMapBy keyOf = foldEntriesToMap step
         Nothing -> Nothing
         Just k  -> Just (k, if isHat b then negate v else v)
 
+-- | Aggregate the per-base /netted/ balance of an 'Alg' by a key, keeping the
+-- winning side, in a single pass.
+--
+-- This is the implementation counterpart of the paper's @def:class-net@
+-- (\(\nu_\kappa\)), the __pair__ read-out of the class-net operator:
+-- 'balanceMapBy' is its /signed difference/ version
+-- (@balanceMapBy kf == fmap (\\(n,h) -> n - h) . netPairMapBy kf@).
+--
+-- @netPairMapBy keyOf@ projects each entry's (side-stripped) 'BasePart' to a
+-- bucket key with @keyOf@ ('Nothing' drops the entry), and for every key
+-- returns a pair @(notTotal, hatTotal)@ built as follows: for each base \(b\)
+-- it first nets the two sides (@bar@-like cancellation of the redundant
+-- sequences), keeping only the residual on the side that wins, then sums the
+-- residuals across all bases mapping to the key —
+--
+-- \[ \Big( \textstyle\sum_{n_b > h_b} (n_b - h_b),\ \sum_{h_b > n_b} (h_b - n_b) \Big). \]
+--
+-- This per-base netting is named and documented here — it is /not/ an implicit
+-- 'bar'; the function performs exactly the standard-element reduction the name
+-- promises, mirroring how 'balanceMapBy' reports a netted read-out.
+--
+-- __Both components are non-negative__ (consistent with the value domain
+-- \(V \subseteq \mathbb{R}_{\ge 0}\)): a base contributes to at most one side,
+-- whichever residual is larger. Bases whose two sides are equal (up to
+-- 'nearlyEqScaled') contribute nothing. Because of the non-negativity,
+-- @netPairMapBy@ is well behaved for non-negative-only value types, whereas the
+-- @n - h@ identity with 'balanceMapBy' only holds on a /signed/ value type
+-- (e.g. 'Double', @MoneyDouble@, @MoneyDecimal@) where the difference can be
+-- negative.
+--
+-- Complexity: O(total number of entries) — a single fold over the entries,
+-- followed by one collapse over the distinct bases.
+--
+-- >>> type T = Alg Double (HatBase AccountTitles)
+-- >>> let alg = 100 :@ Not:<Cash .+ 30 :@ Hat:<Cash .+ 50 :@ Not:<Deposits :: T
+-- >>> netPairMapBy Just alg
+-- fromList [(Cash,(70.0,0.0)),(Deposits,(50.0,0.0))]
+{-# INLINE netPairMapBy #-}
+netPairMapBy :: (HatVal v, HatBaseClass b, Ord k)
+             => (BasePart b -> Maybe k) -> Alg v b -> M.Map k (v, v)
+netPairMapBy keyOf alg =
+    -- collapse the per-base (notSum, hatSum) accumulator into per-key residuals
+    Map.foldlWithKey' collapse M.empty perBase
+  where
+    -- pass 1: accumulate (notSum, hatSum) per BasePart in one fold
+    perBase = foldEntries step Map.empty alg
+    step !acc v b =
+        let !bp = base b
+            !(notV, hatV) = if isHat b then (zeroValue, v) else (v, zeroValue)
+        in Map.insertWith addPair bp (notV, hatV) acc
+    addPair (!n1, !h1) (!n2, !h2) = (n1 + n2, h1 + h2)
+    collapse !acc bp (!n, !h) = case keyOf bp of
+        Nothing -> acc
+        Just k
+            | nearlyEqScaled h n -> acc
+            | n > h     -> M.insertWith addPair k (n - h, zeroValue) acc
+            | otherwise -> M.insertWith addPair k (zeroValue, h - n) acc
+
 -- | Fold algebra entries into a @Map@, combining values with @(+)@.
 --
 -- The selector function examines each entry @(v, b)@ and optionally returns
@@ -1609,6 +1668,8 @@ foldEntriesToMap f = foldEntries step M.empty
 -- | 'decBy'            | @Map k (Alg v b)@ (structure)    | preserved           |
 -- +--------------------+----------------------------------+---------------------+
 -- | 'balanceMapBy'     | @Map k v@ (signed net per key)   | lost (bar-like)     |
+-- +--------------------+----------------------------------+---------------------+
+-- | 'netPairMapBy'     | @Map k (v,v)@ (non-neg net pair) | lost (bar-like)     |
 -- +--------------------+----------------------------------+---------------------+
 -- | 'foldEntriesToMap' | @Map k v@ (custom collection)    | lost                |
 -- +--------------------+----------------------------------+---------------------+

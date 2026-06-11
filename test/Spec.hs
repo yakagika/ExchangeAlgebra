@@ -1341,6 +1341,38 @@ axiomProperties = do
                 inner = EA.mapBasePart kappa x                           :: NNAlg
                 rhs = EA.mapBasePart kappa' inner                        :: NNAlg
             in netByBase lhs == netByBase rhs
+    -- netPairMapBy (ν_κ pair read-out): three properties from the
+    -- easp-2026-06-11-netpairmapby handoff.
+    -- (a) signed-diff consistency: balanceMapBy == n - h of the pair.
+    --     n - h can be negative, so this is checked on the SIGNED value type
+    --     (Double); a non-negative-only type would break the n-h component.
+    quickProp "netPairMapBy: balanceMapBy x == n - h of netPairMapBy x (Double, signed)" $
+        forAll genAlgD $ \x ->
+            let bm = EA.balanceMapBy Just x                            :: M.Map CountUnit Double
+                np = EA.netPairMapBy Just x                            :: M.Map CountUnit (Double, Double)
+                diff = fmap (\(n, h) -> n - h) np
+            -- balanceMapBy keeps zero-net keys; netPairMapBy drops them.
+            -- Compare on the union: a key absent from one side reads as 0.
+            in all (\k -> epsEq (M.findWithDefault 0 k bm)
+                                (M.findWithDefault 0 k diff))
+                   (M.keys bm ++ M.keys diff)
+    -- (b) both pair components are non-negative (value-domain regularity).
+    --     Exact value type so the >= 0 check has no tolerance ambiguity.
+    quickProp "netPairMapBy: both components non-negative (MoneyDecimal)" $
+        forAll genAlgN $ \x ->
+            all (\(n, h) -> n >= 0 && h >= 0)
+                (M.elems (EA.netPairMapBy Just x :: M.Map CountUnit (MoneyDecimal, MoneyDecimal)))
+    -- (c) ~=_pi invariance: like the S-4 / netByBase observational equality,
+    --     the pair read-out is construction-order independent (bar-then-net is
+    --     robust to seq order and reassociation). Exact MoneyDecimal.
+    quickProp "netPairMapBy: ~=_pi invariant (construction-order independent, MoneyDecimal)" $
+        forAll (listOf ((,) <$> (realToFrac <$> genNNDouble) <*> genBase)) $ \ps ->
+            let singles  = [ v :@ b | (v, b) <- ps ] :: [NNAlg]
+                viaList  = EA.netPairMapBy Just (EA.fromList singles)
+                viaFoldr = EA.netPairMapBy Just (foldr   (.+) EA.Zero singles)
+                viaFoldl = EA.netPairMapBy Just (L.foldl' (.+) EA.Zero singles)
+            in viaList == (viaFoldr :: M.Map CountUnit (MoneyDecimal, MoneyDecimal))
+               && viaFoldr == viaFoldl
 
 -- ================================================================
 -- Journal-algebra axiom properties (Phase 1.5)
