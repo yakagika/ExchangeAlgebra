@@ -284,10 +284,18 @@ toMap :: (HatVal v, HatBaseClass b, Note n)
 toMap = materializeMap
 
 {-# INLINE materializeMap #-}
+-- Short-circuits when one layer is empty: returns the other layer verbatim
+-- instead of building a fresh map via 'Map.unionWith'. This is the common
+-- case for @fromMap@ products (delta empty — the Lite @sigma msgs id@ shape)
+-- and for freshly @(.|)@-built journals (base empty). Values are untouched,
+-- so the result is identical to the unconditional union
+-- (audit R5 / ROAD_MAP P1b).
 materializeMap :: (HatVal v, HatBaseClass b, Note n)
                => Journal n v b -> Map.HashMap n (Alg v b)
-materializeMap (Journal base delta _ _) =
-    Map.unionWith (.+) base delta
+materializeMap (Journal base delta _ _)
+    | Map.null delta = base
+    | Map.null base  = delta
+    | otherwise      = Map.unionWith (.+) base delta
 
 {-# INLINE lookupNote #-}
 lookupNote :: (HatVal v, HatBaseClass b, Note n)
@@ -316,13 +324,25 @@ appendMap rhs j@(Journal base delta baseAxis deltaAxis)
     (delta', deltaAxis') = Map.foldlWithKey' step (delta, deltaAxis) rhs
 
     step (!dAcc, !idxAcc) !k !v =
-        let !dMerged = case Map.lookup k dAcc of
-                Nothing -> v
-                Just dv -> dv .+ v
-            !keys = toNoteAxisKeys k
-        in if EA.isZero dMerged
-            then (Map.delete k dAcc, deleteNoteAxisPosting keys k idxAcc)
-            else (Map.insert k dMerged dAcc, insertNoteAxisPosting keys k idxAcc)
+        case Map.lookup k dAcc of
+            -- New note key: index it (insert) unless the value is zero.
+            Nothing
+                | EA.isZero v -> (dAcc, idxAcc)
+                | otherwise   ->
+                    ( Map.insert k v dAcc
+                    , insertNoteAxisPosting (toNoteAxisKeys k) k idxAcc )
+            -- Existing note key: 'k' is already in the delta axis index
+            -- (the index tracks exactly the keys present in delta, and the
+            -- note IS the key, so its axis keys are unchanged). The
+            -- re-insert was therefore idempotent — skip it. Only a result
+            -- that collapses to zero changes the index, via delete
+            -- (audit R5 / ROAD_MAP P1b).
+            Just dv ->
+                let !dMerged = dv .+ v
+                in if EA.isZero dMerged
+                    then ( Map.delete k dAcc
+                         , deleteNoteAxisPosting (toNoteAxisKeys k) k idxAcc )
+                    else ( Map.insert k dMerged dAcc, idxAcc )
 
 instance ( Note n
          , HatVal v
