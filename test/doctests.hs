@@ -11,4 +11,7 @@ main = doctest  [ "-isrc"
                 , "src/ExchangeAlgebra/Simulate/Policy.hs"
                   -- closing-adjustment builders: not re-exported from the
                   -- umbrella, so listed explicitly to check its examples too.
-                , "src/ExchangeAlgebra/Bookkeeping.hs"]
+                , "src/ExchangeAlgebra/Bookkeeping.hs"
+                  -- dependency-free input-conversion core: not re-exported from
+                  -- the umbrella, so listed explicitly to check its examples too.
+                , "src/ExchangeAlgebra/Convert.hs"]

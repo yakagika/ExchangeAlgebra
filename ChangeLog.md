@@ -218,6 +218,23 @@
   credit-side entries classified under the `Equity` division — the equity
   counterpart of `projCurrentLiability` / `projFixedLiability`. Includes a Haddock
   doctest.
+- `ExchangeAlgebra.Convert` — a new dependency-free (Text only) input-conversion
+  core that turns external `(side, account-name, amount)` postings into exchange
+  algebra `Alg` terms. `parseAccountTitle` matches a name (case-, whitespace- and
+  symbol-insensitively via `norm`) against the canonical English constructor names
+  plus a Japanese-label / abbreviation alias table built from the
+  `ExchangeAlgebra.Algebra.Base.Element` bilingual Haddock; unknown names and the
+  wildcard `AccountTitle` are rejected (`UnknownAccount`), and a label shared by
+  several accounts (e.g. `準備預金` for both the asset and liability side of reserve
+  deposits, or `通信費` for `CommunicationExpenses`/legacy `Commutation`) is
+  rejected as `AmbiguousAccount` with the candidates listed — a correct-by-
+  construction guard against hallucinated or under-specified accounts. `parseSide`
+  parses debit/credit; `markerForSide` derives the `Hat`/`Not` marker from the
+  library's own `whichSide` (so the debit/credit rule is never duplicated);
+  `postingFromSide` / `journalFromSides` build the algebra terms through the
+  non-negative smart constructor `.@`. Serialization glue (JSON/XML) deliberately
+  stays out of the core. Haddock doctests assert the Debit/Credit ↔ Hat/Not
+  mapping explicitly.
 
 ### Changed
 
