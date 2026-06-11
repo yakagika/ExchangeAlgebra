@@ -370,6 +370,20 @@ vs an exact non-negative `Decimal` (`MoneyDecimal`) for determinism/auditability
   scale benchmarking; added a GitHub Actions CI workflow (build + test + doctest,
   bench build-only).
 
+## 0.4.1.2 - 2026-06-11
+
+### Fixed
+- `incomeSummaryAccount` (both `ExchangeAlgebra.Algebra.Transfer` and
+  `ExchangeAlgebra.Journal.Transfer`) crashed with `Non-exhaustive patterns in
+  case` on a **balanced ledger** (credit == debit, i.e. zero net income). In that
+  case `diffRL` reports the wildcard `Side` constructor, which the
+  `case dc of { Credit -> …; Debit -> … }` did not handle. The fix adds a `Side`
+  branch that returns the input ledger unchanged (no `NetIncome` / `NetLoss`
+  posting is appended when net income is zero). Note that appending a `Zero`
+  posting is **not** a correct alternative for the Journal version, since it is
+  not an identity there. Covered by the new `testIncomeSummaryBalancedAlg` and
+  `testIncomeSummaryBalancedJournal` regression tests.
+
 ## 0.4.1.1 - 2026-06-07
 
 ### Fixed
