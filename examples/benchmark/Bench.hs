@@ -89,6 +89,60 @@ projKey :: [HatBase AccountTitles]
 projKey = [Hat :< Cash]
 
 ------------------------------------------------------------------
+-- * Journal append (audit R5 / ROAD_MAP P1b)
+--
+-- A/B for addJournal/appendMap, which folds rhs postings into an
+-- accumulator Journal (the inner loop of Lite's @sigma msgs id@ and of
+-- every @<>@ on a ledger). Three scenarios isolate the levers:
+--
+--   append-base-only  : each rhs journal is a @fromMap@ product (base
+--                       non-empty, delta empty). Stresses the
+--                       materializeMap/toMap short-circuit (delta null).
+--   append-same-note  : all N postings share ONE note key, so every fold
+--                       step hits the existing-key branch — the
+--                       idempotent axis-index re-insert that P1b removes.
+--   append-distinct-note : each posting gets a distinct note key, so every
+--                       step is a genuinely new index insert (control).
+--
+-- Inputs are prebuilt single-posting journals in 'env'; only the fold is
+-- timed. 'norm' forces the whole accumulator structure.
+
+appendN :: Int
+
+appendN = 2000
+
+-- One posting per element. 'fromMap' so the rhs is base-only (Lite shape).
+mkBaseOnly :: Int -> [J]
+mkBaseOnly n =
+    [ EJ.fromMap (HM.singleton (i `mod` 50) (val :@ hb))
+    | i <- [1 .. n]
+    , let val = fromIntegral (i `mod` 7 + 1) :: Double
+          hb  = (if even i then Hat else Not) :< (bases4 !! (i `mod` 4))
+    ]
+
+-- All postings share the single note key 0 (existing-key append path).
+mkSameNote :: Int -> [J]
+mkSameNote n =
+    [ (val :@ hb) .| (0 :: Int)
+    | i <- [1 .. n]
+    , let val = fromIntegral (i `mod` 7 + 1) :: Double
+          hb  = (if even i then Hat else Not) :< (bases4 !! (i `mod` 4))
+    ]
+
+-- Each posting gets a distinct note key (new-key append path).
+mkDistinctNote :: Int -> [J]
+mkDistinctNote n =
+    [ (val :@ hb) .| i
+    | i <- [1 .. n]
+    , let val = fromIntegral (i `mod` 7 + 1) :: Double
+          hb  = (if even i then Hat else Not) :< (bases4 !! (i `mod` 4))
+    ]
+
+-- Fold the prebuilt journals with (.+) = addJournal, forcing the result.
+foldAppend :: [J] -> Double
+foldAppend = norm . foldl' (.+) (mempty :: J)
+
+------------------------------------------------------------------
 -- * Quotient decomposition study (dec/*, Phase 1 feat/quotient-decomposition)
 --
 -- A/B for the dec_κ family: per-key reporting over K company keys, comparing
@@ -227,6 +281,19 @@ main = defaultMain
         [ env (pure (mkJournals n)) $ \js ->
             bench (show n) $ whnf (EJ.projWithBaseNorm projKey . EJ.fromList) js
         | n <- sizes ]
+
+    ------------------------------------------------------------------
+    -- Journal append (audit R5 / ROAD_MAP P1b)
+    ------------------------------------------------------------------
+    , bgroup "Journal/append-base-only"
+        [ env (pure (mkBaseOnly appendN)) $ \js ->
+            bench (show appendN) $ whnf foldAppend js ]
+    , bgroup "Journal/append-same-note"
+        [ env (pure (mkSameNote appendN)) $ \js ->
+            bench (show appendN) $ whnf foldAppend js ]
+    , bgroup "Journal/append-distinct-note"
+        [ env (pure (mkDistinctNote appendN)) $ \js ->
+            bench (show appendN) $ whnf foldAppend js ]
 
     ------------------------------------------------------------------
     -- Quotient decomposition study (dec/*)
