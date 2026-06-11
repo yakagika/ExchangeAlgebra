@@ -3,6 +3,21 @@
 ## Unreleased
 
 ### Added
+- `ExchangeAlgebra.Simulate.Lite` — `stageOf` / `StageTagged`: a note-tagged BSP
+  stage whose note type is fixed to `(tag, t)` by construction. Each agent emits
+  a bare `Alg v b`; the runner attaches the single note `(stTag, t)` in exactly
+  one place (`runStage`), eliminating the write-site `alg .| (Tag, t)`
+  duplication. Because the tag and any downstream `projWithNote [(tag, t)]` are
+  now checked against the same constructor, a stringly-typed note mismatch is a
+  compile error rather than a silently empty projection. `stageFor` / `stage` /
+  the existing `StageFor` constructor are unchanged (purely additive: `Stage` is
+  now a GADT with both constructors). Multi-note stages (e.g. a closing stage
+  posting both `(Closing, t)` and `(Carryover, t+1)`) keep using `stageFor`,
+  which still returns a fully general `Journal`. Also adds `stageName`
+  (`stName` for `StageFor`, `show stTag` for `StageTagged`) for stages that may
+  be either constructor. Determinism is unaffected — the per-agent `StdGen` is
+  still derived from `(specSeed, termIx, stageIx, agentIx)` only, and the note
+  attachment is a pure post-transform.
 - `ExchangeAlgebra.Write` — three closing-document CSV writers (and their pure
   row-builders, for testing/composition). `writeWorksheet` / `worksheetRows`
   render an 8-column worksheet (8 桁精算表): per account title, the

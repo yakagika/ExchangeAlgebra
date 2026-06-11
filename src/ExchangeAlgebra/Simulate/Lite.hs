@@ -8,6 +8,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE ConstraintKinds       #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE UndecidableInstances  #-}
@@ -129,6 +130,8 @@ module ExchangeAlgebra.Simulate.Lite
     , Stage(..)
     , stageFor
     , stage
+    , stageOf
+    , stageName
       -- * Simulation specification
     , Par(..)
     , SimSpec(..)
@@ -160,7 +163,9 @@ import           ExchangeAlgebra.Journal           ( Journal
                                                    , sigma
                                                    , toMap
                                                    , fromMap
+                                                   , (.|)
                                                    , filterWithNote )
+import           ExchangeAlgebra.Algebra           (Alg)
 import qualified ExchangeAlgebra.Algebra    as EA   ((.+), compress)
 import           ExchangeAlgebra.Simulate          (StateTime, defaultBinarySpillWriter)
 import           ExchangeAlgebra.Simulate.Policy    ( LedgerPolicy(..)
@@ -323,17 +328,51 @@ gCommit wi wr = gCommit' (from wi) (from wr)
 ------------------------------------------------------------------
 
 -- | A BSP stage: a named, pure mapping from agents to /messages/. Every agent
--- of @stAgents@ runs against the same snapshot @w 'SnapT'@, the current term
--- @t@, and a deterministically derived 'StdGen', and emits a 'Journal'. The
--- agent element type @a@ is existential, so different stages may use different
--- agent populations.
-data Stage w t n v b = forall a. StageFor
-  { stName   :: String
-  , stAgents :: [a]
-  , stRun    :: w SnapT -> t -> StdGen -> a -> Journal n v b
-  }
+-- runs against the same snapshot @w 'SnapT'@, the current term @t@, and a
+-- deterministically derived 'StdGen'. The agent element type @a@ is
+-- existential, so different stages may use different agent populations.
+--
+-- There are two constructors:
+--
+--   * 'StageFor' — the original, fully general stage. Each agent emits a
+--     'Journal' directly, so the stage body is free to attach /any/ notes
+--     (including several different notes from one agent). Built with 'stageFor'
+--     or 'stage'.
+--
+--   * 'StageTagged' — a /note-tagged/ stage whose note type is fixed to
+--     @(tag, t)@ by construction. Each agent emits a bare 'Alg' and the runner
+--     attaches the single note @(stTag, t)@ in __one place__ ('runStage'). This
+--     removes the write-site note duplication of @alg '.|' (Tag, t)@ and ties
+--     the stage's tag to its note type at compile time. Built with 'stageOf'.
+--
+-- == Which constructor to use
+--
+-- Prefer 'stageOf' for a stage that emits __exactly one note tag__: the tag is
+-- written once (as @stTag@), the runner supplies it, and a downstream
+-- @projWithNote [(Tag, t)]@ that names the wrong constructor is a type error
+-- rather than a silently empty projection. Use 'stageFor'\/'stage' when a single
+-- stage must emit __several different notes__ (e.g. a closing stage that posts
+-- both @(Closing, t)@ and @(Carryover, t+1)@): such a stage cannot be expressed
+-- as a single auto-attached tag, so it keeps returning a 'Journal' itself.
+--
+-- The two constructors are observationally interchangeable for a one-note
+-- stage: @'stageOf' tag as f@ produces the same messages as
+-- @'stageFor' (show tag) as (\\v t g a -> f v t g a '.|' (tag, t))@ (asserted by
+-- the @stageOf auto-note@ sentinel). 'StageTagged' only moves the @'.|' (tag, t)@
+-- from the stage body into the runner.
+data Stage w t n v b where
+  StageFor    :: { stName   :: String
+                 , stAgents :: [a]
+                 , stRun    :: w SnapT -> t -> StdGen -> a -> Journal n v b }
+              -> Stage w t n v b
+  StageTagged :: (Note tag)
+              => { stTag     :: tag
+                 , stAgentsT :: [a]
+                 , stRunAlg  :: w SnapT -> t -> StdGen -> a -> Alg v b }
+              -> Stage w t (tag, t) v b
 
--- | Build a stage that runs once per element of the given agent list.
+-- | Build a stage that runs once per element of the given agent list, each
+-- agent emitting a 'Journal' directly.
 stageFor :: String
          -> [a]
          -> (w SnapT -> t -> StdGen -> a -> Journal n v b)
@@ -347,6 +386,35 @@ stage :: String
       -> (w SnapT -> t -> Journal n v b)
       -> Stage w t n v b
 stage name f = StageFor name [()] (\v t _g () -> f v t)
+
+-- | Build a __note-tagged__ stage: each agent emits a bare 'Alg' and the runner
+-- attaches the single note @('stTag', t)@ once, in 'runStage'. The note type is
+-- fixed to @(tag, t)@ by the result type, so the write-site tag (the @tag@
+-- argument) and any read-site @projWithNote [(tag, t)]@ are checked against the
+-- same constructor by the type-checker — a stringly-typed mismatch becomes a
+-- compile error instead of a silently empty projection.
+--
+-- Use this for any stage that emits __exactly one note tag__. For a stage that
+-- must post __several different notes__ (e.g. @(Closing, t)@ together with
+-- @(Carryover, t+1)@), keep using 'stageFor'\/'stage', which let the body return
+-- a fully general 'Journal'.
+--
+-- Determinism is unaffected: the per-agent 'StdGen' is still derived from
+-- @('specSeed', termIx, stageIx, agentIx)@ only (see 'runStage'), and the note
+-- attachment @'.|' (stTag, t)@ is a pure post-transform of each agent's 'Alg'.
+stageOf :: (Note tag)
+        => tag
+        -> [a]
+        -> (w SnapT -> t -> StdGen -> a -> Alg v b)
+        -> Stage w t (tag, t) v b
+stageOf = StageTagged
+
+-- | The display name of a stage: 'stName' for 'StageFor', @'show' 'stTag'@ for
+-- 'StageTagged' (the tag's 'Show' comes from its 'Note' superclass). Use this
+-- instead of 'stName' when a stage may be either constructor.
+stageName :: Stage w t n v b -> String
+stageName (StageFor    nm _ _) = nm
+stageName (StageTagged tg _ _) = show tg
 
 ------------------------------------------------------------------
 -- * Simulation specification
@@ -465,17 +533,29 @@ enumFromThenToInclusive from0 to0
 -- Forcing one message first materialises the shared structure in a single
 -- thread, so the sparks only evaluate agent-local work. Pure values: the
 -- result is unchanged (DET-2 asserts exact equality).
-runStage :: SimSpec w t n v b
+runStage :: forall w t n v b.
+            (HatVal v, HatBaseClass b, Note n)
+         => SimSpec w t n v b
          -> w SnapT
          -> t
          -> Int                 -- ^ term index (0-based)
          -> Int                 -- ^ stage index (0-based)
          -> Stage w t n v b
          -> [Journal n v b]
-runStage spec view t termIx stageIx (StageFor _ agents f) =
+runStage spec view t termIx stageIx st =
     let seed0 = specSeed spec
-        msgs  = [ f view t (deriveGen seed0 termIx stageIx agentIx) a
-                | (agentIx, a) <- zip [0 ..] agents ]
+        -- The per-agent messages, before applying the parallelism policy. Both
+        -- constructors derive each generator from the same coordinates only, so
+        -- DET is identical to the StageFor-only runner. 'StageTagged' attaches
+        -- the single note @(stTag, t)@ here — the ONLY place auto-tagging
+        -- happens — as a pure post-transform of each agent's bare 'Alg'.
+        msgs = case st of
+          StageFor _ agents f ->
+            [ f view t (deriveGen seed0 termIx stageIx agentIx) a
+            | (agentIx, a) <- zip [0 ..] agents ]
+          StageTagged tg agents g ->
+            [ g view t (deriveGen seed0 termIx stageIx agentIx) a .| (tg, t)
+            | (agentIx, a) <- zip [0 ..] agents ]
     in case specParallel spec of
          Sequential   -> msgs
          ParChunk c    -> case msgs of
