@@ -36,6 +36,36 @@
     bounded-memory run with no disk cost possible), but it is /lossy/; see
     t'LedgerPolicy'.
 
+    == Tuning long simulations
+
+    'FullAudit' is the default because it preserves the complete posting
+    sequence: every entry remains available for inspection, replay, and external
+    audit. In a long simulation that also means already-closed terms keep growing
+    monotonically with their historical @seq@ data, which can dominate residency.
+
+    'CompressClosedTerms' is the explicit opt-in for that case. It is applied
+    only to /closed/ terms, never to the in-progress term, and it preserves
+    @norm@ and balance while discarding redundant within-term sequence detail.
+    Because the choice is named in t'LedgerPolicy', it is not an implicit
+    @bar@\/@compress@ hidden inside another operation.
+
+    A common long-horizon setting is to keep the current and previous closed
+    terms resident, spill older terms to a restorable binary file, and compress
+    only the closed terms that remain in memory:
+
+    @
+    longRunPolicy :: LedgerPolicy
+    longRunPolicy = LedgerPolicy
+      { retain     = RetainRecent 2
+      , spillTo    = Just "ledger.spill"
+      , compaction = CompressClosedTerms
+      }
+    @
+
+    In local measurements this pattern, used with @'RetainRecent' 2@ and
+    @'spillTo'@, reduced residency by about 15x compared with retaining the full
+    uncompressed audit sequence.
+
     == Relation to the classic engine and to Lite
 
     This module only carries the /types/ and the two bridge helpers

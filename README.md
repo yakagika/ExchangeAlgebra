@@ -279,6 +279,16 @@ main = do
 - Restore spilled data with `ES.readBinarySpillFile` (binary format) or the
   `restoreJournalFromBinarySpill` helper.
 
+For policy-driven long runs, `ExchangeAlgebra.Simulate.Policy` keeps `FullAudit` as the
+default to preserve the full audit trail, but a declared `LedgerPolicy` can opt into
+`CompressClosedTerms` so only closed terms are compressed; `norm` / balance stay unchanged,
+the in-progress term keeps its full history, and because the choice is explicit it is not
+the forbidden implicit `bar` / `compress` shortcut. Pair it with `RetainRecent 2` and
+`spillTo = Just ...` to keep recent terms resident while older terms are restorable from
+disk; local measurements of that pattern reduced residency by about 15x. See the
+`Tuning long simulations` Haddock section in `ExchangeAlgebra.Simulate.Policy` for the
+`LedgerPolicy` record-syntax example.
+
 A runnable end-to-end example (multi-scenario run with binary spill, `KeepRecentTerms`, and
 restore) is `examples/basic/simulateEx2.hs` (the `sim2` executable).
 
