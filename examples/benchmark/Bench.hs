@@ -156,6 +156,43 @@ projKey :: [HatBase AccountTitles]
 projKey = [Hat :< Cash]
 
 ------------------------------------------------------------------
+-- * proj multi-concrete A/B (audit R7 perf gate)
+--
+-- The multi-pattern proj path is taken when the query list has >1 entry. R7
+-- proposed, for the all-concrete (no-wildcard) case, replacing the per-query
+-- "Map.singleton then Map.unionWith pairUnion" with a direct
+-- "Map.lookup + Map.insertWith pairUnion" fold (no throwaway singleton map / no
+-- union scan per query). This bench is the A/B gate for that change with @k = 8@
+-- concrete query bases over an @N = 4900@-entry algebra (so the multi-pattern
+-- fold, not the single-key fast path, is hit). 'norm' forces the projection.
+--
+-- Gate result (2026-06-11, GHC 9.10.2): the direct-fold variant measured ~57.6us
+-- vs ~56.8us baseline — within noise, NOT the required 15% wall reduction. Per
+-- the audit plan the patch was discarded and only this bench retained, so the
+-- gate can be re-run if the result map / query-list sizes that matter in
+-- practice grow enough to make the union-scan removal worthwhile.
+
+-- 8 distinct concrete query bases (4 titles x 2 sides). All concrete, so the
+-- all-concrete fast path is taken.
+projKeys8 :: [HatBase AccountTitles]
+projKeys8 =
+    [ s :< t
+    | t <- bases4
+    , s <- [Hat, Not] ]
+
+-- N entries spread across the same 4 titles / both sides as the queries, so the
+-- 8 queries all hit populated bases.
+projMultiN :: Int
+projMultiN = 4900
+
+mkProjMultiAlg :: Int -> A
+mkProjMultiAlg n = EA.fromList
+    [ val :@ hb
+    | i <- [1 .. n]
+    , let val = fromIntegral (i `mod` 7 + 1) :: Double
+          hb  = (if even i then Hat else Not) :< (bases4 !! (i `mod` 4)) ]
+
+------------------------------------------------------------------
 -- * Journal append (audit R5 / ROAD_MAP P1b)
 --
 -- A/B for addJournal/appendMap, which folds rhs postings into an
@@ -342,6 +379,12 @@ main = defaultMain
         [ env (pure (mkAlgs n)) $ \xs ->
             bench (show n) $ whnf (norm . EA.proj projKey . EA.fromList) xs
         | n <- sizes ]
+    -- audit R7: all-concrete multi-pattern proj (k=8 concrete bases, N=4900).
+    -- Algebra prebuilt in env so only the projection (the multi-pattern fold) is
+    -- timed.
+    , bgroup "proj/multi-concrete"
+        [ env (pure (mkProjMultiAlg projMultiN)) $ \alg ->
+            bench ("k=8,N=" ++ show projMultiN) $ whnf (norm . EA.proj projKeys8) alg ]
     -- fromList is a strict left fold (L.foldl' (.+) mempty); ~15x at N=10000,
     -- wider at larger N (the old lazy right fold was super-linear to force).
     , bgroup "Journal/fromList+projWithBaseNorm"
