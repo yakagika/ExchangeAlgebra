@@ -223,6 +223,19 @@
   with an explanatory message — guarded by a regression test (audit R3/F6).
   Normal projection (concrete and wildcard) never forces them.
 
+### Changed (examples)
+
+- `marketEx1`\/`marketEx1d` (`examples/market/MarketModel.hs`): the model note
+  is now an ADT `MTag` (`PlankTag | Trade | Production | Report | Closing |
+  Carryover`) instead of a `String` tag, so `MNote = (MTag, Int)`. The event tag
+  is written (`.| (Trade, t)`) and read (`projWithNote [(Trade, t)]`) by the same
+  constructor, so a typo is now a compile error rather than a projection that
+  silently matches nothing. Behaviour and all numeric results are unchanged (the
+  default N=20 run still reports `norm = 8587.1027`, shortage `200.0000`). The
+  test suite's Market mirror gains the same-shape `MktTag`. The `Note` class
+  Haddock now documents the "prefer an ADT note over `String`" guidance with the
+  `MTag` sketch. No library API change.
+
 ### Removed
 
 - `Journal` `_jVersion` field (`ExchangeAlgebra.Journal`): __breaking__. This

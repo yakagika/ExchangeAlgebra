@@ -38,6 +38,7 @@ import           ExchangeAlgebra.Write
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Map.Strict     as M
 import qualified Data.List           as L
+import qualified Data.Binary         as Binary
 import qualified Data.Text           as T
 import qualified Data.Text.IO        as TIO
 import           Control.Monad       (forM_)
@@ -2203,7 +2204,19 @@ testNetCsvRoundTrip = do
 -- that type (and its ExBaseClass / Element Int / BaseClass Int instances)
 -- instead of re-declaring them.
 type MktFirm  = SimCompany           -- = Int
-type MktNote  = (String, Int)
+
+-- ADT event tag mirroring MarketModel.MTag (typo'd tags become compile errors,
+-- not silently-empty projections). 'MktPlank' is the explicit blank tag.
+data MktTag = MktPlank | MktTrade | MktProduction | MktReport | MktClosing | MktCarryover
+  deriving (Show, Eq, Ord, Enum, Bounded, Generic)
+instance Hashable MktTag
+-- needed so the spill / runLiteWithPolicy window-transparency test can serialise
+-- a @Journal MktNote v b@ (derived structurally from Generic).
+instance Binary.Binary MktTag
+instance Note MktTag where
+    plank = MktPlank
+
+type MktNote  = (MktTag, Int)
 type MktBase  = SimHatBase2          -- = HatBase (AccountTitles, Int, Int, CountUnit)
 type MktLedgM = Journal MktNote MoneyDecimal MktBase
 
@@ -2219,13 +2232,13 @@ mktOwnerOfProduct bp = case bp of
     (Products, o, c, _) | o == c -> Just o
     _                            -> Nothing
 
--- opening stock read from the ("carryover", t) note (indexed per-note),
+-- opening stock read from the (MktCarryover, t) note (indexed per-note),
 -- mirroring MarketModel.openingMap (carryover-based O(term) inventory).
 mktOpening :: (HatVal v, Real v)
            => Int -> Journal MktNote v MktBase -> M.Map MktFirm v
 mktOpening t ledger =
     EA.balanceMapBy mktOwnerOfProduct
-        (EJ.toAlg (EJ.projWithNote [("carryover", t)] ledger))
+        (EJ.toAlg (EJ.projWithNote [(MktCarryover, t)] ledger))
 
 -- single-firm opening read (indexed per-note + per-base), mirroring
 -- MarketModel.openingOf: balanceBy over firm j's own-product base only.
@@ -2234,7 +2247,7 @@ mktOpeningOf :: (HatVal v, Real v)
 mktOpeningOf t j ledger =
     EA.balanceBy [Not :< (Products, j, j, Amount)]
                  [Hat :< (Products, j, j, Amount)]
-                 (EJ.toAlg (EJ.projWithNote [("carryover", t)] ledger))
+                 (EJ.toAlg (EJ.projWithNote [(MktCarryover, t)] ledger))
 
 -- single-firm inventory-connected demand, mirroring MarketModel.demandOf.
 mktDemandOf :: (HatVal v, Real v)
@@ -2266,7 +2279,7 @@ mktTradeSimple fs target = stageFor "trade" fs $ \w t _g j ->
         one i = let amt = realToFrac (mktOrderAmt coef d i j)
                 in if amt <= 0 then mempty else mktPurchase amt i j
         alg = EA.sigma sup one
-    in if EA.isZero alg then mempty else alg .| ("trade", t)
+    in if EA.isZero alg then mempty else alg .| (MktTrade, t)
 
 mktTradeTuned :: (HatVal v, Real v) => [MktFirm] -> Double -> Stage (MktW v) Int MktNote v MktBase
 mktTradeTuned fs target = stageFor "trade" fs $ \w t _g j ->
@@ -2285,7 +2298,7 @@ mktTradeTuned fs target = stageFor "trade" fs $ \w t _g j ->
                       , (Not :< (Sales,     i, i, Yen),    amt)
                       , (Hat :< (Products,  i, i, Amount), amt) ]
         alg = EA.sigmaFromMap accum (\b v -> v .@ b)
-    in if EA.isZero alg then mempty else alg .| ("trade", t)
+    in if EA.isZero alg then mempty else alg .| (MktTrade, t)
 
 mktProduction :: (HatVal v, Real v) => [MktFirm] -> Double -> Stage (MktW v) Int MktNote v MktBase
 mktProduction fs target = stageFor "production" fs $ \w t _g j ->
@@ -2293,27 +2306,27 @@ mktProduction fs target = stageFor "production" fs $ \w t _g j ->
     in if amt <= 0 then mempty
        else ((amt .@ Hat :< (Products,  j, j, Amount))
           .+ (amt .@ Not :< (SalesCost, j, j, Yen)))
-            .| ("production", t)
+            .| (MktProduction, t)
 
 mktReport :: (HatVal v) => Stage (MktW v) Int MktNote v MktBase
 mktReport = stage "report" $ \w t ->
-    let flow = EJ.toAlg (EJ.projWithNote [("trade", t), ("production", t)] (mkLedger w))
+    let flow = EJ.toAlg (EJ.projWithNote [(MktTrade, t), (MktProduction, t)] (mkLedger w))
         shortageK b = case b of
             Hat :< (Products, o, c, _) | o == c -> Just o
             _                                   -> Nothing
         sh = EA.postFromNetBy shortageK (\j v -> v .@ Not :< (Products, j, j, Amount)) flow
-    in if EA.isZero sh then mempty else sh .| ("report", t)
+    in if EA.isZero sh then mempty else sh .| (MktReport, t)
 
 -- carryover stage (mirror): net this term's own-product stock and roll the
--- positive surplus into ("carryover", t+1). Mirrors MarketModel.carryoverStage.
+-- positive surplus into (MktCarryover, t+1). Mirrors MarketModel.carryoverStage.
 mktCarryover :: (HatVal v, Real v) => Stage (MktW v) Int MktNote v MktBase
 mktCarryover = stage "closing" $ \w t ->
     let termAlg = EJ.toAlg (EJ.filterByAxis 1 (NoteAxisKey (t :: Int)) (mkLedger w))
         netMap  = EA.balanceMapBy mktOwnerOfProduct termAlg
         perFirm (j, v) =
             if v <= 0 then mempty
-            else ((v .@ Hat :< (Products, j, j, Amount)) .| ("closing",   t))
-              <> ((v .@ Not :< (Products, j, j, Amount)) .| ("carryover", t + 1))
+            else ((v .@ Hat :< (Products, j, j, Amount)) .| (MktClosing,   t))
+              <> ((v .@ Not :< (Products, j, j, Amount)) .| (MktCarryover, t + 1))
     in mconcat [ perFirm kv | kv <- M.toList netMap ]
 
 -- a fixed small (G, A) used by both equivalence tests.
@@ -2378,7 +2391,7 @@ testMarketSeqParEqual = do
 testMarketShortagePositive :: IO ()
 testMarketShortagePositive = do
     let finalSh = runLite (mktSpec False 24 4 Sequential) (mktW0 24)
-                    (\final -> norm (EJ.projWithNote [("report", 4)] (mkLedger final)))
+                    (\final -> norm (EJ.projWithNote [(MktReport, 4)] (mkLedger final)))
                     :: MoneyDecimal
     assertEqual "Market: final-term net shortage is strictly positive (Hawkins-Simon)"
         True (finalSh > 0)
@@ -2412,9 +2425,9 @@ testMarketWindowTransparent = withTempSpill "market_window" $ \path -> do
         -- final carryover map (the next-term opening, keyed by firm).
         project final =
             let lj = mkLedger final :: MktLedgM
-                reportN = norm (EJ.projWithNote [("report", lastT)] lj) :: MoneyDecimal
+                reportN = norm (EJ.projWithNote [(MktReport, lastT)] lj) :: MoneyDecimal
                 carryM  = EA.balanceMapBy mktOwnerOfProduct
-                            (EJ.toAlg (EJ.projWithNote [("carryover", lastT + 1)] lj))
+                            (EJ.toAlg (EJ.projWithNote [(MktCarryover, lastT + 1)] lj))
                           :: M.Map MktFirm MoneyDecimal
             in (reportN, carryM)
         polAll = Policy.defaultLedgerPolicy { Policy.retain = Policy.RetainAll }

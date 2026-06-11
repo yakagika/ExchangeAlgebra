@@ -178,6 +178,30 @@ queryNoteAxisPosting !axis !key !idx =
 -- indexing, mirroring how @toAxisKeys@ works for basis elements.
 -- For tuple Note types, each component becomes a separate axis.
 -- The default returns a single axis containing the Note itself.
+--
+-- == Prefer an ADT note over @String@
+--
+-- A note's /event/ axis is best modelled as a small enumeration (an ADT)
+-- rather than a @String@. A @String@ tag is a __stringly-typed semantic key__:
+-- the same literal must appear at the write site (@.| (\"trade\", t)@) and at
+-- every read site (@projWithNote [(\"trade\", t)]@), and a typo on either side
+-- still type-checks — the projection just /silently matches nothing/. With an
+-- ADT a mistyped constructor is a __compile error__, so reads and writes can
+-- never drift apart. Add 'plank' as its own explicit constructor (the note is a
+-- pointed set, so the blank tag is a distinguished element, not the empty
+-- string):
+--
+-- @
+-- data MTag = PlankTag | Trade | Production | Report | Closing | Carryover
+--   deriving (Show, Eq, Ord, Enum, Bounded, Generic)
+-- instance Hashable MTag
+-- instance Note MTag where plank = PlankTag
+-- type MNote = (MTag, Int)   -- the tuple instance keeps the (event, term) index
+-- @
+--
+-- (The @marketEx1@ example and the @SimEvent@ note in the test suite follow
+-- this pattern.) If the ledger is ever spilled\/restored, also give the tag a
+-- @Binary@ instance (structurally derivable from @Generic@).
 class (Show a, Eq a, Ord a, Hashable a, Typeable a) => Note a where
     plank :: a
     isPlank :: a -> Bool
