@@ -47,9 +47,13 @@ import           Data.List                (foldl')
 import qualified Data.Map.Strict          as M
 import           Data.Word                (Word64)
 
+import qualified Data.Set                 as Set
+import qualified Data.Text                as T
+
 import           ExchangeAlgebra.Journal  -- constructors / operators: :@ :< .+ .| Hat Not Cash ...
 import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Journal  as EJ
+import qualified ExchangeAlgebra.Write     as EW
 
 type A = EA.Alg Double (HatBase AccountTitles)
 type J = EJ.Journal Int Double (HatBase AccountTitles)
@@ -84,6 +88,69 @@ mkJournals n =
 
 sizes :: [Int]
 sizes = [1000, 10000]
+
+------------------------------------------------------------------
+-- * Write trial-balance A/B (audit R6: O(a*s) -> non-negative 1-pass)
+--
+-- The compound / post-closing trial balance previously aggregated each of
+-- @a@ distinct account titles by a full @projByAccountTitle@ scan of the
+-- @s@-entry algebra (O(a*s)). R6 replaces that with a single 'EA.foldEntries'
+-- pass that accumulates per-title gross debit/credit totals (O(s)), then nets
+-- each pair. This A/B compares the OLD per-title-scan logic (reproduced
+-- locally as 'oldPostClosingRows') against the NEW library path
+-- ('EW.postClosingTrialBalanceRows'), on a synthetic ledger with @a = 50@
+-- distinct titles and @s = 10000@ entries.
+
+-- 50 distinct account titles (first 50 of the AccountTitles enum).
+titles50 :: [AccountTitles]
+titles50 = take 50 [toEnum 0 ..]
+
+-- Synthetic ledger: s entries spread across the 50 titles, alternating
+-- Hat/Not so each title accrues on both sides (non-trivial netting).
+mkTrialAlg :: Int -> A
+mkTrialAlg s =
+    EA.fromList
+      [ val :@ hb
+      | i <- [1 .. s]
+      , let val = fromIntegral (i `mod` 7 + 1) :: Double
+            hb  = (if even i then Hat else Not) :< (titles50 !! (i `mod` 50))
+      ]
+
+-- OLD post-closing-trial-balance row builder: the per-title O(a*s) shape that
+-- R6 removed (one 'EA.projByAccountTitle' filter scan per title). Kept here
+-- purely as the benchmark baseline; output matches the library's new rows.
+oldPostClosingRows :: A -> [[T.Text]]
+oldPostClosingRows alg =
+    header : bodyRows ++ [totalRow]
+  where
+    header = [T.pack "Debit", T.pack "Account Title", T.pack "Credit"]
+    titles = filter isReal
+           $ Set.toList . Set.fromList
+           $ Prelude.map (EA.getAccountTitle . EA._hatBase)
+           $ EA.toList alg
+    isReal t = let d = EA.classifyAccountDivision t
+               in d == EA.Assets || d == EA.Liability || d == EA.Equity
+    (bodyRows, dT, cT) = foldl' step ([], 0, 0) titles
+    step (rows, dt, ct) t =
+        let (side, mag) = EA.diffRL (EA.projByAccountTitle t alg)
+            (dCell, cCell) = sideCells (side, mag)
+            (dt', ct') = case side of
+                EA.Debit  | mag /= 0 -> (dt + mag, ct)
+                EA.Credit | mag /= 0 -> (dt, ct + mag)
+                _                    -> (dt, ct)
+            row = [dCell, EW.tshow t, cCell]
+        in (rows ++ [row], dt', ct')
+    sideCells (side, mag)
+        | mag == 0  = (T.empty, T.empty)
+        | otherwise = case side of
+            EA.Debit  -> (EW.tshow mag, T.empty)
+            EA.Credit -> (T.empty, EW.tshow mag)
+            EA.Side   -> (T.empty, T.empty)
+    totalRow = [EW.tshow dT, T.pack "Total", EW.tshow cT]
+
+-- Force the produced rows to normal form (text cells fully realized).
+forceRows :: [[T.Text]] -> Int
+forceRows = foldl' (\acc r -> acc + sum (Prelude.map T.length r)) 0
 
 projKey :: [HatBase AccountTitles]
 projKey = [Hat :< Cash]
@@ -294,6 +361,17 @@ main = defaultMain
     , bgroup "Journal/append-distinct-note"
         [ env (pure (mkDistinctNote appendN)) $ \js ->
             bench (show appendN) $ whnf foldAppend js ]
+
+    ------------------------------------------------------------------
+    -- Write trial-balance A/B (audit R6: O(a*s) -> 1-pass O(s))
+    -- a = 50 distinct titles, s = 10000 entries.
+    ------------------------------------------------------------------
+    , bgroup "Write/trialBalance-old-O(a*s)"
+        [ env (pure (mkTrialAlg 10000)) $ \alg ->
+            bench "a=50,s=10000" $ whnf (forceRows . oldPostClosingRows) alg ]
+    , bgroup "Write/trialBalance-new-1pass"
+        [ env (pure (mkTrialAlg 10000)) $ \alg ->
+            bench "a=50,s=10000" $ whnf (forceRows . EW.postClosingTrialBalanceRows) alg ]
 
     ------------------------------------------------------------------
     -- Quotient decomposition study (dec/*)
