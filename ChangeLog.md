@@ -235,6 +235,24 @@
   non-negative smart constructor `.@`. Serialization glue (JSON/XML) deliberately
   stays out of the core. Haddock doctests assert the Debit/Credit ↔ Hat/Not
   mapping explicitly.
+- `ExchangeAlgebra.Convert.Csv` — a fixed-schema, dependency-light
+  (Text + scientific) reader for general journal CSV: a header
+  `side,account,amount` with an optional trailing `note` column, one posting per
+  row. `parseJournalCsv` folds the rows into a single `Alg` term;
+  `parseJournalCsvWith` takes a caller-supplied amount parser (keeping the value
+  type open); `parseNotedJournalCsv` returns `(side, account, value, note)` rows
+  so a caller can key a `Journal` by the note. `scientificAmount` parses a
+  non-negative decimal via `Data.Scientific` exactly through `toRational` (so
+  exact-decimal value types keep precision). Blank lines and `#` comment lines
+  are skipped and fields are trimmed; unknown/ambiguous accounts, bad sides,
+  malformed headers/rows and negative or non-numeric amounts are rejected through
+  the `ConvError` channel (now extended with `MalformedCsv` and `BadAmount`).
+  This is the read counterpart of the `ExchangeAlgebra.Write` ledger/report CSV
+  writers (writing is not handled here). The minimal CSV splitter intentionally
+  mirrors the one in `ExchangeAlgebra.Simulate.Network` (`parseEdgeCsv` etc.); a
+  future refactor could share it, but the two stay independent for now to avoid a
+  cross-module dependency. A QuickCheck round-trip property (render → parse is
+  exact for `MoneyDecimal`) and structural-rejection unit tests are included.
 
 ### Changed
 

@@ -59,6 +59,8 @@ import           ExchangeAlgebra.Algebra.Base    ( AccountTitles(..)
 data ConvError = UnknownAccount Text                    -- ^ name matched no concrete account title
                | AmbiguousAccount Text [AccountTitles]  -- ^ name matched several accounts (disambiguate by canonical name)
                | UnknownSide    Text                    -- ^ side string was not debit\/credit
+               | MalformedCsv   Text                    -- ^ CSV header\/row was structurally invalid (see "ExchangeAlgebra.Convert.Csv")
+               | BadAmount      Text                    -- ^ amount field was not a valid non-negative number
     deriving (Eq, Show)
 
 -- | All concrete account titles, /excluding/ the wildcard 'AccountTitle'.

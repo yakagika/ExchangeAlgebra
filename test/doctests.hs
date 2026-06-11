@@ -14,4 +14,5 @@ main = doctest  [ "-isrc"
                 , "src/ExchangeAlgebra/Bookkeeping.hs"
                   -- dependency-free input-conversion core: not re-exported from
                   -- the umbrella, so listed explicitly to check its examples too.
-                , "src/ExchangeAlgebra/Convert.hs"]
+                , "src/ExchangeAlgebra/Convert.hs"
+                , "src/ExchangeAlgebra/Convert/Csv.hs"]

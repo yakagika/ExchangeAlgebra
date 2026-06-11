@@ -7,6 +7,8 @@
 module Main (main) where
 
 import           ExchangeAlgebra.Journal
+import qualified ExchangeAlgebra.Convert      as EC
+import qualified ExchangeAlgebra.Convert.Csv  as ECsv
 import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Algebra.Transfer as EAT
 import qualified ExchangeAlgebra.Journal  as EJ
@@ -1273,6 +1275,85 @@ netByBase = EA.foldEntries step M.empty
 
 epsEq :: Double -> Double -> Bool
 epsEq a b = abs (a - b) <= 1e-9 * (1 + max (abs a) (abs b))
+
+-- ================================================================
+-- ExchangeAlgebra.Convert.Csv: generic journal CSV reader.
+-- Read-only round-trip property: a generated list of postings rendered to a
+-- fixed-schema CSV string parses back to exactly the term built directly by
+-- journalFromSides (MoneyDecimal = exact, so strict equality, no tolerance).
+-- ================================================================
+
+-- concrete account titles only (no wildcard); use canonical Show names so the
+-- CSV round-trip does not exercise the ambiguous-alias path.
+genAccountTitle :: Gen AccountTitles
+genAccountTitle = elements EC.concreteAccountTitles
+
+genSideCsv :: Gen Side
+genSideCsv = elements [Debit, Credit]
+
+-- non-negative MoneyDecimal with up to 2 decimal places, written exactly as a
+-- decimal literal (terminating) so scientificAmount parses it back exactly.
+genAmountMD :: Gen (MoneyDecimal, T.Text)
+genAmountMD = do
+    whole  <- choose (0, 99999) :: Gen Integer
+    cents  <- choose (0, 99)    :: Gen Integer
+    let txt = T.pack (show whole) <> T.pack "." <>
+              T.pack (let s = show cents in if length s == 1 then '0':s else s)
+        val = fromRational (toRational whole + toRational cents / 100) :: MoneyDecimal
+    pure (val, txt)
+
+genPostingCsv :: Gen (Side, AccountTitles, MoneyDecimal, T.Text)
+genPostingCsv = do
+    s        <- genSideCsv
+    a        <- genAccountTitle
+    (v, vtx) <- genAmountMD
+    pure (s, a, v, vtx)
+
+renderCsv :: [(Side, AccountTitles, MoneyDecimal, T.Text)] -> T.Text
+renderCsv rows =
+    T.unlines (header : L.map line rows)
+  where
+    header = T.pack "side,account,amount"
+    line (s, a, _, vtx) =
+        T.intercalate (T.pack ",")
+            [ sideText s, T.pack (show a), vtx ]
+    sideText Debit  = T.pack "debit"
+    sideText Credit = T.pack "credit"
+    sideText Side   = T.pack "debit"   -- unused (generator never yields wildcard)
+
+testConvertCsvRoundTrip :: IO ()
+testConvertCsvRoundTrip = do
+    quickProp "convert-csv: render -> parse is exact (MoneyDecimal)" $
+        forAll (resize 30 (listOf genPostingCsv)) $ \rows ->
+            let csv      = renderCsv rows
+                expected = EC.journalFromSides
+                             [ (s, a, v) | (s, a, v, _) <- rows ]
+                           :: EA.Alg MoneyDecimal (HatBase AccountTitles)
+                parsed   = ECsv.parseJournalCsv csv
+                           :: Either EC.ConvError
+                                     (EA.Alg MoneyDecimal (HatBase AccountTitles))
+            in parsed == Right expected
+
+    -- structural guards: bad header, unknown account, negative amount, bad arity.
+    let badHeader = T.pack "s,a,amt\ndebit,Cash,1\n"
+        badAcct   = T.pack "side,account,amount\ndebit,Goodwill_X,1\n"
+        badAmt    = T.pack "side,account,amount\ndebit,Cash,-1\n"
+        badArity  = T.pack "side,account,amount\ndebit,Cash\n"
+        run t = ECsv.parseJournalCsv t
+                  :: Either EC.ConvError
+                            (EA.Alg MoneyDecimal (HatBase AccountTitles))
+        expectLeft label pat t = case run t of
+            Left e | pat e     -> putStrLn ("[PASS] " ++ label)
+                   | otherwise -> do putStrLn ("[FAIL] " ++ label ++ ": wrong error " ++ show e); exitFailure
+            Right _            -> do putStrLn ("[FAIL] " ++ label ++ ": accepted bad input"); exitFailure
+    expectLeft "convert-csv: rejects bad header"
+        (\e -> case e of EC.MalformedCsv _ -> True; _ -> False) badHeader
+    expectLeft "convert-csv: rejects unknown account"
+        (\e -> case e of EC.UnknownAccount _ -> True; _ -> False) badAcct
+    expectLeft "convert-csv: rejects negative amount"
+        (\e -> case e of EC.BadAmount _ -> True; _ -> False) badAmt
+    expectLeft "convert-csv: rejects wrong field count"
+        (\e -> case e of EC.MalformedCsv _ -> True; _ -> False) badArity
 
 axiomProperties :: IO ()
 axiomProperties = do
@@ -2610,6 +2691,7 @@ main = do
     testMarketShortagePositive
     testMarketWindowTransparent
     testMarketStageOfAutoNote
+    testConvertCsvRoundTrip
     axiomProperties
     journalProperties
     quotientProperties
