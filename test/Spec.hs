@@ -1322,6 +1322,25 @@ axiomProperties = do
         forAll genAlgN $ \x -> netByBase (EA.mapBasePart id x :: NNAlg) == netByBase x
     quickProp "mapBasePart preserves norm under base collapse (MoneyDecimal)" $
         forAll genAlgN $ \x -> norm (EA.mapBasePart (const Amount) x :: NNAlg) == norm x
+    -- S-4: functoriality of the base-relabel map pi_kappa (Prop 2.8(4)):
+    --   mapBasePart (kappa' . kappa) x  ~=_pi  mapBasePart kappa' (mapBasePart kappa x)
+    -- The two kappa are non-identity, non-injective relabelers on CountUnit so the
+    -- composite collapses bases (Yen -> Dollar -> Amount), exercising the value
+    -- merge on both sides. There is no dedicated ~=_pi comparator in this suite;
+    -- we use 'netByBase' (per-base signed net), which is the same bar/order-robust
+    -- observational equality the other mapBasePart / axiom properties use -- i.e.
+    -- "equal after bar, compared per base". The 'kappa' relabels the BasePart
+    -- (= CountUnit here), with mapBasePart re-merging colliding sides, so this is
+    -- exactly the bar-then-map equivalence the audit note specifies.
+    quickProp "S-4: mapBasePart is functorial (pi_{k'.k} ~=_pi pi_k' . pi_k, MoneyDecimal)" $
+        forAll genAlgN $ \x ->
+            let kappa, kappa' :: CountUnit -> CountUnit
+                kappa  u = if u == Yen    then Dollar else u   -- Yen    -> Dollar
+                kappa' u = if u == Dollar then Amount else u   -- Dollar -> Amount
+                lhs = EA.mapBasePart (kappa' . kappa) x                  :: NNAlg
+                inner = EA.mapBasePart kappa x                           :: NNAlg
+                rhs = EA.mapBasePart kappa' inner                        :: NNAlg
+            in netByBase lhs == netByBase rhs
 
 -- ================================================================
 -- Journal-algebra axiom properties (Phase 1.5)
