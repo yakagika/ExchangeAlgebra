@@ -272,6 +272,16 @@
   passes unmodified. Measured: append micro-benches alloc -29%/-36%
   (base-only / same-note), end-to-end simulation alloc -4.5% with a small
   wall-clock improvement.
+- `Write` trial-balance documents (`writeCompoundTrialBalance`,
+  `worksheetRows` / `writeWorksheet`, `postClosingTrialBalanceRows` /
+  `writePostClosingTrialBalance`): aggregation changed from O(a·s) (a full
+  `projByAccountTitle` scan per distinct account title) to a single
+  `foldEntries` pass O(s) (audit R6). Per-title gross debit/credit totals are
+  accumulated **non-negatively** (preserving the value-domain invariant) and
+  netted with the same `diffRL`/tolerance rule, so the CSV output is
+  byte-identical (verified by the existing doctests/unit self-checks and an
+  ebex6/7/9 byte-diff). Measured: trial-balance row build a=50/s=10⁴ wall
+  13.4 ms → 1.3 ms (~90% reduction, ~10× speedup).
 
 ### Fixed
 

@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE BangPatterns    #-}
 {- |
     Module     : ExchangeAlgebra.Write
     Copyright  : (c) Kaya Akagi. 2018-2026
@@ -59,6 +60,7 @@ import qualified    Data.Binary                 as Binary
 import              Control.Monad
 import qualified    Data.Set as Set
 import qualified    Data.HashMap.Strict as Map
+import qualified    Data.Map.Strict as OMap
 import              Data.Array.IO
 import              Data.Time           (Day)
 import              System.IO           (openFile, IOMode(WriteMode), hClose)
@@ -307,10 +309,57 @@ writeAccountOfJournal titles path j =
          in L.map mkRow (EA.toList (EA.filter (\x -> x /= EA.Zero) xs))
 
 
+------------------------------------------------------------------
+-- Trial-balance aggregation (non-negative single-pass)
+------------------------------------------------------------------
+
+-- | Per-account gross debit/credit totals, accumulated in a __single pass__ over
+-- the algebra's scalar entries (O(s)), keyed by 'AccountTitles' in 'Ord' order.
+--
+-- Each entry contributes its (non-negative) value to either the debit or the
+-- credit total of its account title, classified by 'whichSide' (which already
+-- folds in the Hat\/Not reversal) — exactly the @Debit@\/@Credit@ partition that
+-- 'decL'\/'decR' produce. Summing per side reproduces @'norm' . 'decL'@ (debit
+-- gross) and @'norm' . 'decR'@ (credit gross) without any signed netting, so the
+-- value-domain invariant ($\\mathbb{R}_0^+$) is preserved: only non-negative
+-- magnitudes are stored.
+--
+-- 'foldEntries' already skips zero values, matching the @x /= 'Zero'@ guard in
+-- 'decL'\/'decR'. The resulting 'OMap.Map' iterates titles in ascending order,
+-- matching the previous @L.sort . Set.toList . Set.fromList@ title enumeration.
+--
+-- Complexity: O(s) (s = number of scalar entries).
+accountGrossTotals :: (HatVal n, HatBaseClass b, ExBaseClass b)
+                   => Alg n b -> OMap.Map AccountTitles (n, n)
+accountGrossTotals = EA.foldEntries step OMap.empty
+  where
+    -- (debit gross, credit gross)
+    step acc v b =
+        let !t   = getAccountTitle b
+            !pair = case whichSide b of
+                Debit  -> (v, zeroValue)
+                Credit -> (zeroValue, v)
+                Side   -> (zeroValue, zeroValue)
+        in OMap.insertWith addPair t pair acc
+    addPair (d1, c1) (d2, c2) = (d1 + d2, c1 + c2)
+
+-- | Net a @(debit gross, credit gross)@ pair into a @(Side, magnitude)@ balance,
+-- reproducing 'diffRL' exactly. 'diffRL' compares @r = 'norm' . 'decR'@ (credit)
+-- against @l = 'norm' . 'decL'@ (debit) with the scale-aware tolerance, so the
+-- same comparison is applied here: near-equal sides report @('Side', 0)@,
+-- otherwise the larger side wins with the non-negative difference.
+--
+-- Complexity: O(1).
+netGross :: (HatVal n) => (n, n) -> (Side, n)
+netGross (l, r)   -- l = debit gross, r = credit gross
+    | nearlyEqScaled r l = (Side, zeroValue)
+    | r > l              = (Credit, r - l)
+    | otherwise          = (Debit, l - r)
+
 -- | Output a Compound Trial Balance in CSV format.
 -- Calculates the debit total, credit total, and balance for each account title and outputs as a table.
 --
--- Complexity: O(s * a) (s = number of entries, a = number of distinct account titles)
+-- Complexity: O(s) (single pass over s scalar entries; see 'accountGrossTotals')
 writeCompoundTrialBalance :: (HatVal n, HatBaseClass b, ExBaseClass b)
                            => FilePath
                            -> Alg n b
@@ -321,10 +370,8 @@ writeCompoundTrialBalance path alg = do
                  ,T.pack "Account Title"
                  ,T.pack "Credit Total"
                  ,T.pack "Credit Balance"]
-    let accounts = L.sort
-                 $ Set.toList . Set.fromList
-                 $ L.map (getAccountTitle . _hatBase)
-                 $ EA.toList alg
+    -- Single pass (O(s)): gross debit/credit totals per title, in Ord order.
+    let accounts = OMap.toList (accountGrossTotals alg)
     let (lines', debitBalanceTotal, debitTotal, creditBalanceTotal, creditTotal) =
             L.foldl' step ([], zeroValue, zeroValue, zeroValue, zeroValue) accounts
     let totalLine = [ tshow debitBalanceTotal
@@ -335,14 +382,14 @@ writeCompoundTrialBalance path alg = do
                     ]
     writeCSV path (header : lines' ++ [totalLine])
   where
-    step (accLines, dbt, dt, cbt, ct) a =
-        let xs = projByAccountTitle a alg
-            xr = norm (decR xs)
-            xl = norm (decL xs)
-            (dc, diff) = diffRL xs
-            -- 'diffRL' returns the wildcard 'Side' with a zero difference when an
-            -- account nets to zero (e.g. a fully-cleared suspense account). Treat
-            -- that as no balance on either side (cf. 'sideCells').
+    step (accLines, dbt, dt, cbt, ct) (a, gross) =
+        let xl = fst gross   -- norm (decL xs) : debit gross
+            xr = snd gross   -- norm (decR xs) : credit gross
+            (dc, diff) = netGross gross
+            -- 'netGross'/'diffRL' returns the wildcard 'Side' with a zero
+            -- difference when an account nets to zero (e.g. a fully-cleared
+            -- suspense account). Treat that as no balance on either side
+            -- (cf. 'sideCells').
             (dbt', cbt') = case dc of
                 Credit -> (dbt + diff, cbt)
                 Debit  -> (dbt, cbt + diff)
@@ -446,7 +493,8 @@ sideCells (side, mag)
 -- ["Net Income","","","","","50.0","","","50.0"]
 -- ["Total","","","","","50.0","50.0","150.0","150.0"]
 --
--- Complexity: O(a * s) (a = distinct titles, s = number of entries).
+-- Complexity: O(s) (single pass per algebra over s scalar entries;
+-- see 'accountGrossTotals').
 worksheetRows :: (HatVal n, HatBaseClass b, ExBaseClass b)
               => Alg n b   -- ^ pre-adjustment ledger (決算整理前残高)
               -> Alg n b   -- ^ adjustment entries     (決算整理仕訳)
@@ -467,19 +515,26 @@ worksheetRows pre adj =
         , T.pack "Debit", T.pack "Credit"
         , T.pack "Debit", T.pack "Credit" ]
     combined = pre .+ adj
-    titles = L.sort
-           $ Set.toList . Set.fromList
-           $ L.map (getAccountTitle . _hatBase)
-           $ EA.toList combined
+    -- Single pass per algebra (O(s)): gross debit/credit totals per title.
+    -- 'balanceOf t alg' = 'diffRL (projByAccountTitle t alg)' is reproduced as
+    -- 'netGross' of the per-title gross pair; a title absent from a map (e.g.
+    -- only in 'adj', not 'pre') yields '(0,0)', i.e. 'diffRL Zero = (Side, 0)'.
+    preTotals = accountGrossTotals pre
+    adjTotals = accountGrossTotals adj
+    combTotals = accountGrossTotals combined
+    grossOf m t = OMap.findWithDefault (zeroValue, zeroValue) t m
+    -- Title enumeration: the keys of 'combined' in Ord order (= the previous
+    -- 'L.sort . Set.toList . Set.fromList' over 'EA.toList combined').
+    titles = OMap.keys combTotals
     -- per-title row + accumulate the four debit/credit column totals
     (bodyRows, tbD, tbC, plD, plC, bsD, bsC) =
         L.foldl' step ([], zeroValue, zeroValue, zeroValue, zeroValue, zeroValue, zeroValue) titles
     step (rows, tbd, tbc, pld, plc, bsd, bsc) t =
-        let tb              = balanceOf t pre
+        let tb              = netGross (grossOf preTotals t)
             (tbDc, tbCc)    = sideCells tb
-            adjPair         = balanceOf t adj
+            adjPair         = netGross (grossOf adjTotals t)
             (adjDc, adjCc)  = sideCells adjPair
-            finalPair@(finalSide, finalMag) = balanceOf t combined
+            finalPair@(finalSide, finalMag) = netGross (grossOf combTotals t)
             div'            = classifyAccountDivision t
             isPL            = div' == Cost || div' == Revenue
             (plDc, plCc, bsDc, bsCc)
@@ -539,7 +594,7 @@ worksheetRows pre adj =
 -- file. See 'worksheetRows' for the column structure and the self-check
 -- (P\/L vs B\/S balancing figure) semantics.
 --
--- Complexity: O(a * s) (a = distinct titles, s = number of entries).
+-- Complexity: O(s) (single pass per algebra; see 'worksheetRows').
 writeWorksheet :: (HatVal n, HatBaseClass b, ExBaseClass b)
                => FilePath
                -> Alg n b   -- ^ pre-adjustment ledger
@@ -577,24 +632,23 @@ writeWorksheet path pre adj = writeCSV path (worksheetRows pre adj)
 -- ["","LoansPayable","60.0"]
 -- ["60.0","Total","60.0"]
 --
--- Complexity: O(a * s) (a = distinct titles, s = number of entries).
+-- Complexity: O(s) (single pass over s scalar entries; see 'accountGrossTotals').
 postClosingTrialBalanceRows :: (HatVal n, HatBaseClass b, ExBaseClass b)
                             => Alg n b -> [[T.Text]]
 postClosingTrialBalanceRows alg =
     header : bodyRows ++ [totalRow]
   where
     header = [T.pack "Debit", T.pack "Account Title", T.pack "Credit"]
-    titles = L.filter isReal
-           $ L.sort
-           $ Set.toList . Set.fromList
-           $ L.map (getAccountTitle . _hatBase)
-           $ EA.toList alg
+    -- Single pass (O(s)): gross debit/credit totals per title, in Ord order;
+    -- keep only real (Assets/Liability/Equity) titles.
+    totals = accountGrossTotals alg
+    titles = L.filter isReal (OMap.keys totals)
     isReal t = let d = classifyAccountDivision t
                in d == Assets || d == Liability || d == Equity
     (bodyRows, debitTotal, creditTotal) =
         L.foldl' step ([], zeroValue, zeroValue) titles
     step (rows, dt, ct) t =
-        let (side, mag) = balanceOf t alg
+        let (side, mag) = netGross (OMap.findWithDefault (zeroValue, zeroValue) t totals)
             (dCell, cCell) = sideCells (side, mag)
             (dt', ct') = case side of
                 Debit  | mag /= zeroValue -> (dt + mag, ct)
@@ -609,7 +663,7 @@ postClosingTrialBalanceRows alg =
 -- writes the file. Only 'Assets'\/'Liability'\/'Equity' (real) accounts appear;
 -- 'Cost'\/'Revenue' accounts are excluded — see 'postClosingTrialBalanceRows'.
 --
--- Complexity: O(a * s) (a = distinct titles, s = number of entries).
+-- Complexity: O(s) (single pass; see 'postClosingTrialBalanceRows').
 writePostClosingTrialBalance :: (HatVal n, HatBaseClass b, ExBaseClass b)
                              => FilePath
                              -> Alg n b
