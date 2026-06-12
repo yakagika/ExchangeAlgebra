@@ -54,6 +54,12 @@ mkdir -p "$RESULT"
 
 REPS="${EA_REPS:-5}"
 SMOKE="${EA_SMOKE:-0}"
+# Cores for the parallel series (space-separated). Round 4 used "1 4 8 14";
+# the overnight rerun adds 10 (P-core count) and 12 to expose the P/E boundary.
+CORES="${EA_CORES:-1 4 8 14}"
+# Seconds to idle between runs so back-to-back runs do not heat-soak the chip
+# (0 = no cooldown, the Round 4 behaviour).
+COOLDOWN="${EA_COOLDOWN:-0}"
 TSV="$RESULT/round4-raw.tsv"
 
 # Fresh TSV + header on each top-level invocation.
@@ -95,6 +101,9 @@ run_one () {
     printf '%s\n' "$out"
     echo
   } >> "$logf"
+
+  [ "$COOLDOWN" -gt 0 ] 2>/dev/null && sleep "$COOLDOWN"
+  return 0
 }
 
 # reps helper: run a config for rep in 1..REPS.
@@ -124,7 +133,7 @@ series_parallel () {
   local CHUNK=16
   reps_of parallel "N1000-seq" marketEx1 1 \
     "EA_N=1000" "EA_K=20" "EA_T=50" "EA_NET=er" "EA_PAR=seq"
-  local cs="1 4 8 14"
+  local cs="$CORES"
   [ "$SMOKE" = 1 ] && cs="1"
   local c
   for c in $cs; do
