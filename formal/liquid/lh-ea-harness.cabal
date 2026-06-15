@@ -1,0 +1,28 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.39.1.
+--
+-- see: https://github.com/sol/hpack
+
+name:           lh-ea-harness
+version:        0.1.0.0
+synopsis:       LiquidHaskell verification harness for ExchangeAlgebra invariants
+description:    Standalone harness — fully decoupled from the main exchangealgebra build.
+author:         yakagika
+maintainer:     yakagika
+license:        MIT
+build-type:     Simple
+
+library
+  exposed-modules:
+      EAValueInvariants
+      ValueNonNeg
+  other-modules:
+      Paths_lh_ea_harness
+  hs-source-dirs:
+      src
+  ghc-options: -Wall -fplugin=LiquidHaskell -fplugin-opt=LiquidHaskell:--smtsolver=z3
+  build-depends:
+      base >=4.7 && <5
+    , liquidhaskell
+  default-language: Haskell2010

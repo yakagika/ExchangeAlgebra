@@ -1,0 +1,23 @@
+name:                lh-ea-harness
+version:             0.1.0.0
+synopsis:            LiquidHaskell verification harness for ExchangeAlgebra invariants
+description:         Standalone harness — fully decoupled from the main exchangealgebra build.
+license:             MIT
+author:              yakagika
+
+# Keep the harness isolated: no dependency on exchangealgebra or its transitive deps.
+dependencies:
+  - base >= 4.7 && < 5
+  - liquidhaskell
+
+library:
+  source-dirs: src
+  ghc-options:
+    - -Wall
+    # LiquidHaskell plugin: each module that carries {-# OPTIONS_GHC -fplugin=LiquidHaskell #-}
+    # will be verified. Modules without the pragma are compiled normally.
+    - -fplugin=LiquidHaskell
+    # Make z3 path explicit in case PATH is not propagated by the build tool.
+    - -fplugin-opt=LiquidHaskell:--smtsolver=z3
+
+default-extensions: []

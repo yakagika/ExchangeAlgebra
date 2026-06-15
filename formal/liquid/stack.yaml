@@ -1,0 +1,9 @@
+resolver: lts-24.45
+
+packages:
+  - .
+
+# liquidhaskell-0.9.10.1.2, liquidhaskell-boot-0.9.10.1.2, and
+# liquid-fixpoint-0.9.6.3.2 are all bundled in lts-24.45, so no extra-deps
+# are needed for LiquidHaskell itself.
+extra-deps: []

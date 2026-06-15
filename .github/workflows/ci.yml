@@ -54,3 +54,46 @@ jobs:
       # benchmark is built but not run (--no-run-benchmarks) to keep CI fast.
       - name: Build + test + doctest (bench build-only)
         run: stack build --system-ghc --no-install-ghc --test --bench --no-run-benchmarks
+
+  # Optional formal-verification job: LiquidHaskell refinement checks for the
+  # value non-negativity invariant (0 <= magnitude; sign lives in the Hat/Not
+  # base). Fully decoupled from build-test and from the main library build — it
+  # builds ONLY the standalone harness under formal/liquid/ (its own stack
+  # project, resolver lts-24.45 / GHC 9.10.3, which bundles liquidhaskell). The
+  # LiquidHaskell plugin discharges the refinements during compilation via z3;
+  # a regression here means an EA value invariant stopped being statically
+  # provable (e.g. a raw subtraction that can go negative slipped in).
+  liquid-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # LiquidHaskell discharges refinement constraints with an SMT solver.
+      - name: Install z3
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y z3
+
+      # GHC 9.10.3 matches the harness resolver lts-24.45 (the snapshot that
+      # ships liquidhaskell-0.9.10.1.2 / liquid-fixpoint-0.9.6.3.2).
+      - uses: haskell-actions/setup@v2
+        with:
+          enable-stack: true
+          stack-version: latest
+          ghc-version: '9.10.3'
+
+      - name: Cache Stack (liquid harness)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.stack
+            formal/liquid/.stack-work
+          key: ${{ runner.os }}-stack-liquid-${{ hashFiles('formal/liquid/stack.yaml', 'formal/liquid/package.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-liquid-
+
+      # The LiquidHaskell plugin runs during compilation; a non-negativity
+      # violation fails the build (**** LIQUID: UNSAFE ****).
+      - name: LiquidHaskell verify (formal/liquid)
+        working-directory: formal/liquid
+        run: stack build --system-ghc --no-install-ghc
