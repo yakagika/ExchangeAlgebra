@@ -368,6 +368,11 @@
   would collide names with the Algebra layer or with each other). This is now
   stated in the umbrella module's Haddock and in the README's import-patterns
   section.
+- `Simulate.Lite.specLedger` Haddock now warns that the committed-ledger role is
+  a model declaration conferred by the selector alone, not inferred from the
+  product type: with more than one `Journal` field a wrong selector type-checks
+  and fails silently (commits, eviction and the final projection all hit the
+  wrong ledger). Recommends exactly one `Journal` field per world.
 
 ### Internal
 

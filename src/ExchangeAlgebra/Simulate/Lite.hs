@@ -437,6 +437,24 @@ data SimSpec w t n v b = SimSpec
   , specLedger   :: forall f. w f -> HK f (Journal n v b)
     -- ^ The ledger field selector (just the record accessor), used polymorphically
     --   across roles to read the snapshot ledger and to write the live one.
+    --
+    --   __Which field is the ledger is a model declaration, not inferred.__ The
+    --   committed-ledger role is conferred by /this selector alone/: 'runLite'
+    --   commits every stage's merged messages only to the field it returns, and
+    --   retention\/spill\/compaction ('runLiteWithPolicy') all act on that same
+    --   field. The product type only fixes the three roles
+    --   (@'InitT'@\/@'RefT'@\/@'SnapT'@); it does /not/ mark one field as the
+    --   ledger and the others as auxiliary — that split is a discipline this
+    --   selector expresses, not a type-level guarantee.
+    --
+    --   Consequence: if the world has more than one @'Journal' n v b@ field,
+    --   pointing the selector at the wrong one type-checks and fails __silently__.
+    --   Commits, eviction and the final projection are then all consistently
+    --   applied to the wrong ledger, so a test that reads back through the same
+    --   selector can still pass. Prefer __exactly one__ @'Journal'@ field per
+    --   world, or name fields so the intended ledger is unmistakable. (A future
+    --   @newtype Ledger@ wrapper could make this distinction type-level; until
+    --   then it is a convention.)
   , specStages   :: [Stage w t n v b]
     -- ^ Stages, run in this declared order each term.
   , specParallel :: Par
