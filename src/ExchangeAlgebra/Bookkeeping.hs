@@ -73,6 +73,8 @@ module ExchangeAlgebra.Bookkeeping
     , equityMethodDividendEntry
     , equityMethodEntries
     , equityMethodBalance
+      -- * Prior-period error correction (前期修正)
+    , priorPeriodErrorCorrection
     ) where
 
 import           ExchangeAlgebra.Algebra
@@ -536,3 +538,63 @@ equityMethodEntries mk share div' =
 -- Complexity: O(s) (s = number of scalar entries in the accumulated algebra)
 equityMethodBalance :: (HatVal v, ExBaseClass b) => Alg v b -> v
 equityMethodBalance = norm . bar . projByAccountTitle InvestmentInAssociate
+
+------------------------------------------------------------------
+-- * Prior-period error correction (前期修正)
+------------------------------------------------------------------
+
+-- | Prior-period error correction (前期修正・誤謬訂正; #15 Briggs anchor).
+--
+-- Records the correction of an error discovered in a prior period:
+-- the current-period portion goes to an expense account, while the
+-- prior-period portion bypasses the income statement and is charged
+-- directly to 'RetainedEarnings' (繰越利益剰余金) — conforming to
+-- IAS 8 \/ ASC 250-10 retrospective-restatement treatment.
+--
+-- > (借) \<expense\>         current   (貸) \<asset\>   current + prior
+-- > (借) RetainedEarnings   prior
+--
+-- Structural guarantee (thesis property): the prior-period amount is
+-- /always/ routed to 'RetainedEarnings'; the caller cannot accidentally
+-- book it to an income-statement account — the parameter type forces the
+-- split.
+--
+-- 'RetainedEarnings' is a credit-balance equity account (@home = Credit@),
+-- so a reduction (debit-side charge) is recorded with @'down'@ (@Hat@),
+-- which places it on the debit side — correct-by-construction.
+--
+-- The credit leg (asset reduction) is collapsed into one posting
+-- @'down' mk (current + prior) assetAcc@ because @'Num' v@ is available
+-- from the @'HatVal'@ superclass, making value addition clean; the
+-- two-line @.+@ alternative is equally valid under the seq-redundancy
+-- principle but the single line is more readable here.
+--
+-- === Example (#15 anchor: patent 55,000 \/ 10 yr, discovered in 2028)
+--
+-- * Patent cost 55,000, useful life 10 years → annual amortisation 5,500.
+-- * Error discovered in 2028: 2 prior years (2026, 2027) were not amortised.
+-- * Current-year amortisation 5,500 → expense (@AmortizationExpense@).
+-- * Prior 2 years 11,000 → directly to @RetainedEarnings@ (前期修正).
+-- * Credit @Patent@ 16,500 total.
+--
+-- >>> let mk = (:<) :: MkBase (HatBase AccountTitles)
+-- >>> let e = priorPeriodErrorCorrection mk 5500 11000 AmortizationExpense Patent :: Alg MoneyDecimal (HatBase AccountTitles)
+-- >>> norm (decL e) == norm (decR e)
+-- True
+-- >>> norm (decR e)
+-- 16500
+-- >>> norm (decL e)
+-- 16500
+--
+-- Complexity: O(1)
+priorPeriodErrorCorrection :: (HatVal v, ExBaseClass b)
+                           => MkBase b
+                           -> v              -- ^ current-period portion (当期費用; → @expenseAcc@)
+                           -> v              -- ^ prior-period portion   (前期修正; → 'RetainedEarnings')
+                           -> AccountTitles  -- ^ current-period expense account (e.g. 'AmortizationExpense')
+                           -> AccountTitles  -- ^ affected asset credited (e.g. 'Patent')
+                           -> Alg v b
+priorPeriodErrorCorrection mk current prior expenseAcc assetAcc =
+       up   mk current expenseAcc              -- (借) 当期費用 (expense 増, home=Debit → Not)
+    .+ down mk prior   RetainedEarnings        -- (借) 繰越利益剰余金 (equity 減, home=Credit → Hat=debit側)
+    .+ down mk (current + prior) assetAcc      -- (貸) 資産 (合計 current+prior 分だけ減額)

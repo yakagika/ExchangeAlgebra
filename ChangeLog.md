@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- `ExchangeAlgebra.Bookkeeping.priorPeriodErrorCorrection` — prior-period error
+  correction builder (前期修正/誤謬訂正): the current-period portion is charged to
+  an expense account while the prior-period portion is routed, by construction, to
+  `RetainedEarnings` (IAS 8 / ASC 250-10 retrospective restatement), so the caller
+  cannot misbook the prior-period amount to the income statement. Adds the
+  `AmortizationExpense` `AccountTitles` constructor (無形固定資産償却費, Cost;
+  distinct from tangible-asset `Depreciation`); classification and exhaustiveness
+  tests updated. Balanced by construction (`norm (decL x) == norm (decR x)`).
 - `ExchangeAlgebra.Bookkeeping` — equity-method closing builders
   (`equityMethodEarningsEntry`, `equityMethodDividendEntry`, `equityMethodEntries`)
   plus `equityMethodBalance`, the engine-recomputed carrying amount

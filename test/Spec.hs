@@ -135,6 +135,7 @@ accountTitleClassTable =
     , (ReserveDepositPayable,         Liability, Credit, Current)
     , (CentralBankNotePayable,        Liability, Credit, Current)
     , (Depreciation,                  Cost,      Debit,  Other)
+    , (AmortizationExpense,           Cost,      Debit,  Other)
     , (SalesCost,                     Cost,      Debit,  Other)
     , (BusinessTrip,                  Cost,      Debit,  Other)
     , (Commutation,                   Cost,      Debit,  Other)
@@ -1649,6 +1650,9 @@ bookkeepingProperties = do
     quickProp "bookkeeping: corporateTaxSettlementEntries balanced (total>=interim)" $
         forAll genNNDouble $ \interim -> forAll genNNDouble $ \extra ->
             isBalancedD (EB.corporateTaxSettlementEntries mkA (interim + extra) interim)
+    quickProp "bookkeeping: priorPeriodErrorCorrection balanced" $
+        forAll genNNDouble $ \curr -> forAll genNNDouble $ \prior ->
+            isBalancedD (EB.priorPeriodErrorCorrection mkA curr prior Depreciation Land)
 
     -- (2) unit tests: expected bases/amounts on representative lecture figures
     -- COGS (ch.24): beg 100,000 / end 50,000. In isolation this entry's
@@ -1681,6 +1685,13 @@ bookkeepingProperties = do
     let crp = EB.corporateTaxSettlementEntries mkA 800000 500000 :: BAlg
     assertNear "corporateTax: AccruedCorporateIncomeTaxes = total - interim = 300000"
         300000 (norm (EA.projByAccountTitle AccruedCorporateIncomeTaxes crp))
+    -- prior-period error correction (#15 anchor): patent 55,000/10yr discovered 2028
+    -- current 5,500 / prior 2yr 11,000 -> debit=credit=16,500 (Patent credit)
+    let ppec = EB.priorPeriodErrorCorrection mkA 5500 11000 AmortizationExpense Patent :: BAlg
+    assertNear "priorPeriodErrorCorrection (#15): Patent credit = 16500"
+        16500 (norm (EA.projByAccountTitle Patent ppec))
+    assertNear "priorPeriodErrorCorrection (#15): balanced (decL == decR)"
+        (norm (EA.decL ppec)) (norm (EA.decR ppec))
     -- consumption-tax refund (received<paid) is rejected (out of 3-級 scope)
     rRefund <- try (evaluate (norm (EB.consumptionTaxSettlementEntry mkA 5000 1000 :: BAlg)))
                  :: IO (Either SomeException Double)
