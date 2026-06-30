@@ -415,11 +415,16 @@ classifyAccountDivision PaymentFees                 = Cost
 classifyAccountDivision MiscellaneousLoss           = Cost
 classifyAccountDivision CorporateIncomeTaxes        = Cost
 classifyAccountDivision CommunicationExpenses       = Cost
+-- Equity-method additions (T4b)
+-- Asset: 関係会社株式 (Investment in associate, equity method)
+classifyAccountDivision InvestmentInAssociate       = Assets
 -- Revenue (収益)
 classifyAccountDivision GainOnSalesOfFixedAssets    = Revenue
 classifyAccountDivision RecoveryOfBadDebts          = Revenue
 classifyAccountDivision MiscellaneousIncome         = Revenue
 classifyAccountDivision ReversalOfAllowanceForDoubtfulAccounts = Revenue
+-- Revenue: 持分法による投資利益 (Equity in earnings of investee)
+classifyAccountDivision EquityInEarningsOfInvestee  = Revenue
 classifyAccountDivision _                           = Assets
 
 -- | BaseClass ⊃ HatBaseClass ⊃ ExBaseClass
@@ -603,6 +608,9 @@ class (HatBaseClass a) => ExBaseClass a where
         f RecoveryOfBadDebts             = Other
         f MiscellaneousIncome            = Other
         f ReversalOfAllowanceForDoubtfulAccounts = Other
+        -- Equity-method additions (T4b)
+        f InvestmentInAssociate          = Fixed   -- long-term investment, fixed assets category
+        f EquityInEarningsOfInvestee     = Other   -- revenue account
         f AccountTitle                   = Other
 
 

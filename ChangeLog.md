@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Added
+- `ExchangeAlgebra.Bookkeeping` — equity-method closing builders
+  (`equityMethodEarningsEntry`, `equityMethodDividendEntry`, `equityMethodEntries`)
+  plus `equityMethodBalance`, the engine-recomputed carrying amount
+  (`norm . bar . projByAccountTitle InvestmentInAssociate`), so the
+  `cost + Σ(share of NI) − Σ(dividends)` roll-forward of an equity-method
+  investment is correct-by-construction rather than hand-written. Adds two
+  `AccountTitles`: `InvestmentInAssociate` (関係会社株式, Asset/Fixed) and
+  `EquityInEarningsOfInvestee` (持分法による投資利益, Revenue). All builders are
+  debit-credit balanced (`norm (decL x) == norm (decR x)`); the exhaustiveness
+  and classification unit tests cover the two new titles.
 - `ExchangeAlgebra.Algebra.netPairMapBy` — the pair read-out of the paper's
   class-net operator ν_κ (`def:class-net`, notes Def 2.7). For each bucket key it
   returns a non-negative `(notTotal, hatTotal)` pair, built by netting each base's

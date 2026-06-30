@@ -222,6 +222,9 @@ accountTitleClassTable =
     , (MiscellaneousIncome,           Revenue,   Credit, Other)
     -- Phase B addition: Revenue (収益)
     , (ReversalOfAllowanceForDoubtfulAccounts, Revenue, Credit, Other)
+    -- T4b additions: equity-method accounts
+    , (InvestmentInAssociate,                 Assets,   Debit,  Fixed)
+    , (EquityInEarningsOfInvestee,            Revenue,  Credit, Other)
     ]
 
 testAccountTitleClassification :: IO ()

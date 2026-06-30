@@ -68,6 +68,11 @@ module ExchangeAlgebra.Bookkeeping
     , consumptionTaxSettlementEntry
     , corporateTaxInterimEntry
     , corporateTaxSettlementEntries
+      -- * Equity method (持分法)
+    , equityMethodEarningsEntry
+    , equityMethodDividendEntry
+    , equityMethodEntries
+    , equityMethodBalance
     ) where
 
 import           ExchangeAlgebra.Algebra
@@ -435,3 +440,99 @@ corporateTaxSettlementEntries mk total interim =
     in    up   mk total   CorporateIncomeTaxes          -- (借) 法人税等
        .+ down mk interim PrepaidCorporateIncomeTaxes    -- (貸) 仮払法人税等
        .+ up   mk unpaid  AccruedCorporateIncomeTaxes    -- (貸) 未払法人税等
+
+------------------------------------------------------------------
+-- * Equity method (持分法; lecture T4b)
+------------------------------------------------------------------
+
+-- | Equity-method earnings accrual (持分法による投資利益の計上):
+--
+-- > (借) 関係会社株式   share   (貸) 持分法による投資利益   share
+--
+-- @share@ is the investor's proportionate share of the investee's net income
+-- (= investee NI × ownership %). The investment carrying amount increases by
+-- @share@.
+--
+-- >>> let mk = (:<) :: MkBase (HatBase AccountTitles)
+-- >>> let e = equityMethodEarningsEntry mk 438000 :: Alg MoneyDecimal (HatBase AccountTitles)
+-- >>> norm (decL e) == norm (decR e)
+-- True
+-- >>> norm (decL e)
+-- 438000
+--
+-- Complexity: O(1)
+equityMethodEarningsEntry :: (HatVal v, ExBaseClass b)
+                          => MkBase b
+                          -> v         -- ^ investor's share of investee NI (持分利益)
+                          -> Alg v b
+equityMethodEarningsEntry mk share =
+       up mk share InvestmentInAssociate       -- (借) 関係会社株式
+    .+ up mk share EquityInEarningsOfInvestee  -- (貸) 持分法による投資利益
+
+-- | Equity-method dividend received (受取配当による投資簿価の減額):
+--
+-- > (借) 現金   div   (貸) 関係会社株式   div
+--
+-- Under the equity method a dividend received from the investee is /not/ income;
+-- it reduces the carrying amount of the investment.
+--
+-- >>> let mk = (:<) :: MkBase (HatBase AccountTitles)
+-- >>> let e = equityMethodDividendEntry mk 800000 :: Alg MoneyDecimal (HatBase AccountTitles)
+-- >>> norm (decL e) == norm (decR e)
+-- True
+-- >>> norm (decL e)
+-- 800000
+--
+-- Complexity: O(1)
+equityMethodDividendEntry :: (HatVal v, ExBaseClass b)
+                          => MkBase b
+                          -> v         -- ^ dividend received (受取配当金)
+                          -> Alg v b
+equityMethodDividendEntry mk div' =
+       up   mk div' Cash                   -- (借) 現金
+    .+ down mk div' InvestmentInAssociate  -- (貸) 関係会社株式
+
+-- | Combined equity-method closing entries: record the earnings accrual
+-- then the dividend reduction.
+--
+-- > (借) 関係会社株式   share   (貸) 持分法による投資利益   share
+-- > (借) 現金           div     (貸) 関係会社株式           div
+--
+-- >>> let mk = (:<) :: MkBase (HatBase AccountTitles)
+-- >>> let e = equityMethodEntries mk 438000 800000 :: Alg MoneyDecimal (HatBase AccountTitles)
+-- >>> norm (decL e) == norm (decR e)
+-- True
+--
+-- Complexity: O(1)
+equityMethodEntries :: (HatVal v, ExBaseClass b)
+                    => MkBase b
+                    -> v         -- ^ investor's share of investee NI (持分利益)
+                    -> v         -- ^ dividend received (受取配当金)
+                    -> Alg v b
+equityMethodEntries mk share div' =
+       equityMethodEarningsEntry mk share
+    .+ equityMethodDividendEntry mk div'
+
+-- | Equity-method carrying-amount balance (関係会社株式の簿価残高).
+--
+-- Projects all @'InvestmentInAssociate'@ postings from an accumulated @'Alg'@
+-- and returns their @'norm'@ (= net carrying amount). The caller accumulates
+-- the initial acquisition entry plus any 'equityMethodEarningsEntry' and
+-- 'equityMethodDividendEntry' calls; this function reads the result without
+-- recomputing it by hand — /correct-by-construction/.
+--
+-- Example (#18 anchor doctest):
+-- acquisition cost 2,400,000 + share of NI 0.30 × 1,460,000 (= 438,000)
+-- − dividend received 800,000 = carrying amount 2,038,000.
+--
+-- >>> let mk = (:<) :: MkBase (HatBase AccountTitles)
+-- >>> -- initial acquisition: Dr 関係会社株式 2,400,000 / Cr Cash 2,400,000
+-- >>> let acq = up mk 2400000 InvestmentInAssociate .+ down mk 2400000 Cash :: Alg MoneyDecimal (HatBase AccountTitles)
+-- >>> let entries = equityMethodEntries mk 438000 800000 :: Alg MoneyDecimal (HatBase AccountTitles)
+-- >>> let ledger = acq .+ entries
+-- >>> equityMethodBalance ledger
+-- 2038000
+--
+-- Complexity: O(s) (s = number of scalar entries in the accumulated algebra)
+equityMethodBalance :: (HatVal v, ExBaseClass b) => Alg v b -> v
+equityMethodBalance = norm . bar . projByAccountTitle InvestmentInAssociate

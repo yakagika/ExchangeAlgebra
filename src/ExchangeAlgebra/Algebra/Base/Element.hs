@@ -227,6 +227,7 @@ data  AccountTitles = Cash                            -- ^ Asset: Cash (現金)
                     | CurrentDeposits                 -- ^ Asset: Current deposits (当座預金)
                     | Securities                      -- ^ Asset: Securities (有価証券)
                     | InvestmentSecurities            -- ^ Asset: Investment securities (投資有価証券)
+                    | InvestmentInAssociate           -- ^ Asset: Investment in associate (関係会社株式). Carrying amount under the equity method (持分法適用投資勘定).
                     | LongTermNationalBonds           -- ^ Asset: Long-term national bonds (長期国債)
                     | ShortTermNationalBonds          -- ^ Asset: Short-term national bonds (短期国債)
                     | Products                        -- ^ Asset: Products (商品)。分記法用。3 分法 (仕入\/売上\/繰越商品) では 'MerchandiseInventory' を使う
@@ -283,6 +284,7 @@ data  AccountTitles = Cash                            -- ^ Asset: Cash (現金)
                     | TaxesRevenue                    -- ^ Revenue: Tax revenue (租税収入。SNA\/マクロ系)
                     | CentralBankPaymentIncome        -- ^ Revenue: Central bank payment to treasury (国庫納付金収入。SNA\/マクロ系)
                     | Sales                           -- ^ Revenue: Sales (売上)
+                    | EquityInEarningsOfInvestee      -- ^ Revenue: Equity in earnings of investee (持分法による投資利益). Recognised under the equity method.
                     | NetLoss                         -- ^ Revenue: Net loss (当期純損失 — 決算振替用。貸方側に立つため Revenue 区分)
                     -- Elementary bookkeeping (日商簿記 3 級水準) additions.
                     -- Appended before the 'AccountTitle' wildcard so that only the
