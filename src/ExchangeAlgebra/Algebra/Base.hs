@@ -406,7 +406,8 @@ classifyAccountDivision UnpaidDividends             = Liability
 classifyAccountDivision AllowanceForDoubtfulAccounts = Liability
 classifyAccountDivision AccumulatedDepreciation     = Liability
 -- Equity (資本)
-classifyAccountDivision LegalRetainedEarnings       = Equity
+classifyAccountDivision LegalRetainedEarnings                = Equity
+classifyAccountDivision CumulativeTranslationAdjustment      = Equity
 -- Cost (費用)
 classifyAccountDivision ProvisionForDoubtfulAccounts = Cost
 classifyAccountDivision BadDebtLoss                 = Cost
@@ -595,7 +596,8 @@ class (HatBaseClass a) => ExBaseClass a where
         f AllowanceForDoubtfulAccounts   = Current
         f AccumulatedDepreciation        = Fixed
         -- Equity (資本)
-        f LegalRetainedEarnings          = Other
+        f LegalRetainedEarnings                 = Other
+        f CumulativeTranslationAdjustment       = Other
         -- Cost (費用)
         f ProvisionForDoubtfulAccounts   = Other
         f BadDebtLoss                    = Other

@@ -333,6 +333,7 @@ data  AccountTitles = Cash                            -- ^ Asset: Cash (現金)
                     | AccumulatedDepreciation         -- ^ Liability: Accumulated depreciation (減価償却累計額), valuation account (評価勘定) under the indirect method (間接法). Classified under Liability for the same reason as 'AllowanceForDoubtfulAccounts'. This is the canonical bookkeeping account for accumulated depreciation; the existing 'ReserveForDepreciation' is retained as the legacy SNA\/macro-accounting name.
                     -- Equity (資本)
                     | LegalRetainedEarnings           -- ^ Equity: Legal (appropriated) retained earnings reserve (利益準備金)
+                    | CumulativeTranslationAdjustment -- ^ Equity: Cumulative translation adjustment (為替換算調整勘定; 在外子会社等の外貨建財務諸表の換算差額を計上する OCI/資本の部の項目)
                     -- Cost (費用)
                     | ProvisionForDoubtfulAccounts    -- ^ Cost: Provision for doubtful accounts (貸倒引当金繰入)
                     | BadDebtLoss                     -- ^ Cost: Bad debt loss (貸倒損失)

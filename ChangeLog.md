@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- `CumulativeTranslationAdjustment` `AccountTitles` constructor (為替換算調整勘定,
+  classified as `Equity`) — the equity/OCI account that absorbs the foreign-currency
+  translation adjustment. This is the only library primitive that foreign-currency
+  translation requires: the translation itself (relabel a `CountUnit` currency axis
+  and rescale the value at the exchange rate) is expressed with the existing
+  `ExchangeAlgebra.Algebra.Transfer` machinery (`createTransfer`/`.->`/`|%`), and the
+  CTA residual is posted from the caller, so no new translation operator is added to
+  the library. Classification and exhaustiveness tests updated.
 - `ExchangeAlgebra.Bookkeeping.priorPeriodErrorCorrection` — prior-period error
   correction builder (前期修正/誤謬訂正): the current-period portion is charged to
   an expense account while the prior-period portion is routed, by construction, to

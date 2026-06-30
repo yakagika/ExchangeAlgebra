@@ -226,6 +226,8 @@ accountTitleClassTable =
     -- T4b additions: equity-method accounts
     , (InvestmentInAssociate,                 Assets,   Debit,  Fixed)
     , (EquityInEarningsOfInvestee,            Revenue,  Credit, Other)
+    -- FX library additions: OCI/capital accounts
+    , (CumulativeTranslationAdjustment,       Equity,   Credit, Other)
     ]
 
 testAccountTitleClassification :: IO ()
