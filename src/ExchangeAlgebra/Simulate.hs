@@ -76,7 +76,7 @@ module ExchangeAlgebra.Simulate
     ,update
     ,initAll
     ,updateAll
-    ,StateSpace(event,randomSeeds)
+    ,StateSpace(event,randomSeeds,initT,lastT)
     ,normal
     ,normal'
     ,updateGen

@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- `ExchangeAlgebra.Simulate`: the `StateSpace` methods `initT` / `lastT` are now
+  exported. Their Haddock has always described them as customizable (they let an
+  instance override the simulation start/end term, and `runSimulationWithSpill`
+  consults them), but the export list only exposed
+  `StateSpace(event, randomSeeds)`, so external instances could not actually
+  override — or even name — them. Purely additive.
 - `CumulativeTranslationAdjustment` `AccountTitles` constructor (為替換算調整勘定,
   classified as `Equity`) — the equity/OCI account that absorbs the foreign-currency
   translation adjustment. This is the only library primitive that foreign-currency
