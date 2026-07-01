@@ -36,3 +36,8 @@ agent-notes/
 
 # Example execution outputs (regenerated on each run)
 examples/**/result/
+
+# audit-eval generated artifacts (LLM outputs + per-run JSON; keep summary.csv)
+examples/audit-eval/arms/
+examples/audit-eval/metrics/*.json
+__pycache__/

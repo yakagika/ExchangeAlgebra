@@ -1,0 +1,18 @@
+# models.toml — backend configuration for audit-eval runner
+# Edit this file to configure which models to use.
+
+[codex]
+# Codex CLI backend (subprocess). Uses the `codex` CLI installed locally.
+# `codex` must be on PATH and logged in (`codex login` done).
+backend = "codex"
+# model passed via --model flag to codex CLI (optional, uses codex default if omitted)
+# model = "o4-mini"
+
+[local]
+# OpenAI-compatible HTTP backend (Ollama / vLLM / LM Studio / llama.cpp).
+# Point base_url at your local server; api_key can be "ollama" or any placeholder.
+backend = "openai_compat"
+base_url = "http://localhost:11434"
+model = "llama3.2"
+api_key = "ollama"
+# timeout_seconds = 120

@@ -1,0 +1,28 @@
+{
+  "id": "journalize-cash-and-credit-001",
+  "category": "journalize",
+  "difficulty": "mechanical",
+  "ea_coverage": "ok",
+  "prompt": "次の取引を複式簿記の仕訳に起票せよ。",
+  "given": {
+    "chart_of_accounts": ["Cash", "Sales", "Inventory", "AccountsPayable"],
+    "ea_account_map": {
+      "Cash": "Cash",
+      "Sales": "Sales",
+      "Inventory": "MerchandiseInventory",
+      "AccountsPayable": "AccountsPayable"
+    },
+    "transactions": [
+      {"id": "t1", "desc": "現金で商品を売上", "amount": 1000},
+      {"id": "t2", "desc": "商品を掛けで仕入", "amount": 500}
+    ]
+  },
+  "ground_truth": {
+    "journal": [
+      {"entry": "t1", "side": "debit",  "account": "Cash",            "amount": 1000},
+      {"entry": "t1", "side": "credit", "account": "Sales",           "amount": 1000},
+      {"entry": "t2", "side": "debit",  "account": "Inventory",       "amount": 500},
+      {"entry": "t2", "side": "credit", "account": "AccountsPayable", "amount": 500}
+    ]
+  }
+}

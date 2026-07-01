@@ -1,0 +1,24 @@
+{
+  "id": "journalize-service-on-account-002",
+  "category": "journalize",
+  "difficulty": "mechanical",
+  "ea_coverage": "ok",
+  "prompt": "次の取引を仕訳せよ。",
+  "map_note": "ServiceRevenue は EA AccountTitles に未定義のため Sales へ alias 暫定 — 会計レビュー論点 (代替候補: ReceiptFee)",
+  "given": {
+    "chart_of_accounts": ["AccountsReceivable", "ServiceRevenue"],
+    "ea_account_map": {
+      "AccountsReceivable": "AccountsReceivable",
+      "ServiceRevenue": "Sales"
+    },
+    "transactions": [
+      {"id": "t1", "desc": "役務を提供し代金は掛け", "amount": 2000}
+    ]
+  },
+  "ground_truth": {
+    "journal": [
+      {"entry": "t1", "side": "debit",  "account": "AccountsReceivable", "amount": 2000},
+      {"entry": "t1", "side": "credit", "account": "ServiceRevenue",     "amount": 2000}
+    ]
+  }
+}

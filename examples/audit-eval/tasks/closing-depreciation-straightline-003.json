@@ -1,0 +1,22 @@
+{
+  "id": "closing-depreciation-straightline-003",
+  "category": "closing",
+  "difficulty": "mechanical",
+  "ea_coverage": "ok",
+  "prompt": "定額法により1年分の減価償却の決算整理仕訳を行え。",
+  "given": {
+    "chart_of_accounts": ["DepreciationExpense", "AccumulatedDepreciation"],
+    "ea_account_map": {
+      "DepreciationExpense": "Depreciation",
+      "AccumulatedDepreciation": "AccumulatedDepreciation"
+    },
+    "asset": {"name": "Machine", "cost": 12000, "useful_life_years": 5, "salvage": 0},
+    "policy": "straight_line"
+  },
+  "ground_truth": {
+    "journal": [
+      {"side": "debit",  "account": "DepreciationExpense",      "amount": 2400},
+      {"side": "credit", "account": "AccumulatedDepreciation",  "amount": 2400}
+    ]
+  }
+}

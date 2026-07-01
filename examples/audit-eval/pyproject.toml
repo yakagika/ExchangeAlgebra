@@ -1,0 +1,9 @@
+[project]
+name = "audit-eval"
+version = "0.1.0"
+description = "Accounting AI evaluation harness for ExchangeAlgebra"
+requires-python = ">=3.11"
+dependencies = []   # stdlib only
+
+[tool.uv]
+# No external dependencies; stdlib tomllib (3.11+), urllib, subprocess, json, csv.
