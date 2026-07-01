@@ -286,6 +286,14 @@
   cross-module dependency. A QuickCheck round-trip property (render → parse is
   exact for `MoneyDecimal`) and structural-rejection unit tests are included.
 
+### Deprecated
+
+- `rounding` (`ExchangeAlgebra.Algebra`): the `NN.Double`-only whole-unit
+  ceiling helper is deprecated in favour of the explicit, value-type-appropriate
+  `ExchangeAlgebra.Value.ceilingRound` / `bankersRound` (which take a
+  decimal-places argument and work on `MoneyDecimal`). No internal callers; the
+  function itself is unchanged.
+
 ### Changed
 
 - `ExchangeAlgebra.Convert`: the account-name normaliser is renamed
@@ -429,6 +437,12 @@
   after `compress`/`bar`, or use `MoneyDecimal`), and a characterization test
   pins the current orders so any change to either path is deliberate. Path
   unification is deferred to the 0.5.0.0 cleanup plan.
+- `projCredit` / `projDebit` Haddock: documented that for `Alg` they coincide
+  with the `Exchange` methods `decR` / `decL` respectively, and removed the
+  stale guidance "use this instead of decL/decR when the base contains non-Enum
+  elements" (it referred to long-removed `Enum`-based class defaults — and even
+  named the wrong counterpart). The dead commented-out `credit`/`debit` class
+  members in `ExBaseClass` were removed.
 - `Exchange` class Haddock corrected: the class-level docs of `decR`/`decL` were
   __inverted__ relative to both the implementation and the Deguchi & Nakano
   (1986, Definition 2.16) convention. `decR` extracts the __credit__ side

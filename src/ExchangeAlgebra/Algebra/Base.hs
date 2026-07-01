@@ -504,12 +504,6 @@ class (HatBaseClass a) => ExBaseClass a where
             f Equity    = Credit
             f Revenue   = Credit
 
-    -- credit :: [a] -- ^ Use projCredit when Elem contains Text, Int, etc.
-    -- credit = L.filter (\x -> whichSide x == Credit) [toEnum 0 ..]
-
-    -- debit :: [a] -- ^ Use projDebit when Elem contains Text, Int, etc.
-    -- debit = L.filter (\x -> whichSide x == Debit) [toEnum 0 ..]
-
     -- | Retrieve the fixed/current classification.
     -- Returns Current, Fixed, or Other based on the account title.
     --

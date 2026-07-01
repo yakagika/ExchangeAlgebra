@@ -1460,15 +1460,21 @@ singlePairToAlg b (Pair hs ns) = case (Seq.viewl hs, Seq.viewl ns) of
 
 ------------------------------------------------------------------
 
--- | Projects only the credit side elements.
--- Use this instead of decL when the base contains non-Enum elements such as Text or Int.
+-- | Projects only the credit-side elements. For 'Alg' this coincides with the
+-- 'Exchange' class method 'decR' (R = Right = Credit, 貸方); the top-level name
+-- makes the selected side explicit at call sites. (An earlier doc sentence
+-- restricting this to non-'Enum' bases referred to long-removed 'Enum'-based
+-- class defaults and no longer applies.)
 --
 -- Complexity: O(s) (s is the total number of scalar entries)
 projCredit :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projCredit = filter (\x -> (whichSide . _hatBase) x == Credit)
 
--- | Projects only the debit side elements.
--- Use this instead of decR when the base contains non-Enum elements such as Text or Int.
+-- | Projects only the debit-side elements. For 'Alg' this coincides with the
+-- 'Exchange' class method 'decL' (L = Left = Debit, 借方); the top-level name
+-- makes the selected side explicit at call sites. (An earlier doc sentence
+-- restricting this to non-'Enum' bases referred to long-removed 'Enum'-based
+-- class defaults and no longer applies.)
 --
 -- Complexity: O(s) (s is the total number of scalar entries)
 projDebit :: (HatVal n, ExBaseClass b)  => Alg n b -> Alg n b
@@ -1838,10 +1844,16 @@ projCapitalStock  = (filter (\x -> (whatDiv . _hatBase) x == Equity))
 
 -- * Rounding
 
--- | Rounding (ceiling).
--- Applied to the results of division and multiplication; uses ceiling rounding by default.
--- This should be applied to all multiplication and division of account titles.
+-- | Rounding (ceiling), fixed to @NN.Double@ and to whole units.
+--
+-- Superseded by the explicit, value-type-appropriate rounding functions in
+-- "ExchangeAlgebra.Value": 'ExchangeAlgebra.Value.bankersRound' (unbiased
+-- financial default) and 'ExchangeAlgebra.Value.ceilingRound' (this function's
+-- behaviour, with a decimal-places argument). There is no single correct
+-- rounding rule, so the rule should be chosen explicitly at the call site.
 --
 -- Complexity: O(1)
 rounding :: NN.Double -> NN.Double
 rounding = fromIntegral . ceiling
+
+{-# DEPRECATED rounding "NN.Double-only whole-unit ceiling; use ExchangeAlgebra.Value.ceilingRound / bankersRound (explicit, value-type-appropriate) instead" #-}
