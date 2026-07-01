@@ -399,6 +399,16 @@
 
 ### Documentation
 
+- `Exchange` class Haddock corrected: the class-level docs of `decR`/`decL` were
+  __inverted__ relative to both the implementation and the Deguchi & Nakano
+  (1986, Definition 2.16) convention. `decR` extracts the __credit__ side
+  (R = Right = Credit, 貸方) and `decL` the __debit__ side (L = Left = Debit,
+  借方) — the instance code was always correct; only the class Haddock (and thus
+  the rendered Hackage docs) said the opposite. The `decP`/`decM` glosses were
+  also reworded neutrally as the Hat-side/Not-side projections. Likewise the
+  `HatBaseClass` Haddock no longer equates Hat/Not with credit/debit: the side
+  of a posting is determined by the account division together with the Hat/Not
+  label (`whichSide`).
 - Module-reachability policy made explicit (audit R10): `ExchangeAlgebra.Bookkeeping`,
   `ExchangeAlgebra.Simulate.Lite`, `ExchangeAlgebra.Simulate.Network` and
   `ExchangeAlgebra.Simulate.Policy` are __designed to be imported directly__ and

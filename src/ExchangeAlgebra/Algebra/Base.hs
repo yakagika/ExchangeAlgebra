@@ -84,8 +84,11 @@ instance (Element e1, Element e2, Element e3, Element e4, Element e5, Element e6
 ------------------------------------------------------------------
 
 -- | Type class for bases with a Hat component. Provides functionality to decompose and
--- compose a base into its Hat part and BasePart. Manages the credit (Hat) / debit (Not)
--- distinction at the base level in exchange algebra.
+-- compose a base into its Hat part and BasePart. Manages the Hat (decrease) \/
+-- Not (increase) label at the base level in exchange algebra. Note that Hat\/Not
+-- is __not__ the debit\/credit distinction: the side of a posting is determined
+-- by the account division /together with/ this label (see 'whichSide' — an
+-- account sits on its home side when 'Not' and on the opposite side when 'Hat').
 class (BaseClass a, BaseClass (BasePart a), AxisDecompose (BasePart a)) => HatBaseClass a where
     -- | The type of the base part excluding the Hat.
     type BasePart a

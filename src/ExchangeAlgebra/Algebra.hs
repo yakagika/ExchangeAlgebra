@@ -276,15 +276,23 @@ infixr 3 <+
 ------------------------------------------------------------
 
 -- | Type class for Exchange Algebra. In addition to Redundant Algebra, provides
--- debit(R)/credit(L) decomposition, stock increase(P)/decrease(M) decomposition, and balance checking.
+-- the decomposition operators of Deguchi & Nakano (1986, Definition 2.16) and
+-- balance checking. Following the original convention, __L = Left = Debit
+-- (借方)__ and __R = Right = Credit (貸方)__: 'decL' extracts the debit side,
+-- 'decR' the credit side. ('decP' \/ 'decM' split along the Hat\/Not label
+-- instead of the debit\/credit side.)
 class (Redundant a n b ) => Exchange a n b where
-    -- | Extracts only the debit side elements. Complexity: O(s)
+    -- | Extracts only the credit-side elements (R = Right = Credit, 貸方),
+    -- i.e. those whose 'whichSide' is 'Credit'. Complexity: O(s)
     decR :: a n b -> a n b
-    -- | Extracts only the credit side elements. Complexity: O(s)
+    -- | Extracts only the debit-side elements (L = Left = Debit, 借方),
+    -- i.e. those whose 'whichSide' is 'Debit'. Complexity: O(s)
     decL :: a n b -> a n b
-    -- | Extracts only the Hat (stock increase) side elements. Complexity: O(s)
+    -- | Extracts only the Hat-side elements (the P-projection of the
+    -- decomposition; @isHat@ holds). Complexity: O(s)
     decP :: a n b -> a n b
-    -- | Extracts only the Not (stock decrease) side elements. Complexity: O(s)
+    -- | Extracts only the Not-side elements (the M-projection of the
+    -- decomposition; @isHat@ does not hold). Complexity: O(s)
     decM :: a n b -> a n b
     -- | Checks whether the norms of debit and credit sides are equal. Complexity: O(s)
     balance :: a n b -> Bool
