@@ -31,7 +31,7 @@ provided in "ExchangeAlgebra.Convert.Csv".
 module ExchangeAlgebra.Convert
     ( ConvError(..)
     , concreteAccountTitles
-    , norm
+    , normalizeTitle
     , parseAccountTitle
     , parseSide
     , markerForSide
@@ -83,7 +83,7 @@ concreteAccountTitles :: [AccountTitles]
 concreteAccountTitles = [Cash .. ReversalOfAllowanceForDoubtfulAccounts]
 
 -- | Account-name lookup table: every key (canonical constructor names and the
--- Japanese\/abbreviation aliases below) is run through 'norm', so matching is
+-- Japanese\/abbreviation aliases below) is run through 'normalizeTitle', so matching is
 -- case-, whitespace-, and symbol-insensitive. Keys are tagged so that a single
 -- alias shared by several accounts is reported as 'AmbiguousAccount' rather than
 -- silently resolving to whichever entry happens to come first.
@@ -91,7 +91,7 @@ concreteAccountTitles = [Cash .. ReversalOfAllowanceForDoubtfulAccounts]
 -- The canonical English names (derived from 'show' over 'concreteAccountTitles')
 -- are always unique, so they are never ambiguous and always resolve.
 accountTable :: [(Text, [AccountTitles])]
-accountTable = collapse [ (norm k, a) | (k, a) <- entries ]
+accountTable = collapse [ (normalizeTitle k, a) | (k, a) <- entries ]
   where
     -- Group entries by normalised key, accumulating every account that key maps
     -- to (so genuine collisions become ambiguous, not first-wins).
@@ -240,18 +240,22 @@ accountTable = collapse [ (norm k, a) | (k, a) <- entries ]
       , ("貸倒引当金戻入",       ReversalOfAllowanceForDoubtfulAccounts)
       ]
 
--- | Normalise a name for matching: case-fold, drop punctuation\/symbols (keep
--- only alphanumerics and spaces), and collapse internal whitespace to single
--- spaces (also trimming). So @\"A\/R\"@ and @\"ar\"@ coincide, and
+-- | Normalise an account name for matching: case-fold, drop punctuation\/symbols
+-- (keep only alphanumerics and spaces), and collapse internal whitespace to
+-- single spaces (also trimming). So @\"A\/R\"@ and @\"ar\"@ coincide, and
 -- @\"Accounts  Receivable\"@ matches @\"accounts receivable\"@. CJK characters
 -- are alphanumeric (Unicode @Lo@), so Japanese labels survive unchanged.
 --
--- >>> norm "  Accounts   Receivable "
+-- (Renamed from @norm@: that name collides with the core value-domain
+-- homomorphism 'ExchangeAlgebra.Algebra.norm', which is an entirely unrelated
+-- operation — the two must not be confusable in downstream imports.)
+--
+-- >>> normalizeTitle "  Accounts   Receivable "
 -- "accounts receivable"
--- >>> norm "A/R"
+-- >>> normalizeTitle "A/R"
 -- "ar"
-norm :: Text -> Text
-norm = T.unwords . T.words . T.filter (\c -> isAlphaNum c || isSpace c) . T.toLower
+normalizeTitle :: Text -> Text
+normalizeTitle = T.unwords . T.words . T.filter (\c -> isAlphaNum c || isSpace c) . T.toLower
 
 -- | Parse an account name into a concrete 'AccountTitles'. Unknown names and the
 -- wildcard are rejected; ambiguous Japanese labels (shared by several accounts)
@@ -280,7 +284,7 @@ norm = T.unwords . T.words . T.filter (\c -> isAlphaNum c || isSpace c) . T.toLo
 -- Left (UnknownAccount "AccountTitle")
 parseAccountTitle :: Text -> Either ConvError AccountTitles
 parseAccountTitle t =
-    case lookup (norm t) accountTable of
+    case lookup (normalizeTitle t) accountTable of
         Just [a] -> Right a
         Just as  -> Left (AmbiguousAccount t as)
         Nothing  -> Left (UnknownAccount t)
@@ -294,7 +298,7 @@ parseAccountTitle t =
 -- >>> parseSide "left"
 -- Left (UnknownSide "left")
 parseSide :: Text -> Either ConvError Side
-parseSide t = case norm t of
+parseSide t = case normalizeTitle t of
     "debit"  -> Right Debit
     "credit" -> Right Credit
     _        -> Left (UnknownSide t)

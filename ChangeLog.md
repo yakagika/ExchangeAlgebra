@@ -282,6 +282,12 @@
 
 ### Changed
 
+- `ExchangeAlgebra.Convert`: the account-name normaliser is renamed
+  `norm` → `normalizeTitle` (the module has never been released, so no
+  migration burden). The old name collided with the core value-domain
+  homomorphism `ExchangeAlgebra.Algebra.norm` — a fundamental, entirely
+  unrelated operation — and would have made `norm` ambiguous in any module
+  importing both unqualified.
 - `Element` class wildcard methods (`ExchangeAlgebra.Algebra.Base.Element`):
   __breaking__. The misspelt `wiledcard` method family is renamed to the correct
   spelling, with no compatibility aliases (audit R2). Migration (旧名 → 新名):
