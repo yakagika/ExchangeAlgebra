@@ -356,6 +356,14 @@
 
 ### Fixed
 
+- `classifyAccountDivision` (`ExchangeAlgebra.Algebra.Base`) is now total by
+  explicit enumeration: the trailing catch-all `_ = Assets` was replaced with
+  explicit `Assets` cases for the 19 legacy SNA/macro asset titles (`Cash`,
+  `Deposits`, …, `GovernmentService`). Previously any __future__
+  `AccountTitles` constructor added without a classification would have been
+  silently classified as `Assets`; now a missing case fails loudly (pattern-
+  match error, caught by the Bounded/Enum exhaustiveness test). No behaviour
+  change for existing titles.
 - `ExchangeAlgebra.Journal`: removed two GHC `RULES` that rewrote
   `norm (projWithBase bs js)` to `projWithBaseNorm bs js` (and the
   note-base analogue). The equation is __false__ whenever a query selects both

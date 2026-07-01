@@ -430,7 +430,31 @@ classifyAccountDivision MiscellaneousIncome         = Revenue
 classifyAccountDivision ReversalOfAllowanceForDoubtfulAccounts = Revenue
 -- Revenue: 持分法による投資利益 (Equity in earnings of investee)
 classifyAccountDivision EquityInEarningsOfInvestee  = Revenue
-classifyAccountDivision _                           = Assets
+-- Legacy SNA/macro asset titles. These were previously covered by a catch-all
+-- @classifyAccountDivision _ = Assets@; the catch-all is gone so that a future
+-- 'AccountTitles' constructor CANNOT be silently classified as Assets — a
+-- missing case now fails loudly (runtime pattern-match error, caught by the
+-- Bounded/Enum exhaustiveness test that evaluates 'whatDiv' on every
+-- constructor).
+classifyAccountDivision Cash                        = Assets
+classifyAccountDivision Deposits                    = Assets
+classifyAccountDivision CurrentDeposits             = Assets
+classifyAccountDivision Securities                  = Assets
+classifyAccountDivision InvestmentSecurities        = Assets
+classifyAccountDivision LongTermNationalBonds       = Assets
+classifyAccountDivision ShortTermNationalBonds      = Assets
+classifyAccountDivision Products                    = Assets
+classifyAccountDivision Machinery                   = Assets
+classifyAccountDivision Building                    = Assets
+classifyAccountDivision Vehicle                     = Assets
+classifyAccountDivision StockInvestment             = Assets
+classifyAccountDivision EquipmentInvestment         = Assets
+classifyAccountDivision LongTermLoansReceivable     = Assets
+classifyAccountDivision AccountsReceivable          = Assets
+classifyAccountDivision ShortTermLoansReceivable    = Assets
+classifyAccountDivision ReserveDepositReceivable    = Assets
+classifyAccountDivision Gold                        = Assets
+classifyAccountDivision GovernmentService           = Assets
 
 -- | BaseClass ⊃ HatBaseClass ⊃ ExBaseClass
 --
