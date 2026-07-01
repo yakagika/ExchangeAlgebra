@@ -3,7 +3,7 @@ runner/run.py — main entry point for audit-eval pilot.
 
 Usage
 -----
-    uv run runner/run.py --task all --arm C --model codex --seed 0
+    uv run runner/run.py --task all --arm A,B,C,D --model codex --seed 0
     uv run runner/run.py --task journalize-cash-and-credit-001 --arm C,A --model codex --seed 42
 
 Arguments
@@ -61,12 +61,7 @@ from runner.score  import score
 # ---------------------------------------------------------------------------
 
 def load_models_toml(path: Path) -> dict:
-    try:
-        import tomllib
-    except ImportError:
-        # Python < 3.11 fallback — minimal TOML parser for our simple format.
-        import tomllib  # type: ignore[no-redef]  # should never hit on 3.11+
-
+    import tomllib
     with path.open("rb") as f:
         return tomllib.load(f)
 

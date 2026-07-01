@@ -6,7 +6,7 @@ Metrics
 numeric_accuracy   : fraction of GT postings exactly matched (canonical account + side + amount)
 balance_violation  : True if Σdebit ≠ Σcredit in the model output
 account_validity   : True if ALL output accounts resolve via chart / ea_account_map / synonyms
-compile_fail       : True if arm A/B build or execution failed (passed through from arm result)
+compile_fail       : True if arm A/B/D build or execution failed (passed through from arm result)
 parse_fail         : True if model output could not be parsed to canonical JSON
 verification_gap   : (arm B/C, EA oracle) 1 if output contains an error that EA would
                      structurally reject (imbalance / account outside EA AccountTitles /

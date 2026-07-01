@@ -4,8 +4,12 @@
 [codex]
 # Codex CLI backend (subprocess). Uses the `codex` CLI installed locally.
 # `codex` must be on PATH and logged in (`codex login` done).
+# Runs in an isolated empty workdir (--cd) with a read-only sandbox so the
+# agentic CLI cannot read the EA repo / SKILL files nor write anywhere —
+# prompt-only arm comparisons stay uncontaminated.
 backend = "codex"
-# model passed via --model flag to codex CLI (optional, uses codex default if omitted)
+timeout_seconds = 240   # high-reasoning codex can exceed 120s per generation
+# model passed via -c model=... to codex CLI (optional, uses codex default if omitted)
 # model = "o4-mini"
 
 [local]

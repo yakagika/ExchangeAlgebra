@@ -27,6 +27,10 @@ arm A との差分が SKILL-ea-v1.md の寄与そのものを測る (harness art
   SKILL の構造知識からズレる)。
 - ビルド・実行・採点パイプライン (stack exec runghc → canonical JSON → score) は
   A/D 共通。
+- **backend の workspace 隔離が前提**: codex backend は空ディレクトリ (`--cd`) +
+  read-only sandbox で実行する。repo を workdir にすると agentic CLI が
+  SKILL-ea-v1.md や過去の arm A 生成物を読み, ablation が汚染される
+  (2026-07-02 pilot で実測 — 隔離前の arm D 生成物が SKILL の例と酷似した)。
 
 ## 予想される測定値
 

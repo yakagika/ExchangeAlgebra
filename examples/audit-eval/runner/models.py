@@ -48,16 +48,40 @@ class CodexBackend(Backend):
     Calls the `codex` CLI (v0.130+) in headless / non-interactive mode.
 
     Invocation pattern:
-        codex exec -o <tmpfile> '<system>\\n\\n<user>'
+        codex exec --cd <neutral-dir> --skip-git-repo-check -s read-only \
+                   -o <tmpfile> '<prompt>'
 
     The combined prompt avoids the need for a --system-prompt flag.
     The `-o` flag writes the final assistant message to a temp file;
     we read that file to get the clean answer (not the full event log
     that goes to stdout).
+
+    Workspace isolation (contamination guard, 2026-07-02): codex is an
+    *agentic* CLI — with the default workdir it explores the surrounding
+    repository, i.e. it could read harness/SKILL-ea-v1.md, previous arm-A
+    generations under arms/, or the EA library source. That silently
+    contaminates prompt-only arm comparisons (notably A vs D, the SKILL
+    ablation). Each backend instance therefore runs codex in a fresh empty
+    temp directory (`--cd`), so the model sees ONLY the prompt. The
+    `-s read-only` sandbox additionally prevents the agent's shell commands
+    from writing anywhere (we only need its text answer; file writes are the
+    runner's job).
+
+    The neutral dir is re-created if it disappears mid-run (observed
+    2026-07-02: the /tmp working tree was removed externally while a pilot
+    was still running — most likely the coordinator's post-land worktree
+    cleanup racing the rerun; either way the guard keeps a long pilot alive).
     """
 
     model: Optional[str] = None          # e.g. "o3"; None → codex default
-    timeout_seconds: int = 180
+    timeout_seconds: int = 240
+    _workdir: Optional[str] = None       # lazily-created neutral empty dir
+
+    def _neutral_workdir(self) -> str:
+        import os, tempfile
+        if self._workdir is None or not os.path.isdir(self._workdir):
+            self._workdir = tempfile.mkdtemp(prefix="audit-eval-codex-neutral-")
+        return self._workdir
 
     def generate(self, system: str, user: str) -> str:
         import tempfile, os
@@ -71,7 +95,13 @@ class CodexBackend(Backend):
             tmp_path = tmp.name
 
         try:
-            cmd = ["codex", "exec", "-o", tmp_path]
+            cmd = [
+                "codex", "exec",
+                "--cd", self._neutral_workdir(),
+                "--skip-git-repo-check",
+                "-s", "read-only",
+                "-o", tmp_path,
+            ]
             if self.model:
                 cmd += ["-c", f'model="{self.model}"']
             cmd.append(prompt)
@@ -134,7 +164,6 @@ class OpenAICompatBackend(Backend):
     HTTP backend for any /v1/chat/completions endpoint.
 
     Reads configuration from a dict (typically loaded from models.toml).
-    Falls back to environment variable OPENAI_COMPAT_API_KEY for the key.
     """
 
     base_url: str                  # e.g. "http://localhost:11434"
@@ -199,19 +228,18 @@ def backend_from_config(section: dict) -> Backend:
         timeout_seconds : optional int
     """
     kind = section.get("backend", "codex")
-    timeout = int(section.get("timeout_seconds", 120))
 
     if kind == "codex":
         return CodexBackend(
             model=section.get("model"),
-            timeout_seconds=timeout,
+            timeout_seconds=int(section.get("timeout_seconds", 240)),
         )
     elif kind == "openai_compat":
         return OpenAICompatBackend(
             base_url=section["base_url"],
             model=section["model"],
             api_key=section.get("api_key", "ollama"),
-            timeout_seconds=timeout,
+            timeout_seconds=int(section.get("timeout_seconds", 120)),
         )
     else:
         raise ValueError(f"Unknown backend type: {kind!r}")

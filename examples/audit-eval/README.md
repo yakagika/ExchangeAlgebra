@@ -59,6 +59,13 @@ Arm A/B/D run a P4 retry loop: on compile / execution / parse failure the error
 message is fed back to the backend for regeneration (up to `--max-iters`,
 default 3). Arm C retries at most once, on parse failure only.
 
+**Workspace isolation**: the codex backend runs `codex exec` in a fresh empty
+directory (`--cd`) with a read-only sandbox (`-s read-only`). Codex is an
+agentic CLI — with the repo as workdir it can read `harness/SKILL-ea-v1.md`,
+previous generations under `arms/`, or the EA source, silently contaminating
+prompt-only arm comparisons (especially the A-vs-D SKILL ablation; observed
+in the 2026-07-01 pilot before isolation).
+
 ## Metrics
 
 | Metric                  | Description                                                        |
