@@ -743,12 +743,21 @@ projWithNote ns js =
 -- 3.00:@Not:<Amount.|"fish" .+ 1.00:@Not:<Amount.|"cat"
 projWithBase :: (HatVal v, HatBaseClass b, Note n)
              => [b] -> Journal n v b -> Journal n v b
-{-# INLINE [0] projWithBase #-}
+{-# INLINE projWithBase #-}
 projWithBase [] _ = mempty
 projWithBase bs js = fromMap $ Map.map (EA.proj bs) (toMap js)
 
--- | Directly compute the norm after filtering by the specified bases.
--- Equivalent to @norm (projWithBase bs js)@ but without constructing an intermediate Journal.
+-- | Directly compute the /bar-netted/ norm of a base projection, without
+-- constructing an intermediate Journal. Per note this applies 'EA.projNorm',
+-- which nets each projected base's hat and not sides (the positive-part
+-- normalization); hence
+--
+-- @projWithBaseNorm bs js == norm (map bar (projWithBase bs js))@
+--
+-- which is __not__ the same as @norm (projWithBase bs js)@ when a query
+-- (e.g. a @HatNot@ wildcard, or a list selecting both sides of one base)
+-- selects both the hat and the not side of a base: the un-netted norm sums
+-- both sides, the netted one cancels them. See 'EA.projNorm'.
 --
 -- Complexity: O(j * proj cost) where j is the number of Notes
 projWithBaseNorm :: (HatVal v, HatBaseClass b, Note n)
@@ -769,7 +778,7 @@ projWithBaseNorm bs js =
 -- 3.00:@Not:<Amount.|"fish"
 projWithNoteBase :: (HatVal v, HatBaseClass b, Note n)
                  => [n] -> [b] -> Journal n v b -> Journal n v b
-{-# INLINE [0] projWithNoteBase #-}
+{-# INLINE projWithNoteBase #-}
 projWithNoteBase _ [] _ = mempty
 projWithNoteBase ns bs js
     | any isPlank ns = projWithBase bs js
@@ -786,8 +795,15 @@ projWithNoteBase ns bs js =
         Map.empty
         (S.fromList ns)
 
--- | Directly compute the norm after filtering by the specified Notes and bases.
--- Equivalent to @norm (projWithNoteBase ns bs js)@ but without constructing an intermediate Journal.
+-- | Directly compute the /bar-netted/ norm of a note-and-base projection,
+-- without constructing an intermediate Journal. Like 'projWithBaseNorm' this
+-- goes through 'EA.projNorm', so per note each projected base is netted
+-- (positive-part normalization):
+--
+-- @projWithNoteNorm ns bs js == norm (map bar (projWithNoteBase ns bs js))@
+--
+-- which is __not__ the same as @norm (projWithNoteBase ns bs js)@ when a query
+-- selects both sides of one base (see 'projWithBaseNorm').
 --
 -- Complexity: O(|ns| * proj cost)
 projWithNoteNorm :: (HatVal v, HatBaseClass b, Note n)
@@ -807,12 +823,13 @@ projWithNoteNorm ns bs js =
         0
         (S.fromList ns)
 
-{-# RULES
-"EJ.projWithBaseNorm/from-norm-projWithBase"
-    forall bs js. norm (projWithBase bs js) = projWithBaseNorm bs js
-"EJ.projWithNoteNorm/from-norm-projWithNoteBase"
-    forall ns bs js. norm (projWithNoteBase ns bs js) = projWithNoteNorm ns bs js
-  #-}
+-- NB. Two RULES that rewrote @norm (projWithBase bs js)@ to 'projWithBaseNorm'
+-- (and the note-base analogue) were REMOVED here: the equation is false whenever
+-- a query selects both sides of one base (e.g. a @HatNot@ wildcard) — the
+-- left-hand side sums both sides, the right-hand side bar-nets them (verified:
+-- 14.0 vs 6.0 on a both-sided base). A rewrite rule must be semantics-preserving;
+-- callers who want the fused netted read-out call 'projWithBaseNorm' \/
+-- 'projWithNoteNorm' explicitly.
 
 ------------------------------------------------------------------
 -- | Filter by a predicate on Note-entry pairs.

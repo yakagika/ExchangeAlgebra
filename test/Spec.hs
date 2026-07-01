@@ -361,6 +361,33 @@ testProjWithNoteNorm = do
     assertNear "Journal.projWithNoteNorm (selected notes)" expected1 actual1
     assertNear "Journal.projWithNoteNorm (plank wildcard)" expected2 actual2
 
+-- | Sentinel for the REMOVED RULES rewrite
+-- @norm (projWithBase bs js) = projWithBaseNorm bs js@ (and the note-base
+-- analogue): the equation is false when a query selects both sides of one
+-- base. 'EJ.projWithBaseNorm' \/ 'EJ.projWithNoteNorm' are the /bar-netted/
+-- read-outs (per base @|not - hat|@), while @norm . projWithBase@ is the
+-- gross norm (sums both sides). Both values are pinned here so a future
+-- \"optimization\" that silently nets the gross path fails loudly.
+testProjWithBaseNormBothSided :: IO ()
+testProjWithBaseNormBothSided = do
+    let alg :: EA.Alg MoneyDecimal (HatBase CountUnit)
+        alg =  (10 :@ (Hat :< Yen))     -- Yen carries both sides
+            .+ (4  :@ (Not :< Yen))
+            .+ (7  :@ (Not :< Amount))
+        js = alg .| "n" :: EJ.Journal String MoneyDecimal (HatBase CountUnit)
+        bs = [HatNot :< Yen] :: [HatBase CountUnit]
+    assertEqual "projWithBaseNorm nets both sides (HatNot query): |10-4|"
+        6 (EJ.projWithBaseNorm bs js)
+    assertEqual "norm . projWithBase stays gross (no RULES rewrite): 10+4"
+        14 (norm (EJ.projWithBase bs js))
+    assertEqual "projWithBaseNorm == norm . map bar . projWithBase"
+        (norm (EJ.map EA.bar (EJ.projWithBase bs js)))
+        (EJ.projWithBaseNorm bs js)
+    assertEqual "projWithNoteNorm nets both sides (HatNot query): |10-4|"
+        6 (EJ.projWithNoteNorm ["n"] bs js)
+    assertEqual "norm . projWithNoteBase stays gross (no RULES rewrite): 10+4"
+        14 (norm (EJ.projWithNoteBase ["n"] bs js))
+
 -- | Regression test for the `bases` typo bug.
 --
 -- Before the fix at Algebra.hs:868, `bases` ignored the `_notSide` Seq and
@@ -2655,6 +2682,7 @@ main = do
     testProjNormBarIdentity
     testProjWithBaseNorm
     testProjWithNoteNorm
+    testProjWithBaseNormBothSided
     testBasesNotSideRegression
     testNumericToleranceScaleAware
     testMoneyDecimalExactOrderIndependent

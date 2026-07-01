@@ -356,6 +356,18 @@
 
 ### Fixed
 
+- `ExchangeAlgebra.Journal`: removed two GHC `RULES` that rewrote
+  `norm (projWithBase bs js)` to `projWithBaseNorm bs js` (and the
+  note-base analogue). The equation is __false__ whenever a query selects both
+  sides of one base (e.g. a `HatNot` wildcard, or a list containing both
+  `Hat:<b` and `Not:<b`): the left-hand side is the gross norm (sums both
+  sides), the right-hand side is the bar-netted read-out (verified 14.0 vs 6.0
+  on a both-sided base). Had the rule fired under `-O`, optimized and
+  unoptimized builds would silently disagree. The Haddock of
+  `projWithBaseNorm`/`projWithNoteNorm` — which claimed the false equivalence —
+  now states the correct identity
+  `projWithBaseNorm bs js == norm (map bar (projWithBase bs js))`, and a
+  regression test pins both the netted and the gross value.
 - `incomeSummaryAccount` (both `ExchangeAlgebra.Algebra.Transfer` and
   `ExchangeAlgebra.Journal.Transfer`): no longer crashes with
   "Non-exhaustive patterns" on a balanced ledger (audit R1). When credit and
