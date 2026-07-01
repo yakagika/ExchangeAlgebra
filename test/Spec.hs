@@ -429,6 +429,38 @@ testSigmaMergePath = do
         actual = EA.sigma xs f
     assertEqual "Alg.sigma bulk-merge path matches unionsMerge" expected actual
 
+-- | Characterization: the same-base 'Seq' order is __construction-path
+-- dependent__. The pairwise-union path ('EA.fromList' = 'mconcat') and the
+-- bulk-merge path ('EA.sigma' \/ 'EA.unionsMerge') produce the same /multiset/
+-- of postings but in different sequence orders, which 'Eq' \/ @Binary@ observe
+-- (and 'Double' observes through the last ULP of 'norm'\/'bar' association).
+-- This test pins the current orders so any change to either path is a
+-- conscious decision; unifying the paths is tracked in the 0.5.0.0 cleanup
+-- plan. For order-independent comparison use `MoneyDecimal` (exact) or compare
+-- after 'EA.compress'\/'EA.bar'.
+testSameBaseSeqOrderPathDependence :: IO ()
+testSameBaseSeqOrderPathDependence = do
+    let f :: Int -> TestAlg
+        f i = fromIntegral i :@ (Hat :< Yen)
+        xs = L.map f [1, 2, 3]
+        viaFromList = EA.fromList xs
+        viaSigma    = EA.sigma [1, 2, 3] f
+        viaMerge    = EA.unionsMerge xs
+    assertEqual "fromList same-base seq order (pairwise-union path)"
+        [3, 1, 2] (EA.vals viaFromList)
+    assertEqual "sigma same-base seq order (bulk-merge path)"
+        [3, 2, 1] (EA.vals viaSigma)
+    assertEqual "unionsMerge order matches sigma (same merge path)"
+        (EA.vals viaSigma) (EA.vals viaMerge)
+    -- same multiset, different order: Eq observes the redundancy order
+    assertEqual "fromList /= sigma under Eq (order is observable)"
+        False (viaFromList == viaSigma)
+    -- the algebraic content is nevertheless identical
+    assertNear "norm agrees across construction paths"
+        (norm viaFromList) (norm viaSigma)
+    assertEqual "bar agrees across construction paths"
+        (EA.bar viaFromList) (EA.bar viaSigma)
+
 testSigma2When :: IO ()
 testSigma2When = do
     let xs = [1 .. 3 :: Int]
@@ -2687,6 +2719,7 @@ main = do
     testNumericToleranceScaleAware
     testMoneyDecimalExactOrderIndependent
     testSigmaMergePath
+    testSameBaseSeqOrderPathDependence
     testSigma2When
     testSigmaFromMap
     testJournalFromListStrict

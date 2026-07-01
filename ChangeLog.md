@@ -413,6 +413,16 @@
 
 ### Documentation
 
+- Same-base sequence order documented as __construction-path dependent__: the
+  pairwise-union path (`fromList`/`mconcat`) and the bulk-merge path
+  (`sigma`/`unionsMerge`) arrange the same multiset of postings in different
+  orders (verified: `[3,1,2]` vs `[3,2,1]` for three same-base postings), which
+  `Eq`/`Binary` observe and `Double` observes through the last ULP of
+  `norm`/`bar`. The `Redundant` class, `sigma` and `unionsMerge` Haddocks now
+  warn against comparing algebras built by different routes with `==` (compare
+  after `compress`/`bar`, or use `MoneyDecimal`), and a characterization test
+  pins the current orders so any change to either path is deliberate. Path
+  unification is deferred to the 0.5.0.0 cleanup plan.
 - `Exchange` class Haddock corrected: the class-level docs of `decR`/`decL` were
   __inverted__ relative to both the implementation and the Deguchi & Nakano
   (1986, Definition 2.16) convention. `decR` extracts the __credit__ side

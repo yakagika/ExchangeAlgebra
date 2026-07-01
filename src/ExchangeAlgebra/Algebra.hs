@@ -220,6 +220,12 @@ nearlyEqScaled x y
 -- Note @('.+')@ accumulates same-base postings as an ordered sequence (the
 -- /redundancy/), so 'Show' \/ 'Eq' observe that order; for the exact value type
 -- 'ExchangeAlgebra.Value.MoneyDecimal', 'norm' \/ 'bar' are order-independent.
+-- The order itself is furthermore /construction-path dependent/: the
+-- pairwise-union path ('fromList'\/'mconcat') and the bulk-merge path
+-- ('sigma'\/'unionsMerge') arrange the same multiset of postings differently.
+-- Do not rely on @('==')@ to compare algebras built by different routes —
+-- compare after 'compress'\/'bar', or use an exact value type and compare
+-- the netted content.
 
 class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
     -- | Hat operation. Flips Hat/Not on all elements.
@@ -848,6 +854,13 @@ mergeAlgMapIfNonZero !acc alg = mergeAlgMap acc alg
 {-# INLINE unionsMerge #-}
 -- | Merge multiple Algs by directly combining their internal HashMaps,
 -- building the AxisPosting index only once at the end.
+--
+-- Produces the same /multiset/ of postings as 'unions'\/'mconcat', but the
+-- same-base sequence order differs (the bulk-merge accumulates a new same-base
+-- singleton in front of the previously merged values, whereas the pairwise
+-- union path interleaves differently). 'Eq'\/@Binary@ observe that order, and
+-- 'Double' observes it through the last ULP of 'norm'\/'bar'; see the
+-- characterization test @testSameBaseSeqOrderPathDependence@.
 unionsMerge :: (HatVal n, Foldable f, HatBaseClass b) => f (Alg n b) -> Alg n b
 unionsMerge ts =
     let !m = Foldable.foldl' mergeAlgMap Map.empty ts
@@ -1022,6 +1035,9 @@ fromList = mconcat
 
 -- | Summation function that applies a function to each element of a list and sums the results.
 -- Complexity: O(sum of HashMap union costs over produced elements).
+--
+-- Uses the bulk-merge path ('unionsMerge'); see there for the same-base
+-- sequence-order caveat relative to 'fromList'\/'mconcat'.
 --
 -- >>> type Test = Alg NN.Double (HatBase CountUnit)
 -- >>> sigma [1,2] (\x -> x:@Hat:<Yen)
