@@ -216,6 +216,10 @@ class (StateTime t,InitVariables v)
 -- --     _unwrapURef (SP x) = x
 -- --     _wrapURef x = SP x
 -- @
+--
+-- The underscore-prefixed methods are exported because defining a
+-- (non-Coercible) instance requires naming them; they are instance wiring,
+-- not a user-facing API — call 'readURef'\/'writeURef'\/'modifyURef' instead.
 class UpdatableSTRef wrapper s b | wrapper s -> b where
   -- | Unwrap to the inner @STRef@.
   -- For newtype wrappers, the @Coercible@ default is used.

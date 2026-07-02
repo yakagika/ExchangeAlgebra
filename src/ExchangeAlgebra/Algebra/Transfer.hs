@@ -471,8 +471,8 @@ instance (HatBaseClass b) => Show (TransTableParts b) where
 
 -- | Syntax to make list for makeList
 --
--- >>> Hat:<(Yen,Cash):-> Hat:<(Yen,Building) |% (id :: Double -> Double) ++ Not:<(Yen,Building)  :-> Not:<(Yen, Cash)  |% id
--- [(Hat:<(Yen,Cash),Hat:<(Yen,Building),<function>),(Not:<(Yen,Building),Not:<(Yen,Cash),<function>)]
+-- >>> fmap (\(b, a, _) -> (b, a)) $ Hat:<(Yen,Cash):-> Hat:<(Yen,Building) |% (id :: Double -> Double) ++ Not:<(Yen,Building)  :-> Not:<(Yen, Cash)  |% id
+-- [(Hat:<(Yen,Cash),Hat:<(Yen,Building)),(Not:<(Yen,Building),Not:<(Yen,Cash))]
 {-# INLINE (|%) #-}
 (|%) :: (HatVal n, HatBaseClass b) => TransTableParts b -> (n -> n) -> [(b,b,(n -> n))]
 (|%) (b1 :-> b2) f = [(b1,b2,f)]
@@ -481,8 +481,10 @@ infixr 8 .->
 infixr 8 :->
 infixr 7 |%
 
-instance (HatVal n) => Show (n -> n) where
-    show _ = "<function>"
+-- NB. A universal @instance (HatVal n) => Show (n -> n)@ used to live here for
+-- the sake of showing raw rule-list tuples in one doctest. It leaked a function
+-- Show instance into every downstream module, so it was removed (design-review
+-- C5); 'TransTable''s own 'Show' prints @<function>@ without it.
 
 -- | Build an indexed fast transfer function from a list of transfer rules.
 -- More efficient than @transfer@ when repeatedly applying the same TransTable.

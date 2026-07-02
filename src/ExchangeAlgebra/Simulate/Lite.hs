@@ -119,15 +119,20 @@ module ExchangeAlgebra.Simulate.Lite
     , SnapT
     , HK
       -- * Generic world traversal
-    , GLiteInit(..)
-    , GLiteFreeze(..)
-    , GLiteCommit(..)
+    -- The GLite* classes are exported name-only: their primed methods are the
+    -- Generic-Rep plumbing (instances for M1/(:*:)/K1 live in this module);
+    -- user code only ever names the classes in constraints.
+    , GLiteInit
+    , GLiteFreeze
+    , GLiteCommit
     , LiteWorld
     , gInit
     , gFreeze
     , gCommit
       -- * Stages
-    , Stage(..)
+    -- 'Stage' is exported name-only: build stages with the smart constructors
+    -- ('stageFor'/'stage'/'stageOf') and read the name via 'stageName'.
+    , Stage
     , stageFor
     , stage
     , stageOf

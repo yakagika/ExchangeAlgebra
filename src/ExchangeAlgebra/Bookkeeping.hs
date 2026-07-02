@@ -432,16 +432,24 @@ corporateTaxInterimEntry mk amt =
 -- 300000
 --
 -- Complexity: O(1)
-corporateTaxSettlementEntries :: (HatVal v, ExBaseClass b)
+corporateTaxSettlementEntries :: (HasCallStack, HatVal v, ExBaseClass b)
                               => MkBase b
                               -> v   -- ^ total corporate income tax (法人税等)
                               -> v   -- ^ interim payment already made (仮払法人税等)
                               -> Alg v b
-corporateTaxSettlementEntries mk total interim =
-    let unpaid = total - interim
-    in    up   mk total   CorporateIncomeTaxes          -- (借) 法人税等
-       .+ down mk interim PrepaidCorporateIncomeTaxes    -- (貸) 仮払法人税等
-       .+ up   mk unpaid  AccruedCorporateIncomeTaxes    -- (貸) 未払法人税等
+corporateTaxSettlementEntries mk total interim
+    -- Same guard style as 'consumptionTaxSettlementEntry': an over-prepayment
+    -- (refund position) is out of 3-級 scope, so reject it with a clear error
+    -- instead of letting the negative @unpaid@ hit @('.@')@'s generic one.
+    | interim > total =
+        error $ "corporateTaxSettlementEntries: interim (" ++ show interim
+             ++ ") > total (" ++ show total
+             ++ "); a corporate-tax refund (over-prepayment) is out of 日商簿記 3 級 scope."
+    | otherwise =
+        let unpaid = total - interim
+        in    up   mk total   CorporateIncomeTaxes          -- (借) 法人税等
+           .+ down mk interim PrepaidCorporateIncomeTaxes    -- (貸) 仮払法人税等
+           .+ up   mk unpaid  AccruedCorporateIncomeTaxes    -- (貸) 未払法人税等
 
 ------------------------------------------------------------------
 -- * Equity method (持分法; lecture T4b)

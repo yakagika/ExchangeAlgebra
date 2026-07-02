@@ -78,6 +78,11 @@ instance (Element e1, Element e2, Element e3, Element e4, Element e5)
 instance (Element e1, Element e2, Element e3, Element e4, Element e5, Element e6)
         => BaseClass (e1, e2, e3, e4, e5, e6) where
 
+-- 7-tuple: 'Element'/'AxisDecompose' already provide 7-tuple instances; this
+-- closes the gap so every Element tuple arity is also usable as a base.
+instance (Element e1, Element e2, Element e3, Element e4, Element e5, Element e6, Element e7)
+        => BaseClass (e1, e2, e3, e4, e5, e6, e7) where
+
 
 ------------------------------------------------------------------
 -- ** HatBase
@@ -490,12 +495,20 @@ class (HatBaseClass a) => ExBaseClass a where
             Revenue   -> IN
 
     -- | Determine whether a base belongs to the Credit or Debit side.
-    -- Takes the Hat/Not reversal into account. Complexity: O(1)
+    -- Takes the Hat/Not reversal into account: an account sits on its home
+    -- side under 'Not' and on the opposite side under 'Hat'. A 'HatNot'
+    -- (wildcard) label is rejected with an error — same policy as 'isHat':
+    -- stored postings are always Hat\/Not, so a wildcard here means a
+    -- query-side value leaked into a posting-side computation (this function
+    -- previously treated 'HatNot' silently as 'Hat'). Complexity: O(1)
     {-# INLINE whichSide #-}
     whichSide   :: a -> Side
     whichSide x =
         let side = f (whatDiv x)
-        in if hat x == Not then side else switchSide side
+        in case hat x of
+            Not    -> side
+            Hat    -> switchSide side
+            HatNot -> customError "whichSide: called on a HatNot (wildcard) base"
         where
             {-# INLINE f #-}
             f Assets    = Debit

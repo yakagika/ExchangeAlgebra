@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Added
+- `BaseClass` instance for 7-tuples (design-review C5): `Element` and
+  `AxisDecompose` already had 7-tuple instances, so every Element tuple arity
+  is now also usable as a base.
 - `ExchangeAlgebra.Simulate`: the `StateSpace` methods `initT` / `lastT` are now
   exported. Their Haddock has always described them as customizable (they let an
   instance override the simulation start/end term, and `runSimulationWithSpill`
@@ -308,6 +311,20 @@
 
 ### Changed
 
+- `whichSide` now rejects a `HatNot` (wildcard) base with an error instead of
+  silently treating it as `Hat` (design-review C5): stored postings are always
+  `Hat`/`Not` (same policy as `isHat`), so a wildcard reaching `whichSide`
+  means a query-side value leaked into a posting-side computation. __Breaking__
+  only for code that relied on the silent-`Hat` behaviour.
+- The universal `instance (HatVal n) => Show (n -> n)`
+  (`ExchangeAlgebra.Algebra.Transfer`) was removed (design-review C5):
+  __breaking__ for code that `show`ed raw rule-list tuples. `TransTable`'s own
+  `Show` still prints `<function>` without it; one doctest was adjusted.
+- `ExchangeAlgebra.Simulate.Lite` export hygiene (design-review C5):
+  __breaking__. `Stage` is now exported name-only (build with
+  `stageFor`/`stage`/`stageOf`, read the name via `stageName`); the `GLite*`
+  Generic-plumbing classes are exported name-only (their primed methods are
+  internal Rep wiring — user code only names the classes in constraints).
 - The `ExchangeAlgebra` umbrella no longer re-exports `ExchangeAlgebra.Simulate`:
   __breaking__ (design-review C1). The simulation engine exports very generic
   names (`copy`, `modify`, `update`, `initialize`, `normal`, `initAll`, …) that
@@ -409,6 +426,11 @@
 
 ### Fixed
 
+- `ExchangeAlgebra.Bookkeeping.corporateTaxSettlementEntries` now rejects
+  `interim > total` (a corporate-tax refund position, out of 日商簿記 3 級
+  scope) with a clear error, mirroring the guard style of its sibling
+  `consumptionTaxSettlementEntry`; previously the negative `unpaid` leg hit
+  the generic `(.@)` error (design-review C5).
 - `classifyAccountDivision` (`ExchangeAlgebra.Algebra.Base`) is now total by
   explicit enumeration: the trailing catch-all `_ = Assets` was replaced with
   explicit `Assets` cases for the 19 legacy SNA/macro asset titles (`Cash`,
@@ -460,6 +482,11 @@
 
 ### Documentation
 
+- `plank` in the note-query lists of `projWithNote` /
+  `projWithNoteBase` / `projWithNoteBaseNetNorm` is now documented as a
+  note-wildcard (the projection widens to all notes) — previously an
+  undocumented behaviour (design-review C5). The underscore-prefixed
+  `UpdatableSTRef` methods are documented as instance wiring, not user API.
 - Same-base sequence order documented as __construction-path dependent__: the
   pairwise-union path (`fromList`/`mconcat`) and the bulk-merge path
   (`sigma`/`unionsMerge`) arrange the same multiset of postings in different

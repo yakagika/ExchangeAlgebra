@@ -711,6 +711,9 @@ insert x y = fromMap (Map.union (toMap x) (toMap y))
 -- | projWithNote
 -- Projecting with Note.
 --
+-- A query list containing 'plank' acts as a __wildcard__: the journal is
+-- returned unchanged (the blank note matches every note).
+--
 -- >>> type Test = Journal String Double (HatBase CountUnit)
 -- >>> x = 1.00:@Hat:<Yen .+ 1.00:@Not:<Amount .| "cat"  :: Test
 -- >>> y = 2.00:@Hat:<Yen .+ 2.00:@Not:<Amount .| "dog"  :: Test
@@ -772,6 +775,9 @@ projWithBaseNetNorm bs js =
 -- | projWithNoteBase
 -- Projecting with Note and Base.
 --
+-- 'plank' in the note list acts as a note-wildcard: the projection widens to
+-- all notes (falls back to 'projWithBase').
+--
 -- >>> type Test = Journal String Double (HatBase CountUnit)
 -- >>> x = 1.00:@Hat:<Yen .+ 1.00:@Not:<Amount .| "cat"  :: Test
 -- >>> y = 2.00:@Not:<Yen .+ 2.00:@Hat:<Amount .| "dog"  :: Test
@@ -803,6 +809,9 @@ projWithNoteBase ns bs js =
 -- (positive-part normalization):
 --
 -- @projWithNoteBaseNetNorm ns bs js == norm (map bar (projWithNoteBase ns bs js))@
+--
+-- 'plank' in the note list acts as a note-wildcard (widens to all notes, like
+-- 'projWithNote').
 --
 -- which is __not__ the same as @norm (projWithNoteBase ns bs js)@ when a query
 -- selects both sides of one base (see 'projWithBaseNetNorm').
