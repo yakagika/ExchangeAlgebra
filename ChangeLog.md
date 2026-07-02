@@ -35,6 +35,10 @@
   vocabulary is normalized — both fixes remove name-translation measurement bias
   from arm comparisons (same rationale as the P1 account-map fix). Runner gains
   multi-seed runs (`--seed 0-4`) and an append-mode `metrics/summary.csv`.
+  Follow-up (seed-0 forensics): the exact `derived` key vocabulary is now
+  injected into every arm's output contract (keys are the output schema, not
+  the answer — third P1-family fairness fix) and the codex timeout is raised
+  to 360s (largest task returned empty at 240s).
   Examples-only change; no library code touched.
 - `ExchangeAlgebra.Simulate`: the `StateSpace` methods `initT` / `lastT` are now
   exported. Their Haddock has always described them as customizable (they let an

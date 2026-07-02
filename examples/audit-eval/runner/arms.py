@@ -292,6 +292,22 @@ def _output_contract(task: dict) -> str:
     for c in components:
         lines.append("  " + _component_shape_text(c))
 
+    # Pin the exact 'derived' key vocabulary (P1-family fairness fix, 3rd
+    # instance): GT key names are the output *schema*, not the answer. Without
+    # this the model must guess names ("cogs" vs "cost_of_goods_sold",
+    # "gross_profit" vs "net_income") and correct values score 0 — a
+    # name-translation bias hitting all arms on derived-heavy tasks.
+    if "derived" in components:
+        gt_derived = (task.get("ground_truth", {}) or {}).get("derived", {}) or {}
+        if gt_derived:
+            lines.append("")
+            lines.append(
+                "The 'derived' object must contain EXACTLY these keys, "
+                "with the numeric values you computed:"
+            )
+            for k in gt_derived:
+                lines.append(f'  "{k}"')
+
     format_note = expected.get("format_note")
     if format_note:
         lines.append("")
