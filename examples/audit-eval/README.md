@@ -39,6 +39,7 @@ runner/
 harness/
   SKILL-ea-v1.md        # versioned EA cheatsheet given to arm A (P3)
   ARM-D-DELTA.md        # definition of what arm D removes relative to arm A
+  EmitCanonical.hs      # harness-owned canonical JSON printer (arm A/D)
 oracle/
   Oracle.hs             # EA structural-verification oracle (P2)
 models.toml             # backend configuration
@@ -65,6 +66,20 @@ agentic CLI — with the repo as workdir it can read `harness/SKILL-ea-v1.md`,
 previous generations under `arms/`, or the EA source, silently contaminating
 prompt-only arm comparisons (especially the A-vs-D SKILL ablation; observed
 in the 2026-07-01 pilot before isolation).
+
+**Canonical printer (harness-owned)**: arm A/D generated code must NOT
+hand-assemble its JSON output. `runner/build.py` puts `harness/` on the
+runghc include path and the shared minimal instruction requires
+`import EmitCanonical`: `emitJournal` projects the canonical postings array
+directly from the EA algebra value (side via EA `whichSide`, the same
+regulation `oracle/Oracle.hs` uses in reverse), and `emitObject` composes v2
+result objects while forcing the `journal` key through that projection.
+Motivation: in the T5 pilot (seed 0, arm A) a correctly-built journal was
+misprinted by model-written string concatenation — a printing-seam error the
+algebra could not catch. Pinning the printer to the harness makes the printed
+journal provably a projection of the constructed algebra. This is measurement
+plumbing, not a SKILL remedy: `SKILL-ea-v1.md` is unchanged, and the minimal
+instruction explicitly overrides its older manual-printing example.
 
 ## Metrics
 

@@ -39,6 +39,13 @@
   injected into every arm's output contract (keys are the output schema, not
   the answer — third P1-family fairness fix) and the codex timeout is raised
   to 360s (largest task returned empty at 240s).
+  Contract v2.1: canonical printing is now harness-owned —
+  `harness/EmitCanonical.hs` projects the postings JSON from the EA algebra
+  value itself (same `whichSide` convention as the oracle, roundtrip-closed)
+  and the arm-A/D minimal instruction forbids hand-assembled JSON. This pins
+  the printing seam observed in pilot seed 0 (a correctly-built journal
+  misprinted by model-written string code) to the measurement layer; the
+  versioned SKILL treatment artifact is untouched.
   Examples-only change; no library code touched.
 - `ExchangeAlgebra.Simulate`: the `StateSpace` methods `initT` / `lastT` are now
   exported. Their Haddock has always described them as customizable (they let an

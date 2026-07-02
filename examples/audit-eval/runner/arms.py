@@ -368,14 +368,56 @@ above) and NOTHING else — no prose, no markdown fences, no labels.
 """
 
 # Minimal EA instruction — shared by arm A and arm D (see harness/ARM-D-DELTA.md).
+# Canonical-printer contract (T5 pilot fix): the model must NOT hand-assemble
+# JSON. All printing goes through the harness-owned module
+# harness/EmitCanonical.hs (put on the runghc include path by
+# runner/build.py run_haskell), which projects the canonical postings JSON
+# from the EA algebra value itself. This pins the printing seam to the
+# harness: a correctly-built journal can no longer be misprinted by
+# model-written string concatenation. This is measurement plumbing, not a
+# SKILL/remedy — SKILL-ea-v1.md is intentionally left untouched, and the
+# instruction below explicitly overrides the SKILL's older manual-printing
+# idiom for arm A.
 _EA_MINIMAL_ROLE = """\
 You are an ExchangeAlgebra (Haskell) code generator for accounting tasks.
-Write ONE complete, self-contained Haskell source file that encodes the task
-using the ExchangeAlgebra DSL (Haskell library `exchangealgebra`), and whose
+Write ONE complete Haskell source file that encodes the task using the
+ExchangeAlgebra DSL (Haskell library `exchangealgebra`), and whose
 `main :: IO ()` prints exactly ONE JSON value to stdout, as specified below.
 Print nothing else to stdout. The file is executed with:
   stack exec runghc -- Gen.hs   (inside an ExchangeAlgebra stack project, GHC 9.10.2)
 Output ONLY the Haskell source code (no markdown fences, no explanation).
+
+PRINTING CONTRACT (mandatory): do NOT write any JSON-printing code yourself —
+no hand-built JSON strings, no putStrLn/show of assembled "{...}"/"[...]"
+text. Instead, `import EmitCanonical` (a harness module already on the
+include path) and pass it the journal value you constructed with the DSL.
+Even if other material in this prompt shows manual JSON printing (e.g. a
+postingToJSON example), that idiom is OBSOLETE — you MUST use EmitCanonical.
+Its API (MinTx below abbreviates `Alg MoneyDecimal (HatBase AccountTitles)`;
+define your own type synonym for it if you want one — EmitCanonical does not
+export MinTx/MinBase):
+
+  emitJournal :: MinTx -> IO ()
+      -- journal-only (bare array) tasks:  main = emitJournal myJournal
+      -- side/account/amount are derived from the algebra value itself.
+
+  emitObject :: [(String, Component)] -> IO ()
+  data Component = JournalComp MinTx    -- the "journal" key MUST use this
+                 | RawComp JVal         -- derived / findings / decision keys
+      -- object-output tasks: one entry per required key, e.g.
+      --   main = emitObject
+      --     [ ("journal", JournalComp myJournal)
+      --     , ("derived", RawComp (jFlatNum [("ending_balance", 12345 :: Int)]))
+      --     ]
+
+  -- JVal builders for non-journal components:
+  jFlatNum  :: Real a => [(String, a)] -> JVal    -- flat numeric map ("derived")
+  jFlatStr  :: [(String, String)] -> JVal         -- flat string map ("decision")
+  jFindings :: [(String, String, String)] -> JVal -- (type, locus, detail) ("findings")
+  jNum :: Real a => a -> JVal
+  jInt :: Int -> JVal
+  JStr :: String -> JVal ; JBool :: Bool -> JVal
+  JArr :: [JVal] -> JVal ; JObj :: [(String, JVal)] -> JVal
 """
 
 _ARM_B_ROLE = """\

@@ -8,6 +8,12 @@ run_oracle  : feed a canonical-JSON posting array to the EA oracle
 
 Uses the worktree root's stack.yaml (packages: ['.', 'examples']) so the EA
 library is available to runghc.
+
+run_haskell also adds `-i<audit-eval>/harness` to the runghc invocation
+(canonical-printer fix, T5 pilot) so generated code can `import
+EmitCanonical` — the harness-owned module that projects canonical JSON from
+an EA algebra value instead of letting the model hand-assemble JSON strings
+(see harness/EmitCanonical.hs).
 """
 
 from __future__ import annotations
@@ -20,6 +26,7 @@ from typing import Optional
 DEFAULT_TIMEOUT = 60  # seconds
 
 ORACLE_REL_PATH = Path("examples/audit-eval/oracle/Oracle.hs")
+HARNESS_REL_PATH = Path("examples/audit-eval/harness")
 
 
 def run_haskell(
@@ -47,12 +54,15 @@ def run_haskell(
     # `stack exec runghc` puts exchangealgebra on the package DB path.
     # Plain `stack runghc` (without exec) sometimes misses the local package
     # when running a standalone file outside the cabal component graph.
+    # `-i<harness>` makes harness/EmitCanonical.hs importable from the
+    # generated Gen.hs without copying it alongside the generated file.
     cmd = [
         "stack",
         "--stack-yaml", str(worktree_root / "stack.yaml"),
         "exec",
         "runghc",
         "--",
+        f"-i{worktree_root / HARNESS_REL_PATH}",
         str(gen_hs),
     ]
 
