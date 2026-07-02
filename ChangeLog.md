@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- Pure row builders for the legacy CSV writers (design-review C7): `bsRows`,
+  `plRows`, `journalRows`, `accountLedgerRowsJournal` and
+  `compoundTrialBalanceRows` are the pure counterparts of `writeBS` /
+  `writePL` / `writeJournal` / `writeAccountOfJournal` /
+  `writeCompoundTrialBalance`, which are now thin `writeCSV` wrappers around
+  them — same "pure `*Rows` + IO wrapper" shape as `worksheetRows` /
+  `postClosingTrialBalanceRows` / `accountLedgerRows`. Output is bit-for-bit
+  unchanged (pinned regression tests were added before the refactor and pass
+  unmodified after it); each new builder carries Haddock + doctests.
 - `BaseClass` instance for 7-tuples (design-review C5): `Element` and
   `AxisDecompose` already had 7-tuple instances, so every Element tuple arity
   is now also usable as a base.

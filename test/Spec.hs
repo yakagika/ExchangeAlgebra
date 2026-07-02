@@ -1229,6 +1229,145 @@ testCsvWriteCSVEmpty = do
     assertEqual "CSV writeCSV empty cell" "\"\",\"x\"" (lns !! 0)
     removeFile path
 
+-- ================================================================
+-- Legacy-generation writer output-pinning tests (design-review C7)
+--
+-- These pin the exact CSV bytes produced, for small fixed inputs, by the
+-- "legacy generation" writers (writeBS / writePL / writeJournal /
+-- writeCompoundTrialBalance / writeAccountOfJournal) as computed by the
+-- pre-refactor implementation. Their purpose is to let the "generation
+-- unification" refactor (pure *Rows builder + thin IO wrapper, matching the
+-- worksheetRows/postClosingTrialBalanceRows/accountLedgerRows style) be
+-- verified to leave output bit-for-bit unchanged: these must stay green,
+-- unmodified, across the refactor.
+-- ================================================================
+
+testWriteBSPinned :: IO ()
+testWriteBSPinned = do
+    let path = "/tmp/exchangealgebra_write_bs_pinned_test.csv"
+        alg = (100 .@ Not :< Cash)
+            .+ (60  .@ Not :< LoansPayable)
+            .+ (40  .@ Not :< CapitalStock)
+            :: EA.Alg Double (HatBase AccountTitles)
+    EW.writeBS path alg
+    raw <- readFileStrict path
+    removeFile path
+    let lns = lines raw
+    assertEqual "writeBS pinned: line count" 5 (length lns)
+    assertEqual "writeBS pinned: row0 (Asset/Liability headers)"
+        "\"Asset\",\"\",\"Liability\",\"\"" (lns !! 0)
+    assertEqual "writeBS pinned: row1 (Cash/LoansPayable)"
+        "\"Cash\",\"100.0\",\"LoansPayable\",\"60.0\"" (lns !! 1)
+    assertEqual "writeBS pinned: row2 (Total/Equity header)"
+        "\"Total\",\"100.0\",\"Equity\",\"\"" (lns !! 2)
+    assertEqual "writeBS pinned: row3 (CapitalStock)"
+        "\"\",\"\",\"CapitalStock\",\"40.0\"" (lns !! 3)
+    assertEqual "writeBS pinned: row4 (grand total)"
+        "\"\",\"\",\"Total\",\"100.0\"" (lns !! 4)
+
+testWritePLPinned :: IO ()
+testWritePLPinned = do
+    let path = "/tmp/exchangealgebra_write_pl_pinned_test.csv"
+        alg = (500 .@ Not :< Sales)
+            .+ (300 .@ Not :< SalesCost)
+            :: EA.Alg Double (HatBase AccountTitles)
+    EW.writePL path alg
+    raw <- readFileStrict path
+    removeFile path
+    let lns = lines raw
+    assertEqual "writePL pinned: line count" 3 (length lns)
+    assertEqual "writePL pinned: row0 (Cost/Revenue headers)"
+        "\"Cost\",\"\",\"Revenue\",\"\"" (lns !! 0)
+    assertEqual "writePL pinned: row1 (SalesCost/Sales)"
+        "\"SalesCost\",\"300.0\",\"Sales\",\"500.0\"" (lns !! 1)
+    assertEqual "writePL pinned: row2 (totals)"
+        "\"Total\",\"500.0\",\"Total\",\"300.0\"" (lns !! 2)
+
+testWriteJournalPinned :: IO ()
+testWriteJournalPinned = do
+    let path = "/tmp/exchangealgebra_write_journal_pinned_test.csv"
+        d1 = fromGregorian 2024 4 1
+        d2 = fromGregorian 2024 4 2
+        d3 = fromGregorian 2024 4 3
+        getDay' :: HatBase (AccountTitles, Day) -> Day
+        getDay' (_ :< (_, d)) = d
+        alg = (100 .@ Not :< (Cash, d1))
+            .+ (100 .@ Not :< (CapitalStock, d1))
+            .+ (50  .@ Not :< (Cash, d2))
+            .+ (50  .@ Not :< (Sales, d2))
+            .+ (30  .@ Not :< (Cash, d3))
+            .+ (10  .@ Not :< (AccountsReceivable, d3))
+            .+ (40  .@ Not :< (Sales, d3))
+            :: EA.Alg Double (HatBase (AccountTitles, Day))
+    EW.writeJournal path alg getDay'
+    raw <- readFileStrict path
+    removeFile path
+    let lns = lines raw
+    assertEqual "writeJournal pinned: line count" 5 (length lns)
+    assertEqual "writeJournal pinned: header"
+        "\"Day\",\"Debit\",\"Amount\",\"Credit\",\"Amount\"" (lns !! 0)
+    assertEqual "writeJournal pinned: day1"
+        "\"2024-04-01\",\"Cash\",\"100.0\",\"CapitalStock\",\"100.0\"" (lns !! 1)
+    assertEqual "writeJournal pinned: day2"
+        "\"2024-04-02\",\"Cash\",\"50.0\",\"Sales\",\"50.0\"" (lns !! 2)
+    assertEqual "writeJournal pinned: day3 line1 (2 debits vs 1 credit -> toSameLength padding)"
+        "\"2024-04-03\",\"AccountsReceivable\",\"10.0\",\"Sales\",\"40.0\"" (lns !! 3)
+    assertEqual "writeJournal pinned: day3 line2 (padded Day/Credit cells empty)"
+        "\"\",\"Cash\",\"30.0\",\"\",\"\"" (lns !! 4)
+
+testWriteCompoundTrialBalancePinned :: IO ()
+testWriteCompoundTrialBalancePinned = do
+    let path = "/tmp/exchangealgebra_write_ctb_pinned_test.csv"
+        alg = (100 .@ Not :< Cash)
+            .+ (60  .@ Not :< LoansPayable)
+            .+ (40  .@ Not :< CapitalStock)
+            :: EA.Alg Double (HatBase AccountTitles)
+    EW.writeCompoundTrialBalance path alg
+    raw <- readFileStrict path
+    removeFile path
+    let lns = lines raw
+    assertEqual "writeCompoundTrialBalance pinned: line count" 5 (length lns)
+    assertEqual "writeCompoundTrialBalance pinned: header"
+        "\"Debit Balance\",\"Debit Total\",\"Account Title\",\"Credit Total\",\"Credit Balance\""
+        (lns !! 0)
+    -- NOTE (legacy layout quirk, preserved verbatim): a debit-balance account
+    -- (Cash: gross debit 100 / credit 0) places its balance figure in the
+    -- *Credit Balance* column (rightmost), not the *Debit Balance* column,
+    -- and a credit-balance account (CapitalStock/LoansPayable) places it in
+    -- *Debit Balance* (leftmost) -- the opposite of the (side,mag) ->
+    -- (debitCell,creditCell) convention 'sideCells' uses elsewhere
+    -- (worksheetRows / postClosingTrialBalanceRows). See the Haddock on
+    -- 'compoundTrialBalanceRows' for why this was kept as explicit case
+    -- analysis instead of being consolidated onto 'sideCells'.
+    assertEqual "writeCompoundTrialBalance pinned: Cash (debit-heavy -> Credit Balance col)"
+        "\"\",\"100.0\",\"Cash\",\"0.0\",\"100.0\"" (lns !! 1)
+    assertEqual "writeCompoundTrialBalance pinned: CapitalStock (credit-heavy -> Debit Balance col)"
+        "\"40.0\",\"0.0\",\"CapitalStock\",\"40.0\",\"\"" (lns !! 2)
+    assertEqual "writeCompoundTrialBalance pinned: LoansPayable (credit-heavy -> Debit Balance col)"
+        "\"60.0\",\"0.0\",\"LoansPayable\",\"60.0\",\"\"" (lns !! 3)
+    assertEqual "writeCompoundTrialBalance pinned: totals"
+        "\"100.0\",\"100.0\",\"Total\",\"100.0\",\"100.0\"" (lns !! 4)
+
+testWriteAccountOfJournalPinned :: IO ()
+testWriteAccountOfJournalPinned = do
+    let path = "/tmp/exchangealgebra_write_aoj_pinned_test.csv"
+        jrn = ((100 .@ Not :< Cash) .| "sale")
+           .+ ((40  .@ Hat :< Cash) .| "pay")
+            :: Journal String Double (HatBase AccountTitles)
+    EW.writeAccountOfJournal [Cash] path jrn
+    raw <- readFileStrict path
+    removeFile path
+    let lns = lines raw
+    assertEqual "writeAccountOfJournal pinned: line count" 4 (length lns)
+    assertEqual "writeAccountOfJournal pinned: title header"
+        "\"Cash\",\"\",\"\"" (lns !! 0)
+    assertEqual "writeAccountOfJournal pinned: sub header"
+        "\"Note\",\"Debit\",\"Credit\"" (lns !! 1)
+    assertEqual "writeAccountOfJournal pinned: note order (\"pay\" < \"sale\")"
+        "\"\"\"pay\"\"\",\"\",\"40.0\"" (lns !! 2)
+    assertEqual "writeAccountOfJournal pinned: sale posting"
+        "\"\"\"sale\"\"\",\"100.0\",\"\"" (lns !! 3)
+
 -- | Regression tests for scale-aware numeric tolerance (WI-11/12/14).
 -- These exercise large magnitudes that the previous fixed @1e-13@ absolute
 -- tolerance handled incorrectly (retaining pure rounding noise as a residual);
@@ -2742,6 +2881,11 @@ main = do
     testCsvWriteCSV
     testCsvWriteCSVWithQuotes
     testCsvWriteCSVEmpty
+    testWriteBSPinned
+    testWritePLPinned
+    testWriteJournalPinned
+    testWriteCompoundTrialBalancePinned
+    testWriteAccountOfJournalPinned
     testLiteBoilerplate
     testLiteDet2
     testLiteDet1

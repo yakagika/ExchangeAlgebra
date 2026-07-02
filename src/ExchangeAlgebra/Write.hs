@@ -24,11 +24,16 @@ module ExchangeAlgebra.Write
     , csvTranspose
       -- * Balance Sheet / P&L / Journal output
     , writeBS
+    , bsRows
     , writePL
+    , plRows
     , writeJournal
+    , journalRows
     , writeAccountOf
     , writeAccountOfJournal
+    , accountLedgerRowsJournal
     , writeCompoundTrialBalance
+    , compoundTrialBalanceRows
       -- * Closing documents (決算書類)
     , writeWorksheet
     , worksheetRows
@@ -49,6 +54,7 @@ module ExchangeAlgebra.Write
 import qualified    ExchangeAlgebra.Algebra     as EA
 import              ExchangeAlgebra.Algebra
 import qualified    ExchangeAlgebra.Journal     as EJ
+import              ExchangeAlgebra.Journal     ((.|))
 
 import qualified    ExchangeAlgebra.Algebra.Transfer    as ET
 
@@ -93,12 +99,39 @@ writeCSV path rows = do
 tshow :: (Show a) => a -> T.Text
 tshow = T.pack . show
 
--- | Output a Balance Sheet in CSV format.
--- Internally applies @finalStockTransfer@, then decomposes into assets, liabilities, and equity for output.
+-- | Build the rows of a Balance Sheet, as a pure value (the part 'writeBS'
+-- renders to CSV).
+--
+-- Internally applies @'ET.finalStockTransfer'@ -- the only netting this
+-- function does -- which closes every 'Cost'\/'Revenue' account into
+-- 'RetainedEarnings' via @('.-')@\/@bar@; everything downstream of that is a
+-- non-netting partition by 'whichSide'\/'whatDiv' ('decL'\/'decR'\/'EA.filter'
+-- only select entries, they do not aggregate them). The closed algebra is
+-- then split into assets (debit side) and liability\/equity (credit side,
+-- further split by division). Layout:
+--
+-- > Asset | <titles...> | Total
+-- >       | <values...> | <credit total>
+-- > Liability | <titles...> | Equity | <titles...> | Total
+-- >           | <values...> |        | <values...> | <debit total>
+--
+-- ==== __Examples__
+--
+-- Cash 100 (asset), a loan 60 (liability), capital 40 (equity); no
+-- cost\/revenue accounts, so @'ET.finalStockTransfer'@ is a no-op here:
+--
+-- >>> type T = Alg Double (HatBase AccountTitles)
+-- >>> let alg = (100 .@ Not:<Cash) .+ (60 .@ Not:<LoansPayable) .+ (40 .@ Not:<CapitalStock) :: T
+-- >>> mapM_ print (bsRows alg)
+-- ["Asset","","Liability",""]
+-- ["Cash","100.0","LoansPayable","60.0"]
+-- ["Total","100.0","Equity",""]
+-- ["","","CapitalStock","40.0"]
+-- ["","","Total","100.0"]
 --
 -- Complexity: O(s) (s = total number of scalar entries)
-writeBS :: (HatVal n, HatBaseClass b, ExBaseClass b) => FilePath -> Alg n b -> IO ()
-writeBS path alg = writeCSV path result
+bsRows :: (HatVal n, HatBaseClass b, ExBaseClass b) => Alg n b -> [[T.Text]]
+bsRows alg = result
   where
     transferred = ET.finalStockTransfer alg
     debitSide = decR transferred
@@ -121,12 +154,41 @@ writeBS path alg = writeCSV path result
       , [T.empty] ++ liabilityValue ++ [T.empty] ++ equityValue ++ [debitTotal]
       ]
 
--- | Output a Profit and Loss Statement in CSV format.
--- Decomposes into costs and revenues for output.
+-- | Output a Balance Sheet in CSV format. Pure layout is delegated to
+-- 'bsRows'; this function only writes the file. See 'bsRows' for the
+-- @'ET.finalStockTransfer'@ closing semantics and the column layout.
+--
+-- Complexity: O(s) (s = total number of scalar entries; see 'bsRows')
+writeBS :: (HatVal n, HatBaseClass b, ExBaseClass b) => FilePath -> Alg n b -> IO ()
+writeBS path alg = writeCSV path (bsRows alg)
+
+-- | Build the rows of a Profit and Loss Statement, as a pure value (the part
+-- 'writePL' renders to CSV).
+--
+-- No netting or closing is applied here (contrast 'bsRows', which applies
+-- @'ET.finalStockTransfer'@) -- this decomposes the algebra /as given/ into
+-- cost and revenue entries by 'whichSide'\/'whatDiv' ('decL'\/'decR'\/'EA.filter'
+-- only select, they do not aggregate). Layout:
+--
+-- > Cost | <titles...> | Total
+-- >      | <values...> | <revenue total>
+-- > Revenue | <titles...> | Total
+-- >         | <values...> | <cost total>
+--
+-- ==== __Examples__
+--
+-- A single sale of 500 (revenue) against its cost of 300:
+--
+-- >>> type T = Alg Double (HatBase AccountTitles)
+-- >>> let alg = (500 .@ Not:<Sales) .+ (300 .@ Not:<SalesCost) :: T
+-- >>> mapM_ print (plRows alg)
+-- ["Cost","","Revenue",""]
+-- ["SalesCost","300.0","Sales","500.0"]
+-- ["Total","500.0","Total","300.0"]
 --
 -- Complexity: O(s) (s = total number of scalar entries)
-writePL :: (HatVal n, HatBaseClass b, ExBaseClass b) => FilePath -> Alg n b -> IO ()
-writePL path alg = writeCSV path result
+plRows :: (HatVal n, HatBaseClass b, ExBaseClass b) => Alg n b -> [[T.Text]]
+plRows alg = result
   where
     debitSide = decR alg
     creditSide = decL alg
@@ -147,6 +209,13 @@ writePL path alg = writeCSV path result
       , [T.empty] ++ rv ++ [debitTotal]
       ]
 
+-- | Output a Profit and Loss Statement in CSV format. Pure layout is
+-- delegated to 'plRows'; this function only writes the file.
+--
+-- Complexity: O(s) (s = total number of scalar entries; see 'plRows')
+writePL :: (HatVal n, HatBaseClass b, ExBaseClass b) => FilePath -> Alg n b -> IO ()
+writePL path alg = writeCSV path (plRows alg)
+
 -- | Pad two lists to the same length. Appends empty text to the shorter list.
 --
 -- Complexity: O(max(|xs|, |ys|))
@@ -160,35 +229,73 @@ toSameLength xs ys =
     lx = Prelude.length xs
     ly = Prelude.length ys
 
--- | Output journal entries in CSV format.
--- Groups by date and records the debit/credit account titles and amounts for each day.
+-- | Build the rows of a journal (仕訳帳), as a pure value (the part
+-- 'writeJournal' renders to CSV).
+--
+-- Entries are grouped by date (via @f@) into a deterministic, deduplicated,
+-- ascending day sequence; within a day the debit and credit postings are
+-- listed by 'decL'\/'decR' and padded to equal length with 'toSameLength' --
+-- no aggregation\/@bar@ is applied, so a day with more debit than credit
+-- postings (or vice versa) simply gets blank cells on the shorter side.
+--
+-- ==== __Examples__
+--
+-- Three days: a capital contribution, a cash sale, and a day with two debit
+-- postings against one credit posting (the debit column is one line longer,
+-- and the credit/date cells of that extra line are padded blank):
+--
+-- >>> import Data.Time (fromGregorian)
+-- >>> type T = Alg Double (HatBase (AccountTitles, Day))
+-- >>> let d1 = fromGregorian 2024 4 1
+-- >>> let d2 = fromGregorian 2024 4 2
+-- >>> let d3 = fromGregorian 2024 4 3
+-- >>> let getDay (_ :< (_, d)) = d
+-- >>> let alg = (100 .@ Not:<(Cash,d1)) .+ (100 .@ Not:<(CapitalStock,d1)) .+ (50 .@ Not:<(Cash,d2)) .+ (50 .@ Not:<(Sales,d2)) .+ (30 .@ Not:<(Cash,d3)) .+ (10 .@ Not:<(AccountsReceivable,d3)) .+ (40 .@ Not:<(Sales,d3)) :: T
+-- >>> mapM_ print (journalRows alg getDay)
+-- ["Day","Debit","Amount","Credit","Amount"]
+-- ["2024-04-01","Cash","100.0","CapitalStock","100.0"]
+-- ["2024-04-02","Cash","50.0","Sales","50.0"]
+-- ["2024-04-03","AccountsReceivable","10.0","Sales","40.0"]
+-- ["","Cash","30.0","",""]
 --
 -- Complexity: O(s * log d) (s = number of entries, d = number of distinct dates)
+journalRows :: (HatVal n, HatBaseClass b, ExBaseClass b)
+            => Alg n b
+            -> (b -> Day)
+            -> [[T.Text]]
+journalRows alg f = csvTranspose [ds, dt, dv, ct, cv]
+  where
+    days = L.sort $ Set.toList . Set.fromList $ L.map (f . _hatBase) $ EA.toList alg
+    rows = L.map perDay days
+    perDay d =
+        let da = EA.filter (\y -> (f . _hatBase) y == d) alg
+            dl = decL da
+            dr = decR da
+            dlTexts = L.map (tshow . getAccountTitle . _hatBase) (EA.toList dl)
+            drTexts = L.map (tshow . getAccountTitle . _hatBase) (EA.toList dr)
+            dlValues = L.map (tshow . _val) (EA.toList dl)
+            drValues = L.map (tshow . _val) (EA.toList dr)
+            (dt', ct') = toSameLength dlTexts drTexts
+            (dv', cv') = toSameLength dlValues drValues
+            (ds', _) = toSameLength [tshow d] cv'
+        in (ds', dt', dv', ct', cv')
+    ds = [T.pack "Day"] ++ concatMap (\(a,_,_,_,_) -> a) rows
+    dt = [T.pack "Debit"] ++ concatMap (\(_,a,_,_,_) -> a) rows
+    dv = [T.pack "Amount"] ++ concatMap (\(_,_,a,_,_) -> a) rows
+    ct = [T.pack "Credit"] ++ concatMap (\(_,_,_,a,_) -> a) rows
+    cv = [T.pack "Amount"] ++ concatMap (\(_,_,_,_,a) -> a) rows
+
+-- | Output journal entries in CSV format.
+-- Groups by date and records the debit/credit account titles and amounts for each day.
+-- Pure layout is delegated to 'journalRows'; this function only writes the file.
+--
+-- Complexity: O(s * log d) (s = number of entries, d = number of distinct dates; see 'journalRows')
 writeJournal :: (HatVal n, HatBaseClass b, ExBaseClass b)
              => FilePath
              -> Alg n b
              -> (b -> Day)
              -> IO ()
-writeJournal path alg f = do
-    let days = L.sort $ Set.toList . Set.fromList $ L.map (f . _hatBase) $ EA.toList alg
-    rows <- forM days $ \d -> do
-        let da = EA.filter (\y -> (f . _hatBase) y == d) alg
-        let dl = decL da
-        let dr = decR da
-        let dlTexts = L.map (tshow . getAccountTitle . _hatBase) (EA.toList dl)
-        let drTexts = L.map (tshow . getAccountTitle . _hatBase) (EA.toList dr)
-        let dlValues = L.map (tshow . _val) (EA.toList dl)
-        let drValues = L.map (tshow . _val) (EA.toList dr)
-        let (dt', ct') = toSameLength dlTexts drTexts
-        let (dv', cv') = toSameLength dlValues drValues
-        let (ds', _) = toSameLength [tshow d] cv'
-        pure (ds', dt', dv', ct', cv')
-    let ds = [T.pack "Day"] ++ concatMap (\(a,_,_,_,_) -> a) rows
-    let dt = [T.pack "Debit"] ++ concatMap (\(_,a,_,_,_) -> a) rows
-    let dv = [T.pack "Amount"] ++ concatMap (\(_,_,a,_,_) -> a) rows
-    let ct = [T.pack "Credit"] ++ concatMap (\(_,_,_,a,_) -> a) rows
-    let cv = [T.pack "Amount"] ++ concatMap (\(_,_,_,_,a) -> a) rows
-    writeCSV path (csvTranspose [ds, dt, dv, ct, cv])
+writeJournal path alg f = writeCSV path (journalRows alg f)
 
 
 -- | Build the rows of a general ledger (総勘定元帳 / T-account) for the given
@@ -268,10 +375,11 @@ writeAccountOf :: (HatVal n, HatBaseClass b, ExBaseClass b)
              -> IO ()
 writeAccountOf titles path alg f = writeCSV path (accountLedgerRows titles alg f)
 
--- | Output general ledgers (総勘定元帳) from a 'EJ.Journal' in CSV format,
--- carrying the per-posting note (摘要) as an extra column.
+-- | Build the rows of general ledgers (総勘定元帳) from a 'EJ.Journal', as a
+-- pure value (the part 'writeAccountOfJournal' renders to CSV), carrying the
+-- per-posting note (摘要) as an extra column.
 --
--- As with 'writeAccountOf', postings are listed __individually, without
+-- As with 'accountLedgerRows', postings are listed __individually, without
 -- aggregation__ — the redundant sequence is the audit trail. Because each
 -- posting carries its own note, this version uses a flat detail layout rather
 -- than the two-sided T-account:
@@ -285,14 +393,25 @@ writeAccountOf titles path alg f = writeCSV path (accountLedgerRows titles alg f
 -- (the 'EJ.Journal' is keyed by note); within a note the algebra's own seq
 -- order is preserved. No 'EA.bar' \/ aggregation is applied.
 --
+-- ==== __Examples__
+--
+-- Two Cash postings under different notes; note order ("pay" < "sale")
+-- determines the row order, not posting order:
+--
+-- >>> let jrn = ((100 .@ Not:<Cash) .| "sale") .+ ((40 .@ Hat:<Cash) .| "pay") :: EJ.Journal String Double (HatBase AccountTitles)
+-- >>> mapM_ print (accountLedgerRowsJournal [Cash] jrn)
+-- ["Cash","",""]
+-- ["Note","Debit","Credit"]
+-- ["\"pay\"","","40.0"]
+-- ["\"sale\"","100.0",""]
+--
 -- Complexity: O(t * s) (t = number of titles, s = number of postings).
-writeAccountOfJournal :: (HatVal n, HatBaseClass b, ExBaseClass b, EJ.Note note)
-                      => [AccountTitles]
-                      -> FilePath
-                      -> EJ.Journal note n b
-                      -> IO ()
-writeAccountOfJournal titles path j =
-    writeCSV path (concatMap titleBlock titles)
+accountLedgerRowsJournal :: (HatVal n, HatBaseClass b, ExBaseClass b, EJ.Note note)
+                         => [AccountTitles]
+                         -> EJ.Journal note n b
+                         -> [[T.Text]]
+accountLedgerRowsJournal titles j =
+    concatMap titleBlock titles
   where
     pairs = L.sortBy (\(a,_) (b,_) -> compare a b) (Map.toList (EJ.toMap j))
     titleBlock t =
@@ -308,6 +427,21 @@ writeAccountOfJournal titles path j =
                      then [tshow note, amt, T.empty]
                      else [tshow note, T.empty, amt]
          in L.map mkRow (EA.toList (EA.filter (\x -> x /= EA.Zero) xs))
+
+-- | Output general ledgers (総勘定元帳) from a 'EJ.Journal' in CSV format,
+-- carrying the per-posting note (摘要) as an extra column. Pure layout is
+-- delegated to 'accountLedgerRowsJournal'; this function only writes the
+-- file. See 'accountLedgerRowsJournal' for the flat note-detail layout.
+--
+-- Complexity: O(t * s) (t = number of titles, s = number of postings; see
+-- 'accountLedgerRowsJournal').
+writeAccountOfJournal :: (HatVal n, HatBaseClass b, ExBaseClass b, EJ.Note note)
+                      => [AccountTitles]
+                      -> FilePath
+                      -> EJ.Journal note n b
+                      -> IO ()
+writeAccountOfJournal titles path j =
+    writeCSV path (accountLedgerRowsJournal titles j)
 
 
 ------------------------------------------------------------------
@@ -357,32 +491,61 @@ netGross (l, r)   -- l = debit gross, r = credit gross
     | r > l              = (Credit, r - l)
     | otherwise          = (Debit, l - r)
 
--- | Output a Compound Trial Balance in CSV format.
--- Calculates the debit total, credit total, and balance for each account title and outputs as a table.
+-- | Build the rows of a Compound Trial Balance (合計残高試算表), as a pure
+-- value (the part 'writeCompoundTrialBalance' renders to CSV). Calculates the
+-- debit total, credit total, and balance for each account title, aggregated
+-- via the single-pass @'accountGrossTotals'@\/@'netGross'@ (the same
+-- @diffRL@-equivalent netting as 'balanceOf'; no implicit @bar@). Layout:
+--
+-- > Debit Balance | Debit Total | Account Title | Credit Total | Credit Balance
+--
+-- __Legacy column-placement quirk (preserved verbatim):__ unlike
+-- 'worksheetRows'\/'postClosingTrialBalanceRows' (which route a @(side,mag)@
+-- balance through 'sideCells', putting a Debit balance in the Debit cell and
+-- a Credit balance in the Credit cell), this layout places the balance
+-- figure in the column pair /opposite/ the netted side: a debit-heavy
+-- account's balance lands in the __Credit Balance__ (rightmost) column, and a
+-- credit-heavy account's balance lands in the __Debit Balance__ (leftmost)
+-- column — see the example below. Reusing 'sideCells' here would require
+-- flipping 'Debit'\/'Credit' first, which is no clearer than the explicit
+-- case analysis in @step@ below, so this was kept as-is rather than
+-- consolidated (design-review C7) to guarantee output is unchanged.
+--
+-- ==== __Examples__
+--
+-- Cash is debit-heavy (gross debit 100, credit 0); CapitalStock and
+-- LoansPayable are credit-heavy. Note where each balance figure lands:
+--
+-- >>> type T = Alg Double (HatBase AccountTitles)
+-- >>> let alg = (100 .@ Not:<Cash) .+ (60 .@ Not:<LoansPayable) .+ (40 .@ Not:<CapitalStock) :: T
+-- >>> mapM_ print (compoundTrialBalanceRows alg)
+-- ["Debit Balance","Debit Total","Account Title","Credit Total","Credit Balance"]
+-- ["","100.0","Cash","0.0","100.0"]
+-- ["40.0","0.0","CapitalStock","40.0",""]
+-- ["60.0","0.0","LoansPayable","60.0",""]
+-- ["100.0","100.0","Total","100.0","100.0"]
 --
 -- Complexity: O(s) (single pass over s scalar entries; see @accountGrossTotals@)
-writeCompoundTrialBalance :: (HatVal n, HatBaseClass b, ExBaseClass b)
-                           => FilePath
-                           -> Alg n b
-                           -> IO ()
-writeCompoundTrialBalance path alg = do
-    let header = [T.pack "Debit Balance"
-                 ,T.pack "Debit Total"
-                 ,T.pack "Account Title"
-                 ,T.pack "Credit Total"
-                 ,T.pack "Credit Balance"]
-    -- Single pass (O(s)): gross debit/credit totals per title, in Ord order.
-    let accounts = OMap.toList (accountGrossTotals alg)
-    let (lines', debitBalanceTotal, debitTotal, creditBalanceTotal, creditTotal) =
-            L.foldl' step ([], zeroValue, zeroValue, zeroValue, zeroValue) accounts
-    let totalLine = [ tshow debitBalanceTotal
-                    , tshow creditTotal
-                    , T.pack "Total"
-                    , tshow debitTotal
-                    , tshow creditBalanceTotal
-                    ]
-    writeCSV path (header : lines' ++ [totalLine])
+compoundTrialBalanceRows :: (HatVal n, HatBaseClass b, ExBaseClass b)
+                          => Alg n b -> [[T.Text]]
+compoundTrialBalanceRows alg =
+    header : lines' ++ [totalLine]
   where
+    header = [T.pack "Debit Balance"
+             ,T.pack "Debit Total"
+             ,T.pack "Account Title"
+             ,T.pack "Credit Total"
+             ,T.pack "Credit Balance"]
+    -- Single pass (O(s)): gross debit/credit totals per title, in Ord order.
+    accounts = OMap.toList (accountGrossTotals alg)
+    (lines', debitBalanceTotal, debitTotal, creditBalanceTotal, creditTotal) =
+        L.foldl' step ([], zeroValue, zeroValue, zeroValue, zeroValue) accounts
+    totalLine = [ tshow debitBalanceTotal
+                , tshow creditTotal
+                , T.pack "Total"
+                , tshow debitTotal
+                , tshow creditBalanceTotal
+                ]
     step (accLines, dbt, dt, cbt, ct) (a, gross) =
         let xl = fst gross   -- norm (decL xs) : debit gross
             xr = snd gross   -- norm (decR xs) : credit gross
@@ -395,6 +558,10 @@ writeCompoundTrialBalance path alg = do
                 Credit -> (dbt + diff, cbt)
                 Debit  -> (dbt, cbt + diff)
                 Side   -> (dbt, cbt)
+            -- See the Haddock above: the Credit case places 'diff' in the
+            -- *Debit Balance* column (position 0) and the Debit case places
+            -- it in the *Credit Balance* column (position 4) -- opposite of
+            -- 'sideCells' -- a legacy layout kept verbatim.
             line = case dc of
                 Credit -> [ tshow diff
                           , tshow xl
@@ -415,6 +582,22 @@ writeCompoundTrialBalance path alg = do
                           , T.empty
                           ]
          in (accLines ++ [line], dbt', dt + xr, cbt', ct + xl)
+
+-- | Output a Compound Trial Balance in CSV format.
+-- Calculates the debit total, credit total, and balance for each account
+-- title and outputs as a table. Pure layout is delegated to
+-- 'compoundTrialBalanceRows'; this function only writes the file. See
+-- 'compoundTrialBalanceRows' for the column layout (including the legacy
+-- Debit\/Credit Balance placement quirk).
+--
+-- Complexity: O(s) (single pass over s scalar entries; see
+-- 'compoundTrialBalanceRows')
+writeCompoundTrialBalance :: (HatVal n, HatBaseClass b, ExBaseClass b)
+                           => FilePath
+                           -> Alg n b
+                           -> IO ()
+writeCompoundTrialBalance path alg =
+    writeCSV path (compoundTrialBalanceRows alg)
 
 
 ------------------------------------------------------------------
