@@ -20,7 +20,7 @@
 
     This top-level module is the Algebra-layer umbrella: it re-exports
     "ExchangeAlgebra.Algebra", "ExchangeAlgebra.Algebra.Transfer",
-    "ExchangeAlgebra.Write", and "ExchangeAlgebra.Simulate". It is the
+    "ExchangeAlgebra.Write", and "ExchangeAlgebra.Value". It is the
     recommended entry point for simple single-period bookkeeping:
 
     > import ExchangeAlgebra
@@ -28,6 +28,18 @@
     > -- A minimal exchange: 100 units of cash debited, 100 credited to sales.
     > entry :: Alg Double (HatBase AccountTitles)
     > entry = 100 :@ Hat :< Cash .+ 100 :@ Not :< Sales
+
+    == Choosing the value type (@v@ in @Alg v b@)
+
+    * 'Prelude.Double' — fast IEEE-754; fine for simulations and quick work.
+    * 'ExchangeAlgebra.Value.MoneyDouble' — same speed, but a dedicated money
+      newtype so a ledger value cannot be confused with a raw coefficient.
+    * 'ExchangeAlgebra.Value.MoneyDecimal' — exact decimal; construction-order
+      independent totals. Use for audited\/deterministic ledgers.
+    * @Number.NonNegative.Double@ (@NN.Double@) — __deprecated__ since
+      0.5.0.0: its @(-)@ errors on negative intermediates and the instance
+      will be removed in 0.6. Migrate to 'ExchangeAlgebra.Value.MoneyDouble'
+      (or bare 'Prelude.Double').
 
     For multi-period simulation or metadata-aware journals (notes, axes),
     switch to the Journal layer. The two umbrellas export overlapping
@@ -48,6 +60,10 @@
     (or with each other) and are better used under a qualified import:
 
     * "ExchangeAlgebra.Bookkeeping" — double-entry adjusting\/closing entries.
+    * "ExchangeAlgebra.Simulate" — the classic simulation engine. /(Removed
+      from this umbrella in 0.5.0.0: it exports very generic names —
+      @copy@, @modify@, @update@, @initialize@, @normal@, … — that polluted
+      the bookkeeping namespace.)/
     * "ExchangeAlgebra.Simulate.Lite" — the lightweight simulation front-end.
     * "ExchangeAlgebra.Simulate.Network" — trade-network generators.
     * "ExchangeAlgebra.Simulate.Policy" — ledger\/spill policy configuration.
@@ -56,6 +72,7 @@
 
     > import           ExchangeAlgebra
     > import qualified ExchangeAlgebra.Bookkeeping     as BK
+    > import           ExchangeAlgebra.Simulate          -- simulation engine
     > import qualified ExchangeAlgebra.Simulate.Lite   as Lite
 
     == Full examples
@@ -75,11 +92,9 @@ module ExchangeAlgebra
     ( module ExchangeAlgebra.Algebra
     , module ExchangeAlgebra.Algebra.Transfer
     , module ExchangeAlgebra.Write
-    , module ExchangeAlgebra.Simulate
     , module ExchangeAlgebra.Value ) where
 
 import              ExchangeAlgebra.Algebra
 import              ExchangeAlgebra.Algebra.Transfer
 import              ExchangeAlgebra.Write
-import              ExchangeAlgebra.Simulate
-import              ExchangeAlgebra.Value    -- MoneyDecimal (exact non-negative value type)
+import              ExchangeAlgebra.Value    -- MoneyDouble / MoneyDecimal value types

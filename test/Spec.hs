@@ -287,16 +287,16 @@ testProjMultiPatternOnePass = do
         (EA.proj [Hat :< Yen] algSample)
         (EA.proj [Hat :< Yen, Hat :< Yen] algSample)
 
--- | 'projNorm' returns a bar-netted norm; the identity is
--- @projNorm bs x == norm (bar (proj bs x))@ (not @norm (proj bs x)@), and the
+-- | 'projNetNorm' returns a bar-netted norm; the identity is
+-- @projNetNorm bs x == norm (bar (proj bs x))@ (not @norm (proj bs x)@), and the
 -- query list is a set (duplicates do not double count).
 testProjNormFastPath :: IO ()
 testProjNormFastPath = do
     let qs :: [HatBase CountUnit]
         qs = [Hat :< Yen, HatNot :< Amount, Hat :< Yen]
         expected = norm $ EA.bar $ EA.proj qs algSample
-        actual = EA.projNorm qs algSample
-    assertNear "Alg.projNorm == norm . bar . proj (set semantics)" expected actual
+        actual = EA.projNetNorm qs algSample
+    assertNear "Alg.projNetNorm == norm . bar . proj (set semantics)" expected actual
 
 -- | R7 sentinel (a): a duplicated exact base must project the same as a single
 -- copy (MoneyDecimal exact: no floating tolerance needed).
@@ -308,8 +308,8 @@ testProjDuplicateExact = do
         b = Hat :< Yen :: HatBase CountUnit
     assertEqual "proj [b,b] == proj [b] (duplicate exact, MoneyDecimal)"
         (EA.proj [b] alg) (EA.proj [b, b] alg)
-    assertEqual "projNorm [b,b] == projNorm [b] (duplicate exact)"
-        (EA.projNorm [b] alg) (EA.projNorm [b, b] alg)
+    assertEqual "projNetNorm [b,b] == projNetNorm [b] (duplicate exact)"
+        (EA.projNetNorm [b] alg) (EA.projNetNorm [b, b] alg)
 
 -- | R7 sentinel (b): an exact base together with a wildcard query that subsumes
 -- it must not double count the overlapping posting.
@@ -324,10 +324,10 @@ testProjExactWildcardOverlap = do
     -- equals the wildcard alone (overlap counted once)
     assertEqual "proj [exact,wild] == proj [wild] (overlap, no double count)"
         (EA.proj [wild] alg) (EA.proj [exact, wild] alg)
-    assertEqual "projNorm [exact,wild] == projNorm [wild] (overlap)"
-        (EA.projNorm [wild] alg) (EA.projNorm [exact, wild] alg)
+    assertEqual "projNetNorm [exact,wild] == projNetNorm [wild] (overlap)"
+        (EA.projNetNorm [wild] alg) (EA.projNetNorm [exact, wild] alg)
 
--- | R7 sentinel (c): the bar-netted identity @projNorm bs x == norm (bar (proj
+-- | R7 sentinel (c): the bar-netted identity @projNetNorm bs x == norm (bar (proj
 -- bs x))@ holds on a base carrying both hat and not sides (where it differs from
 -- @norm (proj bs x)@).
 testProjNormBarIdentity :: IO ()
@@ -337,16 +337,16 @@ testProjNormBarIdentity = do
             .+ (4  :@ (Not :< Yen))
             .+ (7  :@ (Not :< Amount))
         bs = [HatNot :< Yen, HatNot :< Amount] :: [HatBase CountUnit]
-    assertEqual "projNorm == norm . bar . proj (both-sided base, MoneyDecimal)"
-        (norm (EA.bar (EA.proj bs alg))) (EA.projNorm bs alg)
+    assertEqual "projNetNorm == norm . bar . proj (both-sided base, MoneyDecimal)"
+        (norm (EA.bar (EA.proj bs alg))) (EA.projNetNorm bs alg)
 
 testProjWithBaseNorm :: IO ()
 testProjWithBaseNorm = do
     let bs :: [HatBase CountUnit]
         bs = [Not :< Amount]
         expected = norm $ EJ.projWithBase bs journalSample
-        actual = EJ.projWithBaseNorm bs journalSample
-    assertNear "Journal.projWithBaseNorm matches norm . projWithBase" expected actual
+        actual = EJ.projWithBaseNetNorm bs journalSample
+    assertNear "Journal.projWithBaseNetNorm matches norm . projWithBase" expected actual
 
 testProjWithNoteNorm :: IO ()
 testProjWithNoteNorm = do
@@ -355,16 +355,16 @@ testProjWithNoteNorm = do
         ns1 = ["dog", "cat"]
         ns2 = [plank]
         expected1 = norm $ EJ.projWithNoteBase ns1 bs journalSample
-        actual1 = EJ.projWithNoteNorm ns1 bs journalSample
+        actual1 = EJ.projWithNoteBaseNetNorm ns1 bs journalSample
         expected2 = norm $ EJ.projWithNoteBase ns2 bs journalSample
-        actual2 = EJ.projWithNoteNorm ns2 bs journalSample
-    assertNear "Journal.projWithNoteNorm (selected notes)" expected1 actual1
-    assertNear "Journal.projWithNoteNorm (plank wildcard)" expected2 actual2
+        actual2 = EJ.projWithNoteBaseNetNorm ns2 bs journalSample
+    assertNear "Journal.projWithNoteBaseNetNorm (selected notes)" expected1 actual1
+    assertNear "Journal.projWithNoteBaseNetNorm (plank wildcard)" expected2 actual2
 
 -- | Sentinel for the REMOVED RULES rewrite
--- @norm (projWithBase bs js) = projWithBaseNorm bs js@ (and the note-base
+-- @norm (projWithBase bs js) = projWithBaseNetNorm bs js@ (and the note-base
 -- analogue): the equation is false when a query selects both sides of one
--- base. 'EJ.projWithBaseNorm' \/ 'EJ.projWithNoteNorm' are the /bar-netted/
+-- base. 'EJ.projWithBaseNetNorm' \/ 'EJ.projWithNoteBaseNetNorm' are the /bar-netted/
 -- read-outs (per base @|not - hat|@), while @norm . projWithBase@ is the
 -- gross norm (sums both sides). Both values are pinned here so a future
 -- \"optimization\" that silently nets the gross path fails loudly.
@@ -376,15 +376,15 @@ testProjWithBaseNormBothSided = do
             .+ (7  :@ (Not :< Amount))
         js = alg .| "n" :: EJ.Journal String MoneyDecimal (HatBase CountUnit)
         bs = [HatNot :< Yen] :: [HatBase CountUnit]
-    assertEqual "projWithBaseNorm nets both sides (HatNot query): |10-4|"
-        6 (EJ.projWithBaseNorm bs js)
+    assertEqual "projWithBaseNetNorm nets both sides (HatNot query): |10-4|"
+        6 (EJ.projWithBaseNetNorm bs js)
     assertEqual "norm . projWithBase stays gross (no RULES rewrite): 10+4"
         14 (norm (EJ.projWithBase bs js))
-    assertEqual "projWithBaseNorm == norm . map bar . projWithBase"
+    assertEqual "projWithBaseNetNorm == norm . map bar . projWithBase"
         (norm (EJ.map EA.bar (EJ.projWithBase bs js)))
-        (EJ.projWithBaseNorm bs js)
-    assertEqual "projWithNoteNorm nets both sides (HatNot query): |10-4|"
-        6 (EJ.projWithNoteNorm ["n"] bs js)
+        (EJ.projWithBaseNetNorm bs js)
+    assertEqual "projWithNoteBaseNetNorm nets both sides (HatNot query): |10-4|"
+        6 (EJ.projWithNoteBaseNetNorm ["n"] bs js)
     assertEqual "norm . projWithNoteBase stays gross (no RULES rewrite): 10+4"
         14 (norm (EJ.projWithNoteBase ["n"] bs js))
 
@@ -572,8 +572,8 @@ testScalarRejectsNegative = do
     assertNear "(.*) non-negative scalar works" 20.0 (norm (2 .* xD))
 
 -- Step 1 (concrete projection keeps the axis index lazy): the module is compiled
--- @Strict@, so a concrete (non-wildcard) 'projNorm' must NOT force the lazy
--- @_axisPosting@ index (it should be a plain 'Map.lookup'); a wildcard 'projNorm'
+-- @Strict@, so a concrete (non-wildcard) 'projNetNorm' must NOT force the lazy
+-- @_axisPosting@ index (it should be a plain 'Map.lookup'); a wildcard 'projNetNorm'
 -- must use (force) it. We poison the index fields with 'error' and check which
 -- projection crashes. Guards the projExactMap/projWildMap split.
 testProjConcreteNoIndexForce :: IO ()
@@ -586,17 +586,17 @@ testProjConcreteNoIndexForce = do
       EA.Liner m _ _ _ _ _ -> do
         let poison = EA.Liner m (error "POISON") (error "POISON")
                                 (error "POISON") (error "POISON") (error "POISON")
-        rc <- try (evaluate (EA.projNorm [Not :< (Cash, 1, 1, Yen)] poison))
+        rc <- try (evaluate (EA.projNetNorm [Not :< (Cash, 1, 1, Yen)] poison))
                 :: IO (Either SomeException Double)
         case rc of
-          Right v | v == 10.0 -> putStrLn "[PASS] concrete projNorm does not force the axis index"
-          Right v             -> do putStrLn ("[FAIL] concrete projNorm wrong value: " ++ show v); exitFailure
-          Left _              -> do putStrLn "[FAIL] concrete projNorm forced the (poisoned) axis index"; exitFailure
-        rw <- try (evaluate (EA.projNorm [Not :< (Cash, (.#), 1, Yen)] poison))
+          Right v | v == 10.0 -> putStrLn "[PASS] concrete projNetNorm does not force the axis index"
+          Right v             -> do putStrLn ("[FAIL] concrete projNetNorm wrong value: " ++ show v); exitFailure
+          Left _              -> do putStrLn "[FAIL] concrete projNetNorm forced the (poisoned) axis index"; exitFailure
+        rw <- try (evaluate (EA.projNetNorm [Not :< (Cash, (.#), 1, Yen)] poison))
                 :: IO (Either SomeException Double)
         case rw of
-          Left _   -> putStrLn "[PASS] wildcard projNorm uses the axis index (forced, as required)"
-          Right v  -> do putStrLn ("[FAIL] wildcard projNorm did not use the index: " ++ show v); exitFailure
+          Left _   -> putStrLn "[PASS] wildcard projNetNorm uses the axis index (forced, as required)"
+          Right v  -> do putStrLn ("[FAIL] wildcard projNetNorm did not use the index: " ++ show v); exitFailure
       _ -> do putStrLn "[FAIL] expected a Liner"; exitFailure
 
 -- The Liner @_bpToId@ and @_nextBpId@ fields are reserved for the dormant P1a
@@ -613,10 +613,10 @@ testLinerReservedFieldsPoisoned = do
                           , 30 :@ Hat :< (Cash, 3, 3, Yen) ]
     -- projWildMap path (and concrete path) must stay green without forcing the
     -- reserved fields.
-    assertNear "wildcard projNorm green with reserved fields unmaintained"
-        10.0 (EA.projNorm [Not :< (Cash, (.#), 1, Yen)] alg)
-    assertNear "concrete projNorm green with reserved fields unmaintained"
-        10.0 (EA.projNorm [Not :< (Cash, 1, 1, Yen)] alg)
+    assertNear "wildcard projNetNorm green with reserved fields unmaintained"
+        10.0 (EA.projNetNorm [Not :< (Cash, (.#), 1, Yen)] alg)
+    assertNear "concrete projNetNorm green with reserved fields unmaintained"
+        10.0 (EA.projNetNorm [Not :< (Cash, 1, 1, Yen)] alg)
     -- Forcing _bpToId / _nextBpId must error (poison), proving they are not
     -- silently maintained.
     case alg of
@@ -1617,8 +1617,8 @@ quotientProperties = do
                 naive k = EA.filter
                     (\s -> s /= EA.Zero && properKf (EA._hatBase s) == Just k) x
             in all (\(k, alg) -> netByBase alg == netByBase (naive k)) (M.toList d)
-    -- postFromNetBy equals an independent per-key projNorm pipeline
-    quickProp "postFromNetBy: equals per-key projNorm reference (MoneyDecimal)" $
+    -- postFromNetBy equals an independent per-key projNetNorm pipeline
+    quickProp "postFromNetBy: equals per-key projNetNorm reference (MoneyDecimal)" $
         forAll genAlgN $ \x ->
             let kf b = if isHat b then Just (unitOf b) else Nothing
                 unitOf (_ :< u) = u
@@ -1627,7 +1627,7 @@ quotientProperties = do
                 viaRef = mconcat
                     [ post u s
                     | u <- [Yen, Dollar, Amount]
-                    , let s = EA.projNorm [Hat :< u] (bar x)
+                    , let s = EA.projNetNorm [Hat :< u] (bar x)
                     , s /= 0 ]
             in netByBase viaApi == netByBase viaRef
     -- decTo: flatten reconstructs and norm is preserved (total classifier)

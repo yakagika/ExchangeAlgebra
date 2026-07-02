@@ -288,6 +288,18 @@
 
 ### Deprecated
 
+- `projNorm` / `projWithBaseNorm` / `projWithNoteNorm`: deprecated aliases of
+  `projNetNorm` / `projWithBaseNetNorm` / `projWithNoteBaseNetNorm` (see
+  Changed — the old names concealed the bar-netting). Removal planned for 0.6.
+- The `HatVal NN.Double` instance (`Number.NonNegative.Double`): deprecated
+  since 0.5.0.0, removal planned for 0.6 (design-review C3). Its `(-)` errors
+  on the negative intermediates that the algebra's netting produces, and
+  `MoneyDouble` covers the same use case safely. GHC cannot attach `DEPRECATED`
+  to an instance, so the notice lives in the Haddock (class + instance), the
+  README value-type section, and here. All library doctests were migrated from
+  `NN.Double` to `Double`; the value-type guidance is unified across the
+  umbrella Haddock, the `HatVal` class doc and the README (`Double` /
+  `MoneyDouble` = fast, `MoneyDecimal` = exact\/audited).
 - `rounding` (`ExchangeAlgebra.Algebra`): the `NN.Double`-only whole-unit
   ceiling helper is deprecated in favour of the explicit, value-type-appropriate
   `ExchangeAlgebra.Value.ceilingRound` / `bankersRound` (which take a
@@ -296,6 +308,27 @@
 
 ### Changed
 
+- The `ExchangeAlgebra` umbrella no longer re-exports `ExchangeAlgebra.Simulate`:
+  __breaking__ (design-review C1). The simulation engine exports very generic
+  names (`copy`, `modify`, `update`, `initialize`, `normal`, `initAll`, …) that
+  polluted the recommended bookkeeping entry point. Migration: add
+  `import ExchangeAlgebra.Simulate` where those names are used — the module now
+  follows the same "import directly" policy as `Bookkeeping`/`Simulate.Lite`/
+  `Simulate.Network`/`Simulate.Policy` (documented in the umbrella Haddock).
+  The bundled examples were migrated mechanically (import line only).
+- `ExchangeAlgebra.Algebra.Base.Element` no longer re-exports the whole
+  `Data.Hashable` and `GHC.Generics` modules: __breaking__ (design-review C1).
+  Only the two names needed to define an `Element` instance remain re-exported
+  (`Hashable(..)` and `Generic`); the previous module-level re-exports leaked
+  their entire namespaces through `Base` → `Algebra` → the umbrella. Migration:
+  import `Data.Hashable`/`GHC.Generics` directly for any other names.
+- The bar-netted projection read-outs are renamed so the netting is visible in
+  the name (design-review C2): `projNorm` → `projNetNorm`
+  (`ExchangeAlgebra.Algebra`), `projWithBaseNorm` → `projWithBaseNetNorm` and
+  `projWithNoteNorm` → `projWithNoteBaseNetNorm` (`ExchangeAlgebra.Journal` —
+  the last also gains the missing `Base` in its name: it takes note AND base
+  queries). The old names remain as __deprecated aliases__ (removal planned
+  for 0.6), so this is warning-only, not immediately breaking.
 - `ExchangeAlgebra.Convert`: the account-name normaliser is renamed
   `norm` → `normalizeTitle` (the module has never been released, so no
   migration burden). The old name collided with the core value-domain

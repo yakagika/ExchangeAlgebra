@@ -34,7 +34,7 @@ stack bench exchangealgebra-examples:bench-core --benchmark-arguments 'Journal'
 
 ## Notes
 
-- Each benchmark drives a scalar-producing pipeline (ending in `norm` / `projWithBaseNorm`)
+- Each benchmark drives a scalar-producing pipeline (ending in `norm` / `projWithBaseNetNorm`)
   so `whnf` forces the full computation; inputs are built inside `env` to keep their cost out
   of the timed region.
 - For representative numbers make sure the library itself is built optimized

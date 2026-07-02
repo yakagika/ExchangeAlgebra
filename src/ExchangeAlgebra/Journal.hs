@@ -57,6 +57,8 @@ module ExchangeAlgebra.Journal
     , projWithNote
     , projWithBase
     , projWithNoteBase
+    , projWithBaseNetNorm
+    , projWithNoteBaseNetNorm
     , projWithBaseNorm
     , projWithNoteNorm
     , filterWithNote
@@ -748,23 +750,23 @@ projWithBase [] _ = mempty
 projWithBase bs js = fromMap $ Map.map (EA.proj bs) (toMap js)
 
 -- | Directly compute the /bar-netted/ norm of a base projection, without
--- constructing an intermediate Journal. Per note this applies 'EA.projNorm',
+-- constructing an intermediate Journal. Per note this applies 'EA.projNetNorm',
 -- which nets each projected base's hat and not sides (the positive-part
 -- normalization); hence
 --
--- @projWithBaseNorm bs js == norm (map bar (projWithBase bs js))@
+-- @projWithBaseNetNorm bs js == norm (map bar (projWithBase bs js))@
 --
 -- which is __not__ the same as @norm (projWithBase bs js)@ when a query
 -- (e.g. a @HatNot@ wildcard, or a list selecting both sides of one base)
 -- selects both the hat and the not side of a base: the un-netted norm sums
--- both sides, the netted one cancels them. See 'EA.projNorm'.
+-- both sides, the netted one cancels them. See 'EA.projNetNorm'.
 --
 -- Complexity: O(j * proj cost) where j is the number of Notes
-projWithBaseNorm :: (HatVal v, HatBaseClass b, Note n)
+projWithBaseNetNorm :: (HatVal v, HatBaseClass b, Note n)
                  => [b] -> Journal n v b -> v
-projWithBaseNorm [] _ = 0
-projWithBaseNorm bs js =
-    Map.foldl' (\acc alg -> acc + EA.projNorm bs alg) 0 (toMap js)
+projWithBaseNetNorm [] _ = 0
+projWithBaseNetNorm bs js =
+    Map.foldl' (\acc alg -> acc + EA.projNetNorm bs alg) 0 (toMap js)
 
 ------------------------------------------------------------------
 -- | projWithNoteBase
@@ -796,40 +798,54 @@ projWithNoteBase ns bs js =
         (S.fromList ns)
 
 -- | Directly compute the /bar-netted/ norm of a note-and-base projection,
--- without constructing an intermediate Journal. Like 'projWithBaseNorm' this
--- goes through 'EA.projNorm', so per note each projected base is netted
+-- without constructing an intermediate Journal. Like 'projWithBaseNetNorm' this
+-- goes through 'EA.projNetNorm', so per note each projected base is netted
 -- (positive-part normalization):
 --
--- @projWithNoteNorm ns bs js == norm (map bar (projWithNoteBase ns bs js))@
+-- @projWithNoteBaseNetNorm ns bs js == norm (map bar (projWithNoteBase ns bs js))@
 --
 -- which is __not__ the same as @norm (projWithNoteBase ns bs js)@ when a query
--- selects both sides of one base (see 'projWithBaseNorm').
+-- selects both sides of one base (see 'projWithBaseNetNorm').
 --
 -- Complexity: O(|ns| * proj cost)
-projWithNoteNorm :: (HatVal v, HatBaseClass b, Note n)
+projWithNoteBaseNetNorm :: (HatVal v, HatBaseClass b, Note n)
                  => [n] -> [b] -> Journal n v b -> v
-projWithNoteNorm _ [] _ = 0
-projWithNoteNorm ns bs js
-    | any isPlank ns = projWithBaseNorm bs js
-projWithNoteNorm [n] bs js = case lookupNote n js of
+projWithNoteBaseNetNorm _ [] _ = 0
+projWithNoteBaseNetNorm ns bs js
+    | any isPlank ns = projWithBaseNetNorm bs js
+projWithNoteBaseNetNorm [n] bs js = case lookupNote n js of
     Nothing -> 0
-    Just a  -> EA.projNorm bs a
-projWithNoteNorm [] bs js = projWithBaseNorm bs js
-projWithNoteNorm ns bs js =
+    Just a  -> EA.projNetNorm bs a
+projWithNoteBaseNetNorm [] bs js = projWithBaseNetNorm bs js
+projWithNoteBaseNetNorm ns bs js =
     S.foldl'
         (\acc n -> case lookupNote n js of
             Nothing -> acc
-            Just a  -> acc + EA.projNorm bs a)
+            Just a  -> acc + EA.projNetNorm bs a)
         0
         (S.fromList ns)
 
--- NB. Two RULES that rewrote @norm (projWithBase bs js)@ to 'projWithBaseNorm'
+-- NB. Two RULES that rewrote @norm (projWithBase bs js)@ to 'projWithBaseNetNorm'
 -- (and the note-base analogue) were REMOVED here: the equation is false whenever
 -- a query selects both sides of one base (e.g. a @HatNot@ wildcard) — the
 -- left-hand side sums both sides, the right-hand side bar-nets them (verified:
 -- 14.0 vs 6.0 on a both-sided base). A rewrite rule must be semantics-preserving;
--- callers who want the fused netted read-out call 'projWithBaseNorm' \/
--- 'projWithNoteNorm' explicitly.
+-- callers who want the fused netted read-out call 'projWithBaseNetNorm' \/
+-- 'projWithNoteBaseNetNorm' explicitly.
+
+{-# DEPRECATED projWithBaseNorm "renamed to 'projWithBaseNetNorm': the result is bar-netted per base, which the old name concealed. Will be removed in 0.6" #-}
+-- | Deprecated alias for 'projWithBaseNetNorm' (renamed in 0.5.0.0 so the name
+-- states the bar-netting).
+projWithBaseNorm :: (HatVal v, HatBaseClass b, Note n)
+                 => [b] -> Journal n v b -> v
+projWithBaseNorm = projWithBaseNetNorm
+
+{-# DEPRECATED projWithNoteNorm "renamed to 'projWithNoteBaseNetNorm': it takes note AND base queries and the result is bar-netted per base — both were missing from the old name. Will be removed in 0.6" #-}
+-- | Deprecated alias for 'projWithNoteBaseNetNorm' (renamed in 0.5.0.0 so the
+-- name states both the base argument and the bar-netting).
+projWithNoteNorm :: (HatVal v, HatBaseClass b, Note n)
+                 => [n] -> [b] -> Journal n v b -> v
+projWithNoteNorm = projWithNoteBaseNetNorm
 
 ------------------------------------------------------------------
 -- | Filter by a predicate on Note-entry pairs.

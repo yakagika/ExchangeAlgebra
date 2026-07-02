@@ -166,8 +166,9 @@ bare `Double` (a zero-cost wrapper) and runs everywhere `Double` does — its
 subtraction is *signed*, so the negative intermediates that arise inside
 `bar` / `(.-)` are fine. (`Number.NonNegative.Double` is **not** a usable value
 type for this reason: its `(-)` *errors* on a negative result, which the algebra's
-netting produces constantly. Use `MoneyDouble` for a non-negative-by-convention FP
-money type instead.)
+netting produces constantly. Its `HatVal` instance is **deprecated since 0.5.0.0
+and will be removed in 0.6** — use `MoneyDouble` for a non-negative-by-convention
+FP money type instead.)
 
 **Boundary pattern (simulations).** Keep ABM parameters, input coefficients and
 random draws as `Double`, and convert (`realToFrac`) only where a value *enters

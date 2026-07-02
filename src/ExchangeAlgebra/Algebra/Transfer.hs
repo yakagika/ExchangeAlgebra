@@ -51,9 +51,6 @@ module ExchangeAlgebra.Algebra.Transfer
 import qualified    ExchangeAlgebra.Algebra as EA
 import              ExchangeAlgebra.Algebra
 
--- NN is referenced only by the Haddock doctest examples (e.g. @id :: NN.Double ->
--- NN.Double@), which run in this module's import scope; keep it imported.
-import qualified    Number.NonNegative  as NN       ( Double )
 import              Text.Show.Unicode               ( ushow)
 import              GHC.Exts                        ( reallyUnsafePtrEquality#
                                                     , isTrue#
@@ -412,7 +409,7 @@ balanceR b f a l r = case l of
 
 -- | make TransTable from list
 --
--- >>> ExchangeAlgebra.Algebra.Transfer.fromList [(Hat:<(Cash),Hat:<(Building),(id :: NN.Double -> NN.Double) ),(Not:<(Building),Not:<(Cash),id)]
+-- >>> ExchangeAlgebra.Algebra.Transfer.fromList [(Hat:<(Cash),Hat:<(Building),(id :: Double -> Double) ),(Not:<(Building),Not:<(Cash),id)]
 -- [(Hat:<Cash,Hat:<Building,<function>),(Not:<Building,Not:<Cash,<function>)]
 
 fromList :: (HatVal n, HatBaseClass b) => [(b,b,(n -> n))] -> TransTable n b
@@ -452,7 +449,7 @@ fromList ((b1,a1, f1)  : xs0)   | not_ordered b1 xs0 = a1 `seq` fromList' (Trans
 
 -- | make TransTable from list
 -- same as fromList
--- >>> table $ Hat:<(Cash) :-> Hat:<(Building) |% (id :: NN.Double -> NN.Double) ++ Hat:<(Building) :-> Hat:<(Cash) |% id
+-- >>> table $ Hat:<(Cash) :-> Hat:<(Building) |% (id :: Double -> Double) ++ Hat:<(Building) :-> Hat:<(Cash) |% id
 -- [(Hat:<Cash,Hat:<Building,<function>),(Hat:<Building,Hat:<Cash,<function>)]
 {-# INLINE table #-}
 table ::  (HatVal n, HatBaseClass b) => [(b,b,(n -> n))] -> TransTable n b
@@ -474,7 +471,7 @@ instance (HatBaseClass b) => Show (TransTableParts b) where
 
 -- | Syntax to make list for makeList
 --
--- >>> Hat:<(Yen,Cash):-> Hat:<(Yen,Building) |% (id :: NN.Double -> NN.Double) ++ Not:<(Yen,Building)  :-> Not:<(Yen, Cash)  |% id
+-- >>> Hat:<(Yen,Cash):-> Hat:<(Yen,Building) |% (id :: Double -> Double) ++ Not:<(Yen,Building)  :-> Not:<(Yen, Cash)  |% id
 -- [(Hat:<(Yen,Cash),Hat:<(Yen,Building),<function>),(Not:<(Yen,Building),Not:<(Yen,Cash),<function>)]
 {-# INLINE (|%) #-}
 (|%) :: (HatVal n, HatBaseClass b) => TransTableParts b -> (n -> n) -> [(b,b,(n -> n))]

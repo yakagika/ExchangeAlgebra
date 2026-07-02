@@ -46,10 +46,15 @@
 {-# LANGUAGE Strict                     #-}
 {-# LANGUAGE DeriveGeneric              #-}
 
+-- NB. Only the two names a user needs to define an 'Element' instance are
+-- re-exported ('Hashable' for the constraint/instance, 'Generic' for deriving).
+-- The former whole-module re-exports of "Data.Hashable" and "GHC.Generics"
+-- leaked their entire namespaces (hash, hashUsing, Rep, from/to, …) through
+-- Base -> Algebra -> the ExchangeAlgebra umbrella.
 module ExchangeAlgebra.Algebra.Base.Element
     ( module ExchangeAlgebra.Algebra.Base.Element
-    , module Data.Hashable
-    , module GHC.Generics) where
+    , Hashable(..)
+    , Generic) where
 
 import qualified    Data.Text           as T
 import              Data.Text           (Text)

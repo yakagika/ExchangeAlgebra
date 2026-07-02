@@ -67,6 +67,7 @@ module ExchangeAlgebra.Algebra
     , projCredit
     , projDebit
     , projByAccountTitle
+    , projNetNorm
     , projNorm
     , balanceBy
     , balanceMapBy
@@ -259,7 +260,7 @@ class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
     -- @a >= 0@ (axiom 4). Because it sums both sides it does not cancel Hat
     -- against Not; @norm ('bar' x) <= norm x@ (bar discards the cancelled part).
     --
-    -- >>> norm (100:@Not:<Cash .+ 50:@Not:<Sales :: Alg NN.Double (HatBase AccountTitles))
+    -- >>> norm (100:@Not:<Cash .+ 50:@Not:<Sales :: Alg Double (HatBase AccountTitles))
     -- 150.0
     --
     -- Complexity: O(n) (n is the number of base keys)
@@ -313,8 +314,17 @@ class (Redundant a n b ) => Exchange a n b where
 -- | Type class for algebra element values.
 -- Provides zero-value / error-value predicates and a representation-specific
 -- renderer ('showValue').
--- Instances are defined for @Double@ and @NN.Double@ (non-negative reals);
--- a non-negative exact-decimal instance (@MoneyDecimal@) is planned.
+--
+-- == Choosing an instance
+--
+-- * 'Prelude.Double' — fast IEEE-754 (this module); the low-friction default.
+-- * @MoneyDouble@ ("ExchangeAlgebra.Value") — same speed, dedicated money newtype.
+-- * @MoneyDecimal@ ("ExchangeAlgebra.Value") — exact decimal, construction-order
+--   independent totals; use for audited\/deterministic ledgers.
+-- * @NN.Double@ (@Number.NonNegative.Double@) — __deprecated__ since 0.5.0.0,
+--   to be removed in 0.6: its @(-)@ /errors/ on a negative intermediate
+--   (e.g. inside @bar@\/@(.-)@ comparisons), and everything it offered is
+--   covered by @MoneyDouble@. Migrate to @MoneyDouble@ or bare 'Prelude.Double'.
 --
 -- DESIGN NOTE (2026-06-06, selectable value type — Double vs exact Decimal):
 -- The @RealFloat@ superclass was intentionally *removed* so that exact,
@@ -373,6 +383,11 @@ instance RealFloat NN.Double where
     isNegativeZero  = isNegativeZero . NN.toNumber
     isIEEE          = isIEEE        . NN.toNumber
 
+-- | __Deprecated__ since 0.5.0.0 (removal planned for 0.6): @NN.Double@'s
+-- @(-)@ errors on a negative intermediate, and @MoneyDouble@ covers the same
+-- use case safely. Migrate to @MoneyDouble@ or bare 'Prelude.Double'.
+-- (GHC cannot attach a @DEPRECATED@ pragma to an instance, so this notice
+-- lives in the Haddock and the ChangeLog.)
 instance HatVal NN.Double where
     {-# INLINE zeroValue #-}
     zeroValue = 0
@@ -465,7 +480,7 @@ pairAppend (Pair x1 y1) (Pair x2 y2) =
 {-# INLINE pairUnion #-}
 -- | Set-style merge of two single-base projection results.
 --
--- Used by the multi-pattern 'proj'/'projNorm' paths where a query list is
+-- Used by the multi-pattern 'proj'/'projNetNorm' paths where a query list is
 -- treated as a /set/: when several queries select the same posting (duplicate
 -- bases, or an exact base overlapping a wildcard query), the selected sides
 -- come from the /same/ underlying t'Pair' in @_realg@, so the per-side
@@ -747,7 +762,7 @@ instance  (HatVal n, HatBaseClass b) => Semigroup (Alg n b) where
 
 -- | union two trees
 --
--- >>> type Test = Alg NN.Double (HatBase CountUnit)
+-- >>> type Test = Alg Double (HatBase CountUnit)
 -- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
 -- >>> y = 2:@Hat:<Yen .+ 2:@Not:<Amount :: Test
 -- >>> union x y
@@ -1017,12 +1032,12 @@ bases (Liner m _ _ _ _ _) = Map.foldlWithKey' f [] m
 -- | convert List to Alg n b
 -- Complexity: O(sum of HashMap union costs), because this is implemented via 'mconcat'.
 --
--- >>> type Test = Alg NN.Double (HatBase AccountTitles)
+-- >>> type Test = Alg Double (HatBase AccountTitles)
 -- >>> xs = [1:@Hat:<Cash,1:@Not:<Deposits, 2:@Hat:<Cash, 2:@Not:<Deposits] :: [Test]
 -- >>> fromList xs
 -- 1.00:@Hat:<Cash .+ 2.00:@Hat:<Cash .+ 1.00:@Not:<Deposits .+ 2.00:@Not:<Deposits
 --
---  >>> type Test = Alg NN.Double (HatBase CountUnit)
+--  >>> type Test = Alg Double (HatBase CountUnit)
 --  >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
 --  >>> y = 2:@Hat:<Yen .+ 2:@Not:<Amount :: Test
 --  >>> fromList [x,y]
@@ -1039,7 +1054,7 @@ fromList = mconcat
 -- Uses the bulk-merge path ('unionsMerge'); see there for the same-base
 -- sequence-order caveat relative to 'fromList'\/'mconcat'.
 --
--- >>> type Test = Alg NN.Double (HatBase CountUnit)
+-- >>> type Test = Alg Double (HatBase CountUnit)
 -- >>> sigma [1,2] (\x -> x:@Hat:<Yen)
 -- 1.00:@Hat:<Yen .+ 2.00:@Hat:<Yen
 
@@ -1086,11 +1101,11 @@ sigmaFromMap kvs f =
 -- | Converts an algebra element to a list.
 -- Complexity: O(s) (s is the total number of scalar entries)
 --
--- >>> toList (10:@Hat:<(Cash) .+ 10:@Hat:<(Deposits) .+ Zero :: Alg NN.Double (HatBase AccountTitles))
+-- >>> toList (10:@Hat:<(Cash) .+ 10:@Hat:<(Deposits) .+ Zero :: Alg Double (HatBase AccountTitles))
 -- [10.00:@Hat:<Deposits,10.00:@Hat:<Cash]
 --
 -- you need define type variables to use this for Zero
--- >>> toList Zero :: [Alg NN.Double (HatBase AccountTitles)]
+-- >>> toList Zero :: [Alg Double (HatBase AccountTitles)]
 -- []
 toList :: (HatVal v, HatBaseClass b) => Alg v b -> [Alg v b]
 toList Zero       = []
@@ -1284,7 +1299,7 @@ filter f (Liner m _ _ _ _ _) =
 --
 -- Complexity: O(n) over distinct base keys (rebuilds the posting index once).
 --
--- >>> type T = Alg NN.Double (HatBase CountUnit)
+-- >>> type T = Alg Double (HatBase CountUnit)
 -- >>> mapBasePart id (10:@Hat:<Yen :: T) :: T
 -- 10.00:@Hat:<Yen
 --
@@ -1316,19 +1331,19 @@ mapBasePart f (Liner m _ _ _ _ _) =
 --  multi-pattern path: O(sum pattern costs + union costs)
 --
 -- where c is candidate count returned by the posting index.
--- >>> type Test = Alg NN.Double (HatBase CountUnit)
+-- >>> type Test = Alg Double (HatBase CountUnit)
 -- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
 -- >>> y = 2:@Not:<Yen .+ 2:@Hat:<Amount :: Test
 -- >>> proj [Hat:<Yen] $ x .+ y
 -- 1.00:@Hat:<Yen
 --
--- >>> type Test = Alg NN.Double (HatBase CountUnit)
+-- >>> type Test = Alg Double (HatBase CountUnit)
 -- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
 -- >>> y = 2:@Not:<Yen .+ 2:@Hat:<Amount :: Test
 -- >>> proj [HatNot:<Amount] $ x .+ y
 -- 2.00:@Hat:<Amount .+ 1.00:@Not:<Amount
 --
--- >>> type Test = Alg NN.Double (HatBase (AccountTitles, CountUnit))
+-- >>> type Test = Alg Double (HatBase (AccountTitles, CountUnit))
 -- >>> x = 1:@Hat:<(Cash,Yen) .+ 1:@Not:<(Products,Amount) :: Test
 -- >>> y = 2:@Not:<(Cash,Yen) .+ 2:@Hat:<(Deposits,Yen) :: Test
 -- >>> proj [Hat:<((.#),Yen)] $ x .+ y
@@ -1338,7 +1353,7 @@ mapBasePart f (Liner m _ _ _ _ _) =
 -- >>> compareHatBase (Not:<(.#) :: Test) (Not:<Yen :: Test)
 -- EQ
 --
--- >>> type Test = Alg NN.Double (HatBase CountUnit)
+-- >>> type Test = Alg Double (HatBase CountUnit)
 -- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
 -- >>> y = 2:@Not:<Yen .+ 2:@Hat:<Amount :: Test
 -- >>> proj [Not:<(.#)] $ x .+ y
@@ -1496,30 +1511,30 @@ projByAccountTitle at alg = filter (f at) alg
 -- Note the semantics include the @bar@ netting: each projected base is reduced
 -- to the non-negative net of its hat and not sides (@barNormPair@). Hence
 --
--- @projNorm bs x == norm (bar (proj bs x))@
+-- @projNetNorm bs x == norm (bar (proj bs x))@
 --
 -- which is /not/ the same as @norm (proj bs x)@ when a base carries both sides.
 --
 -- Complexity: O(cost(proj) + cost(bar) + cost(norm)).
-projNorm :: (HatVal n, HatBaseClass b) => [b] -> Alg n b -> n
-projNorm [] _ = 0
-projNorm _ Zero = 0
-projNorm bs (v :@ b)
+projNetNorm :: (HatVal n, HatBaseClass b) => [b] -> Alg n b -> n
+projNetNorm [] _ = 0
+projNetNorm _ Zero = 0
+projNetNorm bs (v :@ b)
     | L.any (.== b) bs = v
     | otherwise        = 0
 -- Index fields bound lazily (@~@); a concrete base uses 'projExactMap' (a plain
 -- 'Map.lookup') and never forces the axis index. See 'projExactMap'.
-projNorm [b] (Liner m ~idx _ ~idToBp _ ~allIds) =
+projNetNorm [b] (Liner m ~idx _ ~idToBp _ ~allIds) =
     foldProjectedNorm $
         if haveWildcard (base b)
             then projWildMap  b m idx idToBp allIds
             else projExactMap b m
 -- Multi-pattern path: the query list is a /set/ (see 'proj'). Per-base results
 -- are merged with 'pairUnion' so overlapping/duplicate queries do not double
--- count. Note 'projNorm' returns a bar-netted norm: 'foldProjectedNorm' applies
+-- count. Note 'projNetNorm' returns a bar-netted norm: 'foldProjectedNorm' applies
 -- @barNormPair@ (net of hat/not sides) per base, so the result equals
 -- @norm (bar (proj bs x))@, not @norm (proj bs x)@.
-projNorm bs (Liner m ~idx _ ~idToBp _ ~allIds) =
+projNetNorm bs (Liner m ~idx _ ~idToBp _ ~allIds) =
     foldProjectedNorm $
         L.foldl'
             (\acc q -> Map.unionWith pairUnion acc
@@ -1528,6 +1543,12 @@ projNorm bs (Liner m ~idx _ ~idToBp _ ~allIds) =
                      else projExactMap q m))
             Map.empty
             bs
+
+{-# DEPRECATED projNorm "renamed to 'projNetNorm': the result is the bar-netted norm (norm (bar (proj bs x))), which the old name concealed — 'norm (proj bs x)' is NOT what this computes. 'projNorm' will be removed in 0.6" #-}
+-- | Deprecated alias for 'projNetNorm' (renamed in 0.5.0.0 so the name states
+-- the bar-netting).
+projNorm :: (HatVal n, HatBaseClass b) => [b] -> Alg n b -> n
+projNorm = projNetNorm
 
 {-# INLINE foldProjectedNorm #-}
 -- | Complexity: O(k), where k is the number of projected base keys.
@@ -1547,7 +1568,7 @@ barNormPair (Pair hs ns) =
 
 -- | Compute the net balance as the difference of two projections.
 -- @balanceBy plusBases minusBases alg@ computes
--- @projNorm plusBases alg - projNorm minusBases alg@.
+-- @projNetNorm plusBases alg - projNetNorm minusBases alg@.
 --
 -- Useful for calculating stock quantities, profits, etc.
 --
@@ -1560,14 +1581,14 @@ barNormPair (Pair hs ns) =
 -- -70.0
 balanceBy :: (HatVal n, HatBaseClass b) => [b] -> [b] -> Alg n b -> n
 balanceBy plusBases minusBases alg =
-    projNorm plusBases alg - projNorm minusBases alg
+    projNetNorm plusBases alg - projNetNorm minusBases alg
 
 -- | Aggregate the net balance of an 'Alg' by a key, in a single pass.
 --
 -- @balanceMapBy keyOf@ is the bucketed form of 'balanceBy': for every entry it
 -- projects the (side-stripped) 'BasePart' to a bucket key with @keyOf@ ('Nothing'
 -- drops the entry), and nets each bucket using the Hat\/Not convention (Not adds,
--- Hat subtracts) — exactly @projNorm [Not:<k] - projNorm [Hat:<k]@ per key.
+-- Hat subtracts) — exactly @projNetNorm [Not:<k] - projNetNorm [Hat:<k]@ per key.
 -- @keyOf@ sees only the 'BasePart', not the Hat\/Not side, so it cannot split one
 -- key across sides.
 --
@@ -1833,7 +1854,7 @@ projFixedLiability  = (filter (\x -> (fixedCurrent . _hatBase) x == Fixed))
 --
 -- Complexity: O(s) (s is the total number of scalar entries)
 --
--- >>> type Test = Alg NN.Double (HatBase AccountTitles)
+-- >>> type Test = Alg Double (HatBase AccountTitles)
 -- >>> x = 100:@Not:<CapitalStock .+ 30:@Not:<Cash .+ 20:@Not:<RetainedEarnings :: Test
 -- >>> norm (projCapitalStock x)
 -- 120.0

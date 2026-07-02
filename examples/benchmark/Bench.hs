@@ -15,7 +15,7 @@
 --     --benchmark-arguments '--output examples/benchmark/result/report.html'
 --
 -- Each benchmark drives a scalar-producing pipeline (ending in 'norm' or
--- 'projWithBaseNorm') so 'whnf' forces the whole computation, and inputs are
+-- 'projWithBaseNetNorm') so 'whnf' forces the whole computation, and inputs are
 -- constructed inside 'env' so their cost is excluded from the timed region.
 --
 -- == HatBase key-hashing study (2026-06-08)
@@ -387,9 +387,9 @@ main = defaultMain
             bench ("k=8,N=" ++ show projMultiN) $ whnf (norm . EA.proj projKeys8) alg ]
     -- fromList is a strict left fold (L.foldl' (.+) mempty); ~15x at N=10000,
     -- wider at larger N (the old lazy right fold was super-linear to force).
-    , bgroup "Journal/fromList+projWithBaseNorm"
+    , bgroup "Journal/fromList+projWithBaseNetNorm"
         [ env (pure (mkJournals n)) $ \js ->
-            bench (show n) $ whnf (EJ.projWithBaseNorm projKey . EJ.fromList) js
+            bench (show n) $ whnf (EJ.projWithBaseNetNorm projKey . EJ.fromList) js
         | n <- sizes ]
 
     ------------------------------------------------------------------
