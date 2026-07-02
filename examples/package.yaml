@@ -142,14 +142,17 @@ executables:
 
   # Phase 1 (general-equilibrium:phase1-cge-reproduction) — the Simulate.Lite
   # rebuild of the Hosoe Ch.6 CGE toy (task 1b skeleton + task 1a
-  # calibration). CGELite.hs is the Main; Calibration is the GAMS-mirroring
-  # SAM/parameter port. 'other-modules' is explicit so the test main under
-  # optimization/cge-lite/test is not auto-scooped into this exe.
+  # calibration + R2 solver core). CGELite.hs is the Main; Calibration is
+  # the GAMS-mirroring SAM/parameter port; Solver is the generic damped
+  # Newton/Broyden root finder. 'other-modules' is explicit so the test
+  # mains under optimization/cge-lite/test are not auto-scooped into this exe.
   cge-lite:
     <<: *exe-defaults
     main:                CGELite.hs
     source-dirs:         optimization/cge-lite
-    other-modules:       Calibration
+    other-modules:
+    - Calibration
+    - Solver
 
   # Phase 5 (feat/market-scale-experiments): the market-scale experiment. The
   # value-type-polymorphic model lives in MarketModel; marketEx1 (MoneyDouble)
@@ -174,14 +177,34 @@ tests:
   # Task-1a calibration sentinel (general-equilibrium:phase1-cge-reproduction):
   # the Calibration port must match the GAMS ground truth (stdcge.lst display
   # values, results.csv benchmark, SAM balance, accounting identities).
-  # 'other-modules' is explicit so CGELite.hs (a second Main in the shared
-  # source dir) is not auto-scooped.
+  # 'other-modules' is explicit so the sibling Mains (CGELite.hs,
+  # SolverTest.hs) in the shared source dirs are not auto-scooped.
   cge-lite-test:
     main:                CalibrationTest.hs
     source-dirs:
     - optimization/cge-lite
     - optimization/cge-lite/test
-    other-modules:       Calibration
+    other-modules:
+    - Calibration
+    - TestHarness
+    ghc-options:
+    - -O0
+    when:
+    - condition: os(darwin)
+      ghc-options:
+      - '-optl-Wl,-no_warn_duplicate_libraries'
+
+  # R2 solver-core sentinel (general-equilibrium:phase1-cge-reproduction):
+  # Solver (damped Newton/Broyden + line search) verified against artificial
+  # excess-demand oracles with known roots, independently of the CGE stages.
+  cge-lite-solver-test:
+    main:                SolverTest.hs
+    source-dirs:
+    - optimization/cge-lite
+    - optimization/cge-lite/test
+    other-modules:
+    - Solver
+    - TestHarness
     ghc-options:
     - -O0
     when:

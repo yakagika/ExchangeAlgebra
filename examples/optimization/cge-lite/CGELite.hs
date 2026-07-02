@@ -16,11 +16,16 @@
   world, the four bookkeeping-event BSP stages carried over from the classic
   "CGE" example's @EventName@ list (content-free), 'runLite' wiring that
   actually builds and runs, and the 'excessDemand'\/'settle' split mandated by
-  the design doc below. __No solver is implemented__ — 'solveEquilibrium' is a
-  typed stub that errors when called (R2 scope). Calibration (SAM -> full
-  parameter set) __is done__ (task 1a, 2026-07-02): 'CGEParams' carries the
-  full Hosoe Ch.6 calibration via 'cgeCalibration' (see "Calibration" and its
-  sentinel suite @cge-lite-test@); the stages don't consume it yet (R2).
+  the design doc below. __The solver core is implemented__ (R2 core,
+  2026-07-03): 'solveEquilibrium' wraps "Solver"'s damped Newton\/Broyden +
+  line search (verified standalone against known-root oracles by
+  @cge-lite-solver-test@), pinning the numeraire and driving 'excessDemand'
+  as the oracle. Calibration (SAM -> full parameter set) __is done__ (task
+  1a, 2026-07-02): 'CGEParams' carries the full Hosoe Ch.6 calibration via
+  'cgeCalibration' (see "Calibration" and its sentinel suite
+  @cge-lite-test@). The stages are still content-free (task 1b) — until
+  they post real supply\/demand, @z@ is identically 0 and the solve is
+  trivial.
 
   == Design of record
 
@@ -66,6 +71,8 @@ import           ExchangeAlgebra.Simulate.Lite
                      , runLite )
 
 import qualified Calibration                     as C
+import           Solver                          (ConvergenceTol (..),
+                                                  SentinelLog (..), solveRoot)
 
 ------------------------------------------------------------------
 -- * Products (fixed — the Hosoe Ch.6 two-good structure)
@@ -308,9 +315,9 @@ type ExcessDemand = M.Map Product V
 -- to a single BSP pass (baked in at construction by 'initWorld') and never
 -- change during that pass — the classic tâtonnement-inside-a-stage design is
 -- exactly what Option A avoids (state-change-and-scaling.md §0\/§5): price
--- adjustment happens /between/ separate 'runLite' calls, driven by the (not
--- yet implemented) outer 'solveEquilibrium' loop, never by a stage writing
--- 'wPrices' mid-pass.
+-- adjustment happens /between/ separate 'runLite' calls, driven by the
+-- outer 'solveEquilibrium' loop, never by a stage writing 'wPrices'
+-- mid-pass.
 data World f = World
     { wLedger :: HK f (Journal CGENote V CGEBase)
       -- ^ The single ledger field (per 'SimSpec's Haddock: exactly one
@@ -394,9 +401,9 @@ cgeSpec _params = mkSimSpec (1, 1) cgeSeed wLedger cgeStages
 --
 -- === Trial-independence contract (state-change-and-scaling.md §3.4/§3.8)
 --
--- This is a /pure/, /trial/ evaluation, meant to be called many times by the
--- (not yet implemented) auctioneer loop ('solveEquilibrium') while it
--- searches for a market-clearing price. Concretely:
+-- This is a /pure/, /trial/ evaluation, meant to be called many times by
+-- the auctioneer loop ('solveEquilibrium') while it searches for a
+-- market-clearing price. Concretely:
 --
 --   * 'initWorld' builds a brand-new 'World' from @(params, prices)@ on
 --     every call — no mutable cell is shared between calls, so evaluating
@@ -429,8 +436,8 @@ excessDemand params prices =
 --
 -- Unlike 'excessDemand', this call's ledger __is__ meant to be kept — it is
 -- the single "1 回 commit" the trial-independence contract (see
--- 'excessDemand') reserves for the converged price. The (not yet
--- implemented) auctioneer ('solveEquilibrium') must call this /at most once/
+-- 'excessDemand') reserves for the converged price. The auctioneer
+-- ('solveEquilibrium') must call this /at most once/
 -- per term, only after its price search has converged (or been given up
 -- on) — never per trial.
 settle :: CGEParams -> Prices -> Journal CGENote V CGEBase
@@ -459,65 +466,40 @@ aggregateFlow ledger = EA.balanceMapBy productKey (EJ.toAlg ledger)
     productKey _                                           = Nothing
 
 ------------------------------------------------------------------
--- * Sentinel instrumentation (R3 stub)
+-- * Solver (R2 core — numerical engine in "Solver")
 ------------------------------------------------------------------
-
--- | Sentinel instrumentation for the auctioneer's outer loop: the running
--- iteration count K and a condition-number proxy of the Jacobian\/Broyden
--- update, so a future 'solveEquilibrium' can populate the K(N)\/
--- condition-number sentinel (state-change-and-scaling.md §2/§3;
--- phase1-cge-reproduction.md task 1d cross-cutting requirement (a): "K is
--- N-independent" is a claim to measure, not assume). Deliberately /not/ a
--- 'World' field — K spans many 'excessDemand' trials across one
--- 'solveEquilibrium' call, whereas a 'World' is rebuilt fresh (and discarded)
--- every single trial (see 'excessDemand'), so the counter belongs to the
--- outer loop's own state, threaded through 'solveEquilibrium' directly.
---
--- Both fields are stub placeholders: real measurement is R3 scope, gated on
--- R2's solver existing to drive them.
-data SentinelLog = SentinelLog
-    { slIterations     :: !Int
-      -- ^ K: number of 'excessDemand' evaluations performed by the current
-      -- 'solveEquilibrium' call. Always @0@ until R2 wires the iteration.
-    , slConditionProxy :: !(Maybe Double)
-      -- ^ A condition-number proxy for the last Jacobian\/Broyden update.
-      -- 'Nothing' until R3 measures one.
-    } deriving (Eq, Show)
-
--- | The zero sentinel: no iterations run, no condition number measured.
-emptySentinelLog :: SentinelLog
-emptySentinelLog = SentinelLog { slIterations = 0, slConditionProxy = Nothing }
-
-------------------------------------------------------------------
--- * Solver (R2 — NOT IMPLEMENTED)
-------------------------------------------------------------------
-
--- | Convergence criteria for 'solveEquilibrium'. Type-only for now (R2
--- decides how @tolMaxIter@ interacts with damping\/line-search backtracking).
-data ConvergenceTol = ConvergenceTol
-    { tolNorm    :: !Double  -- ^ Stop when @norm (excessDemand ...) < tolNorm@.
-    , tolMaxIter :: !Int     -- ^ Give up after this many outer iterations.
-    } deriving (Eq, Show)
 
 -- | The auctioneer's outer loop (Option A — a 'runLite'-external loop, fixed
 -- in state-change-and-scaling.md §5): search for a price vector at which
--- 'excessDemand' is (approximately) zero, then 'settle' exactly once at that
--- price.
+-- 'excessDemand' is (approximately) zero. The numerical core lives in
+-- "Solver" (damped Newton\/Broyden + line search per §6, with
+-- 'Solver.naiveTatonnement' kept alongside for comparison), verified
+-- standalone against artificial oracles with known roots by the
+-- @cge-lite-solver-test@ suite; this wrapper owns only the CGE-specific
+-- bits:
 --
--- __R2, not implemented.__ The default solver is damped Newton\/Broyden with
--- line search (§6) — /not/ naive tâtonnement, because this CGE's demand
--- system is not known to satisfy gross substitutes, so naive tâtonnement's
--- global convergence cannot be assumed (§3 codex caveat). A naive-tâtonnement
--- variant is kept for comparison\/stress-testing per the design doc, but it
--- is equally unimplemented — this stub does not give it a separate name
--- because R1 scope is "the type the solver will have", not "every solver
--- variant's type". R2 implements the iteration body (each step: one
--- 'excessDemand' trial, a damped Newton\/Broyden price update, a line
--- search); R3 wires 'SentinelLog' (K and the condition-number proxy) from
--- inside that loop; R1 stops here.
+--   * __numeraire pin__: 'cgeNumeraire' is excluded from the free keys and
+--     held at 1 inside the oracle closure (@pf(LAB) = 1@) — by Walras's law
+--     the numeraire market clears when all the others do, so dropping that
+--     one equation keeps the system square;
+--   * __oracle = 'excessDemand'__: each solver trial is one full BSP pass
+--     at the trial prices, so 'slIterations' /is/ the K of the K(N)
+--     sentinel, measured in BSP passes (state-change-and-scaling.md §2\/§3;
+--     task 1d cross-cutting requirement (a): "K is N-independent" is a
+--     claim to measure, not assume).
+--
+-- While the stages are content-free, @z@ is identically 0 and this returns
+-- the initial guess as converged after one oracle call — the real
+-- convergence behavior arrives with the stage bodies (task 1b), whose
+-- benchmark sentinel (prices -> 1.0, UU -> 25.5085) then runs through
+-- here. 'settle' at the returned prices remains the caller's one commit.
 solveEquilibrium :: CGEParams -> Prices -> ConvergenceTol -> (Prices, SentinelLog)
-solveEquilibrium _params _p0 _tol =
-    error "R2: damped Newton/Broyden + line search — not yet implemented (see general-equilibrium docs/state-change-and-scaling.md §6)"
+solveEquilibrium params p0 tol =
+    let nmr        = cgeNumeraire params
+        free0      = M.delete nmr p0
+        oracle p   = M.delete nmr (excessDemand params (M.insert nmr 1 p))
+        (pF, slog) = solveRoot oracle free0 tol
+    in  (M.insert nmr 1 pF, slog)
 
 ------------------------------------------------------------------
 -- * Main (build/run verification)
@@ -550,4 +532,9 @@ main = do
     putStrLn ("trial prices       : " ++ show (M.toList prices0))
     putStrLn ("excess demand z(p) : " ++ show (M.toList z))
     putStrLn ("settled ledger norm: " ++ show (norm ledger))
-    putStrLn "solveEquilibrium (R2 damped Newton/Broyden) not yet wired; see general-equilibrium docs/state-change-and-scaling.md section 6."
+    let tol         = ConvergenceTol { tolNorm = 1e-9, tolMaxIter = 50 }
+        (pEq, slog) = solveEquilibrium params prices0 tol
+    putStrLn "--- solveEquilibrium (R2 core: damped Newton/Broyden, see Solver) ---"
+    putStrLn ("equilibrium prices : " ++ show (M.toList pEq))
+    putStrLn ("sentinel           : " ++ show slog)
+    putStrLn "(z is identically 0 while the stages are content-free, so the solve is trivially converged; real convergence arrives with the 1b stage bodies)"

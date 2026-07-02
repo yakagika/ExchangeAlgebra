@@ -28,41 +28,15 @@
 -}
 module Main where
 
-import           Control.Monad   (unless)
 import qualified Data.Map.Strict as M
-import           System.Exit     (exitFailure)
 
 import qualified Calibration     as C
 import           Calibration     (Account (..))
-
-------------------------------------------------------------------
--- * Tiny check harness
-------------------------------------------------------------------
-
--- | A named check: 'Nothing' = pass, 'Just msg' = failure detail.
-type Check = (String, Maybe String)
-
-ok :: String -> Check
-ok name = (name, Nothing)
-
-bad :: String -> String -> Check
-bad name msg = (name, Just msg)
-
--- | @approx tol name expected actual@ — absolute-error comparison.
-approx :: Double -> String -> Double -> Double -> Check
-approx tol name expected actual
-    | abs (expected - actual) <= tol = ok name
-    | otherwise = bad name $
-        "expected " ++ show expected ++ ", got " ++ show actual
-        ++ " (|diff| = " ++ show (abs (expected - actual)) ++ " > tol " ++ show tol ++ ")"
-
--- | Exact-in-Double comparison (SAM cells are small integers; sums and
--- their linear identities are exact in IEEE 754, so no real tolerance is
--- conceded — 1e-9 only guards divisions like @tauz@).
-exact :: String -> Double -> Double -> Check
-exact = approx 1e-9
+import           TestHarness
 
 -- | Half-ulp tolerance of the 3-decimal rounding in @stdcge.lst@'s display.
+-- ('exact' — 1e-9 — is used where the compared quantities are exact small
+-- integers or their ratios: SAM sums, identities, results.csv rows.)
 lst :: String -> Double -> Double -> Check
 lst = approx 5.1e-4
 
@@ -204,9 +178,5 @@ csvChecks rows = map check rows
 main :: IO ()
 main = do
     csv <- readFile "optimization/CGE/GAMS/results.csv"
-    let checks   = samChecks ++ identityChecks ++ lstChecks ++ csvChecks (parseResults csv)
-        failures = [ (name, msg) | (name, Just msg) <- checks ]
-    putStrLn $ "CalibrationTest: " ++ show (length checks) ++ " checks, "
-             ++ show (length failures) ++ " failures"
-    mapM_ (\(name, msg) -> putStrLn ("  FAIL " ++ name ++ ": " ++ msg)) failures
-    unless (null failures) exitFailure
+    runChecks "CalibrationTest" $
+        samChecks ++ identityChecks ++ lstChecks ++ csvChecks (parseResults csv)

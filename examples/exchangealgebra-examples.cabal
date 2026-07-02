@@ -54,6 +54,7 @@ executable cge-lite
   main-is: CGELite.hs
   other-modules:
       Calibration
+      Solver
   hs-source-dirs:
       optimization/cge-lite
   ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -feager-blackholing -fwrite-ide-info
@@ -647,11 +648,48 @@ executable sim2fast
   if os(darwin)
     ghc-options: -optl-Wl,-no_warn_duplicate_libraries
 
+test-suite cge-lite-solver-test
+  type: exitcode-stdio-1.0
+  main-is: SolverTest.hs
+  other-modules:
+      Solver
+      TestHarness
+  hs-source-dirs:
+      optimization/cge-lite
+      optimization/cge-lite/test
+  ghc-options: -O0
+  build-depends:
+      array >=0.5.5 && <0.6
+    , async ==2.2.*
+    , base >=4.17 && <5
+    , binary ==0.8.*
+    , bytestring >=0.11 && <0.13
+    , containers >=0.6 && <0.8
+    , deepseq >=1.4 && <1.6
+    , directory ==1.3.*
+    , exchangealgebra ==0.5.*
+    , hashable >=1.4 && <1.6
+    , mtl ==2.3.*
+    , non-negative >=0.1.2 && <0.2
+    , numeric-prelude >=0.4.4 && <0.5
+    , parallel ==3.2.*
+    , process ==1.6.*
+    , random ==1.2.*
+    , statistics ==0.16.*
+    , text >=2.0 && <2.2
+    , time >=1.12 && <1.15
+    , unordered-containers >=0.2.19 && <0.3
+    , vector ==0.13.*
+  default-language: Haskell2010
+  if os(darwin)
+    ghc-options: -optl-Wl,-no_warn_duplicate_libraries
+
 test-suite cge-lite-test
   type: exitcode-stdio-1.0
   main-is: CalibrationTest.hs
   other-modules:
       Calibration
+      TestHarness
   hs-source-dirs:
       optimization/cge-lite
       optimization/cge-lite/test
