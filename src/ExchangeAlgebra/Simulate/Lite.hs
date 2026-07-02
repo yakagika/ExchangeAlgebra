@@ -172,7 +172,7 @@ import           ExchangeAlgebra.Journal           ( Journal
                                                    , filterWithNote )
 import           ExchangeAlgebra.Algebra           (Alg)
 import qualified ExchangeAlgebra.Algebra    as EA   ((.+), compress)
-import           ExchangeAlgebra.Simulate          (StateTime, defaultBinarySpillWriter)
+import           ExchangeAlgebra.Simulate          (StateTime, defaultBinarySpillWriter, stepBackWith)
 import           ExchangeAlgebra.Simulate.Policy    ( LedgerPolicy(..)
                                                     , Retention(..)
                                                     , Compaction(..)
@@ -673,7 +673,13 @@ runLiteWithPolicy pol spec wInit k = do
             case window of
               Nothing -> pure ()
               Just w  -> do
-                let boundary = backByTerms w t   -- evict terms <= boundary
+                -- Eviction boundary for a w-term resident window ending at t:
+                -- evict every term <= t - w. The step-back arithmetic is
+                -- single-sourced in ExchangeAlgebra.Simulate ('stepBackWith';
+                -- design-review C4). When the boundary is below the spec's
+                -- first term the delete predicate matches nothing — no
+                -- clamping needed.
+                let boundary = stepBackWith pred w t   -- evict terms <= boundary
                 spilledHi <- readIORef spilledRef
                 -- spill newly-closed terms (spilledHi, boundary] before deleting
                 case mh of
@@ -718,18 +724,6 @@ runLiteWithPolicy pol spec wInit k = do
 withMaybeSpillHandle :: Maybe FilePath -> (Maybe Handle -> IO a) -> IO a
 withMaybeSpillHandle Nothing     act = act Nothing
 withMaybeSpillHandle (Just path) act = withFile path AppendMode (act . Just)
-
--- | Eviction upper bound for a @w@-term resident window ending at @t@: the
--- resident window is the most recent @w@ terms @[t-w+1 .. t]@, so every term
--- @<= backByTerms w t@ (= @t - w@) is evicted. Computed by stepping back @w@
--- times via 'pred'. When the boundary is below the spec's first term,
--- 'filterWithNote' simply keeps everything (nothing matches the delete
--- predicate), so no clamping is needed.
-backByTerms :: (Enum t) => Int -> t -> t
-backByTerms w t = go w t
-  where
-    go n x | n <= 0    = x
-           | otherwise = go (n - 1) (pred x)
 
 -- | Apply 'EA.compress' to the entry of every Note whose term is strictly
 -- before @t@ (a /closed/ term), leaving the in-progress term untouched. Uses

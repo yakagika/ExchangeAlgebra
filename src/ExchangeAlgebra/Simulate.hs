@@ -88,6 +88,8 @@ module ExchangeAlgebra.Simulate
     ,eventAll
     ,SpillOptions(..)
     ,SpillDeletePolicy(..)
+    ,stepBackWith
+    ,spillDeleteDecision
     ,mkSpillOptions
     ,mkBinarySpillOptions
     ,defaultSpillWriter
@@ -368,6 +370,43 @@ data SpillDeletePolicy t
     | DeleteSpilledChunk
     | KeepRecentTerms Int
 
+-- | Step a term back @n@ times with the supplied step function ('prevTerm' in
+-- the classic spill loop below; 'pred' in "ExchangeAlgebra.Simulate.Lite"'s
+-- retention loop). This is the __single definition__ of the eviction-window
+-- arithmetic that was previously duplicated in both engines (design-review
+-- C4). @n <= 0@ returns the term unchanged.
+--
+-- Complexity: O(n)
+{-# INLINE stepBackWith #-}
+stepBackWith :: (t -> t) -> Int -> t -> t
+stepBackWith step = go
+  where
+    go n x | n <= 0    = x
+           | otherwise = go (n - 1) (step x)
+
+-- | The per-chunk delete decision, as a pure function of the
+-- 'SpillDeletePolicy' — the single source of \"which term range is evicted
+-- after a chunk @(chunkStart, chunkEnd)@ is spilled\" (design-review C4):
+--
+--   * 'NoDelete' — evict nothing.
+--   * 'DeleteSpilledChunk' — evict exactly the spilled chunk.
+--   * @'KeepRecentTerms' n@ — evict the chunk except the trailing @n@ terms
+--     (the resident window); evict nothing when the window covers the chunk.
+--
+-- The step function abstracts the engine's notion of \"previous term\"
+-- ('prevTerm' here; "ExchangeAlgebra.Simulate.Lite" uses 'pred').
+--
+-- Complexity: O(n) for @'KeepRecentTerms' n@, O(1) otherwise.
+spillDeleteDecision :: (Ord t) => (t -> t) -> SpillDeletePolicy t -> (t, t) -> Maybe (t, t)
+spillDeleteDecision step policy (chunkStart, chunkEnd) = case policy of
+    NoDelete -> Nothing
+    DeleteSpilledChunk -> Just (chunkStart, chunkEnd)
+    KeepRecentTerms keepN ->
+        let deleteEnd = stepBackWith step keepN chunkEnd
+        in if deleteEnd < chunkStart
+            then Nothing
+            else Just (chunkStart, deleteEnd)
+
 -- | Construct text-format SpillOptions.
 -- interval is the spill interval (in terms), path is the output file path.
 --
@@ -488,25 +527,13 @@ runSimulationWithSpill opts gen v = do
     shouldSpill chunkStart t isLast =
         isLast || (fromEnum t - fromEnum chunkStart + 1 >= spillEveryTerms opts)
 
-    backBy n x
-        | n <= 0 = x
-        | otherwise = backBy (n - 1) (prevTerm x)
-
-    deleteRangeForChunk (chunkStart, chunkEnd) = case spillDeletePolicy opts of
-        NoDelete -> Nothing
-        DeleteSpilledChunk -> Just (chunkStart, chunkEnd)
-        KeepRecentTerms keepN ->
-            let deleteEnd = backBy keepN chunkEnd
-            in if deleteEnd < chunkStart
-                then Nothing
-                else Just (chunkStart, deleteEnd)
-
     spillChunk h chunkStart t wld = do
         payload <- case spillExtractChunk opts of
             Just extractChunk -> stToIO $ extractChunk (chunkStart, t) wld
             Nothing -> stToIO $ spillExtract opts wld
         spillWriteChunk opts h (chunkStart, t) payload
-        case deleteRangeForChunk (chunkStart, t) of
+        -- delete decision is single-sourced in 'spillDeleteDecision' (C4)
+        case spillDeleteDecision prevTerm (spillDeletePolicy opts) (chunkStart, t) of
             Nothing -> pure ()
             Just delRange -> stToIO $ spillDeleteRange opts delRange wld
 

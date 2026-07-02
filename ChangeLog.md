@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Added
+- `stepBackWith` / `spillDeleteDecision` (`ExchangeAlgebra.Simulate`): the
+  eviction-window arithmetic and the per-chunk delete decision are now pure,
+  exported, unit-tested functions — the __single source__ of "which term range
+  is evicted" (design-review C4). Previously the same logic lived inline in
+  three places: the classic `runSimulationWithSpill` loop (`backBy` +
+  `deleteRangeForChunk`), `Simulate.Lite`'s retention loop (`backByTerms`),
+  and implicitly behind the `policySpillOptions` bridge. Both engines now call
+  the shared functions (classic passes `prevTerm`, Lite passes `pred` — each
+  engine keeps its own notion of "previous term"); behaviour is unchanged and
+  the decision table is pinned by tests.
 - Pure row builders for the legacy CSV writers (design-review C7): `bsRows`,
   `plRows`, `journalRows`, `accountLedgerRowsJournal` and
   `compoundTrialBalanceRows` are the pure counterparts of `writeBS` /

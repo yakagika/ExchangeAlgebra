@@ -219,6 +219,10 @@ instance (Note e1, Note e2, Note t) => HasTermAxis (e1, e2, t) where
 -- When @'retain' = 'RetainAll'@ no eviction is wired ('NoDelete'); the chunks
 -- are still written if you want an external log. The 'compaction' field has no
 -- effect on this classic bridge (it is applied only in @runLiteWithPolicy@).
+-- The eviction arithmetic itself (step-back and per-chunk delete decision) is
+-- single-sourced in "ExchangeAlgebra.Simulate" ('stepBackWith' /
+-- 'spillDeleteDecision'); this bridge only maps the policy vocabulary onto
+-- 'SpillOptions' (design-review C4).
 policySpillOptions
     :: forall n v b t a.
        ( HasTermAxis n, TermOf n ~ t, StateTime t

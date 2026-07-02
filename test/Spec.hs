@@ -855,6 +855,31 @@ testIncomeSummaryBalancedNoCrash = do
 
 type SpillRestoreJournal = EJ.Journal (String, Int) Double (HatBase CountUnit)
 
+-- | Design-review C4: the spill/eviction decision logic is single-sourced in
+-- 'ES.stepBackWith' / 'ES.spillDeleteDecision' (previously duplicated inline
+-- in the classic spill loop and in Lite's retention loop). Pin the decision
+-- table and the equivalence with Lite's former @backByTerms@.
+testSpillDecisionSingleSource :: IO ()
+testSpillDecisionSingleSource = do
+    assertEqual "stepBackWith pred 3 10" (7 :: Int) (ES.stepBackWith pred 3 10)
+    assertEqual "stepBackWith is id for n <= 0" (10 :: Int) (ES.stepBackWith pred 0 10)
+    assertEqual "stepBackWith is id for negative n" (10 :: Int) (ES.stepBackWith pred (-1) 10)
+    assertEqual "NoDelete evicts nothing"
+        Nothing (ES.spillDeleteDecision pred (ES.NoDelete :: ES.SpillDeletePolicy Int) (1, 10))
+    assertEqual "DeleteSpilledChunk evicts exactly the chunk"
+        (Just (1, 10)) (ES.spillDeleteDecision pred ES.DeleteSpilledChunk (1 :: Int, 10))
+    assertEqual "KeepRecentTerms 3 keeps the trailing window"
+        (Just (1, 7)) (ES.spillDeleteDecision pred (ES.KeepRecentTerms 3) (1 :: Int, 10))
+    assertEqual "KeepRecentTerms covering the chunk evicts nothing"
+        Nothing (ES.spillDeleteDecision pred (ES.KeepRecentTerms 12) (1 :: Int, 10))
+    -- Lite boundary equivalence: former backByTerms w t == stepBackWith pred w t
+    let backByTermsRef w t = let go n x | n <= (0 :: Int) = x
+                                        | otherwise       = go (n - 1) (pred x)
+                             in go w t
+    forM_ [(0, 5), (1, 5), (3, 5), (7, 5)] $ \(w, t) ->
+        assertEqual ("Lite boundary equivalence w=" ++ show w)
+            (backByTermsRef w t) (ES.stepBackWith pred w (t :: Int))
+
 testRestoreJournalFromBinarySpill :: IO ()
 testRestoreJournalFromBinarySpill = do
     let spillPath = "/tmp/exchangealgebra_spill_restore_test.bin"
@@ -2875,6 +2900,7 @@ main = do
     testFinalStockTransferAlgEquivalence
     testFinalStockTransferJournalEquivalence
     testIncomeSummaryBalancedNoCrash
+    testSpillDecisionSingleSource
     testRestoreJournalFromBinarySpill
     testSimulateEx1Default
     testCsvTranspose
