@@ -1,0 +1,62 @@
+{
+  "id": "statements-cash-flows-indirect-kieso-ch22-001",
+  "category": "statements",
+  "difficulty": "mechanical",
+  "ea_coverage": "ok",
+  "audit": false,
+  "source": {
+    "ref": "kieso",
+    "origin": "Kieso et al. Intermediate Accounting 19e, ch.22 Statement of Cash Flows, comprehensive worksheet (Illustration 22.37) → printed statement Illustration 22.38 (book p. 22-45), Satellite Corporation",
+    "ground_truth_provenance": "textbook printed solution (Illustration 22.38)"
+  },
+  "prompt": "2028 年度のキャッシュフロー計算書(間接法)を補足開示・非資金活動を含め作成せよ。",
+  "given": {
+    "entity": "Satellite Corporation",
+    "period": "FY2028",
+    "method": "indirect",
+    "note": "比較 B/S・損益・追加情報(設備売却 cost 8,000/accum 2,500/loss 1,500, 土地収用 gain 8,000 で州が 18,500 支払, 建物増設 32,400, 土地 60,000 を長期手形で取得 = noncash, 自己株式 17,000 取得, 株式配当 15,000, 株式発行 144,000 = 9,000 par + 135,000 PIC)。完全な入力 B/S は別途構造化。"
+  },
+  "expected_output": {
+    "components": [
+      "derived"
+    ],
+    "format_note": "Return one JSON object with key \"derived\": a flat string-to-number map of every leaf value in the indirect-method statement of cash flows (operating net income and each adjustment line, investing items, financing items, net_decrease_in_cash, and supplemental interest/tax paid), using dot-separated keys such as \"operating.adjustments.DepreciationExpense\", \"investing.net\", \"financing.net\", \"supplemental.interest_paid_net\"."
+  },
+  "ground_truth": {
+    "derived": {
+      "operating.net_income": 117000,
+      "operating.adjustments.DepreciationExpense": 14600,
+      "operating.adjustments.AmortizationOfTrademarks": 2400,
+      "operating.adjustments.AmortizationOfBondPremium": -1000,
+      "operating.adjustments.EquityInEarningsOfPorterCo": -3500,
+      "operating.adjustments.GainOnCondemnationOfLand": -8000,
+      "operating.adjustments.LossOnSaleOfEquipment": 1500,
+      "operating.adjustments.IncreaseInDeferredIncomeTaxLiability": 3000,
+      "operating.adjustments.IncreaseInAccountsReceivableNet": -53000,
+      "operating.adjustments.IncreaseInInventory": -152000,
+      "operating.adjustments.DecreaseInPrepaidExpenses": 500,
+      "operating.adjustments.IncreaseInAccountsPayable": 1000,
+      "operating.adjustments.IncreaseInAccruedLiabilities": 4000,
+      "operating.adjustments.DecreaseInIncomeTaxesPayable": -13000,
+      "operating.total_adjustments": -203500,
+      "operating.net_cash_used_by_operating_activities": -86500,
+      "investing.ProceedsFromCondemnationOfLand": 18500,
+      "investing.PurchaseOfEquipment": -53000,
+      "investing.SaleOfEquipment": 4000,
+      "investing.MajorRepairsOfEquipment": -11000,
+      "investing.net": -41500,
+      "financing.PaymentOfCashDividend": -6000,
+      "financing.IssuanceOfCommonStock": 144000,
+      "financing.PurchaseOfTreasuryStock": -17000,
+      "financing.net": 121000,
+      "net_decrease_in_cash": -7000,
+      "supplemental.interest_paid_net": 9000,
+      "supplemental.income_taxes_paid": 49000
+    },
+    "noncash": [
+      "土地 60,000 を 60,000 の長期手形で取得"
+    ]
+  },
+  "review": "現金純減 -7,000 が Cash 66,000→59,000 を説明するか, 減価償却 add-back 14,600(=建物3,100+設備11,500), 株式配当 15,000 を CF から除外していること。営業区分が -86,500 に収束するか。",
+  "confidence": "high — 原本 PDF Illustration 22.38(p.22-45)で全行突合。営業区分の deferred tax 3,000 行を復元し total -203,500 と一致を確認。"
+}

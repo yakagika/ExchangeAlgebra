@@ -1,0 +1,70 @@
+{
+  "id": "audit-bank-reconciliation-kieso-ch06-001",
+  "category": "audit",
+  "difficulty": "mechanical",
+  "ea_coverage": "ok",
+  "audit": true,
+  "source": {
+    "ref": "kieso",
+    "origin": "Kieso et al. Intermediate Accounting 19e, ch.6 Cash and Receivables, Appendix 6A Example 6A.1 'Bank Reconciliation' + 6A.2 'Bank Reconciliation Entries' (book p. 6-40..6-41), Nugget Mining Company",
+    "ground_truth_provenance": "textbook printed solution (Example 6A.1 schedule + 6A.2 journal entries)"
+  },
+  "prompt": "銀行勘定調整表(両側を正残高へ)を作成し, Nugget が記帳すべき修正仕訳を示し, 各不一致とその処理区分を指摘せよ。",
+  "given": {
+    "entity": "Nugget Mining Company",
+    "date": "2028-11-30",
+    "balance_per_books": 20502,
+    "balance_per_bank_statement": 22190,
+    "reconciling_items": [
+      "1. 11/30 投函の入金 3,680 が銀行明細に未反映(預け未達)。",
+      "2. 未取付小切手: #7327 150, #7348 4,820, #7349 31。",
+      "3. 銀行が 11/20 に Sequoia 社債の利息 600 を代理回収(帳簿未記帳)。",
+      "4. 銀行手数料 18 が帳簿未記帳。",
+      "5. 得意先小切手 220 が NSF で返却(銀行は支払として処理)。",
+      "6. 買掛支払の小切手 #7322(実額 131)を帳簿で 311 と誤記。",
+      "7. 他社 Nugent Oil 宛小切手 175 を銀行が誤って Nugget に賦課。"
+    ],
+    "chart_of_accounts": ["Cash", "InterestRevenue", "AccountsPayable", "OfficeExpense", "AccountsReceivable"],
+    "ea_account_map": {
+      "Cash": "Cash",
+      "InterestRevenue": "InterestEarned",
+      "AccountsPayable": "AccountsPayable",
+      "OfficeExpense": "PaymentFees",
+      "AccountsReceivable": "AccountsReceivable"
+    },
+    "map_note": "OfficeExpense に対応する EA constructor は無い。銀行手数料の性質(支払手数料)から 'PaymentFees' (支払手数料) を暫定 alias として採用。会計レビュー要 (OfficeExpense vs BankChargesExpense のいずれの科目名がより適切か)。"
+  },
+  "expected_output": {
+    "components": ["journal", "derived"],
+    "format_note": "Return one JSON object with keys 'journal' (array of {side, account, amount} postings — the 4 book-side correcting entries only; bank-side items 1/2/7 require no entry) and 'derived' (flat map: 'correct_cash_balance' plus the 'bank_section.*' and 'book_section.*' reconciliation schedule leaves)."
+  },
+  "ground_truth": {
+    "journal": [
+      {"entry": "item3_interest_collected",  "side": "debit",  "account": "Cash",               "amount": 600},
+      {"entry": "item3_interest_collected",  "side": "credit", "account": "InterestRevenue",    "amount": 600},
+      {"entry": "item6_check7322_error",     "side": "debit",  "account": "Cash",               "amount": 180},
+      {"entry": "item6_check7322_error",     "side": "credit", "account": "AccountsPayable",    "amount": 180},
+      {"entry": "item4_service_charge",      "side": "debit",  "account": "OfficeExpense",      "amount": 18},
+      {"entry": "item4_service_charge",      "side": "credit", "account": "Cash",               "amount": 18},
+      {"entry": "item5_nsf_check",           "side": "debit",  "account": "AccountsReceivable", "amount": 220},
+      {"entry": "item5_nsf_check",           "side": "credit", "account": "Cash",               "amount": 220}
+    ],
+    "derived": {
+      "correct_cash_balance": 21044,
+      "bank_section.balance": 22190,
+      "bank_section.add_deposit_in_transit": 3680,
+      "bank_section.add_bank_error": 175,
+      "bank_section.deduct_outstanding_checks": 5001,
+      "bank_section.result": 21044,
+      "book_section.balance": 20502,
+      "book_section.add_interest": 600,
+      "book_section.add_check7322_error": 180,
+      "book_section.deduct_service_charge": 18,
+      "book_section.deduct_nsf": 220,
+      "book_section.result": 21044
+    },
+    "findings_note": "bank 側項目(1,2,7)は帳簿仕訳不要; book 側項目(3,4,5,6)が仕訳を生む。Nugent Oil 小切手 175 は銀行誤りで返却。"
+  },
+  "review": "両側が 21,044 に収束するか, および仕訳を生むのが book 側 4 項目(3,4,5,6)のみで bank 側(1,2,7)は生まないことの確認。OfficeExpense vs BankChargesExpense の科目名。",
+  "confidence": "high — 原本 PDF p.6-40/6-41 で schedule・4 仕訳を突合・内部整合(両側 21,044)確認。"
+}

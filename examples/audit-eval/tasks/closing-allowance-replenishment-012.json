@@ -1,0 +1,40 @@
+{
+  "id": "closing-allowance-replenishment-012",
+  "category": "closing",
+  "difficulty": "mechanical",
+  "ea_coverage": "ok",
+  "ea_coverage_note": "ExchangeAlgebra.Bookkeeping.allowanceReplenishmentEntry",
+  "audit": false,
+  "source": {
+    "ref": "ea-example",
+    "origin": "ExchangeAlgebra develop:examples/basic/elementaryBookkeepingEx9.hs adj(c) (lecture 初級簿記)",
+    "ground_truth_provenance": "EA builder allowanceReplenishmentEntry mk 7000 1000 — source-documented(期末残高 4000-3000=1000, 差額補充 6000)"
+  },
+  "prompt": "差額補充法により貸倒引当金の決算整理仕訳を行え。",
+  "given": {
+    "chart_of_accounts": ["ProvisionForDoubtfulAccounts", "AllowanceForDoubtfulAccounts", "AccountsReceivable"],
+    "ea_account_map": {
+      "ProvisionForDoubtfulAccounts": "ProvisionForDoubtfulAccounts",
+      "AllowanceForDoubtfulAccounts": "AllowanceForDoubtfulAccounts",
+      "AccountsReceivable": "AccountsReceivable"
+    },
+    "method": "差額補充法 (replenishment)",
+    "opening_allowance": 4000,
+    "bad_debt_written_off": 3000,
+    "estimated_allowance": 7000
+  },
+  "expected_output": {
+    "components": ["journal"],
+    "format_note": "Return a single JSON object with one key \"journal\": the postings for the allowance-for-doubtful-accounts replenishment (差額補充法) adjusting entry (provision expense debit / allowance credit, both 6000)."
+  },
+  "ground_truth": {
+    "intermediate": {
+      "current_allowance_balance": 1000
+    },
+    "journal": [
+      {"side": "debit",  "account": "ProvisionForDoubtfulAccounts", "amount": 6000},
+      {"side": "credit", "account": "AllowanceForDoubtfulAccounts",  "amount": 6000}
+    ]
+  },
+  "review": "期中の引当金充当(3000)を踏まえた期末残高 1000 の導出と差額補充 6000 が教科書解と一致するか。繰入科目名(貸倒引当金繰入 = ProvisionForDoubtfulAccounts)の妥当性。"
+}

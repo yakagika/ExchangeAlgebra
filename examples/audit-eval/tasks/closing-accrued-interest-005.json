@@ -1,0 +1,24 @@
+{
+  "id": "closing-accrued-interest-005",
+  "category": "closing",
+  "difficulty": "mechanical",
+  "ea_coverage": "ok",
+  "audit": false,
+  "source": { "ref": "self-authored" },
+  "prompt": "未払利息の決算整理仕訳を行え。",
+  "given": {
+    "chart_of_accounts": ["InterestExpense", "InterestPayable"],
+    "ea_account_map": {
+      "InterestExpense": "InterestExpense",
+      "InterestPayable": "AccruedExpenses"
+    },
+    "map_note": "InterestPayable (未払利息) has no dedicated EA constructor. EA models generic accrued liabilities via 'AccruedExpenses' (未払費用, 経過勘定) rather than itemized accrued-interest accounts, so InterestPayable is mapped provisionally to AccruedExpenses. Accounting-review point: does collapsing accrued interest into the generic accrued-expense line lose information an auditor would want to keep separately identifiable (e.g. for interest-coverage analysis)?",
+    "loan": { "principal": 10000, "annual_rate": 0.06, "months_elapsed": 3 }
+  },
+  "ground_truth": {
+    "journal": [
+      { "side": "debit", "account": "InterestExpense", "amount": 150 },
+      { "side": "credit", "account": "InterestPayable", "amount": 150 }
+    ]
+  }
+}

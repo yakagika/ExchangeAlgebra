@@ -1,0 +1,93 @@
+{
+  "id": "statements-balance-sheet-kieso-ch04-001",
+  "category": "statements",
+  "difficulty": "mechanical",
+  "ea_coverage": "ok",
+  "audit": false,
+  "source": {
+    "ref": "kieso",
+    "origin": "Kieso et al. Intermediate Accounting 19e, ch.4 Balance Sheet and Statement of Cash Flows, Put It into Practice LO 4.2 part a (book p. 4-25..4-26), Cassy Corporation",
+    "ground_truth_provenance": "textbook printed solution (Put It into Practice LO 4.2 part a, classified balance sheet)"
+  },
+  "prompt": "2028/12/31 の分類貸借対照表を作成せよ(流動資産は総資産への plug)。",
+  "given": {
+    "chart_of_accounts": [
+      "CurrentAssets", "Land", "Buildings", "Equipment", "AccumDepBuildings",
+      "AccumDepEquipment", "Patents", "CurrentLiabilities", "BondsPayable",
+      "CommonStock", "RetainedEarnings", "LongTermInvestments", "TreasuryStock"
+    ],
+    "ea_account_map": {
+      "CurrentAssets": "CurrentAssets",
+      "Land": "Land",
+      "Buildings": "Building",
+      "Equipment": "Fixtures",
+      "AccumDepBuildings": "AccumulatedDepreciation",
+      "AccumDepEquipment": "AccumulatedDepreciation",
+      "Patents": "Patent",
+      "CurrentLiabilities": "CurrentLiabilities",
+      "BondsPayable": "LongTermLoansPayable",
+      "CommonStock": "CapitalStock",
+      "RetainedEarnings": "RetainedEarnings",
+      "LongTermInvestments": "InvestmentSecurities",
+      "TreasuryStock": "TreasuryStock"
+    },
+    "map_note": {
+      "CurrentAssets": "Aggregation/classification caption (総称科目) summarizing several underlying current-asset ledger accounts (Cash, receivables, inventory, ...) that the source problem does not itemize (it is given as a plug); not itself a postable EA ledger account, so no valid constructor exists. Self-mapped for documentation only — this task has no journal component, so the EA oracle never needs to resolve it.",
+      "Equipment": "No literal Equipment constructor; EA's elementary PP&E set is Building/Machinery/Vehicle/Fixtures. Aliased to Fixtures (備品) as the closest generic capital-equipment account, consistent with the same alias used in journalize-adjusting-entries-kieso-ch02-001.",
+      "AccumDepBuildings": "EA's AccumulatedDepreciation constructor is generic (no per-asset-class subdivision). Aliased to AccumulatedDepreciation; collides with AccumDepEquipment below (same target). Accounting-review point.",
+      "AccumDepEquipment": "Same generic-AccumulatedDepreciation collision as AccumDepBuildings above.",
+      "CurrentLiabilities": "Aggregation/classification caption analogous to CurrentAssets above; not a postable EA account. Self-mapped for documentation only.",
+      "BondsPayable": "No corporate-bonds-payable constructor; the only 'Bonds' constructors (LongTermNationalBonds/Payable) are scoped to government/SNA-macro bonds, not corporate debt. Aliased to LongTermLoansPayable (長期借入金, generic long-term debt) as the closest elementary-bookkeeping fit. Accounting-review point.",
+      "CommonStock": "Aliased to CapitalStock (資本金) — clear naming translation, not a coverage gap.",
+      "LongTermInvestments": "Aliased to InvestmentSecurities (投資有価証券) — reasonably clear naming translation for long-term investment holdings.",
+      "TreasuryStock": "No treasury-stock (自己株式) contra-equity constructor exists in EA's Equity set. Self-mapped for documentation only, rather than forcing a misleading alias to an unrelated equity account; never enters journal scoring since this task has no journal component. Accounting-review point — candidate for future EA extension."
+    },
+    "entity": "Cassy Corporation",
+    "date": "2028-12-31",
+    "beginning_2027": {
+      "CurrentAssets": 282000,
+      "Land": 36000,
+      "Buildings": 144000,
+      "Equipment": 108000,
+      "AccumDepBuildings": -36000,
+      "AccumDepEquipment": -13200,
+      "Patents": 48000,
+      "CurrentLiabilities": 180000,
+      "BondsPayable": 120000,
+      "CommonStock": 216000,
+      "RetainedEarnings": 52800
+    },
+    "transactions_2028": [
+      "自己株式取得 13,200; 現金配当宣言・支払 36,000; 長期投資取得 19,200。",
+      "現金以外の流動資産 +34,800, 流動負債 +15,600。",
+      "減価償却 建物 4,800 / 設備 10,800; 当期純利益 66,000; 社債発行 60,000。",
+      "建物増設 32,400; 特許償却 3,000; 設備(cost 24,000/accum 9,600)を 12,000 で売却。"
+    ]
+  },
+  "expected_output": {
+    "components": ["derived"],
+    "format_note": "Return a single JSON object with one key \"derived\": a flat, dot-separated map of every numeric line on the classified 2028-12-31 balance sheet, covering both the \"assets\" section (e.g. \"assets.TotalAssets\") and the \"liabilities_and_equity\" section (e.g. \"liabilities_and_equity.Total\"), matching the ground_truth key names exactly."
+  },
+  "ground_truth": {
+    "derived": {
+      "assets.CurrentAssets": 355800,
+      "assets.LongTermInvestments": 19200,
+      "assets.Buildings_net": 135600,
+      "assets.Equipment_net": 69600,
+      "assets.Land": 36000,
+      "assets.PPE_total": 241200,
+      "assets.Patents": 45000,
+      "assets.TotalAssets": 661200,
+      "liabilities_and_equity.CurrentLiabilities": 195600,
+      "liabilities_and_equity.BondsPayable": 180000,
+      "liabilities_and_equity.TotalLiabilities": 375600,
+      "liabilities_and_equity.CommonStock": 216000,
+      "liabilities_and_equity.RetainedEarnings": 82800,
+      "liabilities_and_equity.TreasuryStock": -13200,
+      "liabilities_and_equity.TotalEquity": 285600,
+      "liabilities_and_equity.Total": 661200
+    }
+  },
+  "review": "総資産 = 総負債+資本 = 661,200 の一致, 流動資産 355,800 を plug として導く妥当性(教科書が印刷値かを確認), 設備累計償却 ロールフォワード(13,200-9,600+10,800=14,400)。",
+  "confidence": "high — 原本 PDF p.4-25/4-26 で突合・内部整合(B/S 661,200 で balance)確認。"
+}

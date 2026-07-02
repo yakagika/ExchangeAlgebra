@@ -1,0 +1,195 @@
+{
+  "id": "journalize-bonds-effective-interest-discount-kieso-ch13-001",
+  "category": "journalize",
+  "difficulty": "mechanical",
+  "ea_coverage": "needs-extension",
+  "audit": false,
+  "source": {
+    "ref": "kieso",
+    "origin": "Kieso et al. Intermediate Accounting 19e, ch.13 Long-Term Liabilities, LO 13.1 Bonds Payable — Examples 13.7/13.8 + Illustration 13.5 amortization schedule (book p. 13-11..13-13), Evermaster Corporation",
+    "ground_truth_provenance": "textbook printed solution (Example 13.7 pricing, Illustration 13.5 schedule, Example 13.8 entries)"
+  },
+  "prompt": "(a) 発行価額と discount を確認。(b) 5 年・実効利子法の discount 償却表。(c) 2028 の仕訳: 発行(1/1)・初回利払(7/1)・期末見越(12/31)。",
+  "given": {
+    "entity": "Evermaster Corporation",
+    "issue_date": "2028-01-01",
+    "maturity_date": "2033-01-01",
+    "face_value": 100000,
+    "stated_rate_annual": 0.08,
+    "effective_rate_annual": 0.1,
+    "interest": "semiannual (7/1, 1/1)",
+    "semiannual_cash_interest": 4000,
+    "issue_price": 92278,
+    "discount": 7722,
+    "pv_factors": {
+      "pv_principal_5yr_10pct_semi": 0.61391,
+      "pva_interest_10pct_semi": 7.72173
+    },
+    "chart_of_accounts": [
+      "Cash",
+      "DiscountOnBondsPayable",
+      "BondsPayable",
+      "InterestExpense",
+      "InterestPayable"
+    ],
+    "ea_account_map": {
+      "Cash": "Cash",
+      "DiscountOnBondsPayable": "DiscountOnBondsPayable",
+      "BondsPayable": "BondsPayable",
+      "InterestExpense": "InterestExpense",
+      "InterestPayable": "InterestPayable"
+    },
+    "map_note": "DiscountOnBondsPayable, BondsPayable, InterestPayable: no EA counterpart (needs-extension)."
+  },
+  "expected_output": {
+    "components": [
+      "journal",
+      "derived"
+    ],
+    "format_note": "Return one JSON object with keys \"journal\" (one flat posting array combining the 2028-01-01 issuance, 2028-07-01 first coupon, and 2028-12-31 year-end accrual entries; postings may carry a \"date\" tag) and \"derived\" (flat dot-keyed map: the 4 pricing values, the 3 amortization-schedule totals as \"schedule_totals.*\", and the 3 \"balance_sheet_2028_12_31.*\" values)."
+  },
+  "ground_truth": {
+    "journal": [
+      {
+        "date": "2028-01-01",
+        "side": "debit",
+        "account": "Cash",
+        "amount": 92278
+      },
+      {
+        "date": "2028-01-01",
+        "side": "debit",
+        "account": "DiscountOnBondsPayable",
+        "amount": 7722
+      },
+      {
+        "date": "2028-01-01",
+        "side": "credit",
+        "account": "BondsPayable",
+        "amount": 100000
+      },
+      {
+        "date": "2028-07-01",
+        "side": "debit",
+        "account": "InterestExpense",
+        "amount": 4614
+      },
+      {
+        "date": "2028-07-01",
+        "side": "credit",
+        "account": "DiscountOnBondsPayable",
+        "amount": 614
+      },
+      {
+        "date": "2028-07-01",
+        "side": "credit",
+        "account": "Cash",
+        "amount": 4000
+      },
+      {
+        "date": "2028-12-31",
+        "side": "debit",
+        "account": "InterestExpense",
+        "amount": 4645
+      },
+      {
+        "date": "2028-12-31",
+        "side": "credit",
+        "account": "DiscountOnBondsPayable",
+        "amount": 645
+      },
+      {
+        "date": "2028-12-31",
+        "side": "credit",
+        "account": "InterestPayable",
+        "amount": 4000
+      }
+    ],
+    "derived": {
+      "pricing.pv_principal": 61391,
+      "pricing.pv_interest": 30887,
+      "pricing.proceeds": 92278,
+      "pricing.discount": 7722,
+      "schedule_totals.cash": 40000,
+      "schedule_totals.interest_exp": 47722,
+      "schedule_totals.amort": 7722,
+      "balance_sheet_2028_12_31.bonds_payable": 100000,
+      "balance_sheet_2028_12_31.discount_on_bonds_payable": -6463,
+      "balance_sheet_2028_12_31.carrying_value": 93537
+    },
+    "schedule": [
+      {
+        "date": "2028-07-01",
+        "cash": 4000,
+        "interest_exp": 4614,
+        "amort": 614,
+        "carrying": 92892
+      },
+      {
+        "date": "2029-01-01",
+        "cash": 4000,
+        "interest_exp": 4645,
+        "amort": 645,
+        "carrying": 93537
+      },
+      {
+        "date": "2029-07-01",
+        "cash": 4000,
+        "interest_exp": 4677,
+        "amort": 677,
+        "carrying": 94214
+      },
+      {
+        "date": "2030-01-01",
+        "cash": 4000,
+        "interest_exp": 4711,
+        "amort": 711,
+        "carrying": 94925
+      },
+      {
+        "date": "2030-07-01",
+        "cash": 4000,
+        "interest_exp": 4746,
+        "amort": 746,
+        "carrying": 95671
+      },
+      {
+        "date": "2031-01-01",
+        "cash": 4000,
+        "interest_exp": 4783,
+        "amort": 783,
+        "carrying": 96454
+      },
+      {
+        "date": "2031-07-01",
+        "cash": 4000,
+        "interest_exp": 4823,
+        "amort": 823,
+        "carrying": 97277
+      },
+      {
+        "date": "2032-01-01",
+        "cash": 4000,
+        "interest_exp": 4864,
+        "amort": 864,
+        "carrying": 98141
+      },
+      {
+        "date": "2032-07-01",
+        "cash": 4000,
+        "interest_exp": 4907,
+        "amort": 907,
+        "carrying": 99048
+      },
+      {
+        "date": "2033-01-01",
+        "cash": 4000,
+        "interest_exp": 4952,
+        "amort": 952,
+        "carrying": 100000
+      }
+    ]
+  },
+  "review": "計算アンカー。各仕訳貸借一致(発行 100,000; 7/1 4,614; 12/31 4,645)。利息費用=前簿価×5%, 簿価は 92,278→100,000 へ discount 償却で増加。EA needs-extension: BondsPayable 額面 + Discount contra + 期間実効利子法 が builders 外。Reviewer: 計(cash 40,000, 利息 47,722, discount 7,722)と 12/31 簿価 93,537 を確認。",
+  "confidence": "high — pricing・全 10 行 + 計・2028 の 3 仕訳を原本画像 book p.13-11/13-12 で突合。OCR は数表が garble → 画像から全行再転記。illegible なし。"
+}

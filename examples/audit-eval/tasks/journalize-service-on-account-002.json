@@ -4,13 +4,13 @@
   "difficulty": "mechanical",
   "ea_coverage": "ok",
   "prompt": "次の取引を仕訳せよ。",
-  "map_note": "ServiceRevenue は EA AccountTitles に未定義のため Sales へ alias 暫定 — 会計レビュー論点 (代替候補: ReceiptFee)",
   "given": {
     "chart_of_accounts": ["AccountsReceivable", "ServiceRevenue"],
     "ea_account_map": {
       "AccountsReceivable": "AccountsReceivable",
       "ServiceRevenue": "Sales"
     },
+    "map_note": "ServiceRevenue は EA AccountTitles に未定義のため Sales へ alias 暫定 — 会計レビュー論点 (代替候補: ReceiptFee)",
     "transactions": [
       {"id": "t1", "desc": "役務を提供し代金は掛け", "amount": 2000}
     ]

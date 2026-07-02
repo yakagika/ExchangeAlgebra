@@ -1,0 +1,29 @@
+{
+  "id": "closing-depreciation-open-004",
+  "category": "closing",
+  "difficulty": "judgment",
+  "ea_coverage": "ok",
+  "audit": false,
+  "source": { "ref": "self-authored" },
+  "prompt": "1年目の減価償却費を計上せよ。",
+  "given": {
+    "chart_of_accounts": ["DepreciationExpense", "AccumulatedDepreciation"],
+    "ea_account_map": {
+      "DepreciationExpense": "Depreciation",
+      "AccumulatedDepreciation": "AccumulatedDepreciation"
+    },
+    "asset": { "name": "Machine", "cost": 12000, "useful_life_years": 5, "salvage": 0 }
+  },
+  "expected_output": {
+    "components": ["derived"],
+    "format_note": "Return a single JSON object. The depreciation policy is not specified in the prompt, so this is an escape-hatch task: the object must contain either \"policy_assumed\" (the chosen policy name) together with a derived map {\"expense\": <amount>} computed under that policy, or \"alternatives\": {\"straight_line\": {\"expense\": <amount>}, \"double_declining\": {\"expense\": <amount>}} covering both plausible policies. A bare unconditional expense number scores 0 on the escape-hatch metric even if numerically correct under one policy."
+  },
+  "ground_truth": {
+    "policy_conditional": {
+      "straight_line": { "expense": 2400 },
+      "double_declining": { "expense": 4800 }
+    },
+    "escape_hatch_expected": true
+  },
+  "review": "定率法の初年度償却 4800 の計算前提(200%定率・残存無視)が妥当か。他に提示すべき方針(級数法等)。"
+}

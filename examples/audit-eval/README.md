@@ -70,13 +70,31 @@ in the 2026-07-01 pilot before isolation).
 
 | Metric                  | Description                                                        |
 |-------------------------|--------------------------------------------------------------------|
-| `numeric_accuracy`      | Fraction of GT postings matched (side + canonical account + amount)|
-| `balance_violation`     | Σdebit ≠ Σcredit in model output                                   |
-| `account_validity`      | All output accounts resolve via chart / ea_account_map / synonyms  |
+| `numeric_accuracy`      | Headline: micro-average over all GT items across present components (journal postings + derived entries + findings-recall items + decision entries). Journal-only (v1) tasks: same value as `journal_accuracy`. Escape-hatch tasks: same value as `escape_ok`. |
+| `balance_violation`     | Σdebit ≠ Σcredit in the model's journal component; `None` if there are no model postings to check |
+| `account_validity`      | All journal-component accounts resolve via chart / ea_account_map / synonyms; `None` under the same condition as `balance_violation` |
 | `compile_fail`          | Arm A/B/D: build or execution failed (final attempt)               |
-| `parse_fail`            | Output not parseable as canonical JSON (final attempt)             |
-| `verification_gap`      | EA oracle (arm B/C): 1 if output contains an error EA would reject by construction — imbalance / account outside EA AccountTitles / category violation / non-positive amount |
+| `parse_fail`            | Output not parseable as canonical JSON, or not in the task's required shape (final attempt) |
+| `verification_gap`      | EA oracle (arm B/C, journal component only): 1 if output contains an error EA would reject by construction — imbalance / account outside EA AccountTitles / category violation / non-positive amount |
 | `convergence_iterations`| Attempts until structurally-valid output (P4); = max-iters when not converged |
+
+### Per-component metrics (TASK-FORMAT.md v2)
+
+A task's `expected_output.components` selects which of the following are
+scored (absent components stay `None`): `journal_accuracy` (multiset posting
+match, same matcher as v1 `numeric_accuracy`); `derived_accuracy` (fraction of
+GT `derived` entries matched, keys flattened and case-/separator-normalized,
+values tolerant to `abs(diff) <= 0.51` or relative diff `<= 1e-3`);
+`findings_recall` / `findings_precision` (normalized `(type, locus)` pair
+match against GT / model findings respectively); `decision_accuracy`
+(exact lower-cased label match fraction). Judgment tasks whose
+`ground_truth.escape_hatch_expected` is `true` are scored on `escape_ok`
+(0/1: the model must hedge across `>=2` policies via `alternatives`, or state
+`policy_assumed` with a matching `derived` map — a bare single-policy answer
+scores 0 even if numerically correct) and that value becomes the task's
+headline `numeric_accuracy` instead of the micro-average. Tasks without a
+`journal` component, or with `ea_coverage != "ok"`, skip the EA oracle
+entirely (`verification_gap = None`) — see TASK-FORMAT.md "Oracle gating".
 
 ### Account-name resolution (P1)
 

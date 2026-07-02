@@ -1,0 +1,94 @@
+{
+  "id": "audit-detect-defects-008",
+  "category": "audit",
+  "difficulty": "mechanical",
+  "ea_coverage": "ok",
+  "audit": true,
+  "source": {
+    "ref": "self-authored"
+  },
+  "prompt": "与えた仕訳集合を監査し、不整合を全て列挙せよ。",
+  "given": {
+    "chart_of_accounts": [
+      "Cash",
+      "Sales",
+      "AccountsReceivable",
+      "Inventory",
+      "COGS"
+    ],
+    "ea_account_map": {
+      "Cash": "Cash",
+      "Sales": "Sales",
+      "AccountsReceivable": "AccountsReceivable",
+      "Inventory": "MerchandiseInventory",
+      "COGS": "SalesCost"
+    },
+    "given_journal": [
+      {
+        "id": "e1",
+        "postings": [
+          {
+            "side": "debit",
+            "account": "Cash",
+            "amount": 1000
+          },
+          {
+            "side": "credit",
+            "account": "Sales",
+            "amount": 1000
+          }
+        ]
+      },
+      {
+        "id": "e2",
+        "postings": [
+          {
+            "side": "debit",
+            "account": "AccountsReceivable",
+            "amount": 900
+          },
+          {
+            "side": "credit",
+            "account": "Sales",
+            "amount": 1000
+          }
+        ]
+      },
+      {
+        "id": "e3",
+        "postings": [
+          {
+            "side": "debit",
+            "account": "Goodwill_X",
+            "amount": 200
+          },
+          {
+            "side": "credit",
+            "account": "Cash",
+            "amount": 200
+          }
+        ]
+      }
+    ]
+  },
+  "expected_output": {
+    "components": [
+      "findings"
+    ],
+    "format_note": "Return one JSON object with key 'findings': an array of {type, locus, detail} objects, one per irregularity found across given_journal entries e1-e3 (detail is free text and unscored). Use 'type' from this fixed taxonomy: imbalance (debits != credits within an entry), nonexistent_account (account not in the chart / accounts list), balance_mismatch (computed account balance disagrees with a claimed balance), category_violation (posting inconsistent with the account's category). 'locus' = the entry id (e.g. \"e2\") for entry-level findings, or the account name for account-level findings such as balance_mismatch."
+  },
+  "ground_truth": {
+    "findings": [
+      {
+        "type": "imbalance",
+        "locus": "e2",
+        "detail": "借方900 ≠ 貸方1000"
+      },
+      {
+        "type": "nonexistent_account",
+        "locus": "e3",
+        "detail": "Goodwill_X は勘定表に無い"
+      }
+    ]
+  }
+}

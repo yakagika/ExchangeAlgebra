@@ -1,0 +1,76 @@
+{
+  "id": "revenue-account-for-revenue-issues-kieso-ch17-001",
+  "category": "revenue",
+  "difficulty": "judgment",
+  "ea_coverage": "needs-extension",
+  "audit": false,
+  "source": {
+    "ref": "kieso",
+    "origin": "Kieso et al. Intermediate Accounting 19e, ch.17 Revenue Recognition, Put It into Practice LO 17.3 'Account for Revenue Issues' (book p. 17-33..17-34), Outback Industries",
+    "ground_truth_provenance": "textbook printed solution (Put It into Practice LO 17.3)"
+  },
+  "prompt": "Outback の Q1 2028 純利益を求めよ(税無視)。各取引の収益/費用認識(額・時期)を 5 ステップで DECIDE してから集計せよ。",
+  "given": {
+    "entity": "Outback Industries",
+    "period": "Q1 2028",
+    "product": "E-Booster generator — 小売 $1,500, 製造原価 $740",
+    "other_operations": {
+      "revenues": 6500000,
+      "expenses": 4350000
+    },
+    "arrangements": [
+      {
+        "id": 1,
+        "desc": "Grocers Co-op: 2028 に >=$450,000 購入で 5% 数量割引。3/31 までに $360,000(240 台)販売。経験則: 年央までに目標の半分超なら年間達成。"
+      },
+      {
+        "id": 2,
+        "desc": "1/1 に Nick's Liquors へ 20 台販売, 6ヶ月手形 年12%。120日内全額返金返品可, 3 台返品見積(最頻値)。3/31 時点未返品, 見積据置。"
+      },
+      {
+        "id": 3,
+        "desc": "コミュニティ銀行へ 30 台を契約総額 $50,000 で販売 + 据付(SSP $200/台, 原価 $150/台)。3/1 納品据付・全額受領。"
+      },
+      {
+        "id": 4,
+        "desc": "Home Depot へ 300 台委託。3/31 までに 3/4 を $1,500/台で販売, 8% 手数料控除し送金。"
+      }
+    ]
+  },
+  "expected_output": {
+    "components": [
+      "derived"
+    ],
+    "format_note": "Return one JSON object with key \"derived\": a flat string-to-number map with dot-separated keys for each of the four arrangements' recognized amounts (e.g. \"arrangement_1.sales_revenue\", \"arrangement_2.net_income\"), plus \"net_income_on_e_booster\" and \"company_net_income_q1\"."
+  },
+  "ground_truth": {
+    "derived": {
+      "arrangement_1.sales_revenue": 342000,
+      "arrangement_1.cogs": 177600,
+      "arrangement_1.gross_profit": 164400,
+      "arrangement_2.sales_revenue": 30000,
+      "arrangement_2.est_returns": 4500,
+      "arrangement_2.net_sales": 25500,
+      "arrangement_2.cogs": 12580,
+      "arrangement_2.gross_profit": 12920,
+      "arrangement_2.interest_revenue": 900,
+      "arrangement_2.net_income": 13820,
+      "arrangement_3.alloc_equipment": 44118,
+      "arrangement_3.alloc_installation": 5882,
+      "arrangement_3.cogs": 22200,
+      "arrangement_3.gp_equipment": 21918,
+      "arrangement_3.installation_expense": 4500,
+      "arrangement_3.net_installation": 1382,
+      "arrangement_3.net_income": 23300,
+      "arrangement_4.sales_revenue": 337500,
+      "arrangement_4.cogs": 166500,
+      "arrangement_4.gross_profit": 171000,
+      "arrangement_4.commission_expense": 27000,
+      "arrangement_4.net_income": 144000,
+      "net_income_on_e_booster": 345520,
+      "company_net_income_q1": 2495520
+    }
+  },
+  "review": "判断課題: (1)数量割引 probable で 95% に制約, (2)返品見積で減額 + 手形利息見越, (3)$50,000 を 2 PO に相対 SSP 配分, (4)委託は Home Depot 販売分(225台)のみ認識・8% 手数料を費用(本人, 総額)。EA needs-extension: ASC 606 認識判断は EA の外, EA は postings の balance のみ保証。Reviewer: 4 取引(164,400 GP; 13,820; 23,300; 144,000)が $345,520, 全社 $2,495,520 を確認。",
+  "confidence": "high — 4 取引解 + 最終 $345,520/$2,495,520 を原本画像 book p.17-33/17-34 で突合。illegible なし(arr1 は GP, arr2-4 は純利益として印刷, そのまま転記)。"
+}

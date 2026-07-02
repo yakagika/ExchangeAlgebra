@@ -1,0 +1,67 @@
+{
+  "id": "audit-correcting-entry-patent-kieso-ch21-001",
+  "category": "audit",
+  "difficulty": "judgment",
+  "ea_coverage": "ok",
+  "ea_coverage_note": "2026-06-30: 前期修正の RetainedEarnings 振替を EA Bookkeeping.priorPeriodErrorCorrection が構造保証 (当期分→費用/過年度分→繰越利益剰余金 を builder が強制; haskell-exchange-algebra@03d2af8, tag landed/t4b-prior-period, 新科目 AmortizationExpense)。YAML の review 文はこの確定以前の疑問文のまま転記。",
+  "audit": true,
+  "source": {
+    "ref": "kieso",
+    "origin": "Kieso et al. Intermediate Accounting 19e, ch.21 Accounting Changes and Error Analysis, Put It into Practice LO 21.3 'Account for Errors' (book p. 21-25), Briggs Company",
+    "ground_truth_provenance": "textbook printed solution (Put It into Practice LO 21.3)"
+  },
+  "prompt": "誤りを発見し, 2028/12/31 の訂正仕訳を示せ。",
+  "given": {
+    "entity": "Briggs Company",
+    "correction_date": "2028-12-31",
+    "facts": [
+      "2026 期首に特許を 55,000 で取得。",
+      "価値が減じていないとして未償却。",
+      "耐用年数 10 年(取得年から), 定額法。2028 帳簿は未締切。"
+    ],
+    "chart_of_accounts": [
+      "AmortizationExpense",
+      "RetainedEarnings",
+      "Patents"
+    ],
+    "ea_account_map": {
+      "AmortizationExpense": "AmortizationExpense",
+      "RetainedEarnings": "RetainedEarnings",
+      "Patents": "Patent"
+    }
+  },
+  "expected_output": {
+    "components": [
+      "journal",
+      "derived"
+    ],
+    "format_note": "Return one JSON object with keys 'journal' (array of {side, account, amount} postings — the single 2028-12-31 correcting entry, 3 postings) and 'derived' (flat map with the 4 supporting analysis figures: annual_amortization, current_year_2028_expense, prior_years_2026_2027_to_retained_earnings, accumulated_3yr)."
+  },
+  "ground_truth": {
+    "journal": [
+      {
+        "side": "debit",
+        "account": "AmortizationExpense",
+        "amount": 5500
+      },
+      {
+        "side": "debit",
+        "account": "RetainedEarnings",
+        "amount": 11000
+      },
+      {
+        "side": "credit",
+        "account": "Patents",
+        "amount": 16500
+      }
+    ],
+    "derived": {
+      "annual_amortization": 5500,
+      "current_year_2028_expense": 5500,
+      "prior_years_2026_2027_to_retained_earnings": 11000,
+      "accumulated_3yr": 16500
+    }
+  },
+  "review": "当期費用 5,500 と前期修正(RetainedEarnings)11,000 の区分, Patents 貸方 16,500 = 3 年累計 の一致。EA は前期修正の RetainedEarnings 振替を未モデル(needs-extension)で正しいか。",
+  "confidence": "high — 原本 PDF p.21-25 で突合・内部整合(借方 16,500 = 貸方 16,500)確認。"
+}

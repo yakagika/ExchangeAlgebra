@@ -1,0 +1,57 @@
+{
+  "id": "consolidation-intercompany-elim-007",
+  "category": "consolidation",
+  "difficulty": "mechanical",
+  "ea_coverage": "ok",
+  "ea_coverage_note": "2026-07-01: EA 拡張不要と確定。連結消去 = Journal 層 caller-side (entity=note 軸, 内部取引消去 = bar netting bar (internal .+ reversingEntry internal)=Zero, gather/toAlg/proj)。全て既存 primitive 合成。recipe は T5/examples で #7 GT により検証予定 (それまで capability=有・recipe=pending)。",
+  "audit": false,
+  "source": {
+    "ref": "self-authored"
+  },
+  "prompt": "連結に際し内部取引を消去する仕訳を示せ(未実現利益は無いものとする)。",
+  "given": {
+    "chart_of_accounts": [
+      "Sales",
+      "COGS",
+      "AccountsReceivable",
+      "AccountsPayable"
+    ],
+    "ea_account_map": {
+      "Sales": "Sales",
+      "COGS": "SalesCost",
+      "AccountsReceivable": "AccountsReceivable",
+      "AccountsPayable": "AccountsPayable"
+    },
+    "intercompany": [
+      {
+        "desc": "親会社Pが子会社Sへ掛販売(全額外部未販売・未実現利益なし)",
+        "amount": 1000
+      }
+    ]
+  },
+  "ground_truth": {
+    "journal": [
+      {
+        "side": "debit",
+        "account": "Sales",
+        "amount": 1000
+      },
+      {
+        "side": "credit",
+        "account": "COGS",
+        "amount": 1000
+      },
+      {
+        "side": "debit",
+        "account": "AccountsPayable",
+        "amount": 1000
+      },
+      {
+        "side": "credit",
+        "account": "AccountsReceivable",
+        "amount": 1000
+      }
+    ]
+  },
+  "review": "未実現利益ゼロ前提の消去仕訳がこれで十分か。在庫残・少数株主持分を含む版を別途作るべきか。"
+}

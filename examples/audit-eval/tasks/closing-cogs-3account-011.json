@@ -1,0 +1,42 @@
+{
+  "id": "closing-cogs-3account-011",
+  "category": "closing",
+  "difficulty": "mechanical",
+  "ea_coverage": "ok",
+  "ea_coverage_note": "ExchangeAlgebra.Bookkeeping.cogsAdjustmentEntries",
+  "audit": false,
+  "source": {
+    "ref": "ea-example",
+    "origin": "ExchangeAlgebra develop:examples/basic/elementaryBookkeepingEx9.hs (lecture 初級簿記 ch.24-25)",
+    "ground_truth_provenance": "EA engine-verified — Ex9 assertion c4 (Purchases 残高=370000), c6 (MerchandiseInventory=110000)"
+  },
+  "prompt": "3分法により売上原価算定の決算整理仕訳(しいくりくりしい)を行え。",
+  "given": {
+    "chart_of_accounts": ["Purchases", "MerchandiseInventory"],
+    "ea_account_map": {
+      "Purchases": "Purchases",
+      "MerchandiseInventory": "MerchandiseInventory"
+    },
+    "method": "3分法 (3-account / periodic)",
+    "beginning_inventory": 80000,
+    "period_purchases": 400000,
+    "ending_inventory": 110000
+  },
+  "expected_output": {
+    "components": ["journal", "derived"],
+    "format_note": "Return a single JSON object with keys \"journal\" (the 4 periodic-inventory COGS-closing postings: close beginning inventory into Purchases, then set up ending inventory) and \"derived\" (flat numeric map with keys \"cogs\" and \"ending_merchandise_inventory\")."
+  },
+  "ground_truth": {
+    "journal": [
+      {"side": "debit",  "account": "Purchases",            "amount": 80000},
+      {"side": "credit", "account": "MerchandiseInventory",  "amount": 80000},
+      {"side": "debit",  "account": "MerchandiseInventory",  "amount": 110000},
+      {"side": "credit", "account": "Purchases",             "amount": 110000}
+    ],
+    "derived": {
+      "cogs": 370000,
+      "ending_merchandise_inventory": 110000
+    }
+  },
+  "review": "しいくりくりしい(3分法)の表現がレクチャー教科書の解と一致するか。売上原価を Purchases 勘定残高で表す EA 流儀の妥当性。"
+}

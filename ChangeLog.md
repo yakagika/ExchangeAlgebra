@@ -6,6 +6,17 @@
 - `BaseClass` instance for 7-tuples (design-review C5): `Element` and
   `AxisDecompose` already had 7-tuple instances, so every Element tuple arity
   is now also usable as a base.
+- `examples/audit-eval`: full 23-task pilot suite (representative tasks #4–#23
+  converted to `tasks/*.json` with per-task `ea_account_map`) and a v2 task/output
+  contract (`TASK-FORMAT.md`) extending the runner beyond journal-posting arrays:
+  `derived` (statement figures), `findings` (audit defect detection with a fixed
+  type taxonomy), `decision` (classification calls) and judgment escape-hatch
+  scoring. Scoring is collision-aware (many-to-one `ea_account_map` entries are
+  matched via candidate sets disambiguated by amount) and the finding-type
+  vocabulary is normalized — both fixes remove name-translation measurement bias
+  from arm comparisons (same rationale as the P1 account-map fix). Runner gains
+  multi-seed runs (`--seed 0-4`) and an append-mode `metrics/summary.csv`.
+  Examples-only change; no library code touched.
 - `ExchangeAlgebra.Simulate`: the `StateSpace` methods `initT` / `lastT` are now
   exported. Their Haddock has always described them as customizable (they let an
   instance override the simulation start/end term, and `runSimulationWithSpill`

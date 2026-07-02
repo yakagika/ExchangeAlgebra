@@ -1,0 +1,105 @@
+{
+  "id": "leases-classify-finance-vs-operating-kieso-ch20-001",
+  "category": "leases",
+  "difficulty": "judgment",
+  "ea_coverage": "needs-extension",
+  "audit": false,
+  "source": {
+    "ref": "kieso",
+    "origin": "Kieso et al. Intermediate Accounting 19e, ch.20 Accounting for Leases, Put It into Practice LO 20.1 'Determine Lease Classifications' (book p. 20-10..20-11), Morgan Bakeries (lessee)",
+    "ground_truth_provenance": "textbook printed solution (Put It into Practice LO 20.1)"
+  },
+  "prompt": "各リースについて Morgan(借手)の正しい分類(finance / operating)を DECIDE し, 決め手のテストを示せ(5 テスト: 所有権移転 / 割安購入オプション / 75% 耐用年数 / 90% 現在価値 / 代替用途)。",
+  "given": {
+    "entity": "Morgan Bakeries (lessee)",
+    "commencement": "2028-01-01",
+    "note": "全リース非解約・期首払・期中/期末に所有権移転なし・期末に lessor は代替用途あり(所有権移転時除く)。",
+    "leases": [
+      {
+        "id": "a",
+        "lessor": "Harmon, Inc.",
+        "yearly_rental": 6000,
+        "term_y": 20,
+        "econ_life_y": 30,
+        "purchase_option": "$35,000 (=FV) at yr20",
+        "fv": 75000,
+        "rv_guaranteed": 0,
+        "rv_unguaranteed": 35000,
+        "pv_payments_8pct": 63621.6
+      },
+      {
+        "id": "b",
+        "lessor": "Mendota Truck Co.",
+        "yearly_rental": 5189.31,
+        "term_y": 3,
+        "econ_life_y": 4,
+        "renewal": "1yr@1500 標準更新",
+        "fv": 20000,
+        "rv_guaranteed": "7000 (PV=5556.81)",
+        "pv_payments_8pct": 20000
+      },
+      {
+        "id": "c",
+        "lessor": "Appleland Computer",
+        "yearly_rental": 2640.35,
+        "term_y": 3,
+        "econ_life_y": 5,
+        "purchase_option": "$100 at yr3",
+        "fv": 10000,
+        "rv_unguaranteed": 3000,
+        "pv_payments_implicit_6pct": 7565.1
+      }
+    ]
+  },
+  "expected_output": {
+    "components": [
+      "decision"
+    ],
+    "format_note": "Return one JSON object with key \"decision\": a flat map from lease id (a, b, c) to the lower-cased classification label (\"operating\" or \"finance\")."
+  },
+  "ground_truth": {
+    "decision": {
+      "a": "operating",
+      "b": "finance",
+      "c": "finance"
+    },
+    "decision_detail": {
+      "a": {
+        "tests_met": [],
+        "pv_test": {
+          "fv": 75000,
+          "ninety_pct": 67500,
+          "pv_payments": 63622
+        },
+        "rationale": "所有権移転なし; $35,000=FV で bargain でない; 20/30=66.67%<75%; PV 63,622<67,500。全テスト不成立。"
+      },
+      "b": {
+        "tests_met": [
+          "economic_life_75pct",
+          "present_value_90pct"
+        ],
+        "pv_test": {
+          "fv": 20000,
+          "ninety_pct": 18000,
+          "pv_rental": 14443,
+          "pv_guaranteed_rv": 5557,
+          "pv_lease_payments": 20000
+        },
+        "rationale": "3/4=75% で耐用年数テスト; PV 20,000=100%>18,000。標準更新は term から除外, 保証 RV は 90% テストに算入。"
+      },
+      "c": {
+        "tests_met": [
+          "bargain_purchase_option"
+        ],
+        "pv_test": {
+          "fv": 10000,
+          "ninety_pct": 9000,
+          "pv_incl_option": 7565
+        },
+        "rationale": "$100 option は $3,000 FV に対し bargain。3/5=60%<75% 不成立, PV 7,565<9,000 不成立 — bargain option テスト単独で finance(75%/90% 両方失敗の罠)。"
+      }
+    }
+  },
+  "review": "判断課題: 各リースを分類し決め手を挙げる。正解 (a)operating (b)finance(75%+90%) (c)finance(bargain option; PV/耐用年数は両方失敗の典型トラップ)。EA needs-extension: 分類述語(PV vs 90%, term vs 75%, bargain 判定)は EA typed journal の外。Reviewer: c が 75%/90% 失敗でも finance か, b の標準更新を term から除外する扱いを確認。",
+  "confidence": "high — 入力表 + 3 つの印刷 SOLUTION 分析を原本画像 book p.20-10/20-11 で突合。illegible なし。"
+}

@@ -1,0 +1,224 @@
+{
+  "id": "leases-finance-lease-measure-entries-kieso-ch20-002",
+  "category": "leases",
+  "difficulty": "judgment",
+  "ea_coverage": "needs-extension",
+  "audit": false,
+  "source": {
+    "ref": "kieso",
+    "origin": "Kieso et al. Intermediate Accounting 19e, ch.20, Put It into Practice LO 20.2 'Account for Finance/Sales-Type Lease' (book p. 20-20..20-22), Parker Shipping Co. (lessee) / Stoughton Trailers Inc. (lessor)",
+    "ground_truth_provenance": "textbook printed solution (Put It into Practice LO 20.2)"
+  },
+  "prompt": "(a) Parker/Stoughton の分類を DECIDE。(b) リース負債/債権の償却表。(c) 両者の 1/1/2028 と 12/31/2028(利息見越+償却)の仕訳。",
+  "given": {
+    "lessee": "Parker Shipping Co.",
+    "lessor": "Stoughton Trailers Inc.",
+    "commencement": "2028-01-01",
+    "term_years": 4,
+    "rental_payment": 11182.24,
+    "fair_value": 40000.0,
+    "econ_life_years": 4,
+    "residual_value": 0,
+    "lessor_cost": 30000.0,
+    "implicit_rate": 0.08,
+    "pvf_ad_4_8pct": 3.5771,
+    "chart_of_accounts": [
+      "RightOfUseAsset",
+      "LeaseLiability",
+      "Cash",
+      "InterestExpense",
+      "AmortizationExpense",
+      "LeaseReceivable",
+      "CostOfGoodsSold",
+      "Inventory",
+      "SalesRevenue",
+      "InterestRevenue"
+    ],
+    "ea_account_map": {
+      "RightOfUseAsset": "RightOfUseAsset",
+      "LeaseLiability": "LeaseLiability",
+      "Cash": "Cash",
+      "InterestExpense": "InterestExpense",
+      "AmortizationExpense": "AmortizationExpense",
+      "LeaseReceivable": "LeaseReceivable",
+      "CostOfGoodsSold": "SalesCost",
+      "Inventory": "MerchandiseInventory",
+      "SalesRevenue": "Sales",
+      "InterestRevenue": "InterestEarned"
+    },
+    "map_note": "RightOfUseAsset, LeaseLiability, LeaseReceivable: no EA counterpart (needs-extension)."
+  },
+  "expected_output": {
+    "components": [
+      "decision",
+      "journal",
+      "derived"
+    ],
+    "format_note": "Return one JSON object with keys \"decision\" (lower-cased classification per entity: {\"parker\": ..., \"stoughton\": ...}), \"journal\" (one flat posting array combining the lessee-side and lessor-side entries for both 2028-01-01 and 2028-12-31; postings may carry \"entity\"/\"date\" tags), and \"derived\" (flat map with the three amortization-schedule totals: \"schedule_totals.payment\", \"schedule_totals.interest\", \"schedule_totals.reduction\")."
+  },
+  "ground_truth": {
+    "decision": {
+      "parker": "finance",
+      "stoughton": "sales-type"
+    },
+    "decision_detail": {
+      "tests_met": [
+        "lease_term_100pct",
+        "present_value_100pct",
+        "alternative_use"
+      ],
+      "rationale": "所有権移転/購入オプションなし; 4/4=100% term; PV 11,182.24×3.57710=40,000=100% FV; 代替用途なし。"
+    },
+    "journal": [
+      {
+        "entity": "lessee",
+        "date": "2028-01-01",
+        "side": "debit",
+        "account": "RightOfUseAsset",
+        "amount": 40000.0
+      },
+      {
+        "entity": "lessee",
+        "date": "2028-01-01",
+        "side": "credit",
+        "account": "LeaseLiability",
+        "amount": 40000.0
+      },
+      {
+        "entity": "lessee",
+        "date": "2028-01-01",
+        "side": "debit",
+        "account": "LeaseLiability",
+        "amount": 11182.24
+      },
+      {
+        "entity": "lessee",
+        "date": "2028-01-01",
+        "side": "credit",
+        "account": "Cash",
+        "amount": 11182.24
+      },
+      {
+        "entity": "lessee",
+        "date": "2028-12-31",
+        "side": "debit",
+        "account": "InterestExpense",
+        "amount": 2305.42
+      },
+      {
+        "entity": "lessee",
+        "date": "2028-12-31",
+        "side": "credit",
+        "account": "LeaseLiability",
+        "amount": 2305.42
+      },
+      {
+        "entity": "lessee",
+        "date": "2028-12-31",
+        "side": "debit",
+        "account": "AmortizationExpense",
+        "amount": 10000.0
+      },
+      {
+        "entity": "lessee",
+        "date": "2028-12-31",
+        "side": "credit",
+        "account": "RightOfUseAsset",
+        "amount": 10000.0
+      },
+      {
+        "entity": "lessor",
+        "date": "2028-01-01",
+        "side": "debit",
+        "account": "LeaseReceivable",
+        "amount": 40000.0
+      },
+      {
+        "entity": "lessor",
+        "date": "2028-01-01",
+        "side": "debit",
+        "account": "CostOfGoodsSold",
+        "amount": 30000.0
+      },
+      {
+        "entity": "lessor",
+        "date": "2028-01-01",
+        "side": "credit",
+        "account": "Inventory",
+        "amount": 30000.0
+      },
+      {
+        "entity": "lessor",
+        "date": "2028-01-01",
+        "side": "credit",
+        "account": "SalesRevenue",
+        "amount": 40000.0
+      },
+      {
+        "entity": "lessor",
+        "date": "2028-01-01",
+        "side": "debit",
+        "account": "Cash",
+        "amount": 11182.24
+      },
+      {
+        "entity": "lessor",
+        "date": "2028-01-01",
+        "side": "credit",
+        "account": "LeaseReceivable",
+        "amount": 11182.24
+      },
+      {
+        "entity": "lessor",
+        "date": "2028-12-31",
+        "side": "debit",
+        "account": "LeaseReceivable",
+        "amount": 2305.42
+      },
+      {
+        "entity": "lessor",
+        "date": "2028-12-31",
+        "side": "credit",
+        "account": "InterestRevenue",
+        "amount": 2305.42
+      }
+    ],
+    "derived": {
+      "schedule_totals.payment": 44728.96,
+      "schedule_totals.interest": 4728.96,
+      "schedule_totals.reduction": 40000.0
+    },
+    "schedule": [
+      {
+        "date": "2028-01-01",
+        "payment": 11182.24,
+        "interest": 0.0,
+        "reduction": 11182.24,
+        "balance": 28817.76
+      },
+      {
+        "date": "2029-01-01",
+        "payment": 11182.24,
+        "interest": 2305.42,
+        "reduction": 8876.82,
+        "balance": 19940.94
+      },
+      {
+        "date": "2030-01-01",
+        "payment": 11182.24,
+        "interest": 1595.28,
+        "reduction": 9586.96,
+        "balance": 10353.98
+      },
+      {
+        "date": "2031-01-01",
+        "payment": 11182.24,
+        "interest": 828.26,
+        "reduction": 10353.98,
+        "balance": 0.0
+      }
+    ]
+  },
+  "review": "判断(分類)+ mechanical(測定)。finance(Parker)/sales-type(Stoughton)。annuity-due ⇒ 初回利息ゼロ。EA needs-extension: 使用権資産・貸手 lease receivable + sales-type 即時 gross profit(COGS 30,000/Sales 40,000)・実効利子法 が builders に無い。Reviewer: 残高 40,000→0, 利息計 4,728.96, 貸手 gross profit 10,000 を確認。",
+  "confidence": "high — 分類表・全償却表・両者 1/1+12/31 仕訳を原本画像 book p.20-20/20-21 で突合。最終利息 $828.26 は $0.06 丸め, 計は一致。"
+}

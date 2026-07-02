@@ -1,0 +1,102 @@
+{
+  "id": "tax-deferred-tax-journal-entry-kieso-ch18-001",
+  "category": "tax",
+  "difficulty": "judgment",
+  "ea_coverage": "needs-extension",
+  "audit": false,
+  "source": {
+    "ref": "kieso",
+    "origin": "Kieso et al. Intermediate Accounting 19e, ch.18 Accounting for Income Taxes, Put It into Practice LO 18.1 'Apply Tax Fundamentals' (book p. 18-14..18-15), Wisco Company",
+    "ground_truth_provenance": "textbook printed solution (Put It into Practice LO 18.1)"
+  },
+  "prompt": "(a) 法人税未払を計算。(b) 法人税費用・繰延税金・未払法人税の仕訳。(c) 損益計算書の税費用区分('税引前利益' から)。(d) DTA の 30% が実現しない可能性が高い(MLTN)場合の評価性引当仕訳。",
+  "given": {
+    "entity": "Wisco Company",
+    "year": 2028,
+    "deferred_tax_liability_jan1": 40000,
+    "deferred_tax_asset_jan1": 0,
+    "taxable_income": 190000,
+    "pretax_financial_income": 400000,
+    "cumulative_future_taxable_dec31": 480000,
+    "cumulative_future_deductible_dec31": 70000,
+    "tax_rate": 0.2,
+    "chart_of_accounts": [
+      "IncomeTaxExpense",
+      "DeferredTaxAsset",
+      "IncomeTaxesPayable",
+      "DeferredTaxLiability",
+      "AllowanceToReduceDeferredTaxAssetToExpectedRealizableValue"
+    ],
+    "ea_account_map": {
+      "IncomeTaxExpense": "CorporateIncomeTaxes",
+      "DeferredTaxAsset": "DeferredTaxAsset",
+      "IncomeTaxesPayable": "AccruedCorporateIncomeTaxes",
+      "DeferredTaxLiability": "DeferredTaxLiability",
+      "AllowanceToReduceDeferredTaxAssetToExpectedRealizableValue": "AllowanceToReduceDeferredTaxAssetToExpectedRealizableValue"
+    },
+    "map_note": "DeferredTaxAsset, DeferredTaxLiability, AllowanceToReduceDeferredTaxAssetToExpectedRealizableValue: no EA counterpart (needs-extension)."
+  },
+  "expected_output": {
+    "components": [
+      "journal",
+      "derived"
+    ],
+    "format_note": "Return one JSON object with keys \"journal\" (one flat posting array combining the part (b) main deferred-tax entry and the part (d) valuation-allowance entry; postings may carry a \"part\" tag \"b\"/\"d\") and \"derived\" (flat dot-keyed map of the non-journal numeric leaves from parts a/b/c, e.g. \"part_a.income_taxes_payable\", \"part_c.net_income\")."
+  },
+  "ground_truth": {
+    "journal": [
+      {
+        "part": "b",
+        "side": "debit",
+        "account": "IncomeTaxExpense",
+        "amount": 80000
+      },
+      {
+        "part": "b",
+        "side": "debit",
+        "account": "DeferredTaxAsset",
+        "amount": 14000
+      },
+      {
+        "part": "b",
+        "side": "credit",
+        "account": "IncomeTaxesPayable",
+        "amount": 38000
+      },
+      {
+        "part": "b",
+        "side": "credit",
+        "account": "DeferredTaxLiability",
+        "amount": 56000
+      },
+      {
+        "part": "d",
+        "side": "debit",
+        "account": "IncomeTaxExpense",
+        "amount": 4200
+      },
+      {
+        "part": "d",
+        "side": "credit",
+        "account": "AllowanceToReduceDeferredTaxAssetToExpectedRealizableValue",
+        "amount": 4200
+      }
+    ],
+    "derived": {
+      "part_a.income_taxes_payable": 38000,
+      "part_b.dtl_end": 96000,
+      "part_b.dta_end": 14000,
+      "part_b.deferred_tax_expense": 56000,
+      "part_b.deferred_tax_benefit": 14000,
+      "part_b.net_deferred": 42000,
+      "part_b.income_tax_expense": 80000,
+      "part_c.income_before_taxes": 400000,
+      "part_c.current": 38000,
+      "part_c.deferred": 42000,
+      "part_c.total_tax": 80000,
+      "part_c.net_income": 320000
+    }
+  },
+  "review": "全体は判断(part d = MLTN 実現判断), part a-c は一時差異表が定まれば mechanical。主仕訳の貸借 94,000=94,000。EA needs-extension: 累積一時差異からの DTL/DTA 導出・current+deferred の税費用 plug・contra 評価性引当 が builders 外。Reviewer: 純利益 $320,000, part d の $4,200 contra-asset を確認。",
+  "confidence": "high — part a-d を原本画像 book p.18-14/18-15 で突合。illegible なし。"
+}

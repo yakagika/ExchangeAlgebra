@@ -19,6 +19,14 @@ plus arm-specific artifacts (code, stdout, stderr, attempts).
 
 Harness artifact (P3): the arm-A cheatsheet is loaded from
 harness/SKILL-ea-v1.md (versioned file), no longer hard-coded here.
+
+Output contract (TASK-FORMAT.md v2, 2026-07-02): a task without
+`expected_output` is journal-only (v1, bare posting array — unchanged wire
+format). A task WITH `expected_output` requires a single JSON object whose
+keys are `expected_output["components"]` (subset of journal|derived|findings|
+decision). `_output_contract()` renders the task-shaped "output format"
+section of each arm's system prompt; the "role" text (what kind of generator
+this is) stays fixed across tasks.
 """
 
 from __future__ import annotations
@@ -41,10 +49,57 @@ DEFAULT_MAX_ITERS = 3
 # Shared helpers
 # ---------------------------------------------------------------------------
 
-def _extract_json(text: str) -> Optional[str]:
+def _find_balanced_json(text: str, open_ch: str, close_ch: str) -> Optional[str]:
     """
-    Try to extract a JSON array (or object) from an LLM / program output.
-    Returns the raw JSON string, or None if nothing parseable is found.
+    Scan `text` for a balanced open_ch...close_ch JSON span, string-literal
+    aware (so braces/brackets inside quoted string values don't throw off the
+    depth count). Tries every occurrence of open_ch as a candidate start (in
+    order) and returns the first span that parses as valid JSON, or None.
+    """
+    n = len(text)
+    for start in (i for i, c in enumerate(text) if c == open_ch):
+        depth = 0
+        in_string = False
+        escape = False
+        for i in range(start, n):
+            c = text[i]
+            if in_string:
+                if escape:
+                    escape = False
+                elif c == "\\":
+                    escape = True
+                elif c == '"':
+                    in_string = False
+                continue
+            if c == '"':
+                in_string = True
+            elif c == open_ch:
+                depth += 1
+            elif c == close_ch:
+                depth -= 1
+                if depth == 0:
+                    candidate = text[start:i + 1]
+                    try:
+                        json.loads(candidate)
+                        return candidate
+                    except json.JSONDecodeError:
+                        break
+            # unbalanced-so-far from this start; keep scanning
+        # this start never closed (or produced invalid JSON) — try the next
+    return None
+
+
+def _extract_json(text: str, prefer_object: bool = False) -> Optional[str]:
+    """
+    Try to extract a JSON array (v1 journal-only) or object (v2) from an
+    LLM / program output. Returns the raw JSON string, or None if nothing
+    parseable is found.
+
+    `prefer_object` breaks ties in favour of the outer object when a v2
+    (object-contract) output also contains nested arrays (e.g. the "journal"
+    array nested inside the result object) — without it, a naive array scan
+    would greedily return just that inner array. Default False preserves the
+    original v1 (array-first) extraction behaviour.
     """
     stripped = text.strip()
     if stripped.startswith("[") or stripped.startswith("{"):
@@ -54,23 +109,20 @@ def _extract_json(text: str) -> Optional[str]:
         except json.JSONDecodeError:
             pass
 
-    m = re.search(r"(\[.*?\])", text, re.DOTALL)
+    m = re.search(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL)
     if m:
-        candidate = m.group(1)
+        candidate = m.group(1).strip()
         try:
             json.loads(candidate)
             return candidate
         except json.JSONDecodeError:
             pass
 
-    m = re.search(r"```(?:json)?\s*(\[.*?\])\s*```", text, re.DOTALL)
-    if m:
-        candidate = m.group(1)
-        try:
-            json.loads(candidate)
+    brackets = [("{", "}"), ("[", "]")] if prefer_object else [("[", "]"), ("{", "}")]
+    for open_ch, close_ch in brackets:
+        candidate = _find_balanced_json(text, open_ch, close_ch)
+        if candidate is not None:
             return candidate
-        except json.JSONDecodeError:
-            pass
 
     return None
 
@@ -108,28 +160,53 @@ def _extract_python(text: str) -> Optional[str]:
 
 
 def _build_user_prompt(task: dict, include_ea_map: bool = False) -> str:
-    """Format the task as a user-turn prompt."""
+    """
+    Format the task as a user-turn prompt.
+
+    Known `given` shapes (chart_of_accounts / transactions / asset) keep
+    their hand-tuned rendering. Everything else in `given` (given_journal,
+    claimed_balances, accounts, trial_balance, leases, loan, intercompany,
+    entity/period/note strings, ...) is rendered verbatim as pretty JSON
+    under "--- additional data ---" so no task input is silently dropped.
+    `ea_account_map` is shown only when include_ea_map=True (arm A/D — code
+    targets EA); "map_note"/"transcription_note" are internal
+    documentation metadata and are never shown to the model.
+    """
     lines = []
     lines.append(f"Task ID: {task['id']}")
     lines.append(f"Category: {task['category']}")
     lines.append("")
     lines.append("--- given ---")
 
-    given = task.get("given", {})
+    given = task.get("given", {}) or {}
+    # Keys already rendered by a special case (or intentionally hidden) —
+    # excluded from the generic "additional data" JSON dump below.
+    rendered_keys = {"ea_account_map", "map_note", "transcription_note"}
+
     if "chart_of_accounts" in given:
         lines.append(f"Chart of accounts: {given['chart_of_accounts']}")
+        rendered_keys.add("chart_of_accounts")
     if include_ea_map and given.get("ea_account_map"):
         pairs = ", ".join(f"{k} -> {v}" for k, v in given["ea_account_map"].items())
         lines.append(f"EA account mapping (use the EA name on the right in code): {pairs}")
     if "transactions" in given:
         for tx in given["transactions"]:
             lines.append(f"  {tx.get('id','')}: {tx.get('desc','')} — amount {tx.get('amount','')}")
+        rendered_keys.add("transactions")
     if "asset" in given:
         a = given["asset"]
         lines.append(
             f"Asset: {a.get('name')} cost={a.get('cost')} life={a.get('useful_life_years')}yr "
             f"salvage={a.get('salvage')} policy={given.get('policy','')}"
         )
+        rendered_keys.add("asset")
+        rendered_keys.add("policy")
+
+    extra = {k: v for k, v in given.items() if k not in rendered_keys}
+    if extra:
+        lines.append("")
+        lines.append("--- additional data ---")
+        lines.append(json.dumps(extra, indent=2, ensure_ascii=False))
 
     lines.append("")
     lines.append("--- instruction ---")
@@ -144,49 +221,166 @@ def _truncate(s: Optional[str], n: int = 2000) -> Optional[str]:
 
 
 # ---------------------------------------------------------------------------
-# System prompts
+# Output contract (TASK-FORMAT.md v2) — task-shaped "output format" text
 # ---------------------------------------------------------------------------
 
-_ARM_C_SYSTEM = """\
+_COMPONENT_SHAPES: dict[str, str] = {
+    "journal": (
+        '"journal": a JSON array of postings, each '
+        '{"side":"debit"|"credit","account":"<AccountName>","amount":<positive number>}. '
+        "Extra per-posting keys (entry, date, entity) are allowed and ignored."
+    ),
+    "derived": (
+        '"derived": a FLAT JSON object mapping metric names to numbers only '
+        '(e.g. {"ending_balance": 12345, "operating.total_adjustments": -203500}). '
+        "Flatten any nested structure into dot-separated keys."
+    ),
+    "findings": (
+        '"findings": a JSON array of finding objects, each '
+        '{"type":"<finding type>","locus":"<account/entry/period id>","detail":"<free text>"}.'
+    ),
+    "decision": (
+        '"decision": a FLAT JSON object mapping decision ids to lower-case string labels '
+        '(e.g. {"a": "operating"}).'
+    ),
+}
+
+
+def _component_shape_text(component: str) -> str:
+    try:
+        return _COMPONENT_SHAPES[component]
+    except KeyError:
+        raise ValueError(f"Unknown expected_output component: {component!r}") from None
+
+
+def _expected_shape_desc(task: dict) -> str:
+    """One-line description of the expected top-level JSON shape (retry feedback)."""
+    expected = task.get("expected_output")
+    if expected is None:
+        return "one JSON array of postings"
+    components = expected.get("components", []) or []
+    return f"one JSON object with keys {components}"
+
+
+def _output_contract(task: dict) -> str:
+    """
+    Build the "output format" section of a system prompt from
+    task["expected_output"] (v2) or the legacy bare-array contract (v1;
+    absent expected_output). Appends format_note (if any) and, for
+    escape-hatch tasks (ground_truth.escape_hatch_expected), the
+    policy_assumed/alternatives requirement (TASK-FORMAT.md).
+    """
+    expected = task.get("expected_output")
+    gt = task.get("ground_truth", {}) or {}
+    escape_hatch = bool(gt.get("escape_hatch_expected"))
+
+    if expected is None:
+        # v1 — bare JSON array of postings, unchanged from the original contract.
+        lines = [
+            "Output format: a single JSON array of journal postings.",
+            'Each posting must be: {"side": "debit"|"credit", "account": "<AccountName>", "amount": <positive number>}.',
+            "Example:",
+            "[",
+            '  {"side": "debit",  "account": "Cash",  "amount": 1000},',
+            '  {"side": "credit", "account": "Sales", "amount": 1000}',
+            "]",
+        ]
+        return "\n".join(lines)
+
+    components = expected.get("components", []) or []
+    lines = ["Output format: a single JSON object with exactly these keys:"]
+    for c in components:
+        lines.append("  " + _component_shape_text(c))
+
+    format_note = expected.get("format_note")
+    if format_note:
+        lines.append("")
+        lines.append(f"Format note: {format_note}")
+
+    if escape_hatch:
+        lines.append("")
+        lines.append(
+            "This task has multiple defensible policies for the answer. The output "
+            'object MUST additionally include EITHER "policy_assumed": "<policy>" '
+            "(with the answer computed under that stated policy) OR "
+            '"alternatives": {"<policy>": {<derived map for that policy>}, ...} covering '
+            "the plausible policies (at least two). A bare unconditional answer under "
+            "only one silently-assumed policy scores 0 on the escape-hatch metric even "
+            "if numerically correct under some policy."
+        )
+
+    return "\n".join(lines)
+
+
+def _validate_output_shape(parsed: Any, task: dict) -> Optional[str]:
+    """
+    Check that `parsed` matches the task's output contract (v1 bare array, or
+    v2 single object containing all expected component keys). Returns None
+    if valid, else a description of the expected shape (for feedback/error
+    messages).
+    """
+    expected = task.get("expected_output")
+    if expected is None:
+        if not isinstance(parsed, list):
+            return "a JSON array of postings (journal-only contract)"
+        return None
+
+    components = expected.get("components", []) or []
+    if not isinstance(parsed, dict):
+        return f"a single JSON object with keys {components}"
+    missing = [c for c in components if c not in parsed]
+    if missing:
+        return f"a single JSON object with keys {components} (missing: {missing})"
+    return None
+
+
+# ---------------------------------------------------------------------------
+# System prompts — "role" text is fixed; "output format" is task-shaped
+# ---------------------------------------------------------------------------
+
+_ARM_C_ROLE = """\
 You are a double-entry bookkeeping engine.
-Given a Japanese accounting task, output ONLY a JSON array of journal postings.
-Each posting must be: {"side": "debit"|"credit", "account": "<AccountName>", "amount": <positive integer>}.
-Do NOT output any prose, explanation, markdown or code — output the raw JSON array only.
-Example:
-[
-  {"side": "debit",  "account": "Cash",  "amount": 1000},
-  {"side": "credit", "account": "Sales", "amount": 1000}
-]
+Given a Japanese accounting task, output ONLY the JSON value described below.
+Do NOT output any prose, explanation, markdown or code — output the raw JSON only.
 """
 
 _ARM_C_RETRY_SUFFIX = """\
 
-IMPORTANT REMINDER: your previous response could not be parsed as a JSON array.
-Respond with EXACTLY ONE raw JSON array of postings and NOTHING else — no prose,
-no markdown fences, no labels. It must start with '[' and end with ']'.
+IMPORTANT REMINDER: your previous response could not be parsed as valid JSON
+in the required shape. Respond with EXACTLY ONE raw JSON value (as specified
+above) and NOTHING else — no prose, no markdown fences, no labels.
 """
 
 # Minimal EA instruction — shared by arm A and arm D (see harness/ARM-D-DELTA.md).
-_EA_MINIMAL_SYSTEM = """\
+_EA_MINIMAL_ROLE = """\
 You are an ExchangeAlgebra (Haskell) code generator for accounting tasks.
-Write ONE complete, self-contained Haskell source file that encodes the journal
-entries for the task using the ExchangeAlgebra DSL (Haskell library
-`exchangealgebra`), and whose `main :: IO ()` prints exactly ONE JSON array of
-postings to stdout:
-[{"side":"debit"|"credit","account":"<AccountName>","amount":<positive number>},...]
+Write ONE complete, self-contained Haskell source file that encodes the task
+using the ExchangeAlgebra DSL (Haskell library `exchangealgebra`), and whose
+`main :: IO ()` prints exactly ONE JSON value to stdout, as specified below.
 Print nothing else to stdout. The file is executed with:
   stack exec runghc -- Gen.hs   (inside an ExchangeAlgebra stack project, GHC 9.10.2)
 Output ONLY the Haskell source code (no markdown fences, no explanation).
 """
 
-_ARM_B_SYSTEM = """\
+_ARM_B_ROLE = """\
 You are a Python code generator for accounting tasks.
 Write ONE self-contained Python 3 script (standard library only) that solves the
-accounting task and prints exactly ONE JSON array of journal postings to stdout:
-[{"side":"debit"|"credit","account":"<AccountName>","amount":<positive number>},...]
+accounting task and prints exactly ONE JSON value to stdout, as specified below.
 Print nothing else to stdout. No input() calls, no file or network access.
 Output ONLY the Python source code (no markdown fences, no explanation).
 """
+
+
+def _arm_c_system(task: dict) -> str:
+    return _ARM_C_ROLE + "\n" + _output_contract(task)
+
+
+def _ea_minimal_system(task: dict) -> str:
+    return _EA_MINIMAL_ROLE + "\n" + _output_contract(task)
+
+
+def _arm_b_system(task: dict) -> str:
+    return _ARM_B_ROLE + "\n" + _output_contract(task)
 
 
 def _load_skill() -> str:
@@ -199,9 +393,9 @@ def _load_skill() -> str:
     return SKILL_PATH.read_text(encoding="utf-8")
 
 
-def _arm_a_system() -> str:
+def _arm_a_system(task: dict) -> str:
     return (
-        _EA_MINIMAL_SYSTEM
+        _ea_minimal_system(task)
         + "\n# Harness cheatsheet (SKILL-ea-v1) — follow it exactly\n\n"
         + _load_skill()
     )
@@ -226,11 +420,15 @@ def _code_arm_loop(
     """
     Shared retry loop for code-generating arms (A, B, D).
 
-    Each attempt: generate → extract code → write → run → extract JSON.
-    On failure the error message is fed back to the same backend (P4).
-    Stops at the first structurally-valid output or after max_iters attempts.
+    Each attempt: generate → extract code → write → run → extract JSON →
+    validate output shape against the task's contract (v1 bare array, or v2
+    object with all expected component keys). On failure the error message
+    (compile/runtime error, non-JSON stdout, or wrong shape) is fed back to
+    the same backend (P4). Stops at the first structurally-valid output or
+    after max_iters attempts.
     """
     extract_code = _extract_haskell if lang == "haskell" else _extract_python
+    object_contract = task.get("expected_output") is not None
 
     user0 = (
         f"Write {'ExchangeAlgebra Haskell' if lang == 'haskell' else 'Python'} "
@@ -312,31 +510,53 @@ def _code_arm_loop(
             )
             continue
 
-        json_str = _extract_json(run_res["stdout"] or "")
+        json_str = _extract_json(run_res["stdout"] or "", prefer_object=object_contract)
         if json_str is None:
             attempt["error"] = "stdout not canonical JSON"
             result["attempts"].append(attempt)
             feedback = (
                 "Your previous attempt compiled and ran, but its stdout was not "
-                "a canonical JSON array of postings.\n"
+                "canonical JSON.\n"
                 "--- stdout ---\n" + (run_res["stdout"] or "")[:1000] + "\n"
-                "Fix main so it prints exactly one JSON array "
-                '[{"side":...,"account":...,"amount":...},...] and nothing else.'
+                f"Fix main so it prints exactly {_expected_shape_desc(task)} "
+                "and nothing else."
+            )
+            continue
+
+        try:
+            parsed_candidate = json.loads(json_str)
+        except json.JSONDecodeError:
+            attempt["error"] = "stdout not canonical JSON"
+            result["attempts"].append(attempt)
+            feedback = (
+                "Your previous attempt compiled and ran, but its stdout was not "
+                "canonical JSON.\n"
+                "--- stdout ---\n" + (run_res["stdout"] or "")[:1000] + "\n"
+                f"Fix main so it prints exactly {_expected_shape_desc(task)} "
+                "and nothing else."
+            )
+            continue
+
+        shape_error = _validate_output_shape(parsed_candidate, task)
+        if shape_error is not None:
+            attempt["error"] = f"wrong output shape: expected {shape_error}"
+            result["attempts"].append(attempt)
+            feedback = (
+                "Your previous attempt printed valid JSON, but not in the expected "
+                "shape.\n"
+                "--- stdout ---\n" + (run_res["stdout"] or "")[:1000] + "\n"
+                f"Fix main so it prints exactly {shape_error} and nothing else."
             )
             continue
 
         # Success
         result["json_str"] = json_str
-        try:
-            result["parsed"] = json.loads(json_str)
-            result["parse_fail"] = False
-        except json.JSONDecodeError:
-            result["parse_fail"] = True
-        attempt["success"] = not result["parse_fail"]
+        result["parsed"] = parsed_candidate
+        result["parse_fail"] = False
+        attempt["success"] = True
         result["attempts"].append(attempt)
-        if not result["parse_fail"]:
-            result["converged"] = True
-            break
+        result["converged"] = True
+        break
 
     return result
 
@@ -348,10 +568,12 @@ def _code_arm_loop(
 def arm_c(task: dict, backend: Backend, max_iters: int = DEFAULT_MAX_ITERS) -> dict:
     """
     Arm C: direct-numeric generation. The LLM emits canonical JSON itself.
-    Retries ONCE on parse failure (with a re-emphasized format instruction),
-    regardless of max_iters (per P4 spec).
+    Retries ONCE on parse/shape failure (with a re-emphasized format
+    instruction), regardless of max_iters (per P4 spec).
     """
     user_prompt = _build_user_prompt(task)
+    object_contract = task.get("expected_output") is not None
+    base_system = _arm_c_system(task)
 
     result: dict[str, Any] = {
         "raw_output": None,
@@ -365,7 +587,7 @@ def arm_c(task: dict, backend: Backend, max_iters: int = DEFAULT_MAX_ITERS) -> d
     }
 
     for i in (1, 2):   # at most 1 retry
-        system = _ARM_C_SYSTEM if i == 1 else _ARM_C_SYSTEM + _ARM_C_RETRY_SUFFIX
+        system = base_system if i == 1 else base_system + _ARM_C_RETRY_SUFFIX
         result["iterations"] = i
 
         try:
@@ -375,20 +597,33 @@ def arm_c(task: dict, backend: Backend, max_iters: int = DEFAULT_MAX_ITERS) -> d
             continue
 
         result["raw_output"] = raw
-        json_str = _extract_json(raw)
+        json_str = _extract_json(raw, prefer_object=object_contract)
         attempt = {"iteration": i, "raw_output": _truncate(raw)}
 
         if json_str is not None:
             try:
-                result["parsed"] = json.loads(json_str)
+                parsed_candidate = json.loads(json_str)
+            except json.JSONDecodeError:
+                parsed_candidate = None
+
+            shape_error = (
+                _validate_output_shape(parsed_candidate, task)
+                if parsed_candidate is not None
+                else "valid JSON"
+            )
+
+            if shape_error is None:
+                result["parsed"] = parsed_candidate
                 result["json_str"] = json_str
                 result["parse_fail"] = False
                 result["converged"] = True
                 attempt["success"] = True
                 result["attempts"].append(attempt)
                 break
-            except json.JSONDecodeError:
-                pass
+            else:
+                attempt["error"] = f"wrong output shape: expected {shape_error}"
+                result["attempts"].append(attempt)
+                continue
 
         attempt["error"] = "parse failure"
         result["attempts"].append(attempt)
@@ -415,7 +650,7 @@ def arm_a(
         task=task,
         backend=backend,
         task_run_dir=task_run_dir,
-        system_prompt=_arm_a_system(),
+        system_prompt=_arm_a_system(task),
         lang="haskell",
         runner_fn=lambda p: run_haskell(p, worktree_root),
         gen_filename="Gen.hs",
@@ -443,7 +678,7 @@ def arm_b(
         task=task,
         backend=backend,
         task_run_dir=task_run_dir,
-        system_prompt=_ARM_B_SYSTEM,
+        system_prompt=_arm_b_system(task),
         lang="python",
         runner_fn=lambda p: run_python(p, EVAL_DIR),
         gen_filename="Gen.py",
@@ -472,7 +707,7 @@ def arm_d(
         task=task,
         backend=backend,
         task_run_dir=task_run_dir,
-        system_prompt=_EA_MINIMAL_SYSTEM,
+        system_prompt=_ea_minimal_system(task),
         lang="haskell",
         runner_fn=lambda p: run_haskell(p, worktree_root),
         gen_filename="Gen.hs",

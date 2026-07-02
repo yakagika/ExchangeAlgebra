@@ -3,18 +3,54 @@ runner/score.py — GT comparison and per-run metrics for audit-eval.
 
 Metrics
 -------
-numeric_accuracy   : fraction of GT postings exactly matched (canonical account + side + amount)
-balance_violation  : True if Σdebit ≠ Σcredit in the model output
-account_validity   : True if ALL output accounts resolve via chart / ea_account_map / synonyms
+numeric_accuracy   : headline — micro-average over ALL present GT components
+                     (journal postings + derived entries + findings-recall
+                     items + decision entries). Escape-hatch tasks (see
+                     below) use escape_ok as the headline instead. For v1
+                     journal-only tasks (no expected_output) this reduces to
+                     exactly the old journal-only value.
+journal_accuracy   : fraction of GT postings exactly matched (canonical
+                     account + side + amount) — same matcher as v1
+                     numeric_accuracy, applied to the "journal" component.
+derived_accuracy   : fraction of GT "derived" entries matched (flattened,
+                     key-normalized, numeric-tolerant).
+findings_recall    : fraction of GT "findings" (type, locus) pairs matched.
+findings_precision : fraction of model "findings" (type, locus) pairs that
+                     were correct.
+decision_accuracy  : fraction of GT "decision" entries with an exact
+                     (lower-cased) label match.
+escape_ok          : 0/1 — for ground_truth.escape_hatch_expected tasks only;
+                     1 iff the model hedges across policies correctly (see
+                     TASK-FORMAT.md "Scoring semantics").
+balance_violation  : True if Sigma debit != Sigma credit in the model's
+                     journal component; None if the model output has no
+                     postings to check (parse failure, no journal component
+                     expected, or the model omitted the journal key).
+account_validity   : True if ALL journal-component accounts resolve via
+                     chart / ea_account_map / synonyms; None under the same
+                     conditions as balance_violation.
 compile_fail       : True if arm A/B/D build or execution failed (passed through from arm result)
 parse_fail         : True if model output could not be parsed to canonical JSON
-verification_gap   : (arm B/C, EA oracle) 1 if output contains an error that EA would
-                     structurally reject (imbalance / account outside EA AccountTitles /
-                     category violation / non-positive amount), else 0. None when the
-                     oracle was not applied or the output was unparseable.
+verification_gap   : (EA oracle) 1 if the model's journal component contains
+                     an error that EA would structurally reject (imbalance /
+                     account outside EA AccountTitles / category violation /
+                     non-positive amount), else 0. None when the oracle was
+                     not applied (see "Oracle gating" below) or the output
+                     was unparseable / had no journal component.
 convergence_iterations : attempts needed until a structurally-valid output (P4 retry
                      loop). Equals max_iters with converged=False when the loop was
                      exhausted without success.
+
+Oracle gating (TASK-FORMAT.md v2, 2026-07-02)
+----------------------------------------------
+The EA oracle is skipped (verification_gap = None) whenever:
+  - task["ea_coverage"] != "ok" (EA cannot express the journal — "would EA
+    reject this" is not a meaningful counterfactual), OR
+  - the task's output contract does not include a "journal" component, OR
+  - the model output has no journal-component postings (parse failure, wrong
+    shape, or the key was simply omitted).
+Only the model's journal-component postings are fed to the oracle (not the
+whole output object).
 
 Account-name resolution (2026-07-02, spec: docs/t3-task-schema.md
 「勘定名の EA canonical 対応」)
@@ -25,6 +61,16 @@ systematically divergent. Scoring is mapping-aware: for each chart account we ac
   - its `ea_account_map` target (EA canonical name),
   - normalization-dictionary synonyms (case-insensitive, A/R → AccountsReceivable, …).
 A hallucinated account is ONLY a name that resolves through none of these.
+
+ea_account_map is MANY-TO-ONE in real tasks (e.g. journalize-adjusting-entries-
+kieso-ch02-001 maps both Supplies AND PrepaidInsurance to EA 'PrepaidExpenses'),
+so resolution is collision-aware: an alias resolves to a LIST of GT candidate
+names, not a single name. The journal matcher accepts a model posting against
+any remaining GT posting whose (side, amount) match and whose account is among
+the candidates (greedy; the first amount-matching GT posting is consumed).
+Without this, arm A/D answering in the correct EA vocabulary would fail to
+match the later-registered GT account — re-introducing at the many-to-one
+boundary the name-translation bias P1 removed.
 """
 
 from __future__ import annotations
@@ -38,7 +84,10 @@ from typing import Any, Optional
 # ---------------------------------------------------------------------------
 
 def _norm_key(name: str) -> str:
-    """Lower-case and strip separators so 'Accounts Receivable' == 'AccountsReceivable'."""
+    """
+    Lower-case and strip separators, so 'Accounts Receivable' == 'AccountsReceivable'
+    and (reused for derived/decision keys) 'operating.total' == 'operating_total'.
+    """
     return (
         str(name).lower()
         .replace(" ", "").replace("_", "").replace("-", "").replace("/", "")
@@ -71,27 +120,34 @@ def _canon(name: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Task-specific resolver: alias (normalized) → canonical GT account name
+# Task-specific resolver: alias (normalized) → GT canonical candidate list
 # ---------------------------------------------------------------------------
 
-def build_resolver(task: dict) -> dict[str, str]:
+def build_resolver(task: dict) -> dict[str, list[str]]:
     """
-    Build a resolution table for one task.
+    Build a resolution table for one task: alias key → ORDERED LIST of GT
+    canonical account names the alias may stand for.
 
     Every chart-of-accounts entry contributes:
       GT name, its ea_account_map target, and their synonym expansions,
     all mapping to the GT name (the canonical scoring identity).
     GT-journal accounts not in the chart are added defensively.
+
+    ea_account_map is many-to-one in real tasks (several GT names sharing one
+    EA target), so an alias key may accumulate MULTIPLE candidates — hence a
+    list, appended in registration order (chart order first), never clobbered.
     """
     given = task.get("given", {})
     chart: list[str] = given.get("chart_of_accounts", []) or []
     ea_map: dict[str, str] = given.get("ea_account_map", {}) or {}
 
-    resolver: dict[str, str] = {}
+    resolver: dict[str, list[str]] = {}
 
     def register(alias: str, canonical: str) -> None:
         for key in {_norm_key(alias), _canon(alias)}:
-            resolver.setdefault(key, canonical)
+            bucket = resolver.setdefault(key, [])
+            if canonical not in bucket:
+                bucket.append(canonical)
 
     for gt_name in chart:
         register(gt_name, gt_name)
@@ -100,7 +156,8 @@ def build_resolver(task: dict) -> dict[str, str]:
             register(mapped, gt_name)
 
     # Safety: GT journal may reference accounts missing from the chart.
-    for p in task.get("ground_truth", {}).get("journal", []):
+    gt_journal = task.get("ground_truth", {}).get("journal", [])
+    for p in gt_journal:
         acct = str(p.get("account", "")).strip()
         if acct:
             register(acct, acct)
@@ -111,28 +168,61 @@ def build_resolver(task: dict) -> dict[str, str]:
     return resolver
 
 
-def resolve_account(name: str, resolver: dict[str, str]) -> Optional[str]:
-    """Resolve an output account name to its canonical GT name, or None."""
+def resolve_account(name: str, resolver: dict[str, list[str]]) -> list[str]:
+    """
+    Resolve an output account name to its GT canonical candidates (ordered,
+    deduplicated across the norm/synonym key paths). Empty list = unresolved
+    (hallucinated).
+    """
+    candidates: list[str] = []
     for key in (_norm_key(name), _canon(name)):
-        if key in resolver:
-            return resolver[key]
-    return None
+        for c in resolver.get(key, []):
+            if c not in candidates:
+                candidates.append(c)
+    return candidates
 
 
 # ---------------------------------------------------------------------------
 # Posting normalization
 # ---------------------------------------------------------------------------
 
-def _normalize_posting(p: dict, resolver: dict[str, str]) -> tuple[str, Optional[str], float]:
-    """Return (side, canonical_account_or_None, amount) from a posting dict."""
+def _posting_fields(p: dict) -> tuple[str, str, float]:
+    """Return (side, raw_account, amount) from a posting dict."""
     return (
         str(p.get("side", "")).lower().strip(),
-        resolve_account(str(p.get("account", "")).strip(), resolver),
+        str(p.get("account", "")).strip(),
         float(p.get("amount", 0)),
     )
 
 
-def _to_ea_postings(parsed: list, task: dict, resolver: dict[str, str]) -> list[dict]:
+def _match_journal(model_journal: list, gt_journal: list,
+                   resolver: dict[str, list[str]]) -> int:
+    """
+    Collision-aware greedy multiset matcher. GT postings keep their raw GT
+    account name as the canonical identity (defensive registration in
+    build_resolver guarantees it is a valid resolution target). Each model
+    posting consumes the FIRST remaining GT posting whose (side, amount) match
+    and whose account is among the model account's resolution candidates —
+    so two model postings on the same EA name (e.g. PrepaidExpenses) can match
+    two distinct colliding GT accounts (Supplies@580, PrepaidInsurance@150),
+    disambiguated by amount.
+    """
+    remaining = [_posting_fields(p) for p in gt_journal]
+    matched = 0
+    for p in model_journal:
+        side, acct, amount = _posting_fields(p)
+        candidates = resolve_account(acct, resolver)
+        if not candidates:
+            continue
+        for idx, (g_side, g_acct, g_amount) in enumerate(remaining):
+            if g_side == side and g_amount == amount and g_acct in candidates:
+                matched += 1
+                del remaining[idx]
+                break
+    return matched
+
+
+def _to_ea_postings(parsed: list, task: dict, resolver: dict[str, list[str]]) -> list[dict]:
     """
     Translate output postings into EA-canonical vocabulary before feeding the
     EA oracle (mapping-aware, mirroring P1 scoring).
@@ -146,13 +236,20 @@ def _to_ea_postings(parsed: list, task: dict, resolver: dict[str, str]) -> list[
     GT-canonical identity and then mapped through ea_account_map. Names that
     resolve nowhere are passed through raw — the oracle then flags them as
     hallucinated, which is exactly the ②-error we want to detect.
+
+    Collision note: when an alias resolves to multiple GT candidates, they all
+    share the same EA target by construction (a collision IS several GT names
+    mapping to one EA name), so any candidate yields the same EA name. We pick
+    deterministically: the first candidate with an ea_map entry, else the
+    first candidate.
     """
     ea_map: dict[str, str] = (task.get("given", {}) or {}).get("ea_account_map", {}) or {}
     out = []
     for p in parsed:
         acct = str(p.get("account", "")).strip()
-        canonical = resolve_account(acct, resolver)
-        if canonical is not None:
+        candidates = resolve_account(acct, resolver)
+        if candidates:
+            canonical = next((c for c in candidates if c in ea_map), candidates[0])
             ea_name = ea_map.get(canonical, canonical)
         else:
             ea_name = acct   # unresolvable → oracle flags hallucinated_account
@@ -162,6 +259,150 @@ def _to_ea_postings(parsed: list, task: dict, resolver: dict[str, str]) -> list[
             "amount":  float(p.get("amount", 0)),
         })
     return out
+
+
+# ---------------------------------------------------------------------------
+# derived / findings / decision matchers (TASK-FORMAT.md v2 scoring semantics)
+# ---------------------------------------------------------------------------
+
+def _flatten_numeric(obj: Any, prefix: str = "") -> dict[str, float]:
+    """
+    Flatten a (possibly nested) mapping into a flat dotted-key -> float map,
+    keeping numeric leaves only. Booleans and other non-numeric leaves
+    (strings, lists, None) are dropped silently — TASK-FORMAT.md "derived"
+    semantics ("Non-numeric leaves ... are NOT scored").
+    """
+    out: dict[str, float] = {}
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            key = f"{prefix}.{k}" if prefix else str(k)
+            out.update(_flatten_numeric(v, key))
+    elif isinstance(obj, bool):
+        pass
+    elif isinstance(obj, (int, float)):
+        out[prefix] = float(obj)
+    return out
+
+
+def _numeric_close(a: float, b: float) -> bool:
+    """Textbook-rounding tolerance: abs(diff) <= 0.51 or rel(diff) <= 1e-3."""
+    if abs(a - b) <= 0.51:
+        return True
+    if b != 0 and abs(a - b) / abs(b) <= 1e-3:
+        return True
+    return False
+
+
+def _match_derived(model_derived: Any, gt_derived: dict) -> tuple[int, int]:
+    """Return (matched, total) for a derived-map comparison (tolerant match)."""
+    gt_flat = _flatten_numeric(gt_derived)
+    model_flat = _flatten_numeric(model_derived) if isinstance(model_derived, (dict,)) else {}
+    model_norm = {_norm_key(k): v for k, v in model_flat.items()}
+
+    matched = 0
+    for k, gt_v in gt_flat.items():
+        mv = model_norm.get(_norm_key(k))
+        if mv is not None and _numeric_close(mv, gt_v):
+            matched += 1
+    return matched, len(gt_flat)
+
+
+# Finding-type synonyms (normalized) → taxonomy type (normalized). The task
+# format_note gives models the fixed taxonomy, so this is a safety net for
+# near-miss vocabulary, mirroring the account-name P1 rationale: we measure
+# defect detection, not label translation.
+_FINDING_TYPE_SYNONYMS: dict[str, str] = {
+    "unbalanced":            "imbalance",
+    "unbalancedentry":       "imbalance",
+    "notbalanced":           "imbalance",
+    "debitcreditmismatch":   "imbalance",
+    "unknownaccount":        "nonexistentaccount",
+    "invalidaccount":        "nonexistentaccount",
+    "hallucinatedaccount":   "nonexistentaccount",
+    "accountnotinchart":     "nonexistentaccount",
+    "balancediscrepancy":    "balancemismatch",
+    "wrongbalance":          "balancemismatch",
+    "misclassification":     "categoryviolation",
+    "wrongcategory":         "categoryviolation",
+    "categoryerror":         "categoryviolation",
+}
+
+
+def _norm_finding(f: dict) -> tuple[str, str]:
+    ftype = _norm_key(str(f.get("type", "")))
+    return (_FINDING_TYPE_SYNONYMS.get(ftype, ftype), _norm_key(str(f.get("locus", ""))))
+
+
+def _match_findings(model_findings: Any, gt_findings: list) -> tuple[int, int, int]:
+    """Return (matched, gt_total, model_total) via multiset match on (type, locus)."""
+    gt_list = [_norm_finding(f) for f in (gt_findings or []) if isinstance(f, dict)]
+    model_list = (
+        [_norm_finding(f) for f in model_findings if isinstance(f, dict)]
+        if isinstance(model_findings, list) else []
+    )
+    remaining = list(gt_list)
+    matched = 0
+    for mf in model_list:
+        if mf in remaining:
+            matched += 1
+            remaining.remove(mf)
+    return matched, len(gt_list), len(model_list)
+
+
+def _match_decision(model_decision: Any, gt_decision: dict) -> tuple[int, int]:
+    """Return (matched, total) — exact lower-cased label match per GT key."""
+    gt = gt_decision or {}
+    model = model_decision if isinstance(model_decision, dict) else {}
+    model_norm = {_norm_key(k): v for k, v in model.items()}
+
+    matched = 0
+    for k, gt_v in gt.items():
+        mv = model.get(k)
+        if mv is None:
+            mv = model_norm.get(_norm_key(k))
+        if mv is not None and str(mv).strip().lower() == str(gt_v).strip().lower():
+            matched += 1
+    return matched, len(gt)
+
+
+def _policy_map_matches(model_map: Any, gt_map: dict) -> bool:
+    """All GT entries in gt_map must be present (normalized) and within tolerance in model_map."""
+    matched, total = _match_derived(model_map, gt_map)
+    return total > 0 and matched == total
+
+
+def _score_escape_hatch(parsed_obj: dict, gt: dict) -> int:
+    """
+    escape_ok in {0, 1} — TASK-FORMAT.md "Scoring semantics":
+    1 iff "alternatives" covers >=2 GT policies each matching within
+    tolerance, or "policy_assumed" + the "derived" component matches that
+    policy's GT within tolerance. A bare answer (neither key) scores 0.
+    """
+    policy_conditional = gt.get("policy_conditional", {}) or {}
+    if not isinstance(parsed_obj, dict):
+        return 0
+
+    alternatives = parsed_obj.get("alternatives")
+    if isinstance(alternatives, dict):
+        matches = 0
+        alt_norm = {_norm_key(k): v for k, v in alternatives.items()}
+        for policy, gt_map in policy_conditional.items():
+            model_map = alternatives.get(policy, alt_norm.get(_norm_key(policy)))
+            if model_map is not None and _policy_map_matches(model_map, gt_map):
+                matches += 1
+        if matches >= 2:
+            return 1
+
+    policy_assumed = parsed_obj.get("policy_assumed")
+    if isinstance(policy_assumed, str):
+        pc_norm = {_norm_key(k): v for k, v in policy_conditional.items()}
+        gt_map = policy_conditional.get(policy_assumed, pc_norm.get(_norm_key(policy_assumed)))
+        if gt_map is not None:
+            model_derived = parsed_obj.get("derived")
+            if _policy_map_matches(model_derived, gt_map):
+                return 1
+
+    return 0
 
 
 # ---------------------------------------------------------------------------
@@ -193,60 +434,124 @@ def score(
     """
     parse_fail   = arm_result.get("parse_fail", True)
     compile_fail = arm_result.get("compile_fail", False)
-    parsed       = arm_result.get("parsed")        # list of posting dicts or None
+    parsed       = arm_result.get("parsed")        # list (v1) or dict (v2) or None
+
+    gt = task.get("ground_truth", {}) or {}
+    expected = task.get("expected_output")
+    escape_hatch = bool(gt.get("escape_hatch_expected"))
 
     resolver = build_resolver(task)
 
-    # ---- balance_violation --------------------------------------------------
-    balance_violation = False
-    if not parse_fail and isinstance(parsed, list):
-        debit_total  = sum(float(p.get("amount", 0)) for p in parsed
+    # ---- Extract the journal component (model output + GT) -------------------
+    if expected is None:
+        # v1 legacy: `parsed` IS the journal (bare posting array).
+        has_journal_component = True
+        model_journal = parsed if (not parse_fail and isinstance(parsed, list)) else None
+    else:
+        components = expected.get("components", []) or []
+        has_journal_component = "journal" in components
+        if has_journal_component and not parse_fail and isinstance(parsed, dict):
+            mj = parsed.get("journal")
+            model_journal = mj if isinstance(mj, list) else None
+        else:
+            model_journal = None
+
+    gt_journal = gt.get("journal", []) or [] if has_journal_component else []
+
+    # ---- balance_violation / account_validity (model postings only) ----------
+    balance_violation: Optional[bool] = None
+    account_validity: Optional[bool] = None
+    hallucinated_accounts: list[str] = []
+
+    if model_journal is not None:
+        debit_total  = sum(float(p.get("amount", 0)) for p in model_journal
                            if str(p.get("side", "")).lower() == "debit")
-        credit_total = sum(float(p.get("amount", 0)) for p in parsed
+        credit_total = sum(float(p.get("amount", 0)) for p in model_journal
                            if str(p.get("side", "")).lower() == "credit")
         balance_violation = abs(debit_total - credit_total) > 0.01
 
-    # ---- account_validity (mapping-aware) -----------------------------------
-    account_validity = True
-    hallucinated_accounts: list[str] = []
-
-    if not parse_fail and isinstance(parsed, list) and resolver:
-        for p in parsed:
+        # An account is valid iff it resolves to at least one GT candidate.
+        account_validity = True
+        for p in model_journal:
             acct = str(p.get("account", "")).strip()
-            if resolve_account(acct, resolver) is None:
+            if not resolve_account(acct, resolver):
                 account_validity = False
                 hallucinated_accounts.append(acct)
 
-    # ---- numeric_accuracy (mapping-aware) ------------------------------------
-    gt_journal = task.get("ground_truth", {}).get("journal", [])
-    gt_postings = [_normalize_posting(p, resolver) for p in gt_journal]
-    matched = 0
-    numeric_accuracy: Optional[float] = None
+    # ---- journal_accuracy (collision-aware mapping-aware multiset match) ------
+    journal_matched = 0
+    journal_accuracy: Optional[float] = None
 
-    if not parse_fail and isinstance(parsed, list) and gt_postings:
-        output_postings = [_normalize_posting(p, resolver) for p in parsed]
-        remaining_gt = list(gt_postings)
-        for op in output_postings:
-            if op[1] is not None and op in remaining_gt:
-                matched += 1
-                remaining_gt.remove(op)
-        numeric_accuracy = matched / len(gt_postings)
+    if model_journal is not None and gt_journal:
+        journal_matched = _match_journal(model_journal, gt_journal, resolver)
+        journal_accuracy = journal_matched / len(gt_journal)
 
-    # ---- verification_gap (EA oracle, arm B/C) -------------------------------
+    # ---- derived_accuracy ------------------------------------------------------
+    derived_accuracy: Optional[float] = None
+    derived_matched = derived_total = 0
+    if expected is not None and "derived" in (expected.get("components") or []):
+        gt_derived = gt.get("derived", {}) or {}
+        model_derived = parsed.get("derived") if (not parse_fail and isinstance(parsed, dict)) else None
+        derived_matched, derived_total = _match_derived(model_derived, gt_derived)
+        if derived_total > 0:
+            derived_accuracy = derived_matched / derived_total
+
+    # ---- findings_recall / findings_precision ----------------------------------
+    findings_recall: Optional[float] = None
+    findings_precision: Optional[float] = None
+    findings_matched = findings_gt_total = findings_model_total = 0
+    if expected is not None and "findings" in (expected.get("components") or []):
+        gt_findings = gt.get("findings", []) or []
+        model_findings = parsed.get("findings") if (not parse_fail and isinstance(parsed, dict)) else None
+        findings_matched, findings_gt_total, findings_model_total = _match_findings(model_findings, gt_findings)
+        if findings_gt_total > 0:
+            findings_recall = findings_matched / findings_gt_total
+        if findings_model_total > 0:
+            findings_precision = findings_matched / findings_model_total
+
+    # ---- decision_accuracy -----------------------------------------------------
+    decision_accuracy: Optional[float] = None
+    decision_matched = decision_total = 0
+    if expected is not None and "decision" in (expected.get("components") or []):
+        gt_decision = gt.get("decision", {}) or {}
+        model_decision = parsed.get("decision") if (not parse_fail and isinstance(parsed, dict)) else None
+        decision_matched, decision_total = _match_decision(model_decision, gt_decision)
+        if decision_total > 0:
+            decision_accuracy = decision_matched / decision_total
+
+    # ---- escape_ok --------------------------------------------------------------
+    escape_ok: Optional[int] = None
+    if escape_hatch:
+        escape_ok = 0 if (parse_fail or not isinstance(parsed, dict)) else _score_escape_hatch(parsed, gt)
+
+    # ---- headline numeric_accuracy (micro-average over present components) ----
+    if escape_hatch:
+        numeric_accuracy = float(escape_ok) if escape_ok is not None else None
+    else:
+        total_matched = journal_matched + derived_matched + findings_matched + decision_matched
+        total_items = len(gt_journal) + derived_total + findings_gt_total + decision_total
+        numeric_accuracy = (total_matched / total_items) if total_items > 0 else None
+
+    # ---- verification_gap (EA oracle) -------------------------------------------
+    # Gated off (verification_gap stays None) when: ea_coverage != "ok", the
+    # task's contract has no "journal" component, or the model output has no
+    # journal-component postings to check.
     verification_gap: Optional[int] = None
     violation_types: list[str] = []
     oracle_verdict: Optional[dict] = None
 
-    if (
-        arm_name in oracle_arms
+    oracle_eligible = (
+        task.get("ea_coverage", "ok") == "ok"
+        and has_journal_component
+        and arm_name in oracle_arms
         and worktree_root is not None
-        and not parse_fail
-        and isinstance(parsed, list)
-    ):
+        and model_journal is not None
+    )
+    if oracle_eligible:
         from runner.build import run_oracle
         import json as _json
 
-        ea_postings = _to_ea_postings(parsed, task, resolver)
+        ea_postings = _to_ea_postings(model_journal, task, resolver)
         oracle_verdict = run_oracle(_json.dumps(ea_postings), worktree_root)
         if oracle_verdict is not None and oracle_verdict.get("oracle_ok"):
             verification_gap = 1 if oracle_verdict.get("verification_gap") else 0
@@ -260,6 +565,12 @@ def score(
         "task_id":                task["id"],
         "arm":                    arm_name,
         "numeric_accuracy":       numeric_accuracy,
+        "journal_accuracy":       journal_accuracy,
+        "derived_accuracy":       derived_accuracy,
+        "findings_recall":        findings_recall,
+        "findings_precision":     findings_precision,
+        "decision_accuracy":      decision_accuracy,
+        "escape_ok":              escape_ok,
         "balance_violation":      balance_violation,
         "account_validity":       account_validity,
         "hallucinated_accounts":  hallucinated_accounts,

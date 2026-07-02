@@ -1,0 +1,51 @@
+{
+  "id": "statements-trial-to-pl-bs-006",
+  "category": "statements",
+  "difficulty": "mechanical",
+  "ea_coverage": "ok",
+  "audit": false,
+  "source": { "ref": "self-authored" },
+  "prompt": "試算表から損益計算書(当期純利益)と貸借対照表(資産・負債・資本合計)を導出せよ。",
+  "given": {
+    "trial_balance": {
+      "Cash": 5000,
+      "AccountsReceivable": 2000,
+      "Inventory": 3000,
+      "AccountsPayable": -1500,
+      "Capital": -6000,
+      "Sales": -8000,
+      "COGS": 5000,
+      "OperatingExpenses": 500
+    },
+    "chart_of_accounts": [
+      "Cash", "AccountsReceivable", "Inventory", "AccountsPayable",
+      "Capital", "Sales", "COGS", "OperatingExpenses"
+    ],
+    "ea_account_map": {
+      "Cash": "Cash",
+      "AccountsReceivable": "AccountsReceivable",
+      "Inventory": "MerchandiseInventory",
+      "AccountsPayable": "AccountsPayable",
+      "Capital": "CapitalStock",
+      "Sales": "Sales",
+      "COGS": "SalesCost",
+      "OperatingExpenses": "OperatingExpenses"
+    },
+    "map_note": "OperatingExpenses is an aggregate trial-balance line with no single EA canonical counterpart: EA itemizes operating expenses into named accounts (RentExpense, UtilitiesExpense, SuppliesExpenses, MiscellaneousExpenses, ...) rather than exposing one blanket 'OperatingExpenses' account. Mapped to itself (identity) as a provisional placeholder pending an accounting-review decision on whether the eval harness should instead require itemization."
+  },
+  "expected_output": {
+    "components": ["derived"],
+    "format_note": "Return a single JSON object with key \"derived\": a flat string→number map using dot-separated keys that mirror the nested income_statement/balance_sheet structure, e.g. {\"income_statement.revenue\": 8000, \"income_statement.cogs\": 5000, \"income_statement.operating_expenses\": 500, \"income_statement.net_income\": 2500, \"balance_sheet.total_assets\": 10000, \"balance_sheet.total_liabilities\": 1500, \"balance_sheet.total_equity\": 8500}."
+  },
+  "ground_truth": {
+    "derived": {
+      "income_statement.revenue": 8000,
+      "income_statement.cogs": 5000,
+      "income_statement.operating_expenses": 500,
+      "income_statement.net_income": 2500,
+      "balance_sheet.total_assets": 10000,
+      "balance_sheet.total_liabilities": 1500,
+      "balance_sheet.total_equity": 8500
+    }
+  }
+}

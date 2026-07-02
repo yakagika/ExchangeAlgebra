@@ -1,0 +1,102 @@
+{
+  "id": "journalize-adjusting-entries-kieso-ch02-001",
+  "category": "journalize",
+  "difficulty": "mechanical",
+  "ea_coverage": "ok",
+  "audit": false,
+  "source": {
+    "ref": "kieso",
+    "origin": "Kieso et al. Intermediate Accounting 19e, ch.2 The Accounting Information System, Put It into Practice LO 2.3 'Prepare Adjusting Entries and Show Their Effects on the Trial Balance' (book p. 2-35..2-36), Kleene Window Washing Inc.",
+    "ground_truth_provenance": "textbook printed solution (Put It into Practice LO 2.3)"
+  },
+  "prompt": "7/31 の決算整理仕訳 5 件を起票し, 整理後試算表を作成せよ。",
+  "given": {
+    "chart_of_accounts": [
+      "Cash", "AccountsReceivable", "Supplies", "PrepaidInsurance", "Equipment",
+      "AccountsPayable", "CommonStock", "Dividends", "ServiceRevenue",
+      "MaintenanceAndRepairsExpense", "SalariesAndWagesExpense",
+      "DepreciationExpense", "AccumulatedDepreciationEquipment", "InsuranceExpense",
+      "SuppliesExpense", "SalariesAndWagesPayable"
+    ],
+    "ea_account_map": {
+      "Cash": "Cash",
+      "AccountsReceivable": "AccountsReceivable",
+      "Supplies": "PrepaidExpenses",
+      "PrepaidInsurance": "PrepaidExpenses",
+      "Equipment": "Fixtures",
+      "AccountsPayable": "AccountsPayable",
+      "CommonStock": "CapitalStock",
+      "Dividends": "RetainedEarnings",
+      "ServiceRevenue": "ReceiptFee",
+      "MaintenanceAndRepairsExpense": "MiscellaneousExpenses",
+      "SalariesAndWagesExpense": "WageExpenditure",
+      "DepreciationExpense": "Depreciation",
+      "AccumulatedDepreciationEquipment": "AccumulatedDepreciation",
+      "InsuranceExpense": "MiscellaneousExpenses",
+      "SuppliesExpense": "SuppliesExpenses",
+      "SalariesAndWagesPayable": "AccruedExpenses"
+    },
+    "map_note": {
+      "Supplies": "No dedicated Supplies (asset) constructor exists in EA's elementary chart; aliased to the generic deferral-asset account PrepaidExpenses. This collides with PrepaidInsurance (also aliased to PrepaidExpenses) — the EA oracle will merge two economically distinct GT sub-ledgers onto one account. Accounting-review point.",
+      "PrepaidInsurance": "No PrepaidInsurance-specific constructor exists; aliased to the generic deferral-asset account PrepaidExpenses (same collision as Supplies above).",
+      "Equipment": "No literal Equipment constructor; EA's elementary PP&E set is Building/Machinery/Vehicle/Fixtures. Aliased to Fixtures (備品, general small-business capital equipment) as the closest generic fit absent more specific detail.",
+      "CommonStock": "Aliased to CapitalStock (資本金) — treated as a clear naming translation (US-GAAP CommonStock ≈ contributed capital), not a coverage gap.",
+      "Dividends": "EA's elementary chart has no temporary Dividends-declared contra-equity account (no US-style declaration-date entry modeled at the 日商簿記 elementary level). Aliased directly to RetainedEarnings, which is where a declared dividend nets out at closing anyway; this loses the temporary-account audit trail. Accounting-review point.",
+      "ServiceRevenue": "No dedicated service-revenue constructor; Sales (売上) connotes merchandise sale, not service fees. Aliased to ReceiptFee (受取手数料, fee/commission revenue) as the closest available service-type revenue account. Accounting-review point — imperfect fit for window-washing service fees.",
+      "MaintenanceAndRepairsExpense": "No maintenance/repairs-specific expense constructor; aliased to the generic catch-all MiscellaneousExpenses. Collides with InsuranceExpense (also aliased there). Accounting-review point.",
+      "SalariesAndWagesExpense": "Aliased to WageExpenditure (給料) — treated as a clear naming translation (salaries+wages combined into one wage-expense account), not a coverage gap.",
+      "DepreciationExpense": "Aliased to Depreciation (減価償却費) — clear naming translation; same alias already used in closing-depreciation-straightline-003.",
+      "AccumulatedDepreciationEquipment": "EA's AccumulatedDepreciation constructor is generic (no per-asset-class subdivision); the '...Equipment' qualifier is dropped. Aliased to AccumulatedDepreciation. Accounting-review point — EA cannot currently distinguish accumulated depreciation by underlying asset class.",
+      "InsuranceExpense": "No insurance-expense-specific constructor; aliased to the generic catch-all MiscellaneousExpenses (same collision as MaintenanceAndRepairsExpense above). Accounting-review point.",
+      "SuppliesExpense": "Aliased to SuppliesExpenses (pluralization-only difference) — clear naming translation, not a coverage gap.",
+      "SalariesAndWagesPayable": "Aliased to AccruedExpenses (未払費用, deferral-accrual liability) — a strong conceptual fit for a period-end accrued-salaries adjusting entry, though the constructor is generic rather than salary-specific."
+    },
+    "entity": "Kleene Window Washing Inc.",
+    "date": "2028-07-31",
+    "unadjusted_trial_balance": {
+      "Cash": {"debit": 5410},
+      "AccountsReceivable": {"debit": 4600},
+      "Supplies": {"debit": 900},
+      "PrepaidInsurance": {"debit": 1800},
+      "Equipment": {"debit": 8000},
+      "AccountsPayable": {"credit": 5400},
+      "CommonStock": {"credit": 12000},
+      "Dividends": {"debit": 600},
+      "ServiceRevenue": {"credit": 6200},
+      "MaintenanceAndRepairsExpense": {"debit": 290},
+      "SalariesAndWagesExpense": {"debit": 2000},
+      "totals": {"debit": 23600, "credit": 23600}
+    },
+    "adjustment_data": [
+      "未請求・未収の役務提供 1,700(7/31)",
+      "当月の設備減価償却 180",
+      "保険料の 1/12 が当月分(PrepaidInsurance 1,800)",
+      "実地棚卸 supplies 320(帳簿 900)",
+      "未払従業員給与 400"
+    ]
+  },
+  "expected_output": {
+    "components": ["journal", "derived"],
+    "format_note": "Return a single JSON object with keys \"journal\" (the 5 adjusting entries as 10 postings: accrued unbilled revenue, equipment depreciation, insurance expiration, supplies used, accrued salaries) and \"derived\" (flat map with keys \"adjusted_trial_balance_totals.debit\" and \"adjusted_trial_balance_totals.credit\")."
+  },
+  "ground_truth": {
+    "journal": [
+      {"side": "debit",  "account": "AccountsReceivable",               "amount": 1700},
+      {"side": "credit", "account": "ServiceRevenue",                   "amount": 1700},
+      {"side": "debit",  "account": "DepreciationExpense",              "amount": 180},
+      {"side": "credit", "account": "AccumulatedDepreciationEquipment", "amount": 180},
+      {"side": "debit",  "account": "InsuranceExpense",                 "amount": 150},
+      {"side": "credit", "account": "PrepaidInsurance",                 "amount": 150},
+      {"side": "debit",  "account": "SuppliesExpense",                  "amount": 580},
+      {"side": "credit", "account": "Supplies",                         "amount": 580},
+      {"side": "debit",  "account": "SalariesAndWagesExpense",          "amount": 400},
+      {"side": "credit", "account": "SalariesAndWagesPayable",          "amount": 400}
+    ],
+    "derived": {
+      "adjusted_trial_balance_totals.debit": 25880,
+      "adjusted_trial_balance_totals.credit": 25880
+    }
+  },
+  "review": "整理後試算表合計 25,880 = 25,880 の一致と, 各整理仕訳の deferral/accrual 分類・正準科目名の妥当性。",
+  "confidence": "high — 原本 PDF p.2-35/2-36 で全数値突合・内部整合(合計 25,880)確認。"
+}

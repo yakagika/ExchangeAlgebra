@@ -1,0 +1,77 @@
+{
+  "id": "audit-balance-trace-009",
+  "category": "audit",
+  "difficulty": "mechanical",
+  "ea_coverage": "ok",
+  "audit": true,
+  "source": {
+    "ref": "self-authored"
+  },
+  "prompt": "仕訳から各勘定残高を計算し、主張残高との不一致を指摘せよ。",
+  "given": {
+    "chart_of_accounts": [
+      "Cash",
+      "Sales",
+      "Rent"
+    ],
+    "ea_account_map": {
+      "Cash": "Cash",
+      "Sales": "Sales",
+      "Rent": "RentExpense"
+    },
+    "given_journal": [
+      {
+        "id": "e1",
+        "postings": [
+          {
+            "side": "debit",
+            "account": "Cash",
+            "amount": 1000
+          },
+          {
+            "side": "credit",
+            "account": "Sales",
+            "amount": 1000
+          }
+        ]
+      },
+      {
+        "id": "e2",
+        "postings": [
+          {
+            "side": "debit",
+            "account": "Rent",
+            "amount": 300
+          },
+          {
+            "side": "credit",
+            "account": "Cash",
+            "amount": 300
+          }
+        ]
+      }
+    ],
+    "claimed_balances": {
+      "Cash": 600
+    }
+  },
+  "expected_output": {
+    "components": [
+      "findings",
+      "derived"
+    ],
+    "format_note": "Return one JSON object with keys 'findings' (array of {type, locus, detail}; report any account whose computed balance disagrees with claimed_balances) and 'derived' (flat map; key '<Account>.computed' = the balance you computed for that account from given_journal). Use 'type' from this fixed taxonomy: imbalance (debits != credits within an entry), nonexistent_account (account not in the chart / accounts list), balance_mismatch (computed account balance disagrees with a claimed balance), category_violation (posting inconsistent with the account's category). 'locus' = the entry id (e.g. \"e2\") for entry-level findings, or the account name for account-level findings such as balance_mismatch."
+  },
+  "ground_truth": {
+    "findings": [
+      {
+        "type": "balance_mismatch",
+        "locus": "Cash",
+        "detail": "計算残高700 ≠ 主張残高600、差異100"
+      }
+    ],
+    "derived": {
+      "Cash.computed": 700
+    }
+  }
+}

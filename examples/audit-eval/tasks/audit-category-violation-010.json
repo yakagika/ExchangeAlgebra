@@ -1,0 +1,76 @@
+{
+  "id": "audit-category-violation-010",
+  "category": "audit",
+  "difficulty": "mechanical",
+  "ea_coverage": "ok",
+  "audit": true,
+  "source": {
+    "ref": "self-authored"
+  },
+  "prompt": "勘定科目カテゴリの観点で不適切な記帳を指摘せよ。",
+  "given": {
+    "accounts": {
+      "Cash": "asset",
+      "Sales": "revenue",
+      "UtilitiesExpense": "expense"
+    },
+    "chart_of_accounts": [
+      "Cash",
+      "Sales",
+      "UtilitiesExpense"
+    ],
+    "ea_account_map": {
+      "Cash": "Cash",
+      "Sales": "Sales",
+      "UtilitiesExpense": "UtilitiesExpense"
+    },
+    "given_journal": [
+      {
+        "id": "e1",
+        "postings": [
+          {
+            "side": "debit",
+            "account": "UtilitiesExpense",
+            "amount": 200
+          },
+          {
+            "side": "credit",
+            "account": "Cash",
+            "amount": 200
+          }
+        ]
+      },
+      {
+        "id": "e2",
+        "postings": [
+          {
+            "side": "debit",
+            "account": "Sales",
+            "amount": 150
+          },
+          {
+            "side": "credit",
+            "account": "Cash",
+            "amount": 150
+          }
+        ]
+      }
+    ]
+  },
+  "expected_output": {
+    "components": [
+      "findings"
+    ],
+    "format_note": "Return one JSON object with key 'findings': an array of {type, locus, detail} objects, one per entry whose account category (per given.accounts) is inconsistent with the economic nature of the posting. Use 'type' from this fixed taxonomy: imbalance (debits != credits within an entry), nonexistent_account (account not in the chart / accounts list), balance_mismatch (computed account balance disagrees with a claimed balance), category_violation (posting inconsistent with the account's category). 'locus' = the entry id (e.g. \"e2\") for entry-level findings, or the account name for account-level findings such as balance_mismatch."
+  },
+  "ground_truth": {
+    "findings": [
+      {
+        "type": "category_violation",
+        "locus": "e2",
+        "detail": "費用支払を収益勘定 Sales の借方に計上(費用勘定を使うべき)"
+      }
+    ]
+  },
+  "review": "e2 を『カテゴリ違反』と断ずるのは妥当か(売上返品/売上値引の正当な借記と紛らわしくないか)。境界の明確な題材に差し替えるべきか。"
+}

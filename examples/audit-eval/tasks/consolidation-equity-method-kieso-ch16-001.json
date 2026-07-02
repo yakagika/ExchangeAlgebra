@@ -1,0 +1,57 @@
+{
+  "id": "consolidation-equity-method-kieso-ch16-001",
+  "category": "consolidation",
+  "difficulty": "judgment",
+  "ea_coverage": "ok",
+  "ea_coverage_note": "2026-06-30: 持分法ロールフォワードを EA Bookkeeping.equityMethod{EarningsEntry,DividendEntry,Entries} + equityMethodBalance が correct-by-construction で保証 (haskell-exchange-algebra@e6f89a6, tag landed/t4b-equity-method, 新科目 InvestmentInAssociate/EquityInEarningsOfInvestee)。完全連結/NCI/外貨換算は別課題 (#7, Advanced 範囲) で needs-extension のまま。",
+  "audit": false,
+  "source": {
+    "ref": "kieso",
+    "origin": "Kieso et al. Intermediate Accounting 19e, ch.16 Investments, Put It into Practice LO 16.2/16.3 part b (book p. 16-22..16-23), Potsaid Company / Buyuk Inc.",
+    "ground_truth_provenance": "textbook printed solution (Put It into Practice LO 16.2/16.3 part b, equity-method entries)"
+  },
+  "prompt": "重要な影響力を行使できる(持分法)前提で, Potsaid の 2028・2029 仕訳を示せ。",
+  "given": {
+    "chart_of_accounts": ["EquityInvestmentsBuyuk", "Cash", "InvestmentIncome"],
+    "ea_account_map": {
+      "EquityInvestmentsBuyuk": "InvestmentInAssociate",
+      "Cash": "Cash",
+      "InvestmentIncome": "EquityInEarningsOfInvestee"
+    },
+    "map_note": {
+      "EquityInvestmentsBuyuk": "Aliased to the EA canonical equity-method investment account InvestmentInAssociate (関係会社株式), newly landed in EA develop specifically for this task pattern (T4b, commit e6f89a6, tag landed/t4b-equity-method) — the entity-specific 'Buyuk' suffix collapses to the generic canonical account. Clear counterpart, not a coverage gap.",
+      "InvestmentIncome": "Aliased to the EA canonical equity-method income account EquityInEarningsOfInvestee (持分法による投資利益), landed in the same T4b increment as InvestmentInAssociate above. Clear counterpart, not a coverage gap."
+    },
+    "investor": "Potsaid Company",
+    "investee": "Buyuk Inc.",
+    "ownership": "30%(100,000 株), significant influence あり",
+    "facts": [
+      "2028/12/31 に Buyuk の 30%(100,000 株)を 2,400,000 で取得。",
+      "Buyuk が 4/share の現金配当を 2029/6/30 と 12/31 に宣言・支払。",
+      "Buyuk の 2029 純利益 1,460,000。",
+      "2029/12/31 の Buyuk 株 公正価値 27/share。"
+    ]
+  },
+  "expected_output": {
+    "components": ["journal", "derived"],
+    "format_note": "Return a single JSON object with keys \"journal\" (the 8 equity-method postings across 2028-12-31 / 2029-06-30 / 2029-12-31, date tags optional) and \"derived\" (flat map with key \"investment_balance_2029_12_31\"); do not record any fair-value adjustment — the 27/share fair value is a distractor under the equity method."
+  },
+  "ground_truth": {
+    "journal": [
+      {"date": "2028-12-31", "side": "debit",  "account": "EquityInvestmentsBuyuk", "amount": 2400000},
+      {"date": "2028-12-31", "side": "credit", "account": "Cash",                   "amount": 2400000},
+      {"date": "2029-06-30", "side": "debit",  "account": "Cash",                   "amount": 400000},
+      {"date": "2029-06-30", "side": "credit", "account": "EquityInvestmentsBuyuk", "amount": 400000},
+      {"date": "2029-12-31", "side": "debit",  "account": "Cash",                   "amount": 400000},
+      {"date": "2029-12-31", "side": "credit", "account": "EquityInvestmentsBuyuk", "amount": 400000},
+      {"date": "2029-12-31", "side": "debit",  "account": "EquityInvestmentsBuyuk", "amount": 438000},
+      {"date": "2029-12-31", "side": "credit", "account": "InvestmentIncome",       "amount": 438000}
+    ],
+    "derived": {
+      "investment_balance_2029_12_31": 2038000
+    },
+    "fair_value_adjustment_recognized": false
+  },
+  "review": "持分法残高ロールフォワード(2,400,000+438,000-800,000=2,038,000)と FV 調整を計上しないこと(27/share は持分法では distractor)。ea_coverage:needs-extension — 完全連結・非支配持分・外貨換算は Advanced Accounting 範囲で本書非カバー・EA 未モデル, 本 1 行(equity-method)が現状の最近接。",
+  "confidence": "high — 原本 PDF p.16-22/16-23 で突合・内部整合(残高 2,038,000)確認。"
+}
