@@ -141,13 +141,15 @@ executables:
     source-dirs:         optimization/CGE
 
   # Phase 1 (general-equilibrium:phase1-cge-reproduction) — the Simulate.Lite
-  # rebuild of the Hosoe Ch.6 CGE toy (task 1b skeleton). Single-file
-  # Main (unlike cge/CGE.hs's Main+library split): CGELite.hs both defines
-  # the model and runs it. See the module's own Haddock for the design docs.
+  # rebuild of the Hosoe Ch.6 CGE toy (task 1b skeleton + task 1a
+  # calibration). CGELite.hs is the Main; Calibration is the GAMS-mirroring
+  # SAM/parameter port. 'other-modules' is explicit so the test main under
+  # optimization/cge-lite/test is not auto-scooped into this exe.
   cge-lite:
     <<: *exe-defaults
     main:                CGELite.hs
     source-dirs:         optimization/cge-lite
+    other-modules:       Calibration
 
   # Phase 5 (feat/market-scale-experiments): the market-scale experiment. The
   # value-type-polymorphic model lives in MarketModel; marketEx1 (MoneyDouble)
@@ -167,6 +169,25 @@ executables:
     main:                marketEx1d.hs
     source-dirs:         market
     other-modules:       MarketModel
+
+tests:
+  # Task-1a calibration sentinel (general-equilibrium:phase1-cge-reproduction):
+  # the Calibration port must match the GAMS ground truth (stdcge.lst display
+  # values, results.csv benchmark, SAM balance, accounting identities).
+  # 'other-modules' is explicit so CGELite.hs (a second Main in the shared
+  # source dir) is not auto-scooped.
+  cge-lite-test:
+    main:                CalibrationTest.hs
+    source-dirs:
+    - optimization/cge-lite
+    - optimization/cge-lite/test
+    other-modules:       Calibration
+    ghc-options:
+    - -O0
+    when:
+    - condition: os(darwin)
+      ghc-options:
+      - '-optl-Wl,-no_warn_duplicate_libraries'
 
 benchmarks:
   # Performance roadmap benchmark harness (ROAD_MAP "ベンチマーク基盤の整備").

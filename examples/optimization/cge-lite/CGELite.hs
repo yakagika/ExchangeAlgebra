@@ -18,8 +18,9 @@
   actually builds and runs, and the 'excessDemand'\/'settle' split mandated by
   the design doc below. __No solver is implemented__ — 'solveEquilibrium' is a
   typed stub that errors when called (R2 scope). Calibration (SAM -> full
-  parameter set) is Phase 1a scope, also not here; 'CGEParams' only carries
-  what the type design needs to demonstrate (household count, numeraire).
+  parameter set) __is done__ (task 1a, 2026-07-02): 'CGEParams' carries the
+  full Hosoe Ch.6 calibration via 'cgeCalibration' (see "Calibration" and its
+  sentinel suite @cge-lite-test@); the stages don't consume it yet (R2).
 
   == Design of record
 
@@ -64,6 +65,8 @@ import           ExchangeAlgebra.Simulate.Lite
                      , SimSpec, mkSimSpec
                      , runLite )
 
+import qualified Calibration                     as C
+
 ------------------------------------------------------------------
 -- * Products (fixed — the Hosoe Ch.6 two-good structure)
 ------------------------------------------------------------------
@@ -104,6 +107,29 @@ lastProduct = LAB
 -- | All eight real products (excludes 'ProductWild').
 allProducts :: [Product]
 allProducts = [fstProduct .. lastProduct]
+
+-- | Map a calibration good (SAM account @BRD@\/@MLK@) to its domestic\/
+-- imported\/composite 'Product' variety. The calibration side ("Calibration")
+-- indexes by SAM account exactly as the GAMS source does; the ledger side
+-- (this module) needs the variety split — these three functions (plus
+-- 'factorProduct') are the whole seam between the two indexings, so R2's
+-- stage bodies never hand-translate accounts inline.
+domesticOf, importedOf, compositeOf :: C.Account -> Product
+domesticOf  C.BRD = BRDD
+domesticOf  C.MLK = MLKD
+domesticOf  a     = error ("domesticOf: not a good: " ++ show a)
+importedOf  C.BRD = BRDF
+importedOf  C.MLK = MLKF
+importedOf  a     = error ("importedOf: not a good: " ++ show a)
+compositeOf C.BRD = BRDC
+compositeOf C.MLK = MLKC
+compositeOf a     = error ("compositeOf: not a good: " ++ show a)
+
+-- | Map a calibration factor (SAM account @CAP@\/@LAB@) to its 'Product'.
+factorProduct :: C.Account -> Product
+factorProduct C.CAP = CAP
+factorProduct C.LAB = LAB
+factorProduct a     = error ("factorProduct: not a factor: " ++ show a)
 
 ------------------------------------------------------------------
 -- * Entities — N-parametrized households (GE plan task 1d)
@@ -225,28 +251,33 @@ type Term = Int
 type CGENote = (CGEEvent, Term)
 
 ------------------------------------------------------------------
--- * Calibration parameters (R1 stub — full set is Phase 1a scope)
+-- * Calibration parameters (task 1a — full Hosoe Ch.6 set)
 ------------------------------------------------------------------
 
--- | Calibration parameters. __R1 stub__: only what the type design needs to
--- demonstrate is wired — the N-parametrized household list (task 1d) and
--- the numeraire pin. The full Hosoe Ch.6 parameter set (CES\/CET\/Armington
--- scale and share coefficients, elasticities, tax rates, savings
--- propensities — see the classic @CGE.hs@ example's @InitVar@ and the GAMS
--- calibration block) is GE plan task 1a, ported separately.
+-- | Calibration parameters: the N-parametrized household list (task 1d),
+-- the numeraire pin, and — since task 1a — the full Hosoe Ch.6 calibration
+-- ('C.Calibration': benchmark levels + CES\/CET\/Armington scale and share
+-- coefficients, elasticities, tax rates, savings propensities), the Lite
+-- counterpart of the classic @CGE.hs@ example's @InitVar@. The calibration
+-- is verified against the GAMS ground truth by the @cge-lite-test@ suite;
+-- R2's stage bodies read it through 'wParams'.
 data CGEParams = CGEParams
-    { cgeHouseholds :: ![HouseholdId]
+    { cgeHouseholds  :: ![HouseholdId]
       -- ^ The N-parametrized household population (task 1d). A single
       -- 'representativeHousehold' for the current N = 1 toy.
-    , cgeNumeraire  :: !Product
+    , cgeNumeraire   :: !Product
       -- ^ The numeraire good, @pf(LAB) = 1@ in the Hosoe Ch.6 benchmark.
+    , cgeCalibration :: !C.Calibration
+      -- ^ Benchmark levels ('C.calLevels0') + calibrated parameters
+      -- ('C.calParams'), straight from the SAM (task 1a).
     } deriving (Eq, Show)
 
--- | The R1 default: N = 1, numeraire = 'LAB' (Hosoe Ch.6).
+-- | The default: N = 1, numeraire = 'LAB', the Hosoe Ch.6 'C.calibration'.
 defaultCGEParams :: CGEParams
 defaultCGEParams = CGEParams
-    { cgeHouseholds = [representativeHousehold]
-    , cgeNumeraire  = LAB
+    { cgeHouseholds  = [representativeHousehold]
+    , cgeNumeraire   = LAB
+    , cgeCalibration = C.calibration
     }
 
 ------------------------------------------------------------------
@@ -506,9 +537,16 @@ main = do
         prices0 = M.fromList [ (p, 1.0) | p <- allProducts ]
         z       = excessDemand params prices0
         ledger  = settle params prices0
+    let cal = cgeCalibration params
+        cp  = C.calParams cal
     putStrLn "=== CGE-Lite skeleton (R1) ==="
     putStrLn ("households (N)     : " ++ show (length (cgeHouseholds params)))
     putStrLn ("numeraire          : " ++ show (cgeNumeraire params))
+    putStrLn "--- calibration (task 1a; full check = cge-lite-test) ---"
+    putStrLn ("alpha              : " ++ show (M.toList (C.alpha cp)))
+    putStrLn ("b                  : " ++ show (M.toList (C.b cp)))
+    putStrLn ("ssp / ssg / taud   : " ++ show (C.ssp cp, C.ssg cp, C.taud cp))
+    putStrLn ("benchmark UU       : " ++ show (C.benchmarkUtility cal))
     putStrLn ("trial prices       : " ++ show (M.toList prices0))
     putStrLn ("excess demand z(p) : " ++ show (M.toList z))
     putStrLn ("settled ledger norm: " ++ show (norm ledger))
