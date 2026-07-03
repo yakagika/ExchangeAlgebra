@@ -554,8 +554,19 @@ def score(
         ea_postings = _to_ea_postings(model_journal, task, resolver)
         oracle_verdict = run_oracle(_json.dumps(ea_postings), worktree_root)
         if oracle_verdict is not None and oracle_verdict.get("oracle_ok"):
-            verification_gap = 1 if oracle_verdict.get("verification_gap") else 0
             violation_types = oracle_verdict.get("violation_types", [])
+            # category_violation (side-consistency for nominal accounts) is
+            # advisory only: closing transfers and consolidation eliminations
+            # legitimately post contra-side (credit Purchases, debit Sales) and
+            # EA represents them via Hat — its type system does NOT reject
+            # them. Counting them as verification_gap overstates what EA
+            # guarantees by construction and flagged GT-correct answers in the
+            # 5-seed Track R pilot (10/10 gap=1 cells were this false
+            # positive). The gap counterfactual is therefore restricted to
+            # errors EA truly rejects: unresolvable account, non-positive
+            # amount, imbalance.
+            structural = [v for v in violation_types if v != "category_violation"]
+            verification_gap = 1 if structural else 0
 
     # ---- convergence (P4 retry loop) -----------------------------------------
     iterations = arm_result.get("iterations")
