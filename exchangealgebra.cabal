@@ -1,10 +1,8 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.39.1.
+-- This file has been generated from package.yaml by hpack version 0.39.6.
 --
 -- see: https://github.com/sol/hpack
---
--- hash: 5124667436adc945611ea739fb80c572aef2a1a2ec1fbabf73108a64159163fd
 
 name:           exchangealgebra
 version:        0.5.0.0
@@ -36,6 +34,7 @@ library
       ExchangeAlgebra.Algebra.Transfer
       ExchangeAlgebra.Bookkeeping
       ExchangeAlgebra.Convert
+      ExchangeAlgebra.Convert.Checked
       ExchangeAlgebra.Convert.Csv
       ExchangeAlgebra.Journal
       ExchangeAlgebra.Journal.Transfer

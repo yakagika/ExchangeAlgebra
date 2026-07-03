@@ -8,6 +8,7 @@ module Main (main) where
 
 import           ExchangeAlgebra.Journal
 import qualified ExchangeAlgebra.Convert      as EC
+import qualified ExchangeAlgebra.Convert.Checked as ECC
 import qualified ExchangeAlgebra.Convert.Csv  as ECsv
 import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Algebra.Transfer as EAT
@@ -40,6 +41,7 @@ import           ExchangeAlgebra.Write
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Map.Strict     as M
 import qualified Data.List           as L
+import qualified Data.List.NonEmpty  as NE
 import qualified Data.Binary         as Binary
 import qualified Data.Text           as T
 import qualified Data.Text.IO        as TIO
@@ -1584,6 +1586,118 @@ testConvertCsvRoundTrip = do
     expectLeft "convert-csv: rejects wrong field count"
         (\e -> case e of EC.MalformedCsv _ -> True; _ -> False) badArity
 
+-- ================================================================
+-- ExchangeAlgebra.Convert.Checked: checked construction for generated entries.
+-- ================================================================
+
+type CheckedAlgM = EA.Alg MoneyDecimal (HatBase AccountTitles)
+type CheckedJournalM = EJ.Journal Int MoneyDecimal (HatBase AccountTitles)
+
+checkedEntryM :: [(Side, AccountTitles, MoneyDecimal)]
+              -> Either (NE.NonEmpty (ECC.EntryError MoneyDecimal)) CheckedAlgM
+checkedEntryM = ECC.checkedEntry
+
+checkedJournalM :: [(Int, [(Side, AccountTitles, MoneyDecimal)])]
+                -> Either (NE.NonEmpty (ECC.JournalError Int MoneyDecimal)) CheckedJournalM
+checkedJournalM = ECC.checkedJournal
+
+genPositiveAmountMD :: Gen MoneyDecimal
+genPositiveAmountMD = fromInteger <$> choose (1, 9999)
+
+genCheckedAmountMD :: Gen MoneyDecimal
+genCheckedAmountMD = fromInteger <$> choose (-5, 20)
+
+genCheckedSide :: Gen Side
+genCheckedSide = frequency
+    [ (8, elements [Debit, Credit])
+    , (1, pure Side)
+    ]
+
+genCheckedAccountTitle :: Gen AccountTitles
+genCheckedAccountTitle = frequency
+    [ (12, genAccountTitle)
+    , (1, pure AccountTitle)
+    ]
+
+genCheckedPosting :: Gen (Side, AccountTitles, MoneyDecimal)
+genCheckedPosting =
+    (,,) <$> genCheckedSide <*> genCheckedAccountTitle <*> genCheckedAmountMD
+
+genAcceptedEntryRows :: Gen [(Side, AccountTitles, MoneyDecimal)]
+genAcceptedEntryRows = do
+    amount <- genPositiveAmountMD
+    debitAccount <- genAccountTitle
+    creditAccount <- genAccountTitle
+    pure [ (Debit, debitAccount, amount)
+         , (Credit, creditAccount, amount)
+         ]
+
+genCheckedEntryRows :: Gen [(Side, AccountTitles, MoneyDecimal)]
+genCheckedEntryRows = frequency
+    [ (5, resize 8 (listOf genCheckedPosting))
+    , (3, genAcceptedEntryRows)
+    , (1, pure [])
+    ]
+
+checkedEntryAcceptsSpec :: [(Side, AccountTitles, MoneyDecimal)] -> Bool
+checkedEntryAcceptsSpec rows =
+    not (null rows)
+    && all validPosting rows
+    && ECC.exactBalanced (EC.journalFromSides rows :: CheckedAlgM)
+  where
+    validPosting (side, account, amount) =
+        side /= Side
+        && account /= AccountTitle
+        && amount > 0
+        && not (EA.isErrorValue amount)
+
+checkedConvertProperties :: IO ()
+checkedConvertProperties = do
+    quickProp "convert-checked: checkedEntry accepts iff checked predicate" $
+        forAll genCheckedEntryRows $ \rows ->
+            let expected = checkedEntryAcceptsSpec rows
+                actual = case checkedEntryM rows of
+                    Right _ -> True
+                    Left _  -> False
+            in actual == expected
+
+    quickProp "convert-checked: checkedEntry equals journalFromSides on accept" $
+        forAll genCheckedEntryRows $ \rows ->
+            case checkedEntryM rows of
+                Right alg -> alg == (EC.journalFromSides rows :: CheckedAlgM)
+                Left _    -> True
+
+    quickProp "convert-checked: accepted entries form exact-balanced submonoid" $
+        forAll genAcceptedEntryRows $ \rows1 ->
+        forAll genAcceptedEntryRows $ \rows2 ->
+            case (checkedEntryM rows1, checkedEntryM rows2) of
+                (Right alg1, Right alg2) -> ECC.exactBalanced (alg1 .+ alg2)
+                _                        -> False
+
+    quickProp "convert-checked: checkedJournal duplicate txid only DuplicateTxId" $
+        forAll genAcceptedEntryRows $ \rows1 ->
+        forAll genAcceptedEntryRows $ \rows2 ->
+            case checkedJournalM [(1, rows1), (1, rows2)] of
+                Left errs -> NE.toList errs == [ECC.DuplicateTxId 1]
+                Right _   -> False
+
+    quickProp "convert-checked: reconcileSources coverage and amount checks" $
+        forAll genPositiveAmountMD $ \amount ->
+            let entry amt = [(Debit, Cash, amt), (Credit, Sales, amt)]
+                shifted = amount + 1
+                journalResult = checkedJournalM [(1, entry amount)]
+                unknownResult = checkedJournalM [(1, entry amount), (2, entry 5)]
+            in case (journalResult, unknownResult) of
+                (Right journal, Right journalWithUnknown) ->
+                    ECC.reconcileSources [(1, amount)] journal == []
+                    && ECC.reconcileSources [(1, amount), (2, 5)] journal
+                        == [ECC.MissingSource 2]
+                    && ECC.reconcileSources [(1, amount)] journalWithUnknown
+                        == [ECC.UnknownSource 2]
+                    && ECC.reconcileSources [(1, shifted)] journal
+                        == [ECC.AmountMismatch 1 shifted amount]
+                _ -> False
+
 axiomProperties :: IO ()
 axiomProperties = do
     -- Definition 6 axioms (Double; semantic equality via exact per-base nets)
@@ -2939,6 +3053,7 @@ main = do
     testMarketWindowTransparent
     testMarketStageOfAutoNote
     testConvertCsvRoundTrip
+    checkedConvertProperties
     axiomProperties
     journalProperties
     quotientProperties

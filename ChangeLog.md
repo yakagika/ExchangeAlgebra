@@ -3,6 +3,21 @@
 ## Unreleased
 
 ### Added
+- `ExchangeAlgebra.Convert.Checked` (new module): checked construction for
+  externally generated (LLM/runner) journal entries. `checkedEntry` /
+  `checkedEntryText` reject empty entries, wildcard `Side`/`AccountTitle`,
+  non-positive amounts and debit/credit imbalance at construction time
+  (errors accumulate as `NonEmpty EntryError` with 0-origin posting indices);
+  `checkedJournal` additionally pre-scans txid duplicates (`DuplicateTxId`)
+  before notes are merged into the `Journal`; `reconcileSources` performs
+  source-coverage reconciliation (missing / unknown txid / amount mismatch)
+  between input transactions and the note-indexed journal. Balance uses the
+  new `exactBalanced` (strict `==` over `norm . decL` / `norm . decR` — the
+  exact-equality predicate is closed under `(.+)`, unlike the tolerance-based
+  `balance`). Accepted values are built with `journalFromSides`, so the
+  unchecked path's semantics are unchanged. Property tests (accept-iff,
+  equivalence, submonoid closure, duplicate rejection, reconciliation) and
+  doctests included.
 - `stepBackWith` / `spillDeleteDecision` (`ExchangeAlgebra.Simulate`): the
   eviction-window arithmetic and the per-chunk delete decision are now pure,
   exported, unit-tested functions — the __single source__ of "which term range
