@@ -10,6 +10,8 @@ import           ExchangeAlgebra.Journal
 import qualified ExchangeAlgebra.Convert      as EC
 import qualified ExchangeAlgebra.Convert.Checked as ECC
 import qualified ExchangeAlgebra.Convert.Csv  as ECsv
+import qualified ExchangeAlgebra.Assist       as Assist
+import qualified ExchangeAlgebra.Assist.Descriptions as AssistDesc
 import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Algebra.Transfer as EAT
 import qualified ExchangeAlgebra.Journal  as EJ
@@ -42,6 +44,8 @@ import qualified Data.HashMap.Strict as HM
 import qualified Data.Map.Strict     as M
 import qualified Data.List           as L
 import qualified Data.List.NonEmpty  as NE
+import           Data.Char           (isAlpha, isAlphaNum, isSpace, isUpper, ord)
+import           Data.Maybe          (mapMaybe)
 import qualified Data.Binary         as Binary
 import qualified Data.Text           as T
 import qualified Data.Text.IO        as TIO
@@ -1587,6 +1591,157 @@ testConvertCsvRoundTrip = do
         (\e -> case e of EC.MalformedCsv _ -> True; _ -> False) badArity
 
 -- ================================================================
+-- ExchangeAlgebra.Assist: account descriptions and LLM feedback helpers.
+-- ================================================================
+
+testAssistDescriptionsDrift :: IO ()
+testAssistDescriptionsDrift = do
+    raw <- readFileStrict "src/ExchangeAlgebra/Algebra/Base/Element.hs"
+    let parsed = L.sort (parseAssistDescriptionRows raw)
+        generated = L.sort
+            [ (show title, nameEn, nameJa)
+            | (title, nameEn, nameJa, _) <- AssistDesc.accountDescriptions
+            ]
+    assertEqual "Assist descriptions match AccountTitles Haddock (constructor/nameEn/nameJa)"
+        parsed generated
+
+testAssistDescribeAccount :: IO ()
+testAssistDescribeAccount = do
+    let missing =
+            [ title
+            | title <- EC.concreteAccountTitles
+            , Assist.describeAccount title == Nothing
+            ]
+    assertEqual "Assist.describeAccount covers every concrete account"
+        ([] :: [AccountTitles]) missing
+    assertEqual "Assist.describeAccount rejects wildcard AccountTitle"
+        Nothing (Assist.describeAccount AccountTitle)
+
+testAssistAllAccountInfos :: IO ()
+testAssistAllAccountInfos = do
+    assertEqual "Assist.allAccountInfos length" 116 (length Assist.allAccountInfos)
+    assertEqual "Assist.allAccountInfos follows concreteAccountTitles order"
+        EC.concreteAccountTitles (L.map Assist.aiTitle Assist.allAccountInfos)
+    forM_ Assist.allAccountInfos $ \info -> do
+        let title = Assist.aiTitle info
+        assertEqual ("Assist.aiDivision " ++ show title)
+            (classifyAccountDivision title) (Assist.aiDivision info)
+        assertEqual ("Assist.aiHomeSide " ++ show title)
+            (whichSide (Not :< title)) (Assist.aiHomeSide info)
+
+testAssistSuggestAccounts :: IO ()
+testAssistSuggestAccounts = do
+    assertEqual "Assist.suggestAccounts cash contains Cash"
+        True (Cash `elem` L.map Assist.aiTitle (Assist.suggestAccounts (T.pack "cash")))
+    assertEqual "Assist.suggestAccounts 現金 contains Cash"
+        True (Cash `elem` L.map Assist.aiTitle (Assist.suggestAccounts (T.pack "現金")))
+    assertEqual "Assist.suggestAccounts empty query"
+        [] (Assist.suggestAccounts T.empty)
+    assertEqual "Assist.suggestAccounts no match"
+        [] (Assist.suggestAccounts (T.pack "zzzznomatch"))
+
+parseAssistDescriptionRows :: String -> [(String, T.Text, T.Text)]
+parseAssistDescriptionRows = mapMaybe finishRow . collectRows . lines
+  where
+    finishRow (constructor, parts, _) =
+        let desc = unwords (words (unwords parts))
+        in case splitAssistDescription desc of
+            Just (nameEn, nameJa) -> Just (constructor, T.pack nameEn, T.pack nameJa)
+            Nothing               -> Nothing
+
+collectRows :: [String] -> [(String, [String], Int)]
+collectRows = go False Nothing []
+  where
+    go _ current acc [] = reverse (flush current acc)
+    go inAccounts current acc (line:rest)
+        | not inAccounts' =
+            go inAccounts' current acc rest
+        | "deriving" `L.isInfixOf` line =
+            reverse (flush current acc)
+        | Just row <- constructorComment line =
+            go inAccounts' (Just row) (flush current acc) rest
+        | otherwise =
+            go inAccounts' (appendContinuation line current) acc rest
+      where
+        inAccounts' = inAccounts || startsAccountTitles line
+
+    flush Nothing acc = acc
+    flush (Just row) acc = row : acc
+
+startsAccountTitles :: String -> Bool
+startsAccountTitles line =
+    "data  AccountTitles" `L.isInfixOf` line
+    || "data AccountTitles" `L.isInfixOf` line
+
+constructorComment :: String -> Maybe (String, [String], Int)
+constructorComment line = do
+    rest <- constructorRest line
+    let stripped = dropWhile isSpace rest
+        constructor = takeWhile isConstructorChar stripped
+    if null constructor || not (isUpper (head constructor))
+        then Nothing
+        else
+            let marker = findSubstring "-- ^" line
+                comment = maybe "" (\i -> drop (i + length "-- ^") line) marker
+                commentCol = maybe (length line) id marker
+            in Just (constructor, [comment], commentCol)
+
+constructorRest :: String -> Maybe String
+constructorRest line =
+    let stripped = dropWhile isSpace line
+    in case stripped of
+        ('|':rest) -> Just rest
+        _ | startsAccountTitles line ->
+            case dropWhile (/= '=') line of
+                ('=':rest) -> Just rest
+                _          -> Nothing
+        _ -> Nothing
+
+isConstructorChar :: Char -> Bool
+isConstructorChar c = isAlphaNum c || c == '_' || c == '\''
+
+appendContinuation :: String -> Maybe (String, [String], Int) -> Maybe (String, [String], Int)
+appendContinuation _ Nothing = Nothing
+appendContinuation line (Just (constructor, parts, commentCol))
+    | indent >= commentCol && "--" `L.isPrefixOf` stripped =
+        let comment = dropWhile isSpace (drop 2 stripped)
+            comment' = case comment of
+                ('^':rest) -> dropWhile isSpace rest
+                _          -> comment
+        in Just (constructor, parts ++ [comment'], commentCol)
+    | otherwise = Just (constructor, parts, commentCol)
+  where
+    stripped = dropWhile isSpace line
+    indent = length line - length stripped
+
+splitAssistDescription :: String -> Maybe (String, String)
+splitAssistDescription desc =
+    case break (== ':') desc of
+        (division, ':':rest)
+            | not (null division) && all isAlpha division ->
+                findJapaneseParen "" (dropWhile isSpace rest)
+        _ -> Nothing
+
+findJapaneseParen :: String -> String -> Maybe (String, String)
+findJapaneseParen _ [] = Nothing
+findJapaneseParen prefix ('(':rest) =
+    case break (== ')') rest of
+        (inside, ')':after)
+            | any ((> 127) . ord) inside ->
+                Just (trim prefix, trim inside)
+            | otherwise ->
+                findJapaneseParen (prefix ++ "(" ++ inside ++ ")") after
+        _ -> Nothing
+findJapaneseParen prefix (c:rest) = findJapaneseParen (prefix ++ [c]) rest
+
+findSubstring :: String -> String -> Maybe Int
+findSubstring needle haystack =
+    L.findIndex (needle `L.isPrefixOf`) (L.tails haystack)
+
+trim :: String -> String
+trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
+
+-- ================================================================
 -- ExchangeAlgebra.Convert.Checked: checked construction for generated entries.
 -- ================================================================
 
@@ -3053,6 +3208,10 @@ main = do
     testMarketWindowTransparent
     testMarketStageOfAutoNote
     testConvertCsvRoundTrip
+    testAssistDescriptionsDrift
+    testAssistDescribeAccount
+    testAssistAllAccountInfos
+    testAssistSuggestAccounts
     checkedConvertProperties
     axiomProperties
     journalProperties

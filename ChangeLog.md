@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Added
+- `ExchangeAlgebra.Assist` (new module): deterministic assistance layer for
+  LLM-facing workflows. `describeAccount` / `allAccountInfos` expose per-account
+  metadata (division and home side derived from `classifyAccountDivision` /
+  `whichSide`; English/Japanese names and description machine-generated from
+  the `AccountTitles` Haddock in `Element.hs` via
+  `tools/gen-assist-descriptions.py`, checked in as
+  `ExchangeAlgebra.Assist.Descriptions` and guarded by a drift test);
+  `suggestAccounts` gives deterministic keyword lookup (no LLM); and
+  `explainEntryError` / `explainJournalErrors` / `explainSourceErrors` render
+  `Convert.Checked` rejections as structured one-line feedback for retry loops.
 - `ExchangeAlgebra.Convert.Checked` (new module): checked construction for
   externally generated (LLM/runner) journal entries. `checkedEntry` /
   `checkedEntryText` reject empty entries, wildcard `Side`/`AccountTitle`,

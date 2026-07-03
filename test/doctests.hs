@@ -16,4 +16,5 @@ main = doctest  [ "-isrc"
                   -- the umbrella, so listed explicitly to check its examples too.
                 , "src/ExchangeAlgebra/Convert.hs"
                 , "src/ExchangeAlgebra/Convert/Csv.hs"
-                , "src/ExchangeAlgebra/Convert/Checked.hs"]
+                , "src/ExchangeAlgebra/Convert/Checked.hs"
+                , "src/ExchangeAlgebra/Assist.hs"]

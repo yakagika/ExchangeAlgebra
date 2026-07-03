@@ -32,6 +32,8 @@ library
       ExchangeAlgebra.Algebra.Base
       ExchangeAlgebra.Algebra.Base.Element
       ExchangeAlgebra.Algebra.Transfer
+      ExchangeAlgebra.Assist
+      ExchangeAlgebra.Assist.Descriptions
       ExchangeAlgebra.Bookkeeping
       ExchangeAlgebra.Convert
       ExchangeAlgebra.Convert.Checked
