@@ -24,6 +24,8 @@ cabal.sandbox.config
 # statics fixtures shock_resolve.py regenerates) are test assets, tracked:
 !examples/optimization/CGE/GAMS/*.csv
 !examples/optimization/CGE/GAMS/shocks/*.csv
+# LHR standard-CGE calibration fixtures are tracked sentinel-test assets.
+!examples/optimization/cge-lite/lhr/*.csv
 .stack-work/
 cabal.project.local
 cabal.project.local~

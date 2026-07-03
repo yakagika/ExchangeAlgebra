@@ -196,6 +196,23 @@ tests:
       ghc-options:
       - '-optl-Wl,-no_warn_duplicate_libraries'
 
+  # Task-1e LHR calibration sentinel (general-equilibrium:phase1-cge-reproduction):
+  # mod100 sections 2+4 must match the Python ground-truth fixture dumps.
+  cge-lite-lhr-calib-test:
+    main:                LhrCalibrationTest.hs
+    source-dirs:
+    - optimization/cge-lite
+    - optimization/cge-lite/test
+    other-modules:
+    - LhrCalibration
+    - TestHarness
+    ghc-options:
+    - -O0
+    when:
+    - condition: os(darwin)
+      ghc-options:
+      - '-optl-Wl,-no_warn_duplicate_libraries'
+
   # Task-1b model sentinel (general-equilibrium:phase1-cge-reproduction):
   # the stage bodies must reproduce the Hosoe Ch.6 benchmark — allocation
   # fields against Levels0, benchmark-zero residuals (incl. the dropped
