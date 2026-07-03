@@ -141,17 +141,19 @@ executables:
     source-dirs:         optimization/CGE
 
   # Phase 1 (general-equilibrium:phase1-cge-reproduction) — the Simulate.Lite
-  # rebuild of the Hosoe Ch.6 CGE toy (task 1b skeleton + task 1a
-  # calibration + R2 solver core). CGELite.hs is the Main; Calibration is
-  # the GAMS-mirroring SAM/parameter port; Solver is the generic damped
-  # Newton/Broyden root finder. 'other-modules' is explicit so the test
-  # mains under optimization/cge-lite/test are not auto-scooped into this exe.
+  # rebuild of the Hosoe Ch.6 CGE toy (task 1a calibration + R2 solver core
+  # + task 1b stages). CGELite.hs is the thin Main; Model is the model proper
+  # (stages, oracle, solve wiring); Calibration is the GAMS-mirroring
+  # SAM/parameter port; Solver is the generic damped Newton/Broyden root
+  # finder. 'other-modules' is explicit so the test mains under
+  # optimization/cge-lite/test are not auto-scooped into this exe.
   cge-lite:
     <<: *exe-defaults
     main:                CGELite.hs
     source-dirs:         optimization/cge-lite
     other-modules:
     - Calibration
+    - Model
     - Solver
 
   # Phase 5 (feat/market-scale-experiments): the market-scale experiment. The
@@ -186,6 +188,28 @@ tests:
     - optimization/cge-lite/test
     other-modules:
     - Calibration
+    - TestHarness
+    ghc-options:
+    - -O0
+    when:
+    - condition: os(darwin)
+      ghc-options:
+      - '-optl-Wl,-no_warn_duplicate_libraries'
+
+  # Task-1b model sentinel (general-equilibrium:phase1-cge-reproduction):
+  # the stage bodies must reproduce the Hosoe Ch.6 benchmark — allocation
+  # fields against Levels0, benchmark-zero residuals (incl. the dropped
+  # Walras/import rows), household-count invariance, and the perturbed-start
+  # convergence smoke (prices -> 1.0, UU -> 25.5085).
+  cge-lite-model-test:
+    main:                ModelTest.hs
+    source-dirs:
+    - optimization/cge-lite
+    - optimization/cge-lite/test
+    other-modules:
+    - Calibration
+    - Model
+    - Solver
     - TestHarness
     ghc-options:
     - -O0
