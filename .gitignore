@@ -20,6 +20,10 @@ cabal.sandbox.config
 *.hp
 *.eventlog
 *.csv
+# ...but the CGE benchmark ground truth (results.csv + the comparative-
+# statics fixtures shock_resolve.py regenerates) are test assets, tracked:
+!examples/optimization/CGE/GAMS/*.csv
+!examples/optimization/CGE/GAMS/shocks/*.csv
 .stack-work/
 cabal.project.local
 cabal.project.local~

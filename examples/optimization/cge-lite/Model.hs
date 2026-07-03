@@ -126,6 +126,8 @@ module Model
     , Term
     , CGENote
       -- * Parameters and signals
+    , Policy (..)
+    , calibratedPolicy
     , CGEParams (..)
     , defaultCGEParams
     , Price
@@ -382,6 +384,27 @@ type CGENote = (CGEEvent, Term)
 -- * Calibration parameters (task 1a — full Hosoe Ch.6 set)
 ------------------------------------------------------------------
 
+-- | The policy (tax) rates the behavioral equations run at — separated from
+-- the calibration because comparative statics (task 1c) means exactly
+-- "change these rates, keep every calibrated share\/scale parameter at its
+-- benchmark value, re-solve". 'calibratedPolicy' is the benchmark point;
+-- a shock scenario overrides fields (e.g. tariff abolition:
+-- @pol { polTaum = 0 <$ polTaum pol }@).
+data Policy = Policy
+    { polTauz :: !(M.Map C.Account Double)
+      -- ^ Production tax rates @tauz(j)@ (eqTz, eqE, eqDs).
+    , polTaum :: !(M.Map C.Account Double)
+      -- ^ Import tariff rates @taum(i)@ (eqTm, eqM).
+    } deriving (Eq, Show)
+
+-- | The benchmark policy: the rates the SAM itself implies ('C.tauz',
+-- 'C.taum').
+calibratedPolicy :: C.Calibration -> Policy
+calibratedPolicy cal = Policy
+    { polTauz = C.tauz (C.calLevels0 cal)
+    , polTaum = C.taum (C.calLevels0 cal)
+    }
+
 -- | Calibration parameters: the N-parametrized household list (task 1d),
 -- the numeraire pin, and the full Hosoe Ch.6 calibration ('C.Calibration':
 -- benchmark levels + CES\/CET\/Armington scale and share coefficients,
@@ -398,14 +421,19 @@ data CGEParams = CGEParams
     , cgeCalibration :: !C.Calibration
       -- ^ Benchmark levels ('C.calLevels0') + calibrated parameters
       -- ('C.calParams'), straight from the SAM (task 1a).
+    , cgePolicy      :: !Policy
+      -- ^ The tax rates in force (task 1c): 'calibratedPolicy' at the
+      -- benchmark, overridden for comparative-statics scenarios.
     } deriving (Eq, Show)
 
--- | The default: N = 1, numeraire = 'LAB', the Hosoe Ch.6 'C.calibration'.
+-- | The default: N = 1, numeraire = 'LAB', the Hosoe Ch.6 'C.calibration'
+-- at its own calibrated policy.
 defaultCGEParams :: CGEParams
 defaultCGEParams = CGEParams
     { cgeHouseholds  = [representativeHousehold]
     , cgeNumeraire   = LAB
     , cgeCalibration = C.calibration
+    , cgePolicy      = calibratedPolicy C.calibration
     }
 
 ------------------------------------------------------------------
@@ -520,9 +548,11 @@ data Allocation = Allocation
 -- transcribes one @stdcge.gms@ statement (same order as the GAMS equation
 -- block where dependencies allow; the fiscal closure is the one reordering,
 -- see the module header). Household-count-independent: the stages split the
--- household aggregates by equal shares when posting.
-allocation :: C.Calibration -> Signals -> Allocation
-allocation cal sig = Allocation
+-- household aggregates by equal shares when posting. Tax rates come from
+-- 'cgePolicy' (not the calibration) so comparative-statics scenarios
+-- re-solve with every calibrated parameter fixed (task 1c).
+allocation :: CGEParams -> Signals -> Allocation
+allocation params sig = Allocation
     { aPe = pe', aPm = pm', aPy = py', aPz = pz'
     , aZ = z', aY = y', aF = f', aX = x'
     , aE = e', aDs = ds', aDd = dd', aM = m'
@@ -533,8 +563,12 @@ allocation cal sig = Allocation
     , aUU = uu'
     }
   where
-    l = C.calLevels0 cal
-    p = C.calParams  cal
+    cal = cgeCalibration params
+    l   = C.calLevels0 cal
+    p   = C.calParams  cal
+    -- Policy rates (task 1c): tauz/taum in force, not necessarily the SAM's.
+    tauz i = polTauz (cgePolicy params) M.! i
+    taum i = polTaum (cgePolicy params) M.! i
 
     overGoods, overFactors :: (C.Account -> Double) -> M.Map C.Account Double
     overGoods   g = M.fromList [(i, g i) | i <- C.goods]
@@ -576,16 +610,16 @@ allocation cal sig = Allocation
     e'  = overGoods $ \i ->
         (   C.theta p M.! i ** C.phi p M.! i
           * C.xie p M.! i
-          * (1 + C.tauz l M.! i) * pz' M.! i / pe' M.! i
+          * (1 + tauz i) * pz' M.! i / pe' M.! i
         ) ** (1 / (1 - C.phi p M.! i)) * z' M.! i
     -- eqDs: D(i) = (theta^phi * xid * (1+tauz)*pz/pd)**(1/(1-phi)) * Z(i)
     ds' = overGoods $ \i ->
         (   C.theta p M.! i ** C.phi p M.! i
           * C.xid p M.! i
-          * (1 + C.tauz l M.! i) * pz' M.! i / pd i
+          * (1 + tauz i) * pz' M.! i / pd i
         ) ** (1 / (1 - C.phi p M.! i)) * z' M.! i
     -- eqTz: Tz(j) = tauz(j)*pz(j)*Z(j)
-    tz' = overGoods $ \j -> C.tauz l M.! j * pz' M.! j * z' M.! j
+    tz' = overGoods $ \j -> tauz j * pz' M.! j * z' M.! j
 
     -- Household block (endowment income is notional — GAMS uses FF, not
     -- factor sales, in eqSp/eqTd/eqXp; that is what makes the household
@@ -604,7 +638,7 @@ allocation cal sig = Allocation
     kM  = overGoods $ \i ->
         (   C.gamma p M.! i ** C.eta p M.! i
           * C.deltam p M.! i
-          * pq i / ((1 + C.taum l M.! i) * pm' M.! i)
+          * pq i / ((1 + taum i) * pm' M.! i)
         ) ** (1 / (1 - C.eta p M.! i))
     kD  = overGoods $ \i ->
         (   C.gamma p M.! i ** C.eta p M.! i
@@ -624,9 +658,9 @@ allocation cal sig = Allocation
         (C.mu p M.! i * (1 - C.ssg p) + C.lambda p M.! i * C.ssg p) / pq i
     -- eqTrev (the closure): T = Td + sum Tz + sum_i taum*pm*kM*Q(i)
     t'  = ( td' + sum [tz' M.! j | j <- C.goods]
-          + sum [C.taum l M.! i * pm' M.! i * kM M.! i * qbase M.! i | i <- C.goods]
+          + sum [taum i * pm' M.! i * kM M.! i * qbase M.! i | i <- C.goods]
           )
-        / ( 1 - sum [C.taum l M.! i * pm' M.! i * kM M.! i * qcoef M.! i | i <- C.goods] )
+        / ( 1 - sum [taum i * pm' M.! i * kM M.! i * qcoef M.! i | i <- C.goods] )
     -- eqSg: Sg = ssg*T
     sg' = C.ssg p * t'
     -- eqXg: Xg(i) = mu(i)*(T - Sg)/pq(i)
@@ -640,7 +674,7 @@ allocation cal sig = Allocation
     m'  = overGoods $ \i -> kM M.! i * qdem' M.! i
     dd' = overGoods $ \i -> kD M.! i * qdem' M.! i
     -- eqTm: Tm(i) = taum(i)*pm(i)*M(i)
-    tm' = overGoods $ \i -> C.taum l M.! i * pm' M.! i * m' M.! i
+    tm' = overGoods $ \i -> taum i * pm' M.! i * m' M.! i
     -- eqpqs read as the technology: what the FOC input bundle physically
     -- yields. Off a root this differs from Q(i) demanded — that gap is the
     -- composite market row.
@@ -710,7 +744,7 @@ productionStage params =
     stageOf EvProduction agents $ \w _t _g agent ->
         let ps  = wParams w
             sig = wSignals w
-            a   = allocation (cgeCalibration ps) sig
+            a   = allocation ps sig
             n   = fromIntegral (length (cgeHouseholds ps))
             pqOf i = sigPrices sig M.! compositeOf i
             pfOf h = sigPrices sig M.! factorProduct h
@@ -768,7 +802,7 @@ savingAndInvestmentStage _params =
     stageOf EvSavingAndInvestment [()] $ \w _t _g () ->
         let ps  = wParams w
             sig = wSignals w
-            a   = allocation (cgeCalibration ps) sig
+            a   = allocation ps sig
             n   = fromIntegral (length (cgeHouseholds ps))
             pqOf i = sigPrices sig M.! compositeOf i
         in mconcat $
@@ -809,7 +843,7 @@ salesPurchaseStage _params =
     stageOf EvSalesPurchase C.goods $ \w _t _g j ->
         let ps  = wParams w
             sig = wSignals w
-            a   = allocation (cgeCalibration ps) sig
+            a   = allocation ps sig
             fj  = firmOf j
         in mconcat
             -- Imports (eqM): Ext creates M(j) of the imported variety
@@ -844,7 +878,7 @@ consumptionStage params =
     stageOf EvConsumption agents $ \w _t _g agent ->
         let ps  = wParams w
             sig = wSignals w
-            a   = allocation (cgeCalibration ps) sig
+            a   = allocation ps sig
             n   = fromIntegral (length (cgeHouseholds ps))
             pqOf i = sigPrices sig M.! compositeOf i
             buyBlock buyer qty = mconcat

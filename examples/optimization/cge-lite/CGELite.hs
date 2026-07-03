@@ -52,7 +52,7 @@ main = do
         u0         = perturbed params
         (uEq, slog) = solveEquilibrium params u0 tol
         sigEq      = signalsOf params uEq
-        aEq        = allocation cal sigEq
+        aEq        = allocation params sigEq
         ledger     = settle params sigEq
     putStrLn "--- solveEquilibrium from a perturbed start ---"
     putStrLn ("start              : " ++ show (M.toList u0))
