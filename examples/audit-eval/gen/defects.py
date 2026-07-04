@@ -14,11 +14,11 @@ try:  # pragma: no cover - exercised when run as a script path.
         identity_ea_map,
     )
     from .pandas_oracle import balances_by_account, detect_findings
-    from .templates import make_entries
+    from .templates import entry_metadata, make_entries
 except ImportError:  # pragma: no cover
     from accounts import account_category_map, chart_accounts_from_postings, hallucinated_name, identity_ea_map  # type: ignore
     from pandas_oracle import balances_by_account, detect_findings  # type: ignore
-    from templates import make_entries  # type: ignore
+    from templates import entry_metadata, make_entries  # type: ignore
 
 
 DEFECT_KINDS = ("imbalance", "hallucinated_account", "category_violation", "balance_mismatch")
@@ -66,6 +66,7 @@ def _clean_entries(seed: int, count: int, template: str) -> list[dict[str, Any]]
                     for posting in raw["postings"]
                 ],
                 "transaction": raw["transaction"],
+                "metadata": raw["metadata"],
             }
         )
     return entries
@@ -233,9 +234,9 @@ def generate_audit_task(
                 "injected_defects": injected,
                 "oracle": "pandas",
                 "ea_oracle_status": "pending",
+                "entries": entry_metadata(clean),
             },
         },
     }
     task["ground_truth"]["findings"] = detect_findings(task)
     return task
-

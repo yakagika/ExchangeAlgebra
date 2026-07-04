@@ -8,6 +8,7 @@ from typing import Any
 
 
 TemplateFn = Callable[[random.Random, int], dict[str, Any]]
+LABEL_KEYS = {"template", "trade_side", "settlement"}
 
 
 def _amount(rng: random.Random, low: int, high: int, step: int = 100) -> int:
@@ -15,11 +16,23 @@ def _amount(rng: random.Random, low: int, high: int, step: int = 100) -> int:
     return units * step
 
 
+def _debit_total(postings: list[dict[str, Any]]) -> int:
+    return sum(int(posting["amount"]) for posting in postings if posting["side"] == "debit")
+
+
 def _entry(entry_id: str, desc: str, postings: list[dict[str, Any]], **extra: Any) -> dict[str, Any]:
-    transaction = {"id": entry_id, "desc": desc, **extra}
+    visible_extra = {key: value for key, value in extra.items() if key not in LABEL_KEYS}
+    visible_extra.setdefault("amount", _debit_total(postings))
+    metadata = {"id": entry_id}
+    metadata.update({key: extra[key] for key in LABEL_KEYS if key in extra})
+    transaction = {"id": entry_id, "desc": desc, **visible_extra}
     for posting in postings:
         posting.setdefault("entry", entry_id)
-    return {"transaction": transaction, "postings": postings}
+    return {"transaction": transaction, "postings": postings, "metadata": metadata}
+
+
+def entry_metadata(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [dict(entry["metadata"]) for entry in entries]
 
 
 def cash_sale(rng: random.Random, idx: int) -> dict[str, Any]:
@@ -92,6 +105,7 @@ def payroll(rng: random.Random, idx: int) -> dict[str, Any]:
             {"side": "credit", "account": "Cash", "amount": cash_paid},
             {"side": "credit", "account": "DepositsReceived", "amount": withholding},
         ],
+        amount=gross,
         gross=gross,
         withholding=withholding,
         cash_paid=cash_paid,
@@ -124,6 +138,7 @@ def tax(rng: random.Random, idx: int) -> dict[str, Any]:
             {"side": "credit", "account": "Sales", "amount": base},
             {"side": "credit", "account": "ConsumptionTaxReceived", "amount": tax_amount},
         ],
+        amount=base + tax_amount,
         base=base,
         tax=tax_amount,
         template="tax",
@@ -143,6 +158,7 @@ def fixed_asset(rng: random.Random, idx: int) -> dict[str, Any]:
             {"side": "debit", "account": "Depreciation", "amount": depreciation},
             {"side": "credit", "account": "AccumulatedDepreciation", "amount": depreciation},
         ],
+        amount=depreciation,
         cost=cost,
         useful_life_years=useful_life,
         depreciation=depreciation,
@@ -181,4 +197,3 @@ def make_entries(seed: int, count: int, template: str = "mixed") -> list[dict[st
     for idx, name in enumerate(order[:count], start=1):
         entries.append(TEMPLATES[name](rng, idx))
     return entries
-

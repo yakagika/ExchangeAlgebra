@@ -1,11 +1,31 @@
 from __future__ import annotations
 
 import json
+import sys
+from pathlib import Path
 
+EVAL_DIR = Path(__file__).resolve().parents[2]
+if str(EVAL_DIR) not in sys.path:
+    sys.path.insert(0, str(EVAL_DIR))
+
+from gen import make_suite
 from gen.generate import generate_task
 from gen.compare_ea import compare_task_to_ea
 from gen.defects import DEFECT_KINDS, generate_audit_task
 from gen.pandas_oracle import compute_derived, detect_findings
+from gen.templates import TEMPLATES
+
+
+LABEL_KEYS = {"template", "trade_side", "settlement"}
+
+
+def _debit_totals(postings: list[dict]) -> dict[str, int]:
+    totals: dict[str, int] = {}
+    for posting in postings:
+        if posting["side"] == "debit":
+            entry = str(posting["entry"])
+            totals[entry] = totals.get(entry, 0) + int(posting["amount"])
+    return totals
 
 
 def test_generation_is_deterministic_for_same_seed() -> None:
@@ -49,6 +69,21 @@ def test_generated_task_derived_matches_pandas_oracle() -> None:
     assert task["ground_truth"]["derived"] == compute_derived(task["ground_truth"]["journal"])
 
 
+def test_generated_transactions_have_amount_and_no_type_labels() -> None:
+    for template in ("mixed", *TEMPLATES.keys()):
+        task = generate_task(seed=41, count=9, template=template)
+        debit_totals = _debit_totals(task["ground_truth"]["journal"])
+
+        for transaction in task["given"]["transactions"]:
+            assert "amount" in transaction
+            assert transaction["amount"] == debit_totals[transaction["id"]]
+            assert LABEL_KEYS.isdisjoint(transaction)
+
+        metadata_entries = task["ground_truth"]["generator_metadata"]["entries"]
+        assert len(metadata_entries) == len(task["given"]["transactions"])
+        assert all("template" in item for item in metadata_entries)
+
+
 def test_ea_compare_stub_accepts_matching_derived_payload() -> None:
     task = generate_task(seed=29, count=3)
     result = compare_task_to_ea(
@@ -82,3 +117,63 @@ def test_injected_defects_are_detectable() -> None:
     assert injected_types == set(DEFECT_KINDS)
     assert expected <= detected
     assert {finding_type for finding_type, _ in detected} >= set(DEFECT_KINDS)
+
+
+def test_audit_findings_match_injected_defect_pairs() -> None:
+    for seed in (31, 37, 43):
+        task = generate_audit_task(seed=seed, count=8, defects=4)
+        findings = {
+            (finding["type"], finding["locus"])
+            for finding in task["ground_truth"]["findings"]
+        }
+        injected = {
+            (item["type"], item["locus"])
+            for item in task["ground_truth"]["generator_metadata"]["injected_defects"]
+        }
+        assert findings == injected
+
+
+def test_make_suite_skip_ea_pure_helpers(monkeypatch) -> None:
+    assert make_suite.parse_int_spec("0-2", "--gen-seed") == [0, 1, 2]
+    assert make_suite.suite_task_id("journalize", "cash_sale", 7, 10) == "gen-cash_sale-000007-10"
+    assert (
+        make_suite.suite_task_id("audit", "mixed", 7, 10, 2)
+        == "gen-audit-mixed-000007-10-02"
+    )
+
+    journalize = make_suite.prepare_journalize_task(
+        seed=7,
+        count=3,
+        template="cash_sale",
+        stack_root=Path("."),
+        skip_ea=True,
+    )
+    assert journalize["ground_truth"]["generator_metadata"]["ea_oracle_status"] == "pending"
+
+    audit = make_suite.prepare_audit_task(
+        seed=7,
+        count=8,
+        template="mixed",
+        defects=2,
+        stack_root=Path("."),
+        skip_ea=True,
+    )
+    assert audit["id"] == "gen-audit-mixed-000007-08-02"
+    assert audit["ground_truth"]["generator_metadata"]["ea_oracle_status"] == "pending"
+
+    monkeypatch.setattr(make_suite, "git_head", lambda _root: "HEADISH")
+    manifest = make_suite.build_manifest(
+        templates=["mixed"],
+        counts=[8],
+        gen_seeds=[7],
+        kinds=["journalize", "audit"],
+        defects="auto",
+        out=Path("tasks-s"),
+        stack_root=Path("."),
+        skip_ea=True,
+        adopted_ids=[journalize["id"], audit["id"]],
+    )
+    assert manifest["git_head"] == "HEADISH"
+    assert manifest["ea_oracle"]["enabled"] is False
+    assert manifest["ea_oracle"]["status"] == "skipped"
+    assert manifest["adopted_ids"] == [journalize["id"], audit["id"]]

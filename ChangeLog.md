@@ -72,6 +72,14 @@
   misprinted by model-written string code) to the measurement layer; the
   versioned SKILL treatment artifact is untouched.
   Examples-only change; no library code touched.
+- `examples/audit-eval` Track S Land 3: arm Aprime now uses the
+  `LoadChecked.hs` checked-loader gate with raw/rich retry feedback, arm A can
+  select `SKILL-ea-v2`, and runner metadata records effective model / CLI
+  versions automatically. Examples-only change; no library code touched.
+- `examples/audit-eval` Track S Land 4: `gen/` now has a deterministic generator
+  fairness pass, independent pandas/EA double-oracle adoption via
+  `DeriveEA.hs`, explicit defect injection checks, and `make_suite.py` for
+  generated suites. Examples-only change; no library code touched.
 - `ExchangeAlgebra.Simulate`: the `StateSpace` methods `initT` / `lastT` are now
   exported. Their Haddock has always described them as customizable (they let an
   instance override the simulation start/end term, and `runSimulationWithSpill`

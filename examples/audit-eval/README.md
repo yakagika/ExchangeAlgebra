@@ -17,6 +17,11 @@ uv run runner/run.py --task all --arm A,B,C,D,Aprime --model codex --seed 0
 uv run runner/run.py --task journalize-cash-and-credit-001 --arm A \
     --model codex --oracle-arms A,B,C --seed 0
 
+# Generate a double-oracle-checked suite and run against it
+uv run python -m gen.make_suite --template mixed --count 10 --gen-seed 0-2 \
+    --kind journalize,audit --defects auto --out tasks-s
+uv run runner/run.py --tasks-dir tasks-s --task all --arm C --model codex --seed 0
+
 # Tighter retry budget
 uv run runner/run.py --task all --arm A,D,Aprime --model codex --max-iters 2
 ```
@@ -30,6 +35,8 @@ Prerequisites:
 
 ```
 tasks/                  # task specs (JSON; includes ea_account_map per chart)
+tasks-s/                # generated suite output from gen/make_suite.py (gitignored)
+gen/                    # deterministic generator, pandas oracle, EA derived oracle
 runner/
   models.py             # Backend abstraction (CodexBackend, OpenAICompatBackend)
   arms.py               # Arms A/B/C/D/Aprime + shared retry loop (P4)
@@ -109,6 +116,7 @@ arm A only.
 | `--skill {v1,v2}` | `v1` | Selects the versioned SKILL file for arm A only |
 | `--c-retries INT` | `1` | Number of arm-C retries after the first parse/shape failure |
 | `--c-ea-map` | off | Includes the EA account mapping line in arm-C prompts for information-budget pilots |
+| `--tasks-dir DIR` | `tasks/` | Loads task JSON from a generated or alternate task directory |
 
 ## Metrics
 

@@ -11,6 +11,7 @@ Usage
 Arguments
 ---------
 --task   <id|all>     Task id(s), comma-separated, or 'all' to run every tasks/*.json.
+--tasks-dir <dir>     Directory containing task JSON files (default: tasks/).
 --arm    <arms>       Comma-separated list of arms to run: A, B, C, D, Aprime.
 --model  <models>     Comma-separated list of model keys from models.toml.
 --seed   <spec>       Seed(s): single int ("0"), comma-separated list ("0,1,2"),
@@ -85,16 +86,16 @@ def load_models_toml(path: Path) -> dict:
 # Task loader
 # ---------------------------------------------------------------------------
 
-def load_task(task_id: str) -> dict:
-    path = TASKS_DIR / f"{task_id}.json"
+def load_task(task_id: str, tasks_dir: Path = TASKS_DIR) -> dict:
+    path = tasks_dir / f"{task_id}.json"
     if not path.exists():
         raise FileNotFoundError(f"Task file not found: {path}")
     with path.open() as f:
         return json.load(f)
 
 
-def all_task_ids() -> list[str]:
-    return [p.stem for p in sorted(TASKS_DIR.glob("*.json"))]
+def all_task_ids(tasks_dir: Path = TASKS_DIR) -> list[str]:
+    return [p.stem for p in sorted(tasks_dir.glob("*.json")) if p.name != "manifest.json"]
 
 
 # ---------------------------------------------------------------------------
@@ -371,6 +372,7 @@ def build_run_meta(
         "ts": ts,
         "argv": sys.argv,
         "tasks": task_ids,
+        "tasks_dir": str(args.tasks_dir),
         "arms": arm_names,
         "models": model_keys,
         "seeds": seeds,
@@ -403,6 +405,10 @@ def main() -> None:
     parser.add_argument(
         "--task", default="all",
         help="Task id(s), comma-separated, or 'all'",
+    )
+    parser.add_argument(
+        "--tasks-dir", type=Path, default=TASKS_DIR,
+        help="Directory containing task JSON files (default: examples/audit-eval/tasks)",
     )
     parser.add_argument(
         "--arm", default="C",
@@ -454,10 +460,11 @@ def main() -> None:
              "to (default B,C; use A,B,C for the arm-A smoke check)",
     )
     args = parser.parse_args()
+    tasks_dir = args.tasks_dir.resolve()
 
     # ---- Resolve tasks ----
     if args.task.strip().lower() == "all":
-        task_ids = all_task_ids()
+        task_ids = all_task_ids(tasks_dir)
     else:
         task_ids = [t.strip() for t in args.task.split(",")]
 
@@ -495,6 +502,7 @@ def main() -> None:
 
     print(f"audit-eval pilot run  ts={ts}  seeds={seeds}  max_iters={args.max_iters}")
     print(f"  tasks       : {task_ids}")
+    print(f"  tasks dir   : {tasks_dir}")
     print(f"  arms        : {arm_names}")
     print(f"  models      : {model_keys}")
     print(f"  oracle arms : {list(oracle_arms)}")
@@ -509,7 +517,7 @@ def main() -> None:
     for seed in seeds:
         for task_id in task_ids:
             try:
-                task = load_task(task_id)
+                task = load_task(task_id, tasks_dir)
             except FileNotFoundError as exc:
                 print(f"  SKIP (not found): {exc}")
                 continue

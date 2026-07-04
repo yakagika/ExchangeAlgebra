@@ -40,4 +40,5 @@ examples/**/result/
 # audit-eval generated artifacts (LLM outputs + per-run JSON; keep summary.csv)
 examples/audit-eval/arms/
 examples/audit-eval/metrics/*.json
+examples/audit-eval/tasks-s/
 __pycache__/

@@ -11,12 +11,12 @@ try:  # pragma: no cover - exercised when run as a script path.
     from .accounts import account_category_map, chart_accounts_from_postings, identity_ea_map
     from .defects import generate_audit_task
     from .pandas_oracle import compute_derived
-    from .templates import TEMPLATES, make_entries
+    from .templates import TEMPLATES, entry_metadata, make_entries
 except ImportError:  # pragma: no cover
     from accounts import account_category_map, chart_accounts_from_postings, identity_ea_map  # type: ignore
     from defects import generate_audit_task  # type: ignore
     from pandas_oracle import compute_derived  # type: ignore
-    from templates import TEMPLATES, make_entries  # type: ignore
+    from templates import TEMPLATES, entry_metadata, make_entries  # type: ignore
 
 
 DERIVED_FORMAT_NOTE = (
@@ -77,6 +77,7 @@ def generate_task(seed: int, count: int = 7, template: str = "mixed") -> dict[st
                 "count": count,
                 "oracle": "pandas",
                 "ea_oracle_status": "pending",
+                "entries": entry_metadata(entries),
             },
         },
     }
@@ -141,4 +142,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(main())
-
