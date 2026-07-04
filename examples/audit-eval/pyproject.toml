@@ -3,7 +3,10 @@ name = "audit-eval"
 version = "0.1.0"
 description = "Accounting AI evaluation harness for ExchangeAlgebra"
 requires-python = ">=3.11"
-dependencies = []   # stdlib only
+dependencies = [
+  "pandas>=2.0",
+  "pytest>=8",
+]
 
 [tool.uv]
-# No external dependencies; stdlib tomllib (3.11+), urllib, subprocess, json, csv.
+# gen/ uses pandas for its independent oracle; pytest is used by gen/selftests.
