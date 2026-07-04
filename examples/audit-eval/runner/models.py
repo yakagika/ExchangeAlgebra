@@ -142,7 +142,12 @@ class CodexBackend(Backend):
                 f"stderr: {result.stderr[:500]}"
             )
 
-        self.effective_model = _parse_codex_effective_model(result.stdout, self.model)
+        # The codex CLI prints its config banner (version / model / reasoning
+        # effort) on STDERR when stdout is piped (verified against v0.142.5),
+        # so scan both streams.
+        self.effective_model = _parse_codex_effective_model(
+            (result.stdout or "") + "\n" + (result.stderr or ""), self.model
+        )
 
         # Read from the -o output file (clean final answer only).
         try:
