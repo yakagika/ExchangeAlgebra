@@ -31,6 +31,19 @@ from typing import Optional
 # Abstract base
 # ---------------------------------------------------------------------------
 
+class BackendTimeout(RuntimeError):
+    """
+    Raised when a backend call exceeds its wall-clock timeout.
+
+    Distinguished from a generic backend RuntimeError so the arm retry loops
+    can treat a timeout as terminal (a timed-out cell is recorded as
+    non-convergence and NOT re-attempted — Track S pilot policy 2026-07-04).
+    Re-issuing the same prompt after a timeout wastes another full timeout
+    window with a low recovery rate, and direct-answer arms on large-N tasks
+    time out systematically (that latency IS the CP1 signal).
+    """
+
+
 class Backend(ABC):
     """Shared interface for all model backends."""
 
@@ -119,7 +132,7 @@ class CodexBackend(Backend):
                 os.unlink(tmp_path)
             except OSError:
                 pass
-            raise RuntimeError(
+            raise BackendTimeout(
                 f"codex CLI timed out after {self.timeout_seconds}s"
             )
         except FileNotFoundError:
@@ -205,7 +218,18 @@ class OpenAICompatBackend(Backend):
         try:
             with urllib.request.urlopen(req, timeout=self.timeout_seconds) as resp:
                 body = json.loads(resp.read().decode())
+        except TimeoutError as exc:
+            raise BackendTimeout(
+                f"OpenAI-compat endpoint {url!r} timed out after "
+                f"{self.timeout_seconds}s"
+            ) from exc
         except urllib.error.URLError as exc:
+            # urllib wraps a socket timeout as URLError(reason=TimeoutError).
+            if isinstance(exc.reason, TimeoutError):
+                raise BackendTimeout(
+                    f"OpenAI-compat endpoint {url!r} timed out after "
+                    f"{self.timeout_seconds}s"
+                ) from exc
             raise RuntimeError(
                 f"Cannot reach OpenAI-compat endpoint {url!r}: {exc}\n"
                 "Is the local server running? (Ollama: `ollama serve`)"

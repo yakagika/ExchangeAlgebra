@@ -8,7 +8,7 @@
 # agentic CLI cannot read the EA repo / SKILL files nor write anywhere —
 # prompt-only arm comparisons stay uncontaminated.
 backend = "codex"
-timeout_seconds = 480   # high-reasoning codex: SCF #16 returned empty at 240s (pre-fix seed 0) and still at 360s (v2.1 seed 0, arms A/C) — infrastructure headroom, arm-neutral
+timeout_seconds = 1200  # Track S: large-N direct-answer arms enumerate long JSON; 480s timed out on mixed N=10 (56 derived keys). Raised arm-neutrally; a timeout is now recorded as non-convergence and NOT retried (see runner/models.py BackendTimeout).
 # model passed via -c model=... to codex CLI (optional, uses codex default if omitted)
 # model = "o4-mini"
 

@@ -44,7 +44,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from runner.build import run_haskell, run_loadchecked, run_python
-from runner.models import Backend
+from runner.models import Backend, BackendTimeout
 
 EVAL_DIR = Path(__file__).resolve().parent.parent
 SKILL_PATHS = {
@@ -549,6 +549,7 @@ def _code_arm_loop(
         "iterations": 0,
         "converged": False,
         "attempts": [],
+        "timed_out": False,
     }
 
     feedback: Optional[str] = None
@@ -560,11 +561,20 @@ def _code_arm_loop(
 
         try:
             raw = backend.generate(system=system_prompt, user=user)
+        except BackendTimeout as exc:
+            # Timeout is terminal: record non-convergence and stop (Track S
+            # pilot policy) — re-issuing the same prompt would burn another
+            # full timeout window.
+            attempt["error"] = f"backend timeout: {exc}"
+            result["attempts"].append(attempt)
+            result["stderr"] = str(exc)
+            result["timed_out"] = True
+            break
         except Exception as exc:
             attempt["error"] = f"backend error: {exc}"
             result["attempts"].append(attempt)
             result["stderr"] = str(exc)
-            # Backend failure (timeout / CLI error): retry without new feedback.
+            # Non-timeout backend failure (e.g. CLI error): retry without new feedback.
             feedback = None
             continue
 
@@ -695,6 +705,7 @@ def arm_c(
         "iterations": 0,
         "converged": False,
         "attempts": [],
+        "timed_out": False,
     }
 
     for i in range(1, retries + 2):
@@ -703,6 +714,10 @@ def arm_c(
 
         try:
             raw = backend.generate(system=system, user=user_prompt)
+        except BackendTimeout as exc:
+            result["attempts"].append({"iteration": i, "error": f"backend timeout: {exc}"})
+            result["timed_out"] = True
+            break
         except Exception as exc:
             result["attempts"].append({"iteration": i, "error": f"backend error: {exc}"})
             continue
@@ -847,6 +862,7 @@ def arm_aprime(
         "gate_applicable": gate_applicable,
         "feedback_mode": feedback_mode,
         "loadchecked_verdict": None,
+        "timed_out": False,
     }
 
     feedback: Optional[str] = None
@@ -858,6 +874,11 @@ def arm_aprime(
 
         try:
             raw = backend.generate(system=_arm_aprime_system(task), user=user)
+        except BackendTimeout as exc:
+            attempt["error"] = f"backend timeout: {exc}"
+            result["attempts"].append(attempt)
+            result["timed_out"] = True
+            break
         except Exception as exc:
             attempt["error"] = f"backend error: {exc}"
             result["attempts"].append(attempt)

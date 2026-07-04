@@ -31,6 +31,7 @@ from runner.arms import (  # noqa: E402
     arm_aprime,
     arm_c,
 )
+from runner.models import BackendTimeout  # noqa: E402
 from runner.run import append_summary_csv, normalize_arm_name  # noqa: E402
 from runner.score import score  # noqa: E402
 
@@ -65,6 +66,18 @@ class FakeBackend:
         if self.responses:
             return self.responses.pop(0)
         return "not json"
+
+
+class TimeoutBackend:
+    """Backend that always times out — for the Track S timeout policy test."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+        self.effective_model = "fake-model"
+
+    def generate(self, system: str, user: str) -> str:
+        self.calls += 1
+        raise BackendTimeout("simulated timeout")
 
 
 # ---------------------------------------------------------------------------
@@ -602,6 +615,39 @@ def case12() -> None:
               "effective_model" in header and "aprime_feedback" in header, header)
 
 
+def case13() -> None:
+    print("Case 13: backend timeout is terminal (no retry), recorded as timed_out")
+    task = {
+        "id": "timeout-task",
+        "category": "journalize",
+        "ea_coverage": "ok",
+        "given": {"ea_account_map": {}, "transactions": [{"id": "t1", "desc": "x", "amount": 10}]},
+        "prompt": "Journalize.",
+        "ground_truth": {"journal": []},
+    }
+
+    # arm_c: even with retries=3, a timeout stops after the first call.
+    backend = TimeoutBackend()
+    result = arm_c(task, backend, retries=3)
+    check("arm_c timeout -> single backend call", backend.calls == 1, str(backend.calls))
+    check("arm_c timeout -> timed_out True", result["timed_out"] is True, str(result.get("timed_out")))
+    check("arm_c timeout -> not converged", result["converged"] is False, str(result["converged"]))
+    m = score(task, result, "C", worktree_root=None)
+    check("score passes timed_out through (arm C)", m["timed_out"] is True, str(m.get("timed_out")))
+
+    # arm_aprime: a timeout stops before the checked loader is ever invoked.
+    def _never(_js):  # loadchecked_fn must not be reached on timeout
+        raise AssertionError("loadchecked_fn called despite timeout")
+
+    backend2 = TimeoutBackend()
+    result2 = arm_aprime(task, backend2, Path("/tmp"), Path("/tmp"),
+                         max_iters=3, loadchecked_fn=_never)
+    check("arm_aprime timeout -> single backend call", backend2.calls == 1, str(backend2.calls))
+    check("arm_aprime timeout -> timed_out True", result2["timed_out"] is True, str(result2.get("timed_out")))
+    check("arm_aprime timeout -> not converged", result2["converged"] is False, str(result2["converged"]))
+    check("arm_aprime timeout -> first_pass_valid False", result2["first_pass_valid"] is False, str(result2["first_pass_valid"]))
+
+
 def main() -> None:
     case1()
     case2()
@@ -615,6 +661,7 @@ def main() -> None:
     case10()
     case11()
     case12()
+    case13()
 
     print()
     if FAILURES:

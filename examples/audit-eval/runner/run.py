@@ -263,7 +263,7 @@ def append_summary_csv(records: list[dict], csv_path: Path, ts: str) -> None:
         "findings_recall", "findings_precision", "decision_accuracy",
         "escape_ok",
         "balance_violation", "account_validity", "compile_fail", "parse_fail",
-        "verification_gap", "iterations", "converged",
+        "verification_gap", "iterations", "converged", "timed_out",
         "first_pass_valid", "effective_model", "skill", "aprime_feedback",
     ]
 
@@ -313,6 +313,7 @@ def append_summary_csv(records: list[dict], csv_path: Path, ts: str) -> None:
                 "verification_gap":   m.get("verification_gap"),
                 "iterations":         m.get("convergence_iterations"),
                 "converged":          m.get("converged"),
+                "timed_out":          m.get("timed_out"),
                 "first_pass_valid":   m.get("first_pass_valid"),
                 "effective_model":    rec.get("effective_model"),
                 "skill":              rec.get("skill"),
@@ -558,7 +559,8 @@ def main() -> None:
                             f"parse_fail={m.get('parse_fail')} "
                             f"compile_fail={m.get('compile_fail')} "
                             f"gap={m.get('verification_gap')} "
-                            f"iters={m.get('convergence_iterations')}"
+                            f"iters={m.get('convergence_iterations')} "
+                            f"timed_out={m.get('timed_out')}"
                         )
 
     if args.dry_run:

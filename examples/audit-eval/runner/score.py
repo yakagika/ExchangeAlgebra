@@ -44,6 +44,11 @@ verification_gap   : (EA oracle) 1 if the model's journal component contains
 convergence_iterations : attempts needed until a structurally-valid output (P4 retry
                      loop). Equals max_iters with converged=False when the loop was
                      exhausted without success.
+timed_out          : True if the arm stopped because a backend call exceeded its
+                     timeout (recorded as non-convergence, NOT retried — Track S
+                     pilot policy). A timed_out cell has converged=False and its
+                     accuracy metrics reflect no usable output; separating it from a
+                     genuine wrong answer keeps the large-N latency wall visible.
 
 Oracle gating (TASK-FORMAT.md v2, 2026-07-02)
 ----------------------------------------------
@@ -580,6 +585,7 @@ def score(
     iterations = arm_result.get("iterations")
     converged  = arm_result.get("converged")
     first_pass_valid = arm_result.get("first_pass_valid")
+    timed_out = arm_result.get("timed_out", False)
 
     return {
         "task_id":                task["id"],
@@ -602,4 +608,5 @@ def score(
         "oracle_verdict":         oracle_verdict,
         "convergence_iterations": iterations,
         "converged":              converged,
+        "timed_out":              timed_out,
     }

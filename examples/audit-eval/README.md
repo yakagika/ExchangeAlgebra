@@ -71,6 +71,14 @@ message is fed back to the backend for regeneration (up to `--max-iters`,
 default 3). Arm Aprime uses the same retry budget for parse/shape failures and
 checked-loader rejections. Arm C retries once by default, on parse/shape failure.
 
+**Timeout policy (Track S)**: a backend *timeout* is terminal — the cell is
+recorded as non-convergence (`timed_out=true`, `converged=false`) and is NOT
+re-issued (re-running the same prompt burns another full timeout window). This
+is arm-neutral: direct-answer arms enumerate long JSON and time out
+systematically on large N, and that latency wall is itself the CP1 signal, so it
+must be measured rather than retried away. The codex timeout is 1200s
+(`models.toml`).
+
 Arm Aprime is the deployment-shaped checked path: the model outputs only the
 task-shaped JSON, with the `journal` component as postings in EA `AccountTitles`
 vocabulary. The harness wraps those postings with source amounts from
