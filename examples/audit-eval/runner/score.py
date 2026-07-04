@@ -31,6 +31,10 @@ account_validity   : True if ALL journal-component accounts resolve via
                      conditions as balance_violation.
 compile_fail       : True if arm A/B/D build or execution failed (passed through from arm result)
 parse_fail         : True if model output could not be parsed to canonical JSON
+first_pass_valid   : True iff the first generated response was structurally
+                     valid without any retry. False means validity required
+                     feedback or never converged; None means the arm did not
+                     report the measurement.
 verification_gap   : (EA oracle) 1 if the model's journal component contains
                      an error that EA would structurally reject (imbalance /
                      account outside EA AccountTitles / category violation /
@@ -51,6 +55,10 @@ The EA oracle is skipped (verification_gap = None) whenever:
     shape, or the key was simply omitted).
 Only the model's journal-component postings are fed to the oracle (not the
 whole output object).
+
+Arm Aprime accepts only postings that passed LoadChecked.hs checked
+construction and source reconciliation, so it is not included in the default
+oracle_arms (B,C). Add it explicitly only for smoke/debug runs.
 
 Account-name resolution (2026-07-02, spec: docs/t3-task-schema.md
 「勘定名の EA canonical 対応」)
@@ -571,6 +579,7 @@ def score(
     # ---- convergence (P4 retry loop) -----------------------------------------
     iterations = arm_result.get("iterations")
     converged  = arm_result.get("converged")
+    first_pass_valid = arm_result.get("first_pass_valid")
 
     return {
         "task_id":                task["id"],
@@ -587,6 +596,7 @@ def score(
         "hallucinated_accounts":  hallucinated_accounts,
         "compile_fail":           compile_fail,
         "parse_fail":             parse_fail,
+        "first_pass_valid":       first_pass_valid,
         "verification_gap":       verification_gap,
         "violation_types":        violation_types,
         "oracle_verdict":         oracle_verdict,

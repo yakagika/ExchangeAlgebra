@@ -5,10 +5,14 @@ Arms
 ----
 arm_a : EA-DSL with harness (minimal instruction + SKILL-ea cheatsheet)
         → Haskell → stack exec runghc → canonical JSON. Retry loop (P4).
+arm_aprime
+      : direct postings JSON with EA account names → checked loader
+        (LoadChecked.hs) → canonical JSON. Retry loop (Track S).
 arm_b : Python direct-compute (no pre-verification by design)
         → Python → uv run python → canonical JSON. Retry loop (P4).
 arm_c : direct numeric — LLM emits canonical JSON itself.
-        Single retry on parse failure only (P4).
+        Configurable parse/shape retry loop; default is the historical single
+        retry (P4).
 arm_d : EA-DSL WITHOUT harness (minimal instruction only; SKILL text removed —
         see harness/ARM-D-DELTA.md). Same build/score pipeline as arm A.
         Retry loop (P4).
@@ -16,9 +20,12 @@ arm_d : EA-DSL WITHOUT harness (minimal instruction only; SKILL text removed —
 All arm functions return a result dict with at least:
     raw_output, parsed, parse_fail, compile_fail, iterations, converged
 plus arm-specific artifacts (code, stdout, stderr, attempts).
+`first_pass_valid` records whether the first generated response was accepted
+without any retry. `converged`/`iterations` record the final retry-loop state,
+so pilots can compare first-pass validity and after-feedback validity.
 
 Harness artifact (P3): the arm-A cheatsheet is loaded from
-harness/SKILL-ea-v1.md (versioned file), no longer hard-coded here.
+harness/SKILL-ea-v*.md (versioned files), no longer hard-coded here.
 
 Output contract (TASK-FORMAT.md v2, 2026-07-02): a task without
 `expected_output` is journal-only (v1, bare posting array — unchanged wire
@@ -36,11 +43,14 @@ import re
 from pathlib import Path
 from typing import Any, Optional
 
-from runner.build import run_haskell, run_python
+from runner.build import run_haskell, run_loadchecked, run_python
 from runner.models import Backend
 
 EVAL_DIR = Path(__file__).resolve().parent.parent
-SKILL_PATH = EVAL_DIR / "harness" / "SKILL-ea-v1.md"
+SKILL_PATHS = {
+    "v1": EVAL_DIR / "harness" / "SKILL-ea-v1.md",
+    "v2": EVAL_DIR / "harness" / "SKILL-ea-v2.md",
+}
 
 DEFAULT_MAX_ITERS = 3
 
@@ -367,6 +377,19 @@ in the required shape. Respond with EXACTLY ONE raw JSON value (as specified
 above) and NOTHING else — no prose, no markdown fences, no labels.
 """
 
+_ARM_APRIME_ROLE = _ARM_C_ROLE + """\
+
+Additional checked-loader rules for arm A-prime:
+- Write account names as ExchangeAlgebra AccountTitles constructor names. Use
+  the task's "EA account mapping" line when a chart account has a mapped EA
+  name.
+- When the task lists source transactions, every journal posting must include
+  a "txid" key equal to the corresponding source transaction id.
+- Your output is validated by the ExchangeAlgebra checked loader. If it is
+  rejected, the loader error will be returned; fix the postings and emit the
+  complete corrected JSON value in the same format.
+"""
+
 # Minimal EA instruction — shared by arm A and arm D (see harness/ARM-D-DELTA.md).
 # Canonical-printer contract (T5 pilot fix): the model must NOT hand-assemble
 # JSON. All printing goes through the harness-owned module
@@ -433,6 +456,22 @@ def _arm_c_system(task: dict) -> str:
     return _ARM_C_ROLE + "\n" + _output_contract(task)
 
 
+def _task_has_transactions(task: dict) -> bool:
+    txs = (task.get("given", {}) or {}).get("transactions")
+    return isinstance(txs, list) and bool(txs)
+
+
+def _arm_aprime_system(task: dict) -> str:
+    system = _ARM_APRIME_ROLE + "\n" + _output_contract(task)
+    if _task_has_transactions(task):
+        system += (
+            "\n\nTransaction id contract: every journal posting MUST include "
+            'a "txid" key copied exactly from the corresponding input '
+            "transaction id."
+        )
+    return system
+
+
 def _ea_minimal_system(task: dict) -> str:
     return _EA_MINIMAL_ROLE + "\n" + _output_contract(task)
 
@@ -441,21 +480,25 @@ def _arm_b_system(task: dict) -> str:
     return _ARM_B_ROLE + "\n" + _output_contract(task)
 
 
-def _load_skill() -> str:
+def _load_skill(version: str) -> str:
     """Load the versioned arm-A cheatsheet (harness artifact, P3)."""
-    if not SKILL_PATH.exists():
+    try:
+        skill_path = SKILL_PATHS[version]
+    except KeyError:
+        raise ValueError(f"Unknown SKILL version: {version!r}") from None
+    if not skill_path.exists():
         raise FileNotFoundError(
-            f"SKILL file not found: {SKILL_PATH} — arm A requires the versioned "
-            "cheatsheet (harness/SKILL-ea-v1.md)."
+            f"SKILL file not found: {skill_path} — arm A requires the "
+            "versioned cheatsheet."
         )
-    return SKILL_PATH.read_text(encoding="utf-8")
+    return skill_path.read_text(encoding="utf-8")
 
 
-def _arm_a_system(task: dict) -> str:
+def _arm_a_system(task: dict, skill_version: str = "v1") -> str:
     return (
         _ea_minimal_system(task)
-        + "\n# Harness cheatsheet (SKILL-ea-v1) — follow it exactly\n\n"
-        + _load_skill()
+        + f"\n# Harness cheatsheet (SKILL-ea-{skill_version}) — follow it exactly\n\n"
+        + _load_skill(skill_version)
     )
 
 
@@ -616,6 +659,9 @@ def _code_arm_loop(
         result["converged"] = True
         break
 
+    result["first_pass_valid"] = bool(
+        result["attempts"] and result["attempts"][0].get("success")
+    )
     return result
 
 
@@ -623,13 +669,20 @@ def _code_arm_loop(
 # Arm C — direct numeric (single retry on parse failure, P4)
 # ---------------------------------------------------------------------------
 
-def arm_c(task: dict, backend: Backend, max_iters: int = DEFAULT_MAX_ITERS) -> dict:
+def arm_c(
+    task: dict,
+    backend: Backend,
+    max_iters: int = DEFAULT_MAX_ITERS,
+    retries: int = 1,
+    include_ea_map: bool = False,
+) -> dict:
     """
     Arm C: direct-numeric generation. The LLM emits canonical JSON itself.
-    Retries ONCE on parse/shape failure (with a re-emphasized format
-    instruction), regardless of max_iters (per P4 spec).
+    Retries on parse/shape failure with a re-emphasized format instruction.
+    The default retries=1 is the historical P4 behavior. max_iters remains
+    accepted for caller compatibility but does not change arm C's budget.
     """
-    user_prompt = _build_user_prompt(task)
+    user_prompt = _build_user_prompt(task, include_ea_map=include_ea_map)
     object_contract = task.get("expected_output") is not None
     base_system = _arm_c_system(task)
 
@@ -644,7 +697,7 @@ def arm_c(task: dict, backend: Backend, max_iters: int = DEFAULT_MAX_ITERS) -> d
         "attempts": [],
     }
 
-    for i in (1, 2):   # at most 1 retry
+    for i in range(1, retries + 2):
         system = base_system if i == 1 else base_system + _ARM_C_RETRY_SUFFIX
         result["iterations"] = i
 
@@ -686,6 +739,212 @@ def arm_c(task: dict, backend: Backend, max_iters: int = DEFAULT_MAX_ITERS) -> d
         attempt["error"] = "parse failure"
         result["attempts"].append(attempt)
 
+    result["first_pass_valid"] = bool(
+        result["attempts"] and result["attempts"][0].get("success")
+    )
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Arm A-prime — direct postings JSON with checked-loader gate
+# ---------------------------------------------------------------------------
+
+def _journal_contract_present(task: dict) -> bool:
+    expected = task.get("expected_output")
+    if expected is None:
+        return True
+    return "journal" in (expected.get("components", []) or [])
+
+
+def _journal_component(parsed: Any, task: dict) -> Any:
+    if task.get("expected_output") is None:
+        return parsed
+    if isinstance(parsed, dict):
+        return parsed.get("journal")
+    return None
+
+
+def _sources_from_task(task: dict) -> list[dict[str, Any]]:
+    txs = (task.get("given", {}) or {}).get("transactions")
+    if not isinstance(txs, list) or not txs:
+        return []
+    sources: list[dict[str, Any]] = []
+    for tx in txs:
+        if not isinstance(tx, dict):
+            return []
+        amount = tx.get("amount")
+        if "id" not in tx or isinstance(amount, bool) or not isinstance(amount, (int, float)):
+            return []
+        sources.append({"id": tx["id"], "amount": amount})
+    return sources
+
+
+def _canonical_journal_from_verdict(verdict: dict) -> Optional[list]:
+    journal = verdict.get("journal")
+    if isinstance(journal, list):
+        return journal
+    if isinstance(journal, str):
+        try:
+            parsed = json.loads(journal)
+        except json.JSONDecodeError:
+            return None
+        return parsed if isinstance(parsed, list) else None
+    return None
+
+
+def _truncate_verdict(verdict: Optional[dict]) -> Optional[str]:
+    if verdict is None:
+        return None
+    return _truncate(json.dumps(verdict, ensure_ascii=False, default=str), 2000)
+
+
+def _aprime_gate_feedback(verdict: dict, feedback_mode: str) -> str:
+    key = "rich" if feedback_mode == "rich" else "raw"
+    detail = str(verdict.get(key) or verdict.get("raw") or verdict)
+    return (
+        "Your previous postings were rejected by the ExchangeAlgebra checked loader.\n"
+        "--- checked loader feedback ---\n"
+        + detail[:3000]
+        + "\nFix the postings and output the corrected COMPLETE JSON (same format)."
+    )
+
+
+def arm_aprime(
+    task: dict,
+    backend: Backend,
+    task_run_dir: Path,
+    worktree_root: Path,
+    max_iters: int = DEFAULT_MAX_ITERS,
+    feedback_mode: str = "raw",
+    loadchecked_fn=None,
+) -> dict:
+    """
+    Arm A-prime: the LLM emits postings JSON directly, but the harness admits
+    only the journal canonicalized by LoadChecked.hs after checkedEntryText and
+    reconcileSources pass.
+    """
+    del task_run_dir  # kept for dispatch symmetry with code-generating arms
+    if feedback_mode not in {"raw", "rich"}:
+        raise ValueError(f"feedback_mode must be 'raw' or 'rich', got {feedback_mode!r}")
+
+    if loadchecked_fn is None:
+        loadchecked_fn = lambda js: run_loadchecked(js, worktree_root)
+
+    user0 = _build_user_prompt(task, include_ea_map=True)
+    object_contract = task.get("expected_output") is not None
+    gate_applicable = _journal_contract_present(task)
+
+    result: dict[str, Any] = {
+        "raw_output": None,
+        "json_str": None,
+        "parsed": None,
+        "parse_fail": True,
+        "compile_fail": False,
+        "iterations": 0,
+        "converged": False,
+        "attempts": [],
+        "first_pass_valid": False,
+        "gate_applicable": gate_applicable,
+        "feedback_mode": feedback_mode,
+        "loadchecked_verdict": None,
+    }
+
+    feedback: Optional[str] = None
+
+    for i in range(1, max_iters + 1):
+        user = user0 if feedback is None else user0 + "\n\n" + feedback
+        attempt: dict[str, Any] = {"iteration": i}
+        result["iterations"] = i
+
+        try:
+            raw = backend.generate(system=_arm_aprime_system(task), user=user)
+        except Exception as exc:
+            attempt["error"] = f"backend error: {exc}"
+            result["attempts"].append(attempt)
+            feedback = None
+            continue
+
+        result["raw_output"] = raw
+        attempt["raw_output"] = _truncate(raw)
+        json_str = _extract_json(raw, prefer_object=object_contract)
+
+        if json_str is None:
+            attempt["error"] = "parse failure"
+            result["attempts"].append(attempt)
+            feedback = _ARM_C_RETRY_SUFFIX.strip()
+            continue
+
+        try:
+            parsed_candidate = json.loads(json_str)
+        except json.JSONDecodeError:
+            attempt["error"] = "parse failure"
+            result["attempts"].append(attempt)
+            feedback = _ARM_C_RETRY_SUFFIX.strip()
+            continue
+
+        shape_error = _validate_output_shape(parsed_candidate, task)
+        if shape_error is not None:
+            attempt["error"] = f"wrong output shape: expected {shape_error}"
+            result["attempts"].append(attempt)
+            feedback = _ARM_C_RETRY_SUFFIX.strip()
+            continue
+
+        journal_component = _journal_component(parsed_candidate, task)
+        if not gate_applicable:
+            result["json_str"] = json_str
+            result["parsed"] = parsed_candidate
+            result["parse_fail"] = False
+            result["converged"] = True
+            attempt["success"] = True
+            result["attempts"].append(attempt)
+            break
+
+        input_obj = {
+            "postings": journal_component,
+            "sources": _sources_from_task(task),
+        }
+        verdict = loadchecked_fn(json.dumps(input_obj, ensure_ascii=False))
+        result["loadchecked_verdict"] = _truncate_verdict(verdict)
+        attempt["loadchecked_verdict"] = result["loadchecked_verdict"]
+
+        if verdict is None:
+            attempt["error"] = "checked loader infrastructure failure"
+            result["attempts"].append(attempt)
+            feedback = None
+            continue
+
+        if not verdict.get("ok"):
+            attempt["error"] = "checked loader rejected postings"
+            attempt["loadchecked_ok"] = False
+            result["attempts"].append(attempt)
+            feedback = _aprime_gate_feedback(verdict, feedback_mode)
+            continue
+
+        canonical_journal = _canonical_journal_from_verdict(verdict)
+        if canonical_journal is None:
+            attempt["error"] = "checked loader returned malformed journal"
+            result["attempts"].append(attempt)
+            feedback = None
+            continue
+
+        if task.get("expected_output") is None:
+            final_parsed: Any = canonical_journal
+        else:
+            final_parsed = dict(parsed_candidate)
+            final_parsed["journal"] = canonical_journal
+
+        result["json_str"] = json.dumps(final_parsed, ensure_ascii=False)
+        result["parsed"] = final_parsed
+        result["parse_fail"] = False
+        result["converged"] = True
+        attempt["success"] = True
+        attempt["loadchecked_ok"] = True
+        result["attempts"].append(attempt)
+        break
+
+    result["first_pass_valid"] = bool(
+        result["attempts"] and result["attempts"][0].get("success")
+    )
     return result
 
 
@@ -699,16 +958,17 @@ def arm_a(
     task_run_dir: Path,
     worktree_root: Path,
     max_iters: int = DEFAULT_MAX_ITERS,
+    skill_version: str = "v1",
 ) -> dict:
     """
     Arm A: EA-DSL generation + Haskell execution, with the versioned SKILL
-    cheatsheet (harness/SKILL-ea-v1.md) and the P4 retry loop.
+    cheatsheet and the P4 retry loop.
     """
     return _code_arm_loop(
         task=task,
         backend=backend,
         task_run_dir=task_run_dir,
-        system_prompt=_arm_a_system(task),
+        system_prompt=_arm_a_system(task, skill_version=skill_version),
         lang="haskell",
         runner_fn=lambda p: run_haskell(p, worktree_root),
         gen_filename="Gen.hs",

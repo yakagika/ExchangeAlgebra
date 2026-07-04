@@ -8,17 +8,17 @@ Part of the paper *"Exchange Algebra as a Harness for AI-driven Accounting Compu
 ```bash
 # Dry run — prints plan without calling the LLM
 cd examples/audit-eval
-uv run runner/run.py --task all --arm A,B,C,D --model codex --dry-run
+uv run runner/run.py --task all --arm A,B,C,D,Aprime --model codex --dry-run
 
 # Full pilot: all tasks × all arms × codex, EA oracle on B/C
-uv run runner/run.py --task all --arm A,B,C,D --model codex --seed 0
+uv run runner/run.py --task all --arm A,B,C,D,Aprime --model codex --seed 0
 
 # One cell, with the arm-A oracle smoke check enabled
 uv run runner/run.py --task journalize-cash-and-credit-001 --arm A \
     --model codex --oracle-arms A,B,C --seed 0
 
 # Tighter retry budget
-uv run runner/run.py --task all --arm A,D --model codex --max-iters 2
+uv run runner/run.py --task all --arm A,D,Aprime --model codex --max-iters 2
 ```
 
 Prerequisites:
@@ -32,14 +32,16 @@ Prerequisites:
 tasks/                  # task specs (JSON; includes ea_account_map per chart)
 runner/
   models.py             # Backend abstraction (CodexBackend, OpenAICompatBackend)
-  arms.py               # Arms A/B/C/D + shared retry loop (P4)
-  build.py              # run_haskell / run_python / run_oracle subprocess wrappers
+  arms.py               # Arms A/B/C/D/Aprime + shared retry loop (P4)
+  build.py              # run_haskell / run_python / run_oracle / run_loadchecked
   score.py              # mapping-aware GT comparison → per-run metrics (P1)
   run.py                # CLI entry point
 harness/
   SKILL-ea-v1.md        # versioned EA cheatsheet given to arm A (P3)
+  SKILL-ea-v2.md        # checked-construction EA cheatsheet (Track S)
   ARM-D-DELTA.md        # definition of what arm D removes relative to arm A
   EmitCanonical.hs      # harness-owned canonical JSON printer (arm A/D)
+  LoadChecked.hs        # checked-loader gate for arm Aprime
 oracle/
   Oracle.hs             # EA structural-verification oracle (P2)
 models.toml             # backend configuration
@@ -52,13 +54,25 @@ arms/                   # generated Gen.hs / Gen.py + attempts (gitignored)
 | Arm | Description                                                        | Status |
 |-----|--------------------------------------------------------------------|--------|
 | A   | EA DSL with harness: minimal instruction + SKILL-ea-v1 cheatsheet  | Active |
+| Aprime | LLM emits postings JSON; `LoadChecked.hs` validates via checked construction, reconciles sources, and re-emits canonical postings | Active |
 | B   | Python direct-compute, **no pre-verification** (by design)         | Active |
 | C   | Direct numeric: LLM outputs canonical JSON directly                | Active |
 | D   | EA DSL **without** harness (minimal instruction only; SKILL ablation) | Active |
 
 Arm A/B/D run a P4 retry loop: on compile / execution / parse failure the error
 message is fed back to the backend for regeneration (up to `--max-iters`,
-default 3). Arm C retries at most once, on parse failure only.
+default 3). Arm Aprime uses the same retry budget for parse/shape failures and
+checked-loader rejections. Arm C retries once by default, on parse/shape failure.
+
+Arm Aprime is the deployment-shaped checked path: the model outputs only the
+task-shaped JSON, with the `journal` component as postings in EA `AccountTitles`
+vocabulary. The harness wraps those postings with source amounts from
+`given.transactions`, runs `LoadChecked.hs` (`checkedEntryText` per txid group,
+`reconcileSources` when sources exist), and replaces the model journal with the
+canonical `EmitCanonical` projection only when the gate succeeds. Loader feedback
+can be compact (`--aprime-feedback raw`) or explanatory (`--aprime-feedback rich`).
+Metrics report both first-pass structural validity (`first_pass_valid`) and final
+validity after retry (`converged` / `convergence_iterations`).
 
 **Workspace isolation**: the codex backend runs `codex exec` in a fresh empty
 directory (`--cd`) with a read-only sandbox (`-s read-only`). Codex is an
@@ -81,6 +95,21 @@ journal provably a projection of the constructed algebra. This is measurement
 plumbing, not a SKILL remedy: `SKILL-ea-v1.md` is unchanged, and the minimal
 instruction explicitly overrides its older manual-printing example.
 
+**SKILL versioning**: `SKILL-ea-v1.md` is frozen for backward-compatible arm-A
+baselines. `SKILL-ea-v2.md` documents the checked-construction norm
+(`checkedEntry` / `checkedJournal`, structured stderr on `Left`, `EmitCanonical`
+only for printing). Select the arm-A skill with `--skill v1|v2`; the flag affects
+arm A only.
+
+## CLI flags added in Track S
+
+| Flag | Default | Effect |
+|------|---------|--------|
+| `--aprime-feedback {raw,rich}` | `raw` | Chooses compact error names or explanatory loader text for Aprime retries |
+| `--skill {v1,v2}` | `v1` | Selects the versioned SKILL file for arm A only |
+| `--c-retries INT` | `1` | Number of arm-C retries after the first parse/shape failure |
+| `--c-ea-map` | off | Includes the EA account mapping line in arm-C prompts for information-budget pilots |
+
 ## Metrics
 
 | Metric                  | Description                                                        |
@@ -90,8 +119,16 @@ instruction explicitly overrides its older manual-printing example.
 | `account_validity`      | All journal-component accounts resolve via chart / ea_account_map / synonyms; `None` under the same condition as `balance_violation` |
 | `compile_fail`          | Arm A/B/D: build or execution failed (final attempt)               |
 | `parse_fail`            | Output not parseable as canonical JSON, or not in the task's required shape (final attempt) |
+| `first_pass_valid`      | First generated response was structurally valid without retry (`True` / `False`; `None` for older records) |
 | `verification_gap`      | EA oracle (arm B/C, journal component only): 1 if output contains an error EA would reject by construction — imbalance / account outside EA AccountTitles / category violation / non-positive amount |
 | `convergence_iterations`| Attempts until structurally-valid output (P4); = max-iters when not converged |
+
+Each non-dry run writes `metrics/<timestamp>.meta.json` with the CLI argv,
+resolved task/arm/model/seed grid, `--skill`, Aprime/C settings, git `HEAD` and
+`describe --tags --always --dirty` (or `null` if unavailable), and backend
+version probes (`codex --version` or OpenAI-compatible `/api/version`). Per-run
+records also carry `effective_model`; for Codex this is parsed from the CLI
+banner as `<model>/<reasoning effort> (cli v<version>)` when available.
 
 ### Per-component metrics (TASK-FORMAT.md v2)
 
@@ -130,7 +167,8 @@ accounts, and amount positivity (EA's `(.@)` rejects negatives). Postings are
 EA-canonicalized (via ea_account_map, mirroring P1) before the oracle sees them,
 so GT-vocabulary answers are not falsely flagged; only genuinely unresolvable
 names count as hallucinations. Applied to arm B/C by default (`--oracle-arms`);
-arm A is construction-guaranteed (smoke-check with `--oracle-arms A,B,C`).
+arm A and Aprime are construction-guaranteed (smoke-check with
+`--oracle-arms A,Aprime,B,C`).
 
 ## Local models (Ollama / vLLM)
 

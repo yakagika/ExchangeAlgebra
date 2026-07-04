@@ -15,7 +15,9 @@ message on failure.
 
 from __future__ import annotations
 
+import json
 import sys
+import tempfile
 from pathlib import Path
 
 RUNNER_DIR = Path(__file__).parent
@@ -23,6 +25,13 @@ EVAL_DIR = RUNNER_DIR.parent
 if str(EVAL_DIR) not in sys.path:
     sys.path.insert(0, str(EVAL_DIR))
 
+from runner.arms import (  # noqa: E402
+    _ARM_C_ROLE,
+    _arm_aprime_system,
+    arm_aprime,
+    arm_c,
+)
+from runner.run import append_summary_csv, normalize_arm_name  # noqa: E402
 from runner.score import score  # noqa: E402
 
 FAILURES: list[str] = []
@@ -41,6 +50,21 @@ def close(a, b, tol: float = 1e-9) -> bool:
     if a is None or b is None:
         return a is b
     return abs(a - b) <= tol
+
+
+class FakeBackend:
+    def __init__(self, responses: list[str]):
+        self.responses = list(responses)
+        self.systems: list[str] = []
+        self.users: list[str] = []
+        self.effective_model = "fake-model"
+
+    def generate(self, system: str, user: str) -> str:
+        self.systems.append(system)
+        self.users.append(user)
+        if self.responses:
+            return self.responses.pop(0)
+        return "not json"
 
 
 # ---------------------------------------------------------------------------
@@ -75,6 +99,7 @@ def case1() -> None:
         ],
         "iterations": 1,
         "converged": True,
+        "first_pass_valid": True,
     }
     m = score(task, arm_result, "C", worktree_root=None)
     check("numeric_accuracy == 1.0 (old-implementation equivalence)", close(m["numeric_accuracy"], 1.0), str(m["numeric_accuracy"]))
@@ -84,6 +109,7 @@ def case1() -> None:
     check("derived_accuracy is None (no derived component)", m["derived_accuracy"] is None, str(m["derived_accuracy"]))
     check("escape_ok is None (not escape-hatch)", m["escape_ok"] is None, str(m["escape_ok"]))
     check("verification_gap is None (worktree_root=None)", m["verification_gap"] is None, str(m["verification_gap"]))
+    check("first_pass_valid passes through", m["first_pass_valid"] is True, str(m["first_pass_valid"]))
 
 
 # ---------------------------------------------------------------------------
@@ -365,6 +391,217 @@ def case7() -> None:
           close(m["journal_accuracy"], 1.0), str(m["journal_accuracy"]))
 
 
+def case8() -> None:
+    print("Case 8: arm normalization and Aprime system prompt")
+    check("normalize aprime -> Aprime", normalize_arm_name("aprime") == "Aprime")
+    check("normalize APRIME -> Aprime", normalize_arm_name("APRIME") == "Aprime")
+    check("normalize A' -> Aprime", normalize_arm_name("A'") == "Aprime")
+
+    task_with_tx = {
+        "id": "aprime-system",
+        "category": "journalize",
+        "given": {"transactions": [{"id": "t1", "desc": "cash sale", "amount": 1000}]},
+        "prompt": "Journalize.",
+    }
+    task_without_tx = {
+        "id": "aprime-system-no-tx",
+        "category": "closing",
+        "given": {},
+        "prompt": "Compute.",
+        "expected_output": {"components": ["derived"]},
+    }
+    system_with_tx = _arm_aprime_system(task_with_tx)
+    system_without_tx = _arm_aprime_system(task_without_tx)
+    check("Aprime role has C role as exact prefix", system_with_tx.startswith(_ARM_C_ROLE))
+    check("txid contract note appears when transactions exist",
+          "Transaction id contract:" in system_with_tx)
+    check("txid contract note absent without transactions",
+          "Transaction id contract:" not in system_without_tx)
+
+
+def _aprime_task() -> dict:
+    return {
+        "id": "aprime-gate",
+        "category": "journalize",
+        "given": {
+            "ea_account_map": {"Cash": "Cash", "Sales": "Sales"},
+            "transactions": [{"id": "t1", "desc": "cash sale", "amount": 1000}],
+        },
+        "prompt": "Journalize the transaction.",
+        "expected_output": {"components": ["journal"]},
+        "ground_truth": {
+            "journal": [
+                {"side": "debit", "account": "Cash", "amount": 1000},
+                {"side": "credit", "account": "Sales", "amount": 1000},
+            ]
+        },
+    }
+
+
+def case9() -> None:
+    print("Case 9: arm_aprime gate feedback, canonical replacement, first-pass")
+    response_bad = json.dumps({
+        "journal": [
+            {"txid": "t1", "side": "debit", "account": "Cash", "amount": 900},
+            {"txid": "t1", "side": "credit", "account": "Sales", "amount": 1000},
+        ]
+    })
+    response_fixed = json.dumps({
+        "journal": [
+            {"txid": "t1", "side": "debit", "account": "Cash", "amount": 999},
+            {"txid": "t1", "side": "credit", "account": "Sales", "amount": 999},
+        ]
+    })
+    canonical = [
+        {"side": "debit", "account": "Cash", "amount": 1000},
+        {"side": "credit", "account": "Sales", "amount": 1000},
+    ]
+
+    for mode, expected_feedback, rejected_feedback in [
+        ("raw", "RAW_ERR", "RICH_ERR"),
+        ("rich", "RICH_ERR", "RAW_ERR"),
+    ]:
+        backend = FakeBackend([response_bad, response_fixed])
+        verdicts = [
+            {"ok": False, "raw": "RAW_ERR", "rich": "RICH_ERR",
+             "entry_errors": [], "source_errors": [], "input_errors": []},
+            {"ok": True, "journal": canonical},
+        ]
+        calls: list[dict] = []
+
+        def loader(js: str):
+            calls.append(json.loads(js))
+            return verdicts.pop(0)
+
+        result = arm_aprime(
+            _aprime_task(), backend, Path("/tmp/unused"), Path("/tmp/unused"),
+            max_iters=2, feedback_mode=mode, loadchecked_fn=loader,
+        )
+        check(f"Aprime {mode}: converged after retry", result["converged"] is True)
+        check(f"Aprime {mode}: iterations == 2", result["iterations"] == 2, str(result["iterations"]))
+        check(f"Aprime {mode}: first_pass_valid False", result["first_pass_valid"] is False)
+        check(f"Aprime {mode}: feedback contains selected mode",
+              expected_feedback in backend.users[1], backend.users[1])
+        check(f"Aprime {mode}: feedback omits other mode",
+              rejected_feedback not in backend.users[1], backend.users[1])
+        check(f"Aprime {mode}: journal replaced by canonical verdict",
+              result["parsed"]["journal"] == canonical, str(result["parsed"]))
+        check(f"Aprime {mode}: sources passed to loader",
+              calls[0]["sources"] == [{"id": "t1", "amount": 1000}], str(calls[0]["sources"]))
+
+    backend = FakeBackend([response_fixed])
+    result = arm_aprime(
+        _aprime_task(), backend, Path("/tmp/unused"), Path("/tmp/unused"),
+        max_iters=1, loadchecked_fn=lambda _js: {"ok": True, "journal": canonical},
+    )
+    check("Aprime first attempt success -> first_pass_valid True",
+          result["first_pass_valid"] is True, str(result["first_pass_valid"]))
+
+
+def case10() -> None:
+    print("Case 10: arm_aprime no journal component and source fallback")
+    no_journal_task = {
+        "id": "aprime-no-journal",
+        "category": "closing",
+        "given": {"ea_account_map": {"Cash": "Cash"}},
+        "prompt": "Compute derived value.",
+        "expected_output": {"components": ["derived"]},
+    }
+    calls = 0
+
+    def should_not_call(_js: str):
+        nonlocal calls
+        calls += 1
+        return {"ok": True, "journal": []}
+
+    result = arm_aprime(
+        no_journal_task, FakeBackend(['{"derived":{"x":1}}']),
+        Path("/tmp/unused"), Path("/tmp/unused"), loadchecked_fn=should_not_call,
+    )
+    check("no journal component -> gate_applicable False", result["gate_applicable"] is False)
+    check("no journal component -> loader not called", calls == 0, str(calls))
+    check("no journal component -> converged", result["converged"] is True)
+
+    missing_amount_task = _aprime_task()
+    missing_amount_task["given"] = {
+        "transactions": [{"id": "t1", "desc": "cash sale"}],
+        "ea_account_map": {"Cash": "Cash", "Sales": "Sales"},
+    }
+    captured: list[dict] = []
+
+    def capture_loader(js: str):
+        captured.append(json.loads(js))
+        return {"ok": True, "journal": []}
+
+    arm_aprime(
+        missing_amount_task, FakeBackend(['{"journal":[]}']),
+        Path("/tmp/unused"), Path("/tmp/unused"), loadchecked_fn=capture_loader,
+    )
+    check("transactions with missing amount -> sources []",
+          captured[0]["sources"] == [], str(captured[0]["sources"]))
+
+
+def case11() -> None:
+    print("Case 11: arm_c retry count and EA map prompt flag")
+    task = {
+        "id": "arm-c-retry",
+        "category": "journalize",
+        "given": {
+            "ea_account_map": {"ServiceRevenue": "Sales"},
+            "transactions": [{"id": "t1", "desc": "service", "amount": 10}],
+        },
+        "prompt": "Journalize.",
+    }
+    backend = FakeBackend(["bad", "bad", "bad", "bad"])
+    result = arm_c(task, backend, retries=3)
+    check("arm_c retries=3 -> 4 attempts", len(result["attempts"]) == 4, str(len(result["attempts"])))
+    check("arm_c retries=3 -> iterations == 4", result["iterations"] == 4, str(result["iterations"]))
+
+    backend = FakeBackend(["bad", "bad"])
+    result = arm_c(task, backend)
+    check("arm_c default -> 2 attempts", len(result["attempts"]) == 2, str(len(result["attempts"])))
+
+    backend = FakeBackend(['[{"side":"debit","account":"Cash","amount":10}]'])
+    arm_c(task, backend, include_ea_map=True)
+    check("arm_c include_ea_map -> mapping line in prompt",
+          "EA account mapping" in backend.users[0], backend.users[0])
+
+
+def case12() -> None:
+    print("Case 12: append_summary_csv schema guard")
+    with tempfile.TemporaryDirectory() as tmp:
+        csv_path = Path(tmp) / "summary.csv"
+        csv_path.write_text("old,header\n1,2\n", encoding="utf-8")
+        rec = {
+            "task_id": "t",
+            "arm": "Aprime",
+            "model": "fake",
+            "seed": 0,
+            "elapsed_s": 0.1,
+            "effective_model": "fake-model",
+            "skill": None,
+            "aprime_feedback": "raw",
+            "metrics": {
+                "numeric_accuracy": 1.0,
+                "journal_accuracy": 1.0,
+                "compile_fail": False,
+                "parse_fail": False,
+                "verification_gap": None,
+                "convergence_iterations": 1,
+                "converged": True,
+                "first_pass_valid": True,
+            },
+        }
+        append_summary_csv([rec], csv_path, "20260704_010203")
+        legacy = list(Path(tmp).glob("summary_legacy_20260704_010203*.csv"))
+        header = csv_path.read_text(encoding="utf-8").splitlines()[0]
+        check("legacy summary preserved on schema mismatch", len(legacy) == 1, str(legacy))
+        check("new summary header contains first_pass_valid",
+              "first_pass_valid" in header, header)
+        check("new summary header contains Aprime fields",
+              "effective_model" in header and "aprime_feedback" in header, header)
+
+
 def main() -> None:
     case1()
     case2()
@@ -373,6 +610,11 @@ def main() -> None:
     case5()
     case6()
     case7()
+    case8()
+    case9()
+    case10()
+    case11()
+    case12()
 
     print()
     if FAILURES:

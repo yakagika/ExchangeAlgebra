@@ -16,6 +16,7 @@ Common interface
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 import urllib.error
@@ -75,6 +76,7 @@ class CodexBackend(Backend):
 
     model: Optional[str] = None          # e.g. "o3"; None → codex default
     timeout_seconds: int = 240
+    effective_model: Optional[str] = None
     _workdir: Optional[str] = None       # lazily-created neutral empty dir
 
     def _neutral_workdir(self) -> str:
@@ -140,6 +142,8 @@ class CodexBackend(Backend):
                 f"stderr: {result.stderr[:500]}"
             )
 
+        self.effective_model = _parse_codex_effective_model(result.stdout, self.model)
+
         # Read from the -o output file (clean final answer only).
         try:
             answer = Path(tmp_path).read_text(encoding="utf-8").strip()
@@ -170,6 +174,7 @@ class OpenAICompatBackend(Backend):
     model: str                     # e.g. "llama3.2"
     api_key: str = "ollama"        # placeholder for local servers
     timeout_seconds: int = 120
+    effective_model: Optional[str] = None
 
     def generate(self, system: str, user: str) -> str:
         url = self.base_url.rstrip("/") + "/v1/chat/completions"
@@ -202,6 +207,8 @@ class OpenAICompatBackend(Backend):
             ) from exc
         except json.JSONDecodeError as exc:
             raise RuntimeError(f"Non-JSON response from {url!r}: {exc}") from exc
+
+        self.effective_model = body.get("model", self.model)
 
         try:
             return body["choices"][0]["message"]["content"].strip()
@@ -243,3 +250,67 @@ def backend_from_config(section: dict) -> Backend:
         )
     else:
         raise ValueError(f"Unknown backend type: {kind!r}")
+
+
+# ---------------------------------------------------------------------------
+# Version / effective-model probes
+# ---------------------------------------------------------------------------
+
+def _parse_codex_effective_model(stdout: str, configured_model: Optional[str]) -> Optional[str]:
+    cli_match = re.search(r"^OpenAI Codex v(\S+)", stdout, re.MULTILINE)
+    model_match = re.search(r"^model:\s*(.+)$", stdout, re.MULTILINE)
+    effort_match = re.search(r"^reasoning effort:\s*(.+)$", stdout, re.MULTILINE)
+
+    cli_version = cli_match.group(1).strip() if cli_match else None
+    model = model_match.group(1).strip() if model_match else configured_model
+    effort = effort_match.group(1).strip() if effort_match else None
+
+    if not (cli_version or model or effort):
+        return None
+
+    head = model or "codex"
+    if effort:
+        head = f"{head}/{effort}"
+    if cli_version:
+        return f"{head} (cli v{cli_version})"
+    return head
+
+
+def codex_cli_version() -> Optional[str]:
+    """Return `codex --version`, or None if the CLI cannot be probed."""
+    try:
+        result = subprocess.run(
+            ["codex", "--version"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        return None
+    if result.returncode != 0:
+        return None
+    out = (result.stdout or result.stderr).strip()
+    return out or None
+
+
+def probe_server_version(base_url: str) -> Optional[str]:
+    """
+    Probe an OpenAI-compatible local server for a version string.
+
+    Ollama exposes GET /api/version as {"version": "..."}; unknown shapes are
+    returned compactly, and all failures collapse to None.
+    """
+    url = base_url.rstrip("/") + "/api/version"
+    req = urllib.request.Request(url, method="GET")
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            body = json.loads(resp.read().decode())
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError):
+        return None
+
+    if isinstance(body, dict):
+        version = body.get("version")
+        if isinstance(version, str) and version:
+            return f"ollama {version}"
+        return json.dumps(body, sort_keys=True)[:200]
+    return str(body)[:200]

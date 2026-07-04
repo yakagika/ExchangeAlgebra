@@ -5,6 +5,9 @@ run_haskell : compile + run a generated .hs via `stack exec runghc` (arm A/D).
 run_python  : run a generated Python script via `uv run python` (arm B).
 run_oracle  : feed a canonical-JSON posting array to the EA oracle
               (oracle/Oracle.hs) and return its verdict dict (P2).
+run_loadchecked
+            : feed an A-prime postings/sources object to the checked-loader
+              gate (harness/LoadChecked.hs) and return its verdict dict.
 
 Uses the worktree root's stack.yaml (packages: ['.', 'examples']) so the EA
 library is available to runghc.
@@ -27,6 +30,7 @@ DEFAULT_TIMEOUT = 60  # seconds
 
 ORACLE_REL_PATH = Path("examples/audit-eval/oracle/Oracle.hs")
 HARNESS_REL_PATH = Path("examples/audit-eval/harness")
+LOADCHECKED_REL_PATH = HARNESS_REL_PATH / "LoadChecked.hs"
 
 
 def run_haskell(
@@ -186,6 +190,53 @@ def run_oracle(
             cwd=str(worktree_root),
         )
     except (subprocess.TimeoutExpired, FileNotFoundError):
+        return None
+
+    try:
+        return json.loads(result.stdout.strip())
+    except (json.JSONDecodeError, ValueError):
+        return None
+
+
+def run_loadchecked(
+    input_json: str,
+    worktree_root: Path,
+    timeout: int = 120,
+) -> Optional[dict]:
+    """
+    Feed an A-prime loader input object to harness/LoadChecked.hs and return
+    its verdict dict, or None if the gate itself failed to run.
+
+    LoadChecked imports harness/EmitCanonical.hs, so the runghc invocation
+    mirrors run_haskell's `-i<harness>` include path.
+    """
+    script_path = worktree_root / LOADCHECKED_REL_PATH
+    if not script_path.exists():
+        return None
+
+    cmd = [
+        "stack",
+        "--stack-yaml", str(worktree_root / "stack.yaml"),
+        "exec",
+        "runghc",
+        "--",
+        f"-i{worktree_root / HARNESS_REL_PATH}",
+        str(script_path),
+    ]
+
+    try:
+        result = subprocess.run(
+            cmd,
+            input=input_json,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            cwd=str(worktree_root),
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return None
+
+    if result.returncode != 0:
         return None
 
     try:
