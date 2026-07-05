@@ -863,6 +863,7 @@ def arm_aprime(
         "feedback_mode": feedback_mode,
         "loadchecked_verdict": None,
         "timed_out": False,
+        "raw_first_journal": None,
     }
 
     feedback: Optional[str] = None
@@ -911,6 +912,15 @@ def arm_aprime(
             continue
 
         journal_component = _journal_component(parsed_candidate, task)
+        # First-pass raw model postings (BEFORE the checked loader accepts or
+        # canonically re-prints them). Scoring this separately isolates the
+        # model's own accuracy from the gate-tutor effect of reconcileSources'
+        # amount feedback (cross-check: A' otherwise gets a semantic answer-
+        # checking loop the other arms lack). Captured only on the first
+        # attempt, regardless of whether it passes the gate.
+        if i == 1:
+            result["raw_first_journal"] = journal_component
+
         if not gate_applicable:
             result["json_str"] = json_str
             result["parsed"] = parsed_candidate

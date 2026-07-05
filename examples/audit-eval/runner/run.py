@@ -259,7 +259,8 @@ def append_summary_csv(records: list[dict], csv_path: Path, ts: str) -> None:
 
     fields = [
         "ts", "task_id", "arm", "model", "seed", "elapsed_s",
-        "numeric_accuracy", "journal_accuracy", "derived_accuracy",
+        "numeric_accuracy", "journal_accuracy", "raw_journal_accuracy",
+        "derived_accuracy",
         "findings_recall", "findings_precision", "decision_accuracy",
         "escape_ok",
         "balance_violation", "account_validity", "compile_fail", "parse_fail",
@@ -301,6 +302,7 @@ def append_summary_csv(records: list[dict], csv_path: Path, ts: str) -> None:
             row.update({
                 "numeric_accuracy":   m.get("numeric_accuracy"),
                 "journal_accuracy":   m.get("journal_accuracy"),
+                "raw_journal_accuracy": m.get("raw_journal_accuracy"),
                 "derived_accuracy":   m.get("derived_accuracy"),
                 "findings_recall":    m.get("findings_recall"),
                 "findings_precision": m.get("findings_precision"),

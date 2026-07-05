@@ -90,22 +90,26 @@ jstr s = "\"" ++ concatMap esc s ++ "\""
     esc c    = [c]
 
 -- | Render a single EA posting element as a canonical JSON object
---   {"side":"debit"|"credit","account":"<Name>","amount":<int>}.
+--   {"side":"debit"|"credit","account":"<Name>","amount":<number>}.
 --
 --   side    = 'whichSide' applied to the posting's own 'HatBase' — this
 --             already performs the Hat/Not home-side flip (see module
 --             haddock); it is NOT re-derived from account name by hand.
 --   account = 'show' of 'getAccountTitle' — the EA constructor name.
---   amount  = 'toDecimal' unwraps 'MoneyDecimal' to 'Decimal' (which has no
---             direct 'RealFrac' instance on 'MoneyDecimal' itself — SKILL
---             gotcha), then 'truncate' to 'Int'.
+--   amount  = 'toDecimal' unwraps 'MoneyDecimal' to 'Decimal', shown as a full
+--             decimal JSON number. It must NOT be 'truncate'd to Int: fractional
+--             amounts (e.g. an 11182.24 lease payment) would silently lose their
+--             cents and then fail the exact-amount journal matcher, biasing
+--             arm A/A' on any non-integer task (Track S amounts are whole, but
+--             textbook Track R tasks are not). 'Data.Decimal' 'show' never uses
+--             scientific notation, so the output is always valid JSON.
 postingJSON :: Alg MoneyDecimal MinBase -> String
 postingJSON x =
     let b    = _hatBase x
         v    = toDecimal (_val x) :: Decimal
         side = if whichSide b == Debit then "debit" else "credit"
         acct = show (getAccountTitle b)
-        amt  = show (truncate v :: Int)
+        amt  = show v
     in "{\"side\":" ++ jstr side
        ++ ",\"account\":" ++ jstr acct
        ++ ",\"amount\":" ++ amt ++ "}"

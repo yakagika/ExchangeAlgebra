@@ -648,6 +648,45 @@ def case13() -> None:
     check("arm_aprime timeout -> first_pass_valid False", result2["first_pass_valid"] is False, str(result2["first_pass_valid"]))
 
 
+def case14() -> None:
+    print("Case 14: raw_journal_accuracy scores A' first-pass raw postings")
+    task = {
+        "id": "raw-acc",
+        "category": "journalize",
+        "ea_coverage": "ok",
+        "given": {"chart_of_accounts": ["Cash", "Sales"], "ea_account_map": {}},
+        "ground_truth": {
+            "journal": [
+                {"side": "debit", "account": "Cash", "amount": 1000},
+                {"side": "credit", "account": "Sales", "amount": 1000},
+            ]
+        },
+    }
+    # Final (gated) journal is fully correct; raw first-pass had one wrong side.
+    arm_result = {
+        "parse_fail": False,
+        "compile_fail": False,
+        "parsed": [
+            {"side": "debit", "account": "Cash", "amount": 1000},
+            {"side": "credit", "account": "Sales", "amount": 1000},
+        ],
+        "raw_first_journal": [
+            {"side": "debit", "account": "Cash", "amount": 1000},
+            {"side": "debit", "account": "Sales", "amount": 1000},  # wrong side
+        ],
+        "iterations": 2,
+        "converged": True,
+        "first_pass_valid": False,
+    }
+    m = score(task, arm_result, "Aprime", worktree_root=None)
+    check("journal_accuracy == 1.0 (gated)", close(m["journal_accuracy"], 1.0), str(m["journal_accuracy"]))
+    check("raw_journal_accuracy == 0.5 (first-pass, one side wrong)",
+          close(m["raw_journal_accuracy"], 0.5), str(m["raw_journal_accuracy"]))
+    # Arms that do not report raw_first_journal get None.
+    m2 = score(task, {"parse_fail": False, "parsed": arm_result["parsed"]}, "C", worktree_root=None)
+    check("raw_journal_accuracy is None without raw_first_journal", m2["raw_journal_accuracy"] is None, str(m2["raw_journal_accuracy"]))
+
+
 def main() -> None:
     case1()
     case2()
@@ -662,6 +701,7 @@ def main() -> None:
     case11()
     case12()
     case13()
+    case14()
 
     print()
     if FAILURES:

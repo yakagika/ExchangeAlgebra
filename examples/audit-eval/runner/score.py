@@ -12,6 +12,11 @@ numeric_accuracy   : headline — micro-average over ALL present GT components
 journal_accuracy   : fraction of GT postings exactly matched (canonical
                      account + side + amount) — same matcher as v1
                      numeric_accuracy, applied to the "journal" component.
+raw_journal_accuracy : arm A' only — journal_accuracy of the model's FIRST-pass
+                     raw postings, before the checked loader accepted / canonically
+                     re-printed them. Comparing raw vs journal_accuracy isolates the
+                     model's own competence from the gate-tutor effect of A'
+                     reconcileSources amount feedback. None for other arms.
 derived_accuracy   : fraction of GT "derived" entries matched (flattened,
                      key-normalized, numeric-tolerant).
 findings_recall    : fraction of GT "findings" (type, locus) pairs matched.
@@ -499,6 +504,18 @@ def score(
         journal_matched = _match_journal(model_journal, gt_journal, resolver)
         journal_accuracy = journal_matched / len(gt_journal)
 
+    # ---- raw_journal_accuracy (arm A': first-pass model postings, pre-gate) ---
+    # The accuracy of the model's OWN first attempt before the checked loader
+    # accepted / canonically re-printed it. Comparing this to journal_accuracy
+    # isolates the model's competence from the gate-tutor effect of A'
+    # reconcileSources amount feedback (cross-check). None for arms that do not
+    # report raw_first_journal, or when there is no GT journal to match.
+    raw_journal_accuracy: Optional[float] = None
+    raw_first_journal = arm_result.get("raw_first_journal")
+    if isinstance(raw_first_journal, list) and gt_journal:
+        raw_matched = _match_journal(raw_first_journal, gt_journal, resolver)
+        raw_journal_accuracy = raw_matched / len(gt_journal)
+
     # ---- derived_accuracy ------------------------------------------------------
     derived_accuracy: Optional[float] = None
     derived_matched = derived_total = 0
@@ -592,6 +609,7 @@ def score(
         "arm":                    arm_name,
         "numeric_accuracy":       numeric_accuracy,
         "journal_accuracy":       journal_accuracy,
+        "raw_journal_accuracy":   raw_journal_accuracy,
         "derived_accuracy":       derived_accuracy,
         "findings_recall":        findings_recall,
         "findings_precision":     findings_precision,
