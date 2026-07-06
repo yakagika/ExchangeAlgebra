@@ -27,14 +27,16 @@ Arguments
 --oracle-arms <arms>  Arms the EA oracle applies to (default B,C).
 --dry-run             Print what would be run without calling the LLM.
 
-Output
+Output (written incrementally so a killed / OOM-ed run keeps completed cells)
 ------
-metrics/<timestamp>.json    — full results for this invocation (all seeds, one file)
-metrics/<timestamp>.meta.json
-                             — run configuration, git revision, backend versions
-metrics/summary.csv         — one row per (task, arm, model, seed) run, APPENDED
-                              across invocations (header written only if the file
-                              is new; schema changes preserve the old file as
+metrics/<timestamp>.meta.json — run config, git revision, backend versions.
+                              Written BEFORE the grid runs (survives a mid-run kill).
+metrics/<timestamp>.jsonl   — one JSON record per cell, appended as each cell
+                              scores (the crash-safe copy).
+metrics/<timestamp>.json    — full results array, written at the end (convenience).
+metrics/summary.csv         — one row per (task, arm, model, seed) run, appended
+                              per cell across invocations (header written only if the
+                              file is new; schema changes preserve the old file as
                               summary_legacy_<timestamp>.csv).
 """
 
@@ -514,6 +516,29 @@ def main() -> None:
     print(f"  C retries   : {args.c_retries}  C ea_map={args.c_ea_map}")
     print()
 
+    # ---- Prepare output sinks up front so a killed / OOM-ed run keeps every
+    #      cell scored so far (run.py used to write only at the end; a Qwen run
+    #      killed mid-grid by memory pressure lost all 8 completed cells). meta
+    #      (config + git + backend versions) is written first; each cell is
+    #      appended to summary.csv AND <ts>.jsonl immediately after it scores. ----
+    METRICS_DIR.mkdir(parents=True, exist_ok=True)
+    json_path  = METRICS_DIR / f"{ts}.json"
+    jsonl_path = METRICS_DIR / f"{ts}.jsonl"
+    meta_path  = METRICS_DIR / f"{ts}.meta.json"
+    csv_path   = METRICS_DIR / "summary.csv"
+
+    if not args.dry_run:
+        with meta_path.open("w") as f:
+            json.dump(
+                build_run_meta(
+                    ts=ts, task_ids=task_ids, arm_names=arm_names,
+                    model_keys=model_keys, seeds=seeds, args=args,
+                    model_cfg=cfg, oracle_arms=oracle_arms,
+                ),
+                f, indent=2, default=str,
+            )
+        print(f"Wrote: {meta_path}")
+
     # ---- Run (seed is the outermost loop — every seed runs the full grid) ----
     all_records: list[dict] = []
 
@@ -565,40 +590,22 @@ def main() -> None:
                             f"timed_out={m.get('timed_out')}"
                         )
 
+                    # Persist this cell immediately (crash-safe): one summary.csv
+                    # row + one JSONL line, each flushed on close.
+                    if not args.dry_run:
+                        append_summary_csv([rec], csv_path, ts)
+                        with jsonl_path.open("a") as jf:
+                            jf.write(json.dumps(rec, default=str) + "\n")
+
     if args.dry_run:
         print("\n[dry-run complete — no LLM calls made]")
         return
 
-    # ---- Write outputs ----
-    METRICS_DIR.mkdir(parents=True, exist_ok=True)
-
-    json_path = METRICS_DIR / f"{ts}.json"
+    # ---- Final full JSON array (convenience; <ts>.jsonl is the crash-safe copy) ----
     with json_path.open("w") as f:
         json.dump(all_records, f, indent=2, default=str)
     print(f"\nWrote: {json_path}")
-
-    meta_path = METRICS_DIR / f"{ts}.meta.json"
-    with meta_path.open("w") as f:
-        json.dump(
-            build_run_meta(
-                ts=ts,
-                task_ids=task_ids,
-                arm_names=arm_names,
-                model_keys=model_keys,
-                seeds=seeds,
-                args=args,
-                model_cfg=cfg,
-                oracle_arms=oracle_arms,
-            ),
-            f,
-            indent=2,
-            default=str,
-        )
-    print(f"Wrote: {meta_path}")
-
-    csv_path = METRICS_DIR / "summary.csv"
-    append_summary_csv(all_records, csv_path, ts)
-    print(f"Wrote (appended): {csv_path}")
+    print(f"Per-cell: {jsonl_path}  +  {csv_path} (appended)")
 
 
 if __name__ == "__main__":
