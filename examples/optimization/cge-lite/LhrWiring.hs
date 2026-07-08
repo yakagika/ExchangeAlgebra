@@ -42,6 +42,11 @@ module LhrWiring
     , instrCoords
     , coordBase
     , perturb
+      -- * Reduced-system solve (step ④: the auctioneer's root find)
+    , instrToMap
+    , mapToInstr
+    , reducedResiduals
+    , solveReduced
     ) where
 
 import qualified Data.Map.Strict as M
@@ -49,6 +54,7 @@ import qualified Data.Map.Strict as M
 import           LhrCalibration  (Ac (..), LhrBase (..), LhrCalibration (..),
                                   LhrParams (..), LhrSets (..))
 import           LhrModel
+import           Solver          (ConvergenceTol, SentinelLog, solveRoot)
 
 -- | The reduced instrument vector the auctioneer searches over.
 data Instruments = Instruments
@@ -393,3 +399,46 @@ perturb e c ins = case c of
     CQA a  -> ins { insQA  = M.insertWith (+) a e (insQA ins) }
     CIADJ  -> ins { insIADJ = insIADJ ins + e }
     CYI i  -> ins { insYI  = M.insertWith (+) i e (insYI ins) }
+
+------------------------------------------------------------------
+-- * Reduced-system solve (step ④)
+------------------------------------------------------------------
+
+-- | The instrument vector as a coordinate-keyed map (the solver's unknowns).
+instrToMap :: LhrCalibration -> Instruments -> M.Map InstrCoord Double
+instrToMap cal ins = M.fromList [ (c, coordBase ins c) | c <- instrCoords cal ]
+
+-- | Rebuild the instrument record from a coordinate-keyed map.
+mapToInstr :: LhrCalibration -> M.Map InstrCoord Double -> Instruments
+mapToInstr cal um = Instruments
+    { insPDS  = M.fromList [ (c, u (CPDS c)) | c <- setCd sets ]
+    , insWF   = M.fromList [ (f, u (CWF f))  | f <- setF sets ]
+    , insEXR  = u CEXR
+    , insQA   = M.fromList [ (a, u (CQA a))  | a <- setA sets ]
+    , insIADJ = u CIADJ
+    , insYI   = M.fromList [ (i, u (CYI i))  | i <- setInsdng sets ]
+    }
+  where
+    sets = calSets cal
+    u k = M.findWithDefault 0.0 k um
+
+-- | The reduced oracle for the auctioneer: instruments (coordinate-keyed) to
+-- the six residuals it closes on, mapped onto the same coordinate keys.  The
+-- Walras-dependent SAVINVBAL is dropped; the pairing of a residual to a
+-- coordinate is a cosmetic label (Newton uses the full Jacobian), so it is a
+-- fixed positional zip of the two length-6 lists.
+reducedResiduals :: LhrCalibration -> M.Map InstrCoord Double -> M.Map InstrCoord Double
+reducedResiduals cal um =
+    M.fromList (zip (instrCoords cal) [ r M.! rk | rk <- kept ])
+  where
+    r    = residuals cal (mapToInstr cal um)
+    kept = filter (/= RSavInv) (M.keys r)
+
+-- | Solve the reduced system from a starting instrument vector: the Walrasian
+-- auctioneer's actual root find.  Returns the settled instruments and the
+-- solve's sentinel log (K, conditioning, convergence).
+solveReduced :: LhrCalibration -> Instruments -> ConvergenceTol
+             -> (Instruments, SentinelLog)
+solveReduced cal ins0 tol =
+    let (sol, slog) = solveRoot (reducedResiduals cal) (instrToMap cal ins0) tol
+    in (mapToInstr cal sol, slog)

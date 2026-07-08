@@ -37,15 +37,16 @@ module LhrLedger
     , LhrEntity (..)
     , LBase
     , ledgerResiduals
+    , ledgerAlg
+    , residualsFromAlg
     ) where
 
 import           Data.Hashable                 (Hashable (..))
 import qualified Data.Map.Strict               as M
 import           GHC.Generics                  (Generic)
 
-import           ExchangeAlgebra.Algebra
-import           ExchangeAlgebra.Algebra.Base
-import           ExchangeAlgebra.Algebra.Base.Element
+import           ExchangeAlgebra.Algebra              hiding (map, filter)
+import           ExchangeAlgebra.Algebra.Base.Element (Element (..))
 
 import           LhrCalibration (Ac (..), LhrBase (..), LhrCalibration (..),
                                  LhrParams (..), LhrSets (..))
@@ -137,9 +138,7 @@ absorb q p e = q :@ (Hat :< (Products, p, e, Amount))
 -- ledger flow).
 ledgerResiduals :: LhrCalibration -> Instruments -> M.Map ResidualKey Double
 ledgerResiduals cal ins =
-    M.insert RCpi cpidef
-    $ M.mapWithKey orient
-    $ balanceMapBy zKey (ledgerAlg cal ins)
+    M.insert RCpi cpidef (residualsFromAlg (ledgerAlg cal ins))
   where
     fwd = forwardSolution cal ins
     g nm ix = M.findWithDefault 0.0 (nm, ix) fwd
@@ -150,8 +149,13 @@ ledgerResiduals cal ins =
                  | c <- setCdm sets ]
            - baseCpi0 (calBase cal)
 
-    -- build_system signs: COMEQUIL = supply−demand, FACEQUIL = demand−supply,
-    -- YIDEF = YI−receipts.  The fold gives Not−Hat; flip the two that disagree.
+-- | Fold any LHR journal into the (oriented) ledger residuals.  Split out so
+-- the replicability invariant can fold a clone-split journal and compare.
+-- build_system signs: COMEQUIL = supply−demand, FACEQUIL = demand−supply,
+-- YIDEF = YI−receipts; the @Not − Hat@ fold gives the first, flip the others.
+residualsFromAlg :: Alg Double LBase -> M.Map ResidualKey Double
+residualsFromAlg = M.mapWithKey orient . balanceMapBy zKey
+  where
     orient (RFacEquil _) v = negate v
     orient (RYiDef _)    v = negate v
     orient _             v = v

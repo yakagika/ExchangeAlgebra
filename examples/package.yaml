@@ -288,6 +288,30 @@ tests:
     - LhrModel
     - LhrWiring
     - LhrLedger
+    - Solver
+    - TestHarness
+    ghc-options:
+    - -O0
+    when:
+    - condition: os(darwin)
+      ghc-options:
+      - '-optl-Wl,-no_warn_duplicate_libraries'
+
+  # Task-1e reduced-system solve + accounting-consistency sentinel (work item
+  # 3, step ④): the auctioneer converges from a perturbed start, every ledger
+  # residual is ≈0 at the solution (realised income == instrument income;
+  # SAVINVBAL ex-post Walras), and the clone-split fold is bit-identical.
+  cge-lite-lhr-solve-test:
+    main:                LhrSolveTest.hs
+    source-dirs:
+    - optimization/cge-lite
+    - optimization/cge-lite/test
+    other-modules:
+    - LhrCalibration
+    - LhrModel
+    - LhrWiring
+    - LhrLedger
+    - Solver
     - TestHarness
     ghc-options:
     - -O0
