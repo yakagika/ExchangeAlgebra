@@ -213,6 +213,89 @@ tests:
       ghc-options:
       - '-optl-Wl,-no_warn_duplicate_libraries'
 
+  # Task-1e LHR per-agent AS-ABM sentinel (work item 3, step ②): each layer-1
+  # response (activity/household/commodity/institution) must reproduce the
+  # Python ground-truth solution dump at the calibrated base, no solve.
+  cge-lite-lhr-model-test:
+    main:                LhrModelTest.hs
+    source-dirs:
+    - optimization/cge-lite
+    - optimization/cge-lite/test
+    other-modules:
+    - LhrCalibration
+    - LhrModel
+    - TestHarness
+    ghc-options:
+    - -O0
+    when:
+    - condition: os(darwin)
+      ghc-options:
+      - '-optl-Wl,-no_warn_duplicate_libraries'
+
+  # Task-1e LHR auctioneer forward-pass sentinel (work item 3, step ③a): the
+  # EquilibriumWiring composes the layer-1 responses to reconstruct the whole
+  # ground-truth solution vector from the base instruments (swazilan only;
+  # margin/home fixed point is 工程4).
+  cge-lite-lhr-wiring-test:
+    main:                LhrWiringTest.hs
+    source-dirs:
+    - optimization/cge-lite
+    - optimization/cge-lite/test
+    other-modules:
+    - LhrCalibration
+    - LhrModel
+    - LhrWiring
+    - TestHarness
+    ghc-options:
+    - -O0
+    when:
+    - condition: os(darwin)
+      ghc-options:
+      - '-optl-Wl,-no_warn_duplicate_libraries'
+
+  # Task-1e reduced instrument/residual sensitivity diagnostic (work item 3,
+  # step ③b-1): base residuals ≈0 and the |dR/d(instrument)| matrix that
+  # settles degeneracy (RActProfit) and the Walras drop numerically, before
+  # the EA journal is built.
+  cge-lite-lhr-residual-test:
+    main:                LhrResidualTest.hs
+    source-dirs:
+    - optimization/cge-lite
+    - optimization/cge-lite/test
+    other-modules:
+    - LhrCalibration
+    - LhrModel
+    - LhrWiring
+    - TestHarness
+    ghc-options:
+    - -O0
+    when:
+    - condition: os(darwin)
+      ghc-options:
+      - '-optl-Wl,-no_warn_duplicate_libraries'
+
+  # Task-1e EA double-entry journal sentinel (work item 3, step ③b-2): the
+  # residuals read off the ledger via balanceMapBy must equal the direct
+  # residuals at the base and at perturbed instruments (differential test /
+  # bookkeeping-bug detector), incl. the single EXR-conversion convention.
+  cge-lite-lhr-ledger-test:
+    main:                LhrLedgerTest.hs
+    source-dirs:
+    - optimization/cge-lite
+    - optimization/cge-lite/test
+    other-modules:
+    - LhrCalibration
+    - LhrModel
+    - LhrWiring
+    - LhrLedger
+    - TestHarness
+    ghc-options:
+    - -O0
+    when:
+    - condition: os(darwin)
+      ghc-options:
+      - '-optl-Wl,-no_warn_duplicate_libraries'
+
   # Task-1b model sentinel (general-equilibrium:phase1-cge-reproduction):
   # the stage bodies must reproduce the Hosoe Ch.6 benchmark — allocation
   # fields against Levels0, benchmark-zero residuals (incl. the dropped
