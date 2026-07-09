@@ -175,6 +175,17 @@ executables:
     source-dirs:         market
     other-modules:       MarketModel
 
+  # SICE performance-evaluation worked example: a circulant invoice-trade
+  # network. Single self-contained Main (model + runner), one runLite Sequential
+  # stage posting a 6-entry consumption-tax invoice per edge per term. Prints
+  # wall-time and the closed-form consumption-tax invariant (PASS/FAIL) for
+  # n ∈ {200,500,1000} by default. The 'circulant' generator (O(kN)) keeps it
+  # usable at market scale, unlike the O(N²) kRegular/erdosRenyi generators.
+  invoiceEx1:
+    <<: *exe-defaults
+    main:                invoiceEx1.hs
+    source-dirs:         invoice
+
 tests:
   # Task-1a calibration sentinel (general-equilibrium:phase1-cge-reproduction):
   # the Calibration port must match the GAMS ground truth (stdcge.lst display
