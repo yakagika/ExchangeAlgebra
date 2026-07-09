@@ -95,8 +95,9 @@ module ExchangeAlgebra.Simulate.Network
     , inputsOf
       -- * Summation over edges
     , sigmaEdges
-      -- * Network generators (deterministic from a 'StdGen')
+      -- * Network generators (deterministic)
     , completeNetwork
+    , circulant
     , kRegular
     , erdosRenyi
     , scaleFree
@@ -393,6 +394,32 @@ completeNetwork ks =
   where
     nodeSet = S.fromList ks
     xs      = S.toAscList nodeSet
+
+-- | A deterministic circulant (ring-lattice) network: the nodes are taken in
+-- ascending order and each buyer draws its @min k (N-1)@ suppliers from the @k@
+-- nodes that follow it cyclically (@j+1, …, j+k@ mod @N@). Unlike 'kRegular' \/
+-- 'erdosRenyi' it needs no 'StdGen' and is built in @O(kN)@ — it never scans the
+-- @O(N²)@ ordered pairs — so it stays usable at the @N@ a market-scale run needs.
+-- @|E| = min k (N-1) · N@ exactly, with no duplicate and no self edges.
+--
+-- >>> let g = circulant [1..6] 2 :: TradeNetwork Int
+-- >>> edgeCount g
+-- 12
+-- >>> suppliersOf g 1
+-- [2,3]
+-- >>> suppliersOf g 6
+-- [1,2]
+-- >>> all (\j -> length (suppliersOf g j) == 2) (nodes g)
+-- True
+circulant :: Ord k => [k] -> Int -> TradeNetwork k
+circulant ks k =
+    buildNetwork nodeSet (concat [ zip (rot d xs) xs | d <- [1 .. deg] ])
+  where
+    nodeSet  = S.fromList ks
+    xs       = S.toAscList nodeSet
+    n        = length xs
+    deg      = max 0 (min k (n - 1))
+    rot d ys = drop d ys ++ take d ys
 
 -- | A @k@-regular-in network: each buyer draws @min k (N-1)@ distinct suppliers
 -- (sampling without replacement, excluding itself). Deterministic in the given

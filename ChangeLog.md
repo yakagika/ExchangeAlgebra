@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- `circulant` (`ExchangeAlgebra.Simulate.Network`): a deterministic circulant
+  (ring-lattice) generator where each buyer draws its `min k (N-1)` suppliers
+  from the `k` nodes that follow it cyclically. Needs no `StdGen` and is built
+  in `O(kN)` (never scans the `O(N²)` ordered pairs), so it stays usable at the
+  `N` a market-scale run needs — unlike `kRegular` / `erdosRenyi`, whose
+  generation cost is `O(kN²)` / `O(N²)`. `|E| = min k (N-1) · N` exactly, with
+  no duplicate or self edges. Doctested.
 - `ExchangeAlgebra.Assist` (new module): deterministic assistance layer for
   LLM-facing workflows. `describeAccount` / `allAccountInfos` expose per-account
   metadata (division and home side derived from `classifyAccountDivision` /
