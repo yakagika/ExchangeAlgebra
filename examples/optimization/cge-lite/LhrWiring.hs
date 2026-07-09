@@ -34,6 +34,7 @@
 module LhrWiring
     ( Instruments (..)
     , baseInstruments
+    , activeArcs
     , forwardSolution
       -- * Candidate residuals (step ③b-1: sensitivity analysis before the ledger)
     , ResidualKey (..)
@@ -57,13 +58,28 @@ import           LhrModel
 import           Solver          (ConvergenceTol, SentinelLog, solveRoot)
 
 -- | The reduced instrument vector the auctioneer searches over.
+--
+-- ==工程4 (test.dat): PQ\/PXAC promotion (case A)
+--
+-- With transport margins (@PM\/PE\/PDD@ depend on @PQ@ via @CT@) or home
+-- production (@QXAC(net)@ depends on @QHA@ which depends on @PXAC@) the forward
+-- pass would be a fixed point.  Rather than an inner solve (rejected in the
+-- codex\/Fable cross-check on @docs/lhr-instrument-residual-closure.md@ §9), the
+-- composite price @PQ(CDM)@ and the activity output price @PXAC(active arcs)@
+-- are /promoted to instruments/: the auctioneer supplies them, and the
+-- definitions they replace (@PQDEF@, @OUTAGGFOC@) become residuals it closes
+-- on.  For a margin-free, home-free dataset (swazilan) these are pinned exactly
+-- by their own residual, so the sparse-uniform vector just grows 6 -> 8 without
+-- changing the economics.
 data Instruments = Instruments
-    { insPDS  :: !(M.Map Ac Double)   -- ^ PDS(c), c in CD
-    , insWF   :: !(M.Map Ac Double)   -- ^ WF(f)
-    , insEXR  :: !Double              -- ^ EXR
-    , insQA   :: !(M.Map Ac Double)   -- ^ QA(a)
-    , insIADJ :: !Double              -- ^ IADJ
-    , insYI   :: !(M.Map Ac Double)   -- ^ YI(i), i in INSDNG
+    { insPDS  :: !(M.Map Ac Double)         -- ^ PDS(c), c in CD
+    , insWF   :: !(M.Map Ac Double)         -- ^ WF(f)
+    , insEXR  :: !Double                    -- ^ EXR
+    , insQA   :: !(M.Map Ac Double)         -- ^ QA(a)
+    , insIADJ :: !Double                    -- ^ IADJ
+    , insYI   :: !(M.Map Ac Double)         -- ^ YI(i), i in INSDNG
+    , insPQ   :: !(M.Map Ac Double)         -- ^ PQ(c), c in CDM (promoted;工程4)
+    , insPXAC :: !(M.Map (Ac, Ac) Double)   -- ^ PXAC(a,c), active arcs (promoted;工程4)
     } deriving (Eq, Show)
 
 -- | The calibrated base instruments (the point the fixture solves at).
@@ -75,10 +91,20 @@ baseInstruments cal = Instruments
     , insQA   = M.fromList [ (a, mv (baseQa0 base) a)  | a <- setA sets ]
     , insIADJ = baseIadj0 base
     , insYI   = M.fromList [ (i, mv (baseYi0 base) i)  | i <- setInsdng sets ]
+    , insPQ   = M.fromList [ (c, mv (basePq0 base) c)  | c <- setCdm sets ]
+    , insPXAC = M.fromList (activeArcs cal)
     }
   where
     sets = calSets cal
     base = calBase cal
+
+-- | The active output arcs (a,c): the (activity, commodity) pairs the SAM gives
+-- a non-zero @PXAC0@, i.e. where activity @a@ actually produces commodity @c@.
+-- PXAC is promoted only on these arcs (Cartesian A×C would carry structural
+-- zeros); their base values seed 'insPXAC'.
+activeArcs :: LhrCalibration -> [((Ac, Ac), Double)]
+activeArcs cal =
+    [ ((a, c), v) | ((a, c), v) <- M.toList (basePxac0 (calBase cal)), v /= 0 ]
 
 mv :: Ord k => M.Map k Double -> k -> Double
 mv m k = M.findWithDefault 0.0 k m
@@ -120,6 +146,11 @@ forwardSolution cal ins = M.fromList $ concat
     wfM  = insWF ins
     qaM  = insQA ins
     yiM  = insYI ins
+    -- PQ/PXAC promoted to instruments (工程4): supplied, not derived, so the
+    -- margin and home fixed points never form.  Their defining equations become
+    -- the PQDEF / OUTAGGFOC residuals ('residuals').
+    pqM   = insPQ ins
+    pxacM = insPXAC ins
 
     -- (A) trade prices from instruments (margin sums are over CT, empty here)
     pmM = M.fromList
@@ -161,36 +192,43 @@ forwardSolution cal ins = M.fromList $ concat
         , psPDS = pdsM, psPDD = pddM, psPM = pmM, psPE = peM
         , psPQ = M.empty, psPXAC = M.empty, psWF = wfM, psEXR = exr }
 
-    -- (D) commodity producer/trader: aggregate + CET + Armington
+    -- (D) commodity producer/trader: aggregate + CET + Armington.  Import-only
+    -- goods (CM ∩ CDN) have no domestic anchor to respond off, so QM = QQ =
+    -- composite demand is set here; COMEQUIL(CIMP) is then identically 0 (dropped
+    -- from the reduced row) and PQDEF pins its price (PM/(1-tq), the value-balance
+    -- formula with QD = 0).
     coms = [ (c, commodityPlan pars sets c (qxacNetForCom c) psTrade) | c <- cSet ]
     qxacNetForCom c =
         M.fromList [ (a, v) | ((a, c'), v) <- M.toList qxacNetM, c' == c ]
+    isImportOnly c = c `elem` setCm sets && c `elem` setCdn sets
     qxM = M.fromList [ (c, cpQX cp) | (c, cp) <- coms, c `elem` setCx sets ]
     qdM = M.fromList [ (c, cpQD cp) | (c, cp) <- coms, c `elem` setCd sets ]
     qeM = M.fromList [ (c, cpQE cp) | (c, cp) <- coms, c `elem` setCe sets ]
-    qmM = M.fromList [ (c, cpQM cp) | (c, cp) <- coms, c `elem` setCm sets ]
-    qqM = M.fromList [ (c, cpQQ cp) | (c, cp) <- coms, c `elem` setCdm sets ]
+    qmM = M.fromList
+        [ (c, if isImportOnly c then demandOf c else cpQM cp)
+        | (c, cp) <- coms, c `elem` setCm sets ]
+    qqM = M.fromList
+        [ (c, if isImportOnly c then demandOf c else cpQQ cp)
+        | (c, cp) <- coms, c `elem` setCdm sets ]
+    -- composite demand of a good (COMEQUIL RHS); also pins import-only QM=QQ.
+    -- The transport-margin term is guarded by @c in CT@: forcing @qtM@ here
+    -- unconditionally would loop (qtM reads qmM, and an import-only qmM is this
+    -- very demandOf).  A non-transport good has QT = 0, so the guard is exact;
+    -- an import-only /transport/ good (a good imported and consumed as its own
+    -- margin) is a genuine economic self-reference and out of scope.
+    demandOf c = sum [ mv qintM (c, a) | a <- aSet ]
+               + sum [ mv qhM (c, h)   | h <- hSet ]
+               + mv qgM c + mv qinvM c + mv (paramQdst pars) c
+               + (if c `elem` ctSet then mv qtM c else 0)
 
-    -- (E) composite / output prices from the quantities
-    pqM = M.fromList
-        [ (c, ( (if c `elem` setCd sets then mv pddM c * mv qdM c else 0)
-              + (if c `elem` setCm sets then mv pmM c * mv qmM c else 0) )
-              / ((1 - mv (paramTq pars) c) * mv qqM c))
-        | c <- setCdm sets ]
+    -- (E) remaining derived prices (PX from quantities; PA/PINTA/CPI compose the
+    -- promoted PQ/PXAC).  PQ and PXAC themselves are instruments (see the
+    -- instrument block); their value-balance / OUTAGGFOC definitions are residuals.
     pxM = M.fromList
         [ (c, ( (if c `elem` setCd sets then mv pdsM c * mv qdM c else 0)
               + (if c `elem` setCe sets then mv peM c * mv qeM c else 0) )
               / mv qxM c)
         | c <- setCx sets ]
-    -- OUTAGGFOC inverted for PXAC(a,c).
-    pxacM = M.fromList
-        [ ((a, c), mv pxM c * mv qxM c / aggr * deltaac_ac
-                   * spow (mv qxacNetM (a, c)) (negate rhoac_c - 1))
-        | c <- cSet, M.member c (paramAlphaac pars)
-        , let rhoac_c = mv (paramRhoac pars) c
-              aggr = sum [ d * spow (mv qxacNetM (a', c)) (negate rhoac_c)
-                         | a' <- aSet, Just d <- [M.lookup (a', c) (paramDeltaac pars)] ]
-        , a <- aSet, Just deltaac_ac <- [M.lookup (a, c) (paramDeltaac pars)] ]
     paM = M.fromList
         [ (a, sum [ mv pxacM (a, c) * theta_ac
                   | c <- cSet, Just theta_ac <- [M.lookup (a, c) (paramTheta pars)] ])
@@ -292,13 +330,15 @@ forwardSolution cal ins = M.fromList $ concat
 -- matrix, not assumed — cf. the codex\/Fable cross-check on
 -- @docs/lhr-instrument-residual-closure.md@.
 data ResidualKey
-    = RComEquil Ac   -- ^ composite-good market clearing (COMEQUIL), c in CDM
-    | RFacEquil Ac   -- ^ factor market clearing (FACEQUIL), f in F
-    | RCurAcc        -- ^ current-account balance (CURACCBAL)
-    | RSavInv        -- ^ savings = investment (SAVINVBAL; LHR's WALRAS row)
-    | RYiDef Ac      -- ^ institution income identity (YIDEF), i in INSDNG
-    | RActProfit Ac  -- ^ activity zero-profit gap (PVADEF), a in A
-    | RCpi           -- ^ numeraire pin (CPIDEF)
+    = RComEquil Ac    -- ^ composite-good market clearing (COMEQUIL), c in CDM
+    | RFacEquil Ac    -- ^ factor market clearing (FACEQUIL), f in F
+    | RCurAcc         -- ^ current-account balance (CURACCBAL)
+    | RSavInv         -- ^ savings = investment (SAVINVBAL; LHR's WALRAS row)
+    | RYiDef Ac       -- ^ institution income identity (YIDEF), i in INSDNG
+    | RActProfit Ac   -- ^ activity zero-profit gap (PVADEF), a in A
+    | RPqDef Ac       -- ^ composite-price identity (PQDEF), c in CDM (工程4)
+    | ROutAggFoc Ac Ac -- ^ output-aggregator FOC (OUTAGGFOC), active arc (a,c) (工程4)
+    | RCpi            -- ^ numeraire pin (CPIDEF)
     deriving (Eq, Ord, Show)
 
 -- | Compute every candidate residual directly (algebraic transcription of the
@@ -314,6 +354,8 @@ residuals cal ins = M.fromList $
     ++ [ (RSavInv, savinv) ]
     ++ [ (RYiDef i, yidef i)     | i <- setInsdng sets ]
     ++ [ (RActProfit a, actpr a) | a <- setA sets ]
+    ++ [ (RPqDef c, pqdef c)     | c <- setCdm sets ]
+    ++ [ (ROutAggFoc a c, outaggfoc a c) | (a, c) <- activeArcKeys ]
     ++ [ (RCpi, cpidef) ]
   where
     fwd = forwardSolution cal ins
@@ -322,6 +364,7 @@ residuals cal ins = M.fromList $
     pars = calParams cal
     base = calBase cal
     acn (Ac s) = s
+    activeArcKeys = [ (a, c) | ((a, c), _) <- activeArcs cal ]
 
     -- COMEQUIL(c): QQ(c) = sum QINT + sum QH + QG + QINV + qdst + QT.
     comeq c = g "QQ" [acn c]
@@ -360,6 +403,23 @@ residuals cal ins = M.fromList $
     -- CPIDEF: sum cwts*PQ = CPIbar.
     cpidef = sum [ mv (paramCwts pars) c * g "PQ" [acn c] | c <- setCdm sets ]
            - baseCpi0 base
+    -- PQDEF(c): the value-balance composite price equals the PQ instrument.
+    -- For import-only c (QD = 0, QM = QQ) this reduces to PM/(1-tq).
+    pqdef c = pqComputed c - g "PQ" [acn c]
+    pqComputed c =
+        ( (if c `elem` setCd sets then g "PDD" [acn c] * g "QD" [acn c] else 0)
+        + (if c `elem` setCm sets then g "PM" [acn c] * g "QM" [acn c] else 0) )
+        / ((1 - mv (paramTq pars) c) * g "QQ" [acn c])
+    -- OUTAGGFOC(a,c): the CES output-aggregator FOC for PXAC equals the PXAC
+    -- instrument.  Single-activity goods reduce to PXAC = PX (rhoac cancels).
+    outaggfoc a c = pxacComputed a c - g "PXAC" [acn a, acn c]
+    pxacComputed a c =
+        g "PX" [acn c] * g "QX" [acn c] / aggr
+        * mv (paramDeltaac pars) (a, c)
+        * spow (g "QXAC" [acn a, acn c]) (negate rhoac_c - 1)
+      where rhoac_c = mv (paramRhoac pars) c
+            aggr = sum [ d * spow (g "QXAC" [acn a', acn c]) (negate rhoac_c)
+                       | a' <- setA sets, Just d <- [M.lookup (a', c) (paramDeltaac pars)] ]
 
 ------------------------------------------------------------------
 -- * Instrument perturbation (numerical sensitivity matrix)
@@ -368,6 +428,7 @@ residuals cal ins = M.fromList $
 -- | One coordinate of the reduced instrument vector.
 data InstrCoord
     = CPDS Ac | CWF Ac | CEXR | CQA Ac | CIADJ | CYI Ac
+    | CPQ Ac | CPXAC Ac Ac  -- ^ promoted composite price / output price (工程4)
     deriving (Eq, Ord, Show)
 
 -- | The instrument coordinates for a dataset, in the reduced-vector order.
@@ -379,6 +440,8 @@ instrCoords cal =
     ++ [ CQA a  | a <- setA (calSets cal) ]
     ++ [ CIADJ ]
     ++ [ CYI i  | i <- setInsdng (calSets cal) ]
+    ++ [ CPQ c | c <- setCdm (calSets cal) ]
+    ++ [ CPXAC a c | ((a, c), _) <- activeArcs cal ]
 
 -- | The base value of one instrument coordinate (for a relative step size).
 coordBase :: Instruments -> InstrCoord -> Double
@@ -389,6 +452,8 @@ coordBase ins c = case c of
     CQA a  -> mv (insQA ins) a
     CIADJ  -> insIADJ ins
     CYI i  -> mv (insYI ins) i
+    CPQ a  -> mv (insPQ ins) a
+    CPXAC a c -> mv (insPXAC ins) (a, c)
 
 -- | Perturb one instrument coordinate by an additive step.
 perturb :: Double -> InstrCoord -> Instruments -> Instruments
@@ -399,6 +464,8 @@ perturb e c ins = case c of
     CQA a  -> ins { insQA  = M.insertWith (+) a e (insQA ins) }
     CIADJ  -> ins { insIADJ = insIADJ ins + e }
     CYI i  -> ins { insYI  = M.insertWith (+) i e (insYI ins) }
+    CPQ a  -> ins { insPQ  = M.insertWith (+) a e (insPQ ins) }
+    CPXAC a c -> ins { insPXAC = M.insertWith (+) (a, c) e (insPXAC ins) }
 
 ------------------------------------------------------------------
 -- * Reduced-system solve (step ④)
@@ -417,22 +484,45 @@ mapToInstr cal um = Instruments
     , insQA   = M.fromList [ (a, u (CQA a))  | a <- setA sets ]
     , insIADJ = u CIADJ
     , insYI   = M.fromList [ (i, u (CYI i))  | i <- setInsdng sets ]
+    , insPQ   = M.fromList [ (c, u (CPQ c))  | c <- setCdm sets ]
+    , insPXAC = M.fromList [ ((a, c), u (CPXAC a c)) | ((a, c), _) <- activeArcs cal ]
     }
   where
     sets = calSets cal
     u k = M.findWithDefault 0.0 k um
 
 -- | The reduced oracle for the auctioneer: instruments (coordinate-keyed) to
--- the six residuals it closes on, mapped onto the same coordinate keys.  The
--- Walras-dependent SAVINVBAL is dropped; the pairing of a residual to a
--- coordinate is a cosmetic label (Newton uses the full Jacobian), so it is a
--- fixed positional zip of the two length-6 lists.
+-- the residuals it closes on, mapped onto the same coordinate keys.
+--
+-- The kept residual set is built /explicitly/ (not by filtering @M.keys@ and a
+-- positional @zip@ that silently truncates on a length mismatch — the bug the
+-- 工程4 cross-check flagged).  Two rows are dropped from the candidate set:
+-- SAVINVBAL (the Walras-dependent row, checked ex-post) and the import-only
+-- COMEQUIL rows (QM=QQ by construction).  PQDEF\/OUTAGGFOC pin the promoted
+-- PQ\/PXAC.  The instrument\/residual pairing is a cosmetic label (Newton uses
+-- the full Jacobian); squareness is asserted so any future set-shape drift fails
+-- loudly rather than dropping an equation.
 reducedResiduals :: LhrCalibration -> M.Map InstrCoord Double -> M.Map InstrCoord Double
-reducedResiduals cal um =
-    M.fromList (zip (instrCoords cal) [ r M.! rk | rk <- kept ])
+reducedResiduals cal um
+    | nI /= nR  = error $ "LhrWiring.reducedResiduals: non-square reduced system, "
+                        ++ show nI ++ " instruments vs " ++ show nR ++ " residuals"
+    | otherwise = M.fromList (zip coords [ r M.! rk | rk <- keptKeys ])
   where
-    r    = residuals cal (mapToInstr cal um)
-    kept = filter (/= RSavInv) (M.keys r)
+    r      = residuals cal (mapToInstr cal um)
+    sets   = calSets cal
+    coords = instrCoords cal
+    nI     = length coords
+    nR     = length keptKeys
+    importOnly c = c `elem` setCm sets && c `elem` setCdn sets
+    keptKeys =
+           [ RComEquil c   | c <- setCdm sets, not (importOnly c) ]
+        ++ [ RFacEquil f   | f <- setF sets ]
+        ++ [ RCurAcc ]
+        ++ [ RYiDef i      | i <- setInsdng sets ]
+        ++ [ RActProfit a  | a <- setA sets ]
+        ++ [ RPqDef c      | c <- setCdm sets ]
+        ++ [ ROutAggFoc a c | ((a, c), _) <- activeArcs cal ]
+        ++ [ RCpi ]
 
 -- | Solve the reduced system from a starting instrument vector: the Walrasian
 -- auctioneer's actual root find.  Returns the settled instruments and the
