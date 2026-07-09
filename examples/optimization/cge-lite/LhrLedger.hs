@@ -18,9 +18,10 @@
     * @EActivity a@ Yen cash   →  ACTPROFIT(a) (revenue − cost; PVADEF gap,
       a true residual because PVA is the CES dual cost — see 'LhrModel')
     * @ERow@ Dollar cash       →  CURACCBAL    (EXR conversion lives here alone)
-    * @EHousehold h@ Yen cash  →  YIDEF(h): the household spends its /instrument/
-      income YI while receiving realised YIrecv, so its cash imbalance is
-      exactly YIrecv − YI (the dual-decision gap, not a spurious budget row)
+    * @EInstNG i@ Yen cash     →  YIDEF(i): the domestic non-government institution
+      (a household /or/ an enterprise) spends its /instrument/ income YI while
+      receiving realised YIrecv, so its cash imbalance is exactly YIrecv − YI
+      (the dual-decision gap, not a spurious budget row)
     * @ESaveInv@ Yen cash      →  SAVINVBAL    (kept as the ex-post Walras check)
 
   Structural-zero cash (commodity aggregator, government, factor pool) is
@@ -78,7 +79,8 @@ instance BaseClass LhrProduct
 data LhrEntity
     = EActivity !Ac    -- ^ activity (firm): ACTPROFIT cash
     | ECommodity !Ac   -- ^ commodity producer\/trader: structural-zero cash
-    | EHousehold !Ac   -- ^ household (INSDNG): YIDEF cash
+    | EInstNG !Ac      -- ^ domestic non-gov institution (household or enterprise,
+                       --   i.e. INSDNG): YIDEF cash
     | EGov             -- ^ government: structural-zero cash
     | ESaveInv         -- ^ savings-investment account: SAVINVBAL cash
     | ERow             -- ^ rest of world: CURACCBAL (Dollar) cash
@@ -167,7 +169,7 @@ zKey (Products, PComposite c, _, Amount) = Just (RComEquil c)
 zKey (Products, PFactor f, _, Amount)    = Just (RFacEquil f)
 zKey (Cash, _, EActivity a, Yen)         = Just (RActProfit a)
 zKey (Cash, _, ERow, Dollar)             = Just RCurAcc
-zKey (Cash, _, EHousehold h, Yen)        = Just (RYiDef h)
+zKey (Cash, _, EInstNG i, Yen)           = Just (RYiDef i)
 zKey (Cash, _, ESaveInv, Yen)            = Just RSavInv
 zKey _                                   = Nothing
 
@@ -177,7 +179,8 @@ zKey _                                   = Nothing
 
 ledgerAlg :: LhrCalibration -> Instruments -> L
 ledgerAlg cal ins = mconcat $ concat
-    [ factorHire, factorIncome, intermediates, activityOutput, activityTaxes
+    [ factorHire, factorIncome, intermediates
+    , activityOutput, homeConsumption, activityTaxes
     , commoditySales, commodityTrade, commodityTax
     , householdIncome, householdSpend
     , govFlows, saveInvFlows ]
@@ -229,11 +232,22 @@ ledgerAlg cal ins = mconcat $ concat
           .+ cashIn Yen (g "PQ" [acn c] * qint) (EActivity a) (ECommodity c)
         | c <- cSet, a <- aSet, let qint = g "QINT" [acn c, acn a], qint /= 0 ]
 
-    -- (4) activity output: activity sells gross output theta*QA at PXAC to the
-    --     commodity aggregator (activity revenue = PA*QA).
+    -- (4) activity output: the commodity aggregator buys only the /marketed/
+    --     output (theta*QA − sum_h QHA), valued at PXAC; the home-consumed
+    --     portion is sold straight to the household in 'homeConsumption'.  The
+    --     two legs together restore gross revenue PA*QA, so ACTPROFIT is
+    --     unchanged.  (swazilan: SHRHOME=0 ⇒ net = gross = PA*QA.)
     activityOutput =
-        [ cashIn Yen (g "PA" [acn a] * g "QA" [acn a]) (ECommodity (outputCommodity a)) (EActivity a)
+        [ cashIn Yen (netOutputValue a) (ECommodity (outputCommodity a)) (EActivity a)
         | a <- aSet ]
+
+    -- (4h) home consumption: the household buys the activity's home-produced
+    --      good directly at PXAC — an imputed activity→household sale that never
+    --      enters the composite market.  Its household leg is what makes YIDEF
+    --      read YIrecv − YI once home use is non-zero.  (swazilan: QHA=0 ⇒ empty.)
+    homeConsumption =
+        [ cashIn Yen (g "PXAC" [a, c] * v) (EInstNG (Ac h)) (EActivity (Ac a))
+        | (("QHA", [a, c, h]), v) <- M.toList fwd, v /= 0 ]
 
     -- (5) activity taxes: production tax ta*PA*QA and VAT tva*PVA*QVA to gov.
     activityTaxes =
@@ -250,8 +264,8 @@ ledgerAlg cal ins = mconcat $ concat
     commoditySales =
         [ supply (g "QQ" [acn c]) (PComposite c) (ECommodity c) | c <- cSet ]
         ++ concat
-        [ [ absorb (g "QH" [acn c, acn h]) (PComposite c) (EHousehold h)
-            .+ cashIn Yen (g "PQ" [acn c] * g "QH" [acn c, acn h]) (EHousehold h) (ECommodity c)
+        [ [ absorb (g "QH" [acn c, acn h]) (PComposite c) (EInstNG h)
+            .+ cashIn Yen (g "PQ" [acn c] * g "QH" [acn c, acn h]) (EInstNG h) (ECommodity c)
           | h <- hSet, g "QH" [acn c, acn h] /= 0 ]
         | c <- cSet ]
         ++
@@ -295,15 +309,16 @@ ledgerAlg cal ins = mconcat $ concat
                      (ECommodity c) EGov
         | c <- setCe sets, mv (paramTe pars) c /= 0 ]
 
-    -- (9) household income: it spends its INSTRUMENT YI, so posting receipts
-    --     (YIF via factorIncome + transfers) against dispositions leaves the
-    --     YIrecv − YI gap on household cash.  Transfers in (TRII) here.
+    -- (9) institution income: each INSDNG institution spends its INSTRUMENT YI,
+    --     so posting receipts (YIF via factorIncome + transfers) against
+    --     dispositions leaves the YIrecv − YI gap on its cash.  Inter-institution
+    --     transfers (TRII) here; enterprises are INSDNG too, so range over insdng.
     householdIncome =
-        [ cashIn Yen (trii i ip) (instEntity ip) (EHousehold i)
+        [ cashIn Yen (trii i ip) (instEntity ip) (EInstNG i)
         | i <- insdng, ip <- insdng, trii i ip /= 0 ]
         ++
-        [ cashIn Yen (trnsfr h (Ac "GOV") * cpi) EGov (EHousehold h)
-        | h <- hSet, trnsfr h (Ac "GOV") /= 0 ]
+        [ cashIn Yen (trnsfr i (Ac "GOV") * cpi) EGov (EInstNG i)
+        | i <- insdng, trnsfr i (Ac "GOV") /= 0 ]
         ++
         -- transfers from ROW to every institution (incl. GOV): ROW pays Dollar,
         -- the institution receives the EXR-converted Yen (single conversion).
@@ -311,14 +326,16 @@ ledgerAlg cal ins = mconcat $ concat
           .+ payLeg (trnsfr i (Ac "ROW")) Dollar ERow
         | i <- insd, trnsfr i (Ac "ROW") /= 0 ]
 
-    -- (10) household spending (all on the instrument YI): consumption already
-    --      paid in (6); here direct tax, saving, transfers-out.
+    -- (10) institution spending (all on the instrument YI): consumption already
+    --      paid in (6); here direct tax and saving, for every INSDNG institution
+    --      (enterprises pay TINS and save MPS too — the SAVINVBAL row needs the
+    --      enterprise saving).  Transfers-out are the TRII legs in (9).
     householdSpend =
-        [ cashIn Yen (g "TINS" [acn h] * g "YI" [acn h]) (EHousehold h) EGov | h <- hSet ]
+        [ cashIn Yen (g "TINS" [acn i] * g "YI" [acn i]) (EInstNG i) EGov | i <- insdng ]
         ++
-        [ cashIn Yen (g "MPS" [acn h] * (1 - g "TINS" [acn h]) * g "YI" [acn h])
-                     (EHousehold h) ESaveInv
-        | h <- hSet ]
+        [ cashIn Yen (g "MPS" [acn i] * (1 - g "TINS" [acn i]) * g "YI" [acn i])
+                     (EInstNG i) ESaveInv
+        | i <- insdng ]
 
     -- (11) government saving to S-I; (gov receipts/spends already posted).
     govFlows =
@@ -331,6 +348,11 @@ ledgerAlg cal ins = mconcat $ concat
 
     -- helpers -----------------------------------------------------------------
     mv m k = M.findWithDefault 0.0 k m
+    -- value of activity a's marketed (net-of-home) output: sum_c PXAC(a,c) *
+    -- QXAC_net(a,c).  @QXAC@ in the forward state is already net of home use.
+    netOutputValue a =
+        sum [ g "PXAC" [acn a, c] * v
+            | (("QXAC", [a', c]), v) <- M.toList fwd, a' == acn a ]
     trii i ip = mv (paramShii pars) (i, ip)
               * (1 - mv (paramMpsbar pars) ip) * (1 - mv (paramTinsbar pars) ip)
               * g "YI" [acn ip]
@@ -340,5 +362,5 @@ ledgerAlg cal ins = mconcat $ concat
     -- commodity's (structural-zero) balance regardless.
     outputCommodity a = head ([ c | c <- cSet, mv (paramTheta pars) (a, c) /= 0 ] ++ [Ac "COM"])
     instEntity i
-        | i `elem` hSet = EHousehold i
-        | otherwise     = EGov
+        | i `elem` insdng = EInstNG i
+        | otherwise       = EGov
