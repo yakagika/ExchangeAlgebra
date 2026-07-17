@@ -3,6 +3,24 @@
 ## Unreleased
 
 ### Added
+- `ExchangeAlgebra.Optimize` (new subsystem): a pluggable optimization
+  solver interface — the `Solver` class fixes
+  `optimize :: Monad m => strategy -> Config strategy -> (Candidate strategy
+  -> m Double) -> Candidate strategy -> m (Candidate strategy, Double)`, so
+  objectives can run stateful simulations (`ST s`) while each solver threads
+  its own seeded pure RNG (reproducible runs, no random-monad constraint on
+  the objective). Ships two strategies: `ExchangeAlgebra.Optimize.Annealing`
+  (simulated annealing over an arbitrary candidate type; configurable cooling
+  schedule / neighbor move / acceptance rule, with `geometricCooling` and
+  `metropolis` provided) and `ExchangeAlgebra.Optimize.GA` (real-coded genetic
+  algorithm over `Vector Double` chromosomes; tournament selection, uniform
+  crossover, per-gene Gaussian mutation, elitism, optional per-gene bounds,
+  `defaultGAConfig`). Further strategies (DE/PSO/CMA-ES) are added by giving
+  a new strategy type a `Solver` instance — no interface change. Objective
+  values must be finite (fail-fast on NaN/Infinity) and configurations are
+  validated up front; solvers never re-evaluate an already-scored candidate.
+  This subsystem is a generic numeric layer independent of the
+  redundant-algebra core.
 - `circulant` (`ExchangeAlgebra.Simulate.Network`): a deterministic circulant
   (ring-lattice) generator where each buyer draws its `min k (N-1)` suppliers
   from the `k` nodes that follow it cyclically. Needs no `StdGen` and is built

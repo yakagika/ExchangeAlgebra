@@ -40,6 +40,9 @@ library
       ExchangeAlgebra.Convert.Csv
       ExchangeAlgebra.Journal
       ExchangeAlgebra.Journal.Transfer
+      ExchangeAlgebra.Optimize
+      ExchangeAlgebra.Optimize.Annealing
+      ExchangeAlgebra.Optimize.GA
       ExchangeAlgebra.Simulate
       ExchangeAlgebra.Simulate.Lite
       ExchangeAlgebra.Simulate.Network
