@@ -47,5 +47,9 @@ examples/**/result/
 examples/audit-eval/arms/
 examples/audit-eval/metrics/*.json
 examples/audit-eval/metrics/*.jsonl
+# The blanket `*.csv` above (profiling artifacts) also swallowed summary.csv, so
+# the aggregated results README's git policy declares "committed" were in fact
+# untracked. Re-except it, same idiom as the CGE fixtures.
+!examples/audit-eval/metrics/summary.csv
 examples/audit-eval/tasks-s/
 __pycache__/
