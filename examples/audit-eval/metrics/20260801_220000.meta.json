@@ -1,0 +1,69 @@
+{
+  "ts": "20260801_220000",
+  "argv": [
+    "runner/run.py",
+    "--task",
+    "all",
+    "--arm",
+    "C",
+    "--model",
+    "local",
+    "--seed",
+    "0"
+  ],
+  "tasks": [
+    "audit-balance-trace-009",
+    "audit-bank-reconciliation-kieso-ch06-001",
+    "audit-category-violation-010",
+    "audit-correcting-entry-patent-kieso-ch21-001",
+    "audit-detect-defects-008",
+    "closing-accrued-interest-005",
+    "closing-allowance-replenishment-012",
+    "closing-cogs-3account-011",
+    "closing-depreciation-open-004",
+    "closing-depreciation-straightline-003",
+    "consolidation-equity-method-kieso-ch16-001",
+    "consolidation-intercompany-elim-007",
+    "journalize-adjusting-entries-kieso-ch02-001",
+    "journalize-bonds-effective-interest-discount-kieso-ch13-001",
+    "journalize-cash-and-credit-001",
+    "journalize-service-on-account-002",
+    "leases-classify-finance-vs-operating-kieso-ch20-001",
+    "leases-finance-lease-measure-entries-kieso-ch20-002",
+    "revenue-account-for-revenue-issues-kieso-ch17-001",
+    "statements-balance-sheet-kieso-ch04-001",
+    "statements-cash-flows-indirect-kieso-ch22-001",
+    "statements-trial-to-pl-bs-006",
+    "tax-deferred-tax-journal-entry-kieso-ch18-001"
+  ],
+  "tasks_dir": "/Users/akagi/Developer/Haskell/ExchangeAlgebra/examples/audit-eval/tasks",
+  "arms": [
+    "C"
+  ],
+  "models": [
+    "local"
+  ],
+  "seeds": [
+    0
+  ],
+  "max_iters": 3,
+  "oracle_arms": [
+    "B",
+    "C"
+  ],
+  "skill": "v1",
+  "aprime_feedback": "raw",
+  "c_retries": 1,
+  "c_ea_map": false,
+  "git": {
+    "rev_parse_head": "cca5eef381530f2c38e1fa77e087c4cabf266e15",
+    "describe": "landed/optimize-subsystem"
+  },
+  "backends": {
+    "local": {
+      "backend": "openai_compat",
+      "configured_model": "qwen3:30b-a3b",
+      "version": "ollama 0.31.1"
+    }
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "ts": "20260801_231238",
+  "argv": [
+    "runner/run.py",
+    "--task",
+    "journalize-cash-and-credit-001",
+    "--arm",
+    "A",
+    "--model",
+    "local",
+    "--seed",
+    "0"
+  ],
+  "tasks": [
+    "journalize-cash-and-credit-001"
+  ],
+  "tasks_dir": "/Users/akagi/Developer/Haskell/ExchangeAlgebra/examples/audit-eval/tasks",
+  "arms": [
+    "A"
+  ],
+  "models": [
+    "local"
+  ],
+  "seeds": [
+    0
+  ],
+  "max_iters": 3,
+  "oracle_arms": [
+    "B",
+    "C"
+  ],
+  "skill": "v1",
+  "aprime_feedback": "raw",
+  "c_retries": 1,
+  "c_ea_map": false,
+  "git": {
+    "rev_parse_head": "13d1c4b05d455c9902fc68223b64d845b71d947a",
+    "describe": "landed/track-s-summary-csv-tracked"
+  },
+  "backends": {
+    "local": {
+      "backend": "openai_compat",
+      "configured_model": "qwen3:30b-a3b",
+      "version": "ollama 0.31.1"
+    }
+  }
+}

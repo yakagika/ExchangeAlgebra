@@ -1,0 +1,47 @@
+{
+  "ts": "20260801_213936",
+  "argv": [
+    "runner/run.py",
+    "--task",
+    "audit-balance-trace-009",
+    "--arm",
+    "C",
+    "--model",
+    "local",
+    "--seed",
+    "0"
+  ],
+  "tasks": [
+    "audit-balance-trace-009"
+  ],
+  "tasks_dir": "/Users/akagi/Developer/Haskell/ExchangeAlgebra/examples/audit-eval/tasks",
+  "arms": [
+    "C"
+  ],
+  "models": [
+    "local"
+  ],
+  "seeds": [
+    0
+  ],
+  "max_iters": 3,
+  "oracle_arms": [
+    "B",
+    "C"
+  ],
+  "skill": "v1",
+  "aprime_feedback": "raw",
+  "c_retries": 1,
+  "c_ea_map": false,
+  "git": {
+    "rev_parse_head": "cca5eef381530f2c38e1fa77e087c4cabf266e15",
+    "describe": "landed/optimize-subsystem"
+  },
+  "backends": {
+    "local": {
+      "backend": "openai_compat",
+      "configured_model": "qwen3:30b-a3b",
+      "version": "ollama 0.31.1"
+    }
+  }
+}
