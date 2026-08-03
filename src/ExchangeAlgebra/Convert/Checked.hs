@@ -13,11 +13,13 @@ entries with structural errors instead.
 module ExchangeAlgebra.Convert.Checked
     ( EntryError(..)
     , JournalError(..)
+    , JournalCert(..)
     , SourceError(..)
     , exactBalanced
     , checkedEntry
     , checkedEntryText
     , checkedJournal
+    , certifyJournalText
     , reconcileSources
     ) where
 
@@ -27,6 +29,7 @@ import qualified Data.List as L
 import qualified Data.Map.Strict as M
 import           Data.Maybe (mapMaybe)
 import           Data.Text (Text)
+import qualified Data.Text as T
 
 import           ExchangeAlgebra.Algebra
                      ( Alg
@@ -43,6 +46,7 @@ import           ExchangeAlgebra.Algebra.Base
 import           ExchangeAlgebra.Convert
                      ( ConvError
                      , journalFromSides
+                     , normalizeTitle
                      , parseAccountTitle
                      , parseSide
                      )
@@ -78,6 +82,44 @@ data JournalError n v
   = EntryErrors n (NonEmpty (EntryError v))
   | DuplicateTxId n
   deriving (Show, Eq)
+
+-- | Staged certification of a text-originated journal batch.
+--
+-- A batch can be fully admitted, rejected for accounting or structural
+-- reasons, or certified as structurally valid and balanced while retaining
+-- account-title resolution failures for a later vocabulary pass.
+--
+-- The distinction that motivates the type: an externally generated journal can
+-- be double-entry valid and still name accounts this chart does not carry. Folding
+-- both into one 'Either' makes a correct journal in an unsupported vocabulary
+-- indistinguishable from a wrong one.
+--
+-- Note the two totals are /batch/ totals, whereas the balance test that gates
+-- 'BalancedUnresolved' is applied per entry (per txid), matching 'checkedEntry'.
+-- Per-entry balance implies batch balance, so the invariant
+-- @_certDebitTotal == _certCreditTotal@ holds, but the converse does not: the
+-- batch totals alone would not have been a sufficient gate.
+data JournalCert n v
+  = FullyResolved (Journal n v (HatBase AccountTitles))
+  | BalancedUnresolved
+      { _certResolved    :: [(n, [(Side, AccountTitles, v)])]
+      , _certUnresolved  :: [(n, [(Int, Text, ConvError)])]
+      , _certDebitTotal  :: v
+      , _certCreditTotal :: v
+      }
+  | Rejected (NonEmpty (JournalError n v))
+  deriving (Show)
+
+instance (HatVal v, Note n) => Eq (JournalCert n v) where
+    FullyResolved left == FullyResolved right = toMap left == toMap right
+    BalancedUnresolved resolvedLeft unresolvedLeft debitLeft creditLeft
+        == BalancedUnresolved resolvedRight unresolvedRight debitRight creditRight =
+            resolvedLeft == resolvedRight
+            && unresolvedLeft == unresolvedRight
+            && debitLeft == debitRight
+            && creditLeft == creditRight
+    Rejected left == Rejected right = left == right
+    _ == _ = False
 
 -- | Source-coverage errors between input transactions and a checked journal.
 data SourceError n v
@@ -205,6 +247,142 @@ checkedJournal entries =
         [ alg .| txid
         | (txid, Right alg) <- checkedUnique
         ]
+
+-- | Certify a text-originated journal in stages.
+--
+-- Duplicate txids and structural errors are rejected before balance is
+-- considered. Balance is then checked using only parsed sides and amounts,
+-- independently of account-title resolution. Consequently, a structurally
+-- valid and balanced batch whose only remaining failures are unknown or
+-- ambiguous account titles is returned as 'BalancedUnresolved'.
+certifyJournalText :: (HatVal v, Note n, Ord n)
+                   => [(n, [(Text, Text, v)])]
+                   -> JournalCert n v
+certifyJournalText entries =
+    case duplicateErrors of
+        e : es -> Rejected (e :| es)
+        [] -> case structuralErrors of
+            e : es -> Rejected (e :| es)
+            [] -> case imbalanceErrors of
+                e : es -> Rejected (e :| es)
+                []
+                    | null unresolvedPostings ->
+                        FullyResolved (L.foldl' (.+) mempty journals)
+                    | otherwise ->
+                        BalancedUnresolved
+                            { _certResolved = resolvedEntries
+                            , _certUnresolved = unresolvedEntries
+                            , _certDebitTotal = debitTotal
+                            , _certCreditTotal = creditTotal
+                            }
+  where
+    counts = M.fromListWith (+) [ (txid, 1 :: Int) | (txid, _) <- entries ]
+    duplicateErrors =
+        [ DuplicateTxId txid
+        | (txid, count) <- M.toList counts
+        , count > 1
+        ]
+
+    parsedEntries =
+        [ (txid, map parseCertPosting (zip [0..] rows))
+        | (txid, rows) <- entries
+        ]
+
+    structuralErrors =
+        [ EntryErrors txid (err :| errs)
+        | (txid, rows) <- parsedEntries
+        , let entryErrors = certStructuralErrors rows
+        , err : errs <- [entryErrors]
+        ]
+
+    imbalanceErrors =
+        [ EntryErrors txid (Imbalanced debit credit :| [])
+        | (txid, rows) <- parsedEntries
+        , let (debit, credit) = certTotals rows
+        , debit /= credit
+        ]
+
+    resolvedEntries =
+        [ (txid, resolved)
+        | (txid, rows) <- parsedEntries
+        , let resolved =
+                [ (side, account, amount)
+                | (_, _, amount, Right side, Right account) <- rows
+                ]
+        , not (null resolved)
+        ]
+
+    unresolvedEntries =
+        [ (txid, unresolved)
+        | (txid, rows) <- parsedEntries
+        , let unresolved =
+                [ (i, accountText, err)
+                | (i, accountText, _, Right _, Left err) <- rows
+                ]
+        , not (null unresolved)
+        ]
+
+    unresolvedPostings = concatMap snd unresolvedEntries
+
+    (debitTotal, creditTotal) =
+        L.foldl' addTotals (0, 0) (map (certTotals . snd) parsedEntries)
+
+    addTotals (debits, credits) (entryDebits, entryCredits) =
+        (debits + entryDebits, credits + entryCredits)
+
+    journals =
+        [ journalFromSides rows .| txid
+        | (txid, rows) <- resolvedEntries
+        ]
+
+-- The tuple retains the original account text so resolution failures can be
+-- reported without reconstructing user input.
+type CertPosting v =
+    (Int, Text, v, Either ConvError Side, Either ConvError AccountTitles)
+
+-- Wildcard names have to be recognised here rather than delegated to the
+-- parsers: 'parseAccountTitle' and 'parseSide' reject the wildcard
+-- constructors by design (the /correct-by-construction/ guard documented in
+-- "ExchangeAlgebra.Convert"), so on the text path a wildcard is indistinguishable
+-- from an unknown name. Certification must tell them apart, because a wildcard
+-- is a structural defect ('Rejected') whereas an unknown name is a vocabulary
+-- gap ('BalancedUnresolved'). Matching uses the parsers' own 'normalizeTitle',
+-- so the two paths cannot drift apart.
+parseCertPosting :: (Int, (Text, Text, v)) -> CertPosting v
+parseCertPosting (i, (sideText, accountText, amount)) =
+    ( i
+    , accountText
+    , amount
+    , if normalizeTitle sideText == T.pack "side"
+          then Right Side
+          else parseSide sideText
+    , if normalizeTitle accountText == T.pack "accounttitle"
+          then Right AccountTitle
+          else parseAccountTitle accountText
+    )
+
+certStructuralErrors :: (HatVal v) => [CertPosting v] -> [EntryError v]
+certStructuralErrors rows =
+    [ EmptyEntry | null rows ] ++ concatMap rowErrors rows
+  where
+    rowErrors (i, _, amount, sideResult, accountResult) =
+        [ EntryParse i err | Left err <- [sideResult] ]
+        ++ [ NonPositiveAmount i (resolvedOrWildcard accountResult) amount
+           | isErrorValue amount || not (amount > 0)
+           ]
+        ++ [ WildcardSide i | Right Side <- [sideResult] ]
+        ++ [ WildcardAccount i | Right AccountTitle <- [accountResult] ]
+
+    resolvedOrWildcard (Right account) = account
+    resolvedOrWildcard (Left _) = AccountTitle
+
+certTotals :: (HatVal v) => [CertPosting v] -> (v, v)
+certTotals rows =
+    ( L.foldl' (+) 0
+        [ amount | (_, _, amount, Right Debit, _) <- rows ]
+    , L.foldl' (+) 0
+        [ amount | (_, _, amount, Right Credit, _) <- rows ]
+    )
 
 -- | Compare source transactions against the note-indexed journal coverage.
 --

@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- `JournalCert` and `certifyJournalText` in
+  `ExchangeAlgebra.Convert.Checked` add staged certification for text-originated
+  journal batches. Duplicate txids and structural errors are rejected first,
+  then debit/credit balance is checked from sides and amounts independently of
+  account-title resolution. Balanced batches with vocabulary-only failures are
+  returned as `BalancedUnresolved`, including resolved postings, unresolved
+  account text/errors with 0-origin indices, and exact debit/credit totals;
+  fully resolved batches produce the same `Journal` as `checkedJournal`.
 - `ExchangeAlgebra.Optimize` (new subsystem): a pluggable optimization
   solver interface — the `Solver` class fixes
   `optimize :: Monad m => strategy -> Config strategy -> (Candidate strategy

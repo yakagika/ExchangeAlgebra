@@ -1798,6 +1798,119 @@ genCheckedEntryRows = frequency
     , (1, pure [])
     ]
 
+genKnownCertPosting :: Gen (Side, AccountTitles, MoneyDecimal)
+genKnownCertPosting =
+    (,,) <$> elements [Debit, Credit] <*> genAccountTitle <*> genCheckedAmountMD
+
+genKnownCertJournal :: Gen [(Int, [(Side, AccountTitles, MoneyDecimal)])]
+genKnownCertJournal = do
+    rows <- resize 6 (listOf (resize 6 (listOf genKnownCertPosting)))
+    pure (zip [1..] rows)
+
+sideTextForCert :: Side -> T.Text
+sideTextForCert Debit  = T.pack "debit"
+sideTextForCert Credit = T.pack "credit"
+sideTextForCert Side   = T.pack "Side"
+
+textJournalForCert
+    :: [(Int, [(Side, AccountTitles, MoneyDecimal)])]
+    -> [(Int, [(T.Text, T.Text, MoneyDecimal)])]
+textJournalForCert = L.map renderEntry
+  where
+    renderEntry (txid, rows) = (txid, L.map renderPosting rows)
+    renderPosting (side, account, amount) =
+        (sideTextForCert side, T.pack (show account), amount)
+
+checkedJournalTextReference
+    :: [(Int, [(T.Text, T.Text, MoneyDecimal)])]
+    -> Either (NE.NonEmpty (ECC.JournalError Int MoneyDecimal)) CheckedJournalM
+checkedJournalTextReference entries =
+    case errors of
+        []     -> Right (L.foldl' (.+) mempty journals)
+        e : es -> Left (e NE.:| es)
+  where
+    checked =
+        [ (txid, ECC.checkedEntryText rows)
+        | (txid, rows) <- entries
+        ]
+    errors =
+        [ ECC.EntryErrors txid errs
+        | (txid, Left errs) <- checked
+        ]
+    journals =
+        [ alg .| txid
+        | (txid, Right alg) <- checked
+        ]
+
+prop_certifyKnownAccountsMatchesCheckedJournal :: Property
+prop_certifyKnownAccountsMatchesCheckedJournal =
+    forAll genKnownCertJournal $ \entries ->
+        let textEntries = textJournalForCert entries
+        in case ( ECC.certifyJournalText textEntries
+             , checkedJournalTextReference textEntries
+             , checkedJournalM entries
+             ) of
+            (ECC.FullyResolved actual, Right textExpected, Right expected) ->
+                EJ.toMap actual == EJ.toMap textExpected
+                && EJ.toMap actual == EJ.toMap expected
+            (ECC.Rejected _, Left _, Left _) -> True
+            _                                  -> False
+
+prop_certifyUnknownAccountPreservesBalance :: Property
+prop_certifyUnknownAccountPreservesBalance =
+    forAll genAcceptedEntryRows $ \rows ->
+        let replaceAccount (side, _, amount) =
+                (sideTextForCert side, T.pack "NoSuchAccount_XYZ", amount)
+        in case ECC.certifyJournalText [(1 :: Int, L.map replaceAccount rows)] of
+            ECC.BalancedUnresolved {} -> True
+            _                         -> False
+
+prop_certifyImbalancePrecedesUnknownAccount :: Property
+prop_certifyImbalancePrecedesUnknownAccount =
+    forAll genPositiveAmountMD $ \amount ->
+        let input =
+                [ (1 :: Int,
+                    [ (T.pack "debit", T.pack "NoSuchAccount_XYZ", amount)
+                    , (T.pack "credit", T.pack "Cash", amount + 1)
+                    ])
+                ]
+        in case ECC.certifyJournalText input of
+            ECC.Rejected errs -> any journalHasImbalance (NE.toList errs)
+            _                 -> False
+  where
+    journalHasImbalance (ECC.EntryErrors _ errs) =
+        any isImbalanced (NE.toList errs)
+    journalHasImbalance _ = False
+
+    isImbalanced ECC.Imbalanced {} = True
+    isImbalanced _                 = False
+
+prop_certifyDuplicateTxIdAlwaysRejected :: Property
+prop_certifyDuplicateTxIdAlwaysRejected =
+    forAll genAcceptedEntryRows $ \rows ->
+        let input = textJournalForCert [(1, rows), (1, rows)]
+        in case ECC.certifyJournalText input of
+            ECC.Rejected errs -> ECC.DuplicateTxId 1 `elem` NE.toList errs
+            _                 -> False
+
+prop_certifyBalancedUnresolvedTotals :: Property
+prop_certifyBalancedUnresolvedTotals =
+    forAll genPositiveAmountMD $ \amount ->
+        let input =
+                [ (1 :: Int,
+                    [ (T.pack "debit", T.pack "NoSuchAccount_XYZ", amount)
+                    , (T.pack "credit", T.pack "Sales", amount)
+                    ])
+                ]
+        in case ECC.certifyJournalText input of
+            ECC.BalancedUnresolved
+                { ECC._certDebitTotal = debitTotal
+                , ECC._certCreditTotal = creditTotal
+                } -> debitTotal == creditTotal
+                     && debitTotal == amount
+                     && creditTotal == amount
+            _ -> False
+
 checkedEntryAcceptsSpec :: [(Side, AccountTitles, MoneyDecimal)] -> Bool
 checkedEntryAcceptsSpec rows =
     not (null rows)
@@ -1812,6 +1925,21 @@ checkedEntryAcceptsSpec rows =
 
 checkedConvertProperties :: IO ()
 checkedConvertProperties = do
+    quickProp "convert-checked: certify known accounts matches checkedJournal" $
+        prop_certifyKnownAccountsMatchesCheckedJournal
+
+    quickProp "convert-checked: unresolved vocabulary preserves balance" $
+        prop_certifyUnknownAccountPreservesBalance
+
+    quickProp "convert-checked: imbalance precedes unresolved vocabulary" $
+        prop_certifyImbalancePrecedesUnknownAccount
+
+    quickProp "convert-checked: certify duplicate txid always rejected" $
+        prop_certifyDuplicateTxIdAlwaysRejected
+
+    quickProp "convert-checked: balanced unresolved totals match input" $
+        prop_certifyBalancedUnresolvedTotals
+
     quickProp "convert-checked: checkedEntry accepts iff checked predicate" $
         forAll genCheckedEntryRows $ \rows ->
             let expected = checkedEntryAcceptsSpec rows
