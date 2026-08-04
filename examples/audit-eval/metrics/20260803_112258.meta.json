@@ -1,0 +1,61 @@
+{
+  "ts": "20260803_112258",
+  "argv": [
+    "runner/run.py",
+    "--tasks-dir",
+    "tasks-s",
+    "--task",
+    "gen-cash_sale-000000-200,gen-credit_trade-000000-200,gen-mixed-000000-200,gen-payroll-000000-200,gen-tax-000000-200",
+    "--arm",
+    "A,Aprime,B,C",
+    "--model",
+    "local",
+    "--seed",
+    "0",
+    "--c-retries",
+    "3",
+    "--c-ea-map",
+    "--aprime-feedback",
+    "raw"
+  ],
+  "tasks": [
+    "gen-cash_sale-000000-200",
+    "gen-credit_trade-000000-200",
+    "gen-mixed-000000-200",
+    "gen-payroll-000000-200",
+    "gen-tax-000000-200"
+  ],
+  "tasks_dir": "tasks-s",
+  "arms": [
+    "A",
+    "Aprime",
+    "B",
+    "C"
+  ],
+  "models": [
+    "local"
+  ],
+  "seeds": [
+    0
+  ],
+  "max_iters": 3,
+  "oracle_arms": [
+    "B",
+    "C"
+  ],
+  "skill": "v1",
+  "aprime_feedback": "raw",
+  "c_retries": 3,
+  "c_ea_map": true,
+  "git": {
+    "rev_parse_head": "c2d2eebf39eca5ae32ec3cc0607a029eb1e4fd17",
+    "describe": "landed/qwen-track-r-5arm-1-gc2d2eeb-dirty"
+  },
+  "backends": {
+    "local": {
+      "backend": "openai_compat",
+      "configured_model": "qwen3:30b-a3b",
+      "version": "ollama 0.31.1"
+    }
+  }
+}

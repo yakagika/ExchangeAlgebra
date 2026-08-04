@@ -21,4 +21,4 @@ backend = "openai_compat"
 base_url = "http://localhost:11434"
 model = "qwen3:30b-a3b"
 api_key = "ollama"
-timeout_seconds = 1200  # Track S: match codex headroom (arm/model-neutral). A weak local model is slower AND a timeout is terminal (no retry), so a tight cap would confuse "can't" with "slow". 1200s gives Qwen room; timeouts still recorded as timed_out.
+timeout_seconds = 3600  # 2026-08-04: raised 1200 -> 3600 arm-neutrally. At N=200 the cap became arm-asymmetric attrition rather than a fairness device: on the mixed cluster A (2152s) and Aprime (1200s) timed out while B (713s) and C (586s) finished, so the one cell where CP1 separates had no data for the arms the claim is about. The cap must not decide which arms are measured. Timeouts are still terminal and recorded as timed_out.
