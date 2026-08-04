@@ -19,6 +19,8 @@ Arguments
                       every seed runs the full task x arm x model grid.
 --timestamp <str>     Override the output timestamp tag (default: YYYYMMDD_HHMMSS).
 --max-iters <int>     Retry budget for arm A/B/D/Aprime (default 3).
+--repeats <int>       Independent LLM draws per cell (default 1). Sampling variance
+                      within one cell can exceed the arm differences measured.
 --skill <v1|v2>       Arm A SKILL file version (default v1).
 --aprime-feedback <raw|rich>
                       Loader feedback mode for arm Aprime (default raw).
@@ -34,10 +36,10 @@ metrics/<timestamp>.meta.json — run config, git revision, backend versions.
 metrics/<timestamp>.jsonl   — one JSON record per cell, appended as each cell
                               scores (the crash-safe copy).
 metrics/<timestamp>.json    — full results array, written at the end (convenience).
-metrics/summary.csv         — one row per (task, arm, model, seed) run, appended
-                              per cell across invocations (header written only if the
-                              file is new; schema changes preserve the old file as
-                              summary_legacy_<timestamp>.csv).
+metrics/summary.csv         — one row per (task, arm, model, seed, repeat) run,
+                              appended per cell across invocations. Added columns are
+                              migrated in place; an incompatible schema change preserves
+                              the old file as summary_legacy_<timestamp>.csv.
 """
 
 from __future__ import annotations
@@ -167,15 +169,17 @@ def run_one(
     aprime_feedback: str,
     c_retries: int,
     c_ea_map: bool,
+    repeat: int = 0,
 ) -> dict:
     """Execute one evaluation cell and return a result record."""
     if dry_run:
-        print(f"  [dry-run] task={task['id']} arm={arm_name} model={model_key} seed={seed}")
+        print(f"  [dry-run] task={task['id']} arm={arm_name} model={model_key} seed={seed} repeat={repeat}")
         return {
             "task_id":    task["id"],
             "arm":        arm_name,
             "model":      model_key,
             "seed":       seed,
+            "repeat":     repeat,
             "dry_run":    True,
             "metrics":    None,
             "effective_model": None,
@@ -188,6 +192,11 @@ def run_one(
     task_run_dir = (
         ARMS_DIR / task["id"] / f"arm{arm_name}" / model_key
     )
+    # Keep each draw's scratch (generated source, LLM output) separate so a
+    # repeated cell can be inspected draw by draw. repeat 0 keeps the historical
+    # layout, so single-draw runs are unchanged.
+    if repeat:
+        task_run_dir = task_run_dir / f"r{repeat}"
 
     t0 = time.monotonic()
     try:
@@ -234,6 +243,7 @@ def run_one(
         "arm":         arm_name,
         "model":       model_key,
         "seed":        seed,
+        "repeat":      repeat,
         "elapsed_s":   round(elapsed, 2),
         "arm_result":  {k: v for k, v in arm_result.items() if k != "raw_output"},
         "raw_output":  arm_result.get("raw_output"),
@@ -248,6 +258,27 @@ def run_one(
 # Summary CSV writer (append-only, TASK-FORMAT.md v2)
 # ---------------------------------------------------------------------------
 
+def is_additive_schema_change(old: list[str], new: list[str]) -> bool:
+    """True when `new` only adds columns to `old`, preserving their order."""
+    if not old:
+        return False
+    it = iter(new)
+    return all(col in it for col in old)
+
+
+def migrate_summary_csv(csv_path: Path, old: list[str], new: list[str]) -> None:
+    """Rewrite an existing summary.csv under the extended header, in place."""
+    with csv_path.open(newline="") as f:
+        rows = list(csv.DictReader(f))
+    tmp_path = csv_path.with_name(csv_path.name + ".migrating")
+    with tmp_path.open("w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=new, extrasaction="ignore")
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({col: row.get(col, "") for col in new})
+    tmp_path.replace(csv_path)
+
+
 def append_summary_csv(records: list[dict], csv_path: Path, ts: str) -> None:
     """
     Append one row per (task, arm, model, seed) run to metrics/summary.csv.
@@ -260,7 +291,7 @@ def append_summary_csv(records: list[dict], csv_path: Path, ts: str) -> None:
         return
 
     fields = [
-        "ts", "task_id", "arm", "model", "seed", "elapsed_s",
+        "ts", "task_id", "arm", "model", "seed", "repeat", "elapsed_s",
         "numeric_accuracy", "journal_accuracy", "raw_journal_accuracy",
         "derived_accuracy",
         "findings_recall", "findings_precision", "decision_accuracy",
@@ -276,15 +307,30 @@ def append_summary_csv(records: list[dict], csv_path: Path, ts: str) -> None:
             reader = csv.reader(f)
             existing_header = next(reader, [])
         if existing_header != fields:
-            legacy_path = csv_path.with_name(f"summary_legacy_{ts}.csv")
-            suffix = 1
-            while legacy_path.exists():
-                legacy_path = csv_path.with_name(f"summary_legacy_{ts}_{suffix}.csv")
-                suffix += 1
-            csv_path.rename(legacy_path)
-            print(
-                f"summary.csv schema changed; moved existing file to {legacy_path}"
-            )
+            # A purely additive schema change (every old column still present,
+            # in the same relative order) is migrated in place: the file is
+            # rewritten with the new header and the added columns left empty for
+            # historical rows. Rotating instead would break continuity of the
+            # one tracked results file every time a column is added — and the
+            # results it carries are what the paper cites.
+            if is_additive_schema_change(existing_header, fields):
+                migrate_summary_csv(csv_path, existing_header, fields)
+                print(
+                    f"summary.csv schema extended by "
+                    f"{[c for c in fields if c not in existing_header]}; "
+                    f"migrated {csv_path.name} in place"
+                )
+            else:
+                legacy_path = csv_path.with_name(f"summary_legacy_{ts}.csv")
+                suffix = 1
+                while legacy_path.exists():
+                    legacy_path = csv_path.with_name(f"summary_legacy_{ts}_{suffix}.csv")
+                    suffix += 1
+                csv_path.rename(legacy_path)
+                print(
+                    f"summary.csv schema changed incompatibly; "
+                    f"moved existing file to {legacy_path}"
+                )
 
     write_header = not csv_path.exists()
     with csv_path.open("a", newline="") as f:
@@ -298,6 +344,7 @@ def append_summary_csv(records: list[dict], csv_path: Path, ts: str) -> None:
                 "arm":       rec.get("arm"),
                 "model":     rec.get("model"),
                 "seed":      rec.get("seed"),
+                "repeat":    rec.get("repeat", 0),
                 "elapsed_s": rec.get("elapsed_s"),
             }
             m = rec.get("metrics") or {}
@@ -438,6 +485,14 @@ def main() -> None:
         help="Print plan without calling the LLM",
     )
     parser.add_argument(
+        "--repeats", type=int, default=1,
+        help="Independent LLM draws per cell (default 1). The generation seed "
+             "fixes the task, not the model's sampling: on mixed/N=200 the same "
+             "cell scored 0.366 and 0.843 on two draws, an order of magnitude "
+             "above the arm differences being measured. Use >1 to estimate "
+             "within-cell variance before comparing arms.",
+    )
+    parser.add_argument(
         "--max-iters", type=int, default=3,
         help="Max regeneration attempts for arm A/B/D/Aprime on compile/parse "
              "or gate errors (default 3)",
@@ -557,45 +612,48 @@ def main() -> None:
                         continue
 
                     backend_cfg = cfg[model_key]
-                    print(f"  running: seed={seed} {task_id} | arm={arm_name} | model={model_key}")
+                    for repeat in range(args.repeats):
+                        suffix = f" | draw={repeat + 1}/{args.repeats}" if args.repeats > 1 else ""
+                        print(f"  running: seed={seed} {task_id} | arm={arm_name} | model={model_key}{suffix}")
 
-                    rec = run_one(
-                        task, arm_name, model_key,
-                        backend_cfg, seed, args.dry_run,
-                        max_iters=args.max_iters,
-                        oracle_arms=oracle_arms,
-                        skill=args.skill,
-                        aprime_feedback=args.aprime_feedback,
-                        c_retries=args.c_retries,
-                        c_ea_map=args.c_ea_map,
-                    )
-                    all_records.append(rec)
-
-                    if not args.dry_run and rec.get("metrics"):
-                        m = rec["metrics"]
-                        bal = m.get("balance_violation")
-                        print(
-                            f"    → acc={m.get('numeric_accuracy')} "
-                            f"journal={m.get('journal_accuracy')} "
-                            f"derived={m.get('derived_accuracy')} "
-                            f"findings_r={m.get('findings_recall')} "
-                            f"decision={m.get('decision_accuracy')} "
-                            f"escape_ok={m.get('escape_ok')} "
-                            f"balance_ok={(not bal) if bal is not None else None} "
-                            f"acct_valid={m.get('account_validity')} "
-                            f"parse_fail={m.get('parse_fail')} "
-                            f"compile_fail={m.get('compile_fail')} "
-                            f"gap={m.get('verification_gap')} "
-                            f"iters={m.get('convergence_iterations')} "
-                            f"timed_out={m.get('timed_out')}"
+                        rec = run_one(
+                            task, arm_name, model_key,
+                            backend_cfg, seed, args.dry_run,
+                            max_iters=args.max_iters,
+                            oracle_arms=oracle_arms,
+                            skill=args.skill,
+                            aprime_feedback=args.aprime_feedback,
+                            c_retries=args.c_retries,
+                            c_ea_map=args.c_ea_map,
+                            repeat=repeat,
                         )
+                        all_records.append(rec)
 
-                    # Persist this cell immediately (crash-safe): one summary.csv
-                    # row + one JSONL line, each flushed on close.
-                    if not args.dry_run:
-                        append_summary_csv([rec], csv_path, ts)
-                        with jsonl_path.open("a") as jf:
-                            jf.write(json.dumps(rec, default=str) + "\n")
+                        if not args.dry_run and rec.get("metrics"):
+                            m = rec["metrics"]
+                            bal = m.get("balance_violation")
+                            print(
+                                f"    → acc={m.get('numeric_accuracy')} "
+                                f"journal={m.get('journal_accuracy')} "
+                                f"derived={m.get('derived_accuracy')} "
+                                f"findings_r={m.get('findings_recall')} "
+                                f"decision={m.get('decision_accuracy')} "
+                                f"escape_ok={m.get('escape_ok')} "
+                                f"balance_ok={(not bal) if bal is not None else None} "
+                                f"acct_valid={m.get('account_validity')} "
+                                f"parse_fail={m.get('parse_fail')} "
+                                f"compile_fail={m.get('compile_fail')} "
+                                f"gap={m.get('verification_gap')} "
+                                f"iters={m.get('convergence_iterations')} "
+                                f"timed_out={m.get('timed_out')}"
+                            )
+
+                        # Persist this cell immediately (crash-safe): one summary.csv
+                        # row + one JSONL line, each flushed on close.
+                        if not args.dry_run:
+                            append_summary_csv([rec], csv_path, ts)
+                            with jsonl_path.open("a") as jf:
+                                jf.write(json.dumps(rec, default=str) + "\n")
 
     if args.dry_run:
         print("\n[dry-run complete — no LLM calls made]")
