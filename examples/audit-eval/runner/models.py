@@ -193,17 +193,36 @@ class OpenAICompatBackend(Backend):
     api_key: str = "ollama"        # placeholder for local servers
     timeout_seconds: int = 120
     effective_model: Optional[str] = None
+    # Sampling is part of the measured condition: leaving it to the server's
+    # default made every draw silently dependent on an unrecorded setting, and
+    # --repeats could not be described as anything more precise than "call it
+    # again". Declared here, sent on every request, and echoed into last_call.
+    temperature: Optional[float] = None
+    top_p: Optional[float] = None
+    sampling_seed: Optional[int] = None
+    # Per-call telemetry for the most recent generate(): token usage and the
+    # server's finish_reason. Without finish_reason a truncated completion is
+    # indistinguishable from a model that simply stopped early, so a wrong
+    # answer at large N could not be separated from a cut-off one.
+    last_call: Optional[dict] = None
 
     def generate(self, system: str, user: str) -> str:
         url = self.base_url.rstrip("/") + "/v1/chat/completions"
 
-        payload = json.dumps({
+        request_body: dict = {
             "model": self.model,
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user",   "content": user},
             ],
-        }).encode()
+        }
+        if self.temperature is not None:
+            request_body["temperature"] = self.temperature
+        if self.top_p is not None:
+            request_body["top_p"] = self.top_p
+        if self.sampling_seed is not None:
+            request_body["seed"] = self.sampling_seed
+        payload = json.dumps(request_body).encode()
 
         req = urllib.request.Request(
             url,
@@ -238,6 +257,18 @@ class OpenAICompatBackend(Backend):
             raise RuntimeError(f"Non-JSON response from {url!r}: {exc}") from exc
 
         self.effective_model = body.get("model", self.model)
+
+        usage = body.get("usage") or {}
+        choice0 = (body.get("choices") or [{}])[0]
+        self.last_call = {
+            "prompt_tokens": usage.get("prompt_tokens"),
+            "completion_tokens": usage.get("completion_tokens"),
+            "total_tokens": usage.get("total_tokens"),
+            "finish_reason": choice0.get("finish_reason"),
+            "temperature": self.temperature,
+            "top_p": self.top_p,
+            "sampling_seed": self.sampling_seed,
+        }
 
         try:
             return body["choices"][0]["message"]["content"].strip()
@@ -276,6 +307,18 @@ def backend_from_config(section: dict) -> Backend:
             model=section["model"],
             api_key=section.get("api_key", "ollama"),
             timeout_seconds=int(section.get("timeout_seconds", 120)),
+            temperature=(
+                float(section["temperature"])
+                if section.get("temperature") is not None else None
+            ),
+            top_p=(
+                float(section["top_p"])
+                if section.get("top_p") is not None else None
+            ),
+            sampling_seed=(
+                int(section["sampling_seed"])
+                if section.get("sampling_seed") is not None else None
+            ),
         )
     else:
         raise ValueError(f"Unknown backend type: {kind!r}")

@@ -31,6 +31,7 @@ DEFAULT_TIMEOUT = 60  # seconds
 ORACLE_REL_PATH = Path("examples/audit-eval/oracle/Oracle.hs")
 HARNESS_REL_PATH = Path("examples/audit-eval/harness")
 LOADCHECKED_REL_PATH = HARNESS_REL_PATH / "LoadChecked.hs"
+DERIVE_EA_REL_PATH  = Path("examples/audit-eval/gen/DeriveEA.hs")
 
 
 def run_haskell(
@@ -243,3 +244,51 @@ def run_loadchecked(
         return json.loads(result.stdout.strip())
     except (json.JSONDecodeError, ValueError):
         return None
+
+
+def run_derive_ea(
+    postings_json: str,
+    worktree_root: Path,
+    timeout: int = 300,
+) -> Optional[dict]:
+    """
+    Derive financial-statement values from an accepted canonical journal, using
+    the EA library (gen/DeriveEA.hs), and return its {"derived": {...}} object
+    or None if the derivation itself failed to run.
+
+    This is what makes arm A-prime a harness rather than a formatter: the model
+    supplies postings, and every value downstream of them is recomputed here.
+    Before this existed the arm kept the model's own `derived` map, so the
+    numbers the model was worst at (0.239 mean on Track S N=200) were still
+    coming from the model while the arm was described as harness-computed.
+    """
+    script_path = worktree_root / DERIVE_EA_REL_PATH
+    if not script_path.exists():
+        return None
+
+    cmd = [
+        "stack",
+        "--stack-yaml", str(worktree_root / "stack.yaml"),
+        "exec",
+        "runghc",
+        "--",
+        str(script_path),
+    ]
+
+    try:
+        result = subprocess.run(
+            cmd,
+            input=postings_json,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            cwd=str(worktree_root),
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return None
+
+    try:
+        parsed = json.loads(result.stdout.strip())
+    except (json.JSONDecodeError, ValueError):
+        return None
+    return parsed if isinstance(parsed, dict) else None

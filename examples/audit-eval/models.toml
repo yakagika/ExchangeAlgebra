@@ -21,4 +21,8 @@ backend = "openai_compat"
 base_url = "http://localhost:11434"
 model = "qwen3:30b-a3b"
 api_key = "ollama"
+temperature = 0.6      # 2026-08-05: pinned to the values `ollama show qwen3:30b-a3b --parameters`
+top_p = 0.95           # already applied, so behaviour is unchanged and prior runs stay comparable.
+                       # They were previously the server's undeclared default: every draw depended on a
+                       # setting that appeared in no run record, which made --repeats undescribable.
 timeout_seconds = 3600  # 2026-08-04: raised 1200 -> 3600 arm-neutrally. At N=200 the cap became arm-asymmetric attrition rather than a fairness device: on the mixed cluster A (2152s) and Aprime (1200s) timed out while B (713s) and C (586s) finished, so the one cell where CP1 separates had no data for the arms the claim is about. The cap must not decide which arms are measured. Timeouts are still terminal and recorded as timed_out.

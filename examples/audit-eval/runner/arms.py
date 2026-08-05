@@ -43,7 +43,7 @@ import re
 from pathlib import Path
 from typing import Any, Optional
 
-from runner.build import run_haskell, run_loadchecked, run_python
+from runner.build import run_derive_ea, run_haskell, run_loadchecked, run_python
 from runner.models import Backend, BackendTimeout
 
 EVAL_DIR = Path(__file__).resolve().parent.parent
@@ -794,6 +794,20 @@ def _sources_from_task(task: dict) -> list[dict[str, Any]]:
     return sources
 
 
+def _task_derivable(task: dict) -> bool:
+    """
+    True when the harness can compute this task's derived values itself.
+
+    Generated tasks carry generator_metadata and use the flat ledger /
+    trial_balance / financial_statements key vocabulary that gen/DeriveEA.hs
+    emits. Hand-authored tasks use bespoke statement keys (cash-flow sections
+    and the like) for which no harness-side derivation exists. The test is on
+    provenance, never on the ground-truth values.
+    """
+    gt = task.get("ground_truth") or {}
+    return bool(gt.get("generator_metadata")) and bool(gt.get("derived"))
+
+
 def _canonical_journal_from_verdict(verdict: dict) -> Optional[list]:
     journal = verdict.get("journal")
     if isinstance(journal, list):
@@ -832,6 +846,7 @@ def arm_aprime(
     max_iters: int = DEFAULT_MAX_ITERS,
     feedback_mode: str = "raw",
     loadchecked_fn=None,
+    derive_fn=None,
 ) -> dict:
     """
     Arm A-prime: the LLM emits postings JSON directly, but the harness admits
@@ -844,6 +859,8 @@ def arm_aprime(
 
     if loadchecked_fn is None:
         loadchecked_fn = lambda js: run_loadchecked(js, worktree_root)
+    if derive_fn is None:
+        derive_fn = lambda js: run_derive_ea(js, worktree_root)
 
     user0 = _build_user_prompt(task, include_ea_map=True)
     object_contract = task.get("expected_output") is not None
@@ -859,6 +876,7 @@ def arm_aprime(
         "converged": False,
         "attempts": [],
         "first_pass_valid": False,
+        "derived_source": None,
         "gate_applicable": gate_applicable,
         "feedback_mode": feedback_mode,
         "loadchecked_verdict": None,
@@ -963,6 +981,24 @@ def arm_aprime(
         else:
             final_parsed = dict(parsed_candidate)
             final_parsed["journal"] = canonical_journal
+            # Recompute every derived value from the ACCEPTED journal, so the
+            # model supplies postings and nothing downstream of them. Only
+            # generated tasks declare the flat schema DeriveEA emits; for
+            # hand-authored tasks (bespoke statement keys) the harness has no
+            # derivation and the model's own map is kept. Which of the two
+            # happened is recorded rather than inferred.
+            if _task_derivable(task):
+                derived_out = derive_fn(
+                    json.dumps(canonical_journal, ensure_ascii=False)
+                )
+                harness_derived = (derived_out or {}).get("derived")
+                if isinstance(harness_derived, dict) and harness_derived:
+                    final_parsed["derived"] = harness_derived
+                    result["derived_source"] = "harness"
+                else:
+                    result["derived_source"] = "model (derivation failed)"
+            elif "derived" in final_parsed:
+                result["derived_source"] = "model (schema not derivable)"
 
         result["json_str"] = json.dumps(final_parsed, ensure_ascii=False)
         result["parsed"] = final_parsed

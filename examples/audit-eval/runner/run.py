@@ -249,6 +249,8 @@ def run_one(
         "raw_output":  arm_result.get("raw_output"),
         "metrics":     metrics,
         "effective_model": getattr(backend, "effective_model", None),
+        "derived_source": arm_result.get("derived_source"),
+        "backend_call": getattr(backend, "last_call", None),
         "skill": skill if arm_name == "A" else None,
         "aprime_feedback": aprime_feedback if arm_name == "Aprime" else None,
     }
@@ -299,6 +301,8 @@ def append_summary_csv(records: list[dict], csv_path: Path, ts: str) -> None:
         "balance_violation", "account_validity", "compile_fail", "parse_fail",
         "verification_gap", "iterations", "converged", "timed_out",
         "first_pass_valid", "effective_model", "skill", "aprime_feedback",
+        "derived_source", "prompt_tokens", "completion_tokens", "finish_reason",
+        "temperature", "top_p",
     ]
 
     csv_path.parent.mkdir(parents=True, exist_ok=True)
@@ -348,6 +352,7 @@ def append_summary_csv(records: list[dict], csv_path: Path, ts: str) -> None:
                 "elapsed_s": rec.get("elapsed_s"),
             }
             m = rec.get("metrics") or {}
+            call = rec.get("backend_call") or {}
             row.update({
                 "numeric_accuracy":   m.get("numeric_accuracy"),
                 "journal_accuracy":   m.get("journal_accuracy"),
@@ -369,6 +374,12 @@ def append_summary_csv(records: list[dict], csv_path: Path, ts: str) -> None:
                 "effective_model":    rec.get("effective_model"),
                 "skill":              rec.get("skill"),
                 "aprime_feedback":    rec.get("aprime_feedback"),
+                "derived_source":     rec.get("derived_source"),
+                "prompt_tokens":      call.get("prompt_tokens"),
+                "completion_tokens":  call.get("completion_tokens"),
+                "finish_reason":      call.get("finish_reason"),
+                "temperature":        call.get("temperature"),
+                "top_p":              call.get("top_p"),
             })
             writer.writerow(row)
 
