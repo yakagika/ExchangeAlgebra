@@ -1,0 +1,704 @@
+# pre-land1 parseAccountTitle over corpus (query, show(Either ConvError AccountTitles)); commit 2d9164642f2862725c653e496976770f6e2c7d6f
+	Left (UnknownAccount "")
+  AccountsPayable  	Right AccountsPayable
+  AccountsReceivable  	Right AccountsReceivable
+  AccruedConsumptionTax  	Right AccruedConsumptionTax
+  AccruedCorporateIncomeTaxes  	Right AccruedCorporateIncomeTaxes
+  AccruedExpenses  	Right AccruedExpenses
+  AccruedRevenue  	Right AccruedRevenue
+  AccumulatedDepreciation  	Right AccumulatedDepreciation
+  AdvancesPaid  	Right AdvancesPaid
+  AdvancesReceived  	Right AdvancesReceived
+  AdvertisingExpense  	Right AdvertisingExpense
+  AllowanceForDoubtfulAccounts  	Right AllowanceForDoubtfulAccounts
+  AmortizationExpense  	Right AmortizationExpense
+  BadDebtLoss  	Right BadDebtLoss
+  BankOverdraft  	Right BankOverdraft
+  Building  	Right Building
+  BusinessTrip  	Right BusinessTrip
+  CapitalStock  	Right CapitalStock
+  Cash  	Right Cash
+  CashOverShort  	Right CashOverShort
+  CentralBankNotePayable  	Right CentralBankNotePayable
+  CentralBankPaymentExpense  	Right CentralBankPaymentExpense
+  CentralBankPaymentIncome  	Right CentralBankPaymentIncome
+  CommunicationExpenses  	Right CommunicationExpenses
+  Commutation  	Right Commutation
+  ConsumptionExpenditure  	Right ConsumptionExpenditure
+  ConsumptionTaxPaid  	Right ConsumptionTaxPaid
+  ConsumptionTaxReceived  	Right ConsumptionTaxReceived
+  CorporateIncomeTaxes  	Right CorporateIncomeTaxes
+  CreditCardReceivable  	Right CreditCardReceivable
+  CumulativeTranslationAdjustment  	Right CumulativeTranslationAdjustment
+  CurrentDeposits  	Right CurrentDeposits
+  DeliveryExpenses  	Right DeliveryExpenses
+  DepositInterestEarned  	Right DepositInterestEarned
+  DepositPayable  	Right DepositPayable
+  Deposits  	Right Deposits
+  DepositsReceived  	Right DepositsReceived
+  Depreciation  	Right Depreciation
+  ElectronicallyRecordedObligations  	Right ElectronicallyRecordedObligations
+  ElectronicallyRecordedReceivable  	Right ElectronicallyRecordedReceivable
+  EquipmentInvestment  	Right EquipmentInvestment
+  EquityInEarningsOfInvestee  	Right EquityInEarningsOfInvestee
+  Fixtures  	Right Fixtures
+  GainOnSalesOfFixedAssets  	Right GainOnSalesOfFixedAssets
+  Gold  	Right Gold
+  GovernmentService  	Right GovernmentService
+  GrossProfit  	Right GrossProfit
+  InterestEarned  	Right InterestEarned
+  InterestExpense  	Right InterestExpense
+  InvestmentInAssociate  	Right InvestmentInAssociate
+  InvestmentSecurities  	Right InvestmentSecurities
+  Land  	Right Land
+  LegalRetainedEarnings  	Right LegalRetainedEarnings
+  LoansPayable  	Right LoansPayable
+  LongTermLoansPayable  	Right LongTermLoansPayable
+  LongTermLoansReceivable  	Right LongTermLoansReceivable
+  LongTermNationalBonds  	Right LongTermNationalBonds
+  LongTermNationalBondsPayable  	Right LongTermNationalBondsPayable
+  LossOnSalesOfFixedAssets  	Right LossOnSalesOfFixedAssets
+  LossOnSalesOfNotesReceivable  	Right LossOnSalesOfNotesReceivable
+  Machinery  	Right Machinery
+  MerchandiseInventory  	Right MerchandiseInventory
+  MiscellaneousExpenses  	Right MiscellaneousExpenses
+  MiscellaneousIncome  	Right MiscellaneousIncome
+  MiscellaneousLoss  	Right MiscellaneousLoss
+  NationalBondInterestEarned  	Right NationalBondInterestEarned
+  NetIncome  	Right NetIncome
+  NetLoss  	Right NetLoss
+  NotesLoansPayable  	Right NotesLoansPayable
+  NotesLoansReceivable  	Right NotesLoansReceivable
+  NotesPayable  	Right NotesPayable
+  NotesReceivable  	Right NotesReceivable
+  OrdinaryProfit  	Right OrdinaryProfit
+  OtherPayables  	Right OtherPayables
+  OtherReceivables  	Right OtherReceivables
+  Patent  	Right Patent
+  PaymentFees  	Right PaymentFees
+  PaymentsOnBehalf  	Right PaymentsOnBehalf
+  PettyCash  	Right PettyCash
+  PrepaidCorporateIncomeTaxes  	Right PrepaidCorporateIncomeTaxes
+  PrepaidExpenses  	Right PrepaidExpenses
+  Products  	Right Products
+  ProvisionForDoubtfulAccounts  	Right ProvisionForDoubtfulAccounts
+  Purchases  	Right Purchases
+  ReceiptFee  	Right ReceiptFee
+  RecoveryOfBadDebts  	Right RecoveryOfBadDebts
+  RentExpense  	Right RentExpense
+  RentalIncome  	Right RentalIncome
+  ReserveDepositPayable  	Right ReserveDepositPayable
+  ReserveDepositReceivable  	Right ReserveDepositReceivable
+  ReserveForDepreciation  	Right ReserveForDepreciation
+  RetainedEarnings  	Right RetainedEarnings
+  ReversalOfAllowanceForDoubtfulAccounts  	Right ReversalOfAllowanceForDoubtfulAccounts
+  Sales  	Right Sales
+  SalesCost  	Right SalesCost
+  Securities  	Right Securities
+  ShortTermLoansPayable  	Right ShortTermLoansPayable
+  ShortTermLoansReceivable  	Right ShortTermLoansReceivable
+  ShortTermNationalBonds  	Right ShortTermNationalBonds
+  ShortTermNationalBondsPayable  	Right ShortTermNationalBondsPayable
+  Software  	Right Software
+  StockInvestment  	Right StockInvestment
+  SubsidyExpense  	Right SubsidyExpense
+  SubsidyIncome  	Right SubsidyIncome
+  SuppliesExpenses  	Right SuppliesExpenses
+  SuspensePayments  	Right SuspensePayments
+  SuspenseReceipts  	Right SuspenseReceipts
+  TaxesExpense  	Right TaxesExpense
+  TaxesRevenue  	Right TaxesRevenue
+  Trademark  	Right Trademark
+  UnearnedRevenue  	Right UnearnedRevenue
+  UnpaidDividends  	Right UnpaidDividends
+  UtilitiesExpense  	Right UtilitiesExpense
+  ValueAdded  	Right ValueAdded
+  Vehicle  	Right Vehicle
+  WageEarned  	Right WageEarned
+  WageExpenditure  	Right WageExpenditure
+  a/p  	Right AccountsPayable
+  a/r  	Right AccountsReceivable
+  accounts payable  	Right AccountsPayable
+  accounts receivable  	Right AccountsReceivable
+  cogs  	Right SalesCost
+  cost of sales  	Right SalesCost
+  クレジット売掛金  	Right CreditCardReceivable
+  ソフトウェア  	Right Software
+  仕入  	Right Purchases
+  付加価値  	Right ValueAdded
+  仮受消費税  	Right ConsumptionTaxReceived
+  仮受金  	Right SuspenseReceipts
+  仮払法人税等  	Right PrepaidCorporateIncomeTaxes
+  仮払消費税  	Right ConsumptionTaxPaid
+  仮払金  	Right SuspensePayments
+  借入金  	Right LoansPayable
+  備品  	Right Fixtures
+  償却債権取立益  	Right RecoveryOfBadDebts
+  利益準備金  	Right LegalRetainedEarnings
+  前受収益  	Right UnearnedRevenue
+  前受金  	Right AdvancesReceived
+  前払費用  	Right PrepaidExpenses
+  前払金  	Right AdvancesPaid
+  受入預金  	Right DepositPayable
+  受取利息  	Right InterestEarned
+  受取家賃  	Right RentalIncome
+  受取手形  	Right NotesReceivable
+  受取手数料  	Right ReceiptFee
+  商品  	Right Products
+  商標権  	Right Trademark
+  固定資産売却損  	Right LossOnSalesOfFixedAssets
+  固定資産売却益  	Right GainOnSalesOfFixedAssets
+  国債利息収入  	Right NationalBondInterestEarned
+  国庫納付金収入  	Right CentralBankPaymentIncome
+  国庫納付金支出  	Right CentralBankPaymentExpense
+  土地  	Right Land
+  売上  	Right Sales
+  売上原価  	Right SalesCost
+  売上総利益  	Right GrossProfit
+  売掛金  	Right AccountsReceivable
+  小口現金  	Right PettyCash
+  広告宣伝費  	Right AdvertisingExpense
+  建物  	Right Building
+  当座借越  	Right BankOverdraft
+  当座預金  	Right CurrentDeposits
+  当期純利益  	Right NetIncome
+  当期純損失  	Right NetLoss
+  手形借入金  	Right NotesLoansPayable
+  手形売却損  	Right LossOnSalesOfNotesReceivable
+  手形貸付金  	Right NotesLoansReceivable
+  投資有価証券  	Right InvestmentSecurities
+  支払利息  	Right InterestExpense
+  支払家賃  	Right RentExpense
+  支払手形  	Right NotesPayable
+  支払手数料  	Right PaymentFees
+  政府サービス  	Right GovernmentService
+  旅費交通費  	Right BusinessTrip
+  普通預金  	Right Deposits
+  有価証券  	Right Securities
+  未収入金  	Right OtherReceivables
+  未収収益  	Right AccruedRevenue
+  未払法人税等  	Right AccruedCorporateIncomeTaxes
+  未払消費税  	Right AccruedConsumptionTax
+  未払費用  	Right AccruedExpenses
+  未払配当金  	Right UnpaidDividends
+  未払金  	Right OtherPayables
+  株式投資  	Right StockInvestment
+  機械装置  	Right Machinery
+  水道光熱費  	Right UtilitiesExpense
+  法人税等  	Right CorporateIncomeTaxes
+  消耗品費  	Right SuppliesExpenses
+  消費支出  	Right ConsumptionExpenditure
+  減価償却引当金  	Right ReserveForDepreciation
+  減価償却累計額  	Right AccumulatedDepreciation
+  減価償却費  	Right Depreciation
+  準備預金  	Left (AmbiguousAccount "  \28310\20633\38928\37329  " [ReserveDepositReceivable,ReserveDepositPayable])
+  特許権  	Right Patent
+  現金  	Right Cash
+  現金過不足  	Right CashOverShort
+  発行銀行券  	Right CentralBankNotePayable
+  発送費  	Right DeliveryExpenses
+  短期借入金  	Right ShortTermLoansPayable
+  短期国債  	Left (AmbiguousAccount "  \30701\26399\22269\20661  " [ShortTermNationalBonds,ShortTermNationalBondsPayable])
+  短期貸付金  	Right ShortTermLoansReceivable
+  租税公課  	Right TaxesExpense
+  租税収入  	Right TaxesRevenue
+  立替金  	Right PaymentsOnBehalf
+  経常利益  	Right OrdinaryProfit
+  給料  	Right WageExpenditure
+  繰越利益剰余金  	Right RetainedEarnings
+  繰越商品  	Right MerchandiseInventory
+  補助金収入  	Right SubsidyIncome
+  補助金支出  	Right SubsidyExpense
+  設備投資  	Right EquipmentInvestment
+  買掛金  	Right AccountsPayable
+  貸倒引当金  	Right AllowanceForDoubtfulAccounts
+  貸倒引当金戻入  	Right ReversalOfAllowanceForDoubtfulAccounts
+  貸倒引当金繰入  	Right ProvisionForDoubtfulAccounts
+  貸倒損失  	Right BadDebtLoss
+  賃金収入  	Right WageEarned
+  資本金  	Right CapitalStock
+  車両運搬具  	Right Vehicle
+  通信費  	Left (AmbiguousAccount "  \36890\20449\36027  " [CommunicationExpenses,Commutation])
+  金  	Right Gold
+  長期借入金  	Right LongTermLoansPayable
+  長期国債  	Left (AmbiguousAccount "  \38263\26399\22269\20661  " [LongTermNationalBonds,LongTermNationalBondsPayable])
+  長期貸付金  	Right LongTermLoansReceivable
+  雑損  	Right MiscellaneousLoss
+  雑益  	Right MiscellaneousIncome
+  雑費  	Right MiscellaneousExpenses
+  電子記録債務  	Right ElectronicallyRecordedObligations
+  電子記録債権  	Right ElectronicallyRecordedReceivable
+  預り金  	Right DepositsReceived
+  預金利息収入  	Right DepositInterestEarned
+A/P	Right AccountsPayable
+A/R	Right AccountsReceivable
+ACCOUNTS PAYABLE	Right AccountsPayable
+ACCOUNTS RECEIVABLE	Right AccountsReceivable
+ACCOUNTSPAYABLE	Right AccountsPayable
+ACCOUNTSRECEIVABLE	Right AccountsReceivable
+ACCRUEDCONSUMPTIONTAX	Right AccruedConsumptionTax
+ACCRUEDCORPORATEINCOMETAXES	Right AccruedCorporateIncomeTaxes
+ACCRUEDEXPENSES	Right AccruedExpenses
+ACCRUEDREVENUE	Right AccruedRevenue
+ACCUMULATEDDEPRECIATION	Right AccumulatedDepreciation
+ADVANCESPAID	Right AdvancesPaid
+ADVANCESRECEIVED	Right AdvancesReceived
+ADVERTISINGEXPENSE	Right AdvertisingExpense
+ALLOWANCEFORDOUBTFULACCOUNTS	Right AllowanceForDoubtfulAccounts
+AMORTIZATIONEXPENSE	Right AmortizationExpense
+AccountTitle	Left (UnknownAccount "AccountTitle")
+AccountsPayable	Right AccountsPayable
+AccountsReceivable	Right AccountsReceivable
+AccruedConsumptionTax	Right AccruedConsumptionTax
+AccruedCorporateIncomeTaxes	Right AccruedCorporateIncomeTaxes
+AccruedExpenses	Right AccruedExpenses
+AccruedRevenue	Right AccruedRevenue
+AccumulatedDepreciation	Right AccumulatedDepreciation
+AdvancesPaid	Right AdvancesPaid
+AdvancesReceived	Right AdvancesReceived
+AdvertisingExpense	Right AdvertisingExpense
+AllowanceForDoubtfulAccounts	Right AllowanceForDoubtfulAccounts
+AmortizationExpense	Right AmortizationExpense
+BADDEBTLOSS	Right BadDebtLoss
+BANKOVERDRAFT	Right BankOverdraft
+BUILDING	Right Building
+BUSINESSTRIP	Right BusinessTrip
+BadDebtLoss	Right BadDebtLoss
+BankOverdraft	Right BankOverdraft
+Building	Right Building
+BusinessTrip	Right BusinessTrip
+CAPITALSTOCK	Right CapitalStock
+CASH	Right Cash
+CASHOVERSHORT	Right CashOverShort
+CENTRALBANKNOTEPAYABLE	Right CentralBankNotePayable
+CENTRALBANKPAYMENTEXPENSE	Right CentralBankPaymentExpense
+CENTRALBANKPAYMENTINCOME	Right CentralBankPaymentIncome
+COGS	Right SalesCost
+COMMUNICATIONEXPENSES	Right CommunicationExpenses
+COMMUTATION	Right Commutation
+CONSUMPTIONEXPENDITURE	Right ConsumptionExpenditure
+CONSUMPTIONTAXPAID	Right ConsumptionTaxPaid
+CONSUMPTIONTAXRECEIVED	Right ConsumptionTaxReceived
+CORPORATEINCOMETAXES	Right CorporateIncomeTaxes
+COST OF SALES	Right SalesCost
+CREDITCARDRECEIVABLE	Right CreditCardReceivable
+CUMULATIVETRANSLATIONADJUSTMENT	Right CumulativeTranslationAdjustment
+CURRENTDEPOSITS	Right CurrentDeposits
+CapitalStock	Right CapitalStock
+Cash	Right Cash
+CashOverShort	Right CashOverShort
+CentralBankNotePayable	Right CentralBankNotePayable
+CentralBankPaymentExpense	Right CentralBankPaymentExpense
+CentralBankPaymentIncome	Right CentralBankPaymentIncome
+CommunicationExpenses	Right CommunicationExpenses
+Commutation	Right Commutation
+ConsumptionExpenditure	Right ConsumptionExpenditure
+ConsumptionTaxPaid	Right ConsumptionTaxPaid
+ConsumptionTaxReceived	Right ConsumptionTaxReceived
+CorporateIncomeTaxes	Right CorporateIncomeTaxes
+CreditCardReceivable	Right CreditCardReceivable
+CumulativeTranslationAdjustment	Right CumulativeTranslationAdjustment
+CurrentDeposits	Right CurrentDeposits
+DELIVERYEXPENSES	Right DeliveryExpenses
+DEPOSITINTERESTEARNED	Right DepositInterestEarned
+DEPOSITPAYABLE	Right DepositPayable
+DEPOSITS	Right Deposits
+DEPOSITSRECEIVED	Right DepositsReceived
+DEPRECIATION	Right Depreciation
+DeliveryExpenses	Right DeliveryExpenses
+DepositInterestEarned	Right DepositInterestEarned
+DepositPayable	Right DepositPayable
+Deposits	Right Deposits
+DepositsReceived	Right DepositsReceived
+Depreciation	Right Depreciation
+ELECTRONICALLYRECORDEDOBLIGATIONS	Right ElectronicallyRecordedObligations
+ELECTRONICALLYRECORDEDRECEIVABLE	Right ElectronicallyRecordedReceivable
+EQUIPMENTINVESTMENT	Right EquipmentInvestment
+EQUITYINEARNINGSOFINVESTEE	Right EquityInEarningsOfInvestee
+ElectronicallyRecordedObligations	Right ElectronicallyRecordedObligations
+ElectronicallyRecordedReceivable	Right ElectronicallyRecordedReceivable
+EquipmentInvestment	Right EquipmentInvestment
+EquityInEarningsOfInvestee	Right EquityInEarningsOfInvestee
+FIXTURES	Right Fixtures
+Fixtures	Right Fixtures
+GAINONSALESOFFIXEDASSETS	Right GainOnSalesOfFixedAssets
+GOLD	Right Gold
+GOVERNMENTSERVICE	Right GovernmentService
+GROSSPROFIT	Right GrossProfit
+GainOnSalesOfFixedAssets	Right GainOnSalesOfFixedAssets
+Gold	Right Gold
+Goodwill_X	Left (UnknownAccount "Goodwill_X")
+GovernmentService	Right GovernmentService
+GrossProfit	Right GrossProfit
+INTERESTEARNED	Right InterestEarned
+INTERESTEXPENSE	Right InterestExpense
+INVESTMENTINASSOCIATE	Right InvestmentInAssociate
+INVESTMENTSECURITIES	Right InvestmentSecurities
+InterestEarned	Right InterestEarned
+InterestExpense	Right InterestExpense
+InvestmentInAssociate	Right InvestmentInAssociate
+InvestmentSecurities	Right InvestmentSecurities
+LAND	Right Land
+LEGALRETAINEDEARNINGS	Right LegalRetainedEarnings
+LOANSPAYABLE	Right LoansPayable
+LONGTERMLOANSPAYABLE	Right LongTermLoansPayable
+LONGTERMLOANSRECEIVABLE	Right LongTermLoansReceivable
+LONGTERMNATIONALBONDS	Right LongTermNationalBonds
+LONGTERMNATIONALBONDSPAYABLE	Right LongTermNationalBondsPayable
+LOSSONSALESOFFIXEDASSETS	Right LossOnSalesOfFixedAssets
+LOSSONSALESOFNOTESRECEIVABLE	Right LossOnSalesOfNotesReceivable
+Land	Right Land
+LegalRetainedEarnings	Right LegalRetainedEarnings
+LoansPayable	Right LoansPayable
+LongTermLoansPayable	Right LongTermLoansPayable
+LongTermLoansReceivable	Right LongTermLoansReceivable
+LongTermNationalBonds	Right LongTermNationalBonds
+LongTermNationalBondsPayable	Right LongTermNationalBondsPayable
+LossOnSalesOfFixedAssets	Right LossOnSalesOfFixedAssets
+LossOnSalesOfNotesReceivable	Right LossOnSalesOfNotesReceivable
+MACHINERY	Right Machinery
+MERCHANDISEINVENTORY	Right MerchandiseInventory
+MISCELLANEOUSEXPENSES	Right MiscellaneousExpenses
+MISCELLANEOUSINCOME	Right MiscellaneousIncome
+MISCELLANEOUSLOSS	Right MiscellaneousLoss
+Machinery	Right Machinery
+MerchandiseInventory	Right MerchandiseInventory
+MiscellaneousExpenses	Right MiscellaneousExpenses
+MiscellaneousIncome	Right MiscellaneousIncome
+MiscellaneousLoss	Right MiscellaneousLoss
+NATIONALBONDINTERESTEARNED	Right NationalBondInterestEarned
+NETINCOME	Right NetIncome
+NETLOSS	Right NetLoss
+NOTESLOANSPAYABLE	Right NotesLoansPayable
+NOTESLOANSRECEIVABLE	Right NotesLoansReceivable
+NOTESPAYABLE	Right NotesPayable
+NOTESRECEIVABLE	Right NotesReceivable
+NationalBondInterestEarned	Right NationalBondInterestEarned
+NetIncome	Right NetIncome
+NetLoss	Right NetLoss
+NotesLoansPayable	Right NotesLoansPayable
+NotesLoansReceivable	Right NotesLoansReceivable
+NotesPayable	Right NotesPayable
+NotesReceivable	Right NotesReceivable
+ORDINARYPROFIT	Right OrdinaryProfit
+OTHERPAYABLES	Right OtherPayables
+OTHERRECEIVABLES	Right OtherReceivables
+OrdinaryProfit	Right OrdinaryProfit
+OtherPayables	Right OtherPayables
+OtherReceivables	Right OtherReceivables
+PATENT	Right Patent
+PAYMENTFEES	Right PaymentFees
+PAYMENTSONBEHALF	Right PaymentsOnBehalf
+PETTYCASH	Right PettyCash
+PREPAIDCORPORATEINCOMETAXES	Right PrepaidCorporateIncomeTaxes
+PREPAIDEXPENSES	Right PrepaidExpenses
+PRODUCTS	Right Products
+PROVISIONFORDOUBTFULACCOUNTS	Right ProvisionForDoubtfulAccounts
+PURCHASES	Right Purchases
+Patent	Right Patent
+PaymentFees	Right PaymentFees
+PaymentsOnBehalf	Right PaymentsOnBehalf
+PettyCash	Right PettyCash
+PrepaidCorporateIncomeTaxes	Right PrepaidCorporateIncomeTaxes
+PrepaidExpenses	Right PrepaidExpenses
+Products	Right Products
+ProvisionForDoubtfulAccounts	Right ProvisionForDoubtfulAccounts
+Purchases	Right Purchases
+RECEIPTFEE	Right ReceiptFee
+RECOVERYOFBADDEBTS	Right RecoveryOfBadDebts
+RENTALINCOME	Right RentalIncome
+RENTEXPENSE	Right RentExpense
+RESERVEDEPOSITPAYABLE	Right ReserveDepositPayable
+RESERVEDEPOSITRECEIVABLE	Right ReserveDepositReceivable
+RESERVEFORDEPRECIATION	Right ReserveForDepreciation
+RETAINEDEARNINGS	Right RetainedEarnings
+REVERSALOFALLOWANCEFORDOUBTFULACCOUNTS	Right ReversalOfAllowanceForDoubtfulAccounts
+ReceiptFee	Right ReceiptFee
+RecoveryOfBadDebts	Right RecoveryOfBadDebts
+RentExpense	Right RentExpense
+RentalIncome	Right RentalIncome
+ReserveDepositPayable	Right ReserveDepositPayable
+ReserveDepositReceivable	Right ReserveDepositReceivable
+ReserveForDepreciation	Right ReserveForDepreciation
+RetainedEarnings	Right RetainedEarnings
+ReversalOfAllowanceForDoubtfulAccounts	Right ReversalOfAllowanceForDoubtfulAccounts
+SALES	Right Sales
+SALESCOST	Right SalesCost
+SECURITIES	Right Securities
+SHORTTERMLOANSPAYABLE	Right ShortTermLoansPayable
+SHORTTERMLOANSRECEIVABLE	Right ShortTermLoansReceivable
+SHORTTERMNATIONALBONDS	Right ShortTermNationalBonds
+SHORTTERMNATIONALBONDSPAYABLE	Right ShortTermNationalBondsPayable
+SOFTWARE	Right Software
+STOCKINVESTMENT	Right StockInvestment
+SUBSIDYEXPENSE	Right SubsidyExpense
+SUBSIDYINCOME	Right SubsidyIncome
+SUPPLIESEXPENSES	Right SuppliesExpenses
+SUSPENSEPAYMENTS	Right SuspensePayments
+SUSPENSERECEIPTS	Right SuspenseReceipts
+Sales	Right Sales
+SalesCost	Right SalesCost
+Securities	Right Securities
+ShortTermLoansPayable	Right ShortTermLoansPayable
+ShortTermLoansReceivable	Right ShortTermLoansReceivable
+ShortTermNationalBonds	Right ShortTermNationalBonds
+ShortTermNationalBondsPayable	Right ShortTermNationalBondsPayable
+Software	Right Software
+StockInvestment	Right StockInvestment
+SubsidyExpense	Right SubsidyExpense
+SubsidyIncome	Right SubsidyIncome
+SuppliesExpenses	Right SuppliesExpenses
+SuspensePayments	Right SuspensePayments
+SuspenseReceipts	Right SuspenseReceipts
+TAXESEXPENSE	Right TaxesExpense
+TAXESREVENUE	Right TaxesRevenue
+TRADEMARK	Right Trademark
+TaxesExpense	Right TaxesExpense
+TaxesRevenue	Right TaxesRevenue
+Trademark	Right Trademark
+UNEARNEDREVENUE	Right UnearnedRevenue
+UNPAIDDIVIDENDS	Right UnpaidDividends
+UTILITIESEXPENSE	Right UtilitiesExpense
+UnearnedRevenue	Right UnearnedRevenue
+UnpaidDividends	Right UnpaidDividends
+UtilitiesExpense	Right UtilitiesExpense
+VALUEADDED	Right ValueAdded
+VEHICLE	Right Vehicle
+ValueAdded	Right ValueAdded
+Vehicle	Right Vehicle
+WAGEEARNED	Right WageEarned
+WAGEEXPENDITURE	Right WageExpenditure
+WageEarned	Right WageEarned
+WageExpenditure	Right WageExpenditure
+a/p	Right AccountsPayable
+a/r	Right AccountsReceivable
+accounts payable	Right AccountsPayable
+accounts receivable	Right AccountsReceivable
+accountspayable	Right AccountsPayable
+accountsreceivable	Right AccountsReceivable
+accruedconsumptiontax	Right AccruedConsumptionTax
+accruedcorporateincometaxes	Right AccruedCorporateIncomeTaxes
+accruedexpenses	Right AccruedExpenses
+accruedrevenue	Right AccruedRevenue
+accumulateddepreciation	Right AccumulatedDepreciation
+advancespaid	Right AdvancesPaid
+advancesreceived	Right AdvancesReceived
+advertisingexpense	Right AdvertisingExpense
+allowancefordoubtfulaccounts	Right AllowanceForDoubtfulAccounts
+amortizationexpense	Right AmortizationExpense
+baddebtloss	Right BadDebtLoss
+bankoverdraft	Right BankOverdraft
+building	Right Building
+businesstrip	Right BusinessTrip
+capitalstock	Right CapitalStock
+cash	Right Cash
+cashovershort	Right CashOverShort
+centralbanknotepayable	Right CentralBankNotePayable
+centralbankpaymentexpense	Right CentralBankPaymentExpense
+centralbankpaymentincome	Right CentralBankPaymentIncome
+cogs	Right SalesCost
+communicationexpenses	Right CommunicationExpenses
+commutation	Right Commutation
+consumptionexpenditure	Right ConsumptionExpenditure
+consumptiontaxpaid	Right ConsumptionTaxPaid
+consumptiontaxreceived	Right ConsumptionTaxReceived
+corporateincometaxes	Right CorporateIncomeTaxes
+cost of sales	Right SalesCost
+creditcardreceivable	Right CreditCardReceivable
+cumulativetranslationadjustment	Right CumulativeTranslationAdjustment
+currentdeposits	Right CurrentDeposits
+deliveryexpenses	Right DeliveryExpenses
+depositinterestearned	Right DepositInterestEarned
+depositpayable	Right DepositPayable
+deposits	Right Deposits
+depositsreceived	Right DepositsReceived
+depreciation	Right Depreciation
+electronicallyrecordedobligations	Right ElectronicallyRecordedObligations
+electronicallyrecordedreceivable	Right ElectronicallyRecordedReceivable
+equipmentinvestment	Right EquipmentInvestment
+equityinearningsofinvestee	Right EquityInEarningsOfInvestee
+fixtures	Right Fixtures
+gainonsalesoffixedassets	Right GainOnSalesOfFixedAssets
+gold	Right Gold
+governmentservice	Right GovernmentService
+grossprofit	Right GrossProfit
+interestearned	Right InterestEarned
+interestexpense	Right InterestExpense
+investmentinassociate	Right InvestmentInAssociate
+investmentsecurities	Right InvestmentSecurities
+land	Right Land
+legalretainedearnings	Right LegalRetainedEarnings
+loanspayable	Right LoansPayable
+longtermloanspayable	Right LongTermLoansPayable
+longtermloansreceivable	Right LongTermLoansReceivable
+longtermnationalbonds	Right LongTermNationalBonds
+longtermnationalbondspayable	Right LongTermNationalBondsPayable
+lossonsalesoffixedassets	Right LossOnSalesOfFixedAssets
+lossonsalesofnotesreceivable	Right LossOnSalesOfNotesReceivable
+machinery	Right Machinery
+merchandiseinventory	Right MerchandiseInventory
+miscellaneousexpenses	Right MiscellaneousExpenses
+miscellaneousincome	Right MiscellaneousIncome
+miscellaneousloss	Right MiscellaneousLoss
+nationalbondinterestearned	Right NationalBondInterestEarned
+netincome	Right NetIncome
+netloss	Right NetLoss
+notesloanspayable	Right NotesLoansPayable
+notesloansreceivable	Right NotesLoansReceivable
+notespayable	Right NotesPayable
+notesreceivable	Right NotesReceivable
+ordinaryprofit	Right OrdinaryProfit
+otherpayables	Right OtherPayables
+otherreceivables	Right OtherReceivables
+patent	Right Patent
+paymentfees	Right PaymentFees
+paymentsonbehalf	Right PaymentsOnBehalf
+pettycash	Right PettyCash
+prepaidcorporateincometaxes	Right PrepaidCorporateIncomeTaxes
+prepaidexpenses	Right PrepaidExpenses
+products	Right Products
+provisionfordoubtfulaccounts	Right ProvisionForDoubtfulAccounts
+purchases	Right Purchases
+receiptfee	Right ReceiptFee
+recoveryofbaddebts	Right RecoveryOfBadDebts
+rentalincome	Right RentalIncome
+rentexpense	Right RentExpense
+reservedepositpayable	Right ReserveDepositPayable
+reservedepositreceivable	Right ReserveDepositReceivable
+reservefordepreciation	Right ReserveForDepreciation
+retainedearnings	Right RetainedEarnings
+reversalofallowancefordoubtfulaccounts	Right ReversalOfAllowanceForDoubtfulAccounts
+sales	Right Sales
+salescost	Right SalesCost
+securities	Right Securities
+shorttermloanspayable	Right ShortTermLoansPayable
+shorttermloansreceivable	Right ShortTermLoansReceivable
+shorttermnationalbonds	Right ShortTermNationalBonds
+shorttermnationalbondspayable	Right ShortTermNationalBondsPayable
+software	Right Software
+stockinvestment	Right StockInvestment
+subsidyexpense	Right SubsidyExpense
+subsidyincome	Right SubsidyIncome
+suppliesexpenses	Right SuppliesExpenses
+suspensepayments	Right SuspensePayments
+suspensereceipts	Right SuspenseReceipts
+taxesexpense	Right TaxesExpense
+taxesrevenue	Right TaxesRevenue
+trademark	Right Trademark
+unearnedrevenue	Right UnearnedRevenue
+unpaiddividends	Right UnpaidDividends
+utilitiesexpense	Right UtilitiesExpense
+valueadded	Right ValueAdded
+vehicle	Right Vehicle
+wageearned	Right WageEarned
+wageexpenditure	Right WageExpenditure
+クレジット売掛金	Right CreditCardReceivable
+ソフトウェア	Right Software
+仕入	Right Purchases
+付加価値	Right ValueAdded
+仮受消費税	Right ConsumptionTaxReceived
+仮受金	Right SuspenseReceipts
+仮払法人税等	Right PrepaidCorporateIncomeTaxes
+仮払消費税	Right ConsumptionTaxPaid
+仮払金	Right SuspensePayments
+借入金	Right LoansPayable
+備品	Right Fixtures
+償却債権取立益	Right RecoveryOfBadDebts
+利益準備金	Right LegalRetainedEarnings
+前受収益	Right UnearnedRevenue
+前受金	Right AdvancesReceived
+前払費用	Right PrepaidExpenses
+前払金	Right AdvancesPaid
+受入預金	Right DepositPayable
+受取利息	Right InterestEarned
+受取家賃	Right RentalIncome
+受取手形	Right NotesReceivable
+受取手数料	Right ReceiptFee
+商品	Right Products
+商標権	Right Trademark
+固定資産売却損	Right LossOnSalesOfFixedAssets
+固定資産売却益	Right GainOnSalesOfFixedAssets
+国債利息収入	Right NationalBondInterestEarned
+国庫納付金収入	Right CentralBankPaymentIncome
+国庫納付金支出	Right CentralBankPaymentExpense
+土地	Right Land
+売上	Right Sales
+売上原価	Right SalesCost
+売上総利益	Right GrossProfit
+売掛金	Right AccountsReceivable
+小口現金	Right PettyCash
+広告宣伝費	Right AdvertisingExpense
+建物	Right Building
+当座借越	Right BankOverdraft
+当座預金	Right CurrentDeposits
+当期純利益	Right NetIncome
+当期純損失	Right NetLoss
+手形借入金	Right NotesLoansPayable
+手形売却損	Right LossOnSalesOfNotesReceivable
+手形貸付金	Right NotesLoansReceivable
+投資有価証券	Right InvestmentSecurities
+支払利息	Right InterestExpense
+支払家賃	Right RentExpense
+支払手形	Right NotesPayable
+支払手数料	Right PaymentFees
+政府サービス	Right GovernmentService
+旅費交通費	Right BusinessTrip
+普通預金	Right Deposits
+有価証券	Right Securities
+未収入金	Right OtherReceivables
+未収収益	Right AccruedRevenue
+未払法人税等	Right AccruedCorporateIncomeTaxes
+未払消費税	Right AccruedConsumptionTax
+未払費用	Right AccruedExpenses
+未払配当金	Right UnpaidDividends
+未払金	Right OtherPayables
+株式投資	Right StockInvestment
+機械装置	Right Machinery
+水道光熱費	Right UtilitiesExpense
+法人税等	Right CorporateIncomeTaxes
+消耗品費	Right SuppliesExpenses
+消費支出	Right ConsumptionExpenditure
+減価償却引当金	Right ReserveForDepreciation
+減価償却累計額	Right AccumulatedDepreciation
+減価償却費	Right Depreciation
+準備預金	Left (AmbiguousAccount "\28310\20633\38928\37329" [ReserveDepositReceivable,ReserveDepositPayable])
+特許権	Right Patent
+現金	Right Cash
+現金過不足	Right CashOverShort
+発行銀行券	Right CentralBankNotePayable
+発送費	Right DeliveryExpenses
+短期借入金	Right ShortTermLoansPayable
+短期国債	Left (AmbiguousAccount "\30701\26399\22269\20661" [ShortTermNationalBonds,ShortTermNationalBondsPayable])
+短期貸付金	Right ShortTermLoansReceivable
+社債発行差金	Left (UnknownAccount "\31038\20661\30330\34892\24046\37329")
+租税公課	Right TaxesExpense
+租税収入	Right TaxesRevenue
+立替金	Right PaymentsOnBehalf
+経常利益	Right OrdinaryProfit
+給料	Right WageExpenditure
+繰越利益剰余金	Right RetainedEarnings
+繰越商品	Right MerchandiseInventory
+自己株式	Left (UnknownAccount "\33258\24049\26666\24335")
+補助金収入	Right SubsidyIncome
+補助金支出	Right SubsidyExpense
+設備投資	Right EquipmentInvestment
+買掛金	Right AccountsPayable
+貸倒引当金	Right AllowanceForDoubtfulAccounts
+貸倒引当金戻入	Right ReversalOfAllowanceForDoubtfulAccounts
+貸倒引当金繰入	Right ProvisionForDoubtfulAccounts
+貸倒損失	Right BadDebtLoss
+賃金収入	Right WageEarned
+資本金	Right CapitalStock
+車両運搬具	Right Vehicle
+通信費	Left (AmbiguousAccount "\36890\20449\36027" [CommunicationExpenses,Commutation])
+金	Right Gold
+長期借入金	Right LongTermLoansPayable
+長期国債	Left (AmbiguousAccount "\38263\26399\22269\20661" [LongTermNationalBonds,LongTermNationalBondsPayable])
+長期貸付金	Right LongTermLoansReceivable
+雑損	Right MiscellaneousLoss
+雑益	Right MiscellaneousIncome
+雑費	Right MiscellaneousExpenses
+電子記録債務	Right ElectronicallyRecordedObligations
+電子記録債権	Right ElectronicallyRecordedReceivable
+預り金	Right DepositsReceived
+預金利息収入	Right DepositInterestEarned
