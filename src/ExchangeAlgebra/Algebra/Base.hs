@@ -26,21 +26,15 @@
 {-# LANGUAGE ConstrainedClassMethods    #-}
 {-# LANGUAGE DeriveGeneric              #-}
 
--- This module must keep classifying the deprecated 'Commutation' constructor
--- (in 'classifyAccountDivision' and 'fixedCurrent'): a classifier has to cover
--- every constructor, including deprecated ones, so the pattern matches cannot be
--- removed. GHC offers no per-case suppression for deprecation warnings, so the
--- narrowest available mechanism is this module-level pragma. It is safe here
--- because 'Commutation' is currently the only @{-# DEPRECATED #-}@ symbol in the
--- library, so nothing else is masked.
-{-# OPTIONS_GHC -Wno-deprecations #-}
-
-
 module ExchangeAlgebra.Algebra.Base
     ( module ExchangeAlgebra.Algebra.Base
+    , module ExchangeAlgebra.Algebra.Base.Account.Registry
+    , module ExchangeAlgebra.Algebra.Base.Account.Types
     , module ExchangeAlgebra.Algebra.Base.Element) where
 
 import ExchangeAlgebra.Algebra.Base.Element
+import ExchangeAlgebra.Algebra.Base.Account.Registry
+import ExchangeAlgebra.Algebra.Base.Account.Types
 
 import              Data.Time           (Day, TimeOfDay)
 import GHC.Stack (HasCallStack, callStack, prettyCallStack)
@@ -316,150 +310,16 @@ switchSide Credit = Debit
 switchSide Debit  = Credit
 switchSide Side   = Side
 
--- | Fixed/Current distinction. Used for classifying account titles as fixed or current.
-data FixedCurrent   = Fixed   -- ^ Fixed
-                    | Current -- ^ Current
-                    | Other   -- ^ Other (expenses, revenues, etc.)
-                    deriving (Show, Eq)
-
 -- | Classify an account title into an account division (Assets/Equity/Liability/Cost/Revenue).
 --
 -- Complexity: O(1)
 {-# INLINE classifyAccountDivision #-}
 classifyAccountDivision :: HasCallStack => AccountTitles -> AccountDivision
-classifyAccountDivision AccountTitle                 = customError "this is wildcard AccountTitle"
-classifyAccountDivision CapitalStock                 = Equity
-classifyAccountDivision RetainedEarnings            = Equity
-classifyAccountDivision LongTermLoansPayable        = Liability
-classifyAccountDivision ShortTermLoansPayable       = Liability
-classifyAccountDivision LoansPayable                = Liability
-classifyAccountDivision ReserveForDepreciation      = Liability
-classifyAccountDivision DepositPayable              = Liability
-classifyAccountDivision LongTermNationalBondsPayable  = Liability
-classifyAccountDivision ShortTermNationalBondsPayable = Liability
-classifyAccountDivision ReserveDepositPayable       = Liability
-classifyAccountDivision CentralBankNotePayable      = Liability
-classifyAccountDivision Depreciation                = Cost
-classifyAccountDivision AmortizationExpense         = Cost
-classifyAccountDivision SalesCost                   = Cost
-classifyAccountDivision BusinessTrip                = Cost
-classifyAccountDivision Commutation                 = Cost
-classifyAccountDivision UtilitiesExpense            = Cost
-classifyAccountDivision RentExpense                 = Cost
-classifyAccountDivision AdvertisingExpense          = Cost
-classifyAccountDivision DeliveryExpenses            = Cost
-classifyAccountDivision SuppliesExpenses            = Cost
-classifyAccountDivision MiscellaneousExpenses       = Cost
-classifyAccountDivision WageExpenditure             = Cost
-classifyAccountDivision InterestExpense             = Cost
-classifyAccountDivision TaxesExpense                = Cost
-classifyAccountDivision ConsumptionExpenditure      = Cost
-classifyAccountDivision SubsidyExpense              = Cost
-classifyAccountDivision CentralBankPaymentExpense   = Cost
-classifyAccountDivision Purchases                   = Cost
-classifyAccountDivision NetIncome                   = Cost
-classifyAccountDivision ValueAdded                  = Revenue
-classifyAccountDivision SubsidyIncome               = Revenue
-classifyAccountDivision NationalBondInterestEarned  = Revenue
-classifyAccountDivision DepositInterestEarned       = Revenue
-classifyAccountDivision GrossProfit                 = Revenue
-classifyAccountDivision OrdinaryProfit              = Revenue
-classifyAccountDivision InterestEarned              = Revenue
-classifyAccountDivision ReceiptFee                  = Revenue
-classifyAccountDivision RentalIncome                = Revenue
-classifyAccountDivision WageEarned                  = Revenue
-classifyAccountDivision TaxesRevenue                = Revenue
-classifyAccountDivision CentralBankPaymentIncome    = Revenue
-classifyAccountDivision Sales                       = Revenue
-classifyAccountDivision NetLoss                     = Revenue
--- Elementary bookkeeping additions (all written explicitly to prevent the
--- wildcard from silently classifying a mis-divided title as Assets).
--- Assets (資産)
-classifyAccountDivision PettyCash                   = Assets
-classifyAccountDivision NotesReceivable             = Assets
-classifyAccountDivision ElectronicallyRecordedReceivable = Assets
-classifyAccountDivision CreditCardReceivable        = Assets
-classifyAccountDivision NotesLoansReceivable        = Assets
-classifyAccountDivision MerchandiseInventory        = Assets
-classifyAccountDivision AdvancesPaid                = Assets
-classifyAccountDivision PrepaidExpenses             = Assets
-classifyAccountDivision AccruedRevenue              = Assets
-classifyAccountDivision OtherReceivables            = Assets
-classifyAccountDivision PaymentsOnBehalf            = Assets
-classifyAccountDivision SuspensePayments            = Assets
-classifyAccountDivision ConsumptionTaxPaid          = Assets
-classifyAccountDivision PrepaidCorporateIncomeTaxes = Assets
-classifyAccountDivision Land                        = Assets
-classifyAccountDivision Fixtures                    = Assets
-classifyAccountDivision Patent                      = Assets
-classifyAccountDivision Trademark                   = Assets
-classifyAccountDivision Software                    = Assets
-classifyAccountDivision CashOverShort               = Assets
--- Liability (負債); valuation accounts (評価勘定) classified as Liability per design
-classifyAccountDivision AccountsPayable             = Liability
-classifyAccountDivision NotesPayable                = Liability
-classifyAccountDivision ElectronicallyRecordedObligations = Liability
-classifyAccountDivision NotesLoansPayable           = Liability
-classifyAccountDivision BankOverdraft               = Liability
-classifyAccountDivision AdvancesReceived            = Liability
-classifyAccountDivision UnearnedRevenue             = Liability
-classifyAccountDivision AccruedExpenses             = Liability
-classifyAccountDivision OtherPayables               = Liability
-classifyAccountDivision DepositsReceived            = Liability
-classifyAccountDivision SuspenseReceipts            = Liability
-classifyAccountDivision ConsumptionTaxReceived      = Liability
-classifyAccountDivision AccruedConsumptionTax       = Liability
-classifyAccountDivision AccruedCorporateIncomeTaxes = Liability
-classifyAccountDivision UnpaidDividends             = Liability
-classifyAccountDivision AllowanceForDoubtfulAccounts = Liability
-classifyAccountDivision AccumulatedDepreciation     = Liability
--- Equity (資本)
-classifyAccountDivision LegalRetainedEarnings                = Equity
-classifyAccountDivision CumulativeTranslationAdjustment      = Equity
--- Cost (費用)
-classifyAccountDivision ProvisionForDoubtfulAccounts = Cost
-classifyAccountDivision BadDebtLoss                 = Cost
-classifyAccountDivision LossOnSalesOfFixedAssets    = Cost
-classifyAccountDivision LossOnSalesOfNotesReceivable = Cost
-classifyAccountDivision PaymentFees                 = Cost
-classifyAccountDivision MiscellaneousLoss           = Cost
-classifyAccountDivision CorporateIncomeTaxes        = Cost
-classifyAccountDivision CommunicationExpenses       = Cost
--- Equity-method additions (T4b)
--- Asset: 関係会社株式 (Investment in associate, equity method)
-classifyAccountDivision InvestmentInAssociate       = Assets
--- Revenue (収益)
-classifyAccountDivision GainOnSalesOfFixedAssets    = Revenue
-classifyAccountDivision RecoveryOfBadDebts          = Revenue
-classifyAccountDivision MiscellaneousIncome         = Revenue
-classifyAccountDivision ReversalOfAllowanceForDoubtfulAccounts = Revenue
--- Revenue: 持分法による投資利益 (Equity in earnings of investee)
-classifyAccountDivision EquityInEarningsOfInvestee  = Revenue
--- Legacy SNA/macro asset titles. These were previously covered by a catch-all
--- @classifyAccountDivision _ = Assets@; the catch-all is gone so that a future
--- 'AccountTitles' constructor CANNOT be silently classified as Assets — a
--- missing case now fails loudly (runtime pattern-match error, caught by the
--- Bounded/Enum exhaustiveness test that evaluates 'whatDiv' on every
--- constructor).
-classifyAccountDivision Cash                        = Assets
-classifyAccountDivision Deposits                    = Assets
-classifyAccountDivision CurrentDeposits             = Assets
-classifyAccountDivision Securities                  = Assets
-classifyAccountDivision InvestmentSecurities        = Assets
-classifyAccountDivision LongTermNationalBonds       = Assets
-classifyAccountDivision ShortTermNationalBonds      = Assets
-classifyAccountDivision Products                    = Assets
-classifyAccountDivision Machinery                   = Assets
-classifyAccountDivision Building                    = Assets
-classifyAccountDivision Vehicle                     = Assets
-classifyAccountDivision StockInvestment             = Assets
-classifyAccountDivision EquipmentInvestment         = Assets
-classifyAccountDivision LongTermLoansReceivable     = Assets
-classifyAccountDivision AccountsReceivable          = Assets
-classifyAccountDivision ShortTermLoansReceivable    = Assets
-classifyAccountDivision ReserveDepositReceivable    = Assets
-classifyAccountDivision Gold                        = Assets
-classifyAccountDivision GovernmentService           = Assets
+classifyAccountDivision AccountTitle = customError "this is wildcard AccountTitle"
+classifyAccountDivision title =
+    case accountSpec title of
+        Just spec -> asDivision spec
+        Nothing   -> customError "this is wildcard AccountTitle"
 
 -- | BaseClass ⊃ HatBaseClass ⊃ ExBaseClass
 --
@@ -523,133 +383,7 @@ class (HatBaseClass a) => ExBaseClass a where
     -- Complexity: O(1)
     {-# INLINE fixedCurrent #-}
     fixedCurrent :: a -> FixedCurrent
-    fixedCurrent b = f (getAccountTitle b)
-        where
-        {-# INLINE f #-}
-        f Cash                           = Current
-        f Deposits                       = Current
-        f CurrentDeposits                = Current
-        f Securities                     = Current
-        f InvestmentSecurities           = Fixed
-        f LongTermNationalBonds          = Fixed
-        f ShortTermNationalBonds         = Current
-        f Products                       = Current
-        f Machinery                      = Fixed
-        f Building                       = Fixed
-        f Vehicle                        = Fixed
-        f StockInvestment                = Other  -- Note
-        f EquipmentInvestment            = Fixed
-        f AccountsReceivable             = Current
-        f LongTermLoansReceivable        = Fixed
-        f ShortTermLoansReceivable       = Current
-        f ReserveDepositReceivable       = Current
-        f Gold                           = Fixed
-        f GovernmentService              = Current
-        f CapitalStock                   = Other
-        f RetainedEarnings               = Other
-        f ShortTermLoansPayable          = Current
-        f LoansPayable                   = Current
-        f LongTermLoansPayable           = Fixed
-        f ReserveForDepreciation         = Current
-        f DepositPayable                 = Current
-        f LongTermNationalBondsPayable   = Fixed
-        f ShortTermNationalBondsPayable  = Current
-        f ReserveDepositPayable          = Current
-        f CentralBankNotePayable         = Current
-        f Depreciation                   = Other
-        f AmortizationExpense            = Other
-        f SalesCost                      = Other
-        f BusinessTrip                   = Other
-        f Commutation                    = Other
-        f UtilitiesExpense               = Other
-        f RentExpense                    = Other
-        f AdvertisingExpense             = Other
-        f DeliveryExpenses               = Other
-        f SuppliesExpenses               = Other
-        f MiscellaneousExpenses          = Other
-        f WageExpenditure                = Other
-        f InterestExpense                = Other
-        f TaxesExpense                   = Other
-        f ConsumptionExpenditure         = Other
-        f SubsidyExpense                 = Other
-        f CentralBankPaymentExpense      = Other
-        f Purchases                      = Other
-        f NetIncome                      = Other
-        f ValueAdded                     = Other
-        f SubsidyIncome                  = Other
-        f NationalBondInterestEarned     = Other
-        f DepositInterestEarned          = Other
-        f GrossProfit                    = Other
-        f OrdinaryProfit                 = Other
-        f InterestEarned                 = Other
-        f ReceiptFee                     = Other
-        f RentalIncome                   = Other
-        f WageEarned                     = Other
-        f TaxesRevenue                   = Other
-        f CentralBankPaymentIncome       = Other
-        f Sales                          = Other
-        f NetLoss                        = Other
-        -- Elementary bookkeeping additions
-        -- Assets (資産)
-        f PettyCash                      = Current
-        f NotesReceivable                = Current
-        f ElectronicallyRecordedReceivable = Current
-        f CreditCardReceivable           = Current
-        f NotesLoansReceivable           = Current
-        f MerchandiseInventory           = Current
-        f AdvancesPaid                   = Current
-        f PrepaidExpenses                = Current
-        f AccruedRevenue                 = Current
-        f OtherReceivables               = Current
-        f PaymentsOnBehalf               = Current
-        f SuspensePayments               = Current
-        f ConsumptionTaxPaid             = Current
-        f PrepaidCorporateIncomeTaxes    = Current
-        f Land                           = Fixed
-        f Fixtures                       = Fixed
-        f Patent                         = Fixed
-        f Trademark                      = Fixed
-        f Software                       = Fixed
-        f CashOverShort                  = Other
-        -- Liability (負債)
-        f AccountsPayable                = Current
-        f NotesPayable                   = Current
-        f ElectronicallyRecordedObligations = Current
-        f NotesLoansPayable              = Current
-        f BankOverdraft                  = Current
-        f AdvancesReceived               = Current
-        f UnearnedRevenue                = Current
-        f AccruedExpenses                = Current
-        f OtherPayables                  = Current
-        f DepositsReceived               = Current
-        f SuspenseReceipts               = Current
-        f ConsumptionTaxReceived         = Current
-        f AccruedConsumptionTax          = Current
-        f AccruedCorporateIncomeTaxes    = Current
-        f UnpaidDividends                = Current
-        f AllowanceForDoubtfulAccounts   = Current
-        f AccumulatedDepreciation        = Fixed
-        -- Equity (資本)
-        f LegalRetainedEarnings                 = Other
-        f CumulativeTranslationAdjustment       = Other
-        -- Cost (費用)
-        f ProvisionForDoubtfulAccounts   = Other
-        f BadDebtLoss                    = Other
-        f LossOnSalesOfFixedAssets       = Other
-        f LossOnSalesOfNotesReceivable   = Other
-        f PaymentFees                    = Other
-        f MiscellaneousLoss              = Other
-        f CorporateIncomeTaxes           = Other
-        f CommunicationExpenses          = Other
-        -- Revenue (収益)
-        f GainOnSalesOfFixedAssets       = Other
-        f RecoveryOfBadDebts             = Other
-        f MiscellaneousIncome            = Other
-        f ReversalOfAllowanceForDoubtfulAccounts = Other
-        -- Equity-method additions (T4b)
-        f InvestmentInAssociate          = Fixed   -- long-term investment, fixed assets category
-        f EquityInEarningsOfInvestee     = Other   -- revenue account
-        f AccountTitle                   = Other
+    fixedCurrent b = maybe Other asFixedCurrent (accountSpec (getAccountTitle b))
 
 
 -- | Type class for determining correspondences between account divisions.
@@ -660,13 +394,6 @@ class (HatBaseClass a) => ExBaseClass a where
 class AccountBase a where
     -- | Test whether two account divisions are in a corresponding relationship.
     (<=>) :: a -> a -> Bool
-
-data AccountDivision = Assets       -- ^ Assets
-                     | Equity       -- ^ Equity
-                     | Liability    -- ^ Liability
-                     | Cost         -- ^ Cost
-                     | Revenue      -- ^ Revenue
-                     deriving (Ord, Show, Eq)
 
 instance AccountBase AccountDivision where
     Assets      <=> Liability       = True

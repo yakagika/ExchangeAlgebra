@@ -12,6 +12,7 @@ import qualified ExchangeAlgebra.Convert.Checked as ECC
 import qualified ExchangeAlgebra.Convert.Csv  as ECsv
 import qualified ExchangeAlgebra.Assist       as Assist
 import qualified ExchangeAlgebra.Assist.Descriptions as AssistDesc
+import qualified ExchangeAlgebra.Algebra.Base.Account.Registry as Registry
 import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Algebra.Transfer as EAT
 import qualified ExchangeAlgebra.Journal  as EJ
@@ -48,8 +49,7 @@ import qualified Data.HashMap.Strict as HM
 import qualified Data.Map.Strict     as M
 import qualified Data.List           as L
 import qualified Data.List.NonEmpty  as NE
-import           Data.Char           (isAlpha, isAlphaNum, isSpace, isUpper, ord)
-import           Data.Maybe          (mapMaybe)
+import           Data.Char           (isAlphaNum, isSpace)
 import qualified Data.Binary         as Binary
 import qualified Data.Text           as T
 import qualified Data.Text.IO        as TIO
@@ -1599,15 +1599,15 @@ testConvertCsvRoundTrip = do
 -- ================================================================
 
 testAssistDescriptionsDrift :: IO ()
-testAssistDescriptionsDrift = do
-    raw <- readFileStrict "src/ExchangeAlgebra/Algebra/Base/Element.hs"
-    let parsed = L.sort (parseAssistDescriptionRows raw)
-        generated = L.sort
-            [ (show title, nameEn, nameJa)
-            | (title, nameEn, nameJa, _) <- AssistDesc.accountDescriptions
-            ]
-    assertEqual "Assist descriptions match AccountTitles Haddock (constructor/nameEn/nameJa)"
-        parsed generated
+testAssistDescriptionsDrift =
+    assertEqual "Assist descriptions are the registry projection"
+        registryProjection AssistDesc.accountDescriptions
+  where
+    registryProjection =
+        [ (title, Registry.asNameEn spec, Registry.asNameJa spec, Registry.asDescription spec)
+        | title <- Registry.concreteAccountTitles
+        , Just spec <- [Registry.accountSpec title]
+        ]
 
 testAssistDescribeAccount :: IO ()
 testAssistDescribeAccount = do
@@ -1644,106 +1644,107 @@ testAssistSuggestAccounts = do
     assertEqual "Assist.suggestAccounts no match"
         [] (Assist.suggestAccounts (T.pack "zzzznomatch"))
 
-parseAssistDescriptionRows :: String -> [(String, T.Text, T.Text)]
-parseAssistDescriptionRows = mapMaybe finishRow . collectRows . lines
+-- ================================================================
+-- Land 1 registry: frozen pre-registry behaviour.
+-- ================================================================
+
+goldenCommit :: T.Text
+goldenCommit = T.pack "2d9164642f2862725c653e496976770f6e2c7d6f"
+
+goldenHeader :: T.Text -> T.Text
+goldenHeader what =
+    T.pack "# pre-land1 " <> what <> T.pack "; commit " <> goldenCommit <> T.pack "\n"
+
+goldenShow :: Show a => a -> T.Text
+goldenShow = T.pack . show
+
+goldenEsc :: T.Text -> T.Text
+goldenEsc = T.replace (T.pack "\t") (T.pack "\\t")
+          . T.replace (T.pack "\n") (T.pack "\\n")
+
+goldenDedupSort :: [T.Text] -> [T.Text]
+goldenDedupSort = L.map L.head . L.group . L.sort
+
+goldenSemantics :: T.Text
+goldenSemantics =
+    goldenHeader (T.pack "semantics (title, whatDiv, whatPIMO, whichSide Not, whichSide Hat, fixedCurrent)")
+    <> T.unlines (L.map row Registry.concreteAccountTitles)
   where
-    finishRow (constructor, parts, _) =
-        let desc = unwords (words (unwords parts))
-        in case splitAssistDescription desc of
-            Just (nameEn, nameJa) -> Just (constructor, T.pack nameEn, T.pack nameJa)
-            Nothing               -> Nothing
+    row title =
+        let nb = Not :< title :: HatBase AccountTitles
+            hb = Hat :< title :: HatBase AccountTitles
+        in T.intercalate (T.pack "\t")
+             [ goldenShow title, goldenShow (whatDiv nb), goldenShow (whatPIMO nb)
+             , goldenShow (whichSide nb), goldenShow (whichSide hb)
+             , goldenShow (fixedCurrent nb) ]
 
-collectRows :: [String] -> [(String, [String], Int)]
-collectRows = go False Nothing []
+goldenAccountInfo :: T.Text
+goldenAccountInfo =
+    goldenHeader (T.pack "allAccountInfos (title, aiDivision, aiHomeSide, aiNameEn, aiNameJa, aiDesc)")
+    <> T.unlines (L.map row Assist.allAccountInfos)
   where
-    go _ current acc [] = reverse (flush current acc)
-    go inAccounts current acc (line:rest)
-        | not inAccounts' =
-            go inAccounts' current acc rest
-        | "deriving" `L.isInfixOf` line =
-            reverse (flush current acc)
-        | Just row <- constructorComment line =
-            go inAccounts' (Just row) (flush current acc) rest
-        | otherwise =
-            go inAccounts' (appendContinuation line current) acc rest
-      where
-        inAccounts' = inAccounts || startsAccountTitles line
+    row info = T.intercalate (T.pack "\t")
+        [ goldenShow (Assist.aiTitle info)
+        , goldenShow (Assist.aiDivision info)
+        , goldenShow (Assist.aiHomeSide info)
+        , goldenEsc (Assist.aiNameEn info)
+        , goldenEsc (Assist.aiNameJa info)
+        , goldenEsc (Assist.aiDesc info)
+        ]
 
-    flush Nothing acc = acc
-    flush (Just row) acc = row : acc
-
-startsAccountTitles :: String -> Bool
-startsAccountTitles line =
-    "data  AccountTitles" `L.isInfixOf` line
-    || "data AccountTitles" `L.isInfixOf` line
-
-constructorComment :: String -> Maybe (String, [String], Int)
-constructorComment line = do
-    rest <- constructorRest line
-    let stripped = dropWhile isSpace rest
-        constructor = takeWhile isConstructorChar stripped
-    if null constructor || not (isUpper (head constructor))
-        then Nothing
-        else
-            let marker = findSubstring "-- ^" line
-                comment = maybe "" (\i -> drop (i + length "-- ^") line) marker
-                commentCol = maybe (length line) id marker
-            in Just (constructor, [comment], commentCol)
-
-constructorRest :: String -> Maybe String
-constructorRest line =
-    let stripped = dropWhile isSpace line
-    in case stripped of
-        ('|':rest) -> Just rest
-        _ | startsAccountTitles line ->
-            case dropWhile (/= '=') line of
-                ('=':rest) -> Just rest
-                _          -> Nothing
-        _ -> Nothing
-
-isConstructorChar :: Char -> Bool
-isConstructorChar c = isAlphaNum c || c == '_' || c == '\''
-
-appendContinuation :: String -> Maybe (String, [String], Int) -> Maybe (String, [String], Int)
-appendContinuation _ Nothing = Nothing
-appendContinuation line (Just (constructor, parts, commentCol))
-    | indent >= commentCol && "--" `L.isPrefixOf` stripped =
-        let comment = dropWhile isSpace (drop 2 stripped)
-            comment' = case comment of
-                ('^':rest) -> dropWhile isSpace rest
-                _          -> comment
-        in Just (constructor, parts ++ [comment'], commentCol)
-    | otherwise = Just (constructor, parts, commentCol)
+goldenAliasResolution :: T.Text -> T.Text
+goldenAliasResolution fixture =
+    goldenHeader (T.pack "parseAccountTitle over corpus (query, show(Either ConvError AccountTitles))")
+    <> T.unlines (L.map row queries)
   where
-    stripped = dropWhile isSpace line
-    indent = length line - length stripped
+    queries = L.map (T.takeWhile (/= '\t')) (L.drop 1 (T.lines fixture))
+    row query = goldenEsc query <> T.pack "\t"
+             <> goldenEsc (goldenShow (EC.parseAccountTitle query))
 
-splitAssistDescription :: String -> Maybe (String, String)
-splitAssistDescription desc =
-    case break (== ':') desc of
-        (division, ':':rest)
-            | not (null division) && all isAlpha division ->
-                findJapaneseParen "" (dropWhile isSpace rest)
-        _ -> Nothing
+goldenSuggestions :: T.Text
+goldenSuggestions =
+    goldenHeader (T.pack "suggestAccounts over corpus (query, total matches, top-10 titles)")
+    <> T.unlines (L.map row corpus)
+  where
+    nameFields = L.concat
+        [ [ goldenShow (Assist.aiTitle info), Assist.aiNameEn info, Assist.aiNameJa info ]
+        | info <- Assist.allAccountInfos
+        ]
+    descTokens = L.concatMap (T.words . Assist.aiDesc) Assist.allAccountInfos
+    corpus = goldenDedupSort
+        (L.concatMap (\q -> [q, T.toLower q]) nameFields <> descTokens)
+    row query =
+        let matches = L.map Assist.aiTitle (Assist.suggestAccounts query)
+        in goldenEsc query <> T.pack "\t"
+           <> goldenShow (L.length matches) <> T.pack "\t"
+           <> T.intercalate (T.pack ",") (L.map goldenShow (L.take 10 matches))
 
-findJapaneseParen :: String -> String -> Maybe (String, String)
-findJapaneseParen _ [] = Nothing
-findJapaneseParen prefix ('(':rest) =
-    case break (== ')') rest of
-        (inside, ')':after)
-            | any ((> 127) . ord) inside ->
-                Just (trim prefix, trim inside)
-            | otherwise ->
-                findJapaneseParen (prefix ++ "(" ++ inside ++ ")") after
-        _ -> Nothing
-findJapaneseParen prefix (c:rest) = findJapaneseParen (prefix ++ [c]) rest
+testRegistryGolden :: IO ()
+testRegistryGolden = do
+    semantics <- TIO.readFile "test/fixtures/pre-land1/account-semantics.tsv"
+    infos <- TIO.readFile "test/fixtures/pre-land1/account-info.tsv"
+    aliases <- TIO.readFile "test/fixtures/pre-land1/alias-resolution.tsv"
+    suggestions <- TIO.readFile "test/fixtures/pre-land1/suggest.tsv"
+    assertEqual "registry golden: account semantics" semantics goldenSemantics
+    assertEqual "registry golden: account info" infos goldenAccountInfo
+    assertEqual "registry golden: alias resolution" aliases (goldenAliasResolution aliases)
+    assertEqual "registry golden: suggestions" suggestions goldenSuggestions
 
-findSubstring :: String -> String -> Maybe Int
-findSubstring needle haystack =
-    L.findIndex (needle `L.isPrefixOf`) (L.tails haystack)
+testRegistryWildcards :: IO ()
+testRegistryWildcards = do
+    divisionResult <- try (evaluate (classifyAccountDivision AccountTitle))
+        :: IO (Either SomeException AccountDivision)
+    assertEqual "registry wildcard: classifyAccountDivision errors"
+        True (case divisionResult of Left _ -> True; Right _ -> False)
+    assertEqual "registry wildcard: fixedCurrent is Other"
+        Other (fixedCurrent (Not :< AccountTitle))
+    assertEqual "registry wildcard: describeAccount is Nothing"
+        Nothing (Assist.describeAccount AccountTitle)
 
-trim :: String -> String
-trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
+testRegistryContraLand1 :: IO ()
+testRegistryContraLand1 =
+    assertEqual "registry Land 1: every concrete account is non-contra"
+        True (L.all (not . Registry.classifyAccountContra) Registry.concreteAccountTitles)
 
 -- ================================================================
 -- ExchangeAlgebra.Convert.Checked: checked construction for generated entries.
@@ -3449,6 +3450,9 @@ main = do
     testAssistDescribeAccount
     testAssistAllAccountInfos
     testAssistSuggestAccounts
+    testRegistryGolden
+    testRegistryWildcards
+    testRegistryContraLand1
     checkedConvertProperties
     axiomProperties
     journalProperties

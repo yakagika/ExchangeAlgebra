@@ -19,7 +19,7 @@ module ExchangeAlgebra.Assist
     , explainSourceErrors
     ) where
 
-import           Data.List (find, sortOn)
+import           Data.List (sortOn)
 import           Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
 import           Data.Maybe (mapMaybe)
@@ -29,15 +29,15 @@ import qualified Data.Text as T
 
 import           ExchangeAlgebra.Algebra.Base
                      ( AccountDivision
+                     , AccountSpec(..)
                      , AccountTitles(..)
                      , Hat(..)
                      , HatBase((:<))
                      , Side
-                     , classifyAccountDivision
+                     , accountSpec
+                     , concreteAccountTitles
                      , whichSide
                      )
-import           ExchangeAlgebra.Assist.Descriptions
-                     ( accountDescriptions )
 import           ExchangeAlgebra.Convert
                      ( ConvError(..) )
 import           ExchangeAlgebra.Convert.Checked
@@ -75,8 +75,7 @@ data AccountInfo = AccountInfo
 -- >>> describeAccount AccountTitle
 -- Nothing
 describeAccount :: AccountTitles -> Maybe AccountInfo
-describeAccount AccountTitle = Nothing
-describeAccount title = find ((== title) . aiTitle) allAccountInfos
+describeAccount title = toInfo title =<< accountSpec title
 
 -- | All concrete account-title descriptions in 'Enum' order.
 --
@@ -87,18 +86,18 @@ describeAccount title = find ((== title) . aiTitle) allAccountInfos
 -- >>> aiTitle (last allAccountInfos)
 -- ReversalOfAllowanceForDoubtfulAccounts
 allAccountInfos :: [AccountInfo]
-allAccountInfos = mapMaybe toInfo accountDescriptions
-  where
-    toInfo (AccountTitle, _, _, _) = Nothing
-    toInfo (title, nameEn, nameJa, desc) =
-        Just AccountInfo
-            { aiTitle    = title
-            , aiDivision = classifyAccountDivision title
-            , aiHomeSide = whichSide (Not :< title)
-            , aiNameEn   = nameEn
-            , aiNameJa   = nameJa
-            , aiDesc     = desc
-            }
+allAccountInfos = mapMaybe (\title -> toInfo title =<< accountSpec title)
+                           concreteAccountTitles
+
+toInfo :: AccountTitles -> AccountSpec -> Maybe AccountInfo
+toInfo title spec = Just AccountInfo
+    { aiTitle    = title
+    , aiDivision = asDivision spec
+    , aiHomeSide = whichSide (Not :< title)
+    , aiNameEn   = asNameEn spec
+    , aiNameJa   = asNameJa spec
+    , aiDesc     = asDescription spec
+    }
 
 -- | Suggest account titles by deterministic substring matching.
 --
