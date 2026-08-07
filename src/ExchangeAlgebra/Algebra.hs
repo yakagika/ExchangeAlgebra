@@ -81,6 +81,7 @@ module ExchangeAlgebra.Algebra
     , projCurrentLiability
     , projFixedLiability
     , projCapitalStock
+    , projContraAssets
     , rounding
     , unionsMerge)where
 
@@ -1811,6 +1812,7 @@ postFromNetBy kf post x =
 projCurrentAssets :: ( HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projCurrentAssets  = (filter (\x -> (fixedCurrent . _hatBase) x == Current))
                    . (filter (\x -> (whatDiv . _hatBase) x      == Assets))
+                   . (filter (not . isContra . _hatBase))
                    . projDebit
 
 -- | Projects only fixed assets.
@@ -1820,6 +1822,7 @@ projCurrentAssets  = (filter (\x -> (fixedCurrent . _hatBase) x == Current))
 projFixedAssets :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projFixedAssets = (filter (\x -> (fixedCurrent . _hatBase) x == Fixed))
                 . (filter (\x -> (whatDiv . _hatBase) x      == Assets))
+                . (filter (not . isContra . _hatBase))
                 . projDebit
 
 -- | Projects only deferred assets.
@@ -1829,6 +1832,7 @@ projFixedAssets = (filter (\x -> (fixedCurrent . _hatBase) x == Fixed))
 projDeferredAssets :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projDeferredAssets  = (filter (\x -> (fixedCurrent . _hatBase) x == Other))
                     . (filter (\x -> (whatDiv . _hatBase) x      == Assets))
+                    . (filter (not . isContra . _hatBase))
                     . projDebit
 
 -- | Projects only current liabilities.
@@ -1838,6 +1842,7 @@ projDeferredAssets  = (filter (\x -> (fixedCurrent . _hatBase) x == Other))
 projCurrentLiability :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projCurrentLiability  = (filter (\x -> (fixedCurrent . _hatBase) x == Current))
                       . (filter (\x -> (whatDiv . _hatBase) x      == Liability))
+                      . (filter (not . isContra . _hatBase))
                       . projCredit
 
 -- | Projects only fixed liabilities.
@@ -1847,6 +1852,7 @@ projCurrentLiability  = (filter (\x -> (fixedCurrent . _hatBase) x == Current))
 projFixedLiability :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projFixedLiability  = (filter (\x -> (fixedCurrent . _hatBase) x == Fixed))
                     . (filter (\x -> (whatDiv . _hatBase) x      == Liability))
+                    . (filter (not . isContra . _hatBase))
                     . projCredit
 
 -- | Projects only capital stock (equity).
@@ -1860,7 +1866,29 @@ projFixedLiability  = (filter (\x -> (fixedCurrent . _hatBase) x == Fixed))
 -- 120.0
 projCapitalStock :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projCapitalStock  = (filter (\x -> (whatDiv . _hatBase) x == Equity))
+                  . (filter (not . isContra . _hatBase))
                   . projCredit
+
+-- | Projects contra-asset entries (@whatDiv == Assets && isContra@, e.g.
+-- 貸倒引当金\/減価償却累計額) — an /attribute/ selection, not a physical-side
+-- one: both Hat and Not postings of the contra account are kept, and normal
+-- assets' credit-side (Hat) postings are NOT included. The division
+-- projections (@proj*Assets@\/@proj*Liability@\/'projCapitalStock')
+-- exclude contra accounts entirely, so contra postings are selected by this
+-- projection alone — no double counting when combining them. Consumers that need a
+-- net asset figure combine the gross @proj*Assets@ family with this
+-- projection themselves; deduction\/netting presentation policy is the
+-- Write side's job (Land 3 of the Definition 7 amendment).
+--
+-- Complexity: O(s) (s is the total number of scalar entries)
+--
+-- >>> type Test = Alg Double (HatBase AccountTitles)
+-- >>> x = 100:@Not:<AllowanceForDoubtfulAccounts .+ 20:@Hat:<AllowanceForDoubtfulAccounts .+ 30:@Not:<Cash .+ 10:@Hat:<Cash :: Test
+-- >>> projContraAssets x
+-- 20.00:@Hat:<AllowanceForDoubtfulAccounts .+ 100.00:@Not:<AllowanceForDoubtfulAccounts
+projContraAssets :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+projContraAssets = filter
+    (\x -> (whatDiv . _hatBase) x == Assets && (isContra . _hatBase) x)
 
 
 -- * Rounding

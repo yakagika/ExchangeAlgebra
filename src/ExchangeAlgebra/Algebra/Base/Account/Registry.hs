@@ -950,21 +950,21 @@ accountSpec UnpaidDividends = Just AccountSpec
     , asAliases = ["未払配当金"]
     }
 accountSpec AllowanceForDoubtfulAccounts = Just AccountSpec
-    { asDivision = Liability
-    , asIsContra = False
+    { asDivision = Assets
+    , asIsContra = True
     , asFixedCurrent = Current
     , asNameEn = "Allowance for doubtful accounts"
     , asNameJa = "貸倒引当金"
-    , asDescription = "Liability: Allowance for doubtful accounts (貸倒引当金). Modeled as an independent credit-balance valuation account (評価勘定) classified under Liability: this keeps values non-negative and the Hat\\/Not structure intact, deferring the B\\/S contra-asset (deduction) presentation to the Write side, rather than adding a new AccountDivision (over-engineered at the 3-級 level)."
+    , asDescription = "Asset (contra): Allowance for doubtful accounts (貸倒引当金), a credit-balance valuation account (評価勘定) deducted from receivables. Home side is Credit because it is a contra asset (isContra); values stay non-negative and the Hat\\/Not structure is intact. B\\/S deduction (net) presentation is the Write side's job."
     , asAliases = ["貸倒引当金"]
     }
 accountSpec AccumulatedDepreciation = Just AccountSpec
-    { asDivision = Liability
-    , asIsContra = False
+    { asDivision = Assets
+    , asIsContra = True
     , asFixedCurrent = Fixed
     , asNameEn = "Accumulated depreciation"
     , asNameJa = "減価償却累計額"
-    , asDescription = "Liability: Accumulated depreciation (減価償却累計額), valuation account (評価勘定) under the indirect method (間接法). Classified under Liability for the same reason as 'AllowanceForDoubtfulAccounts'. This is the canonical bookkeeping account for accumulated depreciation; the existing 'ReserveForDepreciation' is retained as the legacy SNA\\/macro-accounting name."
+    , asDescription = "Asset (contra): Accumulated depreciation (減価償却累計額), a credit-balance valuation account (評価勘定) under the indirect method (間接法), deducted from the related depreciable assets. Home side is Credit because it is a contra asset (isContra). This is the canonical bookkeeping account for accumulated depreciation; the existing 'ReserveForDepreciation' is retained as the legacy SNA\\/macro-accounting name."
     , asAliases = ["減価償却累計額"]
     }
 accountSpec LegalRetainedEarnings = Just AccountSpec

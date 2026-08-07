@@ -59,7 +59,7 @@ import           Data.Array.ST
 import           Data.STRef
 import           System.Exit         (exitFailure)
 import           System.IO           (IOMode(WriteMode), withFile)
-import           Data.Time           (Day, fromGregorian)
+import           Data.Time           (Day, TimeOfDay(..), fromGregorian)
 import           System.Directory    (removeFile)
 import           System.Random       (StdGen, mkStdGen, randomR, split)
 import           Control.Monad       (replicateM)
@@ -214,8 +214,8 @@ accountTitleClassTable =
     , (AccruedConsumptionTax,         Liability, Credit, Current)
     , (AccruedCorporateIncomeTaxes,   Liability, Credit, Current)
     , (UnpaidDividends,               Liability, Credit, Current)
-    , (AllowanceForDoubtfulAccounts,  Liability, Credit, Current)
-    , (AccumulatedDepreciation,       Liability, Credit, Fixed)
+    , (AllowanceForDoubtfulAccounts,  Assets,    Credit, Current)  -- contra asset (isContra)
+    , (AccumulatedDepreciation,       Assets,    Credit, Fixed)    -- contra asset (isContra)
     -- Phase A additions: Equity (資本)
     , (LegalRetainedEarnings,         Equity,    Credit, Other)
     -- Phase A additions: Cost (費用)
@@ -1665,32 +1665,15 @@ goldenEsc = T.replace (T.pack "\t") (T.pack "\\t")
 goldenDedupSort :: [T.Text] -> [T.Text]
 goldenDedupSort = L.map L.head . L.group . L.sort
 
-goldenSemantics :: T.Text
-goldenSemantics =
-    goldenHeader (T.pack "semantics (title, whatDiv, whatPIMO, whichSide Not, whichSide Hat, fixedCurrent)")
-    <> T.unlines (L.map row Registry.concreteAccountTitles)
-  where
-    row title =
-        let nb = Not :< title :: HatBase AccountTitles
-            hb = Hat :< title :: HatBase AccountTitles
-        in T.intercalate (T.pack "\t")
-             [ goldenShow title, goldenShow (whatDiv nb), goldenShow (whatPIMO nb)
-             , goldenShow (whichSide nb), goldenShow (whichSide hb)
-             , goldenShow (fixedCurrent nb) ]
-
-goldenAccountInfo :: T.Text
-goldenAccountInfo =
-    goldenHeader (T.pack "allAccountInfos (title, aiDivision, aiHomeSide, aiNameEn, aiNameJa, aiDesc)")
-    <> T.unlines (L.map row Assist.allAccountInfos)
-  where
-    row info = T.intercalate (T.pack "\t")
-        [ goldenShow (Assist.aiTitle info)
-        , goldenShow (Assist.aiDivision info)
-        , goldenShow (Assist.aiHomeSide info)
-        , goldenEsc (Assist.aiNameEn info)
-        , goldenEsc (Assist.aiNameJa info)
-        , goldenEsc (Assist.aiDesc info)
-        ]
+goldenInfoRow :: Assist.AccountInfo -> T.Text
+goldenInfoRow info = T.intercalate (T.pack "\t")
+    [ goldenShow (Assist.aiTitle info)
+    , goldenShow (Assist.aiDivision info)
+    , goldenShow (Assist.aiHomeSide info)
+    , goldenEsc (Assist.aiNameEn info)
+    , goldenEsc (Assist.aiNameJa info)
+    , goldenEsc (Assist.aiDesc info)
+    ]
 
 goldenAliasResolution :: T.Text -> T.Text
 goldenAliasResolution fixture =
@@ -1719,16 +1702,13 @@ goldenSuggestions =
            <> goldenShow (L.length matches) <> T.pack "\t"
            <> T.intercalate (T.pack ",") (L.map goldenShow (L.take 10 matches))
 
+-- Land 2 (Definition 7 contra amendment) 以降: alias 解決だけが byte 一致
+-- (parseAccountTitle は division 非依存)。semantics / info / suggest は
+-- 意図的差分を持つため, closed-diff test (testLand2*ClosedDiff) が引き継ぐ。
 testRegistryGolden :: IO ()
 testRegistryGolden = do
-    semantics <- TIO.readFile "test/fixtures/pre-land1/account-semantics.tsv"
-    infos <- TIO.readFile "test/fixtures/pre-land1/account-info.tsv"
     aliases <- TIO.readFile "test/fixtures/pre-land1/alias-resolution.tsv"
-    suggestions <- TIO.readFile "test/fixtures/pre-land1/suggest.tsv"
-    assertEqual "registry golden: account semantics" semantics goldenSemantics
-    assertEqual "registry golden: account info" infos goldenAccountInfo
     assertEqual "registry golden: alias resolution" aliases (goldenAliasResolution aliases)
-    assertEqual "registry golden: suggestions" suggestions goldenSuggestions
 
 testRegistryWildcards :: IO ()
 testRegistryWildcards = do
@@ -1741,10 +1721,304 @@ testRegistryWildcards = do
     assertEqual "registry wildcard: describeAccount is Nothing"
         Nothing (Assist.describeAccount AccountTitle)
 
-testRegistryContraLand1 :: IO ()
-testRegistryContraLand1 =
-    assertEqual "registry Land 1: every concrete account is non-contra"
-        True (L.all (not . Registry.classifyAccountContra) Registry.concreteAccountTitles)
+testRegistryContraLand2 :: IO ()
+testRegistryContraLand2 =
+    assertEqual "registry Land 2: contra True set = exactly the two valuation accounts"
+        land2Contra
+        (L.filter Registry.classifyAccountContra Registry.concreteAccountTitles)
+
+-- ================================================================
+-- Land 2 (Definition 7 contra amendment): closed-diff vs pre-land1
+-- golden, contract / relation properties, presentation invariance.
+-- pre-land1 fixtures stay frozen as the pre-amendment reference.
+-- ================================================================
+
+land2Contra :: [AccountTitles]
+land2Contra = [AllowanceForDoubtfulAccounts, AccumulatedDepreciation]
+
+land2TitleMap :: M.Map T.Text AccountTitles
+land2TitleMap = M.fromList
+    [ (T.pack (show t), t) | t <- Registry.concreteAccountTitles ]
+
+-- T1: 全域機械比較 — whichSide/whatPIMO/fixedCurrent は全一致,
+-- whatDiv は当該 2 件 (Liability→Assets) ちょうど。
+testLand2SemanticsClosedDiff :: IO ()
+testLand2SemanticsClosedDiff = do
+    fixture <- TIO.readFile "test/fixtures/pre-land1/account-semantics.tsv"
+    let rows = L.filter (not . T.null) (L.drop 1 (T.lines fixture))
+    assertEqual "land2 semantics: fixture row count" 116 (L.length rows)
+    mapM_ checkRow rows
+  where
+    checkRow line = case T.splitOn (T.pack "\t") line of
+        [name, oldDiv, oldPimo, oldSideN, oldSideH, oldFc] ->
+            case M.lookup name land2TitleMap of
+                Nothing -> assertEqual "land2 semantics: unknown fixture title" (T.pack "") name
+                Just t -> do
+                    let nb = Not :< t :: HatBase AccountTitles
+                        hb = Hat :< t :: HatBase AccountTitles
+                    assertEqual ("land2 whatPIMO invariant: " ++ show t)
+                        oldPimo (goldenShow (whatPIMO nb))
+                    assertEqual ("land2 whichSide Not invariant: " ++ show t)
+                        oldSideN (goldenShow (whichSide nb))
+                    assertEqual ("land2 whichSide Hat invariant: " ++ show t)
+                        oldSideH (goldenShow (whichSide hb))
+                    assertEqual ("land2 fixedCurrent invariant: " ++ show t)
+                        oldFc (goldenShow (fixedCurrent nb))
+                    if t `L.elem` land2Contra
+                        then do
+                            assertEqual ("land2 whatDiv old was Liability: " ++ show t)
+                                (T.pack "Liability") oldDiv
+                            assertEqual ("land2 whatDiv new is Assets: " ++ show t)
+                                Assets (whatDiv nb)
+                        else assertEqual ("land2 whatDiv invariant: " ++ show t)
+                                oldDiv (goldenShow (whatDiv nb))
+        _ -> assertEqual "land2 semantics: malformed fixture row" (T.pack "") line
+
+-- T8 込み: allAccountInfos の閉じた差分 — 当該 2 行だけ aiDivision と
+-- aiDesc が変わり (desc は "Asset (contra):" で始まる), 他は byte 一致。
+testLand2InfoClosedDiff :: IO ()
+testLand2InfoClosedDiff = do
+    fixture <- TIO.readFile "test/fixtures/pre-land1/account-info.tsv"
+    let oldRows = L.filter (not . T.null) (L.drop 1 (T.lines fixture))
+        newRows = [ (Assist.aiTitle i, goldenInfoRow i) | i <- Assist.allAccountInfos ]
+    assertEqual "land2 info: row count" (L.length oldRows) (L.length newRows)
+    mapM_ check (L.zip oldRows newRows)
+  where
+    check (oldLine, (t, newLine))
+        | t `L.elem` land2Contra = do
+            let oldF = T.splitOn (T.pack "\t") oldLine
+                newF = T.splitOn (T.pack "\t") newLine
+            assertEqual ("land2 info title invariant: " ++ show t)
+                (oldF L.!! 0) (newF L.!! 0)
+            assertEqual ("land2 info old division was Liability: " ++ show t)
+                (T.pack "Liability") (oldF L.!! 1)
+            assertEqual ("land2 info new division is Assets: " ++ show t)
+                (T.pack "Assets") (newF L.!! 1)
+            assertEqual ("land2 info home side invariant: " ++ show t)
+                (oldF L.!! 2) (newF L.!! 2)
+            assertEqual ("land2 info nameEn invariant: " ++ show t)
+                (oldF L.!! 3) (newF L.!! 3)
+            assertEqual ("land2 info nameJa invariant: " ++ show t)
+                (oldF L.!! 4) (newF L.!! 4)
+            assertEqual ("land2 info desc updated to contra wording: " ++ show t)
+                True
+                (oldF L.!! 5 /= newF L.!! 5
+                 && T.pack "Asset (contra):" `T.isPrefixOf` (newF L.!! 5))
+        | otherwise =
+            assertEqual ("land2 info invariant: " ++ show t) oldLine newLine
+
+-- suggest の閉じた差分: 変化した (追加/削除/変更) query は全て, 当該 2 科目の
+-- 旧/新 desc に対する token match rank の変化で説明できる。
+testLand2SuggestClosedDiff :: IO ()
+testLand2SuggestClosedDiff = do
+    fixture <- TIO.readFile "test/fixtures/pre-land1/suggest.tsv"
+    infoFixture <- TIO.readFile "test/fixtures/pre-land1/account-info.tsv"
+    let toMap txt = M.fromList
+            [ (T.takeWhile (/= '\t') line, line)
+            | line <- L.filter (not . T.null) (L.drop 1 (T.lines txt)) ]
+        oldMap = toMap fixture
+        newMap = toMap goldenSuggestions
+        oldFieldsOf t = L.concat
+            [ [ fs L.!! 0, fs L.!! 3, fs L.!! 4, fs L.!! 5 ]
+            | line <- L.filter (not . T.null) (L.drop 1 (T.lines infoFixture))
+            , let fs = T.splitOn (T.pack "\t") line
+            , fs L.!! 0 == T.pack (show t)
+            ]
+        newFieldsOf t = case Assist.describeAccount t of
+            Just i  -> [ T.pack (show t), Assist.aiNameEn i, Assist.aiNameJa i, Assist.aiDesc i ]
+            Nothing -> []
+        rank fields q = L.length
+            [ tok
+            | tok <- L.map T.toCaseFold (T.words q)
+            , L.any (T.isInfixOf tok) (L.map T.toCaseFold fields) ]
+        -- corpus 帰属の変化 (query が旧/新 desc の token 集合の片方にだけある)
+        -- も desc 変更の帰結として許容する (行の追加/削除がこれで起きる)。
+        descTokensOf fields = case fields of
+            [_, _, _, desc] -> T.words desc
+            _               -> []
+        tokenMembershipChange q = L.or
+            [ (q `L.elem` descTokensOf (oldFieldsOf t))
+              /= (q `L.elem` descTokensOf (newFieldsOf t))
+            | t <- land2Contra ]
+        affected q = tokenMembershipChange q || L.or
+            [ rank (oldFieldsOf t) q /= rank (newFieldsOf t) q | t <- land2Contra ]
+        diffQueries = L.nub
+            (  [ q | (q, old) <- M.toList oldMap, maybe True (/= old) (M.lookup q newMap) ]
+            ++ [ q | q <- M.keys newMap, not (M.member q oldMap) ] )
+    assertEqual "land2 suggest: some diff exists (descs changed)"
+        True (not (L.null diffQueries))
+    mapM_ (\q -> assertEqual
+              ("land2 suggest diff explained by contra desc change: " ++ T.unpack q)
+              True (affected q))
+          diffQueries
+
+-- T2: 契約 isContra(b) ⇔ homeSide(b) ≠ defaultSide(whatDiv b)
+testLand2Contract :: IO ()
+testLand2Contract = mapM_ check Registry.concreteAccountTitles
+  where
+    check t =
+        let nb = Not :< t :: HatBase AccountTitles
+        in assertEqual ("land2 contract (isContra = reversed home side): " ++ show t)
+            (isContra nb) (whichSide nb /= defaultSide (whatDiv nb))
+
+-- T3: pimoFlip は自己逆で, 原典の交換関係を保つ
+testLand2PimoFlip :: IO ()
+testLand2PimoFlip = do
+    let pimoAll = [PS, IN, MS, OUT]
+    mapM_ (\x -> assertEqual ("land2 pimoFlip involution: " ++ show x)
+              x (pimoFlip (pimoFlip x))) pimoAll
+    mapM_ (\(x, y) -> assertEqual ("land2 pimoFlip preserves (<=>): " ++ show (x, y))
+              (x <=> y) (pimoFlip x <=> pimoFlip y))
+          [ (x, y) | x <- pimoAll, y <- pimoAll ]
+
+-- T4: (<=>) — PIMO instance = 原典 Prop 5.3.8, Division instance =
+-- pimoFromDivision 経由の外延, 旧 instance との差分 = ordered 4 case ちょうど。
+testLand2ExchangeRelation :: IO ()
+testLand2ExchangeRelation = do
+    let pimoAll = [PS, IN, MS, OUT]
+        divAll  = [Assets, Equity, Liability, Cost, Revenue]
+    assertEqual "land2 (<=>) PIMO instance = Prop 5.3.8 pairs"
+        [ (PS,IN), (PS,MS), (IN,PS), (IN,OUT), (MS,PS), (MS,OUT), (OUT,IN), (OUT,MS) ]
+        [ (x, y) | x <- pimoAll, y <- pimoAll, x <=> y ]
+    mapM_ (\(a, b) -> assertEqual ("land2 (<=>) division = via pimoFromDivision: " ++ show (a, b))
+              (pimoFromDivision a <=> pimoFromDivision b) (a <=> b))
+          [ (a, b) | a <- divAll, b <- divAll ]
+    let oldRel (Assets, Liability) = True
+        oldRel (Liability, Assets) = True
+        oldRel (Assets, Equity)    = True
+        oldRel (Equity, Assets)    = True
+        oldRel (Cost, Liability)   = True
+        oldRel (Liability, Cost)   = True
+        oldRel (Cost, Equity)      = True
+        oldRel (Equity, Cost)      = True
+        oldRel _                   = False
+    assertEqual "land2 (<=>) division migration = exactly 4 ordered cases"
+        [ (Assets, Revenue), (Cost, Revenue), (Revenue, Assets), (Revenue, Cost) ]
+        [ (a, b) | a <- divAll, b <- divAll, oldRel (a, b) /= (a <=> b) ]
+
+-- T9: 8 組込み instance + custom instance (SimHatBase2) の全 116 科目 sweep で
+-- isContra の True 集合がちょうど当該 2 件 (定数 True/False 実装を排除)。
+testLand2IsContraInstances :: IO ()
+testLand2IsContraInstances = do
+    let day0 = fromGregorian 2026 1 1
+        tod0 = TimeOfDay 0 0 0
+        nm   = T.pack "spec"
+        sweep :: ExBaseClass b => String -> (AccountTitles -> b) -> IO ()
+        sweep label mk = assertEqual ("land2 isContra sweep: " ++ label)
+            land2Contra
+            [ t | t <- Registry.concreteAccountTitles, isContra (mk t) ]
+    sweep "HatBase AccountTitles" (\t -> Not :< t :: HatBase AccountTitles)
+    sweep "HatBase (AccountTitles, Day)" (\t -> Not :< (t, day0))
+    sweep "HatBase (AccountTitles, Name)" (\t -> Not :< (t, nm))
+    sweep "HatBase (CountUnit, AccountTitles)" (\t -> Not :< (Yen, t))
+    sweep "HatBase (AccountTitles, Name, CountUnit)" (\t -> Not :< (t, nm, Yen))
+    sweep "HatBase (AccountTitles, Name, CountUnit, Subject)"
+          (\t -> Not :< (t, nm, Yen, nm))
+    sweep "HatBase (AccountTitles, Name, CountUnit, Subject, Day)"
+          (\t -> Not :< (t, nm, Yen, nm, day0))
+    sweep "HatBase (AccountTitles, Name, CountUnit, Subject, Day, TimeOfDay)"
+          (\t -> Not :< (t, nm, Yen, nm, day0, tod0))
+    sweep "SimHatBase2 (custom instance)" (\t -> Not :< (t, 1, 2, Yen) :: SimHatBase2)
+
+-- T8: LLM-facing メタデータの literal 期待値 (registry から生成しない)
+testLand2AiDivision :: IO ()
+testLand2AiDivision = do
+    assertEqual "land2 aiDivision literal: AllowanceForDoubtfulAccounts"
+        (Just (Assets, Credit))
+        (fmap (\i -> (Assist.aiDivision i, Assist.aiHomeSide i))
+              (Assist.describeAccount AllowanceForDoubtfulAccounts))
+    assertEqual "land2 aiDivision literal: AccumulatedDepreciation"
+        (Just (Assets, Credit))
+        (fmap (\i -> (Assist.aiDivision i, Assist.aiHomeSide i))
+              (Assist.describeAccount AccumulatedDepreciation))
+
+-- T5/T6: presentation battery。bsRows/plRows の literal は Land 1 出力
+-- (pre-land2 golden, commit 1c1f3f2) と byte 一致 = 表示互換 shim の証明。
+-- division projection は contra を含まず, contra は projContraAssets のみが選ぶ
+-- (意図的差分: projCurrentLiability/projFixedLiability から当該 2 件が消えた)。
+land2B1, land2B2, land2B3, land2B4, land2B5 :: BAlg
+land2B1 = 100 .@ Not:<Cash .+ 60 .@ Not:<LoansPayable .+ 40 .@ Not:<CapitalStock
+land2B2 = 500 .@ Not:<Sales .+ 300 .@ Not:<SalesCost
+land2B3 = 1000 .@ Not:<AccountsReceivable .+ 900 .@ Not:<Cash .+ 800 .@ Not:<Building
+  .+ 100 .@ Not:<AllowanceForDoubtfulAccounts .+ 200 .@ Not:<AccumulatedDepreciation
+  .+ 2000 .@ Not:<CapitalStock .+ 400 .@ Not:<LoansPayable
+land2B4 = 30 .@ Not:<Cash .+ 80 .@ Hat:<Cash
+  .+ 100 .@ Not:<AllowanceForDoubtfulAccounts .+ 120 .@ Hat:<AllowanceForDoubtfulAccounts
+  .+ 500 .@ Not:<Building .+ 200 .@ Not:<LoansPayable .+ 300 .@ Hat:<LoansPayable
+  .+ 250 .@ Not:<AccumulatedDepreciation .+ 50 .@ Hat:<AccumulatedDepreciation
+land2B5 = land2B3 .+ 300 .@ Not:<SalesCost .+ 500 .@ Not:<Sales .+ 200 .@ Not:<Cash
+
+testLand2Presentation :: IO ()
+testLand2Presentation = do
+    let rows f b = L.map (L.map T.unpack) (f b)
+    -- bsRows: Land 1 と byte 一致 (b4 は abnormal balance の既存の癖ごと保存)
+    assertEqual "land2 bsRows b1 (= Land 1)"
+        [ ["Asset","","Liability",""]
+        , ["Cash","100.0","LoansPayable","60.0"]
+        , ["Total","100.0","Equity",""]
+        , ["","","CapitalStock","40.0"]
+        , ["","","Total","100.0"] ]
+        (rows bsRows land2B1)
+    assertEqual "land2 bsRows b3 contra placement (= Land 1)"
+        [ ["Asset","","Liability",""]
+        , ["AccountsReceivable","1000.0","LoansPayable","400.0"]
+        , ["Building","800.0","AllowanceForDoubtfulAccounts","100.0"]
+        , ["Cash","900.0","AccumulatedDepreciation","200.0"]
+        , ["Total","2700.0","Equity",""]
+        , ["","","CapitalStock","2000.0"]
+        , ["","","Total","2700.0"] ]
+        (rows bsRows land2B3)
+    assertEqual "land2 bsRows b4 abnormal (= Land 1, incl. known row/total quirk)"
+        [ ["Asset","","Liability",""]
+        , ["LoansPayable","100.0","AccumulatedDepreciation","200.0"]
+        , ["AllowanceForDoubtfulAccounts","20.0","Equity",""]
+        , ["Building","500.0","Total","250.0"]
+        , ["Total","620.0","",""] ]
+        (rows bsRows land2B4)
+    assertEqual "land2 bsRows b5 closing (= Land 1)"
+        [ ["Asset","","Liability",""]
+        , ["AccountsReceivable","1000.0","LoansPayable","400.0"]
+        , ["Building","800.0","AllowanceForDoubtfulAccounts","100.0"]
+        , ["SalesCost","300.0","AccumulatedDepreciation","200.0"]
+        , ["Cash","1100.0","Equity",""]
+        , ["Total","3200.0","CapitalStock","2000.0"]
+        , ["","","RetainedEarnings","500.0"]
+        , ["","","Total","3200.0"] ]
+        (rows bsRows land2B5)
+    assertEqual "land2 plRows b2 (= Land 1)"
+        [ ["Cost","","Revenue",""]
+        , ["SalesCost","300.0","Sales","500.0"]
+        , ["Total","500.0","Total","300.0"] ]
+        (rows plRows land2B2)
+    -- projections: 資産系は Land 1 と一致, liability 系は contra が消える (意図的差分),
+    -- contra は projContraAssets のみが Hat/Not 双方を保持して選ぶ。
+    assertEqual "land2 projCurrentAssets b3 (= Land 1)"
+        "900.00:@Not:<Cash .+ 1000.00:@Not:<AccountsReceivable"
+        (show (EA.projCurrentAssets land2B3))
+    assertEqual "land2 projCurrentLiability b3 (intentional: contra dropped)"
+        "400.00:@Not:<LoansPayable"
+        (show (EA.projCurrentLiability land2B3))
+    assertEqual "land2 projFixedLiability b3 (intentional: contra dropped)"
+        "0"
+        (show (EA.projFixedLiability land2B3))
+    assertEqual "land2 projContraAssets b3"
+        "100.00:@Not:<AllowanceForDoubtfulAccounts .+ 200.00:@Not:<AccumulatedDepreciation"
+        (show (EA.projContraAssets land2B3))
+    assertEqual "land2 projCurrentAssets b4 (= Land 1; no contra Hat leakage)"
+        "30.00:@Not:<Cash"
+        (show (EA.projCurrentAssets land2B4))
+    assertEqual "land2 projFixedAssets b4 (= Land 1; no contra Hat leakage)"
+        "500.00:@Not:<Building"
+        (show (EA.projFixedAssets land2B4))
+    assertEqual "land2 projCurrentLiability b4 (intentional: contra dropped)"
+        "200.00:@Not:<LoansPayable"
+        (show (EA.projCurrentLiability land2B4))
+    assertEqual "land2 projContraAssets b4 keeps Hat and Not, excludes Cash"
+        "120.00:@Hat:<AllowanceForDoubtfulAccounts .+ 100.00:@Not:<AllowanceForDoubtfulAccounts .+ 50.00:@Hat:<AccumulatedDepreciation .+ 250.00:@Not:<AccumulatedDepreciation"
+        (show (EA.projContraAssets land2B4))
+    assertEqual "land2 projContraAssets b5"
+        "100.00:@Not:<AllowanceForDoubtfulAccounts .+ 200.00:@Not:<AccumulatedDepreciation"
+        (show (EA.projContraAssets land2B5))
 
 -- ================================================================
 -- ExchangeAlgebra.Convert.Checked: checked construction for generated entries.
@@ -3452,7 +3726,16 @@ main = do
     testAssistSuggestAccounts
     testRegistryGolden
     testRegistryWildcards
-    testRegistryContraLand1
+    testRegistryContraLand2
+    testLand2SemanticsClosedDiff
+    testLand2InfoClosedDiff
+    testLand2SuggestClosedDiff
+    testLand2Contract
+    testLand2PimoFlip
+    testLand2ExchangeRelation
+    testLand2IsContraInstances
+    testLand2AiDivision
+    testLand2Presentation
     checkedConvertProperties
     axiomProperties
     journalProperties

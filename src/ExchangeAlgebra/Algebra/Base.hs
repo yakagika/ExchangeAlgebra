@@ -310,6 +310,20 @@ switchSide Credit = Debit
 switchSide Debit  = Credit
 switchSide Side   = Side
 
+-- | Default (home) side of an account division before any contra reversal:
+-- Assets\/Cost are debit-normal, Liability\/Equity\/Revenue are credit-normal.
+-- The actual home side of a base is this, reversed when 'isContra' holds
+-- (contract: @isContra b == (homeSide of b \/= defaultSide (whatDiv b))@).
+--
+-- Complexity: O(1)
+{-# INLINE defaultSide #-}
+defaultSide :: AccountDivision -> Side
+defaultSide Assets    = Debit
+defaultSide Cost      = Debit
+defaultSide Liability = Credit
+defaultSide Equity    = Credit
+defaultSide Revenue   = Credit
+
 -- | Classify an account title into an account division (Assets/Equity/Liability/Cost/Revenue).
 --
 -- Complexity: O(1)
@@ -343,39 +357,46 @@ class (HatBaseClass a) => ExBaseClass a where
     whatDiv     :: a -> AccountDivision
     whatDiv = classifyAccountDivision . getAccountTitle
 
-    -- | Retrieve the PIMO classification (PS/IN/MS/OUT). Complexity: O(1)
+    -- | Whether the account is a contra account (評価勘定等): its home side
+    -- and PIMO direction are the reverse of its division's defaults.
+    -- Delegates to the registry ('classifyAccountContra') exactly like
+    -- 'whatDiv' delegates to 'classifyAccountDivision' — a constant default
+    -- would disconnect the registry flag from every built-in instance.
+    -- Contract: @isContra b == (homeSide of b \/= defaultSide (whatDiv b))@.
+    -- Complexity: O(1)
+    {-# INLINE isContra #-}
+    isContra    :: a -> Bool
+    isContra = classifyAccountContra . getAccountTitle
+
+    -- | Retrieve the PIMO direction (PS/IN/MS/OUT; see 'PIMO' for the
+    -- original semantics). Derived from the division via 'pimoFromDivision',
+    -- flipped by 'pimoFlip' for contra accounts — e.g. a contra asset is MS
+    -- (minus stock), which is what makes the standard allowance entry
+    -- OUT ⇔ MS legal under Proposition 5.3.8. Complexity: O(1)
     {-# INLINE whatPIMO #-}
     whatPIMO    :: a -> PIMO
-    whatPIMO x =
-        case whatDiv x of
-            Assets    -> PS
-            Equity    -> MS
-            Liability -> MS
-            Cost      -> OUT
-            Revenue   -> IN
+    whatPIMO x
+        | isContra x = pimoFlip (pimoFromDivision (whatDiv x))
+        | otherwise  = pimoFromDivision (whatDiv x)
 
     -- | Determine whether a base belongs to the Credit or Debit side.
-    -- Takes the Hat/Not reversal into account: an account sits on its home
-    -- side under 'Not' and on the opposite side under 'Hat'. A 'HatNot'
-    -- (wildcard) label is rejected with an error — same policy as 'isHat':
-    -- stored postings are always Hat\/Not, so a wildcard here means a
-    -- query-side value leaked into a posting-side computation (this function
-    -- previously treated 'HatNot' silently as 'Hat'). Complexity: O(1)
+    -- The home side is 'defaultSide' of the division, reversed for contra
+    -- accounts ('isContra'). Takes the Hat/Not reversal into account: an
+    -- account sits on its home side under 'Not' and on the opposite side
+    -- under 'Hat'. A 'HatNot' (wildcard) label is rejected with an error —
+    -- same policy as 'isHat': stored postings are always Hat\/Not, so a
+    -- wildcard here means a query-side value leaked into a posting-side
+    -- computation (this function previously treated 'HatNot' silently as
+    -- 'Hat'). Complexity: O(1)
     {-# INLINE whichSide #-}
     whichSide   :: a -> Side
     whichSide x =
-        let side = f (whatDiv x)
+        let side0 = defaultSide (whatDiv x)
+            side  = if isContra x then switchSide side0 else side0
         in case hat x of
             Not    -> side
             Hat    -> switchSide side
             HatNot -> customError "whichSide: called on a HatNot (wildcard) base"
-        where
-            {-# INLINE f #-}
-            f Assets    = Debit
-            f Cost      = Debit
-            f Liability = Credit
-            f Equity    = Credit
-            f Revenue   = Credit
 
     -- | Retrieve the fixed/current classification.
     -- Returns Current, Fixed, or Other based on the account title.
@@ -395,24 +416,53 @@ class AccountBase a where
     -- | Test whether two account divisions are in a corresponding relationship.
     (<=>) :: a -> a -> Bool
 
+-- | Derived from the PIMO relation via 'pimoFromDivision', matching
+-- Proposition 5.3.8 (Deguchi 2004). BREAKING (0.5.0.0): the previous
+-- hand-enumerated instance omitted the pairs required by PS ⇔ IN and
+-- OUT ⇔ IN — @Assets \<=\> Revenue@ (e.g. a cash sale) and
+-- @Cost \<=\> Revenue@ are now 'True'. This division-level relation cannot
+-- see contra reversal; exchange checks on bases must go through 'whatPIMO'.
 instance AccountBase AccountDivision where
-    Assets      <=> Liability       = True
-    Liability   <=> Assets          = True
-    Assets      <=> Equity          = True
-    Equity      <=> Assets          = True
-    Cost        <=> Liability       = True
-    Liability   <=> Cost            = True
-    Cost        <=> Equity          = True
-    Equity      <=> Cost            = True
-    _ <=> _ = False
+    a <=> b = pimoFromDivision a <=> pimoFromDivision b
 
--- | PIMO classification. Categories in exchange algebra: Product Stock (PS), Income (IN),
--- Money Stock (MS), and Outflow (OUT).
-data PIMO   = PS  -- ^ Product Stock (Assets: production stock)
-            | IN  -- ^ Income (Revenue: income flow)
-            | MS  -- ^ Money Stock (Liability/Equity: monetary stock)
-            | OUT -- ^ Outflow (Cost: expenditure flow)
+-- | PIMO direction. In Proposition 5.3.8 (Deguchi 2004, pp.89-91) PS, IN,
+-- MS and OUT mean __plus stock, input, minus stock and output__ —
+-- directions of exchange, not statement labels. The allowed exchange pairs
+-- are exactly PS ⇔ IN, PS ⇔ MS, OUT ⇔ IN, OUT ⇔ MS (the 'AccountBase'
+-- instance below). The earlier Haddock glossed these as "Product Stock \/
+-- Income \/ Money Stock \/ Outflow"; that was naming drift from the
+-- original and is kept only as a mnemonic.
+data PIMO   = PS  -- ^ plus stock (stock increase; non-contra Assets)
+            | IN  -- ^ input (flow in; Revenue)
+            | MS  -- ^ minus stock (stock decrease; Liability\/Equity and contra assets)
+            | OUT -- ^ output (flow out; Cost)
             deriving (Ord, Show, Eq)
+
+-- | The division-to-PIMO map of the standard interpretation (the @g@ of
+-- Proposition 5.3.8 restricted to non-contra accounts): Assets are plus
+-- stock, Liability\/Equity are minus stock, Cost is output, Revenue is
+-- input. Contra accounts flip this via 'pimoFlip' (see 'whatPIMO').
+--
+-- Complexity: O(1)
+{-# INLINE pimoFromDivision #-}
+pimoFromDivision :: AccountDivision -> PIMO
+pimoFromDivision Assets    = PS
+pimoFromDivision Equity    = MS
+pimoFromDivision Liability = MS
+pimoFromDivision Cost      = OUT
+pimoFromDivision Revenue   = IN
+
+-- | Direction flip used for contra accounts: PS ↔ MS, IN ↔ OUT.
+-- Self-inverse, and it preserves the exchange relation:
+-- @x \<=\> y@ implies @pimoFlip x \<=\> pimoFlip y@.
+--
+-- Complexity: O(1)
+{-# INLINE pimoFlip #-}
+pimoFlip :: PIMO -> PIMO
+pimoFlip PS  = MS
+pimoFlip MS  = PS
+pimoFlip IN  = OUT
+pimoFlip OUT = IN
 
 instance AccountBase PIMO where
     PS  <=> IN   = True

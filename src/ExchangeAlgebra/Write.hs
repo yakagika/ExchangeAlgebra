@@ -130,6 +130,19 @@ tshow = T.pack . show
 -- ["","","Total","100.0"]
 --
 -- Complexity: O(s) (s = total number of scalar entries)
+-- | Display-compatibility shim for the Definition 7 contra amendment
+-- (Land 2, until Land 3's real deduction\/netting presentation lands).
+-- Contra assets (@whatDiv == Assets && isContra@, e.g. 貸倒引当金\/減価償却
+-- 累計額) used to be /classified/ as Liability and therefore appeared in the
+-- Liability column; the classification is now fixed, but this predicate keeps
+-- their display placement unchanged. It does NOT mean the account is a
+-- liability, and no deduction\/netting is performed. By construction the
+-- predicate's extension equals the old @whatDiv == Liability@ set, so
+-- 'bsRows' output is byte-identical to the pre-amendment behaviour.
+isLegacyLiabilityDisplay :: ExBaseClass b => b -> Bool
+isLegacyLiabilityDisplay b =
+    whatDiv b == Liability || (isContra b && whatDiv b == Assets)
+
 bsRows :: (HatVal n, HatBaseClass b, ExBaseClass b) => Alg n b -> [[T.Text]]
 bsRows alg = result
   where
@@ -137,7 +150,7 @@ bsRows alg = result
     debitSide = decR transferred
     creditSide = decL transferred
     assets = creditSide
-    liability = EA.filter (\x -> whatDiv (_hatBase x) == Liability) debitSide
+    liability = EA.filter (isLegacyLiabilityDisplay . _hatBase) debitSide
     equity = EA.filter (\x -> whatDiv (_hatBase x) == Equity) debitSide
     debitTotal = tshow (EA.norm debitSide)
     creditTotal = tshow (EA.norm creditSide)

@@ -2,7 +2,37 @@
 
 ## Unreleased
 
+### Changed
+- **BREAKING: account division semantics for contra accounts** (Definition 7
+  amendment, Land 2). `AllowanceForDoubtfulAccounts` and
+  `AccumulatedDepreciation` are now classified `Assets` with the new
+  `ExBaseClass` method `isContra = True` (previously `Liability`). Home side
+  and PIMO are both derived from `(whatDiv, isContra)`: home side =
+  `defaultSide` of the division, reversed for contra; PIMO =
+  `pimoFromDivision`, flipped by `pimoFlip` (PS↔MS, IN↔OUT) for contra.
+  Observable invariants: `whichSide`, `whatPIMO` and `fixedCurrent` are
+  unchanged for every account (the two contra accounts keep the Credit home
+  side and MS); only `whatDiv` — and the LLM-facing `aiDivision` and
+  descriptions — changed, for exactly these two accounts.
+- **BREAKING: `(<=>)` on `AccountDivision` is now derived via
+  `pimoFromDivision`**, matching Proposition 5.3.8 (Deguchi 2004; PS⇔IN,
+  PS⇔MS, OUT⇔IN, OUT⇔MS). Migration table (ordered cases; every other pair
+  is unchanged): `(Assets, Revenue)` False→True, `(Revenue, Assets)`
+  False→True, `(Cost, Revenue)` False→True, `(Revenue, Cost)` False→True.
+  Exchange checks on bases should use `whatPIMO` (contra-aware), not bare
+  divisions.
+- `bsRows` keeps contra assets in the Liability column through an internal
+  display-compatibility shim (`isLegacyLiabilityDisplay`) — output is
+  byte-identical to the pre-amendment behaviour; real deduction/netting
+  presentation is a planned follow-up (Land 3). `projCurrentLiability` /
+  `projFixedLiability` no longer select the two contra accounts (they are no
+  longer `Liability`); use the new `projContraAssets` to select them
+  (attribute-based: keeps both Hat and Not postings).
+
 ### Added
+- Definition 7 amendment support: `ExBaseClass.isContra` (registry-delegated
+  default), `defaultSide`, `pimoFromDivision`, `pimoFlip`, and
+  `projContraAssets`.
 - `JournalCert` and `certifyJournalText` in
   `ExchangeAlgebra.Convert.Checked` add staged certification for text-originated
   journal batches. Duplicate txids and structural errors are rejected first,
