@@ -15,6 +15,7 @@ try:  # pragma: no cover - exercised when run as a script path.
         account_category,
         is_known_account,
         is_nominal,
+        is_contra,
         normal_side,
     )
 except ImportError:  # pragma: no cover
@@ -131,7 +132,13 @@ def compute_derived(postings: Iterable[Mapping[str, Any]]) -> dict[str, int]:
 
     def sum_category(category: str) -> int:
         subset = led[led["category"] == category]
-        return int(subset["balance"].sum()) if not subset.empty else 0
+        if subset.empty:
+            return 0
+        # Contra accounts contribute negatively to their division's total
+        # (e.g. total_assets = gross assets - allowance - accumulated
+        # depreciation). Mirrors DeriveEA.hs `sumDivision`.
+        signs = [-1 if is_contra(account) else 1 for account in subset.index]
+        return int((subset["balance"] * signs).sum())
 
     total_assets = sum_category("asset")
     total_liabilities = sum_category("liability")

@@ -195,12 +195,16 @@ normalBalance title (debits, credits)
 trialBalance :: Totals -> Integer
 trialBalance (debits, credits) = debits - credits
 
+-- Contra accounts (classifyAccountContra) contribute negatively to their
+-- division's total: total_assets = gross assets - allowance - accumulated
+-- depreciation. Mirrors gen/pandas_oracle.py `sum_category`.
 sumDivision :: AccountDivision -> M.Map AccountTitles Totals -> Integer
 sumDivision division totals =
     sum
-        [ normalBalance title dc
+        [ sign * normalBalance title dc
         | (title, dc) <- M.toList totals
         , classifyAccountDivision title == division
+        , let sign = if classifyAccountContra title then -1 else 1
         ]
 
 derivedPairs :: MinJournal -> [(String, Integer)]

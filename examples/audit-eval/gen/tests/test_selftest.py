@@ -177,3 +177,26 @@ def test_make_suite_skip_ea_pure_helpers(monkeypatch) -> None:
     assert manifest["ea_oracle"]["enabled"] is False
     assert manifest["ea_oracle"]["status"] == "skipped"
     assert manifest["adopted_ids"] == [journalize["id"], audit["id"]]
+
+
+def test_contra_accounts_net_within_division() -> None:
+    """Definition 7 amendment: contra accounts are Assets-division and are
+    SUBTRACTED inside their division's total (both oracles must agree;
+    DeriveEA.hs sumDivision mirrors this)."""
+    postings = [
+        {"entry": "e1", "side": "debit", "account": "Cash", "amount": 5000},
+        {"entry": "e1", "side": "credit", "account": "Sales", "amount": 5000},
+        {"entry": "e2", "side": "debit", "account": "Depreciation", "amount": 900},
+        {"entry": "e2", "side": "credit", "account": "AccumulatedDepreciation", "amount": 900},
+        {"entry": "e3", "side": "debit", "account": "ProvisionForDoubtfulAccounts", "amount": 300},
+        {"entry": "e3", "side": "credit", "account": "AllowanceForDoubtfulAccounts", "amount": 300},
+    ]
+    derived = compute_derived(postings)
+    # ledger rows stay gross and credit-normal (home side unchanged)
+    assert derived["ledger.AccumulatedDepreciation.balance"] == 900
+    assert derived["ledger.AllowanceForDoubtfulAccounts.balance"] == 300
+    # division totals net the contra accounts
+    assert derived["financial_statements.total_assets"] == 3800
+    assert derived["financial_statements.total_liabilities"] == 0
+    assert derived["financial_statements.total_equity"] == 3800
+    assert derived["financial_statements.balance_check"] == 0
