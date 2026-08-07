@@ -82,6 +82,7 @@ module ExchangeAlgebra.Algebra
     , projFixedLiability
     , projCapitalStock
     , projContraAssets
+    , projContra
     , rounding
     , unionsMerge)where
 
@@ -1874,8 +1875,18 @@ projCapitalStock  = (filter (\x -> (whatDiv . _hatBase) x == Equity))
 -- one: both Hat and Not postings of the contra account are kept, and normal
 -- assets' credit-side (Hat) postings are NOT included. The division
 -- projections (@proj*Assets@\/@proj*Liability@\/'projCapitalStock')
--- exclude contra accounts entirely, so contra postings are selected by this
--- projection alone — no double counting when combining them. Consumers that need a
+-- exclude ALL contra accounts, so within the Assets division this projection
+-- is the sole selector — no double counting when combining them. A net
+-- figure is @gross - contra balance@, e.g.
+-- @norm (projCurrentAssets x) - norm ('ExchangeAlgebra.Algebra.bar' (projContraAssets x))@
+-- when the contra accounts hold normal (credit) balances; deduction\/netting
+-- /presentation/ policy is the Write side's job (Land 3).
+--
+-- NOTE: this selects the Assets division only. In the current registry every
+-- contra account is an asset, but the type class does not forbid contra
+-- accounts in other divisions (e.g. a future treasury-stock contra equity) —
+-- those are excluded from the division projections too and must be selected
+-- with the generic 'projContra'. Consumers that need a
 -- net asset figure combine the gross @proj*Assets@ family with this
 -- projection themselves; deduction\/netting presentation policy is the
 -- Write side's job (Land 3 of the Definition 7 amendment).
@@ -1889,6 +1900,16 @@ projCapitalStock  = (filter (\x -> (whatDiv . _hatBase) x == Equity))
 projContraAssets :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projContraAssets = filter
     (\x -> (whatDiv . _hatBase) x == Assets && (isContra . _hatBase) x)
+
+-- | Projects ALL contra entries regardless of division — the exact
+-- complement, w.r.t. contra-ness, of the six division projections (which all
+-- exclude contra accounts). Use this when the chart may contain contra
+-- accounts outside the Assets division; @'projContraAssets' = filter by
+-- Assets ∘ projContra@.
+--
+-- Complexity: O(s) (s is the total number of scalar entries)
+projContra :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+projContra = filter (isContra . _hatBase)
 
 
 -- * Rounding

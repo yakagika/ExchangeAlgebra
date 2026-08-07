@@ -88,9 +88,13 @@ version: v2
 --   Assets:      Cash, Deposits, CurrentDeposits, AccountsReceivable,
 --                MerchandiseInventory, Products, Fixtures, Machinery, Building,
 --                Land, Software, Patent, PrepaidExpenses, AccruedRevenue
+--   Assets (contra; home side = CREDIT):
+--                AllowanceForDoubtfulAccounts, AccumulatedDepreciation
+--                -- valuation accounts deducted from assets. They INCREASE on
+--                -- the credit side (Not :< on credit), like a liability, but
+--                -- they are classified as Assets with isContra = True.
 --   Liabilities: AccountsPayable, LoansPayable, NotesPayable, AccruedExpenses,
---                UnearnedRevenue, AllowanceForDoubtfulAccounts,
---                AccumulatedDepreciation
+--                UnearnedRevenue
 --   Equity:      CapitalStock, RetainedEarnings
 --   Revenue:     Sales, InterestEarned, ReceiptFee, RentalIncome
 --   Expenses:    Purchases, WageExpenditure, RentExpense, Depreciation,

@@ -17,7 +17,7 @@ import           System.FilePath ((</>))
 
 import           ExchangeAlgebra.Algebra.Base
 import           ExchangeAlgebra.Assist
-import           ExchangeAlgebra.Convert (parseAccountTitle, concreteAccountTitles)
+import           ExchangeAlgebra.Convert (parseAccountTitle)
 
 type B = HatBase AccountTitles
 

@@ -1740,6 +1740,14 @@ land2TitleMap :: M.Map T.Text AccountTitles
 land2TitleMap = M.fromList
     [ (T.pack (show t), t) | t <- Registry.concreteAccountTitles ]
 
+-- registry から生成しない literal 期待値 (循環 oracle 回避)
+land2ExpectedDesc :: AccountTitles -> T.Text
+land2ExpectedDesc AllowanceForDoubtfulAccounts = T.pack
+    "Asset (contra): Allowance for doubtful accounts (貸倒引当金), a credit-balance valuation account (評価勘定) deducted from receivables. Home side is Credit because it is a contra asset (isContra); values stay non-negative and the Hat\\/Not structure is intact. B\\/S deduction (net) presentation is the Write side's job."
+land2ExpectedDesc AccumulatedDepreciation = T.pack
+    "Asset (contra): Accumulated depreciation (減価償却累計額), a credit-balance valuation account (評価勘定) under the indirect method (間接法), deducted from the related depreciable assets. Home side is Credit because it is a contra asset (isContra). This is the canonical bookkeeping account for accumulated depreciation; the existing 'ReserveForDepreciation' is retained as the legacy SNA\\/macro-accounting name."
+land2ExpectedDesc t = T.pack ("land2ExpectedDesc: not a contra account: " ++ show t)
+
 -- T1: 全域機械比較 — whichSide/whatPIMO/fixedCurrent は全一致,
 -- whatDiv は当該 2 件 (Liability→Assets) ちょうど。
 testLand2SemanticsClosedDiff :: IO ()
@@ -1801,9 +1809,9 @@ testLand2InfoClosedDiff = do
             assertEqual ("land2 info nameJa invariant: " ++ show t)
                 (oldF L.!! 4) (newF L.!! 4)
             assertEqual ("land2 info desc updated to contra wording: " ++ show t)
-                True
-                (oldF L.!! 5 /= newF L.!! 5
-                 && T.pack "Asset (contra):" `T.isPrefixOf` (newF L.!! 5))
+                True (oldF L.!! 5 /= newF L.!! 5)
+            assertEqual ("land2 info new desc literal: " ++ show t)
+                (land2ExpectedDesc t) (newF L.!! 5)
         | otherwise =
             assertEqual ("land2 info invariant: " ++ show t) oldLine newLine
 
@@ -1845,6 +1853,9 @@ testLand2SuggestClosedDiff = do
         diffQueries = L.nub
             (  [ q | (q, old) <- M.toList oldMap, maybe True (/= old) (M.lookup q newMap) ]
             ++ [ q | q <- M.keys newMap, not (M.member q oldMap) ] )
+    postFixture <- TIO.readFile "test/fixtures/post-land2/suggest.tsv"
+    assertEqual "land2 suggest: post fixture byte-identical (expected output itself)"
+        postFixture goldenSuggestions
     assertEqual "land2 suggest: some diff exists (descs changed)"
         True (not (L.null diffQueries))
     mapM_ (\q -> assertEqual
@@ -2019,6 +2030,53 @@ testLand2Presentation = do
     assertEqual "land2 projContraAssets b5"
         "100.00:@Not:<AllowanceForDoubtfulAccounts .+ 200.00:@Not:<AccumulatedDepreciation"
         (show (EA.projContraAssets land2B5))
+
+-- pre-land2 presentation fixture (Land 1 時点の全 battery dump) との
+-- 行単位 closed diff: 差分は liability projection の 6 行ちょうど。
+land2PresentationLines :: [T.Text]
+land2PresentationLines = L.concatMap sect
+    [ ("b1-basic", land2B1), ("b2-pl", land2B2), ("b3-contra", land2B3)
+    , ("b4-abnormal", land2B4), ("b5-closing", land2B5) ]
+  where
+    sect (n, a) =
+        (T.pack ("## " ++ n))
+      : T.pack "-- bsRows"
+      : L.map (T.pack . show . L.map T.unpack) (bsRows a)
+     ++ T.pack "-- plRows"
+      : L.map (T.pack . show . L.map T.unpack) (plRows a)
+     ++ L.concat [ [T.pack ("-- " ++ pn), T.pack (show (pf a))] | (pn, pf) <- projList ]
+    projList =
+        [ ("projCurrentAssets",    EA.projCurrentAssets)
+        , ("projFixedAssets",      EA.projFixedAssets)
+        , ("projDeferredAssets",   EA.projDeferredAssets)
+        , ("projCurrentLiability", EA.projCurrentLiability)
+        , ("projFixedLiability",   EA.projFixedLiability)
+        , ("projCapitalStock",     EA.projCapitalStock)
+        ]
+
+testLand2PresentationClosedDiff :: IO ()
+testLand2PresentationClosedDiff = do
+    fixture <- TIO.readFile "test/fixtures/pre-land2/presentation.txt"
+    let oldLines = L.filter (not . T.null) (L.drop 1 (T.lines fixture))
+        newLines = land2PresentationLines
+    assertEqual "land2 presentation: line count" (L.length oldLines) (L.length newLines)
+    assertEqual "land2 presentation closed diff = liability projections only"
+        [ (T.pack "400.00:@Not:<LoansPayable .+ 100.00:@Not:<AllowanceForDoubtfulAccounts", T.pack "400.00:@Not:<LoansPayable")
+        , (T.pack "200.00:@Not:<AccumulatedDepreciation", T.pack "0")
+        , (T.pack "200.00:@Not:<LoansPayable .+ 100.00:@Not:<AllowanceForDoubtfulAccounts", T.pack "200.00:@Not:<LoansPayable")
+        , (T.pack "250.00:@Not:<AccumulatedDepreciation", T.pack "0")
+        , (T.pack "400.00:@Not:<LoansPayable .+ 100.00:@Not:<AllowanceForDoubtfulAccounts", T.pack "400.00:@Not:<LoansPayable")
+        , (T.pack "200.00:@Not:<AccumulatedDepreciation", T.pack "0")
+        ]
+        [ (o, n) | (o, n) <- L.zip oldLines newLines, o /= n ]
+
+-- HatNot は whichSide で明示 error (規約の regression 固定)
+testLand2HatNotPolicy :: IO ()
+testLand2HatNotPolicy = do
+    r <- try (evaluate (whichSide (HatNot :< Cash :: HatBase AccountTitles)))
+        :: IO (Either SomeException Side)
+    assertEqual "land2 whichSide HatNot policy: explicit error"
+        True (case r of Left _ -> True; Right _ -> False)
 
 -- ================================================================
 -- ExchangeAlgebra.Convert.Checked: checked construction for generated entries.
@@ -3736,6 +3794,8 @@ main = do
     testLand2IsContraInstances
     testLand2AiDivision
     testLand2Presentation
+    testLand2PresentationClosedDiff
+    testLand2HatNotPolicy
     checkedConvertProperties
     axiomProperties
     journalProperties

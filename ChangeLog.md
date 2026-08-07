@@ -23,16 +23,18 @@
   divisions.
 - `bsRows` keeps contra assets in the Liability column through an internal
   display-compatibility shim (`isLegacyLiabilityDisplay`) — output is
-  byte-identical to the pre-amendment behaviour; real deduction/netting
-  presentation is a planned follow-up (Land 3). `projCurrentLiability` /
-  `projFixedLiability` no longer select the two contra accounts (they are no
-  longer `Liability`); use the new `projContraAssets` to select them
-  (attribute-based: keeps both Hat and Not postings).
+  byte-identical to the pre-amendment behaviour for postings over the
+  concrete `AccountTitles` chart with the registry-default classification
+  (instances that override `whatDiv`/`isContra` are outside this guarantee);
+  real deduction/netting presentation is a planned follow-up (Land 3).
+  The six division projections now exclude contra accounts entirely;
+  select them with `projContraAssets` (Assets division) or the generic
+  `projContra` (attribute-based: keeps both Hat and Not postings).
 
 ### Added
 - Definition 7 amendment support: `ExBaseClass.isContra` (registry-delegated
-  default), `defaultSide`, `pimoFromDivision`, `pimoFlip`, and
-  `projContraAssets`.
+  default), `defaultSide`, `pimoFromDivision`, `pimoFlip`,
+  `projContraAssets`, and `projContra`.
 - `JournalCert` and `certifyJournalText` in
   `ExchangeAlgebra.Convert.Checked` add staged certification for text-originated
   journal batches. Duplicate txids and structural errors are rejected first,

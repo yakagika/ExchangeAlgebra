@@ -199,3 +199,12 @@ uv run runner/run.py --task all --arm C --model local --seed 0
 `arms/` (LLM-generated code + attempts) and `metrics/*.json` are gitignored.
 `metrics/summary.csv` is committed (aggregated results).
 `tasks/*.json`, `harness/*.md`, `oracle/Oracle.hs` are committed.
+
+## SKILL versions and the Definition 7 contra amendment (2026-08-07)
+
+`harness/SKILL-ea-v1.md` is a **frozen baseline artifact** (the H2 operational
+variable). It intentionally retains the **pre-Land-2 semantics** — the two
+valuation accounts (`AllowanceForDoubtfulAccounts`, `AccumulatedDepreciation`)
+are described there as Liability-classified. Do not edit it; version bumps get
+a new file. `SKILL-ea-v2.md` reflects the amended semantics (Assets with
+`isContra = True`, credit home side), matching the library and both oracles.

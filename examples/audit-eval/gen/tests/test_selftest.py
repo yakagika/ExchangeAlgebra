@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import sys
+
+import pytest
 from pathlib import Path
 
 EVAL_DIR = Path(__file__).resolve().parents[2]
@@ -200,3 +202,30 @@ def test_contra_accounts_net_within_division() -> None:
     assert derived["financial_statements.total_liabilities"] == 0
     assert derived["financial_statements.total_equity"] == 3800
     assert derived["financial_statements.balance_check"] == 0
+
+
+def test_contra_dual_oracle_agree_via_deriveea() -> None:
+    """Run the real EA oracle (DeriveEA.hs) on the contra fixture and require
+    exact agreement with the pandas oracle (mirrors the generation path)."""
+    import shutil
+    import subprocess
+    from pathlib import Path
+
+    if shutil.which("stack") is None:
+        pytest.skip("stack not available")
+    postings = [
+        {"entry": "e1", "side": "debit", "account": "Cash", "amount": 5000},
+        {"entry": "e1", "side": "credit", "account": "Sales", "amount": 5000},
+        {"entry": "e2", "side": "debit", "account": "Depreciation", "amount": 900},
+        {"entry": "e2", "side": "credit", "account": "AccumulatedDepreciation", "amount": 900},
+        {"entry": "e3", "side": "debit", "account": "ProvisionForDoubtfulAccounts", "amount": 300},
+        {"entry": "e3", "side": "credit", "account": "AllowanceForDoubtfulAccounts", "amount": 300},
+    ]
+    repo_root = Path(__file__).resolve().parents[4]
+    proc = subprocess.run(
+        ["stack", "exec", "runghc", "--", "examples/audit-eval/gen/DeriveEA.hs"],
+        input=json.dumps(postings), capture_output=True, text=True,
+        cwd=repo_root, timeout=600, check=True,
+    )
+    ea_derived = json.loads(proc.stdout)["derived"]
+    assert ea_derived == compute_derived(postings)
