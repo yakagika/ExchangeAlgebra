@@ -174,7 +174,9 @@ def _build_user_prompt(task: dict, include_ea_map: bool = False) -> str:
     Format the task as a user-turn prompt.
 
     Known `given` shapes (chart_of_accounts / transactions / asset) keep
-    their hand-tuned rendering. Everything else in `given` (given_journal,
+    their hand-tuned rendering; transaction lines are lossless (every
+    per-transaction field beyond id/desc/amount is appended as `key value`
+    pairs). Everything else in `given` (given_journal,
     claimed_balances, accounts, trial_balance, leases, loan, intercompany,
     entity/period/note strings, ...) is rendered verbatim as pretty JSON
     under "--- additional data ---" so no task input is silently dropped.
@@ -201,7 +203,15 @@ def _build_user_prompt(task: dict, include_ea_map: bool = False) -> str:
         lines.append(f"EA account mapping (use the EA name on the right in code): {pairs}")
     if "transactions" in given:
         for tx in given["transactions"]:
-            lines.append(f"  {tx.get('id','')}: {tx.get('desc','')} — amount {tx.get('amount','')}")
+            line = f"  {tx.get('id','')}: {tx.get('desc','')} — amount {tx.get('amount','')}"
+            # Render every remaining per-transaction field (gross, withholding,
+            # base, tax, ...): the generator emits them so that the posting split
+            # is uniquely reconstructible from the given data alone — dropping
+            # them here made payroll-style splits underdetermined for all arms.
+            extras = {k: v for k, v in tx.items() if k not in ("id", "desc", "amount")}
+            if extras:
+                line += " — " + ", ".join(f"{k} {v}" for k, v in extras.items())
+            lines.append(line)
         rendered_keys.add("transactions")
     if "asset" in given:
         a = given["asset"]

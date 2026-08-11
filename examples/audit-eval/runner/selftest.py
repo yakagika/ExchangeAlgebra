@@ -28,6 +28,7 @@ if str(EVAL_DIR) not in sys.path:
 from runner.arms import (  # noqa: E402
     _ARM_C_ROLE,
     _arm_aprime_system,
+    _build_user_prompt,
     arm_aprime,
     arm_c,
 )
@@ -687,6 +688,35 @@ def case14() -> None:
     check("raw_journal_accuracy is None without raw_first_journal", m2["raw_journal_accuracy"] is None, str(m2["raw_journal_accuracy"]))
 
 
+def case15() -> None:
+    print("Case 15: _build_user_prompt renders per-transaction fields losslessly")
+    task = {
+        "id": "prompt-tx",
+        "category": "journalize",
+        "given": {
+            "chart_of_accounts": ["Cash", "WageExpenditure", "DepositsReceived"],
+            "transactions": [
+                {"id": "e1", "desc": "給料を支払い, 源泉分を預り金とした。",
+                 "amount": 6400, "gross": 6400, "withholding": 600, "cash_paid": 5800},
+                {"id": "e2", "desc": "現金で商品を売り上げた。", "amount": 3000},
+            ],
+        },
+        "prompt": "仕訳せよ。",
+    }
+    prompt = _build_user_prompt(task)
+    for key_val in ("gross 6400", "withholding 600", "cash_paid 5800"):
+        check(f"extra field rendered: {key_val}", key_val in prompt)
+    check("extras-free tx keeps legacy line format",
+          "  e2: 現金で商品を売り上げた。 — amount 3000" in prompt)
+    dropped = [
+        f"{k}={v}"
+        for tx in task["given"]["transactions"]
+        for k, v in tx.items()
+        if k not in ("id", "desc") and f"{k} {v}" not in prompt and f"amount {v}" not in prompt
+    ]
+    check("no per-transaction field silently dropped", not dropped, str(dropped))
+
+
 def main() -> None:
     case1()
     case2()
@@ -702,6 +732,7 @@ def main() -> None:
     case12()
     case13()
     case14()
+    case15()
 
     print()
     if FAILURES:
