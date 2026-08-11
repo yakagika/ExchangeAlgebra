@@ -34,8 +34,13 @@ data AccountSpec = AccountSpec
     { asDivision    :: AccountDivision
     , asClosing     :: ClosingRule
       -- ^ Automatic final-stock closing policy. 'NetIncome' and 'NetLoss' are
-      -- explicit 'NoClose' overrides pending an accounting decision on
-      -- automatically closing aggregate accounts.
+      -- __permanent__ explicit 'NoClose' overrides (adjudicated 2026-08-11):
+      -- their division encodes the P\/L /presentation side/ (profit sits on
+      -- the debit side to balance the statement), so the division-derived
+      -- rule would invert the transfer sign. Their closing is owned by the
+      -- dedicated net-income transfer pipeline in
+      -- "ExchangeAlgebra.Algebra.Transfer" (correct signs, engine-inserted
+      -- balancing postings).
     , asIsContra    :: Bool
     , asFixedCurrent :: FixedCurrent
     , asNameEn      :: Text

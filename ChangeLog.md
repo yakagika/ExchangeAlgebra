@@ -6,8 +6,9 @@
 - **BREAKING: closing entries now cover every Cost and Revenue account.**
   `finalStockTransfer` derives its policy from the exhaustive account registry;
   previously it closed only 17 SNA-era accounts. `NetIncome` and `NetLoss`
-  remain explicit `NoClose` overrides while automatic closing of aggregate
-  accounts awaits an accounting decision.
+  are permanent explicit `NoClose` overrides: their division encodes the
+  P/L presentation side, so the division-derived rule would invert their
+  transfer sign; the dedicated net-income transfer owns their closing.
 - **BREAKING: `AccountTitles` binary tags now use Word16 big-endian encoding**
   instead of Word8. This removes the 256-constructor ceiling and rejects
   out-of-range tags through the `Get` failure channel. Journals and other

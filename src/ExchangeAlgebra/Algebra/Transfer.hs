@@ -622,8 +622,10 @@ finalStockRule title = case accountSpec title of
 -- | Internal step of the final stock transfer from income statement to retained earnings.
 -- Cost accounts are transferred to RetainedEarnings with Hat/Not flipped;
 -- revenue accounts are transferred to RetainedEarnings as-is. The registry's
--- explicit 'NoClose' policy exempts aggregate accounts whose automatic closing
--- remains subject to an accounting decision.
+-- explicit 'NoClose' policy permanently exempts the balancing aggregates
+-- 'NetIncome'\/'NetLoss': their division encodes the P\/L presentation side,
+-- so this division-derived rule would invert their transfer sign — their
+-- closing is owned by the dedicated net-income transfer in this module.
 --
 -- Complexity: O(s) (s = total number of scalar entries)
 {-# INLINE finalStockTransferStep #-}
