@@ -8,9 +8,12 @@
 # agentic CLI cannot read the EA repo / SKILL files nor write anywhere —
 # prompt-only arm comparisons stay uncontaminated.
 backend = "codex"
-timeout_seconds = 1200  # Track S: large-N direct-answer arms enumerate long JSON; 480s timed out on mixed N=10 (56 derived keys). Raised arm-neutrally; a timeout is now recorded as non-convergence and NOT retried (see runner/models.py BackendTimeout).
-# model passed via -c model=... to codex CLI (optional, uses codex default if omitted)
-# model = "o4-mini"
+timeout_seconds = 3600  # 2026-08-11: raised 1200 -> 3600 per confirmatory declaration §2 — unified with the local axis so the cap cannot select which arms are measured (2026-08-04 local run: at N=200 the 1200s cap dropped A/Aprime while B/C finished). Timeouts remain terminal (recorded as timed_out, not retried).
+# 2026-08-11: model/effort pinned per confirmatory declaration §3 (ruling 7).
+# Do NOT rely on the CLI config default — it drifts (high at pin time, medium
+# observed 2026-08-11). effective_model is still recorded per cell as a check.
+model = "gpt-5.6-sol"
+effort = "xhigh"
 
 [local]
 # OpenAI-compatible HTTP backend (Ollama / vLLM / LM Studio / llama.cpp).

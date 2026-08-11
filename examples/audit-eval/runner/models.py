@@ -88,6 +88,10 @@ class CodexBackend(Backend):
     """
 
     model: Optional[str] = None          # e.g. "o3"; None → codex default
+    effort: Optional[str] = None         # reasoning effort; None → codex config default.
+                                         # The confirmatory declaration pins model/effort
+                                         # explicitly because the CLI config default drifts
+                                         # (observed 2026-08-11: high → medium).
     timeout_seconds: int = 240
     effective_model: Optional[str] = None
     _workdir: Optional[str] = None       # lazily-created neutral empty dir
@@ -119,6 +123,8 @@ class CodexBackend(Backend):
             ]
             if self.model:
                 cmd += ["-c", f'model="{self.model}"']
+            if self.effort:
+                cmd += ["-c", f'model_reasoning_effort="{self.effort}"']
             cmd.append(prompt)
 
             result = subprocess.run(
@@ -290,6 +296,7 @@ def backend_from_config(section: dict) -> Backend:
     Expected keys:
         backend     : "codex" | "openai_compat"
         model       : (optional for codex, required for openai_compat)
+        effort      : optional, codex only (reasoning effort, e.g. "xhigh")
         base_url    : required for openai_compat
         api_key     : optional (default "ollama")
         timeout_seconds : optional int
@@ -299,6 +306,7 @@ def backend_from_config(section: dict) -> Backend:
     if kind == "codex":
         return CodexBackend(
             model=section.get("model"),
+            effort=section.get("effort"),
             timeout_seconds=int(section.get("timeout_seconds", 240)),
         )
     elif kind == "openai_compat":
