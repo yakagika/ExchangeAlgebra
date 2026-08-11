@@ -72,7 +72,7 @@ if str(EVAL_DIR) not in sys.path:
     sys.path.insert(0, str(EVAL_DIR))
 
 from runner.models import backend_from_config, codex_cli_version, probe_server_version
-from runner.arms   import arm_a, arm_aprime, arm_b, arm_c, arm_d
+from runner.arms   import arm_a, arm_aprime, arm_b, arm_c, arm_d, arm_v
 from runner.score  import score
 
 
@@ -142,10 +142,12 @@ def normalize_arm_name(name: str) -> str:
     upper = raw.upper()
     if upper in {"A", "B", "C", "D"}:
         return upper
+    if upper == "V":
+        return "V"
     compact = raw.replace(" ", "").replace("-", "").lower()
     if compact in {"aprime", "a'", "a\u2032"}:
         return "Aprime"
-    raise ValueError(f"unknown arm {name!r}; expected A, B, C, D, or Aprime")
+    raise ValueError(f"unknown arm {name!r}; expected A, B, C, D, V, or Aprime")
 
 
 def normalize_arm_list(spec: str) -> list[str]:
@@ -213,6 +215,9 @@ def run_one(
                 task, backend, task_run_dir, WORKTREE_ROOT,
                 max_iters=max_iters, feedback_mode=aprime_feedback,
             )
+        elif arm_name == "V":
+            arm_result = arm_v(task, backend, task_run_dir, WORKTREE_ROOT,
+                               max_iters=max_iters)
         elif arm_name == "B":
             arm_result = arm_b(task, backend, task_run_dir,
                                max_iters=max_iters)

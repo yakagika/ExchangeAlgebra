@@ -390,6 +390,23 @@ Additional checked-loader rules for arm A-prime:
   complete corrected JSON value in the same format.
 """
 
+# Arm V role: identical to _ARM_APRIME_ROLE except the validator sentence.
+# Arm V isolates the gate machinery (EA checked loader with vocabulary
+# resolution vs a generic balance-only checker) under an otherwise identical
+# prompt, so A' - V measures the EA-specific contribution.
+_ARM_V_ROLE = _ARM_C_ROLE + """\
+
+Additional validation rules for arm V:
+- Write account names as ExchangeAlgebra AccountTitles constructor names. Use
+  the task's "EA account mapping" line when a chart account has a mapped EA
+  name.
+- When the task lists source transactions, every journal posting must include
+  a "txid" key equal to the corresponding source transaction id.
+- Your output is validated by a generic double-entry balance checker. If it is
+  rejected, the checker error will be returned; fix the postings and emit the
+  complete corrected JSON value in the same format.
+"""
+
 # Minimal EA instruction — shared by arm A and arm D (see harness/ARM-D-DELTA.md).
 # Canonical-printer contract (T5 pilot fix): the model must NOT hand-assemble
 # JSON. All printing goes through the harness-owned module
@@ -463,6 +480,17 @@ def _task_has_transactions(task: dict) -> bool:
 
 def _arm_aprime_system(task: dict) -> str:
     system = _ARM_APRIME_ROLE + "\n" + _output_contract(task)
+    if _task_has_transactions(task):
+        system += (
+            "\n\nTransaction id contract: every journal posting MUST include "
+            'a "txid" key copied exactly from the corresponding input '
+            "transaction id."
+        )
+    return system
+
+
+def _arm_v_system(task: dict) -> str:
+    system = _ARM_V_ROLE + "\n" + _output_contract(task)
     if _task_has_transactions(task):
         system += (
             "\n\nTransaction id contract: every journal posting MUST include "
@@ -836,6 +864,204 @@ def _aprime_gate_feedback(verdict: dict, feedback_mode: str) -> str:
         + detail[:3000]
         + "\nFix the postings and output the corrected COMPLETE JSON (same format)."
     )
+
+
+def _generic_balance_check(journal: Any, task: dict) -> Optional[str]:
+    """
+    EA-independent gate for arm V: structural checks + per-entry double-entry
+    balance ONLY. Deliberately absent (this is the point of the baseline):
+    account-vocabulary resolution, canonical re-printing, and source
+    reconciliation. Account names are accepted as arbitrary non-empty strings.
+    Returns None when accepted, else a feedback string.
+    """
+    from decimal import Decimal, InvalidOperation
+
+    if not isinstance(journal, list) or not journal:
+        return "journal must be a non-empty list of posting objects"
+    problems: list[str] = []
+    need_txid = _task_has_transactions(task)
+    groups: dict[Any, list[Decimal]] = {}
+    for idx, p_ in enumerate(journal):
+        if not isinstance(p_, dict):
+            problems.append(f"posting {idx}: not an object")
+            continue
+        side = p_.get("side")
+        account = p_.get("account")
+        amount = p_.get("amount")
+        if side not in ("debit", "credit"):
+            problems.append(f"posting {idx}: side must be 'debit' or 'credit'")
+        if not isinstance(account, str) or not account.strip():
+            problems.append(f"posting {idx}: account must be a non-empty string")
+        try:
+            amt = Decimal(str(amount))
+        except (InvalidOperation, TypeError, ValueError):
+            problems.append(f"posting {idx}: amount must be a number")
+            continue
+        if amt <= 0:
+            problems.append(f"posting {idx}: amount must be > 0, got {amount}")
+            continue
+        if need_txid and not p_.get("txid"):
+            problems.append(f"posting {idx}: missing required 'txid'")
+        key = p_.get("txid", p_.get("entry"))
+        groups.setdefault(key, [Decimal(0), Decimal(0)])
+        groups[key][0 if side == "debit" else 1] += amt
+    if problems:
+        return "structural errors:\n" + "\n".join(problems[:20])
+    imbalances = [
+        f"entry {k!r}: debit total {d} /= credit total {c}"
+        for k, (d, c) in groups.items() if d != c
+    ]
+    if imbalances:
+        return "balance errors:\n" + "\n".join(imbalances[:20])
+    return None
+
+
+def _v_gate_feedback(detail: str) -> str:
+    return (
+        "Your previous postings were rejected by the balance checker.\n"
+        "--- balance checker feedback ---\n"
+        + detail[:3000]
+        + "\nFix the postings and output the corrected COMPLETE JSON (same format)."
+    )
+
+
+def arm_v(
+    task: dict,
+    backend: Backend,
+    task_run_dir: Path,
+    worktree_root: Path,
+    max_iters: int = DEFAULT_MAX_ITERS,
+) -> dict:
+    """
+    Arm V (validator baseline): same contract and prompt as A' except the
+    validator sentence, but the gate is a generic EA-independent balance
+    check (_generic_balance_check) and derived values are recomputed by the
+    EA-independent pandas oracle. A' - V isolates the EA-specific
+    contribution (vocabulary resolution, typed journal, staged
+    certification); V - C isolates "structured output + generic gate".
+    """
+    del task_run_dir, worktree_root  # dispatch symmetry; V needs neither
+
+    user0 = _build_user_prompt(task, include_ea_map=True)
+    object_contract = task.get("expected_output") is not None
+    gate_applicable = _journal_contract_present(task)
+
+    result: dict[str, Any] = {
+        "raw_output": None,
+        "json_str": None,
+        "parsed": None,
+        "parse_fail": True,
+        "compile_fail": False,
+        "iterations": 0,
+        "converged": False,
+        "attempts": [],
+        "first_pass_valid": False,
+        "derived_source": None,
+        "gate_applicable": gate_applicable,
+        "timed_out": False,
+        "raw_first_journal": None,
+    }
+
+    feedback: Optional[str] = None
+
+    for i in range(1, max_iters + 1):
+        user = user0 if feedback is None else user0 + "\n\n" + feedback
+        attempt: dict[str, Any] = {"iteration": i}
+        result["iterations"] = i
+
+        try:
+            raw = backend.generate(system=_arm_v_system(task), user=user)
+        except BackendTimeout as exc:
+            attempt["error"] = f"backend timeout: {exc}"
+            result["attempts"].append(attempt)
+            result["timed_out"] = True
+            break
+        except Exception as exc:
+            attempt["error"] = f"backend error: {exc}"
+            result["attempts"].append(attempt)
+            feedback = None
+            continue
+
+        result["raw_output"] = raw
+        attempt["raw_output"] = _truncate(raw)
+        json_str = _extract_json(raw, prefer_object=object_contract)
+
+        if json_str is None:
+            attempt["error"] = "parse failure"
+            result["attempts"].append(attempt)
+            feedback = _ARM_C_RETRY_SUFFIX.strip()
+            continue
+
+        try:
+            parsed_candidate = json.loads(json_str)
+        except json.JSONDecodeError:
+            attempt["error"] = "parse failure"
+            result["attempts"].append(attempt)
+            feedback = _ARM_C_RETRY_SUFFIX.strip()
+            continue
+
+        shape_error = _validate_output_shape(parsed_candidate, task)
+        if shape_error is not None:
+            attempt["error"] = f"wrong output shape: expected {shape_error}"
+            result["attempts"].append(attempt)
+            feedback = _ARM_C_RETRY_SUFFIX.strip()
+            continue
+
+        journal_component = _journal_component(parsed_candidate, task)
+        if i == 1:
+            result["raw_first_journal"] = journal_component
+
+        if not gate_applicable:
+            result["json_str"] = json_str
+            result["parsed"] = parsed_candidate
+            result["parse_fail"] = False
+            result["converged"] = True
+            attempt["success"] = True
+            result["attempts"].append(attempt)
+            break
+
+        gate_error = _generic_balance_check(journal_component, task)
+        attempt["balance_check"] = "ok" if gate_error is None else _truncate(gate_error, 500)
+        if gate_error is not None:
+            attempt["error"] = "balance checker rejected postings"
+            result["attempts"].append(attempt)
+            feedback = _v_gate_feedback(gate_error)
+            continue
+
+        # Accepted journal = the model's postings verbatim (no canonical
+        # re-print — V has no canonicalizer, by design).
+        if task.get("expected_output") is None:
+            final_parsed: Any = journal_component
+        else:
+            final_parsed = dict(parsed_candidate)
+            final_parsed["journal"] = journal_component
+            # Mirror A''s policy: the harness recomputes every derived value
+            # from the accepted journal — but with the EA-independent pandas
+            # oracle. Unknown account names silently fall out of the division
+            # totals (category "unknown"), which is exactly the safety gap
+            # this baseline is meant to expose.
+            if _task_derivable(task):
+                try:
+                    from gen.pandas_oracle import compute_derived
+                    final_parsed["derived"] = compute_derived(journal_component)
+                    result["derived_source"] = "harness (pandas)"
+                except Exception as exc:
+                    result["derived_source"] = f"model (pandas derivation failed: {exc})"
+            elif "derived" in final_parsed:
+                result["derived_source"] = "model (schema not derivable)"
+
+        result["json_str"] = json.dumps(final_parsed, ensure_ascii=False)
+        result["parsed"] = final_parsed
+        result["parse_fail"] = False
+        result["converged"] = True
+        attempt["success"] = True
+        result["attempts"].append(attempt)
+        break
+
+    result["first_pass_valid"] = bool(
+        result["attempts"] and result["attempts"][0].get("success")
+    )
+    return result
 
 
 def arm_aprime(
