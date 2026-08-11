@@ -64,6 +64,8 @@ import GHC.Generics (Generic)
 import Data.Hashable
 import Data.Typeable (Typeable, cast, typeOf)
 import qualified Data.Binary as Binary
+import qualified Data.Binary.Get as BinaryGet
+import qualified Data.Binary.Put as BinaryPut
 
 ------------------------------------------------------------------
 -- * Element (components of bases)
@@ -366,9 +368,14 @@ instance Hashable AccountTitles where
 
 instance Binary.Binary AccountTitles where
     {-# INLINE put #-}
-    put = Binary.putWord8 . fromIntegral . fromEnum
+    put = BinaryPut.putWord16be . fromIntegral . fromEnum
     {-# INLINE get #-}
-    get = toEnum . fromIntegral <$> Binary.getWord8
+    get = do
+        tag <- BinaryGet.getWord16be
+        let maxTag = fromIntegral (fromEnum (maxBound :: AccountTitles))
+        if tag <= maxTag
+            then pure (toEnum (fromIntegral tag))
+            else fail ("AccountTitles: invalid binary tag " ++ show tag)
 
 instance Element AccountTitles where
     {-# INLINE wildcard #-}

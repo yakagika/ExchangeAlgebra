@@ -610,29 +610,20 @@ data FinalStockSide
 
 {-# INLINE finalStockRule #-}
 finalStockRule :: AccountTitles -> Maybe FinalStockSide
-finalStockRule title = case title of
-    WageExpenditure           -> Just FinalStockFlip
-    Depreciation              -> Just FinalStockFlip
-    Purchases                 -> Just FinalStockFlip
-    InterestExpense           -> Just FinalStockFlip
-    TaxesExpense              -> Just FinalStockFlip
-    SubsidyExpense            -> Just FinalStockFlip
-    ConsumptionExpenditure    -> Just FinalStockFlip
-    CentralBankPaymentExpense -> Just FinalStockFlip
-    ValueAdded                -> Just FinalStockKeep
-    Sales                     -> Just FinalStockKeep
-    GrossProfit               -> Just FinalStockKeep
-    InterestEarned            -> Just FinalStockKeep
-    SubsidyIncome             -> Just FinalStockKeep
-    TaxesRevenue              -> Just FinalStockKeep
-    CentralBankPaymentIncome  -> Just FinalStockKeep
-    WageEarned                -> Just FinalStockKeep
-    OrdinaryProfit            -> Just FinalStockKeep
-    _                         -> Nothing
+finalStockRule title = case accountSpec title of
+    Nothing -> Nothing
+    Just spec -> case asClosing spec of
+        NoClose -> Nothing
+        CloseByDivision -> case classifyAccountDivision title of
+            Cost    -> Just FinalStockFlip
+            Revenue -> Just FinalStockKeep
+            _       -> Nothing
 
 -- | Internal step of the final stock transfer from income statement to retained earnings.
 -- Cost accounts are transferred to RetainedEarnings with Hat/Not flipped;
--- revenue accounts are transferred to RetainedEarnings as-is.
+-- revenue accounts are transferred to RetainedEarnings as-is. The registry's
+-- explicit 'NoClose' policy exempts aggregate accounts whose automatic closing
+-- remains subject to an accounting decision.
 --
 -- Complexity: O(s) (s = total number of scalar entries)
 {-# INLINE finalStockTransferStep #-}
@@ -648,7 +639,8 @@ finalStockTransferStep = EA.map go
     go x = x
 
 -- | Final Stock Transfer (closing entries).
--- Transfers all cost and revenue accounts to RetainedEarnings and cancels via the bar operation.
+-- Transfers registry-eligible cost and revenue accounts to RetainedEarnings
+-- and cancels via the bar operation.
 --
 -- Complexity: O(s) (s = total number of scalar entries)
 finalStockTransfer ::(HatVal n, ExBaseClass b) =>  Alg n b -> Alg n b

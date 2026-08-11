@@ -137,8 +137,10 @@ tshow = T.pack . show
 -- Liability column; the classification is now fixed, but this predicate keeps
 -- their display placement unchanged. It does NOT mean the account is a
 -- liability, and no deduction\/netting is performed. By construction the
--- predicate's extension equals the old @whatDiv == Liability@ set, so
--- 'bsRows' output is byte-identical to the pre-amendment behaviour.
+-- predicate's extension equals the old @whatDiv == Liability@ set, so this
+-- /placement/ remains compatible. Whole 'bsRows' output may still change when
+-- an independent closing policy changes (for example, newly closed Cost
+-- accounts).
 isLegacyLiabilityDisplay :: ExBaseClass b => b -> Bool
 isLegacyLiabilityDisplay b =
     whatDiv b == Liability || (isContra b && whatDiv b == Assets)

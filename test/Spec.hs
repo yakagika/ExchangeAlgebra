@@ -51,6 +51,8 @@ import qualified Data.List           as L
 import qualified Data.List.NonEmpty  as NE
 import           Data.Char           (isAlphaNum, isSpace)
 import qualified Data.Binary         as Binary
+import qualified Data.Binary.Put     as BinaryPut
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text           as T
 import qualified Data.Text.IO        as TIO
 import           Control.Monad       (forM_)
@@ -93,6 +95,26 @@ assertNear label expected actual
         putStrLn ("  expected: " ++ show expected)
         putStrLn ("  actual  : " ++ show actual)
         exitFailure
+
+decodeAccountTitleOrFail :: BL.ByteString -> Either String AccountTitles
+decodeAccountTitleOrFail bytes = case Binary.decodeOrFail bytes of
+    Left (_, _, message) -> Left message
+    Right (_, _, title)  -> Right title
+
+testAccountTitlesBinary :: IO ()
+testAccountTitlesBinary = do
+    let titles = [minBound .. maxBound] :: [AccountTitles]
+        roundTripped = L.map (Binary.decode . Binary.encode) titles
+        invalidTag = fromIntegral (fromEnum (maxBound :: AccountTitles) + 1)
+        invalidBytes = BinaryPut.runPut (BinaryPut.putWord16be invalidTag)
+    assertEqual "AccountTitles Binary covers all 117 constructors"
+        117 (L.length titles)
+    assertEqual "AccountTitles Binary Word16be roundtrip"
+        titles roundTripped
+    assertEqual "AccountTitles Binary rejects out-of-range Word16"
+        True (case decodeAccountTitleOrFail invalidBytes of
+            Left _  -> True
+            Right _ -> False)
 
 -- ================================================================
 -- AccountTitles classification exhaustiveness (Phase A)
@@ -801,6 +823,87 @@ testFinalStockTransferJournalEquivalence = do
                 $ transferJournalSample
         actual = EJT.finalStockTransfer transferJournalSample
     assertEqual "Journal.finalStockTransfer matches composed transfer" (EJ.toMap ref) (EJ.toMap actual)
+
+type FinalStockProbe = EA.Alg Double (HatBase AccountTitles)
+
+-- | Classify the observable image of the same one-posting probe used to
+-- generate @test/fixtures/pre-vocab/finalstock.tsv@.
+--
+-- Complexity: O(1)
+finalStockProbeRule :: AccountTitles -> String
+finalStockProbeRule RetainedEarnings = "SELF"
+finalStockProbeRule title
+    | actual == show probe = "Nothing"
+    | actual == show (1 .@ Not :< RetainedEarnings :: FinalStockProbe) = "Keep"
+    | actual == show (1 .@ Hat :< RetainedEarnings :: FinalStockProbe) = "Flip"
+    | otherwise = "UNEXPECTED:" ++ actual
+  where
+    probe = 1 .@ Not :< title :: FinalStockProbe
+    actual = show (EAT.finalStockTransfer probe)
+
+-- | The pre-vocabulary fixture is frozen. The only permitted behavioural
+-- changes are the concrete Cost/Revenue accounts that the former SNA-era
+-- title case split omitted. Aggregate NetIncome/NetLoss remain explicit
+-- registry overrides and therefore do not occur in this list.
+finalStockExpectedClosedDiff :: [AccountTitles]
+finalStockExpectedClosedDiff =
+    [ AmortizationExpense
+    , SalesCost
+    , BusinessTrip
+    , Commutation
+    , UtilitiesExpense
+    , RentExpense
+    , AdvertisingExpense
+    , DeliveryExpenses
+    , SuppliesExpenses
+    , MiscellaneousExpenses
+    , NationalBondInterestEarned
+    , DepositInterestEarned
+    , ReceiptFee
+    , RentalIncome
+    , EquityInEarningsOfInvestee
+    , ProvisionForDoubtfulAccounts
+    , BadDebtLoss
+    , LossOnSalesOfFixedAssets
+    , LossOnSalesOfNotesReceivable
+    , PaymentFees
+    , MiscellaneousLoss
+    , CorporateIncomeTaxes
+    , CommunicationExpenses
+    , GainOnSalesOfFixedAssets
+    , RecoveryOfBadDebts
+    , MiscellaneousIncome
+    , ReversalOfAllowanceForDoubtfulAccounts
+    ]
+
+testFinalStockRegistryClosedDiff :: IO ()
+testFinalStockRegistryClosedDiff = do
+    fixture <- TIO.readFile "test/fixtures/pre-vocab/finalstock.tsv"
+    let fixtureLines =
+            [ line
+            | line <- T.lines fixture
+            , not (T.null line)
+            , not (T.isPrefixOf (T.pack "#") line)
+            ]
+        parseFixtureLine line = case T.splitOn (T.pack "\t") line of
+            [titleText, oldRule, _division] -> case EC.parseAccountTitle titleText of
+                Right title -> (title, T.unpack oldRule)
+                Left err -> error ("invalid final-stock fixture title: " ++ show err)
+            fields -> error ("invalid final-stock fixture row: " ++ show fields)
+        fixtureRows = L.map parseFixtureLine fixtureLines
+        actualDiff =
+            [ title
+            | (title, oldRule) <- fixtureRows
+            , title /= RetainedEarnings
+            , finalStockProbeRule title /= oldRule
+            ]
+    assertEqual "final-stock fixture covers all 116 concrete account titles"
+        116 (L.length fixtureRows)
+    assertEqual "final-stock registry closed diff = 27 formerly omitted accounts"
+        finalStockExpectedClosedDiff actualDiff
+    assertEqual "final-stock aggregate overrides remain open"
+        ["Nothing", "Nothing"]
+        [finalStockProbeRule NetIncome, finalStockProbeRule NetLoss]
 
 -- | R1 sentinel: a /balanced/ ledger (credit total == debit total, net income
 -- zero) makes 'diffRL' report the wildcard 'Side'. Before the fix,
@@ -1943,8 +2046,9 @@ testLand2AiDivision = do
         (fmap (\i -> (Assist.aiDivision i, Assist.aiHomeSide i))
               (Assist.describeAccount AccumulatedDepreciation))
 
--- T5/T6: presentation battery。bsRows/plRows の literal は Land 1 出力
--- (pre-land2 golden, commit 1c1f3f2) と byte 一致 = 表示互換 shim の証明。
+-- T5/T6: presentation battery。bsRows/plRows の literal は, 以下で明記する
+-- vocabulary closing 差分を除き, Land 1 出力 (pre-land2 golden, commit
+-- 1c1f3f2) と byte 一致 = 表示互換 shim の証明。
 -- division projection は contra を含まず, contra は projContraAssets のみが選ぶ
 -- (意図的差分: projCurrentLiability/projFixedLiability から当該 2 件が消えた)。
 land2B1, land2B2, land2B3, land2B4, land2B5 :: BAlg
@@ -1986,15 +2090,17 @@ testLand2Presentation = do
         , ["Building","500.0","Total","250.0"]
         , ["Total","620.0","",""] ]
         (rows bsRows land2B4)
-    assertEqual "land2 bsRows b5 closing (= Land 1)"
+    -- Pre-vocab difference: SalesCost is now closed by the registry-derived
+    -- Cost rule, so Sales 500 - SalesCost 300 becomes RetainedEarnings 200.
+    assertEqual "land2 bsRows b5 closing (SalesCost now closes)"
         [ ["Asset","","Liability",""]
         , ["AccountsReceivable","1000.0","LoansPayable","400.0"]
         , ["Building","800.0","AllowanceForDoubtfulAccounts","100.0"]
-        , ["SalesCost","300.0","AccumulatedDepreciation","200.0"]
-        , ["Cash","1100.0","Equity",""]
-        , ["Total","3200.0","CapitalStock","2000.0"]
-        , ["","","RetainedEarnings","500.0"]
-        , ["","","Total","3200.0"] ]
+        , ["Cash","1100.0","AccumulatedDepreciation","200.0"]
+        , ["Total","2900.0","Equity",""]
+        , ["","","CapitalStock","2000.0"]
+        , ["","","RetainedEarnings","200.0"]
+        , ["","","Total","2900.0"] ]
         (rows bsRows land2B5)
     assertEqual "land2 plRows b2 (= Land 1)"
         [ ["Cost","","Revenue",""]
@@ -2032,7 +2138,8 @@ testLand2Presentation = do
         (show (EA.projContraAssets land2B5))
 
 -- pre-land2 presentation fixture (Land 1 時点の全 battery dump) との
--- 行単位 closed diff: 差分は liability projection の 6 行ちょうど。
+-- 行単位 closed diff: contra division projection の既存 6 行に,
+-- SalesCost の閉鎖漏れ修正から生じる b2/b5 の B/S 8 行を加えた 14 行。
 land2PresentationLines :: [T.Text]
 land2PresentationLines = L.concatMap sect
     [ ("b1-basic", land2B1), ("b2-pl", land2B2), ("b3-contra", land2B3)
@@ -2060,11 +2167,19 @@ testLand2PresentationClosedDiff = do
     let oldLines = L.filter (not . T.null) (L.drop 1 (T.lines fixture))
         newLines = land2PresentationLines
     assertEqual "land2 presentation: line count" (L.length oldLines) (L.length newLines)
-    assertEqual "land2 presentation closed diff = liability projections only"
-        [ (T.pack "400.00:@Not:<LoansPayable .+ 100.00:@Not:<AllowanceForDoubtfulAccounts", T.pack "400.00:@Not:<LoansPayable")
+    assertEqual "land2 presentation closed diff = contra projections plus SalesCost closing"
+        [ (T.pack "[\"SalesCost\",\"300.0\",\"Equity\",\"\"]", T.pack "[\"Total\",\"0.0\",\"Equity\",\"\"]")
+        , (T.pack "[\"Total\",\"300.0\",\"RetainedEarnings\",\"500.0\"]", T.pack "[\"\",\"\",\"RetainedEarnings\",\"200.0\"]")
+        , (T.pack "[\"\",\"\",\"Total\",\"500.0\"]", T.pack "[\"\",\"\",\"Total\",\"200.0\"]")
+        , (T.pack "400.00:@Not:<LoansPayable .+ 100.00:@Not:<AllowanceForDoubtfulAccounts", T.pack "400.00:@Not:<LoansPayable")
         , (T.pack "200.00:@Not:<AccumulatedDepreciation", T.pack "0")
         , (T.pack "200.00:@Not:<LoansPayable .+ 100.00:@Not:<AllowanceForDoubtfulAccounts", T.pack "200.00:@Not:<LoansPayable")
         , (T.pack "250.00:@Not:<AccumulatedDepreciation", T.pack "0")
+        , (T.pack "[\"SalesCost\",\"300.0\",\"AccumulatedDepreciation\",\"200.0\"]", T.pack "[\"Cash\",\"1100.0\",\"AccumulatedDepreciation\",\"200.0\"]")
+        , (T.pack "[\"Cash\",\"1100.0\",\"Equity\",\"\"]", T.pack "[\"Total\",\"2900.0\",\"Equity\",\"\"]")
+        , (T.pack "[\"Total\",\"3200.0\",\"CapitalStock\",\"2000.0\"]", T.pack "[\"\",\"\",\"CapitalStock\",\"2000.0\"]")
+        , (T.pack "[\"\",\"\",\"RetainedEarnings\",\"500.0\"]", T.pack "[\"\",\"\",\"RetainedEarnings\",\"200.0\"]")
+        , (T.pack "[\"\",\"\",\"Total\",\"3200.0\"]", T.pack "[\"\",\"\",\"Total\",\"2900.0\"]")
         , (T.pack "400.00:@Not:<LoansPayable .+ 100.00:@Not:<AllowanceForDoubtfulAccounts", T.pack "400.00:@Not:<LoansPayable")
         , (T.pack "200.00:@Not:<AccumulatedDepreciation", T.pack "0")
         ]
@@ -3709,6 +3824,7 @@ testOptimizeFailFast = do
 
 main :: IO ()
 main = do
+    testAccountTitlesBinary
     testAccountTitleClassification
     testProjMultiPatternOnePass
     testProjNormFastPath
@@ -3738,6 +3854,7 @@ main = do
     testFilterByAxisWithDeltaUpdates
     testFinalStockTransferAlgEquivalence
     testFinalStockTransferJournalEquivalence
+    testFinalStockRegistryClosedDiff
     testIncomeSummaryBalancedNoCrash
     testSpillDecisionSingleSource
     testRestoreJournalFromBinarySpill

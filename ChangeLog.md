@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Changed
+- **BREAKING: closing entries now cover every Cost and Revenue account.**
+  `finalStockTransfer` derives its policy from the exhaustive account registry;
+  previously it closed only 17 SNA-era accounts. `NetIncome` and `NetLoss`
+  remain explicit `NoClose` overrides while automatic closing of aggregate
+  accounts awaits an accounting decision.
+- **BREAKING: `AccountTitles` binary tags now use Word16 big-endian encoding**
+  instead of Word8. This removes the 256-constructor ceiling and rejects
+  out-of-range tags through the `Get` failure channel. Journals and other
+  values persisted with the old format cannot be read by 0.5.0.0.
 - **BREAKING: account division semantics for contra accounts** (Definition 7
   amendment, Land 2). `AllowanceForDoubtfulAccounts` and
   `AccumulatedDepreciation` are now classified `Assets` with the new

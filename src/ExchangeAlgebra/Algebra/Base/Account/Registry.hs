@@ -26,12 +26,16 @@ import           Data.Maybe (mapMaybe)
 import           Data.Text (Text)
 
 import ExchangeAlgebra.Algebra.Base.Account.Types
-    ( AccountDivision(..), FixedCurrent(..) )
+    ( AccountDivision(..), ClosingRule(..), FixedCurrent(..) )
 import ExchangeAlgebra.Algebra.Base.Element (AccountTitles(..))
 
 -- | All metadata attached to one concrete account title.
 data AccountSpec = AccountSpec
     { asDivision    :: AccountDivision
+    , asClosing     :: ClosingRule
+      -- ^ Automatic final-stock closing policy. 'NetIncome' and 'NetLoss' are
+      -- explicit 'NoClose' overrides pending an accounting decision on
+      -- automatically closing aggregate accounts.
     , asIsContra    :: Bool
     , asFixedCurrent :: FixedCurrent
     , asNameEn      :: Text
@@ -51,6 +55,7 @@ concreteAccountTitles = [Cash .. ReversalOfAllowanceForDoubtfulAccounts]
 accountSpec :: AccountTitles -> Maybe AccountSpec
 accountSpec Cash = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Cash"
@@ -60,6 +65,7 @@ accountSpec Cash = Just AccountSpec
     }
 accountSpec Deposits = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Savings deposits"
@@ -69,6 +75,7 @@ accountSpec Deposits = Just AccountSpec
     }
 accountSpec CurrentDeposits = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Current deposits"
@@ -78,6 +85,7 @@ accountSpec CurrentDeposits = Just AccountSpec
     }
 accountSpec Securities = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Securities"
@@ -87,6 +95,7 @@ accountSpec Securities = Just AccountSpec
     }
 accountSpec InvestmentSecurities = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Fixed
     , asNameEn = "Investment securities"
@@ -96,6 +105,7 @@ accountSpec InvestmentSecurities = Just AccountSpec
     }
 accountSpec InvestmentInAssociate = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Fixed
     , asNameEn = "Investment in associate"
@@ -105,6 +115,7 @@ accountSpec InvestmentInAssociate = Just AccountSpec
     }
 accountSpec LongTermNationalBonds = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Fixed
     , asNameEn = "Long-term national bonds"
@@ -114,6 +125,7 @@ accountSpec LongTermNationalBonds = Just AccountSpec
     }
 accountSpec ShortTermNationalBonds = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Short-term national bonds"
@@ -123,6 +135,7 @@ accountSpec ShortTermNationalBonds = Just AccountSpec
     }
 accountSpec Products = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Products"
@@ -132,6 +145,7 @@ accountSpec Products = Just AccountSpec
     }
 accountSpec Machinery = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Fixed
     , asNameEn = "Machinery and equipment"
@@ -141,6 +155,7 @@ accountSpec Machinery = Just AccountSpec
     }
 accountSpec Building = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Fixed
     , asNameEn = "Real estate"
@@ -150,6 +165,7 @@ accountSpec Building = Just AccountSpec
     }
 accountSpec Vehicle = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Fixed
     , asNameEn = "Vehicles"
@@ -159,6 +175,7 @@ accountSpec Vehicle = Just AccountSpec
     }
 accountSpec StockInvestment = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Stock investment"
@@ -168,6 +185,7 @@ accountSpec StockInvestment = Just AccountSpec
     }
 accountSpec EquipmentInvestment = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Fixed
     , asNameEn = "Equipment investment"
@@ -177,6 +195,7 @@ accountSpec EquipmentInvestment = Just AccountSpec
     }
 accountSpec LongTermLoansReceivable = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Fixed
     , asNameEn = "Long-term loans receivable"
@@ -186,6 +205,7 @@ accountSpec LongTermLoansReceivable = Just AccountSpec
     }
 accountSpec AccountsReceivable = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Accounts receivable"
@@ -195,6 +215,7 @@ accountSpec AccountsReceivable = Just AccountSpec
     }
 accountSpec ShortTermLoansReceivable = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Short-term loans receivable"
@@ -204,6 +225,7 @@ accountSpec ShortTermLoansReceivable = Just AccountSpec
     }
 accountSpec ReserveDepositReceivable = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Reserve deposits, asset side"
@@ -213,6 +235,7 @@ accountSpec ReserveDepositReceivable = Just AccountSpec
     }
 accountSpec Gold = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Fixed
     , asNameEn = "Gold"
@@ -222,6 +245,7 @@ accountSpec Gold = Just AccountSpec
     }
 accountSpec GovernmentService = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Government service"
@@ -231,6 +255,7 @@ accountSpec GovernmentService = Just AccountSpec
     }
 accountSpec CapitalStock = Just AccountSpec
     { asDivision = Equity
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Capital stock"
@@ -240,6 +265,7 @@ accountSpec CapitalStock = Just AccountSpec
     }
 accountSpec RetainedEarnings = Just AccountSpec
     { asDivision = Equity
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Retained earnings"
@@ -249,6 +275,7 @@ accountSpec RetainedEarnings = Just AccountSpec
     }
 accountSpec LongTermLoansPayable = Just AccountSpec
     { asDivision = Liability
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Fixed
     , asNameEn = "Long-term loans payable"
@@ -258,6 +285,7 @@ accountSpec LongTermLoansPayable = Just AccountSpec
     }
 accountSpec ShortTermLoansPayable = Just AccountSpec
     { asDivision = Liability
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Short-term loans payable"
@@ -267,6 +295,7 @@ accountSpec ShortTermLoansPayable = Just AccountSpec
     }
 accountSpec LoansPayable = Just AccountSpec
     { asDivision = Liability
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Loans payable"
@@ -276,6 +305,7 @@ accountSpec LoansPayable = Just AccountSpec
     }
 accountSpec ReserveForDepreciation = Just AccountSpec
     { asDivision = Liability
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Reserve for depreciation"
@@ -285,6 +315,7 @@ accountSpec ReserveForDepreciation = Just AccountSpec
     }
 accountSpec DepositPayable = Just AccountSpec
     { asDivision = Liability
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Deposits accepted"
@@ -294,6 +325,7 @@ accountSpec DepositPayable = Just AccountSpec
     }
 accountSpec LongTermNationalBondsPayable = Just AccountSpec
     { asDivision = Liability
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Fixed
     , asNameEn = "Long-term national bonds payable"
@@ -303,6 +335,7 @@ accountSpec LongTermNationalBondsPayable = Just AccountSpec
     }
 accountSpec ShortTermNationalBondsPayable = Just AccountSpec
     { asDivision = Liability
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Short-term national bonds payable"
@@ -312,6 +345,7 @@ accountSpec ShortTermNationalBondsPayable = Just AccountSpec
     }
 accountSpec ReserveDepositPayable = Just AccountSpec
     { asDivision = Liability
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Reserve deposits, liability side"
@@ -321,6 +355,7 @@ accountSpec ReserveDepositPayable = Just AccountSpec
     }
 accountSpec CentralBankNotePayable = Just AccountSpec
     { asDivision = Liability
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Central bank notes"
@@ -330,6 +365,7 @@ accountSpec CentralBankNotePayable = Just AccountSpec
     }
 accountSpec Depreciation = Just AccountSpec
     { asDivision = Cost
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Depreciation"
@@ -339,6 +375,7 @@ accountSpec Depreciation = Just AccountSpec
     }
 accountSpec AmortizationExpense = Just AccountSpec
     { asDivision = Cost
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Amortization expense for intangibles"
@@ -348,6 +385,7 @@ accountSpec AmortizationExpense = Just AccountSpec
     }
 accountSpec SalesCost = Just AccountSpec
     { asDivision = Cost
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Cost of sales"
@@ -357,6 +395,7 @@ accountSpec SalesCost = Just AccountSpec
     }
 accountSpec BusinessTrip = Just AccountSpec
     { asDivision = Cost
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Travel and transportation"
@@ -366,6 +405,7 @@ accountSpec BusinessTrip = Just AccountSpec
     }
 accountSpec Commutation = Just AccountSpec
     { asDivision = Cost
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Communication"
@@ -375,6 +415,7 @@ accountSpec Commutation = Just AccountSpec
     }
 accountSpec UtilitiesExpense = Just AccountSpec
     { asDivision = Cost
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Utilities"
@@ -384,6 +425,7 @@ accountSpec UtilitiesExpense = Just AccountSpec
     }
 accountSpec RentExpense = Just AccountSpec
     { asDivision = Cost
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Rent"
@@ -393,6 +435,7 @@ accountSpec RentExpense = Just AccountSpec
     }
 accountSpec AdvertisingExpense = Just AccountSpec
     { asDivision = Cost
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Advertising"
@@ -402,6 +445,7 @@ accountSpec AdvertisingExpense = Just AccountSpec
     }
 accountSpec DeliveryExpenses = Just AccountSpec
     { asDivision = Cost
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Delivery"
@@ -411,6 +455,7 @@ accountSpec DeliveryExpenses = Just AccountSpec
     }
 accountSpec SuppliesExpenses = Just AccountSpec
     { asDivision = Cost
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Supplies"
@@ -420,6 +465,7 @@ accountSpec SuppliesExpenses = Just AccountSpec
     }
 accountSpec MiscellaneousExpenses = Just AccountSpec
     { asDivision = Cost
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Miscellaneous"
@@ -429,6 +475,7 @@ accountSpec MiscellaneousExpenses = Just AccountSpec
     }
 accountSpec WageExpenditure = Just AccountSpec
     { asDivision = Cost
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Wages"
@@ -438,6 +485,7 @@ accountSpec WageExpenditure = Just AccountSpec
     }
 accountSpec InterestExpense = Just AccountSpec
     { asDivision = Cost
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Interest expense"
@@ -447,6 +495,7 @@ accountSpec InterestExpense = Just AccountSpec
     }
 accountSpec TaxesExpense = Just AccountSpec
     { asDivision = Cost
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Taxes"
@@ -456,6 +505,7 @@ accountSpec TaxesExpense = Just AccountSpec
     }
 accountSpec ConsumptionExpenditure = Just AccountSpec
     { asDivision = Cost
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Consumption expenditure"
@@ -465,6 +515,7 @@ accountSpec ConsumptionExpenditure = Just AccountSpec
     }
 accountSpec SubsidyExpense = Just AccountSpec
     { asDivision = Cost
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Subsidy expenditure"
@@ -474,6 +525,7 @@ accountSpec SubsidyExpense = Just AccountSpec
     }
 accountSpec CentralBankPaymentExpense = Just AccountSpec
     { asDivision = Cost
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Central bank payment to treasury"
@@ -483,6 +535,7 @@ accountSpec CentralBankPaymentExpense = Just AccountSpec
     }
 accountSpec Purchases = Just AccountSpec
     { asDivision = Cost
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Purchases"
@@ -492,6 +545,7 @@ accountSpec Purchases = Just AccountSpec
     }
 accountSpec NetIncome = Just AccountSpec
     { asDivision = Cost
+    , asClosing = NoClose
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Net income"
@@ -501,6 +555,7 @@ accountSpec NetIncome = Just AccountSpec
     }
 accountSpec ValueAdded = Just AccountSpec
     { asDivision = Revenue
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Value added"
@@ -510,6 +565,7 @@ accountSpec ValueAdded = Just AccountSpec
     }
 accountSpec SubsidyIncome = Just AccountSpec
     { asDivision = Revenue
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Subsidy income"
@@ -519,6 +575,7 @@ accountSpec SubsidyIncome = Just AccountSpec
     }
 accountSpec NationalBondInterestEarned = Just AccountSpec
     { asDivision = Revenue
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "National bond interest earned"
@@ -528,6 +585,7 @@ accountSpec NationalBondInterestEarned = Just AccountSpec
     }
 accountSpec DepositInterestEarned = Just AccountSpec
     { asDivision = Revenue
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Deposit interest earned"
@@ -537,6 +595,7 @@ accountSpec DepositInterestEarned = Just AccountSpec
     }
 accountSpec GrossProfit = Just AccountSpec
     { asDivision = Revenue
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Gross profit"
@@ -546,6 +605,7 @@ accountSpec GrossProfit = Just AccountSpec
     }
 accountSpec OrdinaryProfit = Just AccountSpec
     { asDivision = Revenue
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Ordinary profit"
@@ -555,6 +615,7 @@ accountSpec OrdinaryProfit = Just AccountSpec
     }
 accountSpec InterestEarned = Just AccountSpec
     { asDivision = Revenue
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Interest earned"
@@ -564,6 +625,7 @@ accountSpec InterestEarned = Just AccountSpec
     }
 accountSpec ReceiptFee = Just AccountSpec
     { asDivision = Revenue
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Receipt fee"
@@ -573,6 +635,7 @@ accountSpec ReceiptFee = Just AccountSpec
     }
 accountSpec RentalIncome = Just AccountSpec
     { asDivision = Revenue
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Rental income"
@@ -582,6 +645,7 @@ accountSpec RentalIncome = Just AccountSpec
     }
 accountSpec WageEarned = Just AccountSpec
     { asDivision = Revenue
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Wage income"
@@ -591,6 +655,7 @@ accountSpec WageEarned = Just AccountSpec
     }
 accountSpec TaxesRevenue = Just AccountSpec
     { asDivision = Revenue
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Tax revenue"
@@ -600,6 +665,7 @@ accountSpec TaxesRevenue = Just AccountSpec
     }
 accountSpec CentralBankPaymentIncome = Just AccountSpec
     { asDivision = Revenue
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Central bank payment to treasury"
@@ -609,6 +675,7 @@ accountSpec CentralBankPaymentIncome = Just AccountSpec
     }
 accountSpec Sales = Just AccountSpec
     { asDivision = Revenue
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Sales"
@@ -618,6 +685,7 @@ accountSpec Sales = Just AccountSpec
     }
 accountSpec EquityInEarningsOfInvestee = Just AccountSpec
     { asDivision = Revenue
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Equity in earnings of investee"
@@ -627,6 +695,7 @@ accountSpec EquityInEarningsOfInvestee = Just AccountSpec
     }
 accountSpec NetLoss = Just AccountSpec
     { asDivision = Revenue
+    , asClosing = NoClose
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Net loss"
@@ -636,6 +705,7 @@ accountSpec NetLoss = Just AccountSpec
     }
 accountSpec PettyCash = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Petty cash"
@@ -645,6 +715,7 @@ accountSpec PettyCash = Just AccountSpec
     }
 accountSpec NotesReceivable = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Notes receivable"
@@ -654,6 +725,7 @@ accountSpec NotesReceivable = Just AccountSpec
     }
 accountSpec ElectronicallyRecordedReceivable = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Electronically recorded monetary claims"
@@ -663,6 +735,7 @@ accountSpec ElectronicallyRecordedReceivable = Just AccountSpec
     }
 accountSpec CreditCardReceivable = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Credit card receivable"
@@ -672,6 +745,7 @@ accountSpec CreditCardReceivable = Just AccountSpec
     }
 accountSpec NotesLoansReceivable = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Loans receivable on notes"
@@ -681,6 +755,7 @@ accountSpec NotesLoansReceivable = Just AccountSpec
     }
 accountSpec MerchandiseInventory = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Merchandise inventory"
@@ -690,6 +765,7 @@ accountSpec MerchandiseInventory = Just AccountSpec
     }
 accountSpec AdvancesPaid = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Advances paid"
@@ -699,6 +775,7 @@ accountSpec AdvancesPaid = Just AccountSpec
     }
 accountSpec PrepaidExpenses = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Prepaid expenses"
@@ -708,6 +785,7 @@ accountSpec PrepaidExpenses = Just AccountSpec
     }
 accountSpec AccruedRevenue = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Accrued revenue"
@@ -717,6 +795,7 @@ accountSpec AccruedRevenue = Just AccountSpec
     }
 accountSpec OtherReceivables = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Other receivables"
@@ -726,6 +805,7 @@ accountSpec OtherReceivables = Just AccountSpec
     }
 accountSpec PaymentsOnBehalf = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Payments made on behalf"
@@ -735,6 +815,7 @@ accountSpec PaymentsOnBehalf = Just AccountSpec
     }
 accountSpec SuspensePayments = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Suspense payments"
@@ -744,6 +825,7 @@ accountSpec SuspensePayments = Just AccountSpec
     }
 accountSpec ConsumptionTaxPaid = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Consumption tax paid"
@@ -753,6 +835,7 @@ accountSpec ConsumptionTaxPaid = Just AccountSpec
     }
 accountSpec PrepaidCorporateIncomeTaxes = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Prepaid corporate income taxes"
@@ -762,6 +845,7 @@ accountSpec PrepaidCorporateIncomeTaxes = Just AccountSpec
     }
 accountSpec Land = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Fixed
     , asNameEn = "Land"
@@ -771,6 +855,7 @@ accountSpec Land = Just AccountSpec
     }
 accountSpec Fixtures = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Fixed
     , asNameEn = "Fixtures and equipment"
@@ -780,6 +865,7 @@ accountSpec Fixtures = Just AccountSpec
     }
 accountSpec Patent = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Fixed
     , asNameEn = "Patent"
@@ -789,6 +875,7 @@ accountSpec Patent = Just AccountSpec
     }
 accountSpec Trademark = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Fixed
     , asNameEn = "Trademark"
@@ -798,6 +885,7 @@ accountSpec Trademark = Just AccountSpec
     }
 accountSpec Software = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Fixed
     , asNameEn = "Software"
@@ -807,6 +895,7 @@ accountSpec Software = Just AccountSpec
     }
 accountSpec CashOverShort = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Cash over and short"
@@ -816,6 +905,7 @@ accountSpec CashOverShort = Just AccountSpec
     }
 accountSpec AccountsPayable = Just AccountSpec
     { asDivision = Liability
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Accounts payable"
@@ -825,6 +915,7 @@ accountSpec AccountsPayable = Just AccountSpec
     }
 accountSpec NotesPayable = Just AccountSpec
     { asDivision = Liability
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Notes payable"
@@ -834,6 +925,7 @@ accountSpec NotesPayable = Just AccountSpec
     }
 accountSpec ElectronicallyRecordedObligations = Just AccountSpec
     { asDivision = Liability
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Electronically recorded monetary obligations"
@@ -843,6 +935,7 @@ accountSpec ElectronicallyRecordedObligations = Just AccountSpec
     }
 accountSpec NotesLoansPayable = Just AccountSpec
     { asDivision = Liability
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Loans payable on notes"
@@ -852,6 +945,7 @@ accountSpec NotesLoansPayable = Just AccountSpec
     }
 accountSpec BankOverdraft = Just AccountSpec
     { asDivision = Liability
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Bank overdraft"
@@ -861,6 +955,7 @@ accountSpec BankOverdraft = Just AccountSpec
     }
 accountSpec AdvancesReceived = Just AccountSpec
     { asDivision = Liability
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Advances received"
@@ -870,6 +965,7 @@ accountSpec AdvancesReceived = Just AccountSpec
     }
 accountSpec UnearnedRevenue = Just AccountSpec
     { asDivision = Liability
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Unearned revenue"
@@ -879,6 +975,7 @@ accountSpec UnearnedRevenue = Just AccountSpec
     }
 accountSpec AccruedExpenses = Just AccountSpec
     { asDivision = Liability
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Accrued expenses"
@@ -888,6 +985,7 @@ accountSpec AccruedExpenses = Just AccountSpec
     }
 accountSpec OtherPayables = Just AccountSpec
     { asDivision = Liability
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Other payables"
@@ -897,6 +995,7 @@ accountSpec OtherPayables = Just AccountSpec
     }
 accountSpec DepositsReceived = Just AccountSpec
     { asDivision = Liability
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Deposits received"
@@ -906,6 +1005,7 @@ accountSpec DepositsReceived = Just AccountSpec
     }
 accountSpec SuspenseReceipts = Just AccountSpec
     { asDivision = Liability
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Suspense receipts"
@@ -915,6 +1015,7 @@ accountSpec SuspenseReceipts = Just AccountSpec
     }
 accountSpec ConsumptionTaxReceived = Just AccountSpec
     { asDivision = Liability
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Consumption tax received"
@@ -924,6 +1025,7 @@ accountSpec ConsumptionTaxReceived = Just AccountSpec
     }
 accountSpec AccruedConsumptionTax = Just AccountSpec
     { asDivision = Liability
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Accrued (unpaid) consumption tax"
@@ -933,6 +1035,7 @@ accountSpec AccruedConsumptionTax = Just AccountSpec
     }
 accountSpec AccruedCorporateIncomeTaxes = Just AccountSpec
     { asDivision = Liability
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Accrued (unpaid) corporate income taxes"
@@ -942,6 +1045,7 @@ accountSpec AccruedCorporateIncomeTaxes = Just AccountSpec
     }
 accountSpec UnpaidDividends = Just AccountSpec
     { asDivision = Liability
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Unpaid dividends"
@@ -951,6 +1055,7 @@ accountSpec UnpaidDividends = Just AccountSpec
     }
 accountSpec AllowanceForDoubtfulAccounts = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = True
     , asFixedCurrent = Current
     , asNameEn = "Allowance for doubtful accounts"
@@ -960,6 +1065,7 @@ accountSpec AllowanceForDoubtfulAccounts = Just AccountSpec
     }
 accountSpec AccumulatedDepreciation = Just AccountSpec
     { asDivision = Assets
+    , asClosing = CloseByDivision
     , asIsContra = True
     , asFixedCurrent = Fixed
     , asNameEn = "Accumulated depreciation"
@@ -969,6 +1075,7 @@ accountSpec AccumulatedDepreciation = Just AccountSpec
     }
 accountSpec LegalRetainedEarnings = Just AccountSpec
     { asDivision = Equity
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Legal (appropriated) retained earnings reserve"
@@ -978,6 +1085,7 @@ accountSpec LegalRetainedEarnings = Just AccountSpec
     }
 accountSpec CumulativeTranslationAdjustment = Just AccountSpec
     { asDivision = Equity
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Cumulative translation adjustment"
@@ -987,6 +1095,7 @@ accountSpec CumulativeTranslationAdjustment = Just AccountSpec
     }
 accountSpec ProvisionForDoubtfulAccounts = Just AccountSpec
     { asDivision = Cost
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Provision for doubtful accounts"
@@ -996,6 +1105,7 @@ accountSpec ProvisionForDoubtfulAccounts = Just AccountSpec
     }
 accountSpec BadDebtLoss = Just AccountSpec
     { asDivision = Cost
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Bad debt loss"
@@ -1005,6 +1115,7 @@ accountSpec BadDebtLoss = Just AccountSpec
     }
 accountSpec LossOnSalesOfFixedAssets = Just AccountSpec
     { asDivision = Cost
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Loss on sales of fixed assets"
@@ -1014,6 +1125,7 @@ accountSpec LossOnSalesOfFixedAssets = Just AccountSpec
     }
 accountSpec LossOnSalesOfNotesReceivable = Just AccountSpec
     { asDivision = Cost
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Loss on sales of notes receivable"
@@ -1023,6 +1135,7 @@ accountSpec LossOnSalesOfNotesReceivable = Just AccountSpec
     }
 accountSpec PaymentFees = Just AccountSpec
     { asDivision = Cost
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Payment fees / fees paid"
@@ -1032,6 +1145,7 @@ accountSpec PaymentFees = Just AccountSpec
     }
 accountSpec MiscellaneousLoss = Just AccountSpec
     { asDivision = Cost
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Miscellaneous loss"
@@ -1041,6 +1155,7 @@ accountSpec MiscellaneousLoss = Just AccountSpec
     }
 accountSpec CorporateIncomeTaxes = Just AccountSpec
     { asDivision = Cost
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Corporate income taxes"
@@ -1050,6 +1165,7 @@ accountSpec CorporateIncomeTaxes = Just AccountSpec
     }
 accountSpec CommunicationExpenses = Just AccountSpec
     { asDivision = Cost
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Communication expenses"
@@ -1059,6 +1175,7 @@ accountSpec CommunicationExpenses = Just AccountSpec
     }
 accountSpec GainOnSalesOfFixedAssets = Just AccountSpec
     { asDivision = Revenue
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Gain on sales of fixed assets"
@@ -1068,6 +1185,7 @@ accountSpec GainOnSalesOfFixedAssets = Just AccountSpec
     }
 accountSpec RecoveryOfBadDebts = Just AccountSpec
     { asDivision = Revenue
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Recovery of bad debts written off"
@@ -1077,6 +1195,7 @@ accountSpec RecoveryOfBadDebts = Just AccountSpec
     }
 accountSpec MiscellaneousIncome = Just AccountSpec
     { asDivision = Revenue
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Miscellaneous income"
@@ -1086,6 +1205,7 @@ accountSpec MiscellaneousIncome = Just AccountSpec
     }
 accountSpec ReversalOfAllowanceForDoubtfulAccounts = Just AccountSpec
     { asDivision = Revenue
+    , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Reversal of allowance for doubtful accounts"
