@@ -1,0 +1,53 @@
+{
+  "ts": "20260806_105946",
+  "argv": [
+    "runner/run.py",
+    "--tasks-dir",
+    "tasks-s",
+    "--task",
+    "gen-mixed-000000-10,gen-cash_sale-000000-10,gen-tax-000000-10",
+    "--arm",
+    "Aprime",
+    "--model",
+    "local",
+    "--seed",
+    "0",
+    "--repeats",
+    "2"
+  ],
+  "tasks": [
+    "gen-mixed-000000-10",
+    "gen-cash_sale-000000-10",
+    "gen-tax-000000-10"
+  ],
+  "tasks_dir": "tasks-s",
+  "arms": [
+    "Aprime"
+  ],
+  "models": [
+    "local"
+  ],
+  "seeds": [
+    0
+  ],
+  "max_iters": 3,
+  "oracle_arms": [
+    "B",
+    "C"
+  ],
+  "skill": "v1",
+  "aprime_feedback": "raw",
+  "c_retries": 1,
+  "c_ea_map": false,
+  "git": {
+    "rev_parse_head": "2d9164642f2862725c653e496976770f6e2c7d6f",
+    "describe": "landed/aprime-v3-dirty"
+  },
+  "backends": {
+    "local": {
+      "backend": "openai_compat",
+      "configured_model": "qwen3:30b-a3b",
+      "version": "ollama 0.31.1"
+    }
+  }
+}
