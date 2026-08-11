@@ -608,16 +608,28 @@ data FinalStockSide
     = FinalStockKeep
     | FinalStockFlip
 
+-- The closing side is derived from the account's PIMO direction (which is
+-- contra-aware), not from the bare division: IN (flow in — non-contra
+-- Revenue, and contra Cost such as purchase rebates) transfers as-is
+-- (Keep); OUT (flow out — non-contra Cost, and contra Revenue such as
+-- sales rebates) transfers with Hat\/Not flipped (Flip). Deriving from the
+-- division alone would invert the transfer sign for contra P\/L accounts.
+-- For the current chart (no contra P\/L accounts) this is extensionally
+-- identical to the former division-based rule, which the
+-- pre-vocab fixture test verifies.
 {-# INLINE finalStockRule #-}
 finalStockRule :: AccountTitles -> Maybe FinalStockSide
 finalStockRule title = case accountSpec title of
     Nothing -> Nothing
     Just spec -> case asClosing spec of
         NoClose -> Nothing
-        CloseByDivision -> case classifyAccountDivision title of
-            Cost    -> Just FinalStockFlip
-            Revenue -> Just FinalStockKeep
-            _       -> Nothing
+        CloseByDivision ->
+            let pimo0 = pimoFromDivision (classifyAccountDivision title)
+                pimo  = if classifyAccountContra title then pimoFlip pimo0 else pimo0
+            in case pimo of
+                IN  -> Just FinalStockKeep
+                OUT -> Just FinalStockFlip
+                _   -> Nothing
 
 -- | Internal step of the final stock transfer from income statement to retained earnings.
 -- Cost accounts are transferred to RetainedEarnings with Hat/Not flipped;

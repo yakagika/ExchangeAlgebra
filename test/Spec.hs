@@ -876,6 +876,26 @@ finalStockExpectedClosedDiff =
     , ReversalOfAllowanceForDoubtfulAccounts
     ]
 
+-- V-Land 1: finalStockRule の全域を独立参照式 (division + contra を明示分岐)
+-- と突き合わせ, 方向 (Keep/Flip) まで固定する。contra P/L (将来の売上割戻等)
+-- では division 基準と逆になることをこの式が明文化する。
+testFinalStockRuleReference :: IO ()
+testFinalStockRuleReference = mapM_ check Registry.concreteAccountTitles
+  where
+    check RetainedEarnings = pure ()
+    check t = assertEqual ("finalStockRule reference: " ++ show t)
+        (expected t) (finalStockProbeRule t)
+    expected t
+        | t `L.elem` [NetIncome, NetLoss] = "Nothing"
+        | contra && div_ == Revenue = "Flip"
+        | contra && div_ == Cost    = "Keep"
+        | div_ == Revenue           = "Keep"
+        | div_ == Cost              = "Flip"
+        | otherwise                 = "Nothing"
+      where
+        div_   = classifyAccountDivision t
+        contra = Registry.classifyAccountContra t
+
 testFinalStockRegistryClosedDiff :: IO ()
 testFinalStockRegistryClosedDiff = do
     fixture <- TIO.readFile "test/fixtures/pre-vocab/finalstock.tsv"
@@ -3855,6 +3875,7 @@ main = do
     testFinalStockTransferAlgEquivalence
     testFinalStockTransferJournalEquivalence
     testFinalStockRegistryClosedDiff
+    testFinalStockRuleReference
     testIncomeSummaryBalancedNoCrash
     testSpillDecisionSingleSource
     testRestoreJournalFromBinarySpill
