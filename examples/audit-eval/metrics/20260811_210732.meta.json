@@ -1,0 +1,67 @@
+{
+  "ts": "20260811_210732",
+  "argv": [
+    "runner/run.py",
+    "--tasks-dir",
+    "tasks-s",
+    "--task",
+    "gen-mixed-000000-10,gen-mixed-000000-50,gen-mixed-000000-200",
+    "--arm",
+    "Aprime,C,B,V",
+    "--model",
+    "codex",
+    "--seed",
+    "0",
+    "--repeats",
+    "2",
+    "--max-iters",
+    "3",
+    "--c-retries",
+    "3",
+    "--c-ea-map",
+    "--aprime-feedback",
+    "raw",
+    "--oracle-arms",
+    "Aprime,B,C,V"
+  ],
+  "tasks": [
+    "gen-mixed-000000-10",
+    "gen-mixed-000000-50",
+    "gen-mixed-000000-200"
+  ],
+  "tasks_dir": "tasks-s",
+  "arms": [
+    "Aprime",
+    "C",
+    "B",
+    "V"
+  ],
+  "models": [
+    "codex"
+  ],
+  "seeds": [
+    0
+  ],
+  "max_iters": 3,
+  "oracle_arms": [
+    "Aprime",
+    "B",
+    "C",
+    "V"
+  ],
+  "skill": "v1",
+  "aprime_feedback": "raw",
+  "c_retries": 3,
+  "c_ea_map": true,
+  "git": {
+    "rev_parse_head": "596e57ac490df2f510d9f37fded7d0e779804f7d",
+    "describe": "landed/formative-metrics-0804-0806-1-g596e57a"
+  },
+  "backends": {
+    "codex": {
+      "backend": "codex",
+      "configured_model": "gpt-5.6-sol",
+      "version": "codex-cli 0.145.0"
+    }
+  }
+}
