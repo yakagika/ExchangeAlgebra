@@ -925,6 +925,107 @@ testFinalStockRegistryClosedDiff = do
         ["Nothing", "Nothing"]
         [finalStockProbeRule NetIncome, finalStockProbeRule NetLoss]
 
+-- ================================================================
+-- V-Land 2 scaffolding (語彙拡張の受理条件, レビュー非依存):
+-- pre-vland2 fixture (tools/DumpVocabGolden.hs で生成, commit 85d6a7f に pin)
+-- に対する Enum 挿入規律 pin と意味関数 closed-diff。
+-- ================================================================
+
+-- | V-Land 2 で既存意味が変わってよい科目の閉リスト。
+-- scaffold 時点 (constructor 追加前) は空。外部レビュー裁定で既存科目の分類が
+-- 変わる場合 (例: 有価証券 4 分類分解に伴う 'Securities' の再定義) は
+-- ここに列挙して閉じる — 列挙外の意味変化は fail する。
+vocabSemanticsExpectedClosedDiff :: [AccountTitles]
+vocabSemanticsExpectedClosedDiff = []
+
+-- | 挿入規律 pin: 語彙拡張は「既存 concrete constructor の Enum 序数を 1 つも
+-- 動かさず, 新規は最大既存 concrete 序数と wildcard の間にのみ挿入し,
+-- wildcard ('AccountTitle') は maxBound のまま」でなければならない
+-- (Binary Word16 直列化互換と既存 fixture 世代の解釈可能性の要)。
+testVocabOrdinalPin :: IO ()
+testVocabOrdinalPin = do
+    fixture <- TIO.readFile "test/fixtures/pre-vland2/ordinals.tsv"
+    let parseOrd line = case T.splitOn (T.pack "\t") line of
+            [name, ordText] -> (name, read (T.unpack ordText) :: Int)
+            fields -> error ("invalid pre-vland2 ordinals row: " ++ show fields)
+        rows =
+            [ parseOrd line
+            | line <- T.lines fixture
+            , not (T.null line)
+            , not (T.isPrefixOf (T.pack "#") line)
+            ]
+        current = M.fromList
+            [ (T.pack (show t), fromEnum t)
+            | t <- [minBound .. maxBound] :: [AccountTitles] ]
+        wildcardName = T.pack (show (AccountTitle :: AccountTitles))
+        pinnedConcrete = [ r | r@(n, _) <- rows, n /= wildcardName ]
+        moved =
+            [ (n, o, M.lookup n current)
+            | (n, o) <- pinnedConcrete
+            , M.lookup n current /= Just o ]
+    assertEqual "vocab ordinal pin: fixture rows = 117 (116 concrete + wildcard)"
+        117 (L.length rows)
+    assertEqual "vocab ordinal pin: no pinned concrete ordinal moved" [] moved
+    assertEqual "vocab ordinal pin: wildcard is maxBound"
+        (fromEnum (maxBound :: AccountTitles))
+        (fromEnum (AccountTitle :: AccountTitles))
+    let maxPinned = L.maximum [ o | (_, o) <- pinnedConcrete ]
+        pinnedNames = M.fromList [ (n, ()) | (n, _) <- rows ]
+        misplaced =
+            [ (n, o)
+            | (n, o) <- M.toList current
+            , not (M.member n pinnedNames)
+            , not (o > maxPinned && o < fromEnum (maxBound :: AccountTitles)) ]
+    assertEqual "vocab ordinal pin: new constructors sit between max pinned and wildcard"
+        [] misplaced
+    -- concreteAccountTitles は wildcard 以外の全 constructor を被覆すること。
+    -- 現行の hardcoded 上限 ([Cash .. ReversalOfAllowanceForDoubtfulAccounts]) は
+    -- 挿入後に新規科目が漏れるため, この assert が V-Land 2 に
+    -- filter (/= wildcard) [minBound ..] への導出化を強制する。
+    assertEqual "vocab ordinal pin: concreteAccountTitles covers all non-wildcard constructors"
+        (L.filter (/= (AccountTitle :: AccountTitles)) [minBound .. maxBound])
+        Registry.concreteAccountTitles
+
+-- | 意味関数 closed-diff: 既存 116 科目の (division / isContra / whichSide
+-- Not\/Hat / whatPIMO / fixedCurrent / finalStock probe) は,
+-- 'vocabSemanticsExpectedClosedDiff' に列挙された科目を除き
+-- pre-vland2 fixture と行単位で一致しなければならない。
+testPreVland2SemanticsClosedDiff :: IO ()
+testPreVland2SemanticsClosedDiff = do
+    fixture <- TIO.readFile "test/fixtures/pre-vland2/semantics.tsv"
+    let byName = M.fromList
+            [ (T.pack (show t), t)
+            | t <- [minBound .. maxBound] :: [AccountTitles] ]
+        currentRow t =
+            let nb = Not :< t :: HatBase AccountTitles
+                hb = Hat :< t :: HatBase AccountTitles
+            in T.intercalate (T.pack "\t")
+                 [ T.pack (show t)
+                 , T.pack (show (whatDiv nb))
+                 , T.pack (show (Registry.classifyAccountContra t))
+                 , T.pack (show (whichSide nb))
+                 , T.pack (show (whichSide hb))
+                 , T.pack (show (whatPIMO nb))
+                 , T.pack (show (fixedCurrent nb))
+                 , T.pack (finalStockProbeRule t)
+                 ]
+        rows =
+            [ line
+            | line <- T.lines fixture
+            , not (T.null line)
+            , not (T.isPrefixOf (T.pack "#") line) ]
+        titleOf line = case T.splitOn (T.pack "\t") line of
+            (name:_) -> case M.lookup name byName of
+                Just t  -> t
+                Nothing -> error ("pre-vland2 semantics: unknown title " ++ T.unpack name)
+            [] -> error "pre-vland2 semantics: empty row"
+        actualDiff =
+            [ titleOf line | line <- rows, currentRow (titleOf line) /= line ]
+    assertEqual "pre-vland2 semantics fixture covers all 116 concrete account titles"
+        116 (L.length rows)
+    assertEqual "pre-vland2 semantics closed diff"
+        vocabSemanticsExpectedClosedDiff actualDiff
+
 -- | R1 sentinel: a /balanced/ ledger (credit total == debit total, net income
 -- zero) makes 'diffRL' report the wildcard 'Side'. Before the fix,
 -- 'incomeSummaryAccount' matched only Credit/Debit and crashed with
@@ -3876,6 +3977,8 @@ main = do
     testFinalStockTransferJournalEquivalence
     testFinalStockRegistryClosedDiff
     testFinalStockRuleReference
+    testVocabOrdinalPin
+    testPreVland2SemanticsClosedDiff
     testIncomeSummaryBalancedNoCrash
     testSpillDecisionSingleSource
     testRestoreJournalFromBinarySpill
