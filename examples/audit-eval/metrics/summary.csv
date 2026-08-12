@@ -296,3 +296,27 @@ ts,task_id,arm,model,seed,repeat,elapsed_s,numeric_accuracy,journal_accuracy,raw
 20260811_210732,gen-mixed-000000-200,B,codex,0,1,114.6,0.9880715705765407,1.0,,0.8928571428571429,,,,,False,True,False,False,0,1,True,False,True,gpt-5.6-sol/xhigh (cli v0.145.0),,,,,,,,
 20260811_210732,gen-mixed-000000-200,V,codex,0,0,423.97,0.9960238568588469,1.0,1.0,0.9642857142857143,,,,,False,True,False,False,0,1,True,False,True,gpt-5.6-sol/xhigh (cli v0.145.0),,,harness (pandas),,,,,
 20260811_210732,gen-mixed-000000-200,V,codex,0,1,267.21,0.9960238568588469,1.0,1.0,0.9642857142857143,,,,,False,True,False,False,0,1,True,False,True,gpt-5.6-sol/xhigh (cli v0.145.0),,,harness (pandas),,,,,
+20260812_095605,gen-mixed-000000-10,Aprime,local,0,0,115.67,0.9746835443037974,1.0,1.0,0.9642857142857143,,,,,False,True,False,False,0,1,True,False,True,qwen3:30b-a3b,,raw,harness,1680,8470,stop,0.6,0.95
+20260812_095605,gen-mixed-000000-10,Aprime,local,0,1,89.57,0.9746835443037974,1.0,1.0,0.9642857142857143,,,,,False,True,False,False,0,1,True,False,True,qwen3:30b-a3b,,raw,harness,1680,6919,stop,0.6,0.95
+20260812_095605,gen-mixed-000000-10,C,local,0,0,130.73,0.9240506329113924,1.0,,0.8928571428571429,,,,,False,True,False,False,0,1,True,False,True,qwen3:30b-a3b,,,,1536,7929,stop,0.6,0.95
+20260812_095605,gen-mixed-000000-10,C,local,0,1,137.92,0.9240506329113924,1.0,,0.8928571428571429,,,,,False,True,False,False,0,1,True,False,True,qwen3:30b-a3b,,,,1536,7953,stop,0.6,0.95
+20260812_095605,gen-mixed-000000-10,B,local,0,0,220.46,0.9240506329113924,1.0,,0.8928571428571429,,,,,False,True,False,False,0,1,True,False,True,qwen3:30b-a3b,,,,1465,12109,stop,0.6,0.95
+20260812_095605,gen-mixed-000000-10,B,local,0,1,432.5,0.8227848101265823,1.0,,0.75,,,,,False,True,False,False,0,2,True,False,False,qwen3:30b-a3b,,,,1487,9861,stop,0.6,0.95
+20260812_095605,gen-mixed-000000-10,V,local,0,0,152.78,0.9746835443037974,1.0,1.0,0.9642857142857143,,,,,False,True,False,False,0,1,True,False,True,qwen3:30b-a3b,,,harness (pandas),1677,8886,stop,0.6,0.95
+20260812_095605,gen-mixed-000000-10,V,local,0,1,107.27,0.9746835443037974,1.0,1.0,0.9642857142857143,,,,,False,True,False,False,0,1,True,False,True,qwen3:30b-a3b,,,harness (pandas),1677,6691,stop,0.6,0.95
+20260812_095605,gen-mixed-000000-50,Aprime,local,0,0,319.01,0.9880952380952381,1.0,1.0,0.9642857142857143,,,,,False,True,False,False,0,1,True,False,True,qwen3:30b-a3b,,raw,harness,3035,15112,stop,0.6,0.95
+20260812_095605,gen-mixed-000000-50,Aprime,local,0,1,451.21,0.9880952380952381,1.0,1.0,0.9642857142857143,,,,,False,True,False,False,0,1,True,False,True,qwen3:30b-a3b,,raw,harness,3035,15058,stop,0.6,0.95
+20260812_095605,gen-mixed-000000-50,C,local,0,0,614.31,0.9642857142857143,1.0,,0.8928571428571429,,,,,False,True,False,False,0,1,True,False,True,qwen3:30b-a3b,,,,2891,14789,stop,0.6,0.95
+20260812_095605,gen-mixed-000000-50,C,local,0,1,584.44,0.9642857142857143,1.0,,0.8928571428571429,,,,,False,True,False,False,0,1,True,False,True,qwen3:30b-a3b,,,,2891,14681,stop,0.6,0.95
+20260812_095605,gen-mixed-000000-50,B,local,0,0,1320.41,0.9345238095238095,1.0,,0.8035714285714286,,,,,False,True,False,False,0,2,True,False,False,qwen3:30b-a3b,,,,6139,6450,stop,0.6,0.95
+20260812_095605,gen-mixed-000000-50,B,local,0,1,2580.35,0.9047619047619048,1.0,,0.7142857142857143,,,,,False,True,False,False,0,3,True,False,False,qwen3:30b-a3b,,,,2842,20633,stop,0.6,0.95
+20260812_095605,gen-mixed-000000-50,V,local,0,0,709.3,0.9880952380952381,1.0,1.0,0.9642857142857143,,,,,False,True,False,False,0,1,True,False,True,qwen3:30b-a3b,,,harness (pandas),3032,18525,stop,0.6,0.95
+20260812_095605,gen-mixed-000000-50,V,local,0,1,464.81,0.9880952380952381,1.0,1.0,0.9642857142857143,,,,,False,True,False,False,0,1,True,False,True,qwen3:30b-a3b,,,harness (pandas),3032,14547,stop,0.6,0.95
+20260812_095605,gen-mixed-000000-200,Aprime,local,0,0,1390.9,0.9960238568588469,1.0,1.0,0.9642857142857143,,,,,False,True,False,False,0,1,True,False,True,qwen3:30b-a3b,,raw,harness,8462,36486,stop,0.6,0.95
+20260812_095605,gen-mixed-000000-200,Aprime,local,0,1,2435.53,0.0,,0.9865771812080537,0.0,,,,,,,False,True,,3,False,False,False,qwen3:30b-a3b,,raw,,8511,29231,stop,0.6,0.95
+20260812_095605,gen-mixed-000000-200,C,local,0,0,989.22,0.9184890656063618,1.0,,0.26785714285714285,,,,,False,True,False,False,0,1,True,False,True,qwen3:30b-a3b,,,,8318,29941,stop,0.6,0.95
+20260812_095605,gen-mixed-000000-200,C,local,0,1,975.83,0.584493041749503,0.6286353467561522,,0.23214285714285715,,,,,False,True,False,False,0,1,True,False,True,qwen3:30b-a3b,,,,8318,29666,stop,0.6,0.95
+20260812_095605,gen-mixed-000000-200,B,local,0,0,1050.59,0.9662027833001988,0.9955257270693513,,0.7321428571428571,,,,,False,True,False,False,0,1,True,False,True,qwen3:30b-a3b,,,,8247,30727,stop,0.6,0.95
+20260812_095605,gen-mixed-000000-200,B,local,0,1,2083.44,0.0,,,0.0,,,,,,,True,True,,3,False,False,False,qwen3:30b-a3b,,,,8269,18426,stop,0.6,0.95
+20260812_095605,gen-mixed-000000-200,V,local,0,0,1252.51,0.9960238568588469,1.0,1.0,0.9642857142857143,,,,,False,True,False,False,0,1,True,False,True,qwen3:30b-a3b,,,harness (pandas),8459,32851,stop,0.6,0.95
+20260812_095605,gen-mixed-000000-200,V,local,0,1,2278.08,0.9960238568588469,1.0,0.6868008948545862,0.9642857142857143,,,,,False,True,False,False,0,2,True,False,False,qwen3:30b-a3b,,,harness (pandas),8535,33831,stop,0.6,0.95

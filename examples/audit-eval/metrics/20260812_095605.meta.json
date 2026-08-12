@@ -1,0 +1,67 @@
+{
+  "ts": "20260812_095605",
+  "argv": [
+    "runner/run.py",
+    "--tasks-dir",
+    "tasks-s",
+    "--task",
+    "gen-mixed-000000-10,gen-mixed-000000-50,gen-mixed-000000-200",
+    "--arm",
+    "Aprime,C,B,V",
+    "--model",
+    "local",
+    "--seed",
+    "0",
+    "--repeats",
+    "2",
+    "--max-iters",
+    "3",
+    "--c-retries",
+    "3",
+    "--c-ea-map",
+    "--aprime-feedback",
+    "raw",
+    "--oracle-arms",
+    "Aprime,B,C,V"
+  ],
+  "tasks": [
+    "gen-mixed-000000-10",
+    "gen-mixed-000000-50",
+    "gen-mixed-000000-200"
+  ],
+  "tasks_dir": "tasks-s",
+  "arms": [
+    "Aprime",
+    "C",
+    "B",
+    "V"
+  ],
+  "models": [
+    "local"
+  ],
+  "seeds": [
+    0
+  ],
+  "max_iters": 3,
+  "oracle_arms": [
+    "Aprime",
+    "B",
+    "C",
+    "V"
+  ],
+  "skill": "v1",
+  "aprime_feedback": "raw",
+  "c_retries": 3,
+  "c_ea_map": true,
+  "git": {
+    "rev_parse_head": "72ce8520bd0603212b88854a0581d8617bb7f92d",
+    "describe": "landed/codex-effort-pin-1-g72ce852"
+  },
+  "backends": {
+    "local": {
+      "backend": "openai_compat",
+      "configured_model": "qwen3:30b-a3b",
+      "version": "ollama 0.31.1"
+    }
+  }
+}
