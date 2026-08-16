@@ -82,7 +82,7 @@ data ConvError = UnknownAccount Text                    -- ^ name matched no con
 -- >>> AccountTitle `elem` concreteAccountTitles
 -- False
 concreteAccountTitles :: [AccountTitles]
-concreteAccountTitles = [Cash .. ReversalOfAllowanceForDoubtfulAccounts]
+concreteAccountTitles = filter (/= AccountTitle) [minBound .. maxBound]
 
 -- | Account-name lookup table: every key (canonical constructor names and the
 -- Japanese\/abbreviation aliases below) is run through 'normalizeTitle', so matching is

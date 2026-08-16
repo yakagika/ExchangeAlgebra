@@ -42,6 +42,10 @@
   `projContra` (attribute-based: keeps both Hat and Not postings).
 
 ### Added
+- EDINET 2026「一般商工業」に準拠した英語表示名を持つ日商2級商業簿記の
+  116勘定科目を`AccountTitles`とexhaustive account registryへ追加した.
+  EDINET英語ラベルは外部表示名に限定し, 内部constructor IDと日本語aliasは
+  互換性・一意性を保つ. 反対勘定3件と決算振替対象外3件もregistry属性として明示した.
 - Definition 7 amendment support: `ExBaseClass.isContra` (registry-delegated
   default), `defaultSide`, `pimoFromDivision`, `pimoFlip`,
   `projContraAssets`, and `projContra`.

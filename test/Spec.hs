@@ -107,8 +107,8 @@ testAccountTitlesBinary = do
         roundTripped = L.map (Binary.decode . Binary.encode) titles
         invalidTag = fromIntegral (fromEnum (maxBound :: AccountTitles) + 1)
         invalidBytes = BinaryPut.runPut (BinaryPut.putWord16be invalidTag)
-    assertEqual "AccountTitles Binary covers all 117 constructors"
-        117 (L.length titles)
+    assertEqual "AccountTitles Binary covers all 233 constructors"
+        233 (L.length titles)
     assertEqual "AccountTitles Binary Word16be roundtrip"
         titles roundTripped
     assertEqual "AccountTitles Binary rejects out-of-range Word16"
@@ -260,6 +260,123 @@ accountTitleClassTable =
     , (EquityInEarningsOfInvestee,            Revenue,  Credit, Other)
     -- FX library additions: OCI/capital accounts
     , (CumulativeTranslationAdjustment,       Equity,   Credit, Other)
+    -- V-Land 2 additions
+    , (TimeDeposits, Assets, Debit, Current)
+    , (LoansReceivable, Assets, Debit, Current)
+    , (GiftCertificatesReceived, Assets, Debit, Current)
+    , (SecurityDepositsPaid, Assets, Debit, Fixed)
+    , (SuppliesOnHand, Assets, Debit, Current)
+    , (ContractAssets, Assets, Debit, Current)
+    , (IncomeTaxesRefundReceivable, Assets, Debit, Current)
+    , (WorkInProcess, Assets, Debit, Current)
+    , (DeferredTaxAssets, Assets, Debit, Fixed)
+    , (LeasedAssets, Assets, Debit, Fixed)
+    , (ToolsAndInstruments, Assets, Debit, Fixed)
+    , (ConstructionInProgress, Assets, Debit, Fixed)
+    , (Goodwill, Assets, Debit, Fixed)
+    , (SoftwareInProgress, Assets, Debit, Fixed)
+    , (LongTermPrepaidExpenses, Assets, Debit, Fixed)
+    , (DishonoredNotesReceivable, Assets, Debit, Current)
+    , (PrepaidPensionCost, Assets, Debit, Fixed)
+    , (NetDefinedBenefitAsset, Assets, Debit, Fixed)
+    , (DepositsInSpecialAccounts, Assets, Debit, Current)
+    , (Structures, Assets, Debit, Fixed)
+    , (LeaseholdRights, Assets, Debit, Fixed)
+    , (NonOperatingNotesReceivable, Assets, Debit, Current)
+    , (NonOperatingElectronicallyRecordedReceivable, Assets, Debit, Current)
+    , (RefundLiabilities, Liability, Credit, Current)
+    , (NonOperatingNotesPayable, Liability, Credit, Current)
+    , (NonOperatingElectronicallyRecordedObligations, Liability, Credit, Current)
+    , (BonusesPayable, Liability, Credit, Current)
+    , (AllowanceForRepairs, Liability, Credit, Current)
+    , (AllowanceForProductWarranties, Liability, Credit, Current)
+    , (AllowanceForBonuses, Liability, Credit, Current)
+    , (DeferredTaxLiabilities, Liability, Credit, Fixed)
+    , (LeaseObligations, Liability, Credit, Fixed)
+    , (GuaranteeDepositsReceived, Liability, Credit, Fixed)
+    , (AllowanceForRetirementBenefits, Liability, Credit, Fixed)
+    , (LongTermOtherPayables, Liability, Credit, Fixed)
+    , (NetDefinedBenefitLiability, Liability, Credit, Fixed)
+    , (StockSubscriptionDeposits, Equity, Credit, Other)
+    , (LegalCapitalSurplus, Equity, Credit, Other)
+    , (OtherCapitalSurplus, Equity, Credit, Other)
+    , (DividendEqualizationReserve, Equity, Credit, Other)
+    , (RepairFundReserve, Equity, Credit, Other)
+    , (ConstructionFundReserve, Equity, Credit, Other)
+    , (GeneralReserve, Equity, Credit, Other)
+    , (ValuationDifferenceOnOtherSecurities, Equity, Credit, Other)
+    , (NonControllingInterests, Equity, Credit, Other)
+    , (CapitalSurplus, Equity, Credit, Other)
+    , (EarnedSurplus, Equity, Credit, Other)
+    , (ServiceRevenue, Revenue, Credit, Other)
+    , (OperatingRevenue, Revenue, Credit, Other)
+    , (GainOnSalesOfSecurities, Revenue, Credit, Other)
+    , (GainOnValuationOfSecurities, Revenue, Credit, Other)
+    , (DividendsReceived, Revenue, Credit, Other)
+    , (InterestOnSecurities, Revenue, Credit, Other)
+    , (GainOnSalesOfInvestmentSecurities, Revenue, Credit, Other)
+    , (InsuranceGain, Revenue, Credit, Other)
+    , (GainOnBargainPurchase, Revenue, Credit, Other)
+    , (ReversalOfAllowanceForRepairs, Revenue, Credit, Other)
+    , (ReversalOfAllowanceForProductWarranties, Revenue, Credit, Other)
+    , (GainOnDonationOfFixedAssets, Revenue, Credit, Other)
+    , (GainOnNationalSubsidies, Revenue, Credit, Other)
+    , (GainOnConstructionGrants, Revenue, Credit, Other)
+    , (LandRentReceived, Revenue, Credit, Other)
+    , (SalesRebates, Revenue, Debit, Other)
+    , (CostOfServices, Cost, Debit, Other)
+    , (OperatingExpenses, Cost, Debit, Other)
+    , (InventoryShrinkageLoss, Cost, Debit, Other)
+    , (LossOnValuationOfMerchandise, Cost, Debit, Other)
+    , (Bonuses, Cost, Debit, Other)
+    , (RetirementBenefitExpenses, Cost, Debit, Other)
+    , (ProvisionForRepairs, Cost, Debit, Other)
+    , (ProvisionForBonuses, Cost, Debit, Other)
+    , (ProvisionForProductWarranties, Cost, Debit, Other)
+    , (ResearchAndDevelopmentExpenses, Cost, Debit, Other)
+    , (AmortizationOfGoodwill, Cost, Debit, Other)
+    , (AmortizationOfSoftware, Cost, Debit, Other)
+    , (AmortizationOfPatents, Cost, Debit, Other)
+    , (LeaseExpenses, Cost, Debit, Other)
+    , (IncorporationExpenses, Cost, Debit, Other)
+    , (StockIssuanceCosts, Cost, Debit, Other)
+    , (BusinessCommencementExpenses, Cost, Debit, Other)
+    , (DevelopmentExpenses, Cost, Debit, Other)
+    , (LossOnSalesOfElectronicallyRecordedReceivables, Cost, Debit, Other)
+    , (LossOnSalesOfReceivables, Cost, Debit, Other)
+    , (LossOnSalesOfSecurities, Cost, Debit, Other)
+    , (LossOnValuationOfSecurities, Cost, Debit, Other)
+    , (LossOnSalesOfInvestmentSecurities, Cost, Debit, Other)
+    , (LossOnFire, Cost, Debit, Other)
+    , (LossOnRetirementOfFixedAssets, Cost, Debit, Other)
+    , (LossOnReductionOfFixedAssets, Cost, Debit, Other)
+    , (AdditionalIncomeTaxesForPriorPeriods, Cost, Debit, Other)
+    , (RefundOfIncomeTaxes, Cost, Credit, Other)
+    , (PurchaseRebates, Cost, Credit, Other)
+    , (WelfareExpenses, Cost, Debit, Other)
+    , (MaintenanceExpenses, Cost, Debit, Other)
+    , (StatutoryWelfareExpenses, Cost, Debit, Other)
+    , (LandRentPaid, Cost, Debit, Other)
+    , (InsuranceExpense, Cost, Debit, Other)
+    , (RepairsExpense, Cost, Debit, Other)
+    , (StorageExpenses, Cost, Debit, Other)
+    , (MembershipFees, Cost, Debit, Other)
+    , (IncomeSummary, Assets, Debit, Other)
+    , (SuspenseAccount, Assets, Debit, Current)
+    , (ForeignExchangeGains, Revenue, Credit, Other)
+    , (ForeignExchangeLosses, Cost, Debit, Other)
+    , (ContraAccountForGuaranteeObligations, Assets, Debit, Other)
+    , (GuaranteeObligations, Liability, Credit, Other)
+    , (IncomeTaxesAdjustment, Cost, Debit, Other)
+    , (BranchCurrentAccount, Assets, Debit, Other)
+    , (HeadOfficeCurrentAccount, Assets, Debit, Other)
+    , (NetIncomeAttributableToNCI, Cost, Debit, Other)
+    , (NetLossAttributableToNCI, Revenue, Credit, Other)
+    , (TradingSecurities, Assets, Debit, Current)
+    , (HeldToMaturityBonds, Assets, Debit, Fixed)
+    , (SubsidiaryStocks, Assets, Debit, Fixed)
+    , (AffiliateStocks, Assets, Debit, Fixed)
+    , (AvailableForSaleSecurities, Assets, Debit, Fixed)
     ]
 
 testAccountTitleClassification :: IO ()
@@ -886,7 +1003,13 @@ testFinalStockRuleReference = mapM_ check Registry.concreteAccountTitles
     check t = assertEqual ("finalStockRule reference: " ++ show t)
         (expected t) (finalStockProbeRule t)
     expected t
-        | t `L.elem` [NetIncome, NetLoss] = "Nothing"
+        | t `L.elem`
+            [ NetIncome
+            , NetLoss
+            , IncomeSummary
+            , NetIncomeAttributableToNCI
+            , NetLossAttributableToNCI
+            ] = "Nothing"
         | contra && div_ == Revenue = "Flip"
         | contra && div_ == Cost    = "Keep"
         | div_ == Revenue           = "Keep"
@@ -922,8 +1045,13 @@ testFinalStockRegistryClosedDiff = do
     assertEqual "final-stock registry closed diff = 27 formerly omitted accounts"
         finalStockExpectedClosedDiff actualDiff
     assertEqual "final-stock aggregate overrides remain open"
-        ["Nothing", "Nothing"]
-        [finalStockProbeRule NetIncome, finalStockProbeRule NetLoss]
+        ["Nothing", "Nothing", "Nothing", "Nothing", "Nothing"]
+        [ finalStockProbeRule NetIncome
+        , finalStockProbeRule NetLoss
+        , finalStockProbeRule IncomeSummary
+        , finalStockProbeRule NetIncomeAttributableToNCI
+        , finalStockProbeRule NetLossAttributableToNCI
+        ]
 
 -- ================================================================
 -- V-Land 2 scaffolding (語彙拡張の受理条件, レビュー非依存):
@@ -1847,7 +1975,7 @@ testAssistDescribeAccount = do
 
 testAssistAllAccountInfos :: IO ()
 testAssistAllAccountInfos = do
-    assertEqual "Assist.allAccountInfos length" 116 (length Assist.allAccountInfos)
+    assertEqual "Assist.allAccountInfos length" 232 (length Assist.allAccountInfos)
     assertEqual "Assist.allAccountInfos follows concreteAccountTitles order"
         EC.concreteAccountTitles (L.map Assist.aiTitle Assist.allAccountInfos)
     forM_ Assist.allAccountInfos $ \info -> do
@@ -1913,15 +2041,21 @@ goldenSuggestions =
     goldenHeader (T.pack "suggestAccounts over corpus (query, total matches, top-10 titles)")
     <> T.unlines (L.map row corpus)
   where
+    -- The post-Land2 fixture is a closed diff over the pre-vocabulary 116
+    -- titles. V-Land 2 appends new titles, which are tested separately and
+    -- must not retroactively change this historical fuzzy-suggestion oracle.
+    infos = L.take 116 Assist.allAccountInfos
+    historicalTitles = L.map Assist.aiTitle infos
     nameFields = L.concat
         [ [ goldenShow (Assist.aiTitle info), Assist.aiNameEn info, Assist.aiNameJa info ]
-        | info <- Assist.allAccountInfos
+        | info <- infos
         ]
-    descTokens = L.concatMap (T.words . Assist.aiDesc) Assist.allAccountInfos
+    descTokens = L.concatMap (T.words . Assist.aiDesc) infos
     corpus = goldenDedupSort
         (L.concatMap (\q -> [q, T.toLower q]) nameFields <> descTokens)
     row query =
-        let matches = L.map Assist.aiTitle (Assist.suggestAccounts query)
+        let matches = L.filter (`L.elem` historicalTitles)
+                    (L.map Assist.aiTitle (Assist.suggestAccounts query))
         in goldenEsc query <> T.pack "\t"
            <> goldenShow (L.length matches) <> T.pack "\t"
            <> T.intercalate (T.pack ",") (L.map goldenShow (L.take 10 matches))
@@ -1947,8 +2081,8 @@ testRegistryWildcards = do
 
 testRegistryContraLand2 :: IO ()
 testRegistryContraLand2 =
-    assertEqual "registry Land 2: contra True set = exactly the two valuation accounts"
-        land2Contra
+    assertEqual "registry contra True set = valuation accounts plus V-Land 2 P/L contra accounts"
+        allContra
         (L.filter Registry.classifyAccountContra Registry.concreteAccountTitles)
 
 -- ================================================================
@@ -1959,6 +2093,9 @@ testRegistryContraLand2 =
 
 land2Contra :: [AccountTitles]
 land2Contra = [AllowanceForDoubtfulAccounts, AccumulatedDepreciation]
+
+allContra :: [AccountTitles]
+allContra = land2Contra <> [SalesRebates, RefundOfIncomeTaxes, PurchaseRebates]
 
 land2TitleMap :: M.Map T.Text AccountTitles
 land2TitleMap = M.fromList
@@ -2012,7 +2149,10 @@ testLand2InfoClosedDiff :: IO ()
 testLand2InfoClosedDiff = do
     fixture <- TIO.readFile "test/fixtures/pre-land1/account-info.tsv"
     let oldRows = L.filter (not . T.null) (L.drop 1 (T.lines fixture))
-        newRows = [ (Assist.aiTitle i, goldenInfoRow i) | i <- Assist.allAccountInfos ]
+        -- V-Land 2 appends new constructors after every pre-vland2 concrete
+        -- title. This closed-diff compares only the pinned historical prefix.
+        newRows = L.take (L.length oldRows)
+            [ (Assist.aiTitle i, goldenInfoRow i) | i <- Assist.allAccountInfos ]
     assertEqual "land2 info: row count" (L.length oldRows) (L.length newRows)
     mapM_ check (L.zip oldRows newRows)
   where
@@ -2131,8 +2271,8 @@ testLand2ExchangeRelation = do
         [ (Assets, Revenue), (Cost, Revenue), (Revenue, Assets), (Revenue, Cost) ]
         [ (a, b) | a <- divAll, b <- divAll, oldRel (a, b) /= (a <=> b) ]
 
--- T9: 8 組込み instance + custom instance (SimHatBase2) の全 116 科目 sweep で
--- isContra の True 集合がちょうど当該 2 件 (定数 True/False 実装を排除)。
+-- T9: 8 組込み instance + custom instance (SimHatBase2) の全科目 sweepで
+-- isContra のTrue集合が既存評価勘定2件 + V-Land 2 P/L控除3件になること。
 testLand2IsContraInstances :: IO ()
 testLand2IsContraInstances = do
     let day0 = fromGregorian 2026 1 1
@@ -2140,7 +2280,7 @@ testLand2IsContraInstances = do
         nm   = T.pack "spec"
         sweep :: ExBaseClass b => String -> (AccountTitles -> b) -> IO ()
         sweep label mk = assertEqual ("land2 isContra sweep: " ++ label)
-            land2Contra
+            allContra
             [ t | t <- Registry.concreteAccountTitles, isContra (mk t) ]
     sweep "HatBase AccountTitles" (\t -> Not :< t :: HatBase AccountTitles)
     sweep "HatBase (AccountTitles, Day)" (\t -> Not :< (t, day0))

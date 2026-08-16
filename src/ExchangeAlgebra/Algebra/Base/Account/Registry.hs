@@ -51,7 +51,7 @@ data AccountSpec = AccountSpec
 
 -- | All concrete account titles in their stable Enum order.
 concreteAccountTitles :: [AccountTitles]
-concreteAccountTitles = [Cash .. ReversalOfAllowanceForDoubtfulAccounts]
+concreteAccountTitles = filter (/= AccountTitle) [minBound .. maxBound]
 
 -- | Look up metadata for an account title. The wildcard has no metadata.
 --
@@ -1217,6 +1217,1166 @@ accountSpec ReversalOfAllowanceForDoubtfulAccounts = Just AccountSpec
     , asNameJa = "貸倒引当金戻入"
     , asDescription = "Revenue: Reversal of allowance for doubtful accounts (貸倒引当金戻入). Credit counterpart used by the 差額補充法/洗替法 when the estimated allowance is smaller than the existing balance (the excess of 'AllowanceForDoubtfulAccounts' is released)."
     , asAliases = ["貸倒引当金戻入"]
+    }
+accountSpec TimeDeposits = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Current
+    , asNameEn = "Time deposits"
+    , asNameJa = "定期預金"
+    , asDescription = "Assets: Time deposits (定期預金)"
+    , asAliases = ["定期預金"]
+    }
+accountSpec LoansReceivable = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Current
+    , asNameEn = "Loans receivable"
+    , asNameJa = "貸付金"
+    , asDescription = "Assets: Loans receivable (貸付金)"
+    , asAliases = ["貸付金"]
+    }
+accountSpec GiftCertificatesReceived = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Current
+    , asNameEn = "Gift certificates received"
+    , asNameJa = "受取商品券"
+    , asDescription = "Assets: Gift certificates received (受取商品券)"
+    , asAliases = ["受取商品券"]
+    }
+accountSpec SecurityDepositsPaid = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Fixed
+    , asNameEn = "Guarantee deposits"
+    , asNameJa = "差入保証金"
+    , asDescription = "Assets: Guarantee deposits (差入保証金)"
+    , asAliases = ["差入保証金"]
+    }
+accountSpec SuppliesOnHand = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Current
+    , asNameEn = "Supplies"
+    , asNameJa = "貯蔵品"
+    , asDescription = "Assets: Supplies (貯蔵品)"
+    , asAliases = ["貯蔵品"]
+    }
+accountSpec ContractAssets = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Current
+    , asNameEn = "Contract assets"
+    , asNameJa = "契約資産"
+    , asDescription = "Assets: Contract assets (契約資産)"
+    , asAliases = ["契約資産"]
+    }
+accountSpec IncomeTaxesRefundReceivable = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Current
+    , asNameEn = "Income taxes refund receivable"
+    , asNameJa = "未収還付法人税等"
+    , asDescription = "Assets: Income taxes refund receivable (未収還付法人税等)"
+    , asAliases = ["未収還付法人税等"]
+    }
+accountSpec WorkInProcess = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Current
+    , asNameEn = "Work in process"
+    , asNameJa = "仕掛品"
+    , asDescription = "Assets: Work in process (仕掛品)"
+    , asAliases = ["仕掛品"]
+    }
+accountSpec DeferredTaxAssets = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Fixed
+    , asNameEn = "Deferred tax assets"
+    , asNameJa = "繰延税金資産"
+    , asDescription = "Assets: Deferred tax assets (繰延税金資産)"
+    , asAliases = ["繰延税金資産"]
+    }
+accountSpec LeasedAssets = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Fixed
+    , asNameEn = "Leased assets"
+    , asNameJa = "リース資産"
+    , asDescription = "Assets: Leased assets (リース資産)"
+    , asAliases = ["リース資産"]
+    }
+accountSpec ToolsAndInstruments = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Fixed
+    , asNameEn = "Tools and instruments"
+    , asNameJa = "工具器具"
+    , asDescription = "Assets: Tools and instruments (工具器具)"
+    , asAliases = ["工具器具"]
+    }
+accountSpec ConstructionInProgress = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Fixed
+    , asNameEn = "Construction in progress"
+    , asNameJa = "建設仮勘定"
+    , asDescription = "Assets: Construction in progress (建設仮勘定)"
+    , asAliases = ["建設仮勘定"]
+    }
+accountSpec Goodwill = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Fixed
+    , asNameEn = "Goodwill"
+    , asNameJa = "のれん"
+    , asDescription = "Assets: Goodwill (のれん)"
+    , asAliases = ["のれん"]
+    }
+accountSpec SoftwareInProgress = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Fixed
+    , asNameEn = "Software in progress"
+    , asNameJa = "ソフトウェア仮勘定"
+    , asDescription = "Assets: Software in progress (ソフトウェア仮勘定)"
+    , asAliases = ["ソフトウェア仮勘定"]
+    }
+accountSpec LongTermPrepaidExpenses = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Fixed
+    , asNameEn = "Long-term prepaid expenses"
+    , asNameJa = "長期前払費用"
+    , asDescription = "Assets: Long-term prepaid expenses (長期前払費用)"
+    , asAliases = ["長期前払費用"]
+    }
+accountSpec DishonoredNotesReceivable = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Current
+    , asNameEn = "Dishonored notes receivable"
+    , asNameJa = "不渡手形"
+    , asDescription = "Assets: Dishonored notes receivable (不渡手形)"
+    , asAliases = ["不渡手形"]
+    }
+accountSpec PrepaidPensionCost = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Fixed
+    , asNameEn = "Prepaid pension costs"
+    , asNameJa = "前払年金費用"
+    , asDescription = "Assets: Prepaid pension costs (前払年金費用)"
+    , asAliases = ["前払年金費用"]
+    }
+accountSpec NetDefinedBenefitAsset = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Fixed
+    , asNameEn = "Retirement benefit asset"
+    , asNameJa = "退職給付に係る資産"
+    , asDescription = "Assets: Retirement benefit asset (退職給付に係る資産)"
+    , asAliases = ["退職給付に係る資産"]
+    }
+accountSpec DepositsInSpecialAccounts = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Current
+    , asNameEn = "Deposits in special accounts"
+    , asNameJa = "別段預金"
+    , asDescription = "Assets: Deposits in special accounts (別段預金)"
+    , asAliases = ["別段預金"]
+    }
+accountSpec Structures = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Fixed
+    , asNameEn = "Structures"
+    , asNameJa = "構築物"
+    , asDescription = "Assets: Structures (構築物)"
+    , asAliases = ["構築物"]
+    }
+accountSpec LeaseholdRights = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Fixed
+    , asNameEn = "Leasehold interests in land"
+    , asNameJa = "借地権"
+    , asDescription = "Assets: Leasehold interests in land (借地権)"
+    , asAliases = ["借地権"]
+    }
+accountSpec NonOperatingNotesReceivable = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Current
+    , asNameEn = "Non-operating notes receivable"
+    , asNameJa = "営業外受取手形"
+    , asDescription = "Assets: Non-operating notes receivable (営業外受取手形)"
+    , asAliases = ["営業外受取手形"]
+    }
+accountSpec NonOperatingElectronicallyRecordedReceivable = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Current
+    , asNameEn = "Electronically recorded monetary claims - non-operating"
+    , asNameJa = "営業外電子記録債権"
+    , asDescription = "Assets: Electronically recorded monetary claims - non-operating (営業外電子記録債権)"
+    , asAliases = ["営業外電子記録債権"]
+    }
+accountSpec RefundLiabilities = Just AccountSpec
+    { asDivision = Liability
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Current
+    , asNameEn = "Refund liabilities"
+    , asNameJa = "返金負債"
+    , asDescription = "Liability: Refund liabilities (返金負債)"
+    , asAliases = ["返金負債"]
+    }
+accountSpec NonOperatingNotesPayable = Just AccountSpec
+    { asDivision = Liability
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Current
+    , asNameEn = "Non-operating notes payable"
+    , asNameJa = "営業外支払手形"
+    , asDescription = "Liability: Non-operating notes payable (営業外支払手形)"
+    , asAliases = ["営業外支払手形"]
+    }
+accountSpec NonOperatingElectronicallyRecordedObligations = Just AccountSpec
+    { asDivision = Liability
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Current
+    , asNameEn = "Electronically recorded obligations - non-operating"
+    , asNameJa = "営業外電子記録債務"
+    , asDescription = "Liability: Electronically recorded obligations - non-operating (営業外電子記録債務)"
+    , asAliases = ["営業外電子記録債務"]
+    }
+accountSpec BonusesPayable = Just AccountSpec
+    { asDivision = Liability
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Current
+    , asNameEn = "Accrued bonuses"
+    , asNameJa = "未払賞与"
+    , asDescription = "Liability: Accrued bonuses (未払賞与)"
+    , asAliases = ["未払賞与"]
+    }
+accountSpec AllowanceForRepairs = Just AccountSpec
+    { asDivision = Liability
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Current
+    , asNameEn = "Provision for repairs"
+    , asNameJa = "修繕引当金"
+    , asDescription = "Liability: Provision for repairs (修繕引当金)"
+    , asAliases = ["修繕引当金"]
+    }
+accountSpec AllowanceForProductWarranties = Just AccountSpec
+    { asDivision = Liability
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Current
+    , asNameEn = "Provision for warranties"
+    , asNameJa = "商品保証引当金"
+    , asDescription = "Liability: Provision for warranties (商品保証引当金)"
+    , asAliases = ["商品保証引当金"]
+    }
+accountSpec AllowanceForBonuses = Just AccountSpec
+    { asDivision = Liability
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Current
+    , asNameEn = "Provision for bonuses"
+    , asNameJa = "賞与引当金"
+    , asDescription = "Liability: Provision for bonuses (賞与引当金)"
+    , asAliases = ["賞与引当金"]
+    }
+accountSpec DeferredTaxLiabilities = Just AccountSpec
+    { asDivision = Liability
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Fixed
+    , asNameEn = "Deferred tax liabilities"
+    , asNameJa = "繰延税金負債"
+    , asDescription = "Liability: Deferred tax liabilities (繰延税金負債)"
+    , asAliases = ["繰延税金負債"]
+    }
+accountSpec LeaseObligations = Just AccountSpec
+    { asDivision = Liability
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Fixed
+    , asNameEn = "Lease liabilities"
+    , asNameJa = "リース債務"
+    , asDescription = "Liability: Lease liabilities (リース債務)"
+    , asAliases = ["リース債務"]
+    }
+accountSpec GuaranteeDepositsReceived = Just AccountSpec
+    { asDivision = Liability
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Fixed
+    , asNameEn = "Guarantee deposits received"
+    , asNameJa = "預り保証金"
+    , asDescription = "Liability: Guarantee deposits received (預り保証金)"
+    , asAliases = ["預り保証金"]
+    }
+accountSpec AllowanceForRetirementBenefits = Just AccountSpec
+    { asDivision = Liability
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Fixed
+    , asNameEn = "Provision for retirement benefits"
+    , asNameJa = "退職給付引当金"
+    , asDescription = "Liability: Provision for retirement benefits (退職給付引当金)"
+    , asAliases = ["退職給付引当金"]
+    }
+accountSpec LongTermOtherPayables = Just AccountSpec
+    { asDivision = Liability
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Fixed
+    , asNameEn = "Long-term accounts payable - other"
+    , asNameJa = "長期未払金"
+    , asDescription = "Liability: Long-term accounts payable - other (長期未払金)"
+    , asAliases = ["長期未払金"]
+    }
+accountSpec NetDefinedBenefitLiability = Just AccountSpec
+    { asDivision = Liability
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Fixed
+    , asNameEn = "Retirement benefit liability"
+    , asNameJa = "退職給付に係る負債"
+    , asDescription = "Liability: Retirement benefit liability (退職給付に係る負債)"
+    , asAliases = ["退職給付に係る負債"]
+    }
+accountSpec StockSubscriptionDeposits = Just AccountSpec
+    { asDivision = Equity
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Deposits for subscriptions of shares"
+    , asNameJa = "株式申込証拠金"
+    , asDescription = "Equity: Deposits for subscriptions of shares (株式申込証拠金)"
+    , asAliases = ["株式申込証拠金"]
+    }
+accountSpec LegalCapitalSurplus = Just AccountSpec
+    { asDivision = Equity
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Legal capital surplus"
+    , asNameJa = "資本準備金"
+    , asDescription = "Equity: Legal capital surplus (資本準備金)"
+    , asAliases = ["資本準備金"]
+    }
+accountSpec OtherCapitalSurplus = Just AccountSpec
+    { asDivision = Equity
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Other capital surplus"
+    , asNameJa = "その他資本剰余金"
+    , asDescription = "Equity: Other capital surplus (その他資本剰余金)"
+    , asAliases = ["その他資本剰余金"]
+    }
+accountSpec DividendEqualizationReserve = Just AccountSpec
+    { asDivision = Equity
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Reserve for dividend equalization"
+    , asNameJa = "配当平均積立金"
+    , asDescription = "Equity: Reserve for dividend equalization (配当平均積立金)"
+    , asAliases = ["配当平均積立金"]
+    }
+accountSpec RepairFundReserve = Just AccountSpec
+    { asDivision = Equity
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Reserve for repairs"
+    , asNameJa = "修繕積立金"
+    , asDescription = "Equity: Reserve for repairs (修繕積立金)"
+    , asAliases = ["修繕積立金"]
+    }
+accountSpec ConstructionFundReserve = Just AccountSpec
+    { asDivision = Equity
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Reserve for new construction"
+    , asNameJa = "新築積立金"
+    , asDescription = "Equity: Reserve for new construction (新築積立金)"
+    , asAliases = ["新築積立金"]
+    }
+accountSpec GeneralReserve = Just AccountSpec
+    { asDivision = Equity
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "General reserve"
+    , asNameJa = "別途積立金"
+    , asDescription = "Equity: General reserve (別途積立金)"
+    , asAliases = ["別途積立金"]
+    }
+accountSpec ValuationDifferenceOnOtherSecurities = Just AccountSpec
+    { asDivision = Equity
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Valuation difference on available-for-sale securities"
+    , asNameJa = "その他有価証券評価差額金"
+    , asDescription = "Equity: Valuation difference on available-for-sale securities (その他有価証券評価差額金)"
+    , asAliases = ["その他有価証券評価差額金"]
+    }
+accountSpec NonControllingInterests = Just AccountSpec
+    { asDivision = Equity
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Non-controlling interests"
+    , asNameJa = "非支配株主持分"
+    , asDescription = "Equity: Non-controlling interests (非支配株主持分)"
+    , asAliases = ["非支配株主持分"]
+    }
+accountSpec CapitalSurplus = Just AccountSpec
+    { asDivision = Equity
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Capital surplus"
+    , asNameJa = "資本剰余金"
+    , asDescription = "Equity: Capital surplus (資本剰余金)"
+    , asAliases = ["資本剰余金"]
+    }
+accountSpec EarnedSurplus = Just AccountSpec
+    { asDivision = Equity
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Retained earnings"
+    , asNameJa = "利益剰余金"
+    , asDescription = "Equity: Retained earnings (利益剰余金)"
+    , asAliases = ["利益剰余金"]
+    }
+accountSpec ServiceRevenue = Just AccountSpec
+    { asDivision = Revenue
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Service revenue"
+    , asNameJa = "役務収益"
+    , asDescription = "Revenue: Service revenue (役務収益)"
+    , asAliases = ["役務収益"]
+    }
+accountSpec OperatingRevenue = Just AccountSpec
+    { asDivision = Revenue
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Operating revenue"
+    , asNameJa = "営業収益"
+    , asDescription = "Revenue: Operating revenue (営業収益)"
+    , asAliases = ["営業収益"]
+    }
+accountSpec GainOnSalesOfSecurities = Just AccountSpec
+    { asDivision = Revenue
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Gain on sale of securities"
+    , asNameJa = "有価証券売却益"
+    , asDescription = "Revenue: Gain on sale of securities (有価証券売却益)"
+    , asAliases = ["有価証券売却益"]
+    }
+accountSpec GainOnValuationOfSecurities = Just AccountSpec
+    { asDivision = Revenue
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Gain on valuation of securities"
+    , asNameJa = "有価証券評価益"
+    , asDescription = "Revenue: Gain on valuation of securities (有価証券評価益)"
+    , asAliases = ["有価証券評価益"]
+    }
+accountSpec DividendsReceived = Just AccountSpec
+    { asDivision = Revenue
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Dividend income"
+    , asNameJa = "受取配当金"
+    , asDescription = "Revenue: Dividend income (受取配当金)"
+    , asAliases = ["受取配当金"]
+    }
+accountSpec InterestOnSecurities = Just AccountSpec
+    { asDivision = Revenue
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Interest on securities"
+    , asNameJa = "有価証券利息"
+    , asDescription = "Revenue: Interest on securities (有価証券利息)"
+    , asAliases = ["有価証券利息"]
+    }
+accountSpec GainOnSalesOfInvestmentSecurities = Just AccountSpec
+    { asDivision = Revenue
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Gain on sale of investment securities"
+    , asNameJa = "投資有価証券売却益"
+    , asDescription = "Revenue: Gain on sale of investment securities (投資有価証券売却益)"
+    , asAliases = ["投資有価証券売却益"]
+    }
+accountSpec InsuranceGain = Just AccountSpec
+    { asDivision = Revenue
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Gain on insurance claims"
+    , asNameJa = "保険差益"
+    , asDescription = "Revenue: Gain on insurance claims (保険差益)"
+    , asAliases = ["保険差益"]
+    }
+accountSpec GainOnBargainPurchase = Just AccountSpec
+    { asDivision = Revenue
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Gain on bargain purchase"
+    , asNameJa = "負ののれん発生益"
+    , asDescription = "Revenue: Gain on bargain purchase (負ののれん発生益)"
+    , asAliases = ["負ののれん発生益"]
+    }
+accountSpec ReversalOfAllowanceForRepairs = Just AccountSpec
+    { asDivision = Revenue
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Reversal of provision for repairs"
+    , asNameJa = "修繕引当金戻入"
+    , asDescription = "Revenue: Reversal of provision for repairs (修繕引当金戻入)"
+    , asAliases = ["修繕引当金戻入"]
+    }
+accountSpec ReversalOfAllowanceForProductWarranties = Just AccountSpec
+    { asDivision = Revenue
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Reversal of provision for warranties"
+    , asNameJa = "商品保証引当金戻入"
+    , asDescription = "Revenue: Reversal of provision for warranties (商品保証引当金戻入)"
+    , asAliases = ["商品保証引当金戻入"]
+    }
+accountSpec GainOnDonationOfFixedAssets = Just AccountSpec
+    { asDivision = Revenue
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Gain on receipt of donated non-current assets"
+    , asNameJa = "固定資産受贈益"
+    , asDescription = "Revenue: Gain on receipt of donated non-current assets (固定資産受贈益)"
+    , asAliases = ["固定資産受贈益"]
+    }
+accountSpec GainOnNationalSubsidies = Just AccountSpec
+    { asDivision = Revenue
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Gain on receipt of national subsidies"
+    , asNameJa = "国庫補助金受贈益"
+    , asDescription = "Revenue: Gain on receipt of national subsidies (国庫補助金受贈益)"
+    , asAliases = ["国庫補助金受贈益"]
+    }
+accountSpec GainOnConstructionGrants = Just AccountSpec
+    { asDivision = Revenue
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Gain on contribution received for construction"
+    , asNameJa = "工事負担金受贈益"
+    , asDescription = "Revenue: Gain on contribution received for construction (工事負担金受贈益)"
+    , asAliases = ["工事負担金受贈益"]
+    }
+accountSpec LandRentReceived = Just AccountSpec
+    { asDivision = Revenue
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Rental income from land"
+    , asNameJa = "受取地代"
+    , asDescription = "Revenue: Rental income from land (受取地代)"
+    , asAliases = ["受取地代"]
+    }
+accountSpec SalesRebates = Just AccountSpec
+    { asDivision = Revenue
+    , asClosing = CloseByDivision
+    , asIsContra = True
+    , asFixedCurrent = Other
+    , asNameEn = "Sales rebates"
+    , asNameJa = "売上割戻"
+    , asDescription = "Revenue: Sales rebates (売上割戻)"
+    , asAliases = ["売上割戻"]
+    }
+accountSpec CostOfServices = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Cost of services"
+    , asNameJa = "役務原価"
+    , asDescription = "Cost: Cost of services (役務原価)"
+    , asAliases = ["役務原価"]
+    }
+accountSpec OperatingExpenses = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Operating expenses"
+    , asNameJa = "営業費用"
+    , asDescription = "Cost: Operating expenses (営業費用)"
+    , asAliases = ["営業費用"]
+    }
+accountSpec InventoryShrinkageLoss = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Inventory shrinkage loss"
+    , asNameJa = "棚卸減耗損"
+    , asDescription = "Cost: Inventory shrinkage loss (棚卸減耗損)"
+    , asAliases = ["棚卸減耗損"]
+    }
+accountSpec LossOnValuationOfMerchandise = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Valuation loss on goods"
+    , asNameJa = "商品評価損"
+    , asDescription = "Cost: Valuation loss on goods (商品評価損)"
+    , asAliases = ["商品評価損"]
+    }
+accountSpec Bonuses = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Bonuses"
+    , asNameJa = "賞与"
+    , asDescription = "Cost: Bonuses (賞与)"
+    , asAliases = ["賞与"]
+    }
+accountSpec RetirementBenefitExpenses = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Retirement benefit expenses"
+    , asNameJa = "退職給付費用"
+    , asDescription = "Cost: Retirement benefit expenses (退職給付費用)"
+    , asAliases = ["退職給付費用"]
+    }
+accountSpec ProvisionForRepairs = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Provision for repairs"
+    , asNameJa = "修繕引当金繰入"
+    , asDescription = "Cost: Provision for repairs (修繕引当金繰入)"
+    , asAliases = ["修繕引当金繰入"]
+    }
+accountSpec ProvisionForBonuses = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Provision for bonuses"
+    , asNameJa = "賞与引当金繰入"
+    , asDescription = "Cost: Provision for bonuses (賞与引当金繰入)"
+    , asAliases = ["賞与引当金繰入"]
+    }
+accountSpec ProvisionForProductWarranties = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Provision for warranties"
+    , asNameJa = "商品保証引当金繰入"
+    , asDescription = "Cost: Provision for warranties (商品保証引当金繰入)"
+    , asAliases = ["商品保証引当金繰入"]
+    }
+accountSpec ResearchAndDevelopmentExpenses = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Research and development expenses"
+    , asNameJa = "研究開発費"
+    , asDescription = "Cost: Research and development expenses (研究開発費)"
+    , asAliases = ["研究開発費"]
+    }
+accountSpec AmortizationOfGoodwill = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Amortization of goodwill"
+    , asNameJa = "のれん償却"
+    , asDescription = "Cost: Amortization of goodwill (のれん償却)"
+    , asAliases = ["のれん償却"]
+    }
+accountSpec AmortizationOfSoftware = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Amortization of software"
+    , asNameJa = "ソフトウェア償却"
+    , asDescription = "Cost: Amortization of software (ソフトウェア償却)"
+    , asAliases = ["ソフトウェア償却"]
+    }
+accountSpec AmortizationOfPatents = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Amortization of patent rights"
+    , asNameJa = "特許権償却"
+    , asDescription = "Cost: Amortization of patent rights (特許権償却)"
+    , asAliases = ["特許権償却"]
+    }
+accountSpec LeaseExpenses = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Lease expenses"
+    , asNameJa = "支払リース料"
+    , asDescription = "Cost: Lease expenses (支払リース料)"
+    , asAliases = ["支払リース料"]
+    }
+accountSpec IncorporationExpenses = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Organization expenses"
+    , asNameJa = "創立費"
+    , asDescription = "Cost: Organization expenses (創立費)"
+    , asAliases = ["創立費"]
+    }
+accountSpec StockIssuanceCosts = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Share issuance costs"
+    , asNameJa = "株式交付費"
+    , asDescription = "Cost: Share issuance costs (株式交付費)"
+    , asAliases = ["株式交付費"]
+    }
+accountSpec BusinessCommencementExpenses = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Business commencement expenses"
+    , asNameJa = "開業費"
+    , asDescription = "Cost: Business commencement expenses (開業費)"
+    , asAliases = ["開業費"]
+    }
+accountSpec DevelopmentExpenses = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Development expenses"
+    , asNameJa = "開発費"
+    , asDescription = "Cost: Development expenses (開発費)"
+    , asAliases = ["開発費"]
+    }
+accountSpec LossOnSalesOfElectronicallyRecordedReceivables = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Loss on sale of electronically recorded monetary claims"
+    , asNameJa = "電子記録債権売却損"
+    , asDescription = "Cost: Loss on sale of electronically recorded monetary claims (電子記録債権売却損)"
+    , asAliases = ["電子記録債権売却損"]
+    }
+accountSpec LossOnSalesOfReceivables = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Loss on sale of receivables"
+    , asNameJa = "債権売却損"
+    , asDescription = "Cost: Loss on sale of receivables (債権売却損)"
+    , asAliases = ["債権売却損"]
+    }
+accountSpec LossOnSalesOfSecurities = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Loss on sale of securities"
+    , asNameJa = "有価証券売却損"
+    , asDescription = "Cost: Loss on sale of securities (有価証券売却損)"
+    , asAliases = ["有価証券売却損"]
+    }
+accountSpec LossOnValuationOfSecurities = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Loss on valuation of securities"
+    , asNameJa = "有価証券評価損"
+    , asDescription = "Cost: Loss on valuation of securities (有価証券評価損)"
+    , asAliases = ["有価証券評価損"]
+    }
+accountSpec LossOnSalesOfInvestmentSecurities = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Loss on sale of investment securities"
+    , asNameJa = "投資有価証券売却損"
+    , asDescription = "Cost: Loss on sale of investment securities (投資有価証券売却損)"
+    , asAliases = ["投資有価証券売却損"]
+    }
+accountSpec LossOnFire = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Loss on fire"
+    , asNameJa = "火災損失"
+    , asDescription = "Cost: Loss on fire (火災損失)"
+    , asAliases = ["火災損失"]
+    }
+accountSpec LossOnRetirementOfFixedAssets = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Loss on retirement of non-current assets"
+    , asNameJa = "固定資産除却損"
+    , asDescription = "Cost: Loss on retirement of non-current assets (固定資産除却損)"
+    , asAliases = ["固定資産除却損"]
+    }
+accountSpec LossOnReductionOfFixedAssets = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Loss on tax purpose reduction entry of non-current assets"
+    , asNameJa = "固定資産圧縮損"
+    , asDescription = "Cost: Loss on tax purpose reduction entry of non-current assets (固定資産圧縮損)"
+    , asAliases = ["固定資産圧縮損"]
+    }
+accountSpec AdditionalIncomeTaxesForPriorPeriods = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Additional income taxes for prior periods"
+    , asNameJa = "追徴法人税等"
+    , asDescription = "Cost: Additional income taxes for prior periods (追徴法人税等)"
+    , asAliases = ["追徴法人税等"]
+    }
+accountSpec RefundOfIncomeTaxes = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = True
+    , asFixedCurrent = Other
+    , asNameEn = "Refund of income taxes"
+    , asNameJa = "還付法人税等"
+    , asDescription = "Cost: Refund of income taxes (還付法人税等)"
+    , asAliases = ["還付法人税等"]
+    }
+accountSpec PurchaseRebates = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = True
+    , asFixedCurrent = Other
+    , asNameEn = "Purchase rebates"
+    , asNameJa = "仕入割戻"
+    , asDescription = "Cost: Purchase rebates (仕入割戻)"
+    , asAliases = ["仕入割戻"]
+    }
+accountSpec WelfareExpenses = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Welfare expenses"
+    , asNameJa = "福利厚生費"
+    , asDescription = "Cost: Welfare expenses (福利厚生費)"
+    , asAliases = ["福利厚生費"]
+    }
+accountSpec MaintenanceExpenses = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Maintenance expenses"
+    , asNameJa = "保守費"
+    , asDescription = "Cost: Maintenance expenses (保守費)"
+    , asAliases = ["保守費"]
+    }
+accountSpec StatutoryWelfareExpenses = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Legal welfare expenses"
+    , asNameJa = "法定福利費"
+    , asDescription = "Cost: Legal welfare expenses (法定福利費)"
+    , asAliases = ["法定福利費"]
+    }
+accountSpec LandRentPaid = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Rent expenses on land"
+    , asNameJa = "支払地代"
+    , asDescription = "Cost: Rent expenses on land (支払地代)"
+    , asAliases = ["支払地代"]
+    }
+accountSpec InsuranceExpense = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Insurance expenses"
+    , asNameJa = "保険料"
+    , asDescription = "Cost: Insurance expenses (保険料)"
+    , asAliases = ["保険料"]
+    }
+accountSpec RepairsExpense = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Repair expenses"
+    , asNameJa = "修繕費"
+    , asDescription = "Cost: Repair expenses (修繕費)"
+    , asAliases = ["修繕費"]
+    }
+accountSpec StorageExpenses = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Storage costs"
+    , asNameJa = "保管費"
+    , asDescription = "Cost: Storage costs (保管費)"
+    , asAliases = ["保管費"]
+    }
+accountSpec MembershipFees = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Membership fees"
+    , asNameJa = "諸会費"
+    , asDescription = "Cost: Membership fees (諸会費)"
+    , asAliases = ["諸会費"]
+    }
+accountSpec IncomeSummary = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = NoClose
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Income summary"
+    , asNameJa = "損益"
+    , asDescription = "Assets: Income summary (損益)"
+    , asAliases = ["損益"]
+    }
+accountSpec SuspenseAccount = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Current
+    , asNameEn = "Suspense account"
+    , asNameJa = "未決算"
+    , asDescription = "Assets: Suspense account (未決算)"
+    , asAliases = ["未決算"]
+    }
+accountSpec ForeignExchangeGains = Just AccountSpec
+    { asDivision = Revenue
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Foreign exchange gains"
+    , asNameJa = "為替差益"
+    , asDescription = "Revenue: Foreign exchange gains (為替差益)"
+    , asAliases = ["為替差益"]
+    }
+accountSpec ForeignExchangeLosses = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Foreign exchange losses"
+    , asNameJa = "為替差損"
+    , asDescription = "Cost: Foreign exchange losses (為替差損)"
+    , asAliases = ["為替差損"]
+    }
+accountSpec ContraAccountForGuaranteeObligations = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Contra account for guarantee obligations"
+    , asNameJa = "保証債務見返"
+    , asDescription = "Assets: Contra account for guarantee obligations (保証債務見返)"
+    , asAliases = ["保証債務見返"]
+    }
+accountSpec GuaranteeObligations = Just AccountSpec
+    { asDivision = Liability
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Guarantee obligations"
+    , asNameJa = "保証債務"
+    , asDescription = "Liability: Guarantee obligations (保証債務)"
+    , asAliases = ["保証債務"]
+    }
+accountSpec IncomeTaxesAdjustment = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Income taxes - deferred"
+    , asNameJa = "法人税等調整額"
+    , asDescription = "Cost: Income taxes - deferred (法人税等調整額)"
+    , asAliases = ["法人税等調整額"]
+    }
+accountSpec BranchCurrentAccount = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Branch current account"
+    , asNameJa = "支店"
+    , asDescription = "Assets: Branch current account (支店)"
+    , asAliases = ["支店"]
+    }
+accountSpec HeadOfficeCurrentAccount = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Head office current account"
+    , asNameJa = "本店"
+    , asDescription = "Assets: Head office current account (本店)"
+    , asAliases = ["本店"]
+    }
+accountSpec NetIncomeAttributableToNCI = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = NoClose
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Profit attributable to non-controlling interests"
+    , asNameJa = "非支配株主に帰属する当期純利益"
+    , asDescription = "Cost: Profit attributable to non-controlling interests (非支配株主に帰属する当期純利益)"
+    , asAliases = ["非支配株主に帰属する当期純利益"]
+    }
+accountSpec NetLossAttributableToNCI = Just AccountSpec
+    { asDivision = Revenue
+    , asClosing = NoClose
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Loss attributable to non-controlling interests"
+    , asNameJa = "非支配株主に帰属する当期純損失"
+    , asDescription = "Revenue: Loss attributable to non-controlling interests (非支配株主に帰属する当期純損失)"
+    , asAliases = ["非支配株主に帰属する当期純損失"]
+    }
+accountSpec TradingSecurities = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Current
+    , asNameEn = "Trading securities"
+    , asNameJa = "売買目的有価証券"
+    , asDescription = "Assets: Trading securities (売買目的有価証券)"
+    , asAliases = ["売買目的有価証券"]
+    }
+accountSpec HeldToMaturityBonds = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Fixed
+    , asNameEn = "Held-to-maturity bonds"
+    , asNameJa = "満期保有目的債券"
+    , asDescription = "Assets: Held-to-maturity bonds (満期保有目的債券)"
+    , asAliases = ["満期保有目的債券"]
+    }
+accountSpec SubsidiaryStocks = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Fixed
+    , asNameEn = "Shares of subsidiaries"
+    , asNameJa = "子会社株式"
+    , asDescription = "Assets: Shares of subsidiaries (子会社株式)"
+    , asAliases = ["子会社株式"]
+    }
+accountSpec AffiliateStocks = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Fixed
+    , asNameEn = "Shares of associates"
+    , asNameJa = "関連会社株式"
+    , asDescription = "Assets: Shares of associates (関連会社株式)"
+    , asAliases = ["関連会社株式"]
+    }
+accountSpec AvailableForSaleSecurities = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Fixed
+    , asNameEn = "Available-for-sale securities"
+    , asNameJa = "その他有価証券"
+    , asDescription = "Assets: Available-for-sale securities (その他有価証券)"
+    , asAliases = ["その他有価証券"]
     }
 accountSpec AccountTitle = Nothing
 

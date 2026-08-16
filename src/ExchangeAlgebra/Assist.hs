@@ -80,11 +80,11 @@ describeAccount title = toInfo title =<< accountSpec title
 -- | All concrete account-title descriptions in 'Enum' order.
 --
 -- >>> length allAccountInfos
--- 116
+-- 232
 -- >>> take 1 (map aiTitle allAccountInfos)
 -- [Cash]
 -- >>> aiTitle (last allAccountInfos)
--- ReversalOfAllowanceForDoubtfulAccounts
+-- AvailableForSaleSecurities
 allAccountInfos :: [AccountInfo]
 allAccountInfos = mapMaybe (\title -> toInfo title =<< accountSpec title)
                            concreteAccountTitles
