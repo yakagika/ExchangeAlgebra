@@ -113,8 +113,9 @@ instruction explicitly overrides its older manual-printing example.
 **SKILL versioning**: `SKILL-ea-v1.md` is frozen for backward-compatible arm-A
 baselines. `SKILL-ea-v2.md` documents the checked-construction norm
 (`checkedEntry` / `checkedJournal`, structured stderr on `Left`, `EmitCanonical`
-only for printing). Select the arm-A skill with `--skill v1|v2`; the flag affects
-arm A only.
+only for printing). Its v2.1 section also documents the post-vocabulary JCCI
+constructors and ambiguity policy. Select the arm-A skill with `--skill v1|v2`;
+the flag affects arm A only.
 
 ## CLI flags added in Track S
 
@@ -171,8 +172,10 @@ diverge systematically (`Inventory` vs `MerchandiseInventory`). Each task carrie
 an `ea_account_map` (GT name → EA canonical name) next to `chart_of_accounts`;
 scoring treats GT name, EA name and normalization-dictionary synonyms as
 identical. A hallucinated account is only a name that resolves through none of
-these. Accounts absent from EA (e.g. `ServiceRevenue`) use a provisional alias
-recorded in the map with a `map_note` — an accounting-review point.
+these. V-Land 3 covers all 316 distinct normalized A/B queries in the JCCI 2022
+fixture: 295 resolve uniquely and 21 return an explicitly frozen candidate set.
+Accounts still absent from EA use a provisional alias recorded in the map with
+a `map_note` — an accounting-review point.
 
 ### EA oracle (P2)
 
@@ -208,3 +211,6 @@ valuation accounts (`AllowanceForDoubtfulAccounts`, `AccumulatedDepreciation`)
 are described there as Liability-classified. Do not edit it; version bumps get
 a new file. `SKILL-ea-v2.md` reflects the amended semantics (Assets with
 `isContra = True`, credit home side), matching the library and both oracles.
+The same file is advanced in place to v2.1 for V-Land 3 because the checked
+construction contract is unchanged; it now includes the 116 JCCI extension
+constructors and the three P/L contra accounts. `SKILL-ea-v1.md` remains frozen.

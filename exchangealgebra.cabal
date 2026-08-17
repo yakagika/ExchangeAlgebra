@@ -30,6 +30,7 @@ library
       ExchangeAlgebra
       ExchangeAlgebra.Algebra
       ExchangeAlgebra.Algebra.Base
+      ExchangeAlgebra.Algebra.Base.Account.JcciAliases
       ExchangeAlgebra.Algebra.Base.Account.Registry
       ExchangeAlgebra.Algebra.Base.Account.Types
       ExchangeAlgebra.Algebra.Base.Element

@@ -1,16 +1,20 @@
 from __future__ import annotations
 
 import json
+import csv
+import subprocess
 import sys
 
 import pytest
 from pathlib import Path
 
 EVAL_DIR = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[4]
 if str(EVAL_DIR) not in sys.path:
     sys.path.insert(0, str(EVAL_DIR))
 
 from gen import make_suite
+from gen.accounts import ACCOUNT_DIVISIONS, CONTRA_ACCOUNTS, normal_side
 from gen.generate import generate_task
 from gen.compare_ea import compare_task_to_ea
 from gen.defects import DEFECT_KINDS, generate_audit_task
@@ -19,6 +23,84 @@ from gen.templates import TEMPLATES
 
 
 LABEL_KEYS = {"template", "trade_side", "settlement"}
+
+
+def test_python_account_mirror_covers_post_vocab_catalog() -> None:
+    assert len(ACCOUNT_DIVISIONS) == 232
+    assert CONTRA_ACCOUNTS == {
+        "AllowanceForDoubtfulAccounts",
+        "AccumulatedDepreciation",
+        "SalesRebates",
+        "RefundOfIncomeTaxes",
+        "PurchaseRebates",
+    }
+    assert normal_side("SalesRebates") == "debit"
+    assert normal_side("RefundOfIncomeTaxes") == "credit"
+    assert normal_side("PurchaseRebates") == "credit"
+
+
+def test_python_account_mirror_matches_haskell_registry() -> None:
+    division_map = {
+        "Assets": "asset",
+        "Liability": "liability",
+        "Equity": "equity",
+        "Revenue": "revenue",
+        "Cost": "expense",
+    }
+    semantics = REPO_ROOT / "test/fixtures/post-vocab/semantics.tsv"
+    rows = [
+        line.split("\t")
+        for line in semantics.read_text(encoding="utf-8").splitlines()
+        if line and not line.startswith("#")
+    ]
+    registry = {
+        row[0]: (division_map[row[1]], row[2] == "True", row[3].lower())
+        for row in rows
+    }
+    assert registry.keys() == ACCOUNT_DIVISIONS.keys()
+    for title, (division, is_contra, side) in registry.items():
+        assert ACCOUNT_DIVISIONS[title] == division, title
+        assert (title in CONTRA_ACCOUNTS) == is_contra, title
+        assert normal_side(title) == side, title
+
+
+def test_jcci_fixture_candidates_exist_in_python_mirror() -> None:
+    fixture = REPO_ROOT / "test/fixtures/jcci-2022/queries.tsv"
+    with fixture.open(encoding="utf-8", newline="") as handle:
+        candidates = {
+            candidate
+            for row in csv.DictReader(handle, delimiter="\t")
+            for candidate in row["candidates"].split("|")
+        }
+    assert candidates <= ACCOUNT_DIVISIONS.keys()
+
+
+def test_generated_jcci_alias_module_is_current() -> None:
+    generated = subprocess.run(
+        [sys.executable, "tools/gen-jcci-aliases.py"],
+        cwd=REPO_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    checked = (
+        REPO_ROOT
+        / "src/ExchangeAlgebra/Algebra/Base/Account/JcciAliases.hs"
+    ).read_text(encoding="utf-8")
+    assert generated == checked
+
+
+def test_existing_ea_constructor_names_use_identity_task_mappings() -> None:
+    stale = []
+    for path in sorted((EVAL_DIR / "tasks").glob("*.json")):
+        task = json.loads(path.read_text(encoding="utf-8"))
+        mapping = task.get("given", {}).get("ea_account_map", {})
+        stale.extend(
+            (path.name, source, target)
+            for source, target in mapping.items()
+            if source in ACCOUNT_DIVISIONS and source != target
+        )
+    assert stale == []
 
 
 def _debit_totals(postings: list[dict]) -> dict[str, int]:

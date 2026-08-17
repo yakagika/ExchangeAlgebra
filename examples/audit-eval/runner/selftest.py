@@ -561,7 +561,7 @@ def case11() -> None:
         "id": "arm-c-retry",
         "category": "journalize",
         "given": {
-            "ea_account_map": {"ServiceRevenue": "Sales"},
+            "ea_account_map": {"DepreciationExpense": "Depreciation"},
             "transactions": [{"id": "t1", "desc": "service", "amount": 10}],
         },
         "prompt": "Journalize.",

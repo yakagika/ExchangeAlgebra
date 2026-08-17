@@ -96,14 +96,28 @@ a task without `expected_output` is treated as journal-only.
 
 EA-canonical names = constructor names of `AccountTitles`
 (`src/ExchangeAlgebra/Algebra/Base/Element.hs` in this worktree — verify by
-grep, do NOT trust memory).
+grep, do NOT trust memory). The V-Land 3 catalog contains 232 concrete
+constructors and covers every distinct normalized A/B query in the JCCI 2022
+fixture. Coverage means a unique `Right` or a deliberately enumerated
+`AmbiguousAccount`; it never means first-match resolution. This is label-level
+coverage: source rows marked `COLLAPSE` merge distinct JCCI accounts into one EA
+constructor and must not be treated as lossless sub-ledger coverage.
 
 1. Every `chart_of_accounts` entry gets a map entry (identity mapping when the
    GT name IS an EA constructor).
 2. GT-journal accounts missing from the chart also get map entries.
-3. GT name with a clear EA counterpart → map to it
+3. A JCCI A/B Japanese label may be resolved with `parseAccountTitle`, but the
+   task mapping must record the resulting canonical constructor. If the label
+   is policy-ambiguous (`銀行預金`, `〇〇商店`, `貸付金`, `仮払金`, `有価証券`,
+   `投資有価証券`, `関係会社株式`, `借入金`, `未払金`, `仮受金`, `営業収益`,
+   `有価証券運用益`, `通信費`, `地代家賃`, `支払賃借料`, `支払不動産賃借料`,
+   `営業費用`, `有価証券運用損`, `為替差損益`, `有価証券評価損益`, or
+   `有価証券運用損益`), the task must select the
+   contextually correct constructor and record the choice in
+   `map_note`; do not select by candidate order.
+4. GT name with a clear non-JCCI EA counterpart → map to it
    (`Inventory → MerchandiseInventory`).
-4. GT name with NO EA counterpart:
+5. GT name with NO EA counterpart:
    - if a defensible provisional alias exists, use it and record
      `"map_note"` (task-level key inside `given`) explaining the choice —
      this is an accounting-review point;

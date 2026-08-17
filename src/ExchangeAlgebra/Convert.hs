@@ -46,11 +46,10 @@ import qualified Data.Text as T
 
 import           ExchangeAlgebra.Algebra         ( Alg, HatVal, Redundant((.+)), (.@) )
 import           ExchangeAlgebra.Algebra.Base    ( AccountTitles(..)
-                                                 , AccountSpec(asAliases)
                                                  , HatBase(..)
                                                  , Hat(..)
                                                  , Side(..)
-                                                 , accountSpec
+                                                 , accountAliases
                                                  , whichSide )
 
 -- $setup
@@ -115,8 +114,7 @@ accountTable = collapse [ (normalizeTitle k, a) | (k, a) <- entries ]
     aliases =
         [ (alias, title)
         | title <- aliasTitleOrder
-        , Just spec <- [accountSpec title]
-        , alias <- asAliases spec
+        , alias <- accountAliases title
         ]
 
     -- Preserve the historical candidate order for the one shared label whose

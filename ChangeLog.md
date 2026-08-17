@@ -40,12 +40,24 @@
   The six division projections now exclude contra accounts entirely;
   select them with `projContraAssets` (Assets division) or the generic
   `projContra` (attribute-based: keeps both Hat and Not postings).
+- **BREAKING: JCCI B欄共有名の追加.** `parseAccountTitle`の6ラベル
+  (`未払金`, `借入金`, `仮払金`, `仮受金`, `有価証券`, `投資有価証券`)は
+  従来の一意解決から候補を列挙する`AmbiguousAccount`へ変わった. canonical
+  constructor名を使うか, 文脈に基づき候補を明示選択する必要がある.
+- `HeadOfficeCurrentAccount` (`本店`)を支店帳簿上の貸方残に合わせて
+  `Assets`から`Liability`へ訂正した.
 
 ### Added
+- JCCI 2022の2級・3級A欄/B欄を固定fixtureとして収載し, 316 distinct
+  normalized queryの被覆gateを追加した. 295 queryは一意解決し, 共有許容名や
+  損益総称21 queryは候補集合を固定した`AmbiguousAccount`として拒絶する.
+  post-vocabularyのordinal, semantics, account-info, suggest fixtureと再生成tool,
+  Python account mirrorの232科目/5 contra同期testも追加した.
 - EDINET 2026「一般商工業」に準拠した英語表示名を持つ日商2級商業簿記の
   116勘定科目を`AccountTitles`とexhaustive account registryへ追加した.
   EDINET英語ラベルは外部表示名に限定し, 内部constructor IDと日本語aliasは
   互換性・一意性を保つ. 反対勘定3件と決算振替対象外3件もregistry属性として明示した.
+
 - Definition 7 amendment support: `ExBaseClass.isContra` (registry-delegated
   default), `defaultSide`, `pimoFromDivision`, `pimoFlip`,
   `projContraAssets`, and `projContra`.

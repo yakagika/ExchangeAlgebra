@@ -1,0 +1,216 @@
+級	区分	A欄	B欄	EA対応	status
+3	資産	現金		Cash	EXISTS
+3	資産	小口現金		PettyCash	EXISTS
+3	資産	当座預金		CurrentDeposits	EXISTS
+3	資産	当座預金○○銀行		当座預金	COLLAPSE
+3	資産	普通預金	銀行預金	Deposits	EXISTS
+3	資産	普通預金○○銀行		普通預金	COLLAPSE
+3	資産	定期預金	銀行預金		GAP
+3	資産	定期預金○○銀行		定期預金	COLLAPSE
+3	資産	受取手形		NotesReceivable	EXISTS
+3	資産	売掛金	〇〇商店	AccountsReceivable	EXISTS
+3	資産	クレジット売掛金		CreditCardReceivable	EXISTS
+3	資産	電子記録債権		ElectronicallyRecordedReceivable	EXISTS
+3	資産	貸倒引当金		AllowanceForDoubtfulAccounts	EXISTS
+3	資産	繰越商品		MerchandiseInventory	EXISTS
+3	資産	貸付金			GAP
+3	資産	手形貸付金	貸付金	NotesLoansReceivable	EXISTS
+3	資産	従業員貸付金	貸付金	貸付金	COLLAPSE
+3	資産	役員貸付金	貸付金	貸付金	COLLAPSE
+3	資産	立替金		PaymentsOnBehalf	EXISTS
+3	資産	従業員立替金	立替金	立替金	COLLAPSE
+3	資産	前払金	前渡金	AdvancesPaid	EXISTS
+3	資産	未収入金	未収金	OtherReceivables	EXISTS
+3	資産	仮払金		SuspensePayments	EXISTS
+3	資産	受取商品券			GAP
+3	資産	差入保証金			GAP
+3	資産	貯蔵品			GAP
+3	資産	仮払消費税	仮払金	ConsumptionTaxPaid	EXISTS
+3	資産	仮払法人税等	仮払金	PrepaidCorporateIncomeTaxes	EXISTS
+3	資産	前払費用	前払保険料	PrepaidExpenses	EXISTS
+3	資産	未収収益	未収家賃	AccruedRevenue	EXISTS
+3	資産	建物		Building	EXISTS
+3	資産	建物減価償却累計額	減価償却累計額	減価償却累計額	COLLAPSE
+3	資産	備品		Fixtures	EXISTS
+3	資産	備品減価償却累計額	減価償却累計額	減価償却累計額	COLLAPSE
+3	資産	車両運搬具	車両|運搬具	Vehicle	EXISTS
+3	資産	車両運搬具減価償却累計額	車両減価償却累計額|減価償却累計額	減価償却累計額	COLLAPSE
+3	資産	土地		Land	EXISTS
+2	資産	契約資産			GAP
+2	資産	短期貸付金		ShortTermLoansReceivable	EXISTS
+2	資産	未収還付法人税等			GAP
+2	資産	未収還付消費税	未収消費税|未収入金|未収金	OtherReceivables	EXISTS(B)
+2	資産	商品		Products	EXISTS
+2	資産	仕掛品			GAP
+2	資産	繰延税金資産			GAP
+2	資産	リース資産			GAP
+2	資産	工具器具			GAP
+2	資産	建設仮勘定	建設仮|建設前渡金|建設仮払金		GAP
+2	資産	のれん			GAP
+2	資産	特許権		Patent	EXISTS
+2	資産	ソフトウェア		Software	EXISTS
+2	資産	ソフトウェア仮勘定			GAP
+2	資産	売買目的有価証券	有価証券	Securities	EXISTS(B)
+2	資産	満期保有目的債券	投資有価証券	InvestmentSecurities	EXISTS(B)
+2	資産	子会社株式	関係会社株式	InvestmentInAssociate	EXISTS(B)
+2	資産	関連会社株式	関係会社株式	InvestmentInAssociate	EXISTS(B)
+2	資産	その他有価証券	投資有価証券	InvestmentSecurities	EXISTS(B)
+2	資産	長期前払費用			GAP
+2	資産	長期貸付金		LongTermLoansReceivable	EXISTS
+2	資産	不渡手形			GAP
+2	資産	前払年金費用			GAP
+2	資産	退職給付に係る資産			GAP
+2	資産	別段預金	銀行預金		GAP
+2	資産	機械装置	機械	Machinery	EXISTS
+2	資産	構築物			GAP
+2	資産	借地権			GAP
+2	資産	商標権		Trademark	EXISTS
+2	資産	営業外受取手形			GAP
+2	資産	営業外電子記録債権			GAP
+3	負債	支払手形		NotesPayable	EXISTS
+3	負債	買掛金	〇〇商店	AccountsPayable	EXISTS
+3	負債	電子記録債務		ElectronicallyRecordedObligations	EXISTS
+3	負債	前受金		AdvancesReceived	EXISTS
+3	負債	借入金	銀行借入金	LoansPayable	EXISTS
+3	負債	役員借入金	借入金	借入金	COLLAPSE
+3	負債	手形借入金	借入金	NotesLoansPayable	EXISTS
+3	負債	当座借越	借入金	BankOverdraft	EXISTS
+3	負債	未払金		OtherPayables	EXISTS
+3	負債	仮受金		SuspenseReceipts	EXISTS
+3	負債	未払費用	未払利息	AccruedExpenses	EXISTS
+3	負債	前受収益	前受地代	UnearnedRevenue	EXISTS
+3	負債	預り金		DepositsReceived	EXISTS
+3	負債	従業員預り金	預り金	預り金	COLLAPSE
+3	負債	所得税預り金	預り金	預り金	COLLAPSE
+3	負債	住民税預り金	預り金	預り金	COLLAPSE
+3	負債	社会保険料預り金	預り金	預り金	COLLAPSE
+3	負債	仮受消費税	仮受金	ConsumptionTaxReceived	EXISTS
+3	負債	未払消費税	未払金	AccruedConsumptionTax	EXISTS
+3	負債	未払法人税等		AccruedCorporateIncomeTaxes	EXISTS
+3	負債	未払配当金	未払株主配当金	UnpaidDividends	EXISTS
+2	負債	返金負債			GAP
+2	負債	営業外支払手形			GAP
+2	負債	営業外電子記録債務			GAP
+2	負債	短期借入金		ShortTermLoansPayable	EXISTS
+2	負債	未払固定資産税	未払金	OtherPayables	EXISTS(B)
+2	負債	契約負債	前受金	AdvancesReceived	EXISTS(B)
+2	負債	未払賞与	未払役員賞与|未払賞与金		GAP
+2	負債	修繕引当金	特別修繕引当金		GAP
+2	負債	商品保証引当金	製品保証引当金		GAP
+2	負債	賞与引当金	役員賞与引当金		GAP
+2	負債	繰延税金負債			GAP
+2	負債	役員預り金	預り金	DepositsReceived	EXISTS(B)
+2	負債	リース債務			GAP
+2	負債	預り保証金	受入保証金		GAP
+2	負債	退職給付引当金			GAP
+2	負債	長期借入金		LongTermLoansPayable	EXISTS
+2	負債	長期未払金			GAP
+2	負債	退職給付に係る負債			GAP
+3	純資産	資本金		CapitalStock	EXISTS
+3	純資産	利益準備金		LegalRetainedEarnings	EXISTS
+3	純資産	繰越利益剰余金		RetainedEarnings	EXISTS
+2	純資産	株式申込証拠金	申込証拠金|新株式申込証拠金		GAP
+2	純資産	資本準備金	株式払込剰余金		GAP
+2	純資産	その他資本剰余金			GAP
+2	純資産	配当平均積立金			GAP
+2	純資産	修繕積立金			GAP
+2	純資産	新築積立金			GAP
+2	純資産	別途積立金			GAP
+2	純資産	その他有価証券評価差額金			GAP
+2	純資産	非支配株主持分			GAP
+2	純資産	資本剰余金			GAP
+2	純資産	利益剰余金			GAP
+3	収益	売上		Sales	EXISTS
+3	収益	受取家賃		RentalIncome	EXISTS
+3	収益	受取地代			GAP
+3	収益	受取手数料		ReceiptFee	EXISTS
+3	収益	受取利息		InterestEarned	EXISTS
+3	収益	雑益	雑収入|雑収益	MiscellaneousIncome	EXISTS
+3	収益	貸倒引当金戻入	貸倒引当金戻入益	ReversalOfAllowanceForDoubtfulAccounts	EXISTS
+3	収益	償却債権取立益		RecoveryOfBadDebts	EXISTS
+3	収益	固定資産売却益	備品売却益|土地売却益|建物売却益	GainOnSalesOfFixedAssets	EXISTS
+2	収益	役務収益	営業収益		GAP
+2	収益	営業収益			GAP
+2	収益	有価証券売却益	有価証券売買益|有価証券運用益		GAP
+2	収益	有価証券評価益	有価証券運用益		GAP
+2	収益	受取配当金			GAP
+2	収益	有価証券利息	受取社債利息		GAP
+2	収益	投資有価証券売却益	その他有価証券売却益		GAP
+2	収益	保険差益			GAP
+2	収益	負ののれん発生益			GAP
+2	収益	修繕引当金戻入			GAP
+2	収益	商品保証引当金戻入	製品保証引当金戻入		GAP
+2	収益	固定資産受贈益			GAP
+2	収益	国庫補助金受贈益			GAP
+2	収益	工事負担金受贈益			GAP
+2	収益	売上割戻			GAP
+3	費用	仕入		Purchases	EXISTS
+3	費用	売上原価		SalesCost	EXISTS
+3	費用	発送費	支払運賃|発送運賃	DeliveryExpenses	EXISTS
+3	費用	給料	給料手当|賃金給料	WageExpenditure	EXISTS
+3	費用	法定福利費	社会保険料		GAP
+3	費用	広告宣伝費	広告費|広告料|宣伝費	AdvertisingExpense	EXISTS
+3	費用	支払手数料	販売手数料	PaymentFees	EXISTS
+3	費用	支払利息		InterestExpense	EXISTS
+3	費用	旅費交通費	旅費|交通費	BusinessTrip	EXISTS
+3	費用	貸倒引当金繰入	貸倒引当金繰入額	ProvisionForDoubtfulAccounts	EXISTS
+3	費用	貸倒損失		BadDebtLoss	EXISTS
+3	費用	減価償却費	建物減価償却費|備品減価償却費	Depreciation	EXISTS
+3	費用	通信費		CommunicationExpenses|Commutation	AMBIGUOUS_LEGACY
+3	費用	消耗品費	事務用消耗品費	SuppliesExpenses	EXISTS
+3	費用	水道光熱費	光熱水費	UtilitiesExpense	EXISTS
+3	費用	支払家賃	地代家賃|支払賃借料|支払不動産賃借料	RentExpense	EXISTS
+3	費用	支払地代	地代家賃|支払賃借料|支払不動産賃借料		GAP
+3	費用	保険料	支払保険料|火災保険料		GAP
+3	費用	租税公課	公租公課|固定資産税|印紙税	TaxesExpense	EXISTS
+3	費用	修繕費	支払修繕料|修理費		GAP
+3	費用	雑費		MiscellaneousExpenses	EXISTS
+3	費用	雑損	雑損失	MiscellaneousLoss	EXISTS
+3	費用	固定資産売却損	備品売却損|建物売却損|土地売却損	LossOnSalesOfFixedAssets	EXISTS
+3	費用	保管費	保管料|倉庫料		GAP
+3	費用	諸会費			GAP
+3	費用	法人税、住民税及び事業税	法人税等	CorporateIncomeTaxes	EXISTS(B)
+2	費用	役務原価	営業費用		GAP
+2	費用	営業費用			GAP
+2	費用	棚卸減耗損	棚卸減耗費		GAP
+2	費用	商品評価損	棚卸評価損		GAP
+2	費用	賞与	役員賞与		GAP
+2	費用	退職給付費用	退職給付引当金繰入|退職給付引当損		GAP
+2	費用	修繕引当金繰入	特別修繕引当金繰入		GAP
+2	費用	賞与引当金繰入	役員賞与引当金繰入		GAP
+2	費用	商品保証引当金繰入	製品保証引当金繰入		GAP
+2	費用	研究開発費			GAP
+2	費用	のれん償却			GAP
+2	費用	ソフトウェア償却			GAP
+2	費用	特許権償却			GAP
+2	費用	支払リース料			GAP
+2	費用	創立費			GAP
+2	費用	株式交付費			GAP
+2	費用	開業費			GAP
+2	費用	開発費			GAP
+2	費用	手形売却損		LossOnSalesOfNotesReceivable	EXISTS
+2	費用	電子記録債権売却損			GAP
+2	費用	債権売却損			GAP
+2	費用	有価証券売却損	有価証券売買損|有価証券運用損		GAP
+2	費用	有価証券評価損	有価証券運用損		GAP
+2	費用	投資有価証券売却損	その他有価証券売却損		GAP
+2	費用	火災損失	災害損失		GAP
+2	費用	固定資産除却損	固定資産廃棄損|備品除却損|建物除却損|除却損		GAP
+2	費用	固定資産圧縮損	備品圧縮損|建物圧縮損|機械装置圧縮損		GAP
+2	費用	追徴法人税等			GAP
+2	費用	還付法人税等			GAP
+2	費用	仕入割戻			GAP
+2	費用	福利厚生費			GAP
+2	費用	保守費	維持費|支払メンテナンス料		GAP
+3	その他	現金過不足		CashOverShort	EXISTS
+3	その他	損益			GAP
+2	その他	未決算	火災未決算|保険未決算		GAP
+2	その他	為替差損益	為替差損|為替差益		GAP
+2	その他	有価証券評価損益	有価証券運用損益		GAP
+2	その他	保証債務見返			GAP
+2	その他	保証債務			GAP
+2	その他	法人税等調整額			GAP
+2	その他	支店			GAP
+2	その他	本店			GAP
+2	その他	非支配株主に帰属する当期純利益			GAP
+2	その他	非支配株主に帰属する当期純損失			GAP

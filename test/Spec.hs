@@ -369,7 +369,7 @@ accountTitleClassTable =
     , (GuaranteeObligations, Liability, Credit, Other)
     , (IncomeTaxesAdjustment, Cost, Debit, Other)
     , (BranchCurrentAccount, Assets, Debit, Other)
-    , (HeadOfficeCurrentAccount, Assets, Debit, Other)
+    , (HeadOfficeCurrentAccount, Liability, Credit, Other)
     , (NetIncomeAttributableToNCI, Cost, Debit, Other)
     , (NetLossAttributableToNCI, Revenue, Credit, Other)
     , (TradingSecurities, Assets, Debit, Current)
@@ -2060,13 +2060,177 @@ goldenSuggestions =
            <> goldenShow (L.length matches) <> T.pack "\t"
            <> T.intercalate (T.pack ",") (L.map goldenShow (L.take 10 matches))
 
+postVocabHeader :: T.Text -> T.Text
+postVocabHeader what = T.pack "# post-vocab " <> what <> T.pack "; schema 1\n"
+
+postVocabInfoGolden :: T.Text
+postVocabInfoGolden =
+    postVocabHeader (T.pack "AccountInfo (title, division, homeSide, nameEn, nameJa, description)")
+    <> T.unlines (L.map goldenInfoRow Assist.allAccountInfos)
+
+postVocabSuggestionsGolden :: T.Text
+postVocabSuggestionsGolden =
+    postVocabHeader (T.pack "suggestAccounts (query, total matches, top-10 titles)")
+    <> T.unlines (L.map row corpus)
+  where
+    infos = Assist.allAccountInfos
+    nameFields = L.concat
+        [ [goldenShow (Assist.aiTitle info), Assist.aiNameEn info, Assist.aiNameJa info]
+        | info <- infos
+        ]
+    descTokens = L.concatMap (T.words . Assist.aiDesc) infos
+    corpus = goldenDedupSort
+        (L.concatMap (\q -> [q, T.toLower q]) nameFields <> descTokens)
+    row query =
+        let matches = L.map Assist.aiTitle (Assist.suggestAccounts query)
+        in goldenEsc query <> T.pack "\t"
+           <> goldenShow (L.length matches) <> T.pack "\t"
+           <> T.intercalate (T.pack ",") (L.map goldenShow (L.take 10 matches))
+
+postVocabOrdinalsGolden :: T.Text
+postVocabOrdinalsGolden =
+    postVocabHeader (T.pack "Enum ordinals (constructor, fromEnum)")
+    <> T.unlines
+        [ goldenShow title <> T.pack "\t" <> goldenShow (fromEnum title)
+        | title <- [minBound .. maxBound] :: [AccountTitles]
+        ]
+
+postVocabSemanticsGolden :: T.Text
+postVocabSemanticsGolden =
+    postVocabHeader (T.pack "semantics (title, whatDiv, isContra, whichSide Not, whichSide Hat, whatPIMO, fixedCurrent, finalStockProbe)")
+    <> T.unlines (L.map row Registry.concreteAccountTitles)
+  where
+    row title =
+        let nb = Not :< title :: HatBase AccountTitles
+            hb = Hat :< title :: HatBase AccountTitles
+        in T.intercalate (T.pack "\t")
+            [ goldenShow title
+            , goldenShow (whatDiv nb)
+            , goldenShow (Registry.classifyAccountContra title)
+            , goldenShow (whichSide nb)
+            , goldenShow (whichSide hb)
+            , goldenShow (whatPIMO nb)
+            , goldenShow (fixedCurrent nb)
+            , T.pack (finalStockProbeRule title)
+            ]
+
+testPostVocabGolden :: IO ()
+testPostVocabGolden = do
+    ordinals <- TIO.readFile "test/fixtures/post-vocab/ordinals.tsv"
+    semantics <- TIO.readFile "test/fixtures/post-vocab/semantics.tsv"
+    info <- TIO.readFile "test/fixtures/post-vocab/account-info.tsv"
+    suggestions <- TIO.readFile "test/fixtures/post-vocab/suggest.tsv"
+    assertEqual "post-vocab ordinal fixture" ordinals postVocabOrdinalsGolden
+    assertEqual "post-vocab semantics fixture" semantics postVocabSemanticsGolden
+    assertEqual "post-vocab account-info fixture" info postVocabInfoGolden
+    assertEqual "post-vocab suggest fixture" suggestions postVocabSuggestionsGolden
+
 -- Land 2 (Definition 7 contra amendment) 以降: alias 解決だけが byte 一致
 -- (parseAccountTitle は division 非依存)。semantics / info / suggest は
 -- 意図的差分を持つため, closed-diff test (testLand2*ClosedDiff) が引き継ぐ。
 testRegistryGolden :: IO ()
 testRegistryGolden = do
     aliases <- TIO.readFile "test/fixtures/pre-land1/alias-resolution.tsv"
-    assertEqual "registry golden: alias resolution" aliases (goldenAliasResolution aliases)
+    jcci <- TIO.readFile "test/fixtures/jcci-2022/queries.tsv"
+    let oldRows = L.filter (not . T.null) (L.drop 1 (T.lines aliases))
+        currentRows = L.filter (not . T.null)
+            (L.drop 1 (T.lines (goldenAliasResolution aliases)))
+        changedQueries =
+            [ T.takeWhile (/= '\t') old
+            | (old, current) <- L.zip oldRows currentRows
+            , old /= current
+            ]
+        expectedChangedQueries = L.sort (L.map T.pack
+            [ "未払金", "借入金", "仮払金", "仮受金"
+            , "有価証券", "投資有価証券"
+            , "  未払金  ", "  借入金  ", "  仮払金  ", "  仮受金  "
+            , "  有価証券  ", "  投資有価証券  "
+            ])
+        officialQueries =
+            [ EC.normalizeTitle (fields L.!! 3)
+            | line <- L.filter (not . T.null) (L.drop 1 (T.lines jcci))
+            , let fields = T.splitOn (T.pack "\t") line
+            , L.length fields == 7
+            ]
+    assertEqual "registry golden: historical row count"
+        (L.length oldRows) (L.length currentRows)
+    assertEqual "registry golden: every changed historical alias is JCCI-scoped"
+        ([] :: [T.Text])
+        [q | q <- changedQueries, EC.normalizeTitle q `L.notElem` officialQueries]
+    -- The pre-land fixture freezes each old result; testJcciAccountNameCoverage
+    -- freezes each new result. Freezing this exact query set closes the diff.
+    assertEqual "registry golden: exact adjudicated historical alias diff"
+        expectedChangedQueries (L.sort changedQueries)
+
+-- | JCCI 2022 A欄/B欄の全 distinct query は, 一意のRightかfixtureで候補を
+-- 閉じたAmbiguousのどちらかでなければならない. Unknown/first-matchは不可.
+testJcciAccountNameCoverage :: IO ()
+testJcciAccountNameCoverage = do
+    source <- TIO.readFile "test/fixtures/jcci-2022/source.tsv"
+    fixture <- TIO.readFile "test/fixtures/jcci-2022/queries.tsv"
+    let sourceRows = L.filter (not . T.null) (L.drop 1 (T.lines source))
+        rows = L.filter (not . T.null) (L.drop 1 (T.lines fixture))
+        outcomes = [field L.!! 4 | row <- rows, let field = T.splitOn (T.pack "\t") row]
+        sourceFields =
+            [ fields
+            | row <- sourceRows
+            , let fields = T.splitOn (T.pack "\t") row
+            , L.length fields == 6
+            ]
+        sourceEntries =
+            [ (EC.normalizeTitle label, standardName)
+            | fields <- sourceFields
+            , let standardName = fields L.!! 2
+            , label <- standardName : T.splitOn (T.pack "|") (fields L.!! 3)
+            , not (T.null (T.strip label))
+            ]
+        sourceLabels = goldenDedupSort (L.map fst sourceEntries)
+        fixtureLabels = goldenDedupSort
+            [ EC.normalizeTitle (fields L.!! 3)
+            | row <- rows
+            , let fields = T.splitOn (T.pack "\t") row
+            , L.length fields == 7
+            ]
+    assertEqual "JCCI source A-row count" 215 (L.length sourceRows)
+    assertEqual "JCCI source rows have six columns"
+        (L.length sourceRows) (L.length sourceFields)
+    assertEqual "JCCI distinct normalized A/B query count" 316 (L.length rows)
+    assertEqual "JCCI fixture covers exactly the source A/B labels"
+        sourceLabels fixtureLabels
+    assertEqual "JCCI unique resolutions" 295 (L.length (L.filter (== T.pack "right") outcomes))
+    assertEqual "JCCI policy ambiguities" 21 (L.length (L.filter (== T.pack "ambiguous") outcomes))
+    forM_ rows $ \row -> case T.splitOn (T.pack "\t") row of
+        [_, _, _, query, _, _, standardNames] ->
+            assertEqual ("JCCI source provenance: " ++ T.unpack query)
+                (goldenDedupSort
+                    [ standardName
+                    | (label, standardName) <- sourceEntries
+                    , label == EC.normalizeTitle query
+                    ])
+                (goldenDedupSort (T.splitOn (T.pack "|") standardNames))
+        fields -> assertEqual "JCCI fixture provenance row has seven columns"
+            (7 :: Int) (L.length fields)
+    mapM_ check rows
+  where
+    check row = case T.splitOn (T.pack "\t") row of
+        [_, _, _, query, outcome, candidateText, _] ->
+            let names = T.splitOn (T.pack "|") candidateText
+            in case traverse (`M.lookup` land2TitleMap) names of
+                Nothing -> assertEqual "JCCI fixture names only real constructors"
+                    (T.pack "known constructors") candidateText
+                Just candidates -> case candidates of
+                    [candidate] | outcome == T.pack "right" ->
+                        assertEqual ("JCCI Right: " ++ T.unpack query)
+                            (Right candidate) (EC.parseAccountTitle query)
+                    _ : _ : _ | outcome == T.pack "ambiguous" ->
+                        assertEqual ("JCCI Ambiguous: " ++ T.unpack query)
+                            (Left (EC.AmbiguousAccount query candidates))
+                            (EC.parseAccountTitle query)
+                    _ -> assertEqual "JCCI fixture outcome/candidate arity"
+                        (T.pack "right=1 or ambiguous>=2")
+                        (outcome <> T.pack ":" <> candidateText)
+        _ -> assertEqual "JCCI fixture row has seven columns" (7 :: Int)
+            (L.length (T.splitOn (T.pack "\t") row))
 
 testRegistryWildcards :: IO ()
 testRegistryWildcards = do
@@ -4163,7 +4327,9 @@ main = do
     testAssistDescribeAccount
     testAssistAllAccountInfos
     testAssistSuggestAccounts
+    testPostVocabGolden
     testRegistryGolden
+    testJcciAccountNameCoverage
     testRegistryWildcards
     testRegistryContraLand2
     testLand2SemanticsClosedDiff

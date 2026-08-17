@@ -9,10 +9,12 @@ Module      : ExchangeAlgebra.Algebra.Base.Account.Registry
 Description : Canonical metadata registry for concrete account titles.
 
 The exhaustive 'accountSpec' case is the single source of truth for account
-classification, fixed/current status, bilingual descriptions, and aliases.
+classification, fixed/current status, and bilingual descriptions. 'accountAliases'
+combines its base aliases with the frozen JCCI 2022 standard/permitted-name overlay.
 -}
 module ExchangeAlgebra.Algebra.Base.Account.Registry
     ( AccountSpec(..)
+    , accountAliases
     , accountSpec
     , accountSpecMap
     , concreteAccountTitles
@@ -20,6 +22,7 @@ module ExchangeAlgebra.Algebra.Base.Account.Registry
     , accountDescriptions
     ) where
 
+import qualified Data.List as L
 import qualified Data.Map.Strict as M
 import           Data.Map.Strict (Map)
 import           Data.Maybe (mapMaybe)
@@ -27,6 +30,7 @@ import           Data.Text (Text)
 
 import ExchangeAlgebra.Algebra.Base.Account.Types
     ( AccountDivision(..), ClosingRule(..), FixedCurrent(..) )
+import ExchangeAlgebra.Algebra.Base.Account.JcciAliases (jcciAliases)
 import ExchangeAlgebra.Algebra.Base.Element (AccountTitles(..))
 
 -- | All metadata attached to one concrete account title.
@@ -46,12 +50,23 @@ data AccountSpec = AccountSpec
     , asNameEn      :: Text
     , asNameJa      :: Text
     , asDescription :: Text
+    -- | Registry-local aliases only. Use 'accountAliases' when constructing a
+    -- parser or UI: that function also includes the frozen JCCI overlay.
     , asAliases     :: [Text]
     } deriving (Show, Eq)
 
 -- | All concrete account titles in their stable Enum order.
 concreteAccountTitles :: [AccountTitles]
 concreteAccountTitles = filter (/= AccountTitle) [minBound .. maxBound]
+
+-- | Every accepted non-canonical alias for an account. The JCCI overlay is
+-- generated from the frozen 2022 standard/permitted account-name fixture;
+-- shared permitted names intentionally remain shared so parsing reports an
+-- explicit ambiguity instead of silently choosing one account.
+accountAliases :: AccountTitles -> [Text]
+accountAliases title = L.nub (baseAliases <> jcciAliases title)
+  where
+    baseAliases = maybe [] asAliases (accountSpec title)
 
 -- | Look up metadata for an account title. The wildcard has no metadata.
 --
@@ -2225,7 +2240,7 @@ accountSpec IncomeSummary = Just AccountSpec
     , asFixedCurrent = Other
     , asNameEn = "Income summary"
     , asNameJa = "損益"
-    , asDescription = "Assets: Income summary (損益)"
+    , asDescription = "Bookkeeping device: Income summary (損益). Assets/NoClose is a technical debit-side placeholder; it is not a balance-sheet asset and is not automatically closed."
     , asAliases = ["損益"]
     }
 accountSpec SuspenseAccount = Just AccountSpec
@@ -2299,13 +2314,13 @@ accountSpec BranchCurrentAccount = Just AccountSpec
     , asAliases = ["支店"]
     }
 accountSpec HeadOfficeCurrentAccount = Just AccountSpec
-    { asDivision = Assets
+    { asDivision = Liability
     , asClosing = CloseByDivision
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Head office current account"
     , asNameJa = "本店"
-    , asDescription = "Assets: Head office current account (本店)"
+    , asDescription = "Liability: Head office current account (本店), the credit-balance reciprocal account in branch books."
     , asAliases = ["本店"]
     }
 accountSpec NetIncomeAttributableToNCI = Just AccountSpec
@@ -2315,7 +2330,7 @@ accountSpec NetIncomeAttributableToNCI = Just AccountSpec
     , asFixedCurrent = Other
     , asNameEn = "Profit attributable to non-controlling interests"
     , asNameJa = "非支配株主に帰属する当期純利益"
-    , asDescription = "Cost: Profit attributable to non-controlling interests (非支配株主に帰属する当期純利益)"
+    , asDescription = "Cost: Profit attributable to non-controlling interests (非支配株主に帰属する当期純利益). NoClose: consolidation procedures transfer it separately to non-controlling interests."
     , asAliases = ["非支配株主に帰属する当期純利益"]
     }
 accountSpec NetLossAttributableToNCI = Just AccountSpec
@@ -2325,7 +2340,7 @@ accountSpec NetLossAttributableToNCI = Just AccountSpec
     , asFixedCurrent = Other
     , asNameEn = "Loss attributable to non-controlling interests"
     , asNameJa = "非支配株主に帰属する当期純損失"
-    , asDescription = "Revenue: Loss attributable to non-controlling interests (非支配株主に帰属する当期純損失)"
+    , asDescription = "Revenue: Loss attributable to non-controlling interests (非支配株主に帰属する当期純損失). NoClose: consolidation procedures transfer it separately to non-controlling interests."
     , asAliases = ["非支配株主に帰属する当期純損失"]
     }
 accountSpec TradingSecurities = Just AccountSpec

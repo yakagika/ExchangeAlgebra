@@ -1,9 +1,12 @@
 # SKILL-ea — ExchangeAlgebra harness cheatsheet for arm A
 
-version: v2
+version: v2.1
 
 ## Changelog
 
+- **v2.1** (2026-08-16): V-Land 3 — added the complete JCCI level-2/3
+  vocabulary, EDINET-aligned display names, five contra accounts, and the
+  policy-ambiguous Japanese aliases documented below.
 - **v2** (2026-07-04): Track S — checked construction is now mandatory.
   Entries and journals must be built through `ExchangeAlgebra.Convert.Checked`
   (`checkedEntry` / `checkedJournal`) with explicit `Side` values
@@ -102,11 +105,77 @@ version: v2
 --                ProvisionForDoubtfulAccounts, AmortizationExpense,
 --                CommunicationExpenses, SalesCost
 --
+-- JCCI 2022 extension constructors (EXACT spelling):
+--   Assets:
+--     TimeDeposits, LoansReceivable, GiftCertificatesReceived,
+--     SecurityDepositsPaid, SuppliesOnHand, ContractAssets,
+--     IncomeTaxesRefundReceivable, WorkInProcess, DeferredTaxAssets, LeasedAssets,
+--     ToolsAndInstruments, ConstructionInProgress, Goodwill, SoftwareInProgress,
+--     LongTermPrepaidExpenses, DishonoredNotesReceivable, PrepaidPensionCost,
+--     NetDefinedBenefitAsset, DepositsInSpecialAccounts, Structures,
+--     LeaseholdRights, NonOperatingNotesReceivable,
+--     NonOperatingElectronicallyRecordedReceivable
+--   Liabilities:
+--     RefundLiabilities, NonOperatingNotesPayable,
+--     NonOperatingElectronicallyRecordedObligations, BonusesPayable,
+--     AllowanceForRepairs, AllowanceForProductWarranties, AllowanceForBonuses,
+--     DeferredTaxLiabilities, LeaseObligations, GuaranteeDepositsReceived,
+--     AllowanceForRetirementBenefits, LongTermOtherPayables,
+--     NetDefinedBenefitLiability
+--   Equity:
+--     StockSubscriptionDeposits, LegalCapitalSurplus, OtherCapitalSurplus,
+--     DividendEqualizationReserve, RepairFundReserve, ConstructionFundReserve,
+--     GeneralReserve, ValuationDifferenceOnOtherSecurities,
+--     NonControllingInterests, CapitalSurplus, EarnedSurplus
+--   Revenue:
+--     ServiceRevenue, OperatingRevenue, GainOnSalesOfSecurities,
+--     GainOnValuationOfSecurities, DividendsReceived, InterestOnSecurities,
+--     GainOnSalesOfInvestmentSecurities, InsuranceGain, GainOnBargainPurchase,
+--     ReversalOfAllowanceForRepairs, ReversalOfAllowanceForProductWarranties,
+--     GainOnDonationOfFixedAssets, GainOnNationalSubsidies,
+--     GainOnConstructionGrants, LandRentReceived, SalesRebates
+--   Expenses:
+--     CostOfServices, OperatingExpenses, InventoryShrinkageLoss,
+--     LossOnValuationOfMerchandise, Bonuses, RetirementBenefitExpenses,
+--     ProvisionForRepairs, ProvisionForBonuses, ProvisionForProductWarranties,
+--     ResearchAndDevelopmentExpenses, AmortizationOfGoodwill,
+--     AmortizationOfSoftware, AmortizationOfPatents, LeaseExpenses,
+--     IncorporationExpenses, StockIssuanceCosts, BusinessCommencementExpenses,
+--     DevelopmentExpenses, LossOnSalesOfElectronicallyRecordedReceivables,
+--     LossOnSalesOfReceivables, LossOnSalesOfSecurities,
+--     LossOnValuationOfSecurities, LossOnSalesOfInvestmentSecurities, LossOnFire,
+--     LossOnRetirementOfFixedAssets, LossOnReductionOfFixedAssets,
+--     AdditionalIncomeTaxesForPriorPeriods, RefundOfIncomeTaxes, PurchaseRebates,
+--     WelfareExpenses, MaintenanceExpenses, StatutoryWelfareExpenses,
+--     LandRentPaid, InsuranceExpense, RepairsExpense, StorageExpenses,
+--     MembershipFees
+--   Additional specialized accounts by registry division:
+--     Assets: SuspenseAccount, ContraAccountForGuaranteeObligations,
+--       BranchCurrentAccount, TradingSecurities, HeldToMaturityBonds,
+--       SubsidiaryStocks, AffiliateStocks, AvailableForSaleSecurities
+--     Liabilities: GuaranteeObligations, HeadOfficeCurrentAccount
+--     Revenue: ForeignExchangeGains, NetLossAttributableToNCI
+--     Expenses: ForeignExchangeLosses, IncomeTaxesAdjustment,
+--       NetIncomeAttributableToNCI
+--     Bookkeeping device: IncomeSummary. Its registry Assets/NoClose metadata
+--       is a technical debit-side placeholder, not a balance-sheet asset; do
+--       not use it in statement classification or expect automatic closing.
+--
+-- Additional contra accounts (reversed home side):
+--   SalesRebates (Revenue -> Debit), RefundOfIncomeTaxes (Cost -> Credit),
+--   PurchaseRebates (Cost -> Credit).
+--
+-- Japanese JCCI A/B labels are accepted by parseAccountTitle. These 21 labels
+-- intentionally fail as AmbiguousAccount: 銀行預金, 〇〇商店, 貸付金, 仮払金,
+-- 有価証券, 投資有価証券, 関係会社株式, 借入金, 未払金, 仮受金, 営業収益,
+-- 有価証券運用益, 通信費, 地代家賃, 支払賃借料, 支払不動産賃借料, 営業費用,
+-- 有価証券運用損, 為替差損益, 有価証券評価損益, 有価証券運用損益.
+-- Never pick one silently. For Haskell source, prefer the exact constructors above.
+--
 -- *** Accounts NOT in AccountTitles ***
---   Some task chart names do not exist in EA (e.g. ServiceRevenue,
+--   Some task chart names still do not exist in EA (e.g.
 --   DepreciationExpense, Inventory). The task input provides an
 --   "EA account mapping" (ea_account_map). ALWAYS use the mapped EA name:
---     ServiceRevenue      -> (mapped, e.g. Sales)
 --     DepreciationExpense -> Depreciation
 --     Inventory           -> MerchandiseInventory
 --   Never invent a constructor: unmapped names WILL NOT COMPILE or will be
