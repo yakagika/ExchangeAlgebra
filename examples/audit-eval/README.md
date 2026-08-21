@@ -26,6 +26,42 @@ uv run runner/run.py --tasks-dir tasks-s --task all --arm C --model codex --seed
 uv run runner/run.py --task all --arm A,D,Aprime --model codex --max-iters 2
 ```
 
+### Crash-safe split runs and resume
+
+Every scored draw is appended to `<timestamp>.jsonl`. Resume into a **new**
+timestamp; the runner validates the parent lineage and skips only completed
+`(task, arm, model, seed, repeat)` keys:
+
+```bash
+uv run runner/run.py <the same grid flags> \
+  --resume-from metrics/20260820_confirmatory_qwen.meta.json \
+  --expect-task-bundle-sha256 <recorded-task-bundle-digest> \
+  --expect-parent-jsonl-sha256 <recorded-parent-jsonl-digest> \
+  --timestamp 20260824_confirmatory_qwen_part2
+```
+
+Resume fails before any model call on corrupt/duplicate/out-of-grid records,
+task-bundle, backend-version, resolved-model-config, or measurement-code drift,
+missing tasks/models, output collisions, and resume forks. Legacy metadata that
+does not contain a task-bundle digest requires the explicit expectation flag.
+A stopped in-flight draw has no JSONL record and is the only draw rerun. Parent
+JSONL files are immutable. Verify a lineage and optionally create
+a separate merged JSON file with:
+
+```bash
+uv run runner/checkpoint.py --meta metrics/<latest>.meta.json \
+  --expect-latest-jsonl-sha256 <recorded-latest-jsonl-digest>
+uv run runner/checkpoint.py --meta metrics/<latest>.meta.json \
+  --expect-latest-jsonl-sha256 <recorded-latest-jsonl-digest> \
+  --merged metrics/<chain>-merged.json
+```
+
+`summary.csv` keeps its existing schema; lineage provenance lives in part meta
+files. A resumed part's `<timestamp>.json` contains that part only; use the
+checkpoint merge for a whole-lineage JSON view, and union every lineage `ts`
+when reading `summary.csv`. For confirmatory runs, record any pause/resume and backend-version drift
+in the preregistered deviation log before continuing.
+
 Prerequisites:
 - Python 3.11+ with `uv` (`pip install uv`)
 - `codex` CLI on PATH and logged in (`codex login`)

@@ -48,6 +48,9 @@
   `Assets`から`Liability`へ訂正した.
 
 ### Added
+- `audit-eval`の長時間 confirmatory runをcell境界で分割再開するcheckpoint機構を追加した.
+  task/model/backend/git surface/hashのdrift, JSONL破損・重複, resume forkを実行前に拒絶し,
+  独立した検証・merge CLIでlineageを監査できる.
 - JCCI 2022の2級・3級A欄/B欄を固定fixtureとして収載し, 316 distinct
   normalized queryの被覆gateを追加した. 295 queryは一意解決し, 共有許容名や
   損益総称21 queryは候補集合を固定した`AmbiguousAccount`として拒絶する.

@@ -33,7 +33,11 @@ from runner.arms import (  # noqa: E402
     arm_c,
 )
 from runner.models import BackendTimeout  # noqa: E402
-from runner.run import append_summary_csv, normalize_arm_name  # noqa: E402
+from runner.run import (  # noqa: E402
+    append_summary_csv, cell_key, collect_resume_keys, load_jsonl_keys,
+    normalize_arm_name, resume_children, sha256_file,
+)
+from runner.checkpoint import verify as verify_checkpoint  # noqa: E402
 from runner.score import score  # noqa: E402
 
 FAILURES: list[str] = []
@@ -717,6 +721,122 @@ def case15() -> None:
     check("no per-transaction field silently dropped", not dropped, str(dropped))
 
 
+def case16() -> None:
+    print("Case 16: resume checkpoint keys are fail-closed and mergeable")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        meta = root / "part1.meta.json"
+        jsonl = root / "part1.jsonl"
+        base = {
+            "ts": "part1", "argv": ["runner/run.py", "--repeats", "2"],
+            "tasks": ["t"], "arms": ["C"], "models": ["fake"],
+            "seeds": [0], "max_iters": 3, "oracle_arms": ["B", "C"],
+            "skill": "v2", "aprime_feedback": "raw", "c_retries": 3,
+            "c_ea_map": True, "task_bundle_sha256": "bundle",
+            "resolved_model_config": {"fake": {"model": "fake"}},
+            "backends": {"fake": {"backend": "fake", "version": "1"}},
+            "git": {"rev_parse_head": "test-head"},
+        }
+        meta.write_text(json.dumps(base), encoding="utf-8")
+        rec = {"task_id": "t", "arm": "C", "model": "fake", "seed": 0,
+               "repeat": 0, "metrics": {"numeric_accuracy": 0.25}}
+        jsonl.write_text(json.dumps(rec) + "\n", encoding="utf-8")
+        planned = {("t", "C", "fake", 0, 0), ("t", "C", "fake", 0, 1)}
+        root_hash = sha256_file(jsonl)
+        current = dict(base, repeats=2)
+        keys, sources = collect_resume_keys(
+            meta, planned, current, expected_parent_jsonl=root_hash, check_git=False)
+        check("resume loads one completed key", keys == {cell_key(rec)}, str(keys))
+        check("resume source count recorded", sources[0]["records"] == 1, str(sources))
+        report = verify_checkpoint(meta, expected_latest_hash=root_hash)
+        check("checkpoint reports one remaining", report["remaining"] == 1, str(report))
+        try:
+            collect_resume_keys(
+                meta, planned, dict(base, repeats=3), check_git=False)
+            repeat_drift_rejected = False
+        except ValueError:
+            repeat_drift_rejected = True
+        check("legacy argv repeat drift rejected", repeat_drift_rejected)
+        try:
+            collect_resume_keys(
+                meta, planned, dict(current, task_bundle_sha256="other"), check_git=False)
+            bundle_drift_rejected = False
+        except ValueError:
+            bundle_drift_rejected = True
+        check("task bundle drift rejected", bundle_drift_rejected)
+        try:
+            verify_checkpoint(meta, expected_latest_hash="0" * 64)
+            hash_drift_rejected = False
+        except ValueError:
+            hash_drift_rejected = True
+        check("root JSONL hash drift rejected", hash_drift_rejected)
+        child = root / "part2.meta.json"
+        child_jsonl = root / "part2.jsonl"
+        rec2 = dict(rec, repeat=1)
+        child_jsonl.write_text(json.dumps(rec2) + "\n", encoding="utf-8")
+        child_meta = dict(base, ts="part2", resume={
+            "parent_meta": str(meta),
+            "sources": [{"jsonl": str(jsonl), "jsonl_sha256": root_hash}],
+        })
+        child.write_text(json.dumps(child_meta), encoding="utf-8")
+        check("existing resume child detected", resume_children(meta, root) == [child.resolve()])
+        complete = verify_checkpoint(
+            child, expected_latest_hash=sha256_file(child_jsonl), require_complete=True)
+        check("two-part lineage verifies complete", complete["remaining"] == 0, str(complete))
+        jsonl.write_text(json.dumps(dict(rec, metrics={"numeric_accuracy": 1.0})) + "\n", encoding="utf-8")
+        try:
+            verify_checkpoint(child, expected_latest_hash=sha256_file(child_jsonl))
+            ancestor_tamper_rejected = False
+        except ValueError:
+            ancestor_tamper_rejected = True
+        check("recorded ancestor hash detects tampering", ancestor_tamper_rejected)
+        jsonl.write_text(json.dumps(rec) + "\n", encoding="utf-8")
+        equals_meta = root / "equals.meta.json"
+        equals_jsonl = root / "equals.jsonl"
+        equals_base = dict(base, argv=["runner/run.py", "--repeats=2"])
+        equals_meta.write_text(json.dumps(equals_base), encoding="utf-8")
+        equals_jsonl.write_text(json.dumps(rec) + "\n", encoding="utf-8")
+        equals_keys, _ = collect_resume_keys(
+            equals_meta, planned, current,
+            expected_parent_jsonl=sha256_file(equals_jsonl), check_git=False)
+        check("equals-form repeats parsed", equals_keys == {cell_key(rec)})
+        legacy_meta = root / "legacy.meta.json"
+        legacy_jsonl = root / "legacy.jsonl"
+        legacy = dict(base)
+        legacy.pop("task_bundle_sha256")
+        legacy_meta.write_text(json.dumps(legacy), encoding="utf-8")
+        legacy_jsonl.write_text(json.dumps(rec) + "\n", encoding="utf-8")
+        try:
+            collect_resume_keys(
+                legacy_meta, planned, current,
+                expected_parent_jsonl=sha256_file(legacy_jsonl), check_git=False)
+            missing_bundle_expectation_rejected = False
+        except ValueError:
+            missing_bundle_expectation_rejected = True
+        check("legacy missing bundle expectation rejected", missing_bundle_expectation_rejected)
+        missing_head = dict(base)
+        missing_head["git"] = {}
+        missing_head_meta = root / "missing-head.meta.json"
+        missing_head_jsonl = root / "missing-head.jsonl"
+        missing_head_meta.write_text(json.dumps(missing_head), encoding="utf-8")
+        missing_head_jsonl.write_text(json.dumps(rec) + "\n", encoding="utf-8")
+        try:
+            collect_resume_keys(
+                missing_head_meta, planned, current,
+                expected_parent_jsonl=sha256_file(missing_head_jsonl), check_git=False)
+            missing_head_rejected = False
+        except ValueError:
+            missing_head_rejected = True
+        check("missing parent git revision rejected", missing_head_rejected)
+        jsonl.write_text(json.dumps(rec) + "\n" + json.dumps(rec) + "\n", encoding="utf-8")
+        try:
+            load_jsonl_keys(jsonl)
+            duplicate_rejected = False
+        except ValueError:
+            duplicate_rejected = True
+        check("duplicate key rejected", duplicate_rejected)
+
+
 def main() -> None:
     case1()
     case2()
@@ -733,6 +853,7 @@ def main() -> None:
     case13()
     case14()
     case15()
+    case16()
 
     print()
     if FAILURES:

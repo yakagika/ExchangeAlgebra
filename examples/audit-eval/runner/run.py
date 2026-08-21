@@ -35,7 +35,8 @@ metrics/<timestamp>.meta.json — run config, git revision, backend versions.
                               Written BEFORE the grid runs (survives a mid-run kill).
 metrics/<timestamp>.jsonl   — one JSON record per cell, appended as each cell
                               scores (the crash-safe copy).
-metrics/<timestamp>.json    — full results array, written at the end (convenience).
+metrics/<timestamp>.json    — this invocation's results array, written at the end.
+                              A resumed lineage must be merged with checkpoint.py.
 metrics/summary.csv         — one row per (task, arm, model, seed, repeat) run,
                               appended per cell across invocations. Added columns are
                               migrated in place; an incompatible schema change preserves
@@ -46,6 +47,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import subprocess
 import sys
@@ -66,6 +68,224 @@ TASKS_DIR    = EVAL_DIR / "tasks"
 MODELS_TOML  = EVAL_DIR / "models.toml"
 METRICS_DIR  = EVAL_DIR / "metrics"
 ARMS_DIR     = EVAL_DIR / "arms"                  # ignored by git
+
+CELL_FIELDS = ("task_id", "arm", "model", "seed", "repeat")
+RESUME_CONFIG_FIELDS = (
+    "tasks", "arms", "models", "seeds", "repeats", "max_iters",
+    "oracle_arms", "skill", "aprime_feedback", "c_retries", "c_ea_map",
+)
+MEASUREMENT_SURFACE = (
+    "src", "examples/audit-eval/harness", "examples/audit-eval/oracle",
+    "examples/audit-eval/gen", "examples/audit-eval/runner/arms.py",
+    "examples/audit-eval/runner/score.py", "examples/audit-eval/runner/build.py",
+    "examples/audit-eval/runner/models.py", "examples/audit-eval/models.toml",
+    "stack.yaml", "stack.yaml.lock", "package.yaml", "exchangealgebra.cabal",
+    "examples/audit-eval/pyproject.toml", "examples/audit-eval/uv.lock",
+)
+
+
+def cell_key(record: dict) -> tuple:
+    """Identity of one planned LLM draw. Metric values are deliberately ignored."""
+    return tuple(record.get(field, 0 if field == "repeat" else None) for field in CELL_FIELDS)
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def task_bundle_digest(tasks_dir: Path, task_ids: list[str]) -> str:
+    digest = hashlib.sha256()
+    for task_id in task_ids:
+        path = tasks_dir / f"{task_id}.json"
+        if not path.is_file():
+            raise ValueError(f"missing task file: {path}")
+        try:
+            task = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"invalid task JSON {path}: {exc}") from exc
+        if task.get("id") != task_id:
+            raise ValueError(f"task id mismatch in {path}: {task.get('id')!r}")
+        digest.update(task_id.encode())
+        digest.update(b"\0")
+        digest.update(bytes.fromhex(sha256_file(path)))
+    return digest.hexdigest()
+
+
+def meta_repeats(meta: dict) -> int:
+    if "repeats" in meta:
+        return int(meta["repeats"])
+    argv = meta.get("argv", [])
+    for arg in argv:
+        if isinstance(arg, str) and arg.startswith("--repeats="):
+            return int(arg.split("=", 1)[1])
+    if "--repeats" in argv:
+        index = argv.index("--repeats")
+        if index + 1 < len(argv):
+            return int(argv[index + 1])
+    return 1
+
+
+def resolved_model_config(model_cfg: dict, model_keys: list[str]) -> dict:
+    fields = (
+        "backend", "model", "base_url", "temperature", "top_p",
+        "max_tokens", "timeout_seconds", "effort",
+    )
+    return {key: {field: model_cfg[key].get(field) for field in fields}
+            for key in model_keys if key in model_cfg}
+
+
+def load_jsonl_keys(path: Path) -> tuple[set[tuple], int]:
+    keys: set[tuple] = set()
+    count = 0
+    with path.open(encoding="utf-8") as handle:
+        for lineno, line in enumerate(handle, 1):
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"corrupt JSONL {path}:{lineno}: {exc}") from exc
+            if not isinstance(record, dict):
+                raise ValueError(f"non-object JSONL record {path}:{lineno}")
+            key = cell_key(record)
+            if key in keys:
+                raise ValueError(f"duplicate cell key in {path}:{lineno}: {key}")
+            keys.add(key)
+            count += 1
+    return keys, count
+
+
+def resume_lineage(meta_path: Path) -> list[tuple[Path, Path, dict]]:
+    """Oldest-to-newest linear resume lineage. Cycles fail closed."""
+    lineage = []
+    seen: set[Path] = set()
+    current = meta_path.resolve()
+    while current:
+        if current in seen:
+            raise ValueError(f"resume lineage cycle: {current}")
+        seen.add(current)
+        meta = json.loads(current.read_text(encoding="utf-8"))
+        jsonl = current.with_name(current.name.removesuffix(".meta.json") + ".jsonl")
+        if not jsonl.is_file():
+            raise ValueError(f"resume JSONL not found: {jsonl}")
+        lineage.append((current, jsonl, meta))
+        parent = meta.get("resume", {}).get("parent_meta")
+        current = Path(parent).resolve() if parent else None
+    return list(reversed(lineage))
+
+
+def recorded_source_hashes(meta: dict) -> dict[Path, str]:
+    sources = meta.get("resume", {}).get("sources")
+    if not isinstance(sources, list):
+        raise ValueError("resume metadata lacks recorded lineage sources")
+    recorded = {}
+    for source in sources:
+        if not isinstance(source, dict) or not source.get("jsonl") or not source.get("jsonl_sha256"):
+            raise ValueError("invalid recorded lineage source")
+        recorded[Path(source["jsonl"]).resolve()] = source["jsonl_sha256"]
+    return recorded
+
+
+def validate_recorded_lineage_hashes(
+    lineage: list[tuple[Path, Path, dict]], actual_hashes: list[str]
+) -> None:
+    """Each child must attest every earlier immutable JSONL in its sources."""
+    for child_index in range(1, len(lineage)):
+        recorded = recorded_source_hashes(lineage[child_index][2])
+        for ancestor_index in range(child_index):
+            ancestor_jsonl = lineage[ancestor_index][1].resolve()
+            expected = recorded.get(ancestor_jsonl)
+            if expected is None:
+                raise ValueError(f"child metadata omits ancestor hash: {ancestor_jsonl}")
+            if expected != actual_hashes[ancestor_index]:
+                raise ValueError(f"recorded JSONL hash mismatch: {ancestor_jsonl}")
+
+
+def collect_resume_keys(meta_path: Path, planned: set[tuple], current_meta: dict,
+                        *, expected_task_bundle: str | None = None,
+                        expected_parent_jsonl: str | None = None,
+                        check_git: bool = True) -> tuple[set[tuple], list[dict]]:
+    completed: set[tuple] = set()
+    sources = []
+    lineage = resume_lineage(meta_path)
+    root = lineage[0][2]
+    for field in RESUME_CONFIG_FIELDS:
+        if field == "repeats":
+            if meta_repeats(root) != current_meta.get("repeats"):
+                raise ValueError("resume config drift for repeats")
+            continue
+        if field in root and root.get(field) != current_meta.get(field):
+            raise ValueError(f"resume config drift for {field}: parent={root.get(field)!r}, current={current_meta.get(field)!r}")
+    parent_digest = root.get("task_bundle_sha256") or expected_task_bundle
+    if not parent_digest:
+        raise ValueError("legacy parent requires --expect-task-bundle-sha256")
+    if parent_digest != current_meta.get("task_bundle_sha256"):
+        raise ValueError("task bundle digest drift")
+    if expected_task_bundle and root.get("task_bundle_sha256") and expected_task_bundle != root["task_bundle_sha256"]:
+        raise ValueError("supplied task bundle digest disagrees with parent metadata")
+    parent_resolved = root.get("resolved_model_config")
+    if parent_resolved and parent_resolved != current_meta.get("resolved_model_config"):
+        raise ValueError("resolved model config drift")
+    if not root.get("backends") or root["backends"] != current_meta.get("backends"):
+        raise ValueError("backend model/version drift")
+    parent_head = root.get("git", {}).get("rev_parse_head")
+    if not parent_head:
+        raise ValueError("parent git revision missing")
+    if check_git:
+        changed = subprocess.run(
+            ["git", "-C", str(WORKTREE_ROOT), "diff", "--quiet", parent_head, "HEAD", "--", *MEASUREMENT_SURFACE],
+            timeout=30,
+        )
+        if changed.returncode != 0:
+            raise ValueError("measurement-surface drift from parent git revision")
+        dirty = subprocess.run(
+            ["git", "-C", str(WORKTREE_ROOT), "diff", "--quiet", "HEAD", "--", *MEASUREMENT_SURFACE],
+            timeout=30,
+        )
+        if dirty.returncode != 0:
+            raise ValueError("measurement-surface drift in working tree")
+        untracked = subprocess.run(
+            ["git", "-C", str(WORKTREE_ROOT), "status", "--porcelain", "--untracked-files=all", "--", *MEASUREMENT_SURFACE],
+            capture_output=True, text=True, timeout=30,
+        )
+        if untracked.returncode != 0 or untracked.stdout.strip():
+            raise ValueError("untracked or unreadable measurement-surface files")
+    if not expected_parent_jsonl:
+        raise ValueError("resume requires --expect-parent-jsonl-sha256")
+    actual_hashes = [sha256_file(jsonl_file) for _, jsonl_file, _ in lineage]
+    if actual_hashes[-1] != expected_parent_jsonl:
+        raise ValueError("parent JSONL hash mismatch")
+    validate_recorded_lineage_hashes(lineage, actual_hashes)
+    for index, (meta_file, jsonl_file, _meta) in enumerate(lineage):
+        actual_hash = actual_hashes[index]
+        keys, count = load_jsonl_keys(jsonl_file)
+        overlap = completed & keys
+        if overlap:
+            raise ValueError(f"duplicate cell keys across resume lineage: {sorted(overlap)[:3]}")
+        unexpected = keys - planned
+        if unexpected:
+            raise ValueError(f"resume records outside planned grid: {sorted(unexpected)[:3]}")
+        completed |= keys
+        sources.append({"meta": str(meta_file), "jsonl": str(jsonl_file),
+                        "jsonl_sha256": actual_hash, "records": count})
+    return completed, sources
+
+
+def resume_children(parent_meta: Path, metrics_dir: Path = METRICS_DIR) -> list[Path]:
+    """Return existing direct children so one checkpoint cannot fork silently."""
+    parent = parent_meta.resolve()
+    children = []
+    for candidate in metrics_dir.glob("*.meta.json"):
+        try:
+            meta = json.loads(candidate.read_text(encoding="utf-8"))
+            recorded = meta.get("resume", {}).get("parent_meta")
+            if recorded and Path(recorded).resolve() == parent:
+                children.append(candidate.resolve())
+        except (OSError, ValueError, json.JSONDecodeError, AttributeError) as exc:
+            raise ValueError(f"cannot audit possible resume child {candidate}: {exc}") from exc
+    return sorted(children)
 
 # Ensure runner/ is importable when called via `uv run runner/run.py`.
 if str(EVAL_DIR) not in sys.path:
@@ -444,6 +664,7 @@ def build_run_meta(
         "arms": arm_names,
         "models": model_keys,
         "seeds": seeds,
+        "repeats": args.repeats,
         "max_iters": args.max_iters,
         "oracle_arms": list(oracle_arms),
         "skill": args.skill,
@@ -459,6 +680,7 @@ def build_run_meta(
             for key in model_keys
             if key in model_cfg
         },
+        "resolved_model_config": resolved_model_config(model_cfg, model_keys),
     }
 
 
@@ -495,6 +717,18 @@ def main() -> None:
     parser.add_argument(
         "--timestamp", default=None,
         help="Override output timestamp tag (default: YYYYMMDD_HHMMSS)",
+    )
+    parser.add_argument(
+        "--resume-from", type=Path, default=None,
+        help="Prior <timestamp>.meta.json. Completed cell keys are verified and skipped.",
+    )
+    parser.add_argument(
+        "--expect-task-bundle-sha256", default=None,
+        help="Required task-bundle digest when resuming legacy metadata that did not record one.",
+    )
+    parser.add_argument(
+        "--expect-parent-jsonl-sha256", default=None,
+        help="Required expected SHA-256 of the immediate parent JSONL checkpoint.",
     )
     parser.add_argument(
         "--dry-run", action="store_true",
@@ -550,6 +784,10 @@ def main() -> None:
         print(f"ERROR parsing --arm: {exc}", file=sys.stderr)
         sys.exit(1)
     model_keys  = [m.strip() for m in args.model.split(",")]
+    missing_models = [key for key in model_keys if key not in load_models_toml(MODELS_TOML)] if MODELS_TOML.exists() else model_keys
+    if missing_models:
+        print(f"ERROR model key(s) not in models.toml: {missing_models}", file=sys.stderr)
+        sys.exit(1)
     try:
         oracle_arms = tuple(normalize_arm_name(a) for a in args.oracle_arms.split(",") if a.strip())
     except ValueError as exc:
@@ -599,15 +837,51 @@ def main() -> None:
     csv_path   = METRICS_DIR / "summary.csv"
 
     if not args.dry_run:
-        with meta_path.open("w") as f:
-            json.dump(
-                build_run_meta(
-                    ts=ts, task_ids=task_ids, arm_names=arm_names,
-                    model_keys=model_keys, seeds=seeds, args=args,
-                    model_cfg=cfg, oracle_arms=oracle_arms,
-                ),
-                f, indent=2, default=str,
+        collisions = [path for path in (json_path, jsonl_path, meta_path) if path.exists()]
+        if collisions:
+            print(f"ERROR output collision: {collisions}", file=sys.stderr)
+            sys.exit(1)
+
+    try:
+        bundle_sha = task_bundle_digest(tasks_dir, task_ids)
+    except ValueError as exc:
+        print(f"ERROR {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    current_meta = build_run_meta(
+        ts=ts, task_ids=task_ids, arm_names=arm_names, model_keys=model_keys,
+        seeds=seeds, args=args, model_cfg=cfg, oracle_arms=oracle_arms,
+    )
+    current_meta["task_bundle_sha256"] = bundle_sha
+    planned = {(task_id, arm, model, seed, repeat)
+               for seed in seeds for task_id in task_ids for arm in arm_names
+               for model in model_keys for repeat in range(args.repeats)}
+    completed: set[tuple] = set()
+    resume_sources: list[dict] = []
+    if args.resume_from:
+        try:
+            children = resume_children(args.resume_from)
+            if children:
+                raise ValueError(f"resume fork rejected; parent already has child metadata: {children}")
+            completed, resume_sources = collect_resume_keys(
+                args.resume_from, planned, current_meta,
+                expected_task_bundle=args.expect_task_bundle_sha256,
+                expected_parent_jsonl=args.expect_parent_jsonl_sha256,
             )
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            print(f"ERROR resume preflight: {exc}", file=sys.stderr)
+            sys.exit(1)
+        current_meta["resume"] = {
+            "parent_meta": str(args.resume_from.resolve()),
+            "sources": resume_sources,
+            "completed_before": len(completed),
+            "remaining_before": len(planned - completed),
+        }
+    print(f"  planned     : {len(planned)}  completed={len(completed)}  remaining={len(planned - completed)}")
+
+    if not args.dry_run:
+        with meta_path.open("w") as f:
+            json.dump(current_meta, f, indent=2, default=str)
         print(f"Wrote: {meta_path}")
 
     # ---- Run (seed is the outermost loop — every seed runs the full grid) ----
@@ -623,12 +897,13 @@ def main() -> None:
 
             for arm_name in arm_names:
                 for model_key in model_keys:
-                    if model_key not in cfg:
-                        print(f"  SKIP: model key {model_key!r} not in models.toml")
-                        continue
-
                     backend_cfg = cfg[model_key]
                     for repeat in range(args.repeats):
+                        key = (task_id, arm_name, model_key, seed, repeat)
+                        if key in completed:
+                            if args.dry_run:
+                                print(f"  [resume-skip] task={task_id} arm={arm_name} model={model_key} seed={seed} repeat={repeat}")
+                            continue
                         suffix = f" | draw={repeat + 1}/{args.repeats}" if args.repeats > 1 else ""
                         print(f"  running: seed={seed} {task_id} | arm={arm_name} | model={model_key}{suffix}")
 
@@ -664,12 +939,13 @@ def main() -> None:
                                 f"timed_out={m.get('timed_out')}"
                             )
 
-                        # Persist this cell immediately (crash-safe): one summary.csv
-                        # row + one JSONL line, each flushed on close.
+                        # JSONL is the checkpoint authority, so commit it before
+                        # the derivable summary row. A kill between the writes can
+                        # omit a summary row, but cannot make resume duplicate it.
                         if not args.dry_run:
-                            append_summary_csv([rec], csv_path, ts)
                             with jsonl_path.open("a") as jf:
                                 jf.write(json.dumps(rec, default=str) + "\n")
+                            append_summary_csv([rec], csv_path, ts)
 
     if args.dry_run:
         print("\n[dry-run complete — no LLM calls made]")
