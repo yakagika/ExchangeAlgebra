@@ -48,6 +48,11 @@
   `Assets`から`Liability`へ訂正した.
 
 ### Added
+- 0.5.0.0の勘定科目意味論・表示層分離に先立ち, 232 concrete titleの
+  Binary bytes, registry/closing/side/PIMO, Assist metadata, projection membership,
+  legacy BS/P&L outputを固定するpre-change goldenと再生成toolを追加した.
+  分類関連consumerのclosed inventory検査も追加し, 後続Landの意図しない差分と
+  consumer漏れを検出する.
 - `audit-eval`の長時間 confirmatory runをcell境界で分割再開するcheckpoint機構を追加した.
   task/model/backend/git surface/hashのdrift, JSONL破損・重複, resume forkを実行前に拒絶し,
   独立した検証・merge CLIでlineageを監査できる.

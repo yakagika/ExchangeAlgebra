@@ -55,6 +55,7 @@ import qualified Data.Binary.Put     as BinaryPut
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text           as T
 import qualified Data.Text.IO        as TIO
+import           Numeric             (showHex)
 import           Control.Monad       (forM_)
 import           Control.Monad.ST
 import           Data.Array.ST
@@ -2124,6 +2125,110 @@ testPostVocabGolden = do
     assertEqual "post-vocab semantics fixture" semantics postVocabSemanticsGolden
     assertEqual "post-vocab account-info fixture" info postVocabInfoGolden
     assertEqual "post-vocab suggest fixture" suggestions postVocabSuggestionsGolden
+
+-- ================================================================
+-- 0.5.0.0 account-semantics pipeline: pre-change compatibility baseline.
+-- ================================================================
+
+accountSemanticsBaselineCommit :: T.Text
+accountSemanticsBaselineCommit = T.pack "0d8e2791429145f2a48c79adbe62563328ee5c0b"
+
+accountSemanticsHeader :: T.Text -> T.Text
+accountSemanticsHeader what =
+    T.pack "# pre-account-semantics-050 " <> what
+    <> T.pack "; schema 1; commit " <> accountSemanticsBaselineCommit <> T.pack "\n"
+
+accountSemanticsBinaryHex :: AccountTitles -> T.Text
+accountSemanticsBinaryHex = T.pack . concatMap hexByte . BL.unpack . Binary.encode
+  where
+    hexByte byte = case showHex byte "" of
+        [digit] -> ['0', digit]
+        digits  -> digits
+
+accountSemanticsSemanticsGolden :: T.Text
+accountSemanticsSemanticsGolden =
+    accountSemanticsHeader (T.pack "semantics (title, enum, binaryHex, division, closing, isContra, whichSide Not, whichSide Hat, whatPIMO, fixedCurrent, finalStockProbe)")
+    <> T.unlines (L.map row Registry.concreteAccountTitles)
+  where
+    row title =
+        let nb = Not :< title :: HatBase AccountTitles
+            hb = Hat :< title :: HatBase AccountTitles
+            spec = case Registry.accountSpec title of
+                Just value -> value
+                Nothing -> error ("missing AccountSpec for " ++ show title)
+        in T.intercalate (T.pack "\t")
+            [ goldenShow title
+            , goldenShow (fromEnum title)
+            , accountSemanticsBinaryHex title
+            , goldenShow (Registry.asDivision spec)
+            , goldenShow (Registry.asClosing spec)
+            , goldenShow (Registry.asIsContra spec)
+            , goldenShow (whichSide nb)
+            , goldenShow (whichSide hb)
+            , goldenShow (whatPIMO nb)
+            , goldenShow (fixedCurrent nb)
+            , T.pack (finalStockProbeRule title)
+            ]
+
+accountSemanticsInfoGolden :: T.Text
+accountSemanticsInfoGolden =
+    accountSemanticsHeader (T.pack "AccountInfo (title, division, homeSide, nameEn, nameJa, description)")
+    <> T.unlines (L.map goldenInfoRow Assist.allAccountInfos)
+
+accountSemanticsProjectionGolden :: T.Text
+accountSemanticsProjectionGolden =
+    accountSemanticsHeader (T.pack "projection flags for Not then Hat (currentAssets, fixedAssets, deferredAssets, currentLiability, fixedLiability, capitalStock, contraAssets, contra)")
+    <> T.unlines (L.map row Registry.concreteAccountTitles)
+  where
+    kept :: (EA.Alg Double (HatBase AccountTitles)
+          -> EA.Alg Double (HatBase AccountTitles))
+         -> EA.Alg Double (HatBase AccountTitles)
+         -> T.Text
+    kept projection value = if norm (projection value) == (1 :: Double)
+        then T.pack "1" else T.pack "0"
+    row title = T.intercalate (T.pack "\t")
+        (goldenShow title : L.concatMap (probe title) [Not, Hat])
+    probe title hat =
+        let value = 1 .@ hat :< title :: EA.Alg Double (HatBase AccountTitles)
+        in [ kept EA.projCurrentAssets value
+           , kept EA.projFixedAssets value
+           , kept EA.projDeferredAssets value
+           , kept EA.projCurrentLiability value
+           , kept EA.projFixedLiability value
+           , kept EA.projCapitalStock value
+           , kept EA.projContraAssets value
+           , kept EA.projContra value
+           ]
+
+accountSemanticsPresentationGolden :: T.Text
+accountSemanticsPresentationGolden =
+    accountSemanticsHeader (T.pack "legacy presentation probe (title, bsRows of 1@Not, plRows of 1@Not)")
+    <> T.unlines (L.map row Registry.concreteAccountTitles)
+  where
+    row title =
+        let value = 1 .@ Not :< title :: EA.Alg Double (HatBase AccountTitles)
+        in T.intercalate (T.pack "\t")
+            [ goldenShow title
+            , goldenEsc (goldenShow (EW.bsRows value))
+            , goldenEsc (goldenShow (EW.plRows value))
+            ]
+
+testAccountSemanticsPrechangeGolden :: IO ()
+testAccountSemanticsPrechangeGolden = do
+    semantics <- TIO.readFile "test/fixtures/pre-account-semantics-050/semantics.tsv"
+    info <- TIO.readFile "test/fixtures/pre-account-semantics-050/account-info.tsv"
+    projections <- TIO.readFile "test/fixtures/pre-account-semantics-050/projection-membership.tsv"
+    presentation <- TIO.readFile "test/fixtures/pre-account-semantics-050/presentation.tsv"
+    assertEqual "pre-account-semantics semantics fixture has 232 rows"
+        232 (L.length (L.drop 1 (T.lines semantics)))
+    assertEqual "pre-account-semantics semantics fixture"
+        semantics accountSemanticsSemanticsGolden
+    assertEqual "pre-account-semantics AccountInfo fixture"
+        info accountSemanticsInfoGolden
+    assertEqual "pre-account-semantics projection fixture"
+        projections accountSemanticsProjectionGolden
+    assertEqual "pre-account-semantics presentation fixture"
+        presentation accountSemanticsPresentationGolden
 
 -- Land 2 (Definition 7 contra amendment) 以降: alias 解決だけが byte 一致
 -- (parseAccountTitle は division 非依存)。semantics / info / suggest は
@@ -4328,6 +4433,7 @@ main = do
     testAssistAllAccountInfos
     testAssistSuggestAccounts
     testPostVocabGolden
+    testAccountSemanticsPrechangeGolden
     testRegistryGolden
     testJcciAccountNameCoverage
     testRegistryWildcards
