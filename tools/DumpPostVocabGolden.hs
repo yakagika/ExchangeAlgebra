@@ -45,15 +45,47 @@ probeRule title = case show (finalStockTransfer (1 .@ Not :< title :: A)) of
           | value == show (1 .@ Hat :< RetainedEarnings :: A) -> "Flip"
           | otherwise -> "UNEXPECTED:" <> T.pack value
 
+-- Reconstruct the historical post-vocabulary, pre-semantics AccountInfo row.
 infoRow :: Assist.AccountInfo -> Text
-infoRow info = T.intercalate "\t"
-    [ tshow (Assist.aiTitle info)
-    , tshow (Assist.aiDivision info)
-    , tshow (Assist.aiHomeSide info)
-    , esc (Assist.aiNameEn info)
-    , esc (Assist.aiNameJa info)
-    , esc (Assist.aiDesc info)
-    ]
+infoRow info =
+    let title = Assist.aiTitle info
+        spec = specFor title
+    in T.intercalate "\t"
+        [ tshow title
+        , tshow (Registry.asDivision spec)
+        , tshow (whichSide (Not :< title :: B))
+        , esc (Registry.asNameEn spec)
+        , esc (Registry.asNameJa spec)
+        , esc (Registry.asDescription spec)
+        ]
+
+specFor :: AccountTitles -> Registry.AccountSpec
+specFor title = case Registry.accountSpec title of
+    Just spec -> spec
+    Nothing -> error ("missing AccountSpec for " ++ show title)
+
+legacySuggestAccounts :: Text -> [Assist.AccountInfo]
+legacySuggestAccounts query
+    | L.null tokens = []
+    | otherwise = L.map snd
+        . L.sortOn (\(rank, info) -> (negate rank, fromEnum (Assist.aiTitle info)))
+        . L.filter ((> 0) . fst)
+        $ [ (matchRank info, info) | info <- Assist.allAccountInfos ]
+  where
+    tokens = L.map T.toCaseFold (T.words query)
+    matchRank info = L.length
+        [ token
+        | token <- tokens
+        , L.any (T.isInfixOf token) (searchFields info)
+        ]
+    searchFields info =
+        let spec = specFor (Assist.aiTitle info)
+        in L.map T.toCaseFold
+            [ tshow (Assist.aiTitle info)
+            , Registry.asNameEn spec
+            , Registry.asNameJa spec
+            , Registry.asDescription spec
+            ]
 
 suggestions :: Text
 suggestions = header "suggestAccounts (query, total matches, top-10 titles)"
@@ -61,13 +93,18 @@ suggestions = header "suggestAccounts (query, total matches, top-10 titles)"
   where
     infos = Assist.allAccountInfos
     nameFields = L.concat
-        [ [tshow (Assist.aiTitle info), Assist.aiNameEn info, Assist.aiNameJa info]
+        [ let spec = specFor (Assist.aiTitle info)
+          in [ tshow (Assist.aiTitle info)
+             , Registry.asNameEn spec
+             , Registry.asNameJa spec
+             ]
         | info <- infos
         ]
-    descTokens = L.concatMap (T.words . Assist.aiDesc) infos
+    descTokens = L.concatMap
+        (T.words . Registry.asDescription . specFor . Assist.aiTitle) infos
     corpus = dedupSort (L.concatMap (\q -> [q, T.toLower q]) nameFields <> descTokens)
     row query =
-        let matches = L.map Assist.aiTitle (Assist.suggestAccounts query)
+        let matches = L.map Assist.aiTitle (legacySuggestAccounts query)
         in esc query <> "\t" <> tshow (L.length matches) <> "\t"
            <> T.intercalate "," (L.map tshow (L.take 10 matches))
 

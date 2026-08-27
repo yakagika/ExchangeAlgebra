@@ -14,8 +14,10 @@ combines its base aliases with the frozen JCCI 2022 standard/permitted-name over
 -}
 module ExchangeAlgebra.Algebra.Base.Account.Registry
     ( AccountSpec(..)
+    , AccountSemantics(..)
     , accountAliases
     , accountSpec
+    , accountSemantics
     , accountSpecMap
     , concreteAccountTitles
     , classifyAccountContra
@@ -29,7 +31,9 @@ import           Data.Maybe (mapMaybe)
 import           Data.Text (Text)
 
 import ExchangeAlgebra.Algebra.Base.Account.Types
-    ( AccountDivision(..), ClosingRule(..), FixedCurrent(..) )
+    ( AccountDivision(..), AccountRole(..), ClosingRule(..)
+    , DivisionSemantics(..), FixedCurrent(..), HomeSideSemantics(..)
+    , PostingCapability(..), ReportingEligibility(..), Side(..) )
 import ExchangeAlgebra.Algebra.Base.Account.JcciAliases (jcciAliases)
 import ExchangeAlgebra.Algebra.Base.Element (AccountTitles(..))
 
@@ -55,9 +59,131 @@ data AccountSpec = AccountSpec
     , asAliases     :: [Text]
     } deriving (Show, Eq)
 
+-- | Processing and reporting semantics attached to a concrete account title.
+--
+-- This record deliberately does not replace 'AccountSpec.asDivision'. The
+-- legacy division remains the exchange-algebra direction input, while this
+-- layer states whether that value is a financial-statement classification,
+-- a bookkeeping control class, or only an internal direction encoding.
+data AccountSemantics = AccountSemantics
+    { asemRoles                :: [AccountRole]
+    , asemPostingCapability    :: PostingCapability
+    , asemDivisionSemantics    :: DivisionSemantics
+    , asemHomeSideSemantics    :: HomeSideSemantics
+    , asemReportingEligibility :: ReportingEligibility
+    } deriving (Show, Eq)
+
 -- | All concrete account titles in their stable Enum order.
 concreteAccountTitles :: [AccountTitles]
 concreteAccountTitles = filter (/= AccountTitle) [minBound .. maxBound]
+
+-- | Look up processing and reporting semantics for a concrete account title.
+-- The wildcard 'AccountTitle' is outside the metadata domain and returns
+-- 'Nothing' explicitly.
+accountSemantics :: AccountTitles -> Maybe AccountSemantics
+accountSemantics title = do
+    spec <- accountSpec title
+    pure AccountSemantics
+        { asemRoles = rolesFor title spec
+        , asemPostingCapability = postingFor title
+        , asemDivisionSemantics = divisionFor title spec
+        , asemHomeSideSemantics = homeSideFor title spec
+        , asemReportingEligibility = reportingFor title
+        }
+
+rolesFor :: AccountTitles -> AccountSpec -> [AccountRole]
+rolesFor title spec = case title of
+    NetIncome                    -> [PeriodResult]
+    NetLoss                      -> [PeriodResult]
+    GrossProfit                  -> [ReportingSubtotal]
+    OrdinaryProfit               -> [ReportingSubtotal]
+    IncomeSummary                -> [ClosingDevice]
+    BranchCurrentAccount         -> [ReciprocalAccount]
+    HeadOfficeCurrentAccount     -> [ReciprocalAccount]
+    SuspensePayments             -> [SuspenseOrClearingAccount]
+    SuspenseReceipts             -> [SuspenseOrClearingAccount]
+    CashOverShort                -> [SuspenseOrClearingAccount]
+    SuspenseAccount              -> [SuspenseOrClearingAccount]
+    NetIncomeAttributableToNCI   -> [AttributionAccount, PeriodResult]
+    NetLossAttributableToNCI     -> [AttributionAccount, PeriodResult]
+    _ | asIsContra spec          -> [OrdinaryAccount, ContraAccount]
+      | otherwise                -> [OrdinaryAccount]
+
+postingFor :: AccountTitles -> PostingCapability
+postingFor title = case title of
+    NetIncome                    -> EngineGeneratedOnly
+    NetLoss                      -> EngineGeneratedOnly
+    GrossProfit                  -> EngineGeneratedOnly
+    OrdinaryProfit               -> EngineGeneratedOnly
+    IncomeSummary                -> ClosingOnly
+    NetIncomeAttributableToNCI   -> ConsolidationOnly
+    NetLossAttributableToNCI     -> ConsolidationOnly
+    AccountTitle                 -> NotPostable
+    _                            -> OrdinaryPosting
+
+divisionFor :: AccountTitles -> AccountSpec -> DivisionSemantics
+divisionFor title spec = case title of
+    NetIncome                    -> direction
+    NetLoss                      -> direction
+    GrossProfit                  -> direction
+    OrdinaryProfit               -> direction
+    IncomeSummary                -> direction
+    NetIncomeAttributableToNCI   -> direction
+    NetLossAttributableToNCI     -> direction
+    BranchCurrentAccount         -> control
+    HeadOfficeCurrentAccount     -> control
+    SuspensePayments             -> control
+    SuspenseReceipts             -> control
+    CashOverShort                -> control
+    SuspenseAccount              -> control
+    AccountTitle                 -> NoStatementDivision
+    _                            -> StatementDivision (asDivision spec)
+  where
+    direction = DirectionEncoding (asDivision spec)
+    control = BookkeepingControlClass (asDivision spec)
+
+homeSideFor :: AccountTitles -> AccountSpec -> HomeSideSemantics
+homeSideFor title spec = case title of
+    IncomeSummary  -> ContextDependentHomeSide
+    CashOverShort  -> ContextDependentHomeSide
+    SuspenseAccount -> ContextDependentHomeSide
+    AccountTitle   -> NoPostingSide
+    _              -> FixedHomeSide (legacyHomeSide spec)
+
+legacyHomeSide :: AccountSpec -> Side
+legacyHomeSide spec
+    | asIsContra spec = reverseSide (divisionSide (asDivision spec))
+    | otherwise       = divisionSide (asDivision spec)
+
+divisionSide :: AccountDivision -> Side
+divisionSide Assets    = Debit
+divisionSide Cost      = Debit
+divisionSide Equity    = Credit
+divisionSide Liability = Credit
+divisionSide Revenue   = Credit
+
+reverseSide :: Side -> Side
+reverseSide Debit  = Credit
+reverseSide Credit = Debit
+reverseSide Side   = Side
+
+reportingFor :: AccountTitles -> ReportingEligibility
+reportingFor title = case title of
+    NetIncome                    -> DerivedPresentation
+    NetLoss                      -> DerivedPresentation
+    GrossProfit                  -> DerivedPresentation
+    OrdinaryProfit               -> DerivedPresentation
+    IncomeSummary                -> NotPresented
+    CashOverShort                -> NotPresented
+    BranchCurrentAccount         -> ContextualPresentation
+    HeadOfficeCurrentAccount     -> ContextualPresentation
+    SuspensePayments             -> ContextualPresentation
+    SuspenseReceipts             -> ContextualPresentation
+    SuspenseAccount              -> ContextualPresentation
+    NetIncomeAttributableToNCI   -> ContextualPresentation
+    NetLossAttributableToNCI     -> ContextualPresentation
+    AccountTitle                 -> NotPresented
+    _                            -> StatementEligible
 
 -- | Every accepted non-canonical alias for an account. The JCCI overlay is
 -- generated from the frozen 2022 standard/permitted account-name fixture;
@@ -2405,8 +2531,8 @@ accountSpecMap = M.fromList
 
 -- | Whether an account is a contra account.
 --
--- Land 1 preserves the former semantics, so every title returns False,
--- including the wildcard. Complexity: O(1)
+-- The result is projected from 'AccountSpec.asIsContra'; the wildcard has no
+-- specification and therefore returns 'False'. Complexity: O(1)
 {-# INLINE classifyAccountContra #-}
 classifyAccountContra :: AccountTitles -> Bool
 classifyAccountContra title = maybe False asIsContra (accountSpec title)

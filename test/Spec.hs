@@ -1981,10 +1981,221 @@ testAssistAllAccountInfos = do
         EC.concreteAccountTitles (L.map Assist.aiTitle Assist.allAccountInfos)
     forM_ Assist.allAccountInfos $ \info -> do
         let title = Assist.aiTitle info
-        assertEqual ("Assist.aiDivision " ++ show title)
-            (classifyAccountDivision title) (Assist.aiDivision info)
-        assertEqual ("Assist.aiHomeSide " ++ show title)
-            (whichSide (Not :< title)) (Assist.aiHomeSide info)
+        case Registry.accountSemantics title of
+            Nothing -> do
+                putStrLn ("[FAIL] missing account semantics: " ++ show title)
+                exitFailure
+            Just semantics -> do
+                assertEqual ("Assist.aiRoles " ++ show title)
+                    (Registry.asemRoles semantics) (Assist.aiRoles info)
+                assertEqual ("Assist.aiPostingCapability " ++ show title)
+                    (Registry.asemPostingCapability semantics)
+                    (Assist.aiPostingCapability info)
+                assertEqual ("Assist.aiDivisionSemantics " ++ show title)
+                    (Registry.asemDivisionSemantics semantics)
+                    (Assist.aiDivisionSemantics info)
+                assertEqual ("Assist.aiHomeSideSemantics " ++ show title)
+                    (Registry.asemHomeSideSemantics semantics)
+                    (Assist.aiHomeSideSemantics info)
+                assertEqual ("Assist.aiReportingEligibility " ++ show title)
+                    (Registry.asemReportingEligibility semantics)
+                    (Assist.aiReportingEligibility info)
+
+testAccountMetadataLand1 :: IO ()
+testAccountMetadataLand1 = do
+    let semantics =
+            [ (title, value)
+            | title <- Registry.concreteAccountTitles
+            , Just value <- [Registry.accountSemantics title]
+            ]
+        exceptional =
+            [ NetIncome, NetLoss, GrossProfit, OrdinaryProfit, IncomeSummary
+            , SuspensePayments, SuspenseReceipts, CashOverShort, SuspenseAccount
+            , BranchCurrentAccount, HeadOfficeCurrentAccount
+            , NetIncomeAttributableToNCI, NetLossAttributableToNCI
+            ]
+        lookupSem title = Registry.accountSemantics title
+        lookupInfo title = Assist.describeAccount title
+        nonStatementTitles =
+            [ title
+            | (title, value) <- semantics
+            , case Registry.asemDivisionSemantics value of
+                StatementDivision _ -> False
+                _                   -> True
+            ]
+    assertEqual "Land 1 metadata covers all 232 concrete titles"
+        232 (L.length semantics)
+    assertEqual "Land 1 metadata rejects wildcard AccountTitle"
+        Nothing (Registry.accountSemantics AccountTitle)
+    assertEqual "Land 1 non-statement metadata is exactly the reviewed exception set"
+        (L.sort exceptional) (L.sort nonStatementTitles)
+    forM_ semantics $ \(title, value) -> do
+        assertEqual ("Land 1 roles are non-empty: " ++ show title)
+            True (not (L.null (Registry.asemRoles value)))
+        case Registry.asemDivisionSemantics value of
+            StatementDivision division -> do
+                assertEqual ("Land 1 statement division preserves legacy value: " ++ show title)
+                    (classifyAccountDivision title) division
+            _ -> assertEqual ("Land 1 exceptional title is closed-listed: " ++ show title)
+                    True (title `L.elem` exceptional)
+        case Registry.asemHomeSideSemantics value of
+            FixedHomeSide side ->
+                assertEqual ("Land 1 fixed home side preserves legacy value: " ++ show title)
+                    (whichSide (Not :< title)) side
+            _ -> pure ()
+    assertEqual "Land 1 Cash semantics"
+        (Just ( [OrdinaryAccount], OrdinaryPosting
+              , StatementDivision Assets, FixedHomeSide Debit, StatementEligible ))
+        (fmap semanticsTuple (lookupSem Cash))
+    assertEqual "Land 1 IncomeSummary semantics"
+        (Just ( [ClosingDevice], ClosingOnly
+              , DirectionEncoding Assets, ContextDependentHomeSide, NotPresented ))
+        (fmap semanticsTuple (lookupSem IncomeSummary))
+    assertEqual "Land 1 NetIncome semantics"
+        (Just ( [PeriodResult], EngineGeneratedOnly
+              , DirectionEncoding Cost, FixedHomeSide Debit, DerivedPresentation ))
+        (fmap semanticsTuple (lookupSem NetIncome))
+    assertEqual "Land 1 GrossProfit is an engine-generated coordinate"
+        (Just ( [ReportingSubtotal], EngineGeneratedOnly
+              , DirectionEncoding Revenue, FixedHomeSide Credit
+              , DerivedPresentation ))
+        (fmap semanticsTuple (lookupSem GrossProfit))
+    assertEqual "Land 1 NCI profit is distinct from bare net income"
+        (Just ( [AttributionAccount, PeriodResult], ConsolidationOnly
+              , DirectionEncoding Cost, FixedHomeSide Debit
+              , ContextualPresentation ))
+        (fmap semanticsTuple (lookupSem NetIncomeAttributableToNCI))
+    assertEqual "Land 1 branch account semantics"
+        (Just ( [ReciprocalAccount], OrdinaryPosting
+              , BookkeepingControlClass Assets, FixedHomeSide Debit
+              , ContextualPresentation ))
+        (fmap semanticsTuple (lookupSem BranchCurrentAccount))
+    assertEqual "Land 1 IncomeSummary LLM description does not classify it as an asset"
+        True (case lookupInfo IncomeSummary of
+            Just info -> not (T.isPrefixOf (T.pack "Asset") (Assist.aiDesc info))
+                      && T.isInfixOf (T.pack "not a balance-sheet classification")
+                                     (Assist.aiDesc info)
+            Nothing -> False)
+    assertEqual "Land 1 NetIncome LLM name drops legacy Expense wording"
+        (Just (T.pack "当期純利益")) (fmap Assist.aiNameJa (lookupInfo NetIncome))
+  where
+    semanticsTuple value =
+        ( Registry.asemRoles value
+        , Registry.asemPostingCapability value
+        , Registry.asemDivisionSemantics value
+        , Registry.asemHomeSideSemantics value
+        , Registry.asemReportingEligibility value
+        )
+
+accountMetadataLand1Header :: T.Text -> T.Text
+accountMetadataLand1Header what =
+    T.pack "# account-semantics-050 Land 1 " <> what
+    <> T.pack "; schema 1; base 09c8a60c0bfb1a7fedb01689ceee789b8b4e6084\n"
+
+accountMetadataLand1Row :: AccountTitles -> T.Text
+accountMetadataLand1Row title = case Registry.accountSemantics title of
+    Nothing -> error ("missing AccountSemantics for " ++ show title)
+    Just semantics -> T.intercalate (T.pack "\t")
+        [ goldenShow title
+        , goldenShow (Registry.asemRoles semantics)
+        , goldenShow (Registry.asemPostingCapability semantics)
+        , goldenShow (Registry.asemDivisionSemantics semantics)
+        , goldenShow (Registry.asemHomeSideSemantics semantics)
+        , goldenShow (Registry.asemReportingEligibility semantics)
+        ]
+
+accountMetadataLand1InfoRow :: Assist.AccountInfo -> T.Text
+accountMetadataLand1InfoRow info = T.intercalate (T.pack "\t")
+    [ goldenShow (Assist.aiTitle info)
+    , goldenShow (Assist.aiRoles info)
+    , goldenShow (Assist.aiPostingCapability info)
+    , goldenShow (Assist.aiDivisionSemantics info)
+    , goldenShow (Assist.aiHomeSideSemantics info)
+    , goldenShow (Assist.aiReportingEligibility info)
+    , goldenEsc (Assist.aiNameEn info)
+    , goldenEsc (Assist.aiNameJa info)
+    , goldenEsc (Assist.aiDesc info)
+    ]
+
+accountMetadataLand1Suggestions :: T.Text
+accountMetadataLand1Suggestions =
+    accountMetadataLand1Header
+        (T.pack "LLM suggestAccounts (query, total matches, top-10 titles)")
+    <> T.unlines (L.map row corpus)
+  where
+    infos = Assist.allAccountInfos
+    fields = L.concat
+        [ [goldenShow (Assist.aiTitle info), Assist.aiNameEn info, Assist.aiNameJa info]
+        | info <- infos
+        ]
+    descTokens = L.concatMap (T.words . Assist.aiDesc) infos
+    corpus = goldenDedupSort
+        (L.concatMap (\value -> [value, T.toLower value]) fields <> descTokens)
+    row query =
+        let matches = L.map Assist.aiTitle (Assist.suggestAccounts query)
+        in goldenEsc query <> T.pack "\t" <> goldenShow (L.length matches)
+           <> T.pack "\t"
+           <> T.intercalate (T.pack ",") (L.map goldenShow (L.take 10 matches))
+
+testAccountMetadataLand1Golden :: IO ()
+testAccountMetadataLand1Golden = do
+    metadata <- TIO.readFile "test/fixtures/account-semantics-050/metadata.tsv"
+    info <- TIO.readFile "test/fixtures/account-semantics-050/account-info.tsv"
+    suggest <- TIO.readFile "test/fixtures/account-semantics-050/suggest.tsv"
+    let expectedMetadata =
+            accountMetadataLand1Header
+                (T.pack "registry (title, roles, posting, divisionSemantics, homeSideSemantics, reportingEligibility)")
+            <> T.unlines (L.map accountMetadataLand1Row Registry.concreteAccountTitles)
+        expectedInfo =
+            accountMetadataLand1Header
+                (T.pack "LLM AccountInfo (title, roles, posting, divisionSemantics, homeSideSemantics, reportingEligibility, nameEn, nameJa, description)")
+            <> T.unlines (L.map accountMetadataLand1InfoRow Assist.allAccountInfos)
+    assertEqual "Land 1 metadata fixture has 232 rows"
+        232 (L.length (L.drop 1 (T.lines metadata)))
+    assertEqual "Land 1 metadata fixture" metadata expectedMetadata
+    assertEqual "Land 1 LLM AccountInfo fixture" info expectedInfo
+    assertEqual "Land 1 LLM suggestion fixture"
+        suggest accountMetadataLand1Suggestions
+
+testAccountInfoLand1Migration :: IO ()
+testAccountInfoLand1Migration = do
+    legacy <- TIO.readFile "test/fixtures/pre-account-semantics-050/account-info.tsv"
+    let titleMap = M.fromList
+            [ (goldenShow title, title) | title <- Registry.concreteAccountTitles ]
+        rows = L.filter (not . T.null) (L.drop 1 (T.lines legacy))
+    assertEqual "Land 1 AccountInfo migration covers 232 legacy rows"
+        232 (L.length rows)
+    forM_ rows $ \line -> case T.splitOn (T.pack "\t") line of
+        [titleText, oldDivision, oldSide, oldNameEn, oldNameJa, oldDesc] ->
+            case M.lookup titleText titleMap of
+                Nothing -> assertEqual "Land 1 migration unknown legacy title"
+                    (T.pack "") titleText
+                Just title -> case (Registry.accountSemantics title, Assist.describeAccount title) of
+                    (Just semantics, Just info) -> do
+                        assertEqual ("Land 1 legacy division is recoverable: " ++ show title)
+                            oldDivision
+                            (legacyDivisionText (Registry.asemDivisionSemantics semantics))
+                        assertEqual ("Land 1 legacy home side is recoverable: " ++ show title)
+                            oldSide (goldenShow (whichSide (Not :< title)))
+                        case Registry.asemDivisionSemantics semantics of
+                            StatementDivision _ -> do
+                                assertEqual ("Land 1 ordinary nameEn unchanged: " ++ show title)
+                                    oldNameEn (goldenEsc (Assist.aiNameEn info))
+                                assertEqual ("Land 1 ordinary nameJa unchanged: " ++ show title)
+                                    oldNameJa (goldenEsc (Assist.aiNameJa info))
+                                assertEqual ("Land 1 ordinary description unchanged: " ++ show title)
+                                    oldDesc (goldenEsc (Assist.aiDesc info))
+                            _ -> pure ()
+                    _ -> do
+                        putStrLn ("[FAIL] missing Land 1 migration metadata: " ++ show title)
+                        exitFailure
+        _ -> assertEqual "Land 1 migration malformed legacy row" (T.pack "") line
+  where
+    legacyDivisionText semantics = goldenShow $ case semantics of
+        StatementDivision division        -> division
+        BookkeepingControlClass division  -> division
+        DirectionEncoding division        -> division
+        NoStatementDivision -> error "legacy division is unavailable"
 
 testAssistSuggestAccounts :: IO ()
 testAssistSuggestAccounts = do
@@ -2018,15 +2229,42 @@ goldenEsc = T.replace (T.pack "\t") (T.pack "\\t")
 goldenDedupSort :: [T.Text] -> [T.Text]
 goldenDedupSort = L.map L.head . L.group . L.sort
 
+legacySuggestAccounts :: [Assist.AccountInfo] -> T.Text -> [Assist.AccountInfo]
+legacySuggestAccounts infos query
+    | L.null tokens = []
+    | otherwise = L.map snd
+        . L.sortOn (\(rank, info) -> (negate rank, fromEnum (Assist.aiTitle info)))
+        . L.filter ((> 0) . fst)
+        $ [ (matchRank info, info) | info <- infos ]
+  where
+    tokens = L.map T.toCaseFold (T.words query)
+    matchRank info = L.length
+        [ token
+        | token <- tokens
+        , L.any (T.isInfixOf token) (legacySearchFields info)
+        ]
+    legacySearchFields info = L.map T.toCaseFold $ case Registry.accountSpec (Assist.aiTitle info) of
+        Just spec ->
+            [ goldenShow (Assist.aiTitle info)
+            , Registry.asNameEn spec
+            , Registry.asNameJa spec
+            , Registry.asDescription spec
+            ]
+        Nothing -> []
+
 goldenInfoRow :: Assist.AccountInfo -> T.Text
-goldenInfoRow info = T.intercalate (T.pack "\t")
-    [ goldenShow (Assist.aiTitle info)
-    , goldenShow (Assist.aiDivision info)
-    , goldenShow (Assist.aiHomeSide info)
-    , goldenEsc (Assist.aiNameEn info)
-    , goldenEsc (Assist.aiNameJa info)
-    , goldenEsc (Assist.aiDesc info)
-    ]
+-- Historical schema reconstruction. The live Land 1 AccountInfo projection is
+-- pinned separately by accountMetadataLand1InfoRow.
+goldenInfoRow info = case Registry.accountSpec (Assist.aiTitle info) of
+    Nothing -> error "goldenInfoRow: wildcard AccountTitle"
+    Just spec -> T.intercalate (T.pack "\t")
+        [ goldenShow (Assist.aiTitle info)
+        , goldenShow (Registry.asDivision spec)
+        , goldenShow (whichSide (Not :< Assist.aiTitle info))
+        , goldenEsc (Registry.asNameEn spec)
+        , goldenEsc (Registry.asNameJa spec)
+        , goldenEsc (Registry.asDescription spec)
+        ]
 
 goldenAliasResolution :: T.Text -> T.Text
 goldenAliasResolution fixture =
@@ -2047,19 +2285,26 @@ goldenSuggestions =
     -- must not retroactively change this historical fuzzy-suggestion oracle.
     infos = L.take 116 Assist.allAccountInfos
     historicalTitles = L.map Assist.aiTitle infos
-    nameFields = L.concat
-        [ [ goldenShow (Assist.aiTitle info), Assist.aiNameEn info, Assist.aiNameJa info ]
-        | info <- infos
-        ]
-    descTokens = L.concatMap (T.words . Assist.aiDesc) infos
+    nameFields = L.concatMap legacyNameFields infos
+    descTokens = L.concatMap legacyDescTokens infos
     corpus = goldenDedupSort
         (L.concatMap (\q -> [q, T.toLower q]) nameFields <> descTokens)
     row query =
         let matches = L.filter (`L.elem` historicalTitles)
-                    (L.map Assist.aiTitle (Assist.suggestAccounts query))
+                    (L.map Assist.aiTitle (legacySuggestAccounts infos query))
         in goldenEsc query <> T.pack "\t"
            <> goldenShow (L.length matches) <> T.pack "\t"
            <> T.intercalate (T.pack ",") (L.map goldenShow (L.take 10 matches))
+    legacyNameFields info = case Registry.accountSpec (Assist.aiTitle info) of
+        Just spec ->
+            [ goldenShow (Assist.aiTitle info)
+            , Registry.asNameEn spec
+            , Registry.asNameJa spec
+            ]
+        Nothing -> []
+    legacyDescTokens info = case Registry.accountSpec (Assist.aiTitle info) of
+        Just spec -> T.words (Registry.asDescription spec)
+        Nothing -> []
 
 postVocabHeader :: T.Text -> T.Text
 postVocabHeader what = T.pack "# post-vocab " <> what <> T.pack "; schema 1\n"
@@ -2075,18 +2320,25 @@ postVocabSuggestionsGolden =
     <> T.unlines (L.map row corpus)
   where
     infos = Assist.allAccountInfos
-    nameFields = L.concat
-        [ [goldenShow (Assist.aiTitle info), Assist.aiNameEn info, Assist.aiNameJa info]
-        | info <- infos
-        ]
-    descTokens = L.concatMap (T.words . Assist.aiDesc) infos
+    nameFields = L.concatMap legacyNameFields infos
+    descTokens = L.concatMap legacyDescTokens infos
     corpus = goldenDedupSort
         (L.concatMap (\q -> [q, T.toLower q]) nameFields <> descTokens)
     row query =
-        let matches = L.map Assist.aiTitle (Assist.suggestAccounts query)
+        let matches = L.map Assist.aiTitle (legacySuggestAccounts infos query)
         in goldenEsc query <> T.pack "\t"
            <> goldenShow (L.length matches) <> T.pack "\t"
            <> T.intercalate (T.pack ",") (L.map goldenShow (L.take 10 matches))
+    legacyNameFields info = case Registry.accountSpec (Assist.aiTitle info) of
+        Just spec ->
+            [ goldenShow (Assist.aiTitle info)
+            , Registry.asNameEn spec
+            , Registry.asNameJa spec
+            ]
+        Nothing -> []
+    legacyDescTokens info = case Registry.accountSpec (Assist.aiTitle info) of
+        Just spec -> T.words (Registry.asDescription spec)
+        Nothing -> []
 
 postVocabOrdinalsGolden :: T.Text
 postVocabOrdinalsGolden =
@@ -2223,7 +2475,7 @@ testAccountSemanticsPrechangeGolden = do
         232 (L.length (L.drop 1 (T.lines semantics)))
     assertEqual "pre-account-semantics semantics fixture"
         semantics accountSemanticsSemanticsGolden
-    assertEqual "pre-account-semantics AccountInfo fixture"
+    assertEqual "pre-account-semantics legacy AccountInfo fixture"
         info accountSemanticsInfoGolden
     assertEqual "pre-account-semantics projection fixture"
         projections accountSemanticsProjectionGolden
@@ -2567,13 +2819,13 @@ testLand2IsContraInstances = do
 -- T8: LLM-facing メタデータの literal 期待値 (registry から生成しない)
 testLand2AiDivision :: IO ()
 testLand2AiDivision = do
-    assertEqual "land2 aiDivision literal: AllowanceForDoubtfulAccounts"
-        (Just (Assets, Credit))
-        (fmap (\i -> (Assist.aiDivision i, Assist.aiHomeSide i))
+    assertEqual "land2 statement metadata literal: AllowanceForDoubtfulAccounts"
+        (Just (StatementDivision Assets, FixedHomeSide Credit))
+        (fmap (\i -> (Assist.aiDivisionSemantics i, Assist.aiHomeSideSemantics i))
               (Assist.describeAccount AllowanceForDoubtfulAccounts))
-    assertEqual "land2 aiDivision literal: AccumulatedDepreciation"
-        (Just (Assets, Credit))
-        (fmap (\i -> (Assist.aiDivision i, Assist.aiHomeSide i))
+    assertEqual "land2 statement metadata literal: AccumulatedDepreciation"
+        (Just (StatementDivision Assets, FixedHomeSide Credit))
+        (fmap (\i -> (Assist.aiDivisionSemantics i, Assist.aiHomeSideSemantics i))
               (Assist.describeAccount AccumulatedDepreciation))
 
 -- T5/T6: presentation battery。bsRows/plRows の literal は, 以下で明記する
@@ -4431,6 +4683,9 @@ main = do
     testAssistDescriptionsDrift
     testAssistDescribeAccount
     testAssistAllAccountInfos
+    testAccountMetadataLand1
+    testAccountMetadataLand1Golden
+    testAccountInfoLand1Migration
     testAssistSuggestAccounts
     testPostVocabGolden
     testAccountSemanticsPrechangeGolden

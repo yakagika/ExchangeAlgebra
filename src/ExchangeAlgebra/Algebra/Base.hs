@@ -293,13 +293,6 @@ instance (BaseClass a, AxisDecompose a) => HatBaseClass (HatBase a) where
 -- * Define ExBase
 ------------------------------------------------------------
 
--- | Credit/Debit distinction. Credit is the credit side, Debit is the debit side.
--- Side is a wildcard.
-data Side   = Credit -- ^ Credit side
-            | Debit  -- ^ Debit side
-            | Side   -- ^ Wildcard
-            deriving (Ord, Show, Eq)
-
 -- | Reverse the credit/debit side. Swaps Credit and Debit.
 -- The wildcard Side is returned unchanged.
 --

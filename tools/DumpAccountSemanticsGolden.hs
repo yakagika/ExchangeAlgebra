@@ -82,15 +82,22 @@ semanticsRow title =
         , probeRule title
         ]
 
+-- Reconstruct the historical pre-Land1 AccountInfo schema. This is not the
+-- current LLM-facing projection; DumpAccountMetadata.hs owns that fixture.
 infoRow :: Assist.AccountInfo -> Text
-infoRow info = T.intercalate "\t"
-    [ tshow (Assist.aiTitle info)
-    , tshow (Assist.aiDivision info)
-    , tshow (Assist.aiHomeSide info)
-    , esc (Assist.aiNameEn info)
-    , esc (Assist.aiNameJa info)
-    , esc (Assist.aiDesc info)
-    ]
+infoRow info =
+    let title = Assist.aiTitle info
+        spec = case Registry.accountSpec title of
+            Just value -> value
+            Nothing -> error ("missing AccountSpec for " ++ show title)
+    in T.intercalate "\t"
+        [ tshow title
+        , tshow (Registry.asDivision spec)
+        , tshow (whichSide (Not :< title :: B))
+        , esc (Registry.asNameEn spec)
+        , esc (Registry.asNameJa spec)
+        , esc (Registry.asDescription spec)
+        ]
 
 projectionRow :: AccountTitles -> Text
 projectionRow title = T.intercalate "\t"

@@ -5,9 +5,10 @@ Module      : ExchangeAlgebra.Assist
 Description : Assistance helpers for LLM-facing account selection and validation feedback.
 
 This module provides a small deterministic assistance layer for generated
-journal-entry workflows. It exposes account-title descriptions derived from the
-Haddock comments in "ExchangeAlgebra.Algebra.Base.Element", plus one-line
-explanations for validation errors from "ExchangeAlgebra.Convert.Checked".
+journal-entry workflows. It exposes account-title metadata from the canonical
+account registry, with semantic descriptions for technical and derived titles,
+plus one-line explanations for validation errors from
+"ExchangeAlgebra.Convert.Checked".
 -}
 module ExchangeAlgebra.Assist
     ( AccountInfo(..)
@@ -28,15 +29,17 @@ import           Data.Text (Text)
 import qualified Data.Text as T
 
 import           ExchangeAlgebra.Algebra.Base
-                     ( AccountDivision
+                     ( AccountRole
+                     , AccountSemantics(..)
                      , AccountSpec(..)
                      , AccountTitles(..)
-                     , Hat(..)
-                     , HatBase((:<))
-                     , Side
+                     , DivisionSemantics
+                     , HomeSideSemantics
+                     , PostingCapability
+                     , ReportingEligibility
+                     , accountSemantics
                      , accountSpec
                      , concreteAccountTitles
-                     , whichSide
                      )
 import           ExchangeAlgebra.Convert
                      ( ConvError(..) )
@@ -55,12 +58,15 @@ import           ExchangeAlgebra.Convert.Checked
 
 -- | Account-title metadata for LLM-facing lookup.
 data AccountInfo = AccountInfo
-  { aiTitle    :: AccountTitles
-  , aiDivision :: AccountDivision
-  , aiHomeSide :: Side
-  , aiNameEn   :: Text
-  , aiNameJa   :: Text
-  , aiDesc     :: Text
+  { aiTitle                :: AccountTitles
+  , aiRoles                :: [AccountRole]
+  , aiPostingCapability    :: PostingCapability
+  , aiDivisionSemantics    :: DivisionSemantics
+  , aiHomeSideSemantics    :: HomeSideSemantics
+  , aiReportingEligibility :: ReportingEligibility
+  , aiNameEn               :: Text
+  , aiNameJa               :: Text
+  , aiDesc                 :: Text
   } deriving (Show, Eq)
 
 -- | Describe a concrete account title.
@@ -70,12 +76,17 @@ data AccountInfo = AccountInfo
 --
 -- >>> fmap ((== "現金") . aiNameJa) (describeAccount Cash)
 -- Just True
--- >>> fmap aiHomeSide (describeAccount Cash)
--- Just Debit
+-- >>> fmap aiDivisionSemantics (describeAccount Cash)
+-- Just (StatementDivision Assets)
+-- >>> fmap aiDivisionSemantics (describeAccount IncomeSummary)
+-- Just (DirectionEncoding Assets)
 -- >>> describeAccount AccountTitle
 -- Nothing
 describeAccount :: AccountTitles -> Maybe AccountInfo
-describeAccount title = toInfo title =<< accountSpec title
+describeAccount title = do
+    spec <- accountSpec title
+    semantics <- accountSemantics title
+    pure (toInfo title spec semantics)
 
 -- | All concrete account-title descriptions in 'Enum' order.
 --
@@ -86,18 +97,60 @@ describeAccount title = toInfo title =<< accountSpec title
 -- >>> aiTitle (last allAccountInfos)
 -- AvailableForSaleSecurities
 allAccountInfos :: [AccountInfo]
-allAccountInfos = mapMaybe (\title -> toInfo title =<< accountSpec title)
-                           concreteAccountTitles
+allAccountInfos = mapMaybe describeAccount concreteAccountTitles
 
-toInfo :: AccountTitles -> AccountSpec -> Maybe AccountInfo
-toInfo title spec = Just AccountInfo
-    { aiTitle    = title
-    , aiDivision = asDivision spec
-    , aiHomeSide = whichSide (Not :< title)
-    , aiNameEn   = asNameEn spec
-    , aiNameJa   = asNameJa spec
-    , aiDesc     = asDescription spec
+toInfo :: AccountTitles -> AccountSpec -> AccountSemantics -> AccountInfo
+toInfo title spec semantics = AccountInfo
+    { aiTitle = title
+    , aiRoles = asemRoles semantics
+    , aiPostingCapability = asemPostingCapability semantics
+    , aiDivisionSemantics = asemDivisionSemantics semantics
+    , aiHomeSideSemantics = asemHomeSideSemantics semantics
+    , aiReportingEligibility = asemReportingEligibility semantics
+    , aiNameEn = asNameEn spec
+    , aiNameJa = safeNameJa title spec
+    , aiDesc = safeDescription title spec
     }
+
+-- | LLM-facing names must not encode an internal direction as if it were an
+-- expense or revenue classification.
+safeNameJa :: AccountTitles -> AccountSpec -> Text
+safeNameJa NetIncome _ = "当期純利益"
+safeNameJa NetLoss _   = "当期純損失"
+safeNameJa GrossProfit _ = "売上総利益"
+safeNameJa OrdinaryProfit _ = "経常利益"
+safeNameJa _ spec      = asNameJa spec
+
+-- | Semantic descriptions for technical, derived, and contextual titles.
+-- Ordinary statement accounts retain their canonical registry description.
+safeDescription :: AccountTitles -> AccountSpec -> Text
+safeDescription NetIncome _ =
+    "Period result: net income (当期純利益). Engine-generated only; the legacy Cost value is an internal direction encoding, not an expense classification."
+safeDescription NetLoss _ =
+    "Period result: net loss (当期純損失). Engine-generated only; the legacy Revenue value is an internal direction encoding, not a revenue classification."
+safeDescription GrossProfit _ =
+    "Reporting subtotal: gross profit (売上総利益). Derived from trial-balance values and not available for direct posting."
+safeDescription OrdinaryProfit _ =
+    "Reporting subtotal: ordinary profit (経常利益). Derived from trial-balance values and not available for direct posting."
+safeDescription IncomeSummary _ =
+    "Closing device: income summary (損益). Available only during closing; the legacy Assets value is an internal direction encoding, not a balance-sheet classification."
+safeDescription SuspensePayments _ =
+    "Temporary account: suspense payments (仮払金). Its legacy Assets value is a bookkeeping control class; unresolved balances require review before presentation."
+safeDescription SuspenseReceipts _ =
+    "Temporary account: suspense receipts (仮受金). Its legacy Liability value is a bookkeeping control class; unresolved balances require review before presentation."
+safeDescription CashOverShort _ =
+    "Temporary account: cash over and short (現金過不足). It must be cleared at closing and is not presented in financial statements."
+safeDescription SuspenseAccount _ =
+    "Temporary account: suspense account (未決算). Its legacy Assets value is a bookkeeping control class; unresolved balances require review before presentation."
+safeDescription BranchCurrentAccount _ =
+    "Reciprocal account: branch current account (支店). It may remain in head-office books but is eliminated when head-office and branch balances are combined."
+safeDescription HeadOfficeCurrentAccount _ =
+    "Reciprocal account: head-office current account (本店). It may remain in branch books but is eliminated when head-office and branch balances are combined."
+safeDescription NetIncomeAttributableToNCI _ =
+    "Consolidation attribution result: profit attributable to non-controlling interests (非支配株主に帰属する当期純利益). Available only in consolidation worksheets; the legacy Cost value is an internal direction encoding."
+safeDescription NetLossAttributableToNCI _ =
+    "Consolidation attribution result: loss attributable to non-controlling interests (非支配株主に帰属する当期純損失). Available only in consolidation worksheets; the legacy Revenue value is an internal direction encoding."
+safeDescription _ spec = asDescription spec
 
 -- | Suggest account titles by deterministic substring matching.
 --
@@ -132,13 +185,12 @@ suggestAccounts query
             , any (T.isInfixOf token) (searchFields info)
             ]
 
-    searchFields info =
-        map T.toCaseFold
-            [ T.pack (show (aiTitle info))
-            , aiNameEn info
-            , aiNameJa info
-            , aiDesc info
-            ]
+    searchFields info = map T.toCaseFold
+        [ T.pack (show (aiTitle info))
+        , aiNameEn info
+        , aiNameJa info
+        , aiDesc info
+        ]
 
 -- | Explain one checked-entry validation error as one English line.
 --

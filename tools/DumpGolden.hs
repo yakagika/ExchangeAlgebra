@@ -50,10 +50,17 @@ main = do
     hdr "semantics (title, whatDiv, whatPIMO, whichSide Not, whichSide Hat, fixedCurrent)" c
       <> T.unlines (map semRow concreteAccountTitles)
 
-  -- 2. describeAccount / allAccountInfos dump (A3)
-  let infoRow i = T.intercalate "\t"
-        [ tshow (aiTitle i), tshow (aiDivision i), tshow (aiHomeSide i)
-        , esc (aiNameEn i), esc (aiNameJa i), esc (aiDesc i) ]
+  -- 2. Historical pre-Land1 describeAccount / allAccountInfos schema (A3).
+  -- Current LLM-facing metadata is dumped by DumpAccountMetadata.hs.
+  let specFor t = case accountSpec t of
+        Just spec -> spec
+        Nothing -> error ("missing AccountSpec for " ++ show t)
+      infoRow i =
+        let t = aiTitle i
+            spec = specFor t
+        in T.intercalate "\t"
+          [ tshow t, tshow (asDivision spec), tshow (whichSide (Not :< t :: B))
+          , esc (asNameEn spec), esc (asNameJa spec), esc (asDescription spec) ]
   TIO.writeFile (outdir </> "account-info.tsv") $
     hdr "allAccountInfos (title, aiDivision, aiHomeSide, aiNameEn, aiNameJa, aiDesc)" c
       <> T.unlines (map infoRow allAccountInfos)
@@ -72,11 +79,29 @@ main = do
 
   -- 4. suggestAccounts dump (A5): corpus = canonical/nameEn/nameJa (+小文字変種)
   --    + description token 全列挙。出力 = 総 match 数 + 上位 10 title
-  let nameFields = concat [ [tshow (aiTitle i), aiNameEn i, aiNameJa i] | i <- allAccountInfos ]
-      descTokens = concatMap (T.words . aiDesc) allAccountInfos
+  let nameFields = concat
+        [ let spec = specFor (aiTitle i)
+          in [tshow (aiTitle i), asNameEn spec, asNameJa spec]
+        | i <- allAccountInfos ]
+      descTokens = concatMap
+        (T.words . asDescription . specFor . aiTitle) allAccountInfos
       sCorpus = dedupSort (concatMap (\q -> [q, T.toLower q]) nameFields <> descTokens)
       sugRow q =
-        let rs = map aiTitle (suggestAccounts q)
+        let tokens = map T.toCaseFold (T.words q)
+            rank i = length
+              [ token
+              | token <- tokens
+              , any (T.isInfixOf token) (map T.toCaseFold
+                  [ tshow (aiTitle i)
+                  , asNameEn (specFor (aiTitle i))
+                  , asNameJa (specFor (aiTitle i))
+                  , asDescription (specFor (aiTitle i))
+                  ])
+              ]
+            rs = map (aiTitle . snd)
+               . L.sortOn (\(score, i) -> (negate score, fromEnum (aiTitle i)))
+               . filter ((> 0) . fst)
+               $ [(rank i, i) | i <- allAccountInfos]
         in esc q <> "\t" <> tshow (length rs) <> "\t" <> T.intercalate "," (map tshow (take 10 rs))
   TIO.writeFile (outdir </> "suggest.tsv") $
     hdr "suggestAccounts over corpus (query, total matches, top-10 titles)" c

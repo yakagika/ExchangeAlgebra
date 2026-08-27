@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Changed
+- **BREAKING: LLM-facing account metadata now separates bookkeeping and
+  reporting semantics.** `AccountSemantics` records account roles, posting
+  capability, the meaning of the legacy five-way division, home-side
+  semantics, and reporting eligibility for all 232 concrete titles;
+  `AccountTitle` remains explicitly outside the domain. `AccountInfo` exposes
+  these fields instead of the ambiguous `aiDivision` / `aiHomeSide` pair, so
+  direction encodings such as `IncomeSummary = Assets` and
+  `NetIncome = Cost` are no longer presented as statement classifications.
+  The exchange-algebra basis, legacy division/side/PIMO behaviour, Binary
+  encoding, closing, projections, and financial-statement rows are unchanged.
 - **BREAKING: closing entries now cover every Cost and Revenue account.**
   `finalStockTransfer` derives its policy from the exhaustive account registry;
   previously it closed only 17 SNA-era accounts. `NetIncome` and `NetLoss`
@@ -22,8 +32,8 @@
   `pimoFromDivision`, flipped by `pimoFlip` (PS↔MS, IN↔OUT) for contra.
   Observable invariants: `whichSide`, `whatPIMO` and `fixedCurrent` are
   unchanged for every account (the two contra accounts keep the Credit home
-  side and MS); only `whatDiv` — and the LLM-facing `aiDivision` and
-  descriptions — changed, for exactly these two accounts.
+  side and MS); only `whatDiv` — and, in the pre-Land1 assistance API,
+  `aiDivision` and descriptions — changed, for exactly these two accounts.
 - **BREAKING: `(<=>)` on `AccountDivision` is now derived via
   `pimoFromDivision`**, matching Proposition 5.3.8 (Deguchi 2004; PS⇔IN,
   PS⇔MS, OUT⇔IN, OUT⇔MS). Migration table (ordered cases; every other pair
