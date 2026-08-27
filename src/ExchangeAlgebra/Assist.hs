@@ -52,9 +52,9 @@ import           ExchangeAlgebra.Convert.Checked
 -- $setup
 -- >>> :set -XOverloadedStrings
 -- >>> import Data.List.NonEmpty (NonEmpty(..))
--- >>> import ExchangeAlgebra.Algebra.Base (AccountTitles(..))
+-- >>> import ExchangeAlgebra.Algebra.Base (AccountTitles(..), PostingCapability(..))
 -- >>> import ExchangeAlgebra.Convert (ConvError(..))
--- >>> import ExchangeAlgebra.Convert.Checked (EntryError(..), JournalError(..), SourceError(..))
+-- >>> import ExchangeAlgebra.Convert.Checked (ProcessingContext(..), EntryError(..), JournalError(..), SourceError(..))
 
 -- | Account-title metadata for LLM-facing lookup.
 data AccountInfo = AccountInfo
@@ -200,6 +200,8 @@ suggestAccounts query
 -- "posting 2 (Cash): amount must be > 0, got 0"
 -- >>> explainEntryError (EntryParse 0 (UnknownAccount "Supplies") :: EntryError Int)
 -- "posting 0: account \"Supplies\" does not resolve to a ledger account"
+-- >>> explainEntryError (PostingNotAllowed 1 NetIncome EngineGeneratedOnly OrdinaryJournal :: EntryError Int)
+-- "posting 1 (NetIncome): EngineGeneratedOnly is not allowed in OrdinaryJournal"
 explainEntryError :: (Show v) => EntryError v -> Text
 explainEntryError (EntryParse i err) =
     postingOnly i <> ": " <> explainConvError err
@@ -209,6 +211,10 @@ explainEntryError (WildcardAccount i) =
     postingOnly i <> ": wildcard AccountTitle is not a ledger account"
 explainEntryError (WildcardSide i) =
     postingOnly i <> ": wildcard Side is not debit or credit"
+explainEntryError (PostingNotAllowed i account capability context) =
+    postingAccount i account
+    <> ": " <> showText capability
+    <> " is not allowed in " <> showText context
 explainEntryError EmptyEntry =
     "entry has no postings"
 explainEntryError (Imbalanced debitTotal creditTotal) =

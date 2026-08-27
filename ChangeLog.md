@@ -3,6 +3,17 @@
 ## Unreleased
 
 ### Changed
+- **BREAKING: checked conversion now enforces posting capability by processing
+  context.** `checkedEntryIn`, `checkedEntryTextIn`, `checkedJournalIn`, and
+  `certifyJournalTextIn` admit ordinary postings plus exactly the capability
+  owned by `ClosingProcess`, `ConsolidationWorksheet`, or
+  `EngineComputation`. The existing context-free functions now delegate to
+  `OrdinaryJournal`, so they reject closing-only, consolidation-only,
+  engine-generated, and non-postable coordinates with `PostingNotAllowed`.
+  Unknown account text remains a vocabulary failure, while a resolved but
+  context-disallowed title is a structural rejection. Algebra construction,
+  balance rules, and unchecked conversion (including `Convert.Csv`) are
+  unchanged.
 - **BREAKING: LLM-facing account metadata now separates bookkeeping and
   reporting semantics.** `AccountSemantics` records account roles, posting
   capability, the meaning of the legacy five-way division, home-side

@@ -410,6 +410,7 @@ entryErrorName (EntryParse _ _) = "EntryParse"
 entryErrorName (NonPositiveAmount _ _ _) = "NonPositiveAmount"
 entryErrorName (WildcardAccount _) = "WildcardAccount"
 entryErrorName (WildcardSide _) = "WildcardSide"
+entryErrorName (PostingNotAllowed _ _ _ _) = "PostingNotAllowed"
 entryErrorName EmptyEntry = "EmptyEntry"
 entryErrorName (Imbalanced _ _) = "Imbalanced"
 

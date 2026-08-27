@@ -3015,11 +3015,19 @@ genCheckedPosting =
 genAcceptedEntryRows :: Gen [(Side, AccountTitles, MoneyDecimal)]
 genAcceptedEntryRows = do
     amount <- genPositiveAmountMD
-    debitAccount <- genAccountTitle
-    creditAccount <- genAccountTitle
+    debitAccount <- genOrdinaryPostingTitle
+    creditAccount <- genOrdinaryPostingTitle
     pure [ (Debit, debitAccount, amount)
          , (Credit, creditAccount, amount)
          ]
+
+genOrdinaryPostingTitle :: Gen AccountTitles
+genOrdinaryPostingTitle = elements
+    [ title
+    | title <- Registry.concreteAccountTitles
+    , Just semantics <- [Registry.accountSemantics title]
+    , Registry.asemPostingCapability semantics == OrdinaryPosting
+    ]
 
 genCheckedEntryRows :: Gen [(Side, AccountTitles, MoneyDecimal)]
 genCheckedEntryRows = frequency
@@ -3150,11 +3158,202 @@ checkedEntryAcceptsSpec rows =
     validPosting (side, account, amount) =
         side /= Side
         && account /= AccountTitle
+        && maybe False
+            (ECC.postingAllowedIn ECC.OrdinaryJournal
+                . Registry.asemPostingCapability)
+            (Registry.accountSemantics account)
         && amount > 0
         && not (EA.isErrorValue amount)
 
+testPostingCapabilityGate :: IO ()
+testPostingCapabilityGate = do
+    let contexts =
+            [ ECC.OrdinaryJournal
+            , ECC.ClosingProcess
+            , ECC.ConsolidationWorksheet
+            , ECC.EngineComputation
+            ]
+        capabilities =
+            [ OrdinaryPosting
+            , ClosingOnly
+            , ConsolidationOnly
+            , EngineGeneratedOnly
+            , NotPostable
+            ]
+        allowed context capability = (context, capability) `elem`
+            [ (ECC.OrdinaryJournal, OrdinaryPosting)
+            , (ECC.ClosingProcess, OrdinaryPosting)
+            , (ECC.ClosingProcess, ClosingOnly)
+            , (ECC.ConsolidationWorksheet, OrdinaryPosting)
+            , (ECC.ConsolidationWorksheet, ConsolidationOnly)
+            , (ECC.EngineComputation, OrdinaryPosting)
+            , (ECC.EngineComputation, EngineGeneratedOnly)
+            ]
+    assertEqual "posting gate: closed context/capability matrix"
+        [ (context, capability, allowed context capability)
+        | context <- contexts
+        , capability <- capabilities
+        ]
+        [ (context, capability, ECC.postingAllowedIn context capability)
+        | context <- contexts
+        , capability <- capabilities
+        ]
+    assertEqual "posting gate: all 232 titles follow the closed matrix"
+        [ (context, title, ECC.postingAllowedIn context capability)
+        | context <- contexts
+        , title <- Registry.concreteAccountTitles
+        , Just semantics <- [Registry.accountSemantics title]
+        , let capability = Registry.asemPostingCapability semantics
+        ]
+        [ (context, title, accepted context title)
+        | context <- contexts
+        , title <- Registry.concreteAccountTitles
+        ]
+    assertEqual "posting gate: derived profit coordinates stay engine-only"
+        (replicate 4 (Just EngineGeneratedOnly))
+        [ Registry.asemPostingCapability <$> Registry.accountSemantics title
+        | title <- [GrossProfit, OrdinaryProfit, NetIncome, NetLoss]
+        ]
+
+    assertEqual "posting gate: ordinary wrapper rejects engine-generated result"
+        (Left (ECC.PostingNotAllowed 0 NetIncome EngineGeneratedOnly
+            ECC.OrdinaryJournal NE.:| []))
+        (checkedEntryM
+            [ (Debit, NetIncome, 10)
+            , (Credit, RetainedEarnings, 10)
+            ])
+
+    assertEqual "posting gate: closing admits IncomeSummary"
+        True
+        (case ECC.checkedEntryIn ECC.ClosingProcess
+            [ (Debit, Sales, 10 :: MoneyDecimal)
+            , (Credit, IncomeSummary, 10)
+            ] of
+            Right _ -> True
+            Left _  -> False)
+    assertEqual "posting gate: closing rejects engine-generated result"
+        True
+        (case ECC.checkedEntryIn ECC.ClosingProcess
+            [ (Debit, NetIncome, 10 :: MoneyDecimal)
+            , (Credit, RetainedEarnings, 10)
+            ] of
+            Left (ECC.PostingNotAllowed 0 NetIncome EngineGeneratedOnly
+                    ECC.ClosingProcess NE.:| []) -> True
+            _ -> False)
+
+    assertEqual "posting gate: consolidation admits NCI attribution"
+        True
+        (case ECC.checkedEntryIn ECC.ConsolidationWorksheet
+            [ (Debit, NetIncomeAttributableToNCI, 10 :: MoneyDecimal)
+            , (Credit, NonControllingInterests, 10)
+            ] of
+            Right _ -> True
+            Left _  -> False)
+    assertEqual "posting gate: engine admits period result"
+        True
+        (case ECC.checkedEntryIn ECC.EngineComputation
+            [ (Debit, NetIncome, 10 :: MoneyDecimal)
+            , (Credit, RetainedEarnings, 10)
+            ] of
+            Right _ -> True
+            Left _  -> False)
+
+    assertEqual "posting gate: text path uses ordinary context"
+        True
+        (case ECC.checkedEntryText
+            [ (T.pack "debit", T.pack "NetIncome", 10 :: MoneyDecimal)
+            , (T.pack "credit", T.pack "RetainedEarnings", 10)
+            ] of
+            Left (ECC.PostingNotAllowed 0 NetIncome EngineGeneratedOnly
+                    ECC.OrdinaryJournal NE.:| []) -> True
+            _ -> False)
+    assertEqual "posting gate: unknown account does not create false imbalance"
+        True
+        (case ECC.checkedEntryText
+            [ (T.pack "debit", T.pack "UnknownAccount_X", 10 :: MoneyDecimal)
+            , (T.pack "credit", T.pack "Cash", 10)
+            ] of
+            Left (ECC.EntryParse 0 _ NE.:| []) -> True
+            _ -> False)
+    assertEqual "posting gate: consolidation text path admits NCI loss"
+        True
+        (case ECC.checkedEntryTextIn ECC.ConsolidationWorksheet
+            [ (T.pack "debit", T.pack "NonControllingInterests", 10 :: MoneyDecimal)
+            , (T.pack "credit", T.pack "NetLossAttributableToNCI", 10)
+            ] of
+            Right _ -> True
+            Left _  -> False)
+    assertEqual "posting gate: journal error retains txid"
+        True
+        (case checkedJournalM
+            [ (7,
+                [ (Debit, IncomeSummary, 10)
+                , (Credit, RetainedEarnings, 10)
+                ])
+            ] of
+            Left (ECC.EntryErrors 7
+                    (ECC.PostingNotAllowed 0 IncomeSummary ClosingOnly
+                        ECC.OrdinaryJournal NE.:| []) NE.:| []) -> True
+            _ -> False)
+    assertEqual "posting gate: certification rejects known disallowed title"
+        True
+        (case ECC.certifyJournalText
+            [ (9 :: Int,
+                [ (T.pack "debit", T.pack "NetIncome", 10 :: MoneyDecimal)
+                , (T.pack "credit", T.pack "RetainedEarnings", 10)
+                ])
+            ] of
+            ECC.Rejected
+                (ECC.EntryErrors 9
+                    (ECC.PostingNotAllowed 0 NetIncome EngineGeneratedOnly
+                        ECC.OrdinaryJournal NE.:| []) NE.:| []) -> True
+            _ -> False)
+    assertEqual "posting gate: disallowed known title outranks unresolved title"
+        True
+        (case ECC.certifyJournalText
+            [ (11 :: Int,
+                [ (T.pack "debit", T.pack "NetIncome", 10 :: MoneyDecimal)
+                , (T.pack "credit", T.pack "UnknownAccount_X", 10)
+                ])
+            ] of
+            ECC.Rejected
+                (ECC.EntryErrors 11
+                    (ECC.PostingNotAllowed 0 NetIncome EngineGeneratedOnly
+                        ECC.OrdinaryJournal NE.:| []) NE.:| []) -> True
+            _ -> False)
+    assertEqual "posting gate: certification honours closing context"
+        True
+        (case ECC.certifyJournalTextIn ECC.ClosingProcess
+            [ (10 :: Int,
+                [ (T.pack "debit", T.pack "Sales", 10 :: MoneyDecimal)
+                , (T.pack "credit", T.pack "IncomeSummary", 10)
+                ])
+            ] of
+            ECC.FullyResolved _ -> True
+            _                   -> False)
+    assertEqual "posting gate: certification honours engine context"
+        True
+        (case ECC.certifyJournalTextIn ECC.EngineComputation
+            [ (12 :: Int,
+                [ (T.pack "debit", T.pack "NetLoss", 10 :: MoneyDecimal)
+                , (T.pack "credit", T.pack "RetainedEarnings", 10)
+                ])
+            ] of
+            ECC.FullyResolved _ -> True
+            _                   -> False)
+  where
+    accepted context title =
+        case ECC.checkedEntryIn context
+            [ (Debit, title, 1 :: MoneyDecimal)
+            , (Credit, Cash, 1)
+            ] of
+            Right _ -> True
+            Left _  -> False
+
 checkedConvertProperties :: IO ()
 checkedConvertProperties = do
+    testPostingCapabilityGate
+
     quickProp "convert-checked: certify known accounts matches checkedJournal" $
         prop_certifyKnownAccountsMatchesCheckedJournal
 

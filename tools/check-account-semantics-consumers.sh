@@ -7,7 +7,7 @@ actual=$(mktemp "${TMPDIR:-/tmp}/exchangealgebra-account-consumers.XXXXXX")
 trap 'rm -f "$actual"' EXIT
 
 cd "$repo_dir"
-rg -l '\b(whatDiv|whichSide|whatPIMO|aiDivision|aiRoles|aiPostingCapability|aiDivisionSemantics|aiHomeSideSemantics|aiReportingEligibility|asem[A-Za-z]*|AccountSemantics|accountSemantics|AccountRole|PostingCapability|DivisionSemantics|HomeSideSemantics|ReportingEligibility|describeAccount|allAccountInfos|projWith[A-Za-z]*|finalStockRule|finalStockTransfer|checkedEntry|checkedJournal|AccountSpec|accountSpec|asDivision|asClosing|classifyAccountDivision|defaultSide|isContra|fixedCurrent|bsRows|plRows)\b' \
+rg -l '\b(whatDiv|whichSide|whatPIMO|aiDivision|aiRoles|aiPostingCapability|aiDivisionSemantics|aiHomeSideSemantics|aiReportingEligibility|asem[A-Za-z]*|AccountSemantics|accountSemantics|AccountRole|PostingCapability|ProcessingContext|PostingNotAllowed|postingAllowedIn|DivisionSemantics|HomeSideSemantics|ReportingEligibility|describeAccount|allAccountInfos|projWith[A-Za-z]*|finalStockRule|finalStockTransfer|checkedEntry[A-Za-z]*|checkedJournal[A-Za-z]*|certifyJournalText[A-Za-z]*|AccountSpec|accountSpec|asDivision|asClosing|classifyAccountDivision|defaultSide|isContra|fixedCurrent|bsRows|plRows)\b' \
   src test examples tools \
   --glob '*.hs' \
   --glob '*.py' \

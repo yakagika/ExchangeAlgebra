@@ -3,6 +3,7 @@ examples/audit-eval/gen/accounts.py
 examples/audit-eval/harness/EmitCanonical.hs
 examples/audit-eval/harness/LoadChecked.hs
 examples/audit-eval/oracle/Oracle.hs
+examples/audit-eval/runner/arms.py
 examples/audit-eval/runner/build.py
 examples/basic/elementaryBookkeepingEx2.hs
 examples/basic/elementaryBookkeepingEx3.hs

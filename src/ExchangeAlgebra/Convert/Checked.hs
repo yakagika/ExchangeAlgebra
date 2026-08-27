@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# OPTIONS_GHC -Wincomplete-patterns -Werror=incomplete-patterns #-}
 
 {- |
 Module      : ExchangeAlgebra.Convert.Checked
@@ -11,14 +12,20 @@ semantics and does not enforce balance; the functions here reject malformed
 entries with structural errors instead.
 -}
 module ExchangeAlgebra.Convert.Checked
-    ( EntryError(..)
+    ( ProcessingContext(..)
+    , EntryError(..)
     , JournalError(..)
     , JournalCert(..)
     , SourceError(..)
+    , postingAllowedIn
     , exactBalanced
+    , checkedEntryIn
     , checkedEntry
+    , checkedEntryTextIn
     , checkedEntryText
+    , checkedJournalIn
     , checkedJournal
+    , certifyJournalTextIn
     , certifyJournalText
     , reconcileSources
     ) where
@@ -39,9 +46,12 @@ import           ExchangeAlgebra.Algebra
                      , Redundant((.+), norm)
                      )
 import           ExchangeAlgebra.Algebra.Base
-                     ( AccountTitles(..)
+                     ( AccountSemantics(asemPostingCapability)
+                     , AccountTitles(..)
                      , HatBase
+                     , PostingCapability(..)
                      , Side(..)
+                     , accountSemantics
                      )
 import           ExchangeAlgebra.Convert
                      ( ConvError
@@ -65,6 +75,45 @@ import           ExchangeAlgebra.Journal
 -- >>> import ExchangeAlgebra.Convert (journalFromSides)
 -- >>> import ExchangeAlgebra.Journal (Journal)
 
+-- | Processing boundary at which generated postings are admitted.
+--
+-- Each non-ordinary context adds exactly one capability to
+-- 'OrdinaryPosting'. This keeps closing, consolidation, and engine authority
+-- separate instead of introducing one privileged "internal" bypass.
+data ProcessingContext
+  = OrdinaryJournal
+  | ClosingProcess
+  | ConsolidationWorksheet
+  | EngineComputation
+  deriving (Show, Eq)
+
+-- | Whether a capability is admitted at a processing boundary.
+postingAllowedIn :: ProcessingContext -> PostingCapability -> Bool
+postingAllowedIn OrdinaryJournal capability = case capability of
+    OrdinaryPosting    -> True
+    ClosingOnly        -> False
+    ConsolidationOnly  -> False
+    EngineGeneratedOnly -> False
+    NotPostable        -> False
+postingAllowedIn ClosingProcess capability = case capability of
+    OrdinaryPosting    -> True
+    ClosingOnly        -> True
+    ConsolidationOnly  -> False
+    EngineGeneratedOnly -> False
+    NotPostable        -> False
+postingAllowedIn ConsolidationWorksheet capability = case capability of
+    OrdinaryPosting    -> True
+    ClosingOnly        -> False
+    ConsolidationOnly  -> True
+    EngineGeneratedOnly -> False
+    NotPostable        -> False
+postingAllowedIn EngineComputation capability = case capability of
+    OrdinaryPosting    -> True
+    ClosingOnly        -> False
+    ConsolidationOnly  -> False
+    EngineGeneratedOnly -> True
+    NotPostable        -> False
+
 -- | Validation errors for a single generated entry.
 --
 -- Posting positions are 0-origin indices in the input entry.
@@ -73,6 +122,7 @@ data EntryError v
   | NonPositiveAmount Int AccountTitles v
   | WildcardAccount Int
   | WildcardSide Int
+  | PostingNotAllowed Int AccountTitles PostingCapability ProcessingContext
   | EmptyEntry
   | Imbalanced { _debitTotal :: v, _creditTotal :: v }
   deriving (Show, Eq)
@@ -142,7 +192,7 @@ data SourceError n v
 exactBalanced :: (HatVal v, ExBaseClass b) => Alg v b -> Bool
 exactBalanced x = norm (decL x) == norm (decR x)
 
--- | Construct one checked entry from parsed postings.
+-- | Construct one checked entry from parsed postings in a processing context.
 --
 -- The success value is built with 'journalFromSides', so accepted entries keep
 -- the same posting semantics as the unchecked conversion path.
@@ -157,15 +207,26 @@ exactBalanced x = norm (decL x) == norm (decR x)
 -- Left (WildcardAccount 0 :| [WildcardSide 1,Imbalanced {_debitTotal = 1.0, _creditTotal = 0.0}])
 -- >>> checkedEntry [(Debit, Cash, 100), (Credit, Sales, 90)] :: Either (NonEmpty (EntryError Double)) (Alg Double (HatBase AccountTitles))
 -- Left (Imbalanced {_debitTotal = 100.0, _creditTotal = 90.0} :| [])
-checkedEntry :: (HatVal v)
-             => [(Side, AccountTitles, v)]
-             -> Either (NonEmpty (EntryError v)) (Alg v (HatBase AccountTitles))
-checkedEntry rows =
-    case validateIndexed (null rows) indexed of
+-- >>> fmap exactBalanced (checkedEntryIn ClosingProcess [(Debit, Sales, 100), (Credit, IncomeSummary, 100)] :: Either (NonEmpty (EntryError Double)) (Alg Double (HatBase AccountTitles)))
+-- Right True
+checkedEntryIn :: (HatVal v)
+               => ProcessingContext
+               -> [(Side, AccountTitles, v)]
+               -> Either (NonEmpty (EntryError v)) (Alg v (HatBase AccountTitles))
+checkedEntryIn context rows =
+    case validateIndexed context (null rows) indexed of
         []     -> Right (journalFromSides rows)
         e : es -> Left (e :| es)
   where
     indexed = zip [0..] rows
+
+-- | Construct one ordinary-journal entry. This compatibility API delegates
+-- to 'checkedEntryIn' and therefore rejects closing-only, consolidation-only,
+-- engine-generated, and non-postable coordinates.
+checkedEntry :: (HatVal v)
+             => [(Side, AccountTitles, v)]
+             -> Either (NonEmpty (EntryError v)) (Alg v (HatBase AccountTitles))
+checkedEntry = checkedEntryIn OrdinaryJournal
 
 -- | Parse text-side runner input and then apply 'checkedEntry' validation.
 --
@@ -176,18 +237,47 @@ checkedEntry rows =
 -- >>> checkedEntryText [("left", "Cash", 100)] :: Either (NonEmpty (EntryError Double)) (Alg Double (HatBase AccountTitles))
 -- Left (EntryParse 0 (UnknownSide "left") :| [])
 -- >>> checkedEntryText [("debit", "Goodwill_X", 100)] :: Either (NonEmpty (EntryError Double)) (Alg Double (HatBase AccountTitles))
--- Left (EntryParse 0 (UnknownAccount "Goodwill_X") :| [])
-checkedEntryText :: (HatVal v)
-                 => [(Text, Text, v)]
-                 -> Either (NonEmpty (EntryError v)) (Alg v (HatBase AccountTitles))
-checkedEntryText rows =
-    case parseErrors ++ validateIndexed (null rows) parsedRows of
+-- Left (EntryParse 0 (UnknownAccount "Goodwill_X") :| [Imbalanced {_debitTotal = 100.0, _creditTotal = 0.0}])
+checkedEntryTextIn :: (HatVal v)
+                   => ProcessingContext
+                   -> [(Text, Text, v)]
+                   -> Either (NonEmpty (EntryError v)) (Alg v (HatBase AccountTitles))
+checkedEntryTextIn context rows =
+    case parseErrors ++ structuralErrors ++ textImbalanceErrors of
         []     -> Right (journalFromSides (map snd parsedRows))
         e : es -> Left (e :| es)
   where
     parsed = map parseIndexed (zip [0..] rows)
-    parseErrors = concatMap fst parsed
-    parsedRows = mapMaybe snd parsed
+    parseErrors = concatMap first parsed
+    parsedRows = mapMaybe second parsed
+    sideAmounts = mapMaybe third parsed
+    structuralErrors = filter (not . isImbalance)
+        (validateIndexed context (null rows) parsedRows)
+
+    -- Account vocabulary resolution and arithmetic balance are independent.
+    -- Retain every successfully parsed side/amount pair so an unknown account
+    -- does not make an otherwise balanced entry look imbalanced.
+    textImbalanceErrors
+        | null rows = []
+        | length sideAmounts /= length rows = []
+        | any invalidSideAmount sideAmounts = []
+        | debitTotal == creditTotal = []
+        | otherwise = [Imbalanced debitTotal creditTotal]
+      where
+        debitTotal = L.foldl' (+) 0
+            [ amount | (Debit, amount) <- sideAmounts ]
+        creditTotal = L.foldl' (+) 0
+            [ amount | (Credit, amount) <- sideAmounts ]
+
+    invalidSideAmount (side, amount) =
+        side == Side || isErrorValue amount || not (amount > 0)
+
+    isImbalance Imbalanced{} = True
+    isImbalance _ = False
+
+    first (x, _, _) = x
+    second (_, x, _) = x
+    third (_, _, x) = x
 
     parseIndexed (i, (sideText, accountText, amount)) =
         let sideResult = parseSide sideText
@@ -202,7 +292,16 @@ checkedEntryText rows =
             parsedRow = case (sideResult, accountResult) of
                 (Right side, Right account) -> Just (i, (side, account, amount))
                 _                           -> Nothing
-        in (errs, parsedRow)
+            sideAmount = case sideResult of
+                Right side -> Just (side, amount)
+                Left _     -> Nothing
+        in (errs, parsedRow, sideAmount)
+
+-- | Parse and check an ordinary-journal entry.
+checkedEntryText :: (HatVal v)
+                 => [(Text, Text, v)]
+                 -> Either (NonEmpty (EntryError v)) (Alg v (HatBase AccountTitles))
+checkedEntryText = checkedEntryTextIn OrdinaryJournal
 
 -- | Construct a checked txid-indexed journal.
 --
@@ -215,10 +314,11 @@ checkedEntryText rows =
 -- Left (DuplicateTxId "tx1" :| [])
 -- >>> checkedJournal [("bad", [(Debit, Cash, 1)])] :: Either (NonEmpty (JournalError String Double)) (Journal String Double (HatBase AccountTitles))
 -- Left (EntryErrors "bad" (Imbalanced {_debitTotal = 1.0, _creditTotal = 0.0} :| []) :| [])
-checkedJournal :: (HatVal v, Note n, Ord n)
-               => [(n, [(Side, AccountTitles, v)])]
-               -> Either (NonEmpty (JournalError n v)) (Journal n v (HatBase AccountTitles))
-checkedJournal entries =
+checkedJournalIn :: (HatVal v, Note n, Ord n)
+                 => ProcessingContext
+                 -> [(n, [(Side, AccountTitles, v)])]
+                 -> Either (NonEmpty (JournalError n v)) (Journal n v (HatBase AccountTitles))
+checkedJournalIn context entries =
     case duplicateErrors ++ entryErrors of
         []     -> Right (L.foldl' (.+) mempty journals)
         e : es -> Left (e :| es)
@@ -233,7 +333,7 @@ checkedJournal entries =
         ]
 
     checkedUnique =
-        [ (txid, checkedEntry rows)
+        [ (txid, checkedEntryIn context rows)
         | (txid, rows) <- entries
         , not (isDuplicate txid)
         ]
@@ -248,6 +348,12 @@ checkedJournal entries =
         | (txid, Right alg) <- checkedUnique
         ]
 
+-- | Construct an ordinary-journal batch.
+checkedJournal :: (HatVal v, Note n, Ord n)
+               => [(n, [(Side, AccountTitles, v)])]
+               -> Either (NonEmpty (JournalError n v)) (Journal n v (HatBase AccountTitles))
+checkedJournal = checkedJournalIn OrdinaryJournal
+
 -- | Certify a text-originated journal in stages.
 --
 -- Duplicate txids and structural errors are rejected before balance is
@@ -255,10 +361,11 @@ checkedJournal entries =
 -- independently of account-title resolution. Consequently, a structurally
 -- valid and balanced batch whose only remaining failures are unknown or
 -- ambiguous account titles is returned as 'BalancedUnresolved'.
-certifyJournalText :: (HatVal v, Note n, Ord n)
-                   => [(n, [(Text, Text, v)])]
-                   -> JournalCert n v
-certifyJournalText entries =
+certifyJournalTextIn :: (HatVal v, Note n, Ord n)
+                     => ProcessingContext
+                     -> [(n, [(Text, Text, v)])]
+                     -> JournalCert n v
+certifyJournalTextIn context entries =
     case duplicateErrors of
         e : es -> Rejected (e :| es)
         [] -> case structuralErrors of
@@ -291,7 +398,7 @@ certifyJournalText entries =
     structuralErrors =
         [ EntryErrors txid (err :| errs)
         | (txid, rows) <- parsedEntries
-        , let entryErrors = certStructuralErrors rows
+        , let entryErrors = certStructuralErrors context rows
         , err : errs <- [entryErrors]
         ]
 
@@ -335,6 +442,12 @@ certifyJournalText entries =
         | (txid, rows) <- resolvedEntries
         ]
 
+-- | Certify an ordinary-journal batch in stages.
+certifyJournalText :: (HatVal v, Note n, Ord n)
+                   => [(n, [(Text, Text, v)])]
+                   -> JournalCert n v
+certifyJournalText = certifyJournalTextIn OrdinaryJournal
+
 -- The tuple retains the original account text so resolution failures can be
 -- reported without reconstructing user input.
 type CertPosting v =
@@ -361,8 +474,11 @@ parseCertPosting (i, (sideText, accountText, amount)) =
           else parseAccountTitle accountText
     )
 
-certStructuralErrors :: (HatVal v) => [CertPosting v] -> [EntryError v]
-certStructuralErrors rows =
+certStructuralErrors :: (HatVal v)
+                     => ProcessingContext
+                     -> [CertPosting v]
+                     -> [EntryError v]
+certStructuralErrors context rows =
     [ EmptyEntry | null rows ] ++ concatMap rowErrors rows
   where
     rowErrors (i, _, amount, sideResult, accountResult) =
@@ -370,8 +486,14 @@ certStructuralErrors rows =
         ++ [ NonPositiveAmount i (resolvedOrWildcard accountResult) amount
            | isErrorValue amount || not (amount > 0)
            ]
-        ++ [ WildcardSide i | Right Side <- [sideResult] ]
         ++ [ WildcardAccount i | Right AccountTitle <- [accountResult] ]
+        ++ [ WildcardSide i | Right Side <- [sideResult] ]
+        ++ [ PostingNotAllowed i account capability context
+           | Right account <- [accountResult]
+           , account /= AccountTitle
+           , let capability = postingCapabilityFor account
+           , not (postingAllowedIn context capability)
+           ]
 
     resolvedOrWildcard (Right account) = account
     resolvedOrWildcard (Left _) = AccountTitle
@@ -430,10 +552,11 @@ reconcileSources sources journal =
         ]
 
 validateIndexed :: (HatVal v)
-                => Bool
+                => ProcessingContext
+                -> Bool
                 -> [(Int, (Side, AccountTitles, v))]
                 -> [EntryError v]
-validateIndexed rawEmpty rows =
+validateIndexed context rawEmpty rows =
     emptyErrors ++ rowErrors ++ imbalanceErrors
   where
     emptyErrors = [ EmptyEntry | rawEmpty ]
@@ -446,6 +569,11 @@ validateIndexed rawEmpty rows =
         ]
         ++ [ WildcardAccount i | account == AccountTitle ]
         ++ [ WildcardSide i | side == Side ]
+        ++ [ PostingNotAllowed i account capability context
+           | account /= AccountTitle
+           , let capability = postingCapabilityFor account
+           , not (postingAllowedIn context capability)
+           ]
 
     invalidAmount amount = isErrorValue amount || not (amount > 0)
 
@@ -469,3 +597,7 @@ totals rows rowErrors
             creditTotal = L.foldl' (+) 0
                 [ amount | (_, (Credit, _, amount)) <- rows ]
         in (debitTotal, creditTotal)
+
+postingCapabilityFor :: AccountTitles -> PostingCapability
+postingCapabilityFor title =
+    maybe NotPostable asemPostingCapability (accountSemantics title)
