@@ -159,7 +159,7 @@ RepairFundReserve	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Equity	Fix
 ConstructionFundReserve	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Equity	FixedHomeSide Credit	StatementEligible
 GeneralReserve	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Equity	FixedHomeSide Credit	StatementEligible
 ValuationDifferenceOnOtherSecurities	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Equity	FixedHomeSide Credit	StatementEligible
-NonControllingInterests	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Equity	FixedHomeSide Credit	StatementEligible
+NonControllingInterests	[AttributionAccount]	ConsolidationOnly	StatementDivision Equity	FixedHomeSide Credit	ContextualPresentation
 CapitalSurplus	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Equity	FixedHomeSide Credit	StatementEligible
 EarnedSurplus	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Equity	FixedHomeSide Credit	StatementEligible
 ServiceRevenue	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Revenue	FixedHomeSide Credit	StatementEligible

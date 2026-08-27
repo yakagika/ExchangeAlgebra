@@ -104,6 +104,7 @@ rolesFor title spec = case title of
     SuspenseReceipts             -> [SuspenseOrClearingAccount]
     CashOverShort                -> [SuspenseOrClearingAccount]
     SuspenseAccount              -> [SuspenseOrClearingAccount]
+    NonControllingInterests      -> [AttributionAccount]
     NetIncomeAttributableToNCI   -> [AttributionAccount, PeriodResult]
     NetLossAttributableToNCI     -> [AttributionAccount, PeriodResult]
     _ | asIsContra spec          -> [OrdinaryAccount, ContraAccount]
@@ -116,6 +117,7 @@ postingFor title = case title of
     GrossProfit                  -> EngineGeneratedOnly
     OrdinaryProfit               -> EngineGeneratedOnly
     IncomeSummary                -> ClosingOnly
+    NonControllingInterests      -> ConsolidationOnly
     NetIncomeAttributableToNCI   -> ConsolidationOnly
     NetLossAttributableToNCI     -> ConsolidationOnly
     AccountTitle                 -> NotPostable
@@ -180,6 +182,7 @@ reportingFor title = case title of
     SuspensePayments             -> ContextualPresentation
     SuspenseReceipts             -> ContextualPresentation
     SuspenseAccount              -> ContextualPresentation
+    NonControllingInterests      -> ContextualPresentation
     NetIncomeAttributableToNCI   -> ContextualPresentation
     NetLossAttributableToNCI     -> ContextualPresentation
     AccountTitle                 -> NotPresented

@@ -2065,6 +2065,11 @@ testAccountMetadataLand1 = do
               , DirectionEncoding Cost, FixedHomeSide Debit
               , ContextualPresentation ))
         (fmap semanticsTuple (lookupSem NetIncomeAttributableToNCI))
+    assertEqual "Land 1a NCI equity is consolidation-only"
+        (Just ( [AttributionAccount], ConsolidationOnly
+              , StatementDivision Equity, FixedHomeSide Credit
+              , ContextualPresentation ))
+        (fmap semanticsTuple (lookupSem NonControllingInterests))
     assertEqual "Land 1 branch account semantics"
         (Just ( [ReciprocalAccount], OrdinaryPosting
               , BookkeepingControlClass Assets, FixedHomeSide Debit
@@ -3214,6 +3219,16 @@ testPostingCapabilityGate = do
         [ Registry.asemPostingCapability <$> Registry.accountSemantics title
         | title <- [GrossProfit, OrdinaryProfit, NetIncome, NetLoss]
         ]
+    assertEqual "posting gate: consolidation-only set is closed"
+        [ NonControllingInterests
+        , NetIncomeAttributableToNCI
+        , NetLossAttributableToNCI
+        ]
+        [ title
+        | title <- Registry.concreteAccountTitles
+        , Just semantics <- [Registry.accountSemantics title]
+        , Registry.asemPostingCapability semantics == ConsolidationOnly
+        ]
 
     assertEqual "posting gate: ordinary wrapper rejects engine-generated result"
         (Left (ECC.PostingNotAllowed 0 NetIncome EngineGeneratedOnly
@@ -3249,6 +3264,15 @@ testPostingCapabilityGate = do
             ] of
             Right _ -> True
             Left _  -> False)
+    assertEqual "posting gate: ordinary journal rejects NCI equity"
+        True
+        (case ECC.checkedEntry
+            [ (Debit, Cash, 10 :: MoneyDecimal)
+            , (Credit, NonControllingInterests, 10)
+            ] of
+            Left (ECC.PostingNotAllowed 1 NonControllingInterests
+                    ConsolidationOnly ECC.OrdinaryJournal NE.:| []) -> True
+            _ -> False)
     assertEqual "posting gate: engine admits period result"
         True
         (case ECC.checkedEntryIn ECC.EngineComputation

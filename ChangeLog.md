@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Changed
+- Correct `NonControllingInterests` metadata to `ConsolidationOnly`,
+  `ContextualPresentation`, and `AttributionAccount`, preventing the
+  consolidated balance-sheet coordinate from being posted to an individual
+  entity's ordinary journal.
 - **BREAKING: checked conversion now enforces posting capability by processing
   context.** `checkedEntryIn`, `checkedEntryTextIn`, `checkedJournalIn`, and
   `certifyJournalTextIn` admit ordinary postings plus exactly the capability

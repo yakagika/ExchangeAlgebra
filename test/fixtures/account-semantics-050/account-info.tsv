@@ -159,7 +159,7 @@ RepairFundReserve	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Equity	Fix
 ConstructionFundReserve	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Equity	FixedHomeSide Credit	StatementEligible	Reserve for new construction	新築積立金	Equity: Reserve for new construction (新築積立金)
 GeneralReserve	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Equity	FixedHomeSide Credit	StatementEligible	General reserve	別途積立金	Equity: General reserve (別途積立金)
 ValuationDifferenceOnOtherSecurities	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Equity	FixedHomeSide Credit	StatementEligible	Valuation difference on available-for-sale securities	その他有価証券評価差額金	Equity: Valuation difference on available-for-sale securities (その他有価証券評価差額金)
-NonControllingInterests	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Equity	FixedHomeSide Credit	StatementEligible	Non-controlling interests	非支配株主持分	Equity: Non-controlling interests (非支配株主持分)
+NonControllingInterests	[AttributionAccount]	ConsolidationOnly	StatementDivision Equity	FixedHomeSide Credit	ContextualPresentation	Non-controlling interests	非支配株主持分	Equity: Non-controlling interests (非支配株主持分)
 CapitalSurplus	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Equity	FixedHomeSide Credit	StatementEligible	Capital surplus	資本剰余金	Equity: Capital surplus (資本剰余金)
 EarnedSurplus	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Equity	FixedHomeSide Credit	StatementEligible	Retained earnings	利益剰余金	Equity: Retained earnings (利益剰余金)
 ServiceRevenue	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Revenue	FixedHomeSide Credit	StatementEligible	Service revenue	役務収益	Revenue: Service revenue (役務収益)
