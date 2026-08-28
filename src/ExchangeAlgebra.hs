@@ -64,6 +64,8 @@
       adjustments, source provenance, and cross-statement linkage validation.
     * "ExchangeAlgebra.TrialBalance.Validation" — trial-balance findings,
       reclassification instructions, and the policy-controlled reporting gate.
+    * "ExchangeAlgebra.Reporting.Presentation" — context-sensitive JGAAP
+      transformation from validated trial balances to financial statements.
     * "ExchangeAlgebra.Simulate" — the classic simulation engine. /(Removed
       from this umbrella in 0.5.0.0: it exports very generic names —
       @copy@, @modify@, @update@, @initialize@, @normal@, … — that polluted

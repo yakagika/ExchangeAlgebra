@@ -11,6 +11,7 @@ import qualified ExchangeAlgebra.Convert      as EC
 import qualified ExchangeAlgebra.Convert.Checked as ECC
 import qualified ExchangeAlgebra.Consolidation.Worksheet as CW
 import qualified ExchangeAlgebra.TrialBalance.Validation as TB
+import qualified ExchangeAlgebra.Reporting.Presentation as RP
 import qualified ExchangeAlgebra.Convert.Csv  as ECsv
 import qualified ExchangeAlgebra.Assist       as Assist
 import qualified ExchangeAlgebra.Assist.Descriptions as AssistDesc
@@ -3777,6 +3778,258 @@ testTrialBalanceValidation = do
     assertEqual "trial balance: closing-device registry role is pinned"
         [IncomeSummary] (titlesFor ClosingDevice)
 
+testReportingPresentation :: IO ()
+testReportingPresentation = do
+    let reportingBalance = EC.journalFromSides
+            [ (Debit, Cash, 100 :: MoneyDecimal)
+            , (Debit, LoansReceivable, 30)
+            , (Debit, Purchases, 40)
+            , (Debit, BranchCurrentAccount, 10)
+            , (Debit, IncomeTaxesRefundReceivable, 5)
+            , (Credit, CapitalStock, 90)
+            , (Credit, Sales, 70)
+            , (Credit, AdvancesReceived, 15)
+            , (Credit, HeadOfficeCurrentAccount, 10)
+            ] :: CheckedAlgM
+        maturityRule = TB.MaturityEvidenceRequired LoansReceivable
+        reportingInput = (trialBalanceInput reportingBalance TB.BeforeClosing)
+            { TB._reclassificationRules = [maturityRule]
+            , TB._maturityEvidenceTitles = Set.singleton LoansReceivable
+            }
+        validated = case TB.validateTrialBalance
+                TB.strictTrialBalancePolicy reportingInput of
+            Right value -> value
+            Left errors -> error ("reporting fixture did not validate: " ++ show errors)
+        rationale = T.pack "material under the documented tax review"
+        context scope = (RP.jcciSecondGradeContext scope)
+            { RP._presentationAllocations =
+                [RP.PresentationAllocation LoansReceivable 10 20
+                    (T.pack "contract maturity schedule")]
+            , RP._presentationRelabels =
+                [RP.PresentationRelabel Purchases SalesCost
+                    (T.pack "JCCI report cost-of-sales label")]
+            , RP._materialityDecisions =
+                [RP.MaterialityDecision IncomeTaxesRefundReceivable
+                    RP.PresentSeparately rationale]
+            , RP._subtotalDefinitions =
+                [ RP.SubtotalDefinition (T.pack "売上総利益") [Sales] [SalesCost]
+                , RP.SubtotalDefinition (T.pack "経常利益") [Sales] [SalesCost]
+                ]
+            }
+        standalone = rightStatements (RP.present (context RP.Standalone) validated)
+        combined = rightStatements (RP.present (context RP.Combined) validated)
+        standaloneTitles = L.map RP._lineAccount (RP._statementLines standalone)
+        combinedTitles = L.map RP._lineAccount (RP._statementLines combined)
+    assertEqual "reporting: same validated TB changes with scope"
+        True (RP._statementLines standalone /= RP._statementLines combined)
+    assertEqual "reporting: standalone retains reciprocal lines"
+        True (BranchCurrentAccount `elem` standaloneTitles
+            && HeadOfficeCurrentAccount `elem` standaloneTitles)
+    assertEqual "reporting: combined eliminates reciprocal lines"
+        True (BranchCurrentAccount `notElem` combinedTitles
+            && HeadOfficeCurrentAccount `notElem` combinedTitles
+            && any isElimination (RP._presentationAudit combined))
+    assertEqual "reporting: maturity evidence splits one title"
+        [ (RP.CurrentAssetsSection, 10)
+        , (RP.NoncurrentAssetsSection, 20)
+        ]
+        [ (RP._lineSection line, RP._lineAmount line)
+        | line <- RP._statementLines standalone
+        , RP._lineAccount line == LoansReceivable
+        ]
+    assertEqual "reporting: JCCI profile uses contract-liability label"
+        [T.pack "契約負債"]
+        [ RP._lineLabel line
+        | line <- RP._statementLines standalone
+        , RP._lineAccount line == AdvancesReceived
+        ]
+    assertEqual "reporting: Purchases is relabeled to SalesCost"
+        True (Purchases `notElem` standaloneTitles && SalesCost `elem` standaloneTitles)
+    assertEqual "reporting: GrossProfit is a subtotal, not a basis line"
+        ( [ RP.StatementSubtotal (T.pack "売上総利益") (TB.CreditBalance 30)
+          , RP.StatementSubtotal (T.pack "経常利益") (TB.CreditBalance 30)
+          ]
+        , False
+        )
+        ( RP._statementSubtotals standalone
+        , GrossProfit `elem` standaloneTitles
+            || OrdinaryProfit `elem` standaloneTitles
+        )
+    assertEqual "reporting: materiality rationale survives in audit"
+        True (RP.MaterialityApplied IncomeTaxesRefundReceivable
+            RP.PresentSeparately (TB.DebitBalance 5) rationale
+                `elem` RP._presentationAudit standalone)
+    assertEqual "reporting: relabel never mutates validated bookkeeping coordinates"
+        True (Purchases `elem` basesAccountTitles (TB.validatedTrialBalance validated)
+            && SalesCost `notElem`
+                basesAccountTitles (TB.validatedTrialBalance validated))
+
+    let missingAllocation = (context RP.Standalone)
+            { RP._presentationAllocations = [] }
+    assertEqual "reporting: missing maturity evidence blocks presentation"
+        True (case RP.present missingAllocation validated of
+            Left issues -> RP.MissingPresentationAllocation LoansReceivable
+                `elem` NE.toList issues
+            Right _ -> False)
+
+    let explainedSuspense = EC.journalFromSides
+            [ (Debit, SuspensePayments, 10 :: MoneyDecimal)
+            , (Credit, CapitalStock, 10)
+            ] :: CheckedAlgM
+        explainedInput = (trialBalanceInput explainedSuspense TB.BeforeClosing)
+            { TB._temporaryBalanceExplanations = M.singleton SuspensePayments
+                (T.pack "pending invoice") }
+        explainedValidated = case TB.validateTrialBalance
+                TB.standaloneTrialBalancePolicy explainedInput of
+            Right value -> value
+            Left errors -> error ("explained fixture rejected: " ++ show errors)
+    assertEqual "reporting: stricter combined context re-gates retained finding"
+        True (case RP.present (RP.jcciSecondGradeContext RP.Combined)
+                explainedValidated of
+            Left issues -> any isValidationBlock (NE.toList issues)
+            Right _ -> False)
+
+    let contraBalance = EC.journalFromSides
+            [ (Debit, AccountsReceivable, 100 :: MoneyDecimal)
+            , (Credit, AllowanceForDoubtfulAccounts, 10)
+            , (Credit, CapitalStock, 90)
+            ] :: CheckedAlgM
+        contraValidated = validateFixture contraBalance
+        separateContext = (RP.jcciSecondGradeContext RP.Standalone)
+            { RP._contraPresentationRules =
+                [RP.PresentContraSeparately AllowanceForDoubtfulAccounts
+                    (T.pack "show allowance as deduction")] }
+        netContext = (RP.jcciSecondGradeContext RP.Standalone)
+            { RP._contraPresentationRules =
+                [RP.NetContraAgainst AllowanceForDoubtfulAccounts
+                    AccountsReceivable (T.pack "net receivables policy")] }
+        separateLines = RP._statementLines
+            (rightStatements (RP.present separateContext contraValidated))
+        netLines = RP._statementLines
+            (rightStatements (RP.present netContext contraValidated))
+    assertEqual "reporting: contra policy supports separate presentation"
+        True (any (\line -> RP._lineAccount line == AllowanceForDoubtfulAccounts
+            && RP._lineIsDeduction line) separateLines)
+    assertEqual "reporting: contra policy supports net presentation"
+        [(Debit, 90)]
+        [ (RP._lineSide line, RP._lineAmount line)
+        | line <- netLines, RP._lineAccount line == AccountsReceivable
+        ]
+
+    let taxBalance = EC.journalFromSides
+            [ (Debit, Cash, 85 :: MoneyDecimal)
+            , (Debit, CorporateIncomeTaxes, 20)
+            , (Credit, CapitalStock, 100)
+            , (Credit, RefundOfIncomeTaxes, 5)
+            ] :: CheckedAlgM
+        taxValidated = validateFixture taxBalance
+        netTaxContext = (RP.jcciSecondGradeContext RP.Standalone)
+            { RP._materialityDecisions =
+                [RP.MaterialityDecision RefundOfIncomeTaxes
+                    (RP.NetAgainst CorporateIncomeTaxes)
+                    (T.pack "immaterial refund netted under tax policy")] }
+        taxLines = RP._statementLines
+            (rightStatements (RP.present netTaxContext taxValidated))
+    assertEqual "reporting: materiality policy supports tax netting"
+        (False, [(Debit, 15)])
+        ( RefundOfIncomeTaxes `elem` L.map RP._lineAccount taxLines
+        , [ (RP._lineSide line, RP._lineAmount line)
+          | line <- taxLines, RP._lineAccount line == CorporateIncomeTaxes
+          ]
+        )
+    let badAllocation current noncurrent evidence = (context RP.Standalone)
+            { RP._presentationAllocations =
+                [RP.PresentationAllocation LoansReceivable current noncurrent evidence] }
+    assertEqual "reporting: blank allocation evidence blocks"
+        True (hasPresentationIssue isBlankEvidence (RP.present
+            (badAllocation 10 20 (T.pack "  ")) validated))
+    assertEqual "reporting: negative allocation blocks"
+        True (hasPresentationIssue isInvalidAllocation (RP.present
+            (badAllocation (-1) 31 (T.pack "schedule")) validated))
+    assertEqual "reporting: non-summing allocation blocks"
+        True (hasPresentationIssue isInvalidAllocation (RP.present
+            (badAllocation 10 19 (T.pack "schedule")) validated))
+    let duplicateAllocation = (context RP.Standalone)
+            { RP._presentationAllocations =
+                [ RP.PresentationAllocation LoansReceivable 10 20
+                    (T.pack "schedule A")
+                , RP.PresentationAllocation LoansReceivable 10 20
+                    (T.pack "schedule B")
+                ] }
+    assertEqual "reporting: duplicate allocation blocks"
+        True (hasPresentationIssue isDuplicateAllocation
+            (RP.present duplicateAllocation validated))
+    let unexpectedAllocation = (context RP.Standalone)
+            { RP._presentationAllocations =
+                [ RP.PresentationAllocation LoansReceivable 10 20
+                    (T.pack "contract maturity schedule")
+                , RP.PresentationAllocation Cash 100 0 (T.pack "none")
+                ] }
+    assertEqual "reporting: unrequired allocation blocks"
+        True (hasPresentationIssue isUnexpectedAllocation
+            (RP.present unexpectedAllocation validated))
+
+    let contraRequiredInput = (trialBalanceInput contraBalance TB.BeforeClosing)
+            { TB._reclassificationRules =
+                [TB.MaturityEvidenceRequired AccountsReceivable]
+            , TB._maturityEvidenceTitles = Set.singleton AccountsReceivable
+            }
+        contraRequired = case TB.validateTrialBalance TB.strictTrialBalancePolicy
+                contraRequiredInput of
+            Right value -> value
+            Left errors -> error ("required contra fixture rejected: " ++ show errors)
+        netAllocatedContext = netContext
+            { RP._presentationAllocations =
+                [RP.PresentationAllocation AccountsReceivable 60 30
+                    (T.pack "receivable maturity schedule")] }
+    assertEqual "reporting: required net target can be allocated after netting"
+        [(RP.CurrentAssetsSection, 60), (RP.NoncurrentAssetsSection, 30)]
+        [ (RP._lineSection line, RP._lineAmount line)
+        | line <- RP._statementLines
+            (rightStatements (RP.present netAllocatedContext contraRequired))
+        , RP._lineAccount line == AccountsReceivable
+        ]
+    let consumeRequired = (context RP.Standalone)
+            { RP._materialityDecisions =
+                [RP.MaterialityDecision LoansReceivable (RP.NetAgainst Cash)
+                    (T.pack "must not erase maturity obligation")] }
+    assertEqual "reporting: explicit maturity obligation cannot be consumed"
+        True (hasPresentationIssue isConflictingInstruction
+            (RP.present consumeRequired validated))
+
+    let emptyValidated = validateFixture mempty
+        emptyStatements = rightStatements (RP.present
+            (RP.jcciSecondGradeContext RP.Combined) emptyValidated)
+    assertEqual "reporting: empty combined TB has no fabricated elimination"
+        ([], [])
+        (RP._statementLines emptyStatements, RP._presentationAudit emptyStatements)
+  where
+    rightStatements (Right statements) = statements
+    rightStatements (Left issues) = error ("presentation failed: " ++ show issues)
+    validateFixture alg = case TB.validateTrialBalance TB.strictTrialBalancePolicy
+            (trialBalanceInput alg TB.BeforeClosing) of
+        Right value -> value
+        Left errors -> error ("fixture did not validate: " ++ show errors)
+    isElimination (RP.ReciprocalAccountsEliminated _ _) = True
+    isElimination _ = False
+    isValidationBlock (RP.ValidationFindingBlocks _) = True
+    isValidationBlock _ = False
+    hasPresentationIssue predicate (Left issues) = any predicate (NE.toList issues)
+    hasPresentationIssue _ (Right _) = False
+    isBlankEvidence (RP.BlankPresentationEvidence LoansReceivable) = True
+    isBlankEvidence _ = False
+    isInvalidAllocation (RP.InvalidPresentationAllocation LoansReceivable _ _ _) = True
+    isInvalidAllocation _ = False
+    isDuplicateAllocation (RP.DuplicatePresentationAllocation LoansReceivable) = True
+    isDuplicateAllocation _ = False
+    isUnexpectedAllocation (RP.UnexpectedPresentationAllocation Cash) = True
+    isUnexpectedAllocation _ = False
+    isConflictingInstruction
+        (RP.ConflictingPresentationInstruction LoansReceivable) = True
+    isConflictingInstruction _ = False
+    basesAccountTitles alg =
+        [ title | _ :< title <- EA.bases alg ]
+
 testPostingCapabilityGate :: IO ()
 testPostingCapabilityGate = do
     let contexts =
@@ -3986,6 +4239,7 @@ checkedConvertProperties = do
     testPostingCapabilityGate
     testConsolidationWorksheet
     testTrialBalanceValidation
+    testReportingPresentation
 
     quickProp "convert-checked: certify known accounts matches checkedJournal" $
         prop_certifyKnownAccountsMatchesCheckedJournal

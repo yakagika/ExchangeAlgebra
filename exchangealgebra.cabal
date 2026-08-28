@@ -47,6 +47,7 @@ library
       ExchangeAlgebra.Optimize
       ExchangeAlgebra.Optimize.Annealing
       ExchangeAlgebra.Optimize.GA
+      ExchangeAlgebra.Reporting.Presentation
       ExchangeAlgebra.Simulate
       ExchangeAlgebra.Simulate.Lite
       ExchangeAlgebra.Simulate.Network

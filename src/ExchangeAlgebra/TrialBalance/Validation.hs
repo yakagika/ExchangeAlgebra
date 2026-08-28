@@ -39,6 +39,7 @@ module ExchangeAlgebra.TrialBalance.Validation
     , validatedFindings
     , validatedPolicy
     , validatedStage
+    , validatedMaturityRequiredTitles
     ) where
 
 import           Data.List.NonEmpty (NonEmpty(..))
@@ -222,6 +223,7 @@ data ValidatedTrialBalance v = ValidatedTrialBalance
     [TBFinding v]
     TrialBalancePolicy
     TrialBalanceStage
+    (Set AccountTitles)
 
 -- | Apply a policy to the complete finding list.
 validateTrialBalance
@@ -233,7 +235,7 @@ validateTrialBalance policy input =
     case filter (findingBlocksPresentation policy) findings of
         [] -> Right (ValidatedTrialBalance
             (_trialBalanceElement input) findings policy
-            (_trialBalanceStage input))
+            (_trialBalanceStage input) (maturityRequiredTitles input))
         blocker : blockers -> Left (blocker :| blockers)
   where
     findings = trialBalanceFindings input
@@ -241,19 +243,30 @@ validateTrialBalance policy input =
 -- | Recover the accepted algebra element.
 validatedTrialBalance
     :: ValidatedTrialBalance v -> Alg v (HatBase AccountTitles)
-validatedTrialBalance (ValidatedTrialBalance alg _ _ _) = alg
+validatedTrialBalance (ValidatedTrialBalance alg _ _ _ _) = alg
 
 -- | Recover both blocking-policy-independent facts and permitted warnings.
 validatedFindings :: ValidatedTrialBalance v -> [TBFinding v]
-validatedFindings (ValidatedTrialBalance _ findings _ _) = findings
+validatedFindings (ValidatedTrialBalance _ findings _ _ _) = findings
 
 -- | Recover the policy that admitted this trial balance.
 validatedPolicy :: ValidatedTrialBalance v -> TrialBalancePolicy
-validatedPolicy (ValidatedTrialBalance _ _ policy _) = policy
+validatedPolicy (ValidatedTrialBalance _ _ policy _ _) = policy
 
 -- | Recover the processing stage at which the trial balance was admitted.
 validatedStage :: ValidatedTrialBalance v -> TrialBalanceStage
-validatedStage (ValidatedTrialBalance _ _ _ stage) = stage
+validatedStage (ValidatedTrialBalance _ _ _ stage _) = stage
+
+-- | Maturity-allocation obligations that crossed the validation boundary.
+validatedMaturityRequiredTitles
+    :: ValidatedTrialBalance v -> Set AccountTitles
+validatedMaturityRequiredTitles (ValidatedTrialBalance _ _ _ _ titles) = titles
+
+maturityRequiredTitles :: TrialBalanceInput v -> Set AccountTitles
+maturityRequiredTitles input = S.fromList
+    [ title
+    | MaturityEvidenceRequired title <- _reclassificationRules input
+    ]
 
 valuesOf :: HatVal v => Alg v (HatBase AccountTitles) -> [v]
 valuesOf = foldEntries (\values value _ -> value : values) []

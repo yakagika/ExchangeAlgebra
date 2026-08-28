@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Added
+- Add a JGAAP reporting transformation from validated trial balances with
+  standalone/combined scope, reciprocal elimination, maturity allocation,
+  materiality and contra policy, profile labels, auditable subtotals, and final
+  debit-credit reconciliation.
 - Add a trial-balance validation boundary with explicit reciprocal, temporary,
   closing-residual, abnormal-side, reclassification, and maturity-evidence
   findings, plus an opaque policy-controlled boundary for downstream reporting.
