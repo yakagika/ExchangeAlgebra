@@ -35,6 +35,7 @@ src/ExchangeAlgebra/Convert/Checked.hs
 src/ExchangeAlgebra/Journal.hs
 src/ExchangeAlgebra/Journal/Transfer.hs
 src/ExchangeAlgebra/Simulate/Lite.hs
+src/ExchangeAlgebra/TrialBalance/Validation.hs
 src/ExchangeAlgebra/Write.hs
 test/Spec.hs
 tools/DumpAccountMetadata.hs

@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Added
+- Add a trial-balance validation boundary with explicit reciprocal, temporary,
+  closing-residual, abnormal-side, reclassification, and maturity-evidence
+  findings, plus an opaque policy-controlled boundary for downstream reporting.
 - Add a consolidation-worksheet validation boundary that preserves source and
   adjustment provenance, rejects imbalanced adjustments individually before
   aggregation, and checks net-income attribution, retained-earnings, and

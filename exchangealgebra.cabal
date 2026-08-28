@@ -52,6 +52,7 @@ library
       ExchangeAlgebra.Simulate.Network
       ExchangeAlgebra.Simulate.Policy
       ExchangeAlgebra.Simulate.Visualize
+      ExchangeAlgebra.TrialBalance.Validation
       ExchangeAlgebra.Value
       ExchangeAlgebra.Write
   other-modules:
