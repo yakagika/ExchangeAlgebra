@@ -60,6 +60,8 @@
     (or with each other) and are better used under a qualified import:
 
     * "ExchangeAlgebra.Bookkeeping" — double-entry adjusting\/closing entries.
+    * "ExchangeAlgebra.Consolidation.Worksheet" — atomic consolidation
+      adjustments, source provenance, and cross-statement linkage validation.
     * "ExchangeAlgebra.Simulate" — the classic simulation engine. /(Removed
       from this umbrella in 0.5.0.0: it exports very generic names —
       @copy@, @modify@, @update@, @initialize@, @normal@, … — that polluted

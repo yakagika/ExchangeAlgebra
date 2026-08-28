@@ -38,6 +38,7 @@ library
       ExchangeAlgebra.Assist
       ExchangeAlgebra.Assist.Descriptions
       ExchangeAlgebra.Bookkeeping
+      ExchangeAlgebra.Consolidation.Worksheet
       ExchangeAlgebra.Convert
       ExchangeAlgebra.Convert.Checked
       ExchangeAlgebra.Convert.Csv

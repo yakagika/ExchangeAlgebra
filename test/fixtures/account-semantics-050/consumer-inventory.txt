@@ -29,6 +29,7 @@ src/ExchangeAlgebra/Algebra/Base/Element.hs
 src/ExchangeAlgebra/Algebra/Transfer.hs
 src/ExchangeAlgebra/Assist.hs
 src/ExchangeAlgebra/Bookkeeping.hs
+src/ExchangeAlgebra/Consolidation/Worksheet.hs
 src/ExchangeAlgebra/Convert.hs
 src/ExchangeAlgebra/Convert/Checked.hs
 src/ExchangeAlgebra/Journal.hs

@@ -9,6 +9,7 @@ module Main (main) where
 import           ExchangeAlgebra.Journal
 import qualified ExchangeAlgebra.Convert      as EC
 import qualified ExchangeAlgebra.Convert.Checked as ECC
+import qualified ExchangeAlgebra.Consolidation.Worksheet as CW
 import qualified ExchangeAlgebra.Convert.Csv  as ECsv
 import qualified ExchangeAlgebra.Assist       as Assist
 import qualified ExchangeAlgebra.Assist.Descriptions as AssistDesc
@@ -3170,6 +3171,389 @@ checkedEntryAcceptsSpec rows =
         && amount > 0
         && not (EA.isErrorValue amount)
 
+data ConsolidationFixtureRow
+  = FixturePosting String String [String]
+        AccountTitles AccountTitles MoneyDecimal
+  | FixtureLink String String MoneyDecimal
+  deriving (Show, Eq)
+
+parseConsolidationFixtureRow :: T.Text -> Either String ConsolidationFixtureRow
+parseConsolidationFixtureRow line = case T.splitOn (T.pack "\t") line of
+    [kind, rowId, sourceIdsText, debitText, creditText, amountText]
+        | kind == T.pack "source" || kind == T.pack "adjustment" -> do
+            debitAccount <- firstShow (EC.parseAccountTitle debitText)
+            creditAccount <- firstShow (EC.parseAccountTitle creditText)
+            amount <- parseAmount amountText
+            let sourceIds
+                    | sourceIdsText == T.pack "-" = []
+                    | otherwise = L.map T.unpack
+                        (T.splitOn (T.pack "|") sourceIdsText)
+            Right (FixturePosting (T.unpack kind) (T.unpack rowId) sourceIds
+                debitAccount creditAccount amount)
+        | kind == T.pack "link" -> do
+            amount <- parseAmount amountText
+            Right (FixtureLink (T.unpack rowId) (T.unpack sourceIdsText) amount)
+    fields -> Left ("invalid consolidation fixture row: " ++ show fields)
+  where
+    firstShow (Left err) = Left (show err)
+    firstShow (Right value) = Right value
+    parseAmount amountText = case reads (T.unpack amountText) of
+        [(amount, "")] -> Right (fromInteger amount)
+        _ -> Left ("invalid fixture amount: " ++ T.unpack amountText)
+
+loadMinimalConsolidationFixture
+    :: IO (CW.WorksheetInput String String MoneyDecimal)
+loadMinimalConsolidationFixture = do
+    contents <- TIO.readFile
+        "test/fixtures/consolidation-worksheet-050/minimal.tsv"
+    rows <- case traverse parseConsolidationFixtureRow
+            (filter (not . T.null) (drop 1 (T.lines contents))) of
+        Left err -> fail err
+        Right parsed -> pure parsed
+    let postings =
+            [ (kind, rowId, sourceIds, debitAccount, creditAccount, amount)
+            | FixturePosting kind rowId sourceIds debitAccount creditAccount amount
+                <- rows
+            ]
+        sources =
+            [ CW.TrialBalanceSource rowId
+                (EC.journalFromSides
+                    [ (Debit, debitAccount, amount)
+                    , (Credit, creditAccount, amount)
+                    ] :: CheckedAlgM)
+            | (kind, rowId, _, debitAccount, creditAccount, amount) <- postings
+            , kind == "source"
+            ]
+        adjustments =
+            [ CW.WorksheetAdjustment rowId (sourceId NE.:| sourceIdsTail)
+                (EC.journalFromSides
+                    [ (Debit, debitAccount, amount)
+                    , (Credit, creditAccount, amount)
+                    ] :: CheckedAlgM)
+            | (kind, rowId, sourceId : sourceIdsTail,
+                    debitAccount, creditAccount, amount) <- postings
+            , kind == "adjustment"
+            ]
+        links = M.fromList
+            [ (rowId, (direction, amount))
+            | FixtureLink rowId direction amount <- rows
+            ]
+    sourceList <- case NE.nonEmpty sources of
+        Nothing -> fail "minimal consolidation fixture has no sources"
+        Just nonEmptySources -> pure nonEmptySources
+    plResult <- fixtureResult links "pl-net-income"
+    ownersPlResult <- fixtureResult links "pl-parent-net-income"
+    ownersSsResult <- fixtureResult links "ss-parent-net-income"
+    nciResult <- fixtureResult links "nci-period-share"
+    openingRetained <- fixtureBalance links "opening-retained-earnings"
+    retainedDividends <- fixtureAmount links "retained-earnings-dividends"
+    ssClosingRetained <- fixtureBalance links "ss-closing-retained-earnings"
+    bsRetained <- fixtureBalance links "bs-retained-earnings"
+    openingNci <- fixtureBalance links "opening-nci"
+    nciDividends <- fixtureAmount links "nci-dividends"
+    closingNci <- fixtureBalance links "closing-nci"
+    bsNci <- fixtureBalance links "bs-nci"
+    pure (CW.WorksheetInput sourceList adjustments
+        (CW.WorksheetLinkage
+            { CW._profitOrLossNetIncome = plResult
+            , CW._profitOrLossNetIncomeAttributableToOwners = ownersPlResult
+            , CW._statementOfChangesNetIncomeAttributableToOwners =
+                ownersSsResult
+            , CW._openingRetainedEarnings = openingRetained
+            , CW._retainedEarningsDividends = retainedDividends
+            , CW._statementOfChangesClosingRetainedEarnings = ssClosingRetained
+            , CW._balanceSheetRetainedEarnings = bsRetained
+            , CW._openingNonControllingInterests = openingNci
+            , CW._nonControllingInterestsPeriodShare = nciResult
+            , CW._nonControllingInterestsDividends = nciDividends
+            , CW._statementOfChangesClosingNonControllingInterests = closingNci
+            , CW._balanceSheetNonControllingInterests = bsNci
+            }))
+  where
+    fixtureAmount links key = case M.lookup key links of
+        Just ("amount", amount) -> pure amount
+        Just (direction, _) -> fail
+            ("expected amount direction for " ++ key ++ ", got " ++ direction)
+        Nothing -> fail ("missing fixture link: " ++ key)
+    fixtureResult links key = case M.lookup key links of
+        Just ("profit", amount) -> pure (CW.PeriodProfit amount)
+        Just ("loss", amount) -> pure (CW.PeriodLoss amount)
+        Just (direction, _) -> fail
+            ("invalid period-result direction for " ++ key ++ ": " ++ direction)
+        Nothing -> fail ("missing fixture link: " ++ key)
+    fixtureBalance links key = case M.lookup key links of
+        Just ("credit", amount) -> pure (CW.CreditBalance amount)
+        Just ("debit", amount) -> pure (CW.DebitBalance amount)
+        Just (direction, _) -> fail
+            ("invalid balance direction for " ++ key ++ ": " ++ direction)
+        Nothing -> fail ("missing fixture link: " ++ key)
+
+leftErrors :: Either (NE.NonEmpty e) a -> Maybe (NE.NonEmpty e)
+leftErrors (Left errors) = Just errors
+leftErrors (Right _) = Nothing
+
+testConsolidationWorksheet :: IO ()
+testConsolidationWorksheet = do
+    fixture <- loadMinimalConsolidationFixture
+    validated <- case CW.validateConsolidationWorksheet fixture of
+        Left errors -> fail ("valid consolidation fixture rejected: " ++ show errors)
+        Right value -> pure value
+    assertEqual "consolidation worksheet: source provenance retained"
+        ["parent", "subsidiary"]
+        [ CW._sourceId source
+        | source <- NE.toList (CW.validatedSources validated)
+        ]
+    assertEqual "consolidation worksheet: adjustment provenance retained"
+        [("nci-attribution", ["parent", "subsidiary"])]
+        [ ( CW._adjustmentId adjustment
+          , NE.toList (CW._adjustmentSourceIds adjustment)
+          )
+        | adjustment <- CW.validatedAdjustments validated
+        ]
+    let combined = CW.combinedWorksheet validated
+    assertEqual "consolidation worksheet: combined fixture stays balanced"
+        True (ECC.exactBalanced combined)
+    assertEqual "consolidation worksheet: combined debit total"
+        (200 :: MoneyDecimal) (EA.norm (EA.decL combined))
+    assertEqual "consolidation worksheet: combined credit total"
+        (200 :: MoneyDecimal) (EA.norm (EA.decR combined))
+    assertEqual "consolidation worksheet: combination preserves all sequences"
+        6 (L.length (EA.vals combined))
+
+    let rawAdjustment =
+            (10 EA..@ (Not :< Cash)) EA..+
+            (5 EA..@ (Not :< Cash)) EA..+
+            (15 EA..@ (Not :< Sales)) :: CheckedAlgM
+        rawInput = CW.WorksheetInput (CW._worksheetSources fixture)
+            [CW.WorksheetAdjustment "raw-three-posting"
+                ("parent" NE.:| []) rawAdjustment]
+            (CW._worksheetLinkage fixture)
+    assertEqual "consolidation worksheet: accepts non-journal-shaped raw Alg"
+        True
+        (case CW.validateConsolidationWorksheet rawInput of
+            Right _ -> True
+            Left _  -> False)
+
+    let sources = CW._worksheetSources fixture
+        links = CW._worksheetLinkage fixture
+        debitOnly = EC.journalFromSides
+            [(Debit, Cash, 10 :: MoneyDecimal)] :: CheckedAlgM
+        creditOnly = EC.journalFromSides
+            [(Credit, Sales, 10 :: MoneyDecimal)] :: CheckedAlgM
+        cancellingSet = debitOnly EA..+ creditOnly
+        cancellingInput = CW.WorksheetInput sources
+            [ CW.WorksheetAdjustment "bad-debit" ("parent" NE.:| []) debitOnly
+            , CW.WorksheetAdjustment "bad-credit" ("parent" NE.:| []) creditOnly
+            ] links
+    assertEqual "consolidation worksheet: malformed set can balance in aggregate"
+        True (ECC.exactBalanced cancellingSet)
+    assertEqual "consolidation worksheet: atomic gate rejects both malformed adjustments"
+        (Just
+            ( CW.UnbalancedAdjustment "bad-debit" 10 0 NE.:|
+              [CW.UnbalancedAdjustment "bad-credit" 0 10]
+            ))
+        (leftErrors (CW.validateConsolidationWorksheet cancellingInput))
+
+    let forbidden = EC.journalFromSides
+            [ (Debit, NetIncome, 10 :: MoneyDecimal)
+            , (Credit, RetainedEarnings, 10)
+            ] :: CheckedAlgM
+        forbiddenInput = CW.WorksheetInput sources
+            [CW.WorksheetAdjustment "forbidden" ("parent" NE.:| []) forbidden]
+            links
+    assertEqual "consolidation worksheet: context capability applies to raw Alg"
+        (Just (CW.AdjustmentPostingNotAllowed "forbidden" NetIncome
+            EngineGeneratedOnly NE.:| []))
+        (leftErrors (CW.validateConsolidationWorksheet forbiddenInput))
+
+    let provenanceInput = CW.WorksheetInput sources
+            [CW.WorksheetAdjustment "unknown"
+                ("ghost" NE.:| ["ghost"]) (mempty :: CheckedAlgM)] links
+    assertEqual "consolidation worksheet: provenance rejects duplicate and unknown source"
+        (Just
+            ( CW.DuplicateAdjustmentSource "unknown" "ghost" NE.:|
+              [ CW.UnknownAdjustmentSource "unknown" "ghost"
+              , CW.EmptyAdjustment "unknown"
+              ]
+            ))
+        (leftErrors (CW.validateConsolidationWorksheet provenanceInput))
+
+    let mismatchedLinks = links
+            { CW._statementOfChangesNetIncomeAttributableToOwners =
+                CW.PeriodProfit 40 }
+        mismatchedInput = fixture { CW._worksheetLinkage = mismatchedLinks }
+    assertEqual "consolidation worksheet: P/L to S/S mismatch is explicit"
+        True
+        (case CW.validateConsolidationWorksheet mismatchedInput of
+            Left errors -> CW.OwnersPeriodResultLinkMismatch
+                (CW.PeriodProfit 50) (CW.PeriodProfit 40) `elem` NE.toList errors
+            Right _ -> False)
+
+    let attributionLinks = links
+            { CW._profitOrLossNetIncome = CW.PeriodProfit 60 }
+        attributionInput = fixture { CW._worksheetLinkage = attributionLinks }
+    assertEqual "consolidation worksheet: total attribution mismatch is explicit"
+        True
+        (case CW.validateConsolidationWorksheet attributionInput of
+            Left errors -> CW.NetIncomeAttributionMismatch 60 70
+                `elem` NE.toList errors
+            Right _ -> False)
+
+    let retainedLinks = links
+            { CW._retainedEarningsDividends = 11 }
+        retainedInput = fixture { CW._worksheetLinkage = retainedLinks }
+    assertEqual "consolidation worksheet: retained-earnings mismatch is explicit"
+        True
+        (case CW.validateConsolidationWorksheet retainedInput of
+            Left errors -> CW.RetainedEarningsRollForwardMismatch 150 151
+                `elem` NE.toList errors
+            Right _ -> False)
+
+    let balanceSheetLinks = links
+            { CW._balanceSheetRetainedEarnings = CW.CreditBalance 139 }
+        balanceSheetInput = fixture { CW._worksheetLinkage = balanceSheetLinks }
+    assertEqual "consolidation worksheet: S/S to B/S mismatch is explicit"
+        True
+        (case CW.validateConsolidationWorksheet balanceSheetInput of
+            Left errors -> CW.BalanceSheetRetainedEarningsMismatch
+                (CW.CreditBalance 140) (CW.CreditBalance 139)
+                `elem` NE.toList errors
+            Right _ -> False)
+
+    let nciLinks = links { CW._nonControllingInterestsDividends = 6 }
+        nciInput = fixture { CW._worksheetLinkage = nciLinks }
+    assertEqual "consolidation worksheet: NCI roll-forward mismatch is explicit"
+        True
+        (case CW.validateConsolidationWorksheet nciInput of
+            Left errors -> CW.NonControllingInterestsRollForwardMismatch 50 51
+                `elem` NE.toList errors
+            Right _ -> False)
+
+    let nciBalanceSheetLinks = links
+            { CW._balanceSheetNonControllingInterests = CW.CreditBalance 44 }
+        nciBalanceSheetInput = fixture
+            { CW._worksheetLinkage = nciBalanceSheetLinks }
+    assertEqual "consolidation worksheet: NCI S/S to B/S mismatch is explicit"
+        True
+        (case CW.validateConsolidationWorksheet nciBalanceSheetInput of
+            Left errors -> CW.BalanceSheetNonControllingInterestsMismatch
+                (CW.CreditBalance 45) (CW.CreditBalance 44)
+                `elem` NE.toList errors
+            Right _ -> False)
+
+    let lossLinks = links
+            { CW._profitOrLossNetIncome = CW.PeriodLoss 25
+            , CW._profitOrLossNetIncomeAttributableToOwners = CW.PeriodLoss 20
+            , CW._statementOfChangesNetIncomeAttributableToOwners =
+                CW.PeriodLoss 20
+            , CW._openingRetainedEarnings = CW.CreditBalance 100
+            , CW._retainedEarningsDividends = 10
+            , CW._statementOfChangesClosingRetainedEarnings =
+                CW.CreditBalance 70
+            , CW._balanceSheetRetainedEarnings = CW.CreditBalance 70
+            , CW._openingNonControllingInterests = CW.CreditBalance 30
+            , CW._nonControllingInterestsPeriodShare = CW.PeriodLoss 5
+            , CW._nonControllingInterestsDividends = 5
+            , CW._statementOfChangesClosingNonControllingInterests =
+                CW.CreditBalance 20
+            , CW._balanceSheetNonControllingInterests = CW.CreditBalance 20
+            }
+        lossInput = fixture { CW._worksheetLinkage = lossLinks }
+    assertEqual "consolidation worksheet: loss roll-forwards preserve direction"
+        True
+        (case CW.validateConsolidationWorksheet lossInput of
+            Right _ -> True
+            Left _  -> False)
+
+    let deficitLinks = links
+            { CW._profitOrLossNetIncome = CW.PeriodLoss 50
+            , CW._profitOrLossNetIncomeAttributableToOwners = CW.PeriodLoss 50
+            , CW._statementOfChangesNetIncomeAttributableToOwners =
+                CW.PeriodLoss 50
+            , CW._openingRetainedEarnings = CW.CreditBalance 10
+            , CW._retainedEarningsDividends = 0
+            , CW._statementOfChangesClosingRetainedEarnings =
+                CW.DebitBalance 40
+            , CW._balanceSheetRetainedEarnings = CW.DebitBalance 40
+            , CW._openingNonControllingInterests = CW.CreditBalance 0
+            , CW._nonControllingInterestsPeriodShare = CW.PeriodProfit 0
+            , CW._nonControllingInterestsDividends = 0
+            , CW._statementOfChangesClosingNonControllingInterests =
+                CW.CreditBalance 0
+            , CW._balanceSheetNonControllingInterests = CW.CreditBalance 0
+            }
+        deficitInput = fixture { CW._worksheetLinkage = deficitLinks }
+    assertEqual "consolidation worksheet: accumulated deficit is structural"
+        True
+        (case CW.validateConsolidationWorksheet deficitInput of
+            Right _ -> True
+            Left _  -> False)
+
+    let invalidLinks = links
+            { CW._openingRetainedEarnings = CW.CreditBalance (-1) }
+        invalidInput = fixture { CW._worksheetLinkage = invalidLinks }
+    assertEqual "consolidation worksheet: negative linkage amount rejected"
+        (Just (CW.InvalidLinkAmount CW.OpeningRetainedEarnings (-1) NE.:| []))
+        (leftErrors (CW.validateConsolidationWorksheet invalidInput))
+
+    let wildcardAccount =
+            (10 EA..@ (Not :< AccountTitle)) EA..+
+            (10 EA..@ (Hat :< Cash)) :: CheckedAlgM
+        wildcardInput = CW.WorksheetInput sources
+            [CW.WorksheetAdjustment "wildcard" ("parent" NE.:| [])
+                wildcardAccount] links
+    assertEqual "consolidation worksheet: wildcard error list is total"
+        (Just (CW.WildcardAdjustmentAccount "wildcard" NE.:| []))
+        (leftErrors (CW.validateConsolidationWorksheet wildcardInput))
+
+    let duplicateSources = case sources of
+            source NE.:| rest -> source NE.:| (source : rest)
+        duplicateAdjustments =
+            [ CW.WorksheetAdjustment "same" ("parent" NE.:| [])
+                rawAdjustment
+            , CW.WorksheetAdjustment "same" ("parent" NE.:| [])
+                rawAdjustment
+            ]
+        duplicateInput = CW.WorksheetInput duplicateSources
+            duplicateAdjustments links
+    assertEqual "consolidation worksheet: duplicate stable IDs rejected"
+        True
+        (case CW.validateConsolidationWorksheet duplicateInput of
+            Left errors -> CW.DuplicateSourceId "parent" `elem` NE.toList errors
+                && CW.DuplicateAdjustmentId "same" `elem` NE.toList errors
+            Right _ -> False)
+
+    let wildcardSource = CW.TrialBalanceSource "wild-source"
+            (10 :@ (HatNot :< Cash) :: CheckedAlgM)
+        wildcardSourceInput
+            :: CW.WorksheetInput String String MoneyDecimal
+        wildcardSourceInput = CW.WorksheetInput
+            (wildcardSource NE.:| []) [] links
+    assertEqual "consolidation worksheet: wildcard source side is total"
+        (Just (CW.WildcardSourceSide "wild-source" NE.:| []))
+        (leftErrors (CW.validateConsolidationWorksheet wildcardSourceInput))
+
+    let wildcardSide =
+            10 :@ (HatNot :< Cash) :: CheckedAlgM
+        wildcardSideInput = CW.WorksheetInput sources
+            [CW.WorksheetAdjustment "wild-side" ("parent" NE.:| [])
+                wildcardSide] links
+    assertEqual "consolidation worksheet: wildcard adjustment side is total"
+        (Just (CW.WildcardAdjustmentSide "wild-side" NE.:| []))
+        (leftErrors (CW.validateConsolidationWorksheet wildcardSideInput))
+
+    let unbalancedSource = CW.TrialBalanceSource "unbalanced-source"
+            (EC.journalFromSides
+                [(Debit, Cash, 10 :: MoneyDecimal)] :: CheckedAlgM)
+        unbalancedSourceInput
+            :: CW.WorksheetInput String String MoneyDecimal
+        unbalancedSourceInput = CW.WorksheetInput
+            (unbalancedSource NE.:| []) [] links
+    assertEqual "consolidation worksheet: unbalanced source rejected"
+        (Just (CW.UnbalancedSourceTrialBalance
+            "unbalanced-source" 10 0 NE.:| []))
+        (leftErrors (CW.validateConsolidationWorksheet unbalancedSourceInput))
+
 testPostingCapabilityGate :: IO ()
 testPostingCapabilityGate = do
     let contexts =
@@ -3377,6 +3761,7 @@ testPostingCapabilityGate = do
 checkedConvertProperties :: IO ()
 checkedConvertProperties = do
     testPostingCapabilityGate
+    testConsolidationWorksheet
 
     quickProp "convert-checked: certify known accounts matches checkedJournal" $
         prop_certifyKnownAccountsMatchesCheckedJournal

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Added
+- Add a consolidation-worksheet validation boundary that preserves source and
+  adjustment provenance, rejects imbalanced adjustments individually before
+  aggregation, and checks net-income attribution, retained-earnings, and
+  non-controlling-interest linkage across P/L, S/S, and B/S columns.
+
 ### Changed
 - Correct `NonControllingInterests` metadata to `ConsolidationOnly`,
   `ContextualPresentation`, and `AttributionAccount`, preventing the

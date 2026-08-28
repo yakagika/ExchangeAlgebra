@@ -1,0 +1,16 @@
+kind	id	source_ids_or_direction	debit_account	credit_account	amount
+source	parent	-	Cash	CapitalStock	100
+source	subsidiary	-	Cash	CapitalStock	80
+adjustment	nci-attribution	parent|subsidiary	NetIncomeAttributableToNCI	NonControllingInterests	20
+link	pl-net-income	profit	-	-	70
+link	pl-parent-net-income	profit	-	-	50
+link	ss-parent-net-income	profit	-	-	50
+link	opening-retained-earnings	credit	-	-	100
+link	retained-earnings-dividends	amount	-	-	10
+link	ss-closing-retained-earnings	credit	-	-	140
+link	bs-retained-earnings	credit	-	-	140
+link	opening-nci	credit	-	-	30
+link	nci-period-share	profit	-	-	20
+link	nci-dividends	amount	-	-	5
+link	closing-nci	credit	-	-	45
+link	bs-nci	credit	-	-	45
