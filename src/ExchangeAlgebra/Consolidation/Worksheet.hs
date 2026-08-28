@@ -60,13 +60,7 @@ import           ExchangeAlgebra.Algebra.Base
                      , accountSemantics
                      )
 import qualified ExchangeAlgebra.Convert.Checked as Checked
-
--- | A period result keeps profit and loss direction structural. Amounts remain
--- non-negative, matching the exchange-algebra value convention.
-data PeriodResult v
-  = PeriodProfit v
-  | PeriodLoss v
-  deriving (Show, Eq)
+import           ExchangeAlgebra.Reporting.Metric (PeriodResult(..))
 
 -- | Structural direction for an equity balance. A debit position represents
 -- an accumulated deficit without introducing a negative scalar.
@@ -401,7 +395,7 @@ validateWorksheetLinkage linkage
         _statementOfChangesClosingNonControllingInterests linkage
     bsNci = _balanceSheetNonControllingInterests linkage
 
-linkageAmounts :: WorksheetLinkage v -> [(LinkField, v)]
+linkageAmounts :: Num v => WorksheetLinkage v -> [(LinkField, v)]
 linkageAmounts linkage =
     [ (ProfitOrLossNetIncome, periodAmount (_profitOrLossNetIncome linkage))
     , (ProfitOrLossNetIncomeAttributableToOwners,
@@ -428,9 +422,10 @@ linkageAmounts linkage =
         balanceAmount (_balanceSheetNonControllingInterests linkage))
     ]
 
-periodAmount :: PeriodResult v -> v
+periodAmount :: Num v => PeriodResult v -> v
 periodAmount (PeriodProfit value) = value
 periodAmount (PeriodLoss value) = value
+periodAmount PeriodBreakEven = 0
 
 balanceAmount :: BalancePosition v -> v
 balanceAmount (CreditBalance value) = value
@@ -439,6 +434,7 @@ balanceAmount (DebitBalance value) = value
 periodSides :: Num v => PeriodResult v -> (v, v)
 periodSides (PeriodProfit value) = (value, 0)
 periodSides (PeriodLoss value) = (0, value)
+periodSides PeriodBreakEven = (0, 0)
 
 balanceSides :: Num v => BalancePosition v -> (v, v)
 balanceSides (CreditBalance value) = (value, 0)
@@ -488,6 +484,9 @@ rollForwardSides opening result dividends closing = case result of
     PeriodLoss amount ->
         (openingCredit + closingDebit,
          openingDebit + amount + dividends + closingCredit)
+    PeriodBreakEven ->
+        (openingCredit + closingDebit,
+         openingDebit + dividends + closingCredit)
   where
     (openingCredit, openingDebit) = balanceSides opening
     (closingCredit, closingDebit) = balanceSides closing

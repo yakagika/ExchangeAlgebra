@@ -9,6 +9,7 @@ copyright:           "2018-2026 Kaya Akagi"
 extra-source-files:
 - README.md
 - ChangeLog.md
+- docs/migration-0.5-derived-metrics.md
 
 synopsis:            Exchange Algebra for bookkeeping and economic simulation
 category:            Accounting, Finance, Math

@@ -129,9 +129,9 @@ safeDescription NetIncome _ =
 safeDescription NetLoss _ =
     "Period result: net loss (当期純損失). Engine-generated only; the legacy Revenue value is an internal direction encoding, not a revenue classification."
 safeDescription GrossProfit _ =
-    "Reporting subtotal: gross profit (売上総利益). Derived from trial-balance values and not available for direct posting."
+    "Legacy engine coordinate: gross profit (売上総利益). Engine-generated only; the legacy Revenue value is an internal direction encoding, not a statement subtotal definition."
 safeDescription OrdinaryProfit _ =
-    "Reporting subtotal: ordinary profit (経常利益). Derived from trial-balance values and not available for direct posting."
+    "Legacy engine coordinate: ordinary profit (経常利益). Engine-generated only; the legacy Revenue value is an internal direction encoding, not a statement subtotal definition."
 safeDescription IncomeSummary _ =
     "Closing device: income summary (損益). Available only during closing; the legacy Assets value is an internal direction encoding, not a balance-sheet classification."
 safeDescription SuspensePayments _ =

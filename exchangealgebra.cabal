@@ -20,6 +20,7 @@ build-type:     Simple
 extra-source-files:
     README.md
     ChangeLog.md
+    docs/migration-0.5-derived-metrics.md
 
 source-repository head
   type: git
@@ -47,6 +48,7 @@ library
       ExchangeAlgebra.Optimize
       ExchangeAlgebra.Optimize.Annealing
       ExchangeAlgebra.Optimize.GA
+      ExchangeAlgebra.Reporting.Metric
       ExchangeAlgebra.Reporting.Presentation
       ExchangeAlgebra.Simulate
       ExchangeAlgebra.Simulate.Lite

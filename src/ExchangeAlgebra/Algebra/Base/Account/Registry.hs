@@ -48,7 +48,10 @@ data AccountSpec = AccountSpec
       -- rule would invert the transfer sign. Their closing is owned by the
       -- dedicated net-income transfer pipeline in
       -- "ExchangeAlgebra.Algebra.Transfer" (correct signs, engine-inserted
-      -- balancing postings).
+      -- balancing postings).  GrossProfit and OrdinaryProfit retain
+      -- CloseByDivision for the historical SNA/simulation transfer pipeline.
+      -- That asymmetry is compatibility behaviour, not a reporting rule;
+      -- statement metrics live in "ExchangeAlgebra.Reporting.Metric".
     , asIsContra    :: Bool
     , asFixedCurrent :: FixedCurrent
     , asNameEn      :: Text

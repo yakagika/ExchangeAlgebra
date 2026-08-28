@@ -79,6 +79,10 @@ createTransfer tt = \ts -> transfer ts $ EAT.table tt
 -- wildcard 'Side'; in that case the journal is returned unchanged (balanced ledger =
 -- identity). Appending @Zero .| plank@ is not an identity for t'Journal' because @(.|)@ builds
 -- a @Map.singleton plank Zero@ and drives version/compaction, so the input is returned directly.
+-- The result contains a legacy NetIncome/NetLoss balancing coordinate and is
+-- an intermediate closing state, not input for reporting presentation.  New
+-- reporting code should derive the result from a validated before-closing
+-- trial balance with "ExchangeAlgebra.Reporting.Metric".
 --
 -- Complexity: O(s) (s = total number of scalar entries)
 incomeSummaryAccount :: (Note n, HatVal v, ExBaseClass b) => Journal n v b -> Journal n v b
@@ -96,13 +100,15 @@ netIncomeTransfer = EJ.map EAT.netIncomeTransfer
 
 -- ** Journalizing
 
--- | Gross profit transfer (Journal version). Aggregate sales and cost accounts into GrossProfit for each Note.
+-- | Historical SNA/simulation gross-profit transfer (Journal version).
+-- This delegates to the legacy fixed-list rule and is not a JGAAP subtotal.
 --
 -- Complexity: O(j * s)
 grossProfitTransfer :: (Note n, HatVal v, ExBaseClass b) => Journal n v b -> Journal n v b
 grossProfitTransfer = EJ.map EAT.grossProfitTransfer
 
--- | Ordinary Profit Transfer
+-- | Historical SNA/simulation ordinary-profit transfer (Journal version).
+-- The fixed list predates the JCCI chart and is not a JGAAP subtotal.
 --
 -- >>> type Test = Journal String Double (HatBase (CountUnit, AccountTitles))
 -- >>> x = 2279.0:@Not:<(Yen,Depreciation) .| "A" :: Test
@@ -124,4 +130,3 @@ retainedEarningTransfer = EJ.map EAT.retainedEarningTransfer
 -- Complexity: O(j * s)
 finalStockTransfer ::(Note n, HatVal v, ExBaseClass b) =>  Journal n v b -> Journal n v b
 finalStockTransfer = (.-) . EJ.map finalStockTransferStep
-

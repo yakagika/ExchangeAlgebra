@@ -153,6 +153,7 @@ data TBFinding v
   | ExplainedTemporaryBalance AccountTitles (AccountBalance v) Text
   | BlankTemporaryExplanation AccountTitles (AccountBalance v)
   | ClosingDeviceResidual AccountTitles (AccountBalance v)
+  | DerivedCoordinateResidual AccountTitles (AccountBalance v)
   | UnclosedNominalBalance AccountTitles (AccountBalance v)
   | UnexplainedAbnormalBalance
         AccountTitles Side (AccountBalance v)
@@ -210,6 +211,7 @@ findingBlocksPresentation policy finding = case finding of
     UnresolvedTemporaryBalance _ _ -> True
     BlankTemporaryExplanation _ _ -> True
     ClosingDeviceResidual _ _ -> True
+    DerivedCoordinateResidual _ _ -> True
     UnclosedNominalBalance _ _ -> True
     UnexplainedAbnormalBalance _ _ _ -> True
     AbnormalBalanceWithReclassificationRule _ _ _ -> True
@@ -346,6 +348,8 @@ closingFindings input balances = case _trialBalanceStage input of
     BeforeClosing -> []
     AfterClosing ->
         concatMap residual (CashOverShort : titlesWithRole ClosingDevice)
+        ++ concatMap derivedResidual
+            (titlesWithRole PeriodResult ++ titlesWithRole ReportingSubtotal)
         ++ [ UnclosedNominalBalance title balance
            | (title, balance) <- M.toList balances
            , hasBalance balance
@@ -355,6 +359,9 @@ closingFindings input balances = case _trialBalanceStage input of
     residual title = case balanceFor title balances of
         NoBalance -> []
         balance -> [ClosingDeviceResidual title balance]
+    derivedResidual title = case balanceFor title balances of
+        NoBalance -> []
+        balance -> [DerivedCoordinateResidual title balance]
     isNominal title = case accountSemantics title of
         Just semantics -> case asemDivisionSemantics semantics of
             StatementDivision Cost -> True

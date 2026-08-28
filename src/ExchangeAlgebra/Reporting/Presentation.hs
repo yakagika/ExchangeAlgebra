@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wincomplete-patterns -Werror=incomplete-patterns #-}
 
 {- |
@@ -21,6 +22,8 @@ module ExchangeAlgebra.Reporting.Presentation
     , MaterialityTreatment(..)
     , MaterialityDecision(..)
     , ContraPresentationRule(..)
+    , CustomMetricLabel(..)
+    , SubtotalCoverage(..)
     , SubtotalDefinition(..)
     , StatementSubtotal(..)
     , ReportingContext(..)
@@ -29,6 +32,7 @@ module ExchangeAlgebra.Reporting.Presentation
     , PresentationIssue(..)
     , FinancialStatements(..)
     , presentationLabel
+    , metricLabel
     , present
     ) where
 
@@ -56,6 +60,8 @@ import           ExchangeAlgebra.Algebra.Base
                      , whichSide
                      )
 import qualified ExchangeAlgebra.Algebra.Base.Account.Registry as Registry
+import           ExchangeAlgebra.Reporting.Metric
+                     ( DerivedMetric(..), MetricId )
 import qualified ExchangeAlgebra.TrialBalance.Validation as TB
 
 -- | Land 4 deliberately supports JGAAP only.
@@ -128,16 +134,32 @@ data ContraPresentationRule
   | NetContraAgainst AccountTitles AccountTitles Text
   deriving (Show, Eq)
 
--- | A subtotal is a reporting definition, never an account-basis title.
+-- | Profile-specific display labels for a caller-defined metric.  The metric
+-- identity remains separate from these labels.
+data CustomMetricLabel = CustomMetricLabel
+    { _customMetricIdentity      :: MetricId
+    , _customMetricLabelJapanese :: Text
+    , _customMetricLabelEnglish  :: Text
+    }
+    deriving (Show, Eq)
+
+data SubtotalCoverage
+  = RequireAllTitlesPresent
+  | TreatAbsentAsZero
+  deriving (Show, Eq)
+
+-- | A subtotal is a typed reporting definition, never an account-basis title.
 data SubtotalDefinition = SubtotalDefinition
-    { _subtotalLabel        :: Text
+    { _subtotalMetric       :: DerivedMetric
     , _subtotalCreditTitles :: [AccountTitles]
     , _subtotalDebitTitles  :: [AccountTitles]
+    , _subtotalCoverage     :: SubtotalCoverage
     }
     deriving (Show, Eq)
 
 data StatementSubtotal v = StatementSubtotal
-    { _statementSubtotalLabel   :: Text
+    { _statementSubtotalMetric  :: DerivedMetric
+    , _statementSubtotalLabel   :: Text
     , _statementSubtotalBalance :: TB.AccountBalance v
     }
     deriving (Show, Eq)
@@ -152,6 +174,7 @@ data ReportingContext v = ReportingContext
     , _materialityDecisions     :: [MaterialityDecision]
     , _contraPresentationRules  :: [ContraPresentationRule]
     , _subtotalDefinitions      :: [SubtotalDefinition]
+    , _customMetricLabels       :: [CustomMetricLabel]
     }
     deriving (Show, Eq)
 
@@ -166,6 +189,7 @@ jcciSecondGradeContext scope = ReportingContext
     , _materialityDecisions = []
     , _contraPresentationRules = []
     , _subtotalDefinitions = []
+    , _customMetricLabels = []
     }
 
 data PresentationAuditEvent v
@@ -178,7 +202,7 @@ data PresentationAuditEvent v
         AccountTitles MaterialityTreatment (TB.AccountBalance v) Text
   | ContraPresentationApplied
         AccountTitles (Maybe AccountTitles) (TB.AccountBalance v) Text
-  | SubtotalCalculated Text (TB.AccountBalance v)
+  | SubtotalCalculated DerivedMetric (TB.AccountBalance v)
   | LabelOverridden AccountTitles Text Text
   deriving (Show, Eq)
 
@@ -194,7 +218,9 @@ data PresentationIssue v
   | MissingPresentationAccount AccountTitles
   | BlankPresentationRationale AccountTitles
   | UnpresentableBalance AccountTitles (TB.AccountBalance v)
-  | InvalidSubtotalDefinition Text
+  | InvalidSubtotalDefinition DerivedMetric
+  | DuplicateMetricIdentity DerivedMetric
+  | UnlabelledCustomMetric MetricId
   | UnreconciledPresentation v v
   deriving (Show, Eq)
 
@@ -219,6 +245,42 @@ presentationLabel profile title = case Registry.accountSpec title of
         JcciSecondGradeReport -> Registry.asNameJa spec
         CanonicalJapanese -> Registry.asNameJa spec
         CanonicalEnglish -> Registry.asNameEn spec
+
+-- | Resolve a metric's display label independently of its stable identity.
+-- Profit/loss wording follows the structural balance direction.
+metricLabel
+    :: ReportingContext v
+    -> DerivedMetric
+    -> TB.AccountBalance v
+    -> Maybe Text
+metricLabel context metric balance = case metric of
+    PeriodResultMetric -> Just (builtinLabel
+        "当期純損益" "当期純利益" "当期純損失"
+        "Net result" "Net income" "Net loss")
+    GrossProfitMetric -> Just (builtinLabel
+        "売上総損益" "売上総利益" "売上総損失"
+        "Gross result" "Gross profit" "Gross loss")
+    OrdinaryProfitMetric -> Just (builtinLabel
+        "経常損益" "経常利益" "経常損失"
+        "Ordinary result" "Ordinary profit" "Ordinary loss")
+    CustomMetric metricId -> customLabel metricId
+  where
+    english = _presentationProfile context == CanonicalEnglish
+    builtinLabel neutralJa creditJa debitJa neutralEn creditEn debitEn =
+        case (english, balance) of
+            (False, TB.NoBalance) -> neutralJa
+            (False, TB.CreditBalance _) -> creditJa
+            (False, TB.DebitBalance _) -> debitJa
+            (True, TB.NoBalance) -> neutralEn
+            (True, TB.CreditBalance _) -> creditEn
+            (True, TB.DebitBalance _) -> debitEn
+    customLabel metricId = case filter
+            ((== metricId) . _customMetricIdentity)
+            (_customMetricLabels context) of
+        [label] -> Just (if english
+            then _customMetricLabelEnglish label
+            else _customMetricLabelJapanese label)
+        _ -> Nothing
 
 present
     :: HatVal v
@@ -260,7 +322,7 @@ present context validated = case issues of
     statementLines = renderLines context transformed
     contextIssues = instructionIssues explicitRequired context initial
         ++ allocationIssues requiredMaturity context transformed
-        ++ subtotalIssues context transformed
+        ++ subtotalIssues context initial transformed
         ++ coverageIssues transformed
         ++ reconciliationIssues statementLines
     issues = gateIssues ++ contextIssues
@@ -271,13 +333,15 @@ present context validated = case issues of
         , balanceFor title transformed /= TB.NoBalance
         ]
     subtotals =
-        [ StatementSubtotal label (subtotalBalance transformed credits debits)
-        | SubtotalDefinition label credits debits
-            <- _subtotalDefinitions context
+        [ StatementSubtotal metric label balance
+        | SubtotalDefinition metric credits debits _ <-
+            _subtotalDefinitions context
+        , let balance = subtotalBalance transformed credits debits
+        , Just label <- [metricLabel context metric balance]
         ]
     subtotalAudit =
-        [ SubtotalCalculated label balance
-        | StatementSubtotal label balance <- subtotals
+        [ SubtotalCalculated metric balance
+        | StatementSubtotal metric _ balance <- subtotals
         ]
     labelAudit =
         [ LabelOverridden AdvancesReceived canonical displayed
@@ -581,21 +645,68 @@ subtotalIssues
     :: HatVal v
     => ReportingContext v
     -> Map AccountTitles (TB.AccountBalance v)
+    -> Map AccountTitles (TB.AccountBalance v)
     -> [PresentationIssue v]
-subtotalIssues context balances = concatMap check
-    (_subtotalDefinitions context)
+subtotalIssues context initial balances = duplicateDefinitionIssues
+    ++ duplicateCustomLabelIssues
+    ++ concatMap check definitions
   where
-    check (SubtotalDefinition label credits debits)
-        | T.null (T.strip label) = [InvalidSubtotalDefinition label]
+    definitions = _subtotalDefinitions context
+    definitionMetrics = map _subtotalMetric definitions
+    duplicateDefinitionIssues =
+        [ DuplicateMetricIdentity metric
+        | metric <- duplicateMetrics definitionMetrics
+        ]
+    customLabelIds = map _customMetricIdentity (_customMetricLabels context)
+    duplicateCustomLabelIssues =
+        [ DuplicateMetricIdentity (CustomMetric metricId)
+        | metricId <- duplicateMetricIds customLabelIds
+        ]
+    check (SubtotalDefinition metric credits debits coverage)
+        | null credits && null debits = [InvalidSubtotalDefinition metric]
         | not (null (duplicateTitles (credits ++ debits))) =
-            [InvalidSubtotalDefinition label]
-        | any (`M.notMember` balances) (credits ++ debits) =
-            [InvalidSubtotalDefinition label]
-        | any ((/= Credit) . balanceSide . (`balanceFor` balances)) credits =
-            [InvalidSubtotalDefinition label]
-        | any ((/= Debit) . balanceSide . (`balanceFor` balances)) debits =
-            [InvalidSubtotalDefinition label]
+            [InvalidSubtotalDefinition metric]
+        | customMetricUnlabelled metric = [customMetricIssue metric]
+        | coverage == RequireAllTitlesPresent
+            && any (`M.notMember` balances) (credits ++ debits) =
+            [InvalidSubtotalDefinition metric]
+        | coverage == TreatAbsentAsZero
+            && any removedNonZeroTitle (credits ++ debits) =
+            [InvalidSubtotalDefinition metric]
+        | any (wrongSide Credit coverage) credits =
+            [InvalidSubtotalDefinition metric]
+        | any (wrongSide Debit coverage) debits =
+            [InvalidSubtotalDefinition metric]
         | otherwise = []
+    removedNonZeroTitle title =
+        balanceFor title initial /= TB.NoBalance && M.notMember title balances
+    wrongSide expected coverage title = case balanceFor title balances of
+        TB.NoBalance -> coverage == RequireAllTitlesPresent
+        balance -> balanceSide balance /= expected
+    customMetricUnlabelled metric = case metric of
+        CustomMetric metricId -> case customLabels metricId of
+            [label] -> T.null (T.strip (_customMetricLabelJapanese label))
+                || T.null (T.strip (_customMetricLabelEnglish label))
+            _ -> True
+        _ -> False
+    customMetricIssue metric = case metric of
+        CustomMetric metricId -> UnlabelledCustomMetric metricId
+        _ -> InvalidSubtotalDefinition metric
+    customLabels metricId = filter
+        ((== metricId) . _customMetricIdentity)
+        (_customMetricLabels context)
+
+duplicateMetrics :: [DerivedMetric] -> [DerivedMetric]
+duplicateMetrics metrics = S.toList
+    (S.fromList [metric | metric <- metrics, count metric metrics > 1])
+  where
+    count needle = length . filter (== needle)
+
+duplicateMetricIds :: [MetricId] -> [MetricId]
+duplicateMetricIds metricIds = S.toList
+    (S.fromList [metricId | metricId <- metricIds, count metricId metricIds > 1])
+  where
+    count needle = length . filter (== needle)
 
 renderLines
     :: (Eq v, Num v)

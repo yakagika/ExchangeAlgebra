@@ -502,6 +502,10 @@ createTransfer tt =
 -- When the ledger is balanced (credit == debit, net income is zero), @diffRL@
 -- reports the wildcard 'Side'; in that case the input is returned unchanged
 -- (balanced ledger = identity; appending a zero posting is not added).
+-- The result contains a legacy NetIncome/NetLoss balancing coordinate and is
+-- an intermediate closing state, not input for reporting presentation.  New
+-- reporting code should derive the result from a validated before-closing
+-- trial balance with "ExchangeAlgebra.Reporting.Metric".
 incomeSummaryAccount :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 incomeSummaryAccount alg =  let (dc,diff) = diffRL alg
                          in case dc of
@@ -521,8 +525,12 @@ netIncomeTransfer = createTransfer
 
 -- ** Journalizing
 
--- | Transfer to Gross Profit.
--- Consolidates Sales, Purchases, WageExpenditure, Depreciation, and ValueAdded into GrossProfit.
+-- | Historical SNA/simulation transfer to the legacy GrossProfit coordinate.
+-- Consolidates Sales, Purchases, WageExpenditure, Depreciation, and ValueAdded.
+-- This fixed list is not a JGAAP gross-profit definition: it excludes
+-- SalesCost and MerchandiseInventory.  New statement reporting should use
+-- "ExchangeAlgebra.Reporting.Metric" and
+-- "ExchangeAlgebra.Reporting.Presentation" instead.
 --
 -- Complexity: O(s) (s = total number of scalar entries)
 grossProfitTransfer :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
@@ -543,7 +551,10 @@ grossProfitTransfer
     ++ (toNot wildcard) .~ Purchases       :-> (toHat wildcard) .~ GrossProfit |% id
     ++ (toHat wildcard) .~ Purchases       :-> (toNot wildcard) .~ GrossProfit |% id
 
--- | Ordinary Profit Transfer
+-- | Historical SNA/simulation transfer to the legacy OrdinaryProfit
+-- coordinate.  Its fixed list predates the JCCI vocabulary and is not a
+-- complete JGAAP ordinary-profit definition.  New statement reporting should
+-- use the typed reporting metric API instead.
 --
 -- >>>  type Test = Alg Double (HatBase (CountUnit, AccountTitles))
 -- >>>  x = 2279.0:@Not:<(Yen,Depreciation) .+ 500475.0:@Not:<(Yen,InterestEarned) :: Test

@@ -34,6 +34,7 @@ src/ExchangeAlgebra/Convert.hs
 src/ExchangeAlgebra/Convert/Checked.hs
 src/ExchangeAlgebra/Journal.hs
 src/ExchangeAlgebra/Journal/Transfer.hs
+src/ExchangeAlgebra/Reporting/Metric.hs
 src/ExchangeAlgebra/Reporting/Presentation.hs
 src/ExchangeAlgebra/Simulate/Lite.hs
 src/ExchangeAlgebra/TrialBalance/Validation.hs

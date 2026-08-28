@@ -12,6 +12,7 @@ import qualified ExchangeAlgebra.Convert.Checked as ECC
 import qualified ExchangeAlgebra.Consolidation.Worksheet as CW
 import qualified ExchangeAlgebra.TrialBalance.Validation as TB
 import qualified ExchangeAlgebra.Reporting.Presentation as RP
+import qualified ExchangeAlgebra.Reporting.Metric as RM
 import qualified ExchangeAlgebra.Convert.Csv  as ECsv
 import qualified ExchangeAlgebra.Assist       as Assist
 import qualified ExchangeAlgebra.Assist.Descriptions as AssistDesc
@@ -3281,6 +3282,7 @@ loadMinimalConsolidationFixture = do
     fixtureResult links key = case M.lookup key links of
         Just ("profit", amount) -> pure (CW.PeriodProfit amount)
         Just ("loss", amount) -> pure (CW.PeriodLoss amount)
+        Just ("break-even", _) -> pure CW.PeriodBreakEven
         Just (direction, _) -> fail
             ("invalid period-result direction for " ++ key ++ ": " ++ direction)
         Nothing -> fail ("missing fixture link: " ++ key)
@@ -3479,7 +3481,7 @@ testConsolidationWorksheet = do
                 CW.DebitBalance 40
             , CW._balanceSheetRetainedEarnings = CW.DebitBalance 40
             , CW._openingNonControllingInterests = CW.CreditBalance 0
-            , CW._nonControllingInterestsPeriodShare = CW.PeriodProfit 0
+            , CW._nonControllingInterestsPeriodShare = CW.PeriodBreakEven
             , CW._nonControllingInterestsDividends = 0
             , CW._statementOfChangesClosingNonControllingInterests =
                 CW.CreditBalance 0
@@ -3659,6 +3661,16 @@ testTrialBalanceValidation = do
         (leftErrors (TB.validateTrialBalance TB.standaloneTrialBalancePolicy
             (trialBalanceInput unclosedNominal TB.AfterClosing)))
 
+    let derivedResidual = EC.journalFromSides
+            [ (Debit, NetIncome, 10 :: MoneyDecimal)
+            , (Credit, CapitalStock, 10)
+            ] :: CheckedAlgM
+    assertEqual "trial balance: derived coordinates are residuals after closing"
+        (Just (TB.DerivedCoordinateResidual NetIncome
+            (TB.DebitBalance 10) NE.:| []))
+        (leftErrors (TB.validateTrialBalance TB.standaloneTrialBalancePolicy
+            (trialBalanceInput derivedResidual TB.AfterClosing)))
+
     let abnormalDeposit = EC.journalFromSides
             [ (Debit, Cash, 10 :: MoneyDecimal)
             , (Credit, CurrentDeposits, 10)
@@ -3812,8 +3824,10 @@ testReportingPresentation = do
                 [RP.MaterialityDecision IncomeTaxesRefundReceivable
                     RP.PresentSeparately rationale]
             , RP._subtotalDefinitions =
-                [ RP.SubtotalDefinition (T.pack "売上総利益") [Sales] [SalesCost]
-                , RP.SubtotalDefinition (T.pack "経常利益") [Sales] [SalesCost]
+                [ RP.SubtotalDefinition RM.GrossProfitMetric [Sales] [SalesCost]
+                    RP.RequireAllTitlesPresent
+                , RP.SubtotalDefinition RM.OrdinaryProfitMetric [Sales] [SalesCost]
+                    RP.RequireAllTitlesPresent
                 ]
             }
         standalone = rightStatements (RP.present (context RP.Standalone) validated)
@@ -3846,8 +3860,10 @@ testReportingPresentation = do
     assertEqual "reporting: Purchases is relabeled to SalesCost"
         True (Purchases `notElem` standaloneTitles && SalesCost `elem` standaloneTitles)
     assertEqual "reporting: GrossProfit is a subtotal, not a basis line"
-        ( [ RP.StatementSubtotal (T.pack "売上総利益") (TB.CreditBalance 30)
-          , RP.StatementSubtotal (T.pack "経常利益") (TB.CreditBalance 30)
+        ( [ RP.StatementSubtotal RM.GrossProfitMetric
+                (T.pack "売上総利益") (TB.CreditBalance 30)
+          , RP.StatementSubtotal RM.OrdinaryProfitMetric
+                (T.pack "経常利益") (TB.CreditBalance 30)
           ]
         , False
         )
@@ -4029,6 +4045,143 @@ testReportingPresentation = do
     isConflictingInstruction _ = False
     basesAccountTitles alg =
         [ title | _ :< title <- EA.bases alg ]
+
+testDerivedMetricsLand5 :: IO ()
+testDerivedMetricsLand5 = do
+    assertEqual "Land 5: legacy derived-coordinate ordinals and Binary bytes"
+        [ (NetIncome, 49, T.pack "0031")
+        , (GrossProfit, 54, T.pack "0036")
+        , (OrdinaryProfit, 55, T.pack "0037")
+        , (NetLoss, 64, T.pack "0040")
+        , (IncomeSummary, 216, T.pack "00d8")
+        ]
+        [ (title, fromEnum title, accountSemanticsBinaryHex title)
+        | title <- [NetIncome, GrossProfit, OrdinaryProfit, NetLoss, IncomeSummary]
+        ]
+    assertEqual "Land 5: exactly four legacy coordinates map to typed metrics"
+        [ (NetIncome, RM.PeriodResultMetric)
+        , (GrossProfit, RM.GrossProfitMetric)
+        , (OrdinaryProfit, RM.OrdinaryProfitMetric)
+        , (NetLoss, RM.PeriodResultMetric)
+        ]
+        [ (title, metric)
+        | title <- Registry.concreteAccountTitles
+        , Just metric <- [RM.metricForLegacyTitle title]
+        ]
+
+    let salesOnly = 100 .@ Not :< Sales :: CheckedAlgM
+        afterLegacyBalancer = EAT.incomeSummaryAccount salesOnly
+        hatSales = 25 .@ Hat :< Sales :: CheckedAlgM
+    assertEqual "Land 5: period metric ignores an inserted legacy balancer"
+        (Right (RM.PeriodProfit 100), Right (RM.PeriodProfit 100))
+        ( RM.periodResultOfAlg salesOnly
+        , RM.periodResultOfAlg afterLegacyBalancer
+        )
+    assertEqual "Land 5: Hat is interpreted through account side, not as a scalar sign"
+        (Right (RM.PeriodLoss 25)) (RM.periodResultOfAlg hatSales)
+    assertEqual "Land 5: empty nominal basis is break-even"
+        (Right RM.PeriodBreakEven :: Either RM.MetricError (RM.PeriodResult MoneyDecimal))
+        (RM.periodResultOfAlg (mempty :: CheckedAlgM))
+    assertEqual "Land 5: raw metric boundary rejects wildcard sides"
+        (Left (RM.WildcardMetricSide Sales))
+        (RM.periodResultOfAlg (10 .@ HatNot :< Sales :: CheckedAlgM))
+
+    let ordinaryLedger = EC.journalFromSides
+            [ (Debit, Cash, 100 :: MoneyDecimal)
+            , (Credit, Sales, 100)
+            ] :: CheckedAlgM
+        ordinaryValidated = validateBefore ordinaryLedger
+    assertEqual "Land 5: validated before-closing TB derives one period-result identity"
+        (Right (RM.PeriodProfit 100))
+        (RM.periodResultOf ordinaryValidated)
+
+    let legacyLedger = EC.journalFromSides
+            [ (Debit, NetIncome, 10 :: MoneyDecimal)
+            , (Credit, CapitalStock, 10)
+            ] :: CheckedAlgM
+        legacyValidated = validateBefore legacyLedger
+    assertEqual "Land 5: typed metric rejects a residual legacy coordinate"
+        (Left (RM.ResidualDerivedCoordinate NetIncome))
+        (RM.periodResultOf legacyValidated)
+    assertEqual "Land 5: legacy intermediate and presentation paths are explicit alternatives"
+        True (case RP.present
+                (RP.jcciSecondGradeContext RP.Standalone) legacyValidated of
+            Left issues -> RP.UnpresentableBalance NetIncome
+                (TB.DebitBalance 10) `elem` NE.toList issues
+            Right _ -> False)
+
+    let emptyValidated = validateBefore (mempty :: CheckedAlgM)
+        subtotal = RP.SubtotalDefinition RM.GrossProfitMetric
+            [Sales] [SalesCost] RP.TreatAbsentAsZero
+        duplicateContext = (RP.jcciSecondGradeContext RP.Standalone)
+            { RP._subtotalDefinitions = [subtotal, subtotal] }
+    assertEqual "Land 5: duplicate metric identity blocks presentation"
+        True (case RP.present duplicateContext emptyValidated of
+            Left issues -> RP.DuplicateMetricIdentity RM.GrossProfitMetric
+                `elem` NE.toList issues
+            Right _ -> False)
+    let absentAsZeroContext = (RP.jcciSecondGradeContext RP.Standalone)
+            { RP._subtotalDefinitions = [subtotal] }
+    assertEqual "Land 5: canonical subtotal may treat unposted titles as zero"
+        [RP.StatementSubtotal RM.GrossProfitMetric
+            (T.pack "売上総損益") TB.NoBalance]
+        (RP._statementSubtotals (case RP.present absentAsZeroContext emptyValidated of
+            Right statements -> statements
+            Left issues -> error ("absent-as-zero subtotal rejected: " ++ show issues)))
+
+    let relabelledLedger = EC.journalFromSides
+            [ (Debit, Purchases, 30 :: MoneyDecimal)
+            , (Credit, Sales, 30)
+            ] :: CheckedAlgM
+        relabelledValidated = validateBefore relabelledLedger
+        removedTitleContext = (RP.jcciSecondGradeContext RP.Standalone)
+            { RP._presentationRelabels =
+                [RP.PresentationRelabel Purchases SalesCost (T.pack "policy")]
+            , RP._subtotalDefinitions =
+                [RP.SubtotalDefinition RM.GrossProfitMetric
+                    [Sales] [Purchases] RP.TreatAbsentAsZero]
+            }
+    assertEqual "Land 5: absent-as-zero does not hide a relabelled non-zero title"
+        True (case RP.present removedTitleContext relabelledValidated of
+            Left issues -> RP.InvalidSubtotalDefinition RM.GrossProfitMetric
+                `elem` NE.toList issues
+            Right _ -> False)
+
+    let Just customId = RM.mkMetricId (T.pack "ebitda-adjusted")
+        customDefinition = RP.SubtotalDefinition (RM.CustomMetric customId)
+            [Sales] [] RP.TreatAbsentAsZero
+        unlabelledContext = (RP.jcciSecondGradeContext RP.Standalone)
+            { RP._subtotalDefinitions = [customDefinition] }
+    assertEqual "Land 5: custom metric identity requires separate labels"
+        True (case RP.present unlabelledContext emptyValidated of
+            Left issues -> RP.UnlabelledCustomMetric customId
+                `elem` NE.toList issues
+            Right _ -> False)
+    let labelledContext = unlabelledContext
+            { RP._presentationProfile = RP.CanonicalEnglish
+            , RP._customMetricLabels =
+                [RP.CustomMetricLabel customId
+                    (T.pack "調整後EBITDA") (T.pack "Adjusted EBITDA")]
+            }
+    assertEqual "Land 5: custom metric identity and profile label are separate"
+        [RP.StatementSubtotal (RM.CustomMetric customId)
+            (T.pack "Adjusted EBITDA") TB.NoBalance]
+        (RP._statementSubtotals (case RP.present labelledContext emptyValidated of
+            Right statements -> statements
+            Left issues -> error ("labelled custom metric rejected: " ++ show issues)))
+    let duplicateLabelContext = labelledContext
+            { RP._customMetricLabels = RP._customMetricLabels labelledContext
+                ++ RP._customMetricLabels labelledContext
+            }
+    assertEqual "Land 5: standalone label lookup rejects duplicate identities"
+        Nothing
+        (RP.metricLabel duplicateLabelContext (RM.CustomMetric customId)
+            TB.NoBalance)
+  where
+    validateBefore alg = case TB.validateTrialBalance
+            TB.strictTrialBalancePolicy (trialBalanceInput alg TB.BeforeClosing) of
+        Right value -> value
+        Left errors -> error ("Land 5 fixture did not validate: " ++ show errors)
 
 testPostingCapabilityGate :: IO ()
 testPostingCapabilityGate = do
@@ -4240,6 +4393,7 @@ checkedConvertProperties = do
     testConsolidationWorksheet
     testTrialBalanceValidation
     testReportingPresentation
+    testDerivedMetricsLand5
 
     quickProp "convert-checked: certify known accounts matches checkedJournal" $
         prop_certifyKnownAccountsMatchesCheckedJournal

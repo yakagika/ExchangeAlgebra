@@ -64,6 +64,8 @@
       adjustments, source provenance, and cross-statement linkage validation.
     * "ExchangeAlgebra.TrialBalance.Validation" — trial-balance findings,
       reclassification instructions, and the policy-controlled reporting gate.
+    * "ExchangeAlgebra.Reporting.Metric" — typed, read-only derived metrics
+      that do not add account-basis coordinates.
     * "ExchangeAlgebra.Reporting.Presentation" — context-sensitive JGAAP
       transformation from validated trial balances to financial statements.
     * "ExchangeAlgebra.Simulate" — the classic simulation engine. /(Removed

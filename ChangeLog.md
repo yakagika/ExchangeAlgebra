@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Added
+- Add typed, read-only reporting metrics. `PeriodResultMetric` represents one
+  identity whose value is structurally `PeriodProfit`, `PeriodLoss`, or
+  `PeriodBreakEven`; `GrossProfitMetric`, `OrdinaryProfitMetric`, and custom
+  metric IDs are likewise separate from account-basis coordinates. Reporting
+  subtotal definitions now carry this identity, profile-resolved labels, an
+  explicit absent-title policy, and duplicate-identity validation.
+- Add `periodResultOfAlg` / `periodResultOf`, which derive period profit or loss
+  from genuine statement-classified revenue and cost coordinates without
+  inserting a balancing account. After-closing trial-balance validation now
+  reports residual period-result or reporting-subtotal coordinates explicitly.
 - Add a JGAAP reporting transformation from validated trial balances with
   standalone/combined scope, reciprocal elimination, maturity allocation,
   materiality and contra policy, profile labels, auditable subtotals, and final
@@ -16,6 +26,10 @@
   non-controlling-interest linkage across P/L, S/S, and B/S columns.
 
 ### Changed
+- Clarify that the retained `GrossProfit` and `OrdinaryProfit` constructors and
+  transfer functions are historical SNA/simulation coordinates, not complete
+  JGAAP subtotal definitions. Their ordinals and Binary tags remain unchanged;
+  see `docs/migration-0.5-derived-metrics.md`.
 - Correct `NonControllingInterests` metadata to `ConsolidationOnly`,
   `ContextualPresentation`, and `AttributionAccount`, preventing the
   consolidated balance-sheet coordinate from being posted to an individual
@@ -85,7 +99,7 @@
 - `HeadOfficeCurrentAccount` (`本店`)を支店帳簿上の貸方残に合わせて
   `Assets`から`Liability`へ訂正した.
 
-### Added
+### Added (earlier 0.5.0.0 development)
 - 0.5.0.0の勘定科目意味論・表示層分離に先立ち, 232 concrete titleの
   Binary bytes, registry/closing/side/PIMO, Assist metadata, projection membership,
   legacy BS/P&L outputを固定するpre-change goldenと再生成toolを追加した.
