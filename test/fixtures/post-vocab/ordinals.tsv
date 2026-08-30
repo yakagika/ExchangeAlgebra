@@ -231,4 +231,7 @@ HeldToMaturityBonds	228
 SubsidiaryStocks	229
 AffiliateStocks	230
 AvailableForSaleSecurities	231
-AccountTitle	232
+ConsumptionTaxRefundReceivable	232
+PropertyTaxPayable	233
+DepositsReceivedFromOfficers	234
+AccountTitle	235

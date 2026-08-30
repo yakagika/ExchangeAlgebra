@@ -235,15 +235,21 @@ data FinancialStatements v = FinancialStatements
     }
     deriving (Show, Eq)
 
--- | Profile-specific display label. The JCCI grade-2 reporting profile uses
--- the current Japanese financial-statement label for advances received.
+-- | Profile-specific Japanese display-label overrides.
+jcciSecondGradeLabelOverrides :: Map AccountTitles Text
+jcciSecondGradeLabelOverrides = M.fromList
+    [ (AdvancesReceived, T.pack "契約負債")
+    ]
+
+-- | Profile-specific display label. Japanese profiles use the registry's
+-- cleaned statement label, with the JCCI grade-2 overrides applied first.
 presentationLabel :: PresentationProfile -> AccountTitles -> Text
-presentationLabel JcciSecondGradeReport AdvancesReceived = T.pack "契約負債"
 presentationLabel profile title = case Registry.accountSpec title of
     Nothing -> T.pack (show title)
     Just spec -> case profile of
-        JcciSecondGradeReport -> Registry.asNameJa spec
-        CanonicalJapanese -> Registry.asNameJa spec
+        JcciSecondGradeReport -> M.findWithDefault
+            (Registry.asLabelJa spec) title jcciSecondGradeLabelOverrides
+        CanonicalJapanese -> Registry.asLabelJa spec
         CanonicalEnglish -> Registry.asNameEn spec
 
 -- | Resolve a metric's display label independently of its stable identity.
@@ -344,11 +350,12 @@ present context validated = case issues of
         | StatementSubtotal metric _ balance <- subtotals
         ]
     labelAudit =
-        [ LabelOverridden AdvancesReceived canonical displayed
+        [ LabelOverridden title canonical displayed
         | _presentationProfile context == JcciSecondGradeReport
-        , AdvancesReceived `elem` map _lineAccount statementLines
-        , let canonical = presentationLabel CanonicalJapanese AdvancesReceived
-        , let displayed = presentationLabel JcciSecondGradeReport AdvancesReceived
+        , (title, _) <- M.toList jcciSecondGradeLabelOverrides
+        , title `elem` map _lineAccount statementLines
+        , let canonical = presentationLabel CanonicalJapanese title
+        , let displayed = presentationLabel JcciSecondGradeReport title
         , canonical /= displayed
         ]
 

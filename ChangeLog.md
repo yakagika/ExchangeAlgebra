@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Added
+- Add dedicated `ConsumptionTaxRefundReceivable`, `PropertyTaxPayable`, and
+  `DepositsReceivedFromOfficers` constructors for the corresponding JCCI
+  level-2 A-column names. Add `AccountSpec.asLabelJa` for all 235 concrete
+  titles and a complete JCCI level-2 A-column presentation-label sweep.
 - Add typed, read-only reporting metrics. `PeriodResultMetric` represents one
   identity whose value is structurally `PeriodProfit`, `PeriodLoss`, or
   `PeriodBreakEven`; `GrossProfitMetric`, `OrdinaryProfitMetric`, and custom
@@ -26,6 +30,12 @@
   non-controlling-interest linkage across P/L, S/S, and B/S columns.
 
 ### Changed
+- Resolve Japanese presentation and LLM-facing names through the cleaned
+  `asLabelJa` registry field, with the JCCI `AdvancesReceived` override kept as
+  `契約負債`. Mark `EquityInEarningsOfInvestee` and
+  `CumulativeTranslationAdjustment` as consolidation-only and contextual.
+  Replace catch-all branches in all five account-semantics classifiers with
+  exhaustive constructor cases.
 - Clarify that the retained `GrossProfit` and `OrdinaryProfit` constructors and
   transfer functions are historical SNA/simulation coordinates, not complete
   JGAAP subtotal definitions. Their ordinals and Binary tags remain unchanged;
@@ -48,7 +58,7 @@
 - **BREAKING: LLM-facing account metadata now separates bookkeeping and
   reporting semantics.** `AccountSemantics` records account roles, posting
   capability, the meaning of the legacy five-way division, home-side
-  semantics, and reporting eligibility for all 232 concrete titles;
+  semantics, and reporting eligibility for all 235 concrete titles;
   `AccountTitle` remains explicitly outside the domain. `AccountInfo` exposes
   these fields instead of the ambiguous `aiDivision` / `aiHomeSide` pair, so
   direction encodings such as `IncomeSummary = Assets` and

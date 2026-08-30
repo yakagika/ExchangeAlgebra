@@ -231,3 +231,6 @@ HeldToMaturityBonds	Assets	Debit	Held-to-maturity bonds	満期保有目的債券
 SubsidiaryStocks	Assets	Debit	Shares of subsidiaries	子会社株式	Assets: Shares of subsidiaries (子会社株式)
 AffiliateStocks	Assets	Debit	Shares of associates	関連会社株式	Assets: Shares of associates (関連会社株式)
 AvailableForSaleSecurities	Assets	Debit	Available-for-sale securities	その他有価証券	Assets: Available-for-sale securities (その他有価証券)
+ConsumptionTaxRefundReceivable	Assets	Debit	Consumption tax refund receivable	未収還付消費税	Asset: Consumption tax refund receivable (未収還付消費税)
+PropertyTaxPayable	Liability	Credit	Property tax payable	未払固定資産税	Liability: Property tax payable (未払固定資産税)
+DepositsReceivedFromOfficers	Liability	Credit	Deposits received from officers	役員預り金	Liability: Deposits received from officers (役員預り金)

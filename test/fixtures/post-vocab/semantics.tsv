@@ -231,3 +231,6 @@ HeldToMaturityBonds	Assets	False	Debit	Credit	PS	Fixed	Nothing
 SubsidiaryStocks	Assets	False	Debit	Credit	PS	Fixed	Nothing
 AffiliateStocks	Assets	False	Debit	Credit	PS	Fixed	Nothing
 AvailableForSaleSecurities	Assets	False	Debit	Credit	PS	Fixed	Nothing
+ConsumptionTaxRefundReceivable	Assets	False	Debit	Credit	PS	Current	Nothing
+PropertyTaxPayable	Liability	False	Credit	Debit	MS	Current	Nothing
+DepositsReceivedFromOfficers	Liability	False	Credit	Debit	MS	Current	Nothing

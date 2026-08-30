@@ -49,8 +49,8 @@ grade	division	source_columns	query	expected	candidates	source_standard_names
 2	資産	A	契約資産	right	ContractAssets	契約資産
 2	資産	A	短期貸付金	right	ShortTermLoansReceivable	短期貸付金
 2	資産	A	未収還付法人税等	right	IncomeTaxesRefundReceivable	未収還付法人税等
-2	資産	A	未収還付消費税	right	OtherReceivables	未収還付消費税
-2	資産	B	未収消費税	right	OtherReceivables	未収還付消費税
+2	資産	A	未収還付消費税	right	ConsumptionTaxRefundReceivable	未収還付消費税
+2	資産	B	未収消費税	right	ConsumptionTaxRefundReceivable	未収還付消費税
 2	資産	A	商品	right	Products	商品
 2	資産	A	仕掛品	right	WorkInProcess	仕掛品
 2	資産	A	繰延税金資産	right	DeferredTaxAssets	繰延税金資産
@@ -114,7 +114,7 @@ grade	division	source_columns	query	expected	candidates	source_standard_names
 2	負債	A	営業外支払手形	right	NonOperatingNotesPayable	営業外支払手形
 2	負債	A	営業外電子記録債務	right	NonOperatingElectronicallyRecordedObligations	営業外電子記録債務
 2	負債	A	短期借入金	right	ShortTermLoansPayable	短期借入金
-2	負債	A	未払固定資産税	right	OtherPayables	未払固定資産税
+2	負債	A	未払固定資産税	right	PropertyTaxPayable	未払固定資産税
 2	負債	A	契約負債	right	AdvancesReceived	契約負債
 2	負債	A	未払賞与	right	BonusesPayable	未払賞与
 2	負債	B	未払役員賞与	right	BonusesPayable	未払賞与
@@ -126,7 +126,7 @@ grade	division	source_columns	query	expected	candidates	source_standard_names
 2	負債	A	賞与引当金	right	AllowanceForBonuses	賞与引当金
 2	負債	B	役員賞与引当金	right	AllowanceForBonuses	賞与引当金
 2	負債	A	繰延税金負債	right	DeferredTaxLiabilities	繰延税金負債
-2	負債	A	役員預り金	right	DepositsReceived	役員預り金
+2	負債	A	役員預り金	right	DepositsReceivedFromOfficers	役員預り金
 2	負債	A	リース債務	right	LeaseObligations	リース債務
 2	負債	A	預り保証金	right	GuaranteeDepositsReceived	預り保証金
 2	負債	B	受入保証金	right	GuaranteeDepositsReceived	預り保証金

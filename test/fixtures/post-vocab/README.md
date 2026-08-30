@@ -1,6 +1,6 @@
 # Post-V-Land-3 vocabulary golden fixtures
 
-These schema-1 TSV files freeze the complete 232-constructor vocabulary after
+These schema-1 TSV files freeze the complete 235-constructor vocabulary after
 V-Land 3: Enum ordinals, registry semantics, assistance metadata, and fuzzy
 suggestions. They are generated from the Haskell registry, not hand-edited.
 

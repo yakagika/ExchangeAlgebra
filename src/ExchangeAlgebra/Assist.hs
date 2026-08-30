@@ -91,11 +91,11 @@ describeAccount title = do
 -- | All concrete account-title descriptions in 'Enum' order.
 --
 -- >>> length allAccountInfos
--- 232
+-- 235
 -- >>> take 1 (map aiTitle allAccountInfos)
 -- [Cash]
 -- >>> aiTitle (last allAccountInfos)
--- AvailableForSaleSecurities
+-- DepositsReceivedFromOfficers
 allAccountInfos :: [AccountInfo]
 allAccountInfos = mapMaybe describeAccount concreteAccountTitles
 
@@ -112,14 +112,9 @@ toInfo title spec semantics = AccountInfo
     , aiDesc = safeDescription title spec
     }
 
--- | LLM-facing names must not encode an internal direction as if it were an
--- expense or revenue classification.
+-- | LLM-facing names use the cleaned statement label from the registry.
 safeNameJa :: AccountTitles -> AccountSpec -> Text
-safeNameJa NetIncome _ = "当期純利益"
-safeNameJa NetLoss _   = "当期純損失"
-safeNameJa GrossProfit _ = "売上総利益"
-safeNameJa OrdinaryProfit _ = "経常利益"
-safeNameJa _ spec      = asNameJa spec
+safeNameJa _ spec = asLabelJa spec
 
 -- | Semantic descriptions for technical, derived, and contextual titles.
 -- Ordinary statement accounts retain their canonical registry description.
@@ -150,6 +145,10 @@ safeDescription NetIncomeAttributableToNCI _ =
     "Consolidation attribution result: profit attributable to non-controlling interests (非支配株主に帰属する当期純利益). Available only in consolidation worksheets; the legacy Cost value is an internal direction encoding."
 safeDescription NetLossAttributableToNCI _ =
     "Consolidation attribution result: loss attributable to non-controlling interests (非支配株主に帰属する当期純損失). Available only in consolidation worksheets; the legacy Revenue value is an internal direction encoding."
+safeDescription EquityInEarningsOfInvestee _ =
+    "Consolidation result: equity in earnings of investee (持分法による投資利益). Available only in consolidation worksheets."
+safeDescription CumulativeTranslationAdjustment _ =
+    "Consolidation adjustment: cumulative translation adjustment (為替換算調整勘定). Available only in consolidation worksheets."
 safeDescription _ spec = asDescription spec
 
 -- | Suggest account titles by deterministic substring matching.

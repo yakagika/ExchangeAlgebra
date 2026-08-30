@@ -13,6 +13,10 @@ many-JCCI-accounts-to-one-EA mapping, and `AMBIGUOUS_LEGACY` records a modern
 constructor colliding with a retained legacy alias. The last two columns are
 mapping provenance, not fields transcribed from the PDF.
 
+The `EA対応` column is a stale historical reference and is not the current
+parser mapping. Land 4a gives the three level-2 A names `未収還付消費税`,
+`未払固定資産税`, and `役員預り金` dedicated constructors.
+
 `queries.tsv` freezes the adjudicated parser outcome for every distinct A/B
 query after `normalizeTitle`: `right` for a unique constructor and `ambiguous`
 for a deliberate candidate set. Its candidates describe the complete parser

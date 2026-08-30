@@ -243,6 +243,9 @@ ACCOUNT_DIVISIONS: dict[str, str] = {
     'SubsidiaryStocks': 'asset',
     'AffiliateStocks': 'asset',
     'AvailableForSaleSecurities': 'asset',
+    'ConsumptionTaxRefundReceivable': 'asset',
+    'PropertyTaxPayable': 'liability',
+    'DepositsReceivedFromOfficers': 'liability',
 }
 
 CANONICAL_ACCOUNT_TITLES: tuple[str, ...] = tuple(ACCOUNT_DIVISIONS)

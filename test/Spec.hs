@@ -54,7 +54,7 @@ import qualified Data.Map.Strict     as M
 import qualified Data.List           as L
 import qualified Data.List.NonEmpty  as NE
 import qualified Data.Set            as Set
-import           Data.Char           (isAlphaNum, isSpace)
+import           Data.Char           (isAlpha, isAlphaNum, isAscii, isSpace)
 import qualified Data.Binary         as Binary
 import qualified Data.Binary.Put     as BinaryPut
 import qualified Data.ByteString.Lazy as BL
@@ -113,8 +113,8 @@ testAccountTitlesBinary = do
         roundTripped = L.map (Binary.decode . Binary.encode) titles
         invalidTag = fromIntegral (fromEnum (maxBound :: AccountTitles) + 1)
         invalidBytes = BinaryPut.runPut (BinaryPut.putWord16be invalidTag)
-    assertEqual "AccountTitles Binary covers all 233 constructors"
-        233 (L.length titles)
+    assertEqual "AccountTitles Binary covers all 236 constructors"
+        236 (L.length titles)
     assertEqual "AccountTitles Binary Word16be roundtrip"
         titles roundTripped
     assertEqual "AccountTitles Binary rejects out-of-range Word16"
@@ -383,6 +383,9 @@ accountTitleClassTable =
     , (SubsidiaryStocks, Assets, Debit, Fixed)
     , (AffiliateStocks, Assets, Debit, Fixed)
     , (AvailableForSaleSecurities, Assets, Debit, Fixed)
+    , (ConsumptionTaxRefundReceivable, Assets, Debit, Current)
+    , (PropertyTaxPayable, Liability, Credit, Current)
+    , (DepositsReceivedFromOfficers, Liability, Credit, Current)
     ]
 
 testAccountTitleClassification :: IO ()
@@ -1112,6 +1115,14 @@ testVocabOrdinalPin = do
             , not (o > maxPinned && o < fromEnum (maxBound :: AccountTitles)) ]
     assertEqual "vocab ordinal pin: new constructors sit between max pinned and wildcard"
         [] misplaced
+    assertEqual "vocab ordinal pin: Land 4a constructor ordinals and wildcard"
+        [232, 233, 234, 235]
+        (L.map fromEnum
+            [ ConsumptionTaxRefundReceivable
+            , PropertyTaxPayable
+            , DepositsReceivedFromOfficers
+            , AccountTitle
+            ])
     -- concreteAccountTitles は wildcard 以外の全 constructor を被覆すること。
     -- 現行の hardcoded 上限 ([Cash .. ReversalOfAllowanceForDoubtfulAccounts]) は
     -- 挿入後に新規科目が漏れるため, この assert が V-Land 2 に
@@ -1981,7 +1992,7 @@ testAssistDescribeAccount = do
 
 testAssistAllAccountInfos :: IO ()
 testAssistAllAccountInfos = do
-    assertEqual "Assist.allAccountInfos length" 232 (length Assist.allAccountInfos)
+    assertEqual "Assist.allAccountInfos length" 235 (length Assist.allAccountInfos)
     assertEqual "Assist.allAccountInfos follows concreteAccountTitles order"
         EC.concreteAccountTitles (L.map Assist.aiTitle Assist.allAccountInfos)
     forM_ Assist.allAccountInfos $ \info -> do
@@ -2028,8 +2039,8 @@ testAccountMetadataLand1 = do
                 StatementDivision _ -> False
                 _                   -> True
             ]
-    assertEqual "Land 1 metadata covers all 232 concrete titles"
-        232 (L.length semantics)
+    assertEqual "Land 1 metadata covers all 235 concrete titles"
+        235 (L.length semantics)
     assertEqual "Land 1 metadata rejects wildcard AccountTitle"
         Nothing (Registry.accountSemantics AccountTitle)
     assertEqual "Land 1 non-statement metadata is exactly the reviewed exception set"
@@ -2037,6 +2048,11 @@ testAccountMetadataLand1 = do
     forM_ semantics $ \(title, value) -> do
         assertEqual ("Land 1 roles are non-empty: " ++ show title)
             True (not (L.null (Registry.asemRoles value)))
+        -- Land 4a: rolesFor no longer consults asIsContra (explicit
+        -- enumeration), so pin the contra role to the registry flag.
+        assertEqual ("Land 4a contra role matches registry isContra: " ++ show title)
+            (Registry.classifyAccountContra title)
+            (ContraAccount `elem` Registry.asemRoles value)
         case Registry.asemDivisionSemantics value of
             StatementDivision division -> do
                 assertEqual ("Land 1 statement division preserves legacy value: " ++ show title)
@@ -2160,8 +2176,8 @@ testAccountMetadataLand1Golden = do
             accountMetadataLand1Header
                 (T.pack "LLM AccountInfo (title, roles, posting, divisionSemantics, homeSideSemantics, reportingEligibility, nameEn, nameJa, description)")
             <> T.unlines (L.map accountMetadataLand1InfoRow Assist.allAccountInfos)
-    assertEqual "Land 1 metadata fixture has 232 rows"
-        232 (L.length (L.drop 1 (T.lines metadata)))
+    assertEqual "Land 1 metadata fixture has 235 rows"
+        235 (L.length (L.drop 1 (T.lines metadata)))
     assertEqual "Land 1 metadata fixture" metadata expectedMetadata
     assertEqual "Land 1 LLM AccountInfo fixture" info expectedInfo
     assertEqual "Land 1 LLM suggestion fixture"
@@ -2191,10 +2207,18 @@ testAccountInfoLand1Migration = do
                             StatementDivision _ -> do
                                 assertEqual ("Land 1 ordinary nameEn unchanged: " ++ show title)
                                     oldNameEn (goldenEsc (Assist.aiNameEn info))
-                                assertEqual ("Land 1 ordinary nameJa unchanged: " ++ show title)
-                                    oldNameJa (goldenEsc (Assist.aiNameJa info))
-                                assertEqual ("Land 1 ordinary description unchanged: " ++ show title)
-                                    oldDesc (goldenEsc (Assist.aiDesc info))
+                                -- Land 4a: the Assist projection (aiNameJa) now
+                                -- returns the annotation-free asLabelJa and is
+                                -- pinned by account-semantics-050/account-info.tsv;
+                                -- the pre-golden pins the registry fields.
+                                assertEqual ("Land 1 registry nameJa unchanged: " ++ show title)
+                                    oldNameJa (maybe T.empty
+                                        (goldenEsc . Registry.asNameJa)
+                                        (Registry.accountSpec title))
+                                assertEqual ("Land 1 registry description unchanged: " ++ show title)
+                                    oldDesc (maybe T.empty
+                                        (goldenEsc . Registry.asDescription)
+                                        (Registry.accountSpec title))
                             _ -> pure ()
                     _ -> do
                         putStrLn ("[FAIL] missing Land 1 migration metadata: " ++ show title)
@@ -2407,10 +2431,15 @@ accountSemanticsBinaryHex = T.pack . concatMap hexByte . BL.unpack . Binary.enco
         [digit] -> ['0', digit]
         digits  -> digits
 
+-- The pre-account-semantics fixture is immutable and predates the three
+-- Land 4a constructors appended after ordinal 231.
+accountSemanticsBaselineTitles :: [AccountTitles]
+accountSemanticsBaselineTitles = L.take 232 Registry.concreteAccountTitles
+
 accountSemanticsSemanticsGolden :: T.Text
 accountSemanticsSemanticsGolden =
     accountSemanticsHeader (T.pack "semantics (title, enum, binaryHex, division, closing, isContra, whichSide Not, whichSide Hat, whatPIMO, fixedCurrent, finalStockProbe)")
-    <> T.unlines (L.map row Registry.concreteAccountTitles)
+    <> T.unlines (L.map row accountSemanticsBaselineTitles)
   where
     row title =
         let nb = Not :< title :: HatBase AccountTitles
@@ -2435,12 +2464,12 @@ accountSemanticsSemanticsGolden =
 accountSemanticsInfoGolden :: T.Text
 accountSemanticsInfoGolden =
     accountSemanticsHeader (T.pack "AccountInfo (title, division, homeSide, nameEn, nameJa, description)")
-    <> T.unlines (L.map goldenInfoRow Assist.allAccountInfos)
+    <> T.unlines (L.map goldenInfoRow (L.take 232 Assist.allAccountInfos))
 
 accountSemanticsProjectionGolden :: T.Text
 accountSemanticsProjectionGolden =
     accountSemanticsHeader (T.pack "projection flags for Not then Hat (currentAssets, fixedAssets, deferredAssets, currentLiability, fixedLiability, capitalStock, contraAssets, contra)")
-    <> T.unlines (L.map row Registry.concreteAccountTitles)
+    <> T.unlines (L.map row accountSemanticsBaselineTitles)
   where
     kept :: (EA.Alg Double (HatBase AccountTitles)
           -> EA.Alg Double (HatBase AccountTitles))
@@ -2465,7 +2494,7 @@ accountSemanticsProjectionGolden =
 accountSemanticsPresentationGolden :: T.Text
 accountSemanticsPresentationGolden =
     accountSemanticsHeader (T.pack "legacy presentation probe (title, bsRows of 1@Not, plRows of 1@Not)")
-    <> T.unlines (L.map row Registry.concreteAccountTitles)
+    <> T.unlines (L.map row accountSemanticsBaselineTitles)
   where
     row title =
         let value = 1 .@ Not :< title :: EA.Alg Double (HatBase AccountTitles)
@@ -2598,6 +2627,69 @@ testJcciAccountNameCoverage = do
                         (outcome <> T.pack ":" <> candidateText)
         _ -> assertEqual "JCCI fixture row has seven columns" (7 :: Int)
             (L.length (T.splitOn (T.pack "\t") row))
+
+-- | Every cleaned Japanese label is a bare account name, and every level-2
+-- JCCI A-column name that resolves uniquely is the profile display label.
+testAccountLabelsLand4a :: IO ()
+testAccountLabelsLand4a = do
+    let labels =
+            [ (title, Registry.asLabelJa spec)
+            | title <- Registry.concreteAccountTitles
+            , Just spec <- [Registry.accountSpec title]
+            ]
+        forbidden = L.map T.pack ["。", "—", "\\/", "'"]
+        invalid =
+            [ (title, label)
+            | (title, label) <- labels
+            , any (`T.isInfixOf` label) forbidden
+                || T.any (\c -> isAscii c && isAlpha c) label
+            ]
+    assertEqual "Land 4a asLabelJa covers all 235 concrete titles"
+        235 (L.length labels)
+    assertEqual "Land 4a asLabelJa contains only cleaned Japanese account names"
+        ([] :: [(AccountTitles, T.Text)]) invalid
+
+    source <- TIO.readFile "test/fixtures/jcci-2022/source.tsv"
+    let rows =
+            [ fields
+            | row <- L.drop 1 (T.lines source)
+            , not (T.null row)
+            , let fields = T.splitOn (T.pack "\t") row
+            , L.length fields == 6
+            , T.pack "2" `T.isInfixOf` (fields L.!! 0)
+            ]
+        aNames = L.map (L.!! 2) rows
+        resolved =
+            [ (name, title, RP.presentationLabel RP.JcciSecondGradeReport title)
+            | name <- aNames
+            , Right title <- [EC.parseAccountTitle name]
+            ]
+        skipped =
+            [ name
+            | name <- aNames
+            , Left (EC.AmbiguousAccount _ _) <- [EC.parseAccountTitle name]
+            ]
+        unexpected =
+            [ (name, show err)
+            | name <- aNames
+            , Left err <- [EC.parseAccountTitle name]
+            , case err of EC.AmbiguousAccount _ _ -> False; _ -> True
+            ]
+        mismatches =
+            [ (name, title, label)
+            | (name, title, label) <- resolved
+            , label /= name
+            ]
+    assertEqual "Land 4a JCCI level-2 A-column rows" 117 (L.length aNames)
+    assertEqual "Land 4a JCCI A-column MATCH count" 113 (L.length resolved)
+    assertEqual "Land 4a JCCI A-column skip set"
+        (L.sort (L.map T.pack
+            ["営業収益", "営業費用", "為替差損益", "有価証券評価損益"]))
+        (L.sort skipped)
+    assertEqual "Land 4a JCCI A-column has no unexpected parse failures"
+        ([] :: [(T.Text, String)]) unexpected
+    assertEqual "Land 4a JCCI A-column labels MATCH 113/113"
+        ([] :: [(T.Text, AccountTitles, T.Text)]) mismatches
 
 testRegistryWildcards :: IO ()
 testRegistryWildcards = do
@@ -4216,7 +4308,7 @@ testPostingCapabilityGate = do
         | context <- contexts
         , capability <- capabilities
         ]
-    assertEqual "posting gate: all 232 titles follow the closed matrix"
+    assertEqual "posting gate: all 235 titles follow the closed matrix"
         [ (context, title, ECC.postingAllowedIn context capability)
         | context <- contexts
         , title <- Registry.concreteAccountTitles
@@ -4233,7 +4325,9 @@ testPostingCapabilityGate = do
         | title <- [GrossProfit, OrdinaryProfit, NetIncome, NetLoss]
         ]
     assertEqual "posting gate: consolidation-only set is closed"
-        [ NonControllingInterests
+        [ EquityInEarningsOfInvestee
+        , CumulativeTranslationAdjustment
+        , NonControllingInterests
         , NetIncomeAttributableToNCI
         , NetLossAttributableToNCI
         ]
@@ -5931,6 +6025,7 @@ main = do
     testAccountSemanticsPrechangeGolden
     testRegistryGolden
     testJcciAccountNameCoverage
+    testAccountLabelsLand4a
     testRegistryWildcards
     testRegistryContraLand2
     testLand2SemanticsClosedDiff

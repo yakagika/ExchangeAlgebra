@@ -62,7 +62,7 @@ WageEarned	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Revenue	FixedHome
 TaxesRevenue	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Revenue	FixedHomeSide Credit	StatementEligible
 CentralBankPaymentIncome	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Revenue	FixedHomeSide Credit	StatementEligible
 Sales	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Revenue	FixedHomeSide Credit	StatementEligible
-EquityInEarningsOfInvestee	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Revenue	FixedHomeSide Credit	StatementEligible
+EquityInEarningsOfInvestee	[OrdinaryAccount]	ConsolidationOnly	StatementDivision Revenue	FixedHomeSide Credit	ContextualPresentation
 NetLoss	[PeriodResult]	EngineGeneratedOnly	DirectionEncoding Revenue	FixedHomeSide Credit	DerivedPresentation
 PettyCash	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Assets	FixedHomeSide Debit	StatementEligible
 NotesReceivable	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Assets	FixedHomeSide Debit	StatementEligible
@@ -102,7 +102,7 @@ UnpaidDividends	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Liability	Fi
 AllowanceForDoubtfulAccounts	[OrdinaryAccount,ContraAccount]	OrdinaryPosting	StatementDivision Assets	FixedHomeSide Credit	StatementEligible
 AccumulatedDepreciation	[OrdinaryAccount,ContraAccount]	OrdinaryPosting	StatementDivision Assets	FixedHomeSide Credit	StatementEligible
 LegalRetainedEarnings	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Equity	FixedHomeSide Credit	StatementEligible
-CumulativeTranslationAdjustment	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Equity	FixedHomeSide Credit	StatementEligible
+CumulativeTranslationAdjustment	[OrdinaryAccount]	ConsolidationOnly	StatementDivision Equity	FixedHomeSide Credit	ContextualPresentation
 ProvisionForDoubtfulAccounts	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Cost	FixedHomeSide Debit	StatementEligible
 BadDebtLoss	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Cost	FixedHomeSide Debit	StatementEligible
 LossOnSalesOfFixedAssets	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Cost	FixedHomeSide Debit	StatementEligible
@@ -231,3 +231,6 @@ HeldToMaturityBonds	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Assets	F
 SubsidiaryStocks	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Assets	FixedHomeSide Debit	StatementEligible
 AffiliateStocks	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Assets	FixedHomeSide Debit	StatementEligible
 AvailableForSaleSecurities	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Assets	FixedHomeSide Debit	StatementEligible
+ConsumptionTaxRefundReceivable	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Assets	FixedHomeSide Debit	StatementEligible
+PropertyTaxPayable	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Liability	FixedHomeSide Credit	StatementEligible
+DepositsReceivedFromOfficers	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Liability	FixedHomeSide Credit	StatementEligible
