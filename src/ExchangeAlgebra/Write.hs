@@ -57,6 +57,7 @@ import qualified    ExchangeAlgebra.Journal     as EJ
 import              ExchangeAlgebra.Journal     ((.|))
 
 import qualified    ExchangeAlgebra.Algebra.Transfer    as ET
+import qualified    ExchangeAlgebra.Reporting.Group     as RG
 
 import              ExchangeAlgebra.Simulate
 
@@ -99,26 +100,86 @@ writeCSV path rows = do
 tshow :: (Show a) => a -> T.Text
 tshow = T.pack . show
 
+-- | Render one 'RG.RelativeAmount' as a statement cell. The magnitude is
+-- always non-negative (see "ExchangeAlgebra.Reporting.Group"); a deduction, or
+-- a net that its deductions pushed past zero, is shown with a leading @-@.
+-- The minus sign exists only here, in the rendered text — never in a value.
+--
+-- Complexity: O(show cost)
+renderRelative :: (HatVal n) => RG.RelativeAmount n -> T.Text
+renderRelative amount
+    | RG.raBelowZero amount = T.cons '-' magnitude
+    | otherwise             = magnitude
+  where
+    magnitude = tshow (RG.raMagnitude amount)
+
+-- | Flatten presentation blocks into @(label, value)@ statement cells.
+-- Gross and deduction rows are labelled by their account title, subtotal and
+-- net rows by the group's label.
+--
+-- Complexity: O(r) (r = number of rows in the given blocks)
+groupCells :: (HatVal n)
+           => [RG.PresentationGroupDef]
+           -> [(RG.PresentationGroupDef, [RG.GroupRow n])]
+           -> [(T.Text, T.Text)]
+groupCells defs blocks =
+    [ (label (RG.grKind row), renderRelative (RG.grAmount row))
+    | (_, rows) <- blocks, row <- rows ]
+  where
+    label kind = case kind of
+        RG.GrossRow t      -> tshow t
+        RG.DeductionRow t  -> tshow t
+        RG.SubgroupRow key -> groupLabel key
+        RG.NetRow key      -> groupLabel key
+    groupLabel key = maybe (tshow key) RG.pgLabel (RG.lookupGroupDef defs key)
+
 -- | Build the rows of a Balance Sheet, as a pure value (the part 'writeBS'
 -- renders to CSV).
 --
--- Internally applies @'ET.finalStockTransfer'@ -- the only netting this
--- function does -- which closes every 'Cost'\/'Revenue' account into
--- 'RetainedEarnings' via @('.-')@\/@bar@; everything downstream of that is a
--- non-netting partition by 'whichSide'\/'whatDiv' ('decL'\/'decR'\/'EA.filter'
--- only select entries, they do not aggregate them). The closed algebra is
--- then split into assets (debit side) and liability\/equity (credit side,
--- further split by division). Layout:
+-- Internally applies @'ET.finalStockTransfer'@ -- the only netting on the
+-- /algebra/ this function does -- which closes every 'Cost'\/'Revenue'
+-- account into 'RetainedEarnings' via @('.-')@\/@bar@. The closed algebra is
+-- then partitioned by 'whichSide'\/'whatDiv' into assets (debit side) and
+-- liability\/equity (credit side, further split by division);
+-- 'decL'\/'decR'\/'EA.filter' only select entries, they do not aggregate them.
+--
+-- __Contra accounts (Definition 7 amendment, Land 3).__ Contra assets
+-- (@whatDiv == Assets && isContra@, e.g. 貸倒引当金\/減価償却累計額) sit on
+-- the credit side, so a plain side partition would either drop them from the
+-- statement or file them under Liability. They are instead collected into the
+-- presentation groups of "ExchangeAlgebra.Reporting.Group" and shown as a
+-- real deduction — @gross lines → deduction lines → net line@ — inside the
+-- Asset column, replacing Land 2's temporary placement in the Liability
+-- column. A
+-- group is formed only when one of its contra accounts actually carries gross
+-- activity, so a chart that contains no contra posting keeps its ordinary
+-- rows. Deduction
+-- and negative-net cells carry a leading @-@; values themselves stay in
+-- \(\mathbb{R}_0^+\).
+--
+-- Column totals use the ordinary cells plus each outermost group's net, so
+-- nested subtotal rows are not counted twice. __Known limitation:__ an
+-- ungrouped non-contra asset whose net balance is
+-- on the credit side (an abnormal balance) is still not displayed, and is now
+-- excluded from the totals as well; the side-versus-division placement of
+-- abnormal balances is a separate pre-existing issue, not part of the contra
+-- amendment.
+-- Presentation groups are financial-statement aggregates keyed by account
+-- title. With a multi-axis base, grouped titles therefore aggregate across
+-- the remaining axes; ungrouped titles retain the legacy per-entry layout.
+--
+-- Layout:
 --
 -- > Asset | <titles...> | Total
--- >       | <values...> | <credit total>
+-- >       | <values...> | <asset total>
 -- > Liability | <titles...> | Equity | <titles...> | Total
--- >           | <values...> |        | <values...> | <debit total>
+-- >           | <values...> |        | <values...> | <liability+equity total>
 --
 -- ==== __Examples__
 --
 -- Cash 100 (asset), a loan 60 (liability), capital 40 (equity); no
--- cost\/revenue accounts, so @'ET.finalStockTransfer'@ is a no-op here:
+-- cost\/revenue accounts, so @'ET.finalStockTransfer'@ is a no-op, and no
+-- contra account is present, so no presentation group is formed:
 --
 -- >>> type T = Alg Double (HatBase AccountTitles)
 -- >>> let alg = (100 .@ Not:<Cash) .+ (60 .@ Not:<LoansPayable) .+ (40 .@ Not:<CapitalStock) :: T
@@ -129,44 +190,67 @@ tshow = T.pack . show
 -- ["","","CapitalStock","40.0"]
 -- ["","","Total","100.0"]
 --
+-- Receivables 1000 with an allowance of 100 against them, and capital 900.
+-- The allowance is deducted from the receivables and the asset total is the
+-- net 900, not the gross 1000:
+--
+-- >>> let contra = (1000 .@ Not:<AccountsReceivable) .+ (100 .@ Not:<AllowanceForDoubtfulAccounts) .+ (900 .@ Not:<CapitalStock) :: T
+-- >>> mapM_ print (bsRows contra)
+-- ["Asset","","Liability",""]
+-- ["AccountsReceivable","1000.0","Equity",""]
+-- ["AllowanceForDoubtfulAccounts","-100.0","CapitalStock","900.0"]
+-- ["TradeReceivablesNet","900.0","Total","900.0"]
+-- ["Total","900.0","",""]
+--
 -- Complexity: O(s) (s = total number of scalar entries)
--- | Display-compatibility shim for the Definition 7 contra amendment
--- (Land 2, until Land 3's real deduction\/netting presentation lands).
--- Contra assets (@whatDiv == Assets && isContra@, e.g. 貸倒引当金\/減価償却
--- 累計額) used to be /classified/ as Liability and therefore appeared in the
--- Liability column; the classification is now fixed, but this predicate keeps
--- their display placement unchanged. It does NOT mean the account is a
--- liability, and no deduction\/netting is performed. By construction the
--- predicate's extension equals the old @whatDiv == Liability@ set, so this
--- /placement/ remains compatible. Whole 'bsRows' output may still change when
--- an independent closing policy changes (for example, newly closed Cost
--- accounts).
-isLegacyLiabilityDisplay :: ExBaseClass b => b -> Bool
-isLegacyLiabilityDisplay b =
-    whatDiv b == Liability || (isContra b && whatDiv b == Assets)
-
 bsRows :: (HatVal n, HatBaseClass b, ExBaseClass b) => Alg n b -> [[T.Text]]
 bsRows alg = result
   where
     transferred = ET.finalStockTransfer alg
-    debitSide = decR transferred
-    creditSide = decL transferred
-    assets = creditSide
-    liability = EA.filter (isLegacyLiabilityDisplay . _hatBase) debitSide
-    equity = EA.filter (\x -> whatDiv (_hatBase x) == Equity) debitSide
-    debitTotal = tshow (EA.norm debitSide)
-    creditTotal = tshow (EA.norm creditSide)
+    grouping = RG.groupingForDivisions [Assets, Liability, Equity]
+                                       RG.defaultPresentationGrouping
+    grouped = RG.presentGroups grouping (accountGrossTotals transferred)
+    consumed = RG.gpConsumed grouped
+    ungrouped = EA.filter
+        (\x -> not (Set.member (getAccountTitle (_hatBase x)) consumed)) transferred
+    creditSide = decR ungrouped
+    debitSide = decL ungrouped
+    assets = debitSide
+    liability = EA.filter (\x -> whatDiv (_hatBase x) == Liability) creditSide
+    equity = EA.filter (\x -> whatDiv (_hatBase x) == Equity) creditSide
+    blocksIn divisions =
+        [block | block@(def, _) <- RG.gpBlocks grouped
+               , RG.pgDivision def `elem` divisions]
+    rootOf division = OMap.findWithDefault (zeroValue, zeroValue) division
+        (RG.gpRootTotals grouped)
+    -- Totals are the sum of the displayed cells: the ungrouped entries of the
+    -- column plus each group's net (counted once, at its outermost block).
+    assetGross = RG.addGross (EA.norm assets, zeroValue) (rootOf Assets)
+    creditGross = RG.addGross
+        (zeroValue, EA.norm liability + EA.norm equity)
+        (RG.addGross (rootOf Liability) (rootOf Equity))
+    assetTotal = renderRelative (RG.relativeTo Debit assetGross)
+    creditTotal = renderRelative (RG.relativeTo Credit creditGross)
+    (assetGroupText, assetGroupValue) =
+        unzip (groupCells grouping (blocksIn [Assets]))
+    (liabilityGroupText, liabilityGroupValue) =
+        unzip (groupCells grouping (blocksIn [Liability]))
+    (equityGroupText, equityGroupValue) =
+        unzip (groupCells grouping (blocksIn [Equity]))
     assetsText = L.map (tshow . getAccountTitle . _hatBase) (EA.toList assets)
-    assetsValue = L.map (tshow . _val) (EA.toList assets)
+                 ++ assetGroupText
+    assetsValue = L.map (tshow . _val) (EA.toList assets) ++ assetGroupValue
     liabilityText = L.map (tshow . getAccountTitle . _hatBase) (EA.toList liability)
-    liabilityValue = L.map (tshow . _val) (EA.toList liability)
+                    ++ liabilityGroupText
+    liabilityValue = L.map (tshow . _val) (EA.toList liability) ++ liabilityGroupValue
     equityText = L.map (tshow . getAccountTitle . _hatBase) (EA.toList equity)
-    equityValue = L.map (tshow . _val) (EA.toList equity)
+                 ++ equityGroupText
+    equityValue = L.map (tshow . _val) (EA.toList equity) ++ equityGroupValue
     result = csvTranspose
       [ [T.pack "Asset"] ++ assetsText ++ [T.pack "Total"]
-      , [T.empty] ++ assetsValue ++ [creditTotal]
+      , [T.empty] ++ assetsValue ++ [assetTotal]
       , [T.pack "Liability"] ++ liabilityText ++ [T.pack "Equity"] ++ equityText ++ [T.pack "Total"]
-      , [T.empty] ++ liabilityValue ++ [T.empty] ++ equityValue ++ [debitTotal]
+      , [T.empty] ++ liabilityValue ++ [T.empty] ++ equityValue ++ [creditTotal]
       ]
 
 -- | Output a Balance Sheet in CSV format. Pure layout is delegated to
@@ -180,10 +264,24 @@ writeBS path alg = writeCSV path (bsRows alg)
 -- | Build the rows of a Profit and Loss Statement, as a pure value (the part
 -- 'writePL' renders to CSV).
 --
--- No netting or closing is applied here (contrast 'bsRows', which applies
+-- No closing is applied here (contrast 'bsRows', which applies
 -- @'ET.finalStockTransfer'@) -- this decomposes the algebra /as given/ into
 -- cost and revenue entries by 'whichSide'\/'whatDiv' ('decL'\/'decR'\/'EA.filter'
--- only select, they do not aggregate). Layout:
+-- only select, they do not aggregate).
+--
+-- __Contra accounts (Definition 7 amendment, Land 3).__ A contra revenue
+-- (売上割戻) sits on the debit side and a contra cost (仕入割戻, 還付法人税等)
+-- on the credit side, so the side partition above would drop all three from
+-- the statement entirely. They are instead collected into the presentation
+-- groups of "ExchangeAlgebra.Reporting.Group" and shown as a real deduction
+-- (@gross lines → deduction lines → net line@) inside their own column, on
+-- the same terms as 'bsRows'. A group is formed only when one of its contra
+-- accounts carries gross activity, so a statement containing no contra
+-- posting keeps its ordinary rows. The column totals keep their historical cross-placement
+-- (the Cost column's total cell states the revenue total and vice versa), but
+-- are now the sum of the cells displayed in the other column.
+--
+-- Layout:
 --
 -- > Cost | <titles...> | Total
 -- >      | <values...> | <revenue total>
@@ -192,7 +290,8 @@ writeBS path alg = writeCSV path (bsRows alg)
 --
 -- ==== __Examples__
 --
--- A single sale of 500 (revenue) against its cost of 300:
+-- A single sale of 500 (revenue) against its cost of 300; no contra account,
+-- so no presentation group is formed:
 --
 -- >>> type T = Alg Double (HatBase AccountTitles)
 -- >>> let alg = (500 .@ Not:<Sales) .+ (300 .@ Not:<SalesCost) :: T
@@ -201,20 +300,50 @@ writeBS path alg = writeCSV path (bsRows alg)
 -- ["SalesCost","300.0","Sales","500.0"]
 -- ["Total","500.0","Total","300.0"]
 --
+-- The same sale with a rebate of 50 granted on it. Gross sales stay visible,
+-- the rebate is deducted, and net sales carry into the total:
+--
+-- >>> let rebated = alg .+ (50 .@ Not:<SalesRebates) :: T
+-- >>> mapM_ print (plRows rebated)
+-- ["Cost","","Revenue",""]
+-- ["SalesCost","300.0","Sales","500.0"]
+-- ["","","SalesRebates","-50.0"]
+-- ["","","NetSales","450.0"]
+-- ["Total","450.0","Total","300.0"]
+--
 -- Complexity: O(s) (s = total number of scalar entries)
 plRows :: (HatVal n, HatBaseClass b, ExBaseClass b) => Alg n b -> [[T.Text]]
 plRows alg = result
   where
-    debitSide = decR alg
-    creditSide = decL alg
-    cost = EA.filter (\x -> whatDiv (_hatBase x) == Cost) creditSide
-    revenue = EA.filter (\x -> whatDiv (_hatBase x) == Revenue) debitSide
-    debitTotal = tshow (EA.norm cost)
-    creditTotal = tshow (EA.norm revenue)
+    grouping = RG.groupingForDivisions [Cost, Revenue] RG.defaultPresentationGrouping
+    grouped = RG.presentGroups grouping (accountGrossTotals alg)
+    consumed = RG.gpConsumed grouped
+    ungrouped = EA.filter
+        (\x -> not (Set.member (getAccountTitle (_hatBase x)) consumed)) alg
+    creditSide = decR ungrouped
+    debitSide = decL ungrouped
+    cost = EA.filter (\x -> whatDiv (_hatBase x) == Cost) debitSide
+    revenue = EA.filter (\x -> whatDiv (_hatBase x) == Revenue) creditSide
+    blocksIn division =
+        [block | block@(def, _) <- RG.gpBlocks grouped
+               , RG.pgDivision def == division]
+    rootOf division = OMap.findWithDefault (zeroValue, zeroValue) division
+        (RG.gpRootTotals grouped)
+    costGross = RG.addGross (EA.norm cost, zeroValue) (rootOf Cost)
+    revenueGross = RG.addGross (zeroValue, EA.norm revenue) (rootOf Revenue)
+    -- Historical cross-placement preserved: the Cost column's total cell
+    -- states the revenue total, and the Revenue column's the cost total.
+    debitTotal = renderRelative (RG.relativeTo Debit costGross)
+    creditTotal = renderRelative (RG.relativeTo Credit revenueGross)
+    (costGroupText, costGroupValue) = unzip (groupCells grouping (blocksIn Cost))
+    (revenueGroupText, revenueGroupValue) =
+        unzip (groupCells grouping (blocksIn Revenue))
     costText = L.map (tshow . getAccountTitle . _hatBase) (EA.toList cost)
-    costValue = L.map (tshow . _val) (EA.toList cost)
+               ++ costGroupText
+    costValue = L.map (tshow . _val) (EA.toList cost) ++ costGroupValue
     revenueText = L.map (tshow . getAccountTitle . _hatBase) (EA.toList revenue)
-    revenueValue = L.map (tshow . _val) (EA.toList revenue)
+                  ++ revenueGroupText
+    revenueValue = L.map (tshow . _val) (EA.toList revenue) ++ revenueGroupValue
     (ct, rt) = toSameLength costText revenueText
     (cv, rv) = toSameLength costValue revenueValue
     result = csvTranspose

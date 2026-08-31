@@ -18,6 +18,7 @@ main = doctest  [ "-isrc"
                 , "src/ExchangeAlgebra/Convert/Csv.hs"
                 , "src/ExchangeAlgebra/Convert/Checked.hs"
                 , "src/ExchangeAlgebra/Assist.hs"
+                , "src/ExchangeAlgebra/Reporting/Group.hs"
                   -- optimization layer: not re-exported from the umbrella,
                   -- so listed explicitly to check its examples too.
                 , "src/ExchangeAlgebra/Optimize.hs"]

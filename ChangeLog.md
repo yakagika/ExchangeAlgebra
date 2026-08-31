@@ -100,12 +100,17 @@
   False→True, `(Cost, Revenue)` False→True, `(Revenue, Cost)` False→True.
   Exchange checks on bases should use `whatPIMO` (contra-aware), not bare
   divisions.
-- `bsRows` keeps contra assets in the Liability column through an internal
-  display-compatibility shim (`isLegacyLiabilityDisplay`) — output is
-  byte-identical to the pre-amendment behaviour for postings over the
-  concrete `AccountTitles` chart with the registry-default classification
-  (instances that override `whatDiv`/`isContra` are outside this guarantee);
-  real deduction/netting presentation is a planned follow-up (Land 3).
+- **BREAKING: real contra deduction/netting presentation (Definition 7,
+  Land 3).** `bsRows` and `plRows` now render active presentation groups as
+  gross rows, deduction rows, and a net row instead of placing contra assets
+  in the Liability column or dropping P/L contra accounts. The shared
+  `ExchangeAlgebra.Reporting.Group` module defines the five registry-backed
+  groups and keeps stored and rendered magnitudes non-negative; a leading
+  minus sign is introduced only when rows are rendered. Statements without a
+  contra posting keep their ordinary rows, while formerly hidden abnormal
+  balances are no longer included in column totals. Contra amounts exceeding their gross
+  parent, multiple contra rows, absent parents, and nested groups have explicit
+  test coverage. Column totals are calculated from displayed net amounts.
   The six division projections now exclude contra accounts entirely;
   select them with `projContraAssets` (Assets division) or the generic
   `projContra` (attribute-based: keeps both Hat and Not postings).

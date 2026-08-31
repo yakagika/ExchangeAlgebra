@@ -66,6 +66,8 @@
       reclassification instructions, and the policy-controlled reporting gate.
     * "ExchangeAlgebra.Reporting.Metric" — typed, read-only derived metrics
       that do not add account-basis coordinates.
+    * "ExchangeAlgebra.Reporting.Group" — reusable gross, deduction, and net
+      presentation groups for contra accounts.
     * "ExchangeAlgebra.Reporting.Presentation" — context-sensitive JGAAP
       transformation from validated trial balances to financial statements.
     * "ExchangeAlgebra.Simulate" — the classic simulation engine. /(Removed

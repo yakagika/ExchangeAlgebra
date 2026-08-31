@@ -13,6 +13,7 @@ import qualified ExchangeAlgebra.Consolidation.Worksheet as CW
 import qualified ExchangeAlgebra.TrialBalance.Validation as TB
 import qualified ExchangeAlgebra.Reporting.Presentation as RP
 import qualified ExchangeAlgebra.Reporting.Metric as RM
+import qualified ExchangeAlgebra.Reporting.Group as RG
 import qualified ExchangeAlgebra.Convert.Csv  as ECsv
 import qualified ExchangeAlgebra.Assist       as Assist
 import qualified ExchangeAlgebra.Assist.Descriptions as AssistDesc
@@ -2518,8 +2519,25 @@ testAccountSemanticsPrechangeGolden = do
         info accountSemanticsInfoGolden
     assertEqual "pre-account-semantics projection fixture"
         projections accountSemanticsProjectionGolden
-    assertEqual "pre-account-semantics presentation fixture"
-        presentation accountSemanticsPresentationGolden
+    let oldPresentation = L.drop 1 (T.lines presentation)
+        newPresentation = L.drop 1 (T.lines accountSemanticsPresentationGolden)
+        changedTitles =
+            [ T.takeWhile (/= '\t') new
+            | (old, new) <- L.zip oldPresentation newPresentation
+            , old /= new
+            ]
+    assertEqual "pre-account-semantics presentation row count"
+        (L.length oldPresentation) (L.length newPresentation)
+    assertEqual "Land 3 presentation closed diff = contra rows plus two formerly phantom totals"
+        [ T.pack "NetLoss"
+        , T.pack "AllowanceForDoubtfulAccounts"
+        , T.pack "AccumulatedDepreciation"
+        , T.pack "SalesRebates"
+        , T.pack "RefundOfIncomeTaxes"
+        , T.pack "PurchaseRebates"
+        , T.pack "NetLossAttributableToNCI"
+        ]
+        changedTitles
 
 -- Land 2 (Definition 7 contra amendment) 以降: alias 解決だけが byte 一致
 -- (parseAccountTitle は division 非依存)。semantics / info / suggest は
@@ -2947,10 +2965,171 @@ land2B4 = 30 .@ Not:<Cash .+ 80 .@ Hat:<Cash
   .+ 250 .@ Not:<AccumulatedDepreciation .+ 50 .@ Hat:<AccumulatedDepreciation
 land2B5 = land2B3 .+ 300 .@ Not:<SalesCost .+ 500 .@ Not:<Sales .+ 200 .@ Not:<Cash
 
+testLand3PresentationGroups :: IO ()
+testLand3PresentationGroups = do
+    let defaultDefs = RG.defaultPresentationGrouping
+        tradeDef = maybe (error "missing TradeReceivablesGroup") id
+            (RG.lookupGroupDef defaultDefs RG.TradeReceivablesGroup)
+        amount below magnitude = RG.RelativeAmount below (magnitude :: Double)
+        present defs entries = RG.presentGroups defs (M.fromList entries)
+        contraTitles =
+            [ title
+            | title <- Registry.concreteAccountTitles
+            , maybe False Registry.asIsContra (Registry.accountSpec title)
+            ]
+        deductionTitles = L.concatMap RG.pgDeductions defaultDefs
+        allMembers def = RG.pgGross def ++ RG.pgDeductions def
+    assertEqual "Land 3 default groups cover each registry contra exactly once"
+        (L.sort contraTitles) (L.sort deductionTitles)
+    assertEqual "Land 3 default group memberships are disjoint"
+        (L.length (L.concatMap allMembers defaultDefs))
+        (Set.size (Set.fromList (L.concatMap allMembers defaultDefs)))
+    forM_ defaultDefs $ \def ->
+        forM_ (allMembers def) $ \title ->
+            assertEqual ("Land 3 default title lookup: " ++ show title)
+                (Just (RG.pgKey def)) (RG.presentationGroupOf title)
+    forM_ defaultDefs $ \def -> do
+        forM_ (RG.pgGross def) $ \title ->
+            assertEqual ("Land 3 gross member is non-contra: " ++ show title)
+                (Just (RG.pgDivision def, False))
+                ((\spec -> (Registry.asDivision spec, Registry.asIsContra spec))
+                    <$> Registry.accountSpec title)
+        forM_ (RG.pgDeductions def) $ \title ->
+            assertEqual ("Land 3 deduction member is same-division contra: " ++ show title)
+                (Just (RG.pgDivision def, True))
+                ((\spec -> (Registry.asDivision spec, Registry.asIsContra spec))
+                    <$> Registry.accountSpec title)
+
+    let exceeded = present [tradeDef]
+            [ (AccountsReceivable, (100, 0))
+            , (AllowanceForDoubtfulAccounts, (0, 150))
+            ]
+    assertEqual "Land 3 edge: contra exceeding gross yields a negative net"
+        [(tradeDef,
+            [ RG.GroupRow (RG.GrossRow AccountsReceivable) (amount False 100)
+            , RG.GroupRow (RG.DeductionRow AllowanceForDoubtfulAccounts) (amount True 150)
+            , RG.GroupRow (RG.NetRow RG.TradeReceivablesGroup) (amount True 50)
+            ])]
+        (RG.gpBlocks exceeded)
+
+    let parentAbsent = present [tradeDef]
+            [(AllowanceForDoubtfulAccounts, (0, 30))]
+    assertEqual "Land 3 edge: parent absent still renders deduction and net"
+        [(tradeDef,
+            [ RG.GroupRow (RG.DeductionRow AllowanceForDoubtfulAccounts) (amount True 30)
+            , RG.GroupRow (RG.NetRow RG.TradeReceivablesGroup) (amount True 30)
+            ])]
+        (RG.gpBlocks parentAbsent)
+
+    let multiContraDef = tradeDef
+            { RG.pgGross = [AccountsReceivable]
+            , RG.pgDeductions =
+                [AllowanceForDoubtfulAccounts, AccumulatedDepreciation]
+            }
+        multipleContra = present [multiContraDef]
+            [ (AccountsReceivable, (1000, 0))
+            , (AllowanceForDoubtfulAccounts, (0, 100))
+            , (AccumulatedDepreciation, (0, 200))
+            ]
+    assertEqual "Land 3 edge: multiple contra rows deduct exactly once"
+        [(multiContraDef,
+            [ RG.GroupRow (RG.GrossRow AccountsReceivable) (amount False 1000)
+            , RG.GroupRow (RG.DeductionRow AllowanceForDoubtfulAccounts) (amount True 100)
+            , RG.GroupRow (RG.DeductionRow AccumulatedDepreciation) (amount True 200)
+            , RG.GroupRow (RG.NetRow RG.TradeReceivablesGroup) (amount False 700)
+            ])]
+        (RG.gpBlocks multipleContra)
+
+    let child = tradeDef { RG.pgParent = Just RG.DepreciableAssetsGroup }
+        parent = maybe (error "missing DepreciableAssetsGroup") id
+            (RG.lookupGroupDef defaultDefs RG.DepreciableAssetsGroup)
+        nested = present [parent, child]
+            [ (AccountsReceivable, (1000, 0))
+            , (AllowanceForDoubtfulAccounts, (0, 100))
+            , (Building, (800, 0))
+            , (AccumulatedDepreciation, (0, 200))
+            ]
+    assertEqual "Land 3 edge: nested child precedes and rolls into parent"
+        [ (child,
+            [ RG.GroupRow (RG.GrossRow AccountsReceivable) (amount False 1000)
+            , RG.GroupRow (RG.DeductionRow AllowanceForDoubtfulAccounts) (amount True 100)
+            , RG.GroupRow (RG.NetRow RG.TradeReceivablesGroup) (amount False 900)
+            ])
+        , (parent,
+            [ RG.GroupRow (RG.GrossRow Building) (amount False 800)
+            , RG.GroupRow (RG.SubgroupRow RG.TradeReceivablesGroup) (amount False 900)
+            , RG.GroupRow (RG.DeductionRow AccumulatedDepreciation) (amount True 200)
+            , RG.GroupRow (RG.NetRow RG.DepreciableAssetsGroup) (amount False 1500)
+            ])
+        ]
+        (RG.gpBlocks nested)
+    assertEqual "Land 3 edge: only the nested root contributes to totals"
+        (M.singleton Assets (1800, 300)) (RG.gpRootTotals nested)
+    assertEqual "Land 3 edge: all nested definition members are consumed"
+        (Set.fromList (L.concatMap allMembers [parent, child]))
+        (RG.gpConsumed nested)
+
+    let inactiveChild = present [parent, child]
+            [ (AccountsReceivable, (1000, 0))
+            , (Building, (800, 0))
+            , (AccumulatedDepreciation, (0, 200))
+            ]
+    assertEqual "Land 3 edge: inactive child gross is not rolled into its parent"
+        [(parent,
+            [ RG.GroupRow (RG.GrossRow Building) (amount False 800)
+            , RG.GroupRow (RG.DeductionRow AccumulatedDepreciation) (amount True 200)
+            , RG.GroupRow (RG.NetRow RG.DepreciableAssetsGroup) (amount False 600)
+            ])]
+        (RG.gpBlocks inactiveChild)
+    assertEqual "Land 3 edge: inactive child gross remains unconsumed"
+        (Set.fromList (allMembers parent)) (RG.gpConsumed inactiveChild)
+    assertEqual "Land 3 edge: inactive child cannot inflate the parent total"
+        (M.singleton Assets (800, 200)) (RG.gpRootTotals inactiveChild)
+
+    let salesDef = maybe (error "missing NetSalesGroup") id
+            (RG.lookupGroupDef defaultDefs RG.NetSalesGroup)
+        offsetContra = present [salesDef]
+            [ (Sales, (0, 500))
+            , (SalesRebates, (50, 50))
+            ]
+    assertEqual "Land 3 edge: fully offset contra activity still activates its group"
+        [(salesDef,
+            [ RG.GroupRow (RG.GrossRow Sales) (amount False 500)
+            , RG.GroupRow (RG.NetRow RG.NetSalesGroup) (amount False 500)
+            ])]
+        (RG.gpBlocks offsetContra)
+    assertEqual "Land 3 edge: fully offset contra title cannot leak to ordinary rows"
+        (Set.fromList [Sales, SalesRebates]) (RG.gpConsumed offsetContra)
+
+    let rows f b = L.map (L.map T.unpack) (f b)
+        excessiveChart = (100 .@ Not:<AccountsReceivable
+            .+ 150 .@ Not:<AllowanceForDoubtfulAccounts
+            :: EA.Alg Double (HatBase AccountTitles))
+        purchasesAndTaxes = (500 .@ Not:<Purchases
+            .+ 50 .@ Not:<PurchaseRebates
+            .+ 300 .@ Not:<CorporateIncomeTaxes
+            .+ 40 .@ Not:<RefundOfIncomeTaxes
+            :: EA.Alg Double (HatBase AccountTitles))
+        excessiveRows = rows bsRows excessiveChart
+        purchasesAndTaxesRows = rows plRows purchasesAndTaxes
+    assertEqual "Land 3 rendering: contra excess signs both net and asset total"
+        True
+        (["TradeReceivablesNet","-50.0","",""] `elem` excessiveRows
+            && ["Total","-50.0","",""] `elem` excessiveRows)
+    assertEqual "Land 3 rendering: purchase rebate and net label are pinned"
+        True
+        (["PurchaseRebates","-50.0","",""] `elem` purchasesAndTaxesRows
+            && ["NetPurchases","450.0","",""] `elem` purchasesAndTaxesRows)
+    assertEqual "Land 3 rendering: tax refund and net label are pinned"
+        True
+        (["RefundOfIncomeTaxes","-40.0","",""] `elem` purchasesAndTaxesRows
+            && ["IncomeTaxesNet","260.0","",""] `elem` purchasesAndTaxesRows)
+
 testLand2Presentation :: IO ()
 testLand2Presentation = do
     let rows f b = L.map (L.map T.unpack) (f b)
-    -- bsRows: Land 1 と byte 一致 (b4 は abnormal balance の既存の癖ごと保存)
+    -- Non-contra statements remain byte-identical. Contra statements use
+    -- Land 3 gross -> deduction -> net presentation.
     assertEqual "land2 bsRows b1 (= Land 1)"
         [ ["Asset","","Liability",""]
         , ["Cash","100.0","LoansPayable","60.0"]
@@ -2958,33 +3137,39 @@ testLand2Presentation = do
         , ["","","CapitalStock","40.0"]
         , ["","","Total","100.0"] ]
         (rows bsRows land2B1)
-    assertEqual "land2 bsRows b3 contra placement (= Land 1)"
+    assertEqual "land3 bsRows b3 contra groups"
         [ ["Asset","","Liability",""]
-        , ["AccountsReceivable","1000.0","LoansPayable","400.0"]
-        , ["Building","800.0","AllowanceForDoubtfulAccounts","100.0"]
-        , ["Cash","900.0","AccumulatedDepreciation","200.0"]
-        , ["Total","2700.0","Equity",""]
-        , ["","","CapitalStock","2000.0"]
-        , ["","","Total","2700.0"] ]
+        , ["Cash","900.0","LoansPayable","400.0"]
+        , ["AccountsReceivable","1000.0","Equity",""]
+        , ["AllowanceForDoubtfulAccounts","-100.0","CapitalStock","2000.0"]
+        , ["TradeReceivablesNet","900.0","Total","2400.0"]
+        , ["Building","800.0","",""]
+        , ["AccumulatedDepreciation","-200.0","",""]
+        , ["DepreciableAssetsNet","600.0","",""]
+        , ["Total","2400.0","",""] ]
         (rows bsRows land2B3)
-    assertEqual "land2 bsRows b4 abnormal (= Land 1, incl. known row/total quirk)"
+    assertEqual "land3 bsRows b4 abnormal balances"
         [ ["Asset","","Liability",""]
-        , ["LoansPayable","100.0","AccumulatedDepreciation","200.0"]
-        , ["AllowanceForDoubtfulAccounts","20.0","Equity",""]
-        , ["Building","500.0","Total","250.0"]
-        , ["Total","620.0","",""] ]
+        , ["LoansPayable","100.0","Equity",""]
+        , ["AllowanceForDoubtfulAccounts","20.0","Total","0.0"]
+        , ["TradeReceivablesNet","20.0","",""]
+        , ["Building","500.0","",""]
+        , ["AccumulatedDepreciation","-200.0","",""]
+        , ["DepreciableAssetsNet","300.0","",""]
+        , ["Total","420.0","",""] ]
         (rows bsRows land2B4)
     -- Pre-vocab difference: SalesCost is now closed by the registry-derived
     -- Cost rule, so Sales 500 - SalesCost 300 becomes RetainedEarnings 200.
-    assertEqual "land2 bsRows b5 closing (SalesCost now closes)"
+    assertEqual "land3 bsRows b5 closing and contra groups"
         [ ["Asset","","Liability",""]
-        , ["AccountsReceivable","1000.0","LoansPayable","400.0"]
-        , ["Building","800.0","AllowanceForDoubtfulAccounts","100.0"]
-        , ["Cash","1100.0","AccumulatedDepreciation","200.0"]
-        , ["Total","2900.0","Equity",""]
-        , ["","","CapitalStock","2000.0"]
-        , ["","","RetainedEarnings","200.0"]
-        , ["","","Total","2900.0"] ]
+        , ["Cash","1100.0","LoansPayable","400.0"]
+        , ["AccountsReceivable","1000.0","Equity",""]
+        , ["AllowanceForDoubtfulAccounts","-100.0","CapitalStock","2000.0"]
+        , ["TradeReceivablesNet","900.0","RetainedEarnings","200.0"]
+        , ["Building","800.0","Total","2600.0"]
+        , ["AccumulatedDepreciation","-200.0","",""]
+        , ["DepreciableAssetsNet","600.0","",""]
+        , ["Total","2600.0","",""] ]
         (rows bsRows land2B5)
     assertEqual "land2 plRows b2 (= Land 1)"
         [ ["Cost","","Revenue",""]
@@ -3021,9 +3206,8 @@ testLand2Presentation = do
         "100.00:@Not:<AllowanceForDoubtfulAccounts .+ 200.00:@Not:<AccumulatedDepreciation"
         (show (EA.projContraAssets land2B5))
 
--- pre-land2 presentation fixture (Land 1 時点の全 battery dump) との
--- 行単位 closed diff: contra division projection の既存 6 行に,
--- SalesCost の閉鎖漏れ修正から生じる b2/b5 の B/S 8 行を加えた 14 行。
+-- Current presentation battery. Exact Land 3 rows are pinned above; this dump
+-- is also compared structurally with the pre-Land 2 fixture below.
 land2PresentationLines :: [T.Text]
 land2PresentationLines = L.concatMap sect
     [ ("b1-basic", land2B1), ("b2-pl", land2B2), ("b3-contra", land2B3)
@@ -3050,24 +3234,37 @@ testLand2PresentationClosedDiff = do
     fixture <- TIO.readFile "test/fixtures/pre-land2/presentation.txt"
     let oldLines = L.filter (not . T.null) (L.drop 1 (T.lines fixture))
         newLines = land2PresentationLines
-    assertEqual "land2 presentation: line count" (L.length oldLines) (L.length newLines)
-    assertEqual "land2 presentation closed diff = contra projections plus SalesCost closing"
-        [ (T.pack "[\"SalesCost\",\"300.0\",\"Equity\",\"\"]", T.pack "[\"Total\",\"0.0\",\"Equity\",\"\"]")
-        , (T.pack "[\"Total\",\"300.0\",\"RetainedEarnings\",\"500.0\"]", T.pack "[\"\",\"\",\"RetainedEarnings\",\"200.0\"]")
-        , (T.pack "[\"\",\"\",\"Total\",\"500.0\"]", T.pack "[\"\",\"\",\"Total\",\"200.0\"]")
-        , (T.pack "400.00:@Not:<LoansPayable .+ 100.00:@Not:<AllowanceForDoubtfulAccounts", T.pack "400.00:@Not:<LoansPayable")
-        , (T.pack "200.00:@Not:<AccumulatedDepreciation", T.pack "0")
-        , (T.pack "200.00:@Not:<LoansPayable .+ 100.00:@Not:<AllowanceForDoubtfulAccounts", T.pack "200.00:@Not:<LoansPayable")
-        , (T.pack "250.00:@Not:<AccumulatedDepreciation", T.pack "0")
-        , (T.pack "[\"SalesCost\",\"300.0\",\"AccumulatedDepreciation\",\"200.0\"]", T.pack "[\"Cash\",\"1100.0\",\"AccumulatedDepreciation\",\"200.0\"]")
-        , (T.pack "[\"Cash\",\"1100.0\",\"Equity\",\"\"]", T.pack "[\"Total\",\"2900.0\",\"Equity\",\"\"]")
-        , (T.pack "[\"Total\",\"3200.0\",\"CapitalStock\",\"2000.0\"]", T.pack "[\"\",\"\",\"CapitalStock\",\"2000.0\"]")
-        , (T.pack "[\"\",\"\",\"RetainedEarnings\",\"500.0\"]", T.pack "[\"\",\"\",\"RetainedEarnings\",\"200.0\"]")
-        , (T.pack "[\"\",\"\",\"Total\",\"3200.0\"]", T.pack "[\"\",\"\",\"Total\",\"2900.0\"]")
-        , (T.pack "400.00:@Not:<LoansPayable .+ 100.00:@Not:<AllowanceForDoubtfulAccounts", T.pack "400.00:@Not:<LoansPayable")
-        , (T.pack "200.00:@Not:<AccumulatedDepreciation", T.pack "0")
+        names = L.map T.pack ["b1-basic", "b2-pl", "b3-contra", "b4-abnormal", "b5-closing"]
+        markers = L.map T.pack
+            [ "-- bsRows", "-- plRows", "-- projCurrentAssets"
+            , "-- projFixedAssets", "-- projDeferredAssets"
+            , "-- projCurrentLiability", "-- projFixedLiability"
+            , "-- projCapitalStock"
+            ]
+        section name xs = takeWhile (not . T.isPrefixOf (T.pack "## "))
+            (drop 1 (dropWhile (/= (T.pack "## " <> name)) xs))
+        block marker xs = marker
+            : takeWhile (not . T.isPrefixOf (T.pack "-- "))
+                (drop 1 (dropWhile (/= marker) xs))
+        changedBlocks =
+            [ (name, marker)
+            | name <- names
+            , marker <- markers
+            , block marker (section name oldLines) /= block marker (section name newLines)
+            ]
+    assertEqual "Land 3 closed diff: only adjudicated battery blocks changed"
+        [ (T.pack "b2-pl", T.pack "-- bsRows")
+        , (T.pack "b3-contra", T.pack "-- bsRows")
+        , (T.pack "b3-contra", T.pack "-- projCurrentLiability")
+        , (T.pack "b3-contra", T.pack "-- projFixedLiability")
+        , (T.pack "b4-abnormal", T.pack "-- bsRows")
+        , (T.pack "b4-abnormal", T.pack "-- projCurrentLiability")
+        , (T.pack "b4-abnormal", T.pack "-- projFixedLiability")
+        , (T.pack "b5-closing", T.pack "-- bsRows")
+        , (T.pack "b5-closing", T.pack "-- projCurrentLiability")
+        , (T.pack "b5-closing", T.pack "-- projFixedLiability")
         ]
-        [ (o, n) | (o, n) <- L.zip oldLines newLines, o /= n ]
+        changedBlocks
 
 -- HatNot は whichSide で明示 error (規約の regression 固定)
 testLand2HatNotPolicy :: IO ()
@@ -6036,6 +6233,7 @@ main = do
     testLand2ExchangeRelation
     testLand2IsContraInstances
     testLand2AiDivision
+    testLand3PresentationGroups
     testLand2Presentation
     testLand2PresentationClosedDiff
     testLand2HatNotPolicy
