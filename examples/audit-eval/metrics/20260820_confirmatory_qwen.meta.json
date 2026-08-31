@@ -1,0 +1,104 @@
+{
+  "ts": "20260820_confirmatory_qwen",
+  "argv": [
+    "runner/run.py",
+    "--tasks-dir",
+    "/tmp/audit-harness-confirmatory-20260817",
+    "--task",
+    "all",
+    "--arm",
+    "Aprime,C,B,V,A,D",
+    "--model",
+    "local",
+    "--seed",
+    "0",
+    "--repeats",
+    "5",
+    "--max-iters",
+    "3",
+    "--aprime-feedback",
+    "raw",
+    "--skill",
+    "v2",
+    "--c-retries",
+    "3",
+    "--c-ea-map",
+    "--oracle-arms",
+    "B,C",
+    "--timestamp",
+    "20260820_confirmatory_qwen"
+  ],
+  "tasks": [
+    "gen-cash_sale-000002-10",
+    "gen-cash_sale-000002-200",
+    "gen-cash_sale-000002-50",
+    "gen-cash_sale-000003-10",
+    "gen-cash_sale-000003-200",
+    "gen-cash_sale-000003-50",
+    "gen-cash_sale-000004-10",
+    "gen-cash_sale-000004-200",
+    "gen-cash_sale-000004-50",
+    "gen-credit_trade-000002-10",
+    "gen-credit_trade-000002-200",
+    "gen-credit_trade-000002-50",
+    "gen-credit_trade-000003-10",
+    "gen-credit_trade-000003-200",
+    "gen-credit_trade-000003-50",
+    "gen-credit_trade-000004-10",
+    "gen-credit_trade-000004-200",
+    "gen-credit_trade-000004-50",
+    "gen-payroll-000002-10",
+    "gen-payroll-000002-200",
+    "gen-payroll-000002-50",
+    "gen-payroll-000003-10",
+    "gen-payroll-000003-200",
+    "gen-payroll-000003-50",
+    "gen-payroll-000004-10",
+    "gen-payroll-000004-200",
+    "gen-payroll-000004-50",
+    "gen-tax-000002-10",
+    "gen-tax-000002-200",
+    "gen-tax-000002-50",
+    "gen-tax-000003-10",
+    "gen-tax-000003-200",
+    "gen-tax-000003-50",
+    "gen-tax-000004-10",
+    "gen-tax-000004-200",
+    "gen-tax-000004-50"
+  ],
+  "tasks_dir": "/tmp/audit-harness-confirmatory-20260817",
+  "arms": [
+    "Aprime",
+    "C",
+    "B",
+    "V",
+    "A",
+    "D"
+  ],
+  "models": [
+    "local"
+  ],
+  "seeds": [
+    0
+  ],
+  "max_iters": 3,
+  "oracle_arms": [
+    "B",
+    "C"
+  ],
+  "skill": "v2",
+  "aprime_feedback": "raw",
+  "c_retries": 3,
+  "c_ea_map": true,
+  "git": {
+    "rev_parse_head": "cb1c65ff53bf997855d70d891750291d6f7812a4",
+    "describe": "landed/edinet-vocab-vland3-dirty"
+  },
+  "backends": {
+    "local": {
+      "backend": "openai_compat",
+      "configured_model": "qwen3:30b-a3b",
+      "version": "ollama 0.31.1"
+    }
+  }
+}

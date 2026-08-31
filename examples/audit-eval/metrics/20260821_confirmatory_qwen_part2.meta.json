@@ -1,0 +1,137 @@
+{
+  "ts": "20260821_confirmatory_qwen_part2",
+  "argv": [
+    "runner/run.py",
+    "--tasks-dir",
+    "/Users/akagi/Developer/Research/audit-harness/artifacts/confirmatory-v2/tasks",
+    "--task",
+    "all",
+    "--arm",
+    "Aprime,C,B,V,A,D",
+    "--model",
+    "local",
+    "--seed",
+    "0",
+    "--repeats",
+    "5",
+    "--max-iters",
+    "3",
+    "--aprime-feedback",
+    "raw",
+    "--skill",
+    "v2",
+    "--c-retries",
+    "3",
+    "--c-ea-map",
+    "--oracle-arms",
+    "B,C",
+    "--resume-from",
+    "/Users/akagi/Developer/Haskell/ExchangeAlgebra/examples/audit-eval/metrics/20260820_confirmatory_qwen.meta.json",
+    "--expect-task-bundle-sha256",
+    "7e34eed1a3ee77e7f98981eee11abccd686f93024c7db3edab1dafa099a6aa2f",
+    "--expect-parent-jsonl-sha256",
+    "3e38575a54599562ba93f4e087e95905c67b57178ffe56c2af3f3f88a3552b40",
+    "--timestamp",
+    "20260821_confirmatory_qwen_part2"
+  ],
+  "tasks": [
+    "gen-cash_sale-000002-10",
+    "gen-cash_sale-000002-200",
+    "gen-cash_sale-000002-50",
+    "gen-cash_sale-000003-10",
+    "gen-cash_sale-000003-200",
+    "gen-cash_sale-000003-50",
+    "gen-cash_sale-000004-10",
+    "gen-cash_sale-000004-200",
+    "gen-cash_sale-000004-50",
+    "gen-credit_trade-000002-10",
+    "gen-credit_trade-000002-200",
+    "gen-credit_trade-000002-50",
+    "gen-credit_trade-000003-10",
+    "gen-credit_trade-000003-200",
+    "gen-credit_trade-000003-50",
+    "gen-credit_trade-000004-10",
+    "gen-credit_trade-000004-200",
+    "gen-credit_trade-000004-50",
+    "gen-payroll-000002-10",
+    "gen-payroll-000002-200",
+    "gen-payroll-000002-50",
+    "gen-payroll-000003-10",
+    "gen-payroll-000003-200",
+    "gen-payroll-000003-50",
+    "gen-payroll-000004-10",
+    "gen-payroll-000004-200",
+    "gen-payroll-000004-50",
+    "gen-tax-000002-10",
+    "gen-tax-000002-200",
+    "gen-tax-000002-50",
+    "gen-tax-000003-10",
+    "gen-tax-000003-200",
+    "gen-tax-000003-50",
+    "gen-tax-000004-10",
+    "gen-tax-000004-200",
+    "gen-tax-000004-50"
+  ],
+  "tasks_dir": "/Users/akagi/Developer/Research/audit-harness/artifacts/confirmatory-v2/tasks",
+  "arms": [
+    "Aprime",
+    "C",
+    "B",
+    "V",
+    "A",
+    "D"
+  ],
+  "models": [
+    "local"
+  ],
+  "seeds": [
+    0
+  ],
+  "repeats": 5,
+  "max_iters": 3,
+  "oracle_arms": [
+    "B",
+    "C"
+  ],
+  "skill": "v2",
+  "aprime_feedback": "raw",
+  "c_retries": 3,
+  "c_ea_map": true,
+  "git": {
+    "rev_parse_head": "0d8e2791429145f2a48c79adbe62563328ee5c0b",
+    "describe": "landed/audit-eval-resumable-checkpoints-dirty"
+  },
+  "backends": {
+    "local": {
+      "backend": "openai_compat",
+      "configured_model": "qwen3:30b-a3b",
+      "version": "ollama 0.31.1"
+    }
+  },
+  "resolved_model_config": {
+    "local": {
+      "backend": "openai_compat",
+      "model": "qwen3:30b-a3b",
+      "base_url": "http://localhost:11434",
+      "temperature": 0.6,
+      "top_p": 0.95,
+      "max_tokens": null,
+      "timeout_seconds": 3600,
+      "effort": null
+    }
+  },
+  "task_bundle_sha256": "7e34eed1a3ee77e7f98981eee11abccd686f93024c7db3edab1dafa099a6aa2f",
+  "resume": {
+    "parent_meta": "/Users/akagi/Developer/Haskell/ExchangeAlgebra/examples/audit-eval/metrics/20260820_confirmatory_qwen.meta.json",
+    "sources": [
+      {
+        "meta": "/Users/akagi/Developer/Haskell/ExchangeAlgebra/examples/audit-eval/metrics/20260820_confirmatory_qwen.meta.json",
+        "jsonl": "/Users/akagi/Developer/Haskell/ExchangeAlgebra/examples/audit-eval/metrics/20260820_confirmatory_qwen.jsonl",
+        "jsonl_sha256": "3e38575a54599562ba93f4e087e95905c67b57178ffe56c2af3f3f88a3552b40",
+        "records": 270
+      }
+    ],
+    "completed_before": 270,
+    "remaining_before": 810
+  }
+}
