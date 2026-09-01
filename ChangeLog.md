@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Added
+- Add an opt-in `side` scoring contract to `audit-eval`. Ledger and
+  trial-balance balances are compared as an actual debit/credit/zero side plus
+  a non-negative amount, while the frozen signed-value `v1` contract remains
+  the default for confirmatory-result reproducibility.
 - Add dedicated `ConsumptionTaxRefundReceivable`, `PropertyTaxPayable`, and
   `DepositsReceivedFromOfficers` constructors for the corresponding JCCI
   level-2 A-column names. Add `AccountSpec.asLabelJa` for all 235 concrete

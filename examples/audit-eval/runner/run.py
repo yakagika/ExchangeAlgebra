@@ -27,6 +27,8 @@ Arguments
 --c-retries <int>     Retry count for arm C after first failure (default 1).
 --c-ea-map            Include EA account mapping in arm C prompts.
 --oracle-arms <arms>  Arms the EA oracle applies to (default B,C).
+--scoring-contract <v1|side>
+                      Derived-value scoring/prompt contract (default v1).
 --dry-run             Print what would be run without calling the LLM.
 
 Output (written incrementally so a killed / OOM-ed run keeps completed cells)
@@ -73,6 +75,7 @@ CELL_FIELDS = ("task_id", "arm", "model", "seed", "repeat")
 RESUME_CONFIG_FIELDS = (
     "tasks", "arms", "models", "seeds", "repeats", "max_iters",
     "oracle_arms", "skill", "aprime_feedback", "c_retries", "c_ea_map",
+    "scoring_contract",
 )
 MEASUREMENT_SURFACE = (
     "src", "examples/audit-eval/harness", "examples/audit-eval/oracle",
@@ -391,6 +394,7 @@ def run_one(
     aprime_feedback: str,
     c_retries: int,
     c_ea_map: bool,
+    scoring_contract: str,
     repeat: int = 0,
 ) -> dict:
     """Execute one evaluation cell and return a result record."""
@@ -407,6 +411,7 @@ def run_one(
             "effective_model": None,
             "skill": skill if arm_name == "A" else None,
             "aprime_feedback": aprime_feedback if arm_name == "Aprime" else None,
+            "scoring_contract": scoring_contract,
         }
 
     backend = backend_from_config(backend_cfg)
@@ -426,24 +431,30 @@ def run_one(
             arm_result = arm_c(
                 task, backend, max_iters=max_iters,
                 retries=c_retries, include_ea_map=c_ea_map,
+                scoring_contract=scoring_contract,
             )
         elif arm_name == "A":
             arm_result = arm_a(task, backend, task_run_dir, WORKTREE_ROOT,
-                               max_iters=max_iters, skill_version=skill)
+                               max_iters=max_iters, skill_version=skill,
+                               scoring_contract=scoring_contract)
         elif arm_name == "Aprime":
             arm_result = arm_aprime(
                 task, backend, task_run_dir, WORKTREE_ROOT,
                 max_iters=max_iters, feedback_mode=aprime_feedback,
+                scoring_contract=scoring_contract,
             )
         elif arm_name == "V":
             arm_result = arm_v(task, backend, task_run_dir, WORKTREE_ROOT,
-                               max_iters=max_iters)
+                               max_iters=max_iters,
+                               scoring_contract=scoring_contract)
         elif arm_name == "B":
             arm_result = arm_b(task, backend, task_run_dir,
-                               max_iters=max_iters)
+                               max_iters=max_iters,
+                               scoring_contract=scoring_contract)
         elif arm_name == "D":
             arm_result = arm_d(task, backend, task_run_dir, WORKTREE_ROOT,
-                               max_iters=max_iters)
+                               max_iters=max_iters,
+                               scoring_contract=scoring_contract)
         else:
             arm_result = {"parse_fail": True, "compile_fail": False,
                           "parsed": None, "stub": True,
@@ -461,6 +472,7 @@ def run_one(
         task, arm_result, arm_name,
         worktree_root=WORKTREE_ROOT,
         oracle_arms=oracle_arms,
+        scoring_contract=scoring_contract,
     )
 
     return {
@@ -478,6 +490,7 @@ def run_one(
         "backend_call": getattr(backend, "last_call", None),
         "skill": skill if arm_name == "A" else None,
         "aprime_feedback": aprime_feedback if arm_name == "Aprime" else None,
+        "scoring_contract": scoring_contract,
     }
 
 
@@ -526,6 +539,7 @@ def append_summary_csv(records: list[dict], csv_path: Path, ts: str) -> None:
         "balance_violation", "account_validity", "compile_fail", "parse_fail",
         "verification_gap", "iterations", "converged", "timed_out",
         "first_pass_valid", "effective_model", "skill", "aprime_feedback",
+        "scoring_contract",
         "derived_source", "prompt_tokens", "completion_tokens", "finish_reason",
         "temperature", "top_p",
     ]
@@ -599,6 +613,7 @@ def append_summary_csv(records: list[dict], csv_path: Path, ts: str) -> None:
                 "effective_model":    rec.get("effective_model"),
                 "skill":              rec.get("skill"),
                 "aprime_feedback":    rec.get("aprime_feedback"),
+                "scoring_contract":   rec.get("scoring_contract", "v1"),
                 "derived_source":     rec.get("derived_source"),
                 "prompt_tokens":      call.get("prompt_tokens"),
                 "completion_tokens":  call.get("completion_tokens"),
@@ -671,6 +686,7 @@ def build_run_meta(
         "aprime_feedback": args.aprime_feedback,
         "c_retries": args.c_retries,
         "c_ea_map": args.c_ea_map,
+        "scoring_contract": args.scoring_contract,
         "git": {
             "rev_parse_head": _git_capture(["rev-parse", "HEAD"]),
             "describe": _git_capture(["describe", "--tags", "--always", "--dirty"]),
@@ -769,6 +785,10 @@ def main() -> None:
         help="Comma-separated arms the EA oracle (verification_gap) is applied "
              "to (default B,C; use A,B,C for the arm-A smoke check)",
     )
+    parser.add_argument(
+        "--scoring-contract", choices=("v1", "side"), default="v1",
+        help="Derived scoring and output contract (default v1; use side for next-round runs)",
+    )
     args = parser.parse_args()
     tasks_dir = args.tasks_dir.resolve()
 
@@ -823,6 +843,7 @@ def main() -> None:
     print(f"  skill       : {args.skill}")
     print(f"  Aprime fb   : {args.aprime_feedback}")
     print(f"  C retries   : {args.c_retries}  C ea_map={args.c_ea_map}")
+    print(f"  score contract: {args.scoring_contract}")
     print()
 
     # ---- Prepare output sinks up front so a killed / OOM-ed run keeps every
@@ -916,6 +937,7 @@ def main() -> None:
                             aprime_feedback=args.aprime_feedback,
                             c_retries=args.c_retries,
                             c_ea_map=args.c_ea_map,
+                            scoring_contract=args.scoring_contract,
                             repeat=repeat,
                         )
                         all_records.append(rec)

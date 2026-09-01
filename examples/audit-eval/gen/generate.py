@@ -26,6 +26,13 @@ DERIVED_FORMAT_NOTE = (
     "and financial_statements.* summary keys."
 )
 
+DERIVED_FORMAT_NOTE_SIDE = (
+    "Return one JSON object with keys 'journal' and 'derived'. "
+    "'journal' is an array of canonical postings. 'derived' is a flat map: "
+    "ledger and trial-balance rows use side ('debit', 'credit', or 'zero') "
+    "and a non-negative amount; all other derived keys map to numbers."
+)
+
 
 def _flatten_postings(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     postings: list[dict[str, Any]] = []
@@ -67,6 +74,7 @@ def generate_task(seed: int, count: int = 7, template: str = "mixed") -> dict[st
         "expected_output": {
             "components": ["journal", "derived"],
             "format_note": DERIVED_FORMAT_NOTE,
+            "format_note_side": DERIVED_FORMAT_NOTE_SIDE,
         },
         "ground_truth": {
             "journal": postings,

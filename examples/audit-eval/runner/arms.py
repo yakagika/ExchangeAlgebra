@@ -45,6 +45,7 @@ from typing import Any, Optional
 
 from runner.build import run_derive_ea, run_haskell, run_loadchecked, run_python
 from runner.models import Backend, BackendTimeout
+from runner.score import _is_side_contract_key, _is_v1_signed_balance_key
 
 EVAL_DIR = Path(__file__).resolve().parent.parent
 SKILL_PATHS = {
@@ -266,7 +267,13 @@ _COMPONENT_SHAPES: dict[str, str] = {
 }
 
 
-def _component_shape_text(component: str) -> str:
+def _component_shape_text(component: str, side_aware: bool = False) -> str:
+    if component == "derived" and side_aware:
+        return (
+            '"derived": a FLAT JSON object. Ledger balances and trial-balance '
+            'rows use side ("debit"/"credit"/"zero") and amount (non-negative); '
+            "all other required keys map to numbers."
+        )
     try:
         return _COMPONENT_SHAPES[component]
     except KeyError:
@@ -282,7 +289,7 @@ def _expected_shape_desc(task: dict) -> str:
     return f"one JSON object with keys {components}"
 
 
-def _output_contract(task: dict) -> str:
+def _output_contract(task: dict, scoring_contract: str = "v1") -> str:
     """
     Build the "output format" section of a system prompt from
     task["expected_output"] (v2) or the legacy bare-array contract (v1;
@@ -290,6 +297,9 @@ def _output_contract(task: dict) -> str:
     escape-hatch tasks (ground_truth.escape_hatch_expected), the
     policy_assumed/alternatives requirement (TASK-FORMAT.md).
     """
+    if scoring_contract not in {"v1", "side"}:
+        raise ValueError(f"unknown scoring contract: {scoring_contract!r}")
+
     expected = task.get("expected_output")
     gt = task.get("ground_truth", {}) or {}
     escape_hatch = bool(gt.get("escape_hatch_expected"))
@@ -308,9 +318,14 @@ def _output_contract(task: dict) -> str:
         return "\n".join(lines)
 
     components = expected.get("components", []) or []
+    gt_derived = gt.get("derived", {}) or {}
+    side_aware = (
+        scoring_contract == "side"
+        and any(_is_side_contract_key(k) for k in gt_derived)
+    )
     lines = ["Output format: a single JSON object with exactly these keys:"]
     for c in components:
-        lines.append("  " + _component_shape_text(c))
+        lines.append("  " + _component_shape_text(c, side_aware))
 
     # Pin the exact 'derived' key vocabulary (P1-family fairness fix, 3rd
     # instance): GT key names are the output *schema*, not the answer. Without
@@ -318,17 +333,41 @@ def _output_contract(task: dict) -> str:
     # "gross_profit" vs "net_income") and correct values score 0 — a
     # name-translation bias hitting all arms on derived-heavy tasks.
     if "derived" in components:
-        gt_derived = (task.get("ground_truth", {}) or {}).get("derived", {}) or {}
-        if gt_derived:
+        if not side_aware:
+            required_derived = {
+                k: v for k, v in gt_derived.items()
+                if not _is_side_contract_key(k)
+            }
+        else:
+            required_derived = {
+                k: v for k, v in gt_derived.items()
+                if not _is_v1_signed_balance_key(k)
+            }
+        if required_derived:
             lines.append("")
             lines.append(
                 "The 'derived' object must contain EXACTLY these keys, "
-                "with the numeric values you computed:"
+                + (
+                    "with side and amount for balances and numeric values for all other keys:"
+                    if side_aware
+                    else "with the numeric values you computed:"
+                )
             )
-            for k in gt_derived:
+            for k in required_derived:
                 lines.append(f'  "{k}"')
+        if side_aware:
+            lines.append("")
+            lines.append(
+                'Report every ledger balance and trial-balance row using side '
+                '("debit", "credit", or "zero") and amount (a non-negative number). '
+                "Do not use signed numeric balance values."
+            )
 
-    format_note = expected.get("format_note")
+    format_note = (
+        expected.get("format_note_side", expected.get("format_note"))
+        if side_aware
+        else expected.get("format_note")
+    )
     if format_note:
         lines.append("")
         lines.append(f"Format note: {format_note}")
@@ -479,8 +518,8 @@ Output ONLY the Python source code (no markdown fences, no explanation).
 """
 
 
-def _arm_c_system(task: dict) -> str:
-    return _ARM_C_ROLE + "\n" + _output_contract(task)
+def _arm_c_system(task: dict, scoring_contract: str = "v1") -> str:
+    return _ARM_C_ROLE + "\n" + _output_contract(task, scoring_contract)
 
 
 def _task_has_transactions(task: dict) -> bool:
@@ -488,8 +527,8 @@ def _task_has_transactions(task: dict) -> bool:
     return isinstance(txs, list) and bool(txs)
 
 
-def _arm_aprime_system(task: dict) -> str:
-    system = _ARM_APRIME_ROLE + "\n" + _output_contract(task)
+def _arm_aprime_system(task: dict, scoring_contract: str = "v1") -> str:
+    system = _ARM_APRIME_ROLE + "\n" + _output_contract(task, scoring_contract)
     if _task_has_transactions(task):
         system += (
             "\n\nTransaction id contract: every journal posting MUST include "
@@ -499,8 +538,8 @@ def _arm_aprime_system(task: dict) -> str:
     return system
 
 
-def _arm_v_system(task: dict) -> str:
-    system = _ARM_V_ROLE + "\n" + _output_contract(task)
+def _arm_v_system(task: dict, scoring_contract: str = "v1") -> str:
+    system = _ARM_V_ROLE + "\n" + _output_contract(task, scoring_contract)
     if _task_has_transactions(task):
         system += (
             "\n\nTransaction id contract: every journal posting MUST include "
@@ -510,12 +549,22 @@ def _arm_v_system(task: dict) -> str:
     return system
 
 
-def _ea_minimal_system(task: dict) -> str:
-    return _EA_MINIMAL_ROLE + "\n" + _output_contract(task)
+def _ea_minimal_system(task: dict, scoring_contract: str = "v1") -> str:
+    system = _EA_MINIMAL_ROLE + "\n" + _output_contract(task, scoring_contract)
+    gt_derived = (task.get("ground_truth", {}) or {}).get("derived", {}) or {}
+    if scoring_contract == "side" and any(
+        _is_side_contract_key(k) for k in gt_derived
+    ):
+        system += (
+            "\n\nFor a side-contract derived object, use jFlatDerived with JStr for "
+            "side fields and jNum/jInt for amount and other numeric fields; "
+            "jFlatNum cannot represent side strings."
+        )
+    return system
 
 
-def _arm_b_system(task: dict) -> str:
-    return _ARM_B_ROLE + "\n" + _output_contract(task)
+def _arm_b_system(task: dict, scoring_contract: str = "v1") -> str:
+    return _ARM_B_ROLE + "\n" + _output_contract(task, scoring_contract)
 
 
 def _load_skill(version: str) -> str:
@@ -532,9 +581,13 @@ def _load_skill(version: str) -> str:
     return skill_path.read_text(encoding="utf-8")
 
 
-def _arm_a_system(task: dict, skill_version: str = "v1") -> str:
+def _arm_a_system(
+    task: dict,
+    skill_version: str = "v1",
+    scoring_contract: str = "v1",
+) -> str:
     return (
-        _ea_minimal_system(task)
+        _ea_minimal_system(task, scoring_contract)
         + f"\n# Harness cheatsheet (SKILL-ea-{skill_version}) — follow it exactly\n\n"
         + _load_skill(skill_version)
     )
@@ -723,6 +776,7 @@ def arm_c(
     max_iters: int = DEFAULT_MAX_ITERS,
     retries: int = 1,
     include_ea_map: bool = False,
+    scoring_contract: str = "v1",
 ) -> dict:
     """
     Arm C: direct-numeric generation. The LLM emits canonical JSON itself.
@@ -732,7 +786,7 @@ def arm_c(
     """
     user_prompt = _build_user_prompt(task, include_ea_map=include_ea_map)
     object_contract = task.get("expected_output") is not None
-    base_system = _arm_c_system(task)
+    base_system = _arm_c_system(task, scoring_contract)
 
     result: dict[str, Any] = {
         "raw_output": None,
@@ -846,6 +900,21 @@ def _task_derivable(task: dict) -> bool:
     return bool(gt.get("generator_metadata")) and bool(gt.get("derived"))
 
 
+def _derived_for_contract(derived: dict, scoring_contract: str) -> dict:
+    """Project dual-contract oracle output onto the selected model contract."""
+    if scoring_contract == "v1":
+        return {
+            k: v for k, v in derived.items()
+            if not _is_side_contract_key(k)
+        }
+    if scoring_contract == "side":
+        return {
+            k: v for k, v in derived.items()
+            if not _is_v1_signed_balance_key(k)
+        }
+    raise ValueError(f"unknown scoring contract: {scoring_contract!r}")
+
+
 def _canonical_journal_from_verdict(verdict: dict) -> Optional[list]:
     journal = verdict.get("journal")
     if isinstance(journal, list):
@@ -941,6 +1010,7 @@ def arm_v(
     task_run_dir: Path,
     worktree_root: Path,
     max_iters: int = DEFAULT_MAX_ITERS,
+    scoring_contract: str = "v1",
 ) -> dict:
     """
     Arm V (validator baseline): same contract and prompt as A' except the
@@ -980,7 +1050,9 @@ def arm_v(
         result["iterations"] = i
 
         try:
-            raw = backend.generate(system=_arm_v_system(task), user=user)
+            raw = backend.generate(
+                system=_arm_v_system(task, scoring_contract), user=user
+            )
         except BackendTimeout as exc:
             attempt["error"] = f"backend timeout: {exc}"
             result["attempts"].append(attempt)
@@ -1053,7 +1125,9 @@ def arm_v(
             if _task_derivable(task):
                 try:
                     from gen.pandas_oracle import compute_derived
-                    final_parsed["derived"] = compute_derived(journal_component)
+                    final_parsed["derived"] = _derived_for_contract(
+                        compute_derived(journal_component), scoring_contract
+                    )
                     result["derived_source"] = "harness (pandas)"
                 except Exception as exc:
                     result["derived_source"] = f"model (pandas derivation failed: {exc})"
@@ -1083,6 +1157,7 @@ def arm_aprime(
     feedback_mode: str = "raw",
     loadchecked_fn=None,
     derive_fn=None,
+    scoring_contract: str = "v1",
 ) -> dict:
     """
     Arm A-prime: the LLM emits postings JSON directly, but the harness admits
@@ -1128,7 +1203,9 @@ def arm_aprime(
         result["iterations"] = i
 
         try:
-            raw = backend.generate(system=_arm_aprime_system(task), user=user)
+            raw = backend.generate(
+                system=_arm_aprime_system(task, scoring_contract), user=user
+            )
         except BackendTimeout as exc:
             attempt["error"] = f"backend timeout: {exc}"
             result["attempts"].append(attempt)
@@ -1229,7 +1306,9 @@ def arm_aprime(
                 )
                 harness_derived = (derived_out or {}).get("derived")
                 if isinstance(harness_derived, dict) and harness_derived:
-                    final_parsed["derived"] = harness_derived
+                    final_parsed["derived"] = _derived_for_contract(
+                        harness_derived, scoring_contract
+                    )
                     result["derived_source"] = "harness"
                 else:
                     result["derived_source"] = "model (derivation failed)"
@@ -1262,6 +1341,7 @@ def arm_a(
     worktree_root: Path,
     max_iters: int = DEFAULT_MAX_ITERS,
     skill_version: str = "v1",
+    scoring_contract: str = "v1",
 ) -> dict:
     """
     Arm A: EA-DSL generation + Haskell execution, with the versioned SKILL
@@ -1271,7 +1351,9 @@ def arm_a(
         task=task,
         backend=backend,
         task_run_dir=task_run_dir,
-        system_prompt=_arm_a_system(task, skill_version=skill_version),
+        system_prompt=_arm_a_system(
+            task, skill_version=skill_version, scoring_contract=scoring_contract
+        ),
         lang="haskell",
         runner_fn=lambda p: run_haskell(p, worktree_root),
         gen_filename="Gen.hs",
@@ -1289,6 +1371,7 @@ def arm_b(
     backend: Backend,
     task_run_dir: Path,
     max_iters: int = DEFAULT_MAX_ITERS,
+    scoring_contract: str = "v1",
 ) -> dict:
     """
     Arm B: Python script generation + execution via `uv run python`.
@@ -1299,7 +1382,7 @@ def arm_b(
         task=task,
         backend=backend,
         task_run_dir=task_run_dir,
-        system_prompt=_arm_b_system(task),
+        system_prompt=_arm_b_system(task, scoring_contract),
         lang="python",
         runner_fn=lambda p: run_python(p, EVAL_DIR),
         gen_filename="Gen.py",
@@ -1318,6 +1401,7 @@ def arm_d(
     task_run_dir: Path,
     worktree_root: Path,
     max_iters: int = DEFAULT_MAX_ITERS,
+    scoring_contract: str = "v1",
 ) -> dict:
     """
     Arm D: identical pipeline to arm A but WITHOUT the SKILL cheatsheet —
@@ -1328,7 +1412,7 @@ def arm_d(
         task=task,
         backend=backend,
         task_run_dir=task_run_dir,
-        system_prompt=_ea_minimal_system(task),
+        system_prompt=_ea_minimal_system(task, scoring_contract),
         lang="haskell",
         runner_fn=lambda p: run_haskell(p, worktree_root),
         gen_filename="Gen.hs",

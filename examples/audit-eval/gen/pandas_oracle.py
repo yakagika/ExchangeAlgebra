@@ -24,6 +24,7 @@ except ImportError:  # pragma: no cover
         account_category,
         is_known_account,
         is_nominal,
+        is_contra,
         normal_side,
     )
 
@@ -109,10 +110,20 @@ def ledger(postings: Iterable[Mapping[str, Any]]) -> pd.DataFrame:
     )
 
 
-def compute_derived(postings: Iterable[Mapping[str, Any]]) -> dict[str, int]:
+def _balance_side_amount(debits: int, credits: int) -> tuple[str, int]:
+    """Return the actual balance side and its unsigned amount."""
+    net = debits - credits
+    if net > 0:
+        return "debit", net
+    if net < 0:
+        return "credit", -net
+    return "zero", 0
+
+
+def compute_derived(postings: Iterable[Mapping[str, Any]]) -> dict[str, int | str]:
     """Compute ledger, trial balance, and financial statement summaries."""
     led = ledger(postings)
-    derived: dict[str, int] = {}
+    derived: dict[str, int | str] = {}
     if led.empty:
         return {
             "financial_statements.total_assets": 0,
@@ -125,10 +136,17 @@ def compute_derived(postings: Iterable[Mapping[str, Any]]) -> dict[str, int]:
         }
 
     for account, row in led.sort_index().iterrows():
-        derived[f"ledger.{account}.debits"] = int(row["debits"])
-        derived[f"ledger.{account}.credits"] = int(row["credits"])
+        debits = int(row["debits"])
+        credits = int(row["credits"])
+        balance_side, balance_amount = _balance_side_amount(debits, credits)
+        derived[f"ledger.{account}.debits"] = debits
+        derived[f"ledger.{account}.credits"] = credits
         derived[f"ledger.{account}.balance"] = int(row["balance"])
         derived[f"trial_balance.{account}"] = int(row["trial_balance"])
+        derived[f"ledger.{account}.balance_side"] = balance_side
+        derived[f"ledger.{account}.balance_amount"] = balance_amount
+        derived[f"trial_balance.{account}.side"] = balance_side
+        derived[f"trial_balance.{account}.amount"] = balance_amount
 
     def sum_category(category: str) -> int:
         subset = led[led["category"] == category]
@@ -164,7 +182,7 @@ def compute_derived(postings: Iterable[Mapping[str, Any]]) -> dict[str, int]:
 
 
 def compare_flat_numeric(left: Mapping[str, Any], right: Mapping[str, Any]) -> list[str]:
-    """Return normalized mismatch descriptions for two flat numeric maps."""
+    """Return mismatches for flat derived maps containing numbers and v2 sides."""
     mismatches: list[str] = []
     left_keys = set(left)
     right_keys = set(right)
@@ -173,7 +191,11 @@ def compare_flat_numeric(left: Mapping[str, Any], right: Mapping[str, Any]) -> l
     for key in sorted(right_keys - left_keys):
         mismatches.append(f"missing-left:{key}")
     for key in sorted(left_keys & right_keys):
-        if _amount(left[key]) != _amount(right[key]):
+        if key.endswith(".side") or key.endswith(".balance_side"):
+            equal = str(left[key]).strip().lower() == str(right[key]).strip().lower()
+        else:
+            equal = _amount(left[key]) == _amount(right[key])
+        if not equal:
             mismatches.append(f"value:{key}:{left[key]}!={right[key]}")
     return mismatches
 
@@ -290,4 +312,3 @@ def balances_by_account(postings: Iterable[Mapping[str, Any]]) -> dict[str, int]
             account = key.removeprefix("ledger.").removesuffix(".balance")
             balances[account] = int(value)
     return balances
-

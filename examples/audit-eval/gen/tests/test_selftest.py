@@ -18,8 +18,9 @@ from gen.accounts import ACCOUNT_DIVISIONS, CONTRA_ACCOUNTS, normal_side
 from gen.generate import generate_task
 from gen.compare_ea import compare_task_to_ea
 from gen.defects import DEFECT_KINDS, generate_audit_task
-from gen.pandas_oracle import compute_derived, detect_findings
+from gen.pandas_oracle import compare_flat_numeric, compute_derived, detect_findings
 from gen.templates import TEMPLATES
+from runner.score import _is_side_contract_key
 
 
 LABEL_KEYS = {"template", "trade_side", "settlement"}
@@ -148,6 +149,75 @@ def test_pandas_oracle_matches_hand_calculated_fixture() -> None:
     assert derived["financial_statements.balance_check"] == 0
 
 
+def test_side_contract_credit_balance_and_v1_regression() -> None:
+    postings = [
+        {"entry": "payroll", "side": "debit", "account": "WageExpenditure", "amount": 25400},
+        {"entry": "payroll", "side": "credit", "account": "Cash", "amount": 25400},
+    ]
+    derived = compute_derived(postings)
+
+    assert derived["ledger.Cash.balance_side"] == "credit"
+    assert derived["ledger.Cash.balance_amount"] == 25400
+    assert derived["trial_balance.Cash.side"] == "credit"
+    assert derived["trial_balance.Cash.amount"] == 25400
+
+    # Frozen v1 projection: exact pre-side keys and values, including the
+    # normal-side Cash balance (-25,400) and debit-minus-credit trial balance.
+    v1 = {
+        key: value
+        for key, value in derived.items()
+        if not _is_side_contract_key(key)
+    }
+    assert v1 == {
+        "ledger.Cash.debits": 0,
+        "ledger.Cash.credits": 25400,
+        "ledger.Cash.balance": -25400,
+        "trial_balance.Cash": -25400,
+        "ledger.WageExpenditure.debits": 25400,
+        "ledger.WageExpenditure.credits": 0,
+        "ledger.WageExpenditure.balance": 25400,
+        "trial_balance.WageExpenditure": 25400,
+        "financial_statements.total_assets": -25400,
+        "financial_statements.total_liabilities": 0,
+        "financial_statements.opening_equity": 0,
+        "financial_statements.total_equity": -25400,
+        "financial_statements.total_revenue": 0,
+        "financial_statements.total_expenses": 25400,
+        "financial_statements.net_income": -25400,
+        "financial_statements.balance_check": 0,
+    }
+
+
+def test_side_contract_zero_and_contra_use_actual_side() -> None:
+    zero = compute_derived([
+        {"entry": "e1", "side": "debit", "account": "Cash", "amount": 100},
+        {"entry": "e2", "side": "credit", "account": "Cash", "amount": 100},
+    ])
+    assert zero["ledger.Cash.balance_side"] == "zero"
+    assert zero["ledger.Cash.balance_amount"] == 0
+    assert zero["trial_balance.Cash.side"] == "zero"
+    assert zero["trial_balance.Cash.amount"] == 0
+
+    contra = compute_derived([
+        {"entry": "e1", "side": "credit", "account": "AccumulatedDepreciation", "amount": 900},
+    ])
+    assert contra["ledger.AccumulatedDepreciation.balance_side"] == "credit"
+    assert contra["ledger.AccumulatedDepreciation.balance_amount"] == 900
+    assert contra["trial_balance.AccumulatedDepreciation.side"] == "credit"
+    assert contra["trial_balance.AccumulatedDepreciation.amount"] == 900
+
+
+def test_dual_oracle_comparison_includes_side_values() -> None:
+    derived = compute_derived([
+        {"entry": "e1", "side": "credit", "account": "Cash", "amount": 10},
+    ])
+    wrong = dict(derived)
+    wrong["ledger.Cash.balance_side"] = "debit"
+    assert "value:ledger.Cash.balance_side:credit!=debit" in compare_flat_numeric(
+        derived, wrong
+    )
+
+
 def test_generated_task_derived_matches_pandas_oracle() -> None:
     task = generate_task(seed=23, count=7)
     assert task["ground_truth"]["derived"] == compute_derived(task["ground_truth"]["journal"])
@@ -274,6 +344,10 @@ def test_contra_accounts_net_within_division() -> None:
         {"entry": "e2", "side": "credit", "account": "AccumulatedDepreciation", "amount": 900},
         {"entry": "e3", "side": "debit", "account": "ProvisionForDoubtfulAccounts", "amount": 300},
         {"entry": "e3", "side": "credit", "account": "AllowanceForDoubtfulAccounts", "amount": 300},
+        {"entry": "e4", "side": "debit", "account": "AccountsReceivable", "amount": 100},
+        {"entry": "e4", "side": "credit", "account": "Cash", "amount": 100},
+        {"entry": "e5", "side": "debit", "account": "Cash", "amount": 100},
+        {"entry": "e5", "side": "credit", "account": "AccountsReceivable", "amount": 100},
     ]
     derived = compute_derived(postings)
     # ledger rows stay gross and credit-normal (home side unchanged)
@@ -302,6 +376,10 @@ def test_contra_dual_oracle_agree_via_deriveea() -> None:
         {"entry": "e2", "side": "credit", "account": "AccumulatedDepreciation", "amount": 900},
         {"entry": "e3", "side": "debit", "account": "ProvisionForDoubtfulAccounts", "amount": 300},
         {"entry": "e3", "side": "credit", "account": "AllowanceForDoubtfulAccounts", "amount": 300},
+        {"entry": "e4", "side": "debit", "account": "AccountsReceivable", "amount": 100},
+        {"entry": "e4", "side": "credit", "account": "Cash", "amount": 100},
+        {"entry": "e5", "side": "debit", "account": "Cash", "amount": 100},
+        {"entry": "e5", "side": "credit", "account": "AccountsReceivable", "amount": 100},
     ]
     repo_root = Path(__file__).resolve().parents[4]
     proc = subprocess.run(
@@ -310,4 +388,6 @@ def test_contra_dual_oracle_agree_via_deriveea() -> None:
         cwd=repo_root, timeout=600, check=True,
     )
     ea_derived = json.loads(proc.stdout)["derived"]
+    assert ea_derived["ledger.AccountsReceivable.balance_side"] == "zero"
+    assert ea_derived["ledger.AccountsReceivable.balance_amount"] == 0
     assert ea_derived == compute_derived(postings)

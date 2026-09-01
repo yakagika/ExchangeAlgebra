@@ -29,8 +29,11 @@ from runner.arms import (  # noqa: E402
     _ARM_C_ROLE,
     _arm_aprime_system,
     _build_user_prompt,
+    _ea_minimal_system,
+    _output_contract,
     arm_aprime,
     arm_c,
+    arm_v,
 )
 from runner.models import BackendTimeout  # noqa: E402
 from runner.run import (  # noqa: E402
@@ -38,7 +41,7 @@ from runner.run import (  # noqa: E402
     normalize_arm_name, resume_children, sha256_file,
 )
 from runner.checkpoint import verify as verify_checkpoint  # noqa: E402
-from runner.score import score  # noqa: E402
+from runner.score import _match_derived_contract, score  # noqa: E402
 
 FAILURES: list[str] = []
 
@@ -837,6 +840,232 @@ def case16() -> None:
         check("duplicate key rejected", duplicate_rejected)
 
 
+def case17() -> None:
+    print("Case 17: side scoring contract, frozen v1 prompt, and harness derivation")
+    task = {
+        "id": "side-score",
+        "category": "journalize",
+        "ea_coverage": "ok",
+        "given": {},
+        "expected_output": {"components": ["derived"]},
+        "ground_truth": {
+            "derived": {
+                "ledger.Cash.balance": -25400,
+                "trial_balance.Cash": -25400,
+                "ledger.Cash.balance_side": "credit",
+                "ledger.Cash.balance_amount": 25400,
+                "trial_balance.Cash.side": "credit",
+                "trial_balance.Cash.amount": 25400,
+            }
+        },
+    }
+    wrong_side = {
+        "parse_fail": False,
+        "parsed": {"derived": {
+            "ledger.Cash.balance": 25400,
+            "trial_balance.Cash": 25400,
+            "ledger.Cash.balance_side": "debit",
+            "ledger.Cash.balance_amount": 25400,
+            "trial_balance.Cash.side": "debit",
+            "trial_balance.Cash.amount": 25400,
+        }},
+    }
+    v1_wrong = score(task, wrong_side, "C", worktree_root=None)
+    side_wrong = score(
+        task, wrong_side, "C", worktree_root=None, scoring_contract="side"
+    )
+    check("sign-flipped numeric answer is wrong under v1",
+          close(v1_wrong["derived_accuracy"], 0.0), str(v1_wrong["derived_accuracy"]))
+    check("wrong side is wrong under side contract",
+          close(side_wrong["derived_accuracy"], 0.0), str(side_wrong["derived_accuracy"]))
+
+    correct_side = {
+        "parse_fail": False,
+        "parsed": {"derived": {
+            # Deliberately retain wrong signed v1 values: side scoring ignores them.
+            "ledger.Cash.balance": 25400,
+            "trial_balance.Cash": 25400,
+            "ledger.Cash.balance_side": "credit",
+            "ledger.Cash.balance_amount": 25400,
+            "trial_balance.Cash.side": "credit",
+            "trial_balance.Cash.amount": 25400,
+        }},
+    }
+    side_correct = score(
+        task, correct_side, "C", worktree_root=None, scoring_contract="side"
+    )
+    check("matching (side, amount) pairs are correct under side contract",
+          close(side_correct["derived_accuracy"], 1.0), str(side_correct["derived_accuracy"]))
+
+    correct_v1 = {
+        "parse_fail": False,
+        "parsed": {"derived": {
+            "ledger.Cash.balance": -25400,
+            "trial_balance.Cash": -25400,
+            # Deliberately wrong side fields: frozen v1 scoring ignores them.
+            "ledger.Cash.balance_side": "debit",
+            "ledger.Cash.balance_amount": 1,
+            "trial_balance.Cash.side": "debit",
+            "trial_balance.Cash.amount": 1,
+        }},
+    }
+    v1_correct = score(task, correct_v1, "C", worktree_root=None)
+    check("side fields do not affect a correct frozen v1 score",
+          close(v1_correct["derived_accuracy"], 1.0), str(v1_correct["derived_accuracy"]))
+
+    legacy_journal_task = {"ground_truth": {}}
+    frozen_prompt = (
+        "Output format: a single JSON array of journal postings.\n"
+        'Each posting must be: {"side": "debit"|"credit", "account": "<AccountName>", "amount": <positive number>}.\n'
+        "Example:\n[\n"
+        '  {"side": "debit",  "account": "Cash",  "amount": 1000},\n'
+        '  {"side": "credit", "account": "Sales", "amount": 1000}\n]'
+    )
+    check("default v1 journal prompt remains byte-for-byte frozen",
+          _output_contract(legacy_journal_task) == frozen_prompt)
+    signed_only_task = {
+        **task,
+        "ground_truth": {"derived": {
+            "ledger.Cash.balance": -25400,
+            "trial_balance.Cash": -25400,
+        }},
+    }
+    check("adding dual-contract GT keys leaves the v1 prompt byte-identical",
+          _output_contract(task, "v1") == _output_contract(signed_only_task, "v1"))
+    side_prompt = _output_contract(task, "side")
+    check("side prompt requires side and non-negative amount",
+          'side ("debit", "credit", or "zero") and amount (a non-negative number)' in side_prompt)
+    check("side prompt omits signed v1 required keys",
+          '  "ledger.Cash.balance"\n' not in side_prompt and
+          '  "trial_balance.Cash"\n' not in side_prompt)
+
+    bespoke_task = {
+        "expected_output": {
+            "components": ["derived"],
+            "format_note": "Return numeric balances exactly as specified.",
+        },
+        "ground_truth": {"derived": {"bank_section.balance": 22190}},
+    }
+    check("side mode does not rewrite tasks without side-contract GT keys",
+          _output_contract(bespoke_task, "side") == _output_contract(bespoke_task, "v1"))
+
+    noted_task = {
+        **task,
+        "expected_output": {
+            "components": ["derived"],
+            "format_note": "legacy signed note",
+            "format_note_side": "side-aware note",
+        },
+    }
+    noted_side_prompt = _output_contract(noted_task, "side")
+    check("side-aware format note replaces the contradictory v1 note",
+          "Format note: side-aware note" in noted_side_prompt and
+          "legacy signed note" not in noted_side_prompt)
+    check("A-prime JSON prompt does not mention Haskell jFlatDerived",
+          "jFlatDerived" not in _arm_aprime_system(task, "side"))
+    check("EA A/D prompt explains the mixed-leaf side helper",
+          "jFlatDerived" in _ea_minimal_system(task, "side"))
+
+    malformed_side_gt = [
+        {
+            "ledger.Cash.balance": -10,
+            "trial_balance.Cash": -10,
+        },
+        {"ledger.Cash.balance_side": "debit"},
+        {"ledger.Cash.balance_amount": 10},
+        {
+            "ledger.Cash.balance_side": "up",
+            "ledger.Cash.balance_amount": 10,
+        },
+        {
+            "ledger.Cash.balance_side": "credit",
+            "ledger.Cash.balance_amount": -10,
+        },
+        {
+            "ledger.Cash.balance_side": "zero",
+            "ledger.Cash.balance_amount": 10,
+        },
+        {
+            "ledger.Cash.balance_side": "debit",
+            "ledger.Cash.balance_amount": float("nan"),
+        },
+    ]
+    for index, malformed in enumerate(malformed_side_gt, start=1):
+        try:
+            _match_derived_contract({}, malformed, "side")
+            rejected = False
+        except ValueError:
+            rejected = True
+        check(f"malformed side GT {index} fails closed", rejected)
+
+    zero_gt = {
+        "ledger.Cash.balance_side": "zero",
+        "ledger.Cash.balance_amount": 0,
+    }
+    zero_matched, zero_total = _match_derived_contract(
+        {
+            "ledger.Cash.balance_side": "zero",
+            "ledger.Cash.balance_amount": 0.4,
+        },
+        zero_gt,
+        "side",
+    )
+    check("zero-side model amount must be exactly zero",
+          (zero_matched, zero_total) == (0, 1), str((zero_matched, zero_total)))
+
+    harness_task = {
+        "id": "side-harness",
+        "category": "journalize",
+        "ea_coverage": "ok",
+        "given": {},
+        "prompt": "Report the journal and derived balances.",
+        "expected_output": {"components": ["journal", "derived"]},
+        "ground_truth": {
+            "journal": [
+                {"side": "debit", "account": "WageExpenditure", "amount": 25400},
+                {"side": "credit", "account": "Cash", "amount": 25400},
+            ],
+            "derived": task["ground_truth"]["derived"],
+            "generator_metadata": {"seed": 1},
+        },
+    }
+    response = json.dumps({
+        "journal": harness_task["ground_truth"]["journal"],
+        "derived": {},
+    })
+    v_result = arm_v(
+        harness_task, FakeBackend([response]), Path("/tmp/unused"), Path("/tmp/unused"),
+        scoring_contract="side",
+    )
+    v_derived = v_result["parsed"]["derived"]
+    check("arm V pandas recomputation emits v2 side keys",
+          v_derived["ledger.Cash.balance_side"] == "credit")
+    check("arm V side output omits signed balance keys",
+          "ledger.Cash.balance" not in v_derived and "trial_balance.Cash" not in v_derived)
+
+    dual = {
+        "ledger.Cash.balance": -25400,
+        "trial_balance.Cash": -25400,
+        "ledger.Cash.balance_side": "credit",
+        "ledger.Cash.balance_amount": 25400,
+        "trial_balance.Cash.side": "credit",
+        "trial_balance.Cash.amount": 25400,
+    }
+    a_result = arm_aprime(
+        harness_task, FakeBackend([response]), Path("/tmp/unused"), Path("/tmp/unused"),
+        loadchecked_fn=lambda _js: {
+            "ok": True, "journal": harness_task["ground_truth"]["journal"]
+        },
+        derive_fn=lambda _js: {"derived": dual},
+        scoring_contract="side",
+    )
+    a_derived = a_result["parsed"]["derived"]
+    check("arm Aprime EA derivation emits v2 side keys",
+          a_derived["trial_balance.Cash.side"] == "credit")
+    check("arm Aprime side output omits signed balance keys",
+          "ledger.Cash.balance" not in a_derived and "trial_balance.Cash" not in a_derived)
+
+
 def main() -> None:
     case1()
     case2()
@@ -854,6 +1083,7 @@ def main() -> None:
     case14()
     case15()
     case16()
+    case17()
 
     print()
     if FAILURES:

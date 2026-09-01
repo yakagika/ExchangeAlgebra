@@ -162,6 +162,40 @@ the flag affects arm A only.
 | `--c-retries INT` | `1` | Number of arm-C retries after the first parse/shape failure |
 | `--c-ea-map` | off | Includes the EA account mapping line in arm-C prompts for information-budget pilots |
 | `--tasks-dir DIR` | `tasks/` | Loads task JSON from a generated or alternate task directory |
+| `--scoring-contract {v1,side}` | `v1` | Selects the frozen signed-value contract or the next-round side-aware contract |
+
+## Scoring contracts
+
+`--scoring-contract v1` remains the default and is the contract used by the
+frozen confirmatory runs. Its oracle values, scorer behavior, and prompt text
+are unchanged: `ledger.<account>.balance` is signed relative to the account's
+normal side, while `trial_balance.<account>` is signed as debit minus credit.
+The additional side-oracle fields are ignored completely by the v1 scorer and
+are not requested from models.
+
+`--scoring-contract side` is for the next evaluation round. A balance is an
+accounting tuple rather than a signed scalar:
+
+- `ledger.<account>.balance_side` is `"debit"`, `"credit"`, or `"zero"`.
+- `ledger.<account>.balance_amount` is a non-negative integer.
+- `trial_balance.<account>.side` is `"debit"`, `"credit"`, or `"zero"`.
+- `trial_balance.<account>.amount` is a non-negative integer.
+
+For a zero balance, the side is always `"zero"` and the amount is `0`. Side is
+the actual post-netting balance side, including for contra accounts; it is not
+flipped or normalized according to account class. The side scorer compares
+each `(side, amount)` pair as one item and ignores the signed
+`ledger.<account>.balance` and `trial_balance.<account>` fields. Ledger debit
+and credit totals and all other numeric derived values continue to use the v1
+numeric comparison. `financial_statements.*` is also deliberately unchanged in
+this Land; side-aware financial-statement reporting belongs to a separate
+reporting-pipeline Land.
+
+Both pandas and EA generation oracles emit both contracts' keys so their
+double-oracle comparison covers the side strings and amounts as well as the
+frozen v1 values. Arm V recomputes these values with pandas, and Aprime uses
+`DeriveEA.hs`; under either scoring flag the harness projects the dual oracle
+map onto exactly the selected prompt/output contract.
 
 ## Metrics
 

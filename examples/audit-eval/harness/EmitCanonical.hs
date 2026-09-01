@@ -59,6 +59,7 @@ module EmitCanonical
     , jNum
     , jInt
     , jFlatNum
+    , jFlatDerived
     , jFlatStr
     , jFindings
       -- * v2 object contract
@@ -165,6 +166,12 @@ jsonEncode (JObj kvs) =
 --   ({"ending_balance": 12345, "operating.total_adjustments": -203500}).
 jFlatNum :: Real a => [(String, a)] -> JVal
 jFlatNum kvs = JObj [ (k, jNum v) | (k, v) <- kvs ]
+
+-- | A flat derived map with mixed JSON leaves. The side scoring contract uses
+--   this for @*.side = JStr "debit"|"credit"|"zero"@ alongside non-negative
+--   @*.amount@ values. The frozen v1 path may continue using 'jFlatNum'.
+jFlatDerived :: [(String, JVal)] -> JVal
+jFlatDerived = JObj
 
 -- | Convenience: a flat string map, e.g. for a "decision" component
 --   ({"a": "operating"}).

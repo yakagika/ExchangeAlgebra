@@ -93,6 +93,7 @@ boundary the name-translation bias P1 removed.
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 from typing import Any, Optional
 
@@ -325,6 +326,150 @@ def _match_derived(model_derived: Any, gt_derived: dict) -> tuple[int, int]:
     return matched, len(gt_flat)
 
 
+def _is_side_contract_key(key: str) -> bool:
+    return (
+        key.startswith("ledger.")
+        and (key.endswith(".balance_side") or key.endswith(".balance_amount"))
+    ) or (
+        key.startswith("trial_balance.")
+        and (key.endswith(".side") or key.endswith(".amount"))
+    )
+
+
+def _is_v1_signed_balance_key(key: str) -> bool:
+    if key.startswith("ledger.") and key.endswith(".balance"):
+        account = key[len("ledger.") : -len(".balance")]
+        return bool(account) and "." not in account
+    if key.startswith("trial_balance."):
+        account = key[len("trial_balance.") :]
+        return bool(account) and "." not in account
+    return False
+
+
+def _side_pair_roots(derived: dict[str, Any]) -> list[tuple[str, str, str]]:
+    """Return every side-contract identity declared by either half of a pair."""
+    pairs: dict[str, tuple[str, str]] = {}
+    for key in derived:
+        if key.startswith("ledger.") and key.endswith(".balance_side"):
+            root = key.removesuffix("_side")
+            pairs[root] = (root + "_side", root + "_amount")
+        elif key.startswith("ledger.") and key.endswith(".balance_amount"):
+            root = key.removesuffix("_amount")
+            pairs[root] = (root + "_side", root + "_amount")
+        elif key.startswith("trial_balance.") and key.endswith(".side"):
+            root = key.removesuffix(".side")
+            pairs[root] = (root + ".side", root + ".amount")
+        elif key.startswith("trial_balance.") and key.endswith(".amount"):
+            root = key.removesuffix(".amount")
+            pairs[root] = (root + ".side", root + ".amount")
+    return [(identity, *pairs[identity]) for identity in sorted(pairs)]
+
+
+def _validate_side_ground_truth(gt_derived: dict[str, Any]) -> None:
+    """Fail closed when a side-contract ground truth is malformed."""
+    for key in gt_derived:
+        if not _is_v1_signed_balance_key(key):
+            continue
+        if key.startswith("ledger."):
+            side_key = key + "_side"
+            amount_key = key + "_amount"
+        else:
+            side_key = key + ".side"
+            amount_key = key + ".amount"
+        missing = [
+            pair_key
+            for pair_key in (side_key, amount_key)
+            if pair_key not in gt_derived
+        ]
+        if missing:
+            raise ValueError(
+                f"side contract requires paired side/amount GT for {key}: "
+                f"missing {', '.join(missing)}"
+            )
+
+    for identity, side_key, amount_key in _side_pair_roots(gt_derived):
+        missing = [key for key in (side_key, amount_key) if key not in gt_derived]
+        if missing:
+            raise ValueError(
+                f"incomplete side-contract ground truth for {identity}: "
+                f"missing {', '.join(missing)}"
+            )
+        side = gt_derived[side_key]
+        amount = gt_derived[amount_key]
+        if not isinstance(side, str) or side.strip().lower() not in {
+            "debit", "credit", "zero"
+        }:
+            raise ValueError(f"invalid side-contract side for {identity}: {side!r}")
+        if (
+            not isinstance(amount, (int, float))
+            or isinstance(amount, bool)
+            or not math.isfinite(float(amount))
+            or amount < 0
+        ):
+            raise ValueError(f"invalid side-contract amount for {identity}: {amount!r}")
+        if side.strip().lower() == "zero" and float(amount) != 0.0:
+            raise ValueError(
+                f"zero side must have amount 0 for {identity}: {amount!r}"
+            )
+
+
+def _match_derived_contract(
+    model_derived: Any,
+    gt_derived: dict,
+    scoring_contract: str,
+) -> tuple[int, int]:
+    """Match derived values under the frozen v1 or side-aware contract."""
+    if scoring_contract not in {"v1", "side"}:
+        raise ValueError(f"unknown scoring contract: {scoring_contract!r}")
+
+    # v2 fields coexist with v1 fields in generated ground truth. They are
+    # invisible to the frozen v1 scorer, preserving confirmatory results.
+    if scoring_contract == "v1":
+        gt_v1 = {k: v for k, v in gt_derived.items() if not _is_side_contract_key(k)}
+        return _match_derived(model_derived, gt_v1)
+
+    _validate_side_ground_truth(gt_derived)
+
+    # Ledger debit/credit totals, arbitrary derived metrics, and financial
+    # statements keep their v1 numeric comparison. Financial statements are
+    # intentionally not side-aware in this Land; that belongs to the reporting
+    # pipeline Land.
+    gt_numeric = {
+        k: v
+        for k, v in gt_derived.items()
+        if not _is_side_contract_key(k) and not _is_v1_signed_balance_key(k)
+    }
+    numeric_matched, numeric_total = _match_derived(model_derived, gt_numeric)
+
+    model_map = model_derived if isinstance(model_derived, dict) else {}
+    model_norm = {_norm_key(k): v for k, v in model_map.items()}
+    side_matched = 0
+    side_total = 0
+    for _identity, side_key, amount_key in _side_pair_roots(gt_derived):
+        side_total += 1
+        gt_side = str(gt_derived.get(side_key, "")).strip().lower()
+        gt_amount = gt_derived.get(amount_key)
+        model_side = model_norm.get(_norm_key(side_key))
+        model_amount = model_norm.get(_norm_key(amount_key))
+        normalized_model_side = str(model_side).strip().lower()
+        if (
+            gt_side in {"debit", "credit", "zero"}
+            and isinstance(gt_amount, (int, float))
+            and not isinstance(gt_amount, bool)
+            and normalized_model_side == gt_side
+            and isinstance(model_amount, (int, float))
+            and not isinstance(model_amount, bool)
+            and math.isfinite(float(model_amount))
+            and model_amount >= 0
+            and not (
+                normalized_model_side == "zero" and float(model_amount) != 0.0
+            )
+            and _numeric_close(float(model_amount), float(gt_amount))
+        ):
+            side_matched += 1
+    return numeric_matched + side_matched, numeric_total + side_total
+
+
 # Finding-type synonyms (normalized) → taxonomy type (normalized). The task
 # format_note gives models the fixed taxonomy, so this is a safety net for
 # near-miss vocabulary, mirroring the account-name P1 rationale: we measure
@@ -433,6 +578,7 @@ def score(
     arm_name: str,
     worktree_root: Optional[Path] = None,
     oracle_arms: tuple[str, ...] = ("B", "C"),
+    scoring_contract: str = "v1",
 ) -> dict[str, Any]:
     """
     Compute metrics for one (task, arm) pair.
@@ -522,7 +668,9 @@ def score(
     if expected is not None and "derived" in (expected.get("components") or []):
         gt_derived = gt.get("derived", {}) or {}
         model_derived = parsed.get("derived") if (not parse_fail and isinstance(parsed, dict)) else None
-        derived_matched, derived_total = _match_derived(model_derived, gt_derived)
+        derived_matched, derived_total = _match_derived_contract(
+            model_derived, gt_derived, scoring_contract
+        )
         if derived_total > 0:
             derived_accuracy = derived_matched / derived_total
 

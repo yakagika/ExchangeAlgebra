@@ -187,6 +187,13 @@ addPosting acc x =
 totalsByAccount :: MinJournal -> M.Map AccountTitles Totals
 totalsByAccount journal = foldl addPosting M.empty (toList (EJ.toAlg journal))
 
+balancesByAccount :: MinJournal -> M.Map AccountTitles (Alg MoneyDecimal MinBase)
+balancesByAccount journal =
+    M.map bar $ foldl addBalance M.empty (toList (EJ.toAlg journal))
+  where
+    addBalance acc x =
+        M.insertWith (.+) (getAccountTitle (_hatBase x)) x acc
+
 normalBalance :: AccountTitles -> Totals -> Integer
 normalBalance title (debits, credits)
     | whichSide (Not :< title) == Debit = debits - credits
@@ -194,6 +201,17 @@ normalBalance title (debits, credits)
 
 trialBalance :: Totals -> Integer
 trialBalance (debits, credits) = debits - credits
+
+balanceSideAmount :: Alg MoneyDecimal MinBase -> (String, Integer)
+balanceSideAmount balance =
+    let net = bar balance
+        amount = amountInteger (norm net)
+    in case toList net of
+        []    -> ("zero", 0)
+        (x:_) ->
+            ( if whichSide (_hatBase x) == Debit then "debit" else "credit"
+            , amount
+            )
 
 -- Contra accounts (classifyAccountContra) contribute negatively to their
 -- division's total: total_assets = gross assets - allowance - accumulated
@@ -207,21 +225,30 @@ sumDivision division totals =
         , let sign = if classifyAccountContra title then -1 else 1
         ]
 
-derivedPairs :: MinJournal -> [(String, Integer)]
+data DerivedValue = DerivedNum Integer | DerivedString String
+
+derivedPairs :: MinJournal -> [(String, DerivedValue)]
 derivedPairs journal =
     ledgerPairs ++ financialPairs
   where
     totals = totalsByAccount journal
+    balances = balancesByAccount journal
     accounts = sortOn (show . fst) (M.toList totals)
 
     ledgerPairs = concat
         [ let name = show title
               balance = normalBalance title dc
               (debits, credits) = dc
-          in [ ("ledger." ++ name ++ ".debits", debits)
-             , ("ledger." ++ name ++ ".credits", credits)
-             , ("ledger." ++ name ++ ".balance", balance)
-             , ("trial_balance." ++ name, trialBalance dc)
+              (actualSide, actualAmount) =
+                  balanceSideAmount (balances M.! title)
+          in [ ("ledger." ++ name ++ ".debits", DerivedNum debits)
+             , ("ledger." ++ name ++ ".credits", DerivedNum credits)
+             , ("ledger." ++ name ++ ".balance", DerivedNum balance)
+             , ("trial_balance." ++ name, DerivedNum (trialBalance dc))
+             , ("ledger." ++ name ++ ".balance_side", DerivedString actualSide)
+             , ("ledger." ++ name ++ ".balance_amount", DerivedNum actualAmount)
+             , ("trial_balance." ++ name ++ ".side", DerivedString actualSide)
+             , ("trial_balance." ++ name ++ ".amount", DerivedNum actualAmount)
              ]
         | (title, dc) <- accounts
         ]
@@ -237,23 +264,23 @@ derivedPairs journal =
 
     financialPairs
         | M.null totals =
-            [ ("financial_statements.total_assets", 0)
-            , ("financial_statements.total_liabilities", 0)
-            , ("financial_statements.total_equity", 0)
-            , ("financial_statements.total_revenue", 0)
-            , ("financial_statements.total_expenses", 0)
-            , ("financial_statements.net_income", 0)
-            , ("financial_statements.balance_check", 0)
+            [ ("financial_statements.total_assets", DerivedNum 0)
+            , ("financial_statements.total_liabilities", DerivedNum 0)
+            , ("financial_statements.total_equity", DerivedNum 0)
+            , ("financial_statements.total_revenue", DerivedNum 0)
+            , ("financial_statements.total_expenses", DerivedNum 0)
+            , ("financial_statements.net_income", DerivedNum 0)
+            , ("financial_statements.balance_check", DerivedNum 0)
             ]
         | otherwise =
-            [ ("financial_statements.total_assets", totalAssets)
-            , ("financial_statements.total_liabilities", totalLiabilities)
-            , ("financial_statements.opening_equity", openingEquity)
-            , ("financial_statements.total_equity", totalEquity)
-            , ("financial_statements.total_revenue", totalRevenue)
-            , ("financial_statements.total_expenses", totalExpenses)
-            , ("financial_statements.net_income", netIncome)
-            , ("financial_statements.balance_check", balanceCheck)
+            [ ("financial_statements.total_assets", DerivedNum totalAssets)
+            , ("financial_statements.total_liabilities", DerivedNum totalLiabilities)
+            , ("financial_statements.opening_equity", DerivedNum openingEquity)
+            , ("financial_statements.total_equity", DerivedNum totalEquity)
+            , ("financial_statements.total_revenue", DerivedNum totalRevenue)
+            , ("financial_statements.total_expenses", DerivedNum totalExpenses)
+            , ("financial_statements.net_income", DerivedNum netIncome)
+            , ("financial_statements.balance_check", DerivedNum balanceCheck)
             ]
 
 ------------------------------------------------------------------
@@ -269,11 +296,14 @@ jstr s = "\"" ++ concatMap esc s ++ "\""
     esc '\t' = "\\t"
     esc c    = [c]
 
-renderDerived :: [(String, Integer)] -> String
+renderDerived :: [(String, DerivedValue)] -> String
 renderDerived pairs =
     "{\"derived\":{"
-    ++ intercalate "," [jstr key ++ ":" ++ show value | (key, value) <- pairs]
+    ++ intercalate "," [jstr key ++ ":" ++ renderValue value | (key, value) <- pairs]
     ++ "}}"
+  where
+    renderValue (DerivedNum value) = show value
+    renderValue (DerivedString value) = jstr value
 
 ------------------------------------------------------------------
 -- Main
