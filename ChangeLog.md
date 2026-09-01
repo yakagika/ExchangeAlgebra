@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Added
+- Add a read-only `audit-eval` compatibility replay tool that pins frozen
+  confirmatory inputs and compares historical and current checked-loader
+  verdicts without regenerating model outputs.
 - Add an opt-in `side` scoring contract to `audit-eval`. Ledger and
   trial-balance balances are compared as an actual debit/credit/zero side plus
   a non-negative amount, while the frozen signed-value `v1` contract remains
