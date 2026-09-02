@@ -581,11 +581,11 @@ def test_cell_manifest_cluster_mismatch_is_rejected(tmp_path: Path) -> None:
     (tmp_path / f"{task_id}.json").write_text(json.dumps({
         "id": task_id,
         "category": "journalize",
-        "source": {"template": "single"},
+        "source": {"template": "single", "seed": 1},
     }), encoding="utf-8")
     rows = [{
         "task_id": task_id,
-        "cluster": "mixed",
+        "cluster": "mixed-000001",
         "category": "journalize",
         "arm": "V",
         "model": "codex",
