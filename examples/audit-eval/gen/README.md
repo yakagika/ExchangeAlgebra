@@ -29,10 +29,11 @@ N=10 is the first 10 entries of N=50, and N=50 is the first 50 entries of
 N=200. `mixed` is intentionally excluded because its count-dependent randomized
 template schedule consumes RNG draws before transaction amounts are generated.
 
-Every visible transaction has an `amount` equal to that entry's debit total, so
-arm Aprime can reconcile source transactions consistently. Template labels
-(`template`, `trade_side`, `settlement`) are not exposed in
-`given.transactions`; they are recorded under
+Ordinary period transactions and intercompany source transactions have an
+`amount` equal to that entry's debit total. Opening, adjustment, closing, and
+elimination rows disclose IDs plus source facts or parameters, but not a
+precomputed answer `amount`. Template labels (`template`, `trade_side`,
+`settlement`) are not exposed in `given.transactions`; they are recorded under
 `ground_truth.generator_metadata.entries`.
 
 Generated non-audit tasks use the v2 task contract with components
@@ -52,27 +53,39 @@ The side-contract v2 keys are also emitted:
 
 ## Second-round task kinds
 
-- `closing`: `given` contains opening balances, ordinary period transactions,
-  and adjustment facts for straight-line depreciation, an accrued expense, a
-  prepaid expense, an allowance estimate, and ending inventory. Output postings
-  include the opening/period entries, adjustment entries, and `close-income`.
+- `closing`: `given.transactions` lists the `opening` entry, ordinary period
+  transactions, five adjustment entries, and `close-income` in posting order.
+  `given.adjustment_data` discloses only the facts needed to calculate
+  straight-line depreciation, accrued and prepaid expenses, the allowance, and
+  cost of goods sold; it does not disclose the resulting adjustment amounts.
+  Output postings include the opening/period entries, adjustment entries, and
+  `close-income`.
   GT trial balance and income statement come from the adjusted ledger; GT ledger
   balances and balance sheet come from the closed ledger. Revenue and expense
   ledger balances are `zero`.
-- `statements`: `given.given_journal` is an adjusted journal with entry IDs.
+- `statements`: `given.given_journal` is an adjusted journal with entry IDs and
+  `given.transactions` repeats those source transaction IDs and facts.
   Output returns those postings unchanged with txids and derives ledger, trial
   balance, and financial statements.
 - `consolidation`: `given.entity_journals` carries parent (`P`) and subsidiary
   (`S`) postings plus the internal sale/purchase and receivable/payable pair.
-  Output adds two elimination entries and derives the consolidated ledger,
-  trial balance, and statements. NCI, goodwill, and unrealized profit are
-  excluded.
+  `given.transactions` covers every P/S entry and the two `elim-*` entries.
+  Output adds those elimination entries and derives the consolidated ledger,
+  trial balance, and statements. NCI, goodwill, and unrealized profit are excluded.
 
 The pandas oracle derives each GT independently. `DeriveEA.hs` keeps the old
 posting-array interface and adds mode objects for closing and consolidation.
-Closing adjustments use `ExchangeAlgebra.Bookkeeping`; closing uses the named
-income-summary/net-income transfers and `finalStockTransfer`; consolidation
-uses the entity Journal note axis and reversal + `bar` cancellation.
+Closing adjustments use `ExchangeAlgebra.Bookkeeping`. Closing GT is derived by
+the registry-driven `finalStockTransfer` alone; the legacy chain
+(`incomeSummaryAccount` followed by `netIncomeTransfer`) is used only as a
+consistency assertion. Consolidation checks each transaction separately and
+keeps entity as a distinct Journal note axis, then uses reversal + `bar`
+cancellation.
+
+Closing parameter combinations are generator-controlled so depreciation,
+monthly accrual/deferral, and basis-point allowance calculations resolve to
+whole monetary units. Both oracles reject a non-integral ratio rather than
+silently selecting a rounding rule.
 
 ## Audit defects
 
@@ -99,6 +112,15 @@ cd /path/to/ExchangeAlgebra
 stack --stack-yaml stack.yaml exec runghc -- \
   examples/audit-eval/gen/DeriveEA.hs < /path/to/postings.json
 ```
+
+The posting-array input remains valid for journalize/statements. Closing uses
+`{"mode":"closing","postings":[...],"adjustments":{...}}`, where
+`adjustments` contains cost/residual/life, accrual rate/time, prepaid
+payment/period, allowance rate, and beginning/ending inventory facts.
+Consolidation uses
+`{"mode":"consolidation","postings":[...],"internal_postings":[...]}`.
+`gen.kinds.ea_request_for_task` is the canonical serializer for both mode
+objects.
 
 `make_suite.py` batches generation and adopts only tasks whose independent
 pandas oracle and EA oracle agree exactly. Audit tasks are checked against the
@@ -145,8 +167,10 @@ file digest and a `BUNDLE` digest computed exactly like
 `--expect-task-bundle-sha256`.
 
 The manifest command is for generated sealed tasks and therefore requires
-`source.template` as the cluster ID. The curated 23-task descriptive set is not
-sealed. `--out-dir` must differ from the task directory.
+`source.template` and `source.seed`. Its cluster ID is
+`<template>-<gen-seed:06d>`, so count levels for the same template and generator
+seed remain in one cluster. The curated 23-task descriptive set is not sealed.
+`--out-dir` must differ from the task directory.
 
 ## Selftest
 

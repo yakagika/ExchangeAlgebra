@@ -21,8 +21,9 @@ a task without `expected_output` is treated as journal-only.
                                   // plus chart_of_accounts + ea_account_map (see below)
   "expected_output": {            // ABSENT for v1 journal-only tasks
     "components": ["journal", "derived"],   // subset of journal|derived|findings|decision
-    "format_note": "..."          // 1–3 sentence English description of the exact
+    "format_note": "...",         // 1–3 sentence English description of the exact
                                   // output object, appended to the system prompt
+    "format_note_side": "..."     // optional side-contract variant of format_note
   },
   "ground_truth": { ... }         // see per-component shapes below
 }
@@ -44,6 +45,13 @@ judgment and textbook tasks whose narrower `expected_output` contracts do not
 all contain side-contract ledger/TB pairs or audit findings; those examples are
 not observations in the confirmatory primary estimand.
 
+Generated task IDs use
+`gen-<kind>-<template>-<seed:06d>-<count:02d>`, where `<kind>` is the process
+category and `seed` is `source.seed`. Frozen experiment-1 compatibility fixtures
+may retain their pre-v2 IDs. Manifest clusters use
+`<template>-<source.seed:06d>`: count levels from the same template and generator
+seed belong to one cluster.
+
 ## Model output contract
 
 - **journal-only** (v1): bare JSON array of postings
@@ -52,7 +60,9 @@ not observations in the confirmatory primary estimand.
   `expected_output.components`:
   - `"journal"`: posting array as above. Extra keys per posting (`entry`,
     `date`, `entity`) are allowed and ignored by the scorer.
-  - `"derived"`: flat string→number map (see key naming below).
+  - `"derived"`: flat string→number|string map (see key naming below). String
+    leaves are allowed only for side-contract keys ending in `.side` or
+    `.balance_side`.
   - `"findings"`: array of `{"type": "...", "locus": "...", "detail": "..."}`
     (`detail` free text, unscored).
   - `"decision"`: flat string→string map (id → label, lower-case labels).
@@ -70,9 +80,10 @@ not observations in the confirmatory primary estimand.
   `entity` tags for readability (scorer ignores them). Multi-entity books
   (e.g. lessee + lessor) go into the same array — the multiset matcher and the
   balance check remain valid.
-- `derived`: FLAT map of numeric leaves only. Flatten nested YAML with dot
+- `derived`: FLAT map of numeric leaves, plus the scored side-contract string
+  leaves `*.side` and `*.balance_side`. Flatten nested YAML with dot
   keys (`"operating.total_adjustments": -203500`). Sign conventions follow the
-  YAML verbatim. Non-numeric leaves (booleans, prose) are NOT scored — either
+  YAML verbatim. Other non-numeric leaves (booleans, prose) are NOT scored — either
   omit them or park them outside `derived` (see "unscored extras").
 - `findings`: `[{type, locus}]` (+ optional detail). `type` from the YAML;
   `locus` = the YAML locus / account / entry id as a string.

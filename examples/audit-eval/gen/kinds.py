@@ -8,11 +8,19 @@ from typing import Any
 
 try:  # pragma: no cover - exercised when run as a script path.
     from .accounts import account_category_map, chart_accounts_from_postings, identity_ea_map
-    from .pandas_oracle import compute_closing_derived, compute_derived
+    from .pandas_oracle import (
+        compute_closing_adjustment_amounts,
+        compute_closing_derived,
+        compute_derived,
+    )
     from .templates import entry_metadata, make_entries
 except ImportError:  # pragma: no cover
     from accounts import account_category_map, chart_accounts_from_postings, identity_ea_map  # type: ignore
-    from pandas_oracle import compute_closing_derived, compute_derived  # type: ignore
+    from pandas_oracle import (  # type: ignore
+        compute_closing_adjustment_amounts,
+        compute_closing_derived,
+        compute_derived,
+    )
     from templates import entry_metadata, make_entries  # type: ignore
 
 
@@ -67,8 +75,59 @@ def _posting(entry: str, side: str, account: str, amount: int, **extra: Any) -> 
     return {"entry": entry, "side": side, "account": account, "amount": amount, **extra}
 
 
-def _balance_amount(derived: Mapping[str, Any], account: str) -> int:
-    return int(derived.get(f"ledger.{account}.balance_amount", 0))
+def _closing_parameters(seed: int) -> dict[str, dict[str, Any]]:
+    """Choose reproducible closing facts whose derived amounts are integral."""
+    rng = random.Random(seed + 3_000_003)
+    useful_life = rng.choice([4, 5, 6, 8])
+    residual_value = rng.choice([0, 2_000, 4_000])
+    annual_depreciation = rng.choice([4_000, 5_000, 6_000])
+    fixture_cost = residual_value + useful_life * annual_depreciation
+    principal, annual_rate_bps, accrued_months = rng.choice(
+        [
+            (60_000, 1_200, 3),
+            (80_000, 900, 2),
+            (120_000, 600, 2),
+        ]
+    )
+    next_period_months = rng.choice([2, 3, 4, 6])
+    return {
+        "depreciation": {
+            "cost": fixture_cost,
+            "residual_value": residual_value,
+            "useful_life_years": useful_life,
+            "method": "straight_line",
+        },
+        "allowance": {
+            "rate_basis_points": 200,
+        },
+        "cost_of_goods_sold": {
+            "beginning_inventory": 20_000,
+            "ending_inventory": 15_000,
+            "method": "periodic_three_account",
+        },
+        "prepaid_expense": {
+            "payment_total": 12_000,
+            "coverage_months": 12,
+            "next_period_months": next_period_months,
+        },
+        "accrued_expense": {
+            "principal": principal,
+            "annual_rate_basis_points": annual_rate_bps,
+            "accrued_months": accrued_months,
+            "months_per_year": 12,
+        },
+    }
+
+
+def _parameter_transaction(
+    txid: str,
+    desc: str,
+    parameters: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    row: dict[str, Any] = {"id": txid, "desc": desc}
+    if parameters is not None:
+        row["parameters"] = dict(parameters)
+    return row
 
 
 def _closing_postings(post_adjustment: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -103,81 +162,88 @@ def _closing_postings(post_adjustment: list[dict[str, Any]]) -> list[dict[str, A
 
 def generate_closing_task(seed: int, count: int = 30, template: str = "mixed") -> dict[str, Any]:
     entries = make_entries(seed=seed, count=count, template=template)
+    adjustment_data = _closing_parameters(seed)
+    fixture_cost = int(adjustment_data["depreciation"]["cost"])
+    annual_depreciation = (
+        fixture_cost - int(adjustment_data["depreciation"]["residual_value"])
+    ) // int(adjustment_data["depreciation"]["useful_life_years"])
+    opening_accumulated_depreciation = annual_depreciation * 2
     opening = [
         _posting("opening", "debit", "Cash", 100_000),
         _posting("opening", "debit", "AccountsReceivable", 25_000),
         _posting("opening", "debit", "MerchandiseInventory", 20_000),
-        _posting("opening", "debit", "Fixtures", 36_000),
-        _posting("opening", "credit", "AccumulatedDepreciation", 6_000),
+        _posting("opening", "debit", "Fixtures", fixture_cost),
+        _posting(
+            "opening",
+            "credit",
+            "AccumulatedDepreciation",
+            opening_accumulated_depreciation,
+        ),
         _posting("opening", "credit", "AllowanceForDoubtfulAccounts", 100),
         _posting("opening", "credit", "AccountsPayable", 30_000),
-        _posting("opening", "credit", "RetainedEarnings", 144_900),
+        _posting(
+            "opening",
+            "credit",
+            "RetainedEarnings",
+            145_000 + fixture_cost - opening_accumulated_depreciation - 100 - 30_000,
+        ),
     ]
     prepaid_source = [
         _posting("period-prepaid", "debit", "RentExpense", 12_000),
         _posting("period-prepaid", "credit", "Cash", 12_000),
     ]
     base = opening + prepaid_source + _postings(entries)
-    before = compute_derived(base)
-    receivables = _balance_amount(before, "AccountsReceivable")
-    allowance_estimate = receivables * 2 // 100
-    allowance_current = _balance_amount(before, "AllowanceForDoubtfulAccounts")
-    allowance_delta = allowance_estimate - allowance_current
-    if allowance_delta < 0:
-        raise ValueError("closing fixture requires a non-negative allowance replenishment")
-
-    adjustment_data = {
-        "depreciation": {
-            "txid": "adj-depreciation",
-            "asset": "Fixtures",
-            "cost": 36_000,
-            "useful_life_years": 6,
-            "method": "straight_line",
-            "amount": 6_000,
-        },
-        "accrued_expense": {
-            "txid": "adj-accrued-expense",
-            "expense_account": "InterestExpense",
-            "amount": 1_800,
-        },
-        "prepaid_expense": {
-            "txid": "adj-prepaid-expense",
-            "expense_account": "RentExpense",
-            "amount": 3_000,
-        },
-        "allowance": {
-            "txid": "adj-allowance",
-            "receivable_balance": receivables,
-            "rate_basis_points": 200,
-            "estimate": allowance_estimate,
-            "current_balance": allowance_current,
-        },
-        "cost_of_goods_sold": {
-            "txid": "adj-cogs",
-            "beginning_inventory": 20_000,
-            "ending_inventory": 15_000,
-            "method": "periodic_three_account",
-        },
-    }
-    adjustments = [
-        _posting("adj-depreciation", "debit", "Depreciation", 6_000),
-        _posting("adj-depreciation", "credit", "AccumulatedDepreciation", 6_000),
-        _posting("adj-accrued-expense", "debit", "InterestExpense", 1_800),
-        _posting("adj-accrued-expense", "credit", "AccruedExpenses", 1_800),
-        _posting("adj-prepaid-expense", "debit", "PrepaidExpenses", 3_000),
-        _posting("adj-prepaid-expense", "credit", "RentExpense", 3_000),
-        _posting("adj-cogs", "debit", "Purchases", 20_000),
-        _posting("adj-cogs", "credit", "MerchandiseInventory", 20_000),
-        _posting("adj-cogs", "debit", "MerchandiseInventory", 15_000),
-        _posting("adj-cogs", "credit", "Purchases", 15_000),
+    amounts = compute_closing_adjustment_amounts(base, adjustment_data)
+    depreciation_adjustments = [
+        _posting("adj-depreciation", "debit", "Depreciation", amounts["depreciation"]),
+        _posting(
+            "adj-depreciation",
+            "credit",
+            "AccumulatedDepreciation",
+            amounts["depreciation"],
+        ),
     ]
-    if allowance_delta:
-        adjustments.extend(
-            [
-                _posting("adj-allowance", "debit", "ProvisionForDoubtfulAccounts", allowance_delta),
-                _posting("adj-allowance", "credit", "AllowanceForDoubtfulAccounts", allowance_delta),
-            ]
-        )
+    allowance_adjustments = [
+        _posting(
+            "adj-allowance",
+            "debit",
+            "ProvisionForDoubtfulAccounts",
+            amounts["allowance_replenishment"],
+        ),
+        _posting(
+            "adj-allowance",
+            "credit",
+            "AllowanceForDoubtfulAccounts",
+            amounts["allowance_replenishment"],
+        ),
+    ]
+    cogs_adjustments = [
+        _posting("adj-cogs", "debit", "Purchases", amounts["beginning_inventory"]),
+        _posting(
+            "adj-cogs", "credit", "MerchandiseInventory", amounts["beginning_inventory"]
+        ),
+        _posting("adj-cogs", "debit", "MerchandiseInventory", amounts["ending_inventory"]),
+        _posting("adj-cogs", "credit", "Purchases", amounts["ending_inventory"]),
+    ]
+    prepaid_adjustments = [
+        _posting("adj-prepaid-expense", "debit", "PrepaidExpenses", amounts["prepaid_expense"]),
+        _posting("adj-prepaid-expense", "credit", "RentExpense", amounts["prepaid_expense"]),
+    ]
+    accrued_adjustments = [
+        _posting(
+            "adj-accrued-expense", "debit", "InterestExpense", amounts["accrued_expense"]
+        ),
+        _posting(
+            "adj-accrued-expense", "credit", "AccruedExpenses", amounts["accrued_expense"]
+        ),
+    ]
+    adjustments = (
+        depreciation_adjustments
+        + allowance_adjustments
+        + cogs_adjustments
+        + prepaid_adjustments
+        + accrued_adjustments
+    )
 
     adjusted = base + adjustments
     closing = _closing_postings(adjusted)
@@ -212,8 +278,35 @@ def generate_closing_task(seed: int, count: int = 30, template: str = "mixed") -
                 {key: value for key, value in row.items() if key != "entry"} for row in opening
             ],
             "transactions": [
+                _parameter_transaction("opening", "期首残高を開始仕訳として起票する。"),
                 {"id": "period-prepaid", "desc": "当期分を含む家賃を現金で支払った。", "amount": 12_000},
                 *[dict(entry["transaction"]) for entry in entries],
+                _parameter_transaction(
+                    "adj-depreciation",
+                    "備品を定額法で減価償却する。",
+                    adjustment_data["depreciation"],
+                ),
+                _parameter_transaction(
+                    "adj-allowance",
+                    "売掛金期末残高に対して貸倒引当金を補充する。",
+                    adjustment_data["allowance"],
+                ),
+                _parameter_transaction(
+                    "adj-cogs",
+                    "期首・期末棚卸高から売上原価を決算整理する。",
+                    adjustment_data["cost_of_goods_sold"],
+                ),
+                _parameter_transaction(
+                    "adj-prepaid-expense",
+                    "家賃支払額のうち翌期対応分を前払費用へ振り替える。",
+                    adjustment_data["prepaid_expense"],
+                ),
+                _parameter_transaction(
+                    "adj-accrued-expense",
+                    "元本・年率・経過月数から未払利息を見越計上する。",
+                    adjustment_data["accrued_expense"],
+                ),
+                _parameter_transaction("close-income", "収益・費用を利益剰余金へ締め切る。"),
             ],
             "adjustment_data": adjustment_data,
             "closing_txid": "close-income",
@@ -260,6 +353,7 @@ def generate_statements_task(seed: int, count: int = 50, template: str = "mixed"
             "chart_of_accounts": chart,
             "accounts": account_category_map(chart),
             "ea_account_map": identity_ea_map(chart),
+            "transactions": [dict(entry["transaction"]) for entry in entries],
             "given_journal": _given_journal(entries),
         },
         "expected_output": {
@@ -292,6 +386,18 @@ def _with_entity(entries: list[dict[str, Any]], entity: str, prefix: str) -> lis
             row["entry"] = new_id
             row["entity"] = entity
             rows.append(row)
+    return rows
+
+
+def _entity_transactions(
+    entries: list[dict[str, Any]], entity: str, prefix: str
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for entry in entries:
+        transaction = dict(entry["transaction"])
+        transaction["id"] = f"{prefix}-{transaction['id']}"
+        transaction["entity"] = entity
+        rows.append(transaction)
     return rows
 
 
@@ -341,6 +447,32 @@ def generate_consolidation_task(seed: int, count: int = 20, template: str = "mix
             "chart_of_accounts": chart,
             "accounts": account_category_map(chart),
             "ea_account_map": identity_ea_map(chart),
+            "transactions": [
+                *_entity_transactions(parent_entries, "P", "p"),
+                {
+                    "id": "p-internal-sale",
+                    "desc": "子会社 S へ商品を掛けで販売した。",
+                    "amount": internal_amount,
+                    "entity": "P",
+                },
+                *_entity_transactions(subsidiary_entries, "S", "s"),
+                {
+                    "id": "s-internal-purchase",
+                    "desc": "親会社 P から商品を掛けで仕入れた。",
+                    "amount": internal_amount,
+                    "entity": "S",
+                },
+                _parameter_transaction(
+                    "elim-internal-trade",
+                    "内部売上と内部売上原価を消去する。",
+                    {"seller": "P", "buyer": "S", "source_transaction_amount": internal_amount},
+                ),
+                _parameter_transaction(
+                    "elim-internal-balance",
+                    "内部売掛金と内部買掛金を消去する。",
+                    {"seller": "P", "buyer": "S", "source_transaction_amount": internal_amount},
+                ),
+            ],
             "entity_journals": {
                 "P": [row for row in before_elimination if row["entity"] == "P"],
                 "S": [row for row in before_elimination if row["entity"] == "S"],
@@ -399,9 +531,18 @@ def ea_request_for_task(task: Mapping[str, Any]) -> Any:
                 and row["entry"] != task["given"]["closing_txid"]
             ],
             "adjustments": {
-                "depreciation": data["depreciation"]["amount"],
-                "accrued_expense": data["accrued_expense"]["amount"],
-                "prepaid_expense": data["prepaid_expense"]["amount"],
+                "depreciation_cost": data["depreciation"]["cost"],
+                "depreciation_residual_value": data["depreciation"]["residual_value"],
+                "depreciation_useful_life_years": data["depreciation"]["useful_life_years"],
+                "accrued_expense_principal": data["accrued_expense"]["principal"],
+                "accrued_expense_annual_rate_basis_points": data["accrued_expense"][
+                    "annual_rate_basis_points"
+                ],
+                "accrued_expense_months": data["accrued_expense"]["accrued_months"],
+                "months_per_year": data["accrued_expense"]["months_per_year"],
+                "prepaid_payment_total": data["prepaid_expense"]["payment_total"],
+                "prepaid_coverage_months": data["prepaid_expense"]["coverage_months"],
+                "prepaid_next_period_months": data["prepaid_expense"]["next_period_months"],
                 "allowance_rate_basis_points": data["allowance"]["rate_basis_points"],
                 "beginning_inventory": data["cost_of_goods_sold"]["beginning_inventory"],
                 "ending_inventory": data["cost_of_goods_sold"]["ending_inventory"],

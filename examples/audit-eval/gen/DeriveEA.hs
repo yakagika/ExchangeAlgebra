@@ -137,8 +137,9 @@ postingsFromJ _ = Nothing
 type MinBase = HatBase AccountTitles
 type MinAlg = Alg MoneyDecimal MinBase
 type MinJournal = EJ.Journal String MoneyDecimal MinBase
+type EntityJournal = EJ.Journal (String, String) MoneyDecimal MinBase
 
-groupPostingsBy :: (Posting -> String) -> [Posting] -> [(String, [Posting])]
+groupPostingsBy :: Eq key => (Posting -> key) -> [Posting] -> [(key, [Posting])]
 groupPostingsBy key = foldl add []
   where
     add [] p = [(key p, [p])]
@@ -150,7 +151,10 @@ entryKey :: Posting -> String
 entryKey = maybe "entry" id . pEntry
 
 entityKey :: Posting -> String
-entityKey p = maybe (entryKey p) id (pEntity p)
+entityKey = maybe "" id . pEntity
+
+entityEntryKey :: Posting -> (String, String)
+entityEntryKey posting = (entityKey posting, entryKey posting)
 
 parsePosting :: Posting -> Either String (Side, AccountTitles, MoneyDecimal)
 parsePosting p = do
@@ -158,9 +162,24 @@ parsePosting p = do
     acct <- either (Left . show) Right (parseAccountTitle (T.pack (pAccount p)))
     pure (side, acct, fromInteger (pAmount p))
 
-buildJournalBy :: (Posting -> String) -> [Posting] -> Either String MinJournal
-buildJournalBy key postings = do
-    entries <- mapM parseGroup (groupPostingsBy key postings)
+buildJournalBy :: [Posting] -> Either String EntityJournal
+buildJournalBy postings = do
+    entries <- mapM parseGroup (groupPostingsBy entityEntryKey postings)
+    case checkedJournal entries of
+        Left err      -> Left (show err)
+        Right journal -> Right journal
+  where
+    parseGroup (_, []) = Left "empty posting group"
+    parseGroup ((entityId, entryId), rows) = do
+        if null entityId
+           then Left ("missing entity for entry " ++ entryId)
+           else pure ()
+        parsed <- mapM parsePosting rows
+        pure ((entityId, entryId), parsed)
+
+buildJournal :: [Posting] -> Either String MinJournal
+buildJournal postings = do
+    entries <- mapM parseGroup (groupPostingsBy entryKey postings)
     case checkedJournal entries of
         Left err      -> Left (show err)
         Right journal -> Right journal
@@ -168,9 +187,6 @@ buildJournalBy key postings = do
     parseGroup (entryId, rows) = do
         parsed <- mapM parsePosting rows
         pure (entryId, parsed)
-
-buildJournal :: [Posting] -> Either String MinJournal
-buildJournal = buildJournalBy entryKey
 
 type Totals = (Integer, Integer)
 
@@ -323,12 +339,19 @@ closingDerivedPairs adjusted fullLedger closed =
     closedFinancial = financialPairsFor (totalsByAlg closed)
 
 data ClosingAdjustments = ClosingAdjustments
-    { caDepreciation       :: Integer
-    , caAccruedExpense     :: Integer
-    , caPrepaidExpense     :: Integer
-    , caAllowanceRateBps   :: Integer
-    , caBeginningInventory :: Integer
-    , caEndingInventory    :: Integer
+    { caDepreciationCost          :: Integer
+    , caDepreciationResidual      :: Integer
+    , caDepreciationLife          :: Integer
+    , caAccruedPrincipal          :: Integer
+    , caAccruedRateBps            :: Integer
+    , caAccruedMonths             :: Integer
+    , caMonthsPerYear             :: Integer
+    , caPrepaidPayment            :: Integer
+    , caPrepaidCoverageMonths     :: Integer
+    , caPrepaidNextPeriodMonths   :: Integer
+    , caAllowanceRateBps          :: Integer
+    , caBeginningInventory        :: Integer
+    , caEndingInventory           :: Integer
     }
 
 closingInput :: [(String, J)] -> Maybe ([Posting], ClosingAdjustments)
@@ -337,31 +360,64 @@ closingInput obj = do
     postings <- postingsFromJ postingsJ
     JObj adj <- field "adjustments" obj
     spec <- ClosingAdjustments
-        <$> integerField "depreciation" adj
-        <*> integerField "accrued_expense" adj
-        <*> integerField "prepaid_expense" adj
+        <$> integerField "depreciation_cost" adj
+        <*> integerField "depreciation_residual_value" adj
+        <*> integerField "depreciation_useful_life_years" adj
+        <*> integerField "accrued_expense_principal" adj
+        <*> integerField "accrued_expense_annual_rate_basis_points" adj
+        <*> integerField "accrued_expense_months" adj
+        <*> integerField "months_per_year" adj
+        <*> integerField "prepaid_payment_total" adj
+        <*> integerField "prepaid_coverage_months" adj
+        <*> integerField "prepaid_next_period_months" adj
         <*> integerField "allowance_rate_basis_points" adj
         <*> integerField "beginning_inventory" adj
         <*> integerField "ending_inventory" adj
     pure (postings, spec)
 
+exactRatio :: String -> Integer -> Integer -> Either String Integer
+exactRatio label numerator denominator
+    | denominator <= 0 = Left (label ++ " denominator must be positive")
+    | remainder /= 0 = Left (label ++ " must resolve to a whole-number amount")
+    | otherwise = Right quotient
+  where
+    (quotient, remainder) = numerator `divMod` denominator
+
 closingAdjustmentsAlg :: MinAlg -> ClosingAdjustments -> Either String MinAlg
-closingAdjustmentsAlg base spec
-    | caAllowanceRateBps spec < 0 = Left "allowance rate must be non-negative"
-    | otherwise = Right $
-           BK.depreciationIndirectEntry mk (n caDepreciation)
-        .+ BK.accruedExpenseEntry mk (n caAccruedExpense) InterestExpense
-        .+ BK.prepaidExpenseEntry mk (n caPrepaidExpense) RentExpense
+closingAdjustmentsAlg base spec = do
+    depreciation <- exactRatio
+        "depreciation"
+        (caDepreciationCost spec - caDepreciationResidual spec)
+        (caDepreciationLife spec)
+    accruedExpense <- exactRatio
+        "accrued expense"
+        (caAccruedPrincipal spec * caAccruedRateBps spec * caAccruedMonths spec)
+        (10000 * caMonthsPerYear spec)
+    prepaidExpense <- exactRatio
+        "prepaid expense"
+        (caPrepaidPayment spec * caPrepaidNextPeriodMonths spec)
+        (caPrepaidCoverageMonths spec)
+    allowanceEstimate <- exactRatio
+        "allowance estimate"
+        (receivables * caAllowanceRateBps spec)
+        10000
+    let allowanceDelta = allowanceEstimate - allowanceCurrent
+    if allowanceDelta < 0
+       then Left "allowance replenishment must be non-negative"
+       else Right $
+           BK.depreciationIndirectEntry mk (fromInteger depreciation)
+        .+ BK.accruedExpenseEntry mk (fromInteger accruedExpense) InterestExpense
+        .+ BK.prepaidExpenseEntry mk (fromInteger prepaidExpense) RentExpense
         .+ BK.allowanceReplenishmentEntry mk (fromInteger allowanceEstimate) (fromInteger allowanceCurrent)
-        .+ BK.cogsAdjustmentEntries mk (n caBeginningInventory) (n caEndingInventory)
+        .+ BK.cogsAdjustmentEntries mk
+             (fromInteger (caBeginningInventory spec))
+             (fromInteger (caEndingInventory spec))
   where
     mk = (:<) :: BK.MkBase MinBase
-    n getter = fromInteger (getter spec)
     totals = totalsByAlg (bar base)
     balanceOf title = maybe 0 (normalBalance title) (M.lookup title totals)
     receivables = balanceOf AccountsReceivable
     allowanceCurrent = balanceOf AllowanceForDoubtfulAccounts
-    allowanceEstimate = receivables * caAllowanceRateBps spec `div` 10000
 
 isNominalAlg :: MinAlg -> Bool
 isNominalAlg x =
@@ -395,8 +451,8 @@ consolidationInput obj = do
 
 deriveConsolidation :: [Posting] -> [Posting] -> Either String [(String, DerivedValue)]
 deriveConsolidation postings internal = do
-    entityJournal <- buildJournalBy entityKey postings
-    internalJournal <- buildJournalBy entityKey internal
+    entityJournal <- buildJournalBy postings
+    internalJournal <- buildJournalBy internal
     let internalAlg = EJ.toAlg internalJournal
         elimination = BK.reversingEntry internalAlg
         consolidated = EJ.toAlg entityJournal .+ elimination

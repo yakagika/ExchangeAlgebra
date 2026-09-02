@@ -34,6 +34,9 @@ def load_tasks(tasks_dir: Path) -> list[tuple[Path, dict[str, Any]]]:
         source = task.get("source")
         if not isinstance(source, dict) or not source.get("template"):
             raise ValueError(f"task source.template missing in {path}")
+        seed = source.get("seed") if isinstance(source, dict) else None
+        if isinstance(seed, bool) or not isinstance(seed, int):
+            raise ValueError(f"task source.seed integer missing in {path}")
         if not task.get("category"):
             raise ValueError(f"task category missing in {path}")
         tasks.append((path, task))
@@ -61,7 +64,9 @@ def build_cells(
     return [
         {
             "task_id": str(task["id"]),
-            "cluster": str(task["source"]["template"]),
+            "cluster": (
+                f"{task['source']['template']}-{int(task['source']['seed']):06d}"
+            ),
             "category": str(task["category"]),
             "arm": arm,
             "model": model,

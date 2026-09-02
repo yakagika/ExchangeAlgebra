@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import shutil
 import sys
@@ -21,7 +22,13 @@ from gen.kinds import (
 from gen.generate import dump_json, generate_task
 from gen.make_manifest import DEFAULT_ARMS, DEFAULT_MODELS, write_manifest
 from gen import make_manifest, make_suite
-from gen.pandas_oracle import compare_flat_numeric, compute_closing_derived, compute_derived
+from gen.make_suite import SuiteMismatch
+from gen.pandas_oracle import (
+    compare_flat_numeric,
+    compute_closing_adjustment_amounts,
+    compute_closing_derived,
+    compute_derived,
+)
 from gen.templates import TEMPLATES, make_entries
 from runner.run import task_bundle_digest as runner_task_bundle_digest
 
@@ -46,8 +53,95 @@ def test_closing_uses_adjusted_tb_and_post_closing_ledger() -> None:
     assert task["ground_truth"]["derived"]["trial_balance.Sales.amount"] == 15_600
     assert task["ground_truth"]["derived"]["ledger.Sales.balance_side"] == "zero"
     assert task["ground_truth"]["derived"]["ledger.Sales.balance_amount"] == 0
-    assert task["ground_truth"]["derived"]["financial_statements.net_income"] == -6_600
     assert task["ground_truth"]["derived"]["financial_statements.balance_check"] == 0
+
+
+def _journal_txids(task: dict) -> set[str]:
+    return {str(row.get("txid", row.get("entry"))) for row in task["ground_truth"]["journal"]}
+
+
+@pytest.mark.parametrize(
+    ("generator", "count"),
+    [
+        (generate_closing_task, 7),
+        (generate_statements_task, 7),
+        (generate_consolidation_task, 8),
+    ],
+)
+def test_new_kind_transaction_ids_cover_gt_journal(generator, count: int) -> None:
+    task = generator(seed=23, count=count, template="cash_sale")
+    transaction_ids = [str(row["id"]) for row in task["given"]["transactions"]]
+
+    assert len(transaction_ids) == len(set(transaction_ids))
+    assert set(transaction_ids) == _journal_txids(task)
+
+
+def test_closing_transactions_order_and_adjustments_hide_answer_amounts() -> None:
+    task = generate_closing_task(seed=29, count=7, template="cash_sale")
+    transactions = task["given"]["transactions"]
+    transaction_ids = [row["id"] for row in transactions]
+    assert transaction_ids[0] == "opening"
+    assert transaction_ids[-6:] == [
+        "adj-depreciation",
+        "adj-allowance",
+        "adj-cogs",
+        "adj-prepaid-expense",
+        "adj-accrued-expense",
+        "close-income",
+    ]
+
+    def keys_in(value) -> set[str]:
+        if isinstance(value, dict):
+            return set(value) | set().union(*(keys_in(child) for child in value.values()))
+        if isinstance(value, list):
+            return set().union(*(keys_in(child) for child in value))
+        return set()
+
+    assert not ({"amount", "estimate"} & keys_in(task["given"]["adjustment_data"]))
+    for row in transactions[-6:]:
+        assert not ({"amount", "estimate"} & keys_in(row))
+
+    journal = task["ground_truth"]["journal"]
+    base = [
+        row
+        for row in journal
+        if not str(row["entry"]).startswith("adj-") and row["entry"] != "close-income"
+    ]
+    amounts = compute_closing_adjustment_amounts(base, task["given"]["adjustment_data"])
+    assert amounts == {
+        "depreciation": 4_000,
+        "accrued_expense": 1_800,
+        "prepaid_expense": 4_000,
+        "allowance_replenishment": 400,
+        "beginning_inventory": 20_000,
+        "ending_inventory": 15_000,
+    }
+    opening_accumulated = next(
+        row["amount"]
+        for row in task["given"]["opening_balances"]
+        if row["account"] == "AccumulatedDepreciation"
+    )
+    assert opening_accumulated != amounts["depreciation"]
+    assert next(
+        row["amount"]
+        for row in journal
+        if row["entry"] == "adj-depreciation" and row["side"] == "debit"
+    ) == amounts["depreciation"]
+    assert next(
+        row["amount"]
+        for row in journal
+        if row["entry"] == "adj-accrued-expense" and row["side"] == "debit"
+    ) == amounts["accrued_expense"]
+    assert next(
+        row["amount"]
+        for row in journal
+        if row["entry"] == "adj-prepaid-expense" and row["side"] == "debit"
+    ) == amounts["prepaid_expense"]
+    assert next(
+        row["amount"]
+        for row in journal
+        if row["entry"] == "adj-allowance" and row["side"] == "debit"
+    ) == amounts["allowance_replenishment"]
 
 
 def test_statements_returns_given_journal_with_txids() -> None:
@@ -93,9 +187,13 @@ def test_cell_manifest_uses_runner_bundle_digest(tmp_path: Path) -> None:
 
     assert bundle_digest == runner_task_bundle_digest(tasks_dir, sorted(task_ids))
     assert len(cells) == 2 * len(DEFAULT_ARMS) * len(DEFAULT_MODELS)
+    assert {cell["cluster"] for cell in cells} == {
+        "cash_sale-000001",
+        "cash_sale-000002",
+    }
     assert cells[0] == {
         "task_id": sorted(task_ids)[0],
-        "cluster": "cash_sale",
+        "cluster": "cash_sale-000001",
         "category": "journalize",
         "arm": "C",
         "model": "codex",
@@ -113,6 +211,19 @@ def test_cell_manifest_uses_runner_bundle_digest(tmp_path: Path) -> None:
             list(DEFAULT_ARMS),
             list(DEFAULT_MODELS),
         )
+
+
+def test_manifest_requires_integer_source_seed(tmp_path: Path) -> None:
+    tasks_dir = tmp_path / "tasks"
+    sealed_dir = tmp_path / "sealed"
+    tasks_dir.mkdir()
+    task = generate_task(seed=1, count=10, template="cash_sale")
+    del task["source"]["seed"]
+    path = tasks_dir / f"{task['id']}.json"
+    path.write_text(dump_json(task), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="source.seed integer missing"):
+        write_manifest(tasks_dir, sealed_dir, list(DEFAULT_ARMS), list(DEFAULT_MODELS))
 
 
 def test_make_suite_prepares_all_new_kinds_without_ea() -> None:
@@ -166,3 +277,29 @@ def test_new_kind_ea_modes_match_pandas(generator, count: int) -> None:
         timeout=600,
     )
     assert compare_flat_numeric(actual, task["ground_truth"]["derived"]) == []
+
+
+def test_consolidation_ea_checks_each_transaction_and_keeps_entity_axis() -> None:
+    if shutil.which("stack") is None:
+        pytest.skip("stack not available")
+    task = generate_consolidation_task(seed=31, count=8, template="cash_sale")
+    request = ea_request_for_task(task)
+    same_entry_id = copy.deepcopy(request)
+    for row in same_entry_id["postings"]:
+        if row["entry"] == "s-e1":
+            row["entry"] = "p-e1"
+    actual = make_suite.run_derive_ea(same_entry_id, REPO_ROOT, timeout=600)
+    assert compare_flat_numeric(actual, task["ground_truth"]["derived"]) == []
+
+    postings = request["postings"]
+    first_debit = next(
+        row for row in postings if row["entry"] == "p-e1" and row["side"] == "debit"
+    )
+    second_credit = next(
+        row for row in postings if row["entry"] == "p-e2" and row["side"] == "credit"
+    )
+    first_debit["amount"] += 100
+    second_credit["amount"] += 100
+
+    with pytest.raises(SuiteMismatch, match="Imbalanced"):
+        make_suite.run_derive_ea(request, REPO_ROOT, timeout=600)

@@ -208,6 +208,75 @@ def compute_closing_derived(
     return out
 
 
+def _exact_ratio(numerator: int, denominator: int, label: str) -> int:
+    """Return an exact integer ratio for generator-controlled closing facts."""
+    if denominator <= 0:
+        raise ValueError(f"{label} denominator must be positive")
+    quotient, remainder = divmod(numerator, denominator)
+    if remainder:
+        raise ValueError(f"{label} must resolve to a whole-number amount")
+    return quotient
+
+
+def compute_closing_adjustment_amounts(
+    base_postings: Iterable[Mapping[str, Any]],
+    adjustment_data: Mapping[str, Any],
+) -> dict[str, int]:
+    """Derive closing amounts from disclosed facts, without answer fields."""
+    base = list(base_postings)
+    before = compute_derived(base)
+
+    depreciation = adjustment_data["depreciation"]
+    depreciation_amount = _exact_ratio(
+        _amount(depreciation["cost"]) - _amount(depreciation["residual_value"]),
+        _amount(depreciation["useful_life_years"]),
+        "depreciation",
+    )
+
+    accrued = adjustment_data["accrued_expense"]
+    accrued_amount = _exact_ratio(
+        _amount(accrued["principal"])
+        * _amount(accrued["annual_rate_basis_points"])
+        * _amount(accrued["accrued_months"]),
+        10_000 * _amount(accrued["months_per_year"]),
+        "accrued expense",
+    )
+
+    prepaid = adjustment_data["prepaid_expense"]
+    prepaid_amount = _exact_ratio(
+        _amount(prepaid["payment_total"]) * _amount(prepaid["next_period_months"]),
+        _amount(prepaid["coverage_months"]),
+        "prepaid expense",
+    )
+
+    allowance = adjustment_data["allowance"]
+    receivables = _amount(before.get("ledger.AccountsReceivable.balance", 0))
+    allowance_current = _amount(
+        before.get("ledger.AllowanceForDoubtfulAccounts.balance", 0)
+    )
+    allowance_estimate = _exact_ratio(
+        receivables * _amount(allowance["rate_basis_points"]),
+        10_000,
+        "allowance estimate",
+    )
+    allowance_replenishment = allowance_estimate - allowance_current
+    if allowance_replenishment < 0:
+        raise ValueError("allowance replenishment must be non-negative")
+
+    inventory = adjustment_data["cost_of_goods_sold"]
+    beginning_inventory = _amount(inventory["beginning_inventory"])
+    ending_inventory = _amount(inventory["ending_inventory"])
+
+    return {
+        "depreciation": depreciation_amount,
+        "accrued_expense": accrued_amount,
+        "prepaid_expense": prepaid_amount,
+        "allowance_replenishment": allowance_replenishment,
+        "beginning_inventory": beginning_inventory,
+        "ending_inventory": ending_inventory,
+    }
+
+
 def compare_flat_numeric(left: Mapping[str, Any], right: Mapping[str, Any]) -> list[str]:
     """Return mismatches for flat derived maps containing numbers and v2 sides."""
     mismatches: list[str] = []
