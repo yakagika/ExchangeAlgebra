@@ -95,10 +95,18 @@ class CodexBackend(Backend):
                                          # (observed 2026-08-11: high → medium).
     timeout_seconds: int = 240
     effective_model: Optional[str] = None
+    effective_model_source: Optional[str] = None
+    configured_model: Optional[str] = field(init=False)
+    configured_effort: Optional[str] = field(init=False)
+    cli_version: Optional[str] = field(init=False, default=None)
     # Aggregate over every generate() attempt in one cell.  None means the
     # JSONL event stream was missing or could not be decoded reliably.
     tool_event_count: Optional[int] = 0
     _workdir: Optional[str] = None       # lazily-created neutral empty dir
+
+    def __post_init__(self) -> None:
+        self.configured_model = self.model
+        self.configured_effort = self.effort
 
     def _neutral_workdir(self) -> str:
         import os, tempfile
@@ -110,6 +118,8 @@ class CodexBackend(Backend):
         import tempfile, os
 
         prompt = f"[SYSTEM]\n{system}\n\n[USER]\n{user}"
+        if self.cli_version is None:
+            self.cli_version = codex_cli_version()
 
         # Write to a temp file so the answer is isolated from status lines.
         with tempfile.NamedTemporaryFile(
@@ -174,15 +184,20 @@ class CodexBackend(Backend):
                 f"stderr: {result.stderr[:500]}"
             )
 
-        # The codex CLI prints its config banner (version / model / reasoning
-        # effort) on STDERR when stdout is piped (verified against v0.142.5),
-        # so scan both streams.
+        # JSON mode suppresses the banner in codex-cli 0.151.0. Prefer an
+        # actually observed banner if a future CLI restores it; otherwise
+        # independently verify the thread against its persisted rollout.
         self.effective_model = _parse_codex_effective_model(
             (result.stdout or "") + "\n" + (result.stderr or ""),
-            self.model,
-            configured_effort=self.effort,
-            configured_cli_version=codex_cli_version(),
+            configured_cli_version=self.cli_version,
         )
+        self.effective_model_source = "banner" if self.effective_model else None
+        if self.effective_model is None:
+            thread_id = _codex_thread_id(result.stdout or "")
+            if thread_id is not None:
+                self.effective_model = _parse_codex_rollout_effective_model(thread_id)
+                if self.effective_model is not None:
+                    self.effective_model_source = "rollout"
 
         # Read from the -o output file (clean final answer only).
         try:
@@ -417,30 +432,132 @@ def _count_codex_tool_events(stdout: str) -> Optional[int]:
 
 def _parse_codex_effective_model(
     stdout: str,
-    configured_model: Optional[str],
-    configured_effort: Optional[str] = None,
     configured_cli_version: Optional[str] = None,
 ) -> Optional[str]:
     cli_match = re.search(r"^OpenAI Codex v(\S+)", stdout, re.MULTILINE)
     model_match = re.search(r"^model:\s*(.+)$", stdout, re.MULTILINE)
     effort_match = re.search(r"^reasoning effort:\s*(.+)$", stdout, re.MULTILINE)
 
-    cli_version = cli_match.group(1).strip() if cli_match else None
-    if cli_version is None and configured_cli_version:
-        version_match = re.search(r"(\d+(?:\.\d+)+)", configured_cli_version)
-        cli_version = version_match.group(1) if version_match else configured_cli_version
-    model = model_match.group(1).strip() if model_match else configured_model
-    effort = effort_match.group(1).strip() if effort_match else configured_effort
-
-    if not (cli_version or model or effort):
+    if model_match is None or effort_match is None:
         return None
+    cli_version = cli_match.group(1).strip() if cli_match else _cli_version_number(
+        configured_cli_version
+    )
+    model = model_match.group(1).strip()
+    effort = effort_match.group(1).strip()
+    return _format_codex_effective_model(model, effort, cli_version)
 
-    head = model or "codex"
-    if effort:
-        head = f"{head}/{effort}"
-    if cli_version:
-        return f"{head} (cli v{cli_version})"
-    return head
+
+def _cli_version_number(version: Optional[str]) -> Optional[str]:
+    if not version:
+        return None
+    match = re.search(r"(\d+(?:\.\d+)+)", version)
+    return match.group(1) if match else None
+
+
+def _format_codex_effective_model(
+    model: Optional[str], effort: Optional[str], cli_version: Optional[str]
+) -> Optional[str]:
+    if not model or not effort or not cli_version:
+        return None
+    return f"{model}/{effort} (cli v{cli_version})"
+
+
+def _codex_thread_id(stdout: str) -> Optional[str]:
+    """Extract the persisted thread id from a Codex JSONL event stream."""
+    for line in stdout.splitlines():
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(event, dict) and event.get("type") == "thread.started":
+            thread_id = event.get("thread_id")
+            if isinstance(thread_id, str) and thread_id:
+                return thread_id
+    return None
+
+
+def _rollout_matches_thread(path: Path, thread_id: str) -> bool:
+    try:
+        with path.open(encoding="utf-8") as handle:
+            for line in handle:
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if not isinstance(event, dict):
+                    continue
+                if event.get("type") != "session_meta":
+                    continue
+                payload = event.get("payload", {})
+                return isinstance(payload, dict) and (
+                    payload.get("session_id") == thread_id
+                    or payload.get("id") == thread_id
+                )
+    except OSError:
+        return False
+    return False
+
+
+def _find_codex_rollout(
+    thread_id: str, sessions_dir: Optional[Path] = None
+) -> Optional[Path]:
+    root = sessions_dir or (Path.home() / ".codex" / "sessions")
+    if not root.is_dir():
+        return None
+    named = sorted(root.rglob(f"rollout-*{thread_id}*.jsonl"), reverse=True)
+    for path in named:
+        if _rollout_matches_thread(path, thread_id):
+            return path
+    # Compatibility fallback for alternate filenames: validate session_meta,
+    # rather than a raw substring, so a parent session that merely mentions
+    # the child thread id cannot be mistaken for the child's rollout.
+    for path in sorted(root.rglob("rollout-*.jsonl"), reverse=True):
+        if path not in named and _rollout_matches_thread(path, thread_id):
+            return path
+    return None
+
+
+def _parse_codex_rollout_effective_model(
+    thread_id: str, sessions_dir: Optional[Path] = None
+) -> Optional[str]:
+    """Read model/effort/version only from the matching persisted rollout."""
+    path = _find_codex_rollout(thread_id, sessions_dir)
+    if path is None:
+        return None
+    model = effort = cli_version = None
+    try:
+        with path.open(encoding="utf-8") as handle:
+            for line in handle:
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if not isinstance(event, dict):
+                    continue
+                payload = event.get("payload", {})
+                if not isinstance(payload, dict):
+                    continue
+                if event.get("type") == "session_meta":
+                    cli_version = _cli_version_number(payload.get("cli_version"))
+                elif event.get("type") == "turn_context":
+                    model = payload.get("model")
+                    effort = payload.get("effort")
+                    if not effort:
+                        settings = (
+                            (payload.get("collaboration_mode", {}) or {}).get(
+                                "settings", {}
+                            )
+                            or {}
+                        )
+                        effort = settings.get("reasoning_effort")
+                if model and effort and cli_version:
+                    return _format_codex_effective_model(
+                        str(model), str(effort), cli_version
+                    )
+    except OSError:
+        return None
+    return None
 
 
 @lru_cache(maxsize=1)

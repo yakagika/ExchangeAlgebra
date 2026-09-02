@@ -474,7 +474,7 @@ Additional validation rules for arm V:
   a "txid" key equal to the corresponding source transaction id.
 - Your output is validated by a generic double-entry balance checker. If it is
   rejected, the checker error will be returned; fix the postings and emit the
-complete corrected JSON value in the same format.
+  complete corrected JSON value in the same format.
 """
 
 _ARM_V_FULL_ROLE = _ARM_C_ROLE + """\
@@ -556,24 +556,28 @@ Output ONLY the Python source code (no markdown fences, no explanation).
 def _arm_c_system(task: dict, scoring_contract: str = "v1") -> str:
     # This prohibition is the treatment definition for C only.  A-prime and V
     # reuse _ARM_C_ROLE's JSON wording but intentionally do not receive it.
-    system = (
-        _ARM_C_ROLE + "\n" + _ARM_C_NO_TOOL_ROLE + "\n"
-        + _output_contract(task, scoring_contract)
-    )
-    # Experiment 2 makes txid part of every arm's posting contract. Keep the
-    # frozen v1 prompt apart from the independently required C no-tool clause.
-    if scoring_contract == "side" and _task_has_transactions(task):
-        system += (
-            "\n\nTransaction id contract: every journal posting MUST include "
-            'a "txid" key copied exactly from the corresponding input '
-            "transaction id."
-        )
+    system = _ARM_C_ROLE + "\n"
+    if scoring_contract == "side":
+        system += _ARM_C_NO_TOOL_ROLE + "\n"
+    system += _output_contract(task, scoring_contract)
+    if scoring_contract == "side":
+        system += _txid_contract(task)
     return system
 
 
 def _task_has_transactions(task: dict) -> bool:
     txs = (task.get("given", {}) or {}).get("transactions")
     return isinstance(txs, list) and bool(txs)
+
+
+def _txid_contract(task: dict) -> str:
+    if not _task_has_transactions(task):
+        return ""
+    return (
+        "\n\nTransaction id contract: every journal posting MUST include "
+        'a "txid" key copied exactly from the corresponding input '
+        "transaction id."
+    )
 
 
 def _arm_aprime_system(task: dict, scoring_contract: str = "v1") -> str:
@@ -618,7 +622,10 @@ def _ea_minimal_system(task: dict, scoring_contract: str = "v1") -> str:
 
 
 def _arm_b_system(task: dict, scoring_contract: str = "v1") -> str:
-    return _ARM_B_ROLE + "\n" + _output_contract(task, scoring_contract)
+    system = _ARM_B_ROLE + "\n" + _output_contract(task, scoring_contract)
+    if scoring_contract == "side":
+        system += _txid_contract(task)
+    return system
 
 
 def _load_skill(version: str) -> str:
@@ -1435,17 +1442,20 @@ def arm_aprime(
             # derivation and the model's own map is kept. Which of the two
             # happened is recorded rather than inferred.
             if _task_derivable(task):
-                derived_out = derive_fn(
-                    json.dumps(canonical_journal, ensure_ascii=False)
-                )
-                harness_derived = (derived_out or {}).get("derived")
-                if isinstance(harness_derived, dict) and harness_derived:
-                    final_parsed["derived"] = _derived_for_contract(
-                        harness_derived, scoring_contract
+                try:
+                    derived_out = derive_fn(
+                        json.dumps(canonical_journal, ensure_ascii=False)
                     )
-                    result["derived_source"] = "harness"
-                else:
-                    result["derived_source"] = "model (derivation failed)"
+                    harness_derived = (derived_out or {}).get("derived")
+                    if isinstance(harness_derived, dict) and harness_derived:
+                        final_parsed["derived"] = _derived_for_contract(
+                            harness_derived, scoring_contract
+                        )
+                        result["derived_source"] = "harness"
+                    else:
+                        result["derived_source"] = "model (derivation failed)"
+                except Exception as exc:
+                    result["derived_source"] = f"model (derivation failed: {exc})"
             elif "derived" in final_parsed:
                 result["derived_source"] = "model (schema not derivable)"
 

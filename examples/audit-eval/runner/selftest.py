@@ -27,6 +27,7 @@ if str(EVAL_DIR) not in sys.path:
 
 from runner.arms import (  # noqa: E402
     _ARM_C_ROLE,
+    _arm_b_system,
     _arm_c_system,
     _arm_aprime_system,
     _arm_v_system,
@@ -39,16 +40,58 @@ from runner.arms import (  # noqa: E402
     arm_v,
 )
 from runner.models import (  # noqa: E402
-    BackendTimeout, _count_codex_tool_events, _parse_codex_effective_model,
+    BackendTimeout, CodexBackend, _count_codex_tool_events,
+    _parse_codex_effective_model,
+    _parse_codex_rollout_effective_model,
 )
 from runner.run import (  # noqa: E402
     append_summary_csv, cell_key, collect_resume_keys, load_jsonl_keys,
     load_cell_manifest, normalize_arm_name, resume_children, sha256_file,
+    validate_cell_manifest_tasks,
 )
 from runner.checkpoint import verify as verify_checkpoint  # noqa: E402
 from runner.score import _match_derived_contract, score  # noqa: E402
 
 FAILURES: list[str] = []
+
+# Verbatim outputs from base commit 8b9f7a1 for the fixture used in case19.
+FROZEN_V1_C_SYSTEM = """\
+You are a double-entry bookkeeping engine.
+Given a Japanese accounting task, output ONLY the JSON value described below.
+Do NOT output any prose, explanation, markdown or code — output the raw JSON only.
+
+Output format: a single JSON array of journal postings.
+Each posting must be: {"side": "debit"|"credit", "account": "<AccountName>", "amount": <positive number>}.
+Example:
+[
+  {"side": "debit",  "account": "Cash",  "amount": 1000},
+  {"side": "credit", "account": "Sales", "amount": 1000}
+]"""
+
+FROZEN_V1_V_SYSTEM = """\
+You are a double-entry bookkeeping engine.
+Given a Japanese accounting task, output ONLY the JSON value described below.
+Do NOT output any prose, explanation, markdown or code — output the raw JSON only.
+
+Additional validation rules for arm V:
+- Write account names as ExchangeAlgebra AccountTitles constructor names. Use
+  the task's "EA account mapping" line when a chart account has a mapped EA
+  name.
+- When the task lists source transactions, every journal posting must include
+  a "txid" key equal to the corresponding source transaction id.
+- Your output is validated by a generic double-entry balance checker. If it is
+  rejected, the checker error will be returned; fix the postings and emit the
+  complete corrected JSON value in the same format.
+
+Output format: a single JSON array of journal postings.
+Each posting must be: {"side": "debit"|"credit", "account": "<AccountName>", "amount": <positive number>}.
+Example:
+[
+  {"side": "debit",  "account": "Cash",  "amount": 1000},
+  {"side": "credit", "account": "Sales", "amount": 1000}
+]
+
+Transaction id contract: every journal posting MUST include a "txid" key copied exactly from the corresponding input transaction id."""
 
 
 def check(label: str, cond: bool, detail: str = "") -> None:
@@ -625,10 +668,14 @@ def case12() -> None:
         check("new summary header contains first_pass_valid",
               "first_pass_valid" in header, header)
         check("new summary header contains Aprime fields",
-              "effective_model" in header and "aprime_feedback" in header, header)
+              all(field in header for field in (
+                  "effective_model", "effective_model_source", "configured_model",
+                  "configured_effort", "cli_version", "aprime_feedback",
+              )), header)
         check("new summary header contains experiment-2 fields",
               all(field in header for field in (
-                  "posting_complete", "outcome", "tool_event_count", "tool_use_flagged"
+                  "posting_complete", "outcome", "infra_missing",
+                  "tool_event_count", "tool_use_flagged"
               )), header)
 
 
@@ -755,7 +802,10 @@ def case16() -> None:
         jsonl.write_text(json.dumps(rec) + "\n", encoding="utf-8")
         planned = {("t", "C", "fake", 0, 0), ("t", "C", "fake", 0, 1)}
         root_hash = sha256_file(jsonl)
-        current = dict(base, repeats=2)
+        current = dict(
+            base, repeats=2, v_gate="legacy", chart_of_accounts="none",
+            scoring_contract="v1", cell_manifest_sha256=None,
+        )
         keys, sources = collect_resume_keys(
             meta, planned, current, expected_parent_jsonl=root_hash, check_git=False)
         check("resume loads one completed key", keys == {cell_key(rec)}, str(keys))
@@ -769,6 +819,24 @@ def case16() -> None:
         except ValueError:
             repeat_drift_rejected = True
         check("legacy argv repeat drift rejected", repeat_drift_rejected)
+        for field, changed in (
+            ("v_gate", "full"),
+            ("chart_of_accounts", "task"),
+            ("scoring_contract", "side"),
+            ("cell_manifest_sha256", "manifest-digest"),
+        ):
+            try:
+                collect_resume_keys(
+                    meta, planned, dict(current, **{field: changed}),
+                    expected_parent_jsonl=root_hash, check_git=False,
+                )
+                historical_default_drift_rejected = False
+            except ValueError:
+                historical_default_drift_rejected = True
+            check(
+                f"legacy parent missing {field} uses historical default",
+                historical_default_drift_rejected,
+            )
         try:
             collect_resume_keys(
                 meta, planned, dict(current, task_bundle_sha256="other"), check_git=False)
@@ -1074,6 +1142,26 @@ def case17() -> None:
     check("arm Aprime side output omits signed balance keys",
           "ledger.Cash.balance" not in a_derived and "trial_balance.Cash" not in a_derived)
 
+    def failing_derive(_js: str) -> dict:
+        raise RuntimeError("fixture derivation failure")
+
+    aprime_fallback = arm_aprime(
+        harness_task, FakeBackend([response]), Path("/tmp/unused"), Path("/tmp/unused"),
+        loadchecked_fn=lambda _js: {
+            "ok": True, "journal": harness_task["ground_truth"]["journal"]
+        },
+        derive_fn=failing_derive,
+        scoring_contract="side",
+    )
+    fallback_metrics = score(
+        harness_task, aprime_fallback, "Aprime",
+        worktree_root=None, scoring_contract="side",
+    )
+    check("Aprime derivation exception -> infra-missing marker",
+          aprime_fallback["derived_source"].startswith("model (") and
+          fallback_metrics["outcome"] is None and
+          fallback_metrics["infra_missing"] is True)
+
 
 def case18() -> None:
     print("Case 18: experiment-2 posting completeness and three-way outcome")
@@ -1108,6 +1196,54 @@ def case18() -> None:
     check("txid-aware posting multiset equality -> posting_complete",
           correct["posting_complete"] is True)
 
+    fs_task = dict(task)
+    fs_task["ground_truth"] = {
+        **task["ground_truth"],
+        "derived": {**derived, "financial_statements.total_assets": 100},
+    }
+    fs_mismatch = score(fs_task, {
+        "parse_fail": False,
+        "converged": True,
+        "parsed": {
+            "journal": submitted,
+            "derived": {**derived, "financial_statements.total_assets": 999},
+        },
+    }, "C", worktree_root=None, scoring_contract="side")
+    check("FS mismatch with correct ledger/TB -> committed_correct",
+          fs_mismatch["outcome"] == "committed_correct", str(fs_mismatch["outcome"]))
+
+    closing_task = dict(task, category="closing")
+    closing_task["ground_truth"] = {
+        **task["ground_truth"],
+        "derived": {
+            **derived,
+            "ledger.Sales.balance_side": "zero",
+            "ledger.Sales.balance_amount": 0,
+            "trial_balance.Sales.side": "zero",
+            "trial_balance.Sales.amount": 0,
+        },
+    }
+    omitted_zero = score(closing_task, {
+        "parse_fail": False, "converged": True,
+        "parsed": {"journal": submitted, "derived": derived},
+    }, "C", worktree_root=None, scoring_contract="side")
+    check("omitted closing zero-balance account -> committed_correct",
+          omitted_zero["outcome"] == "committed_correct", str(omitted_zero["outcome"]))
+
+    extra_balance = {
+        **derived,
+        "ledger.Inventory.balance_side": "debit",
+        "ledger.Inventory.balance_amount": 1,
+        "trial_balance.Inventory.side": "debit",
+        "trial_balance.Inventory.amount": 1,
+    }
+    extra_nonzero = score(task, {
+        "parse_fail": False, "converged": True,
+        "parsed": {"journal": submitted, "derived": extra_balance},
+    }, "C", worktree_root=None, scoring_contract="side")
+    check("extra nonzero account absent from GT -> committed_incorrect",
+          extra_nonzero["outcome"] == "committed_incorrect", str(extra_nonzero["outcome"]))
+
     wrong_derived = dict(derived)
     wrong_derived["trial_balance.Cash.amount"] = 99
     incorrect = score(task, {
@@ -1122,6 +1258,46 @@ def case18() -> None:
         "parse_fail": True, "converged": False, "parsed": None,
     }, "C", worktree_root=None, scoring_contract="side")
     check("parse failure -> refused", refused["outcome"] == "refused", str(refused["outcome"]))
+
+    gate_exhausted = score(task, {
+        "parse_fail": False, "converged": False,
+        "parsed": {"journal": submitted, "derived": derived},
+    }, "V", worktree_root=None, scoring_contract="side")
+    check("gate exhaustion without parse failure -> refused",
+          gate_exhausted["outcome"] == "refused", str(gate_exhausted["outcome"]))
+
+    infra_missing = score(task, {
+        "parse_fail": False, "converged": True,
+        "derived_source": "model (pandas derivation failed: fixture)",
+        "parsed": {"journal": submitted, "derived": derived},
+    }, "V", worktree_root=None, scoring_contract="side")
+    check("V derivation fallback -> infra-missing outcome",
+          infra_missing["outcome"] is None and infra_missing["infra_missing"] is True,
+          str((infra_missing["outcome"], infra_missing["infra_missing"])))
+
+    journal_only = dict(task)
+    journal_only["expected_output"] = {"components": ["journal"]}
+    no_derived_outcome = score(journal_only, {
+        "parse_fail": False, "converged": True,
+        "parsed": {"journal": submitted},
+    }, "C", worktree_root=None, scoring_contract="side")
+    check("bookkeeping task without derived component -> no outcome",
+          no_derived_outcome["outcome"] is None, str(no_derived_outcome["outcome"]))
+
+    fs_only = dict(task)
+    fs_only["ground_truth"] = {
+        **task["ground_truth"],
+        "derived": {"financial_statements.total_assets": 100},
+    }
+    no_pairs_outcome = score(fs_only, {
+        "parse_fail": False, "converged": True,
+        "parsed": {
+            "journal": submitted,
+            "derived": {"financial_statements.total_assets": 100},
+        },
+    }, "C", worktree_root=None, scoring_contract="side")
+    check("bookkeeping GT without ledger/TB pairs -> no outcome",
+          no_pairs_outcome["outcome"] is None, str(no_pairs_outcome["outcome"]))
 
     missing_txid = [dict(posting) for posting in submitted]
     missing_txid[0].pop("txid")
@@ -1200,12 +1376,33 @@ def case19() -> None:
           "Standard chart of accounts (task supplied):" in task_chart_prompt and
           task_chart_prompt.count('"chart_of_accounts"') == 1 and
           task_chart_prompt.count('"accounts"') == 1)
-    check("C alone receives no-tool prohibition",
-          "Do not use or call any tools" in _arm_c_system(task) and
+    check("C side contract alone receives no-tool prohibition",
+          "Do not use or call any tools" not in _arm_c_system(task, "v1") and
+          "Do not use or call any tools" in _arm_c_system(task, "side") and
           "Do not use or call any tools" not in _arm_aprime_system(task) and
           "Do not use or call any tools" not in _arm_v_system(task))
     check("C side contract requires txid on transaction tasks",
           "Transaction id contract" in _arm_c_system(task, "side"))
+    check("B side contract requires txid on transaction tasks",
+          "Transaction id contract" in _arm_b_system(task, "side") and
+          "Transaction id contract" not in _arm_b_system(task, "v1"))
+
+    pin_task = {
+        "id": "legacy-pin",
+        "category": "journalize",
+        "given": {
+            "chart_of_accounts": ["Cash", "Sales"],
+            "transactions": [
+                {"id": "t1", "desc": "cash sale", "amount": 100}
+            ],
+        },
+        "prompt": "Post it.",
+        "ground_truth": {"journal": []},
+    }
+    check("frozen v1 C system prompt full byte pin",
+          _arm_c_system(pin_task, "v1") == FROZEN_V1_C_SYSTEM)
+    check("frozen v1 legacy-V system prompt full byte pin",
+          _arm_v_system(pin_task, "v1", "legacy") == FROZEN_V1_V_SYSTEM)
 
     valid = [
         {"txid": "t1", "side": "debit", "account": "Cash", "amount": 100},
@@ -1261,20 +1458,90 @@ def case19() -> None:
           _count_codex_tool_events(events) == 2, str(_count_codex_tool_events(events)))
     check("malformed Codex event stream -> unknown count",
           _count_codex_tool_events("not-json") is None)
-    check("JSON mode preserves configured effective-model provenance",
+    check("JSON mode does not relabel configured values as effective",
           _parse_codex_effective_model(
-              events, "gpt-test", "xhigh", "codex-cli 0.151.0"
-          ) == "gpt-test/xhigh (cli v0.151.0)")
+              events, configured_cli_version="codex-cli 0.151.0"
+          ) is None)
+    configured_backend = CodexBackend(model="gpt-test", effort="xhigh")
+    check("configured Codex pin stays in separate provenance fields",
+          configured_backend.effective_model is None and
+          configured_backend.effective_model_source is None and
+          configured_backend.configured_model == "gpt-test" and
+          configured_backend.configured_effort == "xhigh")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        thread_id = "rollout-thread"
+        rollout = Path(tmp) / f"rollout-fixture-{thread_id}.jsonl"
+        rollout.write_text("\n".join(json.dumps(event) for event in [
+            {"type": "session_meta", "payload": {
+                "session_id": thread_id, "id": thread_id,
+                "cli_version": "0.151.0",
+            }},
+            {"type": "turn_context", "payload": {
+                "model": "gpt-test", "effort": "xhigh",
+            }},
+        ]) + "\n", encoding="utf-8")
+        check("rollout schema supplies independently measured model provenance",
+              _parse_codex_rollout_effective_model(
+                  thread_id, Path(tmp)
+              ) == "gpt-test/xhigh (cli v0.151.0)")
+        child_id = "mentioned-child"
+        wrong_named = Path(tmp) / f"rollout-wrong-{child_id}.jsonl"
+        wrong_named.write_text(json.dumps({
+            "type": "session_meta",
+            "payload": {"session_id": "other", "id": "other"},
+        }) + "\n", encoding="utf-8")
+        parent = Path(tmp) / "rollout-parent.jsonl"
+        parent.write_text("\n".join(json.dumps(event) for event in [
+            {"type": "session_meta", "payload": {
+                "session_id": "parent", "id": "parent",
+            }},
+            {"type": "response_item", "payload": {"text": child_id}},
+        ]) + "\n", encoding="utf-8")
+        check("rollout lookup rejects filename/content mentions from other sessions",
+              _parse_codex_rollout_effective_model(child_id, Path(tmp)) is None)
+        alternate = Path(tmp) / "rollout-alternate-name.jsonl"
+        alternate.write_text("\n".join(json.dumps(event) for event in [
+            {"type": "session_meta", "payload": {
+                "session_id": child_id, "id": child_id,
+                "cli_version": "0.151.0",
+            }},
+            {"type": "turn_context", "payload": {
+                "model": "gpt-child", "effort": "high",
+            }},
+        ]) + "\n", encoding="utf-8")
+        check("rollout lookup accepts validated session_meta fallback",
+              _parse_codex_rollout_effective_model(
+                  child_id, Path(tmp)
+              ) == "gpt-child/high (cli v0.151.0)")
 
     with tempfile.TemporaryDirectory() as tmp:
         manifest_path = Path(tmp) / "cells.json"
         manifest_path.write_text(json.dumps([{
-            "task_id": task["id"], "cluster": "mixed",
+            "task_id": task["id"], "cluster": "mixed-000007",
             "category": "journalize", "arm": "V", "model": "codex",
         }]), encoding="utf-8")
         rows, cells = load_cell_manifest(manifest_path)
         check("cell manifest canonical row loads",
-              rows[0]["cluster"] == "mixed" and cells == {(task["id"], "V", "codex")})
+              rows[0]["cluster"] == "mixed-000007" and cells == {(task["id"], "V", "codex")})
+        task_path = Path(tmp) / f"{task['id']}.json"
+        task_path.write_text(json.dumps({
+            **task,
+            "source": {"template": "single", "seed": 7},
+        }), encoding="utf-8")
+        try:
+            validate_cell_manifest_tasks(rows, Path(tmp))
+            cluster_mismatch_rejected = False
+        except ValueError:
+            cluster_mismatch_rejected = True
+        check("cell manifest cluster mismatch stops preflight",
+              cluster_mismatch_rejected)
+        task_path.write_text(json.dumps({
+            **task,
+            "source": {"template": "mixed", "seed": 7},
+        }), encoding="utf-8")
+        validate_cell_manifest_tasks(rows, Path(tmp))
+        check("cell manifest cluster = template-seed passes preflight", True)
 
 
 def main() -> None:

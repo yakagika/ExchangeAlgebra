@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import csv
+import hashlib
 import subprocess
 import sys
 
@@ -21,6 +22,8 @@ from gen.defects import DEFECT_KINDS, generate_audit_task
 from gen.pandas_oracle import compare_flat_numeric, compute_derived, detect_findings
 from gen.templates import TEMPLATES
 from runner.score import _is_side_contract_key, score
+from runner.arms import _arm_b_system, _arm_c_system, _arm_v_system
+from runner.run import validate_cell_manifest_tasks
 
 
 LABEL_KEYS = {"template", "trade_side", "settlement"}
@@ -116,6 +119,7 @@ def _debit_totals(postings: list[dict]) -> dict[str, int]:
 def test_generation_is_deterministic_for_same_seed() -> None:
     left = generate_task(seed=17, count=9)
     right = generate_task(seed=17, count=9)
+    assert left["source"]["template"] == "mixed"
     assert json.dumps(left, ensure_ascii=False, sort_keys=True) == json.dumps(
         right,
         ensure_ascii=False,
@@ -423,6 +427,49 @@ def test_experiment2_scorer_outcomes_and_posting_completeness() -> None:
     assert correct["outcome"] == "committed_correct"
     assert correct["posting_complete"] is True
 
+    fs_task = dict(task)
+    fs_task["ground_truth"] = {
+        **task["ground_truth"],
+        "derived": {**derived, "financial_statements.total_assets": 100},
+    }
+    fs_mismatch = score(fs_task, {
+        "parse_fail": False, "converged": True,
+        "parsed": {
+            "journal": submitted,
+            "derived": {**derived, "financial_statements.total_assets": 999},
+        },
+    }, "C", worktree_root=None, scoring_contract="side")
+    assert fs_mismatch["outcome"] == "committed_correct"
+
+    closing_task = dict(task, category="closing")
+    closing_task["ground_truth"] = {
+        **task["ground_truth"],
+        "derived": {
+            **derived,
+            "ledger.Sales.balance_side": "zero",
+            "ledger.Sales.balance_amount": 0,
+            "trial_balance.Sales.side": "zero",
+            "trial_balance.Sales.amount": 0,
+        },
+    }
+    omitted_zero = score(closing_task, {
+        "parse_fail": False, "converged": True,
+        "parsed": {"journal": submitted, "derived": derived},
+    }, "C", worktree_root=None, scoring_contract="side")
+    assert omitted_zero["outcome"] == "committed_correct"
+
+    extra_nonzero = score(task, {
+        "parse_fail": False, "converged": True,
+        "parsed": {"journal": submitted, "derived": {
+            **derived,
+            "ledger.Inventory.balance_side": "debit",
+            "ledger.Inventory.balance_amount": 1,
+            "trial_balance.Inventory.side": "debit",
+            "trial_balance.Inventory.amount": 1,
+        }},
+    }, "C", worktree_root=None, scoring_contract="side")
+    assert extra_nonzero["outcome"] == "committed_incorrect"
+
     wrong = dict(derived)
     wrong["ledger.Cash.balance_side"] = "credit"
     incorrect = score(task, {
@@ -435,6 +482,34 @@ def test_experiment2_scorer_outcomes_and_posting_completeness() -> None:
         "parse_fail": True, "converged": False, "parsed": None,
     }, "C", worktree_root=None, scoring_contract="side")
     assert refused["outcome"] == "refused"
+
+    gate_exhausted = score(task, {
+        "parse_fail": False, "converged": False,
+        "parsed": {"journal": submitted, "derived": derived},
+    }, "V", worktree_root=None, scoring_contract="side")
+    assert gate_exhausted["outcome"] == "refused"
+
+    infra_missing = score(task, {
+        "parse_fail": False, "converged": True,
+        "derived_source": "model (derivation failed)",
+        "parsed": {"journal": submitted, "derived": derived},
+    }, "Aprime", worktree_root=None, scoring_contract="side")
+    assert infra_missing["outcome"] is None
+    assert infra_missing["infra_missing"] is True
+
+    fs_only = dict(task)
+    fs_only["ground_truth"] = {
+        **task["ground_truth"],
+        "derived": {"financial_statements.total_assets": 100},
+    }
+    no_pairs = score(fs_only, {
+        "parse_fail": False, "converged": True,
+        "parsed": {
+            "journal": submitted,
+            "derived": {"financial_statements.total_assets": 100},
+        },
+    }, "C", worktree_root=None, scoring_contract="side")
+    assert no_pairs["outcome"] is None
 
     without_txid = [dict(posting) for posting in submitted]
     without_txid[0].pop("txid")
@@ -476,3 +551,51 @@ def test_experiment2_scorer_outcomes_and_posting_completeness() -> None:
         "parsed": {"findings": []},
     }, "C", worktree_root=None, scoring_contract="side")
     assert audit_empty_result["outcome"] == "committed_correct"
+
+
+def test_frozen_v1_prompts_and_b_side_txid_contract() -> None:
+    task = {
+        "id": "legacy-pin",
+        "category": "journalize",
+        "given": {
+            "chart_of_accounts": ["Cash", "Sales"],
+            "transactions": [
+                {"id": "t1", "desc": "cash sale", "amount": 100}
+            ],
+        },
+        "prompt": "Post it.",
+        "ground_truth": {"journal": []},
+    }
+    assert hashlib.sha256(
+        _arm_c_system(task, "v1").encode()
+    ).hexdigest() == "64375644cab668e3d5e7c3fd32bb92c3db4f42ea75c0977d90e6cb0a10e0d5da"
+    assert hashlib.sha256(
+        _arm_v_system(task, "v1", "legacy").encode()
+    ).hexdigest() == "b4772537123d79292d40a04f76914827a979ca726d0c34ceb94288b22a0b9f01"
+    assert "Transaction id contract" not in _arm_b_system(task, "v1")
+    assert "Transaction id contract" in _arm_b_system(task, "side")
+
+
+def test_cell_manifest_cluster_mismatch_is_rejected(tmp_path: Path) -> None:
+    task_id = "cluster-fixture"
+    (tmp_path / f"{task_id}.json").write_text(json.dumps({
+        "id": task_id,
+        "category": "journalize",
+        "source": {"template": "single"},
+    }), encoding="utf-8")
+    rows = [{
+        "task_id": task_id,
+        "cluster": "mixed",
+        "category": "journalize",
+        "arm": "V",
+        "model": "codex",
+    }]
+    with pytest.raises(ValueError, match="cluster mismatch"):
+        validate_cell_manifest_tasks(rows, tmp_path)
+    (tmp_path / f"{task_id}.json").write_text(json.dumps({
+        "id": task_id,
+        "category": "journalize",
+        "source": "single",
+    }), encoding="utf-8")
+    with pytest.raises(ValueError, match="source must be an object"):
+        validate_cell_manifest_tasks(rows, tmp_path)

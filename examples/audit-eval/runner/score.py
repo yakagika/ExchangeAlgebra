@@ -567,20 +567,61 @@ _BOOKKEEPING_OUTCOME_CATEGORIES = {
 
 
 def _ledger_trial_balance_pairs_match(model_derived: Any, gt_derived: dict) -> bool:
-    """Whether every ledger/TB side-amount pair matches, with no extra pair."""
+    """Compare ledger/TB pairs over the union, treating omission as zero."""
     if not isinstance(model_derived, dict):
         return False
-    relevant_gt = {
-        key: value
-        for key, value in gt_derived.items()
-        if _is_side_contract_key(key)
-    }
-    gt_pairs = _side_pair_roots(relevant_gt)
+    missing = object()
+
+    def pairs(derived: dict) -> dict[str, tuple[Any, Any]]:
+        normalized = {_norm_key(key): value for key, value in derived.items()}
+        return {
+            _norm_key(identity): (
+                normalized.get(_norm_key(side_key), missing),
+                normalized.get(_norm_key(amount_key), missing),
+            )
+            for identity, side_key, amount_key in _side_pair_roots(derived)
+        }
+
+    def valid_pair(pair: tuple[Any, Any]) -> bool:
+        side, amount = pair
+        return (
+            isinstance(side, str)
+            and side.strip().lower() in {"debit", "credit", "zero"}
+            and isinstance(amount, (int, float))
+            and not isinstance(amount, bool)
+            and math.isfinite(float(amount))
+            and amount >= 0
+            and not (side.strip().lower() == "zero" and float(amount) != 0.0)
+        )
+
+    relevant_gt = {key: value for key, value in gt_derived.items()
+                   if _is_side_contract_key(key)}
+    gt_pairs = pairs(relevant_gt)
     if not gt_pairs:
         return False
-    matched, total = _match_derived_contract(model_derived, relevant_gt, "side")
-    model_pair_count = len(_side_pair_roots(model_derived))
-    return matched == total and model_pair_count == total
+    model_pairs = pairs(model_derived)
+    zero_pair = ("zero", 0)
+    for identity in gt_pairs.keys() | model_pairs.keys():
+        gt_pair = gt_pairs.get(identity, zero_pair)
+        model_pair = model_pairs.get(identity, zero_pair)
+        if not valid_pair(gt_pair) or not valid_pair(model_pair):
+            return False
+        gt_side, gt_amount = gt_pair
+        model_side, model_amount = model_pair
+        if (
+            model_side.strip().lower() != gt_side.strip().lower()
+            or not _numeric_close(float(model_amount), float(gt_amount))
+        ):
+            return False
+    return True
+
+
+def _outcome_infra_missing(arm_name: str, derived_source: Any) -> bool:
+    return (
+        arm_name in {"V", "Aprime"}
+        and isinstance(derived_source, str)
+        and derived_source.startswith("model (")
+    )
 
 
 def _outcome(
@@ -588,6 +629,8 @@ def _outcome(
     arm_result: dict,
     parsed: Any,
     scoring_contract: str,
+    arm_name: str,
+    derived_source: Any,
 ) -> Optional[str]:
     """Map one submission to the pre-registered experiment-2 outcome."""
     # The three-way outcome is defined by side contract v2.  Leaving it
@@ -599,6 +642,18 @@ def _outcome(
     category = str(task.get("category", "")).strip().lower()
     if category not in _BOOKKEEPING_OUTCOME_CATEGORIES | {"audit"}:
         return None
+
+    expected_components = (
+        (task.get("expected_output", {}) or {}).get("components", []) or []
+    )
+    if category in _BOOKKEEPING_OUTCOME_CATEGORIES:
+        if "derived" not in expected_components:
+            return None
+        gt_derived = (task.get("ground_truth", {}) or {}).get("derived", {}) or {}
+        if not _side_pair_roots(gt_derived):
+            return None
+        if _outcome_infra_missing(arm_name, derived_source):
+            return None
 
     refused = (
         bool(arm_result.get("timed_out"))
@@ -872,6 +927,11 @@ def score(
         arm_result,
         parsed,
         scoring_contract,
+        arm_name,
+        arm_result.get("derived_source"),
+    )
+    infra_missing = _outcome_infra_missing(
+        arm_name, arm_result.get("derived_source")
     )
 
     return {
@@ -899,4 +959,5 @@ def score(
         "timed_out":              timed_out,
         "posting_complete":       posting_complete,
         "outcome":                outcome,
+        "infra_missing":          infra_missing,
     }

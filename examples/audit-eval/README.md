@@ -104,6 +104,9 @@ arms/                   # generated Gen.hs / Gen.py + attempts (gitignored)
 | D   | EA DSL **without** harness (minimal instruction only; SKILL ablation) | Active |
 | V   | Gate-Generic: postings JSON → generic transaction/account/balance gate → pandas derivation | Active |
 
+Arm A's txid output remains pending an `EmitCanonical` extension. Arm B joins
+C, V, and Aprime in receiving the experiment-2 txid contract.
+
 Arm A/B/D run a P4 retry loop: on compile / execution / parse failure the error
 message is fed back to the backend for regeneration (up to `--max-iters`,
 default 3). Arm Aprime uses the same retry budget for parse/shape failures and
@@ -178,8 +181,9 @@ A only.
 
 `--scoring-contract v1` remains the default and is the contract used by the
 frozen confirmatory runs. Its oracle values, scorer behavior, and output
-contract text are unchanged; arm C's new no-tool clause is independent of the
-scoring contract. `ledger.<account>.balance` is signed relative to the
+contract text are unchanged; arm C's no-tool clause is enabled only by the
+`side` contract, so it cannot alter frozen-v1 prompts.
+`ledger.<account>.balance` is signed relative to the
 account's normal side, while `trial_balance.<account>` is signed as debit minus credit.
 The additional side-oracle fields are ignored completely by the v1 scorer and
 are not requested from models.
@@ -222,6 +226,7 @@ map onto exactly the selected prompt/output contract.
 | `convergence_iterations`| Attempts until structurally-valid output (P4); = max-iters when not converged |
 | `posting_complete`      | Boolean exact multiset match on `txid × (side, resolved account, amount)`; GT `entry` is the txid |
 | `outcome`               | Under `--scoring-contract side`: experiment-2 `committed_correct`, `committed_incorrect`, or `refused`; bookkeeping uses all ledger/trial-balance side-amount pairs, audit uses exact finding recall and precision. Frozen-v1 runs record `null` |
+| `infra_missing`         | `true` when V/Aprime fell back to model-supplied derived values after harness derivation failed; `outcome` is then `null` and the cell is rerun |
 | `tool_event_count`      | Number of distinct Codex JSONL tool-call items across all attempts in the cell; local tool-less backends record `0`, undecodable Codex event streams record `null` |
 | `tool_use_flagged`      | `true` exactly when arm C has a known `tool_event_count > 0` |
 
@@ -229,9 +234,15 @@ Each non-dry run writes `metrics/<timestamp>.meta.json` with the CLI argv,
 resolved task/arm/model/seed grid, `--skill`, Aprime/C settings, git `HEAD` and
 `describe --tags --always --dirty` (or `null` if unavailable), and backend
 version probes (`codex --version` or OpenAI-compatible `/api/version`). Per-run
-records also carry `effective_model`; for Codex this uses the CLI banner when
-available and otherwise combines the pinned model/effort with `codex --version`
-as `<model>/<reasoning effort> (cli v<version>)`.
+Codex records keep the pin and probe separately as `configured_model`,
+`configured_effort`, and `cli_version`. `effective_model` is populated only
+from an observed CLI banner or from the matching persisted rollout, with
+`effective_model_source` equal to `banner` or `rollout`; for Codex, otherwise
+both are `null`. Codex CLI 0.151.0 emits no banner under `--json` (stderr contains only
+the stdin notice), so the runner reads the `thread.started.thread_id`, finds
+the matching `~/.codex/sessions/**/rollout-*.jsonl`, and verifies
+`turn_context.payload.model` plus `.effort` before recording
+`<model>/<effort> (cli v<version>)`.
 The Codex backend invokes `codex exec --json`; `item.started` and
 `item.completed` events are deduplicated by item id before tool events are
 counted. Arm C alone receives an explicit no-tools/no-code-execution prompt.
@@ -255,7 +266,8 @@ metadata fields below (additional keys are ignored):
 
 A top-level `{"cells": [...]}` wrapper is also accepted. Required values are
 non-empty strings, duplicate `(task_id, arm, model)` rows are rejected, and a
-row's category must equal the referenced task's category. Every row must also
+row's category and cluster must equal the referenced task's `category` and
+`source.template`. Every row must also
 fall within the task/arm/model selections given on the CLI; mismatches stop the
 run instead of silently dropping sealed cells. Seeds and repeats
 remain runner dimensions and expand each admitted manifest row.

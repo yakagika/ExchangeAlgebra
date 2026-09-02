@@ -82,6 +82,12 @@ RESUME_CONFIG_FIELDS = (
     "chart_of_accounts", "v_gate", "scoring_contract",
     "cell_manifest_sha256",
 )
+HISTORICAL_RESUME_DEFAULTS = {
+    "v_gate": "legacy",
+    "chart_of_accounts": "none",
+    "scoring_contract": "v1",
+    "cell_manifest_sha256": None,
+}
 MEASUREMENT_SURFACE = (
     "src", "examples/audit-eval/harness", "examples/audit-eval/oracle",
     "examples/audit-eval/gen", "examples/audit-eval/runner/arms.py",
@@ -224,8 +230,17 @@ def collect_resume_keys(meta_path: Path, planned: set[tuple], current_meta: dict
             if meta_repeats(root) != current_meta.get("repeats"):
                 raise ValueError("resume config drift for repeats")
             continue
-        if field in root and root.get(field) != current_meta.get(field):
-            raise ValueError(f"resume config drift for {field}: parent={root.get(field)!r}, current={current_meta.get(field)!r}")
+        if field in root:
+            parent_value = root.get(field)
+        elif field in HISTORICAL_RESUME_DEFAULTS:
+            parent_value = HISTORICAL_RESUME_DEFAULTS[field]
+        else:
+            continue
+        if parent_value != current_meta.get(field):
+            raise ValueError(
+                f"resume config drift for {field}: "
+                f"parent={parent_value!r}, current={current_meta.get(field)!r}"
+            )
     parent_digest = root.get("task_bundle_sha256") or expected_task_bundle
     if not parent_digest:
         raise ValueError("legacy parent requires --expect-task-bundle-sha256")
@@ -418,7 +433,7 @@ def load_cell_manifest(path: Path) -> tuple[list[dict], set[tuple[str, str, str]
 
 
 def validate_cell_manifest_tasks(rows: list[dict], tasks_dir: Path) -> None:
-    """Fail closed if a manifest row disagrees with its task category."""
+    """Fail closed if a manifest row disagrees with task metadata."""
     cached: dict[str, dict] = {}
     for row in rows:
         task_id = row["task_id"]
@@ -429,6 +444,25 @@ def validate_cell_manifest_tasks(rows: list[dict], tasks_dir: Path) -> None:
             raise ValueError(
                 f"cell manifest category mismatch for {task_id}: "
                 f"manifest={row['category']!r}, task={task.get('category')!r}"
+            )
+        source = task.get("source", {}) or {}
+        if not isinstance(source, dict):
+            raise ValueError(
+                f"task source must be an object for manifest validation: {task_id}"
+            )
+        template = source.get("template")
+        seed = source.get("seed")
+        if not isinstance(template, str) or isinstance(seed, bool) or not isinstance(seed, int):
+            raise ValueError(
+                f"task source must carry template (str) and seed (int) for manifest validation: {task_id}"
+            )
+        # cluster = template x generator seed (the bootstrap resampling unit);
+        # the N sweep of one seed shares a cluster.
+        task_cluster = f"{template}-{seed:06d}"
+        if task_cluster != row["cluster"]:
+            raise ValueError(
+                f"cell manifest cluster mismatch for {task_id}: "
+                f"manifest={row['cluster']!r}, task={task_cluster!r}"
             )
 
 
@@ -466,6 +500,10 @@ def run_one(
             "dry_run":    True,
             "metrics":    None,
             "effective_model": None,
+            "effective_model_source": None,
+            "configured_model": backend_cfg.get("model"),
+            "configured_effort": backend_cfg.get("effort"),
+            "cli_version": None,
             "skill": skill if arm_name == "A" else None,
             "aprime_feedback": aprime_feedback if arm_name == "Aprime" else None,
             "chart_of_accounts": chart_of_accounts,
@@ -553,7 +591,18 @@ def run_one(
         "raw_output":  arm_result.get("raw_output"),
         "metrics":     metrics,
         "effective_model": getattr(backend, "effective_model", None),
+        "effective_model_source": getattr(
+            backend, "effective_model_source", None
+        ),
+        "configured_model": getattr(
+            backend, "configured_model", backend_cfg.get("model")
+        ),
+        "configured_effort": getattr(
+            backend, "configured_effort", backend_cfg.get("effort")
+        ),
+        "cli_version": getattr(backend, "cli_version", None),
         "derived_source": arm_result.get("derived_source"),
+        "infra_missing": metrics.get("infra_missing", False),
         "backend_call": getattr(backend, "last_call", None),
         "tool_event_count": tool_event_count,
         "tool_use_flagged": bool(
@@ -613,11 +662,14 @@ def append_summary_csv(records: list[dict], csv_path: Path, ts: str) -> None:
         "escape_ok",
         "balance_violation", "account_validity", "compile_fail", "parse_fail",
         "verification_gap", "iterations", "converged", "timed_out",
-        "first_pass_valid", "effective_model", "skill", "aprime_feedback",
+        "first_pass_valid", "effective_model", "effective_model_source",
+        "configured_model", "configured_effort", "cli_version",
+        "skill", "aprime_feedback",
         "scoring_contract",
         "derived_source", "prompt_tokens", "completion_tokens", "finish_reason",
         "temperature", "top_p",
-        "posting_complete", "outcome", "tool_event_count", "tool_use_flagged",
+        "posting_complete", "outcome", "infra_missing",
+        "tool_event_count", "tool_use_flagged",
     ]
 
     csv_path.parent.mkdir(parents=True, exist_ok=True)
@@ -687,6 +739,10 @@ def append_summary_csv(records: list[dict], csv_path: Path, ts: str) -> None:
                 "timed_out":          m.get("timed_out"),
                 "first_pass_valid":   m.get("first_pass_valid"),
                 "effective_model":    rec.get("effective_model"),
+                "effective_model_source": rec.get("effective_model_source"),
+                "configured_model":   rec.get("configured_model"),
+                "configured_effort":  rec.get("configured_effort"),
+                "cli_version":        rec.get("cli_version"),
                 "skill":              rec.get("skill"),
                 "aprime_feedback":    rec.get("aprime_feedback"),
                 "scoring_contract":   rec.get("scoring_contract", "v1"),
@@ -698,6 +754,7 @@ def append_summary_csv(records: list[dict], csv_path: Path, ts: str) -> None:
                 "top_p":              call.get("top_p"),
                 "posting_complete":   m.get("posting_complete"),
                 "outcome":            m.get("outcome"),
+                "infra_missing":      m.get("infra_missing"),
                 "tool_event_count":   rec.get("tool_event_count"),
                 "tool_use_flagged":   rec.get("tool_use_flagged"),
             })
@@ -736,6 +793,8 @@ def _backend_meta(section: dict) -> dict:
     return {
         "backend": kind,
         "configured_model": configured_model,
+        "configured_effort": section.get("effort"),
+        "cli_version": version if kind == "codex" else None,
         "version": version,
     }
 
