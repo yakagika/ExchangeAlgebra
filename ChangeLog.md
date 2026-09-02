@@ -729,6 +729,11 @@
 
 ### Documentation
 
+- Document the precise validity layers of the category-theory phase 1 laws for
+  `mapBasePart`, `foldEntries`, and `postFromNetBy`, and pin them with QuickCheck
+  properties plus raw-order and `bar` non-commutation counterexamples. This is
+  documentation/test coverage only; library behaviour and exports are unchanged.
+
 - `plank` in the note-query lists of `projWithNote` /
   `projWithNoteBase` / `projWithNoteBaseNetNorm` is now documented as a
   note-wildcard (the projection widens to all notes) — previously an

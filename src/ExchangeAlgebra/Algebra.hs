@@ -488,7 +488,7 @@ pairAppend (Pair x1 y1) (Pair x2 y2) =
 -- come from the /same/ underlying t'Pair' in @_realg@, so the per-side
 -- sequences are identical. Taking each side from whichever operand supplies it
 -- (and keeping a single copy) therefore unions the selections without double
--- counting. Contrast 'pairAppend', which concatenates and would duplicate.
+-- counting. Contrast @pairAppend@, which concatenates and would duplicate.
 --
 -- Each operand is a side-restricted projection ('choosePairByHat'), so at most
 -- one of the two contributes a non-empty hat side and at most one a non-empty
@@ -1125,6 +1125,15 @@ toList (Liner m _ _ _ _ _)  = Map.foldlWithKey' f [] m
 
 {-# INLINE foldEntries #-}
 -- | Strict left fold over scalar entries without building an intermediate list.
+--
+-- This is the implementation vehicle for the universal extension from the free
+-- commutative monoid of entries when each step acts through an associative,
+-- commutative accumulator operation (equivalently, entry updates commute).
+-- Under that condition the result is independent of both the internal
+-- 'HashMap' traversal and each side's sequence order. For a non-commutative
+-- accumulator, such as list append, this is only an ordinary left fold: its
+-- result records the actual traversal order and can distinguish different
+-- sequence orders of the same entry multiset.
 foldEntries :: (HatVal v, HatBaseClass b)
             => (acc -> v -> b -> acc)
             -> acc
@@ -1299,6 +1308,40 @@ filter f (Liner m _ _ _ _ _) =
 -- concatenated (pair-append), so no value is lost — hence @'norm'@ is preserved.
 -- Preserving wildcards (@(.#)@) is the caller's responsibility (in @f@).
 --
+-- == Laws and their layer of validity
+--
+-- On the full subcategory of 'HatBaseClass' bases, this relabelling is a
+-- functor only after observing an algebra through ℘, where ℘ forgets sequence
+-- order but retains, for every full Hat\/Not base, the multiset of values.
+-- The functor and additive laws at this layer are:
+--
+-- * @mapBasePart id x@ and @x@ are equal through ℘. Raw equality can fail when
+--   @x@ is a one-key, one-value @Liner@ produced by 'bar' or filtering:
+--   rebuilding it chooses the singleton @(:@)@ representation, and 'Eq'
+--   distinguishes those constructors.
+-- * @mapBasePart (g . f) x@ and
+--   @mapBasePart g (mapBasePart f x)@ are equal through ℘, but need not be raw
+--   equal.
+-- * @mapBasePart f (x .+ y)@ and
+--   @mapBasePart f x .+ mapBasePart f y@ are equal through ℘, but need not be
+--   raw equal.
+-- * @norm (mapBasePart f x) == norm x@ for exact additive value types. For
+--   floating-point values, regrouping after collisions has the usual rounding
+--   caveat.
+-- * @mapBasePart f ((.^) x) == (.^) (mapBasePart f x)@ (raw).
+-- * Algebraically, @bar (mapBasePart f (bar x))@ and
+--   @bar (mapBasePart f x)@ are equal through ℘ whenever the implementation's
+--   'nearlyEqScaled' tolerance does not discard a source-base residual before
+--   relabelling. Raw equality can additionally distinguish singleton from
+--   one-key @Liner@. With tolerance-triggering magnitudes, even ℘ equality is
+--   not guaranteed.
+--
+-- In particular, @mapBasePart f (bar x) == bar (mapBasePart f x)@ is false in
+-- general: distinct source bases may collide only after relabelling. When
+-- collisions occur, @pairAppend@ preserves every value but the resulting
+-- sequence order is a representation detail determined by 'HashMap' traversal;
+-- callers must not attach semantics to it.
+--
 -- Complexity: O(n) over distinct base keys (rebuilds the posting index once).
 --
 -- >>> type T = Alg Double (HatBase CountUnit)
@@ -1382,7 +1425,7 @@ proj (b:bs) (v:@b2)
 -- Multi-pattern path: the query list is treated as a /set/. Overlapping or
 -- duplicate queries (e.g. a duplicated base, or an exact base subsumed by a
 -- wildcard) select the same posting only once. Per-base results are merged
--- with 'pairUnion' (set union of the selected sides) rather than 'pairAppend'
+-- with 'pairUnion' (set union of the selected sides) rather than @pairAppend@
 -- (concatenation), so no posting is double counted.
 proj (b:bs) (Liner m ~idx _ ~idToBp _ ~allIds) =
     mkAlgFromMap $
@@ -1789,6 +1832,8 @@ decBy kf (Liner m _ _ _ _ _) =
 -- positive-part normalization). Redundancy of the input is not preserved in the
 -- intermediate; the output is whatever @post@ builds. If you need the
 -- redundancy-preserving split itself, use 'decBy'.
+-- Thus it factors through the quotient induced by 'bar': it is not the free
+-- extension that acts independently on entries in the redundant layer.
 --
 -- Complexity: O(m + Σ cost(post)).
 --

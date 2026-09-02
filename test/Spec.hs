@@ -1882,6 +1882,14 @@ netByBase = EA.foldEntries step M.empty
     part (_ :< u) = u
     signed v b = if isHat b then negate (toRational v) else toRational v
 
+-- ℘ observation: retain each full Hat/Not base and its value multiset, while
+-- forgetting the representation-level order of the per-side Seq.
+observe :: (Ord b, Ord v, HatVal v, HatBaseClass b)
+        => EA.Alg v b -> M.Map b [v]
+observe = fmap L.sort . EA.foldEntries step M.empty
+  where
+    step m v b = M.insertWith (++) b [v] m
+
 epsEq :: Double -> Double -> Bool
 epsEq a b = abs (a - b) <= 1e-9 * (1 + max (abs a) (abs b))
 
@@ -4847,6 +4855,125 @@ axiomProperties = do
                && viaFoldr == viaFoldl
 
 -- ================================================================
+-- Category-theory phase 1 laws and layer boundaries (P2c)
+-- ================================================================
+
+categoricalPhase1Properties :: IO ()
+categoricalPhase1Properties = do
+    quickProp "P2c mapBasePart: identity holds through per-base multisets" $
+        forAll genAlgN $ \x -> observe (EA.mapBasePart id x) == observe x
+    quickProp "P2c mapBasePart: composition holds through per-base multisets" $
+        forAll genAlgN $ \x ->
+            let f, g :: CountUnit -> CountUnit
+                f u = if u == Yen || u == Dollar then Yen else u
+                g u = if u == Yen || u == Amount then Amount else u
+            in observe (EA.mapBasePart (g . f) x :: NNAlg)
+                == observe (EA.mapBasePart g (EA.mapBasePart f x :: NNAlg) :: NNAlg)
+    quickProp "P2c mapBasePart: (.+) homomorphism holds through per-base multisets" $
+        forAll genAlgN $ \x -> forAll genAlgN $ \y ->
+            let f u = if u == Yen || u == Dollar then Amount else u
+            in observe (EA.mapBasePart f (x .+ y) :: NNAlg)
+                == observe ((EA.mapBasePart f x .+ EA.mapBasePart f y) :: NNAlg)
+    quickProp "P2c mapBasePart: norm is preserved" $
+        forAll genAlgN $ \x ->
+            norm (EA.mapBasePart (const Amount) x :: NNAlg) == norm x
+    quickProp "P2c mapBasePart: Hat commutes under raw Eq" $
+        forAll genAlgN $ \x ->
+            EA.mapBasePart (const Amount) ((.^) x)
+                == ((.^) (EA.mapBasePart (const Amount) x) :: NNAlg)
+    -- bar keeps the Liner constructor even when cancellation leaves one key
+    -- with one value; mapBasePart rebuilds that map as a singleton. Eq treats
+    -- the two constructors as distinct, although ℘ observes the same entry.
+    let identitySource = (1 .@ (Not :< Yen))
+            .+ (1 .@ (Hat :< Yen))
+            .+ (2 .@ (Not :< Dollar)) :: NNAlg
+        oneKeyLiner = bar identitySource
+        identityMapped = EA.mapBasePart id oneKeyLiner :: NNAlg
+    assertEqual "P2c mapBasePart: identity counterexample has equal multisets"
+        (observe oneKeyLiner) (observe identityMapped)
+    assertEqual "P2c mapBasePart: identity fails under raw Eq for one-key Liner"
+        False (identityMapped == oneKeyLiner)
+
+    let sandwichLeft = bar
+            (EA.mapBasePart (const Amount) oneKeyLiner :: NNAlg)
+        sandwichRight = bar
+            (EA.mapBasePart (const Amount) identitySource :: NNAlg)
+    assertEqual "P2c mapBasePart: bar sandwich counterexample has equal multisets"
+        (observe sandwichLeft) (observe sandwichRight)
+    assertEqual "P2c mapBasePart: bar sandwich can fail under raw Eq"
+        False (sandwichLeft == sandwichRight)
+
+    -- Three distinct source keys are read back in whatever order the source
+    -- HashMap traverses them (a representation detail, so it is observed at
+    -- run time rather than pinned). The first and last keys collide under f
+    -- while the middle key survives as a separate intermediate key; g then
+    -- merges everything. The two-pass route keeps the collision block
+    -- contiguous, whereas the direct pass interleaves the middle key, so the
+    -- raw Seq orders differ while the per-base multisets agree.
+    let rawX = (10 .@ (Hat :< Yen))
+            .+ (20 .@ (Hat :< Dollar))
+            .+ (30 .@ (Hat :< Euro)) :: NNAlg
+        sourceTraversal = EA.foldEntries
+            (\acc _ (_ :< u) -> acc ++ [u]) [] rawX
+        (firstU, lastU) = case sourceTraversal of
+            [a, _, c] -> (a, c)
+            other     -> error ("P2c: unexpected source traversal " ++ show other)
+        f u = if u == lastU then firstU else u
+        g _ = Amount
+        direct = EA.mapBasePart (g . f) rawX :: NNAlg
+        staged = EA.mapBasePart g (EA.mapBasePart f rawX :: NNAlg) :: NNAlg
+    assertEqual "P2c mapBasePart: composition counterexample traverses three source keys"
+        3 (length sourceTraversal)
+    assertEqual "P2c mapBasePart: composition raw counterexample has equal multisets"
+        (observe direct) (observe staged)
+    assertEqual "P2c mapBasePart: composition fails under raw Eq after collision"
+        False (direct == staged)
+
+    let barX = (100 .@ (Not :< Yen))
+            .+ (100 .@ (Hat :< Dollar)) :: NNAlg
+        mappedAfterBar = EA.mapBasePart (const Amount) (bar barX) :: NNAlg
+        barAfterMapped = bar (EA.mapBasePart (const Amount) barX :: NNAlg)
+    assertEqual "P2c mapBasePart: does not commute with bar under collision"
+        False (mappedAfterBar == barAfterMapped)
+    assertEqual "P2c mapBasePart: map after bar retains both source residuals"
+        200 (norm mappedAfterBar)
+    assertEqual "P2c mapBasePart: bar after map cancels collided residuals"
+        0 (norm barAfterMapped)
+
+    quickProp "P2c foldEntries: commutative sum is construction-order independent" $
+        forAll (listOf ((,) <$> (realToFrac <$> genNNDouble) <*> genBase)) $ \ps ->
+            let singles = [ v .@ b | (v, b) <- ps ] :: [NNAlg]
+                pairwise = EA.fromList singles
+                bulk = EA.sigma ps (\(v, b) -> v .@ b :: NNAlg)
+                sumEntries = EA.foldEntries (\acc v _ -> acc + v) 0
+            in sumEntries pairwise == sumEntries bulk
+    let entries = [1 .@ (Hat :< Yen), 2 .@ (Hat :< Yen), 3 .@ (Hat :< Yen)]
+            :: [NNAlg]
+        pairwise = EA.fromList entries
+        bulk = EA.sigma [1, 2, 3 :: Int]
+            (\i -> fromIntegral i .@ (Hat :< Yen) :: NNAlg)
+        collect = EA.foldEntries (\acc v _ -> acc ++ [v]) []
+    assertEqual "P2c foldEntries: non-commutative list append observes Seq order"
+        False (collect pairwise == collect bulk)
+
+    quickProp "P2c postFromNetBy: definition equation" $
+        forAll genAlgN $ \x ->
+            let keyOf (_ :< u) = Just u
+                post u v = v .@ (Not :< u) :: NNAlg
+                collectEntry v b = (\k -> (k, v)) <$> keyOf b
+                rhs = EA.sigmaFromMap
+                    (EA.foldEntriesToMap collectEntry (bar x)) post
+            in EA.postFromNetBy keyOf post x == rhs
+    quickProp "P2c postFromNetBy: factors through bar" $
+        forAll genAlgN $ \x ->
+            let keyOf (_ :< u) = Just u
+                post u v = v .@ (Not :< u) :: NNAlg
+            in EA.postFromNetBy keyOf post x
+                == EA.postFromNetBy keyOf post (bar x)
+    quickProp "P2c bar: idempotence holds under raw Eq" $
+        forAll genAlgN $ \x -> bar (bar x) == bar x
+
+-- ================================================================
 -- Journal-algebra axiom properties (Phase 1.5)
 -- ================================================================
 
@@ -6239,6 +6366,7 @@ main = do
     testLand2HatNotPolicy
     checkedConvertProperties
     axiomProperties
+    categoricalPhase1Properties
     journalProperties
     quotientProperties
     bookkeepingProperties
