@@ -8,7 +8,9 @@ from typing import Any
 
 
 TemplateFn = Callable[[random.Random, int], dict[str, Any]]
-LABEL_KEYS = {"template", "trade_side", "settlement"}
+# Field order is part of the frozen task bytes. A set made metadata ordering
+# depend on PYTHONHASHSEED, defeating deterministic generation.
+LABEL_KEYS = ("template", "trade_side", "settlement")
 
 
 def _amount(rng: random.Random, low: int, high: int, step: int = 100) -> int:
@@ -178,6 +180,13 @@ TEMPLATES: dict[str, TemplateFn] = {
 
 
 def make_entries(seed: int, count: int, template: str = "mixed") -> list[dict[str, Any]]:
+    """Generate deterministic entries.
+
+    A fixed non-mixed template consumes one RNG substream per transaction, so
+    equal seeds have nested prefixes across counts. ``mixed`` deliberately does
+    not provide that guarantee: building its template schedule consumes a
+    count-dependent number of random draws before transaction amounts are made.
+    """
     if count <= 0:
         raise ValueError("count must be positive")
     rng = random.Random(seed)

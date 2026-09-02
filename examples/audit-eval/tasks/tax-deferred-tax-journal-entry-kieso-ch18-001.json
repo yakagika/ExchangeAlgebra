@@ -1,6 +1,7 @@
 {
   "id": "tax-deferred-tax-journal-entry-kieso-ch18-001",
-  "category": "tax",
+  "category": "closing",
+  "topic": "tax",
   "difficulty": "judgment",
   "ea_coverage": "needs-extension",
   "audit": false,
@@ -29,12 +30,12 @@
     ],
     "ea_account_map": {
       "IncomeTaxExpense": "CorporateIncomeTaxes",
-      "DeferredTaxAsset": "DeferredTaxAsset",
+      "DeferredTaxAsset": "DeferredTaxAssets",
       "IncomeTaxesPayable": "AccruedCorporateIncomeTaxes",
-      "DeferredTaxLiability": "DeferredTaxLiability",
+      "DeferredTaxLiability": "DeferredTaxLiabilities",
       "AllowanceToReduceDeferredTaxAssetToExpectedRealizableValue": "AllowanceToReduceDeferredTaxAssetToExpectedRealizableValue"
     },
-    "map_note": "DeferredTaxAsset, DeferredTaxLiability, AllowanceToReduceDeferredTaxAssetToExpectedRealizableValue: no EA counterpart (needs-extension)."
+    "map_note": "DeferredTaxAsset and DeferredTaxLiability map to EA's plural canonical titles DeferredTaxAssets and DeferredTaxLiabilities. AllowanceToReduceDeferredTaxAssetToExpectedRealizableValue and the temporary-difference/valuation-allowance logic have no EA counterpart (needs-extension)."
   },
   "expected_output": {
     "components": [

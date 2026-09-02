@@ -1,8 +1,10 @@
 {
   "id": "journalize-service-on-account-002",
+  "source": { "ref": "self-authored" },
   "category": "journalize",
   "difficulty": "mechanical",
   "ea_coverage": "ok",
+  "audit": false,
   "prompt": "次の取引を仕訳せよ。",
   "given": {
     "chart_of_accounts": ["AccountsReceivable", "ServiceRevenue"],
@@ -13,6 +15,10 @@
     "transactions": [
       {"id": "t1", "desc": "役務を提供し代金は掛け", "amount": 2000}
     ]
+  },
+  "expected_output": {
+    "components": ["journal"],
+    "format_note": "Return one JSON object with key \"journal\": an array of canonical postings."
   },
   "ground_truth": {
     "journal": [

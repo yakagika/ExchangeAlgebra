@@ -181,6 +181,33 @@ def compute_derived(postings: Iterable[Mapping[str, Any]]) -> dict[str, int | st
     return derived
 
 
+def compute_closing_derived(
+    post_adjustment: list[dict[str, Any]],
+    post_closing: list[dict[str, Any]],
+) -> dict[str, int | str]:
+    """Combine adjusted TB/IS with post-closing ledger/BS as declared in v3."""
+    adjusted = compute_derived(post_adjustment)
+    closed = compute_derived(post_closing)
+    out: dict[str, int | str] = {}
+    out.update((key, value) for key, value in closed.items() if key.startswith("ledger."))
+    out.update((key, value) for key, value in adjusted.items() if key.startswith("trial_balance."))
+    for key in (
+        "financial_statements.total_assets",
+        "financial_statements.total_liabilities",
+        "financial_statements.total_equity",
+        "financial_statements.balance_check",
+    ):
+        out[key] = closed[key]
+    for key in (
+        "financial_statements.opening_equity",
+        "financial_statements.total_revenue",
+        "financial_statements.total_expenses",
+        "financial_statements.net_income",
+    ):
+        out[key] = adjusted[key]
+    return out
+
+
 def compare_flat_numeric(left: Mapping[str, Any], right: Mapping[str, Any]) -> list[str]:
     """Return mismatches for flat derived maps containing numbers and v2 sides."""
     mismatches: list[str] = []

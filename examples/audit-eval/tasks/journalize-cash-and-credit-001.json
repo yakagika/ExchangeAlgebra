@@ -1,8 +1,10 @@
 {
   "id": "journalize-cash-and-credit-001",
+  "source": { "ref": "self-authored" },
   "category": "journalize",
   "difficulty": "mechanical",
   "ea_coverage": "ok",
+  "audit": false,
   "prompt": "次の取引を複式簿記の仕訳に起票せよ。",
   "given": {
     "chart_of_accounts": ["Cash", "Sales", "Inventory", "AccountsPayable"],
@@ -16,6 +18,10 @@
       {"id": "t1", "desc": "現金で商品を売上", "amount": 1000},
       {"id": "t2", "desc": "商品を掛けで仕入", "amount": 500}
     ]
+  },
+  "expected_output": {
+    "components": ["journal"],
+    "format_note": "Return one JSON object with key \"journal\": an array of canonical postings."
   },
   "ground_truth": {
     "journal": [

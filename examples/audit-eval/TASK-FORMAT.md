@@ -10,7 +10,8 @@ a task without `expected_output` is treated as journal-only.
 ```jsonc
 {
   "id": "...",                    // = YAML id
-  "category": "...",              // journalize|closing|statements|consolidation|fx|audit|leases|revenue|tax
+  "category": "...",              // journalize|closing|statements|consolidation|audit
+  "topic": "leases",              // optional descriptive tag; does not select scoring
   "difficulty": "mechanical",     // mechanical | judgment
   "ea_coverage": "ok",            // ok | needs-extension
   "audit": false,                 // bool (from YAML)
@@ -26,6 +27,22 @@ a task without `expected_output` is treated as journal-only.
   "ground_truth": { ... }         // see per-component shapes below
 }
 ```
+
+`category` is the closed 5-value process enum. Accounting subject matter is an
+optional `topic` tag, such as `leases`, `revenue`, `tax`, or `bonds`; it does
+not create another category or change scoring. Foreign exchange (`fx`) is out
+of scope for the second-round suite.
+
+Primary correctness is category-dependent. For the four bookkeeping categories
+(`journalize`, `closing`, `statements`, `consolidation`), every submitted ledger
+and trial-balance `(side, amount)` pair must match GT. For `audit`, submitted
+`(type, locus)` finding pairs must match GT exactly.
+
+This primary rule governs the sealed, generated mechanical suite. The curated
+23-task set is an unsealed development/Discussion example set and includes
+judgment and textbook tasks whose narrower `expected_output` contracts do not
+all contain side-contract ledger/TB pairs or audit findings; those examples are
+not observations in the confirmatory primary estimand.
 
 ## Model output contract
 

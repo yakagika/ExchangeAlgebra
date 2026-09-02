@@ -1,6 +1,7 @@
 {
   "id": "leases-classify-finance-vs-operating-kieso-ch20-001",
-  "category": "leases",
+  "category": "journalize",
+  "topic": "leases",
   "difficulty": "judgment",
   "ea_coverage": "needs-extension",
   "audit": false,

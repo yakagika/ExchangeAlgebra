@@ -13,16 +13,18 @@ from typing import Any
 try:  # pragma: no cover - exercised when run as a script path.
     from .defects import generate_audit_task
     from .generate import dump_json, generate_task
+    from .kinds import GENERATORS, ea_request_for_task
     from .pandas_oracle import compare_flat_numeric, compute_derived
     from .templates import TEMPLATES, make_entries
 except ImportError:  # pragma: no cover
     from defects import generate_audit_task  # type: ignore
     from generate import dump_json, generate_task  # type: ignore
+    from kinds import GENERATORS, ea_request_for_task  # type: ignore
     from pandas_oracle import compare_flat_numeric, compute_derived  # type: ignore
     from templates import TEMPLATES, make_entries  # type: ignore
 
 
-KIND_CHOICES = ("journalize", "audit")
+KIND_CHOICES = ("journalize", "closing", "statements", "consolidation", "audit")
 TEMPLATE_CHOICES = ("mixed", *TEMPLATES.keys())
 
 
@@ -68,9 +70,23 @@ def defect_count(spec: str, count: int) -> int:
     return value
 
 
+def validate_count_design(templates: list[str], counts: list[int], kinds: list[str]) -> None:
+    """Enforce the preregistered N sweep and fixed-size kind split."""
+    if len(counts) <= 1:
+        return
+    if kinds != ["journalize"]:
+        raise ValueError("multiple --count levels are allowed only for journalize")
+    if len(templates) != 1 or templates[0] == "mixed":
+        raise ValueError(
+            "journalize N sweeps require exactly one non-mixed template cluster"
+        )
+
+
 def suite_task_id(kind: str, template: str, seed: int, count: int, defects: int | None = None) -> str:
     if kind == "journalize":
         return f"gen-{template}-{seed:06d}-{count:02d}"
+    if kind != "audit":
+        return f"gen-{kind}-{template}-{seed:06d}-{count:02d}"
     if defects is None:
         raise ValueError("audit suite ids require a defect count")
     return f"gen-audit-{template}-{seed:06d}-{count:02d}-{defects:02d}"
@@ -107,7 +123,7 @@ def default_stack_root() -> Path:
     return Path(__file__).resolve().parents[3]
 
 
-def run_derive_ea(postings: list[dict[str, Any]], stack_root: Path, timeout: int = 120) -> dict[str, Any]:
+def run_derive_ea(payload: Any, stack_root: Path, timeout: int = 120) -> dict[str, Any]:
     script = stack_root / "examples" / "audit-eval" / "gen" / "DeriveEA.hs"
     cmd = [
         "stack",
@@ -116,17 +132,21 @@ def run_derive_ea(postings: list[dict[str, Any]], stack_root: Path, timeout: int
         "exec",
         "runghc",
         "--",
+        "-isrc",
         str(script),
     ]
-    proc = subprocess.run(
-        cmd,
-        input=json.dumps(postings, ensure_ascii=False),
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-        cwd=stack_root,
-        check=False,
-    )
+    try:
+        proc = subprocess.run(
+            cmd,
+            input=json.dumps(payload, ensure_ascii=False),
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            cwd=stack_root,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise SuiteMismatch(f"DeriveEA timed out after {timeout}s") from exc
     if proc.returncode != 0:
         raise SuiteMismatch(f"DeriveEA failed ({proc.returncode}): {proc.stderr.strip()}")
     try:
@@ -140,12 +160,12 @@ def run_derive_ea(postings: list[dict[str, Any]], stack_root: Path, timeout: int
 
 
 def verify_ea_derived(
-    postings: list[dict[str, Any]],
+    payload: Any,
     expected: dict[str, Any],
     stack_root: Path,
     label: str,
 ) -> None:
-    actual = run_derive_ea(postings, stack_root)
+    actual = run_derive_ea(payload, stack_root)
     mismatches = compare_flat_numeric(actual, expected)
     if mismatches:
         raise SuiteMismatch(f"{label}: derived mismatch: {mismatches}")
@@ -200,6 +220,25 @@ def prepare_audit_task(
 
     clean = clean_postings(seed=seed, count=count, template=template)
     verify_ea_derived(clean, compute_derived(clean), stack_root, f"{task['id']} clean")
+    set_ea_oracle_status(task, "match")
+    return task
+
+
+def prepare_generated_kind_task(
+    *,
+    kind: str,
+    seed: int,
+    count: int,
+    template: str,
+    stack_root: Path,
+    skip_ea: bool,
+) -> dict[str, Any]:
+    task = GENERATORS[kind](seed=seed, count=count, template=template)
+    task["id"] = suite_task_id(kind, template, seed, count)
+    request = ea_request_for_task(task)
+    if skip_ea:
+        return task
+    verify_ea_derived(request, task["ground_truth"]["derived"], stack_root, task["id"])
     set_ea_oracle_status(task, "match")
     return task
 
@@ -282,13 +321,22 @@ def run_suite(
                     stack_root=stack_root,
                     skip_ea=skip_ea,
                 )
-            else:
+            elif kind == "audit":
                 defects = defect_count(defects_spec, count)
                 task = prepare_audit_task(
                     seed=seed,
                     count=count,
                     template=template,
                     defects=defects,
+                    stack_root=stack_root,
+                    skip_ea=skip_ea,
+                )
+            else:
+                task = prepare_generated_kind_task(
+                    kind=kind,
+                    seed=seed,
+                    count=count,
+                    template=template,
                     stack_root=stack_root,
                     skip_ea=skip_ea,
                 )
@@ -306,7 +354,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--template", required=True, help="Comma list of templates, e.g. mixed,cash_sale")
     parser.add_argument("--count", required=True, help="Comma list or ranges, e.g. 10,50,200")
     parser.add_argument("--gen-seed", required=True, help="Comma list or ranges, e.g. 0-2")
-    parser.add_argument("--kind", required=True, help="Comma list: journalize,audit")
+    parser.add_argument(
+        "--kind",
+        required=True,
+        help="Comma list: journalize,closing,statements,consolidation,audit",
+    )
     parser.add_argument("--defects", default="auto", help="'auto' or an integer defect count for audit tasks")
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--stack-root", type=Path, default=default_stack_root())
@@ -318,6 +370,7 @@ def main(argv: list[str] | None = None) -> int:
         counts = parse_int_spec(args.count, "--count")
         gen_seeds = parse_int_spec(args.gen_seed, "--gen-seed")
         kinds = parse_list_spec(args.kind, KIND_CHOICES, "--kind")
+        validate_count_design(templates, counts, kinds)
     except ValueError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1

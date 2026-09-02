@@ -1,6 +1,7 @@
 {
   "id": "leases-finance-lease-measure-entries-kieso-ch20-002",
-  "category": "leases",
+  "category": "journalize",
+  "topic": "leases",
   "difficulty": "judgment",
   "ea_coverage": "needs-extension",
   "audit": false,
@@ -35,8 +36,8 @@
       "InterestRevenue"
     ],
     "ea_account_map": {
-      "RightOfUseAsset": "RightOfUseAsset",
-      "LeaseLiability": "LeaseLiability",
+      "RightOfUseAsset": "LeasedAssets",
+      "LeaseLiability": "LeaseObligations",
       "Cash": "Cash",
       "InterestExpense": "InterestExpense",
       "AmortizationExpense": "AmortizationExpense",
@@ -46,7 +47,7 @@
       "SalesRevenue": "Sales",
       "InterestRevenue": "InterestEarned"
     },
-    "map_note": "RightOfUseAsset, LeaseLiability, LeaseReceivable: no EA counterpart (needs-extension)."
+    "map_note": "RightOfUseAsset and LeaseLiability map to EA's generic LeasedAssets and LeaseObligations. LeaseReceivable has no EA counterpart (needs-extension), and EA has no finance/sales-type classification or effective-interest lease measurement builder."
   },
   "expected_output": {
     "components": [

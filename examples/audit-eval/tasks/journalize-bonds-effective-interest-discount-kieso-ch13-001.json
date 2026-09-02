@@ -1,6 +1,7 @@
 {
   "id": "journalize-bonds-effective-interest-discount-kieso-ch13-001",
   "category": "journalize",
+  "topic": "bonds",
   "difficulty": "mechanical",
   "ea_coverage": "needs-extension",
   "audit": false,
@@ -37,9 +38,9 @@
       "DiscountOnBondsPayable": "DiscountOnBondsPayable",
       "BondsPayable": "BondsPayable",
       "InterestExpense": "InterestExpense",
-      "InterestPayable": "InterestPayable"
+      "InterestPayable": "AccruedExpenses"
     },
-    "map_note": "DiscountOnBondsPayable, BondsPayable, InterestPayable: no EA counterpart (needs-extension)."
+    "map_note": "InterestPayable maps provisionally to EA's generic AccruedExpenses, consistent with other accrued-interest tasks. DiscountOnBondsPayable and corporate BondsPayable have no faithful EA counterpart (needs-extension); government/SNA bond constructors are not used."
   },
   "expected_output": {
     "components": [

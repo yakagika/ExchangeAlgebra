@@ -1,13 +1,11 @@
 {- |
-  DeriveEA.hs — EA-backed derived-value oracle for generated clean journals.
+  DeriveEA.hs — EA-backed derived-value oracle for generated tasks.
 
-  Reads a canonical posting array
-      [{"side":"debit","account":"Cash","amount":1000,"entry":"e1"}, ...]
-  from stdin, or from the first CLI argument, builds a checked EA Journal, and
-  emits {"derived":{...}} using the same flat key vocabulary as gen.pandas_oracle.
-
-  This script is intentionally for clean journals only. Defective audit journals
-  may contain hallucinated accounts, which the EA type layer must reject.
+  Backward-compatible input is a canonical posting array. New task kinds use
+  an object with mode "closing" or "consolidation". Closing adjustments are
+  built with ExchangeAlgebra.Bookkeeping and closing balances are produced by
+  ExchangeAlgebra.Algebra.Transfer. Consolidation keeps entity on the Journal
+  note axis and derives eliminations with bar.
 -}
 
 import           Data.Char (isDigit, isSpace)
@@ -20,13 +18,12 @@ import           System.Exit (exitFailure)
 import           System.IO (hPutStrLn, stderr)
 
 import           ExchangeAlgebra hiding (filter, map)
+import qualified ExchangeAlgebra.Algebra as EA
+import qualified ExchangeAlgebra.Algebra.Transfer as EAT
+import qualified ExchangeAlgebra.Bookkeeping as BK
 import           ExchangeAlgebra.Convert (parseAccountTitle, parseSide)
 import           ExchangeAlgebra.Convert.Checked (checkedJournal)
 import qualified ExchangeAlgebra.Journal as EJ
-
-------------------------------------------------------------------
--- Minimal JSON parser (canonical subset)
-------------------------------------------------------------------
 
 data J = JStr String | JNum Integer | JArr [J] | JObj [(String, J)]
        | JBool Bool | JNull
@@ -107,46 +104,53 @@ parseJSON s = case pValue s of
     Just (v, rest) | all isSpace rest -> Just v
     _                                 -> Nothing
 
-------------------------------------------------------------------
--- Posting extraction and checked journal construction
-------------------------------------------------------------------
+field :: String -> [(String, J)] -> Maybe J
+field = lookup
+
+integerField :: String -> [(String, J)] -> Maybe Integer
+integerField key obj = do
+    JNum value <- field key obj
+    pure value
 
 data Posting = Posting
     { pSide    :: String
     , pAccount :: String
     , pAmount  :: Integer
     , pEntry   :: Maybe String
+    , pEntity  :: Maybe String
     } deriving (Show)
 
-fromJ :: J -> Maybe [Posting]
-fromJ (JArr items) = mapM go items
+postingsFromJ :: J -> Maybe [Posting]
+postingsFromJ (JArr items) = mapM go items
   where
     go (JObj kvs) = do
         JStr side <- lookup "side" kvs
         JStr acct <- lookup "account" kvs
         JNum amt  <- lookup "amount" kvs
-        let entry = case lookup "entry" kvs of
-                Just (JStr e) -> Just e
-                _             -> Nothing
-        Just (Posting side acct amt entry)
+        let stringAt key = case lookup key kvs of
+                Just (JStr value) -> Just value
+                _                 -> Nothing
+        Just (Posting side acct amt (stringAt "entry") (stringAt "entity"))
     go _ = Nothing
-fromJ _ = Nothing
+postingsFromJ _ = Nothing
 
 type MinBase = HatBase AccountTitles
+type MinAlg = Alg MoneyDecimal MinBase
 type MinJournal = EJ.Journal String MoneyDecimal MinBase
 
-groupPostings :: [Posting] -> [(String, [Posting])]
-groupPostings postings = foldl add [] postings
+groupPostingsBy :: (Posting -> String) -> [Posting] -> [(String, [Posting])]
+groupPostingsBy key = foldl add []
   where
-    anyEntry = any (maybe False (const True) . pEntry) postings
-    key p
-        | anyEntry  = maybe "__missing_entry__" id (pEntry p)
-        | otherwise = "entry"
-
     add [] p = [(key p, [p])]
     add ((k, ps):rest) p
-        | k == key p  = (k, ps ++ [p]) : rest
-        | otherwise   = (k, ps) : add rest p
+        | k == key p = (k, ps ++ [p]) : rest
+        | otherwise  = (k, ps) : add rest p
+
+entryKey :: Posting -> String
+entryKey = maybe "entry" id . pEntry
+
+entityKey :: Posting -> String
+entityKey p = maybe (entryKey p) id (pEntity p)
 
 parsePosting :: Posting -> Either String (Side, AccountTitles, MoneyDecimal)
 parsePosting p = do
@@ -154,9 +158,9 @@ parsePosting p = do
     acct <- either (Left . show) Right (parseAccountTitle (T.pack (pAccount p)))
     pure (side, acct, fromInteger (pAmount p))
 
-buildJournal :: [Posting] -> Either String MinJournal
-buildJournal postings = do
-    entries <- mapM parseGroup (groupPostings postings)
+buildJournalBy :: (Posting -> String) -> [Posting] -> Either String MinJournal
+buildJournalBy key postings = do
+    entries <- mapM parseGroup (groupPostingsBy key postings)
     case checkedJournal entries of
         Left err      -> Left (show err)
         Right journal -> Right journal
@@ -165,9 +169,8 @@ buildJournal postings = do
         parsed <- mapM parsePosting rows
         pure (entryId, parsed)
 
-------------------------------------------------------------------
--- Derived values
-------------------------------------------------------------------
+buildJournal :: [Posting] -> Either String MinJournal
+buildJournal = buildJournalBy entryKey
 
 type Totals = (Integer, Integer)
 
@@ -184,15 +187,13 @@ addPosting acc x =
   where
     combine (d1, c1) (d2, c2) = (d1 + d2, c1 + c2)
 
-totalsByAccount :: MinJournal -> M.Map AccountTitles Totals
-totalsByAccount journal = foldl addPosting M.empty (toList (EJ.toAlg journal))
+totalsByAlg :: MinAlg -> M.Map AccountTitles Totals
+totalsByAlg = foldl addPosting M.empty . toList
 
-balancesByAccount :: MinJournal -> M.Map AccountTitles (Alg MoneyDecimal MinBase)
-balancesByAccount journal =
-    M.map bar $ foldl addBalance M.empty (toList (EJ.toAlg journal))
+balancesByAlg :: MinAlg -> M.Map AccountTitles MinAlg
+balancesByAlg = M.map bar . foldl addBalance M.empty . toList
   where
-    addBalance acc x =
-        M.insertWith (.+) (getAccountTitle (_hatBase x)) x acc
+    addBalance acc x = M.insertWith (.+) (getAccountTitle (_hatBase x)) x acc
 
 normalBalance :: AccountTitles -> Totals -> Integer
 normalBalance title (debits, credits)
@@ -202,7 +203,7 @@ normalBalance title (debits, credits)
 trialBalance :: Totals -> Integer
 trialBalance (debits, credits) = debits - credits
 
-balanceSideAmount :: Alg MoneyDecimal MinBase -> (String, Integer)
+balanceSideAmount :: MinAlg -> (String, Integer)
 balanceSideAmount balance =
     let net = bar balance
         amount = amountInteger (norm net)
@@ -213,9 +214,6 @@ balanceSideAmount balance =
             , amount
             )
 
--- Contra accounts (classifyAccountContra) contribute negatively to their
--- division's total: total_assets = gross assets - allowance - accumulated
--- depreciation. Mirrors gen/pandas_oracle.py `sum_category`.
 sumDivision :: AccountDivision -> M.Map AccountTitles Totals -> Integer
 sumDivision division totals =
     sum
@@ -227,32 +225,56 @@ sumDivision division totals =
 
 data DerivedValue = DerivedNum Integer | DerivedString String
 
-derivedPairs :: MinJournal -> [(String, DerivedValue)]
-derivedPairs journal =
-    ledgerPairs ++ financialPairs
-  where
-    totals = totalsByAccount journal
-    balances = balancesByAccount journal
-    accounts = sortOn (show . fst) (M.toList totals)
+ledgerPairsFor :: M.Map AccountTitles Totals -> M.Map AccountTitles MinAlg
+               -> [(String, DerivedValue)]
+ledgerPairsFor totals balances = concat
+    [ let name = show title
+          balance = normalBalance title dc
+          (debits, credits) = dc
+          (actualSide, actualAmount) = balanceSideAmount (balances M.! title)
+      in [ ("ledger." ++ name ++ ".debits", DerivedNum debits)
+         , ("ledger." ++ name ++ ".credits", DerivedNum credits)
+         , ("ledger." ++ name ++ ".balance", DerivedNum balance)
+         , ("ledger." ++ name ++ ".balance_side", DerivedString actualSide)
+         , ("ledger." ++ name ++ ".balance_amount", DerivedNum actualAmount)
+         ]
+    | (title, dc) <- sortOn (show . fst) (M.toList totals)
+    ]
 
-    ledgerPairs = concat
-        [ let name = show title
-              balance = normalBalance title dc
-              (debits, credits) = dc
-              (actualSide, actualAmount) =
-                  balanceSideAmount (balances M.! title)
-          in [ ("ledger." ++ name ++ ".debits", DerivedNum debits)
-             , ("ledger." ++ name ++ ".credits", DerivedNum credits)
-             , ("ledger." ++ name ++ ".balance", DerivedNum balance)
-             , ("trial_balance." ++ name, DerivedNum (trialBalance dc))
-             , ("ledger." ++ name ++ ".balance_side", DerivedString actualSide)
-             , ("ledger." ++ name ++ ".balance_amount", DerivedNum actualAmount)
-             , ("trial_balance." ++ name ++ ".side", DerivedString actualSide)
-             , ("trial_balance." ++ name ++ ".amount", DerivedNum actualAmount)
-             ]
-        | (title, dc) <- accounts
+trialPairsFor :: M.Map AccountTitles Totals -> M.Map AccountTitles MinAlg
+              -> [(String, DerivedValue)]
+trialPairsFor totals balances = concat
+    [ let name = show title
+          (actualSide, actualAmount) = balanceSideAmount (balances M.! title)
+      in [ ("trial_balance." ++ name, DerivedNum (trialBalance dc))
+         , ("trial_balance." ++ name ++ ".side", DerivedString actualSide)
+         , ("trial_balance." ++ name ++ ".amount", DerivedNum actualAmount)
+         ]
+    | (title, dc) <- sortOn (show . fst) (M.toList totals)
+    ]
+
+financialPairsFor :: M.Map AccountTitles Totals -> [(String, DerivedValue)]
+financialPairsFor totals
+    | M.null totals =
+        [ ("financial_statements.total_assets", DerivedNum 0)
+        , ("financial_statements.total_liabilities", DerivedNum 0)
+        , ("financial_statements.total_equity", DerivedNum 0)
+        , ("financial_statements.total_revenue", DerivedNum 0)
+        , ("financial_statements.total_expenses", DerivedNum 0)
+        , ("financial_statements.net_income", DerivedNum 0)
+        , ("financial_statements.balance_check", DerivedNum 0)
         ]
-
+    | otherwise =
+        [ ("financial_statements.total_assets", DerivedNum totalAssets)
+        , ("financial_statements.total_liabilities", DerivedNum totalLiabilities)
+        , ("financial_statements.opening_equity", DerivedNum openingEquity)
+        , ("financial_statements.total_equity", DerivedNum totalEquity)
+        , ("financial_statements.total_revenue", DerivedNum totalRevenue)
+        , ("financial_statements.total_expenses", DerivedNum totalExpenses)
+        , ("financial_statements.net_income", DerivedNum netIncome)
+        , ("financial_statements.balance_check", DerivedNum balanceCheck)
+        ]
+  where
     totalAssets = sumDivision Assets totals
     totalLiabilities = sumDivision Liability totals
     openingEquity = sumDivision Equity totals
@@ -262,30 +284,125 @@ derivedPairs journal =
     totalEquity = openingEquity + netIncome
     balanceCheck = totalAssets - (totalLiabilities + totalEquity)
 
-    financialPairs
-        | M.null totals =
-            [ ("financial_statements.total_assets", DerivedNum 0)
-            , ("financial_statements.total_liabilities", DerivedNum 0)
-            , ("financial_statements.total_equity", DerivedNum 0)
-            , ("financial_statements.total_revenue", DerivedNum 0)
-            , ("financial_statements.total_expenses", DerivedNum 0)
-            , ("financial_statements.net_income", DerivedNum 0)
-            , ("financial_statements.balance_check", DerivedNum 0)
-            ]
-        | otherwise =
-            [ ("financial_statements.total_assets", DerivedNum totalAssets)
-            , ("financial_statements.total_liabilities", DerivedNum totalLiabilities)
-            , ("financial_statements.opening_equity", DerivedNum openingEquity)
-            , ("financial_statements.total_equity", DerivedNum totalEquity)
-            , ("financial_statements.total_revenue", DerivedNum totalRevenue)
-            , ("financial_statements.total_expenses", DerivedNum totalExpenses)
-            , ("financial_statements.net_income", DerivedNum netIncome)
-            , ("financial_statements.balance_check", DerivedNum balanceCheck)
-            ]
+derivedPairsAlg :: MinAlg -> [(String, DerivedValue)]
+derivedPairsAlg alg =
+    ledgerPairsFor totals balances
+    ++ trialPairsFor totals balances
+    ++ financialPairsFor totals
+  where
+    totals = totalsByAlg alg
+    balances = balancesByAlg alg
 
-------------------------------------------------------------------
--- JSON rendering
-------------------------------------------------------------------
+financialValue :: String -> [(String, DerivedValue)] -> DerivedValue
+financialValue key pairs = case lookup key pairs of
+    Just value -> value
+    Nothing    -> DerivedNum 0
+
+closingDerivedPairs :: MinAlg -> MinAlg -> MinAlg -> [(String, DerivedValue)]
+closingDerivedPairs adjusted fullLedger closed =
+    ledgerPairsFor fullTotals fullBalances
+    ++ trialPairsFor adjustedTotals adjustedBalances
+    ++ [ (key, financialValue key source)
+       | (key, source) <-
+           [ ("financial_statements.total_assets", closedFinancial)
+           , ("financial_statements.total_liabilities", closedFinancial)
+           , ("financial_statements.total_equity", closedFinancial)
+           , ("financial_statements.balance_check", closedFinancial)
+           , ("financial_statements.opening_equity", adjustedFinancial)
+           , ("financial_statements.total_revenue", adjustedFinancial)
+           , ("financial_statements.total_expenses", adjustedFinancial)
+           , ("financial_statements.net_income", adjustedFinancial)
+           ]
+       ]
+  where
+    fullTotals = totalsByAlg fullLedger
+    fullBalances = balancesByAlg fullLedger
+    adjustedTotals = totalsByAlg adjusted
+    adjustedBalances = balancesByAlg adjusted
+    adjustedFinancial = financialPairsFor adjustedTotals
+    closedFinancial = financialPairsFor (totalsByAlg closed)
+
+data ClosingAdjustments = ClosingAdjustments
+    { caDepreciation       :: Integer
+    , caAccruedExpense     :: Integer
+    , caPrepaidExpense     :: Integer
+    , caAllowanceRateBps   :: Integer
+    , caBeginningInventory :: Integer
+    , caEndingInventory    :: Integer
+    }
+
+closingInput :: [(String, J)] -> Maybe ([Posting], ClosingAdjustments)
+closingInput obj = do
+    postingsJ <- field "postings" obj
+    postings <- postingsFromJ postingsJ
+    JObj adj <- field "adjustments" obj
+    spec <- ClosingAdjustments
+        <$> integerField "depreciation" adj
+        <*> integerField "accrued_expense" adj
+        <*> integerField "prepaid_expense" adj
+        <*> integerField "allowance_rate_basis_points" adj
+        <*> integerField "beginning_inventory" adj
+        <*> integerField "ending_inventory" adj
+    pure (postings, spec)
+
+closingAdjustmentsAlg :: MinAlg -> ClosingAdjustments -> Either String MinAlg
+closingAdjustmentsAlg base spec
+    | caAllowanceRateBps spec < 0 = Left "allowance rate must be non-negative"
+    | otherwise = Right $
+           BK.depreciationIndirectEntry mk (n caDepreciation)
+        .+ BK.accruedExpenseEntry mk (n caAccruedExpense) InterestExpense
+        .+ BK.prepaidExpenseEntry mk (n caPrepaidExpense) RentExpense
+        .+ BK.allowanceReplenishmentEntry mk (fromInteger allowanceEstimate) (fromInteger allowanceCurrent)
+        .+ BK.cogsAdjustmentEntries mk (n caBeginningInventory) (n caEndingInventory)
+  where
+    mk = (:<) :: BK.MkBase MinBase
+    n getter = fromInteger (getter spec)
+    totals = totalsByAlg (bar base)
+    balanceOf title = maybe 0 (normalBalance title) (M.lookup title totals)
+    receivables = balanceOf AccountsReceivable
+    allowanceCurrent = balanceOf AllowanceForDoubtfulAccounts
+    allowanceEstimate = receivables * caAllowanceRateBps spec `div` 10000
+
+isNominalAlg :: MinAlg -> Bool
+isNominalAlg x =
+    let division = classifyAccountDivision (getAccountTitle (_hatBase x))
+    in division == Cost || division == Revenue
+
+deriveClosing :: [Posting] -> ClosingAdjustments -> Either String [(String, DerivedValue)]
+deriveClosing postings spec = do
+    journal <- buildJournal postings
+    let base = EJ.toAlg journal
+    adjustments <- closingAdjustmentsAlg base spec
+    let adjusted = base .+ adjustments
+        nominal = EA.filter isNominalAlg adjusted
+        real = EA.filter (not . isNominalAlg) adjusted
+        summary = EAT.incomeSummaryAccount nominal
+        resultOnly = projByAccountTitle NetIncome summary .+ projByAccountTitle NetLoss summary
+        closedNamed = real .+ EAT.netIncomeTransfer resultOnly
+        closedFinal = EAT.finalStockTransfer adjusted
+    if bar closedNamed /= bar closedFinal
+       then Left "named closing transfers disagree with finalStockTransfer"
+       else
+           let closingEntry = bar (closedFinal .+ BK.reversingEntry (bar adjusted))
+               fullLedger = adjusted .+ closingEntry
+           in Right (closingDerivedPairs adjusted fullLedger closedFinal)
+
+consolidationInput :: [(String, J)] -> Maybe ([Posting], [Posting])
+consolidationInput obj = do
+    postings <- field "postings" obj >>= postingsFromJ
+    internal <- field "internal_postings" obj >>= postingsFromJ
+    pure (postings, internal)
+
+deriveConsolidation :: [Posting] -> [Posting] -> Either String [(String, DerivedValue)]
+deriveConsolidation postings internal = do
+    entityJournal <- buildJournalBy entityKey postings
+    internalJournal <- buildJournalBy entityKey internal
+    let internalAlg = EJ.toAlg internalJournal
+        elimination = BK.reversingEntry internalAlg
+        consolidated = EJ.toAlg entityJournal .+ elimination
+    if bar (internalAlg .+ elimination) /= (Zero :: MinAlg)
+       then Left "internal postings and bar-netted elimination do not cancel"
+       else pure (derivedPairsAlg consolidated)
 
 jstr :: String -> String
 jstr s = "\"" ++ concatMap esc s ++ "\""
@@ -298,16 +415,26 @@ jstr s = "\"" ++ concatMap esc s ++ "\""
 
 renderDerived :: [(String, DerivedValue)] -> String
 renderDerived pairs =
-    "{\"derived\":{"
-    ++ intercalate "," [jstr key ++ ":" ++ renderValue value | (key, value) <- pairs]
-    ++ "}}"
+    "{\"derived\":{" ++ intercalate "," [jstr key ++ ":" ++ renderValue value | (key, value) <- pairs] ++ "}}"
   where
     renderValue (DerivedNum value) = show value
     renderValue (DerivedString value) = jstr value
 
-------------------------------------------------------------------
--- Main
-------------------------------------------------------------------
+deriveRoot :: J -> Either String [(String, DerivedValue)]
+deriveRoot array@(JArr _) = do
+    postings <- maybe (Left "input is not a canonical posting array") Right (postingsFromJ array)
+    journal <- buildJournal postings
+    pure (derivedPairsAlg (EJ.toAlg journal))
+deriveRoot (JObj obj) = case field "mode" obj of
+    Just (JStr "closing") -> do
+        (postings, spec) <- maybe (Left "invalid closing request") Right (closingInput obj)
+        deriveClosing postings spec
+    Just (JStr "consolidation") -> do
+        (postings, internal) <- maybe (Left "invalid consolidation request") Right (consolidationInput obj)
+        deriveConsolidation postings internal
+    Just (JStr mode) -> Left ("unknown mode: " ++ mode)
+    _                -> Left "object input requires a mode"
+deriveRoot _ = Left "input must be a posting array or mode object"
 
 main :: IO ()
 main = do
@@ -315,15 +442,8 @@ main = do
     input <- case args of
         (path:_) -> readFile path
         []       -> getContents
-
-    case parseJSON input >>= fromJ of
-        Nothing -> do
-            hPutStrLn stderr "DeriveEA: input is not a canonical posting array"
+    case maybe (Left "invalid JSON") deriveRoot (parseJSON input) of
+        Left err -> do
+            hPutStrLn stderr ("DeriveEA: " ++ err)
             exitFailure
-        Just postings ->
-            case buildJournal postings of
-                Left err -> do
-                    hPutStrLn stderr ("DeriveEA: " ++ err)
-                    exitFailure
-                Right journal ->
-                    putStrLn (renderDerived (derivedPairs journal))
+        Right pairs -> putStrLn (renderDerived pairs)

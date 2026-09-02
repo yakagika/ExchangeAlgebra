@@ -101,12 +101,19 @@ def _payload(task: dict[str, Any], emit: str) -> Any:
     if emit == "postings":
         return task["ground_truth"]["journal"]
     if emit == "transactions":
-        return task["given"]["transactions"]
+        given = task["given"]
+        if "transactions" in given:
+            return given["transactions"]
+        if "given_journal" in given:
+            return given["given_journal"]
+        if "entity_journals" in given:
+            return given["entity_journals"]
+        raise ValueError(f"task kind {task['category']} has no transaction view")
     if emit == "bundle":
         return {
             "task": task,
             "canonical_postings": task["ground_truth"]["journal"],
-            "transactions": task["given"]["transactions"],
+            "transactions": _payload(task, "transactions"),
         }
     raise ValueError(f"unknown emit target: {emit}")
 
@@ -114,9 +121,19 @@ def _payload(task: dict[str, Any], emit: str) -> Any:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seed", type=int, required=True)
-    parser.add_argument("--count", type=int, default=7)
+    parser.add_argument(
+        "--count",
+        type=int,
+        help="entry count; defaults by kind (journalize/audit 7, closing 30, statements 50, consolidation 20)",
+    )
     parser.add_argument("--template", choices=["mixed", *TEMPLATES.keys()], default="mixed")
     parser.add_argument("--audit", action="store_true", help="emit an audit-defect task instead")
+    parser.add_argument(
+        "--kind",
+        choices=["journalize", "closing", "statements", "consolidation", "audit"],
+        default="journalize",
+        help="generated task kind; --audit remains a backward-compatible alias for audit",
+    )
     parser.add_argument("--defects", type=int, default=2, help="defect count for --audit")
     parser.add_argument(
         "--defect-kind",
@@ -129,16 +146,34 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--indent", type=int, default=2)
     args = parser.parse_args(argv)
 
-    if args.audit:
+    kind = "audit" if args.audit else args.kind
+    if args.audit and args.kind != "journalize":
+        parser.error("--audit cannot be combined with a non-default --kind")
+    count = args.count
+    if count is None:
+        count = {
+            "journalize": 7,
+            "audit": 7,
+            "closing": 30,
+            "statements": 50,
+            "consolidation": 20,
+        }[kind]
+    if kind == "audit":
         task = generate_audit_task(
             seed=args.seed,
-            count=args.count,
+            count=count,
             defects=args.defects,
             template=args.template,
             kinds=args.defect_kind,
         )
+    elif kind == "journalize":
+        task = generate_task(seed=args.seed, count=count, template=args.template)
     else:
-        task = generate_task(seed=args.seed, count=args.count, template=args.template)
+        try:
+            from .kinds import GENERATORS
+        except ImportError:  # pragma: no cover
+            from kinds import GENERATORS  # type: ignore
+        task = GENERATORS[kind](seed=args.seed, count=count, template=args.template)
 
     text = dump_json(_payload(task, args.emit), indent=args.indent)
     if args.out:

@@ -10,6 +10,9 @@ execute ExchangeAlgebra code.
 cd examples/audit-eval
 uv run python -m gen.generate --seed 42 --count 7 --emit task
 uv run python -m gen.generate --seed 42 --count 7 --emit postings
+uv run python -m gen.generate --kind closing --seed 42 --count 30 --template mixed
+uv run python -m gen.generate --kind statements --seed 42 --count 50 --template mixed
+uv run python -m gen.generate --kind consolidation --seed 42 --count 20 --template mixed
 uv run python -m gen.generate --seed 42 --count 8 --audit --defects 4 \
   --defect-kind imbalance \
   --defect-kind hallucinated_account \
@@ -20,6 +23,11 @@ uv run python -m gen.generate --seed 42 --count 8 --audit --defects 4 \
 Templates cover cash sales, credit trades, purchases, payroll, accruals, tax,
 and fixed-asset depreciation. All random choices flow through `random.Random(seed)`;
 there is no time or OS entropy input.
+
+For every non-`mixed` template, equal seeds have nested transaction prefixes:
+N=10 is the first 10 entries of N=50, and N=50 is the first 50 entries of
+N=200. `mixed` is intentionally excluded because its count-dependent randomized
+template schedule consumes RNG draws before transaction amounts are generated.
 
 Every visible transaction has an `amount` equal to that entry's debit total, so
 arm Aprime can reconcile source transactions consistently. Template labels
@@ -36,6 +44,35 @@ Generated non-audit tasks use the v2 task contract with components
 - `ledger.<account>.balance`
 - `trial_balance.<account>`
 - `financial_statements.*`
+
+The side-contract v2 keys are also emitted:
+
+- `ledger.<account>.balance_side|balance_amount`
+- `trial_balance.<account>.side|amount`
+
+## Second-round task kinds
+
+- `closing`: `given` contains opening balances, ordinary period transactions,
+  and adjustment facts for straight-line depreciation, an accrued expense, a
+  prepaid expense, an allowance estimate, and ending inventory. Output postings
+  include the opening/period entries, adjustment entries, and `close-income`.
+  GT trial balance and income statement come from the adjusted ledger; GT ledger
+  balances and balance sheet come from the closed ledger. Revenue and expense
+  ledger balances are `zero`.
+- `statements`: `given.given_journal` is an adjusted journal with entry IDs.
+  Output returns those postings unchanged with txids and derives ledger, trial
+  balance, and financial statements.
+- `consolidation`: `given.entity_journals` carries parent (`P`) and subsidiary
+  (`S`) postings plus the internal sale/purchase and receivable/payable pair.
+  Output adds two elimination entries and derives the consolidated ledger,
+  trial balance, and statements. NCI, goodwill, and unrealized profit are
+  excluded.
+
+The pandas oracle derives each GT independently. `DeriveEA.hs` keeps the old
+posting-array interface and adds mode objects for closing and consolidation.
+Closing adjustments use `ExchangeAlgebra.Bookkeeping`; closing uses the named
+income-summary/net-income transfers and `finalStockTransfer`; consolidation
+uses the entity Journal note axis and reversal + `bar` cancellation.
 
 ## Audit defects
 
@@ -71,13 +108,45 @@ to match injected defects:
 ```bash
 cd examples/audit-eval
 uv run python -m gen.make_suite \
-  --template mixed,cash_sale --count 10,50 --gen-seed 0-2 \
-  --kind journalize,audit --defects auto --out tasks-s
+  --template cash_sale --count 10,50,200 --gen-seed 0-2 \
+  --kind journalize --out tasks-s
+uv run python -m gen.make_suite \
+  --template mixed --count 30 --gen-seed 0-2 \
+  --kind closing --out tasks-s
 ```
+
+Use N=10/50/200 only for a single non-mixed `journalize` template cluster.
+Invoke the other kinds with one fixed count, for example closing=30,
+statements=50, consolidation=20, and audit at the preregistered fixed size.
+The driver rejects a multi-count request containing a fixed-size kind.
 
 Use `--skip-ea` only to stage tasks with
 `ground_truth.generator_metadata.ea_oracle_status = "pending"`; adopted GT should
 come from the double-oracle path.
+
+## Cell manifest and seal hashes
+
+`make_manifest.py` reads a generated task directory, expands task × arm × model,
+and writes `cell-manifest.json` plus `task-bundle.sha256`. By default the files
+go beside the task directory so they are not mistaken for tasks by
+`runner/run.py --task all`:
+
+```bash
+cd examples/audit-eval
+uv run python -m gen.make_manifest tasks-s
+uv run python -m gen.make_manifest tasks-s \
+  --arms C,B,V,Aprime,A --models codex,local \
+  --out-dir /path/to/artifacts/experiment-2
+```
+
+The command prints the manifest SHA-256. `task-bundle.sha256` lists each task
+file digest and a `BUNDLE` digest computed exactly like
+`runner.run.task_bundle_digest`, which is the value supplied to
+`--expect-task-bundle-sha256`.
+
+The manifest command is for generated sealed tasks and therefore requires
+`source.template` as the cluster ID. The curated 23-task descriptive set is not
+sealed. `--out-dir` must differ from the task directory.
 
 ## Selftest
 
@@ -86,5 +155,6 @@ cd examples/audit-eval
 uv run pytest gen
 ```
 
-The tests cover deterministic generation, hand-calculated pandas fixtures, and
-detection of all four injected audit defect classes.
+The tests cover frozen experiment-1 bytes, nested prefixes, all three new pandas
+oracles, manifest hashing, hand-calculated pandas fixtures, and all four
+injected audit defect classes.

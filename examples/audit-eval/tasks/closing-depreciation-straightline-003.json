@@ -1,8 +1,10 @@
 {
   "id": "closing-depreciation-straightline-003",
+  "source": { "ref": "self-authored" },
   "category": "closing",
   "difficulty": "mechanical",
   "ea_coverage": "ok",
+  "audit": false,
   "prompt": "定額法により1年分の減価償却の決算整理仕訳を行え。",
   "given": {
     "chart_of_accounts": ["DepreciationExpense", "AccumulatedDepreciation"],
@@ -12,6 +14,10 @@
     },
     "asset": {"name": "Machine", "cost": 12000, "useful_life_years": 5, "salvage": 0},
     "policy": "straight_line"
+  },
+  "expected_output": {
+    "components": ["journal"],
+    "format_note": "Return one JSON object with key \"journal\": an array containing the canonical adjusting-entry postings."
   },
   "ground_truth": {
     "journal": [

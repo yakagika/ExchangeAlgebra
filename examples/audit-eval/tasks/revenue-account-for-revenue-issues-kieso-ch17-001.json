@@ -1,6 +1,7 @@
 {
   "id": "revenue-account-for-revenue-issues-kieso-ch17-001",
-  "category": "revenue",
+  "category": "journalize",
+  "topic": "revenue",
   "difficulty": "judgment",
   "ea_coverage": "needs-extension",
   "audit": false,

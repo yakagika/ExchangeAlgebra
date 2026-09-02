@@ -387,7 +387,7 @@ def test_contra_dual_oracle_agree_via_deriveea() -> None:
     ]
     repo_root = Path(__file__).resolve().parents[4]
     proc = subprocess.run(
-        ["stack", "exec", "runghc", "--", "examples/audit-eval/gen/DeriveEA.hs"],
+        ["stack", "exec", "runghc", "--", "-isrc", "examples/audit-eval/gen/DeriveEA.hs"],
         input=json.dumps(postings), capture_output=True, text=True,
         cwd=repo_root, timeout=600, check=True,
     )

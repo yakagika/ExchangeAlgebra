@@ -29,6 +29,10 @@
       }
     ]
   },
+  "expected_output": {
+    "components": ["journal"],
+    "format_note": "Return one JSON object with key \"journal\": an array containing the canonical consolidation-elimination postings."
+  },
   "ground_truth": {
     "journal": [
       {
