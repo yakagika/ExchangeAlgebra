@@ -12,7 +12,7 @@ Arguments
 ---------
 --task   <id|all>     Task id(s), comma-separated, or 'all' to run every tasks/*.json.
 --tasks-dir <dir>     Directory containing task JSON files (default: tasks/).
---arm    <arms>       Comma-separated list of arms to run: A, B, C, D, Aprime.
+--arm    <arms>       Comma-separated list of arms to run: A, B, C, D, V, Aprime.
 --model  <models>     Comma-separated list of model keys from models.toml.
 --seed   <spec>       Seed(s): single int ("0"), comma-separated list ("0,1,2"),
                       or an inclusive range ("0-4"). Seed is the OUTERMOST loop —
@@ -21,11 +21,15 @@ Arguments
 --max-iters <int>     Retry budget for arm A/B/D/Aprime (default 3).
 --repeats <int>       Independent LLM draws per cell (default 1). Sampling variance
                       within one cell can exceed the arm differences measured.
---skill <v1|v2>       Arm A SKILL file version (default v1).
+--skill <v1|v2|v3>    Arm A SKILL file version (default v1).
 --aprime-feedback <raw|rich>
                       Loader feedback mode for arm Aprime (default raw).
 --c-retries <int>     Retry count for arm C after first failure (default 1).
 --c-ea-map            Include EA account mapping in arm C prompts.
+--chart-of-accounts <none|task>
+                      Supply the task chart/account classes to every arm.
+--v-gate <legacy|full>
+                      Arm V gate profile (default full).
 --oracle-arms <arms>  Arms the EA oracle applies to (default B,C).
 --scoring-contract <v1|side>
                       Derived-value scoring/prompt contract (default v1).
@@ -75,7 +79,8 @@ CELL_FIELDS = ("task_id", "arm", "model", "seed", "repeat")
 RESUME_CONFIG_FIELDS = (
     "tasks", "arms", "models", "seeds", "repeats", "max_iters",
     "oracle_arms", "skill", "aprime_feedback", "c_retries", "c_ea_map",
-    "scoring_contract",
+    "chart_of_accounts", "v_gate", "scoring_contract",
+    "cell_manifest_sha256",
 )
 MEASUREMENT_SURFACE = (
     "src", "examples/audit-eval/harness", "examples/audit-eval/oracle",
@@ -377,6 +382,56 @@ def normalize_arm_list(spec: str) -> list[str]:
     return [normalize_arm_name(a) for a in spec.split(",") if a.strip()]
 
 
+CELL_MANIFEST_FIELDS = ("task_id", "cluster", "category", "arm", "model")
+
+
+def load_cell_manifest(path: Path) -> tuple[list[dict], set[tuple[str, str, str]]]:
+    """Load and validate a sealed experiment-2 cell manifest.
+
+    The canonical shape is a JSON array of row objects.  A top-level
+    ``{"cells": [...]}`` wrapper is accepted as a convenience for generator
+    tooling, while each row still has the same required five fields.
+    """
+    data = json.loads(path.read_text(encoding="utf-8"))
+    rows = data.get("cells") if isinstance(data, dict) else data
+    if not isinstance(rows, list):
+        raise ValueError("cell manifest must be a JSON array (or an object with a 'cells' array)")
+
+    normalized_rows: list[dict] = []
+    cells: set[tuple[str, str, str]] = set()
+    for index, row in enumerate(rows):
+        if not isinstance(row, dict):
+            raise ValueError(f"cell manifest row {index} is not an object")
+        missing = [field for field in CELL_MANIFEST_FIELDS if field not in row]
+        if missing:
+            raise ValueError(f"cell manifest row {index} missing fields: {missing}")
+        values = {field: row[field] for field in CELL_MANIFEST_FIELDS}
+        if any(not isinstance(value, str) or not value.strip() for value in values.values()):
+            raise ValueError(f"cell manifest row {index} fields must be non-empty strings")
+        values["arm"] = normalize_arm_name(values["arm"])
+        cell = (values["task_id"], values["arm"], values["model"])
+        if cell in cells:
+            raise ValueError(f"duplicate cell manifest row for {cell}")
+        cells.add(cell)
+        normalized_rows.append(values)
+    return normalized_rows, cells
+
+
+def validate_cell_manifest_tasks(rows: list[dict], tasks_dir: Path) -> None:
+    """Fail closed if a manifest row disagrees with its task category."""
+    cached: dict[str, dict] = {}
+    for row in rows:
+        task_id = row["task_id"]
+        if task_id not in cached:
+            cached[task_id] = load_task(task_id, tasks_dir)
+        task = cached[task_id]
+        if task.get("category") != row["category"]:
+            raise ValueError(
+                f"cell manifest category mismatch for {task_id}: "
+                f"manifest={row['category']!r}, task={task.get('category')!r}"
+            )
+
+
 # ---------------------------------------------------------------------------
 # Run one (task, arm, model, seed) combination
 # ---------------------------------------------------------------------------
@@ -394,6 +449,8 @@ def run_one(
     aprime_feedback: str,
     c_retries: int,
     c_ea_map: bool,
+    chart_of_accounts: str,
+    v_gate: str,
     scoring_contract: str,
     repeat: int = 0,
 ) -> dict:
@@ -411,6 +468,8 @@ def run_one(
             "effective_model": None,
             "skill": skill if arm_name == "A" else None,
             "aprime_feedback": aprime_feedback if arm_name == "Aprime" else None,
+            "chart_of_accounts": chart_of_accounts,
+            "v_gate": v_gate if arm_name == "V" else None,
             "scoring_contract": scoring_contract,
         }
 
@@ -431,30 +490,37 @@ def run_one(
             arm_result = arm_c(
                 task, backend, max_iters=max_iters,
                 retries=c_retries, include_ea_map=c_ea_map,
+                include_task_chart=chart_of_accounts == "task",
                 scoring_contract=scoring_contract,
             )
         elif arm_name == "A":
             arm_result = arm_a(task, backend, task_run_dir, WORKTREE_ROOT,
                                max_iters=max_iters, skill_version=skill,
-                               scoring_contract=scoring_contract)
+                               scoring_contract=scoring_contract,
+                               include_task_chart=chart_of_accounts == "task")
         elif arm_name == "Aprime":
             arm_result = arm_aprime(
                 task, backend, task_run_dir, WORKTREE_ROOT,
                 max_iters=max_iters, feedback_mode=aprime_feedback,
                 scoring_contract=scoring_contract,
+                include_task_chart=chart_of_accounts == "task",
             )
         elif arm_name == "V":
             arm_result = arm_v(task, backend, task_run_dir, WORKTREE_ROOT,
                                max_iters=max_iters,
-                               scoring_contract=scoring_contract)
+                               scoring_contract=scoring_contract,
+                               include_task_chart=chart_of_accounts == "task",
+                               v_gate=v_gate)
         elif arm_name == "B":
             arm_result = arm_b(task, backend, task_run_dir,
                                max_iters=max_iters,
-                               scoring_contract=scoring_contract)
+                               scoring_contract=scoring_contract,
+                               include_task_chart=chart_of_accounts == "task")
         elif arm_name == "D":
             arm_result = arm_d(task, backend, task_run_dir, WORKTREE_ROOT,
                                max_iters=max_iters,
-                               scoring_contract=scoring_contract)
+                               scoring_contract=scoring_contract,
+                               include_task_chart=chart_of_accounts == "task")
         else:
             arm_result = {"parse_fail": True, "compile_fail": False,
                           "parsed": None, "stub": True,
@@ -475,6 +541,7 @@ def run_one(
         scoring_contract=scoring_contract,
     )
 
+    tool_event_count = getattr(backend, "tool_event_count", None)
     return {
         "task_id":     task["id"],
         "arm":         arm_name,
@@ -488,8 +555,16 @@ def run_one(
         "effective_model": getattr(backend, "effective_model", None),
         "derived_source": arm_result.get("derived_source"),
         "backend_call": getattr(backend, "last_call", None),
+        "tool_event_count": tool_event_count,
+        "tool_use_flagged": bool(
+            arm_name == "C"
+            and tool_event_count is not None
+            and tool_event_count > 0
+        ),
         "skill": skill if arm_name == "A" else None,
         "aprime_feedback": aprime_feedback if arm_name == "Aprime" else None,
+        "chart_of_accounts": chart_of_accounts,
+        "v_gate": v_gate if arm_name == "V" else None,
         "scoring_contract": scoring_contract,
     }
 
@@ -542,6 +617,7 @@ def append_summary_csv(records: list[dict], csv_path: Path, ts: str) -> None:
         "scoring_contract",
         "derived_source", "prompt_tokens", "completion_tokens", "finish_reason",
         "temperature", "top_p",
+        "posting_complete", "outcome", "tool_event_count", "tool_use_flagged",
     ]
 
     csv_path.parent.mkdir(parents=True, exist_ok=True)
@@ -620,6 +696,10 @@ def append_summary_csv(records: list[dict], csv_path: Path, ts: str) -> None:
                 "finish_reason":      call.get("finish_reason"),
                 "temperature":        call.get("temperature"),
                 "top_p":              call.get("top_p"),
+                "posting_complete":   m.get("posting_complete"),
+                "outcome":            m.get("outcome"),
+                "tool_event_count":   rec.get("tool_event_count"),
+                "tool_use_flagged":   rec.get("tool_use_flagged"),
             })
             writer.writerow(row)
 
@@ -686,7 +766,11 @@ def build_run_meta(
         "aprime_feedback": args.aprime_feedback,
         "c_retries": args.c_retries,
         "c_ea_map": args.c_ea_map,
+        "chart_of_accounts": args.chart_of_accounts,
+        "v_gate": args.v_gate,
         "scoring_contract": args.scoring_contract,
+        "cell_manifest": str(args.cell_manifest.resolve()) if args.cell_manifest else None,
+        "cell_manifest_sha256": None,
         "git": {
             "rev_parse_head": _git_capture(["rev-parse", "HEAD"]),
             "describe": _git_capture(["describe", "--tags", "--always", "--dirty"]),
@@ -718,7 +802,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--arm", default="C",
-        help="Arm(s) to run, comma-separated (A, B, C, D, Aprime)",
+        help="Arm(s) to run, comma-separated (A, B, C, D, V, Aprime)",
     )
     parser.add_argument(
         "--model", default="codex",
@@ -740,7 +824,15 @@ def main() -> None:
     )
     parser.add_argument(
         "--expect-task-bundle-sha256", default=None,
-        help="Required task-bundle digest when resuming legacy metadata that did not record one.",
+        help="Expected task-bundle SHA-256; checked before model calls on fresh and resumed runs.",
+    )
+    parser.add_argument(
+        "--cell-manifest", type=Path, default=None,
+        help="Sealed JSON cell manifest; limits the task x arm x model grid to its rows.",
+    )
+    parser.add_argument(
+        "--expect-cell-manifest-sha256", default=None,
+        help="Expected SHA-256 of --cell-manifest (required when a manifest is supplied).",
     )
     parser.add_argument(
         "--expect-parent-jsonl-sha256", default=None,
@@ -760,7 +852,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--max-iters", type=int, default=3,
-        help="Max regeneration attempts for arm A/B/D/Aprime on compile/parse "
+        help="Max regeneration attempts for arm A/B/D/V/Aprime on compile/parse "
              "or gate errors (default 3)",
     )
     parser.add_argument(
@@ -768,7 +860,7 @@ def main() -> None:
         help="Checked-loader feedback mode for arm Aprime (default raw)",
     )
     parser.add_argument(
-        "--skill", choices=("v1", "v2"), default="v1",
+        "--skill", choices=("v1", "v2", "v3"), default="v1",
         help="SKILL file version for arm A only (default v1)",
     )
     parser.add_argument(
@@ -779,6 +871,14 @@ def main() -> None:
     parser.add_argument(
         "--c-ea-map", action="store_true",
         help="Include EA account mapping in arm C prompts",
+    )
+    parser.add_argument(
+        "--chart-of-accounts", choices=("none", "task"), default="none",
+        help="Account vocabulary supplied identically to all arms (default none preserves historical prompts)",
+    )
+    parser.add_argument(
+        "--v-gate", choices=("legacy", "full"), default="full",
+        help="Arm V gate: experiment-1 balance-only legacy or full transaction/account checks (default full)",
     )
     parser.add_argument(
         "--oracle-arms", default="B,C",
@@ -803,6 +903,15 @@ def main() -> None:
     except ValueError as exc:
         print(f"ERROR parsing --arm: {exc}", file=sys.stderr)
         sys.exit(1)
+    if "A" in arm_names:
+        skill_path = EVAL_DIR / "harness" / f"SKILL-ea-{args.skill}.md"
+        if not skill_path.is_file():
+            print(
+                f"ERROR: SKILL file not found: {skill_path} "
+                f"(--skill {args.skill} requires this arm-A cheatsheet)",
+                file=sys.stderr,
+            )
+            sys.exit(1)
     model_keys  = [m.strip() for m in args.model.split(",")]
     missing_models = [key for key in model_keys if key not in load_models_toml(MODELS_TOML)] if MODELS_TOML.exists() else model_keys
     if missing_models:
@@ -831,6 +940,31 @@ def main() -> None:
         print(f"ERROR loading models.toml: {exc}", file=sys.stderr)
         sys.exit(1)
 
+    # ---- Sealed cell manifest preflight (always before model calls) ----
+    manifest_rows: list[dict] = []
+    manifest_cells: set[tuple[str, str, str]] | None = None
+    manifest_sha: str | None = None
+    if bool(args.cell_manifest) != bool(args.expect_cell_manifest_sha256):
+        print(
+            "ERROR: --cell-manifest and --expect-cell-manifest-sha256 must be supplied together",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    if args.cell_manifest:
+        try:
+            manifest_path = args.cell_manifest.resolve()
+            manifest_sha = sha256_file(manifest_path)
+            if manifest_sha.lower() != args.expect_cell_manifest_sha256.lower():
+                raise ValueError(
+                    "cell manifest digest mismatch: "
+                    f"expected {args.expect_cell_manifest_sha256}, got {manifest_sha}"
+                )
+            manifest_rows, manifest_cells = load_cell_manifest(manifest_path)
+            validate_cell_manifest_tasks(manifest_rows, tasks_dir)
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            print(f"ERROR cell manifest preflight: {exc}", file=sys.stderr)
+            sys.exit(1)
+
     # ---- Timestamp ----
     ts = args.timestamp or datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -843,6 +977,10 @@ def main() -> None:
     print(f"  skill       : {args.skill}")
     print(f"  Aprime fb   : {args.aprime_feedback}")
     print(f"  C retries   : {args.c_retries}  C ea_map={args.c_ea_map}")
+    print(f"  chart       : {args.chart_of_accounts}")
+    print(f"  V gate      : {args.v_gate}")
+    if args.cell_manifest:
+        print(f"  manifest    : {args.cell_manifest.resolve()} ({manifest_sha})")
     print(f"  score contract: {args.scoring_contract}")
     print()
 
@@ -874,9 +1012,35 @@ def main() -> None:
         seeds=seeds, args=args, model_cfg=cfg, oracle_arms=oracle_arms,
     )
     current_meta["task_bundle_sha256"] = bundle_sha
+    current_meta["cell_manifest_sha256"] = manifest_sha
+    if args.expect_task_bundle_sha256:
+        if bundle_sha.lower() != args.expect_task_bundle_sha256.lower():
+            print(
+                "ERROR task bundle digest mismatch: "
+                f"expected {args.expect_task_bundle_sha256}, got {bundle_sha}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
     planned = {(task_id, arm, model, seed, repeat)
                for seed in seeds for task_id in task_ids for arm in arm_names
-               for model in model_keys for repeat in range(args.repeats)}
+               for model in model_keys for repeat in range(args.repeats)
+               if manifest_cells is None or (task_id, arm, model) in manifest_cells}
+    if manifest_cells is not None:
+        configured_cells = {
+            (task_id, arm, model)
+            for task_id in task_ids for arm in arm_names for model in model_keys
+        }
+        uncovered = sorted(manifest_cells - configured_cells)
+        if uncovered:
+            print(
+                "ERROR: cell manifest rows are outside the configured CLI grid: "
+                f"{uncovered}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+    if not planned:
+        print("ERROR: resolved grid is empty", file=sys.stderr)
+        sys.exit(1)
     completed: set[tuple] = set()
     resume_sources: list[dict] = []
     if args.resume_from:
@@ -921,6 +1085,8 @@ def main() -> None:
                     backend_cfg = cfg[model_key]
                     for repeat in range(args.repeats):
                         key = (task_id, arm_name, model_key, seed, repeat)
+                        if key not in planned:
+                            continue
                         if key in completed:
                             if args.dry_run:
                                 print(f"  [resume-skip] task={task_id} arm={arm_name} model={model_key} seed={seed} repeat={repeat}")
@@ -937,6 +1103,8 @@ def main() -> None:
                             aprime_feedback=args.aprime_feedback,
                             c_retries=args.c_retries,
                             c_ea_map=args.c_ea_map,
+                            chart_of_accounts=args.chart_of_accounts,
+                            v_gate=args.v_gate,
                             scoring_contract=args.scoring_contract,
                             repeat=repeat,
                         )

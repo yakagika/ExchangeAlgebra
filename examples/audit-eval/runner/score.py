@@ -54,6 +54,11 @@ timed_out          : True if the arm stopped because a backend call exceeded its
                      pilot policy). A timed_out cell has converged=False and its
                      accuracy metrics reflect no usable output; separating it from a
                      genuine wrong answer keeps the large-N latency wall visible.
+posting_complete   : True iff model postings exactly match the GT multiset on
+                     txid, side, resolved account, and amount.
+outcome            : experiment-2 three-way result: committed_correct,
+                     committed_incorrect, or refused. None for categories
+                     outside the five-category experiment-2 contract.
 
 Oracle gating (TASK-FORMAT.md v2, 2026-07-02)
 ----------------------------------------------
@@ -239,6 +244,50 @@ def _match_journal(model_journal: list, gt_journal: list,
                 del remaining[idx]
                 break
     return matched
+
+
+def _posting_complete(
+    model_journal: Any,
+    gt_journal: list,
+    resolver: dict[str, list[str]],
+) -> bool:
+    """Exact txid-aware multiset equality for experiment-2 postings."""
+    if not isinstance(model_journal, list) or len(model_journal) != len(gt_journal):
+        return False
+
+    remaining: list[tuple[str, str, str, float]] = []
+    try:
+        for posting in gt_journal:
+            txid = posting.get("entry")
+            if not isinstance(txid, str) or not txid:
+                return False
+            side, account, amount = _posting_fields(posting)
+            remaining.append((txid, side, account, amount))
+
+        for posting in model_journal:
+            if not isinstance(posting, dict):
+                return False
+            txid = posting.get("txid")
+            if not isinstance(txid, str) or not txid:
+                return False
+            side, account, amount = _posting_fields(posting)
+            candidates = resolve_account(account, resolver)
+            if not candidates:
+                return False
+            for index, (gt_txid, gt_side, gt_account, gt_amount) in enumerate(remaining):
+                if (
+                    txid == gt_txid
+                    and side == gt_side
+                    and amount == gt_amount
+                    and gt_account in candidates
+                ):
+                    del remaining[index]
+                    break
+            else:
+                return False
+    except (AttributeError, TypeError, ValueError, OverflowError):
+        return False
+    return not remaining
 
 
 def _to_ea_postings(parsed: list, task: dict, resolver: dict[str, list[str]]) -> list[dict]:
@@ -512,6 +561,71 @@ def _match_findings(model_findings: Any, gt_findings: list) -> tuple[int, int, i
     return matched, len(gt_list), len(model_list)
 
 
+_BOOKKEEPING_OUTCOME_CATEGORIES = {
+    "journalize", "closing", "statements", "consolidation",
+}
+
+
+def _ledger_trial_balance_pairs_match(model_derived: Any, gt_derived: dict) -> bool:
+    """Whether every ledger/TB side-amount pair matches, with no extra pair."""
+    if not isinstance(model_derived, dict):
+        return False
+    relevant_gt = {
+        key: value
+        for key, value in gt_derived.items()
+        if _is_side_contract_key(key)
+    }
+    gt_pairs = _side_pair_roots(relevant_gt)
+    if not gt_pairs:
+        return False
+    matched, total = _match_derived_contract(model_derived, relevant_gt, "side")
+    model_pair_count = len(_side_pair_roots(model_derived))
+    return matched == total and model_pair_count == total
+
+
+def _outcome(
+    task: dict,
+    arm_result: dict,
+    parsed: Any,
+    scoring_contract: str,
+) -> Optional[str]:
+    """Map one submission to the pre-registered experiment-2 outcome."""
+    # The three-way outcome is defined by side contract v2.  Leaving it
+    # unpopulated for frozen-v1 runs prevents a new metric from silently
+    # reinterpreting legacy cells under a contract their prompts did not use.
+    if scoring_contract != "side":
+        return None
+
+    category = str(task.get("category", "")).strip().lower()
+    if category not in _BOOKKEEPING_OUTCOME_CATEGORIES | {"audit"}:
+        return None
+
+    refused = (
+        bool(arm_result.get("timed_out"))
+        or bool(arm_result.get("parse_fail", True))
+        or parsed is None
+        or arm_result.get("converged") is False
+    )
+    if refused:
+        return "refused"
+
+    gt = task.get("ground_truth", {}) or {}
+    if category in _BOOKKEEPING_OUTCOME_CATEGORIES:
+        model_derived = parsed.get("derived") if isinstance(parsed, dict) else None
+        correct = _ledger_trial_balance_pairs_match(
+            model_derived, gt.get("derived", {}) or {}
+        )
+    else:
+        model_findings = parsed.get("findings") if isinstance(parsed, dict) else None
+        matched, gt_total, model_total = _match_findings(
+            model_findings, gt.get("findings", []) or []
+        )
+        # Exact multiset equality gives recall=precision=1.  The explicit
+        # empty/empty case is correct even though both ratio metrics are None.
+        correct = matched == gt_total == model_total
+    return "committed_correct" if correct else "committed_incorrect"
+
+
 def _match_decision(model_decision: Any, gt_decision: dict) -> tuple[int, int]:
     """Return (matched, total) — exact lower-cased label match per GT key."""
     gt = gt_decision or {}
@@ -621,6 +735,7 @@ def score(
             model_journal = None
 
     gt_journal = gt.get("journal", []) or [] if has_journal_component else []
+    posting_complete = _posting_complete(model_journal, gt_journal, resolver)
 
     # ---- balance_violation / account_validity (model postings only) ----------
     balance_violation: Optional[bool] = None
@@ -665,6 +780,7 @@ def score(
     # ---- derived_accuracy ------------------------------------------------------
     derived_accuracy: Optional[float] = None
     derived_matched = derived_total = 0
+    model_derived: Any = None
     if expected is not None and "derived" in (expected.get("components") or []):
         gt_derived = gt.get("derived", {}) or {}
         model_derived = parsed.get("derived") if (not parse_fail and isinstance(parsed, dict)) else None
@@ -751,6 +867,12 @@ def score(
     converged  = arm_result.get("converged")
     first_pass_valid = arm_result.get("first_pass_valid")
     timed_out = arm_result.get("timed_out", False)
+    outcome = _outcome(
+        task,
+        arm_result,
+        parsed,
+        scoring_contract,
+    )
 
     return {
         "task_id":                task["id"],
@@ -775,4 +897,6 @@ def score(
         "convergence_iterations": iterations,
         "converged":              converged,
         "timed_out":              timed_out,
+        "posting_complete":       posting_complete,
+        "outcome":                outcome,
     }

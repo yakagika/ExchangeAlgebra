@@ -20,7 +20,7 @@ from gen.compare_ea import compare_task_to_ea
 from gen.defects import DEFECT_KINDS, generate_audit_task
 from gen.pandas_oracle import compare_flat_numeric, compute_derived, detect_findings
 from gen.templates import TEMPLATES
-from runner.score import _is_side_contract_key
+from runner.score import _is_side_contract_key, score
 
 
 LABEL_KEYS = {"template", "trade_side", "settlement"}
@@ -391,3 +391,88 @@ def test_contra_dual_oracle_agree_via_deriveea() -> None:
     assert ea_derived["ledger.AccountsReceivable.balance_side"] == "zero"
     assert ea_derived["ledger.AccountsReceivable.balance_amount"] == 0
     assert ea_derived == compute_derived(postings)
+
+
+def test_experiment2_scorer_outcomes_and_posting_completeness() -> None:
+    journal = [
+        {"entry": "t1", "side": "debit", "account": "Cash", "amount": 100},
+        {"entry": "t1", "side": "credit", "account": "Sales", "amount": 100},
+    ]
+    derived = {
+        "ledger.Cash.balance_side": "debit",
+        "ledger.Cash.balance_amount": 100,
+        "trial_balance.Cash.side": "debit",
+        "trial_balance.Cash.amount": 100,
+    }
+    task = {
+        "id": "exp2-bookkeeping",
+        "category": "journalize",
+        "given": {"chart_of_accounts": ["Cash", "Sales"]},
+        "expected_output": {"components": ["journal", "derived"]},
+        "ground_truth": {"journal": journal, "derived": derived},
+    }
+    submitted = [
+        {"txid": "t1", "side": "debit", "account": "Cash", "amount": 100},
+        {"txid": "t1", "side": "credit", "account": "Sales", "amount": 100},
+    ]
+
+    correct = score(task, {
+        "parse_fail": False, "converged": True,
+        "parsed": {"journal": submitted, "derived": derived},
+    }, "C", worktree_root=None, scoring_contract="side")
+    assert correct["outcome"] == "committed_correct"
+    assert correct["posting_complete"] is True
+
+    wrong = dict(derived)
+    wrong["ledger.Cash.balance_side"] = "credit"
+    incorrect = score(task, {
+        "parse_fail": False, "converged": True,
+        "parsed": {"journal": submitted, "derived": wrong},
+    }, "C", worktree_root=None, scoring_contract="side")
+    assert incorrect["outcome"] == "committed_incorrect"
+
+    refused = score(task, {
+        "parse_fail": True, "converged": False, "parsed": None,
+    }, "C", worktree_root=None, scoring_contract="side")
+    assert refused["outcome"] == "refused"
+
+    without_txid = [dict(posting) for posting in submitted]
+    without_txid[0].pop("txid")
+    incomplete = score(task, {
+        "parse_fail": False, "converged": True,
+        "parsed": {"journal": without_txid, "derived": derived},
+    }, "C", worktree_root=None, scoring_contract="side")
+    assert incomplete["posting_complete"] is False
+
+    legacy = score(task, {
+        "parse_fail": False,
+        "parsed": {"journal": submitted, "derived": derived},
+    }, "C", worktree_root=None, scoring_contract="v1")
+    assert legacy["outcome"] is None
+
+    audit = {
+        "id": "exp2-audit",
+        "category": "audit",
+        "given": {},
+        "expected_output": {"components": ["findings"]},
+        "ground_truth": {"findings": [{"type": "imbalance", "locus": "t1"}]},
+    }
+    audit_exact = score(audit, {
+        "parse_fail": False, "converged": True,
+        "parsed": {"findings": [{"type": "imbalance", "locus": "t1"}]},
+    }, "C", worktree_root=None, scoring_contract="side")
+    assert audit_exact["outcome"] == "committed_correct"
+
+    audit_mismatch = score(audit, {
+        "parse_fail": False, "converged": True,
+        "parsed": {"findings": []},
+    }, "C", worktree_root=None, scoring_contract="side")
+    assert audit_mismatch["outcome"] == "committed_incorrect"
+
+    audit_empty = dict(audit)
+    audit_empty["ground_truth"] = {"findings": []}
+    audit_empty_result = score(audit_empty, {
+        "parse_fail": False, "converged": True,
+        "parsed": {"findings": []},
+    }, "C", worktree_root=None, scoring_contract="side")
+    assert audit_empty_result["outcome"] == "committed_correct"

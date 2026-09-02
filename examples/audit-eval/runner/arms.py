@@ -51,6 +51,7 @@ EVAL_DIR = Path(__file__).resolve().parent.parent
 SKILL_PATHS = {
     "v1": EVAL_DIR / "harness" / "SKILL-ea-v1.md",
     "v2": EVAL_DIR / "harness" / "SKILL-ea-v2.md",
+    "v3": EVAL_DIR / "harness" / "SKILL-ea-v3.md",
 }
 
 DEFAULT_MAX_ITERS = 3
@@ -170,7 +171,11 @@ def _extract_python(text: str) -> Optional[str]:
     return None
 
 
-def _build_user_prompt(task: dict, include_ea_map: bool = False) -> str:
+def _build_user_prompt(
+    task: dict,
+    include_ea_map: bool = False,
+    include_task_chart: bool = False,
+) -> str:
     """
     Format the task as a user-turn prompt.
 
@@ -196,7 +201,17 @@ def _build_user_prompt(task: dict, include_ea_map: bool = False) -> str:
     # excluded from the generic "additional data" JSON dump below.
     rendered_keys = {"ea_account_map", "map_note", "transcription_note"}
 
-    if "chart_of_accounts" in given:
+    if include_task_chart:
+        # One byte-identical vocabulary block is used by every arm.  Keep this
+        # opt-in so the historical prompt remains unchanged under the default
+        # --chart-of-accounts none setting.
+        lines.append("Standard chart of accounts (task supplied):")
+        lines.append(json.dumps({
+            "chart_of_accounts": given.get("chart_of_accounts", []),
+            "accounts": given.get("accounts", {}),
+        }, indent=2, ensure_ascii=False, sort_keys=True))
+        rendered_keys.update({"chart_of_accounts", "accounts"})
+    elif "chart_of_accounts" in given:
         lines.append(f"Chart of accounts: {given['chart_of_accounts']}")
         rendered_keys.add("chart_of_accounts")
     if include_ea_map and given.get("ea_account_map"):
@@ -249,7 +264,8 @@ _COMPONENT_SHAPES: dict[str, str] = {
     "journal": (
         '"journal": a JSON array of postings, each '
         '{"side":"debit"|"credit","account":"<AccountName>","amount":<positive number>}. '
-        "Extra per-posting keys (entry, date, entity) are allowed and ignored."
+        "When a transaction-id contract is stated below, each posting must also include txid; "
+        "other extra per-posting keys (entry, date, entity) are allowed and ignored."
     ),
     "derived": (
         '"derived": a FLAT JSON object mapping metric names to numbers only '
@@ -419,6 +435,11 @@ Given a Japanese accounting task, output ONLY the JSON value described below.
 Do NOT output any prose, explanation, markdown or code — output the raw JSON only.
 """
 
+_ARM_C_NO_TOOL_ROLE = """\
+Do not use or call any tools. Do not execute code or shell commands. Perform
+all calculations yourself and return JSON only.
+"""
+
 _ARM_C_RETRY_SUFFIX = """\
 
 IMPORTANT REMINDER: your previous response could not be parsed as valid JSON
@@ -453,7 +474,21 @@ Additional validation rules for arm V:
   a "txid" key equal to the corresponding source transaction id.
 - Your output is validated by a generic double-entry balance checker. If it is
   rejected, the checker error will be returned; fix the postings and emit the
-  complete corrected JSON value in the same format.
+complete corrected JSON value in the same format.
+"""
+
+_ARM_V_FULL_ROLE = _ARM_C_ROLE + """\
+
+Additional validation rules for arm V:
+- Use account names from the task's chart of accounts. Common formatting
+  variants and the fixed normalization dictionary are accepted, but an
+  unresolved account name is rejected.
+- When the task lists source transactions, every journal posting must include
+  a "txid" key equal to the corresponding source transaction id.
+- Your output is validated by a generic transaction, account-name, positive-
+  amount, and double-entry balance checker. If it is rejected, the checker
+  error will be returned; fix the postings and emit the complete corrected
+  JSON value in the same format.
 """
 
 # Minimal EA instruction — shared by arm A and arm D (see harness/ARM-D-DELTA.md).
@@ -519,7 +554,21 @@ Output ONLY the Python source code (no markdown fences, no explanation).
 
 
 def _arm_c_system(task: dict, scoring_contract: str = "v1") -> str:
-    return _ARM_C_ROLE + "\n" + _output_contract(task, scoring_contract)
+    # This prohibition is the treatment definition for C only.  A-prime and V
+    # reuse _ARM_C_ROLE's JSON wording but intentionally do not receive it.
+    system = (
+        _ARM_C_ROLE + "\n" + _ARM_C_NO_TOOL_ROLE + "\n"
+        + _output_contract(task, scoring_contract)
+    )
+    # Experiment 2 makes txid part of every arm's posting contract. Keep the
+    # frozen v1 prompt apart from the independently required C no-tool clause.
+    if scoring_contract == "side" and _task_has_transactions(task):
+        system += (
+            "\n\nTransaction id contract: every journal posting MUST include "
+            'a "txid" key copied exactly from the corresponding input '
+            "transaction id."
+        )
+    return system
 
 
 def _task_has_transactions(task: dict) -> bool:
@@ -538,8 +587,13 @@ def _arm_aprime_system(task: dict, scoring_contract: str = "v1") -> str:
     return system
 
 
-def _arm_v_system(task: dict, scoring_contract: str = "v1") -> str:
-    system = _ARM_V_ROLE + "\n" + _output_contract(task, scoring_contract)
+def _arm_v_system(
+    task: dict,
+    scoring_contract: str = "v1",
+    v_gate: str = "legacy",
+) -> str:
+    role = _ARM_V_FULL_ROLE if v_gate == "full" else _ARM_V_ROLE
+    system = role + "\n" + _output_contract(task, scoring_contract)
     if _task_has_transactions(task):
         system += (
             "\n\nTransaction id contract: every journal posting MUST include "
@@ -607,6 +661,7 @@ def _code_arm_loop(
     runner_fn,                 # gen_path -> build-result dict
     gen_filename: str,         # "Gen.hs" | "Gen.py"
     include_ea_map: bool,
+    include_task_chart: bool,
     max_iters: int,
 ) -> dict:
     """
@@ -624,7 +679,11 @@ def _code_arm_loop(
 
     user0 = (
         f"Write {'ExchangeAlgebra Haskell' if lang == 'haskell' else 'Python'} "
-        f"for this task:\n\n" + _build_user_prompt(task, include_ea_map=include_ea_map)
+        f"for this task:\n\n" + _build_user_prompt(
+            task,
+            include_ea_map=include_ea_map,
+            include_task_chart=include_task_chart,
+        )
     )
 
     result: dict[str, Any] = {
@@ -776,6 +835,7 @@ def arm_c(
     max_iters: int = DEFAULT_MAX_ITERS,
     retries: int = 1,
     include_ea_map: bool = False,
+    include_task_chart: bool = False,
     scoring_contract: str = "v1",
 ) -> dict:
     """
@@ -784,7 +844,11 @@ def arm_c(
     The default retries=1 is the historical P4 behavior. max_iters remains
     accepted for caller compatibility but does not change arm C's budget.
     """
-    user_prompt = _build_user_prompt(task, include_ea_map=include_ea_map)
+    user_prompt = _build_user_prompt(
+        task,
+        include_ea_map=include_ea_map,
+        include_task_chart=include_task_chart,
+    )
     object_contract = task.get("expected_output") is not None
     base_system = _arm_c_system(task, scoring_contract)
 
@@ -945,15 +1009,26 @@ def _aprime_gate_feedback(verdict: dict, feedback_mode: str) -> str:
     )
 
 
-def _generic_balance_check(journal: Any, task: dict) -> Optional[str]:
+def _generic_balance_check(
+    journal: Any,
+    task: dict,
+    gate_mode: str = "legacy",
+) -> Optional[str]:
     """
-    EA-independent gate for arm V: structural checks + per-entry double-entry
-    balance ONLY. Deliberately absent (this is the point of the baseline):
-    account-vocabulary resolution, canonical re-printing, and source
-    reconciliation. Account names are accepted as arbitrary non-empty strings.
-    Returns None when accepted, else a feedback string.
+    EA-independent gate for arm V. ``legacy`` preserves experiment 1's
+    structural, positive-amount, and per-entry balance checks. ``full`` also
+    reconciles source transaction ids and requires every account name to
+    resolve through score.py's canonicalization dictionary.
     """
     from decimal import Decimal, InvalidOperation
+
+    if gate_mode not in {"legacy", "full"}:
+        raise ValueError(f"unknown V gate mode: {gate_mode!r}")
+
+    resolver = None
+    if gate_mode == "full":
+        from runner.score import build_resolver
+        resolver = build_resolver(task)
 
     if not isinstance(journal, list) or not journal:
         return "journal must be a non-empty list of posting objects"
@@ -971,12 +1046,18 @@ def _generic_balance_check(journal: Any, task: dict) -> Optional[str]:
             problems.append(f"posting {idx}: side must be 'debit' or 'credit'")
         if not isinstance(account, str) or not account.strip():
             problems.append(f"posting {idx}: account must be a non-empty string")
+        elif resolver is not None:
+            from runner.score import resolve_account
+            if not resolve_account(account, resolver):
+                problems.append(
+                    f"posting {idx}: unresolved account name {account!r}"
+                )
         try:
             amt = Decimal(str(amount))
         except (InvalidOperation, TypeError, ValueError):
             problems.append(f"posting {idx}: amount must be a number")
             continue
-        if amt <= 0:
+        if not amt.is_finite() or amt <= 0:
             problems.append(f"posting {idx}: amount must be > 0, got {amount}")
             continue
         if need_txid and not p_.get("txid"):
@@ -984,6 +1065,25 @@ def _generic_balance_check(journal: Any, task: dict) -> Optional[str]:
         key = p_.get("txid", p_.get("entry"))
         groups.setdefault(key, [Decimal(0), Decimal(0)])
         groups[key][0 if side == "debit" else 1] += amt
+
+    if gate_mode == "full" and need_txid:
+        txs = (task.get("given", {}) or {}).get("transactions") or []
+        expected_ids = [tx.get("id") for tx in txs if isinstance(tx, dict)]
+        duplicate_sources = sorted({
+            txid for txid in expected_ids if expected_ids.count(txid) > 1
+        }, key=str)
+        actual_ids = {p.get("txid") for p in journal if isinstance(p, dict)}
+        expected_set = set(expected_ids)
+        missing_ids = sorted(expected_set - actual_ids, key=str)
+        unknown_ids = sorted(actual_ids - expected_set, key=str)
+        if duplicate_sources:
+            problems.append(
+                f"source transactions contain duplicate ids: {duplicate_sources}"
+            )
+        if missing_ids:
+            problems.append(f"missing transaction ids: {missing_ids}")
+        if unknown_ids:
+            problems.append(f"unknown transaction ids: {unknown_ids}")
     if problems:
         return "structural errors:\n" + "\n".join(problems[:20])
     imbalances = [
@@ -1004,6 +1104,21 @@ def _v_gate_feedback(detail: str) -> str:
     )
 
 
+def _canonicalize_v_accounts(journal: list, task: dict) -> list[dict]:
+    """Resolve full-gate aliases before pandas derives account-keyed values."""
+    from runner.score import build_resolver, resolve_account
+
+    resolver = build_resolver(task)
+    canonical: list[dict] = []
+    for posting in journal:
+        row = dict(posting)
+        candidates = resolve_account(str(row.get("account", "")), resolver)
+        # Full gate has already established that every posting resolves.
+        row["account"] = candidates[0]
+        canonical.append(row)
+    return canonical
+
+
 def arm_v(
     task: dict,
     backend: Backend,
@@ -1011,6 +1126,8 @@ def arm_v(
     worktree_root: Path,
     max_iters: int = DEFAULT_MAX_ITERS,
     scoring_contract: str = "v1",
+    include_task_chart: bool = False,
+    v_gate: str = "full",
 ) -> dict:
     """
     Arm V (validator baseline): same contract and prompt as A' except the
@@ -1022,7 +1139,13 @@ def arm_v(
     """
     del task_run_dir, worktree_root  # dispatch symmetry; V needs neither
 
-    user0 = _build_user_prompt(task, include_ea_map=True)
+    if v_gate not in {"legacy", "full"}:
+        raise ValueError(f"v_gate must be 'legacy' or 'full', got {v_gate!r}")
+    user0 = _build_user_prompt(
+        task,
+        include_ea_map=v_gate == "legacy",
+        include_task_chart=include_task_chart,
+    )
     object_contract = task.get("expected_output") is not None
     gate_applicable = _journal_contract_present(task)
 
@@ -1040,6 +1163,7 @@ def arm_v(
         "gate_applicable": gate_applicable,
         "timed_out": False,
         "raw_first_journal": None,
+        "v_gate": v_gate,
     }
 
     feedback: Optional[str] = None
@@ -1051,7 +1175,7 @@ def arm_v(
 
         try:
             raw = backend.generate(
-                system=_arm_v_system(task, scoring_contract), user=user
+                system=_arm_v_system(task, scoring_contract, v_gate), user=user
             )
         except BackendTimeout as exc:
             attempt["error"] = f"backend timeout: {exc}"
@@ -1102,7 +1226,9 @@ def arm_v(
             result["attempts"].append(attempt)
             break
 
-        gate_error = _generic_balance_check(journal_component, task)
+        gate_error = _generic_balance_check(
+            journal_component, task, gate_mode=v_gate
+        )
         attempt["balance_check"] = "ok" if gate_error is None else _truncate(gate_error, 500)
         if gate_error is not None:
             attempt["error"] = "balance checker rejected postings"
@@ -1125,8 +1251,13 @@ def arm_v(
             if _task_derivable(task):
                 try:
                     from gen.pandas_oracle import compute_derived
+                    derivation_journal = (
+                        _canonicalize_v_accounts(journal_component, task)
+                        if v_gate == "full"
+                        else journal_component
+                    )
                     final_parsed["derived"] = _derived_for_contract(
-                        compute_derived(journal_component), scoring_contract
+                        compute_derived(derivation_journal), scoring_contract
                     )
                     result["derived_source"] = "harness (pandas)"
                 except Exception as exc:
@@ -1158,6 +1289,7 @@ def arm_aprime(
     loadchecked_fn=None,
     derive_fn=None,
     scoring_contract: str = "v1",
+    include_task_chart: bool = False,
 ) -> dict:
     """
     Arm A-prime: the LLM emits postings JSON directly, but the harness admits
@@ -1173,7 +1305,9 @@ def arm_aprime(
     if derive_fn is None:
         derive_fn = lambda js: run_derive_ea(js, worktree_root)
 
-    user0 = _build_user_prompt(task, include_ea_map=True)
+    user0 = _build_user_prompt(
+        task, include_ea_map=True, include_task_chart=include_task_chart
+    )
     object_contract = task.get("expected_output") is not None
     gate_applicable = _journal_contract_present(task)
 
@@ -1342,6 +1476,7 @@ def arm_a(
     max_iters: int = DEFAULT_MAX_ITERS,
     skill_version: str = "v1",
     scoring_contract: str = "v1",
+    include_task_chart: bool = False,
 ) -> dict:
     """
     Arm A: EA-DSL generation + Haskell execution, with the versioned SKILL
@@ -1358,6 +1493,7 @@ def arm_a(
         runner_fn=lambda p: run_haskell(p, worktree_root),
         gen_filename="Gen.hs",
         include_ea_map=True,
+        include_task_chart=include_task_chart,
         max_iters=max_iters,
     )
 
@@ -1372,6 +1508,7 @@ def arm_b(
     task_run_dir: Path,
     max_iters: int = DEFAULT_MAX_ITERS,
     scoring_contract: str = "v1",
+    include_task_chart: bool = False,
 ) -> dict:
     """
     Arm B: Python script generation + execution via `uv run python`.
@@ -1387,6 +1524,7 @@ def arm_b(
         runner_fn=lambda p: run_python(p, EVAL_DIR),
         gen_filename="Gen.py",
         include_ea_map=False,   # B does not target EA; GT names suffice
+        include_task_chart=include_task_chart,
         max_iters=max_iters,
     )
 
@@ -1402,6 +1540,7 @@ def arm_d(
     worktree_root: Path,
     max_iters: int = DEFAULT_MAX_ITERS,
     scoring_contract: str = "v1",
+    include_task_chart: bool = False,
 ) -> dict:
     """
     Arm D: identical pipeline to arm A but WITHOUT the SKILL cheatsheet —
@@ -1417,5 +1556,6 @@ def arm_d(
         runner_fn=lambda p: run_haskell(p, worktree_root),
         gen_filename="Gen.hs",
         include_ea_map=True,    # task input data — provided to both A and D
+        include_task_chart=include_task_chart,
         max_iters=max_iters,
     )

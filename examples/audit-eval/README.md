@@ -8,10 +8,10 @@ Part of the paper *"Exchange Algebra as a Harness for AI-driven Accounting Compu
 ```bash
 # Dry run — prints plan without calling the LLM
 cd examples/audit-eval
-uv run runner/run.py --task all --arm A,B,C,D,Aprime --model codex --dry-run
+uv run runner/run.py --task all --arm A,B,C,D,V,Aprime --model codex --dry-run
 
 # Full pilot: all tasks × all arms × codex, EA oracle on B/C
-uv run runner/run.py --task all --arm A,B,C,D,Aprime --model codex --seed 0
+uv run runner/run.py --task all --arm A,B,C,D,V,Aprime --model codex --seed 0
 
 # One cell, with the arm-A oracle smoke check enabled
 uv run runner/run.py --task journalize-cash-and-credit-001 --arm A \
@@ -75,13 +75,14 @@ tasks-s/                # generated suite output from gen/make_suite.py (gitigno
 gen/                    # deterministic generator, pandas oracle, EA derived oracle
 runner/
   models.py             # Backend abstraction (CodexBackend, OpenAICompatBackend)
-  arms.py               # Arms A/B/C/D/Aprime + shared retry loop (P4)
+  arms.py               # Arms A/B/C/D/V/Aprime + shared retry loop (P4)
   build.py              # run_haskell / run_python / run_oracle / run_loadchecked
   score.py              # mapping-aware GT comparison → per-run metrics (P1)
   run.py                # CLI entry point
 harness/
   SKILL-ea-v1.md        # versioned EA cheatsheet given to arm A (P3)
   SKILL-ea-v2.md        # checked-construction EA cheatsheet (Track S)
+  SKILL-ea-v3.md        # experiment-2 catalog skill (required by --skill v3)
   ARM-D-DELTA.md        # definition of what arm D removes relative to arm A
   EmitCanonical.hs      # harness-owned canonical JSON printer (arm A/D)
   LoadChecked.hs        # checked-loader gate for arm Aprime
@@ -101,18 +102,20 @@ arms/                   # generated Gen.hs / Gen.py + attempts (gitignored)
 | B   | Python direct-compute, **no pre-verification** (by design)         | Active |
 | C   | Direct numeric: LLM outputs canonical JSON directly                | Active |
 | D   | EA DSL **without** harness (minimal instruction only; SKILL ablation) | Active |
+| V   | Gate-Generic: postings JSON → generic transaction/account/balance gate → pandas derivation | Active |
 
 Arm A/B/D run a P4 retry loop: on compile / execution / parse failure the error
 message is fed back to the backend for regeneration (up to `--max-iters`,
 default 3). Arm Aprime uses the same retry budget for parse/shape failures and
-checked-loader rejections. Arm C retries once by default, on parse/shape failure.
+checked-loader rejections, and arm V uses it for parse/shape and generic-gate
+rejections. Arm C retries once by default, on parse/shape failure.
 
 **Timeout policy (Track S)**: a backend *timeout* is terminal — the cell is
 recorded as non-convergence (`timed_out=true`, `converged=false`) and is NOT
 re-issued (re-running the same prompt burns another full timeout window). This
 is arm-neutral: direct-answer arms enumerate long JSON and time out
 systematically on large N, and that latency wall is itself the CP1 signal, so it
-must be measured rather than retried away. The codex timeout is 1200s
+must be measured rather than retried away. The codex timeout is 3600s
 (`models.toml`).
 
 Arm Aprime is the deployment-shaped checked path: the model outputs only the
@@ -150,26 +153,34 @@ instruction explicitly overrides its older manual-printing example.
 baselines. `SKILL-ea-v2.md` documents the checked-construction norm
 (`checkedEntry` / `checkedJournal`, structured stderr on `Left`, `EmitCanonical`
 only for printing). Its v2.1 section also documents the post-vocabulary JCCI
-constructors and ambiguity policy. Select the arm-A skill with `--skill v1|v2`;
-the flag affects arm A only.
+constructors and ambiguity policy. `--skill v3` reads
+`harness/SKILL-ea-v3.md` and fails clearly before any model call when that file
+is absent. Select the arm-A skill with `--skill v1|v2|v3`; the flag affects arm
+A only.
 
 ## CLI flags added in Track S
 
 | Flag | Default | Effect |
 |------|---------|--------|
 | `--aprime-feedback {raw,rich}` | `raw` | Chooses compact error names or explanatory loader text for Aprime retries |
-| `--skill {v1,v2}` | `v1` | Selects the versioned SKILL file for arm A only |
+| `--skill {v1,v2,v3}` | `v1` | Selects the versioned SKILL file for arm A only; v3 requires `harness/SKILL-ea-v3.md` |
 | `--c-retries INT` | `1` | Number of arm-C retries after the first parse/shape failure |
 | `--c-ea-map` | off | Includes the EA account mapping line in arm-C prompts for information-budget pilots |
+| `--chart-of-accounts {none,task}` | `none` | `task` supplies `given.chart_of_accounts` and `given.accounts` in one identical vocabulary block to every arm; `none` preserves historical prompts |
+| `--v-gate {legacy,full}` | `full` | `legacy` preserves experiment-1 positive-amount/per-entry balance checks; `full` also reconciles transaction ids and rejects account names unresolved by the scorer dictionary |
+| `--cell-manifest PATH` | none | Restricts the task × arm × model grid to sealed manifest rows; requires the expected digest flag |
+| `--expect-cell-manifest-sha256 DIGEST` | none | Verifies the raw manifest file before any model call; requires `--cell-manifest` |
+| `--expect-task-bundle-sha256 DIGEST` | none | Verifies the resolved task bundle before any model call on fresh and resumed runs |
 | `--tasks-dir DIR` | `tasks/` | Loads task JSON from a generated or alternate task directory |
 | `--scoring-contract {v1,side}` | `v1` | Selects the frozen signed-value contract or the next-round side-aware contract |
 
 ## Scoring contracts
 
 `--scoring-contract v1` remains the default and is the contract used by the
-frozen confirmatory runs. Its oracle values, scorer behavior, and prompt text
-are unchanged: `ledger.<account>.balance` is signed relative to the account's
-normal side, while `trial_balance.<account>` is signed as debit minus credit.
+frozen confirmatory runs. Its oracle values, scorer behavior, and output
+contract text are unchanged; arm C's new no-tool clause is independent of the
+scoring contract. `ledger.<account>.balance` is signed relative to the
+account's normal side, while `trial_balance.<account>` is signed as debit minus credit.
 The additional side-oracle fields are ignored completely by the v1 scorer and
 are not requested from models.
 
@@ -209,13 +220,45 @@ map onto exactly the selected prompt/output contract.
 | `first_pass_valid`      | First generated response was structurally valid without retry (`True` / `False`; `None` for older records) |
 | `verification_gap`      | EA oracle (arm B/C, journal component only): 1 if output contains an error EA would reject by construction — imbalance / account outside EA AccountTitles / category violation / non-positive amount |
 | `convergence_iterations`| Attempts until structurally-valid output (P4); = max-iters when not converged |
+| `posting_complete`      | Boolean exact multiset match on `txid × (side, resolved account, amount)`; GT `entry` is the txid |
+| `outcome`               | Under `--scoring-contract side`: experiment-2 `committed_correct`, `committed_incorrect`, or `refused`; bookkeeping uses all ledger/trial-balance side-amount pairs, audit uses exact finding recall and precision. Frozen-v1 runs record `null` |
+| `tool_event_count`      | Number of distinct Codex JSONL tool-call items across all attempts in the cell; local tool-less backends record `0`, undecodable Codex event streams record `null` |
+| `tool_use_flagged`      | `true` exactly when arm C has a known `tool_event_count > 0` |
 
 Each non-dry run writes `metrics/<timestamp>.meta.json` with the CLI argv,
 resolved task/arm/model/seed grid, `--skill`, Aprime/C settings, git `HEAD` and
 `describe --tags --always --dirty` (or `null` if unavailable), and backend
 version probes (`codex --version` or OpenAI-compatible `/api/version`). Per-run
-records also carry `effective_model`; for Codex this is parsed from the CLI
-banner as `<model>/<reasoning effort> (cli v<version>)` when available.
+records also carry `effective_model`; for Codex this uses the CLI banner when
+available and otherwise combines the pinned model/effort with `codex --version`
+as `<model>/<reasoning effort> (cli v<version>)`.
+The Codex backend invokes `codex exec --json`; `item.started` and
+`item.completed` events are deduplicated by item id before tool events are
+counted. Arm C alone receives an explicit no-tools/no-code-execution prompt.
+
+### Sealed cell manifest
+
+The canonical manifest is a JSON array. Each row has the five required grid
+metadata fields below (additional keys are ignored):
+
+```json
+[
+  {
+    "task_id": "gen-mixed-000017-10",
+    "cluster": "mixed",
+    "category": "journalize",
+    "arm": "V",
+    "model": "codex"
+  }
+]
+```
+
+A top-level `{"cells": [...]}` wrapper is also accepted. Required values are
+non-empty strings, duplicate `(task_id, arm, model)` rows are rejected, and a
+row's category must equal the referenced task's category. Every row must also
+fall within the task/arm/model selections given on the CLI; mismatches stop the
+run instead of silently dropping sealed cells. Seeds and repeats
+remain runner dimensions and expand each admitted manifest row.
 
 ### Per-component metrics (TASK-FORMAT.md v2)
 

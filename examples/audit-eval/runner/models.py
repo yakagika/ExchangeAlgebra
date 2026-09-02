@@ -23,6 +23,7 @@ import urllib.error
 import urllib.request
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
@@ -63,12 +64,12 @@ class CodexBackend(Backend):
 
     Invocation pattern:
         codex exec --cd <neutral-dir> --skip-git-repo-check -s read-only \
-                   -o <tmpfile> '<prompt>'
+                   --json -o <tmpfile> '<prompt>'
 
     The combined prompt avoids the need for a --system-prompt flag.
     The `-o` flag writes the final assistant message to a temp file;
-    we read that file to get the clean answer (not the full event log
-    that goes to stdout).
+    we read that file to get the clean answer. ``--json`` sends the full JSONL
+    event log to stdout so tool-call items can be counted independently.
 
     Workspace isolation (contamination guard, 2026-07-02): codex is an
     *agentic* CLI — with the default workdir it explores the surrounding
@@ -94,6 +95,9 @@ class CodexBackend(Backend):
                                          # (observed 2026-08-11: high → medium).
     timeout_seconds: int = 240
     effective_model: Optional[str] = None
+    # Aggregate over every generate() attempt in one cell.  None means the
+    # JSONL event stream was missing or could not be decoded reliably.
+    tool_event_count: Optional[int] = 0
     _workdir: Optional[str] = None       # lazily-created neutral empty dir
 
     def _neutral_workdir(self) -> str:
@@ -119,6 +123,7 @@ class CodexBackend(Backend):
                 "--cd", self._neutral_workdir(),
                 "--skip-git-repo-check",
                 "-s", "read-only",
+                "--json",
                 "-o", tmp_path,
             ]
             if self.model:
@@ -134,6 +139,7 @@ class CodexBackend(Backend):
                 timeout=self.timeout_seconds,
             )
         except subprocess.TimeoutExpired:
+            self.tool_event_count = None
             try:
                 os.unlink(tmp_path)
             except OSError:
@@ -142,6 +148,7 @@ class CodexBackend(Backend):
                 f"codex CLI timed out after {self.timeout_seconds}s"
             )
         except FileNotFoundError:
+            self.tool_event_count = None
             try:
                 os.unlink(tmp_path)
             except OSError:
@@ -150,6 +157,12 @@ class CodexBackend(Backend):
                 "codex CLI not found on PATH. "
                 "Install it and run `codex login` first."
             )
+
+        call_tool_events = _count_codex_tool_events(result.stdout or "")
+        if self.tool_event_count is None or call_tool_events is None:
+            self.tool_event_count = None
+        else:
+            self.tool_event_count += call_tool_events
 
         if result.returncode != 0:
             try:
@@ -165,7 +178,10 @@ class CodexBackend(Backend):
         # effort) on STDERR when stdout is piped (verified against v0.142.5),
         # so scan both streams.
         self.effective_model = _parse_codex_effective_model(
-            (result.stdout or "") + "\n" + (result.stderr or ""), self.model
+            (result.stdout or "") + "\n" + (result.stderr or ""),
+            self.model,
+            configured_effort=self.effort,
+            configured_cli_version=codex_cli_version(),
         )
 
         # Read from the -o output file (clean final answer only).
@@ -206,6 +222,8 @@ class OpenAICompatBackend(Backend):
     temperature: Optional[float] = None
     top_p: Optional[float] = None
     sampling_seed: Optional[int] = None
+    # The local OpenAI-compatible backend exposes no tools to the model.
+    tool_event_count: int = 0
     # Per-call telemetry for the most recent generate(): token usage and the
     # server's finish_reason. Without finish_reason a truncated completion is
     # indistinguishable from a model that simply stopped early, so a wrong
@@ -336,14 +354,83 @@ def backend_from_config(section: dict) -> Backend:
 # Version / effective-model probes
 # ---------------------------------------------------------------------------
 
-def _parse_codex_effective_model(stdout: str, configured_model: Optional[str]) -> Optional[str]:
+_CODEX_NON_TOOL_ITEM_TYPES = {
+    "agent_message",
+    "error",
+    "plan",
+    "reasoning",
+    "todo_list",
+    "user_message",
+}
+
+
+def _count_codex_tool_events(stdout: str) -> Optional[int]:
+    """Count distinct tool-call items in ``codex exec --json`` JSONL.
+
+    Codex emits both ``item.started`` and ``item.completed`` state changes for
+    one item.  Item ids are therefore deduplicated.  Any item kind other than
+    the known conversational/reasoning kinds is conservatively treated as a
+    tool call, so newly added command/MCP/web item kinds are flagged rather
+    than silently missed.  A malformed or empty event stream returns None.
+    """
+    events: list[dict] = []
+    for line in stdout.splitlines():
+        if not line.strip():
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            return None
+        if not isinstance(event, dict):
+            return None
+        events.append(event)
+    if not events:
+        return None
+
+    tool_ids: set[str] = set()
+    anonymous_started = 0
+    anonymous_completed = 0
+    for event in events:
+        if event.get("type") not in {"item.started", "item.completed"}:
+            continue
+        item = event.get("item")
+        if not isinstance(item, dict):
+            continue
+        item_type = str(item.get("type", ""))
+        if not item_type or item_type in _CODEX_NON_TOOL_ITEM_TYPES:
+            continue
+        item_id = item.get("id")
+        if item_id is not None:
+            tool_ids.add(str(item_id))
+            continue
+        # Older/alternate JSONL shapes may omit ids. Prefer started events to
+        # avoid counting the usual started/completed pair twice; fall back to
+        # completed only if no anonymous starts were emitted at all.
+        if event.get("type") == "item.started":
+            anonymous_started += 1
+        else:
+            anonymous_completed += 1
+    return len(tool_ids) + (
+        anonymous_started if anonymous_started else anonymous_completed
+    )
+
+
+def _parse_codex_effective_model(
+    stdout: str,
+    configured_model: Optional[str],
+    configured_effort: Optional[str] = None,
+    configured_cli_version: Optional[str] = None,
+) -> Optional[str]:
     cli_match = re.search(r"^OpenAI Codex v(\S+)", stdout, re.MULTILINE)
     model_match = re.search(r"^model:\s*(.+)$", stdout, re.MULTILINE)
     effort_match = re.search(r"^reasoning effort:\s*(.+)$", stdout, re.MULTILINE)
 
     cli_version = cli_match.group(1).strip() if cli_match else None
+    if cli_version is None and configured_cli_version:
+        version_match = re.search(r"(\d+(?:\.\d+)+)", configured_cli_version)
+        cli_version = version_match.group(1) if version_match else configured_cli_version
     model = model_match.group(1).strip() if model_match else configured_model
-    effort = effort_match.group(1).strip() if effort_match else None
+    effort = effort_match.group(1).strip() if effort_match else configured_effort
 
     if not (cli_version or model or effort):
         return None
@@ -356,6 +443,7 @@ def _parse_codex_effective_model(stdout: str, configured_model: Optional[str]) -
     return head
 
 
+@lru_cache(maxsize=1)
 def codex_cli_version() -> Optional[str]:
     """Return `codex --version`, or None if the CLI cannot be probed."""
     try:

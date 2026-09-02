@@ -27,18 +27,23 @@ if str(EVAL_DIR) not in sys.path:
 
 from runner.arms import (  # noqa: E402
     _ARM_C_ROLE,
+    _arm_c_system,
     _arm_aprime_system,
+    _arm_v_system,
     _build_user_prompt,
     _ea_minimal_system,
+    _generic_balance_check,
     _output_contract,
     arm_aprime,
     arm_c,
     arm_v,
 )
-from runner.models import BackendTimeout  # noqa: E402
+from runner.models import (  # noqa: E402
+    BackendTimeout, _count_codex_tool_events, _parse_codex_effective_model,
+)
 from runner.run import (  # noqa: E402
     append_summary_csv, cell_key, collect_resume_keys, load_jsonl_keys,
-    normalize_arm_name, resume_children, sha256_file,
+    load_cell_manifest, normalize_arm_name, resume_children, sha256_file,
 )
 from runner.checkpoint import verify as verify_checkpoint  # noqa: E402
 from runner.score import _match_derived_contract, score  # noqa: E402
@@ -621,6 +626,10 @@ def case12() -> None:
               "first_pass_valid" in header, header)
         check("new summary header contains Aprime fields",
               "effective_model" in header and "aprime_feedback" in header, header)
+        check("new summary header contains experiment-2 fields",
+              all(field in header for field in (
+                  "posting_complete", "outcome", "tool_event_count", "tool_use_flagged"
+              )), header)
 
 
 def case13() -> None:
@@ -1066,6 +1075,208 @@ def case17() -> None:
           "ledger.Cash.balance" not in a_derived and "trial_balance.Cash" not in a_derived)
 
 
+def case18() -> None:
+    print("Case 18: experiment-2 posting completeness and three-way outcome")
+    journal = [
+        {"entry": "t1", "side": "debit", "account": "Cash", "amount": 100},
+        {"entry": "t1", "side": "credit", "account": "Sales", "amount": 100},
+    ]
+    derived = {
+        "ledger.Cash.balance_side": "debit",
+        "ledger.Cash.balance_amount": 100,
+        "trial_balance.Cash.side": "debit",
+        "trial_balance.Cash.amount": 100,
+    }
+    task = {
+        "id": "exp2-bookkeeping",
+        "category": "journalize",
+        "given": {"chart_of_accounts": ["Cash", "Sales"]},
+        "expected_output": {"components": ["journal", "derived"]},
+        "ground_truth": {"journal": journal, "derived": derived},
+    }
+    submitted = [
+        {"txid": "t1", "side": "debit", "account": "Cash", "amount": 100},
+        {"txid": "t1", "side": "credit", "account": "Sales", "amount": 100},
+    ]
+    correct = score(task, {
+        "parse_fail": False,
+        "converged": True,
+        "parsed": {"journal": submitted, "derived": derived},
+    }, "C", worktree_root=None, scoring_contract="side")
+    check("side-contract ledger/TB equality -> committed_correct",
+          correct["outcome"] == "committed_correct", str(correct["outcome"]))
+    check("txid-aware posting multiset equality -> posting_complete",
+          correct["posting_complete"] is True)
+
+    wrong_derived = dict(derived)
+    wrong_derived["trial_balance.Cash.amount"] = 99
+    incorrect = score(task, {
+        "parse_fail": False,
+        "converged": True,
+        "parsed": {"journal": submitted, "derived": wrong_derived},
+    }, "C", worktree_root=None, scoring_contract="side")
+    check("one trial-balance mismatch -> committed_incorrect",
+          incorrect["outcome"] == "committed_incorrect", str(incorrect["outcome"]))
+
+    refused = score(task, {
+        "parse_fail": True, "converged": False, "parsed": None,
+    }, "C", worktree_root=None, scoring_contract="side")
+    check("parse failure -> refused", refused["outcome"] == "refused", str(refused["outcome"]))
+
+    missing_txid = [dict(posting) for posting in submitted]
+    missing_txid[0].pop("txid")
+    incomplete = score(task, {
+        "parse_fail": False,
+        "converged": True,
+        "parsed": {"journal": missing_txid, "derived": derived},
+    }, "C", worktree_root=None, scoring_contract="side")
+    check("missing output txid -> posting_complete False",
+          incomplete["posting_complete"] is False)
+
+    legacy = score(task, {
+        "parse_fail": False,
+        "parsed": {"journal": submitted, "derived": derived},
+    }, "C", worktree_root=None, scoring_contract="v1")
+    check("frozen-v1 cells do not receive side-contract outcome",
+          legacy["outcome"] is None, str(legacy["outcome"]))
+
+    audit_task = {
+        "id": "exp2-audit",
+        "category": "audit",
+        "given": {},
+        "expected_output": {"components": ["findings"]},
+        "ground_truth": {"findings": [{"type": "imbalance", "locus": "t1"}]},
+    }
+    finding = {"type": "imbalance", "locus": "t1"}
+    audit_correct = score(audit_task, {
+        "parse_fail": False, "converged": True,
+        "parsed": {"findings": [finding]},
+    }, "C", worktree_root=None, scoring_contract="side")
+    check("audit exact findings -> committed_correct",
+          audit_correct["outcome"] == "committed_correct", str(audit_correct["outcome"]))
+    audit_incorrect = score(audit_task, {
+        "parse_fail": False, "converged": True,
+        "parsed": {"findings": []},
+    }, "C", worktree_root=None, scoring_contract="side")
+    check("audit recall/precision mismatch -> committed_incorrect",
+          audit_incorrect["outcome"] == "committed_incorrect", str(audit_incorrect["outcome"]))
+    empty_audit = dict(audit_task)
+    empty_audit["ground_truth"] = {"findings": []}
+    audit_empty = score(empty_audit, {
+        "parse_fail": False, "converged": True,
+        "parsed": {"findings": []},
+    }, "C", worktree_root=None, scoring_contract="side")
+    check("audit GT/submission both empty -> committed_correct",
+          audit_empty["outcome"] == "committed_correct", str(audit_empty["outcome"]))
+
+
+def case19() -> None:
+    print("Case 19: experiment-2 prompt, V gate, event, and manifest plumbing")
+    task = {
+        "id": "exp2-plumbing",
+        "category": "journalize",
+        "prompt": "Post both transactions.",
+        "given": {
+            "chart_of_accounts": ["Cash", "Sales", "AccountsReceivable"],
+            "accounts": {"Cash": "asset", "Sales": "revenue"},
+            "ea_account_map": {"AccountsReceivable": "AccountsReceivable"},
+            "transactions": [
+                {"id": "t1", "amount": 100, "desc": "cash sale"},
+                {"id": "t2", "amount": 50, "desc": "credit sale"},
+            ],
+        },
+        "ground_truth": {"journal": [
+            {"entry": "t1", "side": "debit", "account": "Cash", "amount": 100},
+            {"entry": "t1", "side": "credit", "account": "Sales", "amount": 100},
+            {"entry": "t2", "side": "debit", "account": "AccountsReceivable", "amount": 50},
+            {"entry": "t2", "side": "credit", "account": "Sales", "amount": 50},
+        ]},
+    }
+    default_prompt = _build_user_prompt(task)
+    task_chart_prompt = _build_user_prompt(task, include_task_chart=True)
+    check("chart none keeps historical chart rendering",
+          "Chart of accounts:" in default_prompt and "Standard chart" not in default_prompt)
+    check("chart task includes both vocabulary inputs once",
+          "Standard chart of accounts (task supplied):" in task_chart_prompt and
+          task_chart_prompt.count('"chart_of_accounts"') == 1 and
+          task_chart_prompt.count('"accounts"') == 1)
+    check("C alone receives no-tool prohibition",
+          "Do not use or call any tools" in _arm_c_system(task) and
+          "Do not use or call any tools" not in _arm_aprime_system(task) and
+          "Do not use or call any tools" not in _arm_v_system(task))
+    check("C side contract requires txid on transaction tasks",
+          "Transaction id contract" in _arm_c_system(task, "side"))
+
+    valid = [
+        {"txid": "t1", "side": "debit", "account": "Cash", "amount": 100},
+        {"txid": "t1", "side": "credit", "account": "Sales", "amount": 100},
+        {"txid": "t2", "side": "debit", "account": "A/R", "amount": 50},
+        {"txid": "t2", "side": "credit", "account": "Sales", "amount": 50},
+    ]
+    check("V full gate accepts complete txids and resolver synonym",
+          _generic_balance_check(valid, task, "full") is None)
+    missing = valid[:2]
+    check("V full gate rejects missing source txid",
+          "missing transaction ids" in str(_generic_balance_check(missing, task, "full")))
+    check("V legacy gate preserves source-nonreconciliation behavior",
+          _generic_balance_check(missing, task, "legacy") is None)
+    unknown = [dict(posting) for posting in valid]
+    unknown[0]["account"] = "ImaginaryAsset"
+    unknown[1]["account"] = "ImaginaryAsset"
+    check("V full gate rejects unresolved accounts",
+          "unresolved account name" in str(_generic_balance_check(unknown, task, "full")))
+    check("V legacy gate accepts arbitrary non-empty account names",
+          _generic_balance_check(unknown, task, "legacy") is None)
+    v2_task = dict(task)
+    v2_task["expected_output"] = {"components": ["journal", "derived"]}
+    v2_task["ground_truth"] = dict(task["ground_truth"])
+    v2_task["ground_truth"]["generator_metadata"] = {"seed": 1}
+    v2_task["ground_truth"]["derived"] = {
+        "ledger.AccountsReceivable.balance_side": "debit",
+        "ledger.AccountsReceivable.balance_amount": 50,
+    }
+    v_backend = FakeBackend([json.dumps({"journal": valid, "derived": {}})])
+    v_result = arm_v(
+        v2_task, v_backend, Path("/tmp/unused"), Path("/tmp/unused"),
+        max_iters=1, include_task_chart=True, v_gate="full",
+        scoring_contract="side",
+    )
+    check("V full dispatch accepts the full-gate fixture", v_result["converged"] is True)
+    check("V full pandas derivation canonicalizes accepted account aliases",
+          "ledger.AccountsReceivable.balance_side" in v_result["parsed"]["derived"] and
+          not any(key.startswith("ledger.A/R.") for key in v_result["parsed"]["derived"]))
+    check("V full prompt uses shared chart without EA mapping line",
+          "Standard chart of accounts" in v_backend.users[0] and
+          "EA account mapping" not in v_backend.users[0])
+
+    events = "\n".join(json.dumps(event) for event in [
+        {"type": "thread.started", "thread_id": "x"},
+        {"type": "item.started", "item": {"id": "r", "type": "reasoning"}},
+        {"type": "item.completed", "item": {"id": "r", "type": "reasoning"}},
+        {"type": "item.started", "item": {"id": "c", "type": "command_execution"}},
+        {"type": "item.completed", "item": {"id": "c", "type": "command_execution"}},
+        {"type": "item.started", "item": {"id": "w", "type": "web_search"}},
+    ])
+    check("Codex JSONL counts distinct tool item ids",
+          _count_codex_tool_events(events) == 2, str(_count_codex_tool_events(events)))
+    check("malformed Codex event stream -> unknown count",
+          _count_codex_tool_events("not-json") is None)
+    check("JSON mode preserves configured effective-model provenance",
+          _parse_codex_effective_model(
+              events, "gpt-test", "xhigh", "codex-cli 0.151.0"
+          ) == "gpt-test/xhigh (cli v0.151.0)")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        manifest_path = Path(tmp) / "cells.json"
+        manifest_path.write_text(json.dumps([{
+            "task_id": task["id"], "cluster": "mixed",
+            "category": "journalize", "arm": "V", "model": "codex",
+        }]), encoding="utf-8")
+        rows, cells = load_cell_manifest(manifest_path)
+        check("cell manifest canonical row loads",
+              rows[0]["cluster"] == "mixed" and cells == {(task["id"], "V", "codex")})
+
+
 def main() -> None:
     case1()
     case2()
@@ -1084,6 +1295,8 @@ def main() -> None:
     case15()
     case16()
     case17()
+    case18()
+    case19()
 
     print()
     if FAILURES:
