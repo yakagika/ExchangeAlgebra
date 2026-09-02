@@ -33,6 +33,11 @@ import           ExchangeAlgebra.Simulate.Network
                      , nodes, edges, suppliersOf, buyersOf, edgeCount
                      , coefficient, inputsOf, sigmaEdges
                      , completeNetwork, kRegular, erdosRenyi, scaleFree, sectorBlock
+                     , IndustrialEconomy(..), IndustrialOptions(..)
+                     , defaultIndustrialOptions, industrialNetwork, industrialNetworkWith
+                     , firms, industrialEdges
+                     , TaxRate(..), taxOf, IndustrialFlows(..)
+                     , FlowOptions(..), industrialFlows, industrialFlowsWith
                      , CoefOptions(..), defaultCoefOptions, randomCoefficients
                      , networkFromTable, coefficientsFromTable, fromCoefficientMatrix
                      , parseEdgeCsv, parseCoefCsv )
@@ -74,6 +79,7 @@ import           System.Random       (StdGen, mkStdGen, randomR, split)
 import           Control.Monad       (replicateM)
 import           Control.Monad.State (runState, state)
 import           Control.Exception   (try, evaluate, SomeException)
+import           Control.DeepSeq     (force)
 import           Test.QuickCheck hiding (Fixed)
 import           GHC.Generics        (Generic)
 import           System.Random       (randomR)
@@ -5846,6 +5852,130 @@ testNetCsvRoundTrip = do
     let Right gt = networkFromTable [(1,2),(2,3)] :: Either NetworkError (TradeNetwork Int)
     assertEqual "Network: networkFromTable derives node set" [1,2,3] (nodes gt)
 
+-- Test 8: the requested sparse regimes have exactly m*N edges.
+testIndustrialNetworkEdgeCount :: IO ()
+testIndustrialNetworkEdgeCount = do
+    let cases = [(200, 5, 20), (1000, 4, 10)]
+    forM_ cases $ \(n, k, m) -> do
+        let economy = industrialNetwork 2025 n k m
+        assertEqual ("Industrial network: exact |E|=mN for " ++ show (n,k,m))
+            (m * n) (edgeCount (ieNetwork economy))
+    let capacityLimited = industrialNetwork 1 10 1 20
+    assertEqual "Industrial network: capacity shortage uses every eligible pair"
+        45 (edgeCount (ieNetwork capacityLimited))
+    let nearOne = industrialNetworkWith
+          defaultIndustrialOptions { ioExponent = 1.001 } 1 1000 3 5
+    assertEqual "Industrial network: gamma near 1 keeps every size finite"
+        True (all (\w -> w > 0 && not (isNaN w) && not (isInfinite w))
+                  (M.elems (ieSize nearOne)))
+    assertEqual "Industrial network: gamma near 1 retains exact |E|=mN"
+        5000 (edgeCount (ieNetwork nearOne))
+
+-- Test 9: every edge obeys the ordered-sector DAG invariant and is unique.
+testIndustrialNetworkStructure :: IO ()
+testIndustrialNetworkStructure = do
+    let economy = industrialNetwork 19 500 5 12
+        es = industrialEdges economy
+        sectors = ieSector economy
+        valid (i, j) =
+            let si = sectors M.! i
+                sj = sectors M.! j
+            in i /= j && (si < sj || (si == sj && i < j))
+    assertEqual "Industrial network: no duplicate edges"
+        (length es) (Set.size (Set.fromList es))
+    assertEqual "Industrial network: sector order and intra-sector id DAG"
+        True (all valid es)
+
+-- Test 10: the integer seed fixes sectors, sizes, and edges.
+testIndustrialNetworkDeterminism :: IO ()
+testIndustrialNetworkDeterminism = do
+    let a = industrialNetwork 4242 300 5 8
+        b = industrialNetwork 4242 300 5 8
+    assertEqual "Industrial network: same seed gives identical economy" a b
+
+-- Test 11: one-sector economies use the id order as a DAG and still hit m*N.
+testIndustrialNetworkKOne :: IO ()
+testIndustrialNetworkKOne = do
+    let n = 200
+        m = 20
+        economy = industrialNetwork 3 n 1 m
+        es = industrialEdges economy
+    assertEqual "Industrial network: K=1 exact |E|=mN" (m * n) (length es)
+    assertEqual "Industrial network: K=1 edges are increasing ids"
+        True (all (uncurry (<)) es)
+
+-- Test 12: market-scale construction smoke. There is deliberately no timing
+-- assertion; forcing the full 1.28M-edge economy catches accidental all-pairs
+-- construction and latent exceptions while remaining machine-independent.
+testIndustrialNetworkLarge :: IO ()
+testIndustrialNetworkLarge = do
+    economy <- evaluate (force (industrialNetwork 2025 64000 5 20))
+    assertEqual "Industrial network: N=64000 smoke exact |E|=mN"
+        (64000 * 20) (edgeCount (ieNetwork economy))
+
+-- Test 13: exact one-pass flow identities, divisibility, and tax cancellation.
+testIndustrialFlowsIdentities :: IO ()
+testIndustrialFlowsIdentities = do
+    let rate = TaxRate 1 10
+        den = taxDenominator rate
+        economy = industrialNetwork 2025 300 5 12
+        flows = industrialFlows rate economy
+        net = ieNetwork economy
+        js = firms economy
+        z i j = M.findWithDefault 0 (i,j) (flowTrade flows)
+        x j = flowOutput flows M.! j
+        input j = flowInput flows M.! j
+        va j = flowValueAdded flows M.! j
+        f j = flowFinalDemand flows M.! j
+        incoming j = sum [ z i j | i <- suppliersOf net j ]
+        outgoing j = sum [ z j m | m <- buyersOf net j ]
+        allAmounts = M.elems (flowTrade flows)
+                  ++ M.elems (flowOutput flows)
+                  ++ M.elems (flowInput flows)
+                  ++ M.elems (flowValueAdded flows)
+                  ++ M.elems (flowFinalDemand flows)
+        taxReceivedTrade = sum
+          [ taxOf rate (z i j) | i <- js, j <- buyersOf net i ]
+        taxPaidTrade = sum
+          [ taxOf rate (z i j) | j <- js, i <- suppliersOf net j ]
+        finalTax = sum [ taxOf rate (f j) | j <- js ]
+        netTax = taxReceivedTrade + finalTax - taxPaidTrade
+        expectedTax = taxNumerator rate * sum (Prelude.map f js) `div` den
+    assertEqual "Industrial flows: all final demand positive" True (all ((> 0) . f) js)
+    assertEqual "Industrial flows: all value added non-negative" True (all ((>= 0) . va) js)
+    assertEqual "Industrial flows: output = orders + final demand"
+        True (all (\j -> x j == outgoing j + f j) js)
+    assertEqual "Industrial flows: output = input + value added"
+        True (all (\j -> x j == incoming j + va j && input j == incoming j) js)
+    assertEqual "Industrial flows: every amount divisible by tax denominator"
+        True (all (\amount -> amount `mod` den == 0) allAmounts)
+    assertEqual "Industrial flows: sum value added = sum final demand"
+        (sum (Prelude.map f js)) (sum (Prelude.map va js))
+    assertEqual "Industrial flows: trade output tax equals trade input tax"
+        taxReceivedTrade taxPaidTrade
+    assertEqual "Industrial flows: trade tax cancels and net tax equals final-demand tax"
+        expectedTax netTax
+
+-- Test 14: zero allocations are retained per edge, and a hand-built economy
+-- outside the ordered DAG is rejected before backward substitution.
+testIndustrialFlowEdgeCases :: IO ()
+testIndustrialFlowEdgeCases = do
+    let rate = TaxRate 1 10
+        economy = industrialNetwork 11 50 3 5
+        zeroFlows = industrialFlowsWith (FlowOptions 10 0.5) rate economy
+    assertEqual "Industrial flows: sub-denominator inputs permit z_ij=0"
+        True (not (M.null (flowTrade zeroFlows)) && any (== 0) (M.elems (flowTrade zeroFlows)))
+    let Right badNetwork = tradeNetwork [1,2] [(2,1)]
+          :: Either NetworkError (TradeNetwork Int)
+        badEconomy = IndustrialEconomy
+          { ieNetwork = badNetwork
+          , ieSector = M.fromList [(1,0),(2,0)]
+          , ieSize = M.fromList [(1,1),(2,1)] }
+    rejected <- try (evaluate (force (industrialFlows rate badEconomy)))
+      :: IO (Either SomeException (IndustrialFlows Int))
+    assertEqual "Industrial flows: unordered hand-built economy rejected"
+        True (case rejected of Left _ -> True; Right _ -> False)
+
 -- ================================================================
 -- MarketModel equivalence tests (Phase 5, feat/market-scale-experiments)
 --
@@ -6332,6 +6462,13 @@ main = do
     testNetGeneratorStructure
     testNetAdjacencyConsistency
     testNetCsvRoundTrip
+    testIndustrialNetworkEdgeCount
+    testIndustrialNetworkStructure
+    testIndustrialNetworkDeterminism
+    testIndustrialNetworkKOne
+    testIndustrialNetworkLarge
+    testIndustrialFlowsIdentities
+    testIndustrialFlowEdgeCases
     testMarketSimpleTunedEqual
     testMarketSeqParEqual
     testMarketShortagePositive

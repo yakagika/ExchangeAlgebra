@@ -186,6 +186,13 @@ executables:
     main:                invoiceEx1.hs
     source-dirs:         invoice
 
+  # Ordered CL-SBM industrial network plus deterministic demand-driven flows.
+  # Four accounting stages per period and exact tax/value-added invariants.
+  industrialEx1:
+    <<: *exe-defaults
+    main:                industrialEx1.hs
+    source-dirs:         industrial
+
 tests:
   # Task-1a calibration sentinel (general-equilibrium:phase1-cge-reproduction):
   # the Calibration port must match the GAMS ground truth (stdcge.lst display

@@ -36,6 +36,10 @@
     coincide, so an existing all-pairs model can be ported without changing the
     notation (see 'sigmaEdges').
 
+    The module also provides 'industrialNetwork' and 'industrialFlows': an
+    ordered block-triangular, power-law trade graph and its exact-integer,
+    demand-driven backward substitution.
+
     == Edge orientation
 
     An edge @(i, j)@ means \"@i@ is a /supplier/ of @j@\" (equivalently \"@j@ is a
@@ -102,6 +106,21 @@ module ExchangeAlgebra.Simulate.Network
     , erdosRenyi
     , scaleFree
     , sectorBlock
+      -- * Ordered industrial networks and flows
+    , IndustrialEconomy(..)
+    , IndustrialOptions(..)
+    , defaultIndustrialOptions
+    , industrialNetwork
+    , industrialNetworkWith
+    , firms
+    , industrialEdges
+    , TaxRate(..)
+    , taxOf
+    , IndustrialFlows(..)
+    , FlowOptions(..)
+    , defaultFlowOptions
+    , industrialFlows
+    , industrialFlowsWith
       -- * Coefficient generation
     , CoefOptions(..)
     , defaultCoefOptions
@@ -118,6 +137,7 @@ module ExchangeAlgebra.Simulate.Network
     ) where
 
 import           Control.DeepSeq        (NFData (..))
+import           Data.List              (sortBy)
 import qualified Data.Map.Strict        as M
 import           Data.Map.Strict        (Map)
 import           Data.Maybe             (fromMaybe)
@@ -126,6 +146,7 @@ import           Data.Set               (Set)
 import qualified Data.Text              as T
 import           Data.Text              (Text)
 import qualified Data.Text.IO           as TIO
+import qualified Data.Vector            as V
 -- 'mkStdGen' is referenced only by the Haddock doctest examples (which run in
 -- this module's import scope); 'randomR' drives the generators.
 import           System.Random          (StdGen, mkStdGen, randomR)
@@ -542,6 +563,407 @@ sectorBlock gen labelled p =
         in if pr >= 1 then (g1, (i, j) : acc)
            else if pr <= 0 then (g1, acc)
            else if u < pr then (g1, (i, j) : acc) else (g1, acc)
+
+------------------------------------------------------------------
+-- * Ordered industrial networks and demand-driven flows
+------------------------------------------------------------------
+
+-- | A block-triangular industrial economy. Sector @0@ is the most upstream
+-- sector and larger sector numbers are progressively downstream. Every edge is
+-- @(supplier, buyer)@; generated edges satisfy @sector supplier <= sector buyer@,
+-- and an intra-sector edge additionally satisfies @supplier < buyer@.
+data IndustrialEconomy k = IndustrialEconomy
+  { ieNetwork :: !(TradeNetwork k)
+  , ieSector  :: !(Map k Int)
+  , ieSize    :: !(Map k Double)
+  } deriving (Eq, Show)
+
+instance NFData k => NFData (IndustrialEconomy k) where
+  rnf (IndustrialEconomy g s w) = rnf g `seq` rnf s `seq` rnf w
+
+-- | Options for 'industrialNetworkWith'. The flow function is consulted only
+-- for ordered sector pairs @(upstream, downstream)@. Non-positive and
+-- non-finite values make that sector pair ineligible.
+data IndustrialOptions = IndustrialOptions
+  { ioExponent :: !Double
+    -- ^ Pareto exponent @gamma > 1@.
+  , ioFlow     :: Int -> Int -> Double
+    -- ^ Sector-flow weight @B[s,s']@.
+  }
+
+-- | Pareto exponent @2.5@ and a uniform positive sector-flow matrix.
+defaultIndustrialOptions :: IndustrialOptions
+defaultIndustrialOptions = IndustrialOptions
+  { ioExponent = 2.5
+  , ioFlow     = \_ _ -> 1
+  }
+
+-- | Build the paper's deterministic block-triangular, power-law industrial
+-- network from @seed N K m@. Unlike 'sectorBlock', this generator is
+-- deterministic from an integer seed, ordered by sector, power-law weighted,
+-- and avoids an all-pairs scan: expected construction cost is
+-- @O(N*K + |E|*(K + log N))@, or @O(N*K + |E|*log N)@ for fixed @K@.
+--
+-- The requested edge count is @m*N@. It is exact whenever the eligible
+-- supplier capacity is at least that large; otherwise all eligible pairs are
+-- used and @|E| < m*N@. @N <= 0@ produces an empty economy, @m <= 0@ produces
+-- no edges, and @K <= 0@ or an exponent not greater than @1@ is an error.
+--
+-- >>> let e = industrialNetwork 7 6 2 1
+-- >>> firms e
+-- [1,2,3,4,5,6]
+-- >>> all (\(i,j) -> let s = ieSector e in s M.! i < s M.! j || (s M.! i == s M.! j && i < j)) (industrialEdges e)
+-- True
+industrialNetwork :: Int -> Int -> Int -> Int -> IndustrialEconomy Int
+industrialNetwork = industrialNetworkWith defaultIndustrialOptions
+
+-- | Configurable form of 'industrialNetwork'. Supplier selection is weighted
+-- by @B[sector i,sector j] * w_i@ without replacement. It first chooses a
+-- sector in @O(K)@ and then a firm by binary search over that sector's
+-- cumulative-size vector in @O(log N)@. Duplicate draws use bounded rejection;
+-- the deterministic fallback fills the remaining eligible candidates in
+-- sector/id order. Sector choice is @O(K)@ per draw; @K@ is normally a small
+-- fixed model parameter.
+industrialNetworkWith
+  :: IndustrialOptions -> Int -> Int -> Int -> Int -> IndustrialEconomy Int
+industrialNetworkWith opts seed n0 k m0
+  | k <= 0 = error "industrialNetworkWith: K must be positive"
+  | not (finitePositive gamma) || gamma <= 1 =
+      error "industrialNetworkWith: ioExponent must be finite and greater than 1"
+  | n <= 0 = IndustrialEconomy (buildNetwork S.empty []) M.empty M.empty
+  | otherwise = IndustrialEconomy network sectors sizes
+  where
+    n       = max 0 n0
+    gamma   = ioExponent opts
+    firmIds = [1 .. n]
+    (_, sectors, sizes, sectorRev) = foldl' drawFirm (mkStdGen seed, M.empty, M.empty, M.empty) firmIds
+    sectorLists = M.map reverse sectorRev
+    pools = M.fromList
+      [ (s, mkSectorPool (M.findWithDefault [] s sectorLists) sizes)
+      | s <- [0 .. k - 1] ]
+    ranks = M.fromList
+      [ (i, r)
+      | (_, pool) <- M.toAscList pools
+      , (r, i) <- zip [0 ..] (V.toList (spFirms pool)) ]
+    capacities =
+      [ (j, candidateCapacity opts sectors pools ranks j)
+      | j <- firmIds ]
+    capacityTotal = sum (map snd capacities)
+    requestedInteger = toInteger (max 0 m0) * toInteger n
+    target = fromInteger (min requestedInteger (toInteger capacityTotal))
+    degrees = apportionCapped target
+      [ (j, cap, M.findWithDefault 1 j sizes) | (j, cap) <- capacities ]
+    (_, edgeChunks) = foldl' drawBuyer (mkStdGen (seed + 104729), []) firmIds
+    network = buildNetwork (S.fromList firmIds) (concat (reverse edgeChunks))
+
+    drawFirm (g0, sm, wm, groups) i =
+      let (s, g1) = randomR (0, k - 1) g0
+          (u0, g2) = randomR (0, 1) g1 :: (Double, StdGen)
+          -- randomR's interval is closed; cap its upper endpoint so Pareto
+          -- inversion remains finite while retaining the seed-derived draw.
+          u = min (1 - 2.220446049250313e-16) (max 0 u0)
+          logWeight = - log (1 - u) / (gamma - 1)
+          -- The mathematical Pareto draw can exceed Double's range as gamma
+          -- approaches 1. Saturate only that unrepresentable tail, keeping
+          -- ieSize and every sampling table finite and consistent.
+          w = exp (min (log maxIndustrialSize) logWeight)
+      in ( g2
+         , M.insert i s sm
+         , M.insert i w wm
+         , M.insertWith (++) s [i] groups )
+
+    drawBuyer (g0, acc) j =
+      let d = M.findWithDefault 0 j degrees
+          (chosen, g1) = chooseIndustrialSuppliers opts sectors pools ranks j d g0
+      in (g1, [ (i, j) | i <- chosen ] : acc)
+
+-- | Firms in ascending order, equivalent to @nodes . ieNetwork@.
+firms :: IndustrialEconomy k -> [k]
+firms = nodes . ieNetwork
+
+-- | Industrial edges in ascending @(supplier,buyer)@ order, equivalent to
+-- @edges . ieNetwork@.
+industrialEdges :: IndustrialEconomy k -> [(k, k)]
+industrialEdges = edges . ieNetwork
+
+-- | An exact rational tax rate @numerator / denominator@.
+data TaxRate = TaxRate
+  { taxNumerator   :: !Integer
+  , taxDenominator :: !Integer
+  } deriving (Eq, Show)
+
+instance NFData TaxRate where
+  rnf (TaxRate num den) = rnf num `seq` rnf den
+
+-- | Integer tax on an integer amount. Generated industrial flows are aligned
+-- to the denominator, so this division is exact for their amounts.
+taxOf :: TaxRate -> Integer -> Integer
+taxOf (TaxRate num den) amount
+  | den <= 0   = error "taxOf: denominator must be positive"
+  | num < 0    = error "taxOf: numerator must be non-negative"
+  | amount < 0 = error "taxOf: amount must be non-negative"
+  | otherwise  = amount * num `div` den
+
+-- | One-period demand-driven monetary flows for an industrial economy.
+data IndustrialFlows k = IndustrialFlows
+  { flowTrade       :: !(Map (k, k) Integer)
+  , flowOutput      :: !(Map k Integer)
+  , flowInput       :: !(Map k Integer)
+  , flowValueAdded  :: !(Map k Integer)
+  , flowFinalDemand :: !(Map k Integer)
+  } deriving (Eq, Show)
+
+instance NFData k => NFData (IndustrialFlows k) where
+  rnf (IndustrialFlows z x inp va f) =
+    rnf z `seq` rnf x `seq` rnf inp `seq` rnf va `seq` rnf f
+
+-- | Options for the demand-driven backward substitution.
+data FlowOptions = FlowOptions
+  { foMeanFinalDemand :: !Integer
+  , foInputShare      :: !Double
+  } deriving (Eq, Show)
+
+instance NFData FlowOptions where
+  rnf (FlowOptions f a) = rnf f `seq` rnf a
+
+-- | Mean final demand @1,000,000@ yen and intermediate-input share @0.5@.
+defaultFlowOptions :: FlowOptions
+defaultFlowOptions = FlowOptions
+  { foMeanFinalDemand = 1000000
+  , foInputShare      = 0.5
+  }
+
+-- | Generate one-period flows with 'defaultFlowOptions'.
+industrialFlows :: Ord k
+                => TaxRate -> IndustrialEconomy k -> IndustrialFlows k
+industrialFlows = industrialFlowsWith defaultFlowOptions
+
+-- | Generate exact integer flows by a single downstream-to-upstream backward
+-- substitution. Final demand and every trade amount are positive-denominator
+-- multiples. Trade amounts may be zero when a buyer's input units are fewer
+-- than its suppliers. For an economy produced by 'industrialNetworkWith', the
+-- identities @x_j = sum_i z_ij + v_j = sum_m z_jm + f_j@ and
+-- @sum_j v_j = sum_j f_j@ hold exactly. Complexity is
+-- @O(N*log N + |E|*log N)@ with ordered 'Map' updates.
+industrialFlowsWith
+  :: Ord k
+  => FlowOptions -> TaxRate -> IndustrialEconomy k -> IndustrialFlows k
+industrialFlowsWith opts (TaxRate num den) economy
+  | den <= 0 = error "industrialFlowsWith: tax denominator must be positive"
+  | num < 0 = error "industrialFlowsWith: tax numerator must be non-negative"
+  | not (a >= 0 && a < 1) || isNaN a || isInfinite a =
+      error "industrialFlowsWith: foInputShare must be finite and in [0,1)"
+  | any (not . validOrderedEdge) (industrialEdges economy) =
+      error "industrialFlowsWith: economy contains an edge outside the ordered sector DAG"
+  | otherwise = IndustrialFlows zMap xMap inputMap vaMap finalMap
+  where
+    a = foInputShare opts
+    validOrderedEdge (i, j) =
+      case (M.lookup i (ieSector economy), M.lookup j (ieSector economy)) of
+        (Just si, Just sj) -> (si, i) < (sj, j)
+        _                  -> False
+    ks = firms economy
+    count = length ks
+    sizeOf j = let w = M.findWithDefault 1 j (ieSize economy)
+               in if finitePositive w then w else 1
+    meanSize = if count == 0
+      then 1
+      else sum (map sizeOf ks) / fromIntegral count
+    meanFinal = max 0 (foMeanFinalDemand opts)
+    finalMap = M.fromList
+      [ (j, den * max 1 (round (fromIntegral meanFinal * sizeOf j
+                               / meanSize / fromIntegral den)))
+      | j <- ks ]
+    order = sortBy downstreamFirst ks
+    downstreamFirst i j =
+      compare (M.findWithDefault 0 j (ieSector economy), j)
+              (M.findWithDefault 0 i (ieSector economy), i)
+    (_, zMap, xMap, inputMap, vaMap) =
+      foldl' solveFirm (M.empty, M.empty, M.empty, M.empty, M.empty) order
+
+    solveFirm (orders, zs, xs, ins, vas) j =
+      let revenue = M.findWithDefault 0 j orders
+          finalD  = M.findWithDefault den j finalMap
+          output  = revenue + finalD
+          suppliers = suppliersOf (ieNetwork economy) j
+          input
+            | null suppliers = 0
+            | otherwise = den * floor (a * fromIntegral output / fromIntegral den)
+          units = input `div` den
+          allocations = apportionInteger units [ (i, sizeOf i) | i <- suppliers ]
+          zs' = foldl' (\m i -> M.insert (i, j) (den * M.findWithDefault 0 i allocations) m)
+                       zs suppliers
+          orders' = foldl'
+            (\m i -> M.insertWith (+) i (den * M.findWithDefault 0 i allocations) m)
+            orders suppliers
+          valueAdded = output - input
+      in ( orders'
+         , zs'
+         , M.insert j output xs
+         , M.insert j input ins
+         , M.insert j valueAdded vas )
+
+-- | Per-sector cumulative weights used by two-level supplier sampling.
+data SectorPool = SectorPool
+  { spFirms      :: !(V.Vector Int)
+  , spCumulative :: !(V.Vector Double)
+  }
+
+mkSectorPool :: [Int] -> Map Int Double -> SectorPool
+mkSectorPool ids weights = SectorPool firmVector cumulative
+  where
+    firmVector = V.fromList ids
+    cumulative = V.fromList (drop 1 (scanl (+) 0 [ M.findWithDefault 1 i weights | i <- ids ]))
+
+candidateCapacity
+  :: IndustrialOptions
+  -> Map Int Int
+  -> Map Int SectorPool
+  -> Map Int Int
+  -> Int
+  -> Int
+candidateCapacity opts sectors pools ranks j =
+  sum [ eligibleCount s | s <- [0 .. buyerSector] ]
+  where
+    buyerSector = M.findWithDefault 0 j sectors
+    buyerRank = M.findWithDefault 0 j ranks
+    eligibleCount s
+      | not (finitePositive (ioFlow opts s buyerSector)) = 0
+      | s == buyerSector = buyerRank
+      | otherwise = maybe 0 (V.length . spFirms) (M.lookup s pools)
+
+chooseIndustrialSuppliers
+  :: IndustrialOptions
+  -> Map Int Int
+  -> Map Int SectorPool
+  -> Map Int Int
+  -> Int
+  -> Int
+  -> StdGen
+  -> ([Int], StdGen)
+chooseIndustrialSuppliers opts sectors pools ranks buyer wanted g0 =
+  go g0 S.empty [] 0
+  where
+    buyerSector = M.findWithDefault 0 buyer sectors
+    buyerRank = M.findWithDefault 0 buyer ranks
+    attemptLimit = max 64 (wanted * 32)
+    sectorChoices =
+      [ ((s, pool, limit), ioFlow opts s buyerSector * prefixWeight pool limit)
+      | s <- [0 .. buyerSector]
+      , finitePositive (ioFlow opts s buyerSector)
+      , Just pool <- [M.lookup s pools]
+      , let limit = if s == buyerSector then buyerRank else V.length (spFirms pool)
+      , limit > 0
+      , finitePositive (prefixWeight pool limit) ]
+
+    go g selected acc attempts
+      | S.size selected >= wanted = (reverse acc, g)
+      | attempts >= attemptLimit =
+          let remaining = take (wanted - S.size selected)
+                [ i
+                | ((_, pool, limit), _) <- sectorChoices
+                , i <- V.toList (V.take limit (spFirms pool))
+                , i `S.notMember` selected ]
+          in (reverse acc ++ remaining, g)
+      | otherwise =
+          let ((_, pool, limit), g1) = weightedChoice g sectorChoices
+              total = prefixWeight pool limit
+              (u, g2) = randomR (0, total) g1 :: (Double, StdGen)
+              ix = cumulativeLowerBound (spCumulative pool) limit u
+              supplier = spFirms pool V.! ix
+          in if supplier `S.member` selected
+             then go g2 selected acc (attempts + 1)
+             else go g2 (S.insert supplier selected) (supplier : acc) (attempts + 1)
+
+prefixWeight :: SectorPool -> Int -> Double
+prefixWeight _ limit | limit <= 0 = 0
+prefixWeight pool limit = spCumulative pool V.! (limit - 1)
+
+cumulativeLowerBound :: V.Vector Double -> Int -> Double -> Int
+cumulativeLowerBound cumulative limit target = go 0 (limit - 1)
+  where
+    go lo hi
+      | lo >= hi = lo
+      | cumulative V.! mid >= target = go lo mid
+      | otherwise = go (mid + 1) hi
+      where mid = (lo + hi) `div` 2
+
+weightedChoice :: StdGen -> [(a, Double)] -> (a, StdGen)
+weightedChoice _ [] = error "weightedChoice: empty positive-weight population"
+weightedChoice g choices = (pick u choices, g1)
+  where
+    total = sum (map snd choices)
+    (u, g1) = randomR (0, total) g :: (Double, StdGen)
+    pick _ [(x, _)] = x
+    pick r ((x, w) : rest)
+      | r <= w = x
+      | otherwise = pick (r - w) rest
+    pick _ [] = error "weightedChoice: unreachable"
+
+finitePositive :: Double -> Bool
+finitePositive x = x > 0 && not (isNaN x) && not (isInfinite x)
+
+-- | Numerical ceiling for the unrepresentable far tail of a Pareto draw. It is
+-- far above any economically meaningful relative size while leaving
+-- market-scale sector sums finite.
+maxIndustrialSize :: Double
+maxIndustrialSize = 1e100
+
+-- | Largest-remainder allocation with per-recipient caps. Continuous weighted
+-- water-filling finds the cap-saturation threshold in one sorted pass, then a
+-- largest-remainder step integerises the result. @O(N log N)@.
+apportionCapped :: Int -> [(Int, Int, Double)] -> Map Int Int
+apportionCapped requested rows
+  | target <= 0 = M.fromList [ (key, 0) | (key, _, _) <- rows ]
+  | remainder > length ranked =
+      error "apportionCapped: numerical instability in largest-remainder allocation"
+  | otherwise = foldl' addRemainder bases (take remainder ranked)
+  where
+    normalised =
+      [ (key, max 0 cap, if finitePositive weight then weight else 1)
+      | (key, cap, weight) <- rows ]
+    target = min (max 0 requested) (sum [ cap | (_, cap, _) <- normalised ])
+    active = sortBy compareThreshold [ row | row@(_, cap, _) <- normalised, cap > 0 ]
+    lambda = waterLevel target (sum [ weight | (_, _, weight) <- active ]) active
+    quotas =
+      [ (key, cap, min (fromIntegral cap) (lambda * weight))
+      | (key, cap, weight) <- normalised ]
+    floors =
+      [ (key, cap, floor quota, quota - fromIntegral (floor quota :: Int))
+      | (key, cap, quota) <- quotas ]
+    bases = M.fromList [ (key, base) | (key, _, base, _) <- floors ]
+    remainder = max 0 (target - sum [ base | (_, _, base, _) <- floors ])
+    ranked = map (\(key, _, _) -> key) $ sortBy compareRemainder
+      [ (key, cap, frac) | (key, cap, base, frac) <- floors, base < cap ]
+    compareThreshold (keyA, capA, weightA) (keyB, capB, weightB) =
+      compare (fromIntegral capA / weightA) (fromIntegral capB / weightB)
+      <> compare keyA keyB
+    compareRemainder (keyA, _, fracA) (keyB, _, fracB) =
+      compare fracB fracA <> compare keyA keyB
+    addRemainder m key = M.insertWith (+) key 1 m
+    waterLevel amount weightTotal candidates = case candidates of
+      [] -> 0
+      (_, cap, weight) : rest
+        | weightTotal <= 0 -> 0
+        | level <= fromIntegral cap / weight -> level
+        | otherwise -> waterLevel (amount - cap) (weightTotal - weight) rest
+        where level = fromIntegral amount / weightTotal
+
+apportionInteger :: Ord k => Integer -> [(k, Double)] -> Map k Integer
+apportionInteger amount rows
+  | amount <= 0 || null rows = M.fromList [ (key, 0) | (key, _) <- rows ]
+  | otherwise = foldl' addRemainder bases (take (fromInteger remainder) ranked)
+  where
+    positiveRows = [ (key, if finitePositive weight then weight else 1) | (key, weight) <- rows ]
+    total = sum (map snd positiveRows)
+    quotas = [ (key, fromIntegral amount * weight / total) | (key, weight) <- positiveRows ]
+    floors = [ (key, floor quota, quota - fromIntegral (floor quota :: Integer)) | (key, quota) <- quotas ]
+    bases = M.fromList [ (key, base) | (key, base, _) <- floors ]
+    remainder = max 0 (amount - sum [ base | (_, base, _) <- floors ])
+    ranked = map (\(key, _, _) -> key) $ sortBy compareRemainder floors
+    compareRemainder (keyA, _, fracA) (keyB, _, fracB) =
+      compare fracB fracA <> compare keyA keyB
+    addRemainder m key = M.insertWith (+) key 1 m
 
 ------------------------------------------------------------------
 -- * Coefficient generation

@@ -71,6 +71,21 @@ stack build
 stack exec -- <executable-name>
 ```
 
+The ordered CL-SBM industrial example accepts `N K m T seed`. Its default is
+`10000 5 20 50 2025`, and RTS statistics include maximum residency:
+
+```bash
+stack exec industrialEx1 -- 10000 5 20 50 2025 +RTS -s
+```
+
+For a geometric firm-count sweep from 200 through 64000:
+
+```bash
+for n in 200 500 1000 2000 4000 8000 16000 32000 64000; do
+  stack exec industrialEx1 -- "$n" 5 20 50 2025 +RTS -s
+done
+```
+
 See the list below for the available executables. The first `stack build` compiles all
 of them at once.
 
@@ -112,6 +127,12 @@ run.
 |`ebex9`|`basic/elementaryBookkeepingEx9.hs`|Lecture ch.24-25: full accounting cycle showcase — period transactions → closing adjustments (COGS / depreciation / allowance / deferral) → 8-column worksheet (`writeWorksheet`) → income-summary closing → post-closing trial balance (`writePostClosingTrialBalance`) → B/S & P/L|
 |`sim1`|`basic/simulateEx1.hs`|100-term simulation (6 companies, input coefficients, Haskell + Python plots)|
 |`sim2`|`basic/simulateEx2.hs`|A larger version of `sim1` (200 companies) with spill-to-disk|
+
+### `industrial/` — Ordered industrial transaction networks
+
+|Executable|Source|Summary|
+|---|---|---|
+|`industrialEx1`|`industrial/industrialEx1.hs`|Block-triangular, power-law industrial network with deterministic demand-driven flows and exact consumption-tax/value-added checks|
 
 ### `deterministic/ripple/` — Ripple-effect simulation
 
@@ -203,6 +224,7 @@ examples/
 ├── exchangealgebra-examples.cabal
 ├── basic/                      # Introductory bookkeeping and simple simulations
 ├── deterministic/ripple/       # Ripple-effect simulations + Python plots
+├── industrial/                 # Ordered CL-SBM industrial network example
 ├── optimization/CGE/           # CGE model + Python plots
 └── **/result/                  # Run-time artifacts (CSV / PNG) — gitignored
 ```

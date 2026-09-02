@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Added
+- Add `industrialNetwork` / `industrialFlows` for deterministic ordered CL-SBM
+  trade networks and exact demand-driven flows, plus the `industrialEx1`
+  accounting example.
 - Add a read-only `audit-eval` compatibility replay tool that pins frozen
   confirmatory inputs and compares historical and current checked-loader
   verdicts without regenerating model outputs.
