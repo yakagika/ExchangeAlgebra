@@ -105,11 +105,11 @@ import           ExchangeAlgebra.Journal           ( Journal
                                                    , HatVal
                                                    , HatBaseClass
                                                    , filterWithNote )
-import           ExchangeAlgebra.Simulate          ( SpillOptions(..)
+import           ExchangeAlgebra.Simulate          (StateTime)
+import           ExchangeAlgebra.Simulate.Spill    ( SpillOptions(..)
                                                    , SpillDeletePolicy(..)
-                                                   , StateTime
-                                                   , defaultBinarySpillWriter )
-import           ExchangeAlgebra.Write             ( restoreJournalFromBinarySpill )
+                                                   , defaultBinarySpillWriter
+                                                   , restoreJournalFromBinarySpill )
 import           Control.Monad.ST                  (ST, RealWorld)
 
 ------------------------------------------------------------------

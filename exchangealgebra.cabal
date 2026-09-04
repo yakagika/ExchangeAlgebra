@@ -56,6 +56,7 @@ library
       ExchangeAlgebra.Simulate.Lite
       ExchangeAlgebra.Simulate.Network
       ExchangeAlgebra.Simulate.Policy
+      ExchangeAlgebra.Simulate.Spill
       ExchangeAlgebra.Simulate.Visualize
       ExchangeAlgebra.TrialBalance.Validation
       ExchangeAlgebra.Value

@@ -122,6 +122,7 @@ These modules attach notes to postings and run classic, Lite, network, policy-dr
 - `ExchangeAlgebra.Journal` — defines metadata-bearing `Journal` values, indexed projections, and journal aggregation.
 - `ExchangeAlgebra.Journal.Transfer` — specialises the algebra transfer API to `Journal`.
 - `ExchangeAlgebra.Simulate` — provides the state-space engine, classic front-end, spill support, ripple utilities, and scenario execution.
+- `ExchangeAlgebra.Simulate.Spill` — provides spill chunk writers, checked readers, and ledger restoration shared by simulation and reporting layers.
 - `ExchangeAlgebra.Simulate.Policy` — declares retention, spill, and compaction policy for long simulations.
 - `ExchangeAlgebra.Simulate.Lite` — provides the product-HKD, BSP front-end with declarative field rules and stages.
 - `ExchangeAlgebra.Simulate.Network` — separates sparse trade-network topology from input coefficients and industrial flows.
@@ -161,7 +162,7 @@ These modules define a common solver interface and two concrete stochastic strat
 - `ExchangeAlgebra.Optimize.Annealing` — implements simulated annealing over arbitrary candidate types.
 - `ExchangeAlgebra.Optimize.GA` — implements a real-coded genetic algorithm over numeric vectors.
 
-Dependencies point downwards in this list with one exception: `Simulate.Policy` reaches `Write` for spill restore. A structural regrouping (an explicit `Simulate.Spill` / engine split, and a sub-library for the Chart-based `Simulate.Visualize`) is planned for a later release; module names in 0.5.0.0 are stable.
+Dependencies point downwards in this list; spill writing, checked reading and ledger restoration live in `Simulate.Spill`, which `Simulate`, `Write` and `Simulate.Policy` all import (the historical `Write` → `Simulate` and `Policy` → `Write` edges are gone).
 
 Importing both `ExchangeAlgebra` and `ExchangeAlgebra.Journal` unqualified causes name
 collisions on `sigma`, `fromList`, `map`, `filter`, and friends. See the recommended import

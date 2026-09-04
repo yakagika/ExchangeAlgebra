@@ -191,6 +191,12 @@ vs an exact non-negative `Decimal` (`MoneyDecimal`) for determinism/auditability
   untyped `undefined` placeholder (audit R3).
 
 ### Added
+- Add `ExchangeAlgebra.Simulate.Spill`: spill options, chunk writers, the
+  checked readers and journal restoration now live in one module that depends
+  only on `Algebra` and `Journal`. `Simulate` and `Write` re-export the
+  historical names unchanged; `Write` no longer imports `Simulate` and
+  `Simulate.Policy` no longer imports `Write`. `Write.writeTermIO` drops its
+  unused `StateTime` constraint (`Ix t` suffices).
 - Add `ExchangeAlgebra.Accounting.PostingPolicy`: `ProcessingContext`,
   `postingAllowedIn` and `postingCapabilityFor` now live in the accounting
   layer; `Convert.Checked` re-exports them and `Consolidation.Worksheet` no
