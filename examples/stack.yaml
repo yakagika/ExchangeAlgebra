@@ -24,4 +24,4 @@ packages:
 
 extra-deps:
 - git: https://github.com/yakagika/ExchangeAlgebra.git
-  commit: cbc561b6ccb8917d41419ace0c76d5f02eebf868
+  commit: 2618f93a4d185c274cebf53562db41ed7486c678
