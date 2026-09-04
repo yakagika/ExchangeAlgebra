@@ -30,4 +30,7 @@ main = doctest  [ "-isrc"
                 , "src/ExchangeAlgebra/Algebra/Readout/Net.hs"
                 , "src/ExchangeAlgebra/Simulate/Engine.hs"
                 , "src/ExchangeAlgebra/Simulate/Analysis.hs"
-                , "src/ExchangeAlgebra/Simulate/Random.hs"]
+                , "src/ExchangeAlgebra/Simulate/Random.hs"
+                , "src/ExchangeAlgebra/Render/Csv.hs"
+                , "src/ExchangeAlgebra/Render/Bookkeeping.hs"
+                , "src/ExchangeAlgebra/Render/Simulation.hs"]

@@ -58,6 +58,9 @@ library
       ExchangeAlgebra.Optimize
       ExchangeAlgebra.Optimize.Annealing
       ExchangeAlgebra.Optimize.GA
+      ExchangeAlgebra.Render.Bookkeeping
+      ExchangeAlgebra.Render.Csv
+      ExchangeAlgebra.Render.Simulation
       ExchangeAlgebra.Reporting.Group
       ExchangeAlgebra.Reporting.Metric
       ExchangeAlgebra.Reporting.Presentation

@@ -35,6 +35,16 @@
   helpers (`normal`, `normal'`, `updateGen`). `Engine` keeps the export
   restrictions of `Simulate` and does not re-export the spill types, which
   stay in `ExchangeAlgebra.Simulate.Spill`. Definitions do not move.
+- `ExchangeAlgebra.Render.Csv`, `ExchangeAlgebra.Render.Bookkeeping` and
+  `ExchangeAlgebra.Render.Simulation`: re-export-only shims that split the
+  surface of `ExchangeAlgebra.Write` into the CSV format (`writeCSV`,
+  `csvTranspose`), the bookkeeping documents (balance sheet, profit and
+  loss, journal, account ledgers, compound trial balance, worksheet,
+  post-closing trial balance, with `balanceOf` / `tshow` / `toSameLength`)
+  and the simulation dumps (`writeTermIO`, `writeIOMatrix`). The spill
+  restorers are not shimmed; `ExchangeAlgebra.Simulate.Spill` already owns
+  them. Definitions do not move; the row layouts are pinned by the
+  `write-rows-0510` goldens.
 
 ### Documentation
 - README "Migrating to 0.5.0.0": only the `Alg` representation (`Liner`) lives in
