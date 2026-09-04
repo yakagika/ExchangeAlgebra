@@ -266,7 +266,7 @@ policySpillOptions pol spillEvery readLedger modifyLedger =
 -- with an exact value type such as @MoneyDecimal@). With @'spillTo' = 'Nothing'@
 -- there is nothing to restore — the evicted terms are gone.
 restoreLedger
-    :: ( HasTermAxis n, TermOf n ~ t, Ord t
+    :: ( HasTermAxis n, TermOf n ~ t, Ord t, Enum t, Show t
        , HatVal v, HatBaseClass b
        , Binary.Binary t, Binary.Binary (Journal n v b) )
     => FilePath               -- ^ binary spill file written under the policy

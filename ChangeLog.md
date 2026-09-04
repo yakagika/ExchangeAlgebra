@@ -24,6 +24,16 @@ vs an exact non-negative `Decimal` (`MoneyDecimal`) for determinism/auditability
 - Improve performance with strict `Journal.fromList`, an exact-projection fast path, faster journal append, and projection-sharing trial-balance rows.
 
 ### Breaking
+- **BREAKING: binary spill files are validated on read.** `readBinarySpillFile`
+  now raises an error at the first undecodable chunk instead of silently
+  truncating the remainder, and `restoreJournalFromBinarySpill` rejects
+  out-of-order, overlapping, gapped, or empty chunk ranges (previously a
+  partially readable or stale file was merged as if complete, dropping every
+  term up to the last readable chunk). Its constraints gain `Enum t` and
+  `Show t`, both already implied by `StateTime`. `Simulate.Lite` now truncates
+  the spill file when a run opens it (`WriteMode` instead of `AppendMode`), so
+  re-running with the same path no longer accumulates stale chunks.
+
 - **BREAKING: checked conversion now enforces posting capability by processing
   context.** `checkedEntryIn`, `checkedEntryTextIn`, `checkedJournalIn`, and
   `certifyJournalTextIn` admit ordinary postings plus exactly the capability
@@ -181,6 +191,10 @@ vs an exact non-negative `Decimal` (`MoneyDecimal`) for determinism/auditability
   untyped `undefined` placeholder (audit R3).
 
 ### Added
+- Add `SpillReadError` / `SpillRangeIssue`, `readBinarySpillFileChecked`,
+  `restoreJournalFromBinarySpillChecked` and `renderSpillReadError`, the
+  `Either`-returning forms of the spill readers.
+
 - `examples/audit-eval` second-experiment harness (audit-harness T3 / T5): the
   generator now covers five task categories (`closing`, `statements` and
   `consolidation` join the existing kinds in `gen/kinds.py`) with dual pandas /
@@ -978,6 +992,12 @@ vs an exact non-negative `Decimal` (`MoneyDecimal`) for determinism/auditability
   product type: with more than one `Journal` field a wrong selector type-checks
   and fails silently (commits, eviction and the final projection all hit the
   wrong ledger). Recommends exactly one `Journal` field per world.
+
+- README module overview now lists all 31 modules in seven layers and states
+  that `Simulate.Lite` is the canonical simulation front-end while `Simulate`'s
+  `Updatable` front-end is kept frozen for published examples; the
+  `Simulate.Lite` module header no longer claims spill policies are out of
+  scope.
 
 ### Internal
 - `-Wall` warning cleanup (audit R9): removed unused imports\/bindings, silenced

@@ -45,6 +45,7 @@ module ExchangeAlgebra.Write
     , writeIOMatrix
       -- * Spill / Restore
     , restoreJournalFromBinarySpill
+    , restoreJournalFromBinarySpillChecked
       -- * Helpers
     , balanceOf
     , tshow
@@ -1041,11 +1042,16 @@ writeIOMatrix path arr = do
 -- | Restore a complete Journal from spilled binary chunks and the current in-memory Journal.
 -- The in-memory portion is narrowed to only terms after the last spill range,
 -- so duplicate terms are not double-counted.
+-- A malformed or stale spill file is not restored: this function raises an
+-- error instead. Use 'restoreJournalFromBinarySpillChecked' when the caller
+-- needs the failure represented as 'Either'.
 --
 -- Complexity: O(file size + number of chunks * union cost)
 restoreJournalFromBinarySpill
     :: ( Binary.Binary t
        , Ord t
+       , Enum t
+       , Show t
        , Binary.Binary (EJ.Journal n v b)
        , EJ.Note n
        , HatVal v
@@ -1056,20 +1062,48 @@ restoreJournalFromBinarySpill
     -> EJ.Journal n v b
     -> IO (EJ.Journal n v b)
 restoreJournalFromBinarySpill spillPath noteToTerm currentLedger = do
-    chunks <- readBinarySpillFile spillPath
-    let spilled = L.foldl' (\acc (_, j) -> acc .+ j) mempty chunks
-        latestEnd = L.foldl'
-            (\acc ((_, tEnd), _) ->
-                case acc of
-                    Nothing -> Just tEnd
-                    Just x -> Just (max x tEnd)
-            )
-            Nothing
-            chunks
-        remainder = case latestEnd of
-            Nothing -> currentLedger
-            Just tEnd ->
-                EJ.filterWithNote (\n _ -> noteToTerm n > tEnd) currentLedger
-    pure (spilled .+ remainder)
+    restored <- restoreJournalFromBinarySpillChecked
+        spillPath noteToTerm currentLedger
+    case restored of
+        Left err -> error (renderSpillReadError err)
+        Right ledger -> pure ledger
+
+-- | Checked form of 'restoreJournalFromBinarySpill'.
+-- The current ledger is merged only after the entire spill file has decoded
+-- and its chunk ranges have passed the continuity checks.
+--
+-- Complexity: O(file size + number of chunks * union cost)
+restoreJournalFromBinarySpillChecked
+    :: ( Binary.Binary t
+       , Ord t
+       , Enum t
+       , Binary.Binary (EJ.Journal n v b)
+       , EJ.Note n
+       , HatVal v
+       , HatBaseClass b
+       )
+    => FilePath
+    -> (n -> t)
+    -> EJ.Journal n v b
+    -> IO (Either (SpillReadError t) (EJ.Journal n v b))
+restoreJournalFromBinarySpillChecked spillPath noteToTerm currentLedger = do
+    result <- readBinarySpillFileChecked spillPath
+    pure $ fmap restore result
+  where
+    restore chunks =
+        let spilled = L.foldl' (\acc (_, j) -> acc .+ j) mempty chunks
+            latestEnd = L.foldl'
+                (\acc ((_, tEnd), _) ->
+                    case acc of
+                        Nothing -> Just tEnd
+                        Just x -> Just (max x tEnd)
+                )
+                Nothing
+                chunks
+            remainder = case latestEnd of
+                Nothing -> currentLedger
+                Just tEnd ->
+                    EJ.filterWithNote (\n _ -> noteToTerm n > tEnd) currentLedger
+        in spilled .+ remainder
 
 ------------------------------------------------------------------

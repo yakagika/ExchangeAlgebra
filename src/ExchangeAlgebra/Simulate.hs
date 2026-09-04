@@ -94,7 +94,11 @@ module ExchangeAlgebra.Simulate
     ,mkBinarySpillOptions
     ,defaultSpillWriter
     ,defaultBinarySpillWriter
+    ,SpillReadError(..)
+    ,SpillRangeIssue(..)
+    ,renderSpillReadError
     ,readBinarySpillFile
+    ,readBinarySpillFileChecked
     ,runSimulation
     ,runSimulationWithSpill
     ,runScenarios
@@ -118,6 +122,7 @@ import qualified    Data.Map.Strict                 as M
 import              System.IO (Handle, IOMode(..), withFile, hPutStrLn, hPutStr)
 import qualified    Data.ByteString.Lazy            as BL
 import qualified    Data.Binary                     as Binary
+import              Data.Int                        (Int64)
 
 ------------------------------------------------------------------
 -- | Type class defining the time axis for simulations.
@@ -462,9 +467,45 @@ defaultBinarySpillWriter :: (Binary.Binary t, Binary.Binary payload)
 defaultBinarySpillWriter h termRange payload =
     BL.hPut h $ Binary.encode (termRange, payload)
 
+-- | Why a binary spill file could not be read back as a well-formed chunk sequence.
+data SpillReadError t
+    = SpillDecodeFailure
+        { spillErrorOffset   :: !Int64 -- ^ Byte offset at which decoding failed.
+        , spillErrorChunks   :: !Int   -- ^ Chunks decoded successfully before the failure.
+        , spillErrorMessage  :: String -- ^ Message from 'Binary.decodeOrFail'.
+        }
+    | SpillRangeError
+        { spillRangeIssue    :: !SpillRangeIssue
+        , spillRangePrevious :: (t, t) -- ^ The chunk range decoded just before.
+        , spillRangeCurrent  :: (t, t) -- ^ The offending chunk range.
+        }
+    | SpillEmptyRange
+        { spillRangeCurrent  :: (t, t) -- ^ A chunk whose start is after its end.
+        }
+    deriving (Eq, Show)
+
+-- | The relationship by which a chunk range fails to follow its predecessor.
+data SpillRangeIssue
+    = ChunkOutOfOrder
+    | ChunkOverlap
+    | ChunkGap
+    deriving (Eq, Show, Enum, Bounded)
+
+-- | Render a spill read error for an exception or diagnostic message.
+renderSpillReadError :: Show t => SpillReadError t -> String
+renderSpillReadError err = case err of
+    SpillDecodeFailure offset chunks message ->
+        "binary spill decode failure at byte offset " ++ show offset
+        ++ " after " ++ show chunks ++ " chunks: " ++ message
+    SpillRangeError issue previous current ->
+        "binary spill range error (" ++ show issue ++ "): chunk "
+        ++ show current ++ " follows " ++ show previous
+    SpillEmptyRange current ->
+        "binary spill empty range: " ++ show current
+
 -- | Read a binary spill file and return it as a list of chunks.
 -- Used to restore files written by 'defaultBinarySpillWriter'.
--- When decoding fails, the remaining data is truncated.
+-- Raises an error at the first undecodable chunk; no partial result is returned.
 --
 -- Complexity: O(file size)
 readBinarySpillFile :: (Binary.Binary t, Binary.Binary payload)
@@ -472,13 +513,66 @@ readBinarySpillFile :: (Binary.Binary t, Binary.Binary payload)
                     -> IO [((t, t), payload)]
 readBinarySpillFile path = do
     bytes <- BL.readFile path
-    pure (go bytes)
+    case decodeBinarySpillChunks bytes of
+        Left (offset, chunks, message) ->
+            let err = SpillDecodeFailure offset chunks message :: SpillReadError ()
+            in error (renderSpillReadError err)
+        Right chunks -> pure chunks
+
+-- | Read and validate every chunk in a binary spill file.
+--
+-- In addition to decode failures, this rejects empty, overlapping,
+-- out-of-order, and gapped ranges. Gaps are errors because restoring around a
+-- gap would discard the corresponding terms from the in-memory remainder and
+-- silently turn missing spill data into an apparently complete ledger.
+-- An empty file is a valid spill containing no chunks.
+--
+-- Complexity: O(file size + number of chunks)
+readBinarySpillFileChecked
+    :: (Binary.Binary t, Binary.Binary payload, Ord t, Enum t)
+    => FilePath
+    -> IO (Either (SpillReadError t) [((t, t), payload)])
+readBinarySpillFileChecked path = do
+    bytes <- BL.readFile path
+    pure $ case decodeBinarySpillChunks bytes of
+        Left (offset, chunks, message) ->
+            Left (SpillDecodeFailure offset chunks message)
+        Right chunks -> validateChunkRanges chunks
+
+-- Decode once for both public readers. The offset from 'decodeOrFail' is
+-- relative to the current suffix, so add the bytes consumed by prior chunks.
+decodeBinarySpillChunks
+    :: (Binary.Binary t, Binary.Binary payload)
+    => BL.ByteString
+    -> Either (Int64, Int, String) [((t, t), payload)]
+decodeBinarySpillChunks = go 0 0
   where
-    go bs
-        | BL.null bs = []
-        | otherwise  = case Binary.decodeOrFail bs of
-            Left _ -> []
-            Right (rest, _, entry) -> entry : go rest
+    go _ _ bs | BL.null bs = Right []
+    go offset decoded bs = case Binary.decodeOrFail bs of
+        Left (_, localOffset, message) ->
+            Left (offset + localOffset, decoded, message)
+        Right (rest, consumed, entry) ->
+            (entry :) <$> go (offset + consumed) (decoded + 1) rest
+
+validateChunkRanges
+    :: (Ord t, Enum t)
+    => [((t, t), payload)]
+    -> Either (SpillReadError t) [((t, t), payload)]
+validateChunkRanges chunks = go Nothing chunks >> Right chunks
+  where
+    go _ [] = Right ()
+    go previous (((s, e), _) : rest)
+        | s > e = Left (SpillEmptyRange (s, e))
+        | otherwise = case previous of
+            Nothing -> go (Just (s, e)) rest
+            Just prior@(ps, pe)
+                | s <= pe && e >= ps ->
+                    Left (SpillRangeError ChunkOverlap prior (s, e))
+                | e < ps ->
+                    Left (SpillRangeError ChunkOutOfOrder prior (s, e))
+                | s /= succ pe ->
+                    Left (SpillRangeError ChunkGap prior (s, e))
+                | otherwise -> go (Just (s, e)) rest
 
 -- | Simulation
 {-# INLINE simulate #-}

@@ -78,7 +78,7 @@ import           System.Directory    (removeFile)
 import           System.Random       (StdGen, mkStdGen, randomR, split)
 import           Control.Monad       (replicateM)
 import           Control.Monad.State (runState, state)
-import           Control.Exception   (try, evaluate, SomeException)
+import           Control.Exception   (try, evaluate, ErrorCall, SomeException)
 import           Control.DeepSeq     (force)
 import           Test.QuickCheck hiding (Fixed)
 import           GHC.Generics        (Generic)
@@ -1271,19 +1271,20 @@ testRestoreJournalFromBinarySpill = do
     let spillPath = "/tmp/exchangealgebra_spill_restore_test.bin"
         chunk1 :: SpillRestoreJournal
         chunk1 = EJ.fromList
-            [ (1 :@ (Hat :< Yen)) .| ("A", 1)
-            , (2 :@ (Not :< Amount)) .| ("B", 2)
+            [ (1 .@ (Hat :< Yen)) .| ("A", 1)
+            , (2 .@ (Not :< Amount)) .| ("B", 2)
             ]
         chunk2 :: SpillRestoreJournal
-        chunk2 = (3 :@ (Hat :< Yen)) .| ("C", 3)
+        chunk2 = (3 .@ (Hat :< Yen)) .| ("C", 3)
         currentLedger :: SpillRestoreJournal
         currentLedger = EJ.fromList
-            [ (4 :@ (Not :< Amount)) .| ("Tail", 4)
-            , (8 :@ (Hat :< Yen)) .| ("AlreadySpilled", 2)
+            [ (4 .@ (Not :< Amount)) .| ("Tail", 4)
+            , (8 .@ (Hat :< Yen)) .| ("AlreadySpilled", 2)
             ]
         expected :: SpillRestoreJournal
-        expected = chunk1 .+ chunk2 .+ ((4 :@ (Not :< Amount)) .| ("Tail", 4))
+        expected = chunk1 .+ chunk2 .+ ((4 .@ (Not :< Amount)) .| ("Tail", 4))
 
+    removeSpillTestFile spillPath
     withFile spillPath WriteMode $ \h -> do
         ES.defaultBinarySpillWriter h (1 :: Int, 2 :: Int) chunk1
         ES.defaultBinarySpillWriter h (3 :: Int, 3 :: Int) chunk2
@@ -1292,6 +1293,144 @@ testRestoreJournalFromBinarySpill = do
     assertEqual "Write.restoreJournalFromBinarySpill merges spill + tail remainder"
         (EJ.toMap expected)
         (EJ.toMap actual)
+    removeSpillTestFile spillPath
+
+removeSpillTestFile :: FilePath -> IO ()
+removeSpillTestFile path = do
+    _ <- try (removeFile path) :: IO (Either SomeException ())
+    pure ()
+
+writeSpillTestChunks
+    :: FilePath
+    -> [((Int, Int), SpillRestoreJournal)]
+    -> IO ()
+writeSpillTestChunks path chunks = do
+    removeSpillTestFile path
+    withFile path WriteMode $ \h ->
+        forM_ chunks $ \(termRange, chunk) ->
+            ES.defaultBinarySpillWriter h termRange chunk
+
+spillCheckedChunk1 :: SpillRestoreJournal
+spillCheckedChunk1 = EJ.fromList
+    [ (1 .@ (Hat :< Yen)) .| ("A", 1)
+    , (2 .@ (Not :< Amount)) .| ("B", 2)
+    ]
+
+spillCheckedChunk2 :: SpillRestoreJournal
+spillCheckedChunk2 = (3 .@ (Hat :< Yen)) .| ("C", 3)
+
+spillCheckedCurrent :: SpillRestoreJournal
+spillCheckedCurrent = EJ.fromList
+    [ (4 .@ (Not :< Amount)) .| ("Tail", 4)
+    , (8 .@ (Hat :< Yen)) .| ("AlreadySpilled", 2)
+    ]
+
+spillCheckedExpected :: SpillRestoreJournal
+spillCheckedExpected =
+    spillCheckedChunk1 .+ spillCheckedChunk2
+    .+ ((4 .@ (Not :< Amount)) .| ("Tail", 4))
+
+testSpillCheckedReaderWellFormed :: IO ()
+testSpillCheckedReaderWellFormed = do
+    let path = "/tmp/exchangealgebra_spill_checked_well_formed.bin"
+        chunks = [((1, 2), spillCheckedChunk1), ((3, 3), spillCheckedChunk2)]
+    writeSpillTestChunks path chunks
+    readResult <- ES.readBinarySpillFileChecked path
+        :: IO (Either (ES.SpillReadError Int) [((Int, Int), SpillRestoreJournal)])
+    case readResult of
+        Left err -> assertEqual "checked spill reader accepts well-formed chunks"
+            "Right with two chunks" (ES.renderSpillReadError err)
+        Right decoded -> assertEqual "checked spill reader returns both chunks"
+            2 (L.length decoded)
+    restored <- restoreJournalFromBinarySpillChecked path snd spillCheckedCurrent
+    case restored of
+        Left err -> assertEqual "checked spill restore accepts well-formed chunks"
+            "Right restored ledger" (ES.renderSpillReadError err)
+        Right actual -> assertEqual "checked spill restore merges spill + tail remainder"
+            (EJ.toMap spillCheckedExpected) (EJ.toMap actual)
+    removeSpillTestFile path
+
+testSpillCheckedReaderTruncated :: IO ()
+testSpillCheckedReaderTruncated = do
+    let path = "/tmp/exchangealgebra_spill_checked_truncated.bin"
+        encodedChunk2 = Binary.encode
+            ((3 :: Int, 3 :: Int), spillCheckedChunk2)
+        truncatedChunk2 = BL.take (BL.length encodedChunk2 `div` 2) encodedChunk2
+    removeSpillTestFile path
+    withFile path WriteMode $ \h -> do
+        ES.defaultBinarySpillWriter h (1 :: Int, 2 :: Int) spillCheckedChunk1
+        BL.hPut h truncatedChunk2
+    result <- ES.readBinarySpillFileChecked path
+        :: IO (Either (ES.SpillReadError Int) [((Int, Int), SpillRestoreJournal)])
+    case result of
+        Left (ES.SpillDecodeFailure offset chunks _) -> do
+            assertEqual "truncated spill failure follows first chunk" True (offset > 0)
+            assertEqual "truncated spill reports decoded chunk count" 1 chunks
+        other -> assertEqual "truncated spill is a decode failure"
+            "SpillDecodeFailure" (show other)
+    caught <- try
+        (restoreJournalFromBinarySpill path snd (mempty :: SpillRestoreJournal))
+        :: IO (Either ErrorCall SpillRestoreJournal)
+    case caught of
+        Left _ -> putStrLn "[PASS] unchecked spill restore raises ErrorCall"
+        Right _ -> assertEqual "unchecked spill restore raises ErrorCall" True False
+    removeSpillTestFile path
+
+testSpillCheckedReaderStaleAppend :: IO ()
+testSpillCheckedReaderStaleAppend = do
+    let path = "/tmp/exchangealgebra_spill_checked_stale_append.bin"
+    writeSpillTestChunks path
+        [ ((1, 2), spillCheckedChunk1)
+        , ((3, 3), spillCheckedChunk2)
+        , ((1, 2), spillCheckedChunk1)
+        ]
+    result <- ES.readBinarySpillFileChecked path
+        :: IO (Either (ES.SpillReadError Int) [((Int, Int), SpillRestoreJournal)])
+    assertEqual "checked spill reader rejects stale append"
+        (Left (ES.SpillRangeError ES.ChunkOutOfOrder (3, 3) (1, 2))) (fmap (fmap fst) result)
+    removeSpillTestFile path
+
+testSpillCheckedReaderOverlap :: IO ()
+testSpillCheckedReaderOverlap = do
+    let path = "/tmp/exchangealgebra_spill_checked_overlap.bin"
+    writeSpillTestChunks path
+        [((1, 3), spillCheckedChunk1), ((2, 4), spillCheckedChunk2)]
+    result <- ES.readBinarySpillFileChecked path
+        :: IO (Either (ES.SpillReadError Int) [((Int, Int), SpillRestoreJournal)])
+    assertEqual "checked spill reader rejects overlap"
+        (Left (ES.SpillRangeError ES.ChunkOverlap (1, 3) (2, 4))) (fmap (fmap fst) result)
+    removeSpillTestFile path
+
+testSpillCheckedReaderGap :: IO ()
+testSpillCheckedReaderGap = do
+    let path = "/tmp/exchangealgebra_spill_checked_gap.bin"
+    writeSpillTestChunks path
+        [((1, 2), spillCheckedChunk1), ((4, 4), spillCheckedChunk2)]
+    result <- ES.readBinarySpillFileChecked path
+        :: IO (Either (ES.SpillReadError Int) [((Int, Int), SpillRestoreJournal)])
+    assertEqual "checked spill reader rejects gap"
+        (Left (ES.SpillRangeError ES.ChunkGap (1, 2) (4, 4))) (fmap (fmap fst) result)
+    removeSpillTestFile path
+
+testSpillCheckedReaderEmptyRange :: IO ()
+testSpillCheckedReaderEmptyRange = do
+    let path = "/tmp/exchangealgebra_spill_checked_empty_range.bin"
+    writeSpillTestChunks path [((3, 1), spillCheckedChunk1)]
+    result <- ES.readBinarySpillFileChecked path
+        :: IO (Either (ES.SpillReadError Int) [((Int, Int), SpillRestoreJournal)])
+    assertEqual "checked spill reader rejects empty range"
+        (Left (ES.SpillEmptyRange (3, 1))) (fmap (fmap fst) result)
+    removeSpillTestFile path
+
+testSpillCheckedReaderEmptyFile :: IO ()
+testSpillCheckedReaderEmptyFile = do
+    let path = "/tmp/exchangealgebra_spill_checked_empty_file.bin"
+    removeSpillTestFile path
+    withFile path WriteMode $ \_ -> pure ()
+    result <- ES.readBinarySpillFileChecked path
+        :: IO (Either (ES.SpillReadError Int) [((Int, Int), SpillRestoreJournal)])
+    assertEqual "checked spill reader accepts empty file" (Right []) (fmap (fmap fst) result)
+    removeSpillTestFile path
 
 -- ================================================================
 -- SimulateEx1 reproduction (default scenario only, no parallelism)
@@ -6431,6 +6570,13 @@ main = do
     testIncomeSummaryBalancedNoCrash
     testSpillDecisionSingleSource
     testRestoreJournalFromBinarySpill
+    testSpillCheckedReaderWellFormed
+    testSpillCheckedReaderTruncated
+    testSpillCheckedReaderStaleAppend
+    testSpillCheckedReaderOverlap
+    testSpillCheckedReaderGap
+    testSpillCheckedReaderEmptyRange
+    testSpillCheckedReaderEmptyFile
     testSimulateEx1Default
     testCsvTranspose
     testCsvWriteCSV

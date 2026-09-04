@@ -102,9 +102,11 @@
     == Scope
 
     World records must be __product-only and non-nested__ (the generic traversal
-    in this module only handles @M1@ \/ @:*:@ \/ @K1@). Snapshot-dependent
-    term-boundary recomputation, ledger spill policies, and parallel speedup
-    measurement are intentionally out of scope for this layer.
+    in this module only handles @M1@ \/ @:*:@ \/ @K1@). Ledger retention, spill
+    and compaction are not decided in this module: they are supplied
+    declaratively as a 'LedgerPolicy' ("ExchangeAlgebra.Simulate.Policy") and
+    applied by 'runLiteWithPolicy'. Snapshot-dependent term-boundary
+    recomputation and parallel speedup measurement remain out of scope.
 -}
 
 module ExchangeAlgebra.Simulate.Lite
@@ -154,7 +156,7 @@ import           Control.Monad.ST           (ST, runST, RealWorld, stToIO)
 import           Data.STRef                 (STRef, newSTRef, readSTRef, writeSTRef, modifySTRef')
 import           Data.Hashable              (hash)
 import           Data.IORef                 (newIORef, readIORef, writeIORef)
-import           System.IO                  (Handle, IOMode(AppendMode), withFile)
+import           System.IO                  (Handle, IOMode(WriteMode), withFile)
 import           System.Random              (StdGen, mkStdGen)
 import           Control.Parallel.Strategies (parListChunk, rdeepseq, using)
 import           Control.DeepSeq            (deepseq)
@@ -718,12 +720,13 @@ runLiteWithPolicy pol spec wInit k = do
     firstUnspilled Nothing     = fst (specTerms spec)
     firstUnspilled (Just hi)   = succ hi
 
--- | Open the spill file in 'AppendMode' if a path is given; otherwise run the
--- continuation with no handle. Append (not truncate) so each term boundary adds
--- one chunk to a single file across the whole run.
+-- | Open the spill file in 'WriteMode' if a path is given; otherwise run the
+-- continuation with no handle. Truncate on open: one run writes one fresh file;
+-- a stale file from an earlier run would otherwise be appended to and fail the
+-- range checks in 'readBinarySpillFileChecked'.
 withMaybeSpillHandle :: Maybe FilePath -> (Maybe Handle -> IO a) -> IO a
 withMaybeSpillHandle Nothing     act = act Nothing
-withMaybeSpillHandle (Just path) act = withFile path AppendMode (act . Just)
+withMaybeSpillHandle (Just path) act = withFile path WriteMode (act . Just)
 
 -- | Apply 'EA.compress' to the entry of every Note whose term is strictly
 -- before @t@ (a /closed/ term), leaving the in-progress term untouched. Uses

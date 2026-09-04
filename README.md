@@ -89,38 +89,79 @@ needing the rest of the repository.
 
 ## Module Overview
 
-The public modules are organised into two parallel layers.
+The 31 public modules are organised into seven layers.
 
-### Foundation layer (Algebra)
+### Umbrella
 
-|Module|Role|
-|---|---|
-|`ExchangeAlgebra.Algebra`|Core algebra: the `Alg` type, `HatVal` / `BaseClass`, addition `.+` / hat `.^` / bar `.-` / projection `proj`|
-|`ExchangeAlgebra.Algebra.Base`|Basis classes (`BaseClass`, `HatBaseClass`, `ExBaseClass`) and basis display helpers|
-|`ExchangeAlgebra.Algebra.Base.Element`|The `Element` type class (wildcard-aware basis components)|
-|`ExchangeAlgebra.Algebra.Transfer`|Transfer rewriting (`TransTable`, `(.->)`, `transfer`, `finalStockTransfer`)|
+The recommended entry point collects the common single-period bookkeeping API.
 
-### Journal layer — metadata-aware basis algebra
+- `ExchangeAlgebra` — re-exports `Algebra`, `Algebra.Transfer`, `Value`, and `Write`.
 
-|Module|Role|
-|---|---|
-|`ExchangeAlgebra.Journal`|`Journal n v b` (journal entries carrying a `Note`), `sigmaOn`, `filterByAxis`, `projWithNote`, …|
-|`ExchangeAlgebra.Journal.Transfer`|Transfer API specialised for `Journal` (thin wrappers over `Algebra.Transfer`)|
+### Account vocabulary
 
-### Simulation / IO layer
+These modules define basis elements and the canonical account metadata vocabulary.
 
-|Module|Role|
-|---|---|
-|`ExchangeAlgebra.Simulate`|`StateSpace`, `Updatable`, `runSimulation`, spill-to-disk, ripple-effect utilities (`rippleEffect`, `leontiefInverse`)|
-|`ExchangeAlgebra.Simulate.Visualize`|Chart/Cairo based PNG rendering (see the caveats below)|
-|`ExchangeAlgebra.Write`|CSV output (`writeBS`, `writePL`, `writeIOMatrix`, `writeCSV`) and binary-spill restore helpers|
+- `ExchangeAlgebra.Algebra.Base.Element` — defines wildcard-aware basis components and the built-in account-title vocabulary.
+- `ExchangeAlgebra.Algebra.Base.Account.Types` — defines account metadata types shared by the basis and registry.
+- `ExchangeAlgebra.Algebra.Base.Account.JcciAliases` — supplies the generated JCCI 2022 account-name alias overlay.
+- `ExchangeAlgebra.Algebra.Base.Account.Registry` — is the exhaustive source of canonical account classification, semantics, and descriptions.
+- `ExchangeAlgebra.Algebra.Base` — defines basis classes, Hat/Not bases, account divisions, and basis display helpers.
 
-### Umbrella entry modules
+### Core algebra
 
-|Module|Content|
-|---|---|
-|`ExchangeAlgebra` (top level)|Umbrella for the Algebra layer: re-exports `Algebra`, `Algebra.Transfer`, `Write`, and `Simulate`|
-|`ExchangeAlgebra.Journal`|Umbrella for the Journal layer. Re-exports `Algebra.Base`, so user-defined `Element` instances are available through this import as well|
+These modules implement exchange-algebra values, transformations, and selectable numeric representations.
+
+- `ExchangeAlgebra.Algebra` — defines `Alg`, exchange-algebra operations, projections, and aggregation.
+- `ExchangeAlgebra.Algebra.Transfer` — rewrites existing algebra balances through transfer tables and closing transfers.
+- `ExchangeAlgebra.Value` — provides fast typed and exact non-negative value types for `Alg` and `Journal`.
+
+### Journal and simulation
+
+These modules attach notes to postings and run classic, Lite, network, policy-driven, and visual simulation workflows.
+
+- `ExchangeAlgebra.Journal` — defines metadata-bearing `Journal` values, indexed projections, and journal aggregation.
+- `ExchangeAlgebra.Journal.Transfer` — specialises the algebra transfer API to `Journal`.
+- `ExchangeAlgebra.Simulate` — provides the state-space engine, classic front-end, spill support, ripple utilities, and scenario execution.
+- `ExchangeAlgebra.Simulate.Policy` — declares retention, spill, and compaction policy for long simulations.
+- `ExchangeAlgebra.Simulate.Lite` — provides the product-HKD, BSP front-end with declarative field rules and stages.
+- `ExchangeAlgebra.Simulate.Network` — separates sparse trade-network topology from input coefficients and industrial flows.
+- `ExchangeAlgebra.Simulate.Visualize` — renders simulation grids and time series with Chart/Cairo.
+
+### Which simulation API to use
+
+`ExchangeAlgebra.Simulate.Lite` is the canonical front-end for new simulations: a `Generic`-derived world record, term-boundary field rules, stages, and `runLite` / `runLiteWithPolicy`. `ExchangeAlgebra.Simulate` is the engine underneath it (`StateTime`, spill and restore, `runSimulation`) and also exposes the older `Updatable` / `UpdatePattern` front-end used by the `simulateEx*`, `ripple*` and `cge` examples. That older front-end is kept for reproducibility of published results and receives no new features; write new models against Lite.
+
+### Bookkeeping and reporting
+
+These modules build adjustments, validate reporting boundaries, and produce statements and output.
+
+- `ExchangeAlgebra.Bookkeeping` — builds period-end adjustment postings from explicit external amounts.
+- `ExchangeAlgebra.Write` — formats bookkeeping reports and journals as CSV and restores binary spill files.
+- `ExchangeAlgebra.Reporting.Group` — defines presentation groups and contra-account netting policy.
+- `ExchangeAlgebra.TrialBalance.Validation` — reports trial-balance findings and gates reporting with explicit policies.
+- `ExchangeAlgebra.Reporting.Metric` — derives typed, read-only metrics without inserting posting coordinates.
+- `ExchangeAlgebra.Reporting.Presentation` — transforms validated trial balances into auditable JGAAP presentation.
+- `ExchangeAlgebra.Consolidation.Worksheet` — validates consolidation adjustments and preserves worksheet provenance.
+
+### Conversion and assistance
+
+These modules convert external postings safely and expose deterministic account-selection guidance.
+
+- `ExchangeAlgebra.Convert` — converts pure side, account-name, and amount data to and from algebra terms.
+- `ExchangeAlgebra.Convert.Csv` — reads a fixed journal CSV schema into normalized external postings.
+- `ExchangeAlgebra.Convert.Checked` — validates externally generated entries before constructing journal values.
+- `ExchangeAlgebra.Assist` — provides LLM-facing account metadata, suggestions, and validation explanations.
+- `ExchangeAlgebra.Assist.Descriptions` — preserves the compatibility projection of canonical account descriptions.
+
+### Optimisation
+
+These modules define a common solver interface and two concrete stochastic strategies.
+
+- `ExchangeAlgebra.Optimize` — defines the strategy-agnostic, monadic `Solver` interface.
+- `ExchangeAlgebra.Optimize.Annealing` — implements simulated annealing over arbitrary candidate types.
+- `ExchangeAlgebra.Optimize.GA` — implements a real-coded genetic algorithm over numeric vectors.
+
+Dependencies point downwards in this list with one exception: `Simulate.Policy` reaches `Write` for spill restore. A structural regrouping (an explicit `Simulate.Spill` / engine split, and a sub-library for the Chart-based `Simulate.Visualize`) is planned for a later release; module names in 0.5.0.0 are stable.
 
 Importing both `ExchangeAlgebra` and `ExchangeAlgebra.Journal` unqualified causes name
 collisions on `sigma`, `fromList`, `map`, `filter`, and friends. See the recommended import
@@ -253,6 +294,8 @@ import qualified ExchangeAlgebra.Simulate.Lite   as Lite
 ```
 
 ## Large-scale simulations (constant memory)
+
+For new Lite simulations, set `spillTo` in a `LedgerPolicy` and run with `runLiteWithPolicy`.
 
 `runSimulation` keeps the entire world state in memory for the whole run, so peak memory
 grows with the number of terms. For long horizons or large agent populations, use the
