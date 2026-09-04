@@ -22,6 +22,7 @@ vs an exact non-negative `Decimal` (`MoneyDecimal`) for determinism/auditability
 - Add the ordered CL-SBM `industrialNetwork` / `industrialFlows` generator and `industrialEx1`.
 - Add audit-eval compatibility, scoring, checkpoint, Track S checked-loader, and generated-suite tooling in the examples.
 - Improve performance with strict `Journal.fromList`, an exact-projection fast path, faster journal append, and projection-sharing trial-balance rows.
+- Tighten module boundaries: `Alg`, `Journal` and `TransTable` are abstract (`Algebra.Internal` holds the representation); posting authority lives in `Accounting.PostingPolicy`, account balances in `TrialBalance.Balance`, spill codec and restore in `Simulate.Spill`; `Write` no longer depends on `Simulate`; Chart plotting sits behind the `visualize` flag; typed `mapPosting`, `replaceNotes` and `mkJournal` replace implicit contracts.
 
 ### Breaking
 - **BREAKING: `Alg`, `Journal` and `TransTable` are abstract.** `Alg` exports
