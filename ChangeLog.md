@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Added
+- `ExchangeAlgebra.Algebra.extendBy`: the free extension of the redundant
+  algebra. `extendBy h` substitutes every scalar entry `v :@ b` by the algebra
+  `h v b` and merges with `(.+)`, i.e. the unique ℘-homomorphism that agrees
+  with `h` on the generators. `mapBasePart` is its relabelling special case and
+  `postFromNetBy` is the contrasting extension from the `bar` quotient. Laws are
+  documented per layer (℘ / raw) and pinned by properties (categorical phase 1
+  item (3), deferred from 0.5.0.0 by decision S3).
+
 ### Documentation
 - README "Migrating to 0.5.0.0": only the `Alg` representation (`Liner`) lives in
   `ExchangeAlgebra.Algebra.Internal`; the `Journal` and `TransTable` constructors

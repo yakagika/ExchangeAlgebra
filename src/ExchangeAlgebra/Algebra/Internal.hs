@@ -68,6 +68,7 @@ module ExchangeAlgebra.Algebra.Internal
     , mapPosting
     , mapMaybePosting
     , mapBasePart
+    , extendBy
     , filter
     , proj
     , projCredit
@@ -1405,6 +1406,54 @@ mapBasePart f (Liner m _ _ _ _ _) =
             m
 
 ------------------------------------------------------------
+-- | Free extension: substitute every scalar entry @v :\@ b@ by the algebra
+-- @h v b@ and merge the results with @('.+')@.
+--
+-- Through ℘ (see 'mapBasePart'), 'Alg' is the free commutative monoid on its
+-- entries, and @extendBy h@ is the unique ℘-homomorphism that agrees with @h@
+-- on the generators. It acts entry by entry in the /redundant/ layer, whereas
+-- 'postFromNetBy' first nets through 'bar' and extends from that quotient.
+-- 'mapBasePart' is the special case that keeps the value and the Hat\/Not side
+-- and only relabels the base part.
+--
+-- == Laws and their layer of validity
+--
+-- ℘ observes, for every full Hat\/Not base, the multiset of values and forgets
+-- the per-side sequence order. Through ℘:
+--
+-- * @extendBy h (x .+ y)@ equals @extendBy h x .+ extendBy h y@.
+-- * @extendBy (:\@)@ is the identity. Raw equality can fail because the
+--   result is rebuilt by a fold: the per-side order and the
+--   singleton-versus-@Liner@ representation may differ from @x@.
+-- * @mapBasePart f x@ equals
+--   @extendBy (\\v b -> v :\@ merge (hat b) (f (base b))) x@.
+-- * @norm (extendBy h x)@ equals the sum of @norm (h v b)@ over the entries of
+--   @x@ (exact additive value types; floating-point values carry the usual
+--   rounding caveat). In particular @norm@ is preserved whenever every
+--   @h v b@ has norm @v@.
+--
+-- Zero-valued entries are skipped, as in 'foldEntries'. Well-formedness of the
+-- algebras returned by @h@ (non-negative, finite values) is the caller's
+-- responsibility: build them with @('.\@')@ rather than the raw constructor.
+-- The sequence order of the result is a representation detail determined by
+-- the traversal of @x@; callers must not attach semantics to it.
+--
+-- Complexity: O(n · cost(h)) plus the cost of the @('.+')@ merges, in one
+-- pass over the entries.
+--
+-- >>> type T = Alg Double (HatBase CountUnit)
+-- >>> let split v b = (v / 2) :@ b .+ (v / 2) :@ b :: T
+-- >>> norm (extendBy split (10:@Not:<Yen .+ 4:@Hat:<Dollar :: T))
+-- 14.0
+--
+-- >>> extendBy (\v b -> v :@ b .+ v :@ b) (3:@Not:<Yen :: T) == (3:@Not:<Yen .+ 3:@Not:<Yen :: T)
+-- True
+{-# INLINE extendBy #-}
+extendBy :: (HatVal v, HatBaseClass b, HatBaseClass b')
+         => (v -> b -> Alg v b') -> Alg v b -> Alg v b'
+extendBy h = foldEntries (\acc v b -> acc .+ h v b) Zero
+
+------------------------------------------------------------
 -- | proj
 --
 -- Projects an 'Alg' onto the bases matching a query list. The query list is
@@ -1876,7 +1925,8 @@ decBy kf (Liner m _ _ _ _ _) =
 -- intermediate; the output is whatever @post@ builds. If you need the
 -- redundancy-preserving split itself, use 'decBy'.
 -- Thus it factors through the quotient induced by 'bar': it is not the free
--- extension that acts independently on entries in the redundant layer.
+-- extension that acts independently on entries in the redundant layer (that
+-- one is 'extendBy').
 --
 -- Complexity: O(m + Σ cost(post)).
 --

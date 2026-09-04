@@ -5274,6 +5274,38 @@ categoricalPhase1Properties = do
     quickProp "P2c bar: idempotence holds under raw Eq" $
         forAll genAlgN $ \x -> bar (bar x) == bar x
 
+    -- extendBy (0.5.1.0 A1): the free extension in the redundant layer.
+    let dup :: MoneyDecimal -> HatBase CountUnit -> NNAlg
+        dup v b = (v .@ b) .+ (v .@ b)
+        relabel :: (CountUnit -> CountUnit) -> MoneyDecimal -> HatBase CountUnit -> NNAlg
+        relabel f v b = v .@ EA.merge (EA.hat b) (f (EA.base b))
+    quickProp "P2c extendBy: (.+) homomorphism holds through per-base multisets" $
+        forAll genAlgN $ \x -> forAll genAlgN $ \y ->
+            observe (EA.extendBy dup (x .+ y) :: NNAlg)
+                == observe ((EA.extendBy dup x .+ EA.extendBy dup y) :: NNAlg)
+    quickProp "P2c extendBy: (:@) is the unit through per-base multisets" $
+        forAll genAlgN $ \x -> observe (EA.extendBy (:@) x :: NNAlg) == observe x
+    quickProp "P2c extendBy: mapBasePart is the relabelling special case" $
+        forAll genAlgN $ \x ->
+            observe (EA.mapBasePart (const Amount) x :: NNAlg)
+                == observe (EA.extendBy (relabel (const Amount)) x :: NNAlg)
+    quickProp "P2c extendBy: norm is the sum of the substituted norms" $
+        forAll genAlgN $ \x -> norm (EA.extendBy dup x :: NNAlg) == 2 * norm x
+    quickProp "P2c extendBy: substituting Zero everywhere yields Zero" $
+        forAll genAlgN $ \x -> EA.isZero (EA.extendBy (\_ _ -> EA.Zero) x :: NNAlg)
+
+    -- Raw counterexample for the unit law: a one-key Liner left by bar is
+    -- rebuilt as a singleton (:@), which Eq distinguishes although ℘ agrees.
+    let unitSource = (1 .@ (Not :< Yen))
+            .+ (1 .@ (Hat :< Yen))
+            .+ (2 .@ (Not :< Dollar)) :: NNAlg
+        unitOneKey = bar unitSource
+        unitRebuilt = EA.extendBy (:@) unitOneKey :: NNAlg
+    assertEqual "P2c extendBy: unit counterexample has equal multisets"
+        (observe unitOneKey) (observe unitRebuilt)
+    assertEqual "P2c extendBy: unit fails under raw Eq for one-key Liner"
+        False (unitRebuilt == unitOneKey)
+
 -- ================================================================
 -- Journal-algebra axiom properties (Phase 1.5)
 -- ================================================================

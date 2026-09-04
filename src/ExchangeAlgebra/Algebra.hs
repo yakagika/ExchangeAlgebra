@@ -48,6 +48,7 @@ module ExchangeAlgebra.Algebra
     , mapPosting
     , mapMaybePosting
     , mapBasePart
+    , extendBy
     , filter
     , proj
     , projCredit
