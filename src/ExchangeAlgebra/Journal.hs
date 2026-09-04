@@ -282,9 +282,9 @@ buildNoteAxisPosting =
         (\acc n _ -> insertNoteAxisPosting (toNoteAxisKeys n) n acc)
         emptyNoteAxisPosting
 
--- | The only safe way to build a 'Journal' from a base layer and a delta
+-- | The only safe way to build a t'Journal' from a base layer and a delta
 -- layer. It keeps the Note-axis indices consistent with both layers; see the
--- invariants note on 'Journal'. The base axis index is lazy, while the delta
+-- invariants note on t'Journal'. The base axis index is lazy, while the delta
 -- axis index is built eagerly.
 {-# INLINE mkJournal #-}
 mkJournal :: (Note n, HatVal v, HatBaseClass b)
@@ -510,7 +510,7 @@ instance (Note n, HatVal v, ExBaseClass b) => Exchange (Journal n) v b where
 -- fold is far cheaper at scale — the lazy right fold builds a deep right-nested
 -- thunk that is expensive to force (≈40x at N=20000, ~15x at N=10000 in the core
 -- benchmark). The fold direction was switched to the fast version once the
--- audited/exact path moved to 'ExchangeAlgebra.Value.MoneyDecimal'; see
+-- audited/exact path moved to t'ExchangeAlgebra.Value.MoneyDecimal'; see
 -- plans/in-progress/LAZY_EVAL_AUDIT.md and SELECTABLE_VALUE_TYPE_PLAN.md.
 --
 -- == Behaviour contract
@@ -524,10 +524,10 @@ instance (Note n, HatVal v, ExBaseClass b) => Exchange (Journal n) v b where
 -- 'norm' \/ 'bar' (IEEE-754 addition is non-associative). Postings that differ in
 -- note or base land in separate map entries and are unaffected.
 --
--- For an /exact/ value type ('ExchangeAlgebra.Value.MoneyDecimal') addition is
+-- For an /exact/ value type (t'ExchangeAlgebra.Value.MoneyDecimal') addition is
 -- associative, so 'norm' \/ 'bar' \/ balance are independent of construction order
 -- (the fold direction here, parallel merges, etc.). Use
--- 'ExchangeAlgebra.Value.MoneyDecimal' when you need
+-- t'ExchangeAlgebra.Value.MoneyDecimal' when you need
 -- deterministic, auditable totals.
 --
 -- >>> type Test = Journal String Double (HatBase AccountTitles)

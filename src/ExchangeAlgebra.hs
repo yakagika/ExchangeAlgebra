@@ -34,7 +34,7 @@
     * 'Prelude.Double' — fast IEEE-754; fine for simulations and quick work.
     * 'ExchangeAlgebra.Value.MoneyDouble' — same speed, but a dedicated money
       newtype so a ledger value cannot be confused with a raw coefficient.
-    * 'ExchangeAlgebra.Value.MoneyDecimal' — exact decimal; construction-order
+    * t'ExchangeAlgebra.Value.MoneyDecimal' — exact decimal; construction-order
       independent totals. Use for audited\/deterministic ledgers.
     * @Number.NonNegative.Double@ (@NN.Double@) — __deprecated__ since
       0.5.0.0: its @(-)@ errors on negative intermediates and the instance

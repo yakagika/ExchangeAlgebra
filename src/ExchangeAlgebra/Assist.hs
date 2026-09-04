@@ -72,7 +72,8 @@ data AccountInfo = AccountInfo
 -- | Describe a concrete account title.
 --
 -- The wildcard 'AccountTitle' is rejected because
--- 'classifyAccountDivision' is intentionally undefined for it.
+-- 'ExchangeAlgebra.Algebra.Base.classifyAccountDivision' is intentionally
+-- undefined for it.
 --
 -- >>> fmap ((== "現金") . aiNameJa) (describeAccount Cash)
 -- Just True

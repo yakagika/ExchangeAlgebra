@@ -500,7 +500,7 @@ createTransfer tt =
 
 -- | Income Summary Account: compute net income for the current period.
 -- When the ledger is balanced (credit == debit, net income is zero), @diffRL@
--- reports the wildcard 'Side'; in that case the input is returned unchanged
+-- reports the wildcard v'Side'; in that case the input is returned unchanged
 -- (balanced ledger = identity; appending a zero posting is not added).
 -- The result contains a legacy NetIncome/NetLoss balancing coordinate and is
 -- an intermediate closing state, not input for reporting presentation.  New

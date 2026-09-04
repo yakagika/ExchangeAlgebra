@@ -696,7 +696,7 @@ compoundTrialBalanceRows alg =
         let xl = fst gross   -- norm (decL xs) : debit gross
             xr = snd gross   -- norm (decR xs) : credit gross
             (dc, diff) = netGross gross
-            -- 'netGross'/'diffRL' returns the wildcard 'Side' with a zero
+            -- 'netGross'/'diffRL' returns the wildcard v'Side' with a zero
             -- difference when an account nets to zero (e.g. a fully-cleared
             -- suspense account). Treat that as no balance on either side
             -- (cf. 'sideCells').
@@ -765,7 +765,7 @@ balanceOf t = diffRL . projByAccountTitle t
 sideCells :: (HatVal n) => (Side, n) -> (T.Text, T.Text)
 sideCells (side, mag)
     | mag == zeroValue = (T.empty, T.empty)
-    -- 'diffRL' returns the wildcard 'Side' only when the net magnitude is zero,
+    -- 'diffRL' returns the wildcard v'Side' only when the net magnitude is zero,
     -- which the guard above has already handled; a non-zero balance is always
     -- 'Debit' or 'Credit'. The non-exhaustive @case@ is by design (audited).
     | otherwise = case side of
@@ -878,7 +878,7 @@ worksheetRows pre adj =
             addCol side mag d c = case side of
                 Debit  -> (d + mag, c)
                 Credit -> (d, c + mag)
-                _      -> (d, c)   -- wildcard 'Side' (balanced to zero): adds nothing
+                _      -> (d, c)   -- wildcard v'Side' (balanced to zero): adds nothing
             (ntbd, ntbc) = let (s,m) = tb in addCol s m tbd tbc
             (npld, nplc) | isPL      = addCol finalSide finalMag pld plc
                          | otherwise = (pld, plc)

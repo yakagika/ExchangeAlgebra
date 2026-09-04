@@ -8,7 +8,7 @@
 
     Simulated annealing over an arbitrary candidate type.
 
-    The candidate type is free (@a@ in @'Annealing' a@): investment
+    The candidate type is free (@a@ in @t'Annealing' a@): investment
     schedules, parameter records, vectors, ... — anything the
     'acNeighbor' move can perturb. The objective may be stateful
     (e.g. run an @ST s@ simulation); see "ExchangeAlgebra.Optimize"

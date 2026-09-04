@@ -28,7 +28,7 @@ Japanese\/abbreviation aliases), so unknown and ambiguous account names are
 rejected. @side@ is resolved with 'parseSide'. @amount@ is parsed by a
 caller-supplied function so the value type @v@ stays open; 'scientificAmount'
 covers the common case (a non-negative decimal literal via 'Data.Scientific').
-All values are placed through the non-negative smart constructor '.@' inside
+All values are placed through the non-negative smart constructor @(.@)@ inside
 'postingFromSide'.
 -}
 module ExchangeAlgebra.Convert.Csv
@@ -63,7 +63,7 @@ import           ExchangeAlgebra.Convert        ( ConvError(..)
 -- @"1000.50"@, @"1.5e3"@), converting to the value type @v@ exactly through
 -- 'toRational' (so exact-decimal types such as @MoneyDecimal@ keep their
 -- precision for terminating decimals). Negative amounts are rejected here so the
--- error is reported as a 'BadAmount' rather than surfacing later from '.@'.
+-- error is reported as a 'BadAmount' rather than surfacing later from @(.@)@.
 --
 -- >>> scientificAmount "1000.50" :: Either ConvError Double
 -- Right 1000.5
@@ -101,11 +101,12 @@ parseJournalCsvWith amount txt = do
 
 -- | Parse the rows of a journal CSV into @(Side, AccountTitles, value, note)@
 -- tuples, where @note@ is the optional 4th column (empty 'Text' if absent). The
--- note is returned as raw 'Text' so the caller can key a 'Journal' by it (the
--- 'ExchangeAlgebra.Journal.Note' instance for 'Text' makes
--- @term '.|' note@ immediate); this reader deliberately stays at the algebra
--- level and does not construct a 'Journal' itself, to avoid pulling the Journal
--- module into the dependency-light conversion layer.
+-- note is returned as raw 'Text' so the caller can key an
+-- 'ExchangeAlgebra.Journal.Journal' by it (the
+-- 'ExchangeAlgebra.Journal.Note' instance for 'Text' makes the @(.|)@ operator
+-- immediately applicable); this reader deliberately stays at the algebra
+-- level and does not construct an 'ExchangeAlgebra.Journal.Journal' itself, to
+-- avoid pulling the Journal module into the dependency-light conversion layer.
 --
 -- >>> let csv = "side,account,amount,note\ndebit,Cash,1000,opening\n"
 -- >>> parseNotedJournalCsv scientificAmount csv :: Either ConvError [(Side, AccountTitles, Double, Text)]

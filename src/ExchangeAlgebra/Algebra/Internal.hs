@@ -228,7 +228,7 @@ nearlyEqScaled x y
 -- (@'bar' ('bar' x) = 'bar' x@), 'Zero' identity, and associativity of @('.+')@.
 -- Note @('.+')@ accumulates same-base postings as an ordered sequence (the
 -- /redundancy/), so 'Show' \/ 'Eq' observe that order; for the exact value type
--- 'ExchangeAlgebra.Value.MoneyDecimal', 'norm' \/ 'bar' are order-independent.
+-- t'ExchangeAlgebra.Value.MoneyDecimal', 'norm' \/ 'bar' are order-independent.
 -- The order itself is furthermore /construction-path dependent/: the
 -- pairwise-union path ('fromList'\/'mconcat') and the bulk-merge path
 -- ('sigma'\/'unionsMerge') arrange the same multiset of postings differently.
@@ -1136,7 +1136,7 @@ toList (Liner m _ _ _ _ _)  = Map.foldlWithKey' f [] m
 -- commutative monoid of entries when each step acts through an associative,
 -- commutative accumulator operation (equivalently, entry updates commute).
 -- Under that condition the result is independent of both the internal
--- 'HashMap' traversal and each side's sequence order. For a non-commutative
+-- @HashMap@ traversal and each side's sequence order. For a non-commutative
 -- accumulator, such as list append, this is only an ordinary left fold: its
 -- result records the actual traversal order and can distinguish different
 -- sequence orders of the same entry multiset.
@@ -1382,7 +1382,7 @@ filter f (Liner m _ _ _ _ _) =
 -- In particular, @mapBasePart f (bar x) == bar (mapBasePart f x)@ is false in
 -- general: distinct source bases may collide only after relabelling. When
 -- collisions occur, @pairAppend@ preserves every value but the resulting
--- sequence order is a representation detail determined by 'HashMap' traversal;
+-- sequence order is a representation detail determined by @HashMap@ traversal;
 -- callers must not attach semantics to it.
 --
 -- Complexity: O(n) over distinct base keys (rebuilds the posting index once).

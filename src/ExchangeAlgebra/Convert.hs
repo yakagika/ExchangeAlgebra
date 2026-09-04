@@ -12,7 +12,7 @@ Description : Pure conversion between external (side, account-name, amount) data
               exchange-algebra terms. No serialization dependency (Text only).
 
 This module is the dependency-free core of the input-conversion layer: it turns
-externally supplied postings---a debit\/credit 'Side', an account name as 'Text',
+externally supplied postings---a debit\/credit t'Side', an account name as 'Text',
 and an amount---into exchange-algebra 'Alg' terms, and back. The format glue
 (JSON\/XML, i.e. @aeson@) deliberately lives outside the published library
 (see @examples\/audit-eval\/runner@), so the algebra core stays serialization-free.
@@ -171,7 +171,7 @@ parseAccountTitle t =
         Just as  -> Left (AmbiguousAccount t as)
         Nothing  -> Left (UnknownAccount t)
 
--- | Parse a side string (@"debit"@\/@"credit"@, case-insensitive) into 'Side'.
+-- | Parse a side string (@"debit"@\/@"credit"@, case-insensitive) into t'Side'.
 --
 -- >>> parseSide "debit"
 -- Right Debit
@@ -188,7 +188,7 @@ parseSide t = case normalizeTitle t of
 -- | The @Hat@\/@Not@ marker that places @account@ on the requested debit\/credit
 -- @side@. Derived from the library's 'whichSide' so the credit\/debit rule is not
 -- duplicated: an account sits on its \"natural\" side under 'Not'; if the
--- requested side differs, the 'Hat' (reversal) marker is used.
+-- requested side differs, the v'Hat' (reversal) marker is used.
 --
 -- >>> markerForSide Debit Cash
 -- Not

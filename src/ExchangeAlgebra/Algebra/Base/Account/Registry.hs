@@ -57,8 +57,10 @@ data AccountSpec = AccountSpec
     , asNameEn      :: Text
     , asNameJa      :: Text
     -- | Annotation-free Japanese display label (清書和文表示名) used for
-    -- financial-statement lines ('presentationLabel') and LLM-facing names
-    -- ('safeNameJa'). Unlike 'asNameJa' it never carries notes, legacy-name
+    -- financial-statement lines
+    -- ('ExchangeAlgebra.Reporting.Presentation.presentationLabel') and LLM-facing
+    -- names ('ExchangeAlgebra.Assist.safeNameJa'). Unlike 'asNameJa' it never
+    -- carries notes, legacy-name
     -- remarks, or constructor identifiers; the JCCI level-2 A-column sweep in
     -- the test suite pins it against the official standard names.
     , asLabelJa     :: Text
