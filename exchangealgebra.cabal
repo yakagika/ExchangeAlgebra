@@ -137,6 +137,7 @@ test-suite ExchangeAlgebra-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      Golden.WriteRows
       Paths_exchangealgebra
   hs-source-dirs:
       test

@@ -1,0 +1,17 @@
+# write-rows-0510 compoundTrialBalanceRows (foldr (.+) Zero (map snd ex7AllBalanced)); schema 1; commit 250cbf15d9663f163f98f0ce3650f057de80170d
+Debit Balance	Debit Total	Account Title	Credit Total	Credit Balance
+	508000	Cash	0	508000
+520000	0	CurrentDeposits	520000	
+60000	0	Building	60000	
+120000	0	AccountsReceivable	120000	
+	156000	Depreciation	0	156000
+680000	520000	Fixtures	1200000	
+	108000	AllowanceForDoubtfulAccounts	42000	66000
+	720000	AccumulatedDepreciation	96000	624000
+	42000	ProvisionForDoubtfulAccounts	0	42000
+	30000	BadDebtLoss	0	30000
+	40000	LossOnSalesOfFixedAssets	0	40000
+60000	0	GainOnSalesOfFixedAssets	60000	
+8000	0	RecoveryOfBadDebts	8000	
+18000	0	ReversalOfAllowanceForDoubtfulAccounts	18000	
+1466000	2124000	Total	2124000	1466000

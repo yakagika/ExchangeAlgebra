@@ -1,0 +1,11 @@
+# write-rows-0510 accountLedgerRows [Cash, AccountsReceivable, Sales] ex8CorrectionLedger ex8GetDay; schema 1; commit 250cbf15d9663f163f98f0ce3650f057de80170d
+Cash			
+Date	Debit	Date	Credit
+2024-03-10	45000	2024-03-10	45000
+2024-03-15	45000		
+AccountsReceivable			
+Date	Debit	Date	Credit
+		2024-03-15	45000
+Sales			
+Date	Debit	Date	Credit
+2024-03-10	45000	2024-03-10	45000

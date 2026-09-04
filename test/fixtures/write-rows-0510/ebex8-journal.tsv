@@ -1,0 +1,5 @@
+# write-rows-0510 journalRows ex8CorrectionLedger ex8GetDay; schema 1; commit 250cbf15d9663f163f98f0ce3650f057de80170d
+Day	Debit	Amount	Credit	Amount
+2024-03-10	Sales	45000	Sales	45000
+	Cash	45000	Cash	45000
+2024-03-15	Cash	45000	AccountsReceivable	45000

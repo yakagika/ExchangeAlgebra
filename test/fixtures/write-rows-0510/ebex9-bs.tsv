@@ -1,0 +1,12 @@
+# write-rows-0510 bsRows ex9AfterClosing; schema 1; commit 250cbf15d9663f163f98f0ce3650f057de80170d
+Asset		Liability	
+MerchandiseInventory	110000	LoansPayable	200000
+PrepaidExpenses	30000	AccountsPayable	200000
+Cash	774000	OtherPayables	100000
+AccountsReceivable	597000	Equity	
+AllowanceForDoubtfulAccounts	-7000	CapitalStock	1000000
+TradeReceivablesNet	590000	RetainedEarnings	364000
+Fixtures	700000	Total	1864000
+AccumulatedDepreciation	-190000		
+DepreciableAssetsNet	510000		
+Total	2014000		

@@ -1,0 +1,16 @@
+# write-rows-0510 postClosingTrialBalanceRows ex9AfterClosing; schema 1; commit 250cbf15d9663f163f98f0ce3650f057de80170d
+Debit	Account Title	Credit
+774000	Cash	
+	CurrentDeposits	150000
+597000	AccountsReceivable	
+	CapitalStock	1000000
+	RetainedEarnings	364000
+	LoansPayable	200000
+110000	MerchandiseInventory	
+30000	PrepaidExpenses	
+700000	Fixtures	
+	AccountsPayable	200000
+	OtherPayables	100000
+	AllowanceForDoubtfulAccounts	7000
+	AccumulatedDepreciation	190000
+2211000	Total	2211000

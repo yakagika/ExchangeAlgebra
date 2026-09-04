@@ -69,6 +69,7 @@ import qualified Data.Binary.Put     as BinaryPut
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text           as T
 import qualified Data.Text.IO        as TIO
+import           Golden.WriteRows
 import           Numeric             (showHex)
 import           Control.Monad       (forM_)
 import           Control.Monad.ST
@@ -2763,6 +2764,14 @@ testAccountSemanticsPrechangeGolden = do
         , T.pack "NetLossAttributableToNCI"
         ]
         changedTitles
+
+testWriteRowsGolden :: IO ()
+testWriteRowsGolden = do
+    assertEqual "write-rows-0510 fixture count"
+        10 (L.length writeRowsFixtures)
+    forM_ writeRowsFixtures $ \(name, expected) -> do
+        actualFile <- TIO.readFile (writeRowsFixtureDir ++ "/" ++ name)
+        assertEqual ("write-rows-0510 fixture " ++ name) actualFile expected
 
 -- Land 2 (Definition 7 contra amendment) 以降: alias 解決だけが byte 一致
 -- (parseAccountTitle は division 非依存)。semantics / info / suggest は
@@ -6822,6 +6831,7 @@ main = do
     testAssistSuggestAccounts
     testPostVocabGolden
     testAccountSemanticsPrechangeGolden
+    testWriteRowsGolden
     testRegistryGolden
     testJcciAccountNameCoverage
     testAccountLabelsLand4a

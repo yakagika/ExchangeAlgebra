@@ -1,0 +1,33 @@
+# write-rows-0510 compoundTrialBalanceRows ex6AllEntries; schema 1; commit 250cbf15d9663f163f98f0ce3650f057de80170d
+Debit Balance	Debit Total	Account Title	Credit Total	Credit Balance
+353000	30000	Cash	383000	
+	356000	CurrentDeposits	83000	273000
+	200000	AccountsReceivable	140000	60000
+	43000	BusinessTrip	0	43000
+	180000	WageExpenditure	0	180000
+	250000	Purchases	20000	230000
+350000	30000	Sales	380000	
+	30000	PettyCash	0	30000
+	80000	NotesReceivable	0	80000
+	50000	ElectronicallyRecordedReceivable	0	50000
+	96000	CreditCardReceivable	96000	
+	150000	NotesLoansReceivable	0	150000
+	15000	AdvancesPaid	0	15000
+	100000	OtherReceivables	0	100000
+	7000	PaymentsOnBehalf	0	7000
+	40000	SuspensePayments	40000	
+10000	90000	Fixtures	100000	
+	3000	CashOverShort	3000	
+60000	60000	AccountsPayable	120000	
+60000	0	NotesPayable	60000	
+40000	0	ElectronicallyRecordedObligations	40000	
+200000	0	NotesLoansPayable	200000	
+30000	0	BankOverdraft	30000	
+25000	0	AdvancesReceived	25000	
+90000	0	OtherPayables	90000	
+12000	0	DepositsReceived	12000	
+	60000	SuspenseReceipts	60000	
+	4000	PaymentFees	0	4000
+	1000	MiscellaneousLoss	0	1000
+	7000	CommunicationExpenses	0	7000
+1230000	1882000	Total	1882000	1230000

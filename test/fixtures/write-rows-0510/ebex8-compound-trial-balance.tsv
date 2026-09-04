@@ -1,0 +1,23 @@
+# write-rows-0510 compoundTrialBalanceRows (foldr (.+) Zero (map snd ex8SimpleBalanced)); schema 1; commit 250cbf15d9663f163f98f0ce3650f057de80170d
+Debit Balance	Debit Total	Account Title	Credit Total	Credit Balance
+40000	0	Cash	40000	
+	1000000	CurrentDeposits	300000	700000
+1000000	0	CapitalStock	1000000	
+	330000	RetainedEarnings	0	330000
+	12000	RentExpense	12000	
+	7500	InterestExpense	7500	
+	6000	InterestEarned	6000	
+	9000	RentalIncome	9000	
+	12000	PrepaidExpenses	12000	
+	6000	AccruedRevenue	6000	
+20000	0	ConsumptionTaxPaid	20000	
+	40000	PrepaidCorporateIncomeTaxes	40000	
+	9000	UnearnedRevenue	9000	
+	7500	AccruedExpenses	7500	
+	35000	ConsumptionTaxReceived	0	35000
+15000	0	AccruedConsumptionTax	15000	
+50000	0	AccruedCorporateIncomeTaxes	50000	
+	300000	UnpaidDividends	300000	
+30000	0	LegalRetainedEarnings	30000	
+	90000	CorporateIncomeTaxes	0	90000
+1155000	1864000	Total	1864000	1155000

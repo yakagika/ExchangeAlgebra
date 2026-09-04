@@ -1,0 +1,31 @@
+# write-rows-0510 worksheetRows ex9PreAdjustment ex9Adjustments; schema 1; commit 250cbf15d9663f163f98f0ce3650f057de80170d
+Account Title	Trial Balance		Adjustments		Profit & Loss		Balance Sheet	
+	Debit	Credit	Debit	Credit	Debit	Credit	Debit	Credit
+Cash	774000						774000	
+CurrentDeposits		150000						150000
+AccountsReceivable	597000						597000	
+CapitalStock		1000000						1000000
+RetainedEarnings		206000						206000
+LoansPayable		200000						200000
+Depreciation			70000		70000			
+BusinessTrip	25000				25000			
+UtilitiesExpense	12000				12000			
+RentExpense	120000			30000	90000			
+SuppliesExpenses	8000				8000			
+WageExpenditure	180000				180000			
+InterestExpense	6000				6000			
+Purchases	400000			30000	370000			
+ReceiptFee		40000				40000		
+Sales		900000				900000		
+MerchandiseInventory	80000		30000				110000	
+PrepaidExpenses			30000				30000	
+Fixtures	700000						700000	
+AccountsPayable		200000						200000
+OtherPayables		100000						100000
+AllowanceForDoubtfulAccounts		1000		6000				7000
+AccumulatedDepreciation		120000		70000				190000
+ProvisionForDoubtfulAccounts			6000		6000			
+CommunicationExpenses	15000				15000			
+Subtotal	2917000	2917000			782000	940000	2211000	2053000
+Net Income					158000			158000
+Total					940000	940000	2211000	2211000

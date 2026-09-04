@@ -1,0 +1,13 @@
+# write-rows-0510 accountLedgerRowsJournal [Cash, AccountsReceivable, Sales] ex8Journal; schema 1; commit 250cbf15d9663f163f98f0ce3650f057de80170d
+Cash		
+Note	Debit	Credit
+"20-1 wrong entry"	45000	
+"20-2 cancel entry"		45000
+"20-3 correct entry"	45000	
+AccountsReceivable		
+Note	Debit	Credit
+"20-3 correct entry"		45000
+Sales		
+Note	Debit	Credit
+"20-1 wrong entry"		45000
+"20-2 cancel entry"	45000	

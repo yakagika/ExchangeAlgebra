@@ -1,0 +1,14 @@
+# write-rows-0510 plRows ex9PostAdjustment; schema 1; commit 250cbf15d9663f163f98f0ce3650f057de80170d
+Cost		Revenue	
+InterestExpense	6000	Sales	900000
+RentExpense	120000	ReceiptFee	40000
+ProvisionForDoubtfulAccounts	6000		
+CommunicationExpenses	15000		
+UtilitiesExpense	12000		
+Depreciation	70000		
+Purchases	80000		
+Purchases	400000		
+BusinessTrip	25000		
+SuppliesExpenses	8000		
+WageExpenditure	180000		
+Total	940000	Total	922000
