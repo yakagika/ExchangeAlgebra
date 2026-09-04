@@ -75,7 +75,7 @@ import qualified Data.Binary             as Binary
 -- constructor rejects negative postings.
 newtype MoneyDecimal = MoneyDecimal Decimal
   -- Num/Fractional are derived so numeric literals (@10.5@, @0.08@) work directly,
-  -- with no @MoneyDecimal@ wrapper at use sites. Show/Eq/Ord delegate to 'Decimal'.
+  -- with no @MoneyDecimal@ wrapper at use sites. Show/Eq/Ord delegate to t'Decimal'.
   -- 'Real' (and thus 'toRational') is derived so values can be converted to/from
   -- @Double@ via 'realToFrac' at the simulation boundary: ABM parameters, input
   -- coefficients and random draws stay 'Double', and are converted to t'MoneyDecimal'
@@ -83,7 +83,7 @@ newtype MoneyDecimal = MoneyDecimal Decimal
   -- reporting. The ledger arithmetic in between is exact.
   deriving newtype (Eq, Ord, Show, Num, Fractional, Real)
 
--- | Project out the underlying 'Decimal'.
+-- | Project out the underlying t'Decimal'.
 toDecimal :: MoneyDecimal -> Decimal
 toDecimal (MoneyDecimal d) = d
 
@@ -108,7 +108,7 @@ instance HatVal MoneyDecimal where
 
 -- 'Binary'/'Hashable' are defined here (not orphan) because 'Data.Decimal' ships
 -- neither, and 'Alg'/t'Journal' serialisation and the binary spill path require
--- @Binary v@. Both go through the (places, mantissa) structure of 'Decimal'.
+-- @Binary v@. Both go through the (places, mantissa) structure of t'Decimal'.
 instance Binary.Binary MoneyDecimal where
     {-# INLINE put #-}
     put (MoneyDecimal (Decimal places mantissa)) = do

@@ -15,7 +15,8 @@
 
     @Simulate.Policy@ is a small, /additive/ vocabulary for declaring — once, at
     the point a ledger is built — how a long simulation should manage the size of
-    its audit trail. Instead of hand-wiring 'ExchangeAlgebra.Simulate.SpillOptions'
+    its audit trail. Instead of hand-wiring
+    t'ExchangeAlgebra.Simulate.Spill.SpillOptions'
     (seven fields plus 'filterWithNote' calls for term extraction and eviction),
     the user declares a t'LedgerPolicy' and lets the plumbing be /derived from the
     Note's term axis/.
@@ -220,9 +221,10 @@ instance (Note e1, Note e2, Note t) => HasTermAxis (e1, e2, t) where
 -- are still written if you want an external log. The 'compaction' field has no
 -- effect on this classic bridge (it is applied only in @runLiteWithPolicy@).
 -- The eviction arithmetic itself (step-back and per-chunk delete decision) is
--- single-sourced in "ExchangeAlgebra.Simulate" ('stepBackWith' /
--- 'spillDeleteDecision'); this bridge only maps the policy vocabulary onto
--- 'SpillOptions' (design-review C4).
+-- single-sourced in "ExchangeAlgebra.Simulate"
+-- ('ExchangeAlgebra.Simulate.Spill.stepBackWith' /
+-- 'ExchangeAlgebra.Simulate.Spill.spillDeleteDecision'); this bridge only maps
+-- the policy vocabulary onto t'SpillOptions' (design-review C4).
 policySpillOptions
     :: forall n v b t a.
        ( HasTermAxis n, TermOf n ~ t, StateTime t

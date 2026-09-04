@@ -627,7 +627,7 @@ accountGrossTotals = EA.foldEntries step OMap.empty
 -- | Net a @(debit gross, credit gross)@ pair into a @(Side, magnitude)@ balance,
 -- reproducing 'diffRL' exactly. 'diffRL' compares @r = 'norm' . 'decR'@ (credit)
 -- against @l = 'norm' . 'decL'@ (debit) with the scale-aware tolerance, so the
--- same comparison is applied here: near-equal sides report @('Side', 0)@,
+-- same comparison is applied here: near-equal sides report @(v'Side', 0)@,
 -- otherwise the larger side wins with the non-negative difference.
 --
 -- Complexity: O(1).
@@ -640,19 +640,19 @@ netGross (l, r)   -- l = debit gross, r = credit gross
 -- | Build the rows of a Compound Trial Balance (合計残高試算表), as a pure
 -- value (the part 'writeCompoundTrialBalance' renders to CSV). Calculates the
 -- debit total, credit total, and balance for each account title, aggregated
--- via the single-pass @'accountGrossTotals'@\/@'netGross'@ (the same
+-- via the single-pass @accountGrossTotals@\/@netGross@ (the same
 -- @diffRL@-equivalent netting as 'balanceOf'; no implicit @bar@). Layout:
 --
 -- > Debit Balance | Debit Total | Account Title | Credit Total | Credit Balance
 --
 -- __Legacy column-placement quirk (preserved verbatim):__ unlike
 -- 'worksheetRows'\/'postClosingTrialBalanceRows' (which route a @(side,mag)@
--- balance through 'sideCells', putting a Debit balance in the Debit cell and
+-- balance through @sideCells@, putting a Debit balance in the Debit cell and
 -- a Credit balance in the Credit cell), this layout places the balance
 -- figure in the column pair /opposite/ the netted side: a debit-heavy
 -- account's balance lands in the __Credit Balance__ (rightmost) column, and a
 -- credit-heavy account's balance lands in the __Debit Balance__ (leftmost)
--- column — see the example below. Reusing 'sideCells' here would require
+-- column — see the example below. Reusing @sideCells@ here would require
 -- flipping 'Debit'\/'Credit' first, which is no clearer than the explicit
 -- case analysis in @step@ below, so this was kept as-is rather than
 -- consolidated (design-review C7) to guarantee output is unchanged.

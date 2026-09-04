@@ -50,7 +50,7 @@ import           ExchangeAlgebra.Optimize
 import           System.Random            (StdGen, mkStdGen, uniformR)
 
 -- | Simulated-annealing strategy proxy. The phantom @a@ is the candidate
---   type; it is inferred from the 'AnnealingConfig' at the call site, so
+--   type; it is inferred from the t'AnnealingConfig' at the call site, so
 --   plain @'optimize' Annealing cfg obj x0@ needs no annotation.
 data Annealing a = Annealing
 

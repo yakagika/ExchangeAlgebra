@@ -878,7 +878,7 @@ mergeAlgMapIfNonZero !acc alg = mergeAlgMap acc alg
 -- | Merge multiple Algs by directly combining their internal HashMaps,
 -- building the AxisPosting index only once at the end.
 --
--- Produces the same /multiset/ of postings as 'unions'\/'mconcat', but the
+-- Produces the same /multiset/ of postings as @unions@\/'mconcat', but the
 -- same-base sequence order differs (the bulk-merge accumulates a new same-base
 -- singleton in front of the previously merged values, whereas the pairwise
 -- union path interleaves differently). 'Eq'\/@Binary@ observe that order, and

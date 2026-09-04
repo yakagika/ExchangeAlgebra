@@ -13,7 +13,7 @@ check.
 
 Detection and acceptance are deliberately separate. 'trialBalanceFindings'
 always reports the facts it can observe; 'validateTrialBalance' applies a
-'TrialBalancePolicy' and hides the 'ValidatedTrialBalance' constructor. No
+t'TrialBalancePolicy' and hides the v'ValidatedTrialBalance' constructor. No
 finding performs a reclassification automatically. A caller must record and
 apply a transfer, then validate the resulting trial balance again.
 

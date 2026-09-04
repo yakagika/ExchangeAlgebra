@@ -30,11 +30,11 @@ what this module exists to prevent.
 === Value domain
 
 Statement amounts are held as a @(debit gross, credit gross)@ pair and only
-netted at the last moment, into a 'RelativeAmount' carrying a __non-negative__
+netted at the last moment, into a t'RelativeAmount' carrying a __non-negative__
 magnitude plus a direction flag. Stored and rendered magnitudes therefore stay
 in \(\mathbb{R}_0^+\), including for soft-invariant value types such as
 @MoneyDecimal@. A minus sign exists only in rendered text, never in a stored
-'RelativeAmount'.
+t'RelativeAmount'.
 
 === Block invariant
 

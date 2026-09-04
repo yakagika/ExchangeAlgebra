@@ -17,7 +17,8 @@
     <https://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/82987/1/0809-7.pdf>
 
     'Alg' is abstract here: 'Zero' and '(:@)' can be constructed and matched,
-    the multi-posting 'Liner' representation and its cache fields are reachable
+    the multi-posting 'ExchangeAlgebra.Algebra.Internal.Liner' representation
+    and its cache fields are reachable
     only through "ExchangeAlgebra.Algebra.Internal".
 
 -}

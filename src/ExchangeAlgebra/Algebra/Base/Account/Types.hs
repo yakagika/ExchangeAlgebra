@@ -14,7 +14,8 @@ module ExchangeAlgebra.Algebra.Base.Account.Types
     , ReportingEligibility(..)
     ) where
 
--- | Account division (financial-statement classification). The 'AccountBase'
+-- | Account division (financial-statement classification). The
+-- 'ExchangeAlgebra.Algebra.Base.AccountBase'
 -- correspondence instance lives in "ExchangeAlgebra.Algebra.Base" (the class's
 -- home module), so this declaration stays instance-free.
 data AccountDivision = Assets       -- ^ Assets
@@ -24,7 +25,7 @@ data AccountDivision = Assets       -- ^ Assets
                      | Revenue      -- ^ Revenue
                      deriving (Ord, Show, Eq)
 
--- | Credit/debit distinction. 'Side' is the wildcard used by legacy APIs.
+-- | Credit/debit distinction. v'Side' is the wildcard used by legacy APIs.
 data Side = Credit -- ^ Credit side.
           | Debit  -- ^ Debit side.
           | Side   -- ^ Wildcard.
@@ -46,7 +47,9 @@ data FixedCurrent = Fixed   -- ^ Fixed
                   deriving (Show, Eq)
 
 -- | Accounting role of an account-basis coordinate. Roles are not assumed to
--- be mutually exclusive; see 'AccountSemantics' in the account registry.
+-- be mutually exclusive; see
+-- 'ExchangeAlgebra.Algebra.Base.Account.Registry.AccountSemantics' in the
+-- account registry.
 data AccountRole
     = OrdinaryAccount
     | ContraAccount

@@ -17,7 +17,7 @@
     and are never re-evaluated.
 
     Blend/simulated-binary crossover (BLX-alpha, SBX) are deliberately
-    /not/ options of 'GAConfig'; if needed they should become separate
+    /not/ options of t'GAConfig'; if needed they should become separate
     strategies so each strategy's rates keep one clear meaning.
 
     == Example

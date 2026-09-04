@@ -83,7 +83,7 @@ import           ExchangeAlgebra.Algebra
 import           ExchangeAlgebra.Value    (MoneyDecimal)
 import           GHC.Stack (HasCallStack)
 
--- | Injection that tells a builder how to wrap a @('Hat', 'AccountTitles')@ pair
+-- | Injection that tells a builder how to wrap a @(v'Hat', 'AccountTitles')@ pair
 -- into the concrete base @b@ in use. The caller supplies it once.
 --
 -- @
@@ -103,7 +103,7 @@ type MkBase b = Hat -> AccountTitles -> b
 up :: (HatVal v, ExBaseClass b) => MkBase b -> v -> AccountTitles -> Alg v b
 up mk v t = v .@ mk Not t
 
--- | The account /decreases/, so it carries 'Hat' (the opposite of its home side).
+-- | The account /decreases/, so it carries v'Hat' (the opposite of its home side).
 {-# INLINE down #-}
 down :: (HatVal v, ExBaseClass b) => MkBase b -> v -> AccountTitles -> Alg v b
 down mk v t = v .@ mk Hat t
@@ -357,7 +357,8 @@ accruedExpenseEntry mk amt expenseTitle =
 -- >>> bar (x .+ reversingEntry x) == Zero
 -- True
 --
--- Complexity: O(1) for a singleton, O(n) for a 'Liner' (n base keys).
+-- Complexity: O(1) for a singleton, O(n) for an
+-- 'ExchangeAlgebra.Algebra.Internal.Liner' (n base keys).
 {-# INLINE reversingEntry #-}
 reversingEntry :: (Redundant a v b) => a v b -> a v b
 reversingEntry = (.^)
@@ -568,11 +569,11 @@ equityMethodBalance = norm . bar . projByAccountTitle InvestmentInAssociate
 -- split.
 --
 -- 'RetainedEarnings' is a credit-balance equity account (@home = Credit@),
--- so a reduction (debit-side charge) is recorded with @'down'@ (@Hat@),
+-- so a reduction (debit-side charge) is recorded with @down@ (@Hat@),
 -- which places it on the debit side — correct-by-construction.
 --
 -- The credit leg (asset reduction) is collapsed into one posting
--- @'down' mk (current + prior) assetAcc@ because @'Num' v@ is available
+-- @down mk (current + prior) assetAcc@ because @'Num' v@ is available
 -- from the @'HatVal'@ superclass, making value addition clean; the
 -- two-line @.+@ alternative is equally valid under the seq-redundancy
 -- principle but the single line is more readable here.

@@ -104,7 +104,7 @@
     World records must be __product-only and non-nested__ (the generic traversal
     in this module only handles @M1@ \/ @:*:@ \/ @K1@). Ledger retention, spill
     and compaction are not decided in this module: they are supplied
-    declaratively as a 'LedgerPolicy' ("ExchangeAlgebra.Simulate.Policy") and
+    declaratively as a t'LedgerPolicy' ("ExchangeAlgebra.Simulate.Policy") and
     applied by 'runLiteWithPolicy'. Snapshot-dependent term-boundary
     recomputation and parallel speedup measurement remain out of scope.
 -}
@@ -342,12 +342,12 @@ gCommit wi wr = gCommit' (from wi) (from wr)
 --
 -- There are two constructors:
 --
---   * 'StageFor' — the original, fully general stage. Each agent emits a
+--   * @StageFor@ — the original, fully general stage. Each agent emits a
 --     t'Journal' directly, so the stage body is free to attach /any/ notes
 --     (including several different notes from one agent). Built with 'stageFor'
 --     or 'stage'.
 --
---   * 'StageTagged' — a /note-tagged/ stage whose note type is fixed to
+--   * @StageTagged@ — a /note-tagged/ stage whose note type is fixed to
 --     @(tag, t)@ by construction. Each agent emits a bare 'Alg' and the runner
 --     attaches the single note @(stTag, t)@ in __one place__ (@runStage@). This
 --     removes the write-site note duplication of @alg '.|' (Tag, t)@ and ties
@@ -366,7 +366,7 @@ gCommit wi wr = gCommit' (from wi) (from wr)
 -- The two constructors are observationally interchangeable for a one-note
 -- stage: @'stageOf' tag as f@ produces the same messages as
 -- @'stageFor' (show tag) as (\\v t g a -> f v t g a '.|' (tag, t))@ (asserted by
--- the @stageOf auto-note@ sentinel). 'StageTagged' only moves the @'.|' (tag, t)@
+-- the @stageOf auto-note@ sentinel). @StageTagged@ only moves the @'.|' (tag, t)@
 -- from the stage body into the runner.
 data Stage w t n v b where
   StageFor    :: { stName   :: String
@@ -396,7 +396,7 @@ stage :: String
 stage name f = StageFor name [()] (\v t _g () -> f v t)
 
 -- | Build a __note-tagged__ stage: each agent emits a bare 'Alg' and the runner
--- attaches the single note @('stTag', t)@ once, in @runStage@. The note type is
+-- attaches the single note @(stTag, t)@ once, in @runStage@. The note type is
 -- fixed to @(tag, t)@ by the result type, so the write-site tag (the @tag@
 -- argument) and any read-site @projWithNote [(tag, t)]@ are checked against the
 -- same constructor by the type-checker — a stringly-typed mismatch becomes a
@@ -417,9 +417,9 @@ stageOf :: (Note tag)
         -> Stage w t (tag, t) v b
 stageOf = StageTagged
 
--- | The display name of a stage: 'stName' for 'StageFor', @'show' 'stTag'@ for
--- 'StageTagged' (the tag's 'Show' comes from its 'Note' superclass). Use this
--- instead of 'stName' when a stage may be either constructor.
+-- | The display name of a stage: @stName@ for @StageFor@, @show stTag@ for
+-- @StageTagged@ (the tag's 'Show' comes from its 'Note' superclass). Use this
+-- instead of @stName@ when a stage may be either constructor.
 stageName :: Stage w t n v b -> String
 stageName (StageFor    nm _ _) = nm
 stageName (StageTagged tg _ _) = show tg
@@ -724,7 +724,8 @@ runLiteWithPolicy pol spec wInit k = do
 -- | Open the spill file in 'WriteMode' if a path is given; otherwise run the
 -- continuation with no handle. Truncate on open: one run writes one fresh file;
 -- a stale file from an earlier run would otherwise be appended to and fail the
--- range checks in 'readBinarySpillFileChecked'.
+-- range checks in
+-- 'ExchangeAlgebra.Simulate.Spill.readBinarySpillFileChecked'.
 withMaybeSpillHandle :: Maybe FilePath -> (Maybe Handle -> IO a) -> IO a
 withMaybeSpillHandle Nothing     act = act Nothing
 withMaybeSpillHandle (Just path) act = withFile path WriteMode (act . Just)

@@ -87,7 +87,7 @@ instance (Element e1, Element e2, Element e3, Element e4, Element e5, Element e6
 -- Not (increase) label at the base level in exchange algebra. Note that Hat\/Not
 -- is __not__ the debit\/credit distinction: the side of a posting is determined
 -- by the account division /together with/ this label (see 'whichSide' — an
--- account sits on its home side when 'Not' and on the opposite side when 'Hat').
+-- account sits on its home side when 'Not' and on the opposite side when v'Hat').
 class (BaseClass a, BaseClass (BasePart a), AxisDecompose (BasePart a)) => HatBaseClass a where
     -- | The type of the base part excluding the Hat.
     type BasePart a
@@ -157,7 +157,7 @@ instance HatBaseClass Hat where
     base _ = BaseForSingleHat
 
     -- NB. 'merge'\/'revHat'\/'isHat' below match only @Hat@ and @Not@. The third
-    -- 'Hat' constructor @HatNot@ is the formalization-only wildcard state (the
+    -- v'Hat' constructor @HatNot@ is the formalization-only wildcard state (the
     -- paper convention is the 2-state Hat\/Not; see CLAUDE.md "HatNot wildcard").
     -- These methods are never invoked on a @HatNot@ label by library code, so the
     -- non-exhaustive @-Wincomplete-patterns@ here is by design (audited). Adding a
@@ -376,11 +376,11 @@ class (HatBaseClass a) => ExBaseClass a where
     -- The home side is 'defaultSide' of the division, reversed for contra
     -- accounts ('isContra'). Takes the Hat/Not reversal into account: an
     -- account sits on its home side under 'Not' and on the opposite side
-    -- under 'Hat'. A 'HatNot' (wildcard) label is rejected with an error —
+    -- under v'Hat'. A 'HatNot' (wildcard) label is rejected with an error —
     -- same policy as 'isHat': stored postings are always Hat\/Not, so a
     -- wildcard here means a query-side value leaked into a posting-side
     -- computation (this function previously treated 'HatNot' silently as
-    -- 'Hat'). Complexity: O(1)
+    -- v'Hat'). Complexity: O(1)
     {-# INLINE whichSide #-}
     whichSide   :: a -> Side
     whichSide x =
