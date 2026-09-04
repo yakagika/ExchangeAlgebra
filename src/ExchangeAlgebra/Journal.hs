@@ -41,6 +41,7 @@ module ExchangeAlgebra.Journal
     , NoteAxisPosting
     , Journal(..)
     , pattern ExchangeAlgebra.Journal.Zero
+    , mkJournal
     , (.|)
     , toAlg
     , toMap
@@ -53,6 +54,7 @@ module ExchangeAlgebra.Journal
     , decTo
     , sigmaM
     , map
+    , replaceNotes
     , insert
     , projWithNote
     , projWithBase
@@ -280,8 +282,10 @@ buildNoteAxisPosting =
         (\acc n _ -> insertNoteAxisPosting (toNoteAxisKeys n) n acc)
         emptyNoteAxisPosting
 
--- | Smart constructor for Journal.
--- Base axis index is lazy; delta axis index is built eagerly.
+-- | The only safe way to build a 'Journal' from a base layer and a delta
+-- layer. It keeps the Note-axis indices consistent with both layers; see the
+-- invariants note on 'Journal'. The base axis index is lazy, while the delta
+-- axis index is built eagerly.
 {-# INLINE mkJournal #-}
 mkJournal :: (Note n, HatVal v, HatBaseClass b)
           => Map.HashMap n (Alg v b) -> Map.HashMap n (Alg v b) -> Journal n v b
@@ -694,7 +698,17 @@ map f = fromMap . Map.map f . toMap
 -- based variant of 'map') were removed as dead code: neither was exported nor
 -- called. Reintroduce from history if a parallel journal map is needed.
 
--- | Insert x into y. If x's Note already exists in y, it is overwritten with x's value.
+-- | Left-biased replacement of whole Notes. If a Note in the left Journal also
+-- exists in the right Journal, the complete left value replaces the right
+-- value. This is not redundant addition; contrast with '(.+)'.
+--
+-- Complexity: O(n + m) where n, m are the number of Notes in each Journal
+replaceNotes :: (HatVal v, HatBaseClass b, Note n)
+             => Journal n v b -> Journal n v b -> Journal n v b
+replaceNotes x y = fromMap (Map.union (toMap x) (toMap y))
+
+{-# DEPRECATED insert "Use replaceNotes; insert replaces whole notes and is not the redundant (.+)" #-}
+-- | Deprecated alias for 'replaceNotes'.
 --
 -- >>> type Test = Journal String Double (HatBase AccountTitles)
 -- >>> x = 10.00:@Not:<Cash .| "A" :: Test
@@ -704,8 +718,7 @@ map f = fromMap . Map.map f . toMap
 -- 20.00:@Not:<Cash.|"B" .+ 30.00:@Hat:<Cash.|"A"
 insert :: (HatVal v, HatBaseClass b, Note n)
         => Journal n v b -> Journal n v b -> Journal n v b
--- Complexity: O(n + m) where n, m are the number of Notes in each Journal
-insert x y = fromMap (Map.union (toMap x) (toMap y))
+insert = replaceNotes
 
 ------------------------------------------------------------------
 -- | projWithNote

@@ -41,6 +41,7 @@ module ExchangeAlgebra.Journal.Transfer
     , ExchangeAlgebra.Journal.Transfer.grossProfitTransfer
     , ExchangeAlgebra.Journal.Transfer.ordinaryProfitTransfer
     , ExchangeAlgebra.Journal.Transfer.retainedEarningTransfer
+    , ExchangeAlgebra.Journal.Transfer.finalStockTransferAggregated
     , ExchangeAlgebra.Journal.Transfer.finalStockTransfer
     ) where
 
@@ -125,8 +126,18 @@ ordinaryProfitTransfer = EJ.map EAT.ordinaryProfitTransfer
 retainedEarningTransfer :: (Note n, HatVal v, ExBaseClass b) => Journal n v b -> Journal n v b
 retainedEarningTransfer = EJ.map EAT.retainedEarningTransfer
 
--- | Income summary account (Journal version). Transfer all cost and revenue accounts to RetainedEarnings, then offset using the Bar operation.
+-- | Apply the Algebra-level closing to every Note and then fold the Note axis
+-- onto the plank via the Journal's '(.-)'. The per-Note lift without folding is
+-- @EJ.map EAT.finalStockTransfer@.
+--
+-- Complexity: O(j * s)
+finalStockTransferAggregated ::(Note n, HatVal v, ExBaseClass b) =>  Journal n v b -> Journal n v b
+finalStockTransferAggregated = (.-) . EJ.map finalStockTransferStep
+
+-- | Compatibility name for 'finalStockTransferAggregated'.
+-- Its behaviour is unchanged: it closes each Note and folds the Note axis onto
+-- the plank.
 --
 -- Complexity: O(j * s)
 finalStockTransfer ::(Note n, HatVal v, ExBaseClass b) =>  Journal n v b -> Journal n v b
-finalStockTransfer = (.-) . EJ.map finalStockTransferStep
+finalStockTransfer = finalStockTransferAggregated

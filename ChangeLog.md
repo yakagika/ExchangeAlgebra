@@ -191,6 +191,12 @@ vs an exact non-negative `Decimal` (`MoneyDecimal`) for determinism/auditability
   untyped `undefined` placeholder (audit R3).
 
 ### Added
+- Add typed `mapPosting` / `mapMaybePosting` (one posting to exactly one, or
+  to zero or one, with the same zero normalisation as `(.@)`), the explicit
+  `Journal.replaceNotes` (left-biased whole-note replacement), and
+  `Journal.Transfer.finalStockTransferAggregated`, the name that makes visible
+  that the Journal-level closing folds the note axis onto the plank via `(.-)`.
+  `Journal.mkJournal` is now exported as the safe constructor.
 - Add `SpillReadError` / `SpillRangeIssue`, `readBinarySpillFileChecked`,
   `restoreJournalFromBinarySpillChecked` and `renderSpillReadError`, the
   `Either`-returning forms of the spill readers.
@@ -858,6 +864,9 @@ vs an exact non-negative `Decimal` (`MoneyDecimal`) for determinism/auditability
   the selectable value type.
 
 ### Deprecated
+- `Journal.insert`: deprecated alias of `replaceNotes`. The name suggested a
+  redundant addition, but it replaces whole notes (left-biased) and is not
+  `(.+)`.
 - `projNorm` / `projWithBaseNorm` / `projWithNoteNorm`: deprecated aliases of
   `projNetNorm` / `projWithBaseNetNorm` / `projWithNoteBaseNetNorm` (see
   Changed — the old names concealed the bar-netting). Removal planned for 0.6.
@@ -1000,6 +1009,8 @@ vs an exact non-negative `Decimal` (`MoneyDecimal`) for determinism/auditability
   scope.
 
 ### Internal
+- Drop `mtl` from the library dependencies (no module in `src/` imports it);
+  the test suite keeps it as a test-only dependency.
 - `-Wall` warning cleanup (audit R9): removed unused imports\/bindings, silenced
   unused-match and name-shadowing warnings (mechanical, behaviour-preserving), and
   documented the remaining audited non-exhaustive patterns in place (168 → 27

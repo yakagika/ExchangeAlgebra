@@ -436,6 +436,63 @@ journalSample = EJ.fromList [x, y, z]
     y = ((2 :@ (Not :< Yen)) .+ (2 :@ (Hat :< Amount))) .| "dog"  :: TestJournal
     z = ((3 :@ (Hat :< Yen)) .+ (3 :@ (Not :< Amount))) .| "fish" :: TestJournal
 
+testReplaceNotesMatchesInsert :: IO ()
+testReplaceNotesMatchesInsert = do
+    let x = (10.00 .@ (Not :< Cash)) .| "A"
+                :: EJ.Journal String Double (HatBase AccountTitles)
+        y = (20.00 .@ (Not :< Cash)) .| "B"
+                :: EJ.Journal String Double (HatBase AccountTitles)
+        z = (30.00 .@ (Hat :< Cash)) .| "A"
+                :: EJ.Journal String Double (HatBase AccountTitles)
+        source = x .+ y
+        expected = z .+ y
+    assertEqual "Journal.replaceNotes replaces the complete matching Note"
+        (EJ.toMap expected)
+        (EJ.toMap (EJ.replaceNotes z source))
+    assertEqual "Journal.replaceNotes matches insert"
+        (EJ.toMap (EJ.insert z source))
+        (EJ.toMap (EJ.replaceNotes z source))
+
+testMapPosting :: IO ()
+testMapPosting = do
+    let source =  (1 .@ (Hat :< Yen))
+               .+ (2 .@ (Hat :< Yen))
+               .+ (3 .@ (Not :< Amount))
+               .+ (4 .@ (Hat :< Amount))
+               :: TestAlg
+        actual = EA.mapPosting (\v b -> (2 * v, b)) source
+    assertNear "Algebra.mapPosting doubles norm"
+        (2 * norm source) (norm actual)
+    assertEqual "Algebra.mapPosting preserves posting count"
+        (length (EA.toList source)) (length (EA.toList actual))
+    assertEqual "Algebra.mapPosting preserves posting order"
+        (EA.toList (2 .* source)) (EA.toList actual)
+
+testMapMaybePosting :: IO ()
+testMapMaybePosting = do
+    let droppedBase = Not :< Amount :: HatBase CountUnit
+        zeroedBase = Hat :< Yen :: HatBase CountUnit
+        source =  (1 .@ (Hat :< Yen))
+               .+ (2 .@ (Hat :< Yen))
+               .+ (3 .@ droppedBase)
+               .+ (4 .@ (Hat :< Amount))
+               :: TestAlg
+        dropped = EA.mapMaybePosting
+            (\v b -> if b == droppedBase then Nothing else Just (v, b))
+            source
+        zeroed = EA.mapMaybePosting
+            (\v b -> Just (if b == zeroedBase then 0 else v, b))
+            source
+        without b = L.filter (\posting -> case posting of
+            _ :@ b' -> b' /= b
+            _       -> False)
+    assertNear "Algebra.mapMaybePosting drop decreases norm"
+        (norm source - 3) (norm dropped)
+    assertEqual "Algebra.mapMaybePosting drop preserves remaining order"
+        (without droppedBase (EA.toList source)) (EA.toList dropped)
+    assertEqual "Algebra.mapMaybePosting normalises zero values away"
+        (without zeroedBase (EA.toList source)) (EA.toList zeroed)
+
 -- | Multi-pattern 'proj' uses __set__ semantics: a duplicated query selects the
 -- same posting only once (no double counting). The de-duplicated query list and
 -- its de-duplicated counterpart must give identical results.
@@ -956,6 +1013,18 @@ testFinalStockTransferJournalEquivalence = do
                 $ transferJournalSample
         actual = EJT.finalStockTransfer transferJournalSample
     assertEqual "Journal.finalStockTransfer matches composed transfer" (EJ.toMap ref) (EJ.toMap actual)
+
+testFinalStockTransferAggregatedAlias :: IO ()
+testFinalStockTransferAggregatedAlias = do
+    let twoNotes = EJ.fromList
+            [ ((5 .@ (Not :< (Sales, 2, 1, Yen)))
+                .+ (2 .@ (Hat :< (WageExpenditure, 1, 1, Yen)))) .| "A"
+            , ((7 .@ (Hat :< (InterestExpense, 5, 5, Yen)))
+                .+ (3 .@ (Not :< (InterestEarned, 4, 4, Yen)))) .| "B"
+            ] :: TransferJournal
+    assertEqual "Journal.finalStockTransferAggregated matches finalStockTransfer"
+        (EJ.toMap (EJT.finalStockTransfer twoNotes))
+        (EJ.toMap (EJT.finalStockTransferAggregated twoNotes))
 
 type FinalStockProbe = EA.Alg Double (HatBase AccountTitles)
 
@@ -6535,6 +6604,9 @@ main :: IO ()
 main = do
     testAccountTitlesBinary
     testAccountTitleClassification
+    testReplaceNotesMatchesInsert
+    testMapPosting
+    testMapMaybePosting
     testProjMultiPatternOnePass
     testProjNormFastPath
     testProjDuplicateExact
@@ -6563,6 +6635,7 @@ main = do
     testFilterByAxisWithDeltaUpdates
     testFinalStockTransferAlgEquivalence
     testFinalStockTransferJournalEquivalence
+    testFinalStockTransferAggregatedAlias
     testFinalStockRegistryClosedDiff
     testFinalStockRuleReference
     testVocabOrdinalPin

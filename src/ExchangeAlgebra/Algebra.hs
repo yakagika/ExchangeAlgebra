@@ -61,6 +61,8 @@ module ExchangeAlgebra.Algebra
     , sigmaFromMap
     , toASCList
     , map
+    , mapPosting
+    , mapMaybePosting
     , mapBasePart
     , filter
     , proj
@@ -1160,6 +1162,7 @@ toASCList = L.sort . toList
 
 -- | map
 -- Complexity: O(s + c), where s is traversed scalar entries and c is transformed output size.
+-- Typed alternatives: 'mapPosting' and 'mapMaybePosting'.
 --
 -- >>> type Test = Alg Double (HatBase CountUnit)
 -- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
@@ -1246,6 +1249,42 @@ map f (Liner m _ _ _ _ _) = mkAlgFromMap $ (Map.foldrWithKey (p f) dnilMap m) Ma
                                 | otherwise          -> (dappendMap dlAcc (dsingleMap ( base b2
                                                                           ,nullPair{_notSide = Seq.singleton v2} ))
                                                         ,vsAcc )
+
+-- | Map every posting to exactly one posting. The typed form of 'map'.
+mapPosting :: (HatVal v, HatVal v2, HatBaseClass b, HatBaseClass b2)
+           => (v -> b -> (v2, b2)) -> Alg v b -> Alg v2 b2
+mapPosting f = mapMaybePosting (\v b -> Just (f v b))
+
+-- | Map every posting to zero or one posting. A 'Nothing' drops the posting;
+-- a zero value is normalised as by '(.@)'.
+mapMaybePosting :: (HatVal v, HatVal v2, HatBaseClass b, HatBaseClass b2)
+                => (v -> b -> Maybe (v2, b2)) -> Alg v b -> Alg v2 b2
+mapMaybePosting _ Zero = Zero
+mapMaybePosting f (v :@ b) = case f v b of
+    Nothing       -> Zero
+    Just (v2, b2) -> v2 .@ b2
+mapMaybePosting f (Liner m _ _ _ _ _) =
+    mkAlgFromMap $ Map.foldrWithKey addPair id m Map.empty
+  where
+    {-# INLINE addPair #-}
+    addPair bp (Pair hs ns) accDMap =
+        mapSide Hat bp hs . mapSide Not bp ns . accDMap
+
+    {-# INLINE mapSide #-}
+    mapSide h bp = Foldable.foldl' (mapOne (merge h bp)) id
+
+    {-# INLINE mapOne #-}
+    mapOne b dlAcc v = case f v b of
+        Nothing       -> dlAcc
+        Just (v2, b2) -> case v2 .@ b2 of
+            Zero       -> dlAcc
+            v3 :@ b3   -> dlAcc . Map.insertWith pairAppend (base b3) (postingPair v3 b3)
+            Liner {}   -> dlAcc
+
+    {-# INLINE postingPair #-}
+    postingPair v b
+        | isHat (hat b) = nullPair {_hatSide = Seq.singleton v}
+        | otherwise     = nullPair {_notSide = Seq.singleton v}
 
 -- Difference-map (endo) used by 'map' to accumulate Liner rebuilds in O(1).
 -- NB. The plain difference-list helpers (dnil/dappend/dsingle/dToList/dFromList)
