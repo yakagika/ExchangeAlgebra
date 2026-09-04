@@ -34,6 +34,7 @@ flag visualize
 library
   exposed-modules:
       ExchangeAlgebra
+      ExchangeAlgebra.Accounting
       ExchangeAlgebra.Accounting.PostingPolicy
       ExchangeAlgebra.Algebra
       ExchangeAlgebra.Algebra.Base
@@ -42,6 +43,7 @@ library
       ExchangeAlgebra.Algebra.Base.Account.Types
       ExchangeAlgebra.Algebra.Base.Element
       ExchangeAlgebra.Algebra.Internal
+      ExchangeAlgebra.Algebra.Readout.Net
       ExchangeAlgebra.Algebra.Transfer
       ExchangeAlgebra.Assist
       ExchangeAlgebra.Assist.Descriptions
@@ -50,6 +52,7 @@ library
       ExchangeAlgebra.Convert
       ExchangeAlgebra.Convert.Checked
       ExchangeAlgebra.Convert.Csv
+      ExchangeAlgebra.Foundation
       ExchangeAlgebra.Journal
       ExchangeAlgebra.Journal.Transfer
       ExchangeAlgebra.Optimize

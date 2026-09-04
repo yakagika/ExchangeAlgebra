@@ -22,4 +22,9 @@ main = doctest  [ "-isrc"
                 , "src/ExchangeAlgebra/Reporting/Group.hs"
                   -- optimization layer: not re-exported from the umbrella,
                   -- so listed explicitly to check its examples too.
-                , "src/ExchangeAlgebra/Optimize.hs"]
+                , "src/ExchangeAlgebra/Optimize.hs"
+                  -- 0.5.1.0 umbrellas (re-export only): not reachable from the
+                  -- top-level umbrella, so listed explicitly.
+                , "src/ExchangeAlgebra/Foundation.hs"
+                , "src/ExchangeAlgebra/Accounting.hs"
+                , "src/ExchangeAlgebra/Algebra/Readout/Net.hs"]

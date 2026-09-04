@@ -10,6 +10,22 @@
   `postFromNetBy` is the contrasting extension from the `bar` quotient. Laws are
   documented per layer (℘ / raw) and pinned by properties (categorical phase 1
   item (3), deferred from 0.5.0.0 by decision S3).
+- `ExchangeAlgebra.Foundation` and `ExchangeAlgebra.Accounting`: two
+  re-export-only umbrellas that split the surface along Appendix A of Akagi
+  (2026). `Foundation` is Definitions 1-6 (elements, bases, hat bases, the
+  redundant algebra with `bar` / `norm`, base-generic projection and
+  substitution) with no accounting vocabulary and no registry; `Accounting`
+  is the Definition 7-9 core (`ExBaseClass`, account titles / divisions /
+  sides, the `Exchange` decomposition `decL` / `decR` / `decP` / `decM`, the
+  account-aware projections, and the `TransTable` transfer triple). Both
+  re-export item by item, so no type changes and `ExchangeAlgebra.Algebra`
+  is untouched. `HatNot` is exported from `Foundation` as the query wildcard
+  and documented as not being a posting state.
+- `ExchangeAlgebra.Algebra.Readout.Net`: a namespace for the read-outs that
+  leave the redundant algebra through the `bar` quotient (`projNetNorm` /
+  `projNorm`, the signed `balanceBy` / `balanceMapBy`, `netPairMapBy`, and
+  the journal counterparts `projWithBaseNetNorm` / `projWithNoteBaseNetNorm`).
+  Re-export only; the definitions stay in `Algebra` and `Journal`.
 
 ### Documentation
 - README "Migrating to 0.5.0.0": only the `Alg` representation (`Liner`) lives in
