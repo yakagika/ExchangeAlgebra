@@ -72,7 +72,12 @@ import           ExchangeAlgebra.Algebra.Base
                      , Side(..)
                      , accountSemantics
                      , concreteAccountTitles
-                     , whichSide
+                     )
+import           ExchangeAlgebra.TrialBalance.Balance
+                     ( AccountBalance(..)
+                     , accountBalances
+                     , balanceFor
+                     , balanceSide
                      )
 
 -- | Processing point of the supplied trial balance.
@@ -111,13 +116,6 @@ strictTrialBalancePolicy = TrialBalancePolicy
 standaloneTrialBalancePolicy :: TrialBalancePolicy
 standaloneTrialBalancePolicy = TrialBalancePolicy
     PermitStandaloneReciprocalBalance PermitExplainedTemporaryBalances
-
--- | Net balance direction remains structural; values stay non-negative.
-data AccountBalance v
-  = NoBalance
-  | DebitBalance v
-  | CreditBalance v
-  deriving (Show, Eq)
 
 -- | A rule identifies a condition and possible target titles. It supplies an
 -- instruction, not an automatic mutation.
@@ -273,30 +271,6 @@ maturityRequiredTitles input = S.fromList
 valuesOf :: HatVal v => Alg v (HatBase AccountTitles) -> [v]
 valuesOf = foldEntries (\values value _ -> value : values) []
 
-accountBalances
-    :: HatVal v
-    => Alg v (HatBase AccountTitles)
-    -> Map AccountTitles (AccountBalance v)
-accountBalances = M.map netBalance . foldEntries collect M.empty
-  where
-    collect totals value base@(_ :< title) =
-        M.insertWith add title (sidePair (whichSide base) value) totals
-    add (newDebit, newCredit) (oldDebit, oldCredit) =
-        (newDebit + oldDebit, newCredit + oldCredit)
-    sidePair Debit value = (value, 0)
-    sidePair Credit value = (0, value)
-    sidePair Side _ = (0, 0)
-
-netBalance :: HatVal v => (v, v) -> AccountBalance v
-netBalance (debit, credit)
-    | debit == credit = NoBalance
-    | debit > credit = DebitBalance (debit - credit)
-    | otherwise = CreditBalance (credit - debit)
-
-balanceFor :: AccountTitles -> Map AccountTitles (AccountBalance v)
-           -> AccountBalance v
-balanceFor title = M.findWithDefault NoBalance title
-
 reciprocalFindings
     :: (Eq v)
     => Map AccountTitles (AccountBalance v)
@@ -414,11 +388,6 @@ expectedSide title = do
             NoFixedHomeSide -> Nothing
             NoPostingSide -> Nothing
         else Nothing
-
-balanceSide :: AccountBalance v -> Side
-balanceSide NoBalance = Side
-balanceSide (DebitBalance _) = Debit
-balanceSide (CreditBalance _) = Credit
 
 ruleTargets
     :: AccountTitles

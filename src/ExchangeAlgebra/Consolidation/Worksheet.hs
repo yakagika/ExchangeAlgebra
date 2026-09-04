@@ -24,7 +24,7 @@ worksheet validation rather than a floating-point representation.
 -}
 module ExchangeAlgebra.Consolidation.Worksheet
     ( PeriodResult(..)
-    , BalancePosition(..)
+    , AccountBalance(..)
     , LinkField(..)
     , TrialBalanceSource(..)
     , WorksheetAdjustment(..)
@@ -63,13 +63,11 @@ import           ExchangeAlgebra.Algebra.Base
                      , PostingCapability
                      )
 import           ExchangeAlgebra.Reporting.Metric (PeriodResult(..))
-
--- | Structural direction for an equity balance. A debit position represents
--- an accumulated deficit without introducing a negative scalar.
-data BalancePosition v
-  = CreditBalance v
-  | DebitBalance v
-  deriving (Show, Eq)
+import           ExchangeAlgebra.TrialBalance.Balance
+                     ( AccountBalance(..)
+                     , balanceAmount
+                     , balancePair
+                     )
 
 -- | Named linkage fields, used when reporting an invalid non-negative amount.
 data LinkField
@@ -125,16 +123,16 @@ data WorksheetLinkage v = WorksheetLinkage
     { _profitOrLossNetIncome                    :: PeriodResult v
     , _profitOrLossNetIncomeAttributableToOwners :: PeriodResult v
     , _statementOfChangesNetIncomeAttributableToOwners :: PeriodResult v
-    , _openingRetainedEarnings                  :: BalancePosition v
+    , _openingRetainedEarnings                  :: AccountBalance v
     , _retainedEarningsDividends                :: v
-    , _statementOfChangesClosingRetainedEarnings :: BalancePosition v
-    , _balanceSheetRetainedEarnings             :: BalancePosition v
-    , _openingNonControllingInterests           :: BalancePosition v
+    , _statementOfChangesClosingRetainedEarnings :: AccountBalance v
+    , _balanceSheetRetainedEarnings             :: AccountBalance v
+    , _openingNonControllingInterests           :: AccountBalance v
     , _nonControllingInterestsPeriodShare       :: PeriodResult v
     , _nonControllingInterestsDividends         :: v
     , _statementOfChangesClosingNonControllingInterests
-        :: BalancePosition v
-    , _balanceSheetNonControllingInterests      :: BalancePosition v
+        :: AccountBalance v
+    , _balanceSheetNonControllingInterests      :: AccountBalance v
     }
     deriving (Show, Eq)
 
@@ -167,10 +165,10 @@ data WorksheetError source adjustment v
   | OwnersPeriodResultLinkMismatch (PeriodResult v) (PeriodResult v)
   | RetainedEarningsRollForwardMismatch v v
   | BalanceSheetRetainedEarningsMismatch
-        (BalancePosition v) (BalancePosition v)
+        (AccountBalance v) (AccountBalance v)
   | NonControllingInterestsRollForwardMismatch v v
   | BalanceSheetNonControllingInterestsMismatch
-        (BalancePosition v) (BalancePosition v)
+        (AccountBalance v) (AccountBalance v)
   deriving (Show, Eq)
 
 -- | A worksheet whose provenance, atomic balance, processing capability, and
@@ -428,18 +426,10 @@ periodAmount (PeriodProfit value) = value
 periodAmount (PeriodLoss value) = value
 periodAmount PeriodBreakEven = 0
 
-balanceAmount :: BalancePosition v -> v
-balanceAmount (CreditBalance value) = value
-balanceAmount (DebitBalance value) = value
-
 periodSides :: Num v => PeriodResult v -> (v, v)
 periodSides (PeriodProfit value) = (value, 0)
 periodSides (PeriodLoss value) = (0, value)
 periodSides PeriodBreakEven = (0, 0)
-
-balanceSides :: Num v => BalancePosition v -> (v, v)
-balanceSides (CreditBalance value) = (value, 0)
-balanceSides (DebitBalance value) = (0, value)
 
 -- Total result equals owners' attribution plus NCI attribution. Moving all
 -- loss-side values across the equation avoids signed scalars.
@@ -465,18 +455,18 @@ periodResultEquivalent left right =
     (rightProfit, rightLoss) = periodSides right
 
 balancePositionEquivalent :: (Eq v, Num v)
-                          => BalancePosition v -> BalancePosition v -> Bool
+                          => AccountBalance v -> AccountBalance v -> Bool
 balancePositionEquivalent left right =
     leftCredit + rightDebit == leftDebit + rightCredit
   where
-    (leftCredit, leftDebit) = balanceSides left
-    (rightCredit, rightDebit) = balanceSides right
+    (leftDebit, leftCredit) = balancePair left
+    (rightDebit, rightCredit) = balancePair right
 
 rollForwardSides :: Num v
-                 => BalancePosition v
+                 => AccountBalance v
                  -> PeriodResult v
                  -> v
-                 -> BalancePosition v
+                 -> AccountBalance v
                  -> (v, v)
 rollForwardSides opening result dividends closing = case result of
     PeriodProfit amount ->
@@ -489,8 +479,8 @@ rollForwardSides opening result dividends closing = case result of
         (openingCredit + closingDebit,
          openingDebit + dividends + closingCredit)
   where
-    (openingCredit, openingDebit) = balanceSides opening
-    (closingCredit, closingDebit) = balanceSides closing
+    (openingDebit, openingCredit) = balancePair opening
+    (closingDebit, closingCredit) = balancePair closing
 
 sideTotals :: HatVal v => Alg v (HatBase AccountTitles) -> (v, v)
 sideTotals alg = (norm (decL alg), norm (decR alg))

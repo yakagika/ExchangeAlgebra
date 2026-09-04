@@ -44,8 +44,7 @@ import           Data.Set (Set)
 import           Data.Text (Text)
 import qualified Data.Text as T
 
-import           ExchangeAlgebra.Algebra
-                     ( Alg, HatVal, foldEntries )
+import           ExchangeAlgebra.Algebra (HatVal)
 import           ExchangeAlgebra.Algebra.Base
                      ( AccountDivision(..)
                      , AccountRole(..)
@@ -54,15 +53,22 @@ import           ExchangeAlgebra.Algebra.Base
                      , AccountTitles(..)
                      , DivisionSemantics(..)
                      , FixedCurrent(..)
-                     , HatBase((:<))
                      , ReportingEligibility(..)
                      , Side(..)
-                     , whichSide
                      )
 import qualified ExchangeAlgebra.Algebra.Base.Account.Registry as Registry
 import           ExchangeAlgebra.Reporting.Metric
                      ( DerivedMetric(..), MetricId )
 import qualified ExchangeAlgebra.TrialBalance.Validation as TB
+import           ExchangeAlgebra.TrialBalance.Balance
+                     ( accountBalances
+                     , balanceAmount
+                     , balanceFor
+                     , balancePair
+                     , balanceSide
+                     , combineBalances
+                     , netPair
+                     )
 
 -- | Land 4 deliberately supports JGAAP only.
 data AccountingFramework = JGAAP
@@ -358,45 +364,6 @@ present context validated = case issues of
         , let displayed = presentationLabel JcciSecondGradeReport title
         , canonical /= displayed
         ]
-
-accountBalances
-    :: HatVal v
-    => Alg v (HatBase AccountTitles)
-    -> Map AccountTitles (TB.AccountBalance v)
-accountBalances = M.map netPair . foldEntries collect M.empty
-  where
-    collect totals value base@(_ :< title) =
-        M.insertWith addPair title (sidePair (whichSide base) value) totals
-
-sidePair :: Num v => Side -> v -> (v, v)
-sidePair Debit value = (value, 0)
-sidePair Credit value = (0, value)
-sidePair Side _ = (0, 0)
-
-addPair :: Num v => (v, v) -> (v, v) -> (v, v)
-addPair (leftDebit, leftCredit) (rightDebit, rightCredit) =
-    (leftDebit + rightDebit, leftCredit + rightCredit)
-
-netPair :: (Ord v, Num v) => (v, v) -> TB.AccountBalance v
-netPair (debit, credit)
-    | debit == credit = TB.NoBalance
-    | debit > credit = TB.DebitBalance (debit - credit)
-    | otherwise = TB.CreditBalance (credit - debit)
-
-balancePair :: Num v => TB.AccountBalance v -> (v, v)
-balancePair TB.NoBalance = (0, 0)
-balancePair (TB.DebitBalance value) = (value, 0)
-balancePair (TB.CreditBalance value) = (0, value)
-
-balanceFor :: AccountTitles -> Map AccountTitles (TB.AccountBalance v)
-           -> TB.AccountBalance v
-balanceFor title = M.findWithDefault TB.NoBalance title
-
-combineBalances
-    :: (Ord v, Num v)
-    => TB.AccountBalance v -> TB.AccountBalance v -> TB.AccountBalance v
-combineBalances left right = netPair
-    (addPair (balancePair left) (balancePair right))
 
 eliminateReciprocals
     :: Eq v => ReportingContext v
@@ -810,16 +777,6 @@ noncurrentSection title balance = case Registry.accountSemantics title of
         StatementDivision Assets -> NoncurrentAssetsSection
         _ -> contextualSection balance
     Nothing -> contextualSection balance
-
-balanceSide :: TB.AccountBalance v -> Side
-balanceSide TB.NoBalance = Side
-balanceSide (TB.DebitBalance _) = Debit
-balanceSide (TB.CreditBalance _) = Credit
-
-balanceAmount :: Num v => TB.AccountBalance v -> v
-balanceAmount TB.NoBalance = 0
-balanceAmount (TB.DebitBalance value) = value
-balanceAmount (TB.CreditBalance value) = value
 
 subtotalBalance
     :: (Ord v, Num v)

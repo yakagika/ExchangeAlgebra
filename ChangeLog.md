@@ -191,6 +191,14 @@ vs an exact non-negative `Decimal` (`MoneyDecimal`) for determinism/auditability
   untyped `undefined` placeholder (audit R3).
 
 ### Added
+- Add `ExchangeAlgebra.TrialBalance.Balance`: one `AccountBalance` type
+  (`NoBalance` / `DebitBalance` / `CreditBalance`) and one set of netting
+  primitives (`balancePair` in debit-then-credit order, `netPair`,
+  `combineBalances`, `balanceFor`, `balanceSide`, `balanceAmount`,
+  `accountBalances`) shared by trial-balance validation, JGAAP presentation
+  and the consolidation worksheet. The worksheet's separate `BalancePosition`
+  type, whose pair order was credit-then-debit, is gone; its constructors are
+  the shared ones re-exported, so `CW.CreditBalance` keeps working.
 - Add `ExchangeAlgebra.Simulate.Spill`: spill options, chunk writers, the
   checked readers and journal restoration now live in one module that depends
   only on `Algebra` and `Journal`. `Simulate` and `Write` re-export the

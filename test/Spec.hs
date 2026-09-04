@@ -11,6 +11,7 @@ import qualified ExchangeAlgebra.Convert      as EC
 import qualified ExchangeAlgebra.Convert.Checked as ECC
 import qualified ExchangeAlgebra.Accounting.PostingPolicy as PP
 import qualified ExchangeAlgebra.Consolidation.Worksheet as CW
+import qualified ExchangeAlgebra.TrialBalance.Balance as TBB
 import qualified ExchangeAlgebra.TrialBalance.Validation as TB
 import qualified ExchangeAlgebra.Reporting.Presentation as RP
 import qualified ExchangeAlgebra.Reporting.Metric as RM
@@ -4083,6 +4084,18 @@ trialBalanceInput alg stage = TB.TrialBalanceInput
     , TB._maturityEvidenceTitles = Set.empty
     }
 
+testSharedAccountBalancePrimitives :: IO ()
+testSharedAccountBalancePrimitives = do
+    let balances =
+            [ TBB.NoBalance
+            , TBB.DebitBalance 7
+            , TBB.CreditBalance 11
+            ] :: [TBB.AccountBalance Int]
+    assertEqual "account balance: pair netting round trip"
+        balances (fmap (TBB.netPair . TBB.balancePair) balances)
+    assertEqual "account balance: structural sides"
+        [Side, Debit, Credit] (fmap TBB.balanceSide balances)
+
 testTrialBalanceValidation :: IO ()
 testTrialBalanceValidation = do
     let reciprocalMismatch = EC.journalFromSides
@@ -4976,6 +4989,7 @@ checkedConvertProperties = do
     testPostingPolicyTruthTable
     testPostingCapabilityGate
     testConsolidationWorksheet
+    testSharedAccountBalancePrimitives
     testTrialBalanceValidation
     testReportingPresentation
     testDerivedMetricsLand5
