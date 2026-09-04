@@ -1854,6 +1854,13 @@ postFromNetBy kf post x =
 -- | Projects only current assets.
 -- Extracts asset items classified as current from the debit side.
 --
+-- Selection predicate (over every scalar entry @x@ of the input, on the debit side):
+-- @whatDiv (_hatBase x) == Assets && fixedCurrent (_hatBase x) == Current && not (isContra (_hatBase x))@.
+-- Contra accounts are excluded, so the result is the /gross/ figure of this
+-- class; the net figure is @norm (projCurrentAssets x) - norm ('bar' (contra x))@ where
+-- @contra@ is 'projContraAssets' (Assets) or 'projContra' (any division).
+-- See 'projContraAssets' for the rationale (Definition 7 amendment, Land 2).
+--
 -- Complexity: O(s) (s is the total number of scalar entries)
 projCurrentAssets :: ( HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projCurrentAssets  = (filter (\x -> (fixedCurrent . _hatBase) x == Current))
@@ -1863,6 +1870,13 @@ projCurrentAssets  = (filter (\x -> (fixedCurrent . _hatBase) x == Current))
 
 -- | Projects only fixed assets.
 -- Extracts asset items classified as fixed from the debit side.
+--
+-- Selection predicate (over every scalar entry @x@ of the input, on the debit side):
+-- @whatDiv (_hatBase x) == Assets && fixedCurrent (_hatBase x) == Fixed && not (isContra (_hatBase x))@.
+-- Contra accounts are excluded, so the result is the /gross/ figure of this
+-- class; the net figure is @norm (projFixedAssets x) - norm ('bar' (contra x))@ where
+-- @contra@ is 'projContraAssets' (Assets) or 'projContra' (any division).
+-- See 'projContraAssets' for the rationale (Definition 7 amendment, Land 2).
 --
 -- Complexity: O(s) (s is the total number of scalar entries)
 projFixedAssets :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
@@ -1874,6 +1888,13 @@ projFixedAssets = (filter (\x -> (fixedCurrent . _hatBase) x == Fixed))
 -- | Projects only deferred assets.
 -- Tax-specific deferred assets are presented under "investments and other assets" with appropriate items such as long-term prepaid expenses.
 --
+-- Selection predicate (over every scalar entry @x@ of the input, on the debit side):
+-- @whatDiv (_hatBase x) == Assets && fixedCurrent (_hatBase x) == Other && not (isContra (_hatBase x))@.
+-- Contra accounts are excluded, so the result is the /gross/ figure of this
+-- class; the net figure is @norm (projDeferredAssets x) - norm ('bar' (contra x))@ where
+-- @contra@ is 'projContraAssets' (Assets) or 'projContra' (any division).
+-- See 'projContraAssets' for the rationale (Definition 7 amendment, Land 2).
+--
 -- Complexity: O(s) (s is the total number of scalar entries)
 projDeferredAssets :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projDeferredAssets  = (filter (\x -> (fixedCurrent . _hatBase) x == Other))
@@ -1883,6 +1904,14 @@ projDeferredAssets  = (filter (\x -> (fixedCurrent . _hatBase) x == Other))
 
 -- | Projects only current liabilities.
 -- Extracts liability items classified as current from the credit side.
+--
+-- Selection predicate (over every scalar entry @x@ of the input, on the credit side):
+-- @whatDiv (_hatBase x) == Liability && fixedCurrent (_hatBase x) == Current && not (isContra (_hatBase x))@.
+-- Contra accounts are excluded, so the result is the /gross/ figure of this
+-- class; the net figure is @norm (projCurrentLiability x) - norm ('bar' (contra x))@ where
+-- @contra@ selects the Liability-division entries of 'projContra' (the current
+-- registry has no contra liability account, so gross and net coincide today).
+-- See 'projContraAssets' for the rationale (Definition 7 amendment, Land 2).
 --
 -- Complexity: O(s) (s is the total number of scalar entries)
 projCurrentLiability :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
@@ -1894,6 +1923,14 @@ projCurrentLiability  = (filter (\x -> (fixedCurrent . _hatBase) x == Current))
 -- | Projects only fixed liabilities.
 -- Extracts liability items classified as fixed from the credit side.
 --
+-- Selection predicate (over every scalar entry @x@ of the input, on the credit side):
+-- @whatDiv (_hatBase x) == Liability && fixedCurrent (_hatBase x) == Fixed && not (isContra (_hatBase x))@.
+-- Contra accounts are excluded, so the result is the /gross/ figure of this
+-- class; the net figure is @norm (projFixedLiability x) - norm ('bar' (contra x))@ where
+-- @contra@ selects the Liability-division entries of 'projContra' (the current
+-- registry has no contra liability account, so gross and net coincide today).
+-- See 'projContraAssets' for the rationale (Definition 7 amendment, Land 2).
+--
 -- Complexity: O(s) (s is the total number of scalar entries)
 projFixedLiability :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projFixedLiability  = (filter (\x -> (fixedCurrent . _hatBase) x == Fixed))
@@ -1903,6 +1940,14 @@ projFixedLiability  = (filter (\x -> (fixedCurrent . _hatBase) x == Fixed))
 
 -- | Projects only capital stock (equity).
 -- Extracts items classified under the 'Equity' division from the credit side.
+--
+-- Selection predicate (over every scalar entry @x@ of the input, on the credit side):
+-- @whatDiv (_hatBase x) == Equity && not (isContra (_hatBase x))@.
+-- Contra accounts are excluded, so the result is the /gross/ figure of this
+-- class; the net figure is @norm (projCapitalStock x) - norm ('bar' (contra x))@ where
+-- @contra@ selects the Equity-division entries of 'projContra' (the current
+-- registry has no contra equity account, so gross and net coincide today).
+-- See 'projContraAssets' for the rationale (Definition 7 amendment, Land 2).
 --
 -- Complexity: O(s) (s is the total number of scalar entries)
 --

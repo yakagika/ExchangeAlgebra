@@ -1,59 +1,29 @@
 # Changelog for ExchangeAlgebra
 
-## Unreleased
+## 0.5.0.0 - 2026-09-03
 
-### Added
-- Add `industrialNetwork` / `industrialFlows` for deterministic ordered CL-SBM
-  trade networks and exact demand-driven flows, plus the `industrialEx1`
-  accounting example.
-- Add a read-only `audit-eval` compatibility replay tool that pins frozen
-  confirmatory inputs and compares historical and current checked-loader
-  verdicts without regenerating model outputs.
-- Add an opt-in `side` scoring contract to `audit-eval`. Ledger and
-  trial-balance balances are compared as an actual debit/credit/zero side plus
-  a non-negative amount, while the frozen signed-value `v1` contract remains
-  the default for confirmatory-result reproducibility.
-- Add dedicated `ConsumptionTaxRefundReceivable`, `PropertyTaxPayable`, and
-  `DepositsReceivedFromOfficers` constructors for the corresponding JCCI
-  level-2 A-column names. Add `AccountSpec.asLabelJa` for all 235 concrete
-  titles and a complete JCCI level-2 A-column presentation-label sweep.
-- Add typed, read-only reporting metrics. `PeriodResultMetric` represents one
-  identity whose value is structurally `PeriodProfit`, `PeriodLoss`, or
-  `PeriodBreakEven`; `GrossProfitMetric`, `OrdinaryProfitMetric`, and custom
-  metric IDs are likewise separate from account-basis coordinates. Reporting
-  subtotal definitions now carry this identity, profile-resolved labels, an
-  explicit absent-title policy, and duplicate-identity validation.
-- Add `periodResultOfAlg` / `periodResultOf`, which derive period profit or loss
-  from genuine statement-classified revenue and cost coordinates without
-  inserting a balancing account. After-closing trial-balance validation now
-  reports residual period-result or reporting-subtotal coordinates explicitly.
-- Add a JGAAP reporting transformation from validated trial balances with
-  standalone/combined scope, reciprocal elimination, maturity allocation,
-  materiality and contra policy, profile labels, auditable subtotals, and final
-  debit-credit reconciliation.
-- Add a trial-balance validation boundary with explicit reciprocal, temporary,
-  closing-residual, abnormal-side, reclassification, and maturity-evidence
-  findings, plus an opaque policy-controlled boundary for downstream reporting.
-- Add a consolidation-worksheet validation boundary that preserves source and
-  adjustment provenance, rejects imbalanced adjustments individually before
-  aggregation, and checks net-income attribution, retained-earnings, and
-  non-controlling-interest linkage across P/L, S/S, and B/S columns.
+The 0.5 line was first prepared on 2026-06-07 around a selectable value type, with recovery tag `recovery/0.5.0.0-dev-2026-06-08`. Before publication, it absorbed the account registry and semantics, the Definition 7 contra amendment with netting presentation, the JCCI/EDINET vocabulary, checked-conversion posting capability, categorical phase-1 laws, the CL-SBM industrial network generator, and the audit-eval tooling.
 
-### Changed
-- Resolve Japanese presentation and LLM-facing names through the cleaned
-  `asLabelJa` registry field, with the JCCI `AdvancesReceived` override kept as
-  `契約負債`. Mark `EquityInEarningsOfInvestee` and
-  `CumulativeTranslationAdjustment` as consolidation-only and contextual.
-  Replace catch-all branches in all five account-semantics classifiers with
-  exhaustive constructor cases.
-- Clarify that the retained `GrossProfit` and `OrdinaryProfit` constructors and
-  transfer functions are historical SNA/simulation coordinates, not complete
-  JGAAP subtotal definitions. Their ordinals and Binary tags remain unchanged;
-  see `docs/migration-0.5-derived-metrics.md`.
-- Correct `NonControllingInterests` metadata to `ConsolidationOnly`,
-  `ContextualPresentation`, and `AttributionAccount`, preventing the
-  consolidated balance-sheet coordinate from being posted to an individual
-  entity's ordinary journal.
+Selectable value type: `Double` (default, fast) / `MoneyDouble` (typed fast FP)
+vs an exact non-negative `Decimal` (`MoneyDecimal`) for determinism/auditability.
+**Breaking** (PVP major):
+`HatVal` lost its `RealFloat` superclass and gained `showValue`. See the README
+"Choosing a value type" and "Migrating to 0.5.0.0" sections.
+
+### Highlights
+- Add selectable value types with `MoneyDecimal` and `MoneyDouble`, while removing the `RealFloat` superclass from `HatVal`.
+- Add an exhaustive account registry and `AccountSemantics` covering roles, posting capability, and JCCI/EDINET presentation names.
+- Amend Definition 7 with `isContra`, contra-aware projections, and netting presentation in `bsRows` / `plRows`.
+- Make closing entries cover every Cost and Revenue account.
+- Enforce posting capability by processing context in checked conversion.
+- Encode `AccountTitles` Binary tags as big-endian `Word16`.
+- Document the categorical phase-1 laws for `mapBasePart`, `foldEntries`, and `postFromNetBy`, pinned by property tests.
+- Add trial-balance validation, consolidation-worksheet validation, JGAAP reporting transformation, and derived period-result metrics.
+- Add the ordered CL-SBM `industrialNetwork` / `industrialFlows` generator and `industrialEx1`.
+- Add audit-eval compatibility, scoring, checkpoint, Track S checked-loader, and generated-suite tooling in the examples.
+- Improve performance with strict `Journal.fromList`, an exact-projection fast path, faster journal append, and projection-sharing trial-balance rows.
+
+### Breaking
 - **BREAKING: checked conversion now enforces posting capability by processing
   context.** `checkedEntryIn`, `checkedEntryTextIn`, `checkedJournalIn`, and
   `certifyJournalTextIn` admit ordinary postings plus exactly the capability
@@ -65,6 +35,7 @@
   context-disallowed title is a structural rejection. Algebra construction,
   balance rules, and unchecked conversion (including `Convert.Csv`) are
   unchanged.
+
 - **BREAKING: LLM-facing account metadata now separates bookkeeping and
   reporting semantics.** `AccountSemantics` records account roles, posting
   capability, the meaning of the legacy five-way division, home-side
@@ -75,16 +46,19 @@
   `NetIncome = Cost` are no longer presented as statement classifications.
   The exchange-algebra basis, legacy division/side/PIMO behaviour, Binary
   encoding, closing, projections, and financial-statement rows are unchanged.
+
 - **BREAKING: closing entries now cover every Cost and Revenue account.**
   `finalStockTransfer` derives its policy from the exhaustive account registry;
   previously it closed only 17 SNA-era accounts. `NetIncome` and `NetLoss`
   are permanent explicit `NoClose` overrides: their division encodes the
   P/L presentation side, so the division-derived rule would invert their
   transfer sign; the dedicated net-income transfer owns their closing.
+
 - **BREAKING: `AccountTitles` binary tags now use Word16 big-endian encoding**
   instead of Word8. This removes the 256-constructor ceiling and rejects
   out-of-range tags through the `Get` failure channel. Journals and other
   values persisted with the old format cannot be read by 0.5.0.0.
+
 - **BREAKING: account division semantics for contra accounts** (Definition 7
   amendment, Land 2). `AllowanceForDoubtfulAccounts` and
   `AccumulatedDepreciation` are now classified `Assets` with the new
@@ -96,6 +70,7 @@
   unchanged for every account (the two contra accounts keep the Credit home
   side and MS); only `whatDiv` — and, in the pre-Land1 assistance API,
   `aiDivision` and descriptions — changed, for exactly these two accounts.
+
 - **BREAKING: `(<=>)` on `AccountDivision` is now derived via
   `pimoFromDivision`**, matching Proposition 5.3.8 (Deguchi 2004; PS⇔IN,
   PS⇔MS, OUT⇔IN, OUT⇔MS). Migration table (ordered cases; every other pair
@@ -103,6 +78,7 @@
   False→True, `(Cost, Revenue)` False→True, `(Revenue, Cost)` False→True.
   Exchange checks on bases should use `whatPIMO` (contra-aware), not bare
   divisions.
+
 - **BREAKING: real contra deduction/netting presentation (Definition 7,
   Land 3).** `bsRows` and `plRows` now render active presentation groups as
   gross rows, deduction rows, and a net row instead of placing contra assets
@@ -117,35 +93,188 @@
   The six division projections now exclude contra accounts entirely;
   select them with `projContraAssets` (Assets division) or the generic
   `projContra` (attribute-based: keeps both Hat and Not postings).
-- **BREAKING: JCCI B欄共有名の追加.** `parseAccountTitle`の6ラベル
-  (`未払金`, `借入金`, `仮払金`, `仮受金`, `有価証券`, `投資有価証券`)は
-  従来の一意解決から候補を列挙する`AmbiguousAccount`へ変わった. canonical
-  constructor名を使うか, 文脈に基づき候補を明示選択する必要がある.
-- `HeadOfficeCurrentAccount` (`本店`)を支店帳簿上の貸方残に合わせて
-  `Assets`から`Liability`へ訂正した.
 
-### Added (earlier 0.5.0.0 development)
-- 0.5.0.0の勘定科目意味論・表示層分離に先立ち, 232 concrete titleの
-  Binary bytes, registry/closing/side/PIMO, Assist metadata, projection membership,
-  legacy BS/P&L outputを固定するpre-change goldenと再生成toolを追加した.
-  分類関連consumerのclosed inventory検査も追加し, 後続Landの意図しない差分と
-  consumer漏れを検出する.
-- `audit-eval`の長時間 confirmatory runをcell境界で分割再開するcheckpoint機構を追加した.
-  task/model/backend/git surface/hashのdrift, JSONL破損・重複, resume forkを実行前に拒絶し,
-  独立した検証・merge CLIでlineageを監査できる.
-- JCCI 2022の2級・3級A欄/B欄を固定fixtureとして収載し, 316 distinct
-  normalized queryの被覆gateを追加した. 295 queryは一意解決し, 共有許容名や
-  損益総称21 queryは候補集合を固定した`AmbiguousAccount`として拒絶する.
-  post-vocabularyのordinal, semantics, account-info, suggest fixtureと再生成tool,
-  Python account mirrorの232科目/5 contra同期testも追加した.
-- EDINET 2026「一般商工業」に準拠した英語表示名を持つ日商2級商業簿記の
-  116勘定科目を`AccountTitles`とexhaustive account registryへ追加した.
-  EDINET英語ラベルは外部表示名に限定し, 内部constructor IDと日本語aliasは
-  互換性・一意性を保つ. 反対勘定3件と決算振替対象外3件もregistry属性として明示した.
+- **BREAKING: Add shared JCCI B-column names.** The 6 labels accepted by
+  `parseAccountTitle` (`未払金`, `借入金`, `仮払金`, `仮受金`, `有価証券`,
+  `投資有価証券`) now produce `AmbiguousAccount` with a list of candidates
+  instead of resolving uniquely. Use canonical constructor names or explicitly
+  select a candidate based on context.
+
+- `whichSide` now rejects a `HatNot` (wildcard) base with an error instead of
+  silently treating it as `Hat` (design-review C5): stored postings are always
+  `Hat`/`Not` (same policy as `isHat`), so a wildcard reaching `whichSide`
+  means a query-side value leaked into a posting-side computation. __Breaking__
+  only for code that relied on the silent-`Hat` behaviour.
+
+- The universal `instance (HatVal n) => Show (n -> n)`
+  (`ExchangeAlgebra.Algebra.Transfer`) was removed (design-review C5):
+  __breaking__ for code that `show`ed raw rule-list tuples. `TransTable`'s own
+  `Show` still prints `<function>` without it; one doctest was adjusted.
+
+- `ExchangeAlgebra.Simulate.Lite` export hygiene (design-review C5):
+  __breaking__. `Stage` is now exported name-only (build with
+  `stageFor`/`stage`/`stageOf`, read the name via `stageName`); the `GLite*`
+  Generic-plumbing classes are exported name-only (their primed methods are
+  internal Rep wiring — user code only names the classes in constraints).
+
+- The `ExchangeAlgebra` umbrella no longer re-exports `ExchangeAlgebra.Simulate`:
+  __breaking__ (design-review C1). The simulation engine exports very generic
+  names (`copy`, `modify`, `update`, `initialize`, `normal`, `initAll`, …) that
+  polluted the recommended bookkeeping entry point. Migration: add
+  `import ExchangeAlgebra.Simulate` where those names are used — the module now
+  follows the same "import directly" policy as `Bookkeeping`/`Simulate.Lite`/
+  `Simulate.Network`/`Simulate.Policy` (documented in the umbrella Haddock).
+  The bundled examples were migrated mechanically (import line only).
+
+- `ExchangeAlgebra.Algebra.Base.Element` no longer re-exports the whole
+  `Data.Hashable` and `GHC.Generics` modules: __breaking__ (design-review C1).
+  Only the two names needed to define an `Element` instance remain re-exported
+  (`Hashable(..)` and `Generic`); the previous module-level re-exports leaked
+  their entire namespaces through `Base` → `Algebra` → the umbrella. Migration:
+  import `Data.Hashable`/`GHC.Generics` directly for any other names.
+
+- `Element` class wildcard methods (`ExchangeAlgebra.Algebra.Base.Element`):
+  __breaking__. The misspelt `wiledcard` method family is renamed to the correct
+  spelling, with no compatibility aliases (audit R2). Migration (旧名 → 新名):
+  `wiledcard` → `wildcard`, `haveWiledcard` → `haveWildcard`,
+  `isWiledcard` → `isWildcard`, `ignoreWiledcard` → `ignoreWildcard`. Any
+  `instance Element` defining `wiledcard` (and overriding `haveWiledcard` /
+  `isWiledcard` / `ignoreWiledcard`) must rename those method definitions; all
+  call sites use the new names. The `(.#)` wildcard shorthand is unchanged.
+  The bundled SICE-frozen examples were updated by mechanical identifier rename
+  only (the rename is compile-following and preserves their semantics/values).
+
+- `(.*)` (scalar product) now **rejects a negative / non-finite scalar** with an
+  `error`, instead of silently producing out-of-domain (negative) postings (the
+  algebra is over non-negative values; audit divergence C). The check is on the
+  scalar only — `0 .* x = Zero` and non-negative scalars are unchanged, and the
+  fast internal value map is preserved. Covered by `testScalarRejectsNegative`;
+  the bundled `ripple`/`CGE` Double examples are unaffected (their production
+  amounts stay non-negative).
+
+- `HatVal` no longer has `RealFloat` as a superclass; it gains a `showValue ::
+  n -> String` method. This lets non-floating-point value types (e.g. an exact
+  `Decimal`) become `HatVal` instances. The `Double` / `NN.Double` instances render
+  byte-for-byte identically to before (the old internal `showV` was inlined into
+  each instance's `showValue`). `Fractional` is kept, so numeric literals still
+  work for value types. Downstream code that relied on `HatVal n => RealFloat n`,
+  or defined its own `HatVal` instance, must adapt (add `showValue`).
+
+- `Journal.fromList` is now a strict left fold (`L.foldl' (.+) mempty`) instead of
+  the lazy right fold (`foldr (.+) mempty`). It is `O(N)` and ~15× faster at
+  N=10000 / ~40× at N=20000 in the core benchmark (the lazy right fold built a deep
+  thunk that was expensive to force). The posting **multiset is preserved**; the
+  only change is the accumulation order of same-note/same-base postings within one
+  `Alg` sequence. That `Seq` order is observable through `Eq` / `Show` / `toAlg` /
+  `Binary`, and for `Double` through the last-ULP of `norm` / `bar`. For the exact
+  `MoneyDecimal` value type the order never affects `norm` / `bar` / balance. (The
+  interim `fromListFast`, added during staging, was folded back into `fromList`.)
+
+- Removed: `Journal` `_jVersion` field (`ExchangeAlgebra.Journal`): __breaking__. This
+  write-only counter was never observed by any read path (audit R3/F2). The
+  `Journal(..)` constructor now has one fewer field and the `_jVersion` record
+  accessor is gone; the internal `mkJournal` no longer takes a version argument.
+  The `Binary` instance is unaffected (it serialises via `toMap`/`fromMap` and
+  never touched `_jVersion`), so the on-disk/spill format is unchanged.
+
+- Removed: `forceBalance` (`ExchangeAlgebra.Algebra`): removed unused, unexported,
+  untyped `undefined` placeholder (audit R3).
+
+### Added
+- `examples/audit-eval` second-experiment harness (audit-harness T3 / T5): the
+  generator now covers five task categories (`closing`, `statements` and
+  `consolidation` join the existing kinds in `gen/kinds.py`) with dual pandas /
+  EA oracles, parameter-only closing adjustments (both oracles compute the
+  amounts independently), voucher-id contracts in `given.transactions`, and a
+  per-cell manifest with a task-bundle digest (`gen/make_manifest.py`,
+  `TASK-FORMAT.md`). The runner adds a no-code-execution arm C with tool-event
+  counting, `--chart-of-accounts`, `--skill v3`, a full V gate (voucher
+  reconciliation plus a canonicalisation dictionary), manifest-hash checks on
+  fresh runs and byte-pinned frozen v1 prompts; the scorer reports
+  `posting_complete` and a three-valued outcome with explicit infra-missing
+  handling. Examples-only; no library code touched.
+- `examples/audit-eval/harness` documentation (audit-harness T4c): a transfer
+  catalog (`CATALOG.md`, 19 of 27 library operations adopted plus two loader
+  recipes), `SKILL-ea-v3.md`, the A′ named-call contract (`APRIME-CALLS.md`
+  with `aprime-calls.schema.json`) and the `LoadChecked` bypass-guard design
+  note. Examples-only; no library code touched.
+- Add `industrialNetwork` / `industrialFlows` for deterministic ordered CL-SBM
+  trade networks and exact demand-driven flows, plus the `industrialEx1`
+  accounting example.
+
+- Add a read-only `audit-eval` compatibility replay tool that pins frozen
+  confirmatory inputs and compares historical and current checked-loader
+  verdicts without regenerating model outputs.
+
+- Add an opt-in `side` scoring contract to `audit-eval`. Ledger and
+  trial-balance balances are compared as an actual debit/credit/zero side plus
+  a non-negative amount, while the frozen signed-value `v1` contract remains
+  the default for confirmatory-result reproducibility.
+
+- Add dedicated `ConsumptionTaxRefundReceivable`, `PropertyTaxPayable`, and
+  `DepositsReceivedFromOfficers` constructors for the corresponding JCCI
+  level-2 A-column names. Add `AccountSpec.asLabelJa` for all 235 concrete
+  titles and a complete JCCI level-2 A-column presentation-label sweep.
+
+- Add typed, read-only reporting metrics. `PeriodResultMetric` represents one
+  identity whose value is structurally `PeriodProfit`, `PeriodLoss`, or
+  `PeriodBreakEven`; `GrossProfitMetric`, `OrdinaryProfitMetric`, and custom
+  metric IDs are likewise separate from account-basis coordinates. Reporting
+  subtotal definitions now carry this identity, profile-resolved labels, an
+  explicit absent-title policy, and duplicate-identity validation.
+
+- Add `periodResultOfAlg` / `periodResultOf`, which derive period profit or loss
+  from genuine statement-classified revenue and cost coordinates without
+  inserting a balancing account. After-closing trial-balance validation now
+  reports residual period-result or reporting-subtotal coordinates explicitly.
+
+- Add a JGAAP reporting transformation from validated trial balances with
+  standalone/combined scope, reciprocal elimination, maturity allocation,
+  materiality and contra policy, profile labels, auditable subtotals, and final
+  debit-credit reconciliation.
+
+- Add a trial-balance validation boundary with explicit reciprocal, temporary,
+  closing-residual, abnormal-side, reclassification, and maturity-evidence
+  findings, plus an opaque policy-controlled boundary for downstream reporting.
+
+- Add a consolidation-worksheet validation boundary that preserves source and
+  adjustment provenance, rejects imbalanced adjustments individually before
+  aggregation, and checks net-income attribution, retained-earnings, and
+  non-controlling-interest linkage across P/L, S/S, and B/S columns.
+
+- Add pre-change goldens and a regeneration tool ahead of the 0.5.0.0
+  separation of account-title semantics from the presentation layer. They
+  freeze Binary bytes, registry/closing/side/PIMO, Assist metadata, projection
+  membership, and legacy BS/P&L output for 232 concrete titles. Also add closed
+  inventory checks for classification-related consumers to detect unintended
+  differences and omitted consumers in subsequent lands.
+
+- Add a checkpoint mechanism that splits and resumes long-running confirmatory
+  runs of `audit-eval` at cell boundaries. It rejects drift in the
+  task/model/backend/git surface/hash, corrupted or duplicate JSONL, and resume
+  forks before execution, and supports lineage audits with independent
+  verification and merge CLIs.
+
+- Add the JCCI 2022 bookkeeping level 2 / level 3 A-column / B-column lists as
+  frozen fixtures, with a coverage gate for 316 distinct normalized queries.
+  295 queries resolve uniquely, while 21 queries for permitted shared names or
+  generic profit-and-loss names are rejected as `AmbiguousAccount` with frozen
+  candidate sets. Also add post-vocabulary ordinal, semantics, account-info,
+  and suggestion fixtures and a regeneration tool, plus synchronization tests
+  for 232 titles / 5 contra accounts in the Python account mirror.
+
+- Add 116 account titles from JCCI bookkeeping level 2 commercial bookkeeping,
+  with English display names conforming to the EDINET 2026 'general commercial
+  and industrial' taxonomy, to `AccountTitles` and the exhaustive account
+  registry. Limit the EDINET English labels to external display names while
+  preserving the compatibility and uniqueness of internal constructor IDs and
+  Japanese aliases. Also explicitly mark 3 contra accounts and 3 accounts
+  excluded from closing transfers as registry attributes.
 
 - Definition 7 amendment support: `ExBaseClass.isContra` (registry-delegated
   default), `defaultSide`, `pimoFromDivision`, `pimoFlip`,
   `projContraAssets`, and `projContra`.
+
 - `JournalCert` and `certifyJournalText` in
   `ExchangeAlgebra.Convert.Checked` add staged certification for text-originated
   journal batches. Duplicate txids and structural errors are rejected first,
@@ -154,6 +283,7 @@
   returned as `BalancedUnresolved`, including resolved postings, unresolved
   account text/errors with 0-origin indices, and exact debit/credit totals;
   fully resolved batches produce the same `Journal` as `checkedJournal`.
+
 - `ExchangeAlgebra.Optimize` (new subsystem): a pluggable optimization
   solver interface — the `Solver` class fixes
   `optimize :: Monad m => strategy -> Config strategy -> (Candidate strategy
@@ -172,6 +302,7 @@
   validated up front; solvers never re-evaluate an already-scored candidate.
   This subsystem is a generic numeric layer independent of the
   redundant-algebra core.
+
 - `circulant` (`ExchangeAlgebra.Simulate.Network`): a deterministic circulant
   (ring-lattice) generator where each buyer draws its `min k (N-1)` suppliers
   from the `k` nodes that follow it cyclically. Needs no `StdGen` and is built
@@ -179,6 +310,7 @@
   `N` a market-scale run needs — unlike `kRegular` / `erdosRenyi`, whose
   generation cost is `O(kN²)` / `O(N²)`. `|E| = min k (N-1) · N` exactly, with
   no duplicate or self edges. Doctested.
+
 - `ExchangeAlgebra.Assist` (new module): deterministic assistance layer for
   LLM-facing workflows. `describeAccount` / `allAccountInfos` expose per-account
   metadata (division and home side derived from `classifyAccountDivision` /
@@ -189,6 +321,7 @@
   `suggestAccounts` gives deterministic keyword lookup (no LLM); and
   `explainEntryError` / `explainJournalErrors` / `explainSourceErrors` render
   `Convert.Checked` rejections as structured one-line feedback for retry loops.
+
 - `ExchangeAlgebra.Convert.Checked` (new module): checked construction for
   externally generated (LLM/runner) journal entries. `checkedEntry` /
   `checkedEntryText` reject empty entries, wildcard `Side`/`AccountTitle`,
@@ -204,6 +337,7 @@
   unchecked path's semantics are unchanged. Property tests (accept-iff,
   equivalence, submonoid closure, duplicate rejection, reconciliation) and
   doctests included.
+
 - `stepBackWith` / `spillDeleteDecision` (`ExchangeAlgebra.Simulate`): the
   eviction-window arithmetic and the per-chunk delete decision are now pure,
   exported, unit-tested functions — the __single source__ of "which term range
@@ -214,6 +348,7 @@
   the shared functions (classic passes `prevTerm`, Lite passes `pred` — each
   engine keeps its own notion of "previous term"); behaviour is unchanged and
   the decision table is pinned by tests.
+
 - Pure row builders for the legacy CSV writers (design-review C7): `bsRows`,
   `plRows`, `journalRows`, `accountLedgerRowsJournal` and
   `compoundTrialBalanceRows` are the pure counterparts of `writeBS` /
@@ -223,9 +358,11 @@
   `postClosingTrialBalanceRows` / `accountLedgerRows`. Output is bit-for-bit
   unchanged (pinned regression tests were added before the refactor and pass
   unmodified after it); each new builder carries Haddock + doctests.
+
 - `BaseClass` instance for 7-tuples (design-review C5): `Element` and
   `AxisDecompose` already had 7-tuple instances, so every Element tuple arity
   is now also usable as a base.
+
 - `examples/audit-eval`: full 23-task pilot suite (representative tasks #4–#23
   converted to `tasks/*.json` with per-task `ea_account_map`) and a v2 task/output
   contract (`TASK-FORMAT.md`) extending the runner beyond journal-posting arrays:
@@ -248,20 +385,24 @@
   misprinted by model-written string code) to the measurement layer; the
   versioned SKILL treatment artifact is untouched.
   Examples-only change; no library code touched.
+
 - `examples/audit-eval` Track S Land 3: arm Aprime now uses the
   `LoadChecked.hs` checked-loader gate with raw/rich retry feedback, arm A can
   select `SKILL-ea-v2`, and runner metadata records effective model / CLI
   versions automatically. Examples-only change; no library code touched.
+
 - `examples/audit-eval` Track S Land 4: `gen/` now has a deterministic generator
   fairness pass, independent pandas/EA double-oracle adoption via
   `DeriveEA.hs`, explicit defect injection checks, and `make_suite.py` for
   generated suites. Examples-only change; no library code touched.
+
 - `ExchangeAlgebra.Simulate`: the `StateSpace` methods `initT` / `lastT` are now
   exported. Their Haddock has always described them as customizable (they let an
   instance override the simulation start/end term, and `runSimulationWithSpill`
   consults them), but the export list only exposed
   `StateSpace(event, randomSeeds)`, so external instances could not actually
   override — or even name — them. Purely additive.
+
 - `CumulativeTranslationAdjustment` `AccountTitles` constructor (為替換算調整勘定,
   classified as `Equity`) — the equity/OCI account that absorbs the foreign-currency
   translation adjustment. This is the only library primitive that foreign-currency
@@ -270,6 +411,7 @@
   `ExchangeAlgebra.Algebra.Transfer` machinery (`createTransfer`/`.->`/`|%`), and the
   CTA residual is posted from the caller, so no new translation operator is added to
   the library. Classification and exhaustiveness tests updated.
+
 - `ExchangeAlgebra.Bookkeeping.priorPeriodErrorCorrection` — prior-period error
   correction builder (前期修正/誤謬訂正): the current-period portion is charged to
   an expense account while the prior-period portion is routed, by construction, to
@@ -278,6 +420,7 @@
   `AmortizationExpense` `AccountTitles` constructor (無形固定資産償却費, Cost;
   distinct from tangible-asset `Depreciation`); classification and exhaustiveness
   tests updated. Balanced by construction (`norm (decL x) == norm (decR x)`).
+
 - `ExchangeAlgebra.Bookkeeping` — equity-method closing builders
   (`equityMethodEarningsEntry`, `equityMethodDividendEntry`, `equityMethodEntries`)
   plus `equityMethodBalance`, the engine-recomputed carrying amount
@@ -288,6 +431,7 @@
   `EquityInEarningsOfInvestee` (持分法による投資利益, Revenue). All builders are
   debit-credit balanced (`norm (decL x) == norm (decR x)`); the exhaustiveness
   and classification unit tests cover the two new titles.
+
 - `ExchangeAlgebra.Algebra.netPairMapBy` — the pair read-out of the paper's
   class-net operator ν_κ (`def:class-net`, notes Def 2.7). For each bucket key it
   returns a non-negative `(notTotal, hatTotal)` pair, built by netting each base's
@@ -298,6 +442,7 @@
   value types (the `n − h` identity with `balanceMapBy` only holds on a signed
   type such as `Double`/`MoneyDecimal`). Single pass; redundancy is intentionally
   reduced (named, not an implicit `bar`).
+
 - `ExchangeAlgebra.Simulate.Lite` — `stageOf` / `StageTagged`: a note-tagged BSP
   stage whose note type is fixed to `(tag, t)` by construction. Each agent emits
   a bare `Alg v b`; the runner attaches the single note `(stTag, t)` in exactly
@@ -313,6 +458,7 @@
   be either constructor. Determinism is unaffected — the per-agent `StdGen` is
   still derived from `(specSeed, termIx, stageIx, agentIx)` only, and the note
   attachment is a pure post-transform.
+
 - `ExchangeAlgebra.Write` — three closing-document CSV writers (and their pure
   row-builders, for testing/composition). `writeWorksheet` / `worksheetRows`
   render an 8-column worksheet (8 桁精算表): per account title, the
@@ -338,6 +484,7 @@
   implicit `bar`. All three have Haddock doctests on their pure row-builders and
   unit tests (worksheet self-check P/L diff == B/S diff == net income; post-closing
   TB excludes Cost/Revenue; ledger preserves posting count).
+
 - `ExchangeAlgebra.Bookkeeping` — a new module of *closing-adjustment entry
   builders* (決算整理仕訳) at the 日商簿記 3 級 level. Unlike
   `ExchangeAlgebra.Algebra.Transfer` (which relabels existing ledger balances),
@@ -361,11 +508,13 @@
   negative/non-finite amounts are rejected) and is debit-credit balanced
   (`norm (decL x) == norm (decR x)`), verified as a QuickCheck property for all
   builders plus unit tests on representative lecture figures.
+
 - `AccountTitles` — added `ReversalOfAllowanceForDoubtfulAccounts` (貸倒引当金戻入,
   `Revenue`), the credit counterpart released by the allowance builders when the
   estimate is below the current balance. Appended before the `AccountTitle`
   wildcard (existing ordinals preserved) and added to the classification
   exhaustiveness table.
+
 - `AccountTitles` — added ~49 account titles at the 日商簿記 3 級 (elementary
   Japanese bookkeeping) level, each with an English/Japanese bilingual Haddock
   gloss: assets (e.g. `PettyCash`, `NotesReceivable`, `MerchandiseInventory`,
@@ -386,6 +535,7 @@
   treating a title as `Assets`. This also completed the `fixedCurrent` cases for
   the pre-existing `AccountsReceivable` (now `Current`) and `Sales` (now `Other`),
   which previously had no case and would `error` on a non-exhaustive pattern.
+
 - `ExchangeAlgebra.Simulate.Policy` — a declarative vocabulary for managing the
   size of a long simulation's audit trail, decided once when the ledger is
   built. A `LedgerPolicy` bundles three orthogonal choices: **retention**
@@ -414,6 +564,7 @@
   terms (under `RetainRecent`); under `defaultLedgerPolicy` it is observationally
   equal to `runLite`. The existing `SpillOptions`, `runSimulationWithSpill` and
   `runLite` are unchanged.
+
 - `ExchangeAlgebra.Simulate.Network` — separates a market's *trade relation*
   from its *technology*. `TradeNetwork k` is a sparse directed "who may supply
   whom" graph (edge `(i, j)` = supplier `i` of buyer `j`); `InputCoefficients
@@ -442,6 +593,7 @@
   dependency makes one impossible for the library to supply); the Haddock shows
   a three-line `UpdatableSTRef` wrapper for the classic `Simulate` engine, and
   in `Simulate.Lite` a network is simply a `carry` field.
+
 - `ExchangeAlgebra.Simulate.Lite` — a small, additive front-end for agent-based
   bookkeeping simulations with bulk-synchronous-parallel (BSP) semantics. It
   sits beside the classic `ExchangeAlgebra.Simulate` (unchanged) and removes
@@ -463,11 +615,13 @@
   difference from the classic engine: within a stage, agents cannot observe
   each other's same-stage postings (covered by a sentinel test). A minimal
   model is ~20 lines versus ~90 with the classic instances.
+
 - `instance NFData (Journal n v b)` (shallow-structural, mirroring the `Alg`
   instance): forces the base/delta map spines and each contained `Alg`,
   leaving the lazily built axis indices untouched. Used by `Simulate.Lite`'s
   parallel stage evaluation; generally useful for `parMap rdeepseq` over
   journals.
+
 - `ExchangeAlgebra.Algebra.decBy :: Ord k => (b -> Maybe k) -> Alg v b ->
   Map k (Alg v b)` — quotient decomposition (dec_κ): one-pass partition of an
   algebra along the classes induced by a classifier on the full `HatBase`.
@@ -479,30 +633,36 @@
   `bar` commutes with `decBy` componentwise iff the classifier does not
   distinguish Hat/Not (side-sensitive classifiers encode a semantic choice;
   covered by sentinel tests).
+
 - `ExchangeAlgebra.Algebra.postFromNetBy :: Ord k => (b -> Maybe k) ->
   (k -> v -> Alg v b) -> Alg v b -> Alg v b` — fused classify→net→post:
   `bar` (explicit in the name), classify the netted entries, sum per class, and
   bulk-merge the generated postings. The "shortage detection → purchase
   postings" pattern becomes one call running in a single pass (the naive
   all-pairs formulation costs `O(N^2)` per-pair queries).
+
 - `ExchangeAlgebra.Journal.decTo :: Note n' => (b -> Maybe n') -> Alg v b ->
   Journal n' v b` — quotient decomposition landing on the `Journal` (the
   library's native keyed family of algebras, paper Definition 12), keeping the
   per-key result inside the algebra vocabulary (no external `Map` in the
   result). Same redundancy/norm guarantees as `decBy`; `plank` cannot carry a
   class (such entries join the residual).
+
 - Quotient-decomposition axiom property tests (reconstruction, norm additivity
   over classes, componentwise `bar` commutation for base-part classifiers) plus
   fixed sentinels for the side-sensitive non-commutation cases (`isHat`,
   `whichSide`) and for `mapBasePart`'s coarsen-vs-net order sensitivity.
+
 - `bench-core` gains a `dec/*` group: per-key reporting A/B between the naive
   per-key wildcard `balanceBy` loop, `balanceMapBy`, `decBy`+`norm`, and
   `postFromNetBy` at K=200/1000 keys.
+
 - `projCapitalStock` (`ExchangeAlgebra.Algebra`): now implemented (previously an
   `undefined` placeholder that crashed when called, audit R3). It projects the
   credit-side entries classified under the `Equity` division — the equity
   counterpart of `projCurrentLiability` / `projFixedLiability`. Includes a Haddock
   doctest.
+
 - `ExchangeAlgebra.Convert` — a new dependency-free (Text only) input-conversion
   core that turns external `(side, account-name, amount)` postings into exchange
   algebra `Alg` terms. `parseAccountTitle` matches a name (case-, whitespace- and
@@ -520,6 +680,7 @@
   non-negative smart constructor `.@`. Serialization glue (JSON/XML) deliberately
   stays out of the core. Haddock doctests assert the Debit/Credit ↔ Hat/Not
   mapping explicitly.
+
 - `ExchangeAlgebra.Convert.Csv` — a fixed-schema, dependency-light
   (Text + scientific) reader for general journal CSV: a header
   `side,account,amount` with an optional trailing `note` column, one posting per
@@ -539,56 +700,64 @@
   cross-module dependency. A QuickCheck round-trip property (render → parse is
   exact for `MoneyDecimal`) and structural-rejection unit tests are included.
 
-### Deprecated
+- `ExchangeAlgebra.Value` with `MoneyDecimal`, an exact non-negative decimal value type
+  (wraps `Data.Decimal.Decimal`) usable as the `v` in `Alg v b` / `Journal n v b`.
+  Numeric literals work directly (derived `Num`/`Fractional`). Because decimal addition
+  is exact and associative, `norm` / `bar` results are independent of construction order
+  (unlike `Double`). Ships `bankersRound` (round-half-to-even, the unbiased financial
+  default) and `ceilingRound`. New dependency: `Decimal`.
 
-- `projNorm` / `projWithBaseNorm` / `projWithNoteNorm`: deprecated aliases of
-  `projNetNorm` / `projWithBaseNetNorm` / `projWithNoteBaseNetNorm` (see
-  Changed — the old names concealed the bar-netting). Removal planned for 0.6.
-- The `HatVal NN.Double` instance (`Number.NonNegative.Double`): deprecated
-  since 0.5.0.0, removal planned for 0.6 (design-review C3). Its `(-)` errors
-  on the negative intermediates that the algebra's netting produces, and
-  `MoneyDouble` covers the same use case safely. GHC cannot attach `DEPRECATED`
-  to an instance, so the notice lives in the Haddock (class + instance), the
-  README value-type section, and here. All library doctests were migrated from
-  `NN.Double` to `Double`; the value-type guidance is unified across the
-  umbrella Haddock, the `HatVal` class doc and the README (`Double` /
-  `MoneyDouble` = fast, `MoneyDecimal` = exact\/audited).
-- `rounding` (`ExchangeAlgebra.Algebra`): the `NN.Double`-only whole-unit
-  ceiling helper is deprecated in favour of the explicit, value-type-appropriate
-  `ExchangeAlgebra.Value.ceilingRound` / `bankersRound` (which take a
-  decimal-places argument and work on `MoneyDecimal`). No internal callers; the
-  function itself is unchanged.
+- `ExchangeAlgebra.Value.MoneyDouble`, a zero-cost `newtype` over `Double` for a fast
+  IEEE-754 value type that is *typed* as money (distinct from bare `Double`
+  coefficients / random draws) yet has identical speed and precision. All its
+  instances (`HatVal`/`Nearly`/`Binary`/`Hashable`/`NFData`, plus the numeric
+  classes) are derived from the bare-`Double` instances via `deriving newtype`, so —
+  like `MoneyDecimal` — there are no orphan instances. Its subtraction is signed, so
+  the negative intermediates that arise inside `bar`/`(.-)` are fine (unlike
+  `Number.NonNegative.Double`, whose `(-)` errors on a negative result, making it
+  unusable as a value type). Measured: `MoneyDouble` matches `MoneyDecimal` exactly
+  where a result is exactly representable but diverges in the last ULP at scale, and
+  runs ~5–7× faster with ~15% less memory than `MoneyDecimal` in `sim2`.
+
+- `ExchangeAlgebra.Algebra.mapBasePart :: (BasePart b -> BasePart b') -> Alg v b ->
+  Alg v b'` — relabel the base part of every element while preserving the Hat/Not
+  structure and the redundancy (ordered sequences); colliding targets are
+  concatenated, so `norm` is preserved. (Hat is left untouched; the type expresses
+  the Hat/Not-preserving intent, per the redundant-algebra design.)
+
+- `ExchangeAlgebra.Algebra.balanceMapBy :: (BasePart b -> Maybe k) -> Alg v b ->
+  Map k v` — the bucketed form of `balanceBy`: nets each entry by a key projected
+  from its `BasePart` (Not adds, Hat subtracts) in a single fold, replacing one
+  wildcard projection per key. For per-key reporting (e.g. per-company stock /
+  profit) this turns `O(keys * entries)` into `O(entries)`; the result equals the
+  per-key `balanceBy` up to floating-point reassociation. Returns *signed* net
+  balances, so use a signed value type (`Double` / `MoneyDouble` / `MoneyDecimal`).
+
+- README gains a "Choosing a value type" section (Double vs MoneyDecimal comparison
+  table, the simulation boundary pattern, the large-scale precision×memory
+  trade-off, and the `fromList` ordering contract).
 
 ### Changed
+- Resolve Japanese presentation and LLM-facing names through the cleaned
+  `asLabelJa` registry field, with the JCCI `AdvancesReceived` override kept as
+  `契約負債`. Mark `EquityInEarningsOfInvestee` and
+  `CumulativeTranslationAdjustment` as consolidation-only and contextual.
+  Replace catch-all branches in all five account-semantics classifiers with
+  exhaustive constructor cases.
 
-- `whichSide` now rejects a `HatNot` (wildcard) base with an error instead of
-  silently treating it as `Hat` (design-review C5): stored postings are always
-  `Hat`/`Not` (same policy as `isHat`), so a wildcard reaching `whichSide`
-  means a query-side value leaked into a posting-side computation. __Breaking__
-  only for code that relied on the silent-`Hat` behaviour.
-- The universal `instance (HatVal n) => Show (n -> n)`
-  (`ExchangeAlgebra.Algebra.Transfer`) was removed (design-review C5):
-  __breaking__ for code that `show`ed raw rule-list tuples. `TransTable`'s own
-  `Show` still prints `<function>` without it; one doctest was adjusted.
-- `ExchangeAlgebra.Simulate.Lite` export hygiene (design-review C5):
-  __breaking__. `Stage` is now exported name-only (build with
-  `stageFor`/`stage`/`stageOf`, read the name via `stageName`); the `GLite*`
-  Generic-plumbing classes are exported name-only (their primed methods are
-  internal Rep wiring — user code only names the classes in constraints).
-- The `ExchangeAlgebra` umbrella no longer re-exports `ExchangeAlgebra.Simulate`:
-  __breaking__ (design-review C1). The simulation engine exports very generic
-  names (`copy`, `modify`, `update`, `initialize`, `normal`, `initAll`, …) that
-  polluted the recommended bookkeeping entry point. Migration: add
-  `import ExchangeAlgebra.Simulate` where those names are used — the module now
-  follows the same "import directly" policy as `Bookkeeping`/`Simulate.Lite`/
-  `Simulate.Network`/`Simulate.Policy` (documented in the umbrella Haddock).
-  The bundled examples were migrated mechanically (import line only).
-- `ExchangeAlgebra.Algebra.Base.Element` no longer re-exports the whole
-  `Data.Hashable` and `GHC.Generics` modules: __breaking__ (design-review C1).
-  Only the two names needed to define an `Element` instance remain re-exported
-  (`Hashable(..)` and `Generic`); the previous module-level re-exports leaked
-  their entire namespaces through `Base` → `Algebra` → the umbrella. Migration:
-  import `Data.Hashable`/`GHC.Generics` directly for any other names.
+- Clarify that the retained `GrossProfit` and `OrdinaryProfit` constructors and
+  transfer functions are historical SNA/simulation coordinates, not complete
+  JGAAP subtotal definitions. Their ordinals and Binary tags remain unchanged;
+  see `docs/migration-0.5-derived-metrics.md`.
+
+- Correct `NonControllingInterests` metadata to `ConsolidationOnly`,
+  `ContextualPresentation`, and `AttributionAccount`, preventing the
+  consolidated balance-sheet coordinate from being posted to an individual
+  entity's ordinary journal.
+
+- Correct `HeadOfficeCurrentAccount` (`本店`) from `Assets` to `Liability` to
+  match its credit balance in branch books.
+
 - The bar-netted projection read-outs are renamed so the netting is visible in
   the name (design-review C2): `projNorm` → `projNetNorm`
   (`ExchangeAlgebra.Algebra`), `projWithBaseNorm` → `projWithBaseNetNorm` and
@@ -596,42 +765,34 @@
   the last also gains the missing `Base` in its name: it takes note AND base
   queries). The old names remain as __deprecated aliases__ (removal planned
   for 0.6), so this is warning-only, not immediately breaking.
+
 - `ExchangeAlgebra.Convert`: the account-name normaliser is renamed
   `norm` → `normalizeTitle` (the module has never been released, so no
   migration burden). The old name collided with the core value-domain
   homomorphism `ExchangeAlgebra.Algebra.norm` — a fundamental, entirely
   unrelated operation — and would have made `norm` ambiguous in any module
   importing both unqualified.
-- `Element` class wildcard methods (`ExchangeAlgebra.Algebra.Base.Element`):
-  __breaking__. The misspelt `wiledcard` method family is renamed to the correct
-  spelling, with no compatibility aliases (audit R2). Migration (旧名 → 新名):
-  `wiledcard` → `wildcard`, `haveWiledcard` → `haveWildcard`,
-  `isWiledcard` → `isWildcard`, `ignoreWiledcard` → `ignoreWildcard`. Any
-  `instance Element` defining `wiledcard` (and overriding `haveWiledcard` /
-  `isWiledcard` / `ignoreWiledcard`) must rename those method definitions; all
-  call sites use the new names. The `(.#)` wildcard shorthand is unchanged.
-  The bundled SICE-frozen examples were updated by mechanical identifier rename
-  only (the rename is compile-following and preserves their semantics/values).
+
 - `Liner` (`ExchangeAlgebra.Algebra`) and `Journal` (`ExchangeAlgebra.Journal`):
   added Haddock documenting the constructor invariants (the internal axis/index
   cache fields must stay consistent with `_realg` / `_jBase`/`_jDelta`, or the
   wildcard projection / `filterByAxis` paths return wrong answers silently). Build
   values via the smart constructors (`fromList`/`fromMap`/`(.@)`/`(.|)`), not by
   applying the data constructors directly (audit R11, doc only).
+
 - `Updatable.copy` / `Updatable.modify` default methods
   (`ExchangeAlgebra.Simulate`): the unoverridden default now raises a diagnostic
   `error "Updatable.copy: default method not overridden"` (resp. `modify`) instead
   of bare `undefined` (audit R4). Behaviour-equivalent for any instance that
   overrides them.
+
 - `Liner` `_bpToId` / `_nextBpId` fields (`ExchangeAlgebra.Algebra`): no longer
   built by `linerFromMap` (they were never read; reserved for a dormant
   incremental-id scheme). They are now lazy `error` poison — forcing either throws
   with an explanatory message — guarded by a regression test (audit R3/F6).
   Normal projection (concrete and wildcard) never forces them.
 
-### Changed (examples)
-
-- `marketEx1`\/`marketEx1d` (`examples/market/MarketModel.hs`): the model note
+- Examples: `marketEx1`\/`marketEx1d` (`examples/market/MarketModel.hs`): the model note
   is now an ADT `MTag` (`PlankTag | Trade | Production | Report | Closing |
   Carryover`) instead of a `String` tag, so `MNote = (MTag, Int)`. The event tag
   is written (`.| (Trade, t)`) and read (`projWithNote [(Trade, t)]`) by the same
@@ -642,20 +803,7 @@
   Haddock now documents the "prefer an ADT note over `String`" guidance with the
   `MTag` sketch. No library API change.
 
-### Removed
-
-- `Journal` `_jVersion` field (`ExchangeAlgebra.Journal`): __breaking__. This
-  write-only counter was never observed by any read path (audit R3/F2). The
-  `Journal(..)` constructor now has one fewer field and the `_jVersion` record
-  accessor is gone; the internal `mkJournal` no longer takes a version argument.
-  The `Binary` instance is unaffected (it serialises via `toMap`/`fromMap` and
-  never touched `_jVersion`), so the on-disk/spill format is unchanged.
-- `forceBalance` (`ExchangeAlgebra.Algebra`): removed unused, unexported,
-  untyped `undefined` placeholder (audit R3).
-
-### Performance
-
-- `Journal` append (`.+` / `addJournal`): two redundancies removed on the hot
+- Performance: `Journal` append (`.+` / `addJournal`): two redundancies removed on the hot
   commit path (audit R5 = ROAD_MAP P1b). `toMap` no longer copies when either
   the base or the delta layer is empty, and appending to an *existing* note key
   no longer re-inserts the (unchanged) note-axis index entry. Values, sequence
@@ -663,7 +811,8 @@
   passes unmodified. Measured: append micro-benches alloc -29%/-36%
   (base-only / same-note), end-to-end simulation alloc -4.5% with a small
   wall-clock improvement.
-- `Write` trial-balance documents (`writeCompoundTrialBalance`,
+
+- Performance: `Write` trial-balance documents (`writeCompoundTrialBalance`,
   `worksheetRows` / `writeWorksheet`, `postClosingTrialBalanceRows` /
   `writePostClosingTrialBalance`): aggregation changed from O(a·s) (a full
   `projByAccountTitle` scan per distinct account title) to a single
@@ -674,13 +823,54 @@
   ebex6/7/9 byte-diff). Measured: trial-balance row build a=50/s=10⁴ wall
   13.4 ms → 1.3 ms (~90% reduction, ~10× speedup).
 
-### Fixed
+- Performance: Concrete (non-wildcard) `proj` / `projNorm` no longer force/build the lazy axis
+  index. The module is compiled `Strict`, so passing the index to the shared
+  projection helper previously forced its full construction even for an exact
+  single-base lookup that only needs a `Map.lookup`. The helper is now split into
+  `projExactMap` (index-free) and `projWildMap` (uses the index), and callers
+  dispatch on `haveWildcard` with the index fields bound lazily — so an exact
+  projection is a plain `Map.lookup` and a wildcard projection still uses the
+  index. Measured ~4× faster for repeated concrete projections over a large
+  ledger (more for workloads that rebuild the projected algebra per query, e.g.
+  per-company stock reporting). Results are unchanged; guarded by a poison-index
+  regression test.
 
+- Examples: The bundled bookkeeping and simulation examples (`elementaryBookkeepingEx1–5`,
+  `simulateEx1`, `simulateEx2`) and the test suite's simulation now use the exact
+  `MoneyDecimal` ledger value type, following the boundary pattern (ABM
+  parameters/coefficients/random draws stay `Double` and convert at the ledger
+  boundary; reported stocks/profits convert back). The numeric-method examples
+  (`ripple/*`, `CGE`) intentionally stay `Double`, demonstrating the Double side of
+  the selectable value type.
+
+### Deprecated
+- `projNorm` / `projWithBaseNorm` / `projWithNoteNorm`: deprecated aliases of
+  `projNetNorm` / `projWithBaseNetNorm` / `projWithNoteBaseNetNorm` (see
+  Changed — the old names concealed the bar-netting). Removal planned for 0.6.
+
+- The `HatVal NN.Double` instance (`Number.NonNegative.Double`): deprecated
+  since 0.5.0.0, removal planned for 0.6 (design-review C3). Its `(-)` errors
+  on the negative intermediates that the algebra's netting produces, and
+  `MoneyDouble` covers the same use case safely. GHC cannot attach `DEPRECATED`
+  to an instance, so the notice lives in the Haddock (class + instance), the
+  README value-type section, and here. All library doctests were migrated from
+  `NN.Double` to `Double`; the value-type guidance is unified across the
+  umbrella Haddock, the `HatVal` class doc and the README (`Double` /
+  `MoneyDouble` = fast, `MoneyDecimal` = exact\/audited).
+
+- `rounding` (`ExchangeAlgebra.Algebra`): the `NN.Double`-only whole-unit
+  ceiling helper is deprecated in favour of the explicit, value-type-appropriate
+  `ExchangeAlgebra.Value.ceilingRound` / `bankersRound` (which take a
+  decimal-places argument and work on `MoneyDecimal`). No internal callers; the
+  function itself is unchanged.
+
+### Fixed
 - `ExchangeAlgebra.Bookkeeping.corporateTaxSettlementEntries` now rejects
   `interim > total` (a corporate-tax refund position, out of 日商簿記 3 級
   scope) with a clear error, mirroring the guard style of its sibling
   `consumptionTaxSettlementEntry`; previously the negative `unpaid` leg hit
   the generic `(.@)` error (design-review C5).
+
 - `classifyAccountDivision` (`ExchangeAlgebra.Algebra.Base`) is now total by
   explicit enumeration: the trailing catch-all `_ = Assets` was replaced with
   explicit `Assets` cases for the 19 legacy SNA/macro asset titles (`Cash`,
@@ -689,6 +879,7 @@
   silently classified as `Assets`; now a missing case fails loudly (pattern-
   match error, caught by the Bounded/Enum exhaustiveness test). No behaviour
   change for existing titles.
+
 - `ExchangeAlgebra.Journal`: removed two GHC `RULES` that rewrote
   `norm (projWithBase bs js)` to `projWithBaseNorm bs js` (and the
   note-base analogue). The equation is __false__ whenever a query selects both
@@ -701,6 +892,7 @@
   now states the correct identity
   `projWithBaseNorm bs js == norm (map bar (projWithBase bs js))`, and a
   regression test pins both the netted and the gross value.
+
 - `incomeSummaryAccount` (both `ExchangeAlgebra.Algebra.Transfer` and
   `ExchangeAlgebra.Journal.Transfer`): no longer crashes with
   "Non-exhaustive patterns" on a balanced ledger (audit R1). When credit and
@@ -710,6 +902,7 @@
   added in this case (appending a zero posting is not an identity for `Journal`,
   since `(.|)` builds a singleton that drives version/compaction). A
   balanced-ledger regression test now runs every closing transfer.
+
 - `proj` and `projNorm` (`ExchangeAlgebra.Algebra`): the multi-pattern paths now
   use __set semantics__ — a query list is treated as a set, so duplicate queries
   or an exact base overlapping a wildcard query select each posting __at most
@@ -720,6 +913,7 @@
   differ__ from prior releases when a query list contains overlapping or
   duplicate patterns. The Haddock now documents the set semantics and the
   `projNorm bs x == norm (bar (proj bs x))` identity (bar-netted norm).
+
 - `Simulate.Lite`: under `ParChunk`, the first stage message is now forced to
   normal form in the calling thread before the remaining messages are sparked.
   Previously all sparks raced to force the shared snapshot's lazily-built index
@@ -731,7 +925,6 @@
   programs using sparks.
 
 ### Documentation
-
 - Document the precise validity layers of the category-theory phase 1 laws for
   `mapBasePart`, `foldEntries`, and `postFromNetBy`, and pin them with QuickCheck
   properties plus raw-order and `bar` non-commutation counterexamples. This is
@@ -742,6 +935,7 @@
   note-wildcard (the projection widens to all notes) — previously an
   undocumented behaviour (design-review C5). The underscore-prefixed
   `UpdatableSTRef` methods are documented as instance wiring, not user API.
+
 - Same-base sequence order documented as __construction-path dependent__: the
   pairwise-union path (`fromList`/`mconcat`) and the bulk-merge path
   (`sigma`/`unionsMerge`) arrange the same multiset of postings in different
@@ -752,12 +946,14 @@
   after `compress`/`bar`, or use `MoneyDecimal`), and a characterization test
   pins the current orders so any change to either path is deliberate. Path
   unification is deferred to the 0.5.0.0 cleanup plan.
+
 - `projCredit` / `projDebit` Haddock: documented that for `Alg` they coincide
   with the `Exchange` methods `decR` / `decL` respectively, and removed the
   stale guidance "use this instead of decL/decR when the base contains non-Enum
   elements" (it referred to long-removed `Enum`-based class defaults — and even
   named the wrong counterpart). The dead commented-out `credit`/`debit` class
   members in `ExBaseClass` were removed.
+
 - `Exchange` class Haddock corrected: the class-level docs of `decR`/`decL` were
   __inverted__ relative to both the implementation and the Deguchi & Nakano
   (1986, Definition 2.16) convention. `decR` extracts the __credit__ side
@@ -768,6 +964,7 @@
   `HatBaseClass` Haddock no longer equates Hat/Not with credit/debit: the side
   of a posting is determined by the account division together with the Hat/Not
   label (`whichSide`).
+
 - Module-reachability policy made explicit (audit R10): `ExchangeAlgebra.Bookkeeping`,
   `ExchangeAlgebra.Simulate.Lite`, `ExchangeAlgebra.Simulate.Network` and
   `ExchangeAlgebra.Simulate.Policy` are __designed to be imported directly__ and
@@ -775,6 +972,7 @@
   would collide names with the Algebra layer or with each other). This is now
   stated in the umbrella module's Haddock and in the README's import-patterns
   section.
+
 - `Simulate.Lite.specLedger` Haddock now warns that the committed-ledger role is
   a model declaration conferred by the selector alone, not inferred from the
   product type: with more than one `Journal` field a wrong selector type-checks
@@ -782,7 +980,6 @@
   wrong ledger). Recommends exactly one `Journal` field per world.
 
 ### Internal
-
 - `-Wall` warning cleanup (audit R9): removed unused imports\/bindings, silenced
   unused-match and name-shadowing warnings (mechanical, behaviour-preserving), and
   documented the remaining audited non-exhaustive patterns in place (168 → 27
@@ -791,96 +988,6 @@
   the previously-unused `balanceOf` (`ExchangeAlgebra.Write`) and `createTransfer`
   (`ExchangeAlgebra.Journal.Transfer`).
 
-## 0.5.0.0 - 2026-06-07
-
-Selectable value type: `Double` (default, fast) / `MoneyDouble` (typed fast FP)
-vs an exact non-negative `Decimal` (`MoneyDecimal`) for determinism/auditability.
-**Breaking** (PVP major):
-`HatVal` lost its `RealFloat` superclass and gained `showValue`. See the README
-"Choosing a value type" and "Migrating to 0.5.0.0" sections.
-
-### Added
-- `ExchangeAlgebra.Value` with `MoneyDecimal`, an exact non-negative decimal value type
-  (wraps `Data.Decimal.Decimal`) usable as the `v` in `Alg v b` / `Journal n v b`.
-  Numeric literals work directly (derived `Num`/`Fractional`). Because decimal addition
-  is exact and associative, `norm` / `bar` results are independent of construction order
-  (unlike `Double`). Ships `bankersRound` (round-half-to-even, the unbiased financial
-  default) and `ceilingRound`. New dependency: `Decimal`.
-- `ExchangeAlgebra.Value.MoneyDouble`, a zero-cost `newtype` over `Double` for a fast
-  IEEE-754 value type that is *typed* as money (distinct from bare `Double`
-  coefficients / random draws) yet has identical speed and precision. All its
-  instances (`HatVal`/`Nearly`/`Binary`/`Hashable`/`NFData`, plus the numeric
-  classes) are derived from the bare-`Double` instances via `deriving newtype`, so —
-  like `MoneyDecimal` — there are no orphan instances. Its subtraction is signed, so
-  the negative intermediates that arise inside `bar`/`(.-)` are fine (unlike
-  `Number.NonNegative.Double`, whose `(-)` errors on a negative result, making it
-  unusable as a value type). Measured: `MoneyDouble` matches `MoneyDecimal` exactly
-  where a result is exactly representable but diverges in the last ULP at scale, and
-  runs ~5–7× faster with ~15% less memory than `MoneyDecimal` in `sim2`.
-- `ExchangeAlgebra.Algebra.mapBasePart :: (BasePart b -> BasePart b') -> Alg v b ->
-  Alg v b'` — relabel the base part of every element while preserving the Hat/Not
-  structure and the redundancy (ordered sequences); colliding targets are
-  concatenated, so `norm` is preserved. (Hat is left untouched; the type expresses
-  the Hat/Not-preserving intent, per the redundant-algebra design.)
-- `ExchangeAlgebra.Algebra.balanceMapBy :: (BasePart b -> Maybe k) -> Alg v b ->
-  Map k v` — the bucketed form of `balanceBy`: nets each entry by a key projected
-  from its `BasePart` (Not adds, Hat subtracts) in a single fold, replacing one
-  wildcard projection per key. For per-key reporting (e.g. per-company stock /
-  profit) this turns `O(keys * entries)` into `O(entries)`; the result equals the
-  per-key `balanceBy` up to floating-point reassociation. Returns *signed* net
-  balances, so use a signed value type (`Double` / `MoneyDouble` / `MoneyDecimal`).
-- README gains a "Choosing a value type" section (Double vs MoneyDecimal comparison
-  table, the simulation boundary pattern, the large-scale precision×memory
-  trade-off, and the `fromList` ordering contract).
-
-### Changed (breaking — target 0.5.0.0)
-- `(.*)` (scalar product) now **rejects a negative / non-finite scalar** with an
-  `error`, instead of silently producing out-of-domain (negative) postings (the
-  algebra is over non-negative values; audit divergence C). The check is on the
-  scalar only — `0 .* x = Zero` and non-negative scalars are unchanged, and the
-  fast internal value map is preserved. Covered by `testScalarRejectsNegative`;
-  the bundled `ripple`/`CGE` Double examples are unaffected (their production
-  amounts stay non-negative).
-- `HatVal` no longer has `RealFloat` as a superclass; it gains a `showValue ::
-  n -> String` method. This lets non-floating-point value types (e.g. an exact
-  `Decimal`) become `HatVal` instances. The `Double` / `NN.Double` instances render
-  byte-for-byte identically to before (the old internal `showV` was inlined into
-  each instance's `showValue`). `Fractional` is kept, so numeric literals still
-  work for value types. Downstream code that relied on `HatVal n => RealFloat n`,
-  or defined its own `HatVal` instance, must adapt (add `showValue`).
-- `Journal.fromList` is now a strict left fold (`L.foldl' (.+) mempty`) instead of
-  the lazy right fold (`foldr (.+) mempty`). It is `O(N)` and ~15× faster at
-  N=10000 / ~40× at N=20000 in the core benchmark (the lazy right fold built a deep
-  thunk that was expensive to force). The posting **multiset is preserved**; the
-  only change is the accumulation order of same-note/same-base postings within one
-  `Alg` sequence. That `Seq` order is observable through `Eq` / `Show` / `toAlg` /
-  `Binary`, and for `Double` through the last-ULP of `norm` / `bar`. For the exact
-  `MoneyDecimal` value type the order never affects `norm` / `bar` / balance. (The
-  interim `fromListFast`, added during staging, was folded back into `fromList`.)
-
-### Performance (non-breaking)
-- Concrete (non-wildcard) `proj` / `projNorm` no longer force/build the lazy axis
-  index. The module is compiled `Strict`, so passing the index to the shared
-  projection helper previously forced its full construction even for an exact
-  single-base lookup that only needs a `Map.lookup`. The helper is now split into
-  `projExactMap` (index-free) and `projWildMap` (uses the index), and callers
-  dispatch on `haveWildcard` with the index fields bound lazily — so an exact
-  projection is a plain `Map.lookup` and a wildcard projection still uses the
-  index. Measured ~4× faster for repeated concrete projections over a large
-  ledger (more for workloads that rebuild the projected algebra per query, e.g.
-  per-company stock reporting). Results are unchanged; guarded by a poison-index
-  regression test.
-
-### Changed (examples / tests)
-- The bundled bookkeeping and simulation examples (`elementaryBookkeepingEx1–5`,
-  `simulateEx1`, `simulateEx2`) and the test suite's simulation now use the exact
-  `MoneyDecimal` ledger value type, following the boundary pattern (ABM
-  parameters/coefficients/random draws stay `Double` and convert at the ledger
-  boundary; reported stocks/profits convert back). The numeric-method examples
-  (`ripple/*`, `CGE`) intentionally stay `Double`, demonstrating the Double side of
-  the selectable value type.
-
-### Internal (testing)
 - Added a QuickCheck property suite (test dep `QuickCheck`) encoding the Definition 6
   redundant-algebra axioms (Hat involution, scalar on element, scalar distribution,
   norm additivity, norm homogeneity) and derived lemmas (bar idempotent, zero
@@ -889,8 +996,10 @@ vs an exact non-negative `Decimal` (`MoneyDecimal`) for determinism/auditability
   `MoneyDecimal` `fromList` per-base nets are construction-order independent.
   Journal-level properties: `norm` additivity, Hat preserves the note set, and
   per-(note,base) net is construction-order independent.
+
 - Documented the Definition 6 axioms on the `Redundant` class and `norm` (Haddock
   only), cross-referencing the property suite.
+
 - Benchmark/CI scaffolding: `simulateEx2` agent count and horizon are now
   env-configurable (`EA_LASTC`, `EA_LASTTERM`; defaults 200 / 100) for end-to-end
   scale benchmarking; added a GitHub Actions CI workflow (build + test + doctest,
