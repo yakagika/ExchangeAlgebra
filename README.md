@@ -256,8 +256,11 @@ ledgers keep working and render identically. Four things to know:
   compare via `norm` / `bar` / `balanceBy` rather than raw structure.
 - **Abstract `Alg` / `Journal` / `TransTable`**: pattern-match `Alg` on `Zero`
   and `(:@)` only and build values with `(.@)`, `(.+)`, `fromList`, `mkJournal`,
-  `(.|)` and `table`. Code that constructed `Liner`, `Journal` or `TransTable`
-  directly must import `ExchangeAlgebra.Algebra.Internal` (not covered by PVP).
+  `(.|)` and `table`. Code that constructed `Liner` directly must import
+  `ExchangeAlgebra.Algebra.Internal` (the `Alg` representation; not covered by
+  PVP). The `Journal` and `TransTable` constructors are not exported anywhere:
+  rebuild such values with `mkJournal` / `(.|)` / `fromList` and `table` /
+  `(.->)` / `(|%)`.
 - **Spill files are validated**: `readBinarySpillFile` and
   `restoreJournalFromBinarySpill` now raise on a truncated, stale or gapped
   file instead of merging a partial ledger; use the `...Checked` variants for an
