@@ -27,4 +27,7 @@ main = doctest  [ "-isrc"
                   -- top-level umbrella, so listed explicitly.
                 , "src/ExchangeAlgebra/Foundation.hs"
                 , "src/ExchangeAlgebra/Accounting.hs"
-                , "src/ExchangeAlgebra/Algebra/Readout/Net.hs"]
+                , "src/ExchangeAlgebra/Algebra/Readout/Net.hs"
+                , "src/ExchangeAlgebra/Simulate/Engine.hs"
+                , "src/ExchangeAlgebra/Simulate/Analysis.hs"
+                , "src/ExchangeAlgebra/Simulate/Random.hs"]

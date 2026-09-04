@@ -62,9 +62,12 @@ library
       ExchangeAlgebra.Reporting.Metric
       ExchangeAlgebra.Reporting.Presentation
       ExchangeAlgebra.Simulate
+      ExchangeAlgebra.Simulate.Analysis
+      ExchangeAlgebra.Simulate.Engine
       ExchangeAlgebra.Simulate.Lite
       ExchangeAlgebra.Simulate.Network
       ExchangeAlgebra.Simulate.Policy
+      ExchangeAlgebra.Simulate.Random
       ExchangeAlgebra.Simulate.Spill
       ExchangeAlgebra.TrialBalance.Balance
       ExchangeAlgebra.TrialBalance.Validation

@@ -26,6 +26,15 @@
   `projNorm`, the signed `balanceBy` / `balanceMapBy`, `netPairMapBy`, and
   the journal counterparts `projWithBaseNetNorm` / `projWithNoteBaseNetNorm`).
   Re-export only; the definitions stay in `Algebra` and `Journal`.
+- `ExchangeAlgebra.Simulate.Engine`, `ExchangeAlgebra.Simulate.Analysis` and
+  `ExchangeAlgebra.Simulate.Random`: re-export-only shims that split the
+  surface of `ExchangeAlgebra.Simulate` into the state-space engine
+  (`StateTime`, `Updatable` / `UpdatePattern`, the `ST` wrappers, `Event`,
+  `StateSpace`, the `runSimulation` / `runScenarios` family), the
+  ripple-effect utilities (`leontiefInverse`, `rippleEffect`) and the random
+  helpers (`normal`, `normal'`, `updateGen`). `Engine` keeps the export
+  restrictions of `Simulate` and does not re-export the spill types, which
+  stay in `ExchangeAlgebra.Simulate.Spill`. Definitions do not move.
 
 ### Documentation
 - README "Migrating to 0.5.0.0": only the `Alg` representation (`Liner`) lives in
