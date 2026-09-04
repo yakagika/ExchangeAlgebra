@@ -49,7 +49,7 @@ cd my-examples
 ### Standalone builds
 
 A companion `examples/stack.yaml` is checked in, pinning the released
-`exchangealgebra-0.4.0.0` from Hackage via `extra-deps`. So after a sparse
+`exchangealgebra-0.5.0.0` from Hackage via `extra-deps`. So after a sparse
 checkout or `degit`, the following just works:
 
 ```bash
