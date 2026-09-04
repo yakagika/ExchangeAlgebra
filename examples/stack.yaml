@@ -9,19 +9,13 @@
 # packages so edits to src/ are picked up immediately. See the project's
 # CLAUDE.md for the rationale of keeping both files.
 #
-# RELEASE-HOLD MODE (develop branch, pre-0.5.0.0):
-# The examples on `develop` use the unreleased 0.5.0.0 API (MoneyDecimal, account
-# registry, contra netting, industrial network), which is
-# not yet on Hackage. So instead of a Hackage version pin we point at a git commit
-# of the library on `develop`. This keeps standalone (degit examples/) builds
-# working against the unreleased API. On the 0.5.0.0 Hackage release this reverts
-# to a plain `- exchangealgebra-0.5.0.0` pin (see CLAUDE.md release policy).
-# Update the commit below only when an example starts depending on newer API.
+# The library is pinned to its Hackage release below. If an example starts
+# depending on an unreleased API, switch the extra-dep to a git commit pin
+# (see the project CLAUDE.md release policy) until the next release.
 resolver: lts-24.4
 
 packages:
 - '.'
 
 extra-deps:
-- git: https://github.com/yakagika/ExchangeAlgebra.git
-  commit: 2618f93a4d185c274cebf53562db41ed7486c678
+- exchangealgebra-0.5.0.0
