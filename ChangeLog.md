@@ -191,6 +191,12 @@ vs an exact non-negative `Decimal` (`MoneyDecimal`) for determinism/auditability
   untyped `undefined` placeholder (audit R3).
 
 ### Added
+- Add `ExchangeAlgebra.Accounting.PostingPolicy`: `ProcessingContext`,
+  `postingAllowedIn` and `postingCapabilityFor` now live in the accounting
+  layer; `Convert.Checked` re-exports them and `Consolidation.Worksheet` no
+  longer depends on the input adapter. `Convert.Csv.splitTrim` is exported and
+  shared with the `Simulate.Network` CSV readers, and
+  `Convert.concreteAccountTitles` is the registry's definition re-exported.
 - Add typed `mapPosting` / `mapMaybePosting` (one posting to exactly one, or
   to zero or one, with the same zero normalisation as `(.@)`), the explicit
   `Journal.replaceNotes` (left-biased whole-note replacement), and

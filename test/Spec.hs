@@ -9,6 +9,7 @@ module Main (main) where
 import           ExchangeAlgebra.Journal
 import qualified ExchangeAlgebra.Convert      as EC
 import qualified ExchangeAlgebra.Convert.Checked as ECC
+import qualified ExchangeAlgebra.Accounting.PostingPolicy as PP
 import qualified ExchangeAlgebra.Consolidation.Worksheet as CW
 import qualified ExchangeAlgebra.TrialBalance.Validation as TB
 import qualified ExchangeAlgebra.Reporting.Presentation as RP
@@ -4694,6 +4695,76 @@ testDerivedMetricsLand5 = do
         Right value -> value
         Left errors -> error ("Land 5 fixture did not validate: " ++ show errors)
 
+-- Pins the complete 4 context x 5 capability truth table of the accounting
+-- posting policy, row by row, so that a change to any single cell is visible
+-- as a diff here rather than only through the checked-conversion wrappers.
+testPostingPolicyTruthTable :: IO ()
+testPostingPolicyTruthTable = do
+    let contexts =
+            [ PP.OrdinaryJournal
+            , PP.ClosingProcess
+            , PP.ConsolidationWorksheet
+            , PP.EngineComputation
+            ]
+        capabilities =
+            [ OrdinaryPosting
+            , ClosingOnly
+            , ConsolidationOnly
+            , EngineGeneratedOnly
+            , NotPostable
+            ]
+        truthTable =
+            [ (PP.OrdinaryJournal,        OrdinaryPosting,     True)
+            , (PP.OrdinaryJournal,        ClosingOnly,         False)
+            , (PP.OrdinaryJournal,        ConsolidationOnly,   False)
+            , (PP.OrdinaryJournal,        EngineGeneratedOnly, False)
+            , (PP.OrdinaryJournal,        NotPostable,         False)
+            , (PP.ClosingProcess,         OrdinaryPosting,     True)
+            , (PP.ClosingProcess,         ClosingOnly,         True)
+            , (PP.ClosingProcess,         ConsolidationOnly,   False)
+            , (PP.ClosingProcess,         EngineGeneratedOnly, False)
+            , (PP.ClosingProcess,         NotPostable,         False)
+            , (PP.ConsolidationWorksheet, OrdinaryPosting,     True)
+            , (PP.ConsolidationWorksheet, ClosingOnly,         False)
+            , (PP.ConsolidationWorksheet, ConsolidationOnly,   True)
+            , (PP.ConsolidationWorksheet, EngineGeneratedOnly, False)
+            , (PP.ConsolidationWorksheet, NotPostable,         False)
+            , (PP.EngineComputation,      OrdinaryPosting,     True)
+            , (PP.EngineComputation,      ClosingOnly,         False)
+            , (PP.EngineComputation,      ConsolidationOnly,   False)
+            , (PP.EngineComputation,      EngineGeneratedOnly, True)
+            , (PP.EngineComputation,      NotPostable,         False)
+            ]
+    assertEqual "posting policy: truth table enumerates every context/capability pair"
+        [ (context, capability)
+        | context <- contexts
+        , capability <- capabilities
+        ]
+        [ (context, capability) | (context, capability, _) <- truthTable ]
+    assertEqual "posting policy: 4 x 5 truth table of postingAllowedIn"
+        [ (context, capability, expected)
+        | (context, capability, expected) <- truthTable
+        ]
+        [ (context, capability, PP.postingAllowedIn context capability)
+        | (context, capability, _) <- truthTable
+        ]
+    assertEqual "posting policy: Convert.Checked re-exports the same gate"
+        [ PP.postingAllowedIn context capability
+        | (context, capability, _) <- truthTable
+        ]
+        [ ECC.postingAllowedIn context capability
+        | (context, capability, _) <- truthTable
+        ]
+    assertEqual "posting policy: wildcard title is NotPostable"
+        NotPostable (PP.postingCapabilityFor AccountTitle)
+    assertEqual "posting policy: concrete titles report registry capability"
+        [ Registry.asemPostingCapability <$> Registry.accountSemantics title
+        | title <- Registry.concreteAccountTitles
+        ]
+        [ Just (PP.postingCapabilityFor title)
+        | title <- Registry.concreteAccountTitles
+        ]
+
 testPostingCapabilityGate :: IO ()
 testPostingCapabilityGate = do
     let contexts =
@@ -4902,6 +4973,7 @@ testPostingCapabilityGate = do
 
 checkedConvertProperties :: IO ()
 checkedConvertProperties = do
+    testPostingPolicyTruthTable
     testPostingCapabilityGate
     testConsolidationWorksheet
     testTrialBalanceValidation

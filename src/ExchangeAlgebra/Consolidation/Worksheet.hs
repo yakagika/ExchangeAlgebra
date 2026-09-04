@@ -51,15 +51,17 @@ import           ExchangeAlgebra.Algebra
                      , bases
                      , vals
                      )
+import           ExchangeAlgebra.Accounting.PostingPolicy
+                     ( ProcessingContext(ConsolidationWorksheet)
+                     , postingAllowedIn
+                     , postingCapabilityFor
+                     )
 import           ExchangeAlgebra.Algebra.Base
-                     ( AccountSemantics(asemPostingCapability)
-                     , AccountTitles(..)
+                     ( AccountTitles(..)
                      , Hat(..)
                      , HatBase((:<))
-                     , PostingCapability(..)
-                     , accountSemantics
+                     , PostingCapability
                      )
-import qualified ExchangeAlgebra.Convert.Checked as Checked
 import           ExchangeAlgebra.Reporting.Metric (PeriodResult(..))
 
 -- | Structural direction for an equity balance. A debit position represents
@@ -305,8 +307,7 @@ validateAdjustment knownSources adjustment =
            | _ :< account <- bases alg
            , account /= AccountTitle
            , let capability = postingCapabilityFor account
-           , not (Checked.postingAllowedIn
-                    Checked.ConsolidationWorksheet capability)
+           , not (postingAllowedIn ConsolidationWorksheet capability)
            ]
     refs = toListNE (_adjustmentSourceIds adjustment)
     refCounts = M.fromListWith (+) [ (sourceId, 1 :: Int) | sourceId <- refs ]
@@ -493,10 +494,6 @@ rollForwardSides opening result dividends closing = case result of
 
 sideTotals :: HatVal v => Alg v (HatBase AccountTitles) -> (v, v)
 sideTotals alg = (norm (decL alg), norm (decR alg))
-
-postingCapabilityFor :: AccountTitles -> PostingCapability
-postingCapabilityFor title =
-    maybe NotPostable asemPostingCapability (accountSemantics title)
 
 toListNE :: NonEmpty a -> [a]
 toListNE (x :| xs) = x : xs

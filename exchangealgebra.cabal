@@ -29,6 +29,7 @@ source-repository head
 library
   exposed-modules:
       ExchangeAlgebra
+      ExchangeAlgebra.Accounting.PostingPolicy
       ExchangeAlgebra.Algebra
       ExchangeAlgebra.Algebra.Base
       ExchangeAlgebra.Algebra.Base.Account.JcciAliases
@@ -76,7 +77,6 @@ library
     , containers >=0.6 && <0.8
     , deepseq >=1.4 && <1.6
     , hashable >=1.4 && <1.6
-    , mtl ==2.3.*
     , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
@@ -109,7 +109,6 @@ test-suite ExchangeAlgebra-doctest
     , doctest
     , exchangealgebra
     , hashable >=1.4 && <1.6
-    , mtl ==2.3.*
     , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*

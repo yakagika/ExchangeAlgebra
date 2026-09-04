@@ -18,11 +18,10 @@ The schema is a header line @side,account,amount@ with an optional trailing
 > credit,Sales,1000
 
 Blank lines and lines whose first non-space character is @#@ are skipped;
-surrounding whitespace on each field is trimmed; there is no quoting (matching
-the deliberately minimal CSV reader in "ExchangeAlgebra.Simulate.Network", whose
-@parseEdgeCsv@\/@parseCoefCsv@ share this approach — a future refactor could lift
-the shared splitter into one place, but the two readers are kept independent for
-now so neither module gains a dependency on the other).
+surrounding whitespace on each field is trimmed; there is no quoting. The field
+splitter 'splitTrim' is exported and shared with the equally minimal
+@parseEdgeCsv@\/@parseCoefCsv@ readers in "ExchangeAlgebra.Simulate.Network", so
+the two readers cannot drift apart on how a line is split.
 
 @account@ is resolved with 'parseAccountTitle' (canonical English names or the
 Japanese\/abbreviation aliases), so unknown and ambiguous account names are
@@ -40,6 +39,8 @@ module ExchangeAlgebra.Convert.Csv
     , parseNotedJournalCsv
       -- * Amount parsers
     , scientificAmount
+      -- * Field splitting
+    , splitTrim
     ) where
 
 import qualified Data.Scientific as Sci
@@ -117,6 +118,12 @@ parseNotedJournalCsv amount txt = do
     keptHeader <- splitHeader txt
     traverse (rowNoted amount) keptHeader
 
+-- | Split one line on commas and strip surrounding whitespace from each field.
+-- No quoting is recognised, so a comma inside a field always separates. An
+-- empty line yields a single empty field, matching 'T.splitOn'.
+splitTrim :: Text -> [Text]
+splitTrim = map T.strip . T.splitOn ","
+
 ------------------------------------------------------------------
 -- Internal: minimal CSV plumbing (no quoting), header check, row parse.
 ------------------------------------------------------------------
@@ -165,7 +172,3 @@ rowNoted amount fields = case fields of
         account <- parseAccountTitle a
         value   <- amount v
         Right (side, account, value, n)
-
--- | Split one line on commas and trim each field (no quoting).
-splitTrim :: Text -> [Text]
-splitTrim = map T.strip . T.splitOn ","

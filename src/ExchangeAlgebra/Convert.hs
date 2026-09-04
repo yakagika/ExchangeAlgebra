@@ -30,6 +30,7 @@ provided in "ExchangeAlgebra.Convert.Csv".
 -}
 module ExchangeAlgebra.Convert
     ( ConvError(..)
+      -- $concreteAccountTitles
     , concreteAccountTitles
     , normalizeTitle
     , parseAccountTitle
@@ -51,6 +52,7 @@ import           ExchangeAlgebra.Algebra.Base    ( AccountTitles(..)
                                                  , Side(..)
                                                  , accountAliases
                                                  , whichSide )
+import           ExchangeAlgebra.Algebra.Base.Account.Registry ( concreteAccountTitles )
 
 -- $setup
 -- The examples use 'Text' literals, so enable @OverloadedStrings@ in doctest.
@@ -64,13 +66,12 @@ data ConvError = UnknownAccount Text                    -- ^ name matched no con
                | BadAmount      Text                    -- ^ amount field was not a valid non-negative number
     deriving (Eq, Show)
 
--- | All concrete account titles, /excluding/ the wildcard 'AccountTitle'.
---
--- The 'AccountTitles' type ends with a wildcard constructor whose account
--- division is undefined; external input must never resolve to it, so we expose
--- the safe, non-wildcard range explicitly rather than deriving 'Bounded' here
--- and risking the wildcard sneaking in. The upper bound is the last concrete
--- constructor before 'AccountTitle'.
+-- $concreteAccountTitles
+-- 'concreteAccountTitles' lists all concrete account titles, /excluding/ the
+-- wildcard 'AccountTitle', in stable Enum order. It is re-exported from
+-- "ExchangeAlgebra.Algebra.Base.Account.Registry", which is the single
+-- definition; external input must never resolve to the wildcard, so callers
+-- should use this safe range rather than @[minBound .. maxBound]@.
 --
 -- >>> take 1 concreteAccountTitles
 -- [Cash]
@@ -80,8 +81,6 @@ data ConvError = UnknownAccount Text                    -- ^ name matched no con
 -- True
 -- >>> AccountTitle `elem` concreteAccountTitles
 -- False
-concreteAccountTitles :: [AccountTitles]
-concreteAccountTitles = filter (/= AccountTitle) [minBound .. maxBound]
 
 -- | Account-name lookup table: every key (canonical constructor names and the
 -- Japanese\/abbreviation aliases below) is run through 'normalizeTitle', so matching is

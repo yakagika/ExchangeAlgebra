@@ -12,7 +12,8 @@ semantics and does not enforce balance; the functions here reject malformed
 entries with structural errors instead.
 -}
 module ExchangeAlgebra.Convert.Checked
-    ( ProcessingContext(..)
+    ( -- $postingPolicy
+      ProcessingContext(..)
     , EntryError(..)
     , JournalError(..)
     , JournalCert(..)
@@ -45,13 +46,16 @@ import           ExchangeAlgebra.Algebra
                      , HatVal(..)
                      , Redundant((.+), norm)
                      )
+import           ExchangeAlgebra.Accounting.PostingPolicy
+                     ( ProcessingContext(..)
+                     , postingAllowedIn
+                     , postingCapabilityFor
+                     )
 import           ExchangeAlgebra.Algebra.Base
-                     ( AccountSemantics(asemPostingCapability)
-                     , AccountTitles(..)
+                     ( AccountTitles(..)
                      , HatBase
                      , PostingCapability(..)
                      , Side(..)
-                     , accountSemantics
                      )
 import           ExchangeAlgebra.Convert
                      ( ConvError
@@ -75,44 +79,11 @@ import           ExchangeAlgebra.Journal
 -- >>> import ExchangeAlgebra.Convert (journalFromSides)
 -- >>> import ExchangeAlgebra.Journal (Journal)
 
--- | Processing boundary at which generated postings are admitted.
---
--- Each non-ordinary context adds exactly one capability to
--- 'OrdinaryPosting'. This keeps closing, consolidation, and engine authority
--- separate instead of introducing one privileged "internal" bypass.
-data ProcessingContext
-  = OrdinaryJournal
-  | ClosingProcess
-  | ConsolidationWorksheet
-  | EngineComputation
-  deriving (Show, Eq)
-
--- | Whether a capability is admitted at a processing boundary.
-postingAllowedIn :: ProcessingContext -> PostingCapability -> Bool
-postingAllowedIn OrdinaryJournal capability = case capability of
-    OrdinaryPosting    -> True
-    ClosingOnly        -> False
-    ConsolidationOnly  -> False
-    EngineGeneratedOnly -> False
-    NotPostable        -> False
-postingAllowedIn ClosingProcess capability = case capability of
-    OrdinaryPosting    -> True
-    ClosingOnly        -> True
-    ConsolidationOnly  -> False
-    EngineGeneratedOnly -> False
-    NotPostable        -> False
-postingAllowedIn ConsolidationWorksheet capability = case capability of
-    OrdinaryPosting    -> True
-    ClosingOnly        -> False
-    ConsolidationOnly  -> True
-    EngineGeneratedOnly -> False
-    NotPostable        -> False
-postingAllowedIn EngineComputation capability = case capability of
-    OrdinaryPosting    -> True
-    ClosingOnly        -> False
-    ConsolidationOnly  -> False
-    EngineGeneratedOnly -> True
-    NotPostable        -> False
+-- $postingPolicy
+-- 'ProcessingContext' and 'postingAllowedIn' are defined in
+-- "ExchangeAlgebra.Accounting.PostingPolicy" and re-exported here so the
+-- historical import path keeps working. The gate itself is accounting-domain
+-- policy, not an input-adapter concern.
 
 -- | Validation errors for a single generated entry.
 --
@@ -597,7 +568,3 @@ totals rows rowErrors
             creditTotal = L.foldl' (+) 0
                 [ amount | (_, (Credit, _, amount)) <- rows ]
         in (debitTotal, creditTotal)
-
-postingCapabilityFor :: AccountTitles -> PostingCapability
-postingCapabilityFor title =
-    maybe NotPostable asemPostingCapability (accountSemantics title)

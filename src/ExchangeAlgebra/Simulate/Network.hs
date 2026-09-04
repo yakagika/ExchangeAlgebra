@@ -151,6 +151,7 @@ import qualified Data.Vector            as V
 -- this module's import scope); 'randomR' drives the generators.
 import           System.Random          (StdGen, mkStdGen, randomR)
 
+import           ExchangeAlgebra.Convert.Csv ( splitTrim )
 import           ExchangeAlgebra.Journal ( Journal, Note, HatVal, HatBaseClass )
 import qualified ExchangeAlgebra.Journal as EJ
 
@@ -1105,7 +1106,8 @@ fromCoefficientMatrix ks a =
 -- A deliberately tiny CSV reader: comma-separated, no quoting, blank lines and
 -- lines whose first non-space character is @#@ are skipped, surrounding
 -- whitespace on each field is trimmed. The first non-skipped line must be the
--- header. Avoids a @cassava@ dependency for these fixed schemas.
+-- header. Avoids a @cassava@ dependency for these fixed schemas. Line splitting
+-- is shared with "ExchangeAlgebra.Convert.Csv" through 'splitTrim'.
 
 -- | Parse an edge CSV with header @from,to@ into @(from, to)@ pairs.
 --
@@ -1168,10 +1170,6 @@ dataRows expectedHeader txt =
     keep l =
         let s = T.strip l
         in not (T.null s) && not ("#" `T.isPrefixOf` s)
-
--- | Split one line on commas and trim each field.
-splitTrim :: Text -> [Text]
-splitTrim = map T.strip . T.splitOn (T.pack ",")
 
 ------------------------------------------------------------------
 -- * Internal sampling helpers
