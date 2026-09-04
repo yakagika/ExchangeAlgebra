@@ -1,6 +1,6 @@
 # Changelog for ExchangeAlgebra
 
-## 0.5.0.0 - 2026-09-03
+## 0.5.0.0 - 2026-09-04
 
 The 0.5 line was first prepared on 2026-06-07 around a selectable value type, with recovery tag `recovery/0.5.0.0-dev-2026-06-08`. Before publication, it absorbed the account registry and semantics, the Definition 7 contra amendment with netting presentation, the JCCI/EDINET vocabulary, checked-conversion posting capability, categorical phase-1 laws, the CL-SBM industrial network generator, and the audit-eval tooling.
 

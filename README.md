@@ -93,7 +93,7 @@ needing the rest of the repository.
 
 ## Module Overview
 
-The 31 public modules are organised into seven layers.
+The 35 public modules are organised into seven layers.
 
 ### Umbrella
 
@@ -116,6 +116,7 @@ These modules define basis elements and the canonical account metadata vocabular
 These modules implement exchange-algebra values, transformations, and selectable numeric representations.
 
 - `ExchangeAlgebra.Algebra` — defines `Alg`, exchange-algebra operations, projections, and aggregation.
+- `ExchangeAlgebra.Algebra.Internal` — the representation behind `Alg` (all constructors, cache fields, rebuild helpers); outside the PVP contract.
 - `ExchangeAlgebra.Algebra.Transfer` — rewrites existing algebra balances through transfer tables and closing transfers.
 - `ExchangeAlgebra.Value` — provides fast typed and exact non-negative value types for `Alg` and `Journal`.
 
@@ -143,6 +144,7 @@ These modules build adjustments, validate reporting boundaries, and produce stat
 - `ExchangeAlgebra.Bookkeeping` — builds period-end adjustment postings from explicit external amounts.
 - `ExchangeAlgebra.Write` — formats bookkeeping reports and journals as CSV and restores binary spill files.
 - `ExchangeAlgebra.Reporting.Group` — defines presentation groups and contra-account netting policy.
+- `ExchangeAlgebra.TrialBalance.Balance` — the shared `AccountBalance` type and debit-then-credit netting primitives.
 - `ExchangeAlgebra.TrialBalance.Validation` — reports trial-balance findings and gates reporting with explicit policies.
 - `ExchangeAlgebra.Reporting.Metric` — derives typed, read-only metrics without inserting posting coordinates.
 - `ExchangeAlgebra.Reporting.Presentation` — transforms validated trial balances into auditable JGAAP presentation.
@@ -154,6 +156,7 @@ These modules convert external postings safely and expose deterministic account-
 
 - `ExchangeAlgebra.Convert` — converts pure side, account-name, and amount data to and from algebra terms.
 - `ExchangeAlgebra.Convert.Csv` — reads a fixed journal CSV schema into normalized external postings.
+- `ExchangeAlgebra.Accounting.PostingPolicy` — which coordinates may be posted in which processing context (`ProcessingContext`, `postingAllowedIn`).
 - `ExchangeAlgebra.Convert.Checked` — validates externally generated entries before constructing journal values.
 - `ExchangeAlgebra.Assist` — provides LLM-facing account metadata, suggestions, and validation explanations.
 - `ExchangeAlgebra.Assist.Descriptions` — preserves the compatibility projection of canonical account descriptions.
@@ -239,7 +242,7 @@ represent the fractional relative prices the ABM work depends on.)
 ### Migrating to 0.5.0.0
 
 `0.5.0.0` is a major (breaking) release. Most users need no changes — `Double`
-ledgers keep working and render identically. Two things to know:
+ledgers keep working and render identically. Four things to know:
 
 - **Custom `HatVal` instances**: `HatVal` dropped its `RealFloat` superclass and
   added `showValue :: n -> String`. If you defined your own `HatVal` instance, add
@@ -251,6 +254,14 @@ ledgers keep working and render identically. Two things to know:
   `fromList`-built journal byte-for-byte, the same-(note,base) sequence order may
   differ. Switch such ledgers to `MoneyDecimal` for order-independent results, or
   compare via `norm` / `bar` / `balanceBy` rather than raw structure.
+- **Abstract `Alg` / `Journal` / `TransTable`**: pattern-match `Alg` on `Zero`
+  and `(:@)` only and build values with `(.@)`, `(.+)`, `fromList`, `mkJournal`,
+  `(.|)` and `table`. Code that constructed `Liner`, `Journal` or `TransTable`
+  directly must import `ExchangeAlgebra.Algebra.Internal` (not covered by PVP).
+- **Spill files are validated**: `readBinarySpillFile` and
+  `restoreJournalFromBinarySpill` now raise on a truncated, stale or gapped
+  file instead of merging a partial ledger; use the `...Checked` variants for an
+  `Either`. `Simulate.Lite` truncates its spill file when a run opens it.
 
 (`0.5.0.0` also includes the `union` zero-base correctness fix first shipped in
 `0.4.1.1`; see the changelog.)
