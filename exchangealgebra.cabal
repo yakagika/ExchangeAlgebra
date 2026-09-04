@@ -26,6 +26,11 @@ source-repository head
   type: git
   location: https://github.com/yakagika/ExchangeAlgebra
 
+flag visualize
+  description: Build ExchangeAlgebra.Simulate.Visualize, which needs Chart, Chart-cairo and a cairo / pango toolchain. Disable with --flag exchangealgebra:-visualize to use the accounting algebra without plotting.
+  manual: True
+  default: True
+
 library
   exposed-modules:
       ExchangeAlgebra
@@ -57,7 +62,6 @@ library
       ExchangeAlgebra.Simulate.Network
       ExchangeAlgebra.Simulate.Policy
       ExchangeAlgebra.Simulate.Spill
-      ExchangeAlgebra.Simulate.Visualize
       ExchangeAlgebra.TrialBalance.Balance
       ExchangeAlgebra.TrialBalance.Validation
       ExchangeAlgebra.Value
@@ -68,9 +72,7 @@ library
       src
   ghc-options: -feager-blackholing
   build-depends:
-      Chart ==1.9.*
-    , Chart-cairo ==1.9.*
-    , Decimal ==0.5.*
+      Decimal ==0.5.*
     , array >=0.5.5 && <0.6
     , async ==2.2.*
     , base >=4.17 && <5
@@ -90,6 +92,13 @@ library
     , unordered-containers >=0.2.19 && <0.3
     , vector ==0.13.*
   default-language: Haskell2010
+  if flag(visualize)
+    exposed-modules:
+        ExchangeAlgebra.Simulate.Visualize
+    build-depends:
+        Chart ==1.9.*
+      , Chart-cairo ==1.9.*
+  else
 
 test-suite ExchangeAlgebra-doctest
   type: exitcode-stdio-1.0
@@ -98,9 +107,7 @@ test-suite ExchangeAlgebra-doctest
       Paths_exchangealgebra
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      Chart ==1.9.*
-    , Chart-cairo ==1.9.*
-    , Decimal ==0.5.*
+      Decimal ==0.5.*
     , array >=0.5.5 && <0.6
     , async ==2.2.*
     , base >=4.17 && <5
@@ -134,9 +141,7 @@ test-suite ExchangeAlgebra-test
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      Chart ==1.9.*
-    , Chart-cairo ==1.9.*
-    , Decimal ==0.5.*
+      Decimal ==0.5.*
     , QuickCheck >=2.14 && <3
     , array >=0.5.5 && <0.6
     , async ==2.2.*

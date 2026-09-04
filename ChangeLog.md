@@ -778,6 +778,11 @@ vs an exact non-negative `Decimal` (`MoneyDecimal`) for determinism/auditability
   trade-off, and the `fromList` ordering contract).
 
 ### Changed
+- Cabal flag `visualize` (manual, default on) now guards
+  `ExchangeAlgebra.Simulate.Visualize` and the `Chart` / `Chart-cairo`
+  dependencies. `stack build --flag exchangealgebra:-visualize` builds the
+  accounting algebra without a cairo toolchain; the default build and the
+  bundled examples are unchanged.
 - Resolve Japanese presentation and LLM-facing names through the cleaned
   `asLabelJa` registry field, with the JCCI `AdvancesReceived` override kept as
   `契約負債`. Mark `EquityInEarningsOfInvestee` and

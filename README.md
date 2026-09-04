@@ -43,7 +43,11 @@ Requirements:
 - GHC 9.10 (tested with Stackage `lts-24.4`)
 - Cabal 3.0 or later
 - `Chart` / `Chart-cairo` transitively require the Cairo / Pango / Freetype system libraries
-  (on macOS: `brew install cairo pango`)
+  (on macOS: `brew install cairo pango`). If you cannot or do not want to
+  install them, build without the plotting module: `stack build --flag
+  exchangealgebra:-visualize` (Cabal flag `visualize`, default on). This drops
+  `ExchangeAlgebra.Simulate.Visualize` and the Chart dependencies; the bundled
+  `ripple*`, `sim*` and `cge` examples import that module and need the default
 
 ## How to consume this package
 
