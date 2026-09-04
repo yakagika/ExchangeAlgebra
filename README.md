@@ -257,6 +257,11 @@ ledgers keep working and render identically. Two things to know:
 
 ## Recommended import patterns
 
+`Alg`, `Journal` and `TransTable` are abstract in 0.5.0.0: construct them with
+`(.@)`, `(.+)`, `fromList`, `mkJournal`, `(.|)` and `table`, and match `Alg` on
+`Zero` / `(:@)` only. The multi-posting representation and its cache fields live
+in `ExchangeAlgebra.Algebra.Internal`, which is outside the PVP contract.
+
 ### Simple single-period bookkeeping
 
 ```haskell

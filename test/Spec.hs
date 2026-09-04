@@ -21,6 +21,7 @@ import qualified ExchangeAlgebra.Assist       as Assist
 import qualified ExchangeAlgebra.Assist.Descriptions as AssistDesc
 import qualified ExchangeAlgebra.Algebra.Base.Account.Registry as Registry
 import qualified ExchangeAlgebra.Algebra  as EA
+import qualified ExchangeAlgebra.Algebra.Internal as EAI
 import qualified ExchangeAlgebra.Algebra.Transfer as EAT
 import qualified ExchangeAlgebra.Journal  as EJ
 import qualified ExchangeAlgebra.Journal.Transfer as EJT
@@ -807,8 +808,8 @@ testProjConcreteNoIndexForce = do
                           , 20 :@ Not :< (Products, 2, 2, Amount)
                           , 30 :@ Hat :< (Cash, 3, 3, Yen) ]
     case alg of
-      EA.Liner m _ _ _ _ _ -> do
-        let poison = EA.Liner m (error "POISON") (error "POISON")
+      EAI.Liner m _ _ _ _ _ -> do
+        let poison = EAI.Liner m (error "POISON") (error "POISON")
                                 (error "POISON") (error "POISON") (error "POISON")
         rc <- try (evaluate (EA.projNetNorm [Not :< (Cash, 1, 1, Yen)] poison))
                 :: IO (Either SomeException Double)
@@ -844,7 +845,7 @@ testLinerReservedFieldsPoisoned = do
     -- Forcing _bpToId / _nextBpId must error (poison), proving they are not
     -- silently maintained.
     case alg of
-      EA.Liner _ _ bpToId _ nextBpId _ -> do
+      EAI.Liner _ _ bpToId _ nextBpId _ -> do
         rb <- (try (evaluate (HM.size bpToId)) :: IO (Either SomeException Int))
         case rb of
           Left _  -> putStrLn "[PASS] _bpToId is poisoned (forcing it errors as designed)"

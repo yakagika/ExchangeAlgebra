@@ -24,6 +24,13 @@ vs an exact non-negative `Decimal` (`MoneyDecimal`) for determinism/auditability
 - Improve performance with strict `Journal.fromList`, an exact-projection fast path, faster journal append, and projection-sharing trial-balance rows.
 
 ### Breaking
+- **BREAKING: `Alg`, `Journal` and `TransTable` are abstract.** `Alg` exports
+  only `Zero`, `(:@)`, `_val` and `_hatBase`; the multi-posting `Liner`
+  representation, `Pair` and the cache fields live in the new
+  `ExchangeAlgebra.Algebra.Internal` (outside the PVP contract). `Journal` is
+  built with `mkJournal`, `(.|)` or `fromList`; `TransTable` with `table`,
+  `(.->)` or `(|%)`. Hand-built values could desynchronise the cached axis
+  indices and make wildcard projections answer wrongly without an error.
 - **BREAKING: binary spill files are validated on read.** `readBinarySpillFile`
   now raises an error at the first undecodable chunk instead of silently
   truncating the remainder, and `restoreJournalFromBinarySpill` rejects

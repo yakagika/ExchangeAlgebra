@@ -41,6 +41,7 @@ library
       ExchangeAlgebra.Algebra.Base.Account.Registry
       ExchangeAlgebra.Algebra.Base.Account.Types
       ExchangeAlgebra.Algebra.Base.Element
+      ExchangeAlgebra.Algebra.Internal
       ExchangeAlgebra.Algebra.Transfer
       ExchangeAlgebra.Assist
       ExchangeAlgebra.Assist.Descriptions

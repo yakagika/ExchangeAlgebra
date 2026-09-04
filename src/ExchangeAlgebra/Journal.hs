@@ -39,7 +39,7 @@ module ExchangeAlgebra.Journal
     , Note(..)
     , NoteAxisKey(..)
     , NoteAxisPosting
-    , Journal(..)
+    , Journal
     , pattern ExchangeAlgebra.Journal.Zero
     , mkJournal
     , (.|)
@@ -256,13 +256,13 @@ instance (Note a, Note b, Note c, Note d) => Note (a, b, c, d) where
 --   Base index is lazy (built on first axis query), while delta index is updated incrementally.
 --   Updates are appended only to delta and periodically compacted into base.
 --
---   __Invariants (do not hand-construct t'Journal').__ The constructor exposes
---   internal cache\/index fields @_jBaseAxis@ and @_jDeltaAxis@, which must be
+--   __Invariants.__ The constructor is not exported; build with 'mkJournal',
+--   '(.|)' or 'fromList'. Its internal cache\/index fields @_jBaseAxis@ and
+--   @_jDeltaAxis@ must be
 --   exactly the Note axis indices (@buildNoteAxisPosting@) of @_jBase@ and
 --   @_jDelta@ respectively. The axis-filtered query path ('filterByAxis') reads
 --   those indices, so a value whose indices disagree with its maps yields wrong
---   answers silently (not an exception). Always build journals via 'fromMap',
---   @mkJournal@, '(.|)', or 'fromList' — never by applying @Journal@ directly.
+--   answers silently (not an exception).
 data Journal n v b where
      Journal :: (Note n, HatVal v, HatBaseClass b)
             => { _jBase      :: !(Map.HashMap n (Alg v b))
