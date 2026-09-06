@@ -26,12 +26,14 @@ required_bytes=$((required_gib * 1024 * 1024 * 1024))
   "recommended RAM is ${required_gib} GiB; detected approximately $((mem_bytes / 1024 / 1024 / 1024)) GiB"
 
 rcr_common_args
+# The per-figure scripts are run through bash so that an archive extractor that
+# drops the executable bit (e.g. python3 -m zipfile) still works.
 RCR_DEFER_ASSESS=1
 export RCR_DEFER_ASSESS
-"$SCRIPT_DIR/reproduce-fig1.sh" "${RCR_COMMON_ARGS[@]}" || exit $?
-"$SCRIPT_DIR/reproduce-fig2.sh" "${RCR_COMMON_ARGS[@]}" || exit $?
-"$SCRIPT_DIR/reproduce-table1.sh" "${RCR_COMMON_ARGS[@]}" || exit $?
-"$SCRIPT_DIR/reproduce-sec7-text.sh" "${RCR_COMMON_ARGS[@]}" || exit $?
+bash "$SCRIPT_DIR/reproduce-fig1.sh" "${RCR_COMMON_ARGS[@]}" || exit $?
+bash "$SCRIPT_DIR/reproduce-fig2.sh" "${RCR_COMMON_ARGS[@]}" || exit $?
+bash "$SCRIPT_DIR/reproduce-table1.sh" "${RCR_COMMON_ARGS[@]}" || exit $?
+bash "$SCRIPT_DIR/reproduce-sec7-text.sh" "${RCR_COMMON_ARGS[@]}" || exit $?
 unset RCR_DEFER_ASSESS
 
 # This final invocation is authoritative for reproduce-all.sh's exit status.

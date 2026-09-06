@@ -84,16 +84,21 @@ examples/market/rcr/reproduce-all.sh --no-64k
 
 ## Zenodo artifact zip
 
-Download the artifact zip into a clean directory that is not inside another Git repository. For
-example, using Python's standard-library zip extractor:
+Download the artifact zip into a clean directory that is not inside another Git repository and
+extract it with `unzip`, which preserves the scripts' executable bits:
 
 ```bash
 mkdir exchangealgebra-rcr-zenodo
 cd exchangealgebra-rcr-zenodo
-python3 -m zipfile -e ../rcr-artifact-YYYYMMDD.zip .
+unzip -q ../rcr-artifact-YYYYMMDD.zip
 cd exchangealgebra-rcr
-examples/market/rcr/reproduce-all.sh --smoke
+bash examples/market/rcr/reproduce-all.sh --smoke
 ```
+
+Invoking the entry point through `bash` (as above) also works with extractors that drop file
+permissions, such as `python3 -m zipfile -e`; `reproduce-all.sh` runs the per-figure scripts
+through `bash` itself. To run a per-figure script directly after such an extraction, either
+prefix it with `bash` or restore the bits once with `chmod +x examples/market/rcr/*.sh`.
 
 The extracted `examples/market/rcr/revisions/*.tar.gz` files replace the Git-worktree source path.
 Do not put the extracted directory inside an unrelated Git checkout: source detection would then
