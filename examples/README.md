@@ -134,6 +134,32 @@ run.
 |---|---|---|
 |`industrialEx1`|`industrial/industrialEx1.hs`|Block-triangular, power-law industrial network with deterministic demand-driven flows and exact consumption-tax/value-added checks|
 
+### `market/` — Sparse market model and the scaling measurements
+
+|Executable|Source|Summary|
+|---|---|---|
+|`marketEx1`|`market/marketEx1.hs`|Sparse market simulation using `Double`, with scaling, parallel and retention modes|
+|`marketEx1d`|`market/marketEx1d.hs`|Exact-`Decimal` variant used for the value-type comparison|
+
+Shared module:
+- `market/MarketModel.hs` — market network, agent state and simulation logic shared by both executables.
+
+Measurement and analysis tooling:
+- `market/run-round4.sh` — repeated-measurement harness for the scaling, parallel,
+  value-type, memory and extended-scaling series.
+- `market/run-overnight.sh` — idle-machine rerun harness.
+- `market/aggregate-round4.py` — aggregates per-repetition timing, residency and
+  productivity measurements.
+- `market/fp-error-profile.py` — profiles floating-point error against the exact-value run.
+- [`market/rcr/`](market/rcr/README.md) — ACM TOMACS RCR artifact package, including raw
+  platform-of-record logs and per-result reproduction scripts.
+
+Run one series from the repository root as described by the harness:
+
+```bash
+./examples/market/run-round4.sh scaling
+```
+
 ### `deterministic/ripple/` — Ripple-effect simulation
 
 |Executable|Source|Summary|

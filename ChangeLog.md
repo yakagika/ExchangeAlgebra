@@ -45,6 +45,10 @@
   restorers are not shimmed; `ExchangeAlgebra.Simulate.Spill` already owns
   them. Definitions do not move; the row layouts are pinned by the
   `write-rows-0510` goldens.
+- `examples/market/rcr/`: the ACM TOMACS RCR artifact package, with raw
+  measurement logs from the platform of record, `make_figures.py` with a
+  `--replicate` mode, `reproduce-*.sh` for every figure and table, and the
+  Zenodo zip builder.
 
 ### Documentation
 - README "Migrating to 0.5.0.0": only the `Alg` representation (`Liner`) lives in
