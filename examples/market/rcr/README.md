@@ -121,7 +121,28 @@ status 2.
 
 ## Author replication
 
-(to be filled after the full run on the platform of record)
+The author re-ran the complete package on the platform of record on 2026-09-06 with
+`reproduce-all.sh --x86_64` (5 repetitions, N=64000 included, cooldown 10 s) from a Git clone of
+the packaged revision. Environment as recorded in the run's `env.txt`: Apple M3 Max (10P+4E,
+36 GB), macOS 15.7.4, Stack 3.9.3 (x86_64) with GHC 9.10.2 (x86_64, Rosetta 2), all three
+pinned binaries `Mach-O 64-bit executable x86_64`, load average 2.1 at start (a background
+Spotlight index was running), wall time 150 minutes.
+
+| criterion | verdict | this run | platform of record | note |
+|---|---|---:|---:|---|
+| Fig. 1a scaling slope | PASS | 1.196 | 1.203 | 9 points, N=200 to 64000 |
+| Fig. 1b dense/sparse ratio | PASS | 18.9 | 20.1 | dense 57.5 +/- 1.8 s, sparse N=200 0.760 +/- 0.022 s |
+| Fig. 2 light maximum speedup | PASS | 1.74 | 1.71 | peak at 4 cores, 1.44 at 14 cores |
+| Fig. 2 heavy speedup | PASS | 4.99 at 14 cores | 4.85 at 12 cores | clean 4c 2/5, 8c 4/5, 10c 4/5, 12c 5/5, 14c 4/5; every non-clean rep was a `<<loop>>` exit |
+| Table 1 residency slope | PASS | 1.018 | 1.004 | 9 points |
+| Section 7.3 Decimal/Double | PASS | 6.81 / 6.10 | 6.95 / 6.02 | N=200 / N=1000 |
+| Section 7.4 RetainAll/spill residency | PASS | 11.8 | 16.8 | RetainAll peaked at 176 MiB in this run against 249 MiB in the original overnight run; the spill configuration peaked at 14.9 MiB in both |
+
+`REPLICATION: PASS`, exit status 0. Wall-clock times matched the original overnight run to within
+a few percent at every N (for example 0.760 s at N=200, 4.51 s at N=1000, 298 s at N=32000 and
+752 s at N=64000 against 0.740 s, 4.65 s, 307.5 s and 768 s). The same package was also smoke-tested
+on a native arm64 machine from the Git clone and from the Zenodo zip extracted without Git; both
+ended with `REPLICATION: PARTIAL (7 criteria not assessed)` and exit status 0 as expected.
 
 ## Badges
 
