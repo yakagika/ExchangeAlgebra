@@ -1,0 +1,35 @@
+## overnight rerun environment snapshot
+Sat Jun 13 01:05:37 JST 2026
+ProductName:		macOS
+ProductVersion:		15.7.4
+BuildVersion:		24G517
+Apple M3 Max
+14
+38654705664
+10
+4
+load: { 1.50 1.56 1.63 }
+Note: No thermal warning level has been recorded
+Note: No performance warning level has been recorded
+Note: No CPU power status has been recorded
+Now drawing from 'AC Power'
+ -InternalBattery-0 (id=7209059)	100%; charged; 0:00 remaining present: true
+/:
+	Indexing enabled. 
+ghc: The Glorious Glasgow Haskell Compilation System, version 9.10.2  [/Users/akagi/.stack/programs/x86_64-osx/ghc-9.10.2/bin/ghc]
+stack: Version 3.9.3, Git revision c7eb8487a82d5c3e0b88d56f8b8a98be23223eb5 x86_64 hpack-0.39.1
+marketEx1: /private/tmp/exchangealgebra-bench-rerun/.stack-work/install/x86_64-osx/ce04a954399e9ad1db34245cc7b1512b346697f9eb70d965225c32a5f922eb5b/9.10.2/bin/marketEx1
+/private/tmp/exchangealgebra-bench-rerun/.stack-work/install/x86_64-osx/ce04a954399e9ad1db34245cc7b1512b346697f9eb70d965225c32a5f922eb5b/9.10.2/bin/marketEx1: Mach-O 64-bit executable x86_64
+heavy marketEx1: /private/tmp/exchangealgebra-bench-heavy/.stack-work/install/x86_64-osx/ce04a954399e9ad1db34245cc7b1512b346697f9eb70d965225c32a5f922eb5b/9.10.2/bin/marketEx1
+/private/tmp/exchangealgebra-bench-heavy/.stack-work/install/x86_64-osx/ce04a954399e9ad1db34245cc7b1512b346697f9eb70d965225c32a5f922eb5b/9.10.2/bin/marketEx1: Mach-O 64-bit executable x86_64
+## main worktree
+8a3a36e feat(market): Round 5 overnight rerun harness (ea-scaling-paper:round5-rerun)
+## harness diff vs HEAD (uncommitted harness edits, if any)
+## heavy worktree
+dd35d80 test(market): window-transparency sentinel + model mirror update (Phase 5 fix)
+completed: Sat Jun 13 03:39:43 JST 2026
+wall: 154 min
+post-run load: { 1.98 2.18 2.15 }
+Note: No thermal warning level has been recorded
+Note: No performance warning level has been recorded
+Note: No CPU power status has been recorded

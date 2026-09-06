@@ -1,0 +1,23 @@
+## dense baseline re-measurement environment snapshot
+Fri Sep  4 17:48:06 JST 2026
+ProductName:		macOS
+ProductVersion:		15.7.4
+BuildVersion:		24G517
+Apple M3 Max
+14
+38654705664
+10
+4
+load: { 2.72 2.23 2.15 }
+Now drawing from 'AC Power'
+ -InternalBattery-0 (id=7209059)	80%; AC attached; not charging present: true
+stack: Version 3.9.3, Git revision c7eb8487a82d5c3e0b88d56f8b8a98be23223eb5 x86_64 hpack-0.39.1
+ghc: The Glorious Glasgow Haskell Compilation System, version 9.10.2
+resolver: resolver: lts-24.4
+extra-deps: - exchangealgebra-0.4.0.0
+repo: 1734db1 Add examples/stack.yaml for standalone build (v0.4.0.0) tag=v0.4.0.0
+sim2: examples/.stack-work/install/x86_64-osx/b6d0b64f8aa02c3df5ae3e2d8be4225d7d036983bdc8a004ca2ccd570cbe93d8/9.10.2/bin/sim2
+examples/.stack-work/install/x86_64-osx/b6d0b64f8aa02c3df5ae3e2d8be4225d7d036983bdc8a004ca2ccd570cbe93d8/9.10.2/bin/sim2: Mach-O 64-bit executable x86_64
+compiled rtsopts:   ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N4 -optl-Wl,-no_warn_duplicate_libraries -fwrite-ide-info
+completed: Fri Sep  4 17:53:05 JST 2026
+post-run load: { 4.71 3.32 2.63 }

@@ -62,3 +62,8 @@ examples/audit-eval/metrics/*.log
 !examples/audit-eval/metrics/*.meta.json
 examples/audit-eval/tasks-s/
 __pycache__/
+# RCR artifact package (examples/market/rcr/): run-time checkouts, outputs, tarballs, zip
+examples/market/rcr/.rcr-worktrees/
+examples/market/rcr/runs/
+examples/market/rcr/revisions/
+examples/market/rcr/*.zip

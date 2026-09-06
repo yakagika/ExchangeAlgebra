@@ -1,0 +1,18 @@
+## sparse N=200 same-host re-measurement environment snapshot
+Fri Sep  4 17:59:20 JST 2026
+ProductName:		macOS
+ProductVersion:		15.7.4
+BuildVersion:		24G517
+Apple M3 Max
+14
+38654705664
+load: { 2.12 2.42 2.42 }
+stack: Version 3.9.3, Git revision c7eb8487a82d5c3e0b88d56f8b8a98be23223eb5 x86_64 hpack-0.39.1
+ghc: The Glorious Glasgow Haskell Compilation System, version 9.10.2
+resolver: resolver: lts-24.4
+repo: 8a3a36e feat(market): Round 5 overnight rerun harness (ea-scaling-paper:round5-rerun)
+marketEx1: .stack-work/install/x86_64-osx/ce04a954399e9ad1db34245cc7b1512b346697f9eb70d965225c32a5f922eb5b/9.10.2/bin/marketEx1
+.stack-work/install/x86_64-osx/ce04a954399e9ad1db34245cc7b1512b346697f9eb70d965225c32a5f922eb5b/9.10.2/bin/marketEx1: Mach-O 64-bit executable x86_64
+config: N200-K20-T50-seq-double = EA_N=200 EA_K=20 EA_T=50 EA_NET=er EA_PAR=seq, +RTS -N4 -s (as run-round4.sh series_scaling)
+completed: Fri Sep  4 17:59:25 JST 2026
+post-run load: { 2.03 2.40 2.41 }

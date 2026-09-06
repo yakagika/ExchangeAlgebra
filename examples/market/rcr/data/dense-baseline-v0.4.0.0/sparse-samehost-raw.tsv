@@ -1,0 +1,6 @@
+series	config	cores	rep	elapsed	maxres	prod
+scaling	N200-K20-T50-seq-double	4	1	0.756	43703208	68.9%
+scaling	N200-K20-T50-seq-double	4	2	0.751	43703480	66.9%
+scaling	N200-K20-T50-seq-double	4	3	0.776	43703384	69.9%
+scaling	N200-K20-T50-seq-double	4	4	0.760	42708592	68.2%
+scaling	N200-K20-T50-seq-double	4	5	0.782	43703272	70.2%

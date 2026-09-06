@@ -1,0 +1,1065 @@
+### series=parallel label=N1000-seq exe=marketEx1 cores=1 rep=1 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=seq
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParSeq
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,021,178,104 bytes allocated in the heap
+   2,130,609,736 bytes copied during GC
+     185,808,104 bytes maximum residency (17 sample(s))
+         654,104 bytes maximum slop
+             446 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      2156 colls,     0 par    1.248s   1.255s     0.0006s    0.0044s
+  Gen  1        17 colls,     0 par    0.533s   0.613s     0.0361s    0.1671s
+
+  TASKS: 4 (1 bound, 3 peak workers (3 total), using -N1)
+
+  SPARKS: 0 (0 converted, 0 overflowed, 0 dud, 0 GC'd, 0 fizzled)
+
+  INIT    time    0.002s  (  0.002s elapsed)
+  MUT     time    3.001s  (  2.929s elapsed)
+  GC      time    1.781s  (  1.868s elapsed)
+  EXIT    time    0.018s  (  0.004s elapsed)
+  Total   time    4.802s  (  4.803s elapsed)
+
+  Alloc rate    3,005,850,014 bytes per MUT second
+
+  Productivity  62.5% of total user, 61.0% of total elapsed
+
+### series=parallel label=N1000-seq exe=marketEx1 cores=1 rep=2 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=seq
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParSeq
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,021,178,104 bytes allocated in the heap
+   2,130,609,736 bytes copied during GC
+     185,808,104 bytes maximum residency (17 sample(s))
+         654,104 bytes maximum slop
+             446 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      2156 colls,     0 par    1.247s   1.253s     0.0006s    0.0045s
+  Gen  1        17 colls,     0 par    0.532s   0.612s     0.0360s    0.1670s
+
+  TASKS: 4 (1 bound, 3 peak workers (3 total), using -N1)
+
+  SPARKS: 0 (0 converted, 0 overflowed, 0 dud, 0 GC'd, 0 fizzled)
+
+  INIT    time    0.002s  (  0.002s elapsed)
+  MUT     time    3.087s  (  3.014s elapsed)
+  GC      time    1.779s  (  1.865s elapsed)
+  EXIT    time    0.016s  (  0.006s elapsed)
+  Total   time    4.884s  (  4.888s elapsed)
+
+  Alloc rate    2,922,724,162 bytes per MUT second
+
+  Productivity  63.2% of total user, 61.7% of total elapsed
+
+### series=parallel label=N1000-seq exe=marketEx1 cores=1 rep=3 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=seq
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParSeq
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,021,178,104 bytes allocated in the heap
+   2,131,037,224 bytes copied during GC
+     185,808,104 bytes maximum residency (17 sample(s))
+         654,104 bytes maximum slop
+             446 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      2156 colls,     0 par    1.264s   1.272s     0.0006s    0.0045s
+  Gen  1        17 colls,     0 par    0.542s   0.624s     0.0367s    0.1681s
+
+  TASKS: 4 (1 bound, 3 peak workers (3 total), using -N1)
+
+  SPARKS: 0 (0 converted, 0 overflowed, 0 dud, 0 GC'd, 0 fizzled)
+
+  INIT    time    0.003s  (  0.002s elapsed)
+  MUT     time    3.118s  (  3.043s elapsed)
+  GC      time    1.806s  (  1.895s elapsed)
+  EXIT    time    0.016s  (  0.000s elapsed)
+  Total   time    4.943s  (  4.941s elapsed)
+
+  Alloc rate    2,893,326,558 bytes per MUT second
+
+  Productivity  63.1% of total user, 61.6% of total elapsed
+
+### series=parallel label=N1000-seq exe=marketEx1 cores=1 rep=4 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=seq
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParSeq
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,021,178,104 bytes allocated in the heap
+   2,130,609,736 bytes copied during GC
+     185,808,104 bytes maximum residency (17 sample(s))
+         654,104 bytes maximum slop
+             446 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      2156 colls,     0 par    1.267s   1.274s     0.0006s    0.0046s
+  Gen  1        17 colls,     0 par    0.548s   0.627s     0.0369s    0.1691s
+
+  TASKS: 4 (1 bound, 3 peak workers (3 total), using -N1)
+
+  SPARKS: 0 (0 converted, 0 overflowed, 0 dud, 0 GC'd, 0 fizzled)
+
+  INIT    time    0.002s  (  0.002s elapsed)
+  MUT     time    3.112s  (  3.040s elapsed)
+  GC      time    1.815s  (  1.901s elapsed)
+  EXIT    time    0.017s  (  0.008s elapsed)
+  Total   time    4.946s  (  4.952s elapsed)
+
+  Alloc rate    2,899,063,456 bytes per MUT second
+
+  Productivity  62.9% of total user, 61.4% of total elapsed
+
+### series=parallel label=N1000-seq exe=marketEx1 cores=1 rep=5 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=seq
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParSeq
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,021,178,104 bytes allocated in the heap
+   2,130,609,736 bytes copied during GC
+     185,808,104 bytes maximum residency (17 sample(s))
+         654,104 bytes maximum slop
+             446 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      2156 colls,     0 par    1.313s   1.321s     0.0006s    0.0047s
+  Gen  1        17 colls,     0 par    0.566s   0.650s     0.0383s    0.1765s
+
+  TASKS: 4 (1 bound, 3 peak workers (3 total), using -N1)
+
+  SPARKS: 0 (0 converted, 0 overflowed, 0 dud, 0 GC'd, 0 fizzled)
+
+  INIT    time    0.003s  (  0.002s elapsed)
+  MUT     time    3.163s  (  3.086s elapsed)
+  GC      time    1.879s  (  1.971s elapsed)
+  EXIT    time    0.017s  (  0.007s elapsed)
+  Total   time    5.062s  (  5.066s elapsed)
+
+  Alloc rate    2,851,680,787 bytes per MUT second
+
+  Productivity  62.5% of total user, 60.9% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=1 rep=1 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,063,925,344 bytes allocated in the heap
+   3,004,783,336 bytes copied during GC
+     254,398,152 bytes maximum residency (26 sample(s))
+         987,448 bytes maximum slop
+             613 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      2158 colls,     0 par    1.489s   1.498s     0.0007s    0.0045s
+  Gen  1        26 colls,     0 par    1.100s   1.212s     0.0466s    0.2522s
+
+  TASKS: 4 (1 bound, 3 peak workers (3 total), using -N1)
+
+  SPARKS: 6300 (0 converted, 0 overflowed, 0 dud, 2616 GC'd, 3684 fizzled)
+
+  INIT    time    0.002s  (  0.002s elapsed)
+  MUT     time    3.072s  (  2.972s elapsed)
+  GC      time    2.589s  (  2.710s elapsed)
+  EXIT    time    0.023s  (  0.005s elapsed)
+  Total   time    5.687s  (  5.689s elapsed)
+
+  Alloc rate    2,950,094,158 bytes per MUT second
+
+  Productivity  54.0% of total user, 52.2% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=1 rep=2 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,063,925,344 bytes allocated in the heap
+   3,004,783,336 bytes copied during GC
+     254,398,152 bytes maximum residency (26 sample(s))
+         987,448 bytes maximum slop
+             613 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      2158 colls,     0 par    1.477s   1.485s     0.0007s    0.0045s
+  Gen  1        26 colls,     0 par    1.093s   1.210s     0.0466s    0.2545s
+
+  TASKS: 4 (1 bound, 3 peak workers (3 total), using -N1)
+
+  SPARKS: 6300 (0 converted, 0 overflowed, 0 dud, 2616 GC'd, 3684 fizzled)
+
+  INIT    time    0.002s  (  0.002s elapsed)
+  MUT     time    3.066s  (  2.960s elapsed)
+  GC      time    2.570s  (  2.696s elapsed)
+  EXIT    time    0.022s  (  0.009s elapsed)
+  Total   time    5.660s  (  5.667s elapsed)
+
+  Alloc rate    2,956,430,564 bytes per MUT second
+
+  Productivity  54.2% of total user, 52.2% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=1 rep=3 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,063,925,344 bytes allocated in the heap
+   3,004,783,336 bytes copied during GC
+     254,398,152 bytes maximum residency (26 sample(s))
+         987,448 bytes maximum slop
+             613 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      2158 colls,     0 par    1.519s   1.527s     0.0007s    0.0046s
+  Gen  1        26 colls,     0 par    1.090s   1.204s     0.0463s    0.2537s
+
+  TASKS: 4 (1 bound, 3 peak workers (3 total), using -N1)
+
+  SPARKS: 6300 (0 converted, 0 overflowed, 0 dud, 2616 GC'd, 3684 fizzled)
+
+  INIT    time    0.002s  (  0.002s elapsed)
+  MUT     time    3.150s  (  3.047s elapsed)
+  GC      time    2.609s  (  2.731s elapsed)
+  EXIT    time    0.022s  (  0.011s elapsed)
+  Total   time    5.784s  (  5.792s elapsed)
+
+  Alloc rate    2,877,291,382 bytes per MUT second
+
+  Productivity  54.5% of total user, 52.6% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=1 rep=4 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,063,925,344 bytes allocated in the heap
+   3,006,030,704 bytes copied during GC
+     255,006,160 bytes maximum residency (26 sample(s))
+         977,456 bytes maximum slop
+             615 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      2158 colls,     0 par    1.491s   1.499s     0.0007s    0.0047s
+  Gen  1        26 colls,     0 par    1.085s   1.205s     0.0463s    0.2531s
+
+  TASKS: 4 (1 bound, 3 peak workers (3 total), using -N1)
+
+  SPARKS: 6300 (0 converted, 0 overflowed, 0 dud, 2616 GC'd, 3684 fizzled)
+
+  INIT    time    0.002s  (  0.002s elapsed)
+  MUT     time    3.193s  (  3.084s elapsed)
+  GC      time    2.576s  (  2.704s elapsed)
+  EXIT    time    0.022s  (  0.001s elapsed)
+  Total   time    5.794s  (  5.792s elapsed)
+
+  Alloc rate    2,838,392,945 bytes per MUT second
+
+  Productivity  55.1% of total user, 53.3% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=1 rep=5 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,063,925,344 bytes allocated in the heap
+   3,004,783,336 bytes copied during GC
+     254,398,152 bytes maximum residency (26 sample(s))
+         987,448 bytes maximum slop
+             613 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      2158 colls,     0 par    1.492s   1.500s     0.0007s    0.0046s
+  Gen  1        26 colls,     0 par    1.087s   1.202s     0.0462s    0.2518s
+
+  TASKS: 4 (1 bound, 3 peak workers (3 total), using -N1)
+
+  SPARKS: 6300 (0 converted, 0 overflowed, 0 dud, 2616 GC'd, 3684 fizzled)
+
+  INIT    time    0.002s  (  0.002s elapsed)
+  MUT     time    3.122s  (  3.019s elapsed)
+  GC      time    2.580s  (  2.702s elapsed)
+  EXIT    time    0.022s  (  0.006s elapsed)
+  Total   time    5.726s  (  5.729s elapsed)
+
+  Alloc rate    2,903,140,004 bytes per MUT second
+
+  Productivity  54.5% of total user, 52.7% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=4 rep=1 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,085,561,776 bytes allocated in the heap
+   2,266,031,856 bytes copied during GC
+     190,770,096 bytes maximum residency (20 sample(s))
+         730,192 bytes maximum slop
+             499 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1051 colls,  1051 par    1.278s   0.841s     0.0008s    0.0044s
+  Gen  1        20 colls,    19 par    1.024s   0.311s     0.0155s    0.0601s
+
+  Parallel GC work balance: 64.63% (serial 0%, perfect 100%)
+
+  TASKS: 10 (1 bound, 9 peak workers (9 total), using -N4)
+
+  SPARKS: 6300 (5731 converted, 0 overflowed, 0 dud, 477 GC'd, 92 fizzled)
+
+  INIT    time    0.005s  (  0.004s elapsed)
+  MUT     time    3.551s  (  1.723s elapsed)
+  GC      time    2.302s  (  1.152s elapsed)
+  EXIT    time    0.021s  (  0.006s elapsed)
+  Total   time    5.879s  (  2.885s elapsed)
+
+  Alloc rate    2,558,624,149 bytes per MUT second
+
+  Productivity  60.4% of total user, 59.7% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=4 rep=2 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,083,189,368 bytes allocated in the heap
+   2,307,952,448 bytes copied during GC
+     208,611,808 bytes maximum residency (20 sample(s))
+         800,288 bytes maximum slop
+             537 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1081 colls,  1081 par    1.261s   0.824s     0.0008s    0.0042s
+  Gen  1        20 colls,    19 par    1.053s   0.318s     0.0159s    0.0661s
+
+  Parallel GC work balance: 65.81% (serial 0%, perfect 100%)
+
+  TASKS: 10 (1 bound, 9 peak workers (9 total), using -N4)
+
+  SPARKS: 6300 (5112 converted, 0 overflowed, 0 dud, 1080 GC'd, 108 fizzled)
+
+  INIT    time    0.004s  (  0.004s elapsed)
+  MUT     time    3.427s  (  1.702s elapsed)
+  GC      time    2.314s  (  1.143s elapsed)
+  EXIT    time    0.022s  (  0.001s elapsed)
+  Total   time    5.767s  (  2.850s elapsed)
+
+  Alloc rate    2,650,553,391 bytes per MUT second
+
+  Productivity  59.4% of total user, 59.7% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=4 rep=3 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,085,809,768 bytes allocated in the heap
+   2,290,158,448 bytes copied during GC
+     194,316,688 bytes maximum residency (20 sample(s))
+         730,736 bytes maximum slop
+             508 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1049 colls,  1049 par    1.324s   0.868s     0.0008s    0.0044s
+  Gen  1        20 colls,    19 par    1.017s   0.307s     0.0154s    0.0602s
+
+  Parallel GC work balance: 64.93% (serial 0%, perfect 100%)
+
+  TASKS: 10 (1 bound, 9 peak workers (9 total), using -N4)
+
+  SPARKS: 6300 (5862 converted, 0 overflowed, 0 dud, 351 GC'd, 87 fizzled)
+
+  INIT    time    0.004s  (  0.004s elapsed)
+  MUT     time    3.455s  (  1.687s elapsed)
+  GC      time    2.341s  (  1.175s elapsed)
+  EXIT    time    0.022s  (  0.002s elapsed)
+  Total   time    5.822s  (  2.868s elapsed)
+
+  Alloc rate    2,629,695,155 bytes per MUT second
+
+  Productivity  59.3% of total user, 58.8% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=4 rep=4 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,085,236,496 bytes allocated in the heap
+   2,336,745,752 bytes copied during GC
+     209,570,240 bytes maximum residency (21 sample(s))
+         779,840 bytes maximum slop
+             536 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1050 colls,  1050 par    1.305s   0.857s     0.0008s    0.0059s
+  Gen  1        21 colls,    20 par    1.095s   0.332s     0.0158s    0.0662s
+
+  Parallel GC work balance: 66.27% (serial 0%, perfect 100%)
+
+  TASKS: 10 (1 bound, 9 peak workers (9 total), using -N4)
+
+  SPARKS: 6300 (5704 converted, 0 overflowed, 0 dud, 499 GC'd, 97 fizzled)
+
+  INIT    time    0.004s  (  0.004s elapsed)
+  MUT     time    3.555s  (  1.712s elapsed)
+  GC      time    2.400s  (  1.189s elapsed)
+  EXIT    time    0.023s  (  0.009s elapsed)
+  Total   time    5.983s  (  2.914s elapsed)
+
+  Alloc rate    2,555,921,169 bytes per MUT second
+
+  Productivity  59.4% of total user, 58.7% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=4 rep=5 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,085,907,432 bytes allocated in the heap
+   2,266,814,088 bytes copied during GC
+     191,126,784 bytes maximum residency (20 sample(s))
+         729,856 bytes maximum slop
+             500 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1046 colls,  1046 par    1.309s   0.856s     0.0008s    0.0044s
+  Gen  1        20 colls,    19 par    1.029s   0.310s     0.0155s    0.0614s
+
+  Parallel GC work balance: 65.01% (serial 0%, perfect 100%)
+
+  TASKS: 10 (1 bound, 9 peak workers (9 total), using -N4)
+
+  SPARKS: 6300 (5773 converted, 0 overflowed, 0 dud, 436 GC'd, 91 fizzled)
+
+  INIT    time    0.004s  (  0.004s elapsed)
+  MUT     time    3.478s  (  1.697s elapsed)
+  GC      time    2.337s  (  1.166s elapsed)
+  EXIT    time    0.022s  (  0.010s elapsed)
+  Total   time    5.841s  (  2.878s elapsed)
+
+  Alloc rate    2,612,370,280 bytes per MUT second
+
+  Productivity  59.5% of total user, 59.0% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=8 rep=1 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,090,902,272 bytes allocated in the heap
+   2,277,047,640 bytes copied during GC
+     226,228,424 bytes maximum residency (18 sample(s))
+       1,054,520 bytes maximum slop
+             588 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0       978 colls,   978 par    1.562s   1.049s     0.0011s    0.0058s
+  Gen  1        18 colls,    17 par    1.451s   0.235s     0.0130s    0.0515s
+
+  Parallel GC work balance: 62.46% (serial 0%, perfect 100%)
+
+  TASKS: 18 (1 bound, 17 peak workers (17 total), using -N8)
+
+  SPARKS: 6300 (5322 converted, 0 overflowed, 0 dud, 903 GC'd, 75 fizzled)
+
+  INIT    time    0.006s  (  0.006s elapsed)
+  MUT     time    3.946s  (  1.990s elapsed)
+  GC      time    3.014s  (  1.283s elapsed)
+  EXIT    time    0.024s  (  0.008s elapsed)
+  Total   time    6.990s  (  3.288s elapsed)
+
+  Alloc rate    2,303,885,037 bytes per MUT second
+
+  Productivity  56.4% of total user, 60.5% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=8 rep=2 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,090,697,272 bytes allocated in the heap
+   2,270,550,184 bytes copied during GC
+     226,853,864 bytes maximum residency (18 sample(s))
+       1,113,112 bytes maximum slop
+             590 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0       960 colls,   960 par    1.605s   1.079s     0.0011s    0.0062s
+  Gen  1        18 colls,    17 par    1.501s   0.241s     0.0134s    0.0513s
+
+  Parallel GC work balance: 62.50% (serial 0%, perfect 100%)
+
+  TASKS: 18 (1 bound, 17 peak workers (17 total), using -N8)
+
+  SPARKS: 6300 (5774 converted, 0 overflowed, 0 dud, 447 GC'd, 79 fizzled)
+
+  INIT    time    0.006s  (  0.006s elapsed)
+  MUT     time    3.883s  (  1.897s elapsed)
+  GC      time    3.106s  (  1.321s elapsed)
+  EXIT    time    0.024s  (  0.005s elapsed)
+  Total   time    7.020s  (  3.229s elapsed)
+
+  Alloc rate    2,341,173,544 bytes per MUT second
+
+  Productivity  55.3% of total user, 58.8% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=8 rep=3 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,090,561,664 bytes allocated in the heap
+   2,312,098,424 bytes copied during GC
+     244,485,080 bytes maximum residency (18 sample(s))
+       1,172,520 bytes maximum slop
+             628 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0       949 colls,   949 par    1.623s   1.105s     0.0012s    0.0062s
+  Gen  1        18 colls,    17 par    1.575s   0.253s     0.0140s    0.0564s
+
+  Parallel GC work balance: 63.30% (serial 0%, perfect 100%)
+
+  TASKS: 18 (1 bound, 17 peak workers (17 total), using -N8)
+
+  SPARKS: 6300 (5948 converted, 0 overflowed, 0 dud, 241 GC'd, 111 fizzled)
+
+  INIT    time    0.006s  (  0.006s elapsed)
+  MUT     time    4.153s  (  1.960s elapsed)
+  GC      time    3.198s  (  1.358s elapsed)
+  EXIT    time    0.023s  (  0.008s elapsed)
+  Total   time    7.381s  (  3.332s elapsed)
+
+  Alloc rate    2,188,655,151 bytes per MUT second
+
+  Productivity  56.3% of total user, 58.8% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=8 rep=4 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,090,663,200 bytes allocated in the heap
+   2,271,030,664 bytes copied during GC
+     226,813,184 bytes maximum residency (18 sample(s))
+       1,141,504 bytes maximum slop
+             589 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0       958 colls,   958 par    1.611s   1.085s     0.0011s    0.0059s
+  Gen  1        18 colls,    17 par    1.484s   0.238s     0.0132s    0.0504s
+
+  Parallel GC work balance: 62.42% (serial 0%, perfect 100%)
+
+  TASKS: 18 (1 bound, 17 peak workers (17 total), using -N8)
+
+  SPARKS: 6300 (5864 converted, 0 overflowed, 0 dud, 355 GC'd, 81 fizzled)
+
+  INIT    time    0.006s  (  0.006s elapsed)
+  MUT     time    4.024s  (  1.972s elapsed)
+  GC      time    3.095s  (  1.324s elapsed)
+  EXIT    time    0.024s  (  0.001s elapsed)
+  Total   time    7.149s  (  3.303s elapsed)
+
+  Alloc rate    2,259,390,188 bytes per MUT second
+
+  Productivity  56.3% of total user, 59.7% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=8 rep=5 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,090,798,864 bytes allocated in the heap
+   2,289,481,976 bytes copied during GC
+     233,400,992 bytes maximum residency (18 sample(s))
+       1,160,544 bytes maximum slop
+             610 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0       966 colls,   966 par    1.533s   1.047s     0.0011s    0.0060s
+  Gen  1        18 colls,    17 par    1.465s   0.238s     0.0132s    0.0509s
+
+  Parallel GC work balance: 62.06% (serial 0%, perfect 100%)
+
+  TASKS: 18 (1 bound, 17 peak workers (17 total), using -N8)
+
+  SPARKS: 6300 (5710 converted, 0 overflowed, 0 dud, 481 GC'd, 109 fizzled)
+
+  INIT    time    0.006s  (  0.006s elapsed)
+  MUT     time    3.877s  (  1.916s elapsed)
+  GC      time    2.999s  (  1.285s elapsed)
+  EXIT    time    0.025s  (  0.009s elapsed)
+  Total   time    6.907s  (  3.216s elapsed)
+
+  Alloc rate    2,344,838,073 bytes per MUT second
+
+  Productivity  56.1% of total user, 59.6% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=10 rep=1 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,097,730,440 bytes allocated in the heap
+   2,319,452,728 bytes copied during GC
+     243,651,784 bytes maximum residency (17 sample(s))
+       1,104,696 bytes maximum slop
+             636 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0       956 colls,   956 par    1.583s   1.104s     0.0012s    0.0108s
+  Gen  1        17 colls,    16 par    1.608s   0.236s     0.0139s    0.0536s
+
+  Parallel GC work balance: 58.50% (serial 0%, perfect 100%)
+
+  TASKS: 22 (1 bound, 21 peak workers (21 total), using -N10)
+
+  SPARKS: 6300 (5462 converted, 0 overflowed, 0 dud, 746 GC'd, 92 fizzled)
+
+  INIT    time    0.007s  (  0.007s elapsed)
+  MUT     time    4.423s  (  2.092s elapsed)
+  GC      time    3.191s  (  1.341s elapsed)
+  EXIT    time    0.027s  (  0.008s elapsed)
+  Total   time    7.649s  (  3.448s elapsed)
+
+  Alloc rate    2,057,146,044 bytes per MUT second
+
+  Productivity  57.8% of total user, 60.7% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=10 rep=2 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,097,695,472 bytes allocated in the heap
+   2,316,038,952 bytes copied during GC
+     243,811,616 bytes maximum residency (17 sample(s))
+       1,166,048 bytes maximum slop
+             636 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0       949 colls,   949 par    1.680s   1.160s     0.0012s    0.0073s
+  Gen  1        17 colls,    16 par    1.726s   0.226s     0.0133s    0.0520s
+
+  Parallel GC work balance: 60.07% (serial 0%, perfect 100%)
+
+  TASKS: 22 (1 bound, 21 peak workers (21 total), using -N10)
+
+  SPARKS: 6300 (5525 converted, 0 overflowed, 0 dud, 670 GC'd, 105 fizzled)
+
+  INIT    time    0.008s  (  0.007s elapsed)
+  MUT     time    3.996s  (  1.851s elapsed)
+  GC      time    3.406s  (  1.386s elapsed)
+  EXIT    time    0.026s  (  0.001s elapsed)
+  Total   time    7.436s  (  3.246s elapsed)
+
+  Alloc rate    2,276,927,919 bytes per MUT second
+
+  Productivity  53.7% of total user, 57.0% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=10 rep=3 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,097,662,976 bytes allocated in the heap
+   2,319,798,272 bytes copied during GC
+     243,812,720 bytes maximum residency (17 sample(s))
+       1,214,096 bytes maximum slop
+             636 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0       950 colls,   950 par    1.539s   1.076s     0.0011s    0.0061s
+  Gen  1        17 colls,    16 par    1.658s   0.225s     0.0132s    0.0482s
+
+  Parallel GC work balance: 59.20% (serial 0%, perfect 100%)
+
+  TASKS: 22 (1 bound, 21 peak workers (21 total), using -N10)
+
+  SPARKS: 6300 (5435 converted, 0 overflowed, 0 dud, 770 GC'd, 95 fizzled)
+
+  INIT    time    0.007s  (  0.007s elapsed)
+  MUT     time    4.137s  (  1.924s elapsed)
+  GC      time    3.197s  (  1.301s elapsed)
+  EXIT    time    0.030s  (  0.009s elapsed)
+  Total   time    7.371s  (  3.241s elapsed)
+
+  Alloc rate    2,199,020,139 bytes per MUT second
+
+  Productivity  56.1% of total user, 59.4% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=10 rep=4 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,097,559,600 bytes allocated in the heap
+   2,315,889,000 bytes copied during GC
+     240,772,424 bytes maximum residency (19 sample(s))
+       1,280,696 bytes maximum slop
+             626 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0       947 colls,   947 par    1.628s   1.138s     0.0012s    0.0059s
+  Gen  1        19 colls,    18 par    1.677s   0.227s     0.0119s    0.0478s
+
+  Parallel GC work balance: 59.57% (serial 0%, perfect 100%)
+
+  TASKS: 22 (1 bound, 21 peak workers (21 total), using -N10)
+
+  SPARKS: 6300 (5571 converted, 0 overflowed, 0 dud, 626 GC'd, 103 fizzled)
+
+  INIT    time    0.007s  (  0.007s elapsed)
+  MUT     time    4.178s  (  1.996s elapsed)
+  GC      time    3.305s  (  1.364s elapsed)
+  EXIT    time    0.031s  (  0.006s elapsed)
+  Total   time    7.520s  (  3.374s elapsed)
+
+  Alloc rate    2,177,693,242 bytes per MUT second
+
+  Productivity  55.6% of total user, 59.2% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=10 rep=5 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,097,458,048 bytes allocated in the heap
+   2,309,808,408 bytes copied during GC
+     240,791,768 bytes maximum residency (17 sample(s))
+       1,564,456 bytes maximum slop
+             628 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0       950 colls,   950 par    1.663s   1.165s     0.0012s    0.0086s
+  Gen  1        17 colls,    16 par    1.661s   0.224s     0.0132s    0.0485s
+
+  Parallel GC work balance: 59.79% (serial 0%, perfect 100%)
+
+  TASKS: 22 (1 bound, 21 peak workers (21 total), using -N10)
+
+  SPARKS: 6300 (5529 converted, 0 overflowed, 0 dud, 672 GC'd, 99 fizzled)
+
+  INIT    time    0.007s  (  0.007s elapsed)
+  MUT     time    4.051s  (  1.905s elapsed)
+  GC      time    3.324s  (  1.389s elapsed)
+  EXIT    time    0.025s  (  0.009s elapsed)
+  Total   time    7.408s  (  3.311s elapsed)
+
+  Alloc rate    2,245,525,231 bytes per MUT second
+
+  Productivity  54.7% of total user, 57.5% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=12 rep=1 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,105,105,704 bytes allocated in the heap
+   2,328,095,032 bytes copied during GC
+     243,724,424 bytes maximum residency (18 sample(s))
+       1,195,896 bytes maximum slop
+             649 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0       953 colls,   953 par    1.688s   1.160s     0.0012s    0.0058s
+  Gen  1        18 colls,    17 par    1.526s   0.221s     0.0123s    0.0496s
+
+  Parallel GC work balance: 58.05% (serial 0%, perfect 100%)
+
+  TASKS: 26 (1 bound, 25 peak workers (25 total), using -N12)
+
+  SPARKS: 6300 (5506 converted, 0 overflowed, 0 dud, 678 GC'd, 116 fizzled)
+
+  INIT    time    0.009s  (  0.008s elapsed)
+  MUT     time    5.267s  (  2.101s elapsed)
+  GC      time    3.215s  (  1.381s elapsed)
+  EXIT    time    0.027s  (  0.015s elapsed)
+  Total   time    8.517s  (  3.505s elapsed)
+
+  Alloc rate    1,728,861,745 bytes per MUT second
+
+  Productivity  61.8% of total user, 59.9% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=12 rep=2 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,105,068,432 bytes allocated in the heap
+   2,328,307,424 bytes copied during GC
+     244,585,200 bytes maximum residency (17 sample(s))
+       1,248,528 bytes maximum slop
+             652 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0       952 colls,   952 par    1.710s   1.175s     0.0012s    0.0061s
+  Gen  1        17 colls,    16 par    1.531s   0.223s     0.0131s    0.0509s
+
+  Parallel GC work balance: 58.08% (serial 0%, perfect 100%)
+
+  TASKS: 26 (1 bound, 25 peak workers (25 total), using -N12)
+
+  SPARKS: 6300 (5731 converted, 0 overflowed, 0 dud, 483 GC'd, 86 fizzled)
+
+  INIT    time    0.009s  (  0.008s elapsed)
+  MUT     time    4.991s  (  1.992s elapsed)
+  GC      time    3.241s  (  1.398s elapsed)
+  EXIT    time    0.027s  (  0.006s elapsed)
+  Total   time    8.267s  (  3.404s elapsed)
+
+  Alloc rate    1,824,386,977 bytes per MUT second
+
+  Productivity  60.4% of total user, 58.5% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=12 rep=3 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,105,138,728 bytes allocated in the heap
+   2,332,706,280 bytes copied during GC
+     243,729,240 bytes maximum residency (19 sample(s))
+       1,252,520 bytes maximum slop
+             650 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0       951 colls,   951 par    1.708s   1.175s     0.0012s    0.0058s
+  Gen  1        19 colls,    18 par    1.560s   0.225s     0.0119s    0.0501s
+
+  Parallel GC work balance: 58.41% (serial 0%, perfect 100%)
+
+  TASKS: 26 (1 bound, 25 peak workers (25 total), using -N12)
+
+  SPARKS: 6300 (5686 converted, 0 overflowed, 0 dud, 531 GC'd, 83 fizzled)
+
+  INIT    time    0.010s  (  0.009s elapsed)
+  MUT     time    5.327s  (  2.165s elapsed)
+  GC      time    3.269s  (  1.400s elapsed)
+  EXIT    time    0.024s  (  0.013s elapsed)
+  Total   time    8.630s  (  3.589s elapsed)
+
+  Alloc rate    1,709,100,465 bytes per MUT second
+
+  Productivity  61.7% of total user, 60.3% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=12 rep=4 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,105,034,304 bytes allocated in the heap
+   2,339,905,344 bytes copied during GC
+     243,784,448 bytes maximum residency (19 sample(s))
+       1,193,216 bytes maximum slop
+             648 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0       950 colls,   950 par    1.719s   1.170s     0.0012s    0.0065s
+  Gen  1        19 colls,    18 par    1.536s   0.223s     0.0117s    0.0488s
+
+  Parallel GC work balance: 58.43% (serial 0%, perfect 100%)
+
+  TASKS: 26 (1 bound, 25 peak workers (25 total), using -N12)
+
+  SPARKS: 6300 (5573 converted, 0 overflowed, 0 dud, 640 GC'd, 87 fizzled)
+
+  INIT    time    0.010s  (  0.009s elapsed)
+  MUT     time    5.243s  (  2.089s elapsed)
+  GC      time    3.254s  (  1.393s elapsed)
+  EXIT    time    0.027s  (  0.001s elapsed)
+  Total   time    8.534s  (  3.492s elapsed)
+
+  Alloc rate    1,736,482,531 bytes per MUT second
+
+  Productivity  61.4% of total user, 59.8% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=12 rep=5 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,104,831,760 bytes allocated in the heap
+   2,337,487,304 bytes copied during GC
+     243,724,928 bytes maximum residency (17 sample(s))
+       1,236,352 bytes maximum slop
+             647 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0       952 colls,   952 par    1.710s   1.167s     0.0012s    0.0068s
+  Gen  1        17 colls,    16 par    1.523s   0.227s     0.0133s    0.0502s
+
+  Parallel GC work balance: 58.22% (serial 0%, perfect 100%)
+
+  TASKS: 26 (1 bound, 25 peak workers (25 total), using -N12)
+
+  SPARKS: 6300 (5655 converted, 0 overflowed, 0 dud, 552 GC'd, 93 fizzled)
+
+  INIT    time    0.009s  (  0.008s elapsed)
+  MUT     time    5.241s  (  2.164s elapsed)
+  GC      time    3.233s  (  1.394s elapsed)
+  EXIT    time    0.032s  (  0.011s elapsed)
+  Total   time    8.514s  (  3.576s elapsed)
+
+  Alloc rate    1,737,211,892 bytes per MUT second
+
+  Productivity  61.6% of total user, 60.5% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=14 rep=1 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,111,734,032 bytes allocated in the heap
+   2,352,304,288 bytes copied during GC
+     241,696,384 bytes maximum residency (19 sample(s))
+       1,618,304 bytes maximum slop
+             657 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0       954 colls,   954 par    1.804s   1.243s     0.0013s    0.0097s
+  Gen  1        19 colls,    18 par    1.775s   0.220s     0.0116s    0.0474s
+
+  Parallel GC work balance: 55.88% (serial 0%, perfect 100%)
+
+  TASKS: 30 (1 bound, 29 peak workers (29 total), using -N14)
+
+  SPARKS: 6300 (5630 converted, 0 overflowed, 0 dud, 580 GC'd, 90 fizzled)
+
+  INIT    time    0.010s  (  0.010s elapsed)
+  MUT     time    5.626s  (  2.128s elapsed)
+  GC      time    3.579s  (  1.463s elapsed)
+  EXIT    time    0.027s  (  0.010s elapsed)
+  Total   time    9.243s  (  3.611s elapsed)
+
+  Alloc rate    1,619,526,390 bytes per MUT second
+
+  Productivity  60.9% of total user, 58.9% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=14 rep=2 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,111,796,224 bytes allocated in the heap
+   2,353,540,024 bytes copied during GC
+     243,767,864 bytes maximum residency (19 sample(s))
+       1,381,832 bytes maximum slop
+             660 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0       951 colls,   951 par    1.819s   1.243s     0.0013s    0.0066s
+  Gen  1        19 colls,    18 par    1.790s   0.222s     0.0117s    0.0491s
+
+  Parallel GC work balance: 56.65% (serial 0%, perfect 100%)
+
+  TASKS: 30 (1 bound, 29 peak workers (29 total), using -N14)
+
+  SPARKS: 6300 (5654 converted, 0 overflowed, 0 dud, 558 GC'd, 88 fizzled)
+
+  INIT    time    0.010s  (  0.009s elapsed)
+  MUT     time    5.610s  (  2.120s elapsed)
+  GC      time    3.609s  (  1.465s elapsed)
+  EXIT    time    0.026s  (  0.010s elapsed)
+  Total   time    9.255s  (  3.605s elapsed)
+
+  Alloc rate    1,624,228,683 bytes per MUT second
+
+  Productivity  60.6% of total user, 58.8% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=14 rep=3 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,111,730,112 bytes allocated in the heap
+   2,351,659,936 bytes copied during GC
+     241,634,544 bytes maximum residency (18 sample(s))
+       1,647,376 bytes maximum slop
+             657 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0       951 colls,   951 par    1.752s   1.205s     0.0013s    0.0087s
+  Gen  1        18 colls,    17 par    1.719s   0.217s     0.0121s    0.0455s
+
+  Parallel GC work balance: 56.39% (serial 0%, perfect 100%)
+
+  TASKS: 30 (1 bound, 29 peak workers (29 total), using -N14)
+
+  SPARKS: 6300 (5615 converted, 0 overflowed, 0 dud, 601 GC'd, 84 fizzled)
+
+  INIT    time    0.011s  (  0.011s elapsed)
+  MUT     time    5.618s  (  2.073s elapsed)
+  GC      time    3.472s  (  1.422s elapsed)
+  EXIT    time    0.027s  (  0.010s elapsed)
+  Total   time    9.127s  (  3.517s elapsed)
+
+  Alloc rate    1,622,018,613 bytes per MUT second
+
+  Productivity  61.5% of total user, 59.0% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=14 rep=4 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,111,393,296 bytes allocated in the heap
+   2,341,516,232 bytes copied during GC
+     243,734,840 bytes maximum residency (17 sample(s))
+       1,504,968 bytes maximum slop
+             659 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0       957 colls,   957 par    1.749s   1.203s     0.0013s    0.0063s
+  Gen  1        17 colls,    16 par    1.738s   0.216s     0.0127s    0.0468s
+
+  Parallel GC work balance: 56.42% (serial 0%, perfect 100%)
+
+  TASKS: 30 (1 bound, 29 peak workers (29 total), using -N14)
+
+  SPARKS: 6300 (5562 converted, 0 overflowed, 0 dud, 643 GC'd, 95 fizzled)
+
+  INIT    time    0.010s  (  0.009s elapsed)
+  MUT     time    5.654s  (  2.115s elapsed)
+  GC      time    3.487s  (  1.420s elapsed)
+  EXIT    time    0.027s  (  0.010s elapsed)
+  Total   time    9.178s  (  3.554s elapsed)
+
+  Alloc rate    1,611,420,998 bytes per MUT second
+
+  Productivity  61.6% of total user, 59.5% of total elapsed
+
+### series=parallel label=N1000-par16 exe=marketEx1 cores=14 rep=5 env=EA_N=1000 EA_K=20 EA_T=50 EA_NET=er EA_PAR=par:16
+marketEx1 (MoneyDouble): N=1000 T=50 K=20 net=NetErdosRenyi par=ParChunkN 16
+  firms=1000 edges=20025 terms=50
+  final ledger norm = 4350000.0000
+  final-term net shortage (report) = 10000.0000
+   9,111,731,328 bytes allocated in the heap
+   2,357,275,144 bytes copied during GC
+     243,094,016 bytes maximum residency (19 sample(s))
+       1,617,408 bytes maximum slop
+             660 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0       953 colls,   953 par    1.738s   1.187s     0.0012s    0.0063s
+  Gen  1        19 colls,    18 par    1.759s   0.220s     0.0116s    0.0473s
+
+  Parallel GC work balance: 56.60% (serial 0%, perfect 100%)
+
+  TASKS: 30 (1 bound, 29 peak workers (29 total), using -N14)
+
+  SPARKS: 6300 (5659 converted, 0 overflowed, 0 dud, 523 GC'd, 118 fizzled)
+
+  INIT    time    0.010s  (  0.010s elapsed)
+  MUT     time    5.501s  (  2.001s elapsed)
+  GC      time    3.497s  (  1.407s elapsed)
+  EXIT    time    0.027s  (  0.009s elapsed)
+  Total   time    9.035s  (  3.427s elapsed)
+
+  Alloc rate    1,656,459,469 bytes per MUT second
+
+  Productivity  60.9% of total user, 58.4% of total elapsed
+

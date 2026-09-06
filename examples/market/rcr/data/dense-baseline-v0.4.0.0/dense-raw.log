@@ -1,0 +1,225 @@
+ 169,417,600,104 bytes allocated in the heap
+  90,241,653,376 bytes copied during GC
+   2,521,397,272 bytes maximum residency (40 sample(s))
+       9,660,392 bytes maximum slop
+            7356 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     23448 colls, 23448 par   41.413s  26.094s     0.0011s    0.0061s
+  Gen  1        40 colls,    39 par   36.053s  10.214s     0.2553s    0.7077s
+
+  Parallel GC work balance: 60.94% (serial 0%, perfect 100%)
+
+  TASKS: 12 (1 bound, 11 peak workers (11 total), using -N4)
+
+  SPARKS: 0 (0 converted, 0 overflowed, 0 dud, 0 GC'd, 0 fizzled)
+
+  INIT    time    0.004s  (  0.004s elapsed)
+  MUT     time   48.702s  ( 23.372s elapsed)
+  GC      time   77.466s  ( 36.307s elapsed)
+  EXIT    time    0.148s  (  0.006s elapsed)
+  Total   time  126.321s  ( 59.690s elapsed)
+
+  Alloc rate    3,478,653,248 bytes per MUT second
+
+  Productivity  38.6% of total user, 39.2% of total elapsed
+
+       60.25 real       122.36 user         4.06 sys
+          7721746432  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+             1885580  page reclaims
+                  10  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                 264  voluntary context switches
+              281045  involuntary context switches
+       2086769709262  instructions retired
+        469611579226  cycles elapsed
+          7732534272  peak memory footprint
+===== end rep 1 =====
+ 169,417,570,672 bytes allocated in the heap
+  88,171,283,208 bytes copied during GC
+   2,519,828,976 bytes maximum residency (40 sample(s))
+      10,098,192 bytes maximum slop
+            7355 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     21808 colls, 21808 par   42.865s  25.004s     0.0011s    0.0137s
+  Gen  1        40 colls,    39 par   36.693s  10.385s     0.2596s    0.7177s
+
+  Parallel GC work balance: 61.22% (serial 0%, perfect 100%)
+
+  TASKS: 12 (1 bound, 11 peak workers (11 total), using -N4)
+
+  SPARKS: 0 (0 converted, 0 overflowed, 0 dud, 0 GC'd, 0 fizzled)
+
+  INIT    time    0.004s  (  0.004s elapsed)
+  MUT     time   49.983s  ( 23.957s elapsed)
+  GC      time   79.558s  ( 35.388s elapsed)
+  EXIT    time    0.187s  (  0.005s elapsed)
+  Total   time  129.731s  ( 59.353s elapsed)
+
+  Alloc rate    3,389,520,798 bytes per MUT second
+
+  Productivity  38.5% of total user, 40.4% of total elapsed
+
+       59.47 real       126.06 user         3.78 sys
+          7720701952  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+             1885289  page reclaims
+                  18  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                 114  voluntary context switches
+              261946  involuntary context switches
+       2072204100157  instructions retired
+        474213958723  cycles elapsed
+          7731518464  peak memory footprint
+===== end rep 2 =====
+ 169,417,575,984 bytes allocated in the heap
+  89,516,837,432 bytes copied during GC
+   2,522,715,464 bytes maximum residency (40 sample(s))
+       9,677,496 bytes maximum slop
+            7361 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     21867 colls, 21867 par   43.471s  25.057s     0.0011s    0.0064s
+  Gen  1        40 colls,    39 par   35.616s  10.136s     0.2534s    0.6820s
+
+  Parallel GC work balance: 62.04% (serial 0%, perfect 100%)
+
+  TASKS: 12 (1 bound, 11 peak workers (11 total), using -N4)
+
+  SPARKS: 0 (0 converted, 0 overflowed, 0 dud, 0 GC'd, 0 fizzled)
+
+  INIT    time    0.004s  (  0.004s elapsed)
+  MUT     time   47.959s  ( 22.941s elapsed)
+  GC      time   79.088s  ( 35.193s elapsed)
+  EXIT    time    0.181s  (  0.014s elapsed)
+  Total   time  127.232s  ( 58.153s elapsed)
+
+  Alloc rate    3,532,540,938 bytes per MUT second
+
+  Productivity  37.7% of total user, 39.4% of total elapsed
+
+       58.27 real       123.54 user         3.79 sys
+          7726977024  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+             1886809  page reclaims
+                  18  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                 189  voluntary context switches
+              263092  involuntary context switches
+       2067413779788  instructions retired
+        464734212003  cycles elapsed
+          7737809984  peak memory footprint
+===== end rep 3 =====
+ 169,417,575,824 bytes allocated in the heap
+  89,341,557,760 bytes copied during GC
+   2,520,285,920 bytes maximum residency (40 sample(s))
+       9,641,248 bytes maximum slop
+            7355 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     21676 colls, 21676 par   42.476s  24.394s     0.0011s    0.0065s
+  Gen  1        40 colls,    39 par   35.386s  10.072s     0.2518s    0.6951s
+
+  Parallel GC work balance: 61.98% (serial 0%, perfect 100%)
+
+  TASKS: 12 (1 bound, 11 peak workers (11 total), using -N4)
+
+  SPARKS: 0 (0 converted, 0 overflowed, 0 dud, 0 GC'd, 0 fizzled)
+
+  INIT    time    0.004s  (  0.004s elapsed)
+  MUT     time   47.081s  ( 22.514s elapsed)
+  GC      time   77.862s  ( 34.465s elapsed)
+  EXIT    time    0.183s  (  0.008s elapsed)
+  Total   time  125.131s  ( 56.992s elapsed)
+
+  Alloc rate    3,598,417,561 bytes per MUT second
+
+  Productivity  37.6% of total user, 39.5% of total elapsed
+
+       57.11 real       121.47 user         3.77 sys
+          7720693760  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+             1885299  page reclaims
+                  18  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                 199  voluntary context switches
+              260386  involuntary context switches
+       2053249756482  instructions retired
+        457007954548  cycles elapsed
+          7731510272  peak memory footprint
+===== end rep 4 =====
+ 169,417,580,992 bytes allocated in the heap
+  88,498,847,848 bytes copied during GC
+   2,521,118,032 bytes maximum residency (41 sample(s))
+       9,616,328 bytes maximum slop
+            7357 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     23874 colls, 23874 par   46.204s  29.436s     0.0012s    0.0106s
+  Gen  1        41 colls,    40 par   37.862s  10.731s     0.2617s    0.7327s
+
+  Parallel GC work balance: 60.41% (serial 0%, perfect 100%)
+
+  TASKS: 12 (1 bound, 11 peak workers (11 total), using -N4)
+
+  SPARKS: 0 (0 converted, 0 overflowed, 0 dud, 0 GC'd, 0 fizzled)
+
+  INIT    time    0.004s  (  0.004s elapsed)
+  MUT     time   48.660s  ( 23.356s elapsed)
+  GC      time   84.066s  ( 40.168s elapsed)
+  EXIT    time    0.189s  (  0.011s elapsed)
+  Total   time  132.918s  ( 63.538s elapsed)
+
+  Alloc rate    3,481,678,928 bytes per MUT second
+
+  Productivity  36.6% of total user, 36.8% of total elapsed
+
+       63.66 real       129.09 user         3.93 sys
+          7722795008  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+             1885799  page reclaims
+                  18  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                 273  voluntary context switches
+              279498  involuntary context switches
+       2092452687048  instructions retired
+        484955788196  cycles elapsed
+          7733632064  peak memory footprint
+===== end rep 5 =====
