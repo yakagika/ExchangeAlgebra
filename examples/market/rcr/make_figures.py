@@ -96,24 +96,48 @@ def check(checks, name, computed, expected, ndigits):
         raise AssertionError(f"{name}: computed {computed!r} != expected {expected!r}")
 
 
-def rows():
+def _number(value):
+    """Parse a TSV number, returning NaN for missing/non-finite measurements."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return math.nan
+    return number if math.isfinite(number) else math.nan
+
+
+def rows(raw_path=RAW_TSV):
     """Read raw TSV measurements and return rows with numeric fields converted."""
-    with RAW_TSV.open(newline="") as raw_file:
-        return [
-            {
+    with Path(raw_path).open(newline="") as raw_file:
+        reader = csv.DictReader(raw_file, delimiter="\t")
+        result = []
+        for row in reader:
+            elapsed = _number(row.get("elapsed"))
+            maxres = _number(row.get("maxres"))
+            try:
+                cores = int(row.get("cores", ""))
+            except (TypeError, ValueError):
+                cores = None
+            status = row.get("status")
+            clean = math.isfinite(elapsed) and (
+                status == "ok" if status is not None else elapsed > 1.0
+            )
+            result.append({
                 **row,
-                "cores": int(row["cores"]),
-                "elapsed": float(row["elapsed"]),
-                "maxres": float(row["maxres"]),
-            }
+                "cores": cores,
+                "elapsed": elapsed,
+                "maxres": maxres,
+                "_clean": clean,
+            })
+        return result
+
+
+def dense_rows(dense_raw_path=RAW_DENSE_TSV):
+    """Read the dense-baseline TSV and return its elapsed measurements in seconds."""
+    with Path(dense_raw_path).open(newline="") as raw_file:
+        return [
+            _number(row.get("elapsed"))
             for row in csv.DictReader(raw_file, delimiter="\t")
         ]
-
-
-def dense_rows():
-    """Read the dense-baseline TSV and return its elapsed measurements in seconds."""
-    with RAW_DENSE_TSV.open(newline="") as raw_file:
-        return [float(row["elapsed"]) for row in csv.DictReader(raw_file, delimiter="\t")]
 
 
 def pick(data, series, config, cores=None, clean=False):
@@ -124,7 +148,7 @@ def pick(data, series, config, cores=None, clean=False):
         if row["series"] == series
         and row["config"] == config
         and (cores is None or row["cores"] == cores)
-        and (not clean or row["elapsed"] > 1.0)
+        and (not clean or row["_clean"])
     ]
     if not selected:
         raise AssertionError(f"no raw rows for {series}/{config}/cores={cores}")
@@ -148,9 +172,9 @@ def speed(base, parallel):
     return speedup, speedup_sd
 
 
-def calculate():
+def _calculate_record(raw_path, dense_raw_path):
     """Calculate all plot/table values, assert manuscript checks, and return them."""
-    data = rows()
+    data = rows(raw_path)
     checks = []
     scaling = []
     for n, (expected_mean, expected_sd, ndigits) in EXPECTED_SCALING.items():
@@ -166,7 +190,7 @@ def calculate():
               expected_residency, residency_digits)
         scaling.append((n, mean, sd, residency, ndigits))
 
-    dense_elapsed = dense_rows()
+    dense_elapsed = dense_rows(dense_raw_path)
     if len(dense_elapsed) != 5:
         raise AssertionError(
             f"dense baseline repetition count: computed {len(dense_elapsed)!r} != expected 5"
@@ -256,6 +280,221 @@ def calculate():
             overhead, checks)
 
 
+def calculate(raw_path=RAW_TSV, dense_raw_path=RAW_DENSE_TSV, policy="record"):
+    """Calculate record values or load measurements for replication assessment."""
+    if policy == "record":
+        return _calculate_record(raw_path, dense_raw_path)
+    if policy != "replicate":
+        raise ValueError(f"unknown calculation policy: {policy}")
+    try:
+        data = rows(raw_path)
+    except (OSError, csv.Error):
+        data = []
+    try:
+        dense = [value for value in dense_rows(dense_raw_path) if math.isfinite(value)]
+    except (OSError, csv.Error):
+        dense = []
+    return {"data": data, "dense": dense}
+
+
+def _measurements(values, series, config, cores=None, clean=False, field="elapsed"):
+    selected = [
+        row[field]
+        for row in values["data"]
+        if row.get("series") == series
+        and row.get("config") == config
+        and (cores is None or row.get("cores") == cores)
+        and (not clean or row.get("_clean", False))
+        and math.isfinite(row.get(field, math.nan))
+    ]
+    return selected
+
+
+def _mean(values, series, config, cores=None, clean=False, field="elapsed"):
+    measurements = _measurements(values, series, config, cores, clean, field)
+    return (statistics.mean(measurements), len(measurements)) if measurements else (None, 0)
+
+
+def _slope(points):
+    """Return the ordinary least-squares slope in log-log space."""
+    xs = [math.log(x) for x, _ in points]
+    ys = [math.log(y) for _, y in points]
+    xmean = statistics.mean(xs)
+    ymean = statistics.mean(ys)
+    return sum((x - xmean) * (y - ymean) for x, y in zip(xs, ys)) / sum(
+        (x - xmean) ** 2 for x in xs
+    )
+
+
+def assess(values, smoke=False):
+    """Assess the seven ratio/shape replication criteria."""
+    names = [
+        "fig1a scaling slope",
+        "fig1b dense/sparse ratio",
+        "fig2 light max speedup",
+        "fig2 heavy speedup at max cores",
+        "table1 residency slope",
+        "valuetype decimal/double",
+        "memory residency ratio",
+    ]
+    references = [
+        "1.0-1.35 (paper ~= 1.2)",
+        ">= 10 (paper 20.1)",
+        "1.3-2.5 (paper 1.71)",
+        ">= 3.0 (paper 4.75 at 10 cores)",
+        "0.9-1.1 (linear)",
+        ">= 3 at N=200 and N=1000 (paper 6.9 / 6.0)",
+        ">= 8 (paper 16.8)",
+    ]
+    if smoke:
+        return [
+            (name, "NOT-ASSESSED", "-", reference, "smoke run")
+            for name, reference in zip(names, references)
+        ]
+
+    results = []
+    timing_points = []
+    residency_points = []
+    scaling_counts = []
+    for n in EXPECTED_SCALING:
+        series = "scaling" if n <= 2000 else "scalingext"
+        timing, timing_count = _mean(
+            values, series, f"N{n}-K20-T50-seq-double"
+        )
+        residency, residency_count = _mean(
+            values, series, f"N{n}-K20-T50-seq-double", field="maxres"
+        )
+        scaling_counts.append(f"N{n}:{timing_count}")
+        if timing_count >= 3 and timing is not None and timing > 0:
+            timing_points.append((n, timing))
+        if residency_count >= 3 and residency is not None and residency > 0:
+            residency_points.append((n, residency))
+
+    if len(timing_points) < 7:
+        results.append((names[0], "NOT-ASSESSED", f"{len(timing_points)} points",
+                        references[0], "reps " + ", ".join(scaling_counts)))
+    else:
+        slope = _slope(timing_points)
+        verdict = "PASS" if 1.0 <= slope <= 1.35 else "FAIL"
+        results.append((names[0], verdict, f"{slope:.3f}", references[0],
+                        f"{len(timing_points)} points"))
+
+    sparse, sparse_count = _mean(
+        values, "scaling", "N200-K20-T50-seq-double"
+    )
+    dense_count = len(values["dense"])
+    if sparse_count < 3 or dense_count < 3 or sparse is None:
+        results.append((names[1], "NOT-ASSESSED", "-", references[1],
+                        f"sparse reps={sparse_count}, dense reps={dense_count}"))
+    else:
+        ratio = (statistics.mean(values["dense"]) / 4) / sparse
+        results.append((names[1], "PASS" if ratio >= 10 else "FAIL",
+                        f"{ratio:.3f}", references[1],
+                        f"sparse reps={sparse_count}, dense reps={dense_count}"))
+
+    light_base, light_base_count = _mean(values, "parallel", "N1000-seq", 1)
+    light_speeds = []
+    light_counts = []
+    light_cores = sorted({
+        row.get("cores") for row in values["data"]
+        if row.get("series") == "parallel"
+        and row.get("config") == "N1000-par16"
+        and row.get("cores") is not None and row.get("cores") > 1
+    })
+    for cores in light_cores:
+        mean, count = _mean(values, "parallel", "N1000-par16", cores)
+        light_counts.append(f"{cores}c:{count}")
+        if count >= 3 and mean is not None and mean > 0 and light_base is not None:
+            light_speeds.append((cores, light_base / mean))
+    if light_base_count < 3 or len(light_speeds) < 2:
+        results.append((names[2], "NOT-ASSESSED", "-", references[2],
+                        f"baseline reps={light_base_count}; " + ", ".join(light_counts)))
+    else:
+        peak_core, peak = max(light_speeds, key=lambda item: item[1])
+        tail = light_speeds[-1][1]
+        results.append((names[2], "PASS" if 1.3 <= peak <= 2.5 else "FAIL",
+                        f"{peak:.3f}", references[2],
+                        f"peak={peak_core}c; max-core={light_speeds[-1][0]}c/{tail:.3f}"))
+
+    heavy_base, heavy_base_count = _mean(
+        values, "heavy", "N1000-heavy-seq", 1, clean=True
+    )
+    heavy_speeds = []
+    heavy_fractions = []
+    heavy_cores = sorted({
+        row.get("cores") for row in values["data"]
+        if row.get("series") == "heavy"
+        and row.get("config") == "N1000-heavy-par16"
+        and row.get("cores") is not None
+    })
+    for cores in heavy_cores:
+        all_rows = [
+            row for row in values["data"]
+            if row.get("series") == "heavy"
+            and row.get("config") == "N1000-heavy-par16"
+            and row.get("cores") == cores
+        ]
+        mean, count = _mean(
+            values, "heavy", "N1000-heavy-par16", cores, clean=True
+        )
+        heavy_fractions.append(f"{cores}c:{count}/{len(all_rows)}")
+        if count >= 3 and mean is not None and mean > 0 and heavy_base is not None:
+            heavy_speeds.append((cores, heavy_base / mean))
+    if heavy_base_count < 3 or not heavy_speeds:
+        results.append((names[3], "NOT-ASSESSED", "-", references[3],
+                        f"baseline clean={heavy_base_count}; clean fractions "
+                        + ", ".join(heavy_fractions)))
+    else:
+        cores, speedup = heavy_speeds[-1]
+        results.append((names[3], "PASS" if speedup >= 3 else "FAIL",
+                        f"{speedup:.3f}", references[3],
+                        f"max eligible={cores}c; clean fractions "
+                        + ", ".join(heavy_fractions)))
+
+    if len(residency_points) < 7:
+        results.append((names[4], "NOT-ASSESSED", f"{len(residency_points)} points",
+                        references[4], "each point requires >=3 finite maxres values"))
+    else:
+        slope = _slope(residency_points)
+        results.append((names[4], "PASS" if 0.9 <= slope <= 1.1 else "FAIL",
+                        f"{slope:.3f}", references[4],
+                        f"{len(residency_points)} points"))
+
+    type_ratios = []
+    type_counts = []
+    for n in (200, 1000):
+        decimal, decimal_count = _mean(values, "valuetype", f"N{n}-decimal", 4)
+        double, double_count = _mean(values, "valuetype", f"N{n}-double", 4)
+        type_counts.append(f"N{n} decimal/double={decimal_count}/{double_count}")
+        if (decimal_count >= 3 and double_count >= 3 and decimal is not None
+                and double is not None and double > 0):
+            type_ratios.append((n, decimal / double))
+    if len(type_ratios) != 2:
+        results.append((names[5], "NOT-ASSESSED", "-", references[5],
+                        "; ".join(type_counts)))
+    else:
+        computed = ", ".join(f"N{n}={ratio:.3f}" for n, ratio in type_ratios)
+        results.append((names[5],
+                        "PASS" if all(ratio >= 3 for _, ratio in type_ratios) else "FAIL",
+                        computed, references[5], "; ".join(type_counts)))
+
+    memory_values = []
+    memory_counts = []
+    for config in ("N1000-retainAll", "N1000-recent2-spill"):
+        mean, count = _mean(values, "memory", config, 4, field="maxres")
+        memory_counts.append(f"{config}={count}")
+        if count >= 3 and mean is not None and mean > 0:
+            memory_values.append(mean)
+    if len(memory_values) != 2:
+        results.append((names[6], "NOT-ASSESSED", "-", references[6],
+                        ", ".join(memory_counts)))
+    else:
+        ratio = memory_values[0] / memory_values[1]
+        results.append((names[6], "PASS" if ratio >= 8 else "FAIL",
+                        f"{ratio:.3f}", references[6], ", ".join(memory_counts)))
+    return results
+
+
 def fmt(value, ndigits):
     """Format a computed value with exactly the manuscript's number of decimals."""
     return f"{value:.{ndigits}f}"
@@ -309,6 +548,66 @@ def table(values):
     print(f"spill overhead: computed {fmt(overhead, 1)} s | manuscript "
           f"{fmt(EXPECTED_MEMORY_OVERHEAD, 1)} s")
     print(f"all {len(checks)} checks passed")
+
+
+def replication_table(criteria):
+    """Print computed/reference values and replication verdicts."""
+    print("criterion | verdict | computed | reference | note")
+    for name, verdict, computed, reference, note in criteria:
+        print(f"{name} | {verdict} | {computed} | {reference} | {note}")
+
+
+def plot_replicated(values, out_dir):
+    """Write non-canonical replication figures from whatever data are available."""
+    import matplotlib.pyplot as plt
+
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    scaling = []
+    for n in EXPECTED_SCALING:
+        series = "scaling" if n <= 2000 else "scalingext"
+        mean, count = _mean(values, series, f"N{n}-K20-T50-seq-double")
+        if count and mean is not None and mean > 0:
+            scaling.append((n, mean))
+    fig, ax = plt.subplots()
+    if scaling:
+        ax.loglog([point[0] for point in scaling], [point[1] for point in scaling], "o-")
+    ax.set_xlabel("number of firms N")
+    ax.set_ylabel("wall-clock time per 50-period run (s)")
+    ax.grid(True, which="major", linestyle=":")
+    scaling_path = out_dir / "scaling-replicated.pdf"
+    fig.savefig(scaling_path, bbox_inches="tight")
+    plt.close(fig)
+
+    fig, ax = plt.subplots()
+    for series, base_config, parallel_config, label, clean in (
+        ("parallel", "N1000-seq", "N1000-par16", "light", False),
+        ("heavy", "N1000-heavy-seq", "N1000-heavy-par16", "heavy", True),
+    ):
+        base, base_count = _mean(values, series, base_config, 1, clean=clean)
+        points = []
+        cores_values = sorted({
+            row.get("cores") for row in values["data"]
+            if row.get("series") == series
+            and row.get("config") == parallel_config
+            and row.get("cores") is not None
+        })
+        for cores in cores_values:
+            mean, count = _mean(values, series, parallel_config, cores, clean=clean)
+            if base_count and count and base is not None and mean is not None and mean > 0:
+                points.append((cores, base / mean))
+        if points:
+            ax.plot([point[0] for point in points], [point[1] for point in points],
+                    "o-", label=label)
+    ax.set_xlabel("cores p")
+    ax.set_ylabel("end-to-end speedup vs. sequential")
+    ax.grid(True, which="major", linestyle=":")
+    if ax.lines:
+        ax.legend()
+    speedup_path = out_dir / "speedup-replicated.pdf"
+    fig.savefig(speedup_path, bbox_inches="tight")
+    plt.close(fig)
+    print("wrote", scaling_path, "and", speedup_path)
 
 
 def plot(values):
@@ -434,14 +733,43 @@ def plot(values):
 def main():
     """Parse output mode, calculate asserted values, then print or plot them."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("--table", action="store_true")
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument("--table", action="store_true")
+    modes.add_argument("--replicate", action="store_true")
+    parser.add_argument("--raw", type=Path, default=RAW_TSV)
+    parser.add_argument("--dense-raw", type=Path, default=RAW_DENSE_TSV)
+    parser.add_argument("--out-dir", type=Path)
+    parser.add_argument("--smoke", action="store_true")
     arguments = parser.parse_args()
-    values = calculate()
+    if arguments.smoke and not arguments.replicate:
+        parser.error("--smoke requires --replicate")
+    policy = "replicate" if arguments.replicate else "record"
+    values = calculate(arguments.raw, arguments.dense_raw, policy=policy)
+    if arguments.replicate:
+        criteria = assess(values, smoke=arguments.smoke)
+        replication_table(criteria)
+        try:
+            plot_replicated(values, arguments.out_dir or arguments.raw.parent)
+        except ImportError:
+            print("matplotlib unavailable; replication figures skipped")
+        failures = sum(verdict == "FAIL" for _, verdict, _, _, _ in criteria)
+        not_assessed = sum(
+            verdict == "NOT-ASSESSED" for _, verdict, _, _, _ in criteria
+        )
+        if failures:
+            print("REPLICATION: FAIL")
+            return 1
+        if not_assessed:
+            print(f"REPLICATION: PARTIAL ({not_assessed} criteria not assessed)")
+            return 0
+        print("REPLICATION: PASS")
+        return 0
     if arguments.table:
         table(values)
     else:
         plot(values)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
