@@ -130,6 +130,8 @@ rcr_record_base_metadata() {
 }
 
 rcr_finish_metadata() {
+  # Under reproduce-all.sh only the final invocation records completion.
+  [ "${RCR_DEFER_ASSESS:-0}" = 1 ] && return
   rcr_end=$(date +%s)
   {
     echo "completed: $(date)"
@@ -192,6 +194,8 @@ rcr_record_revision() {
   rcr_name=$1
   rcr_dir=$2
   rcr_rev=$3
+  # Each per-figure script re-records the revisions it uses; keep one block per revision.
+  grep -q "^## $rcr_name revision" "$ENV_FILE" 2>/dev/null && return
   rcr_stack_dir=$rcr_dir
   [ "$rcr_name" = dense ] && rcr_stack_dir="$rcr_dir/examples"
   {
@@ -205,6 +209,7 @@ rcr_record_revision() {
 rcr_record_binary() {
   rcr_name=$1
   rcr_bin=$2
+  grep -q "^$rcr_name binary: " "$ENV_FILE" 2>/dev/null && return
   {
     echo "$rcr_name binary: $rcr_bin"
     file "$rcr_bin"
