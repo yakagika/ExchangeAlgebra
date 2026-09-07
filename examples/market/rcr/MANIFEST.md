@@ -15,7 +15,7 @@ repository does not change either.
 | `reproduce-all.sh` | script | runs every figure, table and in-text reproduction in one output directory |
 | `reproduce-fig1.sh` | script | reproduces scaling and the dense/sparse comparison for Fig. 1 |
 | `reproduce-fig2.sh` | script | reproduces light and heavy parallel speedups for Fig. 2 |
-| `reproduce-table1.sh` | script | reproduces wall-clock and peak-residency values for Table 1 |
+| `reproduce-table1.sh` | script | reproduces wall-clock and peak-residency values for Table 2 |
 | `reproduce-sec7-text.sh` | script | reproduces the value-type and retention/spill results in Sections 7.3 and 7.4 |
 | `make-artifact-zip.sh` | script | bundles this package, the license and archives of the pinned revisions for Zenodo |
 | `make_figures.py` | script | derives every figure, table row and in-text number from the raw logs and asserts them at manuscript precision (`--table`), or plots them (matplotlib) |

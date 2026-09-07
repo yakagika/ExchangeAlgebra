@@ -333,7 +333,7 @@ def assess(values, smoke=False):
         "fig1b dense/sparse ratio",
         "fig2 light max speedup",
         "fig2 heavy speedup at max cores",
-        "table1 residency slope",
+        "table2 residency slope",
         "valuetype decimal/double",
         "memory residency ratio",
     ]
@@ -503,7 +503,7 @@ def fmt(value, ndigits):
 def table(values):
     """Print computed and manuscript table values after all assertions have passed."""
     scaling, dense, _, _, value_types, ratios, memory, memory_ratio, overhead, checks = values
-    print("Table 1 (tab:scaling)")
+    print("Table 2 (tab:scaling)")
     for n, mean, sd, residency, ndigits in scaling:
         expected_mean, expected_sd, _ = EXPECTED_SCALING[n]
         expected_residency, unit, residency_digits = EXPECTED_SCALING_MEMORY[n]

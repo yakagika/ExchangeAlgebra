@@ -43,9 +43,15 @@ The first run may take longer because Stack can download GHC and build three pin
 |---|---|---|
 | Fig. 1 | near-linear scaling and the dense/sparse performance gap | `reproduce-fig1.sh` |
 | Fig. 2 | regime-dependent parallel speedup | `reproduce-fig2.sh` |
-| Table 1 | linear wall-clock time and peak-residency growth | `reproduce-table1.sh` |
+| Table 2 | linear wall-clock time and peak-residency growth | `reproduce-table1.sh` |
 | Section 7.3 | the cost of exact `Decimal` values relative to `Double` | `reproduce-sec7-text.sh` |
 | Section 7.4 | the residency reduction from bounded retention and spill | `reproduce-sec7-text.sh` |
+
+Table 1 is the manuscript's conceptual contribution comparison and has no measured data.
+The filename `reproduce-table1.sh` is retained for compatibility; it reproduces the
+scaling table now numbered Table 2. Dense/sparse results compare different model revisions,
+not an isolated causal effect of sparsity. The light-series peak location is hardware-dependent;
+the current measurements do not isolate core placement, garbage collection, or scheduling effects.
 
 Run each command from the repository root with the prefix `examples/market/rcr/`, or run all of
 them through `reproduce-all.sh`.
@@ -88,7 +94,7 @@ an assessment only when it has at least 3 usable repetitions; otherwise the affe
 | Fig. 1b dense/sparse ratio | at least 10 | 20.1; the dense N=200, T=100, two-scenario time is divided by 2 for 100 to 50 periods and by 2 for two to one scenario |
 | Fig. 2 light maximum speedup | 1.3--2.5 | 1.71; peak position and subsequent decay are informational because they depend on the P/E-core layout |
 | Fig. 2 heavy speedup | at least 3.0 at the largest core count with at least 3 clean repetitions | 4.85 at 12 cores (the manuscript plots the series up to 10 cores, 4.75, the largest count with 5/5 clean repetitions); the clean fraction at every measured core count is reported |
-| Table 1 peak-residency slope | 0.9--1.1 | linear growth |
+| Table 2 peak-residency slope | 0.9--1.1 | linear growth |
 | Section 7.3 `Decimal`/`Double` time | at least 3 at both N=200 and N=1000 | 6.9 and 6.0 |
 | Section 7.4 RetainAll/spill residency | at least 8 | 16.8 |
 
@@ -134,7 +140,7 @@ Spotlight index was running), wall time 150 minutes.
 | Fig. 1b dense/sparse ratio | PASS | 18.9 | 20.1 | dense 57.5 +/- 1.8 s, sparse N=200 0.760 +/- 0.022 s |
 | Fig. 2 light maximum speedup | PASS | 1.74 | 1.71 | peak at 4 cores, 1.44 at 14 cores |
 | Fig. 2 heavy speedup | PASS | 4.99 at 14 cores | 4.85 at 12 cores | clean 4c 2/5, 8c 4/5, 10c 4/5, 12c 5/5, 14c 4/5; every non-clean rep was a `<<loop>>` exit |
-| Table 1 residency slope | PASS | 1.018 | 1.004 | 9 points |
+| Table 2 residency slope | PASS | 1.018 | 1.004 | 9 points |
 | Section 7.3 Decimal/Double | PASS | 6.81 / 6.10 | 6.95 / 6.02 | N=200 / N=1000 |
 | Section 7.4 RetainAll/spill residency | PASS | 11.8 | 16.8 | RetainAll peaked at 176 MiB in this run against 249 MiB in the original overnight run; the spill configuration peaked at 14.9 MiB in both |
 

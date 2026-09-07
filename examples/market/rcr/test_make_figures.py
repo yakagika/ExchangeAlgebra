@@ -105,6 +105,7 @@ class MakeFiguresTest(unittest.TestCase):
             capture_output=True,
             text=True,
         )
+        self.assertEqual(completed.stdout.splitlines()[0], "Table 2 (tab:scaling)")
         self.assertEqual(completed.stdout.splitlines()[-1], "all 75 checks passed")
 
 

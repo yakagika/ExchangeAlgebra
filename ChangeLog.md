@@ -51,6 +51,9 @@
   Zenodo zip builder.
 
 ### Documentation
+- RCR: scale measurements are identified as manuscript Table 2 throughout
+  the evaluation guide, manifest, and command output. The legacy script name
+  `reproduce-table1.sh` remains compatible; numerical checks are unchanged.
 - README "Migrating to 0.5.0.0": only the `Alg` representation (`Liner`) lives in
   `ExchangeAlgebra.Algebra.Internal`; the `Journal` and `TransTable` constructors
   are not exported at all, so such values are rebuilt with `mkJournal` / `(.|)` /

@@ -21,7 +21,7 @@ rcr_record_binary marketEx1d "$light_decimal_bin"
 rcr_run_light_series "$light_wt" scaling
 rcr_run_light_series "$light_wt" scalingext
 
-echo "Table 1 reproduction (successful reps only)"
+echo "Table 2 reproduction (successful reps only)"
 printf 'N\twall mean +/- sd (s)\tpeak residency mean (bytes)\n'
 awk -F '\t' '
   BEGIN { OFS="\t" }
