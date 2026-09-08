@@ -32,7 +32,7 @@ import           TestHarness
 type SolMap = M.Map (String, [String]) Double
 
 datasets :: [String]
-datasets = ["swazilan", "test"]
+datasets = ["swazilan", "test", "zimbabwe"]
 
 main :: IO ()
 main = do

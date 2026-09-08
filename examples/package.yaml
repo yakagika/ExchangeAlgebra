@@ -252,8 +252,8 @@ tests:
 
   # Task-1e LHR auctioneer forward-pass sentinel (work item 3, step ③a): the
   # EquilibriumWiring composes the layer-1 responses to reconstruct the whole
-  # ground-truth solution vector from the base instruments (swazilan only;
-  # margin/home fixed point is 工程4).
+  # ground-truth solution vector from the base instruments on all three
+  # validation rungs (margin/home fixed points were closed in 工程4).
   cge-lite-lhr-wiring-test:
     main:                LhrWiringTest.hs
     source-dirs:
@@ -263,6 +263,7 @@ tests:
     - LhrCalibration
     - LhrModel
     - LhrWiring
+    - Solver
     - TestHarness
     ghc-options:
     - -O0
@@ -284,6 +285,7 @@ tests:
     - LhrCalibration
     - LhrModel
     - LhrWiring
+    - Solver
     - TestHarness
     ghc-options:
     - -O0

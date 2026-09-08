@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- LHR standard-CGE Zimbabwe headline fixture and sentinel coverage. The
+  normalized fixture comes from the GE-side transcription of the distributed
+  `SAMBAL.INC` cross-entropy projection; calibration, per-agent responses,
+  forward wiring, reduced residuals, double-entry ledger, and perturbed-start
+  solve now run across the Swazilan, test, and Zimbabwe validation rungs.
 - `ExchangeAlgebra.Algebra.extendBy`: the free extension of the redundant
   algebra. `extendBy h` substitutes every scalar entry `v :@ b` by the algebra
   `h v b` and merges with `(.+)`, i.e. the unique ℘-homomorphism that agrees

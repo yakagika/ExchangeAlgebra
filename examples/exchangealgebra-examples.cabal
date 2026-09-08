@@ -835,6 +835,7 @@ test-suite cge-lite-lhr-residual-test
       LhrCalibration
       LhrModel
       LhrWiring
+      Solver
       TestHarness
   hs-source-dirs:
       optimization/cge-lite
@@ -913,6 +914,7 @@ test-suite cge-lite-lhr-wiring-test
       LhrCalibration
       LhrModel
       LhrWiring
+      Solver
       TestHarness
   hs-source-dirs:
       optimization/cge-lite

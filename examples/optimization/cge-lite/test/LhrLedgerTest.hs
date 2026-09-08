@@ -38,7 +38,8 @@ import           TestHarness
 datasets :: [(String, FilePath)]
 datasets =
     [ ("swazilan", "optimization/cge-lite/lhr/swazilan-inputs.csv")
-    , ("test",     "optimization/cge-lite/lhr/test-inputs.csv") ]
+    , ("test",     "optimization/cge-lite/lhr/test-inputs.csv")
+    , ("zimbabwe", "optimization/cge-lite/lhr/zimbabwe-inputs.csv") ]
 
 main :: IO ()
 main = do

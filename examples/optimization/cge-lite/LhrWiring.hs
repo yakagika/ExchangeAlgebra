@@ -126,7 +126,7 @@ forwardSolution cal ins = M.fromList $ concat
     , mapE2 "QH" qhM, mapE3 "QHA" qhaM, mapE1 "QG" qgM, mapE1 "QINV" qinvM
     , mapE1 "QT" qtM
     , mapE1 "EH" ehM, mapE1 "MPS" mpsM, mapE1 "TINS" tinsM
-    , mapE1 "YF" yfM, mapE2 "YIF" yifM
+    , mapE1 "YF" yfM, mapE2 "YIF" yifM, mapE2 "TRII" triiM
     , scalarE "YG" yg, scalarE "EG" eg, scalarE "GSAV" gsav
     , scalarE "TABS" tabs, scalarE "GOVSHR" govshr, scalarE "INVSHR" invshr
     ]

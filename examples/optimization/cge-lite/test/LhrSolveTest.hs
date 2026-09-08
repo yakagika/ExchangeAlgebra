@@ -15,7 +15,7 @@
       returns to the same calibrated base as the original 6-residual swazilan
       system; convergence to @baseInstruments@ is that check.
 
-  For swazilan the ledger is complete, so also:
+  For every validation rung the ledger is complete, so also:
 
     * __(c) realised == notional [RQ1]__ — at the solution every ledger residual
       is ≈ 0 (the household's realised receipts equal its instrument income; the
@@ -23,8 +23,6 @@
     * __(a) replicability__ — a clone-split journal folds to bit-identical
       residuals.
 
-  test.dat's ledger (transport-margin and home-consumption journals) lands with
-  工程4 increment 2, at which point its realised\/replicability checks join here.
   (b) response purity is a compile-time property, so it needs no runtime check.
 -}
 module Main where
@@ -44,7 +42,8 @@ import           TestHarness
 datasets :: [(String, FilePath, Bool)]
 datasets =
     [ ("swazilan", "optimization/cge-lite/lhr/swazilan-inputs.csv", True)
-    , ("test",     "optimization/cge-lite/lhr/test-inputs.csv",     False) ]
+    , ("test",     "optimization/cge-lite/lhr/test-inputs.csv",     True)
+    , ("zimbabwe", "optimization/cge-lite/lhr/zimbabwe-inputs.csv", True) ]
 
 data Solved = Solved
     { svName        :: String

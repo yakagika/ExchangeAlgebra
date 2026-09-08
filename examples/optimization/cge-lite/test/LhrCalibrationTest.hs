@@ -25,7 +25,7 @@ data Expected = Expected
     } deriving (Eq, Show)
 
 datasets :: [String]
-datasets = ["swazilan", "test"]
+datasets = ["swazilan", "test", "zimbabwe"]
 
 main :: IO ()
 main = do
