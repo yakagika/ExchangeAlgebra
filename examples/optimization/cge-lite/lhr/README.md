@@ -21,3 +21,11 @@ For each dataset, `*-inputs.csv` is the calibration input boundary
 (normalized SAM, sets, elasticities, TAXPAR rules, and template flags), and
 `*-calib.csv` is the full calibration output used as the Haskell sentinel-test
 expectation.
+
+The `zimbabwe-{TARCUT1,FSAVINCR,PWMINCR}-solution.csv` files are
+comparative-static solution fixtures emitted by the GE-side Python oracle's
+`lhr_resolve.py --sim` mode.  They reproduce the three `sim100.gms` experiments
+that retain the default closure: a 50% tariff cut, a 10% increase in foreign
+saving, and a 10% increase in world import prices.  `TARCUT2` and `DEVAL` are
+excluded because they switch closure rather than holding the default closure
+fixed.
