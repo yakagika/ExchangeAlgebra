@@ -2,7 +2,7 @@
 seed_id: ea-research-code
 seed_version: 2026-09-12
 copied_at: 2026-09-12
-ported_change_ids: [cl-2026-09-12-authoritative-ledger@a3c319, cl-2026-09-12-implementation-classes@e7c9fe, cl-2026-09-12-algebra-contract@f45507, cl-2026-09-12-manifest-policy@c6aaaa, cl-2026-09-12-examples-layout@b5124d, cl-2026-09-12-acceptance-gate@d020de, cl-2026-09-12-consumer-absolute-seed-path@4e3e13]
+ported_change_ids: [cl-2026-09-12-authoritative-ledger@a3c319, cl-2026-09-12-implementation-classes@e7c9fe, cl-2026-09-12-algebra-contract@f45507, cl-2026-09-12-manifest-policy@c6aaaa, cl-2026-09-12-examples-layout@b5124d, cl-2026-09-12-acceptance-gate@d020de, cl-2026-09-12-consumer-absolute-seed-path@4e3e13, cl-2026-09-12-in-tree-build-ea-library@bee641, cl-2026-09-12-foundation-note-pinned@805619]
 declined_change_ids: []
 scope: ea-library
 repo: haskell-exchange-algebra
@@ -42,6 +42,6 @@ EA 本体 `src/` は `library`. `examples/` は公開済みの `production` exam
 
 ### 依存と受入
 
-- 通常の full-clone build は repo root `stack.yaml` が `.` と `examples` を local packages として扱う in-tree build であり, consumer checkout の EA pin は持たない. seed §6.3 の in-tree build の扱いは提案 `sp-2026-09-12-ea-checkout-build` (2026-09-12 条件付き accept: 対象は EA 本体 examples に限定し, verify は監査時の source snapshot と runner の build provenance. 実装は 段 3c) に従う. なお `examples/stack.yaml` 自体は standalone build 用で, Hackage `exchangealgebra-0.5.0.0` と `stack.yaml.lock` を持つ.
+- 通常の full-clone build は repo root `stack.yaml` が `.` と `examples` を local packages として扱う in-tree build であり, consumer checkout の EA pin は持たない. seed §6.3 の in-tree build (EA 本体 examples 限定) に従う: `audit --ea-source-kind in-tree --ea-root <checkout>` が監査時の source snapshot (完全 commit hash, src / unit / 設定 file の hash, resolver / ghc, root の lock) を digest に固定し, runner が `complete` で build command / toolchain / binary hash を申告する (提案 `sp-2026-09-12-ea-checkout-build`, 2026-09-12 条件付き accept, assistant e4a6c4e8 で実装). なお `examples/stack.yaml` 自体は standalone build 用で, Hackage `exchangealgebra-0.5.0.0` と `stack.yaml.lock` を持つ.
 - examples への新規追加・大改変は auditor `haskell-code-auditor` と seed §5 checklist を通す. applicable 項目は全て `pass` とし, audit → record → permit → complete → verify-manifest の gate を該当 phase で使う.
-- `CLAUDE.md` の「数学的基盤」「コーディング規律」2 節は段 5b で managed block (正本 = seed §2) へ置換予定である. それまでは `CLAUDE.md` を repo 内の作業ドラフトとし, 矛盾時は seed §2 を優先する.
+- `CLAUDE.md` の「数学的基盤」「コーディング規律」2 節は 2026-09-12 (段 5b) に managed block `EA-ALGEBRA-CONTRACT` (正本 = seed §2 の写し) へ置換した. block は手で編集せず, 変更は seed への提案で行う.
