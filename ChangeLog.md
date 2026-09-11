@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- docs: `CODING_STYLE.md` / `EA_USAGE.md` を追加 (Orchestrator seed haskell-coding-style / ea-research-code の consumer. haskell-library の例外 dir と examples の family 移動候補を記録. 段 5a; 正本置換 (CLAUDE.md 2 節) は段 5b).
+
 ### Added
 - LHR standard-CGE Zimbabwe headline fixture and sentinel coverage. The
   normalized fixture comes from the GE-side transcription of the distributed
