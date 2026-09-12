@@ -74,9 +74,39 @@ library:
 # the library. Run them locally with `stack build` from the repo root.
 
 tests:
+  ExchangeAlgebra-surface:
+    main:                SurfaceMain.hs
+    source-dirs:         test
+    other-modules:
+    - Surface.Accounting
+    - Surface.Algebra.Readout.Net
+    - Surface.Foundation
+    - Surface.Render.Bookkeeping
+    - Surface.Render.Csv
+    - Surface.Render.Simulation
+    - Surface.Simulate.Analysis
+    - Surface.Simulate.Engine
+    - Surface.Simulate.Random
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    - -Wunused-imports
+    when:
+    - condition: os(darwin)
+      ghc-options:
+      - -optl-Wl,-no_warn_duplicate_libraries
+    dependencies:
+    - exchangealgebra
+    - base
+
   ExchangeAlgebra-test:
     main:                Spec.hs
     source-dirs:         test
+    # hpack は source-dirs 配下の全 module を推論するので, surface suite の
+    # Surface.* / SurfaceMain が混入しないよう明示する (release-0510-additive L5).
+    other-modules:
+    - Golden.WriteRows
     ghc-options:
     - -threaded
     - -rtsopts

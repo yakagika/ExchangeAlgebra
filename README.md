@@ -93,13 +93,19 @@ needing the rest of the repository.
 
 ## Module Overview
 
-The 35 public modules are organised into seven layers.
+The 44 public modules (including the `visualize`-gated module) are organised
+into seven layers. Entries marked **0.5.1.0 / Git only** are not yet published
+on Hackage; use a Git pin, or keep importing the existing defining module.
 
 ### Umbrella
 
 The recommended entry point collects the common single-period bookkeeping API.
 
 - `ExchangeAlgebra` — re-exports `Algebra`, `Algebra.Transfer`, `Value`, and `Write`.
+- **0.5.1.0 / Git only** `ExchangeAlgebra.Foundation` — re-exports the
+  Definitions 1-6 algebraic foundation without accounting vocabulary.
+- **0.5.1.0 / Git only** `ExchangeAlgebra.Accounting` — re-exports the
+  Definitions 7-9 accounting basis, exchange decomposition, and transfer core.
 
 ### Account vocabulary
 
@@ -116,8 +122,12 @@ These modules define basis elements and the canonical account metadata vocabular
 These modules implement exchange-algebra values, transformations, and selectable numeric representations.
 
 - `ExchangeAlgebra.Algebra` — defines `Alg`, exchange-algebra operations, projections, and aggregation.
-- `ExchangeAlgebra.Algebra.Internal` — the representation behind `Alg` (all constructors, cache fields, rebuild helpers); outside the PVP contract.
+- `ExchangeAlgebra.Algebra.Internal` — exposes the representation behind `Alg`
+  for advanced use (all constructors, cache fields, rebuild helpers), but
+  carries no stability guarantee.
 - `ExchangeAlgebra.Algebra.Transfer` — rewrites existing algebra balances through transfer tables and closing transfers.
+- **0.5.1.0 / Git only** `ExchangeAlgebra.Algebra.Readout.Net` — collects lossy,
+  netted read-outs from algebras and journals.
 - `ExchangeAlgebra.Value` — provides fast typed and exact non-negative value types for `Alg` and `Journal`.
 
 ### Journal and simulation
@@ -127,6 +137,13 @@ These modules attach notes to postings and run classic, Lite, network, policy-dr
 - `ExchangeAlgebra.Journal` — defines metadata-bearing `Journal` values, indexed projections, and journal aggregation.
 - `ExchangeAlgebra.Journal.Transfer` — specialises the algebra transfer API to `Journal`.
 - `ExchangeAlgebra.Simulate` — provides the state-space engine, classic front-end, spill support, ripple utilities, and scenario execution.
+- **0.5.1.0 / Git only** `ExchangeAlgebra.Simulate.Engine` — re-exports the
+  classic state-space protocol and runners without spill configuration or
+  analysis helpers.
+- **0.5.1.0 / Git only** `ExchangeAlgebra.Simulate.Analysis` — re-exports
+  Leontief-inverse and ripple-effect analysis.
+- **0.5.1.0 / Git only** `ExchangeAlgebra.Simulate.Random` — re-exports
+  simulation random-number helpers.
 - `ExchangeAlgebra.Simulate.Spill` — provides spill chunk writers, checked readers, and ledger restoration shared by simulation and reporting layers.
 - `ExchangeAlgebra.Simulate.Policy` — declares retention, spill, and compaction policy for long simulations.
 - `ExchangeAlgebra.Simulate.Lite` — provides the product-HKD, BSP front-end with declarative field rules and stages.
@@ -135,7 +152,13 @@ These modules attach notes to postings and run classic, Lite, network, policy-dr
 
 ### Which simulation API to use
 
-`ExchangeAlgebra.Simulate.Lite` is the canonical front-end for new simulations: a `Generic`-derived world record, term-boundary field rules, stages, and `runLite` / `runLiteWithPolicy`. `ExchangeAlgebra.Simulate` is the engine underneath it (`StateTime`, spill and restore, `runSimulation`) and also exposes the older `Updatable` / `UpdatePattern` front-end used by the `simulateEx*`, `ripple*` and `cge` examples. That older front-end is kept for reproducibility of published results and receives no new features; write new models against Lite.
+`ExchangeAlgebra.Simulate.Lite` is the canonical front-end for new simulations:
+it provides `Generic`-derived world records, term-boundary field rules, stages,
+and `runLite` / `runLiteWithPolicy`. `ExchangeAlgebra.Simulate.Engine` is the
+lower-level classic state-space API (`StateTime`, `Updatable`, `UpdatePattern`,
+and the `runSimulation` family), retained for existing models and
+reproducibility. New models should normally use Lite; import Engine when
+maintaining or directly driving the classic protocol.
 
 ### Bookkeeping and reporting
 
@@ -143,6 +166,12 @@ These modules build adjustments, validate reporting boundaries, and produce stat
 
 - `ExchangeAlgebra.Bookkeeping` — builds period-end adjustment postings from explicit external amounts.
 - `ExchangeAlgebra.Write` — formats bookkeeping reports and journals as CSV and restores binary spill files.
+- **0.5.1.0 / Git only** `ExchangeAlgebra.Render.Csv` — re-exports CSV
+  serialization independently of document layouts.
+- **0.5.1.0 / Git only** `ExchangeAlgebra.Render.Bookkeeping` — re-exports
+  bookkeeping row builders and writers.
+- **0.5.1.0 / Git only** `ExchangeAlgebra.Render.Simulation` — re-exports
+  simulation result writers.
 - `ExchangeAlgebra.Reporting.Group` — defines presentation groups and contra-account netting policy.
 - `ExchangeAlgebra.TrialBalance.Balance` — the shared `AccountBalance` type and debit-then-credit netting primitives.
 - `ExchangeAlgebra.TrialBalance.Validation` — reports trial-balance findings and gates reporting with explicit policies.
@@ -257,8 +286,9 @@ ledgers keep working and render identically. Four things to know:
 - **Abstract `Alg` / `Journal` / `TransTable`**: pattern-match `Alg` on `Zero`
   and `(:@)` only and build values with `(.@)`, `(.+)`, `fromList`, `mkJournal`,
   `(.|)` and `table`. Code that constructed `Liner` directly must import
-  `ExchangeAlgebra.Algebra.Internal` (the `Alg` representation; not covered by
-  PVP). The `Journal` and `TransTable` constructors are not exported anywhere:
+  `ExchangeAlgebra.Algebra.Internal` (the exposed `Alg` representation module,
+  which carries no stability guarantee). The `Journal` and `TransTable`
+  constructors are not exported anywhere:
   rebuild such values with `mkJournal` / `(.|)` / `fromList` and `table` /
   `(.->)` / `(|%)`.
 - **Spill files are validated**: `readBinarySpillFile` and
@@ -274,7 +304,8 @@ ledgers keep working and render identically. Four things to know:
 `Alg`, `Journal` and `TransTable` are abstract in 0.5.0.0: construct them with
 `(.@)`, `(.+)`, `fromList`, `mkJournal`, `(.|)` and `table`, and match `Alg` on
 `Zero` / `(:@)` only. The multi-posting representation and its cache fields live
-in `ExchangeAlgebra.Algebra.Internal`, which is outside the PVP contract.
+in the exposed `ExchangeAlgebra.Algebra.Internal` module, which carries no
+stability guarantee.
 
 ### Simple single-period bookkeeping
 

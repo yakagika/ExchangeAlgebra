@@ -2,8 +2,6 @@
 
 ## Unreleased
 
-- docs: `CODING_STYLE.md` / `EA_USAGE.md` を追加 (Orchestrator seed haskell-coding-style / ea-research-code の consumer. haskell-library の例外 dir と examples の family 移動候補を記録. 段 5a; 正本置換 (CLAUDE.md 2 節) は段 5b).
-
 ### Added
 - LHR standard-CGE Zimbabwe headline fixture and sentinel coverage. The
   normalized fixture comes from the GE-side transcription of the distributed
@@ -58,7 +56,12 @@
   Zenodo zip builder.
 
 ### Documentation
+- docs: `CODING_STYLE.md` / `EA_USAGE.md` を追加 (Orchestrator seed haskell-coding-style / ea-research-code の consumer. haskell-library の例外 dir と examples の family 移動候補を記録. 段 5a; 正本置換 (CLAUDE.md 2 節) は段 5b).
 - Add family metadata (`family.yaml`) and family READMEs, generate the examples catalogue and Layout with `examples/scripts/gen_catalogue.py`, and make the cge, ebex1, and ebex2 output paths family-local.
+- Expand the README Module Overview to list all 44 exposed modules, identify
+  the nine additive 0.5.1.0 Git-only modules, distinguish `Simulate.Engine`
+  from `Simulate.Lite`, and document `Algebra.Internal` as exposed without a
+  stability guarantee.
 - RCR: scale measurements are identified as manuscript Table 2 throughout
   the evaluation guide, manifest, and command output. The legacy script name
   `reproduce-table1.sh` remains compatible; numerical checks are unchanged.
@@ -67,7 +70,7 @@
   are not exported at all, so such values are rebuilt with `mkJournal` / `(.|)` /
   `fromList` and `table` / `(.->)` / `(|%)`.
 
-### Internal
+### Tests
 - Golden fixtures for the pure row generators of `ExchangeAlgebra.Write`
   (`bsRows`, `plRows`, `journalRows`, `accountLedgerRows`,
   `accountLedgerRowsJournal`, `compoundTrialBalanceRows`, `worksheetRows`,
@@ -75,6 +78,9 @@
   suite (`test/Golden/WriteRows.hs`, `test/fixtures/write-rows-0510/`,
   regeneration tool `tools/DumpWriteRowsGolden.hs`). They are the
   behaviour-invariance evidence for the 0.6.0.0 Write -> Render move.
+- Add the `ExchangeAlgebra-surface` compile gate, whose explicit import and
+  re-export lists pin every public name of the nine additive 0.5.1.0 modules
+  without rejecting future additions.
 
 ## 0.5.0.0 - 2026-09-04
 
