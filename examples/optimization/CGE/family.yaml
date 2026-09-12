@@ -1,0 +1,14 @@
+family: cge
+kind: family
+path: optimization/CGE
+summary: "A standard computable general equilibrium model with two industries, a household, government, investment, and export sectors. It includes a GAMS reference implementation."
+papers: []
+method:
+  - deterministic
+  - optimization
+  - classic-engine
+ownership: in-tree-education
+result_dir: examples/optimization/CGE/result/
+executable_notes:
+  cge: "Standard CGE model with two industries, household, government, investment, and export sectors"
+notes: "CGE.hs contains the shared production, transformation, tax, and savings model. GAMS/ contains reference inputs and shock-resolution scripts."

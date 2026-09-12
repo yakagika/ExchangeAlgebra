@@ -58,6 +58,7 @@
   Zenodo zip builder.
 
 ### Documentation
+- Add family metadata (`family.yaml`) and family READMEs, generate the examples catalogue and Layout with `examples/scripts/gen_catalogue.py`, and make the cge, ebex1, and ebex2 output paths family-local.
 - RCR: scale measurements are identified as manuscript Table 2 throughout
   the evaluation guide, manifest, and command output. The legacy script name
   `reproduce-table1.sh` remains compatible; numerical checks are unchanged.

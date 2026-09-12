@@ -1,0 +1,16 @@
+family: market
+kind: family
+path: market
+summary: "A sparse market simulation with scaling, parallel-execution, retention, and value-type comparisons. It supplies the measurements for the TOMACS scaling study."
+papers:
+  - "TOMACS scaling paper"
+method:
+  - stochastic
+  - lite-engine
+  - classic-engine
+ownership: paper-owned
+result_dir: null
+executable_notes:
+  marketEx1: "Sparse market simulation using `Double`, with scaling, parallel and retention modes"
+  marketEx1d: "Exact-`Decimal` variant used for the value-type comparison"
+notes: "MarketModel.hs is shared by the Double and Decimal executables. The run scripts produce measurement logs, aggregate-round4.py and fp-error-profile.py analyze them, and rcr/ is the paper reproduction package."

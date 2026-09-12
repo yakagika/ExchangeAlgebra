@@ -1,0 +1,14 @@
+family: invoice
+kind: family
+path: invoice
+summary: "A circulant invoice-trade network used as a compact performance and accounting-invariant example. It posts balanced six-entry invoice journals."
+papers:
+  - "SICE Japanese paper"
+method:
+  - deterministic
+  - lite-engine
+ownership: dual-use
+result_dir: null
+executable_notes:
+  invoiceEx1: "Small SICE performance example of a circulant invoice-trade network posting one balanced 6-entry invoice journal per edge and term."
+notes: "The example reports timing and consumption-tax invariants to standard output; EA_T and EA_K override the default term and neighbor counts."

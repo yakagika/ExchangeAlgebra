@@ -1,0 +1,14 @@
+family: industrial
+kind: family
+path: industrial
+summary: "An ordered block-triangular, power-law industrial network with deterministic demand-driven flows. It checks consumption-tax and value-added identities exactly."
+papers:
+  - "SICE Japanese paper"
+method:
+  - deterministic
+  - lite-engine
+ownership: dual-use
+result_dir: null
+executable_notes:
+  industrialEx1: "Block-triangular, power-law industrial network with deterministic demand-driven flows and exact consumption-tax/value-added checks"
+notes: "The command accepts N, K, m, T, and seed, and reports wall-clock and RTS statistics without writing result files."

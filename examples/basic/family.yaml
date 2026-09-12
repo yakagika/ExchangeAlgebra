@@ -1,0 +1,26 @@
+family: bookkeeping-and-simulate
+kind: family
+path: basic
+summary: "Introductory bookkeeping examples and small classic-engine simulations. The series progresses from journals and statements to multi-company simulations."
+papers:
+  - "SICE Japanese paper"
+method:
+  - deterministic
+  - stochastic
+  - classic-engine
+ownership: dual-use
+result_dir: examples/basic/result/
+executable_notes:
+  ebex1: "Introductory-bookkeeping lecture, chapter 3. Plain journal + BS / PL output using only `AccountTitles`"
+  ebex2: "`ebex1` extended with a time axis"
+  ebex3: "Introduces a custom `Element` (currency unit `Unit`) for multi-currency bookkeeping"
+  ebex4: "`Journal` carrying `Note = Day`, i.e. date-annotated entries"
+  ebex5: "Uses `sigma` to aggregate 100 companies"
+  ebex6: "Lecture ch.9-15: cash over/short, petty cash, bank overdraft, 3-account-method trade (with returns), advances, credit-card receivables, notes, electronically-recorded claims/obligations, sundry receivables/payables. Trial-balance CSV"
+  ebex7: "Lecture ch.16-18: bad debts / allowance for doubtful accounts (replenishment & reset methods), fixed-asset acquisition & disposal (gain/loss, indirect method), depreciation (indirect/direct, monthly proration). Uses `ExchangeAlgebra.Bookkeeping` builders"
+  ebex8: "Lecture ch.19-23: share issuance, dividends + legal reserve, correction entries via `reversingEntry` (the seq audit trail is shown with `writeAccountOf`), the four deferral/accrual accounts + next-period reversal, consumption-tax & corporate-income-tax settlement"
+  ebex9: "Lecture ch.24-25: full accounting cycle showcase — period transactions → closing adjustments (COGS / depreciation / allowance / deferral) → 8-column worksheet (`writeWorksheet`) → income-summary closing → post-closing trial balance (`writePostClosingTrialBalance`) → B/S & P/L"
+  sim1: "100-term simulation (6 companies, input coefficients, Haskell + Python plots)"
+  sim2: "A larger version of `sim1` (200 companies) with spill-to-disk"
+  sim2fast: "MoneyDouble (fast IEEE-754) twin of `sim2`, with the same model and spill path but a different ledger value type."
+notes: "The bookkeeping sequence starts with chapter 3 journal and BS/PL output, then adds a time axis, custom currency units, dated notes, and sigma aggregation across 100 companies. Chapters 9-15 cover cash over/short, petty cash, overdrafts, trade returns, advances, cards, notes, and sundry balances; chapters 16-18 cover doubtful debts, fixed assets, and depreciation; chapters 19-23 cover shares, dividends, reserves, correction audit trails, accruals, deferrals, and tax; chapters 24-25 cover the full accounting cycle, worksheet, closing, and final statements. sim1 is a 100-term six-company model with plots; sim2 is a 200-company model with spill-to-disk; sim2fast is its fast-value comparison."

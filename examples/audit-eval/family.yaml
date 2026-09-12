@@ -1,0 +1,13 @@
+family: audit-eval
+kind: tool
+path: audit-eval
+summary: "An evaluation harness for LLM-generated accounting computations against ground-truth journals. It includes task generation, checked loaders, runners, oracles, and scoring."
+papers:
+  - "Exchange Algebra as a Harness for AI-driven Accounting Computation & Auditing"
+method:
+  - deterministic
+  - stochastic
+ownership: paper-owned
+result_dir: examples/audit-eval/metrics/
+executable_notes: {}
+notes: "The Python harness also writes generated attempts under arms/. Files matching arms/**/Gen.hs are generated artifacts and are not components of the examples Cabal package."

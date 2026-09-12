@@ -1,0 +1,17 @@
+family: ripple
+kind: family
+path: deterministic/ripple
+summary: "Ripple-effect simulations with and without inventory constraints. The multi-seed variant supports statistical analysis."
+papers:
+  - "Akagi (2026) AS-ABM (sn-article)"
+method:
+  - deterministic
+  - stochastic
+  - classic-engine
+ownership: paper-owned
+result_dir: examples/deterministic/ripple/result/
+executable_notes:
+  ripple: "10-agent ripple-effect simulation without inventory constraints"
+  rippleWithStock: "With inventory constraint (production is capped by stock on hand)"
+  rippleWithStockMultiSeeds: "Multi-seed variant for statistical analysis (seed envelope / ratio boxplot)"
+notes: "RippleEffect.hs contains the shared world, event, and initialization code. The stock-constrained runs and visualization reproduce the AS-ABM preprint results."

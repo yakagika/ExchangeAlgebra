@@ -1,0 +1,12 @@
+family: bench
+kind: bench
+path: benchmark
+summary: "Criterion micro-benchmarks for core algebra and journal operations. They expose scaling behavior for construction, netting, projection, and journal workloads."
+papers: []
+method:
+  - deterministic
+ownership: in-tree-regression
+result_dir: examples/benchmark/result/
+executable_notes:
+  bench-core: "Core micro-benchmarks for exchangealgebra construction, bar, projection, and `BasePart` key hashing."
+notes: "Run bench-core with stack bench; an optional Criterion HTML report can be written under the gitignored result directory."

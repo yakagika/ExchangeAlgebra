@@ -1,0 +1,24 @@
+family: cge-lite
+kind: family
+path: optimization/cge-lite
+summary: "A Lite-engine CGE implementation with calibration, solving, policy shocks, and LHR validation fixtures. Its test suites form a library regression gate."
+papers: []
+method:
+  - deterministic
+  - optimization
+  - lite-engine
+ownership: dual-use
+result_dir: null
+executable_notes:
+  cge-lite: "Thin executable that runs the Hosoe Ch.6 CGE-Lite Option-A pipeline end to end and prints benchmark residuals, a perturbed-start solve, utility, and settlement."
+  cge-lite-lhr-calib-test: "Sentinel checking the LHR standard CGE calibration transcription against bundled Python ground-truth datasets."
+  cge-lite-lhr-ledger-test: "Differential sentinel checking that EA double-entry ledger residuals equal direct algebraic residuals at the base and under instrument perturbations."
+  cge-lite-lhr-model-test: "Sentinel checking each LHR standard-CGE per-agent AS-ABM response against calibrated ground-truth quantities."
+  cge-lite-lhr-residual-test: "Diagnostic sentinel checking base residuals, reduced-Jacobian shape and rank, Walras dependence, and zero-profit non-degeneracy."
+  cge-lite-lhr-shock-test: "Comparative-static sentinel checking shocked EA equilibria against an independent Python oracle and realised income against notional income."
+  cge-lite-lhr-solve-test: "Sentinel checking that the reduced auctioneer converges to calibrated equilibria and that the ledger reproduces them."
+  cge-lite-lhr-wiring-test: "Sentinel checking that the LHR auctioneer forward pass reconstructs complete Python ground-truth solutions from base instruments."
+  cge-lite-model-test: "Sentinel checking that the four Hosoe Ch.6 model stages reproduce the benchmark and comparative statics through the Option-A pipeline."
+  cge-lite-solver-test: "Solver-core sentinel checking known-root artificial oracles, a Cobb-Douglas exchange economy, ill-conditioning, backtracking, degenerate inputs, and failure handling."
+  cge-lite-test: "Calibration sentinel checking SAM consistency, benchmark identities, GAMS calibrated parameters, and the solved benchmark."
+notes: "The family is the EA-owned source pinned by the general-equilibrium project. The lhr/ fixtures cover Swaziland, test, and Zimbabwe calibrations and shocks."

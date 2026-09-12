@@ -59,8 +59,8 @@ import Debug.Trace
 ------------------------------------------------------------------
 -- * directories
 
-fig_dir = "examples/stochastic/CGE/result/fig/"
-csv_dir = "examples/stochastic/CGE/result/csv/"
+fig_dir = "examples/optimization/CGE/result/fig/"
+csv_dir = "examples/optimization/CGE/result/csv/"
 
 {-
 -- 状態系の定義

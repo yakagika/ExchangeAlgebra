@@ -162,8 +162,8 @@ main = do
 
     let t_total  = t1_5 .+ t1_10 .+ t1_15 .+ t1_20 .+ t1_25
                 .+ t2_1 .+ t2_10 .+ t2_15 .+ t2_20
-    writeJournal "examples/result/csv/t_total_journal.csv" t_total getDay
-    writeCompoundTrialBalance "examples/result/csv/t_total_CTB.csv" t_total
+    writeJournal "examples/basic/result/csv/t_total_journal.csv" t_total getDay
+    writeCompoundTrialBalance "examples/basic/result/csv/t_total_CTB.csv" t_total
 
     print $ (norm (decR sample)) - (norm (decL sample))
     -- >>> 220000
@@ -178,7 +178,7 @@ main = do
     --  .+ 220000:@Not:<NetIncome .+ 1000000:@Not:<Sales
 
     let sample2 = incomeSummaryAccount sample
-    writePL "examples/result/csv/sample_PL.csv" sample2
+    writePL "examples/basic/result/csv/sample_PL.csv" sample2
 
     let tf = createTransfer $ Not:<NetIncome .-> Not:<RetainedEarnings |% id
     print $ tf $ incomeSummaryAccount sample
