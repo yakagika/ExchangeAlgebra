@@ -33,6 +33,21 @@ DERIVED_FORMAT_NOTE_SIDE = (
     "and a non-negative amount; all other derived keys map to numbers."
 )
 
+JOURNALIZE_PROMPT = (
+    "次の取引を複式簿記で仕訳し, 元帳・試算表・財務諸表サマリを導出せよ。"
+    "商品売買は三分法で処理する。期首残高 (前期繰越) は txid opening の開始仕訳として起票する。"
+)
+
+JOURNALIZE_OPENING_BALANCES = (
+    ("debit", "Cash", 2_000_000),
+    ("debit", "AccountsReceivable", 300_000),
+    ("debit", "MerchandiseInventory", 150_000),
+    ("debit", "Fixtures", 500_000),
+    ("credit", "AccountsPayable", 200_000),
+    ("credit", "CapitalStock", 2_000_000),
+    ("credit", "RetainedEarnings", 750_000),
+)
+
 
 def _flatten_postings(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     postings: list[dict[str, Any]] = []
@@ -45,9 +60,17 @@ def _transactions(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [dict(entry["transaction"]) for entry in entries]
 
 
+def _journalize_opening() -> list[dict[str, Any]]:
+    return [
+        {"entry": "opening", "side": side, "account": account, "amount": amount}
+        for side, account, amount in JOURNALIZE_OPENING_BALANCES
+    ]
+
+
 def generate_task(seed: int, count: int = 7, template: str = "mixed") -> dict[str, Any]:
     entries = make_entries(seed=seed, count=count, template=template)
-    postings = _flatten_postings(entries)
+    opening = _journalize_opening()
+    postings = opening + _flatten_postings(entries)
     chart = chart_accounts_from_postings(postings)
     derived = compute_derived(postings)
     task_template = template if template != "mixed" else "mixed"
@@ -64,12 +87,20 @@ def generate_task(seed: int, count: int = 7, template: str = "mixed") -> dict[st
             "template": template,
             "count": count,
         },
-        "prompt": "次の取引を複式簿記で仕訳し, 元帳・試算表・財務諸表サマリを導出せよ。",
+        "prompt": JOURNALIZE_PROMPT,
         "given": {
             "chart_of_accounts": chart,
             "accounts": account_category_map(chart),
             "ea_account_map": identity_ea_map(chart),
-            "transactions": _transactions(entries),
+            "opening_txid": "opening",
+            "opening_balances": [
+                {key: value for key, value in row.items() if key != "entry"}
+                for row in opening
+            ],
+            "transactions": [
+                {"id": "opening", "desc": "前期繰越の期首残高を開始仕訳として起票する。"},
+                *_transactions(entries),
+            ],
         },
         "expected_output": {
             "components": ["journal", "derived"],

@@ -232,13 +232,18 @@ def test_generated_transactions_have_amount_and_no_type_labels() -> None:
         task = generate_task(seed=41, count=9, template=template)
         debit_totals = _debit_totals(task["ground_truth"]["journal"])
 
-        for transaction in task["given"]["transactions"]:
+        opening, *transactions = task["given"]["transactions"]
+        assert opening == {
+            "id": "opening",
+            "desc": "前期繰越の期首残高を開始仕訳として起票する。",
+        }
+        for transaction in transactions:
             assert "amount" in transaction
             assert transaction["amount"] == debit_totals[transaction["id"]]
             assert LABEL_KEYS.isdisjoint(transaction)
 
         metadata_entries = task["ground_truth"]["generator_metadata"]["entries"]
-        assert len(metadata_entries) == len(task["given"]["transactions"])
+        assert len(metadata_entries) == len(transactions)
         assert all("template" in item for item in metadata_entries)
 
 
@@ -307,6 +312,8 @@ def test_make_suite_skip_ea_pure_helpers(monkeypatch) -> None:
         skip_ea=True,
     )
     assert journalize["ground_truth"]["generator_metadata"]["ea_oracle_status"] == "pending"
+    assert journalize["given"]["opening_txid"] == "opening"
+    assert journalize["ground_truth"]["journal"][0]["entry"] == "opening"
 
     audit = make_suite.prepare_audit_task(
         seed=7,

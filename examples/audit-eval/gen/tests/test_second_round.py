@@ -42,6 +42,71 @@ def test_non_mixed_templates_have_nested_count_prefixes() -> None:
         assert n50 == n200[:50], template
 
 
+EXPECTED_JOURNALIZE_OPENING = [
+    {"side": "debit", "account": "Cash", "amount": 2_000_000},
+    {"side": "debit", "account": "AccountsReceivable", "amount": 300_000},
+    {"side": "debit", "account": "MerchandiseInventory", "amount": 150_000},
+    {"side": "debit", "account": "Fixtures", "amount": 500_000},
+    {"side": "credit", "account": "AccountsPayable", "amount": 200_000},
+    {"side": "credit", "account": "CapitalStock", "amount": 2_000_000},
+    {"side": "credit", "account": "RetainedEarnings", "amount": 750_000},
+]
+
+
+def test_journalize_opening_is_fixed_and_included_in_ground_truth() -> None:
+    reference = None
+    for template in ("mixed", *TEMPLATES.keys()):
+        for seed, count in ((0, 1), (7, 50), (19, 200)):
+            task = generate_task(seed=seed, count=count, template=template)
+            opening = task["given"]["opening_balances"]
+            entries = make_entries(seed=seed, count=count, template=template)
+            if reference is None:
+                reference = opening
+            assert opening == reference == EXPECTED_JOURNALIZE_OPENING
+            assert sum(row["amount"] for row in opening if row["side"] == "debit") == 2_950_000
+            assert sum(row["amount"] for row in opening if row["side"] == "credit") == 2_950_000
+            assert task["given"]["opening_txid"] == "opening"
+            assert task["given"]["transactions"][0]["id"] == "opening"
+            assert task["given"]["transactions"][1:] == [
+                entry["transaction"] for entry in entries
+            ]
+            assert task["ground_truth"]["journal"][len(opening):] == [
+                posting for entry in entries for posting in entry["postings"]
+            ]
+            assert task["prompt"] == (
+                "次の取引を複式簿記で仕訳し, 元帳・試算表・財務諸表サマリを導出せよ。"
+                "商品売買は三分法で処理する。期首残高 (前期繰越) は txid opening の開始仕訳として起票する。"
+            )
+            opening_accounts = {row["account"] for row in opening}
+            assert opening_accounts <= set(task["given"]["chart_of_accounts"])
+            assert opening_accounts <= set(task["given"]["accounts"])
+            assert opening_accounts <= set(task["given"]["ea_account_map"])
+            assert [
+                {key: value for key, value in row.items() if key != "entry"}
+                for row in task["ground_truth"]["journal"]
+                if row["entry"] == "opening"
+            ] == EXPECTED_JOURNALIZE_OPENING
+
+
+def test_journalize_count_200_cash_stays_debit_for_all_templates_and_seeds() -> None:
+    for template in ("mixed", *TEMPLATES.keys()):
+        for seed in range(10):
+            derived = generate_task(seed=seed, count=200, template=template)["ground_truth"][
+                "derived"
+            ]
+            assert derived["ledger.Cash.balance_side"] == "debit", (template, seed)
+
+
+def test_journalize_opening_equity_is_carried_into_total_equity() -> None:
+    task = generate_task(seed=23, count=200, template="mixed")
+    derived = task["ground_truth"]["derived"]
+
+    assert derived["financial_statements.opening_equity"] == 2_750_000
+    assert derived["financial_statements.total_equity"] == (
+        2_750_000 + derived["financial_statements.net_income"]
+    )
+
+
 def test_closing_uses_adjusted_tb_and_post_closing_ledger() -> None:
     task = generate_closing_task(seed=0, count=5, template="cash_sale")
     journal = task["ground_truth"]["journal"]
@@ -63,6 +128,7 @@ def _journal_txids(task: dict) -> set[str]:
 @pytest.mark.parametrize(
     ("generator", "count"),
     [
+        (generate_task, 7),
         (generate_closing_task, 7),
         (generate_statements_task, 7),
         (generate_consolidation_task, 8),
@@ -262,6 +328,7 @@ def test_make_suite_enforces_preregistered_count_design() -> None:
 @pytest.mark.parametrize(
     ("generator", "count"),
     [
+        (generate_task, 7),
         (generate_closing_task, 7),
         (generate_statements_task, 7),
         (generate_consolidation_task, 8),

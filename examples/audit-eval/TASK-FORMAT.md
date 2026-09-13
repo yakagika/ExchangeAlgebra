@@ -52,6 +52,13 @@ may retain their pre-v2 IDs. Manifest clusters use
 `<template>-<source.seed:06d>`: count levels from the same template and generator
 seed belong to one cluster.
 
+Generated `journalize` tasks include a fixed prior-period opening balance. The
+input identifies it with `given.opening_txid = "opening"`, lists posting-shaped
+rows without an `entry` key in `given.opening_balances`, and places the
+amount-free `opening` instruction first in `given.transactions`. The same rows
+appear first in `ground_truth.journal` with `entry = "opening"`; derived ledger,
+trial-balance, and financial-statement values include this opening entry.
+
 ## Model output contract
 
 - **journal-only** (v1): bare JSON array of postings

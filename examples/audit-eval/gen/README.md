@@ -29,6 +29,14 @@ N=10 is the first 10 entries of N=50, and N=50 is the first 50 entries of
 N=200. `mixed` is intentionally excluded because its count-dependent randomized
 template schedule consumes RNG draws before transaction amounts are generated.
 
+Every `journalize` task starts from the same balanced prior-period opening
+block. `given.opening_txid` is `opening`, `given.opening_balances` contains the
+seven amount-bearing rows without an `entry` key, and the first
+`given.transactions` row is the amount-free instruction to post that block.
+The corresponding `entry = "opening"` postings lead `ground_truth.journal` and
+are included in all pandas and EA-derived balances. The prompt specifies the
+periodic three-account method for merchandise transactions.
+
 Ordinary period transactions and intercompany source transactions have an
 `amount` equal to that entry's debit total. Opening, adjustment, closing, and
 elimination rows disclose IDs plus source facts or parameters, but not a

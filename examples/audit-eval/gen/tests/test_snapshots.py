@@ -16,14 +16,14 @@ from gen.generate import dump_json, generate_task
 
 SNAPSHOTS = {
     "journalize": {
-        "cash_sale": "a96e5814f9cf8c1916f11cafca5b3225848d31be92ae1766f181bf65b70279f9",
-        "credit_trade": "5c9a91490a732b864575ae736e17a81687cc149f9fb9a8db95de24c494a3b6dd",
-        "purchase": "616ff9b133fdef5e0696f916368f79ce31e81a72523cab3f6531efc1ab99b38e",
-        "payroll": "09489666adec592f77c02b26ef993d80651aac7fc35582a28317a5540edbe327",
-        "accrual": "ee9580460aa7e55931443886f42ee4d52be04e4938e8b917839c232efa37baaf",
-        "tax": "6559b2a6b094d556a0d44d512ca501eb727ef1a5878922ad9ab588017d5c0f46",
-        "fixed_asset": "b0b53d0e93f5faee107b12efce4bff08908db2b62d5457f468ccb80e71519547",
-        "mixed": "9628a426c3be1d2c6a18123eec0646b4c127fa447867918232c991a51a32da05",
+        "cash_sale": "a6b7fa751ec8bdd4fbad63c21b216d27ffcd4d77efad25bedc947da4dfb87bcc",
+        "credit_trade": "bee1ed7ba332838a7a5d0dc177690b082d82b910b448a8b5e3ae8887a6a86183",
+        "purchase": "a1f8a1e692961c49fe143405642bec5c2f93f95518cabcd14d94d37f546f6366",
+        "payroll": "945e6033113f526acfdfc83284d8b38f8cc0eed66b84eeea8cb0dc43396e9b9b",
+        "accrual": "8e4df7db92efb77052ce92a57c2ee87d6ca6864017d1d204873035e28c4bf383",
+        "tax": "5a269a00f4ede31243edee954d5f05d52321b98bf4e7fa405195fb17f0c8a0fc",
+        "fixed_asset": "e44aa5eae52c8e0648b0242a360143029522f1f65391889e75374e8fbee98ce9",
+        "mixed": "e51e54a93da4286ee6f5e5545a3f890b3056c3333a283d09a057bb734cd80bf4",
     },
     "audit": {
         "cash_sale": "2983ae933f6ed1ee23a99e893a63c7b41e94018cd595288758bba806c107c582",
