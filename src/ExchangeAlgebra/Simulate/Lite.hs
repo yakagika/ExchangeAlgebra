@@ -56,6 +56,9 @@
     +--------------------------+----------------------------------+----------------------------------+
     | read-only view           | read each ref where needed       | one 'gFreeze' = @w 'SnapT'@      |
     +--------------------------+----------------------------------+----------------------------------+
+    | per-term observation     | bespoke callback                 | 'runLiteFold' /                  |
+    |                          |                                  | 'runLiteWithPolicyObs'           |
+    +--------------------------+----------------------------------+----------------------------------+
     | per-agent step           | imperative @ST@ that may read     | pure @w 'SnapT' -> ... ->        |
     |                          | /and write/ shared refs           | Journal@ (a /message/)         |
     +--------------------------+----------------------------------+----------------------------------+
@@ -145,13 +148,15 @@ module ExchangeAlgebra.Simulate.Lite
     , mkSimSpec
       -- * Runner
     , runLite
+    , runLiteFold
       -- * Policy-driven runner
     , runLiteWithPolicy
+    , runLiteWithPolicyObs
     ) where
 
 import           GHC.Generics
 import           Data.Kind                  (Type)
-import           Control.Monad              (forM_, when)
+import           Control.Monad              (foldM, forM_, when)
 import           Control.Monad.ST           (ST, runST, RealWorld, stToIO)
 import           Data.STRef                 (STRef, newSTRef, readSTRef, writeSTRef, modifySTRef')
 import           Data.Hashable              (hash)
@@ -512,22 +517,46 @@ runLite :: forall w t n v b r.
         -> w InitT
         -> (w SnapT -> r)
         -> r
-runLite spec wInit k = runST $ do
+runLite spec wInit k = runLiteFold (\_ _ a -> a) () spec wInit (\_ w -> k w)
+
+-- | Fold a read-only observer over the terms in ascending order, once per
+-- term. The observer runs at the end of the BSP superstep sweep, after all
+-- stages have committed and before the term-boundary 'Field' rules fire.
+-- It receives a frozen snapshot and cannot change the live ledger.
+--
+-- Observation costs one additional 'gFreeze' per term, besides the per-stage
+-- snapshots. The accumulator is lazy; observers may choose their own
+-- strictness. The continuation receives the final accumulator first and the
+-- final snapshot second, after the last term's 'Field' rules have fired.
+-- An empty term range leaves the accumulator and initial world unchanged.
+runLiteFold :: forall w t n v b acc r.
+               ( forall s. LiteWorld w s
+               , HatVal v, HatBaseClass b, Note n, Enum t, Ord t )
+            => (t -> w SnapT -> acc -> acc)
+            -> acc
+            -> SimSpec w t n v b
+            -> w InitT
+            -> (acc -> w SnapT -> r)
+            -> r
+runLiteFold observe initial spec wInit k = runST $ do
     wr <- gInitR wInit
     let (from0, to0) = specTerms spec
         terms        = enumFromThenToInclusive from0 to0
         stages       = zip [0 ..] (specStages spec)
-    forM_ (zip [0 ..] terms) $ \(termIx, t) -> do
+    acc <- foldM (\a (termIx, t) -> do
         forM_ stages $ \(stageIx, st) -> do
             view <- gFreezeR wr
             let msgs = runStage spec view t termIx stageIx st
                 delta  = sigma msgs id :: Journal n v b
             modifySTRef' (specLedger spec wr) (\acc -> acc EA..+ delta)
+        snapshot <- gFreezeR wr
+        let next = observe t snapshot a
         -- term boundary: fire the Field rules exactly once per term, AFTER
         -- all stages of the term have committed (BSP semantics, design S3).
         gCommitR wInit wr
+        pure next) initial (zip [0 ..] terms)
     final <- gFreezeR wr
-    pure (k final)
+    pure (k acc final)
   where
     -- Pin the generic-traversal dictionaries at the @s@ chosen by 'runST'.
     gInitR :: forall s. LiteWorld w s => w InitT -> ST s (w (RefT s))
@@ -639,7 +668,50 @@ runLiteWithPolicy
     -> w InitT
     -> (w SnapT -> r)
     -> IO r
-runLiteWithPolicy pol spec wInit k = do
+runLiteWithPolicy = runLiteWithPolicyInternal Nothing
+
+-- | Run under a t'LedgerPolicy' with one IO observation per term, in term
+-- order. At the end of the BSP superstep sweep, all stages have committed;
+-- observation precedes the 'Field' rules, compaction, retention and spill.
+-- The observer receives a read-only snapshot and cannot change the live ledger.
+-- The snapshot includes the resident history as well as the current term;
+-- select the current term when streaming each posting exactly once.
+--
+-- Observation costs one additional 'gFreeze' per term, besides the per-stage
+-- snapshots. 'runLiteWithPolicy' skips this additional freeze altogether.
+-- The final continuation still receives the snapshot after all boundary work.
+-- Observer exceptions propagate in 'IO'; an open spill handle is closed.
+runLiteWithPolicyObs
+    :: forall w t n v b r.
+       ( forall s. LiteWorld w s
+       , HatVal v, HatBaseClass b
+       , HasTermAxis n, TermOf n ~ t
+       , StateTime t
+       , Binary.Binary t, Binary.Binary (Journal n v b) )
+    => (t -> w SnapT -> IO ())
+    -> LedgerPolicy
+    -> SimSpec w t n v b
+    -> w InitT
+    -> (w SnapT -> r)
+    -> IO r
+runLiteWithPolicyObs observe = runLiteWithPolicyInternal (Just observe)
+
+-- | Shared policy loop. An absent observer avoids allocating a term-end
+-- snapshot on the legacy path without relying on compiler optimisation.
+runLiteWithPolicyInternal
+    :: forall w t n v b r.
+       ( forall s. LiteWorld w s
+       , HatVal v, HatBaseClass b
+       , HasTermAxis n, TermOf n ~ t
+       , StateTime t
+       , Binary.Binary t, Binary.Binary (Journal n v b) )
+    => Maybe (t -> w SnapT -> IO ())
+    -> LedgerPolicy
+    -> SimSpec w t n v b
+    -> w InitT
+    -> (w SnapT -> r)
+    -> IO r
+runLiteWithPolicyInternal observer pol spec wInit k = do
     let (from0, to0) = specTerms spec
         terms        = zip [0 :: Int ..] (enumFromThenToInclusive from0 to0)
         stages       = zip [0 :: Int ..] (specStages spec)
@@ -650,7 +722,7 @@ runLiteWithPolicy pol spec wInit k = do
     -- term is written to disk at most once). 'Nothing' = nothing spilled yet.
     spilledRef <- newIORef (Nothing :: Maybe t)
     wr <- stToIO (gInitR wInit)
-    let -- Run one full term (all stages, then Field rules). Mirrors 'runLite'.
+    let -- Commit all stages before observation and the Field boundary rules.
         runTerm :: Int -> t -> ST RealWorld ()
         runTerm termIx t = do
             forM_ stages $ \(stageIx, st) -> do
@@ -658,7 +730,6 @@ runLiteWithPolicy pol spec wInit k = do
                 let msgs  = runStage spec view t termIx stageIx st
                     delta = sigma msgs id :: Journal n v b
                 modifySTRef' (specLedger spec wr) (\acc -> acc EA..+ delta)
-            gCommitR wInit wr
 
         -- Apply 'CompressClosedTerms' to entries strictly before term @t@.
         compactClosed :: t -> ST RealWorld ()
@@ -671,6 +742,12 @@ runLiteWithPolicy pol spec wInit k = do
     withMaybeSpillHandle (spillTo pol) $ \mh ->
         forM_ terms $ \(termIx, t) -> do
             stToIO (runTerm termIx t)
+            case observer of
+              Nothing      -> pure ()
+              Just observe -> do
+                snapshot <- stToIO (gFreezeR wr)
+                observe t snapshot
+            stToIO (gCommitR wInit wr)
             stToIO (compactClosed t)
             -- retention / spill at the term boundary
             case window of

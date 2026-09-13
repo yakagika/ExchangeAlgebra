@@ -7,6 +7,9 @@
   `MeetingExpenses`, and `NewspaperBooksExpenses` (outside the JCCI grade-2
   syllabus), plus the manufacturing inventory accounts `RawMaterials` and
   `GoodsInTransit` for perpetual inventory systems.
+- `runLiteFold` and `runLiteWithPolicyObs`: per-term read-only observer runners
+  invoked after all stage commits and before `Field` rules and policy
+  maintenance.
 - LHR standard-CGE Zimbabwe headline fixture and sentinel coverage. The
   normalized fixture comes from the GE-side transcription of the distributed
   `SAMBAL.INC` cross-entropy projection; calibration, per-agent responses,

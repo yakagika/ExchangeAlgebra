@@ -48,7 +48,8 @@ import           ExchangeAlgebra.Simulate.Lite
                      ( InitT, RefT, SnapT, HK
                      , Field(..), carry, resetEach, updateEach
                      , Stage, stage, stageFor, stageOf
-                     , Par(..), SimSpec, mkSimSpec, runLite, runLiteWithPolicy )
+                     , Par(..), SimSpec, mkSimSpec, runLite, runLiteFold
+                     , runLiteWithPolicy, runLiteWithPolicyObs )
 import qualified ExchangeAlgebra.Simulate.Policy as Policy
 import           ExchangeAlgebra.Value    (MoneyDouble)
 import qualified ExchangeAlgebra.Write    as EW
@@ -75,6 +76,7 @@ import           Control.Monad       (forM_)
 import           Control.Monad.ST
 import           Data.Array.ST
 import           Data.STRef
+import           Data.IORef          (newIORef, readIORef, modifyIORef')
 import           System.Exit         (exitFailure)
 import           System.IO           (IOMode(WriteMode), withFile)
 import           Data.Time           (Day, TimeOfDay(..), fromGregorian)
@@ -5915,6 +5917,116 @@ testLiteBoundaryOncePerTerm =
              w0 = RuleW { rwLedger = carry mempty, rwPrice = updateEach 10 (* 2) }
          in realToFrac (runLite spec2 w0 (norm . rwLedger)))
 
+-- | T1: both observers visit each term once, including shifted and empty
+-- ranges. Reuse the exact-decimal policy fixture without changing its stages.
+testLiteObserverTerms :: IO ()
+testLiteObserverTerms =
+    forM_ [(1, 5), (3, 6), (4, 4), (4, 3)] $ \range@(lo, hi) -> do
+        let spec = polSpec { Lite.specTerms = range }
+            terms = runLiteFold (\t _ acc -> t : acc) [] spec polW0
+                        (\acc _ -> reverse acc)
+        assertEqual "Lite fold observer: term order and count" [lo .. hi] terms
+        seen <- newIORef []
+        _ <- runLiteWithPolicyObs (\t _ -> modifyIORef' seen (t :))
+                 Policy.defaultLedgerPolicy spec polW0 (toMap . pwLedger)
+        observed <- reverse <$> readIORef seen
+        assertEqual "Lite IO observer: term order and count" [lo .. hi] observed
+
+-- | T2: reuse MiniW's two stages with a changing price. Each saved snapshot
+-- includes both current commits, no future posting and the pre-boundary price.
+testLiteObserverBoundary :: IO ()
+testLiteObserverBoundary = do
+    let w0 = MiniW { mwLedger = carry mempty
+                   , mwPrice  = updateEach 10 (* 2)
+                   , mwTax    = carry 0.1 }
+        snapshots = runLiteFold (\t w acc -> (t, w) : acc) [] miniSpec w0
+                        (\acc _ -> reverse acc)
+        check :: (Int, MiniW SnapT) -> IO ()
+        check (t, w) = do
+            let ledger = toMap (mwLedger w)
+                price  = 10 * (2 ^ (t - 1)) :: MoneyDouble
+                keys   = L.sort [(tag, u) | u <- [1 .. t], tag <- ["buy", "tax"]]
+            assertEqual "Lite observer: all committed notes, no future notes"
+                keys (L.sort (HM.keys ledger))
+            assertEqual "Lite observer: price before Field update" price (mwPrice w)
+            assertEqual "Lite observer: carried tax" 0.1 (mwTax w)
+            assertNear "Lite observer: current buy stage committed"
+                (realToFrac (30 * price))
+                (maybe 0 (realToFrac . norm) (HM.lookup ("buy", t) ledger))
+            assertNear "Lite observer: current final stage committed"
+                (realToFrac (2 * price * realToFrac (mwTax w)))
+                (maybe 0 (realToFrac . norm) (HM.lookup ("tax", t) ledger))
+    forM_ snapshots check
+    seen <- newIORef []
+    finalPrice <- runLiteWithPolicyObs
+        (\t w -> modifyIORef' seen ((t, w) :))
+        Policy.defaultLedgerPolicy miniSpec w0 mwPrice
+    ioSnapshots <- reverse <$> readIORef seen
+    assertEqual "Lite IO observer: all boundaries saved" [1, 2, 3] (L.map fst ioSnapshots)
+    forM_ ioSnapshots check
+    assertEqual "Lite continuation: final Field update has fired" 80 finalPrice
+
+-- | T3: final snapshots agree for all MiniW fields, and exact policy ledgers
+-- agree under FullAudit and retention with separate spill files for each run.
+testLiteObserverEquivalence :: IO ()
+testLiteObserverEquivalence = do
+    let w0 = MiniW { mwLedger = carry mempty
+                   , mwPrice  = updateEach 10 (* 2)
+                   , mwTax    = carry 0.1 }
+        project w = (toMap (mwLedger w), mwPrice w, mwTax w)
+        legacy = runLite miniSpec w0 id
+        folded = runLiteFold (\_ _ a -> a) () miniSpec w0 (\_ w -> w)
+    assertEqual "Lite fold: unchanged final snapshot" (project legacy) (project folded)
+    full <- runLiteWithPolicy Policy.defaultLedgerPolicy miniSpec w0 project
+    observed <- runLiteWithPolicyObs (\_ _ -> pure ())
+                    Policy.defaultLedgerPolicy miniSpec w0 project
+    assertEqual "Lite IO observer: unchanged full world" full observed
+    forM_ [Policy.RetainAll, Policy.RetainRecent 2] $ \retention ->
+        withTempSpill "observer_legacy" $ \oldPath ->
+        withTempSpill "observer_new" $ \newPath -> do
+            let policy path = Policy.defaultLedgerPolicy
+                    { Policy.retain  = retention
+                    , Policy.spillTo = Just path }
+            old <- runLiteWithPolicy (policy oldPath) polSpec polW0 pwLedger
+            new <- runLiteWithPolicyObs (\_ _ -> pure ())
+                       (policy newPath) polSpec polW0 pwLedger
+            assertEqual "Lite IO observer: unchanged final policy ledger"
+                (toMap old) (toMap new)
+            oldRestored <- Policy.restoreLedger oldPath old :: IO LedgerM
+            newRestored <- Policy.restoreLedger newPath new :: IO LedgerM
+            assertEqual "Lite IO observer: unchanged spill contents"
+                (toMap oldRestored) (toMap newRestored)
+
+-- | T4: retained snapshots overlap, so compare their concatenated entries as
+-- a set. Also stream only each current term and independently restore the spill.
+-- Reuse PolW, polSpec and the temporary-spill helper from the policy tests.
+testLiteObserverStreamingSpill :: IO ()
+testLiteObserverStreamingSpill = do
+    full <- runLiteWithPolicy Policy.defaultLedgerPolicy polSpec polW0 pwLedger
+    forM_ [0, 2] $ \window -> withTempSpill "observer_stream" $ \path -> do
+        let policy = Policy.defaultLedgerPolicy
+                { Policy.retain  = Policy.RetainRecent window
+                , Policy.spillTo = Just path }
+        seen <- newIORef []
+        resident <- runLiteWithPolicyObs
+            (\t w -> modifyIORef' seen ((t, pwLedger w) :))
+            policy polSpec polW0 pwLedger
+        snapshots <- reverse <$> readIORef seen
+        let entries = L.nub (concatMap (HM.toList . toMap . snd) snapshots)
+            expected = HM.toList (toMap full)
+            streamed = sigma snapshots $ \(t, ledger) ->
+                EJ.filterWithNote (\(_, u) _ -> u == t) ledger
+        assertEqual "Lite streaming: observer term order" [1 .. 5] (L.map fst snapshots)
+        assertEqual "Lite streaming: snapshot entry set equals FullAudit"
+            True (length entries == length expected && all (`elem` entries) expected)
+        assertEqual "Lite streaming: current-term output equals FullAudit exactly"
+            (toMap full) (toMap streamed)
+        assertEqual "Lite streaming: final resident window"
+            [6 - window .. 5] (L.sort (L.map snd (HM.keys (toMap resident))))
+        restored <- Policy.restoreLedger path resident :: IO LedgerM
+        assertEqual "Lite streaming: spill plus resident ledger is lossless"
+            (toMap full) (toMap restored)
+
 -- ================================================================
 -- Simulate.Policy tests (Phase 4, feat/ledger-policy)
 --
@@ -6838,6 +6950,10 @@ main = do
     testLiteGateEquivalence
     testLiteFieldRules
     testLiteBoundaryOncePerTerm
+    testLiteObserverTerms
+    testLiteObserverBoundary
+    testLiteObserverEquivalence
+    testLiteObserverStreamingSpill
     testPolicyEquivalence
     testPolicyWindowRoundTrip
     testPolicyCompressClosed
