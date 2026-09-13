@@ -237,6 +237,11 @@ module Surface.Accounting
           , ConsumptionTaxRefundReceivable
           , PropertyTaxPayable
           , DepositsReceivedFromOfficers
+          , EntertainmentExpenses
+          , MeetingExpenses
+          , NewspaperBooksExpenses
+          , RawMaterials
+          , GoodsInTransit
           , AccountTitle
           )
     , AccountDivision
@@ -532,6 +537,11 @@ import           ExchangeAlgebra.Accounting
                            , ConsumptionTaxRefundReceivable
                            , PropertyTaxPayable
                            , DepositsReceivedFromOfficers
+                           , EntertainmentExpenses
+                           , MeetingExpenses
+                           , NewspaperBooksExpenses
+                           , RawMaterials
+                           , GoodsInTransit
                            , AccountTitle
                            )
                      , AccountDivision
@@ -589,4 +599,3 @@ import           ExchangeAlgebra.Accounting
                      , createTransfer
                      , transfer
                      )
-

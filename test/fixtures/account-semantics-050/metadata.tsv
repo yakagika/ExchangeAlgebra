@@ -234,3 +234,8 @@ AvailableForSaleSecurities	[OrdinaryAccount]	OrdinaryPosting	StatementDivision A
 ConsumptionTaxRefundReceivable	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Assets	FixedHomeSide Debit	StatementEligible
 PropertyTaxPayable	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Liability	FixedHomeSide Credit	StatementEligible
 DepositsReceivedFromOfficers	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Liability	FixedHomeSide Credit	StatementEligible
+EntertainmentExpenses	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Cost	FixedHomeSide Debit	StatementEligible
+MeetingExpenses	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Cost	FixedHomeSide Debit	StatementEligible
+NewspaperBooksExpenses	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Cost	FixedHomeSide Debit	StatementEligible
+RawMaterials	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Assets	FixedHomeSide Debit	StatementEligible
+GoodsInTransit	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Assets	FixedHomeSide Debit	StatementEligible

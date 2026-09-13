@@ -234,4 +234,9 @@ AvailableForSaleSecurities	231
 ConsumptionTaxRefundReceivable	232
 PropertyTaxPayable	233
 DepositsReceivedFromOfficers	234
-AccountTitle	235
+EntertainmentExpenses	235
+MeetingExpenses	236
+NewspaperBooksExpenses	237
+RawMaterials	238
+GoodsInTransit	239
+AccountTitle	240

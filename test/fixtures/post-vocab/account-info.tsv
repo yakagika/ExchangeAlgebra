@@ -234,3 +234,8 @@ AvailableForSaleSecurities	Assets	Debit	Available-for-sale securities	その他�
 ConsumptionTaxRefundReceivable	Assets	Debit	Consumption tax refund receivable	未収還付消費税	Asset: Consumption tax refund receivable (未収還付消費税)
 PropertyTaxPayable	Liability	Credit	Property tax payable	未払固定資産税	Liability: Property tax payable (未払固定資産税)
 DepositsReceivedFromOfficers	Liability	Credit	Deposits received from officers	役員預り金	Liability: Deposits received from officers (役員預り金)
+EntertainmentExpenses	Cost	Debit	Entertainment expenses	交際費	Expense: Entertainment expenses (交際費)
+MeetingExpenses	Cost	Debit	Meeting expenses	会議費	Expense: Meeting expenses (会議費)
+NewspaperBooksExpenses	Cost	Debit	Newspapers and books	新聞図書費	Expense: Newspapers and books (新聞図書費)
+RawMaterials	Assets	Debit	Raw materials	原材料	Assets: Raw materials (原材料)
+GoodsInTransit	Assets	Debit	Goods in transit	未着品	Assets: Goods in transit (未着品)

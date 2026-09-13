@@ -124,14 +124,46 @@ testAccountTitlesBinary = do
         roundTripped = L.map (Binary.decode . Binary.encode) titles
         invalidTag = fromIntegral (fromEnum (maxBound :: AccountTitles) + 1)
         invalidBytes = BinaryPut.runPut (BinaryPut.putWord16be invalidTag)
-    assertEqual "AccountTitles Binary covers all 236 constructors"
-        236 (L.length titles)
+    assertEqual "AccountTitles Binary covers all 241 constructors"
+        241 (L.length titles)
     assertEqual "AccountTitles Binary Word16be roundtrip"
         titles roundTripped
     assertEqual "AccountTitles Binary rejects out-of-range Word16"
         True (case decodeAccountTitleOrFail invalidBytes of
             Left _  -> True
             Right _ -> False)
+
+testPracticalAndManufacturingAccountTitles :: IO ()
+testPracticalAndManufacturingAccountTitles = do
+    let titles =
+            [ EntertainmentExpenses
+            , MeetingExpenses
+            , NewspaperBooksExpenses
+            , RawMaterials
+            , GoodsInTransit
+            ]
+        divisions =
+            [ Cost
+            , Cost
+            , Cost
+            , Assets
+            , Assets
+            ]
+    assertEqual "new account titles Binary roundtrip"
+        titles (L.map (Binary.decode . Binary.encode) titles)
+    assertEqual "new account titles whichDivision"
+        divisions (L.map classifyAccountDivision titles)
+    assertEqual "new account titles parse Japanese names and material alias"
+        (L.map Right
+            [ EntertainmentExpenses
+            , MeetingExpenses
+            , NewspaperBooksExpenses
+            , RawMaterials
+            , GoodsInTransit
+            , RawMaterials
+            ])
+        (L.map EC.parseAccountTitle (L.map T.pack
+            [ "交際費", "会議費", "新聞図書費", "原材料", "未着品", "材料" ]))
 
 -- ================================================================
 -- AccountTitles classification exhaustiveness (Phase A)
@@ -397,6 +429,11 @@ accountTitleClassTable =
     , (ConsumptionTaxRefundReceivable, Assets, Debit, Current)
     , (PropertyTaxPayable, Liability, Credit, Current)
     , (DepositsReceivedFromOfficers, Liability, Credit, Current)
+    , (EntertainmentExpenses, Cost, Debit, Other)
+    , (MeetingExpenses, Cost, Debit, Other)
+    , (NewspaperBooksExpenses, Cost, Debit, Other)
+    , (RawMaterials, Assets, Debit, Current)
+    , (GoodsInTransit, Assets, Debit, Current)
     ]
 
 testAccountTitleClassification :: IO ()
@@ -1195,12 +1232,17 @@ testVocabOrdinalPin = do
             , not (o > maxPinned && o < fromEnum (maxBound :: AccountTitles)) ]
     assertEqual "vocab ordinal pin: new constructors sit between max pinned and wildcard"
         [] misplaced
-    assertEqual "vocab ordinal pin: Land 4a constructor ordinals and wildcard"
-        [232, 233, 234, 235]
+    assertEqual "vocab ordinal pin: appended constructor ordinals and wildcard"
+        [232, 233, 234, 235, 236, 237, 238, 239, 240]
         (L.map fromEnum
             [ ConsumptionTaxRefundReceivable
             , PropertyTaxPayable
             , DepositsReceivedFromOfficers
+            , EntertainmentExpenses
+            , MeetingExpenses
+            , NewspaperBooksExpenses
+            , RawMaterials
+            , GoodsInTransit
             , AccountTitle
             ])
     -- concreteAccountTitles は wildcard 以外の全 constructor を被覆すること。
@@ -2219,7 +2261,7 @@ testAssistDescribeAccount = do
 
 testAssistAllAccountInfos :: IO ()
 testAssistAllAccountInfos = do
-    assertEqual "Assist.allAccountInfos length" 235 (length Assist.allAccountInfos)
+    assertEqual "Assist.allAccountInfos length" 240 (length Assist.allAccountInfos)
     assertEqual "Assist.allAccountInfos follows concreteAccountTitles order"
         EC.concreteAccountTitles (L.map Assist.aiTitle Assist.allAccountInfos)
     forM_ Assist.allAccountInfos $ \info -> do
@@ -2266,8 +2308,8 @@ testAccountMetadataLand1 = do
                 StatementDivision _ -> False
                 _                   -> True
             ]
-    assertEqual "Land 1 metadata covers all 235 concrete titles"
-        235 (L.length semantics)
+    assertEqual "Land 1 metadata covers all 240 concrete titles"
+        240 (L.length semantics)
     assertEqual "Land 1 metadata rejects wildcard AccountTitle"
         Nothing (Registry.accountSemantics AccountTitle)
     assertEqual "Land 1 non-statement metadata is exactly the reviewed exception set"
@@ -2403,8 +2445,8 @@ testAccountMetadataLand1Golden = do
             accountMetadataLand1Header
                 (T.pack "LLM AccountInfo (title, roles, posting, divisionSemantics, homeSideSemantics, reportingEligibility, nameEn, nameJa, description)")
             <> T.unlines (L.map accountMetadataLand1InfoRow Assist.allAccountInfos)
-    assertEqual "Land 1 metadata fixture has 235 rows"
-        235 (L.length (L.drop 1 (T.lines metadata)))
+    assertEqual "Land 1 metadata fixture has 240 rows"
+        240 (L.length (L.drop 1 (T.lines metadata)))
     assertEqual "Land 1 metadata fixture" metadata expectedMetadata
     assertEqual "Land 1 LLM AccountInfo fixture" info expectedInfo
     assertEqual "Land 1 LLM suggestion fixture"
@@ -2896,8 +2938,8 @@ testAccountLabelsLand4a = do
             , any (`T.isInfixOf` label) forbidden
                 || T.any (\c -> isAscii c && isAlpha c) label
             ]
-    assertEqual "Land 4a asLabelJa covers all 235 concrete titles"
-        235 (L.length labels)
+    assertEqual "Land 4a asLabelJa covers all 240 concrete titles"
+        240 (L.length labels)
     assertEqual "Land 4a asLabelJa contains only cleaned Japanese account names"
         ([] :: [(AccountTitles, T.Text)]) invalid
 
@@ -4821,7 +4863,7 @@ testPostingCapabilityGate = do
         | context <- contexts
         , capability <- capabilities
         ]
-    assertEqual "posting gate: all 235 titles follow the closed matrix"
+    assertEqual "posting gate: all 240 titles follow the closed matrix"
         [ (context, title, ECC.postingAllowedIn context capability)
         | context <- contexts
         , title <- Registry.concreteAccountTitles
@@ -6731,6 +6773,7 @@ testOptimizeFailFast = do
 main :: IO ()
 main = do
     testAccountTitlesBinary
+    testPracticalAndManufacturingAccountTitles
     testAccountTitleClassification
     testReplaceNotesMatchesInsert
     testMapPosting

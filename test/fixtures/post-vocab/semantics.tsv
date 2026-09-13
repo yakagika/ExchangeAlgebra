@@ -234,3 +234,8 @@ AvailableForSaleSecurities	Assets	False	Debit	Credit	PS	Fixed	Nothing
 ConsumptionTaxRefundReceivable	Assets	False	Debit	Credit	PS	Current	Nothing
 PropertyTaxPayable	Liability	False	Credit	Debit	MS	Current	Nothing
 DepositsReceivedFromOfficers	Liability	False	Credit	Debit	MS	Current	Nothing
+EntertainmentExpenses	Cost	False	Debit	Credit	OUT	Other	Flip
+MeetingExpenses	Cost	False	Debit	Credit	OUT	Other	Flip
+NewspaperBooksExpenses	Cost	False	Debit	Credit	OUT	Other	Flip
+RawMaterials	Assets	False	Debit	Credit	PS	Current	Nothing
+GoodsInTransit	Assets	False	Debit	Credit	PS	Current	Nothing

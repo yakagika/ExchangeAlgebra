@@ -146,6 +146,9 @@ rolesFor title _ = case title of
     DeliveryExpenses                               -> [OrdinaryAccount]
     SuppliesExpenses                               -> [OrdinaryAccount]
     MiscellaneousExpenses                          -> [OrdinaryAccount]
+    EntertainmentExpenses                          -> [OrdinaryAccount]
+    MeetingExpenses                                -> [OrdinaryAccount]
+    NewspaperBooksExpenses                         -> [OrdinaryAccount]
     WageExpenditure                                -> [OrdinaryAccount]
     InterestExpense                                -> [OrdinaryAccount]
     TaxesExpense                                   -> [OrdinaryAccount]
@@ -175,6 +178,7 @@ rolesFor title _ = case title of
     CreditCardReceivable                           -> [OrdinaryAccount]
     NotesLoansReceivable                           -> [OrdinaryAccount]
     MerchandiseInventory                           -> [OrdinaryAccount]
+    GoodsInTransit                                 -> [OrdinaryAccount]
     AdvancesPaid                                   -> [OrdinaryAccount]
     PrepaidExpenses                                -> [OrdinaryAccount]
     AccruedRevenue                                 -> [OrdinaryAccount]
@@ -225,6 +229,7 @@ rolesFor title _ = case title of
     GiftCertificatesReceived                       -> [OrdinaryAccount]
     SecurityDepositsPaid                           -> [OrdinaryAccount]
     SuppliesOnHand                                 -> [OrdinaryAccount]
+    RawMaterials                                   -> [OrdinaryAccount]
     ContractAssets                                 -> [OrdinaryAccount]
     IncomeTaxesRefundReceivable                    -> [OrdinaryAccount]
     WorkInProcess                                  -> [OrdinaryAccount]
@@ -385,6 +390,9 @@ postingFor title = case title of
     DeliveryExpenses                               -> OrdinaryPosting
     SuppliesExpenses                               -> OrdinaryPosting
     MiscellaneousExpenses                          -> OrdinaryPosting
+    EntertainmentExpenses                          -> OrdinaryPosting
+    MeetingExpenses                                -> OrdinaryPosting
+    NewspaperBooksExpenses                         -> OrdinaryPosting
     WageExpenditure                                -> OrdinaryPosting
     InterestExpense                                -> OrdinaryPosting
     TaxesExpense                                   -> OrdinaryPosting
@@ -414,6 +422,7 @@ postingFor title = case title of
     CreditCardReceivable                           -> OrdinaryPosting
     NotesLoansReceivable                           -> OrdinaryPosting
     MerchandiseInventory                           -> OrdinaryPosting
+    GoodsInTransit                                 -> OrdinaryPosting
     AdvancesPaid                                   -> OrdinaryPosting
     PrepaidExpenses                                -> OrdinaryPosting
     AccruedRevenue                                 -> OrdinaryPosting
@@ -464,6 +473,7 @@ postingFor title = case title of
     GiftCertificatesReceived                       -> OrdinaryPosting
     SecurityDepositsPaid                           -> OrdinaryPosting
     SuppliesOnHand                                 -> OrdinaryPosting
+    RawMaterials                                   -> OrdinaryPosting
     ContractAssets                                 -> OrdinaryPosting
     IncomeTaxesRefundReceivable                    -> OrdinaryPosting
     WorkInProcess                                  -> OrdinaryPosting
@@ -624,6 +634,9 @@ divisionFor title spec = case title of
     DeliveryExpenses                               -> StatementDivision (asDivision spec)
     SuppliesExpenses                               -> StatementDivision (asDivision spec)
     MiscellaneousExpenses                          -> StatementDivision (asDivision spec)
+    EntertainmentExpenses                          -> StatementDivision (asDivision spec)
+    MeetingExpenses                                -> StatementDivision (asDivision spec)
+    NewspaperBooksExpenses                         -> StatementDivision (asDivision spec)
     WageExpenditure                                -> StatementDivision (asDivision spec)
     InterestExpense                                -> StatementDivision (asDivision spec)
     TaxesExpense                                   -> StatementDivision (asDivision spec)
@@ -653,6 +666,7 @@ divisionFor title spec = case title of
     CreditCardReceivable                           -> StatementDivision (asDivision spec)
     NotesLoansReceivable                           -> StatementDivision (asDivision spec)
     MerchandiseInventory                           -> StatementDivision (asDivision spec)
+    GoodsInTransit                                 -> StatementDivision (asDivision spec)
     AdvancesPaid                                   -> StatementDivision (asDivision spec)
     PrepaidExpenses                                -> StatementDivision (asDivision spec)
     AccruedRevenue                                 -> StatementDivision (asDivision spec)
@@ -703,6 +717,7 @@ divisionFor title spec = case title of
     GiftCertificatesReceived                       -> StatementDivision (asDivision spec)
     SecurityDepositsPaid                           -> StatementDivision (asDivision spec)
     SuppliesOnHand                                 -> StatementDivision (asDivision spec)
+    RawMaterials                                   -> StatementDivision (asDivision spec)
     ContractAssets                                 -> StatementDivision (asDivision spec)
     IncomeTaxesRefundReceivable                    -> StatementDivision (asDivision spec)
     WorkInProcess                                  -> StatementDivision (asDivision spec)
@@ -863,6 +878,9 @@ homeSideFor title spec = case title of
     DeliveryExpenses                               -> FixedHomeSide (legacyHomeSide spec)
     SuppliesExpenses                               -> FixedHomeSide (legacyHomeSide spec)
     MiscellaneousExpenses                          -> FixedHomeSide (legacyHomeSide spec)
+    EntertainmentExpenses                          -> FixedHomeSide (legacyHomeSide spec)
+    MeetingExpenses                                -> FixedHomeSide (legacyHomeSide spec)
+    NewspaperBooksExpenses                         -> FixedHomeSide (legacyHomeSide spec)
     WageExpenditure                                -> FixedHomeSide (legacyHomeSide spec)
     InterestExpense                                -> FixedHomeSide (legacyHomeSide spec)
     TaxesExpense                                   -> FixedHomeSide (legacyHomeSide spec)
@@ -892,6 +910,7 @@ homeSideFor title spec = case title of
     CreditCardReceivable                           -> FixedHomeSide (legacyHomeSide spec)
     NotesLoansReceivable                           -> FixedHomeSide (legacyHomeSide spec)
     MerchandiseInventory                           -> FixedHomeSide (legacyHomeSide spec)
+    GoodsInTransit                                 -> FixedHomeSide (legacyHomeSide spec)
     AdvancesPaid                                   -> FixedHomeSide (legacyHomeSide spec)
     PrepaidExpenses                                -> FixedHomeSide (legacyHomeSide spec)
     AccruedRevenue                                 -> FixedHomeSide (legacyHomeSide spec)
@@ -942,6 +961,7 @@ homeSideFor title spec = case title of
     GiftCertificatesReceived                       -> FixedHomeSide (legacyHomeSide spec)
     SecurityDepositsPaid                           -> FixedHomeSide (legacyHomeSide spec)
     SuppliesOnHand                                 -> FixedHomeSide (legacyHomeSide spec)
+    RawMaterials                                   -> FixedHomeSide (legacyHomeSide spec)
     ContractAssets                                 -> FixedHomeSide (legacyHomeSide spec)
     IncomeTaxesRefundReceivable                    -> FixedHomeSide (legacyHomeSide spec)
     WorkInProcess                                  -> FixedHomeSide (legacyHomeSide spec)
@@ -1119,6 +1139,9 @@ reportingFor title = case title of
     DeliveryExpenses                               -> StatementEligible
     SuppliesExpenses                               -> StatementEligible
     MiscellaneousExpenses                          -> StatementEligible
+    EntertainmentExpenses                          -> StatementEligible
+    MeetingExpenses                                -> StatementEligible
+    NewspaperBooksExpenses                         -> StatementEligible
     WageExpenditure                                -> StatementEligible
     InterestExpense                                -> StatementEligible
     TaxesExpense                                   -> StatementEligible
@@ -1148,6 +1171,7 @@ reportingFor title = case title of
     CreditCardReceivable                           -> StatementEligible
     NotesLoansReceivable                           -> StatementEligible
     MerchandiseInventory                           -> StatementEligible
+    GoodsInTransit                                 -> StatementEligible
     AdvancesPaid                                   -> StatementEligible
     PrepaidExpenses                                -> StatementEligible
     AccruedRevenue                                 -> StatementEligible
@@ -1198,6 +1222,7 @@ reportingFor title = case title of
     GiftCertificatesReceived                       -> StatementEligible
     SecurityDepositsPaid                           -> StatementEligible
     SuppliesOnHand                                 -> StatementEligible
+    RawMaterials                                   -> StatementEligible
     ContractAssets                                 -> StatementEligible
     IncomeTaxesRefundReceivable                    -> StatementEligible
     WorkInProcess                                  -> StatementEligible
@@ -1790,6 +1815,39 @@ accountSpec MiscellaneousExpenses = Just AccountSpec
     , asDescription = "Expense: Miscellaneous (雑費)"
     , asAliases = ["雑費"]
     }
+accountSpec EntertainmentExpenses = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Entertainment expenses"
+    , asNameJa = "交際費"
+    , asLabelJa = "交際費"
+    , asDescription = "Expense: Entertainment expenses (交際費)"
+    , asAliases = ["交際費"]
+    }
+accountSpec MeetingExpenses = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Meeting expenses"
+    , asNameJa = "会議費"
+    , asLabelJa = "会議費"
+    , asDescription = "Expense: Meeting expenses (会議費)"
+    , asAliases = ["会議費"]
+    }
+accountSpec NewspaperBooksExpenses = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Newspapers and books"
+    , asNameJa = "新聞図書費"
+    , asLabelJa = "新聞図書費"
+    , asDescription = "Expense: Newspapers and books (新聞図書費)"
+    , asAliases = ["新聞図書費"]
+    }
 accountSpec WageExpenditure = Just AccountSpec
     { asDivision = Cost
     , asClosing = CloseByDivision
@@ -2108,6 +2166,17 @@ accountSpec MerchandiseInventory = Just AccountSpec
     , asLabelJa = "繰越商品"
     , asDescription = "Asset: Merchandise inventory (繰越商品). Use under the periodic/3-account method (3 分法: Purchases\\/Sales\\/MerchandiseInventory). For the perpetual\\/specific-identification method (分記法) use 'Products' instead."
     , asAliases = ["繰越商品"]
+    }
+accountSpec GoodsInTransit = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Current
+    , asNameEn = "Goods in transit"
+    , asNameJa = "未着品"
+    , asLabelJa = "未着品"
+    , asDescription = "Assets: Goods in transit (未着品)"
+    , asAliases = ["未着品"]
     }
 accountSpec AdvancesPaid = Just AccountSpec
     { asDivision = Assets
@@ -2658,6 +2727,17 @@ accountSpec SuppliesOnHand = Just AccountSpec
     , asLabelJa = "貯蔵品"
     , asDescription = "Assets: Supplies (貯蔵品)"
     , asAliases = ["貯蔵品"]
+    }
+accountSpec RawMaterials = Just AccountSpec
+    { asDivision = Assets
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Current
+    , asNameEn = "Raw materials"
+    , asNameJa = "原材料"
+    , asLabelJa = "原材料"
+    , asDescription = "Assets: Raw materials (原材料)"
+    , asAliases = ["原材料", "材料"]
     }
 accountSpec ContractAssets = Just AccountSpec
     { asDivision = Assets
