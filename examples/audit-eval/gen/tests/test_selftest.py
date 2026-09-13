@@ -30,7 +30,7 @@ LABEL_KEYS = {"template", "trade_side", "settlement"}
 
 
 def test_python_account_mirror_covers_post_vocab_catalog() -> None:
-    assert len(ACCOUNT_DIVISIONS) == 235
+    assert len(ACCOUNT_DIVISIONS) == 240  # 2026-09-13: +5 registry titles (be05249)
     assert CONTRA_ACCOUNTS == {
         "AllowanceForDoubtfulAccounts",
         "AccumulatedDepreciation",

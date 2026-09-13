@@ -48,6 +48,7 @@ from runner.models import Backend, BackendTimeout
 from runner.score import _is_side_contract_key, _is_v1_signed_balance_key
 
 EVAL_DIR = Path(__file__).resolve().parent.parent
+STANDARD_CHART_PATH = EVAL_DIR / "runner" / "data" / "standard-chart-jcci.json"
 SKILL_PATHS = {
     "v1": EVAL_DIR / "harness" / "SKILL-ea-v1.md",
     "v2": EVAL_DIR / "harness" / "SKILL-ea-v2.md",
@@ -174,7 +175,7 @@ def _extract_python(text: str) -> Optional[str]:
 def _build_user_prompt(
     task: dict,
     include_ea_map: bool = False,
-    include_task_chart: bool = False,
+    include_task_chart: bool | str = False,
 ) -> str:
     """
     Format the task as a user-turn prompt.
@@ -201,7 +202,12 @@ def _build_user_prompt(
     # excluded from the generic "additional data" JSON dump below.
     rendered_keys = {"ea_account_map", "map_note", "transcription_note"}
 
-    if include_task_chart:
+    chart_mode = (
+        "task" if include_task_chart is True else
+        "none" if include_task_chart is False else
+        include_task_chart
+    )
+    if chart_mode == "task":
         # One byte-identical vocabulary block is used by every arm.  Keep this
         # opt-in so the historical prompt remains unchanged under the default
         # --chart-of-accounts none setting.
@@ -210,6 +216,10 @@ def _build_user_prompt(
             "chart_of_accounts": given.get("chart_of_accounts", []),
             "accounts": given.get("accounts", {}),
         }, indent=2, ensure_ascii=False, sort_keys=True))
+        rendered_keys.update({"chart_of_accounts", "accounts"})
+    elif chart_mode == "standard":
+        lines.append("Standard chart of accounts (JCCI level 2 / 3):")
+        lines.append(STANDARD_CHART_PATH.read_text(encoding="utf-8").rstrip("\n"))
         rendered_keys.update({"chart_of_accounts", "accounts"})
     elif "chart_of_accounts" in given:
         lines.append(f"Chart of accounts: {given['chart_of_accounts']}")

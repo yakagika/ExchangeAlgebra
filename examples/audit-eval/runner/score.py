@@ -99,6 +99,8 @@ boundary the name-translation bias P1 removed.
 from __future__ import annotations
 
 import math
+import json
+import unicodedata
 from pathlib import Path
 from typing import Any, Optional
 
@@ -113,7 +115,7 @@ def _norm_key(name: str) -> str:
     and (reused for derived/decision keys) 'operating.total' == 'operating_total'.
     """
     return (
-        str(name).lower()
+        unicodedata.normalize("NFKC", str(name).strip()).lower()
         .replace(" ", "").replace("_", "").replace("-", "").replace("/", "")
         .replace(".", "")
     )
@@ -137,10 +139,35 @@ _SYNONYMS: dict[str, str] = {
 }
 
 
+_JCCI_ALIASES_PATH = Path(__file__).resolve().parent / "data" / "jcci-aliases.json"
+_JCCI_ALIASES: dict[str, list[str]] = json.loads(
+    _JCCI_ALIASES_PATH.read_text(encoding="utf-8")
+)
+_JCCI_ALIASES_BY_CONSTRUCTOR_KEY = {
+    _norm_key(constructor): aliases
+    for constructor, aliases in _JCCI_ALIASES.items()
+}
+_JCCI_CONSTRUCTORS_BY_ALIAS: dict[str, list[str]] = {}
+for _constructor, _aliases in _JCCI_ALIASES.items():
+    for _alias in _aliases:
+        _bucket = _JCCI_CONSTRUCTORS_BY_ALIAS.setdefault(_norm_key(_alias), [])
+        if _constructor not in _bucket:
+            _bucket.append(_constructor)
+for _alias_key, _constructors in _JCCI_CONSTRUCTORS_BY_ALIAS.items():
+    if len(_constructors) == 1:
+        _SYNONYMS.setdefault(_alias_key, _norm_key(_constructors[0]))
+
+
 def _canon(name: str) -> str:
     """Normalize then apply the synonym dictionary."""
     key = _norm_key(name)
-    return _SYNONYMS.get(key, key)
+    synonym = _SYNONYMS.get(key)
+    if synonym is not None:
+        return synonym
+    candidates = _JCCI_CONSTRUCTORS_BY_ALIAS.get(key, [])
+    if len(candidates) == 1:
+        return _norm_key(candidates[0])
+    return key
 
 
 # ---------------------------------------------------------------------------
@@ -170,6 +197,11 @@ def build_resolver(task: dict) -> dict[str, list[str]]:
     def register(alias: str, canonical: str) -> None:
         for key in {_norm_key(alias), _canon(alias)}:
             bucket = resolver.setdefault(key, [])
+            if canonical not in bucket:
+                bucket.append(canonical)
+        constructor_key = _canon(alias)
+        for japanese_alias in _JCCI_ALIASES_BY_CONSTRUCTOR_KEY.get(constructor_key, []):
+            bucket = resolver.setdefault(_norm_key(japanese_alias), [])
             if canonical not in bucket:
                 bucket.append(canonical)
 

@@ -1,0 +1,407 @@
+[
+  {
+    "account": "AccountsPayable",
+    "name_ja": "買掛金",
+    "category": "liability"
+  },
+  {
+    "account": "AccountsReceivable",
+    "name_ja": "売掛金",
+    "category": "asset"
+  },
+  {
+    "account": "AccruedConsumptionTax",
+    "name_ja": "未払消費税",
+    "category": "liability"
+  },
+  {
+    "account": "AccruedCorporateIncomeTaxes",
+    "name_ja": "未払法人税等",
+    "category": "liability"
+  },
+  {
+    "account": "AccruedExpenses",
+    "name_ja": "未払費用",
+    "category": "liability"
+  },
+  {
+    "account": "AccruedRevenue",
+    "name_ja": "未収収益",
+    "category": "asset"
+  },
+  {
+    "account": "AccumulatedDepreciation",
+    "name_ja": "建物減価償却累計額/備品減価償却累計額/車両運搬具減価償却累計額",
+    "category": "asset"
+  },
+  {
+    "account": "AdvancesPaid",
+    "name_ja": "前払金",
+    "category": "asset"
+  },
+  {
+    "account": "AdvancesReceived",
+    "name_ja": "前受金/契約負債",
+    "category": "liability"
+  },
+  {
+    "account": "AdvertisingExpense",
+    "name_ja": "広告宣伝費",
+    "category": "expense"
+  },
+  {
+    "account": "AllowanceForDoubtfulAccounts",
+    "name_ja": "貸倒引当金",
+    "category": "asset"
+  },
+  {
+    "account": "BadDebtLoss",
+    "name_ja": "貸倒損失",
+    "category": "expense"
+  },
+  {
+    "account": "BankOverdraft",
+    "name_ja": "当座借越",
+    "category": "liability"
+  },
+  {
+    "account": "Building",
+    "name_ja": "建物",
+    "category": "asset"
+  },
+  {
+    "account": "BusinessTrip",
+    "name_ja": "旅費交通費",
+    "category": "expense"
+  },
+  {
+    "account": "CapitalStock",
+    "name_ja": "資本金",
+    "category": "equity"
+  },
+  {
+    "account": "Cash",
+    "name_ja": "現金",
+    "category": "asset"
+  },
+  {
+    "account": "CashOverShort",
+    "name_ja": "現金過不足",
+    "category": "asset"
+  },
+  {
+    "account": "ConsumptionTaxPaid",
+    "name_ja": "仮払消費税",
+    "category": "asset"
+  },
+  {
+    "account": "ConsumptionTaxReceived",
+    "name_ja": "仮受消費税",
+    "category": "liability"
+  },
+  {
+    "account": "CorporateIncomeTaxes",
+    "name_ja": "法人税、住民税及び事業税",
+    "category": "expense"
+  },
+  {
+    "account": "CreditCardReceivable",
+    "name_ja": "クレジット売掛金",
+    "category": "asset"
+  },
+  {
+    "account": "CurrentDeposits",
+    "name_ja": "当座預金/当座預金○○銀行",
+    "category": "asset"
+  },
+  {
+    "account": "DeliveryExpenses",
+    "name_ja": "発送費",
+    "category": "expense"
+  },
+  {
+    "account": "Deposits",
+    "name_ja": "普通預金/普通預金○○銀行",
+    "category": "asset"
+  },
+  {
+    "account": "DepositsReceived",
+    "name_ja": "預り金/従業員預り金/所得税預り金/住民税預り金/社会保険料預り金/役員預り金",
+    "category": "liability"
+  },
+  {
+    "account": "Depreciation",
+    "name_ja": "減価償却費",
+    "category": "expense"
+  },
+  {
+    "account": "ElectronicallyRecordedObligations",
+    "name_ja": "電子記録債務",
+    "category": "liability"
+  },
+  {
+    "account": "ElectronicallyRecordedReceivable",
+    "name_ja": "電子記録債権",
+    "category": "asset"
+  },
+  {
+    "account": "Fixtures",
+    "name_ja": "備品",
+    "category": "asset"
+  },
+  {
+    "account": "GainOnSalesOfFixedAssets",
+    "name_ja": "固定資産売却益",
+    "category": "revenue"
+  },
+  {
+    "account": "InterestEarned",
+    "name_ja": "受取利息",
+    "category": "revenue"
+  },
+  {
+    "account": "InterestExpense",
+    "name_ja": "支払利息",
+    "category": "expense"
+  },
+  {
+    "account": "InvestmentInAssociate",
+    "name_ja": "子会社株式/関連会社株式",
+    "category": "asset"
+  },
+  {
+    "account": "InvestmentSecurities",
+    "name_ja": "満期保有目的債券/その他有価証券",
+    "category": "asset"
+  },
+  {
+    "account": "Land",
+    "name_ja": "土地",
+    "category": "asset"
+  },
+  {
+    "account": "LegalRetainedEarnings",
+    "name_ja": "利益準備金",
+    "category": "equity"
+  },
+  {
+    "account": "LoansPayable",
+    "name_ja": "借入金/役員借入金",
+    "category": "liability"
+  },
+  {
+    "account": "LoansReceivable",
+    "name_ja": "従業員貸付金/役員貸付金",
+    "category": "asset"
+  },
+  {
+    "account": "LongTermLoansPayable",
+    "name_ja": "長期借入金",
+    "category": "liability"
+  },
+  {
+    "account": "LongTermLoansReceivable",
+    "name_ja": "長期貸付金",
+    "category": "asset"
+  },
+  {
+    "account": "LossOnSalesOfFixedAssets",
+    "name_ja": "固定資産売却損",
+    "category": "expense"
+  },
+  {
+    "account": "Machinery",
+    "name_ja": "機械装置",
+    "category": "asset"
+  },
+  {
+    "account": "MerchandiseInventory",
+    "name_ja": "繰越商品",
+    "category": "asset"
+  },
+  {
+    "account": "MiscellaneousExpenses",
+    "name_ja": "雑費",
+    "category": "expense"
+  },
+  {
+    "account": "MiscellaneousIncome",
+    "name_ja": "雑益",
+    "category": "revenue"
+  },
+  {
+    "account": "MiscellaneousLoss",
+    "name_ja": "雑損",
+    "category": "expense"
+  },
+  {
+    "account": "OtherPayables",
+    "name_ja": "未払金/未払固定資産税",
+    "category": "liability"
+  },
+  {
+    "account": "OtherReceivables",
+    "name_ja": "未収入金/未収還付消費税",
+    "category": "asset"
+  },
+  {
+    "account": "Patent",
+    "name_ja": "特許権",
+    "category": "asset"
+  },
+  {
+    "account": "PaymentFees",
+    "name_ja": "支払手数料",
+    "category": "expense"
+  },
+  {
+    "account": "PaymentsOnBehalf",
+    "name_ja": "立替金/従業員立替金",
+    "category": "asset"
+  },
+  {
+    "account": "PettyCash",
+    "name_ja": "小口現金",
+    "category": "asset"
+  },
+  {
+    "account": "PrepaidCorporateIncomeTaxes",
+    "name_ja": "仮払法人税等",
+    "category": "asset"
+  },
+  {
+    "account": "PrepaidExpenses",
+    "name_ja": "前払費用",
+    "category": "asset"
+  },
+  {
+    "account": "Products",
+    "name_ja": "商品",
+    "category": "asset"
+  },
+  {
+    "account": "ProvisionForDoubtfulAccounts",
+    "name_ja": "貸倒引当金繰入",
+    "category": "expense"
+  },
+  {
+    "account": "Purchases",
+    "name_ja": "仕入",
+    "category": "expense"
+  },
+  {
+    "account": "ReceiptFee",
+    "name_ja": "受取手数料",
+    "category": "revenue"
+  },
+  {
+    "account": "RecoveryOfBadDebts",
+    "name_ja": "償却債権取立益",
+    "category": "revenue"
+  },
+  {
+    "account": "RentExpense",
+    "name_ja": "支払家賃",
+    "category": "expense"
+  },
+  {
+    "account": "RentalIncome",
+    "name_ja": "受取家賃",
+    "category": "revenue"
+  },
+  {
+    "account": "RetainedEarnings",
+    "name_ja": "繰越利益剰余金",
+    "category": "equity"
+  },
+  {
+    "account": "ReversalOfAllowanceForDoubtfulAccounts",
+    "name_ja": "貸倒引当金戻入",
+    "category": "revenue"
+  },
+  {
+    "account": "Sales",
+    "name_ja": "売上",
+    "category": "revenue"
+  },
+  {
+    "account": "SalesCost",
+    "name_ja": "売上原価",
+    "category": "expense"
+  },
+  {
+    "account": "Securities",
+    "name_ja": "売買目的有価証券",
+    "category": "asset"
+  },
+  {
+    "account": "ShortTermLoansPayable",
+    "name_ja": "短期借入金",
+    "category": "liability"
+  },
+  {
+    "account": "ShortTermLoansReceivable",
+    "name_ja": "短期貸付金",
+    "category": "asset"
+  },
+  {
+    "account": "Software",
+    "name_ja": "ソフトウェア",
+    "category": "asset"
+  },
+  {
+    "account": "SuppliesExpenses",
+    "name_ja": "消耗品費",
+    "category": "expense"
+  },
+  {
+    "account": "SuspensePayments",
+    "name_ja": "仮払金",
+    "category": "asset"
+  },
+  {
+    "account": "SuspenseReceipts",
+    "name_ja": "仮受金",
+    "category": "liability"
+  },
+  {
+    "account": "TaxesExpense",
+    "name_ja": "租税公課",
+    "category": "expense"
+  },
+  {
+    "account": "TimeDeposits",
+    "name_ja": "定期預金○○銀行",
+    "category": "asset"
+  },
+  {
+    "account": "Trademark",
+    "name_ja": "商標権",
+    "category": "asset"
+  },
+  {
+    "account": "UnearnedRevenue",
+    "name_ja": "前受収益",
+    "category": "liability"
+  },
+  {
+    "account": "UnpaidDividends",
+    "name_ja": "未払配当金",
+    "category": "liability"
+  },
+  {
+    "account": "UtilitiesExpense",
+    "name_ja": "水道光熱費",
+    "category": "expense"
+  },
+  {
+    "account": "Vehicle",
+    "name_ja": "車両運搬具",
+    "category": "asset"
+  },
+  {
+    "account": "WageExpenditure",
+    "name_ja": "給料",
+    "category": "expense"
+  }
+]

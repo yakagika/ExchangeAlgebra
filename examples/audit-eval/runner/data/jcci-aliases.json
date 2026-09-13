@@ -1,0 +1,751 @@
+{
+  "AccountsPayable": [
+    "〇〇商店",
+    "買掛金"
+  ],
+  "AccountsReceivable": [
+    "売掛金",
+    "〇〇商店"
+  ],
+  "AccruedConsumptionTax": [
+    "未払金",
+    "未払消費税"
+  ],
+  "AccruedCorporateIncomeTaxes": [
+    "未払法人税等"
+  ],
+  "AccruedExpenses": [
+    "未払費用",
+    "未払利息"
+  ],
+  "AccruedRevenue": [
+    "未収収益",
+    "未収家賃"
+  ],
+  "AccumulatedDepreciation": [
+    "建物減価償却累計額",
+    "減価償却累計額",
+    "備品減価償却累計額",
+    "車両運搬具減価償却累計額",
+    "車両減価償却累計額"
+  ],
+  "AdditionalIncomeTaxesForPriorPeriods": [
+    "追徴法人税等"
+  ],
+  "AdvancesPaid": [
+    "前払金",
+    "前渡金"
+  ],
+  "AdvancesReceived": [
+    "前受金",
+    "契約負債"
+  ],
+  "AdvertisingExpense": [
+    "広告宣伝費",
+    "広告費",
+    "広告料",
+    "宣伝費"
+  ],
+  "AffiliateStocks": [
+    "関係会社株式",
+    "関連会社株式"
+  ],
+  "AllowanceForBonuses": [
+    "賞与引当金",
+    "役員賞与引当金"
+  ],
+  "AllowanceForDoubtfulAccounts": [
+    "貸倒引当金"
+  ],
+  "AllowanceForProductWarranties": [
+    "商品保証引当金",
+    "製品保証引当金"
+  ],
+  "AllowanceForRepairs": [
+    "修繕引当金",
+    "特別修繕引当金"
+  ],
+  "AllowanceForRetirementBenefits": [
+    "退職給付引当金"
+  ],
+  "AmortizationOfGoodwill": [
+    "のれん償却"
+  ],
+  "AmortizationOfPatents": [
+    "特許権償却"
+  ],
+  "AmortizationOfSoftware": [
+    "ソフトウェア償却"
+  ],
+  "AvailableForSaleSecurities": [
+    "投資有価証券",
+    "その他有価証券"
+  ],
+  "BadDebtLoss": [
+    "貸倒損失"
+  ],
+  "BankOverdraft": [
+    "借入金",
+    "当座借越"
+  ],
+  "Bonuses": [
+    "賞与",
+    "役員賞与"
+  ],
+  "BonusesPayable": [
+    "未払賞与",
+    "未払役員賞与",
+    "未払賞与金"
+  ],
+  "BranchCurrentAccount": [
+    "支店"
+  ],
+  "Building": [
+    "建物"
+  ],
+  "BusinessCommencementExpenses": [
+    "開業費"
+  ],
+  "BusinessTrip": [
+    "旅費交通費",
+    "旅費",
+    "交通費"
+  ],
+  "CapitalStock": [
+    "資本金"
+  ],
+  "CapitalSurplus": [
+    "資本剰余金"
+  ],
+  "Cash": [
+    "現金"
+  ],
+  "CashOverShort": [
+    "現金過不足"
+  ],
+  "CommunicationExpenses": [
+    "通信費"
+  ],
+  "Commutation": [
+    "通信費"
+  ],
+  "ConstructionFundReserve": [
+    "新築積立金"
+  ],
+  "ConstructionInProgress": [
+    "建設仮勘定",
+    "建設仮",
+    "建設前渡金",
+    "建設仮払金"
+  ],
+  "ConsumptionTaxPaid": [
+    "仮払金",
+    "仮払消費税"
+  ],
+  "ConsumptionTaxReceived": [
+    "仮受金",
+    "仮受消費税"
+  ],
+  "ConsumptionTaxRefundReceivable": [
+    "未収還付消費税",
+    "未収消費税"
+  ],
+  "ContraAccountForGuaranteeObligations": [
+    "保証債務見返"
+  ],
+  "ContractAssets": [
+    "契約資産"
+  ],
+  "CorporateIncomeTaxes": [
+    "法人税、住民税及び事業税",
+    "法人税等"
+  ],
+  "CostOfServices": [
+    "役務原価",
+    "営業費用"
+  ],
+  "CreditCardReceivable": [
+    "クレジット売掛金"
+  ],
+  "CurrentDeposits": [
+    "当座預金",
+    "当座預金○○銀行"
+  ],
+  "DeferredTaxAssets": [
+    "繰延税金資産"
+  ],
+  "DeferredTaxLiabilities": [
+    "繰延税金負債"
+  ],
+  "DeliveryExpenses": [
+    "発送費",
+    "支払運賃",
+    "発送運賃"
+  ],
+  "Deposits": [
+    "普通預金",
+    "銀行預金",
+    "普通預金○○銀行"
+  ],
+  "DepositsInSpecialAccounts": [
+    "銀行預金",
+    "別段預金"
+  ],
+  "DepositsReceived": [
+    "預り金",
+    "従業員預り金",
+    "所得税預り金",
+    "住民税預り金",
+    "社会保険料預り金"
+  ],
+  "DepositsReceivedFromOfficers": [
+    "役員預り金"
+  ],
+  "Depreciation": [
+    "減価償却費",
+    "建物減価償却費",
+    "備品減価償却費"
+  ],
+  "DevelopmentExpenses": [
+    "開発費"
+  ],
+  "DishonoredNotesReceivable": [
+    "不渡手形"
+  ],
+  "DividendEqualizationReserve": [
+    "配当平均積立金"
+  ],
+  "DividendsReceived": [
+    "受取配当金"
+  ],
+  "EarnedSurplus": [
+    "利益剰余金"
+  ],
+  "ElectronicallyRecordedObligations": [
+    "電子記録債務"
+  ],
+  "ElectronicallyRecordedReceivable": [
+    "電子記録債権"
+  ],
+  "Fixtures": [
+    "備品"
+  ],
+  "ForeignExchangeGains": [
+    "為替差損益",
+    "為替差益"
+  ],
+  "ForeignExchangeLosses": [
+    "為替差損益",
+    "為替差損"
+  ],
+  "GainOnBargainPurchase": [
+    "負ののれん発生益"
+  ],
+  "GainOnConstructionGrants": [
+    "工事負担金受贈益"
+  ],
+  "GainOnDonationOfFixedAssets": [
+    "固定資産受贈益"
+  ],
+  "GainOnNationalSubsidies": [
+    "国庫補助金受贈益"
+  ],
+  "GainOnSalesOfFixedAssets": [
+    "固定資産売却益",
+    "備品売却益",
+    "土地売却益",
+    "建物売却益"
+  ],
+  "GainOnSalesOfInvestmentSecurities": [
+    "投資有価証券売却益",
+    "その他有価証券売却益"
+  ],
+  "GainOnSalesOfSecurities": [
+    "有価証券売却益",
+    "有価証券売買益",
+    "有価証券運用益"
+  ],
+  "GainOnValuationOfSecurities": [
+    "有価証券運用益",
+    "有価証券評価益",
+    "有価証券評価損益",
+    "有価証券運用損益"
+  ],
+  "GeneralReserve": [
+    "別途積立金"
+  ],
+  "GiftCertificatesReceived": [
+    "受取商品券"
+  ],
+  "Goodwill": [
+    "のれん"
+  ],
+  "GuaranteeDepositsReceived": [
+    "預り保証金",
+    "受入保証金"
+  ],
+  "GuaranteeObligations": [
+    "保証債務"
+  ],
+  "HeadOfficeCurrentAccount": [
+    "本店"
+  ],
+  "HeldToMaturityBonds": [
+    "満期保有目的債券",
+    "投資有価証券"
+  ],
+  "IncomeSummary": [
+    "損益"
+  ],
+  "IncomeTaxesAdjustment": [
+    "法人税等調整額"
+  ],
+  "IncomeTaxesRefundReceivable": [
+    "未収還付法人税等"
+  ],
+  "IncorporationExpenses": [
+    "創立費"
+  ],
+  "InsuranceExpense": [
+    "保険料",
+    "支払保険料",
+    "火災保険料"
+  ],
+  "InsuranceGain": [
+    "保険差益"
+  ],
+  "InterestEarned": [
+    "受取利息"
+  ],
+  "InterestExpense": [
+    "支払利息"
+  ],
+  "InterestOnSecurities": [
+    "有価証券利息",
+    "受取社債利息"
+  ],
+  "InventoryShrinkageLoss": [
+    "棚卸減耗損",
+    "棚卸減耗費"
+  ],
+  "InvestmentSecurities": [
+    "投資有価証券"
+  ],
+  "Land": [
+    "土地"
+  ],
+  "LandRentPaid": [
+    "地代家賃",
+    "支払賃借料",
+    "支払不動産賃借料",
+    "支払地代"
+  ],
+  "LandRentReceived": [
+    "受取地代"
+  ],
+  "LeaseExpenses": [
+    "支払リース料"
+  ],
+  "LeaseObligations": [
+    "リース債務"
+  ],
+  "LeasedAssets": [
+    "リース資産"
+  ],
+  "LeaseholdRights": [
+    "借地権"
+  ],
+  "LegalCapitalSurplus": [
+    "資本準備金",
+    "株式払込剰余金"
+  ],
+  "LegalRetainedEarnings": [
+    "利益準備金"
+  ],
+  "LoansPayable": [
+    "借入金",
+    "銀行借入金",
+    "役員借入金"
+  ],
+  "LoansReceivable": [
+    "貸付金",
+    "従業員貸付金",
+    "役員貸付金"
+  ],
+  "LongTermLoansPayable": [
+    "長期借入金"
+  ],
+  "LongTermLoansReceivable": [
+    "長期貸付金"
+  ],
+  "LongTermOtherPayables": [
+    "長期未払金"
+  ],
+  "LongTermPrepaidExpenses": [
+    "長期前払費用"
+  ],
+  "LossOnFire": [
+    "火災損失",
+    "災害損失"
+  ],
+  "LossOnReductionOfFixedAssets": [
+    "固定資産圧縮損",
+    "備品圧縮損",
+    "建物圧縮損",
+    "機械装置圧縮損"
+  ],
+  "LossOnRetirementOfFixedAssets": [
+    "固定資産除却損",
+    "固定資産廃棄損",
+    "備品除却損",
+    "建物除却損",
+    "除却損"
+  ],
+  "LossOnSalesOfElectronicallyRecordedReceivables": [
+    "電子記録債権売却損"
+  ],
+  "LossOnSalesOfFixedAssets": [
+    "固定資産売却損",
+    "備品売却損",
+    "建物売却損",
+    "土地売却損"
+  ],
+  "LossOnSalesOfInvestmentSecurities": [
+    "投資有価証券売却損",
+    "その他有価証券売却損"
+  ],
+  "LossOnSalesOfNotesReceivable": [
+    "手形売却損"
+  ],
+  "LossOnSalesOfReceivables": [
+    "債権売却損"
+  ],
+  "LossOnSalesOfSecurities": [
+    "有価証券売却損",
+    "有価証券売買損",
+    "有価証券運用損"
+  ],
+  "LossOnValuationOfMerchandise": [
+    "商品評価損",
+    "棚卸評価損"
+  ],
+  "LossOnValuationOfSecurities": [
+    "有価証券運用損",
+    "有価証券評価損",
+    "有価証券評価損益",
+    "有価証券運用損益"
+  ],
+  "Machinery": [
+    "機械装置",
+    "機械"
+  ],
+  "MaintenanceExpenses": [
+    "保守費",
+    "維持費",
+    "支払メンテナンス料"
+  ],
+  "MembershipFees": [
+    "諸会費"
+  ],
+  "MerchandiseInventory": [
+    "繰越商品"
+  ],
+  "MiscellaneousExpenses": [
+    "雑費"
+  ],
+  "MiscellaneousIncome": [
+    "雑益",
+    "雑収入",
+    "雑収益"
+  ],
+  "MiscellaneousLoss": [
+    "雑損",
+    "雑損失"
+  ],
+  "NetDefinedBenefitAsset": [
+    "退職給付に係る資産"
+  ],
+  "NetDefinedBenefitLiability": [
+    "退職給付に係る負債"
+  ],
+  "NetIncomeAttributableToNCI": [
+    "非支配株主に帰属する当期純利益"
+  ],
+  "NetLossAttributableToNCI": [
+    "非支配株主に帰属する当期純損失"
+  ],
+  "NonControllingInterests": [
+    "非支配株主持分"
+  ],
+  "NonOperatingElectronicallyRecordedObligations": [
+    "営業外電子記録債務"
+  ],
+  "NonOperatingElectronicallyRecordedReceivable": [
+    "営業外電子記録債権"
+  ],
+  "NonOperatingNotesPayable": [
+    "営業外支払手形"
+  ],
+  "NonOperatingNotesReceivable": [
+    "営業外受取手形"
+  ],
+  "NotesLoansPayable": [
+    "借入金",
+    "手形借入金"
+  ],
+  "NotesLoansReceivable": [
+    "貸付金",
+    "手形貸付金"
+  ],
+  "NotesPayable": [
+    "支払手形"
+  ],
+  "NotesReceivable": [
+    "受取手形"
+  ],
+  "OperatingExpenses": [
+    "営業費用"
+  ],
+  "OperatingRevenue": [
+    "営業収益"
+  ],
+  "OtherCapitalSurplus": [
+    "その他資本剰余金"
+  ],
+  "OtherPayables": [
+    "未払金"
+  ],
+  "OtherReceivables": [
+    "未収入金",
+    "未収金"
+  ],
+  "Patent": [
+    "特許権"
+  ],
+  "PaymentFees": [
+    "支払手数料",
+    "販売手数料"
+  ],
+  "PaymentsOnBehalf": [
+    "立替金",
+    "従業員立替金"
+  ],
+  "PettyCash": [
+    "小口現金"
+  ],
+  "PrepaidCorporateIncomeTaxes": [
+    "仮払金",
+    "仮払法人税等"
+  ],
+  "PrepaidExpenses": [
+    "前払費用",
+    "前払保険料"
+  ],
+  "PrepaidPensionCost": [
+    "前払年金費用"
+  ],
+  "Products": [
+    "商品"
+  ],
+  "PropertyTaxPayable": [
+    "未払固定資産税"
+  ],
+  "ProvisionForBonuses": [
+    "賞与引当金繰入",
+    "役員賞与引当金繰入"
+  ],
+  "ProvisionForDoubtfulAccounts": [
+    "貸倒引当金繰入",
+    "貸倒引当金繰入額"
+  ],
+  "ProvisionForProductWarranties": [
+    "商品保証引当金繰入",
+    "製品保証引当金繰入"
+  ],
+  "ProvisionForRepairs": [
+    "修繕引当金繰入",
+    "特別修繕引当金繰入"
+  ],
+  "PurchaseRebates": [
+    "仕入割戻"
+  ],
+  "Purchases": [
+    "仕入"
+  ],
+  "ReceiptFee": [
+    "受取手数料"
+  ],
+  "RecoveryOfBadDebts": [
+    "償却債権取立益"
+  ],
+  "RefundLiabilities": [
+    "返金負債"
+  ],
+  "RefundOfIncomeTaxes": [
+    "還付法人税等"
+  ],
+  "RentExpense": [
+    "支払家賃",
+    "地代家賃",
+    "支払賃借料",
+    "支払不動産賃借料"
+  ],
+  "RentalIncome": [
+    "受取家賃"
+  ],
+  "RepairFundReserve": [
+    "修繕積立金"
+  ],
+  "RepairsExpense": [
+    "修繕費",
+    "支払修繕料",
+    "修理費"
+  ],
+  "ResearchAndDevelopmentExpenses": [
+    "研究開発費"
+  ],
+  "RetainedEarnings": [
+    "繰越利益剰余金"
+  ],
+  "RetirementBenefitExpenses": [
+    "退職給付費用",
+    "退職給付引当金繰入",
+    "退職給付引当損"
+  ],
+  "ReversalOfAllowanceForDoubtfulAccounts": [
+    "貸倒引当金戻入",
+    "貸倒引当金戻入益"
+  ],
+  "ReversalOfAllowanceForProductWarranties": [
+    "商品保証引当金戻入",
+    "製品保証引当金戻入"
+  ],
+  "ReversalOfAllowanceForRepairs": [
+    "修繕引当金戻入"
+  ],
+  "Sales": [
+    "売上"
+  ],
+  "SalesCost": [
+    "売上原価"
+  ],
+  "SalesRebates": [
+    "売上割戻"
+  ],
+  "Securities": [
+    "有価証券"
+  ],
+  "SecurityDepositsPaid": [
+    "差入保証金"
+  ],
+  "ServiceRevenue": [
+    "役務収益",
+    "営業収益"
+  ],
+  "ShortTermLoansPayable": [
+    "短期借入金"
+  ],
+  "ShortTermLoansReceivable": [
+    "短期貸付金"
+  ],
+  "Software": [
+    "ソフトウェア"
+  ],
+  "SoftwareInProgress": [
+    "ソフトウェア仮勘定"
+  ],
+  "StatutoryWelfareExpenses": [
+    "法定福利費",
+    "社会保険料"
+  ],
+  "StockIssuanceCosts": [
+    "株式交付費"
+  ],
+  "StockSubscriptionDeposits": [
+    "株式申込証拠金",
+    "申込証拠金",
+    "新株式申込証拠金"
+  ],
+  "StorageExpenses": [
+    "保管費",
+    "保管料",
+    "倉庫料"
+  ],
+  "Structures": [
+    "構築物"
+  ],
+  "SubsidiaryStocks": [
+    "子会社株式",
+    "関係会社株式"
+  ],
+  "SuppliesExpenses": [
+    "消耗品費",
+    "事務用消耗品費"
+  ],
+  "SuppliesOnHand": [
+    "貯蔵品"
+  ],
+  "SuspenseAccount": [
+    "未決算",
+    "火災未決算",
+    "保険未決算"
+  ],
+  "SuspensePayments": [
+    "仮払金"
+  ],
+  "SuspenseReceipts": [
+    "仮受金"
+  ],
+  "TaxesExpense": [
+    "租税公課",
+    "公租公課",
+    "固定資産税",
+    "印紙税"
+  ],
+  "TimeDeposits": [
+    "銀行預金",
+    "定期預金",
+    "定期預金○○銀行"
+  ],
+  "ToolsAndInstruments": [
+    "工具器具"
+  ],
+  "Trademark": [
+    "商標権"
+  ],
+  "TradingSecurities": [
+    "売買目的有価証券",
+    "有価証券"
+  ],
+  "UnearnedRevenue": [
+    "前受収益",
+    "前受地代"
+  ],
+  "UnpaidDividends": [
+    "未払配当金",
+    "未払株主配当金"
+  ],
+  "UtilitiesExpense": [
+    "水道光熱費",
+    "光熱水費"
+  ],
+  "ValuationDifferenceOnOtherSecurities": [
+    "その他有価証券評価差額金"
+  ],
+  "Vehicle": [
+    "車両運搬具",
+    "車両",
+    "運搬具"
+  ],
+  "WageExpenditure": [
+    "給料",
+    "給料手当",
+    "賃金給料"
+  ],
+  "WelfareExpenses": [
+    "福利厚生費"
+  ],
+  "WorkInProcess": [
+    "仕掛品"
+  ]
+}

@@ -150,6 +150,11 @@ constructor and must not be treated as lossless sub-ledger coverage.
    `有価証券運用損益`), the task must select the
    contextually correct constructor and record the choice in
    `map_note`; do not select by candidate order.
+   The Python scorer mirrors the same frozen `queries.tsv` outcomes in
+   `runner/data/jcci-aliases.json`, applies NFKC before lookup, and keeps
+   ambiguous labels as candidate lists resolved by posting side and amount.
+   `商品` is not an alias of `MerchandiseInventory`, because that would admit a
+   non-three-account-method posting in three-account-method tasks.
 4. GT name with a clear non-JCCI EA counterpart → map to it
    (`Inventory → MerchandiseInventory`).
 5. GT name with NO EA counterpart:

@@ -26,7 +26,7 @@ Arguments
                       Loader feedback mode for arm Aprime (default raw).
 --c-retries <int>     Retry count for arm C after first failure (default 1).
 --c-ea-map            Include EA account mapping in arm C prompts.
---chart-of-accounts <none|task>
+--chart-of-accounts <none|task|standard>
                       Supply the task chart/account classes to every arm.
 --v-gate <legacy|full>
                       Arm V gate profile (default full).
@@ -528,37 +528,37 @@ def run_one(
             arm_result = arm_c(
                 task, backend, max_iters=max_iters,
                 retries=c_retries, include_ea_map=c_ea_map,
-                include_task_chart=chart_of_accounts == "task",
+                include_task_chart=chart_of_accounts,
                 scoring_contract=scoring_contract,
             )
         elif arm_name == "A":
             arm_result = arm_a(task, backend, task_run_dir, WORKTREE_ROOT,
                                max_iters=max_iters, skill_version=skill,
                                scoring_contract=scoring_contract,
-                               include_task_chart=chart_of_accounts == "task")
+                               include_task_chart=chart_of_accounts)
         elif arm_name == "Aprime":
             arm_result = arm_aprime(
                 task, backend, task_run_dir, WORKTREE_ROOT,
                 max_iters=max_iters, feedback_mode=aprime_feedback,
                 scoring_contract=scoring_contract,
-                include_task_chart=chart_of_accounts == "task",
+                include_task_chart=chart_of_accounts,
             )
         elif arm_name == "V":
             arm_result = arm_v(task, backend, task_run_dir, WORKTREE_ROOT,
                                max_iters=max_iters,
                                scoring_contract=scoring_contract,
-                               include_task_chart=chart_of_accounts == "task",
+                               include_task_chart=chart_of_accounts,
                                v_gate=v_gate)
         elif arm_name == "B":
             arm_result = arm_b(task, backend, task_run_dir,
                                max_iters=max_iters,
                                scoring_contract=scoring_contract,
-                               include_task_chart=chart_of_accounts == "task")
+                               include_task_chart=chart_of_accounts)
         elif arm_name == "D":
             arm_result = arm_d(task, backend, task_run_dir, WORKTREE_ROOT,
                                max_iters=max_iters,
                                scoring_contract=scoring_contract,
-                               include_task_chart=chart_of_accounts == "task")
+                               include_task_chart=chart_of_accounts)
         else:
             arm_result = {"parse_fail": True, "compile_fail": False,
                           "parsed": None, "stub": True,
@@ -932,7 +932,7 @@ def main() -> None:
         help="Include EA account mapping in arm C prompts",
     )
     parser.add_argument(
-        "--chart-of-accounts", choices=("none", "task"), default="none",
+        "--chart-of-accounts", choices=("none", "task", "standard"), default="none",
         help="Account vocabulary supplied identically to all arms (default none preserves historical prompts)",
     )
     parser.add_argument(

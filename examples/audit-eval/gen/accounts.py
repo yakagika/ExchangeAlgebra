@@ -246,6 +246,12 @@ ACCOUNT_DIVISIONS: dict[str, str] = {
     'ConsumptionTaxRefundReceivable': 'asset',
     'PropertyTaxPayable': 'liability',
     'DepositsReceivedFromOfficers': 'liability',
+    # 2026-09-13: registry additions (develop be05249, practical expense / manufacturing inventory titles)
+    'EntertainmentExpenses': 'expense',
+    'MeetingExpenses': 'expense',
+    'NewspaperBooksExpenses': 'expense',
+    'RawMaterials': 'asset',
+    'GoodsInTransit': 'asset',
 }
 
 CANONICAL_ACCOUNT_TITLES: tuple[str, ...] = tuple(ACCOUNT_DIVISIONS)

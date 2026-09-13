@@ -169,7 +169,7 @@ A only.
 | `--skill {v1,v2,v3}` | `v1` | Selects the versioned SKILL file for arm A only; v3 requires `harness/SKILL-ea-v3.md` |
 | `--c-retries INT` | `1` | Number of arm-C retries after the first parse/shape failure |
 | `--c-ea-map` | off | Includes the EA account mapping line in arm-C prompts for information-budget pilots |
-| `--chart-of-accounts {none,task}` | `none` | `task` supplies `given.chart_of_accounts` and `given.accounts` in one identical vocabulary block to every arm; `none` preserves historical prompts |
+| `--chart-of-accounts {none,task,standard}` | `none` | `task` supplies `given.chart_of_accounts` and `given.accounts`; `standard` supplies the fixed JCCI level 2/3 chart in `runner/data/standard-chart-jcci.json`. Either block is identical across arms; `none` preserves historical prompts |
 | `--v-gate {legacy,full}` | `full` | `legacy` preserves experiment-1 positive-amount/per-entry balance checks; `full` also reconciles transaction ids and rejects account names unresolved by the scorer dictionary |
 | `--cell-manifest PATH` | none | Restricts the task × arm × model grid to sealed manifest rows; requires the expected digest flag |
 | `--expect-cell-manifest-sha256 DIGEST` | none | Verifies the raw manifest file before any model call; requires `--cell-manifest` |
@@ -296,8 +296,12 @@ GT names (US-GAAP textbook English) and EA `AccountTitles` (日商簿記系 cano
 diverge systematically (`Inventory` vs `MerchandiseInventory`). Each task carries
 an `ea_account_map` (GT name → EA canonical name) next to `chart_of_accounts`;
 scoring treats GT name, EA name and normalization-dictionary synonyms as
-identical. A hallucinated account is only a name that resolves through none of
-these. V-Land 3 covers all 316 distinct normalized A/B queries in the JCCI 2022
+identical. The scorer also loads the generated Python mirror
+`runner/data/jcci-aliases.json`, so JCCI A/B Japanese labels are NFKC-normalized
+and resolve to the same collision-aware GT candidates used by the V gate.
+`商品` is deliberately not accepted as an alias of `MerchandiseInventory`.
+A hallucinated account is only a name that resolves through none of these.
+V-Land 3 covers all 316 distinct normalized A/B queries in the JCCI 2022
 fixture: 295 resolve uniquely and 21 return an explicitly frozen candidate set.
 Accounts still absent from EA use a provisional alias recorded in the map with
 a `map_note` — an accounting-review point.
