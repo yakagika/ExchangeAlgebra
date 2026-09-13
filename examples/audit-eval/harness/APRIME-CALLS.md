@@ -5,10 +5,9 @@ Arm A′ emits one JSON object containing ordinary/source postings and an ordere
 contract. The checked loader remains responsible for semantic validation and
 execution.
 
-This is a design target, not a description of the current `LoadChecked.hs`:
-that loader does not yet parse `calls` or dispatch catalog functions. The v3
-endpoint/flag must be additive so frozen v2 replay can retain the current
-optional `txid` / `entry` compatibility path.
+`LoadChecked.hs --contract v3` implements this contract. Omitted `--contract`
+and explicit `--contract v2` retain the frozen optional `txid` / `entry`
+compatibility path. The runner selects v3 with `--aprime-contract v3`.
 
 ## Contract
 
@@ -56,10 +55,9 @@ JSON Schema cannot express every accounting precondition. After schema
 validation, the loader must also check:
 
 - `straightLineDepreciation`: `salvage <= cost`, `period <= years`, and the
-  declared rounding policy. `method` is an annotation default in JSON Schema,
-  not value insertion; the loader applies `indirect` when absent. `rounding` may
-  be omitted only when the full-year quotient is exact. Mid-period proration is
-  outside this recipe.
+  exact full-year quotient. The loader applies `indirect` when `method` is
+  absent. `rounding` is forbidden. A nonterminating decimal quotient is
+  `invalid_call_params`; `period` identifies a full year, without proration.
 - Consumption tax: `received >= paid` for the supported no-refund case.
 - Corporate tax: `interim <= total` for the supported no-refund case.
 - Account role: an `expenseAccount`, `revenueAccount`, or `assetAccount` must
@@ -75,7 +73,7 @@ validation, the loader must also check:
 
 ## Execution model
 
-The intended loader pipeline is:
+The implemented v3 loader pipeline is:
 
 1. Parse the JSON object and validate it against the schema.
 2. Resolve all account strings, call names, and txid references without
@@ -83,23 +81,27 @@ The intended loader pipeline is:
    that consumes it or from trusted task metadata; never infer privilege from
    an account's capability.
 3. Partition raw postings by that assigned context. An unreferenced txid is
-   `OrdinaryJournal`. Run `checkedEntryTextIn` or
+   `OrdinaryJournal` unless trusted task metadata declares closing processing.
+   Disclosed ordinary transaction ids remain `OrdinaryJournal` within a closing
+   task. Run `checkedEntryTextIn` or
    `certifyJournalTextIn` for each txid under that context.
 4. Execute calls from left to right. Each call returns a balanced algebra value,
-   a validated worksheet, or an engine projection. Attach synthetic provenance
-   such as `call:2:accruedExpenseEntry` to generated postings.
+   a validated source/elimination recipe, or an engine projection. Preserve the
+   optional call `txid`, defaulting to `call:<zero-based-index>:<name>`.
 5. Reject direct protected-coordinate postings and duplicate economic effects.
 6. Combine validated ordinary postings and generated adjustments. Apply closing
    and consolidation operations only at their declared stage.
-7. Derive canonical postings, ledger, trial balance, metrics, and presentation
-   from the resulting EA value. The runner maps engine values to the task's
-   predeclared `format_note` keys; the model does not supply derived keys or
-   values. Preserve accepted `decision`, `findings`, or `conditional` data as
-   non-derived output components.
+7. Emit canonical `journal` postings with txids and executed-call `provenance`.
+   Preserve schema-valid `decision`, `findings`, and `conditional`. Derived
+   ledger, trial balance and statements are computed separately by the runner
+   through `derive_fn` / `DeriveEA.hs`; no model-derived field is accepted.
 
 The optional `sources` array retains the existing `reconcileSources` contract:
-each source id must match a txid and its amount must equal that txid's debit
-total. It is independent of consolidation entity provenance.
+each source id must match a canonical txid and its amount must equal that
+ txid's debit total, including generated entries. The v3 array can cover only
+ the transactions with declared numeric source amounts; opening and parameter-only
+ transactions need no fabricated scalar amount. V2 retains full coverage checks.
+ This is independent of consolidation entity provenance.
 
 The raw feedback mode should return the stable reason without a suggested fix,
 for example:
@@ -139,9 +141,8 @@ calculate annual depreciation or retained earnings.
 }
 ```
 
-The proposed loader applies the indirect method when `method` is absent,
-computes the full-year period amount under the explicit rounding rule when one
-is needed, and calls `depreciationIndirectEntry`. The final call
+The v3 loader applies the indirect method when `method` is absent,
+computes the exact full-year amount, and calls `depreciationIndirectEntry`. The final call
 uses registry closing metadata and `bar`; the model does not post to
 `RetainedEarnings`.
 
@@ -166,7 +167,7 @@ uses registry closing metadata and `bar`; the model does not post to
 }
 ```
 
-The proposed loader computes the allowance difference. It does not accept a model-supplied
+The v3 loader computes the allowance difference. It does not accept a model-supplied
 `ProvisionForDoubtfulAccounts` amount as a replacement for the call.
 
 ## Example 3: intercompany elimination
@@ -201,10 +202,11 @@ adjustment, not an entity's ordinary journal entry.
 }
 ```
 
-The proposed loader validates each elimination txid independently under the
-`ConsolidationWorksheet` capability boundary, preserves its referenced source
-entities in a `ValidatedConsolidationBatch`, then applies the fixed
-`bar`-netting recipe. It does not construct the library's full
+The v3 loader validates each elimination txid independently under the
+`ConsolidationWorksheet` capability boundary, validates distinct entity names
+and disjoint source/elimination references, then applies the fixed `bar`-netting
+recipe. Source and elimination postings remain once each in the canonical
+journal. The recipe appends no duplicate elimination postings. It does not construct the library's full
 `ValidatedWorksheet`, because that type requires caller-supplied statement
 linkage facts that cannot be derived from the unlabelled algebra. It rejects a pair of individually unbalanced
 eliminations even if their combined total happens to balance.
@@ -224,3 +226,87 @@ corresponding `findings` and `decision` fields.
 `currencyTranslationWithCTA` is also absent from this schema until an FX policy,
 rounding rule, and authoritative ground truth are fixed. Its proposed recipe is
 recorded in `CATALOG.md`.
+
+## v3 runner boundary and experiment-2 fact parameters
+
+`aprime-calls.schema.json` describes model output. `opening` and `task` are
+absent from that schema: the runner rejects either field in model output as
+`forbidden_field`, then injects trusted task facts into the loader request:
+
+```json
+{
+  "opening": {"txid": "opening", "rows": [
+    {"side": "debit", "account": "Cash", "amount": 100},
+    {"side": "credit", "account": "RetainedEarnings", "amount": 100}
+  ]},
+  "task": {"category": "closing", "closing_txid": "close-income",
+           "ordinary_txids": ["period-sale"]}
+}
+```
+
+The loader is a harness-internal endpoint, not a model-callable authority.
+Opening is checked under `EngineComputation`; raw postings never gain this
+origin. A raw or generated txid colliding with the opening id fails with
+`opening_preloaded_by_harness`. `finalStockTransfer` adopts the trusted
+`closing_txid`; an explicitly different call txid is `closing_txid_mismatch`.
+Other generated txids must be distinct and cannot collide with raw txids.
+The trusted closing id is reserved even when no closing call was supplied;
+raw reuse fails as `direct_posting_forbidden`. GeneralReserve is protected along
+with retained-earnings coordinates. Raw P/L-to-equity transfers are forbidden,
+including attempts to close to CapitalStock or capital-surplus accounts;
+ordinary cash/equity transactions remain subject to the normal raw policy.
+This conservative experiment boundary also excludes a composite raw entry
+mixing issuance expense and share capital; such owner-transaction cases are
+outside the generated experiment-2 suite.
+
+The 21 call names stay fixed. To pass `given.adjustment_data` facts without
+model amount calculation, these calls additionally accept disjoint parameter
+forms, each with `additionalProperties: false`:
+
+| Call | Fact parameters | Exact engine calculation |
+|---|---|---|
+| `allowanceReplenishmentEntry` | `rate_basis_points` | Net AccountsReceivable × rate / 10000 gives the estimate; net AllowanceForDoubtfulAccounts gives current allowance. |
+| `prepaidExpenseEntry` | `payment_total`, `coverage_months`, `next_period_months`, `expenseAccount` | Payment × next-period months / coverage months. |
+| `accruedExpenseEntry` | `principal`, `annual_rate_basis_points`, `accrued_months`, `months_per_year`, `expenseAccount` | Principal × rate × months / (10000 × months per year). |
+
+The existing amount/estimate forms remain available. Straight-line facts map
+`residual_value` to `salvage` and `useful_life_years` to `years`; `period=1` is
+used for the generated full-year suite. COGS maps the two inventory facts to
+`beginningInventory` and `endingInventory`. Models copy declared `adj-*` ids
+into call `txid` and never repeat the trusted opening.
+
+Numbers are parsed into `MoneyDecimal` directly from tokens, supporting at most
+255 fractional decimal places. A syntactically valid but unrepresentable amount
+is a structured data rejection, not an infrastructure error. Nonterminating
+recipe quotients fail instead of rounding. Account parameters must be exact registered constructor names with
+the stated expense, revenue or asset classification.
+
+Unreferenced raw txids use `OrdinaryJournal`, except a trusted closing task
+assigns `ClosingProcess`. The additive trusted `task.ordinary_txids` field lists
+ordinary transactions disclosed by `given.transactions` with numeric source
+amounts. Those ids retain `OrdinaryJournal` even in a closing task. This is
+necessary because an actual period depreciation or interest transaction can
+coincide in amount with a separate closing adjustment. The model cannot supply
+`task`, and a model-authored `sources` claim does not exempt duplicate effects.
+Consuming consolidation calls assign source txids to
+`OrdinaryJournal` and elimination txids to `ConsolidationWorksheet`. Every group
+is balanced independently. Same-stage exact raw/call effects fail as
+`duplicate_effect`; any overlapping exact leg fails as
+`possible_duplicate_effect`. Raw protected coordinates remain forbidden in all
+of these contexts. Consolidation validates declared entity names, disjoint
+membership and each referenced txid; it does not independently establish the
+economic truth of model-declared entity membership. This is the coordinator's
+unscored-linkage boundary. The raw feedback is `input: <reason>`, without remediation.
+
+Closing emits the balanced delta between `finalStockTransfer ledger` and the
+before-closing ledger, keeping the opening/raw/adjustment transaction trail.
+The runner calls the existing EA derivation on the canonical full journal and
+its pre-closing subset, composing ledger/BS from the former and trial balance/IS
+from the latter. This matches `closingDerivedPairs` without invoking the
+existing `mode=closing` input recipe a second time. Consolidation derives the
+already-eliminated canonical journal directly, also avoiding a second recipe
+application. Txids are copied to DeriveEA's existing `entry` field.
+
+Conformance lives in `runner/tests/test_conformance.py`; all 21 dispatch
+branches and additional schema/security boundaries are exercised in
+`runner/tests/test_aprime_catalog.py`. V2 replay parity remains a separate test.

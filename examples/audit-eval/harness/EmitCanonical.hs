@@ -52,6 +52,7 @@ module EmitCanonical
       -- defined equivalents unify with these signatures anyway.
       postingJSON
     , postingsJSON
+    , postingsWithTxidsJSON
     , emitJournal
       -- * Generic JSON values (for derived / findings / decision components)
     , JVal(..)
@@ -70,6 +71,7 @@ module EmitCanonical
 import ExchangeAlgebra hiding (map)
 import Data.Decimal (Decimal)
 import Data.List (intercalate)
+import Numeric (showHex)
 
 ------------------------------------------------------------------
 -- Canonical journal (algebra -> JSON; the only allowed projection)
@@ -213,3 +215,17 @@ componentJSON (RawComp v)      = jsonEncode v
 emitObject :: [(String, Component)] -> IO ()
 emitObject kvs =
     putStrLn $ "{" ++ intercalate "," [ jstr k ++ ":" ++ componentJSON v | (k, v) <- kvs ] ++ "}"
+
+-- | Additive v3 renderer. Preserve the certified transaction/call note while
+-- deriving every accounting coordinate through the existing canonical printer.
+postingsWithTxidsJSON :: [(String, MinTx)] -> String
+postingsWithTxidsJSON entries = "[" ++ intercalate ","
+    [ "{\"txid\":" ++ quote tid ++ "," ++ drop 1 (postingJSON x)
+    | (tid, alg) <- entries, x <- toList alg ] ++ "]"
+  where
+    quote s = '"' : concatMap escape s ++ "\""
+    escape '"' = "\\\""
+    escape '\\' = "\\\\"
+    escape c | fromEnum c < 32 = "\\u" ++ replicate (4-length h) '0' ++ h
+      where h = showHex (fromEnum c) ""
+    escape c = [c]

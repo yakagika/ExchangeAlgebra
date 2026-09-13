@@ -24,6 +24,8 @@ Arguments
 --skill <v1|v2|v3>    Arm A SKILL file version (default v1).
 --aprime-feedback <raw|rich>
                       Loader feedback mode for arm Aprime (default raw).
+--aprime-contract <v2|v3>
+                      Loader/program contract for arm Aprime (default v2).
 --c-retries <int>     Retry count for arm C after first failure (default 1).
 --c-ea-map            Include EA account mapping in arm C prompts.
 --chart-of-accounts <none|task|standard>
@@ -78,7 +80,7 @@ ARMS_DIR     = EVAL_DIR / "arms"                  # ignored by git
 CELL_FIELDS = ("task_id", "arm", "model", "seed", "repeat")
 RESUME_CONFIG_FIELDS = (
     "tasks", "arms", "models", "seeds", "repeats", "max_iters",
-    "oracle_arms", "skill", "aprime_feedback", "c_retries", "c_ea_map",
+    "oracle_arms", "skill", "aprime_feedback", "aprime_contract", "c_retries", "c_ea_map",
     "chart_of_accounts", "v_gate", "scoring_contract",
     "cell_manifest_sha256",
 )
@@ -86,6 +88,7 @@ HISTORICAL_RESUME_DEFAULTS = {
     "v_gate": "legacy",
     "chart_of_accounts": "none",
     "scoring_contract": "v1",
+    "aprime_contract": "v2",
     "cell_manifest_sha256": None,
 }
 MEASUREMENT_SURFACE = (
@@ -236,10 +239,13 @@ def collect_resume_keys(meta_path: Path, planned: set[tuple], current_meta: dict
             parent_value = HISTORICAL_RESUME_DEFAULTS[field]
         else:
             continue
-        if parent_value != current_meta.get(field):
+        current_value = current_meta.get(
+            field, HISTORICAL_RESUME_DEFAULTS.get(field)
+        )
+        if parent_value != current_value:
             raise ValueError(
                 f"resume config drift for {field}: "
-                f"parent={parent_value!r}, current={current_meta.get(field)!r}"
+                f"parent={parent_value!r}, current={current_value!r}"
             )
     parent_digest = root.get("task_bundle_sha256") or expected_task_bundle
     if not parent_digest:
@@ -487,6 +493,7 @@ def run_one(
     v_gate: str,
     scoring_contract: str,
     repeat: int = 0,
+    aprime_contract: str = "v2",
 ) -> dict:
     """Execute one evaluation cell and return a result record."""
     if dry_run:
@@ -506,6 +513,7 @@ def run_one(
             "cli_version": None,
             "skill": skill if arm_name == "A" else None,
             "aprime_feedback": aprime_feedback if arm_name == "Aprime" else None,
+            "aprime_contract": aprime_contract if arm_name == "Aprime" else None,
             "chart_of_accounts": chart_of_accounts,
             "v_gate": v_gate if arm_name == "V" else None,
             "scoring_contract": scoring_contract,
@@ -542,6 +550,7 @@ def run_one(
                 max_iters=max_iters, feedback_mode=aprime_feedback,
                 scoring_contract=scoring_contract,
                 include_task_chart=chart_of_accounts,
+                aprime_contract=aprime_contract,
             )
         elif arm_name == "V":
             arm_result = arm_v(task, backend, task_run_dir, WORKTREE_ROOT,
@@ -612,6 +621,7 @@ def run_one(
         ),
         "skill": skill if arm_name == "A" else None,
         "aprime_feedback": aprime_feedback if arm_name == "Aprime" else None,
+        "aprime_contract": aprime_contract if arm_name == "Aprime" else None,
         "chart_of_accounts": chart_of_accounts,
         "v_gate": v_gate if arm_name == "V" else None,
         "scoring_contract": scoring_contract,
@@ -664,7 +674,7 @@ def append_summary_csv(records: list[dict], csv_path: Path, ts: str) -> None:
         "verification_gap", "iterations", "converged", "timed_out",
         "first_pass_valid", "effective_model", "effective_model_source",
         "configured_model", "configured_effort", "cli_version",
-        "skill", "aprime_feedback",
+        "skill", "aprime_feedback", "aprime_contract",
         "scoring_contract",
         "derived_source", "prompt_tokens", "completion_tokens", "finish_reason",
         "temperature", "top_p",
@@ -745,6 +755,7 @@ def append_summary_csv(records: list[dict], csv_path: Path, ts: str) -> None:
                 "cli_version":        rec.get("cli_version"),
                 "skill":              rec.get("skill"),
                 "aprime_feedback":    rec.get("aprime_feedback"),
+                "aprime_contract":    rec.get("aprime_contract", "v2"),
                 "scoring_contract":   rec.get("scoring_contract", "v1"),
                 "derived_source":     rec.get("derived_source"),
                 "prompt_tokens":      call.get("prompt_tokens"),
@@ -823,6 +834,7 @@ def build_run_meta(
         "oracle_arms": list(oracle_arms),
         "skill": args.skill,
         "aprime_feedback": args.aprime_feedback,
+        "aprime_contract": getattr(args, "aprime_contract", "v2"),
         "c_retries": args.c_retries,
         "c_ea_map": args.c_ea_map,
         "chart_of_accounts": args.chart_of_accounts,
@@ -917,6 +929,10 @@ def main() -> None:
     parser.add_argument(
         "--aprime-feedback", choices=("raw", "rich"), default="raw",
         help="Checked-loader feedback mode for arm Aprime (default raw)",
+    )
+    parser.add_argument(
+        "--aprime-contract", choices=("v2", "v3"), default="v2",
+        help="Checked-loader contract for arm Aprime (default v2)",
     )
     parser.add_argument(
         "--skill", choices=("v1", "v2", "v3"), default="v1",
@@ -1035,6 +1051,7 @@ def main() -> None:
     print(f"  oracle arms : {list(oracle_arms)}")
     print(f"  skill       : {args.skill}")
     print(f"  Aprime fb   : {args.aprime_feedback}")
+    print(f"  Aprime contract: {args.aprime_contract}")
     print(f"  C retries   : {args.c_retries}  C ea_map={args.c_ea_map}")
     print(f"  chart       : {args.chart_of_accounts}")
     print(f"  V gate      : {args.v_gate}")
@@ -1160,6 +1177,7 @@ def main() -> None:
                             oracle_arms=oracle_arms,
                             skill=args.skill,
                             aprime_feedback=args.aprime_feedback,
+                            aprime_contract=args.aprime_contract,
                             c_retries=args.c_retries,
                             c_ea_map=args.c_ea_map,
                             chart_of_accounts=args.chart_of_accounts,

@@ -343,3 +343,24 @@ a new file. `SKILL-ea-v2.md` reflects the amended semantics (Assets with
 The same file is advanced in place to v2.1 for V-Land 3 because the checked
 construction contract is unchanged; it now includes the 116 JCCI extension
 constructors and the three P/L contra accounts. `SKILL-ea-v1.md` remains frozen.
+
+### A′ named-call contract v3
+
+第 2 実験の A′ は `--aprime-contract v3` で選択する. 既定 `v2` と
+`LoadChecked.hs` の引数省略経路は frozen replay 用に維持する.
+v3 のモデル出力は txid 付き `postings` と 21 名の閉じた `calls`.
+期首残高は runner が `given` から前置し, 決算整理・締めの id は call の
+`txid` に写す. loader は exact decimal で仕訳を検査・生成し, 正準 journal
+と実行 call の provenance を返す. 派生値は正準 journal から EA が計算する.
+モデルの `opening` / `task` / 派生値は受け入れない.
+
+契約・事実入力 params は [APRIME-CALLS.md](harness/APRIME-CALLS.md),
+構造 schema は [aprime-calls.schema.json](harness/aprime-calls.schema.json).
+検証は repo root で `uv run --project examples/audit-eval pytest examples/audit-eval -q`.
+`runner/tests/test_conformance.py` が 4 kind の GT, 固定エラー, scorer,
+処置定数と SHA-256, v2 回帰を検査し, `test_aprime_catalog.py` が 21 call を網羅する.
+V full は構造・科目解決の gate であり, `category_violation` と
+`balance_mismatch` の意味的欠陥は検出しない. この境界も conformance に固定する.
+
+実装ファイル・全 21 call・(a)-(f) の件数・SHA-256・独立レビュー裁定は
+[実装・検証報告](runner/tests/APRIME-V3-REPORT.md) に記録した.

@@ -40,6 +40,8 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Optional
 
@@ -470,6 +472,55 @@ Additional checked-loader rules for arm A-prime:
   complete corrected JSON value in the same format.
 """
 
+_ARM_APRIME_V3_ROLE = _ARM_C_ROLE + """\
+
+Additional EA-Gate v3 rules for arm A-prime:
+- Output one JSON object with required arrays "postings" and "calls". Do not
+  output "journal", "derived", "opening", or "task". The harness supplies
+  opening balances and task staging, and derives all supported downstream
+  values from the accepted canonical journal. Do not emit opening-balance
+  postings or reuse given.opening_txid: the harness has already posted them.
+- A posting is {"txid","side","account","amount"}. Use an exact
+  ExchangeAlgebra AccountTitles constructor for account. Copy ordinary input
+  transaction ids to posting txid.
+- A catalog call is {"txid","name","params"}. Copy each adjusting
+  transaction id (including every adj-* id) and the task closing_txid to the
+  call txid. Do not also emit the postings produced by a catalog call.
+- For adjustments and closing, select a catalog call and copy the disclosed
+  given parameters into params. Do not calculate the resulting posting amount.
+- You may also supply "decision", "findings", or "conditional" when the task
+  asks for them. The checked loader validates and returns these components.
+- If the checked loader rejects the program, emit a complete corrected object
+  in the same format.
+
+Catalog (exact call name and params):
+- cogsAdjustmentEntries: beginningInventory, endingInventory
+- depreciationIndirectEntry: amount
+- depreciationDirectEntry: amount, asset
+- allowanceReplenishmentEntry: either estimate,current or rate_basis_points
+- allowanceResetEntries: estimate,current
+- prepaidExpenseEntry: either amount,expenseAccount or
+  payment_total,coverage_months,next_period_months,expenseAccount
+- unearnedRevenueEntry: amount,revenueAccount
+- accruedRevenueEntry: amount,revenueAccount
+- accruedExpenseEntry: either amount,expenseAccount or
+  principal,annual_rate_basis_points,accrued_months,months_per_year,expenseAccount
+- reversingEntry: sourceTxid
+- consumptionTaxSettlementEntry: paid,received
+- corporateTaxInterimEntry: amount
+- corporateTaxSettlementEntries: total,interim
+- equityMethodEarningsEntry: share
+- equityMethodDividendEntry: dividend
+- equityMethodEntries: share,dividend
+- equityMethodBalance: params {}
+- priorPeriodErrorCorrection: current,prior,expenseAccount,assetAccount
+- finalStockTransfer: params {}
+- straightLineDepreciation: asset,cost,salvage,years,period; optional method
+  (default indirect). Rounding MUST be omitted. Full-year amounts only.
+  Copy residual_value to salvage, useful_life_years to years, and use period=1.
+- consolidateInternalTransactions: entities,eliminationTxids
+"""
+
 # Arm V role: identical to _ARM_APRIME_ROLE except the validator sentence.
 # Arm V isolates the gate machinery (EA checked loader with vocabulary
 # resolution vs a generic balance-only checker) under an otherwise identical
@@ -590,7 +641,15 @@ def _txid_contract(task: dict) -> str:
     )
 
 
-def _arm_aprime_system(task: dict, scoring_contract: str = "v1") -> str:
+def _arm_aprime_system(
+    task: dict,
+    scoring_contract: str = "v1",
+    aprime_contract: str = "v2",
+) -> str:
+    if aprime_contract == "v3":
+        return _ARM_APRIME_V3_ROLE
+    if aprime_contract != "v2":
+        raise ValueError(f"unknown A-prime contract: {aprime_contract!r}")
     system = _ARM_APRIME_ROLE + "\n" + _output_contract(task, scoring_contract)
     if _task_has_transactions(task):
         system += (
@@ -996,13 +1055,21 @@ def _derived_for_contract(derived: dict, scoring_contract: str) -> dict:
     raise ValueError(f"unknown scoring contract: {scoring_contract!r}")
 
 
-def _canonical_journal_from_verdict(verdict: dict) -> Optional[list]:
+def _canonical_journal_from_verdict(
+    verdict: dict,
+    *,
+    exact_decimal: bool = False,
+) -> Optional[list]:
     journal = verdict.get("journal")
     if isinstance(journal, list):
         return journal
     if isinstance(journal, str):
         try:
-            parsed = json.loads(journal)
+            parsed = (
+                json.loads(journal, parse_float=Decimal)
+                if exact_decimal
+                else json.loads(journal)
+            )
         except json.JSONDecodeError:
             return None
         return parsed if isinstance(parsed, list) else None
@@ -1015,15 +1082,231 @@ def _truncate_verdict(verdict: Optional[dict]) -> Optional[str]:
     return _truncate(json.dumps(verdict, ensure_ascii=False, default=str), 2000)
 
 
-def _aprime_gate_feedback(verdict: dict, feedback_mode: str) -> str:
+def _aprime_gate_feedback(
+    verdict: dict,
+    feedback_mode: str,
+    aprime_contract: str = "v2",
+) -> str:
     key = "rich" if feedback_mode == "rich" else "raw"
     detail = str(verdict.get(key) or verdict.get("raw") or verdict)
+    if aprime_contract == "v3" and feedback_mode == "raw":
+        # The raw experimental condition exposes only stable loader error
+        # names. It must not turn the gate into an accounting tutor.
+        return detail[:3000]
     return (
         "Your previous postings were rejected by the ExchangeAlgebra checked loader.\n"
         "--- checked loader feedback ---\n"
         + detail[:3000]
         + "\nFix the postings and output the corrected COMPLETE JSON (same format)."
     )
+
+
+def _aprime_v3_sources(
+    task: dict,
+    excluded_ids: set[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Trusted numeric source amounts; parameter-only transactions are omitted."""
+    excluded_ids = excluded_ids or set()
+    txs = (task.get("given", {}) or {}).get("transactions")
+    if not isinstance(txs, list):
+        return []
+    sources = []
+    for tx in txs:
+        if not isinstance(tx, dict) or not isinstance(tx.get("id"), str):
+            continue
+        if tx["id"] in excluded_ids:
+            continue
+        amount = tx.get("amount")
+        if isinstance(amount, bool) or not isinstance(amount, (int, float)):
+            continue
+        sources.append({"id": tx["id"], "amount": amount})
+    return sources
+
+
+def _aprime_v3_loader_input(parsed: dict, task: dict) -> dict:
+    """Combine the model program with harness-owned task facts."""
+    given = task.get("given", {}) or {}
+    request = dict(parsed)
+    opening_ids = (
+        {given["opening_txid"]}
+        if isinstance(given.get("opening_txid"), str)
+        else set()
+    )
+    request["sources"] = _aprime_v3_sources(task, opening_ids)
+
+    opening_txid = given.get("opening_txid")
+    opening_balances = given.get("opening_balances")
+    if isinstance(opening_txid, str) and isinstance(opening_balances, list):
+        request["opening"] = {
+            "txid": opening_txid,
+            "rows": [
+                {
+                    "side": row.get("side"),
+                    "account": row.get("account"),
+                    "amount": row.get("amount"),
+                }
+                for row in opening_balances
+                if isinstance(row, dict)
+            ],
+        }
+
+    task_context: dict[str, Any] = {"category": task.get("category")}
+    if isinstance(given.get("closing_txid"), str):
+        task_context["closing_txid"] = given["closing_txid"]
+    # A dated ordinary transaction may happen to equal a closing adjustment.
+    # Only task facts can distinguish the stages; model-supplied sources cannot.
+    ordinary_ids = [source["id"] for source in _aprime_v3_sources(task)]
+    if ordinary_ids:
+        task_context["ordinary_txids"] = ordinary_ids
+    request["task"] = task_context
+    return request
+
+
+def _aprime_v3_json_dumps(value: Any) -> str:
+    """Encode Decimal as an exact JSON number while retaining normal JSON types."""
+    if isinstance(value, Decimal):
+        if not value.is_finite():
+            raise ValueError("non-finite Decimal is not valid JSON")
+        return str(value)
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return json.dumps(value, ensure_ascii=False, allow_nan=False)
+    if isinstance(value, list):
+        return "[" + ", ".join(_aprime_v3_json_dumps(item) for item in value) + "]"
+    if isinstance(value, dict):
+        parts = []
+        for key, item in value.items():
+            if not isinstance(key, str):
+                raise TypeError("A-prime v3 JSON object keys must be strings")
+            parts.append(
+                json.dumps(key, ensure_ascii=False)
+                + ": "
+                + _aprime_v3_json_dumps(item)
+            )
+        return "{" + ", ".join(parts) + "}"
+    raise TypeError(f"unsupported A-prime v3 JSON value: {type(value).__name__}")
+
+
+def _run_loadchecked_v3(
+    input_json: str,
+    worktree_root: Path,
+    timeout: int = 120,
+) -> Optional[dict]:
+    """Invoke the v3 loader without changing the frozen v2 build helper."""
+    script_path = worktree_root / "examples" / "audit-eval" / "harness" / "LoadChecked.hs"
+    harness_path = script_path.parent
+    if not script_path.exists():
+        return None
+    cmd = [
+        "stack",
+        "--stack-yaml", str(worktree_root / "stack.yaml"),
+        "exec",
+        "runghc",
+        "--",
+        f"-i{harness_path}",
+        str(script_path),
+        "--contract", "v3",
+    ]
+    try:
+        completed = subprocess.run(
+            cmd,
+            input=input_json,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            cwd=str(worktree_root),
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return None
+    if completed.returncode != 0:
+        return None
+    try:
+        verdict = json.loads(completed.stdout.strip(), parse_float=Decimal)
+    except (json.JSONDecodeError, ValueError):
+        return None
+    return verdict if isinstance(verdict, dict) else None
+
+
+def _aprime_derived_input(
+    canonical_journal: list[dict[str, Any]],
+    task: dict,
+    *,
+    adjusted: bool = False,
+) -> list[dict[str, Any]]:
+    """Translate canonical v3 txids to the entry key consumed by DeriveEA."""
+    closing_txid = (task.get("given", {}) or {}).get("closing_txid")
+    rows: list[dict[str, Any]] = []
+    for posting in canonical_journal:
+        if not isinstance(posting, dict):
+            continue
+        if adjusted and posting.get("txid") == closing_txid:
+            continue
+        row = dict(posting)
+        txid = row.pop("txid", None)
+        if txid is not None:
+            row["entry"] = txid
+        rows.append(row)
+    return rows
+
+
+def _aprime_derive_v3(
+    canonical_journal: list[dict[str, Any]],
+    task: dict,
+    derive_fn,
+) -> Optional[dict]:
+    """Run kind-aware derivation over the loader-certified v3 journal."""
+    full = derive_fn(_aprime_v3_json_dumps(
+        _aprime_derived_input(canonical_journal, task)
+    ))
+    full_derived = (full or {}).get("derived")
+    if not isinstance(full_derived, dict):
+        return None
+    if task.get("category") != "closing":
+        return full_derived
+
+    adjusted = derive_fn(_aprime_v3_json_dumps(
+        _aprime_derived_input(canonical_journal, task, adjusted=True)
+    ))
+    adjusted_derived = (adjusted or {}).get("derived")
+    if not isinstance(adjusted_derived, dict):
+        return None
+
+    adjusted_financial = {
+        "financial_statements.opening_equity",
+        "financial_statements.total_revenue",
+        "financial_statements.total_expenses",
+        "financial_statements.net_income",
+    }
+    return {
+        key: value
+        for source in (full_derived, adjusted_derived)
+        for key, value in source.items()
+        if (
+            (source is full_derived and (
+                key.startswith("ledger.")
+                or key in {
+                    "financial_statements.total_assets",
+                    "financial_statements.total_liabilities",
+                    "financial_statements.total_equity",
+                    "financial_statements.balance_check",
+                }
+            ))
+            or (source is adjusted_derived and (
+                key.startswith("trial_balance.") or key in adjusted_financial
+            ))
+        )
+    }
+
+
+def _validate_aprime_v3_shape(parsed: Any) -> Optional[str]:
+    if not isinstance(parsed, dict):
+        return 'one JSON object with required arrays "postings" and "calls"'
+    forbidden = [key for key in ("opening", "task") if key in parsed]
+    if forbidden:
+        return "forbidden_field:" + ",".join(forbidden)
+    missing = [key for key in ("postings", "calls") if not isinstance(parsed.get(key), list)]
+    if missing:
+        return "missing_or_invalid_field:" + ",".join(missing)
+    return None
 
 
 def _generic_balance_check(
@@ -1307,6 +1590,7 @@ def arm_aprime(
     derive_fn=None,
     scoring_contract: str = "v1",
     include_task_chart: bool = False,
+    aprime_contract: str = "v2",
 ) -> dict:
     """
     Arm A-prime: the LLM emits postings JSON directly, but the harness admits
@@ -1316,17 +1600,25 @@ def arm_aprime(
     del task_run_dir  # kept for dispatch symmetry with code-generating arms
     if feedback_mode not in {"raw", "rich"}:
         raise ValueError(f"feedback_mode must be 'raw' or 'rich', got {feedback_mode!r}")
+    if aprime_contract not in {"v2", "v3"}:
+        raise ValueError(
+            f"aprime_contract must be 'v2' or 'v3', got {aprime_contract!r}"
+        )
 
     if loadchecked_fn is None:
-        loadchecked_fn = lambda js: run_loadchecked(js, worktree_root)
+        loadchecked_fn = (
+            (lambda js: _run_loadchecked_v3(js, worktree_root))
+            if aprime_contract == "v3"
+            else (lambda js: run_loadchecked(js, worktree_root))
+        )
     if derive_fn is None:
         derive_fn = lambda js: run_derive_ea(js, worktree_root)
 
     user0 = _build_user_prompt(
         task, include_ea_map=True, include_task_chart=include_task_chart
     )
-    object_contract = task.get("expected_output") is not None
-    gate_applicable = _journal_contract_present(task)
+    object_contract = aprime_contract == "v3" or task.get("expected_output") is not None
+    gate_applicable = aprime_contract == "v3" or _journal_contract_present(task)
 
     result: dict[str, Any] = {
         "raw_output": None,
@@ -1345,6 +1637,8 @@ def arm_aprime(
         "timed_out": False,
         "raw_first_journal": None,
     }
+    if aprime_contract == "v3":
+        result.update(aprime_contract="v3", loadchecked_provenance=None)
 
     feedback: Optional[str] = None
 
@@ -1355,7 +1649,10 @@ def arm_aprime(
 
         try:
             raw = backend.generate(
-                system=_arm_aprime_system(task, scoring_contract), user=user
+                system=_arm_aprime_system(
+                    task, scoring_contract, aprime_contract=aprime_contract
+                ),
+                user=user,
             )
         except BackendTimeout as exc:
             attempt["error"] = f"backend timeout: {exc}"
@@ -1379,21 +1676,48 @@ def arm_aprime(
             continue
 
         try:
-            parsed_candidate = json.loads(json_str)
+            parsed_candidate = (
+                json.loads(json_str, parse_float=Decimal)
+                if aprime_contract == "v3"
+                else json.loads(json_str)
+            )
         except json.JSONDecodeError:
             attempt["error"] = "parse failure"
             result["attempts"].append(attempt)
             feedback = _ARM_C_RETRY_SUFFIX.strip()
             continue
 
-        shape_error = _validate_output_shape(parsed_candidate, task)
+        shape_error = (
+            _validate_aprime_v3_shape(parsed_candidate)
+            if aprime_contract == "v3"
+            else _validate_output_shape(parsed_candidate, task)
+        )
         if shape_error is not None:
+            if aprime_contract == "v3" and shape_error.startswith("forbidden_field:"):
+                verdict = {
+                    "ok": False,
+                    "raw": "input: forbidden_field",
+                    "rich": shape_error,
+                }
+                result["loadchecked_verdict"] = _truncate_verdict(verdict)
+                attempt["loadchecked_verdict"] = result["loadchecked_verdict"]
+                attempt["error"] = "checked loader rejected program"
+                attempt["loadchecked_ok"] = False
+                result["attempts"].append(attempt)
+                feedback = _aprime_gate_feedback(
+                    verdict, feedback_mode, aprime_contract=aprime_contract
+                )
+                continue
             attempt["error"] = f"wrong output shape: expected {shape_error}"
             result["attempts"].append(attempt)
             feedback = _ARM_C_RETRY_SUFFIX.strip()
             continue
 
-        journal_component = _journal_component(parsed_candidate, task)
+        journal_component = (
+            parsed_candidate["postings"]
+            if aprime_contract == "v3"
+            else _journal_component(parsed_candidate, task)
+        )
         # First-pass raw model postings (BEFORE the checked loader accepts or
         # canonically re-prints them). Scoring this separately isolates the
         # model's own accuracy from the gate-tutor effect of reconcileSources'
@@ -1412,11 +1736,19 @@ def arm_aprime(
             result["attempts"].append(attempt)
             break
 
-        input_obj = {
-            "postings": journal_component,
-            "sources": _sources_from_task(task),
-        }
-        verdict = loadchecked_fn(json.dumps(input_obj, ensure_ascii=False))
+        input_obj = (
+            _aprime_v3_loader_input(parsed_candidate, task)
+            if aprime_contract == "v3"
+            else {
+                "postings": journal_component,
+                "sources": _sources_from_task(task),
+            }
+        )
+        verdict = loadchecked_fn(
+            _aprime_v3_json_dumps(input_obj)
+            if aprime_contract == "v3"
+            else json.dumps(input_obj, ensure_ascii=False)
+        )
         result["loadchecked_verdict"] = _truncate_verdict(verdict)
         attempt["loadchecked_verdict"] = result["loadchecked_verdict"]
 
@@ -1427,13 +1759,24 @@ def arm_aprime(
             continue
 
         if not verdict.get("ok"):
-            attempt["error"] = "checked loader rejected postings"
+            attempt["error"] = (
+                "checked loader rejected program"
+                if aprime_contract == "v3"
+                else "checked loader rejected postings"
+            )
             attempt["loadchecked_ok"] = False
             result["attempts"].append(attempt)
-            feedback = _aprime_gate_feedback(verdict, feedback_mode)
+            feedback = _aprime_gate_feedback(
+                verdict, feedback_mode, aprime_contract=aprime_contract
+            )
             continue
 
-        canonical_journal = _canonical_journal_from_verdict(verdict)
+        if aprime_contract == "v3":
+            result["loadchecked_provenance"] = verdict.get("provenance")
+
+        canonical_journal = _canonical_journal_from_verdict(
+            verdict, exact_decimal=aprime_contract == "v3"
+        )
         if canonical_journal is None:
             attempt["error"] = "checked loader returned malformed journal"
             result["attempts"].append(attempt)
@@ -1443,8 +1786,21 @@ def arm_aprime(
         if task.get("expected_output") is None:
             final_parsed: Any = canonical_journal
         else:
-            final_parsed = dict(parsed_candidate)
-            final_parsed["journal"] = canonical_journal
+            if aprime_contract == "v3":
+                components = (task.get("expected_output", {}) or {}).get(
+                    "components", []
+                ) or []
+                final_parsed = {
+                    component: verdict[component]
+                    for component in components
+                    if component in {"decision", "findings"} and component in verdict
+                }
+                if "conditional" in verdict:
+                    final_parsed["conditional"] = verdict["conditional"]
+            else:
+                final_parsed = dict(parsed_candidate)
+            if aprime_contract == "v2" or "journal" in components:
+                final_parsed["journal"] = canonical_journal
             # Recompute every derived value from the ACCEPTED journal, so the
             # model supplies postings and nothing downstream of them. Only
             # generated tasks declare the flat schema DeriveEA emits; for
@@ -1453,10 +1809,15 @@ def arm_aprime(
             # happened is recorded rather than inferred.
             if _task_derivable(task):
                 try:
-                    derived_out = derive_fn(
-                        json.dumps(canonical_journal, ensure_ascii=False)
-                    )
-                    harness_derived = (derived_out or {}).get("derived")
+                    if aprime_contract == "v3":
+                        harness_derived = _aprime_derive_v3(
+                            canonical_journal, task, derive_fn
+                        )
+                    else:
+                        derived_out = derive_fn(
+                            json.dumps(canonical_journal, ensure_ascii=False)
+                        )
+                        harness_derived = (derived_out or {}).get("derived")
                     if isinstance(harness_derived, dict) and harness_derived:
                         final_parsed["derived"] = _derived_for_contract(
                             harness_derived, scoring_contract
@@ -1469,7 +1830,11 @@ def arm_aprime(
             elif "derived" in final_parsed:
                 result["derived_source"] = "model (schema not derivable)"
 
-        result["json_str"] = json.dumps(final_parsed, ensure_ascii=False)
+        result["json_str"] = (
+            _aprime_v3_json_dumps(final_parsed)
+            if aprime_contract == "v3"
+            else json.dumps(final_parsed, ensure_ascii=False)
+        )
         result["parsed"] = final_parsed
         result["parse_fail"] = False
         result["converged"] = True

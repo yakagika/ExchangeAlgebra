@@ -267,3 +267,16 @@ entry, and frozen replay fixtures remains unchanged outside that mode.
   consolidated trial balance (side, amount) and the derived statements; the
   adopted recipe validates sources and adjustments only and does not return
   the library's full `ValidatedWorksheet`.
+
+## Implementation receipt (2026-09-13)
+
+`LoadChecked.hs --contract v3` now implements the closed catalog dispatcher,
+exact decimal parser, trusted opening, per-txid context validation, protected
+raw-account guard, monotone stages, reference checks, duplicate-effect checks,
+and post-execution account allowlists. Default v2 remains the frozen path.
+`APRIME-CALLS.md` records the concrete params, txid/provenance format, and runner
+boundary. The internal endpoint accepts harness-injected opening/task fields;
+the A′ runner rejects those fields in model output before injection.
+Consolidation uses checked source/elimination groups plus the fixed bar recipe,
+without claiming the library's full `ValidatedWorksheet` or a new exported
+certificate type. The executed-call provenance is separate from journal txids.
