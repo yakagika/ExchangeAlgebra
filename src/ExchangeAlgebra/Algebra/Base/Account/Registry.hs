@@ -1824,7 +1824,7 @@ accountSpec EntertainmentExpenses = Just AccountSpec
     , asNameJa = "交際費"
     , asLabelJa = "交際費"
     , asDescription = "Expense: Entertainment expenses (交際費)"
-    , asAliases = ["交際費"]
+    , asAliases = ["交際費", "接待交際費"]
     }
 accountSpec MeetingExpenses = Just AccountSpec
     { asDivision = Cost

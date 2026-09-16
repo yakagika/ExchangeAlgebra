@@ -6,7 +6,9 @@
 - Five account titles: the general-practice accounts `EntertainmentExpenses`,
   `MeetingExpenses`, and `NewspaperBooksExpenses` (outside the JCCI grade-2
   syllabus), plus the manufacturing inventory accounts `RawMaterials` and
-  `GoodsInTransit` for perpetual inventory systems.
+  `GoodsInTransit` for perpetual inventory systems. `EntertainmentExpenses`
+  also accepts the alias `接待交際費`, the spelling used by in-house expense
+  rules that distinguish entertainment from meeting costs.
 - `runLiteFold` and `runLiteWithPolicyObs`: per-term read-only observer runners
   invoked after all stage commits and before `Field` rules and policy
   maintenance.
