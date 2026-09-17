@@ -1,8 +1,8 @@
 <!--
 seed_id: haskell-coding-style
-seed_version: 2026-09-14
+seed_version: 2026-09-17
 copied_at: 2026-09-14
-ported_change_ids: [cl-2026-09-12-initial-rules@4477f3, cl-2026-09-12-haddock-scope@bb2db6, cl-2026-09-12-when-unless@8e8c6c, cl-2026-09-12-library-exceptions@72990e, cl-2026-09-12-strictness-scope@d6edff, cl-2026-09-14-type-synonyms@be2648, cl-2026-09-14-totality-typed-index@814503, cl-2026-09-14-module-budget@206d98, cl-2026-09-14-naming-errors-laws@8221e5]
+ported_change_ids: [cl-2026-09-12-initial-rules@4477f3, cl-2026-09-12-haddock-scope@bb2db6, cl-2026-09-12-when-unless@8e8c6c, cl-2026-09-12-library-exceptions@72990e, cl-2026-09-12-strictness-scope@d6edff, cl-2026-09-14-type-synonyms@be2648, cl-2026-09-14-totality-typed-index@814503, cl-2026-09-14-module-budget@206d98, cl-2026-09-14-naming-errors-laws@8221e5, cl-2026-09-16-sum-type-layout@021def]
 declined_change_ids: []
 scope: haskell-library
 repo: haskell-exchange-algebra
@@ -11,7 +11,7 @@ do_not_auto_sync: true
 
 # Haskell コーディング規則
 
-正本は Orchestrator の seed `/Users/akagi/Developer/claude/assistant/config/agents/haskell.coding-style.seed.md` (§1-§6, 改訂 3.2). 本 doc は ExchangeAlgebra の公開 library, 補助 tool, test, 公開 example に適用する consumer であり, 共通規則を repo の実装境界へ特化する. 配布は copy-to-specialize であり, 正本との自動同期や本 doc からの正本置換は行わない.
+正本は Orchestrator の seed `/Users/akagi/Developer/claude/assistant/config/agents/haskell.coding-style.seed.md` (§1-§6, 改訂 4). 本 doc は ExchangeAlgebra の公開 library, 補助 tool, test, 公開 example に適用する consumer であり, 共通規則を repo の実装境界へ特化する. 配布は copy-to-specialize であり, 正本との自動同期や本 doc からの正本置換は行わない.
 
 ## 基本の 4 則
 
@@ -30,6 +30,26 @@ do_not_auto_sync: true
 | 内包表記 | 長い生成式と条件列を分け, `|` と `,` を行頭で揃える. 短い内包表記は展開不要 |
 | 補助定義 | 複数行の `where` は独立行に置き, 同じ階層の定義を同じ位置から始める |
 | 分岐・継続 | guard の `|`, case の `->` を枝ごとに揃える. 長い左辺では `=` を次行へ置ける. lambda / bind 連鎖は継続を縦に追える位置で区切る |
+| 列挙型・直和型 | constructor が 2 つ以上の `data` は 1 行に `\|` で連ねず, 型名の次行から `=` と `\|` を同じ列に縦へ並べ 1 行 1 constructor にする. constructor の `-- ^` は列を揃える. record constructor の field は基本 4 則 3 のとおり 1 field 1 行にする. `deriving` は最後の constructor の次行へ置く |
+
+```haskell
+-- | Event の種類 (原典 examples/deterministic/ripple/RippleEffect.hs の EventName)
+data EventName
+    = ToAmount      -- ^ 価格から物量評価へ変換
+    | SalesPurchase -- ^ 販売購入
+    | Production    -- ^ 保有する中間投入財を使用して生産
+    | Order         -- ^ 発注量の決定
+    | Consumption   -- ^ 最終需要部門の消費
+    | ToPrice       -- ^ 物量から価格評価へ変換
+    | Plank         -- ^ Plank
+    deriving (Eq, Ord, Show, Enum, Bounded, Generic)
+
+-- 1 行に連ねない: data Denominator = Population | Sample
+data Denominator
+    = Population
+    | Sample
+    deriving (Eq, Show)
+```
 
 ```haskell
 let short = norm
