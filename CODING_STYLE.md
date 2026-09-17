@@ -2,7 +2,7 @@
 seed_id: haskell-coding-style
 seed_version: 2026-09-17
 copied_at: 2026-09-14
-ported_change_ids: [cl-2026-09-12-initial-rules@4477f3, cl-2026-09-12-haddock-scope@bb2db6, cl-2026-09-12-when-unless@8e8c6c, cl-2026-09-12-library-exceptions@72990e, cl-2026-09-12-strictness-scope@d6edff, cl-2026-09-14-type-synonyms@be2648, cl-2026-09-14-totality-typed-index@814503, cl-2026-09-14-module-budget@206d98, cl-2026-09-14-naming-errors-laws@8221e5, cl-2026-09-16-sum-type-layout@021def]
+ported_change_ids: [cl-2026-09-12-initial-rules@4477f3, cl-2026-09-12-haddock-scope@bb2db6, cl-2026-09-12-when-unless@8e8c6c, cl-2026-09-12-library-exceptions@72990e, cl-2026-09-12-strictness-scope@d6edff, cl-2026-09-14-type-synonyms@be2648, cl-2026-09-14-totality-typed-index@814503, cl-2026-09-14-module-budget@206d98, cl-2026-09-14-naming-errors-laws@8221e5, cl-2026-09-16-sum-type-layout@65eb99]
 declined_change_ids: []
 scope: haskell-library
 repo: haskell-exchange-algebra
