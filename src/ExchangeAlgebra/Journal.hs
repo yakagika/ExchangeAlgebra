@@ -422,19 +422,70 @@ infixr 2 .|
 ------------------------------------------------------------------
 -- Show
 ------------------------------------------------------------------
+-- | Render each non-blank note as the sum of its algebra entries followed by
+-- one '(.|)'. A single group needs no parentheses because '(.+)' binds more
+-- tightly than '(.|)'; multiple groups are parenthesized individually so the
+-- result can be pasted back as an expression with the current fixities.
+--
+-- The blank note remains invisible when it is the only group. In a mixed
+-- journal it is rendered explicitly, so every summand is one complete group.
+--
+-- >>> type ShowTest = Journal String Double (HatBase AccountTitles)
+-- >>> (mempty :: ShowTest)
+-- 0
+-- >>> (5.00:@Not:<Cash .| plank :: ShowTest)
+-- 5.00:@Not:<Cash
+-- >>> one = 20.00:@Not:<Cash .+ 20.00:@Hat:<Deposits .| "N" :: ShowTest
+-- >>> one
+-- 20.00:@Hat:<Deposits .+ 20.00:@Not:<Cash .| "N"
+-- >>> toMap (20.00:@Hat:<Deposits .+ 20.00:@Not:<Cash .| "N" :: ShowTest) == toMap one
+-- True
+-- >>> two = 10.00:@Hat:<Cash .| "M" :: ShowTest
+-- >>> one .+ two
+-- (10.00:@Hat:<Cash .| "M") .+ (20.00:@Hat:<Deposits .+ 20.00:@Not:<Cash .| "N")
+-- >>> toMap ((10.00:@Hat:<Cash .| "M") .+ (20.00:@Hat:<Deposits .+ 20.00:@Not:<Cash .| "N") :: ShowTest) == toMap (one .+ two)
+-- True
+-- >>> blank = 5.00:@Not:<Cash .| plank :: ShowTest
+-- >>> one .+ blank
+-- (20.00:@Hat:<Deposits .+ 20.00:@Not:<Cash .| "N") .+ (5.00:@Not:<Cash .| "")
 instance (HatVal v, HatBaseClass b, Note n) => Show (Journal n v b) where
-    show js
-        | Map.null m = "0"
-        | otherwise  = Map.foldrWithKey f "" m
+    showsPrec d js =
+        case groups of
+            [] -> showString "0"
+            [(k, a)]
+                | isPlank k -> showsPrec d a
+                | otherwise -> showParen (d > 2) (showsGroup k a)
+            _ -> showParen (d > 3) (showsGroups groups)
       where
         m = toMap js
-        f k a t
-            | isPlank k = if t == "" then show a else t ++ " .+ " ++ show a
-            | otherwise = foldr (\x y -> if y == ""
-                                        then show x ++ ".|" ++ show k
-                                        else y ++ " .+ " ++ show x ++ ".|" ++ show k)
-                                t
-                                (EA.toASCList a)
+        groups = reverse $ Map.foldrWithKey collectGroup [] m
+
+        collectGroup k a acc
+            | not (isPlank k) && Prelude.null (EA.toASCList a) = acc
+            | otherwise = (k, a) : acc
+
+        showsGroups [] = id
+        showsGroups [(k, a)] = showParen True (showsGroup k a)
+        showsGroups ((k, a):rest) =
+            showParen True (showsGroup k a)
+            . showString " .+ "
+            . showsGroups rest
+
+        showsGroup k a =
+            showsGroupAlg k a
+            . showString " .| "
+            . showsPrec 3 k
+
+        showsGroupAlg k a
+            | isPlank k = showsPrec 3 a
+            | otherwise = showsAlgEntries (reverse (EA.toASCList a))
+
+        showsAlgEntries [] = showString "0"
+        showsAlgEntries [x] = showsPrec 3 x
+        showsAlgEntries (x:xs) =
+            showsPrec 3 x
+            . showString " .+ "
+            . showsAlgEntries xs
 ------------------------------------------------------------------
 
 instance (HatVal v, HatBaseClass b, Note n) => Semigroup (Journal n v b) where
@@ -449,7 +500,7 @@ instance (HatVal v, HatBaseClass b, Note n) => Semigroup (Journal n v b) where
 -- >>> x = 20.00:@Not:<Cash .+ 20.00:@Hat:<Deposits .| "Withdrawal" :: Test
 -- >>> y = 10.00:@Hat:<Cash .+ 10.00:@Not:<Deposits .| "Deposits" :: Test
 -- >>> x .+ y
--- 10.00:@Not:<Deposits.|"Deposits" .+ 10.00:@Hat:<Cash.|"Deposits" .+ 20.00:@Hat:<Deposits.|"Withdrawal" .+ 20.00:@Not:<Cash.|"Withdrawal"
+-- (10.00:@Not:<Deposits .+ 10.00:@Hat:<Cash .| "Deposits") .+ (20.00:@Hat:<Deposits .+ 20.00:@Not:<Cash .| "Withdrawal")
 addJournal :: (HatVal v, HatBaseClass b, Note n)
            => Journal n v b -> Journal n v b -> Journal n v b
 addJournal lhs rhs = appendMap (toMap rhs) lhs
@@ -533,7 +584,7 @@ instance (Note n, HatVal v, ExBaseClass b) => Exchange (Journal n) v b where
 -- >>> type Test = Journal String Double (HatBase AccountTitles)
 -- >>> x = [(1.00:@Hat:<Cash .| z) | z <- ["Loan Payment","Purchace Apple"]] :: [Test]
 -- >>> fromList x
--- 1.00:@Hat:<Cash.|"Purchace Apple" .+ 1.00:@Hat:<Cash.|"Loan Payment"
+-- (1.00:@Hat:<Cash .| "Purchace Apple") .+ (1.00:@Hat:<Cash .| "Loan Payment")
 fromList :: (HatVal v, HatBaseClass b, Note n)
          => [Journal n v b] -> Journal n v b
 fromList = L.foldl' (.+) mempty
@@ -715,7 +766,7 @@ replaceNotes x y = fromMap (Map.union (toMap x) (toMap y))
 -- >>> y = 20.00:@Not:<Cash .| "B" :: Test
 -- >>> z = 30.00:@Hat:<Cash .| "A" :: Test
 -- >>> insert z (x .+ y)
--- 20.00:@Not:<Cash.|"B" .+ 30.00:@Hat:<Cash.|"A"
+-- (20.00:@Not:<Cash .| "B") .+ (30.00:@Hat:<Cash .| "A")
 insert :: (HatVal v, HatBaseClass b, Note n)
         => Journal n v b -> Journal n v b -> Journal n v b
 insert = replaceNotes
@@ -732,7 +783,7 @@ insert = replaceNotes
 -- >>> y = 2.00:@Hat:<Yen .+ 2.00:@Not:<Amount .| "dog"  :: Test
 -- >>> z = 3.00:@Hat:<Yen .+ 3.00:@Not:<Amount .| "fish" :: Test
 -- >>> projWithNote ["dog","cat"] (x .+ y .+ z)
--- 1.00:@Not:<Amount.|"cat" .+ 1.00:@Hat:<Yen.|"cat" .+ 2.00:@Not:<Amount.|"dog" .+ 2.00:@Hat:<Yen.|"dog"
+-- (1.00:@Not:<Amount .+ 1.00:@Hat:<Yen .| "cat") .+ (2.00:@Not:<Amount .+ 2.00:@Hat:<Yen .| "dog")
 projWithNote :: (HatVal v, HatBaseClass b, Note n)
              => [n] -> Journal n v b -> Journal n v b
 projWithNote ns js
@@ -758,7 +809,7 @@ projWithNote ns js =
 -- >>> y = 2.00:@Not:<Yen .+ 2.00:@Hat:<Amount .| "dog"  :: Test
 -- >>> z = 3.00:@Hat:<Yen .+ 3.00:@Not:<Amount .| "fish" :: Test
 -- >>> projWithBase [Not:<Amount] (x .+ y .+ z)
--- 3.00:@Not:<Amount.|"fish" .+ 1.00:@Not:<Amount.|"cat"
+-- (3.00:@Not:<Amount .| "fish") .+ (1.00:@Not:<Amount .| "cat")
 projWithBase :: (HatVal v, HatBaseClass b, Note n)
              => [b] -> Journal n v b -> Journal n v b
 {-# INLINE projWithBase #-}
@@ -796,7 +847,7 @@ projWithBaseNetNorm bs js =
 -- >>> y = 2.00:@Not:<Yen .+ 2.00:@Hat:<Amount .| "dog"  :: Test
 -- >>> z = 3.00:@Hat:<Yen .+ 3.00:@Not:<Amount .| "fish" :: Test
 -- >>> projWithNoteBase ["dog","fish"] [Not:<Amount] (x .+ y .+ z)
--- 3.00:@Not:<Amount.|"fish"
+-- 3.00:@Not:<Amount .| "fish"
 projWithNoteBase :: (HatVal v, HatBaseClass b, Note n)
                  => [n] -> [b] -> Journal n v b -> Journal n v b
 {-# INLINE projWithNoteBase #-}
@@ -898,10 +949,10 @@ filterWithNote f (Journal bs delta _ _) =
 -- >>> y = 20.00:@Hat:<Cash .| ("B", 1) :: Test
 -- >>> z = 30.00:@Not:<Cash .| ("A", 2) :: Test
 -- >>> filterByAxis 0 (NoteAxisKey "A") (x .+ y .+ z)
--- 10.00:@Not:<Cash.|("A",1) .+ 30.00:@Not:<Cash.|("A",2)
+-- (10.00:@Not:<Cash .| ("A",1)) .+ (30.00:@Not:<Cash .| ("A",2))
 --
 -- >>> filterByAxis 1 (NoteAxisKey (1 :: Int)) (x .+ y .+ z)
--- 10.00:@Not:<Cash.|("A",1) .+ 20.00:@Hat:<Cash.|("B",1)
+-- (10.00:@Not:<Cash .| ("A",1)) .+ (20.00:@Hat:<Cash .| ("B",1))
 {-# INLINE filterByAxis #-}
 filterByAxis :: (HatVal v, HatBaseClass b, Note n)
              => Int -> NoteAxisKey -> Journal n v b -> Journal n v b
@@ -925,7 +976,7 @@ filterByAxis axis key j@(Journal _ _ baseIdx deltaIdx) =
 -- >>> x = 20.00:@Not:<Cash .+ 20.00:@Hat:<Deposits .| "Withdrawal" :: Test
 -- >>> y = 10.00:@Hat:<Cash .+ 10.00:@Not:<Deposits .| "Deposits" :: Test
 -- >>> gather "A" (x .+ y)
--- 10.00:@Not:<Deposits.|"A" .+ 20.00:@Hat:<Deposits.|"A" .+ 20.00:@Not:<Cash.|"A" .+ 10.00:@Hat:<Cash.|"A"
+-- 10.00:@Not:<Deposits .+ 20.00:@Hat:<Deposits .+ 20.00:@Not:<Cash .+ 10.00:@Hat:<Cash .| "A"
 gather :: (HatVal v, HatBaseClass b, Note n)
        => n -> Journal n v b -> Journal n v b
 gather n js = (toAlg js) .| n

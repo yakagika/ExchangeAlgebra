@@ -64,6 +64,13 @@
   `--replicate` mode, `reproduce-*.sh` for every figure and table, and the
   Zenodo zip builder.
 
+### Changed
+- `Show (Journal n v b)` now renders each note once after the sum of that
+  note's algebra entries, with parentheses around each group when a journal
+  contains multiple groups. The `infixr 2 .|` and `infixr 3 .+` fixities are
+  unchanged, and the new output can be pasted back as an expression. Downstream
+  golden tests that compare `show` output as text must update their fixtures.
+
 ### Documentation
 - docs: `CODING_STYLE.md` / `EA_USAGE.md` を追加 (Orchestrator seed haskell-coding-style / ea-research-code の consumer. haskell-library の例外 dir と examples の family 移動候補を記録. 段 5a; 正本置換 (CLAUDE.md 2 節) は段 5b).
 - Add family metadata (`family.yaml`) and family READMEs, generate the examples catalogue and Layout with `examples/scripts/gen_catalogue.py`, and make the cge, ebex1, and ebex2 output paths family-local.

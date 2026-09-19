@@ -37,7 +37,7 @@ type Transaction = Journal Day MoneyDecimal HatBase2
 main :: IO ()
 main = do
     let x7 = 3000 .@ Hat :<(Deposits,Main.Yen) .+ 3000 :@ Not :<(Cash, Main.Yen) .| (d 2024 1 1) :: Transaction
-    print x7 -- > 3000.00:@Hat:<(Deposits,Yen).|2024-01-01 .+ 3000.00:@Not:<(Cash,Yen).|2024-01-01
+    print x7 -- > 3000:@Hat:<(Deposits,Yen) .+ 3000:@Not:<(Cash,Yen) .| 2024-01-01
 
     let x8 =  100 .@ Not :< (Cash, Main.Yen)
           .+  100 .@ Hat :<(Sales, Main.Yen)
@@ -51,7 +51,5 @@ main = do
           :: Transaction
     print $ projWithNote [(d 2024 1 1) .. (d 2024 1 31)]
                          (x8 .+ x9 .+ x10)
-    -- >  50.00:@Not:<(Purchases,Yen).|2024-01-15
-    -- .+ 50.00:@Hat:<(Cash,Yen).|2024-01-15
-    -- .+ 100.00:@Hat:<(Sales,Yen).|2024-01-01
-    -- .+ 100.00:@Not:<(Cash,Yen).|2024-01-01
+    -- >  (50:@Not:<(Purchases,Yen) .+ 50:@Hat:<(Cash,Yen) .| 2024-01-15)
+    -- .+ (100:@Hat:<(Sales,Yen) .+ 100:@Not:<(Cash,Yen) .| 2024-01-01)
