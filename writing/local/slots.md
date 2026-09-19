@@ -27,9 +27,9 @@ view の §A / §B を前提に, §C の slot をこの repo の値で埋める.
 ## 綴り (manual-en)
 
 - **en-US に固定する** (`behavior`, `normalize`, `initialize`, `optimization`, `catalog`).
-- 既存文書には en-GB 綴り (`behaviour`, `normalise`, `Optimisation`, `catalogue` 等) が混在している.
-  統一は別 task (`plans/proposed/manual-spelling-en-us.md`) で行う. それまでは新規と変更箇所だけ
-  en-US で書き, 触らない既存行を綴りだけのために書き換えない.
+- 既存文書の散文は 2026-09-19 に en-US へ統一した (develop `01eb7c2`). en-GB 綴りが残るのは識別子,
+  golden fixture, 公開済み版の ChangeLog 節, `examples/audit-eval`, `examples/market/rcr` で,
+  これらは綴りだけのために書き換えない.
 - 公開 API の識別子 (`normalizeTitle` 等) は綴り規則の対象外. 綴りのために rename しない
   (PVP 上の破壊的変更になる. `CODING_STYLE.md` 規則 15).
 
