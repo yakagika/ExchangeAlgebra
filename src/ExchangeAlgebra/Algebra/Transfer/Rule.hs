@@ -142,7 +142,7 @@ instance (HatVal v, HatBaseClass b, Binary v, Binary b) => Binary (TransferRules
     get = do
         rules <- get
         case mkTransferRules rules of
-            Left failure -> fail (show failure)
+            Left failure    -> fail (show failure)
             Right validated -> pure validated
 
 instance (Hashable v, Hashable b) => Hashable (TransferRules v b)
@@ -212,7 +212,8 @@ matches patternBase entry = ignoreWildcard entry patternBase == entry
 -- generates only the cancellation. No implicit @bar@ or legacy one-to-one
 -- map is used. Complexity: O(s*r), with linear rule lookup per posting.
 transferEntries :: (HatVal v, HatBaseClass b)
-                => TransferRules v b -> Alg v b
+                => TransferRules v b
+                -> Alg v b
                 -> Either (TransferApplyError v b) (Alg v b)
 transferEntries (TransferRules rules) = foldEntries step (Right Zero)
   where

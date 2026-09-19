@@ -28,10 +28,11 @@ import           ExchangeAlgebra.Journal (Journal, Note, toMap, fromMap, toAlg)
 -- an implementation traversal, not a chronological ordering of notes.
 -- Input posting values must be valid and finite. No @bar@ is applied.
 transferEntries :: (Note n, HatVal v, HatBaseClass b)
-                => TransferRules v b -> Journal n v b
+                => TransferRules v b
+                -> Journal n v b
                 -> Either (TransferApplyError v b) (Journal n v b)
-transferEntries rules journal =
-    fromMap . Map.fromList <$> traverse apply (Map.toList (toMap journal))
+transferEntries rules journal = fromMap . Map.fromList
+                             <$> traverse apply (Map.toList (toMap journal))
   where
     apply (note, algebra) = do
         entries <- Rule.transferEntries rules algebra
