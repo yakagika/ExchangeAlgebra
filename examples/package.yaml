@@ -194,6 +194,23 @@ executables:
     source-dirs:         industrial
 
 tests:
+  # The market model's exact-value retention sentinel: default policy matches
+  # runLite, spill + restore reconstructs FullAudit exactly, and no-spill
+  # windows preserve current stock while evicting cumulative flow history.
+  market-policy-test:
+    main:                MarketPolicyTest.hs
+    source-dirs:
+    - market
+    - market/test
+    other-modules:
+    - MarketModel
+    ghc-options:
+    - -O0
+    when:
+    - condition: os(darwin)
+      ghc-options:
+      - '-optl-Wl,-no_warn_duplicate_libraries'
+
   # Task-1a calibration sentinel (general-equilibrium:phase1-cge-reproduction):
   # the Calibration port must match the GAMS ground truth (stdcge.lst display
   # values, results.csv benchmark, SAM balance, accounting identities).

@@ -13,4 +13,5 @@ result_dir: null
 executable_notes:
   marketEx1: "Sparse market simulation using `Double`, with scaling, parallel and retention modes"
   marketEx1d: "Exact-`Decimal` variant used for the value-type comparison"
+  market-policy-test: "Exact checks for FullAudit equivalence, spill restoration, and no-spill retention guarantees"
 notes: "MarketModel.hs is shared by the Double and Decimal executables. The run scripts produce measurement logs, aggregate-round4.py and fp-error-profile.py analyze them, and rcr/ is the paper reproduction package."

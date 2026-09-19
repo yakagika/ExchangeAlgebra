@@ -94,6 +94,7 @@ module MarketModel
     , NetKind(..)
     , ParSpec(..)
     , RetainSpec(..)
+    , defaultParams
     , readParams
       -- * (G, A) construction
     , buildNetwork
@@ -111,7 +112,12 @@ module MarketModel
     , openingMap
       -- * Spec assembly and run
     , marketSpec
+    , initWorld
+    , ObservableRow
+    , observableRows
     , RunResult(..)
+    , runMarketLedger
+    , runMarketLedgerRestored
     , runMarket
     ) where
 
@@ -604,6 +610,31 @@ initWorld mp =
     in World { wLedger = carry mempty
              , wNet    = carry net
              , wCoef   = carry coef }
+
+-- | Run the model and return its final resident ledger. 'RetainAllT' without a
+-- spill path uses 'runLite', exactly as 'runMarket' does; every other parameter
+-- combination uses 'runLiteWithPolicy'.
+runMarketLedger :: forall v.
+                   ( HatVal v, Real v, Binary v )
+                => Bool -> MarketParams -> IO (Journal MNote v MBase)
+runMarketLedger useTuned mp =
+    let spec = marketSpec useTuned mp
+        w0   = initWorld mp :: World v InitT
+    in case mpRetain mp of
+         RetainAllT | mpSpill mp == Nothing ->
+             pure (runLite spec w0 wLedger)
+         _ -> runLiteWithPolicy (policyOf mp) spec w0 wLedger
+
+-- | Run the model and restore spilled terms into the final resident ledger.
+-- When no spill path is configured, this returns the resident ledger unchanged.
+runMarketLedgerRestored :: forall v.
+                           ( HatVal v, Real v, Binary v )
+                        => Bool -> MarketParams -> IO (Journal MNote v MBase)
+runMarketLedgerRestored useTuned mp = do
+    resident <- runMarketLedger useTuned mp
+    case mpSpill mp of
+      Nothing   -> pure resident
+      Just path -> Policy.restoreLedger path resident
 
 -- | A summary of one run, for the @Main@s to print.
 data RunResult = RunResult

@@ -21,6 +21,10 @@ EA_N=1000 EA_T=50 EA_K=20 EA_NET=er EA_PAR=par:4 EA_RETAIN=recent:2 EA_SPILL=/tm
 
 `EA_NET` accepts `complete`, `kreg`, `er`, or `sf`; `EA_PAR` accepts `seq` or `par:<chunk>`; and `EA_RETAIN` accepts `all` or `recent:<window>`. `EA_SPILL` is optional. `EA_DUMP_OBSERVABLES` optionally names a comparison-output file.
 
+## Retention
+
+A retention window discards postings from older terms, so the resident ledger cannot reconstruct cumulative cash, sales, purchases, or sales cost. Inventory still matches the full-period run because `Carryover` moves the current stock into the retained window, and the final term's shortage also matches. When a run spills evicted terms and restores them, the restored ledger matches the full-period ledger exactly.
+
 ## Output
 
 The executables normally report results to standard output. `EA_SPILL` and `EA_DUMP_OBSERVABLES` select explicit output paths; the experiment harnesses write their own measurement logs.

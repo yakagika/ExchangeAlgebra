@@ -112,6 +112,9 @@
   `fromList` and `table` / `(.->)` / `(|%)`.
 
 ### Tests
+- Add the `market-policy-test` example suite, which checks exact FullAudit
+  equivalence for the default policy and spill restoration, plus current-stock,
+  final-shortage, and eviction guarantees for no-spill retention windows.
 - Include every file under `test/fixtures` in source distributions.
 - Build and run all library test suites in CI with the `visualize` flag
   disabled and without installing the cairo or pango system libraries.

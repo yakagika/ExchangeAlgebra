@@ -215,6 +215,7 @@ build targets of the examples package.
 |---|---|---|---|
 | `marketEx1` | `market/marketEx1.hs` | executable | Sparse market simulation using `Double`, with scaling, parallel and retention modes |
 | `marketEx1d` | `market/marketEx1d.hs` | executable | Exact-`Decimal` variant used for the value-type comparison |
+| `market-policy-test` | `market/test/MarketPolicyTest.hs` | test | Exact checks for FullAudit equivalence, spill restoration, and no-spill retention guarantees |
 
 **Papers:** TOMACS scaling paper
 
