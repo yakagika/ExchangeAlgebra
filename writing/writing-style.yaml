@@ -1,0 +1,13 @@
+schema: 1
+repo: haskell-exchange-algebra
+pin: session
+profiles:
+  - id: manual-en
+    applies_to: "README.md, docs/**, examples/README.md, Haddock と docstring の語り口"
+  - id: manual-ja
+    applies_to: "和文の内部運用手順書, 将来の和文マニュアル"
+packs: []
+paper_id: null
+local:
+  - local/slots.md
+exceptions: []
