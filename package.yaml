@@ -107,6 +107,7 @@ tests:
     # Surface.* / SurfaceMain が混入しないよう明示する (release-0510-additive L5).
     other-modules:
     - Golden.WriteRows
+    - Transfer.RuleSpec
     ghc-options:
     - -threaded
     - -rtsopts

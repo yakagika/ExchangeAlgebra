@@ -71,6 +71,7 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text           as T
 import qualified Data.Text.IO        as TIO
 import           Golden.WriteRows
+import qualified Transfer.RuleSpec as TransferRuleSpec
 import           Numeric             (showHex)
 import           Control.Monad       (forM_)
 import           Control.Monad.ST
@@ -6884,6 +6885,7 @@ testOptimizeFailFast = do
 
 main :: IO ()
 main = do
+    TransferRuleSpec.runTests
     testAccountTitlesBinary
     testPracticalAndManufacturingAccountTitles
     testAccountTitleClassification

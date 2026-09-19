@@ -3,6 +3,17 @@
 ## Unreleased
 
 ### Added
+- `ExchangeAlgebra.Algebra.Transfer.Rule` and
+  `ExchangeAlgebra.Journal.Transfer.Rule`: rule-based transfer APIs built from
+  `TransferScale`, `TransferRule`, `TransferRules`, and `mkTransferRules`.
+  `transferEntries` returns only the generated transfer entries through
+  `Either`; the Journal version returns
+  `Either TransferApplyError (Journal n v b)` and preserves each source note.
+  `closingSide` and `closingEntries` support closing rules. Both Algebra and
+  Journal `closingEntries` return `Either (TransferApplyError v b) (Alg v b)`;
+  `NonFiniteBalance` identifies a base whose closing total exceeds the value
+  type's range. Journal closing reads all notes, preserves the other base
+  axes, and tests each net balance without a numeric tolerance.
 - Five account titles: the general-practice accounts `EntertainmentExpenses`,
   `MeetingExpenses`, and `NewspaperBooksExpenses` (outside the JCCI grade-2
   syllabus), plus the manufacturing inventory accounts `RawMaterials` and
@@ -72,6 +83,12 @@
   golden tests that compare `show` output as text must update their fixtures.
 
 ### Documentation
+- Document the legacy `Transfer` API's validity conditions: all `from`
+  patterns must place wildcards in the same tuple positions and be pairwise
+  non-overlapping, ledger bases must contain no wildcards, base tuples must not
+  be nested, and value transformations must not return zero. The tree-based
+  lookup can miss matches when rules mix wildcard positions; new code should
+  use the qualified `Transfer.Rule` modules.
 - docs: `CODING_STYLE.md` / `EA_USAGE.md` を追加 (Orchestrator seed haskell-coding-style / ea-research-code の consumer. haskell-library の例外 dir と examples の family 移動候補を記録. 段 5a; 正本置換 (CLAUDE.md 2 節) は段 5b).
 - Add family metadata (`family.yaml`) and family READMEs, generate the examples catalogue and Layout with `examples/scripts/gen_catalogue.py`, and make the cge, ebex1, and ebex2 output paths family-local.
 - Expand the README Module Overview to list all 44 exposed modules, identify

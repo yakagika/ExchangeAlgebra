@@ -5,6 +5,18 @@
 
     Released under the OWL license
 
+    Legacy rewriting transfers. New code should use
+    "ExchangeAlgebra.Algebra.Transfer.Rule" for data-defined rules and entries
+    that are added to the ledger (Definition 9).
+
+    Compatibility assumptions: P1, source patterns share wildcard positions;
+    P2, source patterns do not overlap; P3, ledger bases have no wildcards;
+    P4, axes are not nested tuples; P5, transformed values are nonzero.
+    Mixed wildcard positions can make the legacy tree lookup miss matching
+    entries even for disjoint rules. Overlap priority is unspecified, and
+    matching is symmetric (ledger wildcards also match concrete patterns).
+    These known limitations are preserved for compatibility.
+
     Package for Exchange Algebra defined by Hiroshi Deguchi.
 
     Exchange Algebra is an algebraic description of bookkeeping systems.
@@ -48,6 +60,7 @@ module ExchangeAlgebra.Algebra.Transfer
     , finalStockTransfer
     ) where
 
+import              ExchangeAlgebra.Algebra.Transfer.Rule (ClosingSide(..), closingSide)
 import qualified    ExchangeAlgebra.Algebra as EA
 import              ExchangeAlgebra.Algebra
 
@@ -70,6 +83,8 @@ import              Utils.Containers.Internal.StrictPair
 type Size = Int
 
 -- | Transfer transformation table
+-- Legacy API: new code should use "ExchangeAlgebra.Algebra.Transfer.Rule".
+-- See the module header for compatibility assumptions P1-P5 and known lookup limitations.
 data TransTable n b where
      NullTable   :: (HatVal n, HatBaseClass b) => TransTable n b
      TransTable  :: (HatVal n, HatBaseClass b)
@@ -172,6 +187,8 @@ size (TransTable s _ _ _ _ _) = s
 
 
 -- | transfer
+-- Legacy API: new code should use "ExchangeAlgebra.Algebra.Transfer.Rule".
+-- See the module header for compatibility assumptions P1-P5 and known lookup limitations.
 -- Transfer transformation replaces the bases of algebra elements with other bases.
 -- The values of the transformed entries remain unchanged. For example, given an algebra element a:
 -- a = 6^ < e1 > +2 < e2 > +2 < e3 > +4 < e4 > +5^ < e5 > and the following transformation definition t:
@@ -291,6 +308,9 @@ resolveByIndex idx hb =
             | otherwise -> resolveByTree (tiTree idx) hb
         _ -> resolveByTree (tiTree idx) hb
 
+-- | Legacy rewriting transfer. New code should use
+-- "ExchangeAlgebra.Algebra.Transfer.Rule" to generate additional entries.
+-- See the module header for P1-P5 and the mixed-wildcard lookup limitation.
 {-# INLINE transfer #-}
 transfer :: (HatVal n, HatBaseClass b) => Alg n b -> TransTable n b -> Alg n b
 transfer alg NullTable = alg
@@ -448,6 +468,8 @@ fromList ((b1,a1, f1)  : xs0)   | not_ordered b1 xs0 = a1 `seq` fromList' (Trans
 
 
 -- | make TransTable from list
+-- Legacy API: new code should use "ExchangeAlgebra.Algebra.Transfer.Rule".
+-- See the module header for compatibility assumptions P1-P5 and known lookup limitations.
 -- same as fromList
 -- >>> table $ Hat:<(Cash) :-> Hat:<(Building) |% (id :: Double -> Double) ++ Hat:<(Building) :-> Hat:<(Cash) |% id
 -- [(Hat:<Cash,Hat:<Building,<function>),(Hat:<Building,Hat:<Cash,<function>)]
@@ -487,6 +509,8 @@ infixr 7 |%
 -- C5); 'TransTable''s own 'Show' prints @<function>@ without it.
 
 -- | Build an indexed fast transfer function from a list of transfer rules.
+-- Legacy API: new code should use "ExchangeAlgebra.Algebra.Transfer.Rule".
+-- See the module header for compatibility assumptions P1-P5 and known lookup limitations.
 -- More efficient than @transfer@ when repeatedly applying the same TransTable.
 --
 -- Complexity: Build O(r log r) (r = number of rules); apply O(s) (s = number of entries)
@@ -499,6 +523,8 @@ createTransfer tt =
 -- * Closing transfer entries
 
 -- | Income Summary Account: compute net income for the current period.
+-- Legacy API: new code should use "ExchangeAlgebra.Algebra.Transfer.Rule".
+-- See the module header for compatibility assumptions P1-P5 and known lookup limitations.
 -- When the ledger is balanced (credit == debit, net income is zero), @diffRL@
 -- reports the wildcard v'Side'; in that case the input is returned unchanged
 -- (balanced ledger = identity; appending a zero posting is not added).
@@ -514,6 +540,8 @@ incomeSummaryAccount alg =  let (dc,diff) = diffRL alg
                                 Side   -> alg
 
 -- | Net income transfer. Transfers NetIncome/NetLoss to RetainedEarnings.
+-- Legacy API: new code should use "ExchangeAlgebra.Algebra.Transfer.Rule".
+-- See the module header for compatibility assumptions P1-P5 and known lookup limitations.
 --
 -- Complexity: O(s) (s = total number of scalar entries)
 netIncomeTransfer :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
@@ -526,6 +554,8 @@ netIncomeTransfer = createTransfer
 -- ** Journalizing
 
 -- | Historical SNA/simulation transfer to the legacy GrossProfit coordinate.
+-- Legacy API: new code should use "ExchangeAlgebra.Algebra.Transfer.Rule".
+-- See the module header for compatibility assumptions P1-P5 and known lookup limitations.
 -- Consolidates Sales, Purchases, WageExpenditure, Depreciation, and ValueAdded.
 -- This fixed list is not a JGAAP gross-profit definition: it excludes
 -- SalesCost and MerchandiseInventory.  New statement reporting should use
@@ -552,6 +582,8 @@ grossProfitTransfer
     ++ (toHat wildcard) .~ Purchases       :-> (toNot wildcard) .~ GrossProfit |% id
 
 -- | Historical SNA/simulation transfer to the legacy OrdinaryProfit
+-- Legacy API: new code should use "ExchangeAlgebra.Algebra.Transfer.Rule".
+-- See the module header for compatibility assumptions P1-P5 and known lookup limitations.
 -- coordinate.  Its fixed list predates the JCCI vocabulary and is not a
 -- complete JGAAP ordinary-profit definition.  New statement reporting should
 -- use the typed reporting metric API instead.
@@ -606,6 +638,8 @@ ordinaryProfitTransfer
 
 
 -- | Transfer to Retained Earnings.
+-- Legacy API: new code should use "ExchangeAlgebra.Algebra.Transfer.Rule".
+-- See the module header for compatibility assumptions P1-P5 and known lookup limitations.
 -- Transfers OrdinaryProfit to RetainedEarnings.
 --
 -- Complexity: O(s) (s = total number of scalar entries)
@@ -619,30 +653,17 @@ data FinalStockSide
     = FinalStockKeep
     | FinalStockFlip
 
--- The closing side is derived from the account's PIMO direction (which is
--- contra-aware), not from the bare division: IN (flow in — non-contra
--- Revenue, and contra Cost such as purchase rebates) transfers as-is
--- (Keep); OUT (flow out — non-contra Cost, and contra Revenue such as
--- sales rebates) transfers with Hat\/Not flipped (Flip). Deriving from the
--- division alone would invert the transfer sign for contra P\/L accounts.
--- For the current chart (no contra P\/L accounts) this is extensionally
--- identical to the former division-based rule, which the
--- pre-vocab fixture test verifies.
+-- | Legacy private adapter for the public PIMO-aware closing classification.
 {-# INLINE finalStockRule #-}
 finalStockRule :: AccountTitles -> Maybe FinalStockSide
-finalStockRule title = case accountSpec title of
+finalStockRule title = case closingSide title of
     Nothing -> Nothing
-    Just spec -> case asClosing spec of
-        NoClose -> Nothing
-        CloseByDivision ->
-            let pimo0 = pimoFromDivision (classifyAccountDivision title)
-                pimo  = if classifyAccountContra title then pimoFlip pimo0 else pimo0
-            in case pimo of
-                IN  -> Just FinalStockKeep
-                OUT -> Just FinalStockFlip
-                _   -> Nothing
+    Just ClosingKeep -> Just FinalStockKeep
+    Just ClosingFlip -> Just FinalStockFlip
 
 -- | Internal step of the final stock transfer from income statement to retained earnings.
+-- Legacy API: new code should use "ExchangeAlgebra.Algebra.Transfer.Rule".
+-- See the module header for compatibility assumptions P1-P5 and known lookup limitations.
 -- Cost accounts are transferred to RetainedEarnings with Hat/Not flipped;
 -- revenue accounts are transferred to RetainedEarnings as-is. The registry's
 -- explicit 'NoClose' policy permanently exempts the balancing aggregates
@@ -664,6 +685,8 @@ finalStockTransferStep = EA.map go
     go x = x
 
 -- | Final Stock Transfer (closing entries).
+-- Legacy API: new code should use "ExchangeAlgebra.Algebra.Transfer.Rule".
+-- See the module header for compatibility assumptions P1-P5 and known lookup limitations.
 -- Transfers registry-eligible cost and revenue accounts to RetainedEarnings
 -- and cancels via the bar operation.
 --

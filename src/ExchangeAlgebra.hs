@@ -20,6 +20,7 @@
 
     This top-level module is the Algebra-layer umbrella: it re-exports
     "ExchangeAlgebra.Algebra", "ExchangeAlgebra.Algebra.Transfer",
+    "ExchangeAlgebra.Algebra.Transfer.Rule",
     "ExchangeAlgebra.Write", and "ExchangeAlgebra.Value". It is the
     recommended entry point for simple single-period bookkeeping:
 
@@ -104,9 +105,11 @@
 module ExchangeAlgebra
     ( module ExchangeAlgebra.Algebra
     , module ExchangeAlgebra.Algebra.Transfer
+    , module ExchangeAlgebra.Algebra.Transfer.Rule
     , module ExchangeAlgebra.Write
     , module ExchangeAlgebra.Value ) where
 
+import              ExchangeAlgebra.Algebra.Transfer.Rule
 import              ExchangeAlgebra.Algebra
 import              ExchangeAlgebra.Algebra.Transfer
 import              ExchangeAlgebra.Write

@@ -15,12 +15,15 @@
       the debit part, 'decR' the credit part).
     * Definition 8 (exchange algebra): the 'Exchange' decomposition
       ('decL' \/ 'decR' \/ 'decP' \/ 'decM') and the account-aware projections.
-    * Definition 9 (transfer): the 'TransTable' triple and 'transfer'.
+    * Definition 9 (transfer): the legacy 'TransTable' triple and 'transfer',
+      plus data-defined rules and additive 'transferEntries' from
+      "ExchangeAlgebra.Algebra.Transfer.Rule".
 
     Everything is re-exported item by item from
     "ExchangeAlgebra.Algebra.Base.Element", "ExchangeAlgebra.Algebra.Base.Account.Types",
     "ExchangeAlgebra.Algebra.Base", "ExchangeAlgebra.Algebra.Internal" and
-    "ExchangeAlgebra.Algebra.Transfer"; nothing is defined here. The umbrella
+    "ExchangeAlgebra.Algebra.Transfer" and
+    "ExchangeAlgebra.Algebra.Transfer.Rule"; nothing is defined here. The umbrella
     is the Definition 7-9 core only: the account registry
     ("ExchangeAlgebra.Algebra.Base.Account.Registry"), the posting policy
     ("ExchangeAlgebra.Accounting.PostingPolicy"), trial-balance readouts
@@ -71,6 +74,7 @@ module ExchangeAlgebra.Accounting
     , (|%)
     , createTransfer
     , transfer
+    , module ExchangeAlgebra.Algebra.Transfer.Rule
     ) where
 
 import           ExchangeAlgebra.Algebra.Base.Element (AccountTitles(..))
@@ -114,3 +118,5 @@ import           ExchangeAlgebra.Algebra.Transfer
                      , createTransfer
                      , transfer
                      )
+
+import           ExchangeAlgebra.Algebra.Transfer.Rule
