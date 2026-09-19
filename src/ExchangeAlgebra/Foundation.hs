@@ -6,7 +6,7 @@
     Released under the OWL license
 
     The redundant algebra itself, without any accounting vocabulary: the
-    names that realise Definitions 1-6 of Akagi (2026), Appendix A
+    names that realize Definitions 1-6 of Akagi (2026), Appendix A
     (elements, bases, hat bases, the redundant algebra with its Hat, Bar,
     scalar and norm operations, and the base-generic projections and
     substitutions).

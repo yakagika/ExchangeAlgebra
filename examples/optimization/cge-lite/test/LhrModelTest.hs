@@ -7,7 +7,7 @@
   'commodityPlan' \/ 'instIncomeMap') is fed the /calibrated base signal/ read
   straight from the Python ground-truth solution dump
   (@lhr\/<data>-solution.csv@) and its quantity output is matched to the same
-  dump at 1e-9.  No solve is involved: this isolates each behavioural equation
+  dump at 1e-9.  No solve is involved: this isolates each behavioral equation
   so a transcription error surfaces on exactly the agent that carries it.
 
   Both bundled datasets run through the same set-agnostic checks.  @swazilan@

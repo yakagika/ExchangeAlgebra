@@ -585,7 +585,7 @@ enumFromThenToInclusive from0 to0
 -- shared thunks, the RTS's duplicate-work suspension can re-enter its own
 -- blackhole and abort with a spurious @<<loop>>@ (observed intermittently at
 -- @-N4@; the thunk graph is acyclic — sequential evaluation never loops).
--- Forcing one message first materialises the shared structure in a single
+-- Forcing one message first materializes the shared structure in a single
 -- thread, so the sparks only evaluate agent-local work. Pure values: the
 -- result is unchanged (DET-2 asserts exact equality).
 runStage :: forall w t n v b.
@@ -697,7 +697,7 @@ runLiteWithPolicyObs
 runLiteWithPolicyObs observe = runLiteWithPolicyInternal (Just observe)
 
 -- | Shared policy loop. An absent observer avoids allocating a term-end
--- snapshot on the legacy path without relying on compiler optimisation.
+-- snapshot on the legacy path without relying on compiler optimization.
 runLiteWithPolicyInternal
     :: forall w t n v b r.
        ( forall s. LiteWorld w s

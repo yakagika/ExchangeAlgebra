@@ -31,7 +31,7 @@
     === Design
 
     * Every builder is constructed exclusively with the smart constructor
-      @('.@')@, so a zero amount normalises to @Zero@ and a negative\/non-finite
+      @('.@')@, so a zero amount normalizes to @Zero@ and a negative\/non-finite
       amount is rejected by @('.@')@'s @error@ path. No implicit @bar@\/@compress@
       is performed — builders only /generate/ new postings.
 
@@ -333,7 +333,7 @@ accruedExpenseEntry mk amt expenseTitle =
        up mk amt expenseTitle    -- (借) <expense>
     .+ up mk amt AccruedExpenses  -- (貸) 未払費用
 
--- | Reversing\/cancelling entry, a vocabulary alias for the Hat operation
+-- | Reversing\/canceling entry, a vocabulary alias for the Hat operation
 -- @('.^')@ (lecture ch.20-21, 再振替仕訳\/訂正仕訳). This is the direct
 -- application of /Hat involution/: flipping Hat\/Not on every posting turns an
 -- entry into its exact reversal.
@@ -419,7 +419,7 @@ corporateTaxInterimEntry mk amt =
     .+ down mk amt Cash                          -- (貸) 現金
 
 -- | Corporate income tax settlement at closing (lecture ch.23): book the total
--- tax expense, credit the interim payment already made, and recognise the
+-- tax expense, credit the interim payment already made, and recognize the
 -- unpaid balance.
 --
 -- > (借) 法人税等   total   (貸) 仮払法人税等   interim
@@ -580,9 +580,9 @@ equityMethodBalance = norm . bar . projByAccountTitle InvestmentInAssociate
 --
 -- === Example (#15 anchor: patent 55,000 \/ 10 yr, discovered in 2028)
 --
--- * Patent cost 55,000, useful life 10 years → annual amortisation 5,500.
--- * Error discovered in 2028: 2 prior years (2026, 2027) were not amortised.
--- * Current-year amortisation 5,500 → expense (@AmortizationExpense@).
+-- * Patent cost 55,000, useful life 10 years → annual amortization 5,500.
+-- * Error discovered in 2028: 2 prior years (2026, 2027) were not amortized.
+-- * Current-year amortization 5,500 → expense (@AmortizationExpense@).
 -- * Prior 2 years 11,000 → directly to @RetainedEarnings@ (前期修正).
 -- * Credit @Patent@ 16,500 total.
 --

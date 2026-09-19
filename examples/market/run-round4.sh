@@ -58,7 +58,7 @@ SMOKE="${EA_SMOKE:-0}"
 # the overnight rerun adds 10 (P-core count) and 12 to expose the P/E boundary.
 CORES="${EA_CORES:-1 4 8 14}"
 # Seconds to idle between runs so back-to-back runs do not heat-soak the chip
-# (0 = no cooldown, the Round 4 behaviour).
+# (0 = no cooldown, the Round 4 behavior).
 COOLDOWN="${EA_COOLDOWN:-0}"
 TSV="$RESULT/round4-raw.tsv"
 
@@ -217,7 +217,7 @@ run-round4: series 'heavy14' is intentionally NOT implemented.
   That cost was removed in commit 1402eaa (Phase 5 fix2): demand is now a single
   indexed per-firm read (openingOf), so each term is O(N log N). The current
   MarketModel exposes NO environment knob to restore the heavy path, and adding
-  one would be a model behaviour change (out of scope for a measurement-only
+  one would be a model behavior change (out of scope for a measurement-only
   task).
 
   => Reproducing the heavy 14-core point requires a pre-1402eaa binary

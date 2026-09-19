@@ -44,10 +44,10 @@
 
     The core algebra only adds/subtracts, which is exact for t'MoneyDecimal' and needs no
     rounding. Rounding is only needed by /multiplication and division/ (tax ratios,
-    proration, scalar product) at the point a monetary amount is /finalised/. Use
+    proration, scalar product) at the point a monetary amount is /finalized/. Use
     'bankersRound': it rounds half-to-even (the unbiased financial default; also GHC's
     'Prelude.round' and IEEE-754's default mode). A ceiling variant ('ceilingRound') is
-    provided for the previous @rounding = ceiling@ behaviour and for jurisdictions whose
+    provided for the previous @rounding = ceiling@ behavior and for jurisdictions whose
     rules differ. There is no single correct rule (e.g. Japanese consumption tax rounding
     varies by company), so the rounding function is explicit and swappable.
 -}
@@ -107,7 +107,7 @@ instance HatVal MoneyDecimal where
     showValue (MoneyDecimal x) = show x
 
 -- 'Binary'/'Hashable' are defined here (not orphan) because 'Data.Decimal' ships
--- neither, and 'Alg'/t'Journal' serialisation and the binary spill path require
+-- neither, and 'Alg'/t'Journal' serialization and the binary spill path require
 -- @Binary v@. Both go through the (places, mantissa) structure of t'Decimal'.
 instance Binary.Binary MoneyDecimal where
     {-# INLINE put #-}
@@ -156,7 +156,7 @@ newtype MoneyDouble = MoneyDouble Double
   -- All instances are coerced from the existing bare-'Double' instances
   -- ('Nearly'/'HatVal' live in "ExchangeAlgebra.Algebra"; 'Binary'/'Hashable'/
   -- 'NFData' come from the binary/hashable/deepseq packages), so t'MoneyDouble'
-  -- is a zero-cost wrapper with identical numeric behaviour and 2-decimal
+  -- is a zero-cost wrapper with identical numeric behavior and 2-decimal
   -- 'showValue' formatting.
   deriving newtype ( Eq, Ord, Show, Num, Fractional, Real, RealFrac
                    , Nearly, HatVal, Hashable, NFData, Binary.Binary )
@@ -171,7 +171,7 @@ toDouble (MoneyDouble d) = d
 -- many transactions does not drift the total upward the way half-up does. This is
 -- 'Prelude.round' applied per 'Data.Decimal.roundTo''.
 --
--- Apply at the point a monetary amount is finalised after multiplication/division
+-- Apply at the point a monetary amount is finalized after multiplication/division
 -- (tax, proration, scalar product). The core algebra (add/subtract) is exact and
 -- needs no rounding.
 bankersRound :: Word8 -> MoneyDecimal -> MoneyDecimal

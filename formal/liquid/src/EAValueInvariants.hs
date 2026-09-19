@@ -5,7 +5,7 @@
 -- enforcement points (develop / 0.5.0.0 line, @src/ExchangeAlgebra/Value.hs@ and
 -- @src/ExchangeAlgebra/Algebra.hs@).
 --
--- The money magnitude is modelled as a real ('Double') carrying the ordering
+-- The money magnitude is modeled as a real ('Double') carrying the ordering
 -- invariant @0 <= v@. This is value-type agnostic and faithful:
 --
 --   * it is literally the invariant of @Number.NonNegative.Double@

@@ -5,7 +5,7 @@
 
     Released under the OWL license
 
-    CSV serialisation of text tables: 'writeCSV' (every cell quoted) and
+    CSV serialization of text tables: 'writeCSV' (every cell quoted) and
     'csvTranspose' (transpose with blank padding). Both names are
     re-exported unchanged from "ExchangeAlgebra.Write"; this module only
     separates the file format from the bookkeeping layouts

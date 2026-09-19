@@ -424,7 +424,7 @@ certifyJournalText = certifyJournalTextIn OrdinaryJournal
 type CertPosting v =
     (Int, Text, v, Either ConvError Side, Either ConvError AccountTitles)
 
--- Wildcard names have to be recognised here rather than delegated to the
+-- Wildcard names have to be recognized here rather than delegated to the
 -- parsers: 'parseAccountTitle' and 'parseSide' reject the wildcard
 -- constructors by design (the /correct-by-construction/ guard documented in
 -- "ExchangeAlgebra.Convert"), so on the text path a wildcard is indistinguishable

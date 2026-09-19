@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 -- The alias table intentionally references the deprecated 'Commutation'
--- constructor so that its legacy Japanese label ("通信費") is recognised and
+-- constructor so that its legacy Japanese label ("通信費") is recognized and
 -- flagged as ambiguous against 'CommunicationExpenses'; silence the warning.
 {-# OPTIONS_GHC -Wno-deprecations #-}
 
@@ -93,7 +93,7 @@ data ConvError = UnknownAccount Text                    -- ^ name matched no con
 accountTable :: [(Text, [AccountTitles])]
 accountTable = collapse [ (normalizeTitle k, a) | (k, a) <- entries ]
   where
-    -- Group entries by normalised key, accumulating every account that key maps
+    -- Group entries by normalized key, accumulating every account that key maps
     -- to (so genuine collisions become ambiguous, not first-wins).
     collapse kvs =
         [ (k, L.nub as)
@@ -122,7 +122,7 @@ accountTable = collapse [ (normalizeTitle k, a) | (k, a) <- entries ]
     aliasTitleOrder = CommunicationExpenses
                     : L.delete CommunicationExpenses concreteAccountTitles
 
--- | Normalise an account name for matching: case-fold, drop punctuation\/symbols
+-- | Normalize an account name for matching: case-fold, drop punctuation\/symbols
 -- (keep only alphanumerics and spaces), and collapse internal whitespace to
 -- single spaces (also trimming). So @\"A\/R\"@ and @\"ar\"@ coincide, and
 -- @\"Accounts  Receivable\"@ matches @\"accounts receivable\"@. CJK characters

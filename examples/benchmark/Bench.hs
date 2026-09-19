@@ -26,7 +26,7 @@
 -- groups below isolate that cost and compare key representations WITHOUT
 -- touching the library, to find the highest-ROI lever before any change:
 --
---   * V0 tuple    — baseline (current behaviour: 4 chained mixes per key)
+--   * V0 tuple    — baseline (current behavior: 4 chained mixes per key)
 --   * V1 packed   — same Eq as the tuple, but Hashable packs to one Word64 (1 mix)
 --   * V2 word     — key IS a Word64 (the "intern" ceiling, as a value)
 --   * V3 hashed   — 'Data.Hashable.Hashed' (cache the hash in the key)

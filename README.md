@@ -72,7 +72,7 @@ stack exec -- sim1        # or ebex1, ripple, cge, ...
 ```
 
 See the [examples directory](https://github.com/yakagika/ExchangeAlgebra/tree/master/examples)
-for the full catalogue and runtime prerequisites (uv for Python plots,
+for the full catalog and runtime prerequisites (uv for Python plots,
 output directories, etc.).
 
 ### 3. Copy or fork a single example
@@ -93,7 +93,7 @@ needing the rest of the repository.
 
 ## Module Overview
 
-The 44 public modules (including the `visualize`-gated module) are organised
+The 44 public modules (including the `visualize`-gated module) are organized
 into seven layers. Entries marked **0.5.1.0 / Git only** are not yet published
 on Hackage; use a Git pin, or keep importing the existing defining module.
 
@@ -135,7 +135,7 @@ These modules implement exchange-algebra values, transformations, and selectable
 These modules attach notes to postings and run classic, Lite, network, policy-driven, and visual simulation workflows.
 
 - `ExchangeAlgebra.Journal` — defines metadata-bearing `Journal` values, indexed projections, and journal aggregation.
-- `ExchangeAlgebra.Journal.Transfer` — specialises the algebra transfer API to `Journal`.
+- `ExchangeAlgebra.Journal.Transfer` — specializes the algebra transfer API to `Journal`.
 - `ExchangeAlgebra.Simulate` — provides the state-space engine, classic front-end, spill support, ripple utilities, and scenario execution.
 - **0.5.1.0 / Git only** `ExchangeAlgebra.Simulate.Engine` — re-exports the
   classic state-space protocol and runners without spill configuration or
@@ -190,7 +190,7 @@ These modules convert external postings safely and expose deterministic account-
 - `ExchangeAlgebra.Assist` — provides LLM-facing account metadata, suggestions, and validation explanations.
 - `ExchangeAlgebra.Assist.Descriptions` — preserves the compatibility projection of canonical account descriptions.
 
-### Optimisation
+### Optimization
 
 These modules define a common solver interface and two concrete stochastic strategies.
 
@@ -394,7 +394,7 @@ restore) is `examples/basic/simulateEx2.hs` (the `sim2` executable).
 ## A note on visualization
 
 `ExchangeAlgebra.Simulate.Visualize` provides Chart-based PNG rendering, but **we recommend
-writing CSV output and visualising it from a separate Python script** for production-quality
+writing CSV output and visualizing it from a separate Python script** for production-quality
 plotting.
 
 ### Why
@@ -492,7 +492,7 @@ plain-text forms via GitHub's "Cite this repository" button.
   Pergamon Press.
   DOI: [10.1002/sres.3850030105](https://doi.org/10.1002/sres.3850030105)
 
-  The axiomatic origin of Exchange Algebra. This paper formalises double-entry
+  The axiomatic origin of Exchange Algebra. This paper formalizes double-entry
   bookkeeping as an accounting vector space over the extended basis
   `Γ = Λ ∪ Λ̂` (account titles and their dual hats), introduces the five
   transaction axioms, and derives the debit/credit partition and the balance

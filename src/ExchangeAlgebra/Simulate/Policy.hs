@@ -73,7 +73,7 @@
     ('policySpillOptions', 'restoreLedger'). The actual term-boundary application
     of a policy in the BSP loop lives in "ExchangeAlgebra.Simulate.Lite"
     (@runLiteWithPolicy@), and the classic @runSimulationWithSpill@ can be driven
-    from a policy via 'policySpillOptions'. Nothing here changes the behaviour or
+    from a policy via 'policySpillOptions'. Nothing here changes the behavior or
     signatures of the existing spill API; it is a thin declarative front-end over
     it.
 
@@ -120,7 +120,7 @@ import           Control.Monad.ST                  (ST, RealWorld)
 -- | How much of the ledger's term history is kept resident in memory.
 --
 -- 'RetainAll' is the full audit trail (the default, equivalent to the classic
--- engine's behaviour). @'RetainRecent' w@ keeps only the most recent @w@ terms
+-- engine's behavior). @'RetainRecent' w@ keeps only the most recent @w@ terms
 -- resident; older terms are evicted at the term boundary (and, if 'spillTo' is
 -- set, written to disk first — see t'LedgerPolicy').
 data Retention  = RetainAll | RetainRecent !Int
@@ -156,7 +156,7 @@ data LedgerPolicy = LedgerPolicy
   } deriving (Eq, Show)
 
 -- | The default policy: keep everything, spill nowhere, never compress. This is
--- exactly the classic full-audit behaviour, so a run under 'defaultLedgerPolicy'
+-- exactly the classic full-audit behavior, so a run under 'defaultLedgerPolicy'
 -- is observationally equal to one with no policy at all.
 --
 -- >>> defaultLedgerPolicy

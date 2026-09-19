@@ -1,10 +1,10 @@
 {- |
   LhrModel -- Lofgren-Harris-Robinson standard CGE as an AS-ABM, layer 0
-  (signal/plan types) and layer 1 (per-agent behavioural responses).
+  (signal/plan types) and layer 1 (per-agent behavioral responses).
 
   This is the /per-agent/ reconstruction mandated by the工程3 design note
   (@general-equilibrium:docs/lhr-instrument-residual-closure.md@ v3).  Each
-  behavioural equation is a verbatim closed-form transcription of one
+  behavioral equation is a verbatim closed-form transcription of one
   @build_system@ block in the Python ground truth
   (@benchmarks/lhr-standard-cge/lhr_resolve.py@); equation names in the
   haddocks match that file and @mod100.gms@.
@@ -38,7 +38,7 @@ module LhrModel
     , HouseholdPlan (..)
     , CommodityPlan (..)
     , InstIncome (..)
-      -- * Layer 1 — per-agent behavioural responses
+      -- * Layer 1 — per-agent behavioral responses
     , activityPlan
     , householdPlan
     , commodityPlan
@@ -144,11 +144,11 @@ data InstIncome = InstIncome
     } deriving (Eq, Show)
 
 ------------------------------------------------------------------
--- * Layer 1 — per-agent behavioural responses
+-- * Layer 1 — per-agent behavioral responses
 ------------------------------------------------------------------
 
 -- | Activity @a@ at output scale @QA@ under a price signal.  Returns the
--- firm's cost-minimising factor mix, its Leontief aggregates, and gross
+-- firm's cost-minimizing factor mix, its Leontief aggregates, and gross
 -- output; the scale itself is demand-determined (CRS), supplied as an
 -- argument rather than chosen here.
 activityPlan :: LhrParams -> LhrBase -> LhrSets -> Ac -> Double -> PriceSignal -> ActivityPlan

@@ -15,7 +15,7 @@
     * the activity zero-profit residual (RActProfit) is non-degenerate under the
       CES-dual PVA (the cross-check's P0 prediction).
 
-  Generalised from the swazilan-only step ③b-1 diagnostic to both datasets with
+  Generalized from the swazilan-only step ③b-1 diagnostic to both datasets with
   the工程4 sparse-uniform vector (PQ/PXAC promoted, PQDEF/OUTAGGFOC residuals).
 -}
 module Main where

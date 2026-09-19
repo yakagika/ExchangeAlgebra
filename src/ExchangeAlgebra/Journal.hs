@@ -183,7 +183,7 @@ queryNoteAxisPosting !axis !key !idx =
 --
 -- == Prefer an ADT note over @String@
 --
--- A note's /event/ axis is best modelled as a small enumeration (an ADT)
+-- A note's /event/ axis is best modeled as a small enumeration (an ADT)
 -- rather than a @String@. A @String@ tag is a __stringly-typed semantic key__:
 -- the same literal must appear at the write site (@.| (\"trade\", t)@) and at
 -- every read site (@projWithNote [(\"trade\", t)]@), and a typo on either side
@@ -564,7 +564,7 @@ instance (Note n, HatVal v, ExBaseClass b) => Exchange (Journal n) v b where
 -- audited/exact path moved to t'ExchangeAlgebra.Value.MoneyDecimal'; see
 -- plans/in-progress/LAZY_EVAL_AUDIT.md and SELECTABLE_VALUE_TYPE_PLAN.md.
 --
--- == Behaviour contract
+-- == Behavior contract
 --
 -- 'fromList' preserves the /multiset/ of postings exactly (no posting is added,
 -- dropped, or merged across bases that would otherwise be kept apart). When two

@@ -171,7 +171,7 @@ finalStockTransferAggregated ::(Note n, HatVal v, ExBaseClass b) =>  Journal n v
 finalStockTransferAggregated = (.-) . EJ.map finalStockTransferStep
 
 -- | Compatibility name for 'finalStockTransferAggregated'.
--- Its behaviour is unchanged: it closes each Note and folds the Note axis onto
+-- Its behavior is unchanged: it closes each Note and folds the Note axis onto
 -- the plank.
 -- This is a legacy named transfer; see the module header for its preconditions.
 -- New code should use qualified "ExchangeAlgebra.Journal.Transfer.Rule".

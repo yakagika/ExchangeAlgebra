@@ -8,7 +8,7 @@ Description : Validation boundary for consolidation worksheets.
 A consolidation worksheet is not an entity's journal. Its adjustments are
 therefore accepted as exchange-algebra elements, while this module checks that
 each adjustment is independently balanced before any aggregation takes place.
-This prevents two malformed adjustments from cancelling each other only at the
+This prevents two malformed adjustments from canceling each other only at the
 worksheet total.
 
 The validated value retains source trial balances and adjustments separately.

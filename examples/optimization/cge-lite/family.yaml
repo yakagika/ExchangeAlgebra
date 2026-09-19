@@ -15,7 +15,7 @@ executable_notes:
   cge-lite-lhr-ledger-test: "Differential sentinel checking that EA double-entry ledger residuals equal direct algebraic residuals at the base and under instrument perturbations."
   cge-lite-lhr-model-test: "Sentinel checking each LHR standard-CGE per-agent AS-ABM response against calibrated ground-truth quantities."
   cge-lite-lhr-residual-test: "Diagnostic sentinel checking base residuals, reduced-Jacobian shape and rank, Walras dependence, and zero-profit non-degeneracy."
-  cge-lite-lhr-shock-test: "Comparative-static sentinel checking shocked EA equilibria against an independent Python oracle and realised income against notional income."
+  cge-lite-lhr-shock-test: "Comparative-static sentinel checking shocked EA equilibria against an independent Python oracle and realized income against notional income."
   cge-lite-lhr-solve-test: "Sentinel checking that the reduced auctioneer converges to calibrated equilibria and that the ledger reproduces them."
   cge-lite-lhr-wiring-test: "Sentinel checking that the LHR auctioneer forward pass reconstructs complete Python ground-truth solutions from base instruments."
   cge-lite-model-test: "Sentinel checking that the four Hosoe Ch.6 model stages reproduce the benchmark and comparative statics through the Option-A pipeline."

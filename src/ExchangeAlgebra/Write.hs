@@ -116,7 +116,7 @@ renderRelative amount
     magnitude = tshow (RG.raMagnitude amount)
 
 -- | Flatten presentation blocks into @(label, value)@ statement cells.
--- Gross and deduction rows are labelled by their account title, subtotal and
+-- Gross and deduction rows are labeled by their account title, subtotal and
 -- net rows by the group's label.
 --
 -- Complexity: O(r) (r = number of rows in the given blocks)

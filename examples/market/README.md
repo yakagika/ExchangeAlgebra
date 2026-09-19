@@ -8,7 +8,7 @@ This family exercises sparse market construction, sequential and parallel execut
 
 The family supplies the experiments for the TOMACS scaling paper. The [`rcr/`](rcr/README.md) directory is its paper reproduction package.
 
-For the executable list, see the generated catalogue in [`examples/README.md`](../README.md#example-catalogue).
+For the executable list, see the generated catalog in [`examples/README.md`](../README.md#example-catalog).
 
 ## Run
 

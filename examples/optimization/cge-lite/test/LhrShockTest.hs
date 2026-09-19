@@ -6,7 +6,7 @@
   auctioneer starts from the unshocked calibration instruments and must find
   the same all-variable equilibrium as the independent 335-variable Python
   oracle.  The test also verifies the RQ1 accounting claim at the shocked
-  equilibrium: realised income equals notional instrument income in every
+  equilibrium: realized income equals notional instrument income in every
   ledger residual.  A pre-solve ledger guard ensures that each shock actually
   creates an imbalance for the auctioneer to remove.
 -}
@@ -96,7 +96,7 @@ nonTrivialCheck tag cal ins0 sol =
               a = coordBase sol c
         , abs (a - b) > 1e-6 * max 1.0 (abs b) ]
 
--- | RQ1 at the new equilibrium: every realised/notional gap is zero.
+-- | RQ1 at the new equilibrium: every realized/notional gap is zero.
 ledgerSolutionChecks :: String -> L.LhrCalibration -> Instruments -> [Check]
 ledgerSolutionChecks tag cal sol =
     [ approx 1e-6 (tag ++ " ledger@sol " ++ showRK rk) 0.0 v

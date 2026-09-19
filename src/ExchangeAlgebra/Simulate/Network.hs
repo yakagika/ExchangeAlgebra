@@ -23,7 +23,7 @@
 
     In the dense-matrix style the support (non-zero cells) of the coefficient
     matrix /was/ the trade relation, so sparsity was an accident of the data
-    representation rather than a modelling choice. Splitting them lets a model
+    representation rather than a modeling choice. Splitting them lets a model
     pick its market structure (complete, @k@-regular, Erdős–Rényi, scale-free,
     sectoral) independently of the coefficients, and lets the summation
 
@@ -538,7 +538,7 @@ scaleFree gen ks m0 =
 
 -- | A stochastic block network: each node carries a sector label, and an
 -- ordered pair @(i, j)@ (@i /= j@) becomes an edge with probability
--- @p (sector i, sector j)@. Deterministic in the given 'StdGen'. Generalises
+-- @p (sector i, sector j)@. Deterministic in the given 'StdGen'. Generalizes
 -- 'erdosRenyi' (a single block) and lets intra-\/inter-sector densities differ.
 --
 -- >>> let label n = if n <= 2 then 'A' else 'B'
@@ -912,7 +912,7 @@ maxIndustrialSize = 1e100
 
 -- | Largest-remainder allocation with per-recipient caps. Continuous weighted
 -- water-filling finds the cap-saturation threshold in one sorted pass, then a
--- largest-remainder step integerises the result. @O(N log N)@.
+-- largest-remainder step integerizes the result. @O(N log N)@.
 apportionCapped :: Int -> [(Int, Int, Double)] -> Map Int Int
 apportionCapped requested rows
   | target <= 0 = M.fromList [ (key, 0) | (key, _, _) <- rows ]

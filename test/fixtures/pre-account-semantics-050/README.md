@@ -5,11 +5,11 @@ These schema-1 fixtures freeze all 232 concrete account titles at commit
 `audit-harness:account-semantics-reporting-pipeline` Land 1-5.
 
 The fixtures are compatibility evidence. Placeholder divisions and legacy
-presentation placement are recorded as observed behaviour, not endorsed as
+presentation placement are recorded as observed behavior, not endorsed as
 normatively correct accounting classifications.
 
 - `semantics.tsv`: Enum and actual Binary bytes, registry division/closing/
-  contra/fixed-current metadata, side/PIMO behaviour, final-stock transfer.
+  contra/fixed-current metadata, side/PIMO behavior, final-stock transfer.
 - `account-info.tsv`: exact LLM-facing `Assist.AccountInfo` projection.
 - `projection-membership.tsv`: membership in the eight current balance-sheet
   projection functions for both Not and Hat postings.

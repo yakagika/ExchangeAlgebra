@@ -14,7 +14,7 @@
 #   ./run-round4.sh scaling | ./aggregate-round4.py -      # read stdin
 #
 # Lines that are blank or start with '#' are ignored. A malformed numeric field
-# is skipped with a warning (the run is still summarised from the good reps).
+# is skipped with a warning (the run is still summarized from the good reps).
 
 import sys
 from statistics import mean, pstdev, stdev

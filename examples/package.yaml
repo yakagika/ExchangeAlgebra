@@ -319,7 +319,7 @@ tests:
 
   # Task-1e reduced-system solve + accounting-consistency sentinel (work item
   # 3, step ④): the auctioneer converges from a perturbed start, every ledger
-  # residual is ≈0 at the solution (realised income == instrument income;
+  # residual is ≈0 at the solution (realized income == instrument income;
   # SAVINVBAL ex-post Walras), and the clone-split fold is bit-identical.
   cge-lite-lhr-solve-test:
     main:                LhrSolveTest.hs

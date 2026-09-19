@@ -20,7 +20,7 @@
     * @ERow@ Dollar cash       →  CURACCBAL    (EXR conversion lives here alone)
     * @EInstNG i@ Yen cash     →  YIDEF(i): the domestic non-government institution
       (a household /or/ an enterprise) spends its /instrument/ income YI while
-      receiving realised YIrecv, so its cash imbalance is exactly YIrecv − YI
+      receiving realized YIrecv, so its cash imbalance is exactly YIrecv − YI
       (the dual-decision gap, not a spurious budget row)
     * @ESaveInv@ Yen cash      →  SAVINVBAL    (kept as the ex-post Walras check)
 

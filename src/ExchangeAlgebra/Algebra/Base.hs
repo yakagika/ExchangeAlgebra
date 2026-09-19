@@ -161,7 +161,7 @@ instance HatBaseClass Hat where
     -- paper convention is the 2-state Hat\/Not; see CLAUDE.md "HatNot wildcard").
     -- These methods are never invoked on a @HatNot@ label by library code, so the
     -- non-exhaustive @-Wincomplete-patterns@ here is by design (audited). Adding a
-    -- @HatNot@ case would change behaviour (turn the pattern-match failure into a
+    -- @HatNot@ case would change behavior (turn the pattern-match failure into a
     -- different error), so it is intentionally left as-is rather than masked.
     merge Hat _ = Hat
     merge Not _ = Not

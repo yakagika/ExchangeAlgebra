@@ -76,7 +76,7 @@ data PostingCapability
 --
 -- This separates a genuine statement classification from a bookkeeping
 -- control class or an internal direction encoding. The wrapped legacy value
--- remains available for 0.4.x-compatible algebraic behaviour.
+-- remains available for 0.4.x-compatible algebraic behavior.
 data DivisionSemantics
     = StatementDivision AccountDivision
     | BookkeepingControlClass AccountDivision

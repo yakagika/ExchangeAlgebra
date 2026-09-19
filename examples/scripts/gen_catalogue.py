@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the examples catalogue and layout.
+"""Generate the examples catalog and layout.
 
 The family metadata intentionally uses only a small YAML subset: top-level
 ``key: value`` scalars, indented ``- item`` lists, and a two-level
@@ -206,7 +206,7 @@ def render_catalogue(
     lines = [
         "<!-- CATALOGUE-BEGIN -->",
         "",
-        "This catalogue is generated from `family.yaml` files and the Cabal component",
+        "This catalog is generated from `family.yaml` files and the Cabal component",
         "stanzas. Run benchmark and harness components with their dedicated commands",
         "rather than `stack run`.",
         "",
@@ -307,7 +307,7 @@ def generated_readme() -> tuple[str, list[Component]]:
     original = README.read_text(encoding="utf-8")
     result = replace_section(
         original,
-        "Example catalogue",
+        "Example catalog",
         "<!-- CATALOGUE-BEGIN -->",
         "<!-- CATALOGUE-END -->",
         render_catalogue(families, components),

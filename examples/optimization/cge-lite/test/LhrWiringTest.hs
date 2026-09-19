@@ -7,7 +7,7 @@
   whole-economy state from the reduced instrument vector.  Fed the /base/
   instruments (read from the calibration), it must reconstruct the entire
   Python ground-truth solution dump at 1e-8 — every price and quantity, not
-  just the ones a single response produces.  A discrepancy localises to the
+  just the ones a single response produces.  A discrepancy localizes to the
   derivation step that carries it (composite price, net-output composition,
   closure identity).
 

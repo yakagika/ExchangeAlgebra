@@ -86,7 +86,7 @@ for n in 200 500 1000 2000 4000 8000 16000 32000 64000; do
 done
 ```
 
-Regenerate the catalogue and layout with `python3 examples/scripts/gen_catalogue.py --write`.
+Regenerate the catalog and layout with `python3 examples/scripts/gen_catalogue.py --write`.
 Use `python3 examples/scripts/gen_catalogue.py --check` in verification and CI.
 The generator reads `family.yaml` plus `examples/exchangealgebra-examples.cabal`.
 
@@ -113,11 +113,11 @@ mkdir -p examples/optimization/CGE/result/{csv,fig}                       # cge
 The generated artifacts (`examples/**/result/**`) are git-ignored and regenerated on every
 run.
 
-## Example catalogue
+## Example catalog
 
 <!-- CATALOGUE-BEGIN -->
 
-This catalogue is generated from `family.yaml` files and the Cabal component
+This catalog is generated from `family.yaml` files and the Cabal component
 stanzas. Run benchmark and harness components with their dedicated commands
 rather than `stack run`.
 
@@ -243,7 +243,7 @@ build targets of the examples package.
 | `cge-lite-lhr-ledger-test` | `optimization/cge-lite/test/LhrLedgerTest.hs` | test | Differential sentinel checking that EA double-entry ledger residuals equal direct algebraic residuals at the base and under instrument perturbations. |
 | `cge-lite-lhr-model-test` | `optimization/cge-lite/test/LhrModelTest.hs` | test | Sentinel checking each LHR standard-CGE per-agent AS-ABM response against calibrated ground-truth quantities. |
 | `cge-lite-lhr-residual-test` | `optimization/cge-lite/test/LhrResidualTest.hs` | test | Diagnostic sentinel checking base residuals, reduced-Jacobian shape and rank, Walras dependence, and zero-profit non-degeneracy. |
-| `cge-lite-lhr-shock-test` | `optimization/cge-lite/test/LhrShockTest.hs` | test | Comparative-static sentinel checking shocked EA equilibria against an independent Python oracle and realised income against notional income. |
+| `cge-lite-lhr-shock-test` | `optimization/cge-lite/test/LhrShockTest.hs` | test | Comparative-static sentinel checking shocked EA equilibria against an independent Python oracle and realized income against notional income. |
 | `cge-lite-lhr-solve-test` | `optimization/cge-lite/test/LhrSolveTest.hs` | test | Sentinel checking that the reduced auctioneer converges to calibrated equilibria and that the ledger reproduces them. |
 | `cge-lite-lhr-wiring-test` | `optimization/cge-lite/test/LhrWiringTest.hs` | test | Sentinel checking that the LHR auctioneer forward pass reconstructs complete Python ground-truth solutions from base instruments. |
 | `cge-lite-model-test` | `optimization/cge-lite/test/ModelTest.hs` | test | Sentinel checking that the four Hosoe Ch.6 model stages reproduce the benchmark and comparative statics through the Option-A pipeline. |

@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wincomplete-patterns -Werror=incomplete-patterns #-}
 -- The exhaustive registry intentionally retains the deprecated Commutation
--- constructor so that legacy behaviour remains byte-for-byte stable.
+-- constructor so that legacy behavior remains byte-for-byte stable.
 {-# OPTIONS_GHC -Wno-deprecations #-}
 
 {- |
@@ -50,7 +50,7 @@ data AccountSpec = AccountSpec
       -- "ExchangeAlgebra.Algebra.Transfer" (correct signs, engine-inserted
       -- balancing postings).  GrossProfit and OrdinaryProfit retain
       -- CloseByDivision for the historical SNA/simulation transfer pipeline.
-      -- That asymmetry is compatibility behaviour, not a reporting rule;
+      -- That asymmetry is compatibility behavior, not a reporting rule;
       -- statement metrics live in "ExchangeAlgebra.Reporting.Metric".
     , asIsContra    :: Bool
     , asFixedCurrent :: FixedCurrent

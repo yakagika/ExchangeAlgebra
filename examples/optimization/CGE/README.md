@@ -8,7 +8,7 @@ This family implements a standard computable general equilibrium model with two 
 
 This is in-tree educational material and is not owned by a paper repository.
 
-For the executable list, see the generated catalogue in [`examples/README.md`](../../README.md#example-catalogue).
+For the executable list, see the generated catalog in [`examples/README.md`](../../README.md#example-catalog).
 
 ## Run
 

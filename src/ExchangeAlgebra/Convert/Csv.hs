@@ -6,7 +6,7 @@ Module      : ExchangeAlgebra.Convert.Csv
 Description : Fixed-schema CSV reader for general journal postings.
 
 A deliberately tiny, dependency-free (Text + scientific only) reader for a fixed
-journal CSV schema, building on the pure normalisation\/parsing in
+journal CSV schema, building on the pure normalization\/parsing in
 "ExchangeAlgebra.Convert". It is the read counterpart of the report\/ledger CSV
 writers in "ExchangeAlgebra.Write" (writing is /not/ handled here).
 
@@ -120,7 +120,7 @@ parseNotedJournalCsv amount txt = do
     traverse (rowNoted amount) keptHeader
 
 -- | Split one line on commas and strip surrounding whitespace from each field.
--- No quoting is recognised, so a comma inside a field always separates. An
+-- No quoting is recognized, so a comma inside a field always separates. An
 -- empty line yields a single empty field, matching 'T.splitOn'.
 splitTrim :: Text -> [Text]
 splitTrim = map T.strip . T.splitOn ","

@@ -534,7 +534,7 @@ testMapMaybePosting = do
         (norm source - 3) (norm dropped)
     assertEqual "Algebra.mapMaybePosting drop preserves remaining order"
         (without droppedBase (EA.toList source)) (EA.toList dropped)
-    assertEqual "Algebra.mapMaybePosting normalises zero values away"
+    assertEqual "Algebra.mapMaybePosting normalizes zero values away"
         (without zeroedBase (EA.toList source)) (EA.toList zeroed)
 
 -- | Multi-pattern 'proj' uses __set__ semantics: a duplicated query selects the
@@ -1087,7 +1087,7 @@ finalStockProbeRule title
     probe = 1 .@ Not :< title :: FinalStockProbe
     actual = show (EAT.finalStockTransfer probe)
 
--- | The pre-vocabulary fixture is frozen. The only permitted behavioural
+-- | The pre-vocabulary fixture is frozen. The only permitted behavioral
 -- changes are the concrete Cost/Revenue accounts that the former SNA-era
 -- title case split omitted. Aggregate NetIncome/NetLoss remain explicit
 -- registry overrides and therefore do not occur in this list.
@@ -2515,7 +2515,7 @@ testAssistSuggestAccounts = do
         [] (Assist.suggestAccounts (T.pack "zzzznomatch"))
 
 -- ================================================================
--- Land 1 registry: frozen pre-registry behaviour.
+-- Land 1 registry: frozen pre-registry behavior.
 -- ================================================================
 
 goldenCommit :: T.Text
@@ -4748,7 +4748,7 @@ testDerivedMetricsLand5 = do
             (T.pack "Adjusted EBITDA") TB.NoBalance]
         (RP._statementSubtotals (case RP.present labelledContext emptyValidated of
             Right statements -> statements
-            Left issues -> error ("labelled custom metric rejected: " ++ show issues)))
+            Left issues -> error ("labeled custom metric rejected: " ++ show issues)))
     let duplicateLabelContext = labelledContext
             { RP._customMetricLabels = RP._customMetricLabels labelledContext
                 ++ RP._customMetricLabels labelledContext
@@ -5010,7 +5010,7 @@ testPostingCapabilityGate = do
                     (ECC.PostingNotAllowed 0 NetIncome EngineGeneratedOnly
                         ECC.OrdinaryJournal NE.:| []) NE.:| []) -> True
             _ -> False)
-    assertEqual "posting gate: certification honours closing context"
+    assertEqual "posting gate: certification honors closing context"
         True
         (case ECC.certifyJournalTextIn ECC.ClosingProcess
             [ (10 :: Int,
@@ -5020,7 +5020,7 @@ testPostingCapabilityGate = do
             ] of
             ECC.FullyResolved _ -> True
             _                   -> False)
-    assertEqual "posting gate: certification honours engine context"
+    assertEqual "posting gate: certification honors engine context"
         True
         (case ECC.certifyJournalTextIn ECC.EngineComputation
             [ (12 :: Int,
@@ -6491,7 +6491,7 @@ type MktFirm  = SimCompany           -- = Int
 data MktTag = MktPlank | MktTrade | MktProduction | MktReport | MktClosing | MktCarryover
   deriving (Show, Eq, Ord, Enum, Bounded, Generic)
 instance Hashable MktTag
--- needed so the spill / runLiteWithPolicy window-transparency test can serialise
+-- needed so the spill / runLiteWithPolicy window-transparency test can serialize
 -- a @Journal MktNote v b@ (derived structurally from Generic).
 instance Binary.Binary MktTag
 instance Note MktTag where
@@ -6636,7 +6636,7 @@ mktW0 n = let (net, a) = mktBuild n
 
 -- (a) simple ≡ tuned, exactly, under MoneyDecimal (N=30, T=5).
 -- the redundant-algebra-correct "same result": net each note's Alg per base
--- ('bar' drops the cancelled part and any zero-padding), keeping the Hat/Not
+-- ('bar' drops the canceled part and any zero-padding), keeping the Hat/Not
 -- side. simple and tuned differ ONLY in seq redundancy (simple keeps the
 -- per-edge posting sequence; tuned pre-sums per base), so they are equal exactly
 -- after netting. (norm additivity already holds; this is the stronger per-base

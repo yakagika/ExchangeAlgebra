@@ -17,8 +17,8 @@
 
   For every validation rung the ledger is complete, so also:
 
-    * __(c) realised == notional [RQ1]__ — at the solution every ledger residual
-      is ≈ 0 (the household's realised receipts equal its instrument income; the
+    * __(c) realized == notional [RQ1]__ — at the solution every ledger residual
+      is ≈ 0 (the household's realized receipts equal its instrument income; the
       dropped SAVINVBAL checks out ex post by Walras's law).
     * __(a) replicability__ — a clone-split journal folds to bit-identical
       residuals.
@@ -88,7 +88,7 @@ convergenceChecks s =
                     (coordBase (svIns0 s) c) (coordBase (svSol s) c)
       | c <- instrCoords (svCal s) ]
 
--- | (c) realised == notional + (a) replicability, off the ledger.
+-- | (c) realized == notional + (a) replicability, off the ledger.
 ledgerChecks :: Solved -> [Check]
 ledgerChecks s = realised ++ replic
   where

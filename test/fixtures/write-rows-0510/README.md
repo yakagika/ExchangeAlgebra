@@ -28,7 +28,7 @@ Regenerate into a temporary directory with:
 stack exec runghc -- -isrc -itest tools/DumpWriteRowsGolden.hs <outdir>
 ```
 
-The fixtures record observed behaviour, not endorsed accounting output.
+The fixtures record observed behavior, not endorsed accounting output.
 In particular `ebex9-bs.tsv` omits the credit-balance `CurrentDeposits`
 (bank overdraft) so its two totals differ by 150000, `ebex9-pl.tsv` lists
 `Purchases` twice because `plRows` does not aggregate equal titles, and
@@ -36,6 +36,6 @@ In particular `ebex9-bs.tsv` omits the credit-balance `CurrentDeposits`
 Whether to correct these is a 0.6.0.0 decision recorded in the release plan.
 
 New fixtures may be added. Any difference from an existing fixture is a test
-failure. Regenerate an existing fixture only for an intentional behaviour
+failure. Regenerate an existing fixture only for an intentional behavior
 change recorded in a plan. This rule preserves the evidence that the 0.6.0.0
-Write-to-Render move does not change behaviour.
+Write-to-Render move does not change behavior.

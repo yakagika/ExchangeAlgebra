@@ -22,7 +22,7 @@
   test compares on the shared keys and asserts the ledger produces exactly
   those.
 
-  Generalised from the swazilan-only step ③b-2 sentinel to both datasets with
+  Generalized from the swazilan-only step ③b-2 sentinel to both datasets with
   the工程4 sparse-uniform vector (PQ\/PXAC promoted).
 -}
 module Main where

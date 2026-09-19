@@ -163,7 +163,7 @@ data MTag = PlankTag | Trade | Production | Report | Closing | Carryover
 instance Hashable MTag
 
 -- | Needed so a @Journal MNote v b@ is 'Binary' (the spill\/'runLiteWithPolicy'
--- path serialises the ledger); derived structurally from 'Generic'.
+-- path serializes the ledger); derived structurally from 'Generic'.
 instance Binary MTag
 
 instance Note MTag where
@@ -361,7 +361,7 @@ ownerOfProduct bp = case bp of
 -- @RetainRecent w@ run (w ≥ 1) still has it resident when term @t@ runs.
 --
 -- Term 1 has no carryover note yet, so every firm reads @0@ (and demand falls
--- back to the full @target@), exactly the original skeleton's behaviour.
+-- back to the full @target@), exactly the original skeleton's behavior.
 openingMap :: forall v. (HatVal v, Real v)
            => Int -> Journal MNote v MBase -> M.Map Firm v
 openingMap t ledger =
@@ -379,7 +379,7 @@ openingMap t ledger =
 -- 'openingMap' inside every per-agent lambda.
 --
 -- Term 1 has no carryover note yet, so every firm reads @0@ (and demand falls
--- back to the full @target@), exactly the original skeleton's behaviour.
+-- back to the full @target@), exactly the original skeleton's behavior.
 openingOf :: forall v. (HatVal v, Real v)
           => Int -> Firm -> Journal MNote v MBase -> v
 openingOf t j ledger =
@@ -624,7 +624,7 @@ data RunResult = RunResult
 -- (@firm,observable,value@) /in addition to/ the normal run. This branch is
 -- pure-additive: it does not change the returned 'RunResult', the printed
 -- summary, nor any model number — it only reads the same final ledger the
--- summary already cracks and serialises a deterministic, sorted projection of
+-- summary already cracks and serializes a deterministic, sorted projection of
 -- it. The dump feeds the Round 4 FP-error-profile comparison (Double vs
 -- Decimal); with @EA_DUMP_OBSERVABLES@ unset the model runs exactly as before.
 runMarket :: forall v.
@@ -663,7 +663,7 @@ runMarket useTuned mp = do
 
 -- | One row of the observable dump: @(firm, observable-name, value)@. The value
 -- is carried as the model's value type @v@ so the @Double@ and @Decimal@ runs
--- serialise their /own/ exact representation; the comparison script does the
+-- serialize their /own/ exact representation; the comparison script does the
 -- string-level diff.
 type ObservableRow v = (Firm, String, v)
 
@@ -709,7 +709,7 @@ ownerOfAccount acct bp = case bp of
     (a, o, c, _) | a == acct && o == c -> Just o
     _                                  -> Nothing
 
--- | Serialise the observable rows to a @firm,observable,value@ CSV. The value
+-- | Serialize the observable rows to a @firm,observable,value@ CSV. The value
 -- is rendered via 'realToFrac' to 'Double' then 'show'n with full precision so
 -- the FP-profile script can parse a stable numeric column for /both/ value
 -- types. Rows are sorted by @(observable, firm)@ for a deterministic, diffable

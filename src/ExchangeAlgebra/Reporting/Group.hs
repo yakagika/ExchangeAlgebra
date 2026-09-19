@@ -20,7 +20,7 @@ netting, and "ExchangeAlgebra.Write" ('ExchangeAlgebra.Write.bsRows',
 'ExchangeAlgebra.Write.plRows') is its consumer. Placing it here rather than
 inside "ExchangeAlgebra.Reporting.Presentation" is forced by the type of the
 legacy writers: they are total, base-polymorphic functions
-(@ExBaseClass b => Alg n b -> [[Text]]@), whereas @present@ is specialised to
+(@ExBaseClass b => Alg n b -> [[Text]]@), whereas @present@ is specialized to
 @HatBase AccountTitles@, is gated by an opaque
 @ValidatedTrialBalance@, and answers in @Either@. Routing @bsRows@ through
 @present@ would therefore change it from a pure formatter into a partial,
@@ -294,7 +294,7 @@ data GroupedPresentation v = GroupedPresentation
 -- A block is /active/ when one of its own contra titles carries non-zero gross
 -- activity, or when a nested block is active: a group with nothing to deduct is
 -- not a group, and leaving it inactive is what keeps output identical to the
--- pre-amendment behaviour for charts that contain no contra posting. Testing
+-- pre-amendment behavior for charts that contain no contra posting. Testing
 -- gross activity rather than the net balance also keeps a fully offset contra
 -- title inside its group instead of leaking one side into the ordinary rows.
 --

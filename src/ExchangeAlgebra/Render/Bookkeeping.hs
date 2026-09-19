@@ -9,11 +9,11 @@
     sheet, profit and loss, journal, account ledgers, compound trial
     balance, the eight-column worksheet and the post-closing trial balance.
     Each document comes as a pure @…Rows@ layout and a @write…@ wrapper that
-    serialises the rows through 'ExchangeAlgebra.Render.Csv.writeCSV'.
+    serializes the rows through 'ExchangeAlgebra.Render.Csv.writeCSV'.
 
     Every name is re-exported unchanged from "ExchangeAlgebra.Write"; nothing
     is defined here. The row layouts are frozen by the
-    @test/fixtures/write-rows-0510@ goldens, so the shim is behaviour-
+    @test/fixtures/write-rows-0510@ goldens, so the shim is behavior-
     identical to the original module by construction. Note that 'bsRows' and
     'plRows' are the legacy presentation (no per-title aggregation, credit-
     balance assets dropped from the sheet); the grouped presentation lives in

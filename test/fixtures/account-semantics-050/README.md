@@ -25,4 +25,4 @@ home-side semantics, and reporting eligibility explicitly.
 
 These fixtures are additive to `pre-account-semantics-050`: the earlier
 fixture remains the compatibility oracle for legacy algebra, closing,
-projection, and presentation behaviour.
+projection, and presentation behavior.

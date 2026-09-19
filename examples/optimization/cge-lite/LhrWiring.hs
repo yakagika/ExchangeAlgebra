@@ -13,7 +13,7 @@
 
   == Why a forward pass exists at all (invariant (ii))
 
-  The auctioneer never re-implements agent behaviour: it /calls/
+  The auctioneer never re-implements agent behavior: it /calls/
   'LhrModel.activityPlan' \/ 'householdPlan' \/ 'commodityPlan' \/
   'instIncomeMap' with the derived signal and stitches the results together.
   It owns only what an agent may not (invariant (vii)): the derived prices,

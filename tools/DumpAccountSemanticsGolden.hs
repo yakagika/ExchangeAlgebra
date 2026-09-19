@@ -2,7 +2,7 @@
 
 -- DumpAccountSemanticsGolden.hs — pre-account-semantics 0.5.0.0 baseline.
 --
--- This freezes the complete 232-title behaviour before
+-- This freezes the complete 232-title behavior before
 -- audit-harness:account-semantics-reporting-pipeline Land 1-5. It is a
 -- compatibility oracle, not a statement that the legacy classifications are
 -- normatively correct.

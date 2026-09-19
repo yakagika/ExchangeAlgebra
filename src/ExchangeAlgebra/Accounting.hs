@@ -6,7 +6,7 @@
     Released under the OWL license
 
     The accounting layer on top of "ExchangeAlgebra.Foundation": the names
-    that realise Definitions 7-9 of Akagi (2026), Appendix A.
+    that realize Definitions 7-9 of Akagi (2026), Appendix A.
 
     * Definition 7 (exchange base class): account titles, account divisions,
       sides, and 'ExBaseClass', whose 'whichSide' places a posting on its

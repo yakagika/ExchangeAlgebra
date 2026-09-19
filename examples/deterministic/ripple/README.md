@@ -8,7 +8,7 @@ This family demonstrates ripple-effect simulations with an unconstrained model, 
 
 These examples accompany Akagi (2026), *Accounting State Space as the Minimal Unit for Economic Agent-Based Modeling: Advancing Ripple Effect Analysis in Real-Time Economy*.
 
-For the executable list, see the generated catalogue in [`examples/README.md`](../../README.md#example-catalogue).
+For the executable list, see the generated catalog in [`examples/README.md`](../../README.md#example-catalog).
 
 ## Run
 

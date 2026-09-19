@@ -267,7 +267,7 @@ class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
     -- Appendix A, Definition 6). It is /additive/: @norm (x '.+' y) = norm x +
     -- norm y@ (axiom 5), and /homogeneous/: @norm (a '.*' x) = a * norm x@ for
     -- @a >= 0@ (axiom 4). Because it sums both sides it does not cancel Hat
-    -- against Not; @norm ('bar' x) <= norm x@ (bar discards the cancelled part).
+    -- against Not; @norm ('bar' x) <= norm x@ (bar discards the canceled part).
     --
     -- >>> norm (100:@Not:<Cash .+ 50:@Not:<Sales :: Alg Double (HatBase AccountTitles))
     -- 150.0
@@ -1186,7 +1186,7 @@ toASCList = L.sort . toList
 -- 'isZeroValue' check / the 'r' helper below). The @let v2:@b2 = ...@ and the
 -- @case fn (...)@ in 'r' therefore intentionally match only the @(:@)@ shape; a
 -- 'Zero'\/'Liner' result is outside this contract, so the non-exhaustive patterns
--- are by design (audited). Adding catch-all arms would silently change behaviour.
+-- are by design (audited). Adding catch-all arms would silently change behavior.
 map :: (HasCallStack,HatVal v, HatBaseClass b)
      => (Alg v b -> Alg v b) -> Alg v b -> Alg v b
 map _ Zero      = Zero
@@ -1261,7 +1261,7 @@ mapPosting :: (HatVal v, HatVal v2, HatBaseClass b, HatBaseClass b2)
 mapPosting f = mapMaybePosting (\v b -> Just (f v b))
 
 -- | Map every posting to zero or one posting. A 'Nothing' drops the posting;
--- a zero value is normalised as by '(.@)'.
+-- a zero value is normalized as by '(.@)'.
 mapMaybePosting :: (HatVal v, HatVal v2, HatBaseClass b, HatBaseClass b2)
                 => (v -> b -> Maybe (v2, b2)) -> Alg v b -> Alg v2 b2
 mapMaybePosting _ Zero = Zero
@@ -2102,7 +2102,7 @@ projContra = filter (isContra . _hatBase)
 -- Superseded by the explicit, value-type-appropriate rounding functions in
 -- "ExchangeAlgebra.Value": 'ExchangeAlgebra.Value.bankersRound' (unbiased
 -- financial default) and 'ExchangeAlgebra.Value.ceilingRound' (this function's
--- behaviour, with a decimal-places argument). There is no single correct
+-- behavior, with a decimal-places argument). There is no single correct
 -- rounding rule, so the rule should be chosen explicitly at the call site.
 --
 -- Complexity: O(1)

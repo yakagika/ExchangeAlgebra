@@ -8,7 +8,7 @@ This family provides a compact circulant invoice-trade model for performance mea
 
 The example is EA-owned educational material and is pinned by the SICE Japanese paper.
 
-For the executable list, see the generated catalogue in [`examples/README.md`](../README.md#example-catalogue).
+For the executable list, see the generated catalog in [`examples/README.md`](../README.md#example-catalog).
 
 ## Run
 

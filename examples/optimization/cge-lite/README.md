@@ -8,7 +8,7 @@ This family provides calibration, solving, policy-shock, and LHR validation comp
 
 EA owns this regression family; the general-equilibrium project pins it for research use.
 
-For the executable and test-suite list, see the generated catalogue in [`examples/README.md`](../../README.md#example-catalogue).
+For the executable and test-suite list, see the generated catalog in [`examples/README.md`](../../README.md#example-catalog).
 
 ## Run
 

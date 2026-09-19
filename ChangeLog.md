@@ -83,6 +83,10 @@
   golden tests that compare `show` output as text must update their fixtures.
 
 ### Documentation
+- Use American English spelling in the README files, Haddock comments, and test
+  labels (`behavior`, `normalize`, `catalog`). The examples README heading is
+  now "Example catalog", so its anchor is `#example-catalog`. Identifiers,
+  golden fixtures, and released changelog sections are unchanged.
 - Document the legacy `Transfer` API's validity conditions: all `from`
   patterns must place wildcards in the same tuple positions and be pairwise
   non-overlapping, ledger bases must contain no wildcards, base tuples must not
@@ -90,7 +94,7 @@
   lookup can miss matches when rules mix wildcard positions; new code should
   use the qualified `Transfer.Rule` modules.
 - docs: `CODING_STYLE.md` / `EA_USAGE.md` を追加 (Orchestrator seed haskell-coding-style / ea-research-code の consumer. haskell-library の例外 dir と examples の family 移動候補を記録. 段 5a; 正本置換 (CLAUDE.md 2 節) は段 5b).
-- Add family metadata (`family.yaml`) and family READMEs, generate the examples catalogue and Layout with `examples/scripts/gen_catalogue.py`, and make the cge, ebex1, and ebex2 output paths family-local.
+- Add family metadata (`family.yaml`) and family READMEs, generate the examples catalog and Layout with `examples/scripts/gen_catalogue.py`, and make the cge, ebex1, and ebex2 output paths family-local.
 - Expand the README Module Overview to list all 44 exposed modules, identify
   the nine additive 0.5.1.0 Git-only modules, distinguish `Simulate.Engine`
   from `Simulate.Lite`, and document `Algebra.Internal` as exposed without a
@@ -110,7 +114,7 @@
   `postClosingTrialBalanceRows`) on the ebex6-9 inputs, rebuilt inside the test
   suite (`test/Golden/WriteRows.hs`, `test/fixtures/write-rows-0510/`,
   regeneration tool `tools/DumpWriteRowsGolden.hs`). They are the
-  behaviour-invariance evidence for the 0.6.0.0 Write -> Render move.
+  behavior-invariance evidence for the 0.6.0.0 Write -> Render move.
 - Add the `ExchangeAlgebra-surface` compile gate, whose explicit import and
   re-export lists pin every public name of the nine additive 0.5.1.0 modules
   without rejecting future additions.

@@ -8,7 +8,7 @@ This family introduces ExchangeAlgebra through bookkeeping exercises and small c
 
 The simulation examples are also frozen examples for the SICE Japanese paper; the bookkeeping exercises are in-tree educational material.
 
-For the executable list, see the generated catalogue in [`examples/README.md`](../README.md#example-catalogue).
+For the executable list, see the generated catalog in [`examples/README.md`](../README.md#example-catalog).
 
 ## Run
 
