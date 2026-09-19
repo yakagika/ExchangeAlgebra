@@ -51,6 +51,7 @@ import           ExchangeAlgebra.Simulate.Lite
                      , Par(..), SimSpec, mkSimSpec, runLite, runLiteFold
                      , runLiteWithPolicy, runLiteWithPolicyObs )
 import qualified ExchangeAlgebra.Simulate.Policy as Policy
+import qualified ExchangeAlgebra.Render.Simulation as RenderSimulation
 import           ExchangeAlgebra.Value    (MoneyDouble)
 import qualified ExchangeAlgebra.Write    as EW
 import           ExchangeAlgebra.Write
@@ -68,6 +69,7 @@ import           Data.Char           (isAlpha, isAlphaNum, isAscii, isSpace)
 import qualified Data.Binary         as Binary
 import qualified Data.Binary.Put     as BinaryPut
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text           as T
 import qualified Data.Text.IO        as TIO
 import           Golden.WriteRows
@@ -1896,6 +1898,63 @@ testCsvWriteCSVEmpty = do
     let lns = lines raw
     assertEqual "CSV writeCSV empty cell" "\"\",\"x\"" (lns !! 0)
     removeFile path
+
+newtype FuncResultsWorld s = FuncResultsWorld (STRef s Int)
+
+testWriteFuncResultsCsv :: IO ()
+testWriteFuncResultsCsv = do
+    let directPath = "/tmp/exchangealgebra_write_func_results.csv"
+        contextPath = "/tmp/exchangealgebra_write_func_results_context.csv"
+        emptyPath = "/tmp/exchangealgebra_write_func_results_empty.csv"
+        headers = L.map T.pack ["plain", "a,b", "q\"x", "line\nbreak", "carriage\rreturn"]
+        directFuncs =
+            zip headers
+                [ \_ t -> pure (t * 10 + 1 :: Int)
+                , \_ t -> pure (t * 10 + 2 :: Int)
+                , \_ t -> pure (t * 10 + 3 :: Int)
+                , \_ t -> pure (t * 10 + 4 :: Int)
+                , \_ t -> pure (t * 10 + 5 :: Int)
+                ]
+        contextFuncs =
+            zip headers
+                [ \t -> pure (t * 10 + 1 :: Int)
+                , \t -> pure (t * 10 + 2 :: Int)
+                , \t -> pure (t * 10 + 3 :: Int)
+                , \t -> pure (t * 10 + 4 :: Int)
+                , \t -> pure (t * 10 + 5 :: Int)
+                ]
+        expected = BL8.pack
+            ( "Time,plain,\"a,b\",\"q\"\"x\",\"line\nbreak\",\"carriage\rreturn\"\n"
+           ++ "1,11,12,13,14,15\n"
+           ++ "2,21,22,23,24,25\n"
+            )
+        expectedHeader = BL8.pack
+            "Time,plain,\"a,b\",\"q\"\"x\",\"line\nbreak\",\"carriage\rreturn\"\n"
+        removeOutput path = do
+            _ <- try (removeFile path) :: IO (Either SomeException ())
+            pure ()
+
+    forM_ [directPath, contextPath, emptyPath] removeOutput
+    world@(FuncResultsWorld counter) <- stToIO (FuncResultsWorld <$> newSTRef 0)
+    RenderSimulation.writeFuncResults directFuncs (1 :: Int, 2) world directPath
+    RenderSimulation.writeFuncResultsWithContext
+        (\(FuncResultsWorld ref) t -> modifySTRef' ref (+ 1) >> pure t)
+        contextFuncs
+        (1 :: Int, 2)
+        world
+        contextPath
+    RenderSimulation.writeFuncResults directFuncs (2 :: Int, 1) world emptyPath
+
+    directBytes <- BL.readFile directPath
+    contextBytes <- BL.readFile contextPath
+    emptyBytes <- BL.readFile emptyPath
+    buildCount <- stToIO (readSTRef counter)
+    assertEqual "writeFuncResults CSV bytes" expected directBytes
+    assertEqual "writeFuncResultsWithContext CSV bytes" expected contextBytes
+    assertEqual "writeFuncResults variants produce identical bytes" directBytes contextBytes
+    assertEqual "writeFuncResults empty range writes only the header" expectedHeader emptyBytes
+    assertEqual "writeFuncResultsWithContext builds one context per term" 2 buildCount
+    forM_ [directPath, contextPath, emptyPath] removeOutput
 
 -- ================================================================
 -- Legacy-generation writer output-pinning tests (design-review C7)
@@ -6940,6 +6999,7 @@ main = do
     testCsvWriteCSV
     testCsvWriteCSVWithQuotes
     testCsvWriteCSVEmpty
+    testWriteFuncResultsCsv
     testWriteBSPinned
     testWritePLPinned
     testWriteJournalPinned

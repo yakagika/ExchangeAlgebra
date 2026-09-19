@@ -56,6 +56,30 @@ jobs:
       - name: Build + test + doctest (bench build-only)
         run: stack build --system-ghc --no-install-ghc --test --bench --no-run-benchmarks
 
+  build-test-no-visualize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: haskell-actions/setup@v2
+        with:
+          enable-stack: true
+          stack-version: latest
+          ghc-version: '9.10.2'
+
+      - name: Cache Stack (visualize flag off)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.stack
+            .stack-work
+          key: ${{ runner.os }}-stack-no-visualize-${{ hashFiles('stack.yaml', 'package.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-no-visualize-
+
+      - name: Build + test library (visualize flag off)
+        run: stack build exchangealgebra --flag exchangealgebra:-visualize --test --no-run-benchmarks --system-ghc --no-install-ghc
+
   # Optional formal-verification job: LiquidHaskell refinement checks for the
   # value non-negativity invariant (0 <= magnitude; sign lives in the Hat/Not
   # base). Fully decoupled from build-test and from the main library build — it

@@ -21,6 +21,48 @@ extra-source-files:
     README.md
     ChangeLog.md
     docs/migration-0.5-derived-metrics.md
+    test/fixtures/account-semantics-050/account-info.tsv
+    test/fixtures/account-semantics-050/consumer-inventory.txt
+    test/fixtures/account-semantics-050/metadata.tsv
+    test/fixtures/account-semantics-050/README.md
+    test/fixtures/account-semantics-050/suggest.tsv
+    test/fixtures/consolidation-worksheet-050/minimal.tsv
+    test/fixtures/consolidation-worksheet-050/README.md
+    test/fixtures/jcci-2022/queries.tsv
+    test/fixtures/jcci-2022/README.md
+    test/fixtures/jcci-2022/source.tsv
+    test/fixtures/post-land2/README.md
+    test/fixtures/post-land2/suggest.tsv
+    test/fixtures/post-vocab/account-info.tsv
+    test/fixtures/post-vocab/ordinals.tsv
+    test/fixtures/post-vocab/README.md
+    test/fixtures/post-vocab/semantics.tsv
+    test/fixtures/post-vocab/suggest.tsv
+    test/fixtures/pre-account-semantics-050/account-info.tsv
+    test/fixtures/pre-account-semantics-050/consumer-inventory.txt
+    test/fixtures/pre-account-semantics-050/presentation.tsv
+    test/fixtures/pre-account-semantics-050/projection-membership.tsv
+    test/fixtures/pre-account-semantics-050/README.md
+    test/fixtures/pre-account-semantics-050/semantics.tsv
+    test/fixtures/pre-land1/account-info.tsv
+    test/fixtures/pre-land1/account-semantics.tsv
+    test/fixtures/pre-land1/alias-resolution.tsv
+    test/fixtures/pre-land1/suggest.tsv
+    test/fixtures/pre-land2/presentation.txt
+    test/fixtures/pre-vland2/ordinals.tsv
+    test/fixtures/pre-vland2/semantics.tsv
+    test/fixtures/pre-vocab/finalstock.tsv
+    test/fixtures/write-rows-0510/ebex6-compound-trial-balance.tsv
+    test/fixtures/write-rows-0510/ebex7-compound-trial-balance.tsv
+    test/fixtures/write-rows-0510/ebex8-account-ledger-journal.tsv
+    test/fixtures/write-rows-0510/ebex8-account-ledger.tsv
+    test/fixtures/write-rows-0510/ebex8-compound-trial-balance.tsv
+    test/fixtures/write-rows-0510/ebex8-journal.tsv
+    test/fixtures/write-rows-0510/ebex9-bs.tsv
+    test/fixtures/write-rows-0510/ebex9-pl.tsv
+    test/fixtures/write-rows-0510/ebex9-post-closing-trial-balance.tsv
+    test/fixtures/write-rows-0510/ebex9-worksheet.tsv
+    test/fixtures/write-rows-0510/README.md
 
 source-repository head
   type: git

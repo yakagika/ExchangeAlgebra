@@ -14,6 +14,10 @@
   `NonFiniteBalance` identifies a base whose closing total exceeds the value
   type's range. Journal closing reads all notes, preserves the other base
   axes, and tests each net balance without a numeric tolerance.
+- `writeFuncResults`, `writeFuncResultsWithContext` and the `Header` alias in
+  `ExchangeAlgebra.Render.Simulation`. `ExchangeAlgebra.Simulate.Visualize`
+  re-exports all three for compatibility, while the new import location
+  remains available when the `visualize` flag is disabled.
 - Five account titles: the general-practice accounts `EntertainmentExpenses`,
   `MeetingExpenses`, and `NewspaperBooksExpenses` (outside the JCCI grade-2
   syllabus), plus the manufacturing inventory accounts `RawMaterials` and
@@ -60,16 +64,16 @@
   helpers (`normal`, `normal'`, `updateGen`). `Engine` keeps the export
   restrictions of `Simulate` and does not re-export the spill types, which
   stay in `ExchangeAlgebra.Simulate.Spill`. Definitions do not move.
-- `ExchangeAlgebra.Render.Csv`, `ExchangeAlgebra.Render.Bookkeeping` and
-  `ExchangeAlgebra.Render.Simulation`: re-export-only shims that split the
-  surface of `ExchangeAlgebra.Write` into the CSV format (`writeCSV`,
-  `csvTranspose`), the bookkeeping documents (balance sheet, profit and
-  loss, journal, account ledgers, compound trial balance, worksheet,
-  post-closing trial balance, with `balanceOf` / `tshow` / `toSameLength`)
-  and the simulation dumps (`writeTermIO`, `writeIOMatrix`). The spill
-  restorers are not shimmed; `ExchangeAlgebra.Simulate.Spill` already owns
-  them. Definitions do not move; the row layouts are pinned by the
-  `write-rows-0510` goldens.
+- `ExchangeAlgebra.Render.Csv` and `ExchangeAlgebra.Render.Bookkeeping`:
+  re-export-only shims that split the surface of `ExchangeAlgebra.Write` into
+  the CSV format (`writeCSV`, `csvTranspose`) and the bookkeeping documents
+  (balance sheet, profit and loss, journal, account ledgers, compound trial
+  balance, worksheet, post-closing trial balance, with `balanceOf` / `tshow` /
+  `toSameLength`). `ExchangeAlgebra.Render.Simulation` re-exports the existing
+  simulation dumps (`writeTermIO`, `writeIOMatrix`). Those definitions do not
+  move, and the row layouts are pinned by the `write-rows-0510` goldens. The
+  spill restorers are not shimmed; `ExchangeAlgebra.Simulate.Spill` already
+  owns them.
 - `examples/market/rcr/`: the ACM TOMACS RCR artifact package, with raw
   measurement logs from the platform of record, `make_figures.py` with a
   `--replicate` mode, `reproduce-*.sh` for every figure and table, and the
@@ -108,6 +112,9 @@
   `fromList` and `table` / `(.->)` / `(|%)`.
 
 ### Tests
+- Include every file under `test/fixtures` in source distributions.
+- Build and run all library test suites in CI with the `visualize` flag
+  disabled and without installing the cairo or pango system libraries.
 - Golden fixtures for the pure row generators of `ExchangeAlgebra.Write`
   (`bsRows`, `plRows`, `journalRows`, `accountLedgerRows`,
   `accountLedgerRowsJournal`, `compoundTrialBalanceRows`, `worksheetRows`,

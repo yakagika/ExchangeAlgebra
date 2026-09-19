@@ -44,6 +44,9 @@ module ExchangeAlgebra.Write
     , writeTermIO
     , writeIOMatrix
       -- * Spill / Restore
+      --
+      -- | The canonical import location is "ExchangeAlgebra.Simulate.Spill".
+      -- This compatibility re-export is scheduled for removal in 0.6.0.0.
     , restoreJournalFromBinarySpill
     , restoreJournalFromBinarySpillChecked
       -- * Helpers

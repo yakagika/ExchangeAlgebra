@@ -82,8 +82,7 @@ import qualified    Data.IntMap.Strict      as IntMap
 import              Data.IntMap.Strict      (IntMap)
 import qualified    Data.HashSet            as HSet
 import              Data.HashSet            (HashSet)
-import              Control.Parallel.Strategies (NFData)
-import              Control.DeepSeq             (rnf)
+import              Control.DeepSeq             (NFData, rnf)
 import qualified    Data.Set                as S
 import qualified    Data.List               as L
 import qualified    Data.Map.Strict         as M

@@ -10,6 +10,7 @@ extra-source-files:
 - README.md
 - ChangeLog.md
 - docs/migration-0.5-derived-metrics.md
+- test/fixtures/**/*
 
 synopsis:            Exchange Algebra for bookkeeping and economic simulation
 category:            Accounting, Finance, Math
