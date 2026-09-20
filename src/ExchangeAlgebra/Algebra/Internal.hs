@@ -1247,7 +1247,10 @@ map f (Liner m _ _ _ _ _) = mkAlgFromMap $ (Map.foldrWithKey (p f) dnilMap m) Ma
                             ------------------------------------------------------------------
                             v2:@b2
                                 | isZeroValue v2 ->  (dlAcc, vsAcc)
-                                | b2 .== (merge h b) -> (dlAcc, v2 Seq.<| vsAcc)
+                                -- Structural equality: a wildcard in a ledger base is
+                                -- a value, so rewriting it to (or from) a concrete
+                                -- coordinate is a change of base, not \"the same base\".
+                                | b2 == (merge h b) -> (dlAcc, v2 Seq.<| vsAcc)
                                 | isHat (hat b2)     -> (dappendMap dlAcc (dsingleMap ( base b2
                                                                           ,nullPair{_hatSide = Seq.singleton v2}))
                                                         ,vsAcc )
@@ -1462,6 +1465,20 @@ extendBy h = foldEntries (\acc v b -> acc .+ h v b) Zero
 -- once__ (no double counting). The result is the union of the selected
 -- @(base, side)@ cells.
 --
+-- Wildcards match __one way__: only a wildcard in the /query/ is a pattern
+-- (\"any value on this axis\"). A wildcard stored in a ledger base is an
+-- ordinary value (\"this axis does not apply\"): a wildcard query axis selects
+-- it, a concrete query axis does not. The result is the same whether the
+-- ledger is a single element or a 'Liner'.
+--
+-- >>> type Test = Alg Double (HatBase (AccountTitles, CountUnit))
+-- >>> proj [Not:<(Cash,Yen)] (10:@Not:<(Cash,(.#)) :: Test)
+-- 0
+--
+-- >>> type Test = Alg Double (HatBase (AccountTitles, CountUnit))
+-- >>> proj [Not:<(Cash,(.#))] (10:@Not:<(Cash,(.#)) :: Test)
+-- 10.00:@Not:<(Cash,CountUnit)
+--
 -- Complexity:
 --  exact single-key path: expected O(1)
 --  wildcard single-key path: O(queryAxisPosting + c * verify)
@@ -1502,7 +1519,7 @@ proj :: (HatVal v, HatBaseClass b)  => [b] -> Alg v b -> Alg v b
 proj []     _         = Zero
 proj _     Zero       = Zero
 proj [b] (v:@b2)
-    | b .== b2  = v:@b2
+    | matchesQuery b b2  = v:@b2
     | otherwise = Zero
 -- Index fields bound lazily (@~@) so a concrete (non-wildcard) base never forces
 -- the axis index (the module is @Strict@; see 'projExactMap').
@@ -1512,7 +1529,7 @@ proj [b] (Liner m ~idx _ ~idToBp _ ~allIds) =
             then projWildMap  b m idx idToBp allIds
             else projExactMap b m
 proj (b:bs) (v:@b2)
-    |  b .== b2       = v:@b2
+    |  matchesQuery b b2 = v:@b2
     | otherwise       = proj bs (v:@b2)
 -- Multi-pattern path: the query list is treated as a /set/. Overlapping or
 -- duplicate queries (e.g. a duplicated base, or an exact base subsumed by a
@@ -1563,6 +1580,19 @@ projExactMap b m = case Map.lookup bp m of
     !bp = base b
     !h  = hat b
 
+{-# INLINE matchesQuery #-}
+-- | One-way wildcard match used by the @proj@ family: only the /query/'s
+-- wildcards act as a pattern. A wildcard stored in a ledger base is an
+-- ordinary value (\"this axis does not apply\"), so a concrete query axis does
+-- not match it, while a wildcard query axis does. This is the same predicate
+-- as @matches@ in "ExchangeAlgebra.Algebra.Transfer.Rule", and it is what the
+-- 'Liner' path computes through the exact lookup and the axis index, so the
+-- result of a projection does not depend on the shape of the ledger.
+--
+-- Complexity: O(k) (k is the number of tuple components).
+matchesQuery :: Element a => a -> a -> Bool
+matchesQuery query entry = ignoreWildcard entry query == entry
+
 {-# INLINE projWildMap #-}
 -- | Wildcard single-base projection: resolves candidates through the axis index
 -- ('queryAxisPosting'), so it necessarily forces the index. Only invoked when
@@ -1584,7 +1614,7 @@ projWildMap b m idx idToBp allIds =
             Nothing -> acc
             Just bp0 -> case Map.lookup bp0 m of
                 Nothing -> acc
-                Just p  -> if bp .== bp0
+                Just p  -> if matchesQuery bp bp0
                     then Map.insert bp0 (choosePairByHat h p) acc
                     else acc)
         Map.empty
@@ -1634,13 +1664,17 @@ projDebit = filter (\x -> (whichSide . _hatBase) x == Debit)
 
 -- | Projects only the elements matching the specified account title.
 --
+-- The match is one-way, as in 'proj': a wildcard title in the query selects
+-- every element, while a concrete title does not select an element whose
+-- ledger title is the wildcard.
+--
 -- Complexity: O(s) (s is the total number of scalar entries)
 projByAccountTitle :: (HatVal n, ExBaseClass b) => AccountTitles -> Alg n b -> Alg n b
 projByAccountTitle at alg = filter (f at) alg
     where
         f :: (HatVal n,ExBaseClass b) => AccountTitles -> Alg n b -> Bool
         f _ Zero = False
-        f t x    = ((getAccountTitle ._hatBase) x) .== t
+        f t x    = matchesQuery t ((getAccountTitle ._hatBase) x)
 
 -- | Bar-netted norm of a projection. The query list is treated as a __set__
 -- (see 'proj'): overlapping or duplicate queries do not double count.
@@ -1652,12 +1686,15 @@ projByAccountTitle at alg = filter (f at) alg
 --
 -- which is /not/ the same as @norm (proj bs x)@ when a base carries both sides.
 --
+-- Wildcards match one way, as in 'proj': a concrete query axis does not match
+-- a wildcard stored in a ledger base.
+--
 -- Complexity: O(cost(proj) + cost(bar) + cost(norm)).
 projNetNorm :: (HatVal n, HatBaseClass b) => [b] -> Alg n b -> n
 projNetNorm [] _ = 0
 projNetNorm _ Zero = 0
 projNetNorm bs (v :@ b)
-    | L.any (.== b) bs = v
+    | L.any (`matchesQuery` b) bs = v
     | otherwise        = 0
 -- Index fields bound lazily (@~@); a concrete base uses 'projExactMap' (a plain
 -- 'Map.lookup') and never forces the axis index. See 'projExactMap'.

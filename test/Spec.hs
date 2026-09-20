@@ -74,6 +74,7 @@ import qualified Data.Text           as T
 import qualified Data.Text.IO        as TIO
 import           Golden.WriteRows
 import qualified Transfer.RuleSpec as TransferRuleSpec
+import qualified Algebra.ProjWildcardSpec as ProjWildcardSpec
 import           Numeric             (showHex)
 import           Control.Monad       (forM_)
 import           Control.Monad.ST
@@ -6945,6 +6946,7 @@ testOptimizeFailFast = do
 main :: IO ()
 main = do
     TransferRuleSpec.runTests
+    ProjWildcardSpec.runTests
     testAccountTitlesBinary
     testPracticalAndManufacturingAccountTitles
     testAccountTitleClassification

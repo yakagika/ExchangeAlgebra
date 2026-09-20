@@ -107,6 +107,7 @@ tests:
     # hpack は source-dirs 配下の全 module を推論するので, surface suite の
     # Surface.* / SurfaceMain が混入しないよう明示する (release-0510-additive L5).
     other-modules:
+    - Algebra.ProjWildcardSpec
     - Golden.WriteRows
     - Transfer.RuleSpec
     ghc-options:

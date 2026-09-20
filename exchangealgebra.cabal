@@ -231,6 +231,7 @@ test-suite ExchangeAlgebra-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      Algebra.ProjWildcardSpec
       Golden.WriteRows
       Transfer.RuleSpec
   hs-source-dirs:

@@ -85,6 +85,23 @@
   contains multiple groups. The `infixr 2 .|` and `infixr 3 .+` fixities are
   unchanged, and the new output can be pasted back as an expression. Downstream
   golden tests that compare `show` output as text must update their fixtures.
+- `proj`, `projNetNorm` (and the deprecated alias `projNorm`) now match
+  wildcards one way in every code path: only a wildcard in the query is a
+  pattern, and a wildcard stored in a ledger base is an ordinary value meaning
+  "this axis does not apply". Previously the single-element branch used the
+  symmetric `.==`, so a concrete query such as `Not:<(Cash, Yen)` selected
+  `10 :@ Not:<(Cash, (.#))` when the ledger was that single element, but not
+  when the same entry sat in a multi-entry ledger. The multi-entry result is
+  unchanged, and ledgers whose bases contain no wildcards are unaffected. The
+  public operator `.==` keeps its symmetric meaning.
+- `projByAccountTitle` matches the title one way as well: a concrete title no
+  longer selects an entry whose ledger title is the wildcard. A wildcard title
+  still selects every entry.
+- `map` compares the base returned by the callback with the original base by
+  structural equality instead of the symmetric `.==`. A callback that rewrites
+  a wildcard axis to a concrete value (or a concrete axis to the wildcard) in a
+  multi-entry ledger was treated as "same base" and its rewrite was discarded;
+  it is now applied. Ledgers whose bases contain no wildcards are unaffected.
 
 ### Documentation
 - Use American English spelling in the README files, Haddock comments, and test
