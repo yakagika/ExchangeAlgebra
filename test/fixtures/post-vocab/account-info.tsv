@@ -62,7 +62,7 @@ WageEarned	Revenue	Credit	Wage income	賃金収入。SNA\/マクロ系	Revenue: 
 TaxesRevenue	Revenue	Credit	Tax revenue	租税収入。SNA\/マクロ系	Revenue: Tax revenue (租税収入。SNA\/マクロ系)
 CentralBankPaymentIncome	Revenue	Credit	Central bank payment to treasury	国庫納付金収入。SNA\/マクロ系	Revenue: Central bank payment to treasury (国庫納付金収入。SNA\/マクロ系)
 Sales	Revenue	Credit	Sales	売上	Revenue: Sales (売上)
-EquityInEarningsOfInvestee	Revenue	Credit	Equity in earnings of investee	持分法による投資利益	Revenue: Equity in earnings of investee (持分法による投資利益). Recognised under the equity method.
+EquityInEarningsOfInvestee	Revenue	Credit	Equity in earnings of investee	持分法による投資利益	Revenue: Equity in earnings of investee (持分法による投資利益). Recognized under the equity method.
 NetLoss	Revenue	Credit	Net loss	当期純損失 — 決算振替用。貸方側に立つため Revenue 区分	Revenue: Net loss (当期純損失 — 決算振替用。貸方側に立つため Revenue 区分)
 PettyCash	Assets	Debit	Petty cash	小口現金	Asset: Petty cash (小口現金)
 NotesReceivable	Assets	Debit	Notes receivable	受取手形	Asset: Notes receivable (受取手形)

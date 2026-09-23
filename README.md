@@ -130,6 +130,30 @@ These modules implement exchange-algebra values, transformations, and selectable
   netted read-outs from algebras and journals.
 - `ExchangeAlgebra.Value` — provides fast typed and exact non-negative value types for `Alg` and `Journal`.
 
+### Wildcards: queries versus ledger entries
+
+In a ledger entry's base, `#` means that the axis does not apply. It is one
+value, not a pattern. For example, a Cash entry can have no product axis.
+In a projection query or a transfer's `from` pattern, `#` matches any value,
+including `#` in a ledger entry. In a transfer's `to` pattern, `#` preserves
+the source coordinate. Use `mapBasePart` or another mapping function to
+collapse an axis.
+
+Matching is one way: a pattern `p` matches a ledger value `e` when `p = #`
+or `p = e`, on each axis. A concrete query does not select a ledger `#`:
+
+```haskell
+import ExchangeAlgebra.Algebra
+
+ledger = 10 .@ Not :< (Cash, (.#)) :: Alg Double (HatBase (AccountTitles, CountUnit))
+norm (proj [Not :< (Cash, Yen)] ledger)  -- 0.0
+norm (proj [Not :< (Cash, (.#))] ledger) -- 10.0
+```
+
+Canonical ordering treats `#` as an ordinary value. The `.==` operator remains
+symmetric; use projection or `ExchangeAlgebra.Algebra.Transfer.Rule` for one-way
+matching against ledger entries.
+
 ### Journal and simulation
 
 These modules attach notes to postings and run classic, Lite, network, policy-driven, and visual simulation workflows.

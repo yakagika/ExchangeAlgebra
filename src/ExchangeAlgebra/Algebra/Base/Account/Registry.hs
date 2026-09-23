@@ -2087,7 +2087,7 @@ accountSpec EquityInEarningsOfInvestee = Just AccountSpec
     , asNameEn = "Equity in earnings of investee"
     , asNameJa = "持分法による投資利益"
     , asLabelJa = "持分法による投資利益"
-    , asDescription = "Revenue: Equity in earnings of investee (持分法による投資利益). Recognised under the equity method."
+    , asDescription = "Revenue: Equity in earnings of investee (持分法による投資利益). Recognized under the equity method."
     , asAliases = []
     }
 accountSpec NetLoss = Just AccountSpec

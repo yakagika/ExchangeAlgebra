@@ -247,6 +247,8 @@ class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
     (.-) :: a n b -> a n b
 
     -- | Alias for bar operation. Identical to @(.-)@.
+    -- On an axis-preserving ledger, @norm . bar@ cancels only within each full
+    -- base. Use 'balanceMapBy' or 'netPairMapBy' for net amounts by group.
     bar :: a n b -> a n b
     bar = (.-)
 
@@ -268,6 +270,9 @@ class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
     -- norm y@ (axiom 5), and /homogeneous/: @norm (a '.*' x) = a * norm x@ for
     -- @a >= 0@ (axiom 4). Because it sums both sides it does not cancel Hat
     -- against Not; @norm ('bar' x) <= norm x@ (bar discards the canceled part).
+    -- On an axis-preserving ledger, @norm ('bar' x)@ does not cancel across
+    -- distinct axis values. Use 'balanceMapBy' or 'netPairMapBy' to read each
+    -- group's net amount.
     --
     -- >>> norm (100:@Not:<Cash .+ 50:@Not:<Sales :: Alg Double (HatBase AccountTitles))
     -- 150.0
@@ -1688,6 +1693,9 @@ projByAccountTitle at alg = filter (f at) alg
 --
 -- Wildcards match one way, as in 'proj': a concrete query axis does not match
 -- a wildcard stored in a ledger base.
+-- On an axis-preserving ledger, this nets only within each projected full
+-- base; it does not cancel across axis values. Use 'balanceMapBy' or
+-- 'netPairMapBy' for net amounts by group.
 --
 -- Complexity: O(cost(proj) + cost(bar) + cost(norm)).
 projNetNorm :: (HatVal n, HatBaseClass b) => [b] -> Alg n b -> n

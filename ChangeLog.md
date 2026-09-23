@@ -97,6 +97,12 @@
 - `projByAccountTitle` matches the title one way as well: a concrete title no
   longer selects an entry whose ledger title is the wildcard. A wildcard title
   still selects every entry.
+- The `Element` Haddock and README now explain the distinct meanings of `#`
+  in ledger entries, queries, and transfer patterns. Check queries that filter
+  concrete axis values when ledger entries can contain `#`.
+- The description of `EquityInEarningsOfInvestee` now prints `Recognized`
+  instead of `Recognised`. Update golden output that includes this description
+  or uses its words as suggestion queries.
 - `map` compares the base returned by the callback with the original base by
   structural equality instead of the symmetric `.==`. A callback that rewrites
   a wildcard axis to a concrete value (or a concrete axis to the wildcard) in a

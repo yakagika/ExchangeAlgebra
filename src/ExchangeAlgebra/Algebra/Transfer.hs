@@ -16,6 +16,7 @@
     entries even for disjoint rules. Overlap priority is unspecified, and
     matching is symmetric (ledger wildcards also match concrete patterns).
     These known limitations are preserved for compatibility.
+    Use "ExchangeAlgebra.Algebra.Transfer.Rule" for one-way source matching.
 
     Package for Exchange Algebra defined by Hiroshi Deguchi.
 
@@ -532,6 +533,8 @@ createTransfer tt =
 -- an intermediate closing state, not input for reporting presentation.  New
 -- reporting code should derive the result from a validated before-closing
 -- trial balance with "ExchangeAlgebra.Reporting.Metric".
+-- This legacy API adds an entry whose non-account axes are wildcards: those
+-- ledger wildcards mean the axes do not apply, rather than matching patterns.
 incomeSummaryAccount :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 incomeSummaryAccount alg =  let (dc,diff) = diffRL alg
                          in case dc of

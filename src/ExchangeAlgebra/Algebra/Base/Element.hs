@@ -76,6 +76,17 @@ import qualified Data.Binary.Put as BinaryPut
 -- Each component of a basis must be an instance of this type class.
 -- It provides wildcard-based pattern matching, enabling flexible basis
 -- specification in transfer transformations and projections.
+--
+-- A wildcard in a ledger entry's base means that axis does not apply; it is
+-- one value, not a pattern. In a projection query or transfer source pattern,
+-- it matches any entry value, including a ledger wildcard. In a transfer target,
+-- it preserves the source coordinate. To collapse an axis, use a function such
+-- as @mapBasePart@ rather than a wildcard.
+--
+-- For pattern @p@ and ledger entry @e@, @p matches e@ exactly when
+-- @p = wildcard@ or @p = e@, applied componentwise to tuple bases. A concrete
+-- query therefore does not select a ledger wildcard. Canonical ordering treats
+-- the wildcard as an ordinary value.
 class (Eq a, Ord a, Show a, Hashable a, Typeable a) => Element a where
 
     -- | The wildcard value. Used for pattern matching in search, transfer transformation, etc.
@@ -122,6 +133,9 @@ class (Eq a, Ord a, Show a, Hashable a, Typeable a) => Element a where
 
     -- | Equality operator that treats wildcards as equal.
     -- Unlike '==', @(.==)@ matches tuples that partially contain wildcards.
+    -- This operator remains symmetric when either operand contains a wildcard;
+    -- its meaning stays unchanged in 0.5.x. Do not use it to match a query to
+    -- ledger entries: the @proj@ family matches one way since 0.5.1.0.
     --
     -- Complexity: O(k) (k is the number of tuple components; O(1) for primitive types)
     {-# INLINE (.==)  #-}
@@ -292,7 +306,8 @@ data  AccountTitles = Cash                            -- ^ Asset: Cash (現金)
                     | TaxesRevenue                    -- ^ Revenue: Tax revenue (租税収入。SNA\/マクロ系)
                     | CentralBankPaymentIncome        -- ^ Revenue: Central bank payment to treasury (国庫納付金収入。SNA\/マクロ系)
                     | Sales                           -- ^ Revenue: Sales (売上)
-                    | EquityInEarningsOfInvestee      -- ^ Revenue: Equity in earnings of investee (持分法による投資利益). Recognised under the equity method.
+                    | EquityInEarningsOfInvestee      -- ^ Revenue: Equity in earnings of investee
+                    -- (持分法による投資利益). Recognized under the equity method.
                     | NetLoss                         -- ^ Revenue: Net loss (当期純損失 — 決算振替用。貸方側に立つため Revenue 区分)
                     -- Elementary bookkeeping (日商簿記 3 級水準) additions.
                     -- Appended before the 'AccountTitle' wildcard so that only the

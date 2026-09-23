@@ -2548,9 +2548,9 @@ testAccountInfoLand1Migration = do
                                         (goldenEsc . Registry.asNameJa)
                                         (Registry.accountSpec title))
                                 assertEqual ("Land 1 registry description unchanged: " ++ show title)
-                                    oldDesc (maybe T.empty
+                                    oldDesc (legacyDescriptionSpelling title (maybe T.empty
                                         (goldenEsc . Registry.asDescription)
-                                        (Registry.accountSpec title))
+                                        (Registry.accountSpec title)))
                             _ -> pure ()
                     _ -> do
                         putStrLn ("[FAIL] missing Land 1 migration metadata: " ++ show title)
@@ -2796,7 +2796,15 @@ accountSemanticsSemanticsGolden =
 accountSemanticsInfoGolden :: T.Text
 accountSemanticsInfoGolden =
     accountSemanticsHeader (T.pack "AccountInfo (title, division, homeSide, nameEn, nameJa, description)")
-    <> T.unlines (L.map goldenInfoRow (L.take 232 Assist.allAccountInfos))
+    <> T.unlines
+        [ legacyDescriptionSpelling (Assist.aiTitle info) (goldenInfoRow info)
+        | info <- L.take 232 Assist.allAccountInfos ]
+
+-- The old baselines retain the pre-2026-09-23 en-US spelling for one description.
+legacyDescriptionSpelling :: AccountTitles -> T.Text -> T.Text
+legacyDescriptionSpelling EquityInEarningsOfInvestee =
+    T.replace (T.pack "Recognized") (T.pack "Recognised")
+legacyDescriptionSpelling _ = id
 
 accountSemanticsProjectionGolden :: T.Text
 accountSemanticsProjectionGolden =
@@ -3157,7 +3165,8 @@ testLand2InfoClosedDiff = do
             assertEqual ("land2 info new desc literal: " ++ show t)
                 (land2ExpectedDesc t) (newF L.!! 5)
         | otherwise =
-            assertEqual ("land2 info invariant: " ++ show t) oldLine newLine
+            assertEqual ("land2 info invariant: " ++ show t)
+                oldLine (legacyDescriptionSpelling t newLine)
 
 -- suggest の閉じた差分: 変化した (追加/削除/変更) query は全て, 当該 2 科目の
 -- 旧/新 desc に対する token match rank の変化で説明できる。
@@ -3176,6 +3185,14 @@ testLand2SuggestClosedDiff = do
             , let fs = T.splitOn (T.pack "\t") line
             , fs L.!! 0 == T.pack (show t)
             ]
+        -- The 2026-09-23 spelling change is in the registry description used
+        -- by goldenSuggestions, while Assist.aiDesc has a newer description.
+        newFieldsOf EquityInEarningsOfInvestee =
+            case Registry.accountSpec EquityInEarningsOfInvestee of
+            Just spec -> [ T.pack "EquityInEarningsOfInvestee"
+                         , Registry.asNameEn spec, Registry.asNameJa spec
+                         , Registry.asDescription spec ]
+            Nothing -> []
         newFieldsOf t = case Assist.describeAccount t of
             Just i  -> [ T.pack (show t), Assist.aiNameEn i, Assist.aiNameJa i, Assist.aiDesc i ]
             Nothing -> []
@@ -3188,12 +3205,15 @@ testLand2SuggestClosedDiff = do
         descTokensOf fields = case fields of
             [_, _, _, desc] -> T.words desc
             _               -> []
+        -- Include the 2026-09-23 en-US description spelling change.
+        changedDescriptions = EquityInEarningsOfInvestee : land2Contra
         tokenMembershipChange q = L.or
             [ (q `L.elem` descTokensOf (oldFieldsOf t))
               /= (q `L.elem` descTokensOf (newFieldsOf t))
-            | t <- land2Contra ]
+            | t <- changedDescriptions ]
         affected q = tokenMembershipChange q || L.or
-            [ rank (oldFieldsOf t) q /= rank (newFieldsOf t) q | t <- land2Contra ]
+            [ rank (oldFieldsOf t) q /= rank (newFieldsOf t) q
+            | t <- changedDescriptions ]
         diffQueries = L.nub
             (  [ q | (q, old) <- M.toList oldMap, maybe True (/= old) (M.lookup q newMap) ]
             ++ [ q | q <- M.keys newMap, not (M.member q oldMap) ] )
