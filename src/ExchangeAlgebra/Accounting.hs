@@ -10,7 +10,7 @@
 
     * Definition 7 (exchange base class): account titles, account divisions,
       sides, and 'ExBaseClass', whose 'whichSide' places a posting on its
-      home side for 'Not' and on the opposite side for 'Hat' (the L\/R
+      home side for 'Not' and on the opposite side for v'Hat' (the L\/R
       convention follows Deguchi & Nakano 1986, Definition 2.16: 'decL' is
       the debit part, 'decR' the credit part).
     * Definition 8 (exchange algebra): the 'Exchange' decomposition

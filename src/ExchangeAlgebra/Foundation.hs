@@ -22,9 +22,9 @@
 
     Two notes on the surface:
 
-    * 'Hat' has three constructors. 'Hat' and 'Not' are the two posting states
+    * t'Hat' has three constructors. v'Hat' and 'Not' are the two posting states
       of the paper (decrease / increase). 'HatNot' is the query wildcard
-      (@'wildcard' :: 'Hat'@) used by 'proj' and by transfer patterns; it is
+      (@'wildcard' :: t'Hat'@) used by 'proj' and by transfer patterns; it is
       not a third posting state and must not be used to build postings.
     * The laws of Definition 6 hold on the ℘-observation (the per-base
       multiset read through 'bar'); see the Haddock of 'mapBasePart' and
