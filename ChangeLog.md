@@ -1,6 +1,6 @@
 # Changelog for ExchangeAlgebra
 
-## Unreleased
+## 0.5.1.0 - 2026-09-23
 
 ### Added
 - `ExchangeAlgebra.Algebra.Transfer.Rule` and

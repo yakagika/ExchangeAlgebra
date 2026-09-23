@@ -21,7 +21,7 @@ The package is on Hackage. Pin a specific version in your Stack project:
 ```yaml
 # stack.yaml
 extra-deps:
-  - exchangealgebra-0.5.0.0
+  - exchangealgebra-0.5.1.0
 ```
 
 ```yaml
