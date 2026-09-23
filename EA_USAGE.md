@@ -1,8 +1,8 @@
 <!--
 seed_id: ea-research-code
-seed_version: 2026-09-14
-copied_at: 2026-09-14
-ported_change_ids: [cl-2026-09-12-authoritative-ledger@a3c319, cl-2026-09-12-implementation-classes@e7c9fe, cl-2026-09-12-algebra-contract@f45507, cl-2026-09-12-manifest-policy@c6aaaa, cl-2026-09-12-examples-layout@b5124d, cl-2026-09-12-acceptance-gate@d020de, cl-2026-09-12-consumer-absolute-seed-path@4e3e13, cl-2026-09-12-in-tree-build-ea-library@bee641, cl-2026-09-12-foundation-note-pinned@805619, cl-2026-09-14-design-philosophy@f84a59, cl-2026-09-14-library-boundary@9b6ddc, cl-2026-09-14-policy-proliferation@5c0ff5, cl-2026-09-14-typeclass-laws@767ea8, cl-2026-09-14-delegation-kit@c27eb7, cl-2026-09-14-checklist-tests@789e87, cl-2026-09-14-prototype-class@a519ad]
+seed_version: 2026-09-20
+copied_at: 2026-09-23
+ported_change_ids: [cl-2026-09-12-authoritative-ledger@a3c319, cl-2026-09-12-implementation-classes@e7c9fe, cl-2026-09-12-algebra-contract@f45507, cl-2026-09-12-manifest-policy@c6aaaa, cl-2026-09-12-examples-layout@b5124d, cl-2026-09-12-acceptance-gate@d020de, cl-2026-09-12-consumer-absolute-seed-path@4e3e13, cl-2026-09-12-in-tree-build-ea-library@bee641, cl-2026-09-12-foundation-note-pinned@805619, cl-2026-09-14-design-philosophy@f84a59, cl-2026-09-14-library-boundary@9b6ddc, cl-2026-09-14-policy-proliferation@5c0ff5, cl-2026-09-14-typeclass-laws@767ea8, cl-2026-09-14-delegation-kit@c27eb7, cl-2026-09-14-checklist-tests@789e87, cl-2026-09-14-prototype-class@a519ad, cl-2026-09-15-formal-note@103ab5, cl-2026-09-20-surface-by-usage@036b70, cl-2026-09-20-run-vs-model@b87771, cl-2026-09-20-ea-api-first@96cf61, cl-2026-09-20-note-pin-3dc33b@a7301e]
 declined_change_ids: []
 scope: ea-library
 repo: haskell-exchange-algebra
@@ -11,9 +11,9 @@ do_not_auto_sync: true
 
 # EA_USAGE — haskell-exchange-algebra (EA library / examples 規約, consumer)
 
-正本は Orchestrator の seed `/Users/akagi/Developer/claude/assistant/config/agents/ea-research-code.seed.md` (改訂 5.5. §0 設計思想, §1 authoritative な台帳と実装分類・library 境界・型クラス化と法則, §2 代数 contract, §3 配置と依存, §4 examples 構造, §5 checklist, §6 受入 gate). 本 doc は本 repo の特化と現状だけを持つ. §2 は複製せず参照し, 特化も decline もしない.
+正本は Orchestrator の seed `/Users/akagi/Developer/claude/assistant/config/agents/ea-research-code.seed.md` (改訂 7. §0 設計思想, §1 authoritative な台帳と実装分類・library 境界・run 設定の分離・型クラス化と法則・公開 API の先行探索, §2 代数 contract, §3 配置と依存, §4 examples 構造, §5 checklist, §6 受入 gate). 本 doc は本 repo の特化と現状だけを持つ. §2 は複製せず参照し, 特化も decline もしない.
 
-代数の正本 note は `agent-notes/references/exchangealgebra-redundant-algebra-foundation.md` (gitignore 対象で, この clone には無い). 固定版は sha256 `79a360765656f997fb16a9718855d2260d1d9e8c3b9b7f8df039c863d5d8f5ef`, 2026-09-12 訂正後 (`Definition 8`: `decL = Debit`, `decR = Credit`) とする. note を読めない clone では seed §2 を ground truth とする.
+代数の正本 note は `agent-notes/references/exchangealgebra-redundant-algebra-foundation.md` (gitignore 対象で, この clone には無い). 固定版は sha256 `3dc33baef1c5a38e1572cc9bf6b72fdf98b343c62ce177541bcff9e1b34a2884`, 2026-09-20 改訂版 (`Definition 1` の wildcard の照合を片方向へ. 前版は `Definition 8` を `decL = Debit`, `decR = Credit` に直した 2026-09-12 版) とする. 片方向照合は develop `9d4c403` で `proj` / `projNetNorm` / `projByAccountTitle` / `map` に実装済みで, 公開演算子 `.==` は対称のまま残る. note を読めない clone では seed §2 を ground truth とする.
 
 ## 本 repo の現状と分類
 
@@ -60,6 +60,12 @@ EA 本体 `src/` は `library`. `examples/` は公開済みの `production` exam
 
 研究 repo からの昇格は cross-repo handoff (`class: substantive`) で受け, 本 repo の plan で扱う. EA 側で「受入済」とする条件は次の 3 点が揃うこと: (1) develop へ land した commit hash, (2) 公開 API の Haddock に Definition 対応と law 節 (CODING_STYLE 規則 17 の 6 項) がある, (3) ChangeLog の `Unreleased` に項目がある. 未採用の提案や受領しただけの handoff は ChangeLog に載せない. 受入の審査では昇格条件 (a)-(d) を研究 repo の証拠 (利用箇所 2 件, property test の実行結果) で確認し, (d) により `src/` へ policy の定数を持ち込まない. 既存 EA API で代替できる計算 (線形代数, 射影, 振替, 検証) を研究 repo が自前実装していれば, 取込前に既存 API への置換を handoff で返す.
 
+表面積の議論 (seed §1.6 末尾) は, 本 repo では「利用者が Lite model を 1 本書くとき何を書くか」を手順として書き出して測る. 現状の手順は world の record (HKD) → `LiteWorld` instance → `stageFor` / `stage` による stage 列 → `SimSpec` → `runLite` 系の呼出しで, 公開する型の数ではなくこの手順の必須項目の数と順序を減らす方向で API を見直す. module 構成の改装 (`plans/proposed/library-restructure-target.md`) もこの物差しで評価する.
+
+### run 設定の分離 (seed §1.6a)
+
+現状の `SimSpec` (`src/ExchangeAlgebra/Simulate/Lite.hs:444`) は run の設定 (`specTerms`, `specSeed`) と model の定義 (`specLedger`, stage 列) を同じ record に持ち, seed §1.6a から外れている. EA は fingerprint も checkpoint も持たないので, 今のところ同一 model の 2 run が別 model に見える実害は無い. 分離は `SimSpec` の破壊的変更になるため 0.6.0.0 の候補とし, `plans/proposed/library-restructure-target.md` §4 に記録した. それまでに EA へ fingerprint / checkpoint / resume を足すときは, 先に run 設定を独立の record (`Run { runTerms, runSeed }` 等) に分ける.
+
 ### 依存境界の特化 (seed §1.7)
 
 engine (`Simulate`, `Simulate/Lite`) と ledger policy (`Simulate/Policy`, `Simulate/Spill`) は具体の経済 policy を分岐しない. model の policy は `Stage` の関数値, classic engine の型クラス instance, `examples/` 側の record-of-functions として engine に入る. `LedgerPolicy` の選択肢 (`RetainAll` / `RetainRecent`, `FullAudit` / `CompressClosedTerms`) は経済 policy でなく台帳の保持方式であり, 主張 id の対応は研究 repo の manifest 側で持つ (seed §3.6 の条件). `examples/` の production model で scenario 境界の閉じた選択肢を増やすときは, family README に主張 (論文の表・図) と有効な組合せを書く.
@@ -71,7 +77,7 @@ engine (`Simulate`, `Simulate/Lite`) と ledger policy (`Simulate/Policy`, `Simu
 | 機能単位 | 拡張の軸 | 表現 | 法則 | ただで受け取る汎用関数 | 再利用の証拠 |
 |---|---|---|---|---|---|
 | 値 `n` (`HatVal`) | 値型 (`Double`, `MoneyDouble`, `MoneyDecimal`) | 型クラス | posting 値は非負 (値型は完全には保証しない. seed §2), 加法と `Nearly` による比較 | `.+`, `.*`, `norm`, `bar`, `Write` 系出力 | `test/Spec.hs` の Lite DET-1 (`MoneyDouble`) / DET-2 (`MoneyDecimal`) が同じ model を 2 値型で build・test |
-| 基底 `b` (`BaseClass` / `HatBaseClass` / `ExBaseClass` / `AccountBase`, 要素は `Element` / `AxisDecompose`) | 基底軸 (勘定科目, 主体, 相手, 単位, 期) | 型クラス | `Element` の `Eq` / `Ord` / `Hashable` の整合, wildcard (`HatNot` 等) の照合規則, 軸分解の一意性 | `proj` 系, `decL` / `decR`, `balance`, 軸ごとの射影 | examples の bookkeeping / ripple / market が別の基底 tuple で同じ代数 API を使用 |
+| 基底 `b` (`BaseClass` / `HatBaseClass` / `ExBaseClass` / `AccountBase`, 要素は `Element` / `AxisDecompose`) | 基底軸 (勘定科目, 主体, 相手, 単位, 期) | 型クラス | `Element` の `Eq` / `Ord` / `Hashable` の整合, wildcard (`HatNot` 等) の片方向照合 (seed §2. pattern 側の `#` だけが任意に一致し, 台帳の `#` は具体値の問い合わせに一致しない), 軸分解の一意性 | `proj` 系, `decL` / `decR`, `balance`, 軸ごとの射影 | examples の bookkeeping / ripple / market が別の基底 tuple で同じ代数 API を使用 |
 | 冗長代数 (`Redundant`, `Exchange`) | 表現 (`Alg`, `Journal`) | 型クラス | Definition 6 の 5 公理 (Hat 対合, norm の斉次性・加法性等), `bar` 冪等, `Zero` 単位元, `.+` 結合 (観測は `bar` / `norm`. `Double` は許容つき) | 全ての集計・振替・報告関数 | `Alg` と `Journal` の 2 表現が同じ class API を実装し, property test で固定 |
 | note `n` (`Note`, `HasTermAxis`) | event × term の記法, note の型 | 型クラス | 期軸の順序 (`Ord (TermOf n)`) と retention 窓の整合 | `Simulate/Policy` の retention / spill / restore | Policy test の `restoreLedger == FullAudit` と market model の note ADT |
 | world と stage (`Simulate/Lite`: `LiteWorld`, `Stage`, `Field`) | 状態 field, agent 種, stage 列 | data + smart constructor (`stageFor` / `stage` / `stageOf`), world は HKD + Generic | stage 内の snapshot 不変 (BSP), 逐次 = 並列 (DET-2), seed のみからの決定性 (DET-1), 繰越 `Field` 規則 | `runLite`, `runLiteWithPolicy`, `runLiteFold`, `runLiteWithPolicyObs` | `test/Spec.hs` の Lite / Policy / Market test と `examples/market/`, `optimization/cge-lite/` |
@@ -81,10 +87,17 @@ engine (`Simulate`, `Simulate/Lite`) と ledger policy (`Simulate/Policy`, `Simu
 
 非会計状態 (価格, 履歴窓, 注文書) を Lite model に取り込む場合は, seed §1.8 の 3 択 (Journal への符号化, 期境界の `Field` 規則での再計算, classic engine との併用) を model の設計 note で選ぶ. Lite の stage が任意の field を書けるように engine を広げる提案は受けない.
 
+### 公開 API の先行探索 (seed §1.9)
+
+`examples/` は EA の利用側なので seed §1.9 をそのまま適用する (加算は `.+`, note は最後に `.|` を 1 回, 総和は `sigma` 系, 残高の読出しは `proj` 系, 取引網の不変条件は再検査しない). `src/` の中でも, 既存の公開 API で書ける集計を手書きの走査や `Map` 操作で重複させない.
+
+§1.9 末尾の時限つき例外 (`Double` を `foldl'` で畳む関数を数値の集計に使わない) は, 本 repo では回避策でなく修正の対象である. 修正は `plans/in-progress/double-exact-summation.md` で扱い, `examples/` に利用側の `Rational` 層を新たに足さない. land したら assistant へ知らせ, seed と consumer 側の例外を外してもらう.
+
 ### 実装仕様と checklist の特化 (seed §3.8, §5 項目 10-14)
 
 - 本 repo の plan (`plans/`) で library 機能を実装するときは, 仕様に seed §3.8 の 5 項目 (API signature と使用例, 保持する契約と廃止機能の列挙, §1.6 の分類と上の拡張点表の該当行, 記述量の集計法と目安 = `CODING_STYLE.md` の Repo-local slot, 既存 API 対応表) を含める. 保持する契約には PVP 上の additive 性 (minor か major か) を明記する.
 - §5 項目 10-14 は `examples/` の production model と, `src/` の新設・変更した機能単位に適用する. 項目 11 (library 境界表) は本 repo では `examples/` の module に対して「model 固有 / generic 候補 / 昇格適格」を判定し, 昇格適格なら `src/` への移動を plan にする (handoff は不要. 同一 repo 内の昇格).
+- 新しい機能単位の formal note (seed §3.8 (a)-(e)) は plan に置き, 式の出典には論文 Appendix A の Definition 番号 (Akagi 2026, `agent-notes/references/sn-article.pdf`) か foundation note の label を使う. 公理の最終決定権は Deguchi & Nakano 1986 にある. 末尾の対応表 (Definition / Law ↔ 型 / 関数 ↔ law / test 種別 ↔ 状態) の test 種別は, 下の test 階層表の層名で書く.
 
 ### test 階層の特化 (seed §5.1)
 
