@@ -8,7 +8,7 @@
 
     Released under the OWL license
 
-    Exact, non-negative decimal value type (t'MoneyDecimal') for use as the @v@
+    Exact, non-negative decimal value type t'MoneyDecimal' for use as the @v@
     parameter of @Alg v b@ / @Journal n v b@.
 
     == Why this exists (DESIGN, 2026-06-06)

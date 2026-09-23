@@ -83,8 +83,8 @@ import           ExchangeAlgebra.Algebra
 import           ExchangeAlgebra.Value    (MoneyDecimal)
 import           GHC.Stack (HasCallStack)
 
--- | Injection that tells a builder how to wrap a @(v'Hat', 'AccountTitles')@ pair
--- into the concrete base @b@ in use. The caller supplies it once.
+-- | Injection that tells a builder how to wrap a pair of v'Hat' and
+-- 'AccountTitles' into the concrete base @b@ in use. The caller supplies it once.
 --
 -- @
 -- -- single-axis base (account title only):

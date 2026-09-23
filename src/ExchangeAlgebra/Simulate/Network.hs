@@ -16,9 +16,9 @@
     A small, additive front-end that separates two concepts that the older
     examples conflated into a single dense @N×N@ coefficient matrix:
 
-      1. the __trade network__ (t'TradeNetwork') — /who may trade with whom/, a
+      1. the __trade network__, t'TradeNetwork' — /who may trade with whom/, a
          sparse directed relation; and
-      2. the __input coefficients__ (t'InputCoefficients') — /the technology/,
+      2. the __input coefficients__, t'InputCoefficients' — /the technology/,
          a sparse map of per-edge coefficients @a_{ij}@.
 
     In the dense-matrix style the support (non-zero cells) of the coefficient
@@ -1147,8 +1147,8 @@ readEdgeCsv fp = do
       Left e    -> Left e
       Right es  -> either (Left . show) Right (networkFromTable es)
 
--- | Read a coefficient CSV file into a @(t'TradeNetwork', t'InputCoefficients')@
--- pair. Combines parse and validation errors into the @Left@ string.
+-- | Read a coefficient CSV file into a pair of a t'TradeNetwork' and
+-- t'InputCoefficients'. Combines parse and validation errors into the @Left@ string.
 readCoefCsv :: FilePath -> IO (Either String (TradeNetwork Text, InputCoefficients Text Double))
 readCoefCsv fp = do
     txt <- TIO.readFile fp

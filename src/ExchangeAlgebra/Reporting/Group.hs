@@ -34,7 +34,7 @@ netted at the last moment, into a t'RelativeAmount' carrying a __non-negative__
 magnitude plus a direction flag. Stored and rendered magnitudes therefore stay
 in \(\mathbb{R}_0^+\), including for soft-invariant value types such as
 @MoneyDecimal@. A minus sign exists only in rendered text, never in a stored
-t'RelativeAmount'.
+value of t'RelativeAmount'.
 
 === Block invariant
 

@@ -630,8 +630,8 @@ accountGrossTotals = EA.foldEntries step OMap.empty
 -- | Net a @(debit gross, credit gross)@ pair into a @(Side, magnitude)@ balance,
 -- reproducing 'diffRL' exactly. 'diffRL' compares @r = 'norm' . 'decR'@ (credit)
 -- against @l = 'norm' . 'decL'@ (debit) with the scale-aware tolerance, so the
--- same comparison is applied here: near-equal sides report @(v'Side', 0)@,
--- otherwise the larger side wins with the non-negative difference.
+-- same comparison is applied here: near-equal sides report v'Side' with zero
+-- magnitude, otherwise the larger side wins with the non-negative difference.
 --
 -- Complexity: O(1).
 netGross :: (HatVal n) => (n, n) -> (Side, n)
