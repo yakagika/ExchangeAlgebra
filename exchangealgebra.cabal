@@ -84,6 +84,7 @@ library
       ExchangeAlgebra.Algebra.Base.Account.Registry
       ExchangeAlgebra.Algebra.Base.Account.Types
       ExchangeAlgebra.Algebra.Base.Element
+      ExchangeAlgebra.Algebra.Exact
       ExchangeAlgebra.Algebra.Internal
       ExchangeAlgebra.Algebra.Readout.Net
       ExchangeAlgebra.Algebra.Transfer
@@ -97,6 +98,7 @@ library
       ExchangeAlgebra.Convert.Csv
       ExchangeAlgebra.Foundation
       ExchangeAlgebra.Journal
+      ExchangeAlgebra.Journal.Exact
       ExchangeAlgebra.Journal.Transfer
       ExchangeAlgebra.Journal.Transfer.Rule
       ExchangeAlgebra.Optimize
@@ -191,8 +193,10 @@ test-suite ExchangeAlgebra-surface
   main-is: SurfaceMain.hs
   other-modules:
       Surface.Accounting
+      Surface.Algebra.Exact
       Surface.Algebra.Readout.Net
       Surface.Foundation
+      Surface.Journal.Exact
       Surface.Render.Bookkeeping
       Surface.Render.Csv
       Surface.Render.Simulation
@@ -231,6 +235,7 @@ test-suite ExchangeAlgebra-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      Algebra.ExactSumSpec
       Algebra.ProjWildcardSpec
       Golden.WriteRows
       Transfer.RuleSpec

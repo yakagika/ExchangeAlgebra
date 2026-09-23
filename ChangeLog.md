@@ -1,5 +1,29 @@
 # Changelog for ExchangeAlgebra
 
+## Unreleased
+
+### Added
+
+- `ExchangeAlgebra.Algebra.Exact` and `ExchangeAlgebra.Journal.Exact` provide
+  checked readouts that sum original postings exactly and round each output
+  once. The algebra API includes `normExact`, `barExact`,
+  `projNetNormExact`, `balanceMapByExact`, `netPairMapByExact`,
+  `postFromNetByExact`, `diffRLExact`, `balanceExact`, and
+  `accountBalancesExact`. Journal projections cancel within each note before
+  rounding the combined residual; other journal readouts aggregate notes.
+  `sumExact` and the accumulator operations also support scalar aggregation.
+  `ExactSum` supports `Double`, `MoneyDouble`, `NN.Double`, and `MoneyDecimal`.
+  `ExactSumError` reports non-finite or negative inputs and exact sums beyond
+  the finite range of the output type. Callers must handle the `Either` result.
+
+### Documentation
+
+- Mark the existing floating-point net and balance readouts as order-dependent
+  where they sum postings sequentially, and identify tolerance-based
+  cancellation. `netGross` and `relativeTo` document that their supplied gross
+  totals may already be rounded; use exact readouts on the original postings
+  upstream when exact balances are required.
+
 ## 0.5.1.0 - 2026-09-23
 
 ### Added

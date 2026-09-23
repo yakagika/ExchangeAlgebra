@@ -80,8 +80,10 @@ tests:
     source-dirs:         test
     other-modules:
     - Surface.Accounting
+    - Surface.Algebra.Exact
     - Surface.Algebra.Readout.Net
     - Surface.Foundation
+    - Surface.Journal.Exact
     - Surface.Render.Bookkeeping
     - Surface.Render.Csv
     - Surface.Render.Simulation
@@ -107,6 +109,7 @@ tests:
     # hpack は source-dirs 配下の全 module を推論するので, surface suite の
     # Surface.* / SurfaceMain が混入しないよう明示する (release-0510-additive L5).
     other-modules:
+    - Algebra.ExactSumSpec
     - Algebra.ProjWildcardSpec
     - Golden.WriteRows
     - Transfer.RuleSpec

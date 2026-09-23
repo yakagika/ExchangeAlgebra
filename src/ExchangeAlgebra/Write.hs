@@ -632,6 +632,10 @@ accountGrossTotals = EA.foldEntries step OMap.empty
 -- against @l = 'norm' . 'decL'@ (debit) with the scale-aware tolerance, so the
 -- same comparison is applied here: near-equal sides report v'Side' with zero
 -- magnitude, otherwise the larger side wins with the non-negative difference.
+-- This function compares two supplied totals; it does not sum postings. If
+-- floating-point addition has already rounded those totals, use
+-- @ExchangeAlgebra.Journal.Exact.accountBalancesExact@ or
+-- @ExchangeAlgebra.Algebra.Exact.diffRLExact@ upstream on the original postings.
 --
 -- Complexity: O(1).
 netGross :: (HatVal n) => (n, n) -> (Side, n)

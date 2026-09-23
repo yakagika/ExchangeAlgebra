@@ -231,6 +231,10 @@ data RelativeAmount v = RelativeAmount
 -- scale-aware near-equality as @ExchangeAlgebra.Write.netGross@\/@diffRL@, so
 -- a balance that nets to zero within tolerance reports a zero magnitude
 -- rather than floating-point dust.
+-- This function compares two supplied totals; it does not sum postings. If
+-- floating-point addition has already rounded those totals, use
+-- @ExchangeAlgebra.Journal.Exact.accountBalancesExact@ or
+-- @ExchangeAlgebra.Algebra.Exact.diffRLExact@ upstream on the original postings.
 relativeTo :: HatVal v => Side -> (v, v) -> RelativeAmount v
 relativeTo side (debit, credit)
     | nearlyEqScaled debit credit = RelativeAmount False zeroValue

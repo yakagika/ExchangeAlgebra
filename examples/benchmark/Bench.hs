@@ -13,10 +13,13 @@
 --   stack bench exchangealgebra-examples:bench-core
 --   stack bench exchangealgebra-examples:bench-core \
 --     --benchmark-arguments '--output examples/benchmark/result/report.html'
+--   stack bench exchangealgebra-examples:bench-core \
+--     --benchmark-arguments '--match exact'
 --
--- Each benchmark drives a scalar-producing pipeline (ending in 'norm' or
--- 'projWithBaseNetNorm') so 'whnf' forces the whole computation, and inputs are
--- constructed inside 'env' so their cost is excluded from the timed region.
+-- Existing scalar-producing pipelines end in 'norm' or 'projWithBaseNetNorm'.
+-- The @exact/*@ comparisons force both legacy and checked results to normal
+-- form. Inputs are constructed inside 'env' so their cost is excluded from
+-- the timed region.
 --
 -- == HatBase key-hashing study (2026-06-08)
 --
@@ -52,6 +55,7 @@ import qualified Data.Text                as T
 
 import           ExchangeAlgebra.Journal  -- constructors / operators: :@ :< .+ .| Hat Not Cash ...
 import qualified ExchangeAlgebra.Algebra  as EA
+import qualified ExchangeAlgebra.Algebra.Exact as Exact
 import qualified ExchangeAlgebra.Journal  as EJ
 import qualified ExchangeAlgebra.Write     as EW
 
@@ -278,6 +282,24 @@ mkDecAlg nc = EA.fromList
 decNs :: [Int]
 decNs = [200, 1000]
 
+-- | Force a checked benchmark result to normal form.
+-- Invariant: the finite, non-negative 'mkDecAlg' input stays within Double's range.
+-- A validation failure violates that input invariant and aborts the benchmark.
+forceExact :: NFData a => Either Exact.ExactSumError a -> ()
+forceExact (Left failure) = error ("exact benchmark input invariant: " ++ show failure)
+forceExact (Right value) = rnf value
+
+-- | Force every posting scalar as well as the resulting algebra structure.
+forceAlgebra :: (HatVal value, NFData value, HatBaseClass base) => EA.Alg value base -> ()
+forceAlgebra = EA.foldEntries (\result value _ -> rnf value `seq` result) ()
+
+-- | Force a checked bar's posting scalars; Alg's NFData instance is shallow.
+-- Invariant: the benchmark input has finite, non-negative, in-range side totals.
+forceExactAlgebra :: (HatVal value, NFData value, HatBaseClass base)
+                  => Either Exact.ExactSumError (EA.Alg value base) -> ()
+forceExactAlgebra (Left failure) = error ("exact benchmark input invariant: " ++ show failure)
+forceExactAlgebra (Right algebra) = forceAlgebra algebra
+
 ------------------------------------------------------------------
 -- * HatBase key-hashing study
 ------------------------------------------------------------------
@@ -448,6 +470,36 @@ main = defaultMain
                     (\(t, c) v -> v .@ (Not :< (t, c)))
                     a))
                 x
+        | nc <- decNs ]
+
+    ------------------------------------------------------------------
+    -- Exact readouts against the existing floating-point readouts
+    ------------------------------------------------------------------
+    , bgroup "exact/norm"
+        [ env (pure (mkDecAlg nc)) $ \algebra -> bgroup ("K=" ++ show nc)
+            [ bench "norm" $ whnf (rnf . norm) algebra
+            , bench "normExact" $ whnf (forceExact . Exact.normExact) algebra ]
+        | nc <- decNs ]
+    , bgroup "exact/bar"
+        [ env (pure (mkDecAlg nc)) $ \algebra -> bgroup ("K=" ++ show nc)
+            [ bench "bar" $ whnf (forceAlgebra . bar) algebra
+            , bench "barExact" $ whnf (forceExactAlgebra . Exact.barExact) algebra ]
+        | nc <- decNs ]
+    , bgroup "exact/balanceMapBy"
+        [ env (pure (mkDecAlg nc)) $ \algebra -> bgroup ("K=" ++ show nc)
+            [ bench "balanceMapBy" $
+                whnf (rnf . EA.balanceMapBy (\(_, company) -> Just company)) algebra
+            , bench "balanceMapByExact" $
+                whnf (forceExact . Exact.balanceMapByExact (\(_, company) -> Just company))
+                    algebra ]
+        | nc <- decNs ]
+    , bgroup "exact/netPairMapBy"
+        [ env (pure (mkDecAlg nc)) $ \algebra -> bgroup ("K=" ++ show nc)
+            [ bench "netPairMapBy" $
+                whnf (rnf . EA.netPairMapBy (\(_, company) -> Just company)) algebra
+            , bench "netPairMapByExact" $
+                whnf (forceExact . Exact.netPairMapByExact (\(_, company) -> Just company))
+                    algebra ]
         | nc <- decNs ]
 
     ------------------------------------------------------------------

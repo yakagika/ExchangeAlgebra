@@ -75,6 +75,7 @@ import qualified Data.Text.IO        as TIO
 import           Golden.WriteRows
 import qualified Transfer.RuleSpec as TransferRuleSpec
 import qualified Algebra.ProjWildcardSpec as ProjWildcardSpec
+import qualified Algebra.ExactSumSpec as ExactSumSpec
 import           Numeric             (showHex)
 import           Control.Monad       (forM_)
 import           Control.Monad.ST
@@ -6965,6 +6966,7 @@ testOptimizeFailFast = do
 
 main :: IO ()
 main = do
+    ExactSumSpec.runTests
     TransferRuleSpec.runTests
     ProjWildcardSpec.runTests
     testAccountTitlesBinary

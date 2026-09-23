@@ -826,6 +826,10 @@ projWithBase bs js = fromMap $ Map.map (EA.proj bs) (toMap js)
 -- (e.g. a @HatNot@ wildcard, or a list selecting both sides of one base)
 -- selects both the hat and the not side of a base: the un-netted norm sums
 -- both sides, the netted one cancels them. See 'EA.projNetNorm'.
+-- Floating-point sums within each note and across notes use sequential addition
+-- and depend on posting and note order. Near-equal sides cancel under
+-- 'EA.nearlyEqScaled'. See "ExchangeAlgebra.Journal.Exact" for exact sums over
+-- the original postings.
 --
 -- Complexity: O(j * proj cost) where j is the number of Notes
 projWithBaseNetNorm :: (HatVal v, HatBaseClass b, Note n)
@@ -878,6 +882,10 @@ projWithNoteBase ns bs js =
 --
 -- which is __not__ the same as @norm (projWithNoteBase ns bs js)@ when a query
 -- selects both sides of one base (see 'projWithBaseNetNorm').
+-- Floating-point sums within each note and across selected notes use sequential
+-- addition and depend on posting and note order. Near-equal sides cancel under
+-- 'EA.nearlyEqScaled'. See "ExchangeAlgebra.Journal.Exact" for exact sums over
+-- the original postings.
 --
 -- Complexity: O(|ns| * proj cost)
 projWithNoteBaseNetNorm :: (HatVal v, HatBaseClass b, Note n)

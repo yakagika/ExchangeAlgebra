@@ -52,6 +52,7 @@ module ExchangeAlgebra.Algebra.Internal
     , HatVal(..)
     , Pair(..)
     , Alg(..)
+    , linerFromMap
     , isZero
     , (.@)
     , (<@)
@@ -243,12 +244,19 @@ class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
     (.^) :: a n b -> a n b
 
     -- | Bar operation. Cancels Hat/Not on the same base and retains only the difference.
+    -- Floating-point side totals use sequential addition and depend on posting order;
+    -- near-equal sides cancel under 'nearlyEqScaled'. For exact totals, see
+    -- "ExchangeAlgebra.Algebra.Exact" or "ExchangeAlgebra.Journal.Exact".
     -- Complexity: O(n) (n is the number of base keys)
     (.-) :: a n b -> a n b
 
     -- | Alias for bar operation. Identical to @(.-)@.
     -- On an axis-preserving ledger, @norm . bar@ cancels only within each full
     -- base. Use 'balanceMapBy' or 'netPairMapBy' for net amounts by group.
+    -- Floating-point side totals depend on posting order, and near-equal sides
+    -- cancel under 'nearlyEqScaled'. See "ExchangeAlgebra.Algebra.Exact" for
+    -- exact netting of the original postings, or "ExchangeAlgebra.Journal.Exact"
+    -- for journal readouts.
     bar :: a n b -> a n b
     bar = (.-)
 
@@ -315,9 +323,19 @@ class (Redundant a n b ) => Exchange a n b where
     -- | Extracts only the Not-side elements (the M-projection of the
     -- decomposition; @isHat@ does not hold). Complexity: O(s)
     decM :: a n b -> a n b
-    -- | Checks whether the norms of debit and credit sides are equal. Complexity: O(s)
+    -- | Checks whether the norms of debit and credit sides are equal. The norms
+    -- sum floating-point postings sequentially, so their totals depend on order;
+    -- 'nearlyEqScaled' treats near-equal totals as balanced. For an exact check
+    -- over the original postings, see "ExchangeAlgebra.Algebra.Exact" or
+    -- "ExchangeAlgebra.Journal.Exact".
+    -- Complexity: O(s)
     balance :: a n b -> Bool
-    -- | Returns the debit-credit difference as a (Side, difference) pair. Complexity: O(s)
+    -- | Returns the debit-credit difference as a (Side, difference) pair. The
+    -- side norms sum floating-point postings sequentially and depend on order;
+    -- 'nearlyEqScaled' reports a zero difference for near-equal totals. For
+    -- exact netting of the original postings, see "ExchangeAlgebra.Algebra.Exact"
+    -- or "ExchangeAlgebra.Journal.Exact".
+    -- Complexity: O(s)
     diffRL :: a n b -> (Side, n)
 
 
@@ -1696,6 +1714,9 @@ projByAccountTitle at alg = filter (f at) alg
 -- On an axis-preserving ledger, this nets only within each projected full
 -- base; it does not cancel across axis values. Use 'balanceMapBy' or
 -- 'netPairMapBy' for net amounts by group.
+-- Floating-point side and projected totals use sequential addition and depend
+-- on posting order. 'nearlyEqScaled' cancels near-equal sides. See
+-- "ExchangeAlgebra.Algebra.Exact" for exact sums over the original postings.
 --
 -- Complexity: O(cost(proj) + cost(bar) + cost(norm)).
 projNetNorm :: (HatVal n, HatBaseClass b) => [b] -> Alg n b -> n
@@ -1751,6 +1772,9 @@ barNormPair (Pair hs ns) =
 -- | Compute the net balance as the difference of two projections.
 -- @balanceBy plusBases minusBases alg@ computes
 -- @projNetNorm plusBases alg - projNetNorm minusBases alg@.
+-- Floating-point totals inherit the posting-order dependence and near-equal
+-- cancellation of 'projNetNorm'. See "ExchangeAlgebra.Algebra.Exact" for exact
+-- sums over the original postings.
 --
 -- Useful for calculating stock quantities, profits, etc.
 --
@@ -1783,6 +1807,9 @@ balanceBy plusBases minusBases alg =
 -- type (e.g. 'Double', @MoneyDouble@, @MoneyDecimal@); a non-negative-only type
 -- such as @Number.NonNegative.Double@ is unsuitable here. Keys whose net is zero
 -- are kept (like 'foldEntriesToMap'); filter afterwards if undesired.
+-- Floating-point bucket sums use sequential addition and depend on posting
+-- order. See "ExchangeAlgebra.Algebra.Exact" for exact sums over the original
+-- postings.
 --
 -- Complexity: O(total number of entries) — a single fold, no per-key projection.
 --
@@ -1828,6 +1855,9 @@ balanceMapBy keyOf = foldEntriesToMap step
 -- @n - h@ identity with 'balanceMapBy' only holds on a /signed/ value type
 -- (e.g. 'Double', @MoneyDouble@, @MoneyDecimal@) where the difference can be
 -- negative.
+-- Floating-point per-base and per-key sums use sequential addition and depend
+-- on posting order. 'nearlyEqScaled' drops near-equal per-base sides. See
+-- "ExchangeAlgebra.Algebra.Exact" for exact sums over the original postings.
 --
 -- Complexity: O(total number of entries) — a single fold over the entries,
 -- followed by one collapse over the distinct bases.
@@ -1972,6 +2002,9 @@ decBy kf (Liner m _ _ _ _ _) =
 -- Thus it factors through the quotient induced by 'bar': it is not the free
 -- extension that acts independently on entries in the redundant layer (that
 -- one is 'extendBy').
+-- Floating-point per-base and class totals use sequential addition and depend
+-- on posting order; 'bar' cancels near-equal sides under 'nearlyEqScaled'. See
+-- "ExchangeAlgebra.Algebra.Exact" for exact sums over the original postings.
 --
 -- Complexity: O(m + Σ cost(post)).
 --
