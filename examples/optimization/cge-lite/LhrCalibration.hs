@@ -387,7 +387,9 @@ parseTaxparRule n val =
 readDouble :: String -> String -> Either String Double
 readDouble ctx s =
     case readMaybe s of
-        Just v  -> Right v
+        Just v
+            | isNaN v || isInfinite v -> Left (ctx ++ ": non-finite Double " ++ s)
+            | otherwise -> Right v
         Nothing -> Left (ctx ++ ": bad Double " ++ s)
 
 readInt :: String -> String -> Either String Int
@@ -433,8 +435,10 @@ calibrate inp =
         Right taxpar0
             | worst > 1e-6 * max 1.0 maxcell ->
                 Left ("SAM unbalanced beyond rounding: max |col-row| = " ++ show worst)
-            | not (null lesFailures) ->
-                Left (head lesFailures)
+            | (msg : _) <- lesFailures ->
+                Left msg
+            | (msg : _) <- prodelasFailures ->
+                Left msg
             | otherwise ->
                 Right LhrCalibration
                     { calSets = sets'
@@ -544,8 +548,15 @@ calibrate inp =
                 in if (c `elem` cmn) || (c `elem` cm && c `elem` cdn)
                    then M.insert (c, "SIGMAQ") 0.0 m1 else m1
 
-            -- PRODELAS(a).
+            -- PRODELAS(a). Required and positive for every activity: rhova = 1/PRODELAS - 1
+            -- divides by it (GAMS stops with a division-by-zero error on a missing entry).
             prodelas = M.fromList [(a, M.findWithDefault 0.0 a (rawProdelas inp)) | a <- aSet]
+            prodelasFailures =
+                [ "dataset error: PRODELAS(" ++ acName a ++ ") must be given and positive, got "
+                  ++ maybe "nothing" show (M.lookup a (rawProdelas inp))
+                | a <- aSet
+                , maybe True (<= 0.0) (M.lookup a (rawProdelas inp)) ]
+            acName (Ac x) = x
 
             -- ELASAC(c).
             elasac0 = M.fromList [(c, fromMaybe 0.0 (rawElasacDefault inp)) | c <- cSet]

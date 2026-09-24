@@ -116,8 +116,11 @@ emptySentinelLog = SentinelLog
 
 -- | Find @p@ with @z(p) ~ 0@, treating exactly the keys of the initial
 -- guess as free variables (keys the oracle returns beyond those are
--- ignored; free keys the oracle omits are read as 0 — convenient while
--- upstream stages are still partial).
+-- ignored). The oracle must return every free key: if it omits one at the
+-- initial guess the solve fails at once (K = 1, not converged); an omission
+-- at a later trial point is read as NaN, which no convergence or line-search
+-- test accepts, so the solve also ends unconverged. A missing residual is
+-- never read as 0.
 --
 -- Returns the final iterate (converged or not — check 'slConverged') and
 -- the solve's 'SentinelLog'.
@@ -126,20 +129,22 @@ solveRoot :: Ord k
           -> M.Map k Double                      -- ^ initial guess (free keys)
           -> ConvergenceTol
           -> (M.Map k Double, SentinelLog)
-solveRoot zf p0 tol =
-    let v0 = map snd (M.toAscList p0)
-        z0 = evalZ v0
-        r0 = norm2 z0
-    in  if r0 < tolNorm tol
-            then (fromVec v0, SentinelLog 1 Nothing True r0)
-            else loop 0 v0 z0 (fdJacobian v0 z0) True Nothing (1 + n)
+solveRoot zf p0 tol
+    | incomplete = (p0, SentinelLog 1 Nothing False (1 / 0))
+    | r0 < tolNorm tol = (fromVec v0, SentinelLog 1 Nothing True r0)
+    | otherwise = loop 0 v0 z0 (fdJacobian v0 z0) True Nothing (1 + n)
   where
     ks = M.keys p0
     n  = length ks
+    v0 = map snd (M.toAscList p0)
+    zm0 = zf p0
+    z0 = residualList zm0
+    r0 = norm2 z0
+    incomplete = not (all (`M.member` zm0) ks)
 
     fromVec vs = M.fromList (zip ks vs)
-    evalZ vs   = let zm = zf (fromVec vs)
-                 in  [ M.findWithDefault 0 k zm | k <- ks ]
+    evalZ vs   = residualList (zf (fromVec vs))
+    residualList zm = [ M.findWithDefault (0 / 0) k zm | k <- ks ]
 
     -- Forward-difference Jacobian: column j = (z(p + h e_j) - z(p)) / h,
     -- h = sqrt(machine eps) * max(1, |p_j|). Costs n oracle calls.

@@ -20,14 +20,17 @@
     * __(c) realized == notional [RQ1]__ — at the solution every ledger residual
       is ≈ 0 (the household's realized receipts equal its instrument income; the
       dropped SAVINVBAL checks out ex post by Walras's law).
-    * __(a) replicability__ — a clone-split journal folds to bit-identical
-      residuals.
+    * __(a) replicability__ — a clone-split journal folds to the same
+      residuals (within 1e-9 relative).
+
+  A dataset that fails to parse or calibrate is a failed check, not a
+  skipped one, so the suite cannot pass with fewer datasets than listed.
 
   (b) response purity is a compile-time property, so it needs no runtime check.
 -}
 module Main where
 
-import           Data.Maybe      (catMaybes)
+import           Data.Either     (lefts, rights)
 import qualified Data.Map.Strict as M
 
 import           ExchangeAlgebra.Algebra ((.*), (.+))
@@ -57,16 +60,18 @@ data Solved = Solved
 
 main :: IO ()
 main = do
-    solved <- catMaybes <$> mapM loadAndSolve datasets
+    loaded <- mapM loadAndSolve datasets
+    let solved = rights loaded
     runChecks "LhrSolveTest" $
-           concatMap convergenceChecks solved
+           lefts loaded
+        ++ concatMap convergenceChecks solved
         ++ concatMap ledgerChecks (filter svLedgerReady solved)
 
-loadAndSolve :: (String, FilePath, Bool) -> IO (Maybe Solved)
+loadAndSolve :: (String, FilePath, Bool) -> IO (Either Check Solved)
 loadAndSolve (name, path, ledgerReady) = do
     inpTxt <- readFile path
     case L.parseInputs inpTxt >>= L.calibrate of
-        Left msg  -> do putStrLn (name ++ " calibrate FAIL: " ++ msg); pure Nothing
+        Left msg  -> pure (Left (bad (name ++ " calibrate") msg))
         Right cal -> do
             let ins0  = baseInstruments cal
                 start = foldr (\c -> perturb (0.10 * coordBase ins0 c) c) ins0
@@ -77,7 +82,7 @@ loadAndSolve (name, path, ledgerReady) = do
                      ++ " K=" ++ show (slIterations slog)
                      ++ " ||z||=" ++ show (slResidualNorm slog)
                      ++ " cond=" ++ show (slConditionProxy slog)
-            pure (Just (Solved name cal ins0 sol slog start ledgerReady))
+            pure (Right (Solved name cal ins0 sol slog start ledgerReady))
 
 -- | The solve returns to the calibrated base (unique under the CPIDEF pin).
 convergenceChecks :: Solved -> [Check]

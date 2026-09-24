@@ -30,7 +30,36 @@ datasets = ["swazilan", "test", "zimbabwe"]
 main :: IO ()
 main = do
     checks <- fmap concat (mapM datasetChecks datasets)
-    runChecks "LhrCalibrationTest" checks
+    guards <- inputGuardChecks
+    runChecks "LhrCalibrationTest" (checks ++ guards)
+
+-- | Invalid inputs are rejected, not calibrated with a default: a missing or
+-- non-positive PRODELAS (rhova divides by it) and a non-finite number.
+inputGuardChecks :: IO [Check]
+inputGuardChecks = do
+    inpTxt <- readFile "optimization/cge-lite/lhr/swazilan-inputs.csv"
+    let rows       = lines inpTxt
+        noProdelas = unlines (filter (not . ("PRODELAS," `isPrefixOf`)) rows)
+        zeroProd   = unlines (map zeroProdelas rows)
+        zeroProdelas r
+            | "PRODELAS," `isPrefixOf` r =
+                intercalate "," (take 2 (splitComma r) ++ ["0"])
+            | otherwise = r
+        nanValue   = unlines (map nanProdelas rows)
+        nanProdelas r
+            | "PRODELAS," `isPrefixOf` r =
+                intercalate "," (take 2 (splitComma r) ++ ["NaN"])
+            | otherwise = r
+        rejected txt = either (const True) (const False)
+                              (L.parseInputs txt >>= L.calibrate)
+    pure
+        [ require "swazilan without PRODELAS is rejected"
+                  (rejected noProdelas) "calibrated with a default PRODELAS"
+        , require "swazilan with PRODELAS = 0 is rejected"
+                  (rejected zeroProd) "calibrated with PRODELAS = 0"
+        , require "swazilan with a NaN input is rejected"
+                  (rejected nanValue) "accepted a non-finite number"
+        ]
 
 datasetChecks :: String -> IO [Check]
 datasetChecks name = do

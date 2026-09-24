@@ -143,8 +143,8 @@ degenerateChecks =
     in  [ require "empty system converges" (slConverged slogE) (show slogE)
         , require "empty system K = 1" (slIterations slogE == 1) (show slogE)
         , require "empty system point unchanged" (M.null pE) (show pE)
-        , require "missing oracle keys read as 0 -> immediate convergence"
-                  (slConverged slogM && slIterations slogM == 1) (show slogM)
+        , require "missing oracle keys fail at once, not read as 0"
+                  (not (slConverged slogM) && slIterations slogM == 1) (show slogM)
         , exact "missing-keys point unchanged" 1.0 (pM M.! 0)
         , require "constant oracle (singular fresh Jacobian) fails, not loops"
                   (not (slConverged slogS)) (show slogS)
