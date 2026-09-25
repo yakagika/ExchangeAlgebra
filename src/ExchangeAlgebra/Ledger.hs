@@ -178,6 +178,9 @@ getMapWith getValue = do
 -- indexes. Every index map is a length-prefixed ascending list, recursively.
 -- Decoding restores the stored floating-point values without recalculating
 -- indexes (IX-6); the journal decoder rebuilds only its own note-axis cache.
+-- Index maps are written in ascending key order. The journal uses its existing
+-- 'Journal' and 'Alg' encoding, whose bytes are deterministic within one build;
+-- byte equality across hashable versions is not guaranteed.
 instance ( Note n, Partition b
          , Binary n, Binary b, Binary (BasePart b)
          , Binary (PartKey b), Binary (Group b)
@@ -367,29 +370,32 @@ exactCarry :: Either Exact.ExactSumError value -> value
 exactCarry = either
     (error . ("Ledger.carryBefore: finite exact-sum invariant violated: " ++) . show) id
 
--- | Recompute side totals for affected components from all their current
--- entries, with one rounding per base and side. Unaffected maps are retained.
+-- | Recompute side totals for every component from all current entries,
+-- with one rounding per base and side. Empty components retain empty maps.
 rebuildSides :: forall n b. (Note n, Partition b)
-             => HashSet (PartKey b) -> Journal n Double b
+             => Journal n Double b
              -> HashMap (PartKey b) (HashMap (BasePart b) (Double, Double))
              -> HashMap (PartKey b) (HashMap (BasePart b) (Double, Double))
-rebuildSides affected recorded previous = HashSet.foldl' replace previous affected
+rebuildSides recorded previous = HashSet.foldl' replace HashMap.empty allKeys
   where
     proxy = Proxy :: Proxy b
+    allKeys = HashSet.union (HashSet.fromList (HashMap.keys previous))
+        (HashSet.fromList (HashMap.keys states))
     states = foldEntries collect HashMap.empty (Journal.toAlg recorded)
-    collect totals value postingBase
-        | HashSet.member key affected = updateNested key
-            (HashMap.alter (Just . accumulate . fromMaybe (Exact.emptyAccum, Exact.emptyAccum))
-                (base postingBase)) totals
-        | otherwise = totals
+    collect totals value postingBase = updateNested key
+        (HashMap.alter (Just . accumulate . fromMaybe (Exact.emptyAccum, Exact.emptyAccum))
+            (base postingBase)) totals
       where
         key = partKey proxy (base postingBase)
-        accumulate (nots, hats) = case hat postingBase of
-            Not -> (Exact.addAccum value nots, hats)
-            Hat -> (nots, Exact.addAccum value hats)
+        accumulate (nots, hats) =
+          case hat postingBase of
+            Not -> let !next = Exact.addAccum value nots in (next, hats)
+            Hat -> let !next = Exact.addAccum value hats in (nots, next)
             HatNot -> error "Ledger.carryBefore: concrete-side invariant violated"
-    rounded (nots, hats) =
-        (exactCarry (Exact.roundAccum nots), exactCarry (Exact.roundAccum hats))
+    rounded (nots, hats) = let
+        !notTotal = exactCarry (Exact.roundAccum nots)
+        !hatTotal = exactCarry (Exact.roundAccum hats)
+        in (notTotal, hatTotal)
     replace totals key = HashMap.insert key
         (HashMap.map rounded (HashMap.lookupDefault HashMap.empty key states)) totals
 
@@ -399,7 +405,7 @@ rebuildSides affected recorded previous = HashSet.foldl' replace previous affect
 -- unchanged. This is explicit carryover, with no implicit @bar@ or @compress@.
 --
 -- Net balances, flows, and component membership retain their bits (IX-5).
--- Only affected components' side totals are rebuilt from retained and carried
+-- Every component's side totals are rebuilt from retained and carried
 -- entries, rounding each exact side sum once (IX-9). The exact journal balance
 -- can change by one carry-entry rounding per base (E2); repeated carryovers
 -- accumulate those errors. Compare the net index with the original postings
@@ -415,13 +421,12 @@ carryBefore :: forall n b. (Note n, Partition b)
             => (n -> Bool) -> n -> Ledger n b -> Ledger n b
 carryBefore expired carryNote ledger = ledger
     { ledgerJournal = recorded
-    , sideIndex = rebuildSides affected recorded (sideIndex ledger)
+    , sideIndex = rebuildSides recorded (sideIndex ledger)
     }
   where
     selected = Journal.filterWithNote (\note _ -> expired note) (ledgerJournal ledger)
     retained = Journal.filterWithNote (\note _ -> not (expired note)) (ledgerJournal ledger)
     balances = exactCarry (Exact.balanceMapByExact Just selected)
-    affected = HashSet.fromList (map (partKey (Proxy :: Proxy b)) (Map.keys balances))
     carried = Map.foldlWithKey' append mempty balances
     append previous coordinates (direction, value) = case direction of
         EQ -> previous
@@ -438,6 +443,8 @@ carryBefore expired carryNote ledger = ledger
 -- Bases are processed in ascending order. For each base, selected notes are
 -- read in ascending order, sequentially adding each note's Not-minus-Hat
 -- flow. Generated entries never feed back into those pre-call inputs.
+-- Generated entries also enter the flow index under the settlement note;
+-- exclude that note when observing pre-settlement flows afterward.
 -- For integer inputs with total selected absolute flow below @2^53@, each
 -- selected source flow plus its reversal is exactly zero; target entries sum
 -- to the source nets with the closing direction's sign (IX-11).

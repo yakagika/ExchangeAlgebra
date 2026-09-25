@@ -28,7 +28,7 @@ module ExchangeAlgebra.Ledger.Posting
 
 import Control.DeepSeq (NFData(..))
 import Data.Binary (Binary(..))
-import Data.Hashable (Hashable)
+import Data.Hashable (Hashable(..))
 import GHC.Generics (Generic)
 
 import ExchangeAlgebra.Algebra (Alg(Zero), (.+), (.@))
@@ -41,12 +41,13 @@ import ExchangeAlgebra.Algebra.Base (Hat(..), HatBaseClass(BasePart, merge))
 -- Invariant: the stored 'Double' is finite and lies in @[0, 2^900]@;
 -- zero is stored as positive zero. Construct values through 'posted'.
 newtype Posted = Posted Double
-    deriving stock (Eq, Ord, Show, Generic)
+    deriving stock (Eq, Ord, Show)
 
 instance NFData Posted where
     rnf (Posted value) = rnf value
 
-instance Hashable Posted
+instance Hashable Posted where
+    hashWithSalt salt (Posted value) = hashWithSalt salt value
 
 -- | Decoding checks the same invariant as 'posted' and fails on invalid input.
 instance Binary Posted where

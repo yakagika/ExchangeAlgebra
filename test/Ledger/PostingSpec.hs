@@ -293,6 +293,12 @@ testNoNum = do
             arithmetic <- try (evaluate (NoNum.addPosted checked))
                 :: IO (Either TypeError Posted)
             assertTest "Posted arithmetic is rejected" (isTypeError arithmetic)
+            generic <- try (evaluate (NoNum.genericPosted checked))
+                :: IO (Either TypeError ())
+            assertTest "Posted Generic is rejected" (isTypeError generic)
+            container <- try (evaluate (NoNum.addPosting (mempty :: Posting TestBase)))
+                :: IO (Either TypeError (Posting TestBase))
+            assertTest "Posting arithmetic is rejected" (isTypeError container)
   where
     isTypeError (Left _) = True
     isTypeError (Right _) = False

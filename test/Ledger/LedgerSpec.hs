@@ -127,9 +127,12 @@ genCaseWith genValue = do
         pure (note, entries)
     LedgerCase records <$> genQuery
 
--- | Integer inputs keep IX-1 arithmetic exact below 2^53.
+-- | Integer inputs include values near 2^50; IX-1 applies below 2^53.
 genIntegerCase :: Gen LedgerCase
-genIntegerCase = genCaseWith (fromIntegral <$> chooseInt (0, 1000))
+genIntegerCase = genCaseWith $ frequency
+    [ (8, fromIntegral <$> chooseInt (0, 1000))
+    , (2, fromIntegral <$> chooseInteger (2 ^ (50 :: Int) - 1000, 2 ^ (50 :: Int) + 1000))
+    ]
 
 -- | Decimal fractions and a large value expose floating-point order.
 genFractionalCase :: Gen LedgerCase
@@ -198,7 +201,10 @@ propIntegerNet = forAll genIntegerCase $ \sample@(LedgerCase records _) ->
     forAll genPart $ \part ->
         forAll (chooseInt (0, 3)) $ \note ->
             forAll (listOf $ (,,) <$> elements [PHat, PNot]
-                                  <*> (fromIntegral <$> chooseInt (0, 1000))
+                                  <*> frequency
+                                      [ (8, fromIntegral <$> chooseInt (0, 1000))
+                                      , (2, fromIntegral <$> chooseInteger
+                                          (2 ^ (50 :: Int) - 1000, 2 ^ (50 :: Int) + 1000)) ]
                                   <*> genPart) $ \entries ->
                 let ledger = build sample
                     next = post note (makePosting entries) ledger
@@ -531,8 +537,7 @@ exactSidesMatch ledger key = observed == expected
         Map.filterWithKey (\part _ -> keyOf part == key) (rationalSides (journal ledger))
     roundPair (nots, hats) = (fromRational nots, fromRational hats)
 
--- | IX-5 and IX-9: carry preserves net/flow bits and rebuilds only affected
--- components, including retained bases in the same component.
+-- | IX-5 and IX-9: carry preserves net/flow bits and rebuilds all components.
 propCarry :: Property
 propCarry = forAll genFractionalCase $ \sample ->
     forAll (chooseInt (0, 4)) $ \cutoff ->
@@ -541,18 +546,13 @@ propCarry = forAll genFractionalCase $ \sample ->
             after = carryBefore expired 7 before
             parts = Set.toList (Set.fromList [part | (_, _, _, part) <- scalars sample])
             keys = Set.toList (Set.fromList (map keyOf parts))
-            affected = Set.fromList [keyOf part | (note, _, _, part) <- scalars sample,
-                                                   expired note]
             query = HatNot :< (wildcard, wildcard, wildcard) :: TestBase
             netMatches part = castDoubleToWord64 (getSigned (netAt before part))
                             == castDoubleToWord64 (getSigned (netAt after part))
             balanceMatches part = abs (rationalNet part (journal after)
                                       - rationalNet part (journal before))
                                 <= carryRounding expired part before
-            sidesMatch key
-                | Set.member key affected = exactSidesMatch after key
-                | otherwise = encode (Map.fromList (HashMap.toList (sidesIn before key)))
-                           == encode (Map.fromList (HashMap.toList (sidesIn after key)))
+            sidesMatch key = exactSidesMatch after key
             flowMatches note key side =
                 [(part, castDoubleToWord64 value)
                 | (part, value) <- flowIn before note key side query]
@@ -730,6 +730,11 @@ testCarrySettleRegressions = do
         rebuilt = carryBefore (< 2) 7 componentCase
     assertTest "IX-9 retained bases in affected component are rounded exactly once" $
         HashMap.lookup otherPart (sidesIn rebuilt (Cash, Yen)) == Just (large + 2, 0)
+    let independent = one 5 PNot 1 part $ one 5 PNot 1 part $
+            one 5 PNot large part $ one 1 PNot 3 (Products, Yen, Amount) emptyLedger
+        independentCarry = carryBefore (< 2) 7 independent
+    assertTest "IX-9 unaffected component is rounded exactly once" $
+        HashMap.lookup part (sidesIn independentCarry (Cash, Yen)) == Just (large + 2, 0)
     let updated = one 9 PNot 1 otherPart rebuilt
     assertTest "IX-9 post resumes sequential side addition after carry" $
         HashMap.lookup otherPart (sidesIn updated (Cash, Yen)) == Just ((large + 2) + 1, 0)
@@ -762,9 +767,15 @@ testCarrySettleRegressions = do
             (HashSet.fromList sources) 9 orderedInput
         ascendingResult = closeSources orderedSources
         descendingResult = closeSources (reverse orderedSources)
-    assertTest "settle target addition follows ascending base order, independent of HashSet" $
+    -- Both requests construct the same HashSet, so this checks repeatability.
+    assertTest "settle target addition is repeatable for the same HashSet" $
         getSigned (netAt ascendingResult retained) == large
         && encode ascendingResult == encode descendingResult
+    assertTest "settle uses ascending source order" $
+        let ascendingOracle = foldl (+) 0 [large, 1, 1]
+            descendingOracle = foldl (+) 0 [1, 1, large]
+        in ascendingOracle /= descendingOracle
+           && getSigned (netAt ascendingResult retained) == ascendingOracle
     assertTest "settle uses flow index after clearFlows, not journal" $
         sameJournal (journal initial) (journal (settle retainedEarningsRule (const True)
             (HashSet.fromList [sales, cost]) 9 (clearFlows initial)))
