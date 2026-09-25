@@ -1,5 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- | Core micro-benchmarks for the exchangealgebra library.
@@ -41,7 +43,7 @@
 module Main (main) where
 
 import           Criterion.Main
-import           Control.DeepSeq          (NFData (..))
+import           Control.DeepSeq          (NFData (..), force)
 import           Data.Bits                ((.&.), (.|.), shiftL)
 import qualified Data.HashMap.Strict      as HM
 import           Data.Hashable            (Hashable (..), Hashed, hashed)
@@ -58,6 +60,51 @@ import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Algebra.Exact as Exact
 import qualified ExchangeAlgebra.Journal  as EJ
 import qualified ExchangeAlgebra.Write     as EW
+import qualified ExchangeAlgebra.Ledger as EL
+import qualified ExchangeAlgebra.Ledger.Posting as LP
+
+type LedgerBase = HatBase (Int, Int, Int)
+type BenchLedger = EL.Ledger Int LedgerBase
+
+instance EL.Partition LedgerBase where
+    type PartKey LedgerBase = (Int, Int)
+    partKey _ (owner, axis, _) = (owner, axis)
+    type Group LedgerBase = Int
+    groupOf _ = fst
+
+ledgerPosting :: Int -> LP.Posting LedgerBase
+ledgerPosting owner = LP.entry LP.PNot amount (owner, 0, 0)
+                   <> LP.entry LP.PHat amount (owner, 0, 1)
+  where
+    amount = either (error . show) id (LP.posted 1)
+
+ledgerBuild :: Bool -> Int -> BenchLedger
+ledgerBuild manyNotes owners = foldl' add EL.emptyLedger
+    [(owner, baseNo) | owner <- [1 .. owners], baseNo <- [0 .. 9]]
+  where
+    amount = either (error . show) id (LP.posted 1)
+    add ledger (owner, baseNo) = EL.post note
+        (LP.entry LP.PNot amount (owner, 0, baseNo)) ledger
+      where
+        note = if manyNotes then (owner - 1) * 10 + baseNo else 0
+
+ledgerQuery :: LedgerBase
+ledgerQuery = HatNot :< (1, 0, wildcard)
+
+-- Cycle through existing components; a fresh note is used for each ten posts.
+ledgerAmortized :: Bool -> Int -> BenchLedger -> [Int] -> BenchLedger
+ledgerAmortized sameNote owners = foldl' step
+    where
+      step ledger i = EL.post note (ledgerPosting owner) ledger
+        where
+          owner = (i `mod` owners) + 1
+          note = if sameNote then 0 else (i `div` 10) + 1
+
+ledgerAmortizedInput :: Bool -> Int -> (BenchLedger, BenchLedger)
+ledgerAmortizedInput sameNote owners = (initial, final)
+  where
+    initial = force (ledgerBuild False owners)
+    final = force (ledgerAmortized sameNote owners initial [0 .. 9999])
 
 type A = EA.Alg Double (HatBase AccountTitles)
 type J = EJ.Journal Int Double (HatBase AccountTitles)
@@ -381,7 +428,63 @@ label m = "N=" ++ show (m * m)
 
 main :: IO ()
 main = defaultMain
-    [ bgroup "Alg/fromList"
+    [ bgroup "ledger"
+        [ bgroup "netAt"
+            [ env (force <$> pure (ledgerBuild False owners)) $ \ledger ->
+                bench (show owners) $ nf (\x -> EL.netAt x (1, 0, 0)) ledger
+            | owners <- [100, 1000, 10000] ]
+        , bgroup "post-new-note"
+            [ env (force <$> pure (ledgerBuild False owners)) $ \ledger ->
+                bench (show owners) $ nf (EL.post 1 (ledgerPosting 1)) ledger
+            | owners <- [100, 1000, 10000] ]
+        , bgroup "post-same-note"
+            [ env (force <$> pure (ledgerBuild False owners)) $ \ledger ->
+                bench (show owners) $ nf (EL.post 0 (ledgerPosting 1)) ledger
+            | owners <- [100, 1000, 10000] ]
+        , bgroup "post-many-notes"
+            [ env (force <$> pure (ledgerBuild True owners)) $ \ledger ->
+                bench (show owners) $ nf (EL.post (owners * 10) (ledgerPosting 1)) ledger
+            | owners <- [100, 1000, 10000] ]
+        , bgroup "queryIn"
+            [ env (force <$> pure (ledgerBuild False owners)) $ \ledger ->
+                bench (show owners) $ nf (\x -> EL.queryIn x (1, 0) ledgerQuery) ledger
+            | owners <- [100, 1000, 10000] ]
+        , bgroup "force-base"
+            [ env (force <$> pure (ledgerBuild False owners)) $ \ledger ->
+                bench (show owners) $ nf id ledger
+            | owners <- [100, 1000, 10000] ]
+        , bgroup "post-new-note-whnf"
+            [ env (force <$> pure (ledgerBuild False owners)) $ \ledger ->
+                bench (show owners) $ whnf (EL.post 1 (ledgerPosting 1)) ledger
+            | owners <- [100, 1000, 10000] ]
+        , bgroup "post-same-note-whnf"
+            [ env (force <$> pure (ledgerBuild False owners)) $ \ledger ->
+                bench (show owners) $ whnf (EL.post 0 (ledgerPosting 1)) ledger
+            | owners <- [100, 1000, 10000] ]
+        , bgroup "post-many-notes-whnf"
+            [ env (force <$> pure (ledgerBuild True owners)) $ \ledger ->
+                bench (show owners) $ whnf (EL.post (owners * 10) (ledgerPosting 1)) ledger
+            | owners <- [100, 1000, 10000] ]
+        , bgroup "post-amortized-k10000"
+            [ env (force <$> pure (ledgerBuild False owners)) $ \initial ->
+                bench (show owners) $ nf
+                    (\ledger -> ledgerAmortized False owners ledger [0 .. 9999]) initial
+            | owners <- [100, 1000, 10000] ]
+        , bgroup "post-amortized-k10000-force-only"
+            [ env (pure (snd (ledgerAmortizedInput False owners))) $ \final ->
+                bench (show owners) $ nf id final
+            | owners <- [100, 1000, 10000] ]
+        , bgroup "post-amortized-k10000-same-note"
+            [ env (force <$> pure (ledgerBuild False owners)) $ \initial ->
+                bench (show owners) $ nf
+                    (\ledger -> ledgerAmortized True owners ledger [0 .. 9999]) initial
+            | owners <- [100, 1000, 10000] ]
+        , bgroup "post-amortized-k10000-same-note-force-only"
+            [ env (pure (snd (ledgerAmortizedInput True owners))) $ \final ->
+                bench (show owners) $ nf id final
+            | owners <- [100, 1000, 10000] ]
+        ]
+    , bgroup "Alg/fromList"
         [ env (pure (mkAlgs n)) $ \xs ->
             bench (show n) $ whnf (norm . EA.fromList) xs
         | n <- sizes ]

@@ -8,6 +8,8 @@ module Ledger.LedgerSpec (runTests) where
 import Control.DeepSeq (NFData, force)
 import Control.Exception (evaluate)
 import Control.Monad (unless)
+import Control.Parallel.Strategies (parListChunk, rdeepseq, using)
+import GHC.Conc (getNumCapabilities, setNumCapabilities)
 import Data.Binary (decode, encode)
 import qualified Data.ByteString.Lazy as Bytes
 import Data.Hashable (Hashable(..))
@@ -629,12 +631,18 @@ propLedgerBinary = forAll genFractionalCase $ \sample ->
 -- | Integer settlement inputs include both directions, ineligible accounts,
 -- multiple notes, and distinct bases sharing the same destination.
 genSettlement :: Gen LedgerCase
-genSettlement = do
+genSettlement = genSettlementWith (fromIntegral <$> chooseInt (0, 10000))
+
+genSettlementFractional :: Gen LedgerCase
+genSettlementFractional = genSettlementWith $ elements [0, 0.1, 0.2, 0.3, 1.25, 2.5]
+
+genSettlementWith :: Gen Double -> Gen LedgerCase
+genSettlementWith genValue = do
     count <- chooseInt (1, 30)
     records <- vectorOf count $ do
         note <- chooseInt (0, 3)
         side <- elements [PNot, PHat]
-        value <- fromIntegral <$> chooseInt (0, 10000)
+        value <- genValue
         title <- elements [Sales, SalesCost, Cash, RetainedEarnings, NetIncome]
         unit <- elements [Yen, Dollar]
         axis <- elements [Amount, Yen]
@@ -697,6 +705,65 @@ propSettle = forAll genSettlement $ \sample@(LedgerCase _ query) ->
                 , property (indexBits after == indexBits (roundTrip after))
                 , property (newFlows == flowIn (roundTrip after) 1 (Sales, Yen) PNot query)
                 ]
+
+-- | IX-11: each selected source closes within E1 of its exact scalar sum.
+propSettleFractional :: Property
+propSettleFractional = forAll genSettlementFractional $ \sample ->
+    let before = build sample
+        selected = odd
+        sources = Set.toList $ Set.fromList
+            [part | (_, _, _, part@(title, _, _)) <- scalars sample
+                  , title /= RetainedEarnings, closingSide title /= Nothing]
+        after = settle retainedEarningsRule selected (HashSet.fromList sources) 31 before
+        generated part =
+            [signedScalar side value
+            | (value, postingBase) <- foldEntries (\xs v b -> (v, b) : xs) []
+                (HashMap.lookupDefault mempty 31 (Journal.toMap (journal after)))
+            , base postingBase == part
+            , let side = case hat postingBase of
+                    Not -> PNot
+                    Hat -> PHat
+                    HatNot -> error "propSettleFractional: concrete-side invariant violated"]
+        check part =
+            let inputs = [signedScalar side value
+                         | (note, side, value, item) <- scalars sample
+                         , selected note, item == part]
+                -- The output note is fresh, so its entries are exactly the reversal.
+                exact = sum (map toRational (inputs ++ generated part))
+                bound = fromIntegral (length inputs) / (2 ^ (53 :: Int))
+                      * sum (map (abs . toRational) (inputs ++ generated part))
+            in abs exact <= bound
+    in counterexample (show sample) (all check sources)
+
+-- | Exercise concurrent readout of one fully evaluated shared ledger.
+testParallelReads :: IO ()
+testParallelReads = do
+    capabilities <- getNumCapabilities
+    if capabilities < 4 then setNumCapabilities 4 else pure ()
+    let amount i = checked (fromIntegral (i `mod` 11 + 1))
+        shared = foldl (\ledger i -> post (i `mod` 7)
+            (entry PNot (amount i)
+                (if even i then First else Second, First, Second)) ledger)
+            emptyLedger [1 .. 100] :: Ledger Int ForceBase
+    ledger <- evaluate (force shared)
+    let part = (First, First, Second)
+        key = (First, First)
+        queryBase = HatNot :< (First, First, Any)
+        readOne i = case i `mod` 5 of
+            0 -> show (netAt ledger part)
+            1 -> show (component ledger key)
+            2 -> show (queryIn ledger key queryBase)
+            3 -> show (sidesIn ledger key)
+            _ -> show (flowIn ledger (i `mod` 7) key PNot queryBase)
+        jobs = [0 .. 999]
+        sequential = force (map readOne jobs)
+    expected <- evaluate sequential
+    let repeatCheck 0 = pure ()
+        repeatCheck n = do
+            actual <- evaluate (force (map readOne jobs `using` parListChunk 8 rdeepseq))
+            unless (actual == expected) $ fail "parallel ledger readout differs from sequential"
+            repeatCheck (n - 1)
+    repeatCheck (1000 :: Int)
 
 -- | Fixed counterexamples expose recomputation, component deletion, note-order
 -- changes, and side rebuilding at component rather than expired-base granularity.
@@ -803,4 +870,6 @@ runTests = do
     quickProperty "IX-2/IX-8b interleaved carry" propCarrySequence
     quickProperty "IX-6 ledger Binary" propLedgerBinary
     quickProperty "IX-11 settlement and determinism" propSettle
+    quickProperty "IX-11 fractional close E1" propSettleFractional
+    testParallelReads
     testCarrySettleRegressions
