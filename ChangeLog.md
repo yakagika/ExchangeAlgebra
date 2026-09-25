@@ -4,6 +4,10 @@
 
 ### Added
 
+- `ExchangeAlgebra.Ledger.Posting` provides `Posted`, a checked, finite,
+  non-negative, bounded posting value without a `Num` instance; `PostSide`,
+  the two posting sides; `Posting`, built only through `entry` and `Monoid`;
+  and `Signed`, a signed value for indexes and readouts.
 - `collapseEntries` and `collapseNetEntries` move selected algebra entries to
   rewritten base coordinates, including wildcard axes. The former preserves
   every posting; the latter nets the rewritten entries after axes coincide.

@@ -101,6 +101,7 @@ library
       ExchangeAlgebra.Journal.Exact
       ExchangeAlgebra.Journal.Transfer
       ExchangeAlgebra.Journal.Transfer.Rule
+      ExchangeAlgebra.Ledger.Posting
       ExchangeAlgebra.Optimize
       ExchangeAlgebra.Optimize.Annealing
       ExchangeAlgebra.Optimize.GA
@@ -238,6 +239,8 @@ test-suite ExchangeAlgebra-test
       Algebra.ExactSumSpec
       Algebra.ProjWildcardSpec
       Golden.WriteRows
+      Ledger.NoNumPosted
+      Ledger.PostingSpec
       Transfer.RuleSpec
   hs-source-dirs:
       test
