@@ -125,7 +125,7 @@ library
       ExchangeAlgebra.Value
       ExchangeAlgebra.Write
   other-modules:
-      Paths_exchangealgebra
+      ExchangeAlgebra.Algebra.Transfer.Closing
   hs-source-dirs:
       src
   ghc-options: -feager-blackholing

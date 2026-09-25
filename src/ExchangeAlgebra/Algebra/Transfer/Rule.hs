@@ -130,6 +130,8 @@ import           ExchangeAlgebra.Algebra
                      , accountSpec, asClosing, ClosingRule(..)
                      , classifyAccountDivision, classifyAccountContra
                      , pimoFromDivision, pimoFlip, PIMO(..) )
+import           ExchangeAlgebra.Algebra.Transfer.Closing
+                     ( closingPairBy )
 
 -- | How a rule changes the value it moves.
 data TransferScale v
@@ -379,12 +381,7 @@ closingEntries = Map.foldlWithKey' close (Right Zero) . foldEntries collect Map.
         | otherwise = checkedPair source (notTotal - hatTotal) source
     checkedPair source value balanceBase
         | isErrorValue value = Left (NonFiniteBalance source)
-        | otherwise = Right (closingPair value balanceBase)
-    closingPair value source = case closingSide (getAccountTitle source) of
-        Nothing -> Zero
-        Just side ->
-            let targetSource = case side of
-                    ClosingKeep -> source
-                    ClosingFlip -> revHat source
-            in (value :@ revHat source)
-                .+ (value :@ setAccountTitle targetSource RetainedEarnings)
+        | otherwise = case closingSide (getAccountTitle balanceBase) of
+            Nothing -> Right Zero
+            Just side -> Right
+                (closingPairBy (side == ClosingKeep) RetainedEarnings value balanceBase)

@@ -9,8 +9,8 @@
 -- source of truth. This layer builds on "ExchangeAlgebra.Ledger.Posting" and
 -- "ExchangeAlgebra.Journal" for evaluators that read one component at a time.
 -- Define a 'Partition', start with 'emptyLedger', and append with 'post'.
--- Read balances and flows through the indexes, or inspect 'journal' for the
--- original entries and notes.
+-- Read balances and flows through the indexes, or inspect 'journal' for its
+-- current entries and notes, including explicit carryover and settlement.
 --
 -- == Numeric contract and laws
 --
@@ -23,26 +23,33 @@
 -- callers folding a 'component' or 'sidesIn' map must likewise sort its keys
 -- when floating-point reproducibility matters.
 --
--- These laws apply to every lawful 'Partition' and 'Note' instance, without
--- carryover. Let @b(p, beta)@ be the Not-minus-Hat amount of base @beta@ in @p@.
+-- These laws apply to every lawful 'Partition' and 'Note' instance. Let
+-- @b(p, beta)@ be the Not-minus-Hat amount of base @beta@ in @p@.
 --
 -- * IX-1: @netAt (post note p l) beta == netAt l beta + Signed (b(p, beta))@
 --   holds exactly for integer inputs with total absolute magnitude below @2^53@.
 -- * IX-2: 'netAt' differs by at most E1 from
---   @ExchangeAlgebra.Journal.Exact.balanceMapByExact Just (journal l)@,
+--   @ExchangeAlgebra.Journal.Exact.balanceMapByExact Just original@,
 --   converting @GT@ to a positive magnitude, @LT@ to a negative magnitude,
---   and @EQ@ to zero.
+--   and @EQ@ to zero. @original@ contains all postings before carryover.
 -- * IX-3: components are disjoint, cover all indexed bases, and agree with
 --   'netAt' exactly, including retained zero balances.
 -- * IX-4: 'flowIn' is the sequential sum for its note and side since the last
 --   'clearFlows'. Clearing flows empties that index and preserves all other
 --   indexes and the journal exactly.
--- * IX-8b: 'queryIn' agrees within E1 with the exact balance map of the same
+-- * IX-5 and IX-9: 'carryBefore' preserves net and flow bits and rebuilds
+--   affected components' side totals with one rounding per base and side.
+-- * IX-6: 'Binary' restores stored indexes without recalculating them.
+-- * IX-8b: 'queryIn' agrees within E1 + E2 with the exact balance map of the same
 --   component's journal projected by @projWithBase [merge HatNot (base q)]@.
+--   E2 is the sum of carry-entry rounding errors for that base, zero before
+--   the first carryover.
 -- * IX-10: 'componentsOf' lists exactly the components ever posted to in its
---   group, in ascending order. Cancellation never removes a component.
+--   group, in ascending order. Cancellation and carryover never remove one.
+-- * IX-11: 'settle' cancels selected source flows and transfers their signed
+--   nets to retained earnings; its integer-input law is stated at 'settle'.
 --
--- 'journal' preserves the multiset of all posted entries under each note;
+-- 'journal' preserves posted entries until explicit carryover replaces them;
 -- compare each note's algebra with @toASCList@, rather than structural equality.
 module ExchangeAlgebra.Ledger ( -- * Partition and ledger
                              Partition(..)
@@ -59,19 +66,33 @@ module ExchangeAlgebra.Ledger ( -- * Partition and ledger
                              , journal
                              , clearFlows
                              , post
+                             , carryBefore
+                             , SettleRule
+                             , retainedEarningsRule
+                             , settle
                              ) where
 
 import Control.DeepSeq (NFData(..))
+import Control.Monad (replicateM)
+import Data.Binary (Binary(..), Get, Put)
 import Data.Hashable (Hashable)
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HashMap
-import Data.List (sort, sortOn)
+import Data.HashSet (HashSet)
+import qualified Data.HashSet as HashSet
+import Data.List (foldl', sort, sortOn)
+import qualified Data.Map.Strict as Map
 import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(..))
 
-import ExchangeAlgebra.Algebra (foldEntries)
+import ExchangeAlgebra.Algebra (Alg, foldEntries, (.@))
 import ExchangeAlgebra.Algebra.Base (Element(ignoreWildcard), Hat(..), HatBaseClass(..))
+import ExchangeAlgebra.Algebra.Base (AccountTitles(RetainedEarnings), ExBaseClass(..))
+import ExchangeAlgebra.Algebra.Transfer.Closing (closingPairBy)
+import ExchangeAlgebra.Algebra.Transfer.Rule (ClosingSide(..), closingSide)
 import ExchangeAlgebra.Journal (Journal, Note, (.|))
+import qualified ExchangeAlgebra.Journal as Journal
+import qualified ExchangeAlgebra.Journal.Exact as Exact
 import ExchangeAlgebra.Ledger.Posting (PostSide(..), Posting, Signed(..))
 import qualified ExchangeAlgebra.Ledger.Posting as Posting
 
@@ -101,9 +122,11 @@ class ( HatBaseClass b
 
 -- | A journal and its component, side, flow, and membership indexes.
 --
--- Invariant: only 'post' adds entries and updates all indexes together.
+-- Invariant: 'post' and 'settle' add entries and update all indexes together.
+-- 'carryBefore' replaces expired entries and rebuilds affected side totals.
 -- 'clearFlows' resets only the flow index. Zero-valued input entries are absent;
--- indexed bases and components remain after their balances reach zero.
+-- net-index bases and component memberships remain after balances reach zero.
+-- Rebuilt side maps contain only bases with current journal entries.
 data Ledger n b = Ledger
     { ledgerJournal :: !(Journal n Double b)
     , netIndex      :: !(HashMap (PartKey b) (HashMap (BasePart b) Double))
@@ -123,6 +146,64 @@ instance ( NFData n
          ) => NFData (Ledger n b) where
     rnf (Ledger recorded nets sides flows groups) =
         rnf recorded `seq` rnf nets `seq` rnf sides `seq` rnf flows `seq` rnf groups
+
+-- | Write a map as a length-prefixed list in ascending key order.
+-- Nested maps use this same encoding at every level.
+putMapWith :: (Ord key, Binary key)
+           => (value -> Put) -> HashMap key value -> Put
+putMapWith putValue values = do
+    put (HashMap.size values :: Int)
+    mapM_ (\(key, value) -> put key >> putValue value) (sortOn fst (HashMap.toList values))
+
+-- | Read a map without recalculating values; reject negative lengths and
+-- keys that are duplicated or out of ascending order.
+getMapWith :: (Ord key, Hashable key, Binary key)
+           => Get value -> Get (HashMap key value)
+getMapWith getValue = do
+    count <- get
+    readPairs count
+  where
+    readPairs count
+        | count < (0 :: Int) = fail "Ledger Binary: negative map length"
+        | otherwise = do
+            pairs <- replicateM count ((,) <$> get <*> getValue)
+            validate pairs
+    validate pairs
+        | and (zipWith (<) keys (drop 1 keys)) = pure (HashMap.fromList pairs)
+        | otherwise = fail "Ledger Binary: map keys are not strictly ascending"
+      where
+        keys = map fst pairs
+
+-- | Store the existing journal encoding, then net, side, flow, and group
+-- indexes. Every index map is a length-prefixed ascending list, recursively.
+-- Decoding restores the stored floating-point values without recalculating
+-- indexes (IX-6); the journal decoder rebuilds only its own note-axis cache.
+instance ( Note n, Partition b
+         , Binary n, Binary b, Binary (BasePart b)
+         , Binary (PartKey b), Binary (Group b)
+         ) => Binary (Ledger n b) where
+    put (Ledger recorded nets sides flows groups) = do
+        put recorded
+        putMapWith (putMapWith put) nets
+        putMapWith (putMapWith put) sides
+        putMapWith (putMapWith (putMapWith (putMapWith put))) flows
+        putMapWith (putMapWith put) groups
+    get = Ledger <$> get
+                 <*> getMapWith (getMapWith get)
+                 <*> getMapWith (getMapWith get)
+                 <*> getMapWith (getMapWith (getMapWith (getMapWith get)))
+                 <*> getMapWith (getMapWith get)
+
+-- | A closing rule containing only its destination account title.
+-- The constructor is private so that closing directions remain compatible
+-- with the destination's accounting side.
+newtype SettleRule = SettleRule AccountTitles
+
+-- | Close eligible accounts into 'RetainedEarnings', preserving other axes.
+-- An arbitrary destination would break accounting sides: closing @Not Sales 20@
+-- into @Cash@ would create two debit entries.
+retainedEarningsRule :: SettleRule
+retainedEarningsRule = SettleRule RetainedEarnings
 
 -- | Construct an empty journal with empty indexes. Every 'netAt' readout is
 -- zero and every collection readout is empty. Complexity: O(1).
@@ -175,9 +256,11 @@ queryIn ledger key query =
   where
     totals = HashMap.lookupDefault HashMap.empty key (netIndex ledger)
 
--- | Read the sequential (Not, Hat) totals of current journal entries in one
+-- | Read the (Not, Hat) totals of current journal entries in one
 -- component. An absent component returns an empty map. Complexity: expected
 -- O(1) lookup; consuming the result takes O(m) for m bases. Map order is unspecified.
+-- Updates are sequential between carryovers; 'carryBefore' rebuilds affected
+-- components from exact side sums, rounded once per side and base.
 sidesIn :: (Note n, Partition b)
         => Ledger n b -> PartKey b -> HashMap (BasePart b) (Double, Double)
 sidesIn ledger key = HashMap.lookupDefault HashMap.empty key (sideIndex ledger)
@@ -203,7 +286,7 @@ flowIn ledger note key side query = selectAscending (base query) totals
 
 -- * Journal and updates
 
--- | Read the source journal with all original entries and notes. Complexity: O(1).
+-- | Read current entries and notes, including carryover and settlement. Complexity: O(1).
 journal :: (Note n, Partition b) => Ledger n b -> Journal n Double b
 journal = ledgerJournal
 
@@ -267,8 +350,135 @@ indexEntry proxy note ledger value postingBase = case hat postingBase of
 -- 'Semigroup': amortized O(size(rhs)), with O(n) internal map compaction when
 -- its delta crosses the threshold, as documented in "ExchangeAlgebra.Journal".
 post :: forall n b. (Note n, Partition b) => n -> Posting b -> Ledger n b -> Ledger n b
-post note posting ledger = indexed
+post note posting = postAlgebra note (Posting.toAlg posting)
+
+-- | Append internally constructed finite, non-negative concrete-side entries
+-- through the same journal and index update path as checked external postings.
+postAlgebra :: forall n b. (Note n, Partition b)
+            => n -> Alg Double b -> Ledger n b -> Ledger n b
+postAlgebra note algebra ledger = indexed
     { ledgerJournal = ledgerJournal ledger <> (algebra .| note) }
   where
-    algebra = Posting.toAlg posting
     indexed = foldEntries (indexEntry (Proxy :: Proxy b) note) ledger algebra
+
+-- | Extract an exact result under the finite-sum invariant of carryover.
+-- Invariant: checked postings and evaluator count bounds keep all sums in range.
+exactCarry :: Either Exact.ExactSumError value -> value
+exactCarry = either
+    (error . ("Ledger.carryBefore: finite exact-sum invariant violated: " ++) . show) id
+
+-- | Recompute side totals for affected components from all their current
+-- entries, with one rounding per base and side. Unaffected maps are retained.
+rebuildSides :: forall n b. (Note n, Partition b)
+             => HashSet (PartKey b) -> Journal n Double b
+             -> HashMap (PartKey b) (HashMap (BasePart b) (Double, Double))
+             -> HashMap (PartKey b) (HashMap (BasePart b) (Double, Double))
+rebuildSides affected recorded previous = HashSet.foldl' replace previous affected
+  where
+    proxy = Proxy :: Proxy b
+    states = foldEntries collect HashMap.empty (Journal.toAlg recorded)
+    collect totals value postingBase
+        | HashSet.member key affected = updateNested key
+            (HashMap.alter (Just . accumulate . fromMaybe (Exact.emptyAccum, Exact.emptyAccum))
+                (base postingBase)) totals
+        | otherwise = totals
+      where
+        key = partKey proxy (base postingBase)
+        accumulate (nots, hats) = case hat postingBase of
+            Not -> (Exact.addAccum value nots, hats)
+            Hat -> (nots, Exact.addAccum value hats)
+            HatNot -> error "Ledger.carryBefore: concrete-side invariant violated"
+    rounded (nots, hats) =
+        (exactCarry (Exact.roundAccum nots), exactCarry (Exact.roundAccum hats))
+    replace totals key = HashMap.insert key
+        (HashMap.map rounded (HashMap.lookupDefault HashMap.empty key states)) totals
+
+-- | Replace expired entries, selected by the predicate, with one entry per
+-- base under the supplied note. Each Not-minus-Hat sum is exact and rounded
+-- once; an exactly zero sum produces no entry. Entries inside the window stay
+-- unchanged. This is explicit carryover, with no implicit @bar@ or @compress@.
+--
+-- Net balances, flows, and component membership retain their bits (IX-5).
+-- Only affected components' side totals are rebuilt from retained and carried
+-- entries, rounding each exact side sum once (IX-9). The exact journal balance
+-- can change by one carry-entry rounding per base (E2); repeated carryovers
+-- accumulate those errors. Compare the net index with the original postings
+-- using E1, and with the current journal using E1 + E2 (IX-2 and IX-8b).
+--
+-- Invariant: external values satisfy the 'Posting' contract, with at most
+-- @2^50@ external scalar entries in the run, @2^52@ entries per base including
+-- internal entries, and @2^31@ periods. Settlement uses current-period flows
+-- once per base per period. Exact sums outside the value type's range are
+-- outside this contract and cause 'error'. No evaluator count checks are run.
+-- Complexity: a journal scan plus exact aggregation and component-map updates.
+carryBefore :: forall n b. (Note n, Partition b)
+            => (n -> Bool) -> n -> Ledger n b -> Ledger n b
+carryBefore expired carryNote ledger = ledger
+    { ledgerJournal = recorded
+    , sideIndex = rebuildSides affected recorded (sideIndex ledger)
+    }
+  where
+    selected = Journal.filterWithNote (\note _ -> expired note) (ledgerJournal ledger)
+    retained = Journal.filterWithNote (\note _ -> not (expired note)) (ledgerJournal ledger)
+    balances = exactCarry (Exact.balanceMapByExact Just selected)
+    affected = HashSet.fromList (map (partKey (Proxy :: Proxy b)) (Map.keys balances))
+    carried = Map.foldlWithKey' append mempty balances
+    append previous coordinates (direction, value) = case direction of
+        EQ -> previous
+        GT -> previous <> ((value .@ merge Not coordinates) .| carryNote)
+        LT -> previous <> ((value .@ merge Hat coordinates) .| carryNote)
+    recorded = retained <> carried
+
+-- | Close selected bases using the pre-call flow index and append both the
+-- reversal and destination entries under the supplied note. Bases whose
+-- account has no closing direction, destination bases, and zero nets are
+-- skipped. Every generated magnitude is non-negative. No @bar@ or @compress@
+-- is applied, and all journal and index updates use the 'post' update path.
+--
+-- Bases are processed in ascending order. For each base, selected notes are
+-- read in ascending order, sequentially adding each note's Not-minus-Hat
+-- flow. Generated entries never feed back into those pre-call inputs.
+-- For integer inputs with total selected absolute flow below @2^53@, each
+-- selected source flow plus its reversal is exactly zero; target entries sum
+-- to the source nets with the closing direction's sign (IX-11).
+--
+-- One call increases the journal's sum of absolute entry values by at most
+-- @2 * (1 + u)^k@ times the sum of absolute current-period flows of the closed
+-- bases, where @u = 2^-53@ and @k@ counts additions along a value's history.
+-- The finite-input and evaluator count assumptions of 'carryBefore' apply.
+-- This operation returns a ledger directly, without a failure result.
+-- Complexity: O(b log b + t log t + b*t) lookups for b bases and t notes,
+-- plus the ordinary journal and index cost of generated postings.
+settle :: forall n b. (Note n, Partition b, ExBaseClass b)
+       => SettleRule
+       -> (n -> Bool)
+       -> HashSet (BasePart b)
+       -> n
+       -> Ledger n b
+       -> Ledger n b
+settle (SettleRule destination) selected requested settlementNote ledger =
+    foldl' close ledger sources
+  where
+    proxy = Proxy :: Proxy b
+    destinationOf coordinates = base (setAccountTitle (merge Not coordinates :: b) destination)
+    destinations = HashSet.map destinationOf requested
+    sources = sort (HashSet.toList (requested `HashSet.difference` destinations))
+    notes = sortOn fst (filter (selected . fst) (HashMap.toList (flowIndex ledger)))
+    net coordinates = foldl' (addNote coordinates) 0 notes
+    addNote coordinates total (_, byComponent) = total + (side PNot - side PHat)
+      where
+        bySide = HashMap.lookupDefault HashMap.empty (partKey proxy coordinates) byComponent
+        side postingSide = HashMap.lookupDefault 0 coordinates
+            (HashMap.lookupDefault HashMap.empty postingSide bySide)
+    close current coordinates = case closingSide (getAccountTitle source) of
+        Nothing -> current
+        Just side
+            | amount == 0 -> current
+            | otherwise -> postAlgebra settlementNote
+                (closingPairBy (side == ClosingKeep) destination (abs amount) source) current
+      where
+        amount = net coordinates
+        source = merge direction coordinates :: b
+        direction
+            | amount < 0 = Hat
+            | otherwise = Not

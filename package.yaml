@@ -50,6 +50,8 @@ flags:
 
 library:
   source-dirs: src
+  other-modules:
+  - ExchangeAlgebra.Algebra.Transfer.Closing
   when:
     - condition: flag(visualize)
       then:

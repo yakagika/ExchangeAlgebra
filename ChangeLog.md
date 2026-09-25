@@ -7,8 +7,11 @@
 - `ExchangeAlgebra.Ledger` provides an indexed journal through `Partition`,
   `Ledger`, `emptyLedger`, `post`, `netAt`, `component`, `componentsOf`,
   `queryIn`, `sidesIn`, `flowIn`, `journal`, and `clearFlows`. Component queries
-  return balances and flows in ascending base order. Carryover and settlement
-  will follow in a later addition.
+  return balances and flows in ascending base order. `carryBefore` replaces
+  expired entries with one rounded exact net per base, preserving indexed
+  balances and flows. `settle`, `SettleRule`, and `retainedEarningsRule` close
+  selected flows into retained earnings. The `Binary` instance restores stored
+  indexes without recalculating their floating-point values.
 - `ExchangeAlgebra.Ledger.Posting` provides `Posted`, a checked, finite,
   non-negative, bounded posting value without a `Num` instance; `PostSide`,
   the two posting sides; `Posting`, built only through `entry` and `Monoid`;
