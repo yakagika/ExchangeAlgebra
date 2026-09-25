@@ -4,6 +4,11 @@
 
 ### Added
 
+- `ExchangeAlgebra.Ledger` provides an indexed journal through `Partition`,
+  `Ledger`, `emptyLedger`, `post`, `netAt`, `component`, `componentsOf`,
+  `queryIn`, `sidesIn`, `flowIn`, `journal`, and `clearFlows`. Component queries
+  return balances and flows in ascending base order. Carryover and settlement
+  will follow in a later addition.
 - `ExchangeAlgebra.Ledger.Posting` provides `Posted`, a checked, finite,
   non-negative, bounded posting value without a `Num` instance; `PostSide`,
   the two posting sides; `Posting`, built only through `entry` and `Monoid`;

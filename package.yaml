@@ -112,6 +112,7 @@ tests:
     - Algebra.ExactSumSpec
     - Algebra.ProjWildcardSpec
     - Golden.WriteRows
+    - Ledger.LedgerSpec
     - Ledger.NoNumPosted
     - Ledger.PostingSpec
     - Transfer.RuleSpec
