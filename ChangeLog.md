@@ -1,5 +1,14 @@
 # Changelog for ExchangeAlgebra
 
+## Unreleased
+
+### Added
+
+- `collapseEntries` and `collapseNetEntries` move selected algebra entries to
+  rewritten base coordinates, including wildcard axes. The former preserves
+  every posting; the latter nets the rewritten entries after axes coincide.
+  Add either result to the original ledger to retain its audit entries.
+
 ## 0.5.2.0 - 2026-09-23
 
 ### Added

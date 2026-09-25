@@ -369,6 +369,99 @@ testClosingOverflow = do
     assertTest "closing target postings are not aggregated" $
         length (vals retained) == 4 && all (not . isErrorValue) (vals retained)
 
+-- | Two goods share an owner and differ only in the axis collapsed below.
+data ValuationGood = GoodA | GoodB | AnyValuationGood
+    deriving (Eq, Ord, Show, Generic)
+
+instance Hashable ValuationGood
+
+instance Element ValuationGood where
+    wildcard = AnyValuationGood
+
+type ValuationBase = HatBase (AccountTitles, ValuationGood, Owner, CountUnit)
+
+-- | Retain the raw count in its own axes, then net the value across goods.
+testValuationCollapse :: IO ()
+testValuationCollapse = do
+    let source good = Not :< (Products, good, Alice, Amount)
+        target good = Not :< (Products, good, Alice, Yen)
+        ledger = 5 .@ source GoodA .+ 3 .@ source GoodB
+            :: Alg MoneyDecimal ValuationBase
+        patternBase = Not :< (Products, wildcard, Alice, Yen)
+        dropGood (title, _, owner, unit) = (title, wildcard, owner, unit)
+        expected = Not :< (Products, wildcard, Alice, Yen)
+    rules <- requireRight "valuation rules" $
+        mkTransferRules [scaleBy (source GoodA) (target GoodA) 2,
+                         scaleBy (source GoodB) (target GoodB) 10]
+    valuationEntries <- requireRight "valuation transfer" (transferEntries rules ledger)
+    let valued = ledger .+ valuationEntries
+        collapsed = bar (valued .+ collapseNetEntries [patternBase] dropGood valued)
+    assertTest "valuation of two goods becomes one 40 posting" $
+        rawObservation collapsed == Map.singleton expected 40
+        && length (vals collapsed) == 1
+
+-- | Opposite sides cancel only after their good coordinates coincide.
+testRetainedCollapse :: IO ()
+testRetainedCollapse = do
+    let source good side = side :< (RetainedEarnings, good, Alice, Yen)
+        ledger = 10 .@ source GoodA Not .+ 4 .@ source GoodB Hat
+            :: Alg MoneyDecimal ValuationBase
+        patternBase = HatNot :< (RetainedEarnings, wildcard, Alice, Yen)
+        dropGood (title, _, owner, unit) = (title, wildcard, owner, unit)
+        expected = source AnyValuationGood Not
+        collapsed = bar (ledger .+ collapseNetEntries [patternBase] dropGood ledger)
+    assertTest "retained earnings net to one Not 6 posting" $
+        rawObservation collapsed == Map.singleton expected 6
+        && length (vals collapsed) == 1
+
+-- | Exact values expose count, norm, non-negativity and net equivalence.
+propCollapse :: Property
+propCollapse = forAll genLedger $ \ledger ->
+    let patterns = [HatNot :< (Cash, wildcard)]
+        dropUnit (title, _) = (title, wildcard)
+        selected = proj patterns ledger
+        raw = collapseEntries patterns dropUnit ledger
+        net = collapseNetEntries patterns dropUnit ledger
+    in counterexample (show (rawObservation raw, rawObservation net)) $
+        property (bar (ledger .+ raw) == bar (ledger .+ net)
+            && norm raw == 2 * norm selected
+            && all (>= 0) (vals raw ++ vals net)
+            && length (vals raw) == 2 * length (vals selected))
+  where
+    genLedger = do
+        count <- chooseInt (0, 30)
+        postings <- vectorOf count $ do
+            value <- chooseInteger (1, 100)
+            side <- elements [Hat, Not]
+            title <- elements [Cash, Products]
+            unit <- elements [Yen, Amount, wildcard]
+            pure (fromInteger value .@ side :< (title, unit))
+        pure (Algebra.fromList postings :: Alg MoneyDecimal TestBase)
+
+-- | Ledger wildcards remain literal in transfer matching and closing output.
+testWildcardLedger :: IO ()
+testWildcardLedger = do
+    let source = Not :< (Sales, wildcard)
+        ledger = 7 .@ source :: Alg MoneyDecimal TestBase
+        target = Not :< (Deposits, wildcard)
+    concrete <- requireRight "concrete source rule" $
+        mkTransferRules [relabel (Not :< (Sales, Yen)) target]
+    concreteEntries <- requireRight "concrete source application" $
+        transferEntries concrete ledger
+    assertTest "concrete source does not match ledger wildcard" $
+        Algebra.isZero concreteEntries
+    wildcardRule <- requireRight "wildcard source rule" $
+        mkTransferRules [relabel source target]
+    wildcardEntries <- requireRight "wildcard source application" $
+        transferEntries wildcardRule ledger
+    assertTest "wildcard source matches ledger wildcard" $
+        rawObservation wildcardEntries == rawObservation
+            (7 .@ revHat source .+ 7 .@ target)
+    closed <- requireRight "wildcard ledger closing" (closingEntries ledger)
+    assertTest "closing retains wildcard axis on earnings" $
+        rawObservation closed == rawObservation
+            (7 .@ revHat source .+ 7 .@ Not :< (RetainedEarnings, wildcard))
+
 -- | A good axis owned only by this acceptance fixture.
 data Good
     = Widget
@@ -466,10 +559,14 @@ runTests = do
     quickProperty "L4 canonical rules" propCanonical
     quickProperty "L5 Double" (propNonnegative (Proxy :: Proxy Double))
     quickProperty "L5 MoneyDecimal" (propNonnegative (Proxy :: Proxy MoneyDecimal))
+    quickProperty "L6 collapse" propCollapse
     testValidation
     testLegacyMiss
     testApplication
     testClosing
     testClosingOverflow
+    testValuationCollapse
+    testRetainedCollapse
+    testWildcardLedger
     testAcceptance
     putStrLn "[PASS] transfer rule regressions and two-period acceptance"

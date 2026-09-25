@@ -15,8 +15,12 @@
     Mixed wildcard positions can make the legacy tree lookup miss matching
     entries even for disjoint rules. Overlap priority is unspecified, and
     matching is symmetric (ledger wildcards also match concrete patterns).
-    These known limitations are preserved for compatibility.
-    Use "ExchangeAlgebra.Algebra.Transfer.Rule" for one-way source matching.
+    P3 is required only for equivalence with the legacy @transfer@ and
+    @finalStockTransfer@ APIs, which match symmetrically. The new
+    "ExchangeAlgebra.Algebra.Transfer.Rule" API uses one-way matching in
+    @transferEntries@ and groups @closingEntries@ by actual base; both treat
+    a wildcard stored in the ledger as a value. These known legacy
+    limitations are preserved for compatibility.
 
     Package for Exchange Algebra defined by Hiroshi Deguchi.
 

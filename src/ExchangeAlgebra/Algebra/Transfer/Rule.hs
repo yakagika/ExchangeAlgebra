@@ -24,7 +24,10 @@ of at most @1e-9 * max (abs x) (abs y)@, treating absent bases as zero.
   P2, patterns are disjoint; P3, ledger bases contain no wildcards; P4, axes
   are not nested tuples; P5, transformed values are nonzero. The legacy table
   translates 'Relabel', 'MulBy' and 'DivBy' to @id@, @(* p)@ and @(/ p)@,
-  respectively, and applying the new rules returns @Right entries@.
+  respectively, and applying the new rules returns @Right entries@. P3 is
+  needed only for equivalence with legacy @transfer@, whose matching is
+  symmetric. 'transferEntries' matches one way and treats ledger wildcards
+  as values.
 * Relation: @obs (a .+ entries) ~= obs (transfer a table)@.
 * Observation: @obs@ as defined above, including every target base.
 * Tolerance: relative @1e-9@; tested values are integers in @1..1000000@,
@@ -36,7 +39,10 @@ of at most @1e-9 * max (abs x) (abs y)@, treating absent bases as zero.
 * Subject: 'closingEntries' and legacy @finalStockTransfer@.
 * Preconditions: concrete ledger bases, valid Hat\/Not postings and values
   in the L1 range; the ledger includes only entries up to the closing date.
-  Closing returns @Right entries@.
+  Closing returns @Right entries@. Concrete bases are needed only for
+  equivalence with legacy @finalStockTransfer@ and its symmetric matching;
+  'closingEntries' groups by each actual base, including ledger wildcards
+  as values.
 * Relation: @obs (a .+ entries) ~= obs (finalStockTransfer a)@.
 * Observation: @obs@, including 'RetainedEarnings' and all retained axes.
 * Tolerance: relative @1e-9@ within the stated range. Large historical
@@ -77,6 +83,18 @@ precondition: its cancellation and destination are both credits.
 * Tolerance: none.
 * Instances: all lawful 'HatVal' and 'HatBaseClass' instances (closing also
   requires 'ExBaseClass'). Hat reversal is never numeric negation.
+
+=== L6: coordinate collapse
+
+* Subject: 'collapseEntries' and 'collapseNetEntries'.
+* Preconditions: non-negative valid postings and an exact additive value type.
+* Relation: @bar (x .+ collapseEntries p f x) ==
+  bar (x .+ collapseNetEntries p f x)@. The raw form has twice as many
+  postings as @proj p x@ and twice its norm; the net form calls 'bar' after
+  rewriting the base parts.
+* Observation: net ledger and raw posting count and norm.
+* Tolerance: exact.
+* Instances: @MoneyDecimal@ with 'HatBaseClass' bases.
 -}
 module ExchangeAlgebra.Algebra.Transfer.Rule
     ( TransferScale(..)
@@ -90,6 +108,8 @@ module ExchangeAlgebra.Algebra.Transfer.Rule
     , scaleBy
     , divideBy
     , transferEntries
+    , collapseEntries
+    , collapseNetEntries
     , ClosingSide(..)
     , closingSide
     , closingEntries
@@ -102,8 +122,11 @@ import qualified Data.Map.Strict as Map
 import           GHC.Generics (Generic)
 import           ExchangeAlgebra.Algebra
                      ( Alg(..), HatVal(..), HatBaseClass(..), ExBaseClass(..)
-                     , Hat(..), AccountTitles(..), Redundant((.+))
-                     , ignoreWildcard, foldEntries
+                     , Hat(..), HatBase(..), CountUnit(..), Element(..)
+                     , AccountTitles(..), Redundant((.+), (.^), bar, norm)
+                     , (.@)
+                     , ignoreWildcard, foldEntries, mapBasePart, proj
+                     , postFromNetBy, vals
                      , accountSpec, asClosing, ClosingRule(..)
                      , classifyAccountDivision, classifyAccountContra
                      , pimoFromDivision, pimoFlip, PIMO(..) )
@@ -238,6 +261,60 @@ transferEntries (TransferRules rules) = foldEntries step (Right Zero)
             MulBy coefficient -> value * coefficient
             DivBy coefficient -> value / coefficient
         cancellation = value :@ revHat source
+
+-- | Move selected entries to new base coordinates while retaining every posting.
+-- Query patterns use one-way matching: only a pattern wildcard matches any
+-- coordinate. The function rewrites each selected 'BasePart' with the supplied
+-- function, so callers can replace an axis with its wildcard. A transfer
+-- rule's target wildcard instead keeps the source coordinate; it cannot turn
+-- a concrete coordinate into a wildcard.
+--
+-- The result contains only the added entries: a Hat-reversed copy of each
+-- selected posting and its rewritten copy. Add it to the ledger with @(.+)@.
+-- Values remain non-negative, and this function does not call 'bar', so it
+-- retains redundant audit detail. 'collapseNetEntries' nets the rewritten
+-- entries instead. 'postFromNetBy' generates new postings for each netted
+-- classification; both collapse functions move the coordinates of the same
+-- entries.
+-- On an axis-preserving ledger, @norm . bar@ cannot cancel across axes.
+--
+-- >>> type T = Alg Double (HatBase CountUnit)
+-- >>> x = 10 .@ Not :< Yen .+ 4 .@ Hat :< Dollar :: T
+-- >>> let moved = collapseEntries [HatNot :< wildcard] (const wildcard) x
+-- >>> norm moved
+-- 28.0
+-- >>> length (vals moved)
+-- 4
+collapseEntries :: (HatVal v, HatBaseClass b)
+                => [b] -> (BasePart b -> BasePart b) -> Alg v b -> Alg v b
+collapseEntries pats f x = (.^) selected .+ mapBasePart f selected
+  where
+    selected = proj pats x
+
+-- | Move selected entries to new base coordinates and net the rewritten side.
+-- The result contains only added entries: a Hat-reversed copy of the selected
+-- postings plus @bar (mapBasePart f selected)@. This function calls 'bar'
+-- internally after rewriting, so opposite sides from distinct original axes
+-- can cancel when the new base parts coincide. Add the result to the original
+-- ledger with @(.+)@. It leaves the original audit entries in place.
+--
+-- Query wildcards match one way. A wildcard in a transfer rule's target
+-- preserves the source coordinate; use this function to replace a concrete
+-- coordinate with a wildcard. 'collapseEntries' retains all rewritten
+-- postings. 'postFromNetBy' generates new postings for each netted
+-- classification, while this function moves the coordinates of the same
+-- entries. On an axis-preserving ledger, @norm . bar@ does not cancel across
+-- axes.
+--
+-- >>> type T = Alg Double (HatBase CountUnit)
+-- >>> x = 10 .@ Not :< Yen .+ 4 .@ Hat :< Dollar :: T
+-- >>> norm (bar (x .+ collapseNetEntries [HatNot :< wildcard] (const wildcard) x))
+-- 6.0
+collapseNetEntries :: (HatVal v, HatBaseClass b)
+                   => [b] -> (BasePart b -> BasePart b) -> Alg v b -> Alg v b
+collapseNetEntries pats f x = (.^) selected .+ bar (mapBasePart f selected)
+  where
+    selected = proj pats x
 
 -- | The retained-earnings side selected by a closing account's PIMO direction.
 data ClosingSide
