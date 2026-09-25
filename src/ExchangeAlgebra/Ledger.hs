@@ -86,6 +86,7 @@ import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(..))
 
 import ExchangeAlgebra.Algebra (Alg, foldEntries, (.@))
+import qualified ExchangeAlgebra.Algebra as Algebra
 import ExchangeAlgebra.Algebra.Base (Element(ignoreWildcard), Hat(..), HatBaseClass(..))
 import ExchangeAlgebra.Algebra.Base (AccountTitles(RetainedEarnings), ExBaseClass(..))
 import ExchangeAlgebra.Algebra.Transfer.Closing (closingPairBy)
@@ -120,7 +121,16 @@ class ( HatBaseClass b
     -- | Select the unique group for this component.
     groupOf :: Proxy b -> PartKey b -> Group b
 
--- | A journal and its component, side, flow, and membership indexes.
+-- | Pending postings in reverse posting order. Strict fields keep appending
+-- from retaining a chain of unevaluated ledger updates.
+data PendingPostings n b
+    = NoPendingPostings                              -- ^ No unmerged entries.
+    | PendingPosting !n !(Alg Double b) !(PendingPostings n b)
+      -- ^ One nonzero posting and the previously recorded postings.
+
+-- | A merged journal, pending postings, and component, side, flow, and
+-- membership indexes. The journal and pending postings together are the
+-- source of truth; 'journal' materializes their combined entries.
 --
 -- Invariant: 'post' and 'settle' add entries and update all indexes together.
 -- 'carryBefore' replaces expired entries and rebuilds affected side totals.
@@ -129,6 +139,7 @@ class ( HatBaseClass b
 -- Rebuilt side maps contain only bases with current journal entries.
 data Ledger n b = Ledger
     { ledgerJournal :: !(Journal n Double b)
+    , ledgerPending :: !(PendingPostings n b)
     , netIndex      :: !(HashMap (PartKey b) (HashMap (BasePart b) Double))
     , sideIndex     :: !(HashMap (PartKey b) (HashMap (BasePart b) (Double, Double)))
     , flowIndex     :: !(HashMap n
@@ -136,16 +147,22 @@ data Ledger n b = Ledger
     , groupIndex    :: !(HashMap (Group b) (HashMap (PartKey b) ()))
     }
 
--- | Force every index, including keys and both side totals, and the journal
--- through its existing 'NFData' instance. Derived journal caches and reserved
--- algebra fields are not forced. Complexity: linear in the stored structures.
+-- | Force every index, including keys and both side totals, the pending spine
+-- and notes, and all stored journals and algebras through their existing
+-- 'NFData' instances. Derived caches and reserved algebra fields are not
+-- forced. Complexity: linear in the stored structures.
 instance ( NFData n
          , NFData (BasePart b)
          , NFData (PartKey b)
          , NFData (Group b)
          ) => NFData (Ledger n b) where
-    rnf (Ledger recorded nets sides flows groups) =
-        rnf recorded `seq` rnf nets `seq` rnf sides `seq` rnf flows `seq` rnf groups
+    rnf (Ledger recorded pending nets sides flows groups) =
+        rnf recorded `seq` forcePending pending `seq`
+        rnf nets `seq` rnf sides `seq` rnf flows `seq` rnf groups
+      where
+        forcePending NoPendingPostings = ()
+        forcePending (PendingPosting note algebra previous) =
+            rnf note `seq` rnf algebra `seq` forcePending previous
 
 -- | Write a map as a length-prefixed list in ascending key order.
 -- Nested maps use this same encoding at every level.
@@ -174,7 +191,7 @@ getMapWith getValue = do
       where
         keys = map fst pairs
 
--- | Store the existing journal encoding, then net, side, flow, and group
+-- | Merge pending postings and store the existing journal encoding, then net, side, flow, and group
 -- indexes. Every index map is a length-prefixed ascending list, recursively.
 -- Decoding restores the stored floating-point values without recalculating
 -- indexes (IX-6); the journal decoder rebuilds only its own note-axis cache.
@@ -185,13 +202,14 @@ instance ( Note n, Partition b
          , Binary n, Binary b, Binary (BasePart b)
          , Binary (PartKey b), Binary (Group b)
          ) => Binary (Ledger n b) where
-    put (Ledger recorded nets sides flows groups) = do
-        put recorded
+    put ledger@(Ledger _ _ nets sides flows groups) = do
+        put (journal ledger)
         putMapWith (putMapWith put) nets
         putMapWith (putMapWith put) sides
         putMapWith (putMapWith (putMapWith (putMapWith put))) flows
         putMapWith (putMapWith put) groups
     get = Ledger <$> get
+                 <*> pure NoPendingPostings
                  <*> getMapWith (getMapWith get)
                  <*> getMapWith (getMapWith get)
                  <*> getMapWith (getMapWith (getMapWith (getMapWith get)))
@@ -211,7 +229,8 @@ retainedEarningsRule = SettleRule RetainedEarnings
 -- | Construct an empty journal with empty indexes. Every 'netAt' readout is
 -- zero and every collection readout is empty. Complexity: O(1).
 emptyLedger :: (Note n, Partition b) => Ledger n b
-emptyLedger = Ledger mempty HashMap.empty HashMap.empty HashMap.empty HashMap.empty
+emptyLedger = Ledger mempty NoPendingPostings
+    HashMap.empty HashMap.empty HashMap.empty HashMap.empty
 
 -- * Indexed readouts
 
@@ -289,9 +308,34 @@ flowIn ledger note key side query = selectAscending (base query) totals
 
 -- * Journal and updates
 
--- | Read current entries and notes, including carryover and settlement. Complexity: O(1).
+-- | Group pending algebras in posting order without repeatedly merging them.
+-- Complexity: expected O(k) for k pending postings.
+pendingByNote :: Note n => PendingPostings n b -> HashMap n [Alg Double b]
+pendingByNote = collect HashMap.empty
+  where
+    collect !grouped NoPendingPostings = grouped
+    collect !grouped (PendingPosting note algebra previous) =
+        collect (HashMap.alter (Just . (algebra :) . fromMaybe []) note grouped) previous
+
+-- | Read current entries and notes, including carryover and settlement.
+-- The merged journal and pending postings together are the source of truth.
+-- Pending entries are grouped by note and built in bulk, without cancellation
+-- or compression. The returned journal preserves each note's posting multiset;
+-- within-base sequence order can differ from incremental journal addition.
+--
+-- Complexity: O(1) with no pending postings; otherwise the cost of grouping
+-- and merging the pending entries with the stored journal. This pure accessor
+-- does not update the ledger, so each call can pay that merge cost again.
 journal :: (Note n, Partition b) => Ledger n b -> Journal n Double b
-journal = ledgerJournal
+journal ledger = case ledgerPending ledger of
+    NoPendingPostings -> ledgerJournal ledger
+    pending -> Journal.fromMap $ HashMap.unionWith (<>)
+        (Journal.toMap (ledgerJournal ledger))
+        (HashMap.map mergePostings (pendingByNote pending))
+  where
+    -- Flatten first so the bulk builder inserts singletons, rather than
+    -- repeatedly unioning a growing Liner with each small posting's map.
+    mergePostings = Algebra.unionsMerge . concatMap Algebra.toList
 
 -- | Empty the flow index, leaving the journal and all other indexes unchanged.
 -- Subsequent 'post' calls accumulate new flows from zero. Complexity: O(1).
@@ -344,14 +388,14 @@ indexEntry proxy note ledger value postingBase = case hat postingBase of
         }
 
 -- | Append a checked posting under its note and update all four indexes.
--- The journal receives @Posting.toAlg p .| note@ through its 'Semigroup'.
+-- The posting is retained until 'journal', 'carryBefore', or serialization
+-- merges it with the recorded journal.
 -- Each nonzero scalar updates the indexes sequentially in 'foldEntries' order;
 -- no implicit @bar@ or @compress@ is applied.
 --
 -- Complexity: index updates take expected O(s), where s is the posting's
--- scalar entry count. Journal addition separately has the cost of its existing
--- 'Semigroup': amortized O(size(rhs)), with O(n) internal map compaction when
--- its delta crosses the threshold, as documented in "ExchangeAlgebra.Journal".
+-- scalar entry count. Retaining the posting takes O(1), independently of the
+-- stored journal's size. Reading 'journal' separately pays the merge cost.
 post :: forall n b. (Note n, Partition b) => n -> Posting b -> Ledger n b -> Ledger n b
 post note posting = postAlgebra note (Posting.toAlg posting)
 
@@ -359,8 +403,10 @@ post note posting = postAlgebra note (Posting.toAlg posting)
 -- through the same journal and index update path as checked external postings.
 postAlgebra :: forall n b. (Note n, Partition b)
             => n -> Alg Double b -> Ledger n b -> Ledger n b
-postAlgebra note algebra ledger = indexed
-    { ledgerJournal = ledgerJournal ledger <> (algebra .| note) }
+postAlgebra note algebra ledger
+    | Algebra.isZero algebra = ledger
+    | otherwise = indexed
+        { ledgerPending = PendingPosting note algebra (ledgerPending ledger) }
   where
     indexed = foldEntries (indexEntry (Proxy :: Proxy b) note) ledger algebra
 
@@ -421,11 +467,13 @@ carryBefore :: forall n b. (Note n, Partition b)
             => (n -> Bool) -> n -> Ledger n b -> Ledger n b
 carryBefore expired carryNote ledger = ledger
     { ledgerJournal = recorded
+    , ledgerPending = NoPendingPostings
     , sideIndex = rebuildSides recorded (sideIndex ledger)
     }
   where
-    selected = Journal.filterWithNote (\note _ -> expired note) (ledgerJournal ledger)
-    retained = Journal.filterWithNote (\note _ -> not (expired note)) (ledgerJournal ledger)
+    current = journal ledger
+    selected = Journal.filterWithNote (\note _ -> expired note) current
+    retained = Journal.filterWithNote (\note _ -> not (expired note)) current
     balances = exactCarry (Exact.balanceMapByExact Just selected)
     carried = Map.foldlWithKey' append mempty balances
     append previous coordinates (direction, value) = case direction of

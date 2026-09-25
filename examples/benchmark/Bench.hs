@@ -43,7 +43,9 @@
 module Main (main) where
 
 import           Criterion.Main
+import           Control.Exception       (evaluate)
 import           Control.DeepSeq          (NFData (..), force)
+import qualified Data.Binary              as Binary
 import           Data.Bits                ((.&.), (.|.), shiftL)
 import qualified Data.HashMap.Strict      as HM
 import           Data.Hashable            (Hashable (..), Hashed, hashed)
@@ -105,6 +107,51 @@ ledgerAmortizedInput sameNote owners = (initial, final)
   where
     initial = force (ledgerBuild False owners)
     final = force (ledgerAmortized sameNote owners initial [0 .. 9999])
+
+-- | Build a decoded ledger with A components, then make k same-note posts.
+-- Each component starts with ten entries, and each new post has two entries.
+-- Serialization puts the initial journal in its base layer; the measured
+-- readout receives the fully forced ledger.
+ledgerReadoutInput :: Int -> Int -> BenchLedger
+ledgerReadoutInput owners pendingCount =
+    ledgerAmortized True owners restored [0 .. pendingCount - 1]
+  where
+    restored = Binary.decode (Binary.encode (ledgerBuild False owners))
+
+-- | Construct a Liner with distinct base keys using non-negative postings.
+-- Bulk construction belongs to the fixture, outside the timed region.
+largeAlg :: Int -> EA.Alg Double LedgerBase
+largeAlg entryCount = EA.unionsMerge
+    [ 1 .@ (Not :< (0, 0, i))
+    | i <- [1 .. entryCount] ]
+
+-- | Two postings, one at an existing key and one at a new key.
+smallAlg :: Int -> EA.Alg Double LedgerBase
+smallAlg entryCount =
+    (1 .@ (Not :< (0, 0, 1)))
+    .+ (1 .@ (Hat :< (0, 0, entryCount + 1)))
+
+-- | Force scalar entries in a merged result without applying bar or compress.
+entryCount :: EA.Alg Double LedgerBase -> Int
+entryCount = EA.foldEntries (\count value base -> value `seq` base `seq` count + 1) 0
+
+-- | Mirror the initial ledger's ten entries per component without its indexes.
+ledgerInitialAlg :: Int -> EA.Alg Double LedgerBase
+ledgerInitialAlg owners = EA.unionsMerge
+    [ 1 .@ (Not :< (owner, 0, baseNo))
+    | owner <- [1 .. owners]
+    , baseNo <- [0 .. 9] ]
+
+-- | Use exactly the two-entry posting sequence of ledgerAmortized.
+ledgerAlgebraPostings :: Int -> [EA.Alg Double LedgerBase]
+ledgerAlgebraPostings owners =
+    [ LP.toAlg (ledgerPosting ((i `mod` owners) + 1))
+    | i <- [0 .. 9999] ]
+
+-- | Isolate repeated algebra union from the journal and four ledger indexes.
+foldLedgerAlgebra :: (EA.Alg Double LedgerBase, [EA.Alg Double LedgerBase])
+                  -> EA.Alg Double LedgerBase
+foldLedgerAlgebra (initial, postings) = foldl' (.+) initial postings
 
 type A = EA.Alg Double (HatBase AccountTitles)
 type J = EJ.Journal Int Double (HatBase AccountTitles)
@@ -483,7 +530,49 @@ main = defaultMain
             [ env (pure (snd (ledgerAmortizedInput True owners))) $ \final ->
                 bench (show owners) $ nf id final
             | owners <- [100, 1000, 10000] ]
+        -- A is the number of components (ten base entries each), and k is
+        -- the number of two-entry same-note posts. Setup is outside timing.
+        , bgroup "journal-readout"
+            [ env (evaluate (force (ledgerReadoutInput owners pending))) $ \ledger ->
+                bench ("A=" ++ show owners ++ ",k=" ++ show pending)
+                    $ nf EL.journal ledger
+            | owners <- [100, 1000, 10000]
+            , pending <- [0, 100, 1000, 10000] ]
         ]
+    -- The large operand is a Liner. The small operand hits one existing and
+    -- one new base key. All inputs are forced before each timed operation.
+    , bgroup "Alg/big-plus-small"
+        [ env (evaluate (force (largeAlg size, smallAlg size))) $ \inputs ->
+            let (big, small) = inputs in
+            bgroup ("N=" ++ show size)
+                [ bench "whnf" $ whnf (uncurry (.+)) inputs
+                , bench "nf" $ nf (uncurry (.+)) inputs
+                , bench "entries" $ nf (entryCount . uncurry (.+)) inputs
+                , env (evaluate (big .+ small)) $ \merged ->
+                    bench "force-only" $ nf id merged
+                ]
+        | size <- [1000, 100000] ]
+    , bgroup "Journal/big-plus-small-same-note"
+        [ env (evaluate (force (largeAlg size .| (0 :: Int),
+                                smallAlg size .| (0 :: Int)))) $ \inputs ->
+            let (big, small) = inputs in
+            bgroup ("N=" ++ show size)
+                [ bench "whnf" $ whnf (uncurry (<>)) inputs
+                , bench "nf" $ nf (uncurry (<>)) inputs
+                , env (evaluate (big <> small)) $ \merged ->
+                    bench "force-only" $ nf id merged
+                ]
+        | size <- [1000, 100000] ]
+    , bgroup "Alg/amortized-k10000"
+        [ env (evaluate (force (ledgerInitialAlg owners,
+                                ledgerAlgebraPostings owners))) $ \inputs ->
+            bgroup ("A=" ++ show owners)
+                [ bench "whnf" $ whnf foldLedgerAlgebra inputs
+                , bench "nf" $ nf foldLedgerAlgebra inputs
+                , env (evaluate (foldLedgerAlgebra inputs)) $ \merged ->
+                    bench "force-only" $ nf id merged
+                ]
+        | owners <- [100, 1000, 10000] ]
     , bgroup "Alg/fromList"
         [ env (pure (mkAlgs n)) $ \xs ->
             bench (show n) $ whnf (norm . EA.fromList) xs

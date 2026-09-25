@@ -854,6 +854,64 @@ testCarrySettleRegressions = do
         && flowIn settledCarry 9 (RetainedEarnings, Yen) PNot (merge Not retained)
            == flowIn settled 9 (RetainedEarnings, Yen) PNot (merge Not retained)
 
+-- | Check the public journal and index views across pending posts, Binary,
+-- carry into an existing note, and settlement from preserved flows.
+testPendingJournalSequence :: IO ()
+testPendingJournalSequence = do
+    let sales = (Sales, Yen, Amount)
+        cost = (SalesCost, Yen, Amount)
+        cash = (Cash, Yen, Amount)
+        retained = (RetainedEarnings, Yen, Amount)
+        one note side value part = post note (makePosting [(side, value, part)])
+        initial = one 7 PNot 4 cash $ one 1 PNot 20 sales emptyLedger
+        decoded = roundTrip initial
+        pending = one 2 PNot 3 sales $ one 2 PNot 5 cost $
+            one 7 PHat 1 cash decoded
+        pendingOracle = journal initial <>
+            (fromList [1 .@ merge Hat cash] Journal..| 7) <>
+            (fromList [5 .@ merge Not cost, 3 .@ merge Not sales] Journal..| 2)
+        emptyPost = post 6 (makePosting []) pending
+        zeroPost = one 6 PNot 0 cash emptyPost
+        carried = carryBefore (< 3) 7 (roundTrip zeroPost)
+        appended = one 2 PNot 3 sales carried
+        settled = settle retainedEarningsRule (< 3)
+            (HashSet.fromList [sales, cost]) 7 appended
+        generated = fromList
+            [ 26 .@ merge Hat sales
+            , 26 .@ merge Not retained
+            , 5 .@ merge Hat cost
+            , 5 .@ merge Hat retained
+            ] Journal..| 7
+        stable ledger = encode ledger == encode (roundTrip ledger)
+                     && indexBits ledger == indexBits (roundTrip ledger)
+                     && sameJournal (journal ledger) (journal (roundTrip ledger))
+    bytesBeforeRead <- evaluate (force (encode pending))
+    firstRead <- evaluate (force (journal pending))
+    secondRead <- evaluate (force (journal pending))
+    bytesAfterRead <- evaluate (force (encode pending))
+    assertTest "pending journal merges notes after Binary and repeats reads" $
+        sameJournal firstRead pendingOracle
+        && sameJournal firstRead secondRead
+        && bytesBeforeRead == bytesAfterRead
+        && stable pending
+    assertTest "empty and zero posts create no pending note" $
+        not (HashMap.member 6 (Journal.toMap (journal zeroPost)))
+        && sameJournal (journal pending) (journal zeroPost)
+        && indexBits pending == indexBits zeroPost
+        && stable zeroPost
+    assertTest "carry merges with an existing note after Binary" $
+        sameJournal (journal carried) (carryOracle (< 3) 7 zeroPost)
+        && indexBits zeroPost == indexBits carried
+        && stable carried
+    assertTest "post and settle retain note entries and index bits after carry" $
+        sameJournal (journal settled) (journal appended <> generated)
+        && flowIn settled 7 (RetainedEarnings, Yen) PNot (merge Not retained)
+           == [(retained, 26)]
+        && flowIn settled 7 (RetainedEarnings, Yen) PHat (merge Hat retained)
+           == [(retained, 5)]
+        && stable appended
+        && stable settled
+
 -- | Run every ledger property and fixed regression.
 runTests :: IO ()
 runTests = do
@@ -873,3 +931,4 @@ runTests = do
     quickProperty "IX-11 fractional close E1" propSettleFractional
     testParallelReads
     testCarrySettleRegressions
+    testPendingJournalSequence
