@@ -18,11 +18,12 @@
 
     To use your own type as a basis component, declare an 'Element' instance.
     A single distinguished value must serve as the wildcard used by the
-    transfer engine and by projection operations:
+    transfer engine and by projection operations. Derive 'NFData' when keys
+    containing this component must be fully evaluated:
 
     @
     data Company = CompanyA | CompanyB | CompanyWildcard
-      deriving (Eq, Ord, Show, Generic, Hashable, Typeable)
+      deriving (Eq, Ord, Show, Generic, Hashable, NFData, Typeable)
 
     instance Element Company where
       wildcard = CompanyWildcard
@@ -63,6 +64,7 @@ import              Data.Time
 import GHC.Generics (Generic)
 import Data.Hashable
 import Data.Typeable (Typeable, cast, typeOf)
+import Control.DeepSeq (NFData(..))
 import qualified Data.Binary as Binary
 import qualified Data.Binary.Get as BinaryGet
 import qualified Data.Binary.Put as BinaryPut
@@ -202,6 +204,11 @@ class (Eq a, Ord a, Show a, Hashable a, Typeable a) => Element a where
 -- | An existential type that holds each axis of a basis with its type erased.
 -- Used to decompose multi-dimensional bases (tuples) into per-axis keys for indexing.
 data AxisKey = forall a. Element a => AxisKey !a
+
+-- | Force the stored axis to weak head normal form without requiring 'NFData'
+-- from every user-defined 'Element'.
+instance NFData AxisKey where
+    rnf (AxisKey axis) = axis `seq` ()
 
 instance Eq AxisKey where
     AxisKey x == AxisKey y = case cast y of
@@ -502,6 +509,8 @@ data  AccountTitles = Cash                            -- ^ Asset: Cash (現金)
 -- (2026-06-11 調査)。Enum/Binary 序数の安定のため削除はせず, 新名称への移行を促す。
 {-# DEPRECATED Commutation "通信費 (communication expenses) — use 'CommunicationExpenses' instead" #-}
 
+instance NFData AccountTitles
+
 instance Hashable AccountTitles where
     {-# INLINE hashWithSalt #-}
     hashWithSalt salt x = hashWithSalt salt (fromEnum x)
@@ -541,6 +550,8 @@ data CountUnit  = Yen
                 | Amount
                 | CountUnit
                 deriving (Show, Ord, Eq, Enum,Generic)
+
+instance NFData CountUnit
 
 instance Hashable CountUnit where
     {-# INLINE hashWithSalt #-}

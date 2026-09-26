@@ -39,6 +39,7 @@ import ExchangeAlgebra.Algebra.Base.Account.Types
 import              Data.Time           (Day, TimeOfDay)
 import GHC.Stack (HasCallStack, callStack, prettyCallStack)
 import qualified Data.Binary as Binary
+import Control.DeepSeq (NFData(..))
 
 customError :: HasCallStack => String -> a
 customError msg = error (msg ++ "\nCallStack:\n" ++ prettyCallStack callStack)
@@ -121,6 +122,8 @@ data Hat    = Hat
             | HatNot
             deriving (Enum, Eq, Ord, Show, Generic)
 
+instance NFData Hat
+
 instance Hashable Hat where
 instance Binary.Binary Hat
 
@@ -138,6 +141,8 @@ instance BaseClass Hat where
 
 data BaseForSingleHat = BaseForSingleHat
     deriving (Eq,Ord,Generic)
+
+instance NFData BaseForSingleHat
 
 instance Show BaseForSingleHat where
     show _ = ""
@@ -188,6 +193,9 @@ instance HatBaseClass Hat where
 -- element such as an account title. Use the constructor @(:<)@ as in @Hat :< Cash@.
 data HatBase a where
      (:<)  :: (BaseClass a) => {_hat :: Hat,  _base :: a } -> HatBase a
+
+instance (BaseClass a, NFData a) => NFData (HatBase a) where
+    rnf (hatValue :< baseValue) = rnf hatValue `seq` rnf baseValue
 
 instance (BaseClass a, Binary.Binary a) => Binary.Binary (HatBase a) where
     put (h :< b) = Binary.put h >> Binary.put b
@@ -430,6 +438,9 @@ data PIMO   = PS  -- ^ plus stock (stock increase; non-contra Assets)
             | MS  -- ^ minus stock (stock decrease; Liability\/Equity and contra assets)
             | OUT -- ^ output (flow out; Cost)
             deriving (Ord, Show, Eq)
+
+instance NFData PIMO where
+    rnf value = value `seq` ()
 
 -- | The division-to-PIMO map of the standard interpretation (the @g@ of
 -- Proposition 5.3.8 restricted to non-contra accounts): Assets are plus

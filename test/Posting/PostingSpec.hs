@@ -4,7 +4,7 @@
 -- | Validation, serialization, and algebraic laws for checked ledger postings.
 module Posting.PostingSpec (runTests) where
 
-import Control.DeepSeq (force)
+import Control.DeepSeq (force, rnf)
 import Control.Exception (TypeError, evaluate, try)
 import Control.Monad (unless)
 import qualified Data.Binary as Binary
@@ -231,6 +231,24 @@ testBinary = do
     assertTest "NFData and Hashable instances" $
         force checkedValues `seq` force sides `seq`
         sum (map hash checkedValues) `seq` sum (map hash sides) `seq` True
+    assertTest "base component NFData instances" $
+        rnf (Cash :: AccountTitles) `seq`
+        rnf (Yen :: CountUnit) `seq`
+        rnf (AxisKey Cash) `seq`
+        rnf (Hat :: Hat) `seq`
+        rnf (BaseForSingleHat :: BaseForSingleHat) `seq`
+        rnf (PS :: PIMO) `seq`
+        rnf (Assets :: AccountDivision) `seq`
+        rnf (Credit :: Side) `seq`
+        rnf (Current :: FixedCurrent) `seq`
+        rnf (CloseByDivision :: ClosingRule) `seq`
+        rnf (ContraAccount :: AccountRole) `seq`
+        rnf (OrdinaryPosting :: PostingCapability) `seq`
+        rnf (StatementDivision Assets :: DivisionSemantics) `seq`
+        rnf (FixedHomeSide Credit :: HomeSideSemantics) `seq`
+        rnf (StatementEligible :: ReportingEligibility) `seq`
+        rnf (Not :< (Yen, Cash) :: HatBase (CountUnit, AccountTitles)) `seq`
+        True
 
 -- | Both posting sides map to concrete Hat values only.
 testSides :: IO ()

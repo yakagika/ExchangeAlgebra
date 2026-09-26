@@ -28,7 +28,7 @@ import Data.Binary (Binary(..))
 import Data.Hashable (Hashable(..))
 import GHC.Generics (Generic)
 
-import ExchangeAlgebra.Algebra (Alg(Zero), (.+), (.@))
+import ExchangeAlgebra.Algebra (Alg(Zero), HatVal(isErrorValue), (.+), (.@))
 import ExchangeAlgebra.Algebra.Base
     ( Hat(..)
     , HatBaseClass(BasePart, merge, base)
@@ -83,14 +83,19 @@ postedUpperBound = 2 ^ (900 :: Int)
 -- > fmap unPosted (posted x) == Right (normalizeZero x)
 --
 -- The law uses exact 'Double' equality, with the sign of zero also normalized.
+-- Finite, nonnegative values use the same 'isErrorValue' check as '.@'.
+-- 'postedUpperBound' is checked only at the posting entry point.
 -- Complexity: O(1).
 posted :: Double -> Either PostedError Posted
 posted value
-    | isNaN value || isInfinite value = Left NonFinite
-    | value < 0                      = Left Negative
-    | value > postedUpperBound       = Left AboveBound
-    | value == 0                     = Right (Posted 0)
-    | otherwise                      = Right (Posted value)
+    | isErrorValue value       = Left (invalidValueError value)
+    | value > postedUpperBound = Left AboveBound
+    | value == 0               = Right (Posted 0)
+    | otherwise                = Right (Posted value)
+  where
+    invalidValueError invalid
+        | isNaN invalid || isInfinite invalid = NonFinite
+        | otherwise                           = Negative
 
 -- | Read a checked value. For every @p@, @posted (unPosted p) == Right p@.
 -- Complexity: O(1).

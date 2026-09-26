@@ -4,6 +4,9 @@
 
 ### Added
 
+- `NFData` instances for base components, including account titles, units,
+  Hat labels, account metadata, and `HatBase` values, support forcing ledger keys.
+  The benchmark now uses these library instances in place of its local orphans.
 - `ExchangeAlgebra.Posting` provides `Posted`, `PostedError`,
   `postedUpperBound`, `posted`, and `unPosted` for checked posting values;
   `PostSide(HatSide, NotSide)` and `sideHat` for concrete sides; and `Posting`,
