@@ -1,12 +1,19 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
--- | Build checked model postings and ordered settlement entries from the
--- foundation algebra. Models use 'posted', 'entry', and 'Monoid' to construct
--- 'Posting'. Evaluators use 'settleEntries' with signed net amounts and record
--- the resulting 'settlementSteps' one source at a time.
+-- | Build checked postings and ordered settlement entries in the Accounting layer.
+-- The module uses the foundation algebra, 'closingSide' from the transfer rules,
+-- and @closingPairBy@ to make settlement pairs. Models construct @Posting@ values;
+-- simulator evaluators record 'settlementSteps' in order. Read posting values,
+-- sides, and entries before the settlement section.
+--
+-- Posting construction follows Definitions 3-5; settlement uses the transfer
+-- construction of Definition 9.
 module ExchangeAlgebra.Posting
     ( -- * Posting values
       Posted
@@ -16,15 +23,17 @@ module ExchangeAlgebra.Posting
     , unPosted
       -- * Posting sides
     , PostSide(..)
-    , toHat
+    , sideHat
       -- * Postings
     , Posting
     , entry
-    , toAlg
+    , postingAlg
       -- * Settlement
     , SettleRule
     , retainedEarningsRule
     , SettlementBatch
+    , SignedNet
+    , SettleError(..)
     , settleEntries
     , settlementSteps
     ) where
@@ -38,9 +47,13 @@ import Data.Maybe (mapMaybe)
 import GHC.Generics (Generic)
 
 import ExchangeAlgebra.Algebra (Alg(Zero), (.+), (.@))
-import ExchangeAlgebra.Algebra.Base (Hat(..), HatBaseClass(BasePart, merge, base))
-
-import ExchangeAlgebra.Algebra.Base (AccountTitles(..), ExBaseClass(..))
+import ExchangeAlgebra.Algebra.Base
+    ( Hat(..)
+    , HatBaseClass(BasePart, merge, base)
+    , AccountTitles(..)
+    , ExBaseClass(..)
+    , revHat
+    )
 import ExchangeAlgebra.Algebra.Transfer.Closing (closingPairBy)
 import ExchangeAlgebra.Algebra.Transfer.Rule (ClosingSide(..), closingSide)
 
@@ -77,7 +90,9 @@ data PostedError
 
 instance NFData PostedError
 
--- | Inclusive upper bound, exactly @2^900@. Complexity: O(1).
+-- | Inclusive bound @2^900@. A sum of nearly @2^123@ such values remains below
+-- the largest finite Double (less than @2^1024@), leaving aggregation headroom.
+-- Complexity: O(1).
 postedUpperBound :: Double
 postedUpperBound = 2 ^ (900 :: Int)
 
@@ -109,8 +124,8 @@ unPosted (Posted value) = value
 
 -- | The two posting sides; query wildcard 'HatNot' is excluded.
 data PostSide
-    = PHat -- ^ The 'Hat' side.
-    | PNot -- ^ The 'Not' side.
+    = HatSide -- ^ The @Hat@ side.
+    | NotSide -- ^ The 'Not' side.
     deriving stock (Eq, Ord, Show, Enum, Bounded, Generic)
 
 instance Binary PostSide
@@ -120,18 +135,18 @@ instance Hashable PostSide
 instance NFData PostSide
 
 -- | Embed a posting side into a query-capable hat.
--- @toHat PHat == Hat@ and @toHat PNot == Not@; 'HatNot' is never returned.
+-- @sideHat HatSide == Hat@ and @sideHat NotSide == Not@; 'HatNot' is never returned.
 -- Complexity: O(1).
-toHat :: PostSide -> Hat
-toHat PHat = Hat
-toHat PNot = Not
+sideHat :: PostSide -> Hat
+sideHat HatSide = Hat
+sideHat NotSide = Not
 
 -- * Postings
 
 -- | Postings built through 'entry' and 'Monoid', without implicit cancellation
 -- or compression. Equality and display delegate to the underlying 'Alg'.
 -- Equality is structural and depends on construction order. To compare
--- multisets of postings instead, compare the results of @toASCList . toAlg@.
+-- multisets of postings instead, compare the results of @toASCList . postingAlg@.
 newtype Posting b = Posting (Alg Double b)
 
 instance HatBaseClass b => Eq (Posting b) where
@@ -145,25 +160,25 @@ instance NFData (Posting b) where
 
 -- | Preserve algebra addition:
 --
--- > toAlg (a <> b) == (toAlg a .+ toAlg b)
+-- > postingAlg (a <> b) == (postingAlg a .+ postingAlg b)
 --
 -- This law uses 'Alg' equality without a tolerance for every 'HatBaseClass'
 -- instance, so it also preserves the multiset of postings. Associativity
 -- holds as equality of posting multisets, using
 -- @sameMultiset x y = toASCList x == toASCList y@:
 --
--- > sameMultiset (toAlg ((a <> b) <> c)) (toAlg (a <> (b <> c)))
+-- > sameMultiset (postingAlg ((a <> b) <> c)) (postingAlg (a <> (b <> c)))
 --
 -- Complexity: the same as '(.+)' on the underlying algebras.
 instance HatBaseClass b => Semigroup (Posting b) where
     Posting left <> Posting right = Posting (left .+ right)
 
--- | The empty posting obeys @toAlg mempty == Zero@ using exact 'Alg' equality.
+-- | The empty posting obeys @postingAlg mempty == Zero@ using exact 'Alg' equality.
 -- The identity laws hold as equality of posting multisets for every
 -- 'HatBaseClass' instance, without a numeric tolerance:
 --
--- > sameMultiset (toAlg (mempty <> a)) (toAlg a)
--- > sameMultiset (toAlg (a <> mempty)) (toAlg a)
+-- > sameMultiset (postingAlg (mempty <> a)) (postingAlg a)
+-- > sameMultiset (postingAlg (a <> mempty)) (postingAlg a)
 --
 -- Here @sameMultiset x y = toASCList x == toASCList y@.
 -- Complexity: O(1) for 'mempty'; combination uses the 'Semigroup' instance.
@@ -172,7 +187,7 @@ instance HatBaseClass b => Monoid (Posting b) where
 
 -- | Read the underlying algebra. For every side, checked value, and base part:
 --
--- > toAlg (entry side value part) == unPosted value .@ merge (toHat side) part
+-- > postingAlg (entry side value part) == unPosted value .@ merge (sideHat side) part
 --
 -- This is a one-way conversion with exact 'Alg' equality. For a list @xs@
 -- of @(side, value, part)@ triples, let @mk (s, v, p) = entry s v p@ and
@@ -180,26 +195,26 @@ instance HatBaseClass b => Monoid (Posting b) where
 -- preserve the multiset of postings for every query list @qs@, including
 -- 'HatNot' and coordinate wildcards:
 --
--- > sameMultiset (toAlg (foldMap mk xs))
--- >              (foldr (.+) Zero (map (toAlg . mk) xs))
--- > sameMultiset (proj qs (toAlg (foldMap mk xs)))
--- >              (foldr (.+) Zero [proj qs (toAlg (mk x)) | x <- xs])
+-- > sameMultiset (postingAlg (foldMap mk xs))
+-- >              (foldr (.+) Zero (map (postingAlg . mk) xs))
+-- > sameMultiset (proj qs (postingAlg (foldMap mk xs)))
+-- >              (foldr (.+) Zero [proj qs (postingAlg (mk x)) | x <- xs])
 --
 -- These laws use exact multiset equality without a numeric tolerance for
--- every 'HatBaseClass' instance. Complexity of 'toAlg': O(1).
-toAlg :: Posting b -> Alg Double b
-toAlg (Posting algebra) = algebra
+-- every 'HatBaseClass' instance. Complexity of 'postingAlg': O(1).
+postingAlg :: Posting b -> Alg Double b
+postingAlg (Posting algebra) = algebra
 
 -- | Build one posting from a side, checked value, and base coordinates.
 -- A zero value produces 'Zero' through '(.@)'. The side is embedded by
--- 'toHat' and the coordinates are combined with 'merge'.
+-- 'sideHat' and the coordinates are combined with 'merge'.
 --
--- > toAlg (entry side value part) == unPosted value .@ merge (toHat side) part
+-- > postingAlg (entry side value part) == unPosted value .@ merge (sideHat side) part
 --
 -- The law holds with exact 'Alg' equality for every 'HatBaseClass' instance.
 -- Complexity: O(1).
 entry :: HatBaseClass b => PostSide -> Posted -> BasePart b -> Posting b
-entry side value part = Posting (unPosted value .@ merge (toHat side) part)
+entry side value part = Posting (unPosted value .@ merge (sideHat side) part)
 
 -- * Settlement
 
@@ -213,15 +228,25 @@ retainedEarningsRule :: SettleRule
 retainedEarningsRule = SettleRule RetainedEarnings
 
 -- | Settlement pairs in strictly ascending source-base order.
--- A model returns only 'Posting' built with 'entry' and 'Monoid'. Settlement
--- magnitudes can exceed the 'Posted' bound, so this type has no conversion to
--- 'Posting' and no 'Semigroup' or 'Monoid' instance.
+-- A model returns only @Posting@ built with 'entry' and 'Monoid'. Settlement
+-- magnitudes can exceed the @Posted@ bound, so this type has no conversion to
+-- @Posting@ and no 'Semigroup' or 'Monoid' instance.
 --
 -- Record each pair separately in source-base order. Combining all pairs first
 -- can change the order of additions to a shared destination. For example,
 -- sequential increments @T, 1, -T@ with @T = 2^53@ give 0 in 'Double', whereas
 -- adding @T, -T, 1@ gives 1.
-data SettlementBatch b = SettlementBatch [(BasePart b, Alg Double b)]
+newtype SettlementBatch b = SettlementBatch [(BasePart b, Alg Double b)]
+
+-- | A signed Not-minus-Hat net. This is not a non-negative posting magnitude.
+-- As a type synonym, it does not enforce finiteness or any numeric range.
+type SignedNet = Double
+
+-- | The first non-finite input net, identified by its complete base coordinates.
+data SettleError b = NonFiniteNet (BasePart b)
+
+deriving instance Eq (BasePart b) => Eq (SettleError b)
+deriving instance Show (BasePart b) => Show (SettleError b)
 
 -- | Construct one reversal and destination pair per eligible source base.
 -- Input values are signed Not-minus-Hat nets. Zero nets, accounts without a
@@ -229,26 +254,44 @@ data SettlementBatch b = SettlementBatch [(BasePart b, Alg Double b)]
 -- finite, non-negative magnitudes equal to the absolute input net; the source
 -- reversal cancels that net exactly. Other base axes are preserved.
 --
--- Invariant: every input net is finite, including nets at excluded keys.
--- Non-finite input causes 'error'. Finite magnitudes above 'postedUpperBound'
+-- A non-finite input, including at an excluded key, returns 'Left' with the
+-- first key in ascending order. Finite magnitudes above 'postedUpperBound'
 -- are accepted, without passing through 'posted'. No implicit @bar@ or
 -- @compress@ is applied. Complexity: O(b) for b input bases.
+-- Law: subject: each generated settlement pair; preconditions: all nets finite.
+-- Relation: each reversal cancels its source net. For each destination base,
+-- its increment is the sum of @direction * net@ over the source bases, where
+-- @direction@ is +1 for 'ClosingKeep' and -1 for 'ClosingFlip'.
+-- Observation: sums of @decL@ and @decR@ lifted to Rational for each pair.
+-- Tolerance: exact. Instances: 'ExBaseClass' bases with Double posting values.
 settleEntries :: forall b. ExBaseClass b
-              => SettleRule -> Map (BasePart b) Double -> SettlementBatch b
+              => SettleRule
+              -> Map (BasePart b) SignedNet
+              -> Either (SettleError b) (SettlementBatch b)
 settleEntries (SettleRule destination) amounts
-    | all finite amounts = SettlementBatch (mapMaybe close (Map.toAscList amounts))
-    | otherwise = error "Posting.settleEntries: input nets must be finite"
+    = case mapMaybe nonFinite (Map.toAscList amounts) of
+        first : _ -> Left (NonFiniteNet first)
+        []        -> Right (SettlementBatch (mapMaybe close (Map.toAscList amounts)))
   where
     finite amount = not (isNaN amount || isInfinite amount)
+    nonFinite (coordinates, amount)
+        | finite amount = Nothing
+        | otherwise     = Just coordinates
     close (coordinates, amount)
         | amount == 0 = Nothing
         | coordinates == base (setAccountTitle source destination) = Nothing
         | otherwise = case closingSide (getAccountTitle source) of
-            Nothing -> Nothing
+            Nothing   -> Nothing
             Just side -> Just
-                (coordinates, closingPairBy (side == ClosingKeep) destination (abs amount) source)
+                (coordinates, closingPairBy (targetSide side) destination (abs amount) source)
       where
-        source = merge (if amount < 0 then Hat else Not) coordinates :: b
+        source = merge (sourceSide amount) coordinates :: b
+    sourceSide amount
+        | amount < 0 = Hat
+        | otherwise  = Not
+    targetSide side = case side of
+        ClosingKeep -> id
+        ClosingFlip -> revHat
 
 -- | Read the pairs in strictly ascending source-base order, without constraints
 -- on the base type. Record each pair before proceeding to the next source.

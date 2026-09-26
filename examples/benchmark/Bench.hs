@@ -62,13 +62,17 @@ import qualified ExchangeAlgebra.Journal  as EJ
 import qualified ExchangeAlgebra.Write     as EW
 import qualified ExchangeAlgebra.Posting as LP
 
+-- | Complete benchmark coordinates for owner and two synthetic dimensions.
 type LedgerBase = HatBase (Int, Int, Int)
 
+-- | Build two checked postings for one synthetic owner.
+-- Invariant: the constant magnitude 1 is accepted by @LP.posted@.
 ledgerPosting :: Int -> LP.Posting LedgerBase
-ledgerPosting owner = LP.entry LP.PNot amount (owner, 0, 0)
-                   <> LP.entry LP.PHat amount (owner, 0, 1)
+ledgerPosting owner = LP.entry LP.NotSide amount (owner, 0, 0)
+                   <> LP.entry LP.HatSide amount (owner, 0, 1)
   where
-    amount = either (error . show) id (LP.posted 1)
+    amount = either (error . ("ledgerPosting constant magnitude invariant: " ++) . show)
+                    id (LP.posted 1)
 
 -- | Construct a Liner with distinct base keys using non-negative postings.
 -- Bulk construction belongs to the fixture, outside the timed region.
@@ -97,7 +101,7 @@ ledgerInitialAlg owners = EA.unionsMerge
 -- | Cycle through owners with a pair of checked postings per iteration.
 ledgerAlgebraPostings :: Int -> [EA.Alg Double LedgerBase]
 ledgerAlgebraPostings owners =
-    [ LP.toAlg (ledgerPosting ((i `mod` owners) + 1))
+    [ LP.postingAlg (ledgerPosting ((i `mod` owners) + 1))
     | i <- [0 .. 9999] ]
 
 -- | Measure repeated algebra union without a journal.

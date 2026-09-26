@@ -1,20 +1,23 @@
 -- | Acceptance properties for explicit journal carryover.
 module Journal.CarrySpec (runTests) where
 
-import Control.Exception (SomeException, evaluate, try)
 import Control.Monad (unless)
 import qualified Data.HashMap.Strict as HashMap
-import Data.List (isInfixOf)
 import qualified Data.Map.Strict as Map
 import System.Exit (exitFailure)
 import Test.QuickCheck
 
 import ExchangeAlgebra.Algebra ((.@), foldEntries)
 import ExchangeAlgebra.Algebra.Base
-    (AccountTitles(..), CountUnit(..), Hat(..), HatBase(..))
+    ( AccountTitles(..)
+    , CountUnit(..)
+    , Hat(..)
+    , HatBase(..)
+    )
 import ExchangeAlgebra.Journal (Journal, (.|))
 import qualified ExchangeAlgebra.Journal as Journal
 import ExchangeAlgebra.Journal.Carry (carryBefore)
+import ExchangeAlgebra.Journal.Exact (ExactSumError(..))
 
 -- | Test postings use two base axes and integer note labels.
 type Part = (CountUnit, AccountTitles)
@@ -66,17 +69,21 @@ balances = Map.fromListWith (+) . fmap contribution
   where
     contribution (_, coordinates, side, value) =
         (coordinates, case side of
-            Not -> toRational value
-            Hat -> negate (toRational value)
+            Not    -> toRational value
+            Hat    -> negate (toRational value)
             HatNot -> error "CarrySpec: concrete-side invariant violated")
 
 -- | Carry preserves retained scalars and rounds only each selected net.
 propCarry :: Property
 propCarry = forAll rowsGen $ \original ->
-    let before = build original
-        after = carryBefore (< 3) 9 before
-        observed = rows after
-        retained = filter (\(note, _, _, _) -> note >= 3) original
+    case carryBefore (< 3) 9 (build original) of
+      Left failure -> counterexample (show failure) False
+      Right after  -> checkCarry original (rows after)
+
+-- | Compare exact balances and entry multisets after a successful carry.
+checkCarry :: [Row] -> [Row] -> Property
+checkCarry original observed =
+    let retained = filter (\(note, _, _, _) -> note >= 3) original
         retainedCounts = multiset retained
         observedCounts = multiset observed
         originalBalances = balances original
@@ -84,7 +91,7 @@ propCarry = forAll rowsGen $ \original ->
         selectedBalances = balances
             (filter (\(note, _, _, _) -> note < 3) original)
         expectedCarried =
-            [ (9, coordinates, if amount > 0 then Not else Hat, fromRational (abs amount))
+            [ (9, coordinates, netSide amount, fromRational (abs amount))
             | (coordinates, amount) <- Map.toAscList selectedBalances
             , amount /= 0
             ]
@@ -112,6 +119,10 @@ propCarry = forAll rowsGen $ \original ->
         , counterexample "carry generated an invalid magnitude or side"
             (property (all valid observed))
         ]
+  where
+    netSide amount
+        | amount > 0 = Not
+        | otherwise  = Hat
 
 -- | An exact cancellation adds nothing, even with an existing carry note.
 propZeroAndExistingNote :: Property
@@ -121,8 +132,8 @@ propZeroAndExistingNote =
             , (1, (Yen, Cash), Hat, 0.1)
             , (9, (Yen, Deposits), Not, 3)
             ]
-        after = rows (carryBefore (< 3) 9 (build original))
-    in multiset after === multiset [(9, (Yen, Deposits), Not, 3)]
+        after = fmap rows (carryBefore (< 3) 9 (build original))
+    in fmap multiset after === Right (multiset [(9, (Yen, Deposits), Not, 3)])
 
 -- | An existing entry on the carry note and complete base is appended to.
 propCarryNoteCollision :: Property
@@ -137,7 +148,8 @@ propCarryNoteCollision =
             , (9, (Yen, Cash), Not, 2)
             , (9, (Dollar, Cash), Hat, 3)
             ]
-    in multiset (rows (carryBefore (< 3) 9 (build original))) === multiset expected
+    in fmap (multiset . rows) (carryBefore (< 3) 9 (build original))
+        === Right (multiset expected)
 
 -- | Selection of every or no note follows the same exact balance contract.
 propSelectionExtremes :: Property
@@ -147,16 +159,16 @@ propSelectionExtremes =
             , (1, (Yen, Cash), Not, 0.2)
             , (9, (Dollar, Cash), Hat, 4)
             ]
-        none = rows (carryBefore (const False) 12 (build original))
-        allEntries = rows (carryBefore (const True) 12 (build original))
+        none = fmap (multiset . rows) (carryBefore (const False) 12 (build original))
+        allEntries = fmap (multiset . rows) (carryBefore (const True) 12 (build original))
         expectedAll =
             [ (12, (Yen, Cash), Not, fromRational
                 (toRational (0.1 :: Double) + toRational (0.2 :: Double)))
             , (12, (Dollar, Cash), Hat, 4)
             ]
     in conjoin
-        [ multiset none === multiset original
-        , multiset allEntries === multiset expectedAll
+        [ none === Right (multiset original)
+        , allEntries === Right (multiset expectedAll)
         ]
 
 -- | A selected complete base whose exact side sum exceeds Double fails.
@@ -168,12 +180,10 @@ testOverflow = do
             , (1, (Yen, Cash), Not, maximumFinite)
             ]
         carried = carryBefore (< 3) 9 (build original)
-    outcome <- try (evaluate (length (rows carried))) :: IO (Either SomeException Int)
-    case outcome of
-        Left failure -> unless
-            ("selected complete-base side sums must fit Double" `isInfixOf` show failure)
-            (failTest "overflow failure did not name the precondition")
-        Right _ -> failTest "overflowing selected side sum succeeded"
+    case carried of
+        Left SumOutOfRange -> pure ()
+        Left failure     -> failTest ("unexpected overflow error: " ++ show failure)
+        Right _          -> failTest "overflowing selected side sum succeeded"
 
 -- | Report a deterministic acceptance failure and stop the suite.
 failTest :: String -> IO ()
@@ -184,25 +194,15 @@ failTest message = do
 -- | Run journal carry properties as part of the package test suite.
 runTests :: IO ()
 runTests = do
-    carryResult <- quickCheckWithResult
-        stdArgs { maxSuccess = 500, chatty = False } propCarry
-    unless (isSuccess carryResult) $ do
-        putStrLn ("[FAIL] journal carry: " ++ output carryResult)
-        exitFailure
-    zeroResult <- quickCheckWithResult
-        stdArgs { maxSuccess = 1, chatty = False } propZeroAndExistingNote
-    unless (isSuccess zeroResult) $ do
-        putStrLn ("[FAIL] journal carry zero: " ++ output zeroResult)
-        exitFailure
-    collisionResult <- quickCheckWithResult
-        stdArgs { maxSuccess = 1, chatty = False } propCarryNoteCollision
-    unless (isSuccess collisionResult) $ do
-        putStrLn ("[FAIL] journal carry collision: " ++ output collisionResult)
-        exitFailure
-    extremesResult <- quickCheckWithResult
-        stdArgs { maxSuccess = 1, chatty = False } propSelectionExtremes
-    unless (isSuccess extremesResult) $ do
-        putStrLn ("[FAIL] journal carry selection: " ++ output extremesResult)
-        exitFailure
+    quickProperty 500 "carry" propCarry
+    quickProperty 1 "carry zero" propZeroAndExistingNote
+    quickProperty 1 "carry collision" propCarryNoteCollision
+    quickProperty 1 "carry selection" propSelectionExtremes
     testOverflow
     putStrLn "[PASS] journal carry (retention, rounding, zero, and carry note)"
+
+-- | Run one named QuickCheck property and fail on a counterexample.
+quickProperty :: Testable property => Int -> String -> property -> IO ()
+quickProperty count label proposition = do
+    result <- quickCheckWithResult stdArgs { maxSuccess = count, chatty = False } proposition
+    unless (isSuccess result) $ failTest (label ++ ": " ++ output result)

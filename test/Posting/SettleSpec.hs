@@ -3,14 +3,13 @@
 -- | Ordered settlement pairs preserve source nets and exact accounting balance.
 module Posting.SettleSpec (runTests) where
 
-import Control.Exception (ErrorCall, evaluate, try)
 import Control.Monad (forM_, unless)
 import Data.List (foldl', sort)
 import qualified Data.Map.Strict as Map
 import System.Exit (exitFailure)
 import Test.QuickCheck hiding (label)
 
-import ExchangeAlgebra.Algebra hiding (filter, map, toAlg)
+import ExchangeAlgebra.Algebra hiding (filter, map)
 import ExchangeAlgebra.Algebra.Transfer.Rule (ClosingSide(..), closingSide)
 import ExchangeAlgebra.Posting
 
@@ -65,17 +64,22 @@ exactMagnitude = foldEntries (\total value _ -> total + toRational value) 0
 -- | The key set, pair structure, signs, and debit/credit equality hold exactly.
 propSettlement :: Property
 propSettlement = forAll genNets $ \amounts ->
-    let steps = settlementSteps
-            (settleEntries retainedEarningsRule amounts :: SettlementBatch TestBase)
-        expectedKeys = Map.keys (Map.filterWithKey eligible amounts)
+    case settleEntries retainedEarningsRule amounts of
+      Left failure -> counterexample (show failure) False
+      Right batch -> checkSettlement amounts (settlementSteps batch)
+
+-- | Check each generated pair with exact Rational accounting readouts.
+checkSettlement :: Nets -> [((CountUnit, AccountTitles), Alg Double TestBase)] -> Property
+checkSettlement amounts steps =
+    let expectedKeys = Map.keys (Map.filterWithKey eligible amounts)
         keys = map fst steps
         checkPair (coordinates@(unit, title), algebra) =
             let amount = Map.findWithDefault 0 coordinates amounts
-                sourceSide = if amount > 0 then Not else Hat
-                reverseSide = if sourceSide == Not then Hat else Not
+                sourceSide = sideFor amount
+                reverseSide = revHat sourceSide
                 targetSide = case closingSide title of
                     Just ClosingKeep -> sourceSide
-                    _ -> reverseSide
+                    _                -> reverseSide
                 expected = sort
                     [ (abs amount, reverseSide :< coordinates)
                     , (abs amount, targetSide :< (unit, RetainedEarnings))
@@ -98,6 +102,9 @@ propSettlement = forAll genNets $ \amounts ->
   where
     eligible (_, title) amount = amount /= 0 && title /= RetainedEarnings
         && closingSide title /= Nothing
+    sideFor amount
+        | amount > 0 = Not
+        | otherwise  = Hat
 
 -- | Report fixed regression failures through the ordinary test executable.
 assertTest :: String -> Bool -> IO ()
@@ -108,8 +115,9 @@ assertTest label success = unless success $ do
 -- | Exclusion, both directions, and large finite magnitudes are deterministic.
 testFixed :: IO ()
 testFixed = do
-    let steps amounts = settlementSteps
-            (settleEntries retainedEarningsRule amounts :: SettlementBatch TestBase)
+    let steps amounts = fmap settlementSteps
+            (settleEntries retainedEarningsRule amounts ::
+                Either (SettleError TestBase) (SettlementBatch TestBase))
         excluded = Map.fromList
             [ ((Yen, Sales), 0)
             , ((Dollar, Purchases), -0.0)
@@ -117,8 +125,8 @@ testFixed = do
             , ((Yen, RetainedEarnings), 12)
             , ((Yen, NetIncome), 5)
             ]
-    assertTest "empty input" (null (steps Map.empty))
-    assertTest "only excluded keys" (null (steps excluded))
+    assertTest "empty input" (fmap null (steps Map.empty) == Right True)
+    assertTest "only excluded keys" (fmap null (steps excluded) == Right True)
     assertTest "known keep and flip accounts" $
         closingSide Sales == Just ClosingKeep && closingSide Purchases == Just ClosingFlip
     forM_ [Sales, Purchases] $ \title ->
@@ -129,12 +137,12 @@ testFixed = do
                 result = steps (Map.singleton coordinates amount)
             assertTest "finite 2^950 accepted without Posted validation" $
                 case result of
-                    [(source, algebra)] -> source == coordinates
+                    Right [(source, algebra)] -> source == coordinates
                         && length (scalars algebra) == 2
                         && all ((== magnitude) . fst) (scalars algebra)
                         && netAt source algebra == negate (toRational amount)
                         && exactMagnitude (decL algebra) == exactMagnitude (decR algebra)
-                    _ -> False
+                    _                         -> False
     -- Select three ClosingKeep accounts by their actual key order so the
     -- destination increments are T, 1, -T, independent of enum ordering.
     let titles = take 3 [title | title <- [minBound .. maxBound]
@@ -142,25 +150,33 @@ testFixed = do
         sourceKeys = sort [(Yen, title) | title <- titles]
         large = 2 ^ (53 :: Int)
         result = steps (Map.fromList (zip sourceKeys [large, 1, -large]))
-        increments = [fromRational (netAt (Yen, RetainedEarnings) algebra) :: Double
-                     | (_, algebra) <- result]
+        increments = fmap
+            (map (\(_, algebra) ->
+                fromRational (netAt (Yen, RetainedEarnings) algebra) :: Double))
+            result
     assertTest "three distinct keep accounts in fixture" (length sourceKeys == 3)
     assertTest "sequential destination increments preserve source order" $
-        increments == [large, 1, -large] && foldl' (+) 0 increments == 0
+        increments == Right [large, 1, -large]
+        && fmap (foldl' (+) 0) increments == Right 0
         && foldl' (+) 0 [large, -large, 1] == 1
 
 -- | All input keys obey the finite-input contract, even excluded accounts.
 testNonFinite :: IO ()
 testNonFinite = forM_ [0 / 0, 1 / 0, -1 / 0] $ \amount ->
     forM_ [Sales, Cash, RetainedEarnings] $ \title -> do
-        result <- try (evaluate
-            (settleEntries retainedEarningsRule
-                (Map.fromList [((Yen, Sales), 1), ((Dollar, title), amount)])
-                :: SettlementBatch TestBase))
-            :: IO (Either ErrorCall (SettlementBatch TestBase))
-        assertTest "non-finite input raises ErrorCall" $ case result of
-            Left _ -> True
-            Right _ -> False
+        let first = (Dollar, title)
+            second = (Yen, Sales)
+            result = settleEntries retainedEarningsRule
+                (Map.fromList [(second, amount), (first, amount)])
+                :: Either (SettleError TestBase) (SettlementBatch TestBase)
+        assertTest "first non-finite key, including excluded keys" $ case result of
+            Left (NonFiniteNet coordinates) -> coordinates == min first second
+            Right _                          -> False
+        assertTest "excluded non-finite key alone is rejected" $ case
+            (settleEntries retainedEarningsRule (Map.singleton (Dollar, Cash) amount)
+                :: Either (SettleError TestBase) (SettlementBatch TestBase)) of
+            Left (NonFiniteNet coordinates) -> coordinates == (Dollar, Cash)
+            Right _                          -> False
 
 -- | Run generated laws and boundary regressions with the main test suite.
 runTests :: IO ()

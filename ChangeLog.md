@@ -4,17 +4,20 @@
 
 ### Added
 
-- `ExchangeAlgebra.Posting` provides `Posted`, a checked, finite,
-  non-negative, bounded posting value without a `Num` instance; `PostSide`,
-  the two posting sides; and `Posting`, built through `entry` and `Monoid`.
-  `SettleRule`, `retainedEarningsRule`, `SettlementBatch`, `settleEntries`,
-  and `settlementSteps` construct settlement pairs from signed net amounts
-  and return them in ascending source-base order for sequential recording.
-  Settlement magnitudes can exceed the checked posting bound.
+- `ExchangeAlgebra.Posting` provides `Posted`, `PostedError`,
+  `postedUpperBound`, `posted`, and `unPosted` for checked posting values;
+  `PostSide(HatSide, NotSide)` and `sideHat` for concrete sides; and `Posting`,
+  `entry`, and `postingAlg` for constructing and reading posting sequences.
+  `SignedNet`, `SettleRule`, `retainedEarningsRule`, `SettlementBatch`,
+  `SettleError`, `settleEntries`, and `settlementSteps` construct ordered
+  settlement pairs. `settleEntries` returns `Either` for non-finite nets,
+  including those at excluded keys. Finite settlement magnitudes can exceed
+  the checked posting bound.
 - `ExchangeAlgebra.Journal.Carry` provides `carryBefore` to replace selected
   entries with one rounded exact net per complete base under a supplied note.
   Other entries retain their notes and values, including existing entries
-  under the carry note. Each base's exact balance can change by one rounding.
+  under the carry note. It returns `Either` when exact aggregation fails.
+  Each base's exact balance can change by one rounding.
 - `collapseEntries` and `collapseNetEntries` move selected algebra entries to
   rewritten base coordinates, including wildcard axes. The former preserves
   every posting; the latter nets the rewritten entries after axes coincide.

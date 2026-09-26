@@ -11,7 +11,7 @@ import qualified Data.Binary as Binary
 import Data.Hashable (hash)
 import System.Exit (exitFailure)
 import Test.QuickCheck hiding (label)
-import ExchangeAlgebra.Algebra hiding (map, filter, toHat)
+import ExchangeAlgebra.Algebra hiding (map, filter)
 import qualified ExchangeAlgebra.Posting as Posting
 import ExchangeAlgebra.Posting
     ( Posted
@@ -20,8 +20,8 @@ import ExchangeAlgebra.Posting
     , entry
     , posted
     , postedUpperBound
-    , toAlg
-    , toHat
+    , postingAlg
+    , sideHat
     , unPosted
     )
 import qualified Posting.NoNumPosted as NoNum
@@ -50,8 +50,15 @@ genAccepted = frequency
 propAcceptedIdentity :: Property
 propAcceptedIdentity = forAll genAccepted $ \value ->
     case posted value of
-        Left failure -> counterexample (show (value, failure)) False
+        Left failure  -> counterexample (show (value, failure)) False
         Right checked -> counterexample (show value) (unPosted checked == value)
+
+-- | Every validated posting survives reading and revalidation.
+propPostedRoundTrip :: Property
+propPostedRoundTrip = forAll genAccepted $ \value ->
+    case posted value of
+        Left failure  -> counterexample (show failure) False
+        Right checked -> posted (unPosted checked) === Right checked
 
 -- | Generate checked integer amounts without floating-point rounding in sums.
 genExactPosted :: Gen Posted
@@ -59,12 +66,12 @@ genExactPosted = do
     value <- chooseInteger (0, 1000)
     case posted (fromInteger value) of
         Right checked -> pure checked
-        Left failure -> error ("integer test amount rejected: " ++ show failure)
+        Left failure  -> error ("integer test amount rejected: " ++ show failure)
 
 -- | Generate every concrete side and occasional wildcard coordinates.
 genEntry :: Gen TestEntry
 genEntry = do
-    side <- elements [PHat, PNot]
+    side <- elements [HatSide, NotSide]
     value <- genExactPosted
     title <- elements [Cash, Products, Sales, wildcard]
     unit <- elements [Yen, Amount, Dollar, wildcard]
@@ -118,10 +125,10 @@ sameMultiset left right = toASCList left == toASCList right
 -- | IX-8a: projection distributes across the checked posting list.
 propProjection :: Property
 propProjection = forAll genAlgebraCase $ \(entries, queries) ->
-    let checked = toAlg (foldMap single entries)
-        raw = foldr (.+) Zero [toAlg (single item) | item <- entries]
+    let checked = postingAlg (foldMap single entries)
+        raw = foldr (.+) Zero [postingAlg (single item) | item <- entries]
         projected = foldr (.+) Zero
-            [proj queries (toAlg (single item)) | item <- entries]
+            [proj queries (postingAlg (single item)) | item <- entries]
     in counterexample (show (entries, queries)) $
         sameMultiset checked raw && sameMultiset (proj queries checked) projected
 
@@ -135,9 +142,9 @@ propMonoid = forAll genAlgebraCase $ \(entries, _) ->
         z = foldMap single third
         zero = mempty :: Posting TestBase
     in counterexample (show entries) $
-        sameMultiset (toAlg (zero <> x)) (toAlg x)
-        && sameMultiset (toAlg (x <> zero)) (toAlg x)
-        && sameMultiset (toAlg ((x <> y) <> z)) (toAlg (x <> (y <> z)))
+        sameMultiset (postingAlg (zero <> x)) (postingAlg x)
+        && sameMultiset (postingAlg (x <> zero)) (postingAlg x)
+        && sameMultiset (postingAlg ((x <> y) <> z)) (postingAlg (x <> (y <> z)))
 
 -- | Conversion preserves a single append with the algebra's structural equality.
 propConversion :: Property
@@ -146,7 +153,7 @@ propConversion = forAll genAlgebraCase $ \(entries, _) ->
         left = foldMap single leftEntries
         right = foldMap single rightEntries
     in counterexample (show entries) $
-        toAlg (left <> right) == (toAlg left .+ toAlg right)
+        postingAlg (left <> right) == (postingAlg left .+ postingAlg right)
 
 -- | Fail an ordinary Boolean assertion through the same test harness.
 assertTest :: String -> Bool -> IO ()
@@ -184,7 +191,7 @@ testValidation = do
     assertTest "zero accepted" (fmap unPosted (posted 0) == Right 0)
     assertTest "negative zero normalized" $ case posted (-0.0) of
         Right checked -> isPositiveZero (unPosted checked)
-        Left _ -> False
+        Left _        -> False
     assertTest "smallest subnormal accepted" $
         fmap unPosted (posted smallestSubnormal) == Right smallestSubnormal
     assertTest "one accepted" (fmap unPosted (posted 1) == Right 1)
@@ -199,9 +206,9 @@ testBinary = do
     let smallestSubnormal = encodeFloat 1 (-1074) :: Double
         checkedValues =
             [value | Right value <- map posted [0, smallestSubnormal, 1, postedUpperBound]]
-        sides = [PHat, PNot]
+        sides = [HatSide, NotSide]
         rejects value = case Binary.decodeOrFail (Binary.encode (value :: Double)) of
-            Left _ -> True
+            Left _                      -> True
             Right (_, _, (_ :: Posted)) -> False
         decodedNegativeZero = Binary.decodeOrFail (Binary.encode (-0.0 :: Double))
     assertTest "Posted Binary round trip" $
@@ -218,7 +225,7 @@ testBinary = do
             , 2 ** 1000
             ]
     assertTest "Posted Binary normalizes negative zero" $ case decodedNegativeZero of
-        Left _ -> False
+        Left _                          -> False
         Right (_, _, (value :: Posted)) ->
             unPosted value == 0 && 1 / unPosted value > 0
     assertTest "NFData and Hashable instances" $
@@ -228,27 +235,27 @@ testBinary = do
 -- | Both posting sides map to concrete Hat values only.
 testSides :: IO ()
 testSides = do
-    assertTest "PHat maps to Hat" (toHat PHat == Hat)
-    assertTest "PNot maps to Not" (toHat PNot == Not)
+    assertTest "HatSide maps to Hat" (sideHat HatSide == Hat)
+    assertTest "NotSide maps to Not" (sideHat NotSide == Not)
     assertTest "PostSide excludes HatNot" $
-        all ((/= HatNot) . toHat) [minBound .. maxBound]
+        all ((/= HatNot) . sideHat) [minBound .. maxBound]
 
 -- | Three equal-base entries expose structural ordering without breaking the multiset law.
 testAssociativityRegression :: IO ()
 testAssociativityRegression = case traverse posted [1, 2, 3] of
-    Left failure -> do
+    Left failure                 -> do
         putStrLn ("[FAIL] ledger posting fixture: " ++ show failure)
         exitFailure
     Right [first, second, third] -> do
         let part = (Cash, Yen)
-            x = entry PHat first part :: Posting TestBase
-            y = entry PHat second part :: Posting TestBase
-            z = entry PHat third part :: Posting TestBase
-            left = toAlg ((x <> y) <> z)
-            right = toAlg (x <> (y <> z))
+            x = entry HatSide first part :: Posting TestBase
+            y = entry HatSide second part :: Posting TestBase
+            z = entry HatSide third part :: Posting TestBase
+            left = postingAlg ((x <> y) <> z)
+            right = postingAlg (x <> (y <> z))
         assertTest "equal-base grouping changes structural order" (left /= right)
         assertTest "equal-base grouping preserves the multiset" (sameMultiset left right)
-    Right _ -> assertTest "three checked fixture values" False
+    Right _                      -> assertTest "three checked fixture values" False
 
 -- | Fixed queries cover each Hat value and both coordinate wildcard positions.
 testQueryCoverage :: IO ()
@@ -256,20 +263,20 @@ testQueryCoverage = case posted 3 of
     Left failure -> do
         putStrLn ("[FAIL] ledger posting fixture: " ++ show failure)
         exitFailure
-    Right value -> do
+    Right value  -> do
         let entries =
-                [ (PHat, value, (Cash, Yen))
-                , (PNot, value, (Products, Amount))
-                , (PHat, value, (Sales, Dollar))
+                [ (HatSide, value, (Cash, Yen))
+                , (NotSide, value, (Products, Amount))
+                , (HatSide, value, (Sales, Dollar))
                 ]
             queries =
                 [ Hat :< (Cash, wildcard)
                 , Not :< (wildcard, Amount)
                 , HatNot :< (Sales, wildcard)
                 ]
-            checked = toAlg (foldMap single entries)
+            checked = postingAlg (foldMap single entries)
             projected = foldr (.+) Zero
-                [proj queries (toAlg (single item)) | item <- entries]
+                [proj queries (postingAlg (single item)) | item <- entries]
         assertTest "three query hats and coordinate wildcards" $
             sameMultiset (proj queries checked) projected
 
@@ -279,7 +286,7 @@ testNoNum = do
     literal <- try (evaluate NoNum.literalPosted) :: IO (Either TypeError Posted)
     assertTest "Posted numeric literal is rejected" (isTypeError literal)
     case posted 1 of
-        Left failure -> do
+        Left failure  -> do
             putStrLn ("[FAIL] ledger posting fixture: " ++ show failure)
             exitFailure
         Right checked -> do
@@ -306,6 +313,7 @@ runTests = do
     testQueryCoverage
     testNoNum
     quickProperty "V-1 accepted-domain identity" propAcceptedIdentity
+    quickProperty "validated posting round trip" propPostedRoundTrip
     quickProperty "IX-8a projection and raw conversion" propProjection
     quickProperty "Posting monoid laws" propMonoid
     quickProperty "Posting conversion preserves structural append" propConversion

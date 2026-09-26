@@ -1,7 +1,12 @@
 {-# OPTIONS_GHC -fdefer-type-errors -Wno-deferred-type-errors #-}
 
 -- | Expressions that must fail when 'Posted' has no 'Num' instance.
-module Posting.NoNumPosted (literalPosted, addPosted, addPosting, genericPosted) where
+module Posting.NoNumPosted
+    ( literalPosted
+    , addPosted
+    , addPosting
+    , genericPosted
+    ) where
 
 import ExchangeAlgebra.Posting (Posted, Posting)
 import GHC.Generics (from)
