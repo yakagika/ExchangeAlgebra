@@ -1,4 +1,9 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {- |
 Module      : ExchangeAlgebra.Algebra.Transfer.Rule
@@ -7,8 +12,10 @@ Description : Data-defined transfer rules and the entries they generate.
 Definition 9 describes a transfer by adding source cancellations and target
 postings to the original algebra. For @Right entries = transferEntries rules a@,
 @a .+ entries@ is precisely that expression. This module returns only the
-additional entries, preserving the original audit trail. It never applies
-@bar@. 'closingEntries' explicitly nets each closing account first.
+additional entries, preserving the original audit trail. Only
+'collapseNetEntries' applies @bar@ to rewritten entries. 'closingEntries'
+uses sequential side totals from the source entries, while 'settleEntries'
+accepts signed nets already computed by its caller.
 
 == Laws
 
@@ -107,18 +114,29 @@ module ExchangeAlgebra.Algebra.Transfer.Rule
     , relabel
     , scaleBy
     , divideBy
+      -- * Additional entries
     , transferEntries
     , collapseEntries
     , collapseNetEntries
+      -- * Closing entries
     , ClosingSide(..)
     , closingSide
     , closingEntries
+    , SettleRule
+    , retainedEarningsRule
+    , SettlementBatch
+    , SignedNet
+    , SettleError(..)
+    , settleEntries
+    , settlementSteps
     ) where
 
 import           Data.Binary (Binary(..))
 import           Data.Hashable (Hashable)
 import           Data.List (find, sortOn, tails)
+import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
+import           Data.Maybe (mapMaybe)
 import           GHC.Generics (Generic)
 import           ExchangeAlgebra.Algebra
                      ( Alg(..), HatVal(..), HatBaseClass(..), ExBaseClass(..)
@@ -228,6 +246,8 @@ divideBy source target coefficient = TransferRule source target (DivBy coefficie
 matches :: HatBaseClass b => b -> b -> Bool
 matches patternBase entry = ignoreWildcard entry patternBase == entry
 
+-- * Additional entries
+
 -- | Generate cancellation and destination entries, without the input ledger.
 -- Input values must satisfy the ordinary non-negative, finite posting contract.
 -- 'Relabel'-only rules cannot fail. Scaled overflow returns 'NonFiniteResult',
@@ -317,6 +337,8 @@ collapseNetEntries pats f x = (.^) selected .+ bar (mapBasePart f selected)
   where
     selected = proj pats x
 
+-- * Closing entries
+
 -- | The retained-earnings side selected by a closing account's PIMO direction.
 data ClosingSide
     = ClosingKeep -- ^ IN: retain Hat/Not (revenue or contra cost).
@@ -344,7 +366,7 @@ closingSide title = case accountSpec title of
         | otherwise = ordinaryDirection
     ordinaryDirection = pimoFromDivision (classifyAccountDivision title)
 
--- | Generate closing entries from each eligible base's exact net balance.
+-- | Generate closing entries from each eligible base's sequential side totals.
 -- Supply only postings through the closing date. Hat and Not totals are
 -- compared without a tolerance; their non-negative difference is closed.
 -- This deliberately folds the source sequences (audit detail) per base,
@@ -387,3 +409,85 @@ closingEntries = Map.foldlWithKey' close (Right Zero) . foldEntries collect Map.
     targetSide side = case side of
         ClosingKeep -> id
         ClosingFlip -> revHat
+
+-- | A closing rule containing only its destination account title.
+-- The private constructor restricts destinations to accounts compatible with
+-- the closing directions.
+newtype SettleRule = SettleRule AccountTitles
+
+-- | Close eligible accounts into 'RetainedEarnings', preserving all other axes.
+retainedEarningsRule :: SettleRule
+retainedEarningsRule = SettleRule RetainedEarnings
+
+-- | Settlement pairs in strictly ascending source-base order.
+-- A model returns only @Posting@ built with @entry@ and 'Monoid'. Settlement
+-- magnitudes can exceed the @Posted@ bound, so this type has no conversion to
+-- @Posting@ and no 'Semigroup' or 'Monoid' instance.
+--
+-- Record each pair separately in source-base order. Combining all pairs first
+-- can change the order of additions to a shared destination. For example,
+-- sequential increments @T, 1, -T@ with @T = 2^53@ give 0 in 'Double', whereas
+-- adding @T, -T, 1@ gives 1.
+newtype SettlementBatch b = SettlementBatch [(BasePart b, Alg Double b)]
+
+-- | A signed Not-minus-Hat net. This is not a non-negative posting magnitude.
+-- As a type synonym, it does not enforce finiteness or any numeric range.
+type SignedNet = Double
+
+-- | The first non-finite input net, identified by its complete base coordinates.
+data SettleError b = NonFiniteNet (BasePart b)
+
+deriving instance Eq (BasePart b) => Eq (SettleError b)
+deriving instance Show (BasePart b) => Show (SettleError b)
+
+-- | Construct one reversal and destination pair per eligible source base.
+-- Input values are signed Not-minus-Hat nets. Zero nets, accounts without a
+-- closing side, and destination bases produce no pair. Every pair has two
+-- finite, non-negative magnitudes equal to the absolute input net; the source
+-- reversal cancels that net exactly. Other base axes are preserved.
+--
+-- A non-finite input, including at an excluded key, returns 'Left' with the
+-- first key in ascending order. Finite magnitudes above
+-- 'ExchangeAlgebra.Posting.postedUpperBound' are accepted, without passing
+-- through 'ExchangeAlgebra.Posting.posted'. No implicit @bar@ or @compress@ is
+-- applied. Complexity: O(b) for b input bases.
+-- Law: subject: each generated settlement pair; preconditions: all nets finite.
+-- Relation: each reversal cancels its source net. For each destination base,
+-- its increment is the sum of @direction * net@ over the source bases, where
+-- @direction@ is +1 for 'ClosingKeep' and -1 for 'ClosingFlip'.
+-- Observation: sums of @decL@ and @decR@ lifted to Rational for each pair.
+-- Tolerance: exact. Instances: 'ExBaseClass' bases with Double posting values.
+settleEntries :: forall b. ExBaseClass b
+              => SettleRule
+              -> Map (BasePart b) SignedNet
+              -> Either (SettleError b) (SettlementBatch b)
+settleEntries (SettleRule destination) amounts
+    = case mapMaybe nonFinite (Map.toAscList amounts) of
+        first : _ -> Left (NonFiniteNet first)
+        []        -> Right (SettlementBatch (mapMaybe close (Map.toAscList amounts)))
+  where
+    finite amount = not (isNaN amount || isInfinite amount)
+    nonFinite (coordinates, amount)
+        | finite amount = Nothing
+        | otherwise     = Just coordinates
+    close (coordinates, amount)
+        | amount == 0 = Nothing
+        | coordinates == base (setAccountTitle source destination) = Nothing
+        | otherwise = case closingSide (getAccountTitle source) of
+            Nothing   -> Nothing
+            Just side -> Just
+                (coordinates, closingPairBy (targetSide side) destination (abs amount) source)
+      where
+        source = merge (sourceSide amount) coordinates :: b
+    sourceSide amount
+        | amount < 0 = Hat
+        | otherwise  = Not
+    targetSide side = case side of
+        ClosingKeep -> id
+        ClosingFlip -> revHat
+
+-- | Read the pairs in strictly ascending source-base order, without constraints
+-- on the base type. Record each pair before proceeding to the next source.
+-- Complexity: O(1) to expose the list; O(b) to consume b pairs.
+settlementSteps :: SettlementBatch b -> [(BasePart b, Alg Double b)]
+settlementSteps (SettlementBatch steps) = steps

@@ -8,16 +8,19 @@
   `postedUpperBound`, `posted`, and `unPosted` for checked posting values;
   `PostSide(HatSide, NotSide)` and `sideHat` for concrete sides; and `Posting`,
   `entry`, and `postingAlg` for constructing and reading posting sequences.
-  `SignedNet`, `SettleRule`, `retainedEarningsRule`, `SettlementBatch`,
-  `SettleError`, `settleEntries`, and `settlementSteps` construct ordered
-  settlement pairs. `settleEntries` returns `Either` for non-finite nets,
-  including those at excluded keys. Finite settlement magnitudes can exceed
-  the checked posting bound.
-- `ExchangeAlgebra.Journal.Carry` provides `carryBefore` to replace selected
-  entries with one rounded exact net per complete base under a supplied note.
-  Other entries retain their notes and values, including existing entries
-  under the carry note. It returns `Either` when exact aggregation fails.
-  Each base's exact balance can change by one rounding.
+- `ExchangeAlgebra.Algebra.Transfer.Rule` provides `SignedNet`, `SettleRule`,
+  `retainedEarningsRule`, `SettlementBatch`, `SettleError`, `settleEntries`,
+  and `settlementSteps` for ordered settlement pairs. These names are also
+  available from the root `ExchangeAlgebra` umbrella. `settleEntries` returns
+  `Either` for non-finite nets, including those at excluded keys. Finite
+  settlement magnitudes can exceed the checked posting bound.
+- `ExchangeAlgebra.Journal.Transfer.Rule` provides `carryEntries` to generate
+  reversals under the selected source notes and one rounded exact net per
+  complete base under a supplied carry note. Add the result to the journal to
+  retain its audit entries. The same module provides `carryBefore` to replace
+  selected entries with those carried nets. Other entries, including existing
+  entries under the carry note, retain their notes and values. Both operations
+  return `Either` when exact aggregation fails.
 - `collapseEntries` and `collapseNetEntries` move selected algebra entries to
   rewritten base coordinates, including wildcard axes. The former preserves
   every posting; the latter nets the rewritten entries after axes coincide.

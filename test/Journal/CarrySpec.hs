@@ -16,7 +16,7 @@ import ExchangeAlgebra.Algebra.Base
     )
 import ExchangeAlgebra.Journal (Journal, (.|))
 import qualified ExchangeAlgebra.Journal as Journal
-import ExchangeAlgebra.Journal.Carry (carryBefore)
+import ExchangeAlgebra.Journal.Transfer.Rule (carryBefore, carryEntries)
 import ExchangeAlgebra.Journal.Exact (ExactSumError(..))
 
 -- | Test postings use two base axes and integer note labels.
@@ -79,6 +79,39 @@ propCarry = forAll rowsGen $ \original ->
     case carryBefore (< 3) 9 (build original) of
       Left failure -> counterexample (show failure) False
       Right after  -> checkCarry original (rows after)
+
+-- | Forgetting selected notes after adding carry entries matches replacement.
+-- The carry note 9 is outside the selected notes 0, 1, and 2.
+propCarryEntriesDecomposition :: Property
+propCarryEntriesDecomposition = forAll rowsGen $ \original ->
+    let journal = build original
+        observed = do
+            additions <- carryEntries (< 3) 9 journal
+            pure (Journal.filterWithNote (\note _ -> note >= 3) (journal <> additions))
+    in fmap (multiset . filter nonzero . rows) observed
+        === fmap (multiset . filter nonzero . rows) (carryBefore (< 3) 9 journal)
+  where
+    nonzero (_, _, _, value) = value /= 0
+
+-- | Each base's exact balance changes by the rounding of its selected net.
+propCarryEntriesBalance :: Property
+propCarryEntriesBalance = forAll rowsGen $ \original ->
+    let journal = build original
+        selectedBalances = balances
+            (filter (\(note, _, _, _) -> note < 3) original)
+        originalBalances = balances original
+        observed = do
+            additions <- carryEntries (< 3) 9 journal
+            pure (balances (rows (journal <> additions)))
+        check result = all (matches result) allCoordinates
+        allCoordinates = Map.keys (Map.union originalBalances selectedBalances)
+        matches result coordinates =
+            let before = Map.findWithDefault 0 coordinates originalBalances
+                after = Map.findWithDefault 0 coordinates result
+                selected = Map.findWithDefault 0 coordinates selectedBalances
+                rounded = toRational (fromRational selected :: Double)
+            in after - before == rounded - selected
+    in fmap check observed === Right True
 
 -- | Compare exact balances and entry multisets after a successful carry.
 checkCarry :: [Row] -> [Row] -> Property
@@ -151,6 +184,35 @@ propCarryNoteCollision =
     in fmap (multiset . rows) (carryBefore (< 3) 9 (build original))
         === Right (multiset expected)
 
+-- | Carry entries keep the existing carry-note entry and add a separate net.
+propCarryEntriesCollision :: Property
+propCarryEntriesCollision =
+    let original =
+            [ (0, (Yen, Cash), Not, 2)
+            , (9, (Yen, Cash), Not, 2)
+            ]
+        expected =
+            [ (0, (Yen, Cash), Hat, 2)
+            , (9, (Yen, Cash), Not, 2)
+            ]
+    in fmap (multiset . rows) (carryEntries (< 3) 9 (build original))
+        === Right (multiset expected)
+
+-- | Both carry operations report the same checked aggregation failure.
+propCarryEntriesFailureParity :: Property
+propCarryEntriesFailureParity =
+    let maximumFinite = encodeFloat (2 ^ (53 :: Int) - 1) 971 :: Double
+        original = build
+            [ (0, (Yen, Cash), Not, maximumFinite)
+            , (1, (Yen, Cash), Not, maximumFinite)
+            ]
+        before = fmap (const ()) (carryBefore (< 3) 9 original)
+        entries = fmap (const ()) (carryEntries (< 3) 9 original)
+    in conjoin
+        [ before === Left SumOutOfRange
+        , entries === before
+        ]
+
 -- | Selection of every or no note follows the same exact balance contract.
 propSelectionExtremes :: Property
 propSelectionExtremes =
@@ -180,6 +242,9 @@ testOverflow = do
             , (1, (Yen, Cash), Not, maximumFinite)
             ]
         carried = carryBefore (< 3) 9 (build original)
+        additions = carryEntries (< 3) 9 (build original)
+    unless (fmap (const ()) carried == fmap (const ()) additions) $
+        failTest "carryEntries and carryBefore disagree on overflow"
     case carried of
         Left SumOutOfRange -> pure ()
         Left failure     -> failTest ("unexpected overflow error: " ++ show failure)
@@ -195,8 +260,12 @@ failTest message = do
 runTests :: IO ()
 runTests = do
     quickProperty 500 "carry" propCarry
+    quickProperty 500 "carry decomposition" propCarryEntriesDecomposition
+    quickProperty 500 "carry balance" propCarryEntriesBalance
     quickProperty 1 "carry zero" propZeroAndExistingNote
     quickProperty 1 "carry collision" propCarryNoteCollision
+    quickProperty 1 "carry entries collision" propCarryEntriesCollision
+    quickProperty 1 "carry error parity" propCarryEntriesFailureParity
     quickProperty 1 "carry selection" propSelectionExtremes
     testOverflow
     putStrLn "[PASS] journal carry (retention, rounding, zero, and carry note)"

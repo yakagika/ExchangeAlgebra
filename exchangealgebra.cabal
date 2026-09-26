@@ -98,7 +98,6 @@ library
       ExchangeAlgebra.Convert.Csv
       ExchangeAlgebra.Foundation
       ExchangeAlgebra.Journal
-      ExchangeAlgebra.Journal.Carry
       ExchangeAlgebra.Journal.Exact
       ExchangeAlgebra.Journal.Transfer
       ExchangeAlgebra.Journal.Transfer.Rule

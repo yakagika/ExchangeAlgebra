@@ -10,8 +10,7 @@ import System.Exit (exitFailure)
 import Test.QuickCheck hiding (label)
 
 import ExchangeAlgebra.Algebra hiding (filter, map)
-import ExchangeAlgebra.Algebra.Transfer.Rule (ClosingSide(..), closingSide)
-import ExchangeAlgebra.Posting
+import ExchangeAlgebra.Algebra.Transfer.Rule
 
 -- | Two coordinates exercise complete-base ordering and axis preservation.
 type TestBase = HatBase (CountUnit, AccountTitles)

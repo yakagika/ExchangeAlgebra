@@ -1,19 +1,12 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE UndecidableInstances #-}
 
--- | Build checked postings and ordered settlement entries in the Accounting layer.
--- The module uses the foundation algebra, 'closingSide' from the transfer rules,
--- and @closingPairBy@ to make settlement pairs. Models construct @Posting@ values;
--- simulator evaluators record 'settlementSteps' in order. Read posting values,
--- sides, and entries before the settlement section.
+-- | Build checked postings in the Accounting layer.
+-- The module uses the foundation algebra to construct @Posting@ values without
+-- implicit cancellation. Models and simulators consume these postings. Read
+-- checked values, sides, and then entries.
 --
--- Posting construction follows Definitions 3-5; settlement uses the transfer
--- construction of Definition 9.
+-- Posting construction follows Definitions 3-5.
 module ExchangeAlgebra.Posting
     ( -- * Posting values
       Posted
@@ -28,34 +21,18 @@ module ExchangeAlgebra.Posting
     , Posting
     , entry
     , postingAlg
-      -- * Settlement
-    , SettleRule
-    , retainedEarningsRule
-    , SettlementBatch
-    , SignedNet
-    , SettleError(..)
-    , settleEntries
-    , settlementSteps
     ) where
 
 import Control.DeepSeq (NFData(..))
 import Data.Binary (Binary(..))
 import Data.Hashable (Hashable(..))
-import Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map
-import Data.Maybe (mapMaybe)
 import GHC.Generics (Generic)
 
 import ExchangeAlgebra.Algebra (Alg(Zero), (.+), (.@))
 import ExchangeAlgebra.Algebra.Base
     ( Hat(..)
     , HatBaseClass(BasePart, merge, base)
-    , AccountTitles(..)
-    , ExBaseClass(..)
-    , revHat
     )
-import ExchangeAlgebra.Algebra.Transfer.Closing (closingPairBy)
-import ExchangeAlgebra.Algebra.Transfer.Rule (ClosingSide(..), closingSide)
 
 -- * Posting values
 
@@ -215,86 +192,3 @@ postingAlg (Posting algebra) = algebra
 -- Complexity: O(1).
 entry :: HatBaseClass b => PostSide -> Posted -> BasePart b -> Posting b
 entry side value part = Posting (unPosted value .@ merge (sideHat side) part)
-
--- * Settlement
-
--- | A closing rule containing only its destination account title.
--- The private constructor restricts destinations to accounts compatible with
--- the closing directions.
-newtype SettleRule = SettleRule AccountTitles
-
--- | Close eligible accounts into 'RetainedEarnings', preserving all other axes.
-retainedEarningsRule :: SettleRule
-retainedEarningsRule = SettleRule RetainedEarnings
-
--- | Settlement pairs in strictly ascending source-base order.
--- A model returns only @Posting@ built with 'entry' and 'Monoid'. Settlement
--- magnitudes can exceed the @Posted@ bound, so this type has no conversion to
--- @Posting@ and no 'Semigroup' or 'Monoid' instance.
---
--- Record each pair separately in source-base order. Combining all pairs first
--- can change the order of additions to a shared destination. For example,
--- sequential increments @T, 1, -T@ with @T = 2^53@ give 0 in 'Double', whereas
--- adding @T, -T, 1@ gives 1.
-newtype SettlementBatch b = SettlementBatch [(BasePart b, Alg Double b)]
-
--- | A signed Not-minus-Hat net. This is not a non-negative posting magnitude.
--- As a type synonym, it does not enforce finiteness or any numeric range.
-type SignedNet = Double
-
--- | The first non-finite input net, identified by its complete base coordinates.
-data SettleError b = NonFiniteNet (BasePart b)
-
-deriving instance Eq (BasePart b) => Eq (SettleError b)
-deriving instance Show (BasePart b) => Show (SettleError b)
-
--- | Construct one reversal and destination pair per eligible source base.
--- Input values are signed Not-minus-Hat nets. Zero nets, accounts without a
--- closing side, and destination bases produce no pair. Every pair has two
--- finite, non-negative magnitudes equal to the absolute input net; the source
--- reversal cancels that net exactly. Other base axes are preserved.
---
--- A non-finite input, including at an excluded key, returns 'Left' with the
--- first key in ascending order. Finite magnitudes above 'postedUpperBound'
--- are accepted, without passing through 'posted'. No implicit @bar@ or
--- @compress@ is applied. Complexity: O(b) for b input bases.
--- Law: subject: each generated settlement pair; preconditions: all nets finite.
--- Relation: each reversal cancels its source net. For each destination base,
--- its increment is the sum of @direction * net@ over the source bases, where
--- @direction@ is +1 for 'ClosingKeep' and -1 for 'ClosingFlip'.
--- Observation: sums of @decL@ and @decR@ lifted to Rational for each pair.
--- Tolerance: exact. Instances: 'ExBaseClass' bases with Double posting values.
-settleEntries :: forall b. ExBaseClass b
-              => SettleRule
-              -> Map (BasePart b) SignedNet
-              -> Either (SettleError b) (SettlementBatch b)
-settleEntries (SettleRule destination) amounts
-    = case mapMaybe nonFinite (Map.toAscList amounts) of
-        first : _ -> Left (NonFiniteNet first)
-        []        -> Right (SettlementBatch (mapMaybe close (Map.toAscList amounts)))
-  where
-    finite amount = not (isNaN amount || isInfinite amount)
-    nonFinite (coordinates, amount)
-        | finite amount = Nothing
-        | otherwise     = Just coordinates
-    close (coordinates, amount)
-        | amount == 0 = Nothing
-        | coordinates == base (setAccountTitle source destination) = Nothing
-        | otherwise = case closingSide (getAccountTitle source) of
-            Nothing   -> Nothing
-            Just side -> Just
-                (coordinates, closingPairBy (targetSide side) destination (abs amount) source)
-      where
-        source = merge (sourceSide amount) coordinates :: b
-    sourceSide amount
-        | amount < 0 = Hat
-        | otherwise  = Not
-    targetSide side = case side of
-        ClosingKeep -> id
-        ClosingFlip -> revHat
-
--- | Read the pairs in strictly ascending source-base order, without constraints
--- on the base type. Record each pair before proceeding to the next source.
--- Complexity: O(1) to expose the list; O(b) to consume b pairs.
-settlementSteps :: SettlementBatch b -> [(BasePart b, Alg Double b)]
-settlementSteps (SettlementBatch steps) = steps
