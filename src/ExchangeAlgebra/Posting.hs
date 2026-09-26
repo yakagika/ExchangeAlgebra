@@ -1,14 +1,13 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
--- | Check posting values and restrict posting sides at the ledger input boundary.
--- This module builds on the foundation algebra and supplies inputs for an
--- evaluator's Ledger layer. Start with 'posted' to validate a value, then use
--- 'entry' and the 'Monoid' instance to build postings. 'toAlg' exposes the
--- underlying algebra for reading; 'Signed' represents index values and readouts.
-module ExchangeAlgebra.Ledger.Posting
+-- | Build checked model postings and ordered settlement entries from the
+-- foundation algebra. Models use 'posted', 'entry', and 'Monoid' to construct
+-- 'Posting'. Evaluators use 'settleEntries' with signed net amounts and record
+-- the resulting 'settlementSteps' one source at a time.
+module ExchangeAlgebra.Posting
     ( -- * Posting values
       Posted
     , PostedError(..)
@@ -22,17 +21,28 @@ module ExchangeAlgebra.Ledger.Posting
     , Posting
     , entry
     , toAlg
-      -- * Signed readouts
-    , Signed(..)
+      -- * Settlement
+    , SettleRule
+    , retainedEarningsRule
+    , SettlementBatch
+    , settleEntries
+    , settlementSteps
     ) where
 
 import Control.DeepSeq (NFData(..))
 import Data.Binary (Binary(..))
 import Data.Hashable (Hashable(..))
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
+import Data.Maybe (mapMaybe)
 import GHC.Generics (Generic)
 
 import ExchangeAlgebra.Algebra (Alg(Zero), (.+), (.@))
-import ExchangeAlgebra.Algebra.Base (Hat(..), HatBaseClass(BasePart, merge))
+import ExchangeAlgebra.Algebra.Base (Hat(..), HatBaseClass(BasePart, merge, base))
+
+import ExchangeAlgebra.Algebra.Base (AccountTitles(..), ExBaseClass(..))
+import ExchangeAlgebra.Algebra.Transfer.Closing (closingPairBy)
+import ExchangeAlgebra.Algebra.Transfer.Rule (ClosingSide(..), closingSide)
 
 -- * Posting values
 
@@ -191,13 +201,57 @@ toAlg (Posting algebra) = algebra
 entry :: HatBaseClass b => PostSide -> Posted -> BasePart b -> Posting b
 entry side value part = Posting (unPosted value .@ merge (toHat side) part)
 
--- * Signed readouts
+-- * Settlement
 
--- | A signed index value or readout with ordinary 'Double' arithmetic.
--- The public constructor imposes no bounds or finiteness checks.
-newtype Signed = Signed
-    { getSigned :: Double -- ^ Read the signed value unchanged. For non-NaN @x@,
-                          -- @getSigned (Signed x) == x@. Complexity: O(1).
-    }
-    deriving stock (Eq, Ord, Show, Generic)
-    deriving newtype (Num, Fractional, Real, Binary, Hashable, NFData)
+-- | A closing rule containing only its destination account title.
+-- The private constructor restricts destinations to accounts compatible with
+-- the closing directions.
+newtype SettleRule = SettleRule AccountTitles
+
+-- | Close eligible accounts into 'RetainedEarnings', preserving all other axes.
+retainedEarningsRule :: SettleRule
+retainedEarningsRule = SettleRule RetainedEarnings
+
+-- | Settlement pairs in strictly ascending source-base order.
+-- A model returns only 'Posting' built with 'entry' and 'Monoid'. Settlement
+-- magnitudes can exceed the 'Posted' bound, so this type has no conversion to
+-- 'Posting' and no 'Semigroup' or 'Monoid' instance.
+--
+-- Record each pair separately in source-base order. Combining all pairs first
+-- can change the order of additions to a shared destination. For example,
+-- sequential increments @T, 1, -T@ with @T = 2^53@ give 0 in 'Double', whereas
+-- adding @T, -T, 1@ gives 1.
+data SettlementBatch b = SettlementBatch [(BasePart b, Alg Double b)]
+
+-- | Construct one reversal and destination pair per eligible source base.
+-- Input values are signed Not-minus-Hat nets. Zero nets, accounts without a
+-- closing side, and destination bases produce no pair. Every pair has two
+-- finite, non-negative magnitudes equal to the absolute input net; the source
+-- reversal cancels that net exactly. Other base axes are preserved.
+--
+-- Invariant: every input net is finite, including nets at excluded keys.
+-- Non-finite input causes 'error'. Finite magnitudes above 'postedUpperBound'
+-- are accepted, without passing through 'posted'. No implicit @bar@ or
+-- @compress@ is applied. Complexity: O(b) for b input bases.
+settleEntries :: forall b. ExBaseClass b
+              => SettleRule -> Map (BasePart b) Double -> SettlementBatch b
+settleEntries (SettleRule destination) amounts
+    | all finite amounts = SettlementBatch (mapMaybe close (Map.toAscList amounts))
+    | otherwise = error "Posting.settleEntries: input nets must be finite"
+  where
+    finite amount = not (isNaN amount || isInfinite amount)
+    close (coordinates, amount)
+        | amount == 0 = Nothing
+        | coordinates == base (setAccountTitle source destination) = Nothing
+        | otherwise = case closingSide (getAccountTitle source) of
+            Nothing -> Nothing
+            Just side -> Just
+                (coordinates, closingPairBy (side == ClosingKeep) destination (abs amount) source)
+      where
+        source = merge (if amount < 0 then Hat else Not) coordinates :: b
+
+-- | Read the pairs in strictly ascending source-base order, without constraints
+-- on the base type. Record each pair before proceeding to the next source.
+-- Complexity: O(1) to expose the list; O(b) to consume b pairs.
+settlementSteps :: SettlementBatch b -> [(BasePart b, Alg Double b)]
+settlementSteps (SettlementBatch steps) = steps

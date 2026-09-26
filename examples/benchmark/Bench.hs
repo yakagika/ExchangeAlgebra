@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- | Core micro-benchmarks for the exchangealgebra library.
@@ -45,7 +44,6 @@ module Main (main) where
 import           Criterion.Main
 import           Control.Exception       (evaluate)
 import           Control.DeepSeq          (NFData (..), force)
-import qualified Data.Binary              as Binary
 import           Data.Bits                ((.&.), (.|.), shiftL)
 import qualified Data.HashMap.Strict      as HM
 import           Data.Hashable            (Hashable (..), Hashed, hashed)
@@ -62,61 +60,15 @@ import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Algebra.Exact as Exact
 import qualified ExchangeAlgebra.Journal  as EJ
 import qualified ExchangeAlgebra.Write     as EW
-import qualified ExchangeAlgebra.Ledger as EL
-import qualified ExchangeAlgebra.Ledger.Posting as LP
+import qualified ExchangeAlgebra.Posting as LP
 
 type LedgerBase = HatBase (Int, Int, Int)
-type BenchLedger = EL.Ledger Int LedgerBase
-
-instance EL.Partition LedgerBase where
-    type PartKey LedgerBase = (Int, Int)
-    partKey _ (owner, axis, _) = (owner, axis)
-    type Group LedgerBase = Int
-    groupOf _ = fst
 
 ledgerPosting :: Int -> LP.Posting LedgerBase
 ledgerPosting owner = LP.entry LP.PNot amount (owner, 0, 0)
                    <> LP.entry LP.PHat amount (owner, 0, 1)
   where
     amount = either (error . show) id (LP.posted 1)
-
-ledgerBuild :: Bool -> Int -> BenchLedger
-ledgerBuild manyNotes owners = foldl' add EL.emptyLedger
-    [(owner, baseNo) | owner <- [1 .. owners], baseNo <- [0 .. 9]]
-  where
-    amount = either (error . show) id (LP.posted 1)
-    add ledger (owner, baseNo) = EL.post note
-        (LP.entry LP.PNot amount (owner, 0, baseNo)) ledger
-      where
-        note = if manyNotes then (owner - 1) * 10 + baseNo else 0
-
-ledgerQuery :: LedgerBase
-ledgerQuery = HatNot :< (1, 0, wildcard)
-
--- Cycle through existing components; a fresh note is used for each ten posts.
-ledgerAmortized :: Bool -> Int -> BenchLedger -> [Int] -> BenchLedger
-ledgerAmortized sameNote owners = foldl' step
-    where
-      step ledger i = EL.post note (ledgerPosting owner) ledger
-        where
-          owner = (i `mod` owners) + 1
-          note = if sameNote then 0 else (i `div` 10) + 1
-
-ledgerAmortizedInput :: Bool -> Int -> (BenchLedger, BenchLedger)
-ledgerAmortizedInput sameNote owners = (initial, final)
-  where
-    initial = force (ledgerBuild False owners)
-    final = force (ledgerAmortized sameNote owners initial [0 .. 9999])
-
--- | Build a decoded ledger with A components, then make k same-note posts.
--- Each component starts with ten entries, and each new post has two entries.
--- Serialization puts the initial journal in its base layer; the measured
--- readout receives the fully forced ledger.
-ledgerReadoutInput :: Int -> Int -> BenchLedger
-ledgerReadoutInput owners pendingCount =
-    ledgerAmortized True owners restored [0 .. pendingCount - 1]
-  where
-    restored = Binary.decode (Binary.encode (ledgerBuild False owners))
 
 -- | Construct a Liner with distinct base keys using non-negative postings.
 -- Bulk construction belongs to the fixture, outside the timed region.
@@ -135,20 +87,20 @@ smallAlg entryCount =
 entryCount :: EA.Alg Double LedgerBase -> Int
 entryCount = EA.foldEntries (\count value base -> value `seq` base `seq` count + 1) 0
 
--- | Mirror the initial ledger's ten entries per component without its indexes.
+-- | Construct ten scalar entries per owner for repeated algebra unions.
 ledgerInitialAlg :: Int -> EA.Alg Double LedgerBase
 ledgerInitialAlg owners = EA.unionsMerge
     [ 1 .@ (Not :< (owner, 0, baseNo))
     | owner <- [1 .. owners]
     , baseNo <- [0 .. 9] ]
 
--- | Use exactly the two-entry posting sequence of ledgerAmortized.
+-- | Cycle through owners with a pair of checked postings per iteration.
 ledgerAlgebraPostings :: Int -> [EA.Alg Double LedgerBase]
 ledgerAlgebraPostings owners =
     [ LP.toAlg (ledgerPosting ((i `mod` owners) + 1))
     | i <- [0 .. 9999] ]
 
--- | Isolate repeated algebra union from the journal and four ledger indexes.
+-- | Measure repeated algebra union without a journal.
 foldLedgerAlgebra :: (EA.Alg Double LedgerBase, [EA.Alg Double LedgerBase])
                   -> EA.Alg Double LedgerBase
 foldLedgerAlgebra (initial, postings) = foldl' (.+) initial postings
@@ -475,73 +427,9 @@ label m = "N=" ++ show (m * m)
 
 main :: IO ()
 main = defaultMain
-    [ bgroup "ledger"
-        [ bgroup "netAt"
-            [ env (force <$> pure (ledgerBuild False owners)) $ \ledger ->
-                bench (show owners) $ nf (\x -> EL.netAt x (1, 0, 0)) ledger
-            | owners <- [100, 1000, 10000] ]
-        , bgroup "post-new-note"
-            [ env (force <$> pure (ledgerBuild False owners)) $ \ledger ->
-                bench (show owners) $ nf (EL.post 1 (ledgerPosting 1)) ledger
-            | owners <- [100, 1000, 10000] ]
-        , bgroup "post-same-note"
-            [ env (force <$> pure (ledgerBuild False owners)) $ \ledger ->
-                bench (show owners) $ nf (EL.post 0 (ledgerPosting 1)) ledger
-            | owners <- [100, 1000, 10000] ]
-        , bgroup "post-many-notes"
-            [ env (force <$> pure (ledgerBuild True owners)) $ \ledger ->
-                bench (show owners) $ nf (EL.post (owners * 10) (ledgerPosting 1)) ledger
-            | owners <- [100, 1000, 10000] ]
-        , bgroup "queryIn"
-            [ env (force <$> pure (ledgerBuild False owners)) $ \ledger ->
-                bench (show owners) $ nf (\x -> EL.queryIn x (1, 0) ledgerQuery) ledger
-            | owners <- [100, 1000, 10000] ]
-        , bgroup "force-base"
-            [ env (force <$> pure (ledgerBuild False owners)) $ \ledger ->
-                bench (show owners) $ nf id ledger
-            | owners <- [100, 1000, 10000] ]
-        , bgroup "post-new-note-whnf"
-            [ env (force <$> pure (ledgerBuild False owners)) $ \ledger ->
-                bench (show owners) $ whnf (EL.post 1 (ledgerPosting 1)) ledger
-            | owners <- [100, 1000, 10000] ]
-        , bgroup "post-same-note-whnf"
-            [ env (force <$> pure (ledgerBuild False owners)) $ \ledger ->
-                bench (show owners) $ whnf (EL.post 0 (ledgerPosting 1)) ledger
-            | owners <- [100, 1000, 10000] ]
-        , bgroup "post-many-notes-whnf"
-            [ env (force <$> pure (ledgerBuild True owners)) $ \ledger ->
-                bench (show owners) $ whnf (EL.post (owners * 10) (ledgerPosting 1)) ledger
-            | owners <- [100, 1000, 10000] ]
-        , bgroup "post-amortized-k10000"
-            [ env (force <$> pure (ledgerBuild False owners)) $ \initial ->
-                bench (show owners) $ nf
-                    (\ledger -> ledgerAmortized False owners ledger [0 .. 9999]) initial
-            | owners <- [100, 1000, 10000] ]
-        , bgroup "post-amortized-k10000-force-only"
-            [ env (pure (snd (ledgerAmortizedInput False owners))) $ \final ->
-                bench (show owners) $ nf id final
-            | owners <- [100, 1000, 10000] ]
-        , bgroup "post-amortized-k10000-same-note"
-            [ env (force <$> pure (ledgerBuild False owners)) $ \initial ->
-                bench (show owners) $ nf
-                    (\ledger -> ledgerAmortized True owners ledger [0 .. 9999]) initial
-            | owners <- [100, 1000, 10000] ]
-        , bgroup "post-amortized-k10000-same-note-force-only"
-            [ env (pure (snd (ledgerAmortizedInput True owners))) $ \final ->
-                bench (show owners) $ nf id final
-            | owners <- [100, 1000, 10000] ]
-        -- A is the number of components (ten base entries each), and k is
-        -- the number of two-entry same-note posts. Setup is outside timing.
-        , bgroup "journal-readout"
-            [ env (evaluate (force (ledgerReadoutInput owners pending))) $ \ledger ->
-                bench ("A=" ++ show owners ++ ",k=" ++ show pending)
-                    $ nf EL.journal ledger
-            | owners <- [100, 1000, 10000]
-            , pending <- [0, 100, 1000, 10000] ]
-        ]
     -- The large operand is a Liner. The small operand hits one existing and
     -- one new base key. All inputs are forced before each timed operation.
-    , bgroup "Alg/big-plus-small"
+    [ bgroup "Alg/big-plus-small"
         [ env (evaluate (force (largeAlg size, smallAlg size))) $ \inputs ->
             let (big, small) = inputs in
             bgroup ("N=" ++ show size)

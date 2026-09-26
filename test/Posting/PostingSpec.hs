@@ -2,7 +2,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 -- | Validation, serialization, and algebraic laws for checked ledger postings.
-module Ledger.PostingSpec (runTests) where
+module Posting.PostingSpec (runTests) where
 
 import Control.DeepSeq (force)
 import Control.Exception (TypeError, evaluate, try)
@@ -12,12 +12,11 @@ import Data.Hashable (hash)
 import System.Exit (exitFailure)
 import Test.QuickCheck hiding (label)
 import ExchangeAlgebra.Algebra hiding (map, filter, toHat)
-import qualified ExchangeAlgebra.Ledger.Posting as Posting
-import ExchangeAlgebra.Ledger.Posting
+import qualified ExchangeAlgebra.Posting as Posting
+import ExchangeAlgebra.Posting
     ( Posted
     , PostSide(..)
     , Posting
-    , Signed(..)
     , entry
     , posted
     , postedUpperBound
@@ -25,7 +24,7 @@ import ExchangeAlgebra.Ledger.Posting
     , toHat
     , unPosted
     )
-import qualified Ledger.NoNumPosted as NoNum
+import qualified Posting.NoNumPosted as NoNum
 
 -- | Account and unit coordinates used for every algebraic property.
 type TestBase = HatBase (AccountTitles, CountUnit)
@@ -201,7 +200,6 @@ testBinary = do
         checkedValues =
             [value | Right value <- map posted [0, smallestSubnormal, 1, postedUpperBound]]
         sides = [PHat, PNot]
-        signedValues = [Signed (-1.5), Signed 0, Signed 2.25]
         rejects value = case Binary.decodeOrFail (Binary.encode (value :: Double)) of
             Left _ -> True
             Right (_, _, (_ :: Posted)) -> False
@@ -210,8 +208,6 @@ testBinary = do
         all (\value -> Binary.decode (Binary.encode value) == value) checkedValues
     assertTest "PostSide Binary round trip" $
         all (\side -> Binary.decode (Binary.encode side) == side) sides
-    assertTest "Signed Binary round trip" $
-        all (\value -> Binary.decode (Binary.encode value) == value) signedValues
     assertTest "Posted Binary decoder validates" $
         all rejects
             [ 0 / 0
@@ -225,12 +221,9 @@ testBinary = do
         Left _ -> False
         Right (_, _, (value :: Posted)) ->
             unPosted value == 0 && 1 / unPosted value > 0
-    assertTest "Signed fractional arithmetic" $
-        getSigned (Signed (-3) + Signed 2 / Signed 2) == (-2)
     assertTest "NFData and Hashable instances" $
-        force checkedValues `seq` force sides `seq` force signedValues `seq`
-        sum (map hash checkedValues) `seq` sum (map hash sides) `seq`
-        sum (map hash signedValues) `seq` True
+        force checkedValues `seq` force sides `seq`
+        sum (map hash checkedValues) `seq` sum (map hash sides) `seq` True
 
 -- | Both posting sides map to concrete Hat values only.
 testSides :: IO ()

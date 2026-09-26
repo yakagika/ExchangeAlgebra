@@ -1,9 +1,9 @@
 {-# OPTIONS_GHC -fdefer-type-errors -Wno-deferred-type-errors #-}
 
 -- | Expressions that must fail when 'Posted' has no 'Num' instance.
-module Ledger.NoNumPosted (literalPosted, addPosted, addPosting, genericPosted) where
+module Posting.NoNumPosted (literalPosted, addPosted, addPosting, genericPosted) where
 
-import ExchangeAlgebra.Ledger.Posting (Posted, Posting)
+import ExchangeAlgebra.Posting (Posted, Posting)
 import GHC.Generics (from)
 
 -- | Demand an integer literal at the protected posting type.

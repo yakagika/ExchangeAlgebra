@@ -98,14 +98,14 @@ library
       ExchangeAlgebra.Convert.Csv
       ExchangeAlgebra.Foundation
       ExchangeAlgebra.Journal
+      ExchangeAlgebra.Journal.Carry
       ExchangeAlgebra.Journal.Exact
       ExchangeAlgebra.Journal.Transfer
       ExchangeAlgebra.Journal.Transfer.Rule
-      ExchangeAlgebra.Ledger
-      ExchangeAlgebra.Ledger.Posting
       ExchangeAlgebra.Optimize
       ExchangeAlgebra.Optimize.Annealing
       ExchangeAlgebra.Optimize.GA
+      ExchangeAlgebra.Posting
       ExchangeAlgebra.Render.Bookkeeping
       ExchangeAlgebra.Render.Csv
       ExchangeAlgebra.Render.Simulation
@@ -240,9 +240,10 @@ test-suite ExchangeAlgebra-test
       Algebra.ExactSumSpec
       Algebra.ProjWildcardSpec
       Golden.WriteRows
-      Ledger.LedgerSpec
-      Ledger.NoNumPosted
-      Ledger.PostingSpec
+      Journal.CarrySpec
+      Posting.NoNumPosted
+      Posting.PostingSpec
+      Posting.SettleSpec
       Transfer.RuleSpec
   hs-source-dirs:
       test

@@ -4,18 +4,17 @@
 
 ### Added
 
-- `ExchangeAlgebra.Ledger` provides an indexed journal through `Partition`,
-  `Ledger`, `emptyLedger`, `post`, `netAt`, `component`, `componentsOf`,
-  `queryIn`, `sidesIn`, `flowIn`, `journal`, and `clearFlows`. Component queries
-  return balances and flows in ascending base order. `carryBefore` replaces
-  expired entries with one rounded exact net per base, preserving indexed
-  balances and flows. `settle`, `SettleRule`, and `retainedEarningsRule` close
-  selected flows into retained earnings. The `Binary` instance restores stored
-  indexes without recalculating their floating-point values.
-- `ExchangeAlgebra.Ledger.Posting` provides `Posted`, a checked, finite,
+- `ExchangeAlgebra.Posting` provides `Posted`, a checked, finite,
   non-negative, bounded posting value without a `Num` instance; `PostSide`,
-  the two posting sides; `Posting`, built only through `entry` and `Monoid`;
-  and `Signed`, a signed value for indexes and readouts.
+  the two posting sides; and `Posting`, built through `entry` and `Monoid`.
+  `SettleRule`, `retainedEarningsRule`, `SettlementBatch`, `settleEntries`,
+  and `settlementSteps` construct settlement pairs from signed net amounts
+  and return them in ascending source-base order for sequential recording.
+  Settlement magnitudes can exceed the checked posting bound.
+- `ExchangeAlgebra.Journal.Carry` provides `carryBefore` to replace selected
+  entries with one rounded exact net per complete base under a supplied note.
+  Other entries retain their notes and values, including existing entries
+  under the carry note. Each base's exact balance can change by one rounding.
 - `collapseEntries` and `collapseNetEntries` move selected algebra entries to
   rewritten base coordinates, including wildcard axes. The former preserves
   every posting; the latter nets the rewritten entries after axes coincide.

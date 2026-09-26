@@ -114,9 +114,10 @@ tests:
     - Algebra.ExactSumSpec
     - Algebra.ProjWildcardSpec
     - Golden.WriteRows
-    - Ledger.LedgerSpec
-    - Ledger.NoNumPosted
-    - Ledger.PostingSpec
+    - Journal.CarrySpec
+    - Posting.NoNumPosted
+    - Posting.PostingSpec
+    - Posting.SettleSpec
     - Transfer.RuleSpec
     ghc-options:
     - -threaded

@@ -76,8 +76,9 @@ import           Golden.WriteRows
 import qualified Transfer.RuleSpec as TransferRuleSpec
 import qualified Algebra.ProjWildcardSpec as ProjWildcardSpec
 import qualified Algebra.ExactSumSpec as ExactSumSpec
-import qualified Ledger.PostingSpec as LedgerPostingSpec
-import qualified Ledger.LedgerSpec as LedgerSpec
+import qualified Posting.PostingSpec as PostingSpec
+import qualified Posting.SettleSpec as SettleSpec
+import qualified Journal.CarrySpec as CarrySpec
 import           Numeric             (showHex)
 import           Control.Monad       (forM_)
 import           Control.Monad.ST
@@ -6971,8 +6972,9 @@ main = do
     ExactSumSpec.runTests
     TransferRuleSpec.runTests
     ProjWildcardSpec.runTests
-    LedgerPostingSpec.runTests
-    LedgerSpec.runTests
+    PostingSpec.runTests
+    SettleSpec.runTests
+    CarrySpec.runTests
     testAccountTitlesBinary
     testPracticalAndManufacturingAccountTitles
     testAccountTitleClassification
