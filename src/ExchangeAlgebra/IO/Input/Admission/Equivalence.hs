@@ -9,6 +9,11 @@ module ExchangeAlgebra.IO.Input.Admission.Equivalence
       Equivalence(..)
       -- * Comparison
     , equivalentUpTo
+      -- * Closing comparison
+    , ClosingSource(..)
+    , ClosingDifference(..)
+    , closingDifferences
+    , isClosingEquivalent
     ) where
 
 import Data.List (sort)
@@ -23,9 +28,13 @@ import ExchangeAlgebra.Algebra
     , Hat(..)
     , Redundant(bar)
     , toList
+    , ExBaseClass(whichSide)
     )
 import qualified ExchangeAlgebra.Algebra as Algebra
 import ExchangeAlgebra.Algebra.Base.Element (AccountTitles)
+import ExchangeAlgebra.Algebra.Base.Account.Registry (accountSpec)
+import ExchangeAlgebra.Algebra.Base.Account.Types (Side(..))
+import ExchangeAlgebra.IO.Input.Admission.Registry (isBlankKey)
 import ExchangeAlgebra.IO.Input.Admission.Types (Entry, TxKey)
 import ExchangeAlgebra.Value (MoneyDecimal)
 
@@ -118,3 +127,131 @@ equivalentUpTo policy left right =
     sameEntry (key, entry) = case Map.lookup key right of
         Just other -> observed policy key entry == observed policy key other
         Nothing    -> False
+
+-- * Closing comparison
+
+-- | The input containing an invalid closing posting or transaction key.
+data ClosingSource
+    = Candidate
+    | Reference
+    deriving (Eq, Ord, Show)
+
+-- | One difference between a candidate and a reference closing entry.
+-- Amount pairs are always in candidate, reference order. 'Side' values in
+-- totals are debit or credit sides, not Hat or Not labels.
+data ClosingDifference
+    = TransactionOnlyInCandidate TxKey
+    | TransactionOnlyInReference TxKey
+    | BlankTransactionKey ClosingSource TxKey
+    | WildcardPosting ClosingSource TxKey AccountTitles
+    | UnclassifiedAccount ClosingSource TxKey AccountTitles
+    | NegativeAmount ClosingSource TxKey AccountTitles
+    | SideTotalDifference TxKey AccountTitles Side MoneyDecimal MoneyDecimal
+    | RetainedEarningsDifference TxKey (Side, MoneyDecimal) (Side, MoneyDecimal)
+    deriving (Eq, Show)
+
+-- | Diagnostic kinds in their public reporting order.
+data ClosingIssue
+    = IssueWildcard
+    | IssueUnclassified
+    | IssueNegative
+    deriving (Eq, Ord)
+
+-- | Validate every posting before calling the partial 'whichSide' classifier.
+-- Duplicate diagnostics for the same source, kind, and account are collapsed.
+entryDiagnostics :: ClosingSource -> TxKey -> Entry -> [ClosingDifference]
+entryDiagnostics source key entry =
+    (if isBlankKey key then [BlankTransactionKey source key] else [])
+    ++ map toDifference (Set.toAscList (Set.fromList postingErrors))
+  where
+    postingErrors = concatMap check (toList entry)
+    check posting = case _hatBase posting of
+        hat :< account ->
+            [(IssueWildcard, account) | hat == HatNot]
+            ++ [(IssueUnclassified, account) | accountSpec account == Nothing]
+            ++ [(IssueNegative, account) | _val posting < 0]
+    toDifference (issue, account) = case issue of
+        IssueWildcard     -> WildcardPosting source key account
+        IssueUnclassified -> UnclassifiedAccount source key account
+        IssueNegative     -> NegativeAmount source key account
+
+-- | Sum exact posting amounts by account and accounting side.
+sideTotals :: Entry -> Map (AccountTitles, Side) MoneyDecimal
+sideTotals entry = Map.fromListWith (+)
+    [ ((account, whichSide base), _val posting)
+    | posting <- toList entry
+    , let base@(_ :< account) = _hatBase posting
+    ]
+
+-- | Return the exact retained-earnings credit-minus-debit amount as side and
+-- magnitude. Zero always has the credit side, including an absent account.
+retainedNet :: AccountTitles -> Map (AccountTitles, Side) MoneyDecimal
+            -> (Side, MoneyDecimal)
+retainedNet account totals
+    | credit >= debit = (Credit, credit - debit)
+    | otherwise       = (Debit, debit - credit)
+  where
+    debit = Map.findWithDefault 0 (account, Debit) totals
+    credit = Map.findWithDefault 0 (account, Credit) totals
+
+-- | Compare valid entries without applying 'bar', 'diffRL', or a tolerance.
+entryDifferences :: AccountTitles -> TxKey -> Entry -> Entry -> [ClosingDifference]
+entryDifferences retained key candidate reference =
+    sideDifferences ++ retainedDifference
+  where
+    candidateTotals = sideTotals candidate
+    referenceTotals = sideTotals reference
+    coordinates = Set.toAscList
+        (Map.keysSet candidateTotals `Set.union` Map.keysSet referenceTotals)
+    sideDifferences =
+        [ SideTotalDifference key account side candidateAmount referenceAmount
+        | (account, side) <- coordinates
+        , account /= retained
+        , let candidateAmount = Map.findWithDefault 0 (account, side) candidateTotals
+        , let referenceAmount = Map.findWithDefault 0 (account, side) referenceTotals
+        , candidateAmount /= referenceAmount
+        ]
+    candidateNet = retainedNet retained candidateTotals
+    referenceNet = retainedNet retained referenceTotals
+    retainedDifference =
+        [ RetainedEarningsDifference key candidateNet referenceNet
+        | candidateNet /= referenceNet
+        ]
+
+-- | Compare closings by transaction key. Every input posting is checked first:
+-- blank keys, wildcard Hat labels, unclassified accounts, and negative amounts
+-- produce diagnostics, and their keys are not compared. Valid keys present in
+-- only one map produce a presence difference, even when the entry is 'Zero'.
+-- Other accounts compare exact sums per account and side. Retained earnings
+-- compares only its exact credit-minus-debit net, with credit for zero.
+-- Results follow ascending keys. Within a key, diagnostics follow candidate
+-- then reference, and blank key, wildcard, unclassified, negative order, with
+-- accounts ascending within each kind. Comparison differences follow account
+-- and 'Side' order (Credit before Debit), then retained earnings.
+--
+-- Laws (for finite, fully valid input): comparison is reflexive; splitting a
+-- posting into same-side amounts with the same sum preserves the result; and
+-- retained-earnings gross and net postings with equal net amounts agree.
+-- All sums use exact 'MoneyDecimal' arithmetic. Complexity: O(p log p), where
+-- p is the total number of postings and transaction keys.
+closingDifferences :: AccountTitles -> Map TxKey Entry -> Map TxKey Entry
+                   -> [ClosingDifference]
+closingDifferences retained candidate reference = concatMap compareKey keys
+  where
+    keys = Set.toAscList (Map.keysSet candidate `Set.union` Map.keysSet reference)
+    compareKey key =
+        let candidateEntry = Map.lookup key candidate
+            referenceEntry = Map.lookup key reference
+            diagnostics = maybe [] (entryDiagnostics Candidate key) candidateEntry
+                ++ maybe [] (entryDiagnostics Reference key) referenceEntry
+        in if not (null diagnostics) then diagnostics else case (candidateEntry, referenceEntry) of
+            (Just left, Just right) -> entryDifferences retained key left right
+            (Just _, Nothing)      -> [TransactionOnlyInCandidate key]
+            (Nothing, Just _)      -> [TransactionOnlyInReference key]
+            (Nothing, Nothing)     -> []
+
+-- | Return whether two valid closing maps have the same exact observation.
+-- Invalid input is never equivalent, including when compared with itself.
+isClosingEquivalent :: AccountTitles -> Map TxKey Entry -> Map TxKey Entry -> Bool
+isClosingEquivalent retained candidate reference =
+    null (closingDifferences retained candidate reference)

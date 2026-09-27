@@ -76,6 +76,7 @@ import           Golden.WriteRows
 import qualified Golden.ReadoutBaseline as ReadoutBaseline
 import           System.Environment (lookupEnv)
 import qualified Admission.Spec as AdmissionSpec
+import qualified Admission.ClosingSpec as AdmissionClosingSpec
 import qualified Admission.CatalogSpec as AdmissionCatalogSpec
 import qualified Transfer.RuleSpec as TransferRuleSpec
 import qualified Algebra.ProjWildcardSpec as ProjWildcardSpec
@@ -6991,6 +6992,7 @@ main :: IO ()
 main = do
     ExactSumSpec.runTests
     AdmissionSpec.runTests
+    AdmissionClosingSpec.runTests
     AdmissionCatalogSpec.runTests
     TransferRuleSpec.runTests
     ProjWildcardSpec.runTests

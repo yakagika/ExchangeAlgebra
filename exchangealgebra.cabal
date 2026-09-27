@@ -276,6 +276,7 @@ test-suite ExchangeAlgebra-test
   other-modules:
       Algebra.ExactSumSpec
       Admission.Spec
+      Admission.ClosingSpec
       Admission.CatalogSpec
       Algebra.ProjWildcardSpec
       Golden.WriteRows

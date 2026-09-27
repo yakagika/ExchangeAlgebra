@@ -12,6 +12,14 @@
   declared role. Facts remain exclusive. The separate
   `ExchangeAlgebra.IO.Input.Admission.Equivalence` module compares original
   postings or transaction-local and selected-account net observations.
+- `ExchangeAlgebra.IO.Input.Admission.Equivalence.closingDifferences` and
+  `isClosingEquivalent` compare two closings by transaction key: accounts other
+  than the designated retained-earnings account by their exact total per debit
+  or credit side, and retained earnings by its exact credit-minus-debit net.
+  The result does not depend on how the same amounts are split across lines.
+  Blank keys, HatNot postings, accounts without a debit or credit side, and
+  negative amounts are reported as `ClosingDifference` diagnostics before any
+  comparison. `equivalentUpTo` is unchanged.
 - `ExchangeAlgebra.Journal.Transfer.Rule.sideTotalsBy` returns, for each key
   derived from a posting's `BasePart`, the Not and Hat totals before
   cancellation (`SideTotals`, read by `sideTotal`). Each side is the exact sum
