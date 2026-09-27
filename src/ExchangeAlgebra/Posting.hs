@@ -1,10 +1,12 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 
--- | Build checked postings in the Accounting layer.
--- The module uses the foundation algebra to construct @Posting@ values without
--- implicit cancellation. Models and simulators consume these postings. Read
--- checked values, sides, and then entries.
+-- | Build checked postings at the entry boundary of the Foundation layer.
+-- The module uses only the foundation algebra (@Alg@, @Hat@, @HatBaseClass@)
+-- and no accounting semantics. It validates values once and constructs
+-- @Posting@ values without implicit cancellation. Models return these postings,
+-- and simulators attach notes when committing them. Read checked values, sides,
+-- and then entries.
 --
 -- Posting construction follows Definitions 3-5.
 module ExchangeAlgebra.Posting
