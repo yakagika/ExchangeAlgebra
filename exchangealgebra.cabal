@@ -63,6 +63,14 @@ extra-source-files:
     test/fixtures/write-rows-0510/ebex9-post-closing-trial-balance.tsv
     test/fixtures/write-rows-0510/ebex9-worksheet.tsv
     test/fixtures/write-rows-0510/README.md
+    test/compile-fail/Coerce.hs
+    test/compile-fail/Constructor.hs
+    test/compile-fail/HiddenModule.hs
+    test/compile-fail/PublicClient.hs
+    test/compile-fail/RawDerivation.hs
+    test/compile-fail/RecordUpdate.hs
+    test/compile-fail/check.sh
+    docs/admission-api-design-notes.md
 
 source-repository head
   type: git
@@ -97,6 +105,8 @@ library
       ExchangeAlgebra.Convert.Checked
       ExchangeAlgebra.Convert.Csv
       ExchangeAlgebra.Foundation
+      ExchangeAlgebra.IO.Input.Admission
+      ExchangeAlgebra.IO.Input.Admission.Equivalence
       ExchangeAlgebra.Journal
       ExchangeAlgebra.Journal.Exact
       ExchangeAlgebra.Journal.Transfer
@@ -125,6 +135,12 @@ library
       ExchangeAlgebra.Write
   other-modules:
       ExchangeAlgebra.Algebra.Transfer.Closing
+      ExchangeAlgebra.IO.Input.Admission.Catalog
+      ExchangeAlgebra.IO.Input.Admission.Derive
+      ExchangeAlgebra.IO.Input.Admission.Engine
+      ExchangeAlgebra.IO.Input.Admission.Internal
+      ExchangeAlgebra.IO.Input.Admission.Registry
+      ExchangeAlgebra.IO.Input.Admission.Types
   hs-source-dirs:
       src
   ghc-options: -feager-blackholing
@@ -237,6 +253,8 @@ test-suite ExchangeAlgebra-test
   main-is: Spec.hs
   other-modules:
       Algebra.ExactSumSpec
+      Admission.Spec
+      Admission.CatalogSpec
       Algebra.ProjWildcardSpec
       Golden.WriteRows
       Journal.CarrySpec

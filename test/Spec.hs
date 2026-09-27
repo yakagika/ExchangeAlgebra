@@ -73,6 +73,8 @@ import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text           as T
 import qualified Data.Text.IO        as TIO
 import           Golden.WriteRows
+import qualified Admission.Spec as AdmissionSpec
+import qualified Admission.CatalogSpec as AdmissionCatalogSpec
 import qualified Transfer.RuleSpec as TransferRuleSpec
 import qualified Algebra.ProjWildcardSpec as ProjWildcardSpec
 import qualified Algebra.ExactSumSpec as ExactSumSpec
@@ -6970,6 +6972,8 @@ testOptimizeFailFast = do
 main :: IO ()
 main = do
     ExactSumSpec.runTests
+    AdmissionSpec.runTests
+    AdmissionCatalogSpec.runTests
     TransferRuleSpec.runTests
     ProjWildcardSpec.runTests
     PostingSpec.runTests

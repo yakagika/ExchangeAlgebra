@@ -11,6 +11,9 @@ extra-source-files:
 - ChangeLog.md
 - docs/migration-0.5-derived-metrics.md
 - test/fixtures/**/*
+- test/compile-fail/*.hs
+- test/compile-fail/*.sh
+- docs/admission-api-design-notes.md
 
 synopsis:            Exchange Algebra for bookkeeping and economic simulation
 category:            Accounting, Finance, Math
@@ -52,6 +55,12 @@ library:
   source-dirs: src
   other-modules:
   - ExchangeAlgebra.Algebra.Transfer.Closing
+  - ExchangeAlgebra.IO.Input.Admission.Catalog
+  - ExchangeAlgebra.IO.Input.Admission.Derive
+  - ExchangeAlgebra.IO.Input.Admission.Engine
+  - ExchangeAlgebra.IO.Input.Admission.Internal
+  - ExchangeAlgebra.IO.Input.Admission.Registry
+  - ExchangeAlgebra.IO.Input.Admission.Types
   when:
     - condition: flag(visualize)
       then:
@@ -112,6 +121,8 @@ tests:
     # Surface.* / SurfaceMain が混入しないよう明示する (release-0510-additive L5).
     other-modules:
     - Algebra.ExactSumSpec
+    - Admission.Spec
+    - Admission.CatalogSpec
     - Algebra.ProjWildcardSpec
     - Golden.WriteRows
     - Journal.CarrySpec

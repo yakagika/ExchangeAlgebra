@@ -1,5 +1,18 @@
 # Changelog for ExchangeAlgebra
 
+## Unreleased
+
+### Added
+
+- `ExchangeAlgebra.IO.Input.Admission` accepts complete submissions against a
+  trusted transaction registry. Accepted values retain source postings and
+  support ledger, trial-balance, and statement derivation. Its closed catalog
+  records the actual supply route, checks debit-total evidence after execution
+  (including zero output), and applies raw posting restrictions under every
+  declared role. Facts remain exclusive. The separate
+  `ExchangeAlgebra.IO.Input.Admission.Equivalence` module compares original
+  postings or transaction-local and selected-account net observations.
+
 ## 0.5.3.0 - 2026-09-26
 
 ### Added
