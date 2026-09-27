@@ -69,7 +69,7 @@ writeUArray os (t, Relation { _supplier = e1
 6. **反復の内側に値選択を埋め込まない.** 絞り込みは条件節や `filter`, 値選択は名前付き純粋関数へ分ける. 効果の実行条件を示す `when` / `unless` は許可する. `if` は局所式で最も明瞭な場合に限る.
 7. **純粋な計算と副作用を分ける.** 値変換には関数適用, 合成, `map`, 内包表記, fold を使う. 仕訳, simulation stage, array 更新のように順序が意味を持つ処理には `State`, `ST`, `mapM_` / `forM_`, `when` を使ってよい.
 8. **複数の意味を 1 行へ詰め込まない.** 分岐, 複数の状態更新, 長い `let ... in`, 深い適用には改行と名前を与える. 単純な射影は機械的に複数行化しない.
-9. **長い関数は domain 上の段階に分割する.** simulation なら term / stage / posting / commit / projection, 変換なら parse / validate / construct の境界を見取り図にし, 入出力と参照時点を示す. 巨大本体を 1 つの局所関数へ移すだけでは分割とみなさない. 固定の行数上限は置かない. **module は 1 つの責務**を持ち, その責務専用の型・検証・補助関数は同居してよい. 本 repo の責務の例は代数表現 (`Algebra/*`), 台帳と note (`Journal*`), 変換と検証 (`Convert*`), engine (`Simulate`, `Simulate/Lite`), ledger policy と spill (`Simulate/Policy`, `Simulate/Spill`), 出力 (`Write`), 会計報告 (`Bookkeeping`, `Reporting/*`, `TrialBalance/*`) である. 責務をまたぐ関数を 1 module に混ぜない. 記述量の trigger は下の「Repo-local slot」に置く.
+9. **長い関数は domain 上の段階に分割する.** simulation なら term / stage / posting / commit / projection, 変換なら parse / validate / construct の境界を見取り図にし, 入出力と参照時点を示す. 巨大本体を 1 つの局所関数へ移すだけでは分割とみなさない. 固定の行数上限は置かない. **module は 1 つの責務**を持ち, その責務専用の型・検証・補助関数は同居してよい. 本 repo の責務と置き場は `coding/local/ea-library.md` の「module の分割と階層」(5 層 `Algebra` → `Journal` → `Accounting` → `IO` → `Simulation`, 判定基準 M12) に従う. 責務をまたぐ関数を 1 module に混ぜない. 記述量の trigger は下の「Repo-local slot」に置く.
 
 ## 意味を表す型と全域性
 
@@ -86,12 +86,12 @@ writeUArray os (t, Relation { _supplier = e1
 
 18. **module 内は構成要素を先に置き, それを使う上位を後に置く.** 型と instance → その型を扱う補助関数 → それらを組み合わせる段階 → 全体を組み立てる入口, の順に並べ, 「使われる前に定義されている」状態を保つ. 入口を先頭に置く並びと混在させない. 本 repo の library module では「入口」は module の主要な公開関数 (例: `Simulate/Lite.hs` の `runLite` 系, `Convert/Checked.hs` の checked loader) を指す.
 19. **関数は主に扱う型の節にまとめ, 節見出しを置く.** 節の境界に `-- * 節名` (下位は `-- **`) を置く. 本 repo の公開 module は export list を持つので, **Haddock に出るのは export list 側の見出しだけ**であり, 同じ見出しを export list と本文の両方に置く (2026-09-23 時点で `src/` 46 module 中 23 が見出しを持つ). module 冒頭の Haddock に読み順 (入口の名前と, どの節から読むか) を 1-2 行で示す. 1 節しか無い module は見出し不要. milestone の追加順で末尾に継ぎ足さず, 該当する節の中へ入れる.
-20. **module の冒頭 Haddock に設計の abstract を書く.** (a) 役割, (b) 層, (c) 依存 (何を使い, 誰に使われるか), (d) 読み順を 3-8 行で書き, 論文の Definition 番号への参照は abstract の後に置く. 本 repo の層は `EA_USAGE.md` の拡張点表と `plans/proposed/library-restructure-target.md` §3 の依存方向 (Foundation → Accounting → Journal → TrialBalance / Reporting → Input / Assist / Render, Simulation は別系統) で呼ぶ. package の根 module `src/ExchangeAlgebra.hs` は library 全体の思想, 層と依存の構造, 利用者が書くもの / 書かないものを持つ.
+20. **module の冒頭 Haddock に設計の abstract を書く.** (a) 役割, (b) 層, (c) 依存 (何を使い, 誰に使われるか), (d) 読み順を 3-8 行で書き, 論文の Definition 番号への参照は abstract の後に置く. 本 repo の層は `coding/local/ea-library.md` の「module の分割と階層」の 5 層 (`Algebra`, `Journal`, `Accounting`, `IO`, `Simulation`) の名前で呼ぶ. package の根 module `src/ExchangeAlgebra.hs` は library 全体の思想, 層と依存の構造, 利用者が書くもの / 書かないものを持つ.
 
 ## 設計の反復から得た規則 (規則 21-27)
 
 21. **既定値は smart constructor + record 更新で与える.** 段階的な包み関数 (`xWithA` → `xWithAB` → …) を新設しない. 必須の引数だけを取る constructor を 1 本置き, 既定を持つ設定は record 更新で上書きさせる (既存例: `mkSimSpec`, `defaultLedgerPolicy`). 既存の公開 API `runLite` / `runLiteWithPolicy` / `runLiteWithPolicyObs` / `runLiteFold` はこの形に当たるが, 置換は PVP の major に集約し, それまで名前を保つ (下の library 例外).
-22. **同じ意味を持つ名前の集合を 2 系統で持たない.** 文字列定数と直和型の constructor のように同じ集合を 2 表現で持たず, 片方から導出する (例: stage 名を直和型の `show` から得る). 0.5.x の re-export shim (旧 module 名で新 module の型を再公開する) は移行期間の互換であり, 本規則の違反に数えない. shim の撤去は 0.6.0.0 で行う.
+22. **同じ意味を持つ名前の集合を 2 系統で持たない.** 文字列定数と直和型の constructor のように同じ集合を 2 表現で持たず, 片方から導出する (例: stage 名を直和型の `show` から得る). re-export shim (旧 module 名で新 module の entity を再公開する) は移行期間の互換であり, 本規則の違反に数えない. 0.5.x の既存 shim は 0.6.0.0 で, 0.6.0.0 で新設する shim は 0.7.0.0 で撤去する.
 23. **Map を絞るときは Map 関数と内包表記を使い分ける.** 値だけの条件で Map や key を得る場面と Map 同士の結合は `Map.filter` / `Map.keys` / `Map.intersectionWith` 等で, key を constructor pattern で分解する場面と別の形へ組み替える場面は `Map.toAscList` と内包表記で書く. どちらかへ一律に置き換えない. 仕訳と台帳の絞り込みは `Map` 操作より先に `proj` 系を探す (`EA_USAGE.md`「公開 API の先行探索」).
 24. **同じ絞り込みが 3 箇所に直書きされたら, 問い合わせ関数として名前を付ける.** 名前は問いの内容を表す (既存例: `Simulate/Network.hs` の `suppliersOf`). `src/` に足すときは規則 17 と `EA_USAGE.md` の昇格条件に従う.
 25. **library の閉じたエラー型に, 利用者の model の語彙を入れない.** 本 repo は library 側なので, `Convert/Checked.hs` 系などのエラー型に特定 model の勘定・stage・policy の名前を足さない. model 側が型付きのエラー型で library のエラーを包む. 自由文の口 (`Other … String` の類) を置くときは, Haddock に「library は返さない. 参照 model は使わない」と用途を明記する.
