@@ -60,7 +60,7 @@ jobs:
         run: stack build --system-ghc --no-install-ghc --test --bench --no-run-benchmarks
 
       - name: Check admission API boundary
-        run: bash test/compile-fail/check.sh
+        run: STACK_ARGS="--system-ghc --no-install-ghc" bash test/compile-fail/check.sh
 
   build-test-no-visualize:
     runs-on: ubuntu-latest
@@ -87,7 +87,7 @@ jobs:
         run: stack build exchangealgebra --flag exchangealgebra:-visualize --test --no-run-benchmarks --system-ghc --no-install-ghc
 
       - name: Check admission API boundary (visualize flag off)
-        run: bash test/compile-fail/check.sh
+        run: STACK_ARGS="--system-ghc --no-install-ghc" bash test/compile-fail/check.sh
 
   # Optional formal-verification job: LiquidHaskell refinement checks for the
   # value non-negativity invariant (0 <= magnitude; sign lives in the Hat/Not

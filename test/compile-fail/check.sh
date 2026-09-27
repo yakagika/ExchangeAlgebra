@@ -2,6 +2,8 @@
 # From the repository root:
 #   stack build --test --bench --no-run-benchmarks
 #   bash test/compile-fail/check.sh
+# Set STACK_ARGS to the global stack options used for that build (for example
+# "--system-ghc --no-install-ghc" in CI) so the check reads the same package db.
 # Compile as an external installed-package client with source lookup disabled.
 # Logs and compiler artifacts live in a temporary directory removed on exit.
 set -euo pipefail
@@ -9,10 +11,12 @@ set -euo pipefail
 admission_root=$(cd "$(dirname "$0")/../.." && pwd)
 admission_tmp=$(mktemp -d "${TMPDIR:-/tmp}/ea-admission-boundary.XXXXXX")
 trap 'rm -rf "$admission_tmp"' EXIT
+read -r -a admission_stack_args <<< "${STACK_ARGS:-}"
 
 compile() {
     local snippet=$1
-    stack --stack-yaml "$admission_root/stack.yaml" exec -- ghc \
+    stack ${admission_stack_args[@]+"${admission_stack_args[@]}"} \
+        --stack-yaml "$admission_root/stack.yaml" exec -- ghc \
         -fno-code -fforce-recomp -v0 -fdiagnostics-color=never -i \
         -hide-all-packages -package base -package text -package containers \
         -package exchangealgebra -outputdir "$admission_tmp" \
