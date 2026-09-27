@@ -26,6 +26,10 @@ extra-source-files:
     test/fixtures/account-semantics-050/metadata.tsv
     test/fixtures/account-semantics-050/README.md
     test/fixtures/account-semantics-050/suggest.tsv
+    test/fixtures/admission-baseline-p1/boundary.tsv
+    test/fixtures/admission-baseline-p1/catalog.tsv
+    test/fixtures/admission-baseline-p1/equivalence.tsv
+    test/fixtures/admission-baseline-p1/README.md
     test/fixtures/consolidation-worksheet-050/minimal.tsv
     test/fixtures/consolidation-worksheet-050/README.md
     test/fixtures/example-numbers-p1/README.md
@@ -283,6 +287,7 @@ test-suite ExchangeAlgebra-test
       Algebra.ProjWildcardSpec
       Golden.WriteRows
       Golden.ReadoutBaseline
+      Golden.AdmissionBaseline
       Golden.ExampleNumbers.RippleAnalysis
       Golden.ExampleNumbers.RippleFixture
       Journal.CarrySpec

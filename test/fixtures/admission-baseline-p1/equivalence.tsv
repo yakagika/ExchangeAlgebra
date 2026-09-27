@@ -1,0 +1,14 @@
+# admission-baseline-p1; schema 1; commit 2a83fe178d47a1024e0e566794f39533a12b4c20
+case	p3	observation
+cash-gross-transaction-net	bar-tolerance	True
+cash-gross-postings	-	False
+cash-gross-selected	bar-tolerance	False
+retained-gross-postings	-	False
+retained-gross-transaction-net	bar-tolerance	True
+retained-gross-selected	bar-tolerance	True
+near-cancellation-net	bar-tolerance	True
+near-cancellation-postings	-	False
+near-cancellation-selected	bar-tolerance	False
+tiny-pair-net	bar-tolerance	True
+tiny-pair-postings	-	False
+tiny-single-net	bar-tolerance	False

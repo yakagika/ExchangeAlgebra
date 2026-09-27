@@ -75,6 +75,7 @@ import qualified Data.Text.IO        as TIO
 import           Golden.WriteRows
 import qualified Golden.ReadoutBaseline as ReadoutBaseline
 import qualified Golden.ExampleNumbers.RippleFixture as RippleFixture
+import qualified Golden.AdmissionBaseline as AdmissionBaseline
 import           System.Environment (lookupEnv)
 import qualified Admission.Spec as AdmissionSpec
 import qualified Admission.ClosingSpec as AdmissionClosingSpec
@@ -2925,6 +2926,28 @@ testExampleNumbersGolden = do
         _ -> do
             actual <- TIO.readFile path
             assertEqual "example-numbers-p1 ripple fixture" actual expected
+
+testAdmissionBaselineGolden :: IO ()
+testAdmissionBaselineGolden = do
+    assertEqual "admission-baseline-p1 fixture count"
+        3 (L.length AdmissionBaseline.admissionFixtures)
+    regen <- lookupEnv "EA_REGEN_GOLDEN"
+    forM_ AdmissionBaseline.admissionFixtures $ \(name, expected, caseCount) -> do
+        let path = AdmissionBaseline.admissionFixtureDir ++ "/" ++ name
+            expectedCount = case name of
+                "boundary.tsv" -> 64
+                "equivalence.tsv" -> 12
+                "catalog.tsv" -> 262
+                _ -> 0
+        assertEqual ("admission-baseline-p1 case count " ++ name)
+            expectedCount caseCount
+        assertEqual ("admission-baseline-p1 rendered rows " ++ name)
+            expectedCount (L.length (T.lines expected) - 2)
+        case regen of
+            Just "1" -> TIO.writeFile path expected
+            _ -> do
+                actual <- TIO.readFile path
+                assertEqual ("admission-baseline-p1 fixture " ++ name) actual expected
 
 -- Land 2 (Definition 7 contra amendment) 以降: alias 解決だけが byte 一致
 -- (parseAccountTitle は division 非依存)。semantics / info / suggest は
@@ -7126,6 +7149,7 @@ main = do
     testWriteRowsGolden
     testReadoutBaselineGolden
     testExampleNumbersGolden
+    testAdmissionBaselineGolden
     testRegistryGolden
     testJcciAccountNameCoverage
     testAccountLabelsLand4a
