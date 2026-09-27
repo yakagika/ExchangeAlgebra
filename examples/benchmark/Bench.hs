@@ -13,14 +13,14 @@
 -- Run:
 --   stack bench exchangealgebra-examples:bench-core
 --   stack bench exchangealgebra-examples:bench-core \
---     --benchmark-arguments '--output examples/benchmark/result/report.html'
+--     --benchmark-arguments '--output benchmark/result/report.html'
 --   stack bench exchangealgebra-examples:bench-core \
---     --benchmark-arguments '--match exact'
+--     --benchmark-arguments '--match prefix exact/'
 --
 -- Existing scalar-producing pipelines end in 'norm' or 'projWithBaseNetNorm'.
--- The @exact/*@ comparisons force both legacy and checked results to normal
--- form. Inputs are constructed inside 'env' so their cost is excluded from
--- the timed region.
+-- The @exact/*@ comparisons and fixed @gate/*@ readouts force both ordinary
+-- and checked results to normal form. Inputs are constructed inside 'env' so
+-- their cost is excluded from the timed region.
 --
 -- == HatBase key-hashing study (2026-06-08)
 --
@@ -58,7 +58,12 @@ import qualified Data.Text                as T
 import           ExchangeAlgebra.Journal  -- constructors / operators: :@ :< .+ .| Hat Not Cash ...
 import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Algebra.Exact as Exact
+import qualified ExchangeAlgebra.Algebra.Transfer.Rule as Rule
+import qualified ExchangeAlgebra.Convert.Checked as Checked
 import qualified ExchangeAlgebra.Journal  as EJ
+import qualified ExchangeAlgebra.Journal.Exact as JournalExact
+import qualified ExchangeAlgebra.Reporting.Metric as Metric
+import qualified ExchangeAlgebra.TrialBalance.Balance as TrialBalance
 import qualified ExchangeAlgebra.Write     as EW
 import qualified ExchangeAlgebra.Posting as LP
 
@@ -334,16 +339,286 @@ forceExact :: NFData a => Either Exact.ExactSumError a -> ()
 forceExact (Left failure) = error ("exact benchmark input invariant: " ++ show failure)
 forceExact (Right value) = rnf value
 
--- | Force every posting scalar as well as the resulting algebra structure.
-forceAlgebra :: (HatVal value, NFData value, HatBaseClass base) => EA.Alg value base -> ()
-forceAlgebra = EA.foldEntries (\result value _ -> rnf value `seq` result) ()
+-- | Force every posting scalar and base as well as the algebra structure.
+forceAlgebra :: (HatVal value, NFData value, HatBaseClass base, NFData base)
+             => EA.Alg value base -> ()
+forceAlgebra = EA.foldEntries (\result value postingBase ->
+    rnf value `seq` rnf postingBase `seq` result) ()
 
 -- | Force a checked bar's posting scalars; Alg's NFData instance is shallow.
 -- Invariant: the benchmark input has finite, non-negative, in-range side totals.
-forceExactAlgebra :: (HatVal value, NFData value, HatBaseClass base)
+forceExactAlgebra :: (HatVal value, NFData value, HatBaseClass base, NFData base)
                   => Either Exact.ExactSumError (EA.Alg value base) -> ()
 forceExactAlgebra (Left failure) = error ("exact benchmark input invariant: " ++ show failure)
 forceExactAlgebra (Right algebra) = forceAlgebra algebra
+
+------------------------------------------------------------------
+-- * EA 0.6 readout gate: fixed 0.5.x workloads
+------------------------------------------------------------------
+
+-- | One coordinate per synthetic owner and a fixed account-title cycle.
+type GateBase = HatBase (AccountTitles, T.Text)
+type GateAlg = EA.Alg Double GateBase
+type GateJournal = EJ.Journal Int Double GateBase
+
+-- | Cycle through four concrete titles without a partial list lookup.
+gateTitle :: Int -> AccountTitles
+gateTitle owner = case owner `mod` 4 of
+    0 -> Cash
+    1 -> Deposits
+    2 -> Sales
+    _ -> Products
+
+-- | Alternate the structural posting side.
+gateSide :: Int -> Hat
+gateSide posting
+    | even posting = Hat
+    | otherwise = Not
+
+-- | Scale an integer magnitude into the requested value series.
+gateMagnitude :: Bool -> Int -> Double
+gateMagnitude decimal units
+    | decimal = fromIntegral units / 100
+    | otherwise = fromIntegral units
+
+-- | Construct non-negative integer or two-decimal postings in a stable order.
+-- Invariant: each magnitude is finite and within the checked accumulator range.
+gateEntries :: Bool -> Int -> Int -> [(Double, GateBase)]
+gateEntries decimal baseCount entriesPerBase =
+    [ (magnitude, side :< (title, T.pack (show owner)))
+    | owner <- [1 .. baseCount]
+    , posting <- [1 .. entriesPerBase]
+    , let title = gateTitle owner
+          side = gateSide posting
+          units = 1 + ((owner * 17 + posting * 13) `mod` 97)
+          magnitude = gateMagnitude decimal units
+    ]
+
+-- | Build the algebra before timing any readout.
+gateAlg :: Bool -> Int -> Int -> GateAlg
+gateAlg decimal baseCount entriesPerBase = EA.fromList
+    [ magnitude .@ postingBase
+    | (magnitude, postingBase) <- gateEntries decimal baseCount entriesPerBase
+    ]
+
+-- | Build the same postings with deterministic note identifiers.
+gateJournal :: Int -> Int -> GateJournal
+gateJournal baseCount entriesPerBase = EJ.fromList
+    [ (magnitude .@ postingBase) .| (index `mod` 32)
+    | (index, (magnitude, postingBase)) <- zip [0 ..] (gateEntries False baseCount entriesPerBase)
+    ]
+
+-- | Force the entire algebra, including posting scalars, in Criterion's env.
+preparedAlg :: Bool -> Int -> Int -> IO GateAlg
+preparedAlg decimal baseCount entriesPerBase = do
+    let algebra = gateAlg decimal baseCount entriesPerBase
+    evaluate (forceAlgebra algebra `seq` algebra)
+
+-- | Force the journal and all of its posting scalars outside the timed action.
+preparedJournal :: Int -> Int -> IO GateJournal
+preparedJournal baseCount entriesPerBase = do
+    let journal = gateJournal baseCount entriesPerBase
+    evaluate (forceAlgebra (EJ.toAlg journal) `seq` journal)
+
+-- | Build balanced checked entries with one distinct note per synthetic base.
+gateCheckedEntries :: Int -> Int -> [(Int, [(Side, AccountTitles, Double)])]
+gateCheckedEntries baseCount entriesPerBase =
+    [ (owner, concat
+        [ [(Debit, Cash, magnitude), (Credit, Sales, magnitude)]
+        | posting <- [1 .. entriesPerBase `div` 2]
+        , let magnitude = fromIntegral (1 + ((owner * 17 + posting * 13) `mod` 97))
+        ])
+    | owner <- [1 .. baseCount]
+    ]
+
+-- | Force the accepted checked journal and reject a broken fixture.
+-- Invariant: each generated entry has matching debit and credit postings.
+forceCheckedJournal :: Either errorType (EJ.Journal Int Double (HatBase AccountTitles)) -> ()
+forceCheckedJournal (Left _) = error "gateCheckedEntries balance invariant"
+forceCheckedJournal (Right journal) = forceAlgebra (EJ.toAlg journal)
+
+-- | Force the period-result magnitude without formatting its successful result.
+-- Invariant: finite, concrete fixture entries yield a valid period result.
+forcePeriodResult :: Either Metric.MetricError (Metric.PeriodResult Double) -> ()
+forcePeriodResult (Left failure) = error ("period-result fixture invariant: " ++ show failure)
+forcePeriodResult (Right Metric.PeriodBreakEven) = ()
+forcePeriodResult (Right (Metric.PeriodProfit value)) = rnf value
+forcePeriodResult (Right (Metric.PeriodLoss value)) = rnf value
+
+-- | Force account-balance scalars without a bench-local NFData instance.
+forceAccountBalances :: M.Map AccountTitles (TrialBalance.AccountBalance Double) -> ()
+forceAccountBalances = M.foldl' (\result accountBalance ->
+    result `seq` case accountBalance of
+        TrialBalance.NoBalance -> ()
+        TrialBalance.DebitBalance value -> rnf value
+        TrialBalance.CreditBalance value -> rnf value) ()
+
+-- | Force checked account balances after the fixture's validity check.
+forceExactAccountBalances
+    :: Either Exact.ExactSumError (M.Map AccountTitles (TrialBalance.AccountBalance Double))
+    -> ()
+forceExactAccountBalances (Left failure) = error
+    ("exact account-balances input invariant: " ++ show failure)
+forceExactAccountBalances (Right balances) = forceAccountBalances balances
+
+-- | Force closing entries and reject a broken finite input fixture.
+-- Invariant: the fixed non-negative posting values stay within Double's range.
+forceClosingEntries :: Either (Rule.TransferApplyError Double GateBase) GateAlg -> ()
+forceClosingEntries (Left failure) = error ("closing-entries fixture invariant: " ++ show failure)
+forceClosingEntries (Right algebra) = forceAlgebra algebra
+
+-- | Force checked journal entries and reject a broken finite input fixture.
+-- Invariant: the fixed non-negative posting values stay within Double's range.
+forceExactJournal :: Either Exact.ExactSumError GateJournal -> ()
+forceExactJournal (Left failure) = error ("exact journal fixture invariant: " ++ show failure)
+forceExactJournal (Right journal) = forceAlgebra (EJ.toAlg journal)
+
+-- | Recover the synthetic owner key for per-base aggregation.
+gateOwner :: (AccountTitles, T.Text) -> Maybe T.Text
+gateOwner (_, owner) = Just owner
+
+-- | Select all populated bases on the Not side.
+gateNotQuery :: GateBase
+gateNotQuery = Not :< (AccountTitle, T.empty)
+
+-- | Select all populated bases on the Hat side.
+gateHatQuery :: GateBase
+gateHatQuery = Hat :< (AccountTitle, T.empty)
+
+-- | Select all populated coordinates on either side of the algebra.
+gateAllQuery :: GateBase
+gateAllQuery = HatNot :< (AccountTitle, T.empty)
+
+-- | Select every note represented in the fixed journal fixture.
+gateNotes :: [Int]
+gateNotes = [0 .. 31]
+
+-- | Preserve the key while posting a non-negative net magnitude.
+gatePost :: T.Text -> Double -> GateAlg
+gatePost owner value = value .@ (Not :< (Cash, owner))
+
+-- | Run the six shared algebra readouts, with checked comparisons where supplied.
+gateShared :: String -> Bool -> [Benchmark]
+gateShared family decimal =
+    [ env (preparedAlg decimal baseCount entriesPerBase) $ \algebra ->
+        bgroup ("gate/" ++ family ++ "/" ++ function ++ "/K=" ++ show baseCount
+              ++ "/n=" ++ show entriesPerBase) (measure algebra)
+    | (function, measure) <- operations
+    , baseCount <- [200, 1000]
+    , entriesPerBase <- [10, 100]
+    ]
+  where
+    operations =
+        [ ("bar", \a ->
+            [ bench "normal" $ nf (forceAlgebra . bar) a
+            , bench "exact" $ nf (forceExactAlgebra . Exact.barExact) a ])
+        , ("norm", \a ->
+            [ bench "normal" $ nf norm a
+            , bench "exact" $ nf (forceExact . Exact.normExact) a ])
+        , ("balance", \a ->
+            [ bench "normal" $ nf balance a
+            , bench "exact" $ nf (forceExact . Exact.balanceExact) a ])
+        , ("diffRL", \a ->
+            [ bench "normal" $ nf diffRL a
+            , bench "exact" $ nf (forceExact . Exact.diffRLExact) a ])
+        , ("balanceMapBy", \a ->
+            [ bench "normal" $ nf (EA.balanceMapBy gateOwner) a
+            , bench "exact" $ nf (forceExact . Exact.balanceMapByExact gateOwner) a ])
+        , ("netPairMapBy", \a ->
+            [ bench "normal" $ nf (EA.netPairMapBy gateOwner) a
+            , bench "exact" $ nf (forceExact . Exact.netPairMapByExact gateOwner) a ])
+        ]
+
+-- | Run integer-only algebra and journal readouts at the same four sizes.
+gateInteger :: [Benchmark]
+gateInteger =
+    [ env (preparedAlg False baseCount entriesPerBase) $ \algebra ->
+        bgroup ("gate/I/" ++ function ++ "/K=" ++ show baseCount
+              ++ "/n=" ++ show entriesPerBase) (measure algebra)
+    | (function, measure) <- algebraOperations
+    , baseCount <- [200, 1000]
+    , entriesPerBase <- [10, 100]
+    ] ++
+    [ env (evaluate (force (gateCheckedEntries baseCount entriesPerBase))) $ \entries ->
+        bgroup ("gate-ref/checked-acceptance/checkedJournal/K=" ++ show baseCount
+              ++ "/n=" ++ show entriesPerBase)
+            [ bench "normal" $ nf (forceCheckedJournal . Checked.checkedJournal) entries ]
+    | baseCount <- [200, 1000]
+    , entriesPerBase <- [10, 100]
+    ] ++
+    [ env (preparedJournal baseCount entriesPerBase) $ \journal ->
+        bgroup ("gate/I/" ++ function ++ "/K=" ++ show baseCount
+              ++ "/n=" ++ show entriesPerBase) (measure journal)
+    | (function, measure) <- journalOperations
+    , baseCount <- [200, 1000]
+    , entriesPerBase <- [10, 100]
+    ]
+  where
+    algebraOperations =
+        [ ("Alg.compress", \a -> [bench "normal" $ nf (forceAlgebra . compress) a])
+        , ("postFromNetBy", \a ->
+            [ bench "normal" $ nf (forceAlgebra . EA.postFromNetBy
+                (\postingBase -> case postingBase of
+                    _ :< (_, owner) -> Just owner) gatePost) a
+            , bench "exact" $ nf (forceExactAlgebra . Exact.postFromNetByExact
+                (\postingBase -> case postingBase of
+                    _ :< (_, owner) -> Just owner) gatePost) a ])
+        , ("projNetNorm", \a ->
+            [ bench "normal" $ nf (EA.projNetNorm [gateAllQuery]) a
+            , bench "exact" $ nf (forceExact . Exact.projNetNormExact [gateAllQuery]) a ])
+        , ("balanceBy", \a ->
+            [ bench "normal" $ nf (EA.balanceBy [gateNotQuery] [gateHatQuery]) a ])
+        , ("closingEntries", \a ->
+            [ bench "normal" $ nf (forceClosingEntries . Rule.closingEntries) a ])
+        , ("accountBalances", \a ->
+            [ bench "normal" $ nf (forceAccountBalances . TrialBalance.accountBalances) a
+            , bench "exact" $ nf (forceExactAccountBalances . Exact.accountBalancesExact) a ])
+        , ("periodResultOfAlg", \a ->
+            [ bench "normal" $ nf (forcePeriodResult . Metric.periodResultOfAlg) a ])
+        ]
+    journalOperations =
+        [ ("Journal.bar", \j ->
+            [ bench "normal" $ nf (forceAlgebra . EJ.toAlg . bar) j
+            , bench "exact" $ nf (forceExactJournal . JournalExact.barExact) j ])
+        , ("Journal.compress", \j ->
+            [ bench "normal" $ nf (forceAlgebra . EJ.toAlg . compress) j ])
+        , ("projWithBaseNetNorm", \j ->
+            [ bench "normal" $ nf (EJ.projWithBaseNetNorm [gateAllQuery]) j
+            , bench "exact" $ nf (forceExact . JournalExact.projWithBaseNetNormExact
+                [gateAllQuery]) j ])
+        , ("projWithNoteBaseNetNorm", \j ->
+            [ bench "normal" $ nf (EJ.projWithNoteBaseNetNorm gateNotes [gateAllQuery]) j
+            , bench "exact" $ nf (forceExact . JournalExact.projWithNoteBaseNetNormExact
+                gateNotes [gateAllQuery]) j ])
+        ]
+
+-- | Keep numerical stress cases outside the performance acceptance gate.
+referenceGate :: [Benchmark]
+referenceGate =
+    [ env (evaluate (forceAlgebra algebra `seq` algebra)) $ \prepared ->
+        bgroup ("gate-ref/" ++ series ++ "/norm")
+            [ bench "normal" $ nf norm prepared
+            , bench "exact" $ nf (forceExact . Exact.normExact) prepared ]
+    | (series, algebra) <- referenceCases
+    ] ++
+    [ env (evaluate (forceAlgebra algebra `seq` algebra)) $ \prepared ->
+        bgroup ("gate-ref/" ++ series ++ "/bar")
+            [ bench "normal" $ nf (forceAlgebra . bar) prepared
+            , bench "exact" $ nf (forceExactAlgebra . Exact.barExact) prepared ]
+    | (series, algebra) <- referenceCases
+    ]
+  where
+    referenceCases =
+        [ ("exponent-gap", referenceAlg [1e100, 1e-100, 1e-80])
+        , ("cancellation", referenceAlg [1e16, 1, 1e16, 1])
+        , ("subnormal", referenceAlg (replicate 10 (encodeFloat 1 (-1074))))
+        , ("many-bases-K=10000", gateAlg False 10000 10)
+        ]
+    referenceAlg values = EA.fromList
+        [ value .@ (side :< (Cash, T.pack "1"))
+        | (index, value) <- zip [(0 :: Int) ..] values
+        , let side = gateSide (index + 1)
+        ]
 
 ------------------------------------------------------------------
 -- * HatBase key-hashing study
@@ -425,7 +700,8 @@ label :: Int -> String
 label m = "N=" ++ show (m * m)
 
 main :: IO ()
-main = defaultMain
+main = defaultMain $ gateShared "I" False ++ gateShared "D2" True ++ gateInteger
+    ++ referenceGate ++
     -- The large operand is a Liner. The small operand hits one existing and
     -- one new base key. All inputs are forced before each timed operation.
     [ bgroup "Alg/big-plus-small"
