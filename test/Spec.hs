@@ -81,6 +81,7 @@ import qualified Algebra.ExactSumSpec as ExactSumSpec
 import qualified Posting.PostingSpec as PostingSpec
 import qualified Posting.SettleSpec as SettleSpec
 import qualified Journal.CarrySpec as CarrySpec
+import qualified Journal.SideTotalsSpec as SideTotalsSpec
 import           Numeric             (showHex)
 import           Control.Monad       (forM_)
 import           Control.Monad.ST
@@ -6979,6 +6980,7 @@ main = do
     PostingSpec.runTests
     SettleSpec.runTests
     CarrySpec.runTests
+    SideTotalsSpec.runTests
     testAccountTitlesBinary
     testPracticalAndManufacturingAccountTitles
     testAccountTitleClassification

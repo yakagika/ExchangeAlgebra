@@ -12,6 +12,13 @@
   declared role. Facts remain exclusive. The separate
   `ExchangeAlgebra.IO.Input.Admission.Equivalence` module compares original
   postings or transaction-local and selected-account net observations.
+- `ExchangeAlgebra.Journal.Transfer.Rule.sideTotalsBy` returns, for each key
+  derived from a posting's `BasePart`, the Not and Hat totals before
+  cancellation (`SideTotals`, read by `sideTotal`). Each side is the exact sum
+  rounded once to nearest-even `Double`; a rounded total that stays finite
+  succeeds even when the exact sum exceeds the largest finite value. HatNot,
+  non-finite, and negative postings, and totals that round to infinity, return
+  the closed `CarryError` with a fixed priority. Existing functions are unchanged.
 
 ## 0.5.3.0 - 2026-09-26
 

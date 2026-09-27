@@ -12,6 +12,9 @@ notes. Transfer lifts Definition 9 over notes; closing reads the combined
 ledger and returns an unannotated algebra through 'Either'. Read the
 additional-entry section before the complete-result section.
 -}
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE TypeFamilies #-}
+
 module ExchangeAlgebra.Journal.Transfer.Rule
     ( -- * Additional entries
       transferEntries
@@ -19,18 +22,27 @@ module ExchangeAlgebra.Journal.Transfer.Rule
     , carryEntries
       -- * Complete results
     , carryBefore
+      -- * Side totals
+    , SideTotals(..)
+    , sideTotal
+    , CarryError(..)
+    , sideTotalsBy
     ) where
 
 import qualified Data.HashMap.Strict as Map
 import qualified Data.Map.Strict as OrderedMap
-import           ExchangeAlgebra.Algebra (Alg, HatVal, ExBaseClass, (.@), Redundant((.^)))
+import qualified Data.Set as Set
+import           ExchangeAlgebra.Algebra (Alg( (:@) ), HatVal, ExBaseClass,
+                                          foldEntries, (.@), Redundant((.^)))
+import           ExchangeAlgebra.Algebra.Exact (ExactSum(..))
 import           ExchangeAlgebra.Algebra.Transfer.Rule (TransferRules, TransferApplyError)
 import qualified ExchangeAlgebra.Algebra.Transfer.Rule as Rule
 import           ExchangeAlgebra.Algebra.Base (Hat(..), HatBaseClass(..))
 import           ExchangeAlgebra.Journal (Journal, Note, (.|), toMap, fromMap, toAlg)
 import qualified ExchangeAlgebra.Journal as Journal
-import           ExchangeAlgebra.Journal.Exact (ExactSumError)
+import           ExchangeAlgebra.Journal.Exact (ExactSumError(..))
 import qualified ExchangeAlgebra.Journal.Exact as Exact
+import           ExchangeAlgebra.Posting (PostSide(..))
 
 -- * Additional entries
 
@@ -156,3 +168,146 @@ carryBefore selectedNote carryNote journal = do
   where
     selected = Journal.filterWithNote (\note _ -> selectedNote note) journal
     retained = Journal.filterWithNote (\note _ -> not (selectedNote note)) journal
+
+-- * Side totals
+
+-- | Pre-cancellation totals for one key. An absent side has positive zero.
+data SideTotals = SideTotals
+    { notTotal :: !Double -- ^ The Not sum, rounded once to nearest even.
+    , hatTotal :: !Double -- ^ The Hat sum, rounded once to nearest even.
+    } deriving (Eq, Show)
+
+-- | Select a pre-cancellation total by posting side.
+sideTotal :: PostSide -> SideTotals -> Double
+sideTotal HatSide = hatTotal
+sideTotal NotSide = notTotal
+
+-- | Failures of 'sideTotalsBy', in descending priority.
+-- In P3 this type is planned to succeed 'ExactSumError'. It currently belongs
+-- only to 'sideTotalsBy'; 'carryBefore' still reports 'ExactSumError'.
+data CarryError
+    = WildcardSide   -- ^ A posting uses HatNot, including a retained zero posting.
+    | NonFiniteValue -- ^ A posting is NaN or infinite.
+    | NegativeValue  -- ^ A posting has a negative value.
+    | ResultOutOfRange -- ^ A rounded side total is infinite.
+    deriving (Eq, Show)
+
+-- | Accumulate one side without retaining its source postings.
+data SideAccum = SideAccum !(Accum Double)
+
+-- | Keep Not and Hat independent until both sides have been rounded.
+data SideAccums = SideAccums !SideAccum !SideAccum
+
+emptySide :: SideAccum
+emptySide = SideAccum emptyAccum
+
+addSideValue :: Double -> SideAccum -> SideAccum
+addSideValue value (SideAccum total) = SideAccum (addAccum value total)
+
+roundSide :: SideAccum -> Either ExactSumError Double
+roundSide (SideAccum total) = roundAccum total
+
+-- | Sum every posting by a key derived from its 'BasePart', without netting
+-- Hat against Not or combining source postings. Each side is the exact sum of
+-- its finite, non-negative input values rounded once to nearest-even Double.
+-- Results, including zero, have a positive sign. The empty journal gives an
+-- empty map; a key with one side absent has positive zero for that side.
+-- Reordering postings, regrouping @(.+)@, or reassigning notes leaves each
+-- output's bits unchanged. Every posting is validated independently of the
+-- accumulator. The highest-priority failure wins regardless of traversal:
+-- 'WildcardSide', 'NonFiniteValue', 'NegativeValue', then 'ResultOutOfRange'.
+-- A finite rounded total succeeds even if its exact sum exceeds the largest
+-- finite Double; for example, maximum finite plus the least subnormal rounds
+-- back to maximum finite. No partial map is returned on failure.
+-- A raw zero @(:@)@ posting is inspected, including HatNot; ordinary algebra
+-- construction discards zero postings before they reach this function.
+-- Complexity: one traversal of all entries with O(log(k + 1)) map updates
+-- per entry for k distinct keys. Only when a side exceeds ExactSum's range,
+-- a second traversal of all entries recomputes those sides as Rational sums.
+--
+-- Law: subject: 'sideTotalsBy'. Preconditions: all postings have concrete
+-- sides and finite, non-negative values, and all rounded side sums are finite.
+-- Relation: each output side equals nearest-even rounding of the Rational sum
+-- of that key's postings on that side, before Hat/Not cancellation.
+-- Observation: Double bits for each key and side. Tolerance: bit-identical.
+-- Instances: 'Note' and 'HatBaseClass' with Double values and ordered keys.
+sideTotalsBy :: (Note n, HatBaseClass b, Ord k)
+             => (BasePart b -> k)
+             -> Journal n Double b
+             -> Either CarryError (OrderedMap.Map k SideTotals)
+sideTotalsBy keyOf journal = case validationError of
+    Just failure -> Left failure
+    Nothing -> OrderedMap.traverseWithKey finish rounded
+  where
+    (validationError, totals) = Map.foldl' (scanAlgebra scanEntry)
+        (Nothing, OrderedMap.empty)
+        (toMap journal)
+
+    scanAlgebra step !state algebra = case algebra of
+        value :@ coordinates -> step state value coordinates
+        _ -> foldEntries step state algebra
+
+    scanEntry (!failure, !acc) value coordinates =
+        case classify value coordinates of
+            Just current -> (Just (prefer failure current), acc)
+            Nothing ->
+                let !key = keyOf (base coordinates)
+                    !updated = OrderedMap.alter (Just . addToSide (hat coordinates) value
+                        . maybe (SideAccums emptySide emptySide) id) key acc
+                in (failure, updated)
+
+    classify value coordinates
+        | hat coordinates == HatNot = Just WildcardSide
+        | isNaN value || isInfinite value = Just NonFiniteValue
+        | value < 0 = Just NegativeValue
+        | otherwise = Nothing
+
+    prefer (Just WildcardSide) _ = WildcardSide
+    prefer _ WildcardSide = WildcardSide
+    prefer (Just NonFiniteValue) _ = NonFiniteValue
+    prefer _ NonFiniteValue = NonFiniteValue
+    prefer (Just NegativeValue) _ = NegativeValue
+    prefer _ NegativeValue = NegativeValue
+    prefer _ ResultOutOfRange = ResultOutOfRange
+
+    addToSide Hat value (SideAccums notSide hatSide) =
+        SideAccums notSide (addSideValue value hatSide)
+    addToSide Not value (SideAccums notSide hatSide) =
+        SideAccums (addSideValue value notSide) hatSide
+    addToSide HatNot _ sides = sides
+
+    rounded = OrderedMap.map (\(SideAccums notSide hatSide) ->
+        (roundSide notSide, roundSide hatSide)) totals
+
+    overflowing = OrderedMap.foldlWithKey' collectOverflow Set.empty rounded
+    collectOverflow !keys key (notResult, hatResult) =
+        let !withNot = if notResult == Left SumOutOfRange
+                then Set.insert (key, NotSide) keys else keys
+        in if hatResult == Left SumOutOfRange
+           then Set.insert (key, HatSide) withNot else withNot
+
+    fallbackTotals
+        | Set.null overflowing = OrderedMap.empty
+        | otherwise = Map.foldl' (scanAlgebra scanFallback) OrderedMap.empty
+            (toMap journal)
+
+    scanFallback !acc value coordinates =
+        let !side = if hat coordinates == Hat then HatSide else NotSide
+            !target = (keyOf (base coordinates), side)
+        in if Set.member target overflowing
+           then OrderedMap.insertWith (+) target (toRational value) acc
+           else acc
+
+    finish key (notResult, hatResult) =
+        SideTotals <$> finishSide (key, NotSide) notResult
+                   <*> finishSide (key, HatSide) hatResult
+
+    finishSide _ (Right value) = Right (if value == 0 then 0 else value)
+    finishSide target (Left SumOutOfRange) =
+        let !value = fromRational (OrderedMap.findWithDefault 0 target fallbackTotals)
+                :: Double
+        in if isInfinite value then Left ResultOutOfRange
+           else Right (if value == 0 then 0 else value)
+    -- The first traversal validates every input, so ExactSum cannot report
+    -- NonFiniteInput or NegativeInput here.
+    finishSide _ (Left _) = Left ResultOutOfRange

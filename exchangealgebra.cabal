@@ -258,6 +258,7 @@ test-suite ExchangeAlgebra-test
       Algebra.ProjWildcardSpec
       Golden.WriteRows
       Journal.CarrySpec
+      Journal.SideTotalsSpec
       Posting.NoNumPosted
       Posting.PostingSpec
       Posting.SettleSpec
