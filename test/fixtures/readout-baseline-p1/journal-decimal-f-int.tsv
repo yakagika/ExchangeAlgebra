@@ -1,0 +1,30 @@
+# readout-baseline-p1 journal-decimal-f-int; schema 1; commit 2b4e5fb6c2ff19e01cf51ba48b0d4f745e61325f
+bar	all	posting	-1	Hat	Cash	3
+bar	all	posting	-1	Hat	Purchases	1
+bar	all	posting	-1	Hat	RetainedEarnings	12245
+bar	all	posting	-1	Not	AccountsReceivable	12342
+bar	all	posting	-1	Not	Sales	3
+norm	all	scalar	25008
+projWithBaseNetNorm	Cash	scalar	2
+projWithBaseNetNorm	Sales	scalar	103
+projWithNoteBaseNetNorm	note=1,Cash	scalar	1
+projWithNoteBaseNetNorm	notes=1,2,Sales	scalar	103
+compress	all	posting	1	Hat	Cash	2
+compress	all	posting	1	Hat	RetainedEarnings	12345
+compress	all	posting	1	Not	Cash	1
+compress	all	posting	1	Not	Purchases	2
+compress	all	posting	1	Not	Sales	100
+compress	all	posting	2	Hat	AccountsReceivable	2
+compress	all	posting	2	Hat	Purchases	3
+compress	all	posting	2	Hat	Sales	100
+compress	all	posting	2	Not	Cash	1
+compress	all	posting	2	Not	Sales	3
+compress	all	posting	3	Hat	AccountsReceivable	1
+compress	all	posting	3	Hat	Cash	3
+compress	all	posting	3	Not	AccountsReceivable	12345
+compress	all	posting	3	Not	RetainedEarnings	100
+closingEntries	Journal	Right
+closingEntries	Journal	posting		Hat	Sales	3
+closingEntries	Journal	posting		Not	Purchases	1
+closingEntries	Journal	posting		Not	RetainedEarnings	1
+closingEntries	Journal	posting		Not	RetainedEarnings	3

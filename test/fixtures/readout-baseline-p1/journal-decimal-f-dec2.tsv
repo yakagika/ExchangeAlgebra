@@ -1,0 +1,29 @@
+# readout-baseline-p1 journal-decimal-f-dec2; schema 1; commit 2b4e5fb6c2ff19e01cf51ba48b0d4f745e61325f
+bar	all	posting	-1	Hat	Cash	1234.55
+bar	all	posting	-1	Hat	Purchases	0.09
+bar	all	posting	-1	Hat	RetainedEarnings	0.1
+bar	all	posting	-1	Hat	Sales	20.18
+bar	all	posting	-1	Not	AccountsReceivable	1214.57
+norm	all	scalar	2510.53
+projWithBaseNetNorm	Cash	scalar	0.31
+projWithBaseNetNorm	Sales	scalar	0.01
+projWithNoteBaseNetNorm	note=1,Cash	scalar	0.3
+projWithNoteBaseNetNorm	notes=1,2,Sales	scalar	0.01
+compress	all	posting	1	Hat	Purchases	0.1
+compress	all	posting	1	Hat	Sales	0.2
+compress	all	posting	1	Not	Cash	0.3
+compress	all	posting	1	Not	Purchases	0.01
+compress	all	posting	2	Hat	Cash	0.3
+compress	all	posting	2	Hat	Sales	19.99
+compress	all	posting	2	Not	Cash	0.01
+compress	all	posting	2	Not	RetainedEarnings	0.2
+compress	all	posting	2	Not	Sales	0.01
+compress	all	posting	3	Hat	AccountsReceivable	19.99
+compress	all	posting	3	Hat	Cash	1234.56
+compress	all	posting	3	Hat	RetainedEarnings	0.3
+compress	all	posting	3	Not	AccountsReceivable	1234.56
+closingEntries	Journal	Right
+closingEntries	Journal	posting		Hat	RetainedEarnings	20.18
+closingEntries	Journal	posting		Not	Purchases	0.09
+closingEntries	Journal	posting		Not	RetainedEarnings	0.09
+closingEntries	Journal	posting		Not	Sales	20.18

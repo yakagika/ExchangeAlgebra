@@ -1,0 +1,12 @@
+# readout-baseline-p1 alg-keyed-decimal-f-int; schema 1; commit 2b4e5fb6c2ff19e01cf51ba48b0d4f745e61325f
+balanceMapBy.keyed	key=account	map	Cash	-3
+balanceMapBy.keyed	key=account	map	AccountsReceivable	12342
+balanceMapBy.keyed	key=account	map	RetainedEarnings	-12245
+balanceMapBy.keyed	key=account	map	Purchases	-1
+balanceMapBy.keyed	key=account	map	Sales	3
+netPairMapBy.keyed	key=account	map	Cash	1	4
+netPairMapBy.keyed	key=account	map	AccountsReceivable	12344	2
+netPairMapBy.keyed	key=account	map	RetainedEarnings	100	12345
+netPairMapBy.keyed	key=account	map	Purchases	2	3
+netPairMapBy.keyed	key=account	map	Sales	100	97
+projNetNorm.keyed	Cash,1	scalar	1

@@ -1,0 +1,54 @@
+# readout-baseline-p1 alg-double-f-exp; schema 1; commit 2b4e5fb6c2ff19e01cf51ba48b0d4f745e61325f
+bar	all	posting		Hat	Purchases	0x7e37e43c8800759c	1.0e300
+bar	all	posting		Hat	RetainedEarnings	0x3ff0000000000000	1.0
+bar	all	posting		Not	AccountsReceivable	0x3ff0000000000000	1.0
+bar	all	posting		Not	Cash	0x7e37e43c8800759c	1.0e300
+bar	all	posting		Not	Sales	0x7ff0000000000000	Infinity
+norm	all	scalar	0x7ff0000000000000	Infinity
+balance	all	result	False
+diffRL	all	Credit	0x7ff0000000000000	Infinity
+compress	all	posting		Hat	AccountsReceivable	0x01a56e1fc2f8f359	1.0e-300
+compress	all	posting		Hat	Cash	0x3ff0000000000000	1.0
+compress	all	posting		Hat	Purchases	0x7e37e43c8800759c	1.0e300
+compress	all	posting		Hat	RetainedEarnings	0x3ff0000000000000	1.0
+compress	all	posting		Not	AccountsReceivable	0x3ff0000000000000	1.0
+compress	all	posting		Not	Cash	0x7e37e43c8800759c	1.0e300
+compress	all	posting		Not	Purchases	0x01a56e1fc2f8f359	1.0e-300
+compress	all	posting		Not	RetainedEarnings	0x01a56e1fc2f8f359	1.0e-300
+compress	all	posting		Not	Sales	0x7ff0000000000000	Infinity
+balanceMapBy	key=account	map	Cash	0x7e37e43c8800759c	1.0e300
+balanceMapBy	key=account	map	AccountsReceivable	0x3ff0000000000000	1.0
+balanceMapBy	key=account	map	RetainedEarnings	0xbff0000000000000	-1.0
+balanceMapBy	key=account	map	Purchases	0xfe37e43c8800759c	-1.0e300
+balanceMapBy	key=account	map	Sales	0x7ff0000000000000	Infinity
+netPairMapBy	key=account	map	Cash	0x7e37e43c8800759c	1.0e300	0x0000000000000000	0.0
+netPairMapBy	key=account	map	AccountsReceivable	0x3ff0000000000000	1.0	0x0000000000000000	0.0
+netPairMapBy	key=account	map	RetainedEarnings	0x0000000000000000	0.0	0x3ff0000000000000	1.0
+netPairMapBy	key=account	map	Purchases	0x0000000000000000	0.0	0x7e37e43c8800759c	1.0e300
+netPairMapBy	key=account	map	Sales	0x7ff0000000000000	Infinity	0x0000000000000000	0.0
+projNetNorm	Cash	scalar	0x7e37e43c8800759c	1.0e300
+projNetNorm	Sales	scalar	0x7ff0000000000000	Infinity
+projNetNorm	Cash+Sales	scalar	0x7ff0000000000000	Infinity
+balanceBy	Cash Not-Hat	scalar	0x7e37e43c8800759c	1.0e300
+balanceBy	Sales Not-Hat	scalar	0x7ff0000000000000	Infinity
+Pair.compare	Cash notes=1 vs Cash notes=2,3	result	LT
+Pair.compare	Sales notes=1,2 vs Sales note=3	result	EQ
+closingEntries	Alg	Left	NonFiniteBalance
+accountBalances	all	map	Cash	DebitBalance	0x7e37e43c8800759c	1.0e300
+accountBalances	all	map	AccountsReceivable	DebitBalance	0x3ff0000000000000	1.0
+accountBalances	all	map	RetainedEarnings	DebitBalance	0x3ff0000000000000	1.0
+accountBalances	all	map	Purchases	CreditBalance	0x7e37e43c8800759c	1.0e300
+accountBalances	all	map	Sales	CreditBalance	0x7ff0000000000000	Infinity
+Write.bsRows	all	row	Asset		Liability	
+Write.bsRows	all	row	AccountsReceivable	1.0	Equity	
+Write.bsRows	all	row	Cash	1.0e300	RetainedEarnings	Infinity
+Write.bsRows	all	row	Total	1.0e300	Total	Infinity
+Write.plRows	all	row	Cost		Revenue	
+Write.plRows	all	row	Purchases	1.0e-300	Sales	1.7e308
+Write.plRows	all	row			Sales	1.7e308
+Write.plRows	all	row	Total	Infinity	Total	0.0
+Convert.Checked.exactBalanced	all	result	False
+trialBalanceFindings	BeforeClosing	result	[UnbalancedTrialBalance 1.0e300 Infinity,UnexplainedAbnormalBalance RetainedEarnings Credit (DebitBalance 1.0),UnexplainedAbnormalBalance Purchases Debit (CreditBalance 1.0e300)]
+trialBalanceFindings.debitTotal	BeforeClosing	scalar	0x7e37e43c8800759c	1.0e300
+trialBalanceFindings.creditTotal	BeforeClosing	scalar	0x7ff0000000000000	Infinity
+periodResultOfAlg	all	PeriodProfit	0x7ff0000000000000	Infinity

@@ -1,0 +1,66 @@
+# readout-baseline-p1 alg-double-f-dec2; schema 1; commit 2b4e5fb6c2ff19e01cf51ba48b0d4f745e61325f
+bar	all	posting		Hat	Cash	0x40934a3333333333	1234.55
+bar	all	posting		Hat	Purchases	0x3fb70a3d70a3d70b	9.000000000000001e-2
+bar	all	posting		Hat	RetainedEarnings	0x3fb9999999999998	9.999999999999998e-2
+bar	all	posting		Hat	Sales	0x40342e147ae147ad	20.179999999999996
+bar	all	posting		Not	AccountsReceivable	0x4092fa47ae147ae1	1214.57
+norm	all	scalar	0x40a39d0f5c28f5c2	2510.5299999999997
+balance	all	result	False
+diffRL	all	Debit	0x3fcae147ae148000	0.21000000000003638
+compress	all	posting		Hat	AccountsReceivable	0x4033fd70a3d70a3d	19.99
+compress	all	posting		Hat	Cash	0x40934b70a3d70a3d	1234.86
+compress	all	posting		Hat	Purchases	0x3fb999999999999a	0.1
+compress	all	posting		Hat	RetainedEarnings	0x3fd3333333333333	0.3
+compress	all	posting		Hat	Sales	0x403430a3d70a3d70	20.189999999999998
+compress	all	posting		Not	AccountsReceivable	0x40934a3d70a3d70a	1234.56
+compress	all	posting		Not	Cash	0x3fd3d70a3d70a3d7	0.31
+compress	all	posting		Not	Purchases	0x3f847ae147ae147b	1.0e-2
+compress	all	posting		Not	RetainedEarnings	0x3fc999999999999a	0.2
+compress	all	posting		Not	Sales	0x3f847ae147ae147b	1.0e-2
+balanceMapBy	key=account	map	Cash	0xc0934a3333333333	-1234.55
+balanceMapBy	key=account	map	AccountsReceivable	0x4092fa47ae147ae1	1214.57
+balanceMapBy	key=account	map	RetainedEarnings	0xbfb9999999999998	-9.999999999999998e-2
+balanceMapBy	key=account	map	Purchases	0xbfb70a3d70a3d70b	-9.000000000000001e-2
+balanceMapBy	key=account	map	Sales	0xc0342e147ae147ad	-20.179999999999996
+netPairMapBy	key=account	map	Cash	0x0000000000000000	0.0	0x40934a3333333333	1234.55
+netPairMapBy	key=account	map	AccountsReceivable	0x4092fa47ae147ae1	1214.57	0x0000000000000000	0.0
+netPairMapBy	key=account	map	RetainedEarnings	0x0000000000000000	0.0	0x3fb9999999999998	9.999999999999998e-2
+netPairMapBy	key=account	map	Purchases	0x0000000000000000	0.0	0x3fb70a3d70a3d70b	9.000000000000001e-2
+netPairMapBy	key=account	map	Sales	0x0000000000000000	0.0	0x40342e147ae147ad	20.179999999999996
+postFromNetBy	key=account; callback=identity-side-Not	posting		Not	AccountsReceivable	0x4092fa47ae147ae1	1214.57
+postFromNetBy	key=account; callback=identity-side-Not	posting		Not	Cash	0x40934a3333333333	1234.55
+postFromNetBy	key=account; callback=identity-side-Not	posting		Not	Purchases	0x3fb70a3d70a3d70b	9.000000000000001e-2
+postFromNetBy	key=account; callback=identity-side-Not	posting		Not	RetainedEarnings	0x3fb9999999999998	9.999999999999998e-2
+postFromNetBy	key=account; callback=identity-side-Not	posting		Not	Sales	0x40342e147ae147ad	20.179999999999996
+projNetNorm	Cash	scalar	0x3fd3d70a3d70a3d7	0.31
+projNetNorm	Sales	scalar	0x3f847ae147ae147b	1.0e-2
+projNetNorm	Cash+Sales	scalar	0x3fd47ae147ae147b	0.32
+balanceBy	Cash Not-Hat	scalar	0xc0934a3333333333	-1234.55
+balanceBy	Sales Not-Hat	scalar	0xc0342e147ae147ad	-20.179999999999996
+Pair.compare	Cash notes=1 vs Cash notes=2,3	result	LT
+Pair.compare	Sales notes=1,2 vs Sales note=3	result	GT
+closingEntries	Alg	Right
+closingEntries	Alg	posting		Hat	RetainedEarnings	0x40342e147ae147ad	20.179999999999996
+closingEntries	Alg	posting		Not	Purchases	0x3fb70a3d70a3d70b	9.000000000000001e-2
+closingEntries	Alg	posting		Not	RetainedEarnings	0x3fb70a3d70a3d70b	9.000000000000001e-2
+closingEntries	Alg	posting		Not	Sales	0x40342e147ae147ad	20.179999999999996
+accountBalances	all	map	Cash	CreditBalance	0x40934a3333333333	1234.55
+accountBalances	all	map	AccountsReceivable	DebitBalance	0x4092fa47ae147ae1	1214.57
+accountBalances	all	map	RetainedEarnings	DebitBalance	0x3fb9999999999998	9.999999999999998e-2
+accountBalances	all	map	Purchases	CreditBalance	0x3fb70a3d70a3d70b	9.000000000000001e-2
+accountBalances	all	map	Sales	DebitBalance	0x40342e147ae147ad	20.179999999999996
+Write.bsRows	all	row	Asset		Liability	
+Write.bsRows	all	row	AccountsReceivable	1214.57	Equity	
+Write.bsRows	all	row	RetainedEarnings	20.19	Total	0.0
+Write.bsRows	all	row	Total	1234.76		
+Write.plRows	all	row	Cost		Revenue	
+Write.plRows	all	row	Purchases	1.0e-2	Sales	1.0e-2
+Write.plRows	all	row	Total	1.0e-2	Total	1.0e-2
+Convert.Checked.exactBalanced	all	result	False
+trialBalanceFindings	BeforeClosing	result	[UnbalancedTrialBalance 1255.37 1255.1599999999999,UnexplainedAbnormalBalance Cash Debit (CreditBalance 1234.55),UnexplainedAbnormalBalance RetainedEarnings Credit (DebitBalance 9.999999999999998e-2),UnexplainedAbnormalBalance Purchases Debit (CreditBalance 9.000000000000001e-2),UnexplainedAbnormalBalance Sales Credit (DebitBalance 20.179999999999996)]
+trialBalanceFindings.debitTotal	BeforeClosing	scalar	0x40939d7ae147ae14	1255.37
+trialBalanceFindings.creditTotal	BeforeClosing	scalar	0x40939ca3d70a3d70	1255.1599999999999
+Convert.Checked.checkedEntry	0.1+0.2 vs 0.3	result	Left (Imbalanced {_debitTotal = 0.30000000000000004, _creditTotal = 0.3} :| [])
+Convert.Checked.debitInput	0.1+0.2	scalar	0x3fd3333333333334	0.30000000000000004
+Convert.Checked.creditInput	0.3	scalar	0x3fd3333333333333	0.3
+periodResultOfAlg	all	PeriodLoss	0x4034170a3d70a3d7	20.09

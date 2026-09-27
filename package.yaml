@@ -125,6 +125,7 @@ tests:
     - Admission.CatalogSpec
     - Algebra.ProjWildcardSpec
     - Golden.WriteRows
+    - Golden.ReadoutBaseline
     - Journal.CarrySpec
     - Journal.SideTotalsSpec
     - Posting.NoNumPosted

@@ -1,0 +1,47 @@
+# readout-baseline-p1 journal-double-f-exp; schema 1; commit 2b4e5fb6c2ff19e01cf51ba48b0d4f745e61325f
+bar	all	posting	-1	Hat	Purchases	0x7e37e43c8800759c	1.0e300
+bar	all	posting	-1	Hat	RetainedEarnings	0x3ff0000000000000	1.0
+bar	all	posting	-1	Not	AccountsReceivable	0x3ff0000000000000	1.0
+bar	all	posting	-1	Not	Cash	0x7e37e43c8800759c	1.0e300
+bar	all	posting	-1	Not	Sales	0x7ff0000000000000	Infinity
+norm	all	scalar	0x7ff0000000000000	Infinity
+projWithBaseNetNorm	Cash	scalar	0x7e37e43c8800759c	1.0e300
+projWithBaseNetNorm	Sales	scalar	0x7ff0000000000000	Infinity
+projWithNoteBaseNetNorm	note=1,Cash	scalar	0x7e37e43c8800759c	1.0e300
+projWithNoteBaseNetNorm	notes=1,2,Sales	scalar	0x7fee42d130773b76	1.7e308
+compress	all	posting	1	Hat	Purchases	0x7e37e43c8800759c	1.0e300
+compress	all	posting	1	Not	AccountsReceivable	0x3ff0000000000000	1.0
+compress	all	posting	1	Not	Cash	0x7e37e43c8800759c	1.0e300
+compress	all	posting	1	Not	RetainedEarnings	0x01a56e1fc2f8f359	1.0e-300
+compress	all	posting	2	Hat	Cash	0x3ff0000000000000	1.0
+compress	all	posting	2	Not	Purchases	0x01a56e1fc2f8f359	1.0e-300
+compress	all	posting	2	Not	Sales	0x7fee42d130773b76	1.7e308
+compress	all	posting	3	Hat	AccountsReceivable	0x01a56e1fc2f8f359	1.0e-300
+compress	all	posting	3	Hat	RetainedEarnings	0x3ff0000000000000	1.0
+compress	all	posting	3	Not	Sales	0x7fee42d130773b76	1.7e308
+closingEntries	Journal	Left	NonFiniteBalance
+carryEntries	notes=1,2;carry=4	Right
+carryEntries	notes=1,2;carry=4	posting	1	Hat	AccountsReceivable	0x3ff0000000000000	1.0
+carryEntries	notes=1,2;carry=4	posting	1	Hat	Cash	0x01a56e1fc2f8f359	1.0e-300
+carryEntries	notes=1,2;carry=4	posting	1	Hat	Cash	0x7e37e43c8800759c	1.0e300
+carryEntries	notes=1,2;carry=4	posting	1	Hat	RetainedEarnings	0x01a56e1fc2f8f359	1.0e-300
+carryEntries	notes=1,2;carry=4	posting	1	Not	Purchases	0x7e37e43c8800759c	1.0e300
+carryEntries	notes=1,2;carry=4	posting	2	Hat	Purchases	0x01a56e1fc2f8f359	1.0e-300
+carryEntries	notes=1,2;carry=4	posting	2	Hat	Sales	0x7fee42d130773b76	1.7e308
+carryEntries	notes=1,2;carry=4	posting	2	Not	Cash	0x3ff0000000000000	1.0
+carryEntries	notes=1,2;carry=4	posting	4	Hat	Purchases	0x7e37e43c8800759c	1.0e300
+carryEntries	notes=1,2;carry=4	posting	4	Not	AccountsReceivable	0x3ff0000000000000	1.0
+carryEntries	notes=1,2;carry=4	posting	4	Not	Cash	0x7e37e43c8800759c	1.0e300
+carryEntries	notes=1,2;carry=4	posting	4	Not	RetainedEarnings	0x01a56e1fc2f8f359	1.0e-300
+carryEntries	notes=1,2;carry=4	posting	4	Not	Sales	0x7fee42d130773b76	1.7e308
+carryBefore	notes=1,2;carry=4	Right
+carryBefore	notes=1,2;carry=4	posting	3	Hat	AccountsReceivable	0x01a56e1fc2f8f359	1.0e-300
+carryBefore	notes=1,2;carry=4	posting	3	Hat	RetainedEarnings	0x3ff0000000000000	1.0
+carryBefore	notes=1,2;carry=4	posting	3	Not	Sales	0x7fee42d130773b76	1.7e308
+carryBefore	notes=1,2;carry=4	posting	4	Hat	Purchases	0x7e37e43c8800759c	1.0e300
+carryBefore	notes=1,2;carry=4	posting	4	Not	AccountsReceivable	0x3ff0000000000000	1.0
+carryBefore	notes=1,2;carry=4	posting	4	Not	Cash	0x7e37e43c8800759c	1.0e300
+carryBefore	notes=1,2;carry=4	posting	4	Not	RetainedEarnings	0x01a56e1fc2f8f359	1.0e-300
+carryBefore	notes=1,2;carry=4	posting	4	Not	Sales	0x7fee42d130773b76	1.7e308
+carryEntries	notes=2,3;carry=4;overflow	Left	SumOutOfRange
+carryBefore	notes=2,3;carry=4;overflow	Left	SumOutOfRange

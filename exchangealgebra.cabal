@@ -52,6 +52,28 @@ extra-source-files:
     test/fixtures/pre-vland2/ordinals.tsv
     test/fixtures/pre-vland2/semantics.tsv
     test/fixtures/pre-vocab/finalstock.tsv
+    test/fixtures/readout-baseline-p1/alg-decimal-f-dec2.tsv
+    test/fixtures/readout-baseline-p1/alg-decimal-f-int.tsv
+    test/fixtures/readout-baseline-p1/alg-double-f-cancel.tsv
+    test/fixtures/readout-baseline-p1/alg-double-f-dec2.tsv
+    test/fixtures/readout-baseline-p1/alg-double-f-exp.tsv
+    test/fixtures/readout-baseline-p1/alg-double-f-int.tsv
+    test/fixtures/readout-baseline-p1/alg-double-f-sub.tsv
+    test/fixtures/readout-baseline-p1/alg-keyed-decimal-f-dec2.tsv
+    test/fixtures/readout-baseline-p1/alg-keyed-decimal-f-int.tsv
+    test/fixtures/readout-baseline-p1/alg-keyed-double-f-cancel.tsv
+    test/fixtures/readout-baseline-p1/alg-keyed-double-f-dec2.tsv
+    test/fixtures/readout-baseline-p1/alg-keyed-double-f-exp.tsv
+    test/fixtures/readout-baseline-p1/alg-keyed-double-f-int.tsv
+    test/fixtures/readout-baseline-p1/alg-keyed-double-f-sub.tsv
+    test/fixtures/readout-baseline-p1/journal-decimal-f-dec2.tsv
+    test/fixtures/readout-baseline-p1/journal-decimal-f-int.tsv
+    test/fixtures/readout-baseline-p1/journal-double-f-cancel.tsv
+    test/fixtures/readout-baseline-p1/journal-double-f-dec2.tsv
+    test/fixtures/readout-baseline-p1/journal-double-f-exp.tsv
+    test/fixtures/readout-baseline-p1/journal-double-f-int.tsv
+    test/fixtures/readout-baseline-p1/journal-double-f-sub.tsv
+    test/fixtures/readout-baseline-p1/README.md
     test/fixtures/write-rows-0510/ebex6-compound-trial-balance.tsv
     test/fixtures/write-rows-0510/ebex7-compound-trial-balance.tsv
     test/fixtures/write-rows-0510/ebex8-account-ledger-journal.tsv
@@ -257,6 +279,7 @@ test-suite ExchangeAlgebra-test
       Admission.CatalogSpec
       Algebra.ProjWildcardSpec
       Golden.WriteRows
+      Golden.ReadoutBaseline
       Journal.CarrySpec
       Journal.SideTotalsSpec
       Posting.NoNumPosted

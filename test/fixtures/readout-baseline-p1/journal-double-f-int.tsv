@@ -1,0 +1,54 @@
+# readout-baseline-p1 journal-double-f-int; schema 1; commit 2b4e5fb6c2ff19e01cf51ba48b0d4f745e61325f
+bar	all	posting	-1	Hat	Cash	0x4008000000000000	3.0
+bar	all	posting	-1	Hat	Purchases	0x3ff0000000000000	1.0
+bar	all	posting	-1	Hat	RetainedEarnings	0x40c7ea8000000000	12245.0
+bar	all	posting	-1	Not	AccountsReceivable	0x40c81b0000000000	12342.0
+bar	all	posting	-1	Not	Sales	0x4008000000000000	3.0
+norm	all	scalar	0x40d86c0000000000	25008.0
+projWithBaseNetNorm	Cash	scalar	0x4000000000000000	2.0
+projWithBaseNetNorm	Sales	scalar	0x4059c00000000000	103.0
+projWithNoteBaseNetNorm	note=1,Cash	scalar	0x3ff0000000000000	1.0
+projWithNoteBaseNetNorm	notes=1,2,Sales	scalar	0x4059c00000000000	103.0
+compress	all	posting	1	Hat	Cash	0x4000000000000000	2.0
+compress	all	posting	1	Hat	RetainedEarnings	0x40c81c8000000000	12345.0
+compress	all	posting	1	Not	Cash	0x3ff0000000000000	1.0
+compress	all	posting	1	Not	Purchases	0x4000000000000000	2.0
+compress	all	posting	1	Not	Sales	0x4059000000000000	100.0
+compress	all	posting	2	Hat	AccountsReceivable	0x4000000000000000	2.0
+compress	all	posting	2	Hat	Purchases	0x4008000000000000	3.0
+compress	all	posting	2	Hat	Sales	0x4059000000000000	100.0
+compress	all	posting	2	Not	Cash	0x3ff0000000000000	1.0
+compress	all	posting	2	Not	Sales	0x4008000000000000	3.0
+compress	all	posting	3	Hat	AccountsReceivable	0x3ff0000000000000	1.0
+compress	all	posting	3	Hat	Cash	0x4008000000000000	3.0
+compress	all	posting	3	Not	AccountsReceivable	0x40c81c8000000000	12345.0
+compress	all	posting	3	Not	RetainedEarnings	0x4059000000000000	100.0
+closingEntries	Journal	Right
+closingEntries	Journal	posting		Hat	Sales	0x4008000000000000	3.0
+closingEntries	Journal	posting		Not	Purchases	0x3ff0000000000000	1.0
+closingEntries	Journal	posting		Not	RetainedEarnings	0x3ff0000000000000	1.0
+closingEntries	Journal	posting		Not	RetainedEarnings	0x4008000000000000	3.0
+carryEntries	notes=1,2;carry=4	Right
+carryEntries	notes=1,2;carry=4	posting	1	Hat	Cash	0x3ff0000000000000	1.0
+carryEntries	notes=1,2;carry=4	posting	1	Hat	Purchases	0x4000000000000000	2.0
+carryEntries	notes=1,2;carry=4	posting	1	Hat	Sales	0x4059000000000000	100.0
+carryEntries	notes=1,2;carry=4	posting	1	Not	Cash	0x4000000000000000	2.0
+carryEntries	notes=1,2;carry=4	posting	1	Not	RetainedEarnings	0x40c81c8000000000	12345.0
+carryEntries	notes=1,2;carry=4	posting	2	Hat	Cash	0x3ff0000000000000	1.0
+carryEntries	notes=1,2;carry=4	posting	2	Hat	Sales	0x4008000000000000	3.0
+carryEntries	notes=1,2;carry=4	posting	2	Not	AccountsReceivable	0x4000000000000000	2.0
+carryEntries	notes=1,2;carry=4	posting	2	Not	Purchases	0x4008000000000000	3.0
+carryEntries	notes=1,2;carry=4	posting	2	Not	Sales	0x4059000000000000	100.0
+carryEntries	notes=1,2;carry=4	posting	4	Hat	AccountsReceivable	0x4000000000000000	2.0
+carryEntries	notes=1,2;carry=4	posting	4	Hat	Purchases	0x3ff0000000000000	1.0
+carryEntries	notes=1,2;carry=4	posting	4	Hat	RetainedEarnings	0x40c81c8000000000	12345.0
+carryEntries	notes=1,2;carry=4	posting	4	Not	Sales	0x4008000000000000	3.0
+carryBefore	notes=1,2;carry=4	Right
+carryBefore	notes=1,2;carry=4	posting	3	Hat	AccountsReceivable	0x3ff0000000000000	1.0
+carryBefore	notes=1,2;carry=4	posting	3	Hat	Cash	0x4008000000000000	3.0
+carryBefore	notes=1,2;carry=4	posting	3	Not	AccountsReceivable	0x40c81c8000000000	12345.0
+carryBefore	notes=1,2;carry=4	posting	3	Not	RetainedEarnings	0x4059000000000000	100.0
+carryBefore	notes=1,2;carry=4	posting	4	Hat	AccountsReceivable	0x4000000000000000	2.0
+carryBefore	notes=1,2;carry=4	posting	4	Hat	Purchases	0x3ff0000000000000	1.0
+carryBefore	notes=1,2;carry=4	posting	4	Hat	RetainedEarnings	0x40c81c8000000000	12345.0
+carryBefore	notes=1,2;carry=4	posting	4	Not	Sales	0x4008000000000000	3.0

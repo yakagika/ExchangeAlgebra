@@ -1,0 +1,66 @@
+# readout-baseline-p1 alg-decimal-f-dec2; schema 1; commit 2b4e5fb6c2ff19e01cf51ba48b0d4f745e61325f
+bar	all	posting		Hat	Cash	1234.55
+bar	all	posting		Hat	Purchases	0.09
+bar	all	posting		Hat	RetainedEarnings	0.1
+bar	all	posting		Hat	Sales	20.18
+bar	all	posting		Not	AccountsReceivable	1214.57
+norm	all	scalar	2510.53
+balance	all	result	False
+diffRL	all	Debit	0.21
+compress	all	posting		Hat	AccountsReceivable	19.99
+compress	all	posting		Hat	Cash	1234.86
+compress	all	posting		Hat	Purchases	0.1
+compress	all	posting		Hat	RetainedEarnings	0.3
+compress	all	posting		Hat	Sales	20.19
+compress	all	posting		Not	AccountsReceivable	1234.56
+compress	all	posting		Not	Cash	0.31
+compress	all	posting		Not	Purchases	0.01
+compress	all	posting		Not	RetainedEarnings	0.2
+compress	all	posting		Not	Sales	0.01
+balanceMapBy	key=account	map	Cash	-1234.55
+balanceMapBy	key=account	map	AccountsReceivable	1214.57
+balanceMapBy	key=account	map	RetainedEarnings	-0.1
+balanceMapBy	key=account	map	Purchases	-0.09
+balanceMapBy	key=account	map	Sales	-20.18
+netPairMapBy	key=account	map	Cash	0	1234.55
+netPairMapBy	key=account	map	AccountsReceivable	1214.57	0
+netPairMapBy	key=account	map	RetainedEarnings	0	0.1
+netPairMapBy	key=account	map	Purchases	0	0.09
+netPairMapBy	key=account	map	Sales	0	20.18
+postFromNetBy	key=account; callback=identity-side-Not	posting		Not	AccountsReceivable	1214.57
+postFromNetBy	key=account; callback=identity-side-Not	posting		Not	Cash	1234.55
+postFromNetBy	key=account; callback=identity-side-Not	posting		Not	Purchases	0.09
+postFromNetBy	key=account; callback=identity-side-Not	posting		Not	RetainedEarnings	0.1
+postFromNetBy	key=account; callback=identity-side-Not	posting		Not	Sales	20.18
+projNetNorm	Cash	scalar	0.31
+projNetNorm	Sales	scalar	0.01
+projNetNorm	Cash+Sales	scalar	0.32
+balanceBy	Cash Not-Hat	scalar	-1234.55
+balanceBy	Sales Not-Hat	scalar	-20.18
+Pair.compare	Cash notes=1 vs Cash notes=2,3	result	LT
+Pair.compare	Sales notes=1,2 vs Sales note=3	result	GT
+closingEntries	Alg	Right
+closingEntries	Alg	posting		Hat	RetainedEarnings	20.18
+closingEntries	Alg	posting		Not	Purchases	0.09
+closingEntries	Alg	posting		Not	RetainedEarnings	0.09
+closingEntries	Alg	posting		Not	Sales	20.18
+accountBalances	all	map	Cash	CreditBalance	1234.55
+accountBalances	all	map	AccountsReceivable	DebitBalance	1214.57
+accountBalances	all	map	RetainedEarnings	DebitBalance	0.1
+accountBalances	all	map	Purchases	CreditBalance	0.09
+accountBalances	all	map	Sales	DebitBalance	20.18
+Write.bsRows	all	row	Asset		Liability	
+Write.bsRows	all	row	AccountsReceivable	1214.57	Equity	
+Write.bsRows	all	row	RetainedEarnings	20.19	Total	0
+Write.bsRows	all	row	Total	1234.76		
+Write.plRows	all	row	Cost		Revenue	
+Write.plRows	all	row	Purchases	0.01	Sales	0.01
+Write.plRows	all	row	Total	0.01	Total	0.01
+Convert.Checked.exactBalanced	all	result	False
+trialBalanceFindings	BeforeClosing	result	[UnbalancedTrialBalance 1255.37 1255.16,UnexplainedAbnormalBalance Cash Debit (CreditBalance 1234.55),UnexplainedAbnormalBalance RetainedEarnings Credit (DebitBalance 0.1),UnexplainedAbnormalBalance Purchases Debit (CreditBalance 0.09),UnexplainedAbnormalBalance Sales Credit (DebitBalance 20.18)]
+trialBalanceFindings.debitTotal	BeforeClosing	scalar	1255.37
+trialBalanceFindings.creditTotal	BeforeClosing	scalar	1255.16
+Convert.Checked.checkedEntry	0.1+0.2 vs 0.3	result	Right 0.3:@Hat:<Cash .+ 0.1:@Not:<Cash .+ 0.2:@Not:<Cash
+Convert.Checked.debitInput	0.1+0.2	scalar	0.3
+Convert.Checked.creditInput	0.3	scalar	0.3
+periodResultOfAlg	all	PeriodLoss	20.09

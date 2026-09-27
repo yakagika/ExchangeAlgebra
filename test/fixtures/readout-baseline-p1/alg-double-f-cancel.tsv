@@ -1,0 +1,49 @@
+# readout-baseline-p1 alg-double-f-cancel; schema 1; commit 2b4e5fb6c2ff19e01cf51ba48b0d4f745e61325f
+bar	all	posting		Hat	Purchases	0x433fffffffffffff	9.007199254740991e15
+norm	all	scalar	0x4372e1bc9bf04000	8.503599627370496e16
+balance	all	result	False
+diffRL	all	Credit	0x4340000000000000	9.007199254740992e15
+compress	all	posting		Hat	AccountsReceivable	0x4340000000000000	9.007199254740992e15
+compress	all	posting		Hat	Cash	0x4341c37937e08000	1.0e16
+compress	all	posting		Hat	Purchases	0x4340000000000000	9.007199254740992e15
+compress	all	posting		Hat	RetainedEarnings	0x4341c37937e08000	1.0e16
+compress	all	posting		Hat	Sales	0x4340000000000000	9.007199254740992e15
+compress	all	posting		Not	AccountsReceivable	0x433fffffffffffff	9.007199254740991e15
+compress	all	posting		Not	Cash	0x4341c37937e08000	1.0e16
+compress	all	posting		Not	Purchases	0x3ff0000000000000	1.0
+compress	all	posting		Not	RetainedEarnings	0x4341c37937e08000	1.0e16
+compress	all	posting		Not	Sales	0x4340000000000000	9.007199254740992e15
+balanceMapBy	key=account	map	Cash	0x3ff0000000000000	1.0
+balanceMapBy	key=account	map	AccountsReceivable	0xbff0000000000000	-1.0
+balanceMapBy	key=account	map	RetainedEarnings	0x0000000000000000	0.0
+balanceMapBy	key=account	map	Purchases	0xc33fffffffffffff	-9.007199254740991e15
+balanceMapBy	key=account	map	Sales	0x0000000000000000	0.0
+netPairMapBy	key=account	map	Purchases	0x0000000000000000	0.0	0x433fffffffffffff	9.007199254740991e15
+postFromNetBy	key=account; callback=identity-side-Not	posting		Not	Purchases	0x433fffffffffffff	9.007199254740991e15
+projNetNorm	Cash	scalar	0x4341c37937e08000	1.0e16
+projNetNorm	Sales	scalar	0x4340000000000000	9.007199254740992e15
+projNetNorm	Cash+Sales	scalar	0x4350e1bc9bf04000	1.9007199254740992e16
+balanceBy	Cash Not-Hat	scalar	0x0000000000000000	0.0
+balanceBy	Sales Not-Hat	scalar	0x0000000000000000	0.0
+Pair.compare	Cash notes=1 vs Cash notes=2,3	result	LT
+Pair.compare	Sales notes=1,2 vs Sales note=3	result	LT
+closingEntries	Alg	Right
+closingEntries	Alg	posting		Not	Purchases	0x433fffffffffffff	9.007199254740991e15
+closingEntries	Alg	posting		Not	RetainedEarnings	0x433fffffffffffff	9.007199254740991e15
+accountBalances	all	map	Cash	NoBalance
+accountBalances	all	map	AccountsReceivable	CreditBalance	0x3ff0000000000000	1.0
+accountBalances	all	map	RetainedEarnings	NoBalance
+accountBalances	all	map	Purchases	CreditBalance	0x433fffffffffffff	9.007199254740991e15
+accountBalances	all	map	Sales	NoBalance
+Write.bsRows	all	row	Asset		Liability	
+Write.bsRows	all	row	Total	0.0	Equity	
+Write.bsRows	all	row			RetainedEarnings	9.007199254740992e15
+Write.bsRows	all	row			Total	9.007199254740992e15
+Write.plRows	all	row	Cost		Revenue	
+Write.plRows	all	row	Purchases	1.0	Sales	9.007199254740992e15
+Write.plRows	all	row	Total	9.007199254740992e15	Total	1.0
+Convert.Checked.exactBalanced	all	result	False
+trialBalanceFindings	BeforeClosing	result	[UnbalancedTrialBalance 3.8014398509481984e16 4.7021597764222976e16,UnexplainedAbnormalBalance AccountsReceivable Debit (CreditBalance 1.0),UnexplainedAbnormalBalance Purchases Debit (CreditBalance 9.007199254740991e15)]
+trialBalanceFindings.debitTotal	BeforeClosing	scalar	0x4360e1bc9bf04000	3.8014398509481984e16
+trialBalanceFindings.creditTotal	BeforeClosing	scalar	0x4364e1bc9bf04000	4.7021597764222976e16
+periodResultOfAlg	all	PeriodProfit	0x4340000000000000	9.007199254740992e15

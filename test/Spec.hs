@@ -73,6 +73,8 @@ import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text           as T
 import qualified Data.Text.IO        as TIO
 import           Golden.WriteRows
+import qualified Golden.ReadoutBaseline as ReadoutBaseline
+import           System.Environment (lookupEnv)
 import qualified Admission.Spec as AdmissionSpec
 import qualified Admission.CatalogSpec as AdmissionCatalogSpec
 import qualified Transfer.RuleSpec as TransferRuleSpec
@@ -2892,6 +2894,21 @@ testWriteRowsGolden = do
     forM_ writeRowsFixtures $ \(name, expected) -> do
         actualFile <- TIO.readFile (writeRowsFixtureDir ++ "/" ++ name)
         assertEqual ("write-rows-0510 fixture " ++ name) actualFile expected
+
+testReadoutBaselineGolden :: IO ()
+testReadoutBaselineGolden = do
+    assertEqual "readout-baseline-p1 fixture count"
+        21 (L.length fixtures)
+    regen <- lookupEnv "EA_REGEN_GOLDEN"
+    forM_ fixtures $ \(name, expected) -> do
+        let path = ReadoutBaseline.readoutFixtureDir ++ "/" ++ name
+        case regen of
+            Just "1" -> TIO.writeFile path expected
+            _ -> do
+                actualFile <- TIO.readFile path
+                assertEqual ("readout-baseline-p1 fixture " ++ name) actualFile expected
+  where
+    fixtures = ReadoutBaseline.readoutFixtures ++ ReadoutBaseline.keyedFixtures
 
 -- Land 2 (Definition 7 contra amendment) 以降: alias 解決だけが byte 一致
 -- (parseAccountTitle は division 非依存)。semantics / info / suggest は
@@ -7089,6 +7106,7 @@ main = do
     testPostVocabGolden
     testAccountSemanticsPrechangeGolden
     testWriteRowsGolden
+    testReadoutBaselineGolden
     testRegistryGolden
     testJcciAccountNameCoverage
     testAccountLabelsLand4a

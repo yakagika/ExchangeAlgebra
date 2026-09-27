@@ -1,0 +1,9 @@
+# readout-baseline-p1 alg-keyed-double-f-sub; schema 1; commit 2b4e5fb6c2ff19e01cf51ba48b0d4f745e61325f
+balanceMapBy.keyed	key=account	map	Cash	0x800ffffffffffffe	-2.2250738585072004e-308
+balanceMapBy.keyed	key=account	map	AccountsReceivable	0x3ff0000000000000	1.0
+balanceMapBy.keyed	key=account	map	RetainedEarnings	0x800fffffffffffff	-2.225073858507201e-308
+balanceMapBy.keyed	key=account	map	Purchases	0xbff0000000000000	-1.0
+balanceMapBy.keyed	key=account	map	Sales	0x000fffffffffffff	2.225073858507201e-308
+netPairMapBy.keyed	key=account	map	AccountsReceivable	0x3ff0000000000000	1.0	0x0000000000000000	0.0
+netPairMapBy.keyed	key=account	map	Purchases	0x0000000000000000	0.0	0x3ff0000000000000	1.0
+projNetNorm.keyed	Cash,1	scalar	0x0000000000000000	0.0

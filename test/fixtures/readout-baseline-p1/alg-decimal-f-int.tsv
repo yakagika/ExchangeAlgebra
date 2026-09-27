@@ -1,0 +1,64 @@
+# readout-baseline-p1 alg-decimal-f-int; schema 1; commit 2b4e5fb6c2ff19e01cf51ba48b0d4f745e61325f
+bar	all	posting		Hat	Cash	3
+bar	all	posting		Hat	Purchases	1
+bar	all	posting		Hat	RetainedEarnings	12245
+bar	all	posting		Not	AccountsReceivable	12342
+bar	all	posting		Not	Sales	3
+norm	all	scalar	25008
+balance	all	result	False
+diffRL	all	Debit	24580
+compress	all	posting		Hat	AccountsReceivable	3
+compress	all	posting		Hat	Cash	5
+compress	all	posting		Hat	Purchases	3
+compress	all	posting		Hat	RetainedEarnings	12345
+compress	all	posting		Hat	Sales	100
+compress	all	posting		Not	AccountsReceivable	12345
+compress	all	posting		Not	Cash	2
+compress	all	posting		Not	Purchases	2
+compress	all	posting		Not	RetainedEarnings	100
+compress	all	posting		Not	Sales	103
+balanceMapBy	key=account	map	Cash	-3
+balanceMapBy	key=account	map	AccountsReceivable	12342
+balanceMapBy	key=account	map	RetainedEarnings	-12245
+balanceMapBy	key=account	map	Purchases	-1
+balanceMapBy	key=account	map	Sales	3
+netPairMapBy	key=account	map	Cash	0	3
+netPairMapBy	key=account	map	AccountsReceivable	12342	0
+netPairMapBy	key=account	map	RetainedEarnings	0	12245
+netPairMapBy	key=account	map	Purchases	0	1
+netPairMapBy	key=account	map	Sales	3	0
+postFromNetBy	key=account; callback=identity-side-Not	posting		Not	AccountsReceivable	12342
+postFromNetBy	key=account; callback=identity-side-Not	posting		Not	Cash	3
+postFromNetBy	key=account; callback=identity-side-Not	posting		Not	Purchases	1
+postFromNetBy	key=account; callback=identity-side-Not	posting		Not	RetainedEarnings	12245
+postFromNetBy	key=account; callback=identity-side-Not	posting		Not	Sales	3
+projNetNorm	Cash	scalar	2
+projNetNorm	Sales	scalar	103
+projNetNorm	Cash+Sales	scalar	105
+balanceBy	Cash Not-Hat	scalar	-3
+balanceBy	Sales Not-Hat	scalar	3
+Pair.compare	Cash notes=1 vs Cash notes=2,3	result	LT
+Pair.compare	Sales notes=1,2 vs Sales note=3	result	LT
+closingEntries	Alg	Right
+closingEntries	Alg	posting		Hat	Sales	3
+closingEntries	Alg	posting		Not	Purchases	1
+closingEntries	Alg	posting		Not	RetainedEarnings	1
+closingEntries	Alg	posting		Not	RetainedEarnings	3
+accountBalances	all	map	Cash	CreditBalance	3
+accountBalances	all	map	AccountsReceivable	DebitBalance	12342
+accountBalances	all	map	RetainedEarnings	DebitBalance	12245
+accountBalances	all	map	Purchases	CreditBalance	1
+accountBalances	all	map	Sales	CreditBalance	3
+Write.bsRows	all	row	Asset		Liability	
+Write.bsRows	all	row	AccountsReceivable	12342	Equity	
+Write.bsRows	all	row	RetainedEarnings	12241	Total	0
+Write.bsRows	all	row	Total	24583		
+Write.plRows	all	row	Cost		Revenue	
+Write.plRows	all	row	Purchases	2	Sales	3
+Write.plRows	all	row			Sales	100
+Write.plRows	all	row	Total	103	Total	2
+Convert.Checked.exactBalanced	all	result	False
+trialBalanceFindings	BeforeClosing	result	[UnbalancedTrialBalance 24794 214,UnexplainedAbnormalBalance Cash Debit (CreditBalance 3),UnexplainedAbnormalBalance RetainedEarnings Credit (DebitBalance 12245),UnexplainedAbnormalBalance Purchases Debit (CreditBalance 1)]
+trialBalanceFindings.debitTotal	BeforeClosing	scalar	24794
+trialBalanceFindings.creditTotal	BeforeClosing	scalar	214
+periodResultOfAlg	all	PeriodProfit	4

@@ -1,0 +1,64 @@
+# readout-baseline-p1 alg-double-f-int; schema 1; commit 2b4e5fb6c2ff19e01cf51ba48b0d4f745e61325f
+bar	all	posting		Hat	Cash	0x4008000000000000	3.0
+bar	all	posting		Hat	Purchases	0x3ff0000000000000	1.0
+bar	all	posting		Hat	RetainedEarnings	0x40c7ea8000000000	12245.0
+bar	all	posting		Not	AccountsReceivable	0x40c81b0000000000	12342.0
+bar	all	posting		Not	Sales	0x4008000000000000	3.0
+norm	all	scalar	0x40d86c0000000000	25008.0
+balance	all	result	False
+diffRL	all	Debit	0x40d8010000000000	24580.0
+compress	all	posting		Hat	AccountsReceivable	0x4008000000000000	3.0
+compress	all	posting		Hat	Cash	0x4014000000000000	5.0
+compress	all	posting		Hat	Purchases	0x4008000000000000	3.0
+compress	all	posting		Hat	RetainedEarnings	0x40c81c8000000000	12345.0
+compress	all	posting		Hat	Sales	0x4059000000000000	100.0
+compress	all	posting		Not	AccountsReceivable	0x40c81c8000000000	12345.0
+compress	all	posting		Not	Cash	0x4000000000000000	2.0
+compress	all	posting		Not	Purchases	0x4000000000000000	2.0
+compress	all	posting		Not	RetainedEarnings	0x4059000000000000	100.0
+compress	all	posting		Not	Sales	0x4059c00000000000	103.0
+balanceMapBy	key=account	map	Cash	0xc008000000000000	-3.0
+balanceMapBy	key=account	map	AccountsReceivable	0x40c81b0000000000	12342.0
+balanceMapBy	key=account	map	RetainedEarnings	0xc0c7ea8000000000	-12245.0
+balanceMapBy	key=account	map	Purchases	0xbff0000000000000	-1.0
+balanceMapBy	key=account	map	Sales	0x4008000000000000	3.0
+netPairMapBy	key=account	map	Cash	0x0000000000000000	0.0	0x4008000000000000	3.0
+netPairMapBy	key=account	map	AccountsReceivable	0x40c81b0000000000	12342.0	0x0000000000000000	0.0
+netPairMapBy	key=account	map	RetainedEarnings	0x0000000000000000	0.0	0x40c7ea8000000000	12245.0
+netPairMapBy	key=account	map	Purchases	0x0000000000000000	0.0	0x3ff0000000000000	1.0
+netPairMapBy	key=account	map	Sales	0x4008000000000000	3.0	0x0000000000000000	0.0
+postFromNetBy	key=account; callback=identity-side-Not	posting		Not	AccountsReceivable	0x40c81b0000000000	12342.0
+postFromNetBy	key=account; callback=identity-side-Not	posting		Not	Cash	0x4008000000000000	3.0
+postFromNetBy	key=account; callback=identity-side-Not	posting		Not	Purchases	0x3ff0000000000000	1.0
+postFromNetBy	key=account; callback=identity-side-Not	posting		Not	RetainedEarnings	0x40c7ea8000000000	12245.0
+postFromNetBy	key=account; callback=identity-side-Not	posting		Not	Sales	0x4008000000000000	3.0
+projNetNorm	Cash	scalar	0x4000000000000000	2.0
+projNetNorm	Sales	scalar	0x4059c00000000000	103.0
+projNetNorm	Cash+Sales	scalar	0x405a400000000000	105.0
+balanceBy	Cash Not-Hat	scalar	0xc008000000000000	-3.0
+balanceBy	Sales Not-Hat	scalar	0x4008000000000000	3.0
+Pair.compare	Cash notes=1 vs Cash notes=2,3	result	LT
+Pair.compare	Sales notes=1,2 vs Sales note=3	result	LT
+closingEntries	Alg	Right
+closingEntries	Alg	posting		Hat	Sales	0x4008000000000000	3.0
+closingEntries	Alg	posting		Not	Purchases	0x3ff0000000000000	1.0
+closingEntries	Alg	posting		Not	RetainedEarnings	0x3ff0000000000000	1.0
+closingEntries	Alg	posting		Not	RetainedEarnings	0x4008000000000000	3.0
+accountBalances	all	map	Cash	CreditBalance	0x4008000000000000	3.0
+accountBalances	all	map	AccountsReceivable	DebitBalance	0x40c81b0000000000	12342.0
+accountBalances	all	map	RetainedEarnings	DebitBalance	0x40c7ea8000000000	12245.0
+accountBalances	all	map	Purchases	CreditBalance	0x3ff0000000000000	1.0
+accountBalances	all	map	Sales	CreditBalance	0x4008000000000000	3.0
+Write.bsRows	all	row	Asset		Liability	
+Write.bsRows	all	row	AccountsReceivable	12342.0	Equity	
+Write.bsRows	all	row	RetainedEarnings	12241.0	Total	0.0
+Write.bsRows	all	row	Total	24583.0		
+Write.plRows	all	row	Cost		Revenue	
+Write.plRows	all	row	Purchases	2.0	Sales	3.0
+Write.plRows	all	row			Sales	100.0
+Write.plRows	all	row	Total	103.0	Total	2.0
+Convert.Checked.exactBalanced	all	result	False
+trialBalanceFindings	BeforeClosing	result	[UnbalancedTrialBalance 24794.0 214.0,UnexplainedAbnormalBalance Cash Debit (CreditBalance 3.0),UnexplainedAbnormalBalance RetainedEarnings Credit (DebitBalance 12245.0),UnexplainedAbnormalBalance Purchases Debit (CreditBalance 1.0)]
+trialBalanceFindings.debitTotal	BeforeClosing	scalar	0x40d8368000000000	24794.0
+trialBalanceFindings.creditTotal	BeforeClosing	scalar	0x406ac00000000000	214.0
+periodResultOfAlg	all	PeriodProfit	0x4010000000000000	4.0
