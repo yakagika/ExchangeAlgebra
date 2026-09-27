@@ -49,7 +49,7 @@ cd my-examples
 ### Standalone builds
 
 A companion `examples/stack.yaml` is checked in, pinning the released
-`exchangealgebra-0.5.2.0` from Hackage via `extra-deps`. So after a sparse
+`exchangealgebra-0.5.3.0` from Hackage via `extra-deps`. So after a sparse
 checkout or `degit`, the following just works:
 
 ```bash
@@ -112,6 +112,38 @@ mkdir -p examples/optimization/CGE/result/{csv,fig}                       # cge
 
 The generated artifacts (`examples/**/result/**`) are git-ignored and regenerated on every
 run.
+
+## Versions that build each example
+
+Run the commands from the root of a full clone. The standalone
+`examples/stack.yaml` uses Stackage `lts-24.4` and pins the Hackage release
+`exchangealgebra-0.5.3.0`. After an example leaves HEAD, its row remains here
+so you can build it from the listed revision.
+
+| Example | Kind | Builds with | How to reproduce | Notes |
+|---|---|---|---|---|
+| `basic/elementaryBookkeepingEx*` | teaching | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0` | `git checkout v0.5.3.0 && cd examples && stack build` | Remains in the next major release, updated for its API. |
+| `basic/simulateEx1`, `simulateEx2`, `simulateEx2Fast` | research | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0`. SICE reproduction: commit `543e268` (`0.5.0.0` release). | `git checkout v0.5.3.0 && cd examples && stack build`<br>`git checkout 543e268 && cd examples && stack build` | SICE simulation examples. Planned for removal from HEAD in the next major release. |
+| `deterministic/ripple/` | research | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0` | `git checkout v0.5.3.0 && cd examples && stack build` | Planned for removal from HEAD in the next major release. |
+| `optimization/CGE/` | teaching | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0` | `git checkout v0.5.3.0 && cd examples && stack build` | GAMS reference implementation and a Haskell stub that does nothing when run. The stub is planned for removal in the next major release. |
+| `optimization/cge-lite/` | research | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0` | `git checkout v0.5.3.0 && cd examples && stack build` | Planned move to a separate research repository. |
+| `industrial/` | research | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0` | `git checkout v0.5.3.0 && cd examples && stack build` | SICE research example. Planned move to a separate code repository. |
+| `invoice/` | research | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0` | `git checkout v0.5.3.0 && cd examples && stack build` | SICE research example. Planned move to a separate code repository. |
+| `market/` | research | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0`. Experiment: commit `8a3a36e` (tag `experiment/round5-overnight-8a3a36e`); public reference: commit `543e268`. | `git checkout v0.5.3.0 && cd examples && stack build`<br>`git checkout 8a3a36e && cd examples && stack build`<br>`git checkout 543e268 && cd examples && stack build` | TOMACS scaling study. Remains in this repository for now. |
+| `audit-eval/` | research | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0` | See [`audit-eval/README.md`](audit-eval/README.md) (Python harness; its Haskell loaders and oracles build with `stack build` in `examples/`). | LLM accounting evaluation. Timing of a move is undecided. |
+| `benchmark/` | benchmark | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0` | `git checkout v0.5.3.0 && cd examples && stack build` | Remains in this repository. |
+
+## Research using exchangealgebra
+
+Research reproduction materials will live at publication locations for each
+study. The repository's HEAD will retain teaching examples.
+
+| Research | EA version | Publication location |
+|---|---|---|
+| SICE simulation paper | `0.5.0.0` release commit `543e268` | To be announced |
+| TOMACS scaling study | Experiment commit `8a3a36e` (tag `experiment/round5-overnight-8a3a36e`); public reference commit `543e268` | To be announced |
+| CGE | `0.5.3.0` (buildable examples) | To be announced |
+| LLM accounting evaluation | To be announced with the study | To be announced |
 
 ## Example catalog
 
