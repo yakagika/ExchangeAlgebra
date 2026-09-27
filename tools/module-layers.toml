@@ -1,0 +1,106 @@
+# Prefixes are relative to ExchangeAlgebra. The longest matching prefix wins.
+layers = ["Algebra", "Journal", "Accounting", "IO", "Simulation"]
+umbrella = ["ExchangeAlgebra"]
+shims = ["Algebra.Readout.Net"] # Add the 0.6 compatibility modules as they are created.
+
+[assign]
+Algebra = "Algebra"
+"Algebra.Internal" = "Algebra"
+"Algebra.Base" = "Algebra"
+"Algebra.Base.Element" = "Algebra"
+"Algebra.Exact" = "Algebra"
+"Algebra.Readout.Net" = "Algebra"
+Value = "Algebra"
+Posting = "Algebra"
+Foundation = "Algebra"
+"Algebra.Base.Account" = "Accounting"
+"Algebra.Transfer" = "Accounting"
+"Algebra.Transfer.Rule" = "Accounting"
+"Algebra.Transfer.Closing" = "Accounting"
+Accounting = "Accounting"
+Bookkeeping = "Accounting"
+TrialBalance = "Accounting"
+Reporting = "Accounting"
+Consolidation = "Accounting"
+Journal = "Journal"
+Convert = "IO"
+Assist = "IO"
+"Render.Csv" = "IO"
+"Render.Bookkeeping" = "IO"
+Write = "IO"
+IO = "IO"
+Simulate = "Simulation"
+Optimize = "Simulation"
+"Render.Simulation" = "Simulation"
+Simulation = "Simulation"
+
+[[intra]]
+from = "Simulation.Engine"
+to = "Simulation.Output"
+
+[[intra]]
+from = "Simulation.Engine"
+to = "Simulation.Visualize"
+
+[[intra]]
+from = "Simulation.Network"
+to = "Simulation.Network.Csv"
+
+[[intra]]
+from = "Simulation.Network"
+to = "Simulation.Network.Journal"
+
+# These orphans are outside the import graph. Remove them when the dependency
+# supplies the instances or the axes become newtypes.
+[[notes]]
+item = "Hashable Day, Hashable TimeOfDay in Algebra.Base.Element"
+reason = "Existing orphan instances; remove when upstream supplies them or axes use newtypes."
+remove_by = "upstream instance or newtype migration"
+
+[[exceptions]]
+from = "Algebra.Base"
+to = "Algebra.Base.Account.Registry"
+reason = "Legacy algebra umbrella re-exports the account registry."
+remove_by = "0.6.0.0"
+
+[[exceptions]]
+from = "Algebra.Base"
+to = "Algebra.Base.Account.Types"
+reason = "Legacy algebra umbrella re-exports account types."
+remove_by = "0.6.0.0"
+
+[[exceptions]]
+from = "Algebra.Exact"
+to = "TrialBalance.Balance"
+reason = "Exact accounting readout still uses the trial-balance account representation."
+remove_by = "0.6.0.0"
+
+[[exceptions]]
+from = "Algebra.Readout.Net"
+to = "Journal"
+reason = "Legacy readout shim re-exports journal net readouts."
+remove_by = "0.6.0.0"
+
+[[exceptions]]
+from = "Journal.Exact"
+to = "TrialBalance.Balance"
+reason = "Exact journal readout still exposes the account-balance representation."
+remove_by = "0.6.0.0"
+
+[[exceptions]]
+from = "Journal.Transfer"
+to = "Algebra.Transfer"
+reason = "Legacy journal transfer delegates to the accounting transfer API."
+remove_by = "0.6.0.0"
+
+[[exceptions]]
+from = "Journal.Transfer.Rule"
+to = "Algebra.Transfer.Rule"
+reason = "Legacy journal rule adapter delegates to accounting transfer rules."
+remove_by = "0.6.0.0"
+
+[[exceptions]]
+from = "Write"
+to = "Simulate.Spill"
+reason = "Legacy output writer depends on simulation spill records."
+remove_by = "0.6.0.0"

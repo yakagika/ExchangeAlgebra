@@ -50,6 +50,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-stack-
 
+      - name: Check module layers
+        run: python3 tools/check-module-layers.py
+
       # Builds the library, examples and the bench harness; runs the unit test
       # suite (incl. the QuickCheck axiom properties) and the doctests. The
       # benchmark is built but not run (--no-run-benchmarks) to keep CI fast.
