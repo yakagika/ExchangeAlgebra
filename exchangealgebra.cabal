@@ -287,6 +287,7 @@ test-suite ExchangeAlgebra-test
       Posting.PostingSpec
       Posting.SettleSpec
       Transfer.RuleSpec
+      Value.MoneyParseSpec
   hs-source-dirs:
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N

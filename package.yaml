@@ -133,6 +133,7 @@ tests:
     - Posting.PostingSpec
     - Posting.SettleSpec
     - Transfer.RuleSpec
+    - Value.MoneyParseSpec
     ghc-options:
     - -threaded
     - -rtsopts

@@ -8,6 +8,7 @@ main = doctest  [ "-isrc"
                 , "src/ExchangeAlgebra/Algebra/Internal.hs"
                   -- not reachable from the umbrella above; listed explicitly so
                   -- its Haddock examples are checked too.
+                , "src/ExchangeAlgebra/Value.hs"
                 , "src/ExchangeAlgebra/Simulate/Network.hs"
                 , "src/ExchangeAlgebra/Simulate/Policy.hs"
                   -- closing-adjustment builders: not re-exported from the

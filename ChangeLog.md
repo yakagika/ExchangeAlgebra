@@ -20,6 +20,12 @@
   Blank keys, HatNot postings, accounts without a debit or credit side, and
   negative amounts are reported as `ClosingDifference` diagnostics before any
   comparison. `equivalentUpTo` is unchanged.
+- `ExchangeAlgebra.Value.moneyDecimalFromText` and
+  `moneyDecimalFromScientific` convert a JSON-number text or a `Scientific`
+  to `MoneyDecimal` exactly, without a binary floating-point step. The written
+  decimal places are kept; nothing is rounded. Negative nonzero values,
+  exponents beyond 10000 in magnitude, and scales above 255 places are rejected
+  with the closed `MoneyParseError`, in a fixed priority.
 - `ExchangeAlgebra.Journal.Transfer.Rule.sideTotalsBy` returns, for each key
   derived from a posting's `BasePart`, the Not and Hat totals before
   cancellation (`SideTotals`, read by `sideTotal`). Each side is the exact sum

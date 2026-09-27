@@ -85,6 +85,7 @@ import qualified Posting.PostingSpec as PostingSpec
 import qualified Posting.SettleSpec as SettleSpec
 import qualified Journal.CarrySpec as CarrySpec
 import qualified Journal.SideTotalsSpec as SideTotalsSpec
+import qualified Value.MoneyParseSpec as MoneyParseSpec
 import           Numeric             (showHex)
 import           Control.Monad       (forM_)
 import           Control.Monad.ST
@@ -6990,6 +6991,7 @@ testOptimizeFailFast = do
 
 main :: IO ()
 main = do
+    MoneyParseSpec.runTests
     ExactSumSpec.runTests
     AdmissionSpec.runTests
     AdmissionClosingSpec.runTests
