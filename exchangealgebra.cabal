@@ -28,6 +28,8 @@ extra-source-files:
     test/fixtures/account-semantics-050/suggest.tsv
     test/fixtures/consolidation-worksheet-050/minimal.tsv
     test/fixtures/consolidation-worksheet-050/README.md
+    test/fixtures/example-numbers-p1/README.md
+    test/fixtures/example-numbers-p1/ripple-analysis.tsv
     test/fixtures/jcci-2022/queries.tsv
     test/fixtures/jcci-2022/README.md
     test/fixtures/jcci-2022/source.tsv
@@ -281,6 +283,8 @@ test-suite ExchangeAlgebra-test
       Algebra.ProjWildcardSpec
       Golden.WriteRows
       Golden.ReadoutBaseline
+      Golden.ExampleNumbers.RippleAnalysis
+      Golden.ExampleNumbers.RippleFixture
       Journal.CarrySpec
       Journal.SideTotalsSpec
       Posting.NoNumPosted

@@ -127,6 +127,8 @@ tests:
     - Algebra.ProjWildcardSpec
     - Golden.WriteRows
     - Golden.ReadoutBaseline
+    - Golden.ExampleNumbers.RippleAnalysis
+    - Golden.ExampleNumbers.RippleFixture
     - Journal.CarrySpec
     - Journal.SideTotalsSpec
     - Posting.NoNumPosted

@@ -74,6 +74,7 @@ import qualified Data.Text           as T
 import qualified Data.Text.IO        as TIO
 import           Golden.WriteRows
 import qualified Golden.ReadoutBaseline as ReadoutBaseline
+import qualified Golden.ExampleNumbers.RippleFixture as RippleFixture
 import           System.Environment (lookupEnv)
 import qualified Admission.Spec as AdmissionSpec
 import qualified Admission.ClosingSpec as AdmissionClosingSpec
@@ -2911,6 +2912,19 @@ testReadoutBaselineGolden = do
                 assertEqual ("readout-baseline-p1 fixture " ++ name) actualFile expected
   where
     fixtures = ReadoutBaseline.readoutFixtures ++ ReadoutBaseline.keyedFixtures
+
+testExampleNumbersGolden :: IO ()
+testExampleNumbersGolden = do
+    expected <- RippleFixture.renderFixture
+    let path = RippleFixture.fixtureDir ++ "/" ++ RippleFixture.fixtureName
+        numericRows = L.length (T.lines expected) - 1
+    assertEqual "example-numbers-p1 ripple numeric row count" 243 numericRows
+    regen <- lookupEnv "EA_REGEN_GOLDEN"
+    case regen of
+        Just "1" -> TIO.writeFile path expected
+        _ -> do
+            actual <- TIO.readFile path
+            assertEqual "example-numbers-p1 ripple fixture" actual expected
 
 -- Land 2 (Definition 7 contra amendment) 以降: alias 解決だけが byte 一致
 -- (parseAccountTitle は division 非依存)。semantics / info / suggest は
@@ -7111,6 +7125,7 @@ main = do
     testAccountSemanticsPrechangeGolden
     testWriteRowsGolden
     testReadoutBaselineGolden
+    testExampleNumbersGolden
     testRegistryGolden
     testJcciAccountNameCoverage
     testAccountLabelsLand4a
