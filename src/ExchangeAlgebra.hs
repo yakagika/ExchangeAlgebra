@@ -26,9 +26,10 @@
 
     > import ExchangeAlgebra
     >
-    > -- A minimal exchange: 100 units of cash debited, 100 credited to sales.
+    > -- A minimal exchange: cash increases by 100 (debit, 'decL') and
+    > -- sales increase by 100 (credit, 'decR'). Build postings with '.@'.
     > entry :: Alg Double (HatBase AccountTitles)
-    > entry = 100 :@ Hat :< Cash .+ 100 :@ Not :< Sales
+    > entry = 100 .@ Not :< Cash .+ 100 .@ Not :< Sales
 
     == Choosing the value type (@v@ in @Alg v b@)
 
