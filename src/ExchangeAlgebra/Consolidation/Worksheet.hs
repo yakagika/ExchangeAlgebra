@@ -51,7 +51,7 @@ import           ExchangeAlgebra.Algebra
                      , bases
                      , vals
                      )
-import           ExchangeAlgebra.Accounting.PostingPolicy
+import           ExchangeAlgebra.Accounting.Account.PostingPolicy
                      ( ProcessingContext(ConsolidationWorksheet)
                      , postingAllowedIn
                      , postingCapabilityFor

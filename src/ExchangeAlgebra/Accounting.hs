@@ -77,8 +77,8 @@ module ExchangeAlgebra.Accounting
     , module ExchangeAlgebra.Algebra.Transfer.Rule
     ) where
 
-import           ExchangeAlgebra.Algebra.Base.Element (AccountTitles(..))
-import           ExchangeAlgebra.Algebra.Base.Account.Types
+import           ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
+import           ExchangeAlgebra.Accounting.Account.Classification
                      ( AccountDivision(..)
                      , Side(..)
                      , FixedCurrent(..)

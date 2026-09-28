@@ -13,7 +13,7 @@ import ExchangeAlgebra.Algebra.Base (AccountTitles, HatBase)
 import ExchangeAlgebra.Journal (Journal)
 import ExchangeAlgebra.Reporting.Presentation (FinancialStatements)
 import ExchangeAlgebra.TrialBalance.Validation (ValidatedTrialBalance)
-import ExchangeAlgebra.Value (MoneyDecimal)
+import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 
 -- | Authoritative journal with exact entity-period-transaction notes.
 type AdmissionJournal = Journal TxKey MoneyDecimal (HatBase AccountTitles)

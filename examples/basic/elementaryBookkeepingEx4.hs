@@ -4,7 +4,7 @@
 
 import ExchangeAlgebra.Journal
 import ExchangeAlgebra.Algebra.Transfer
-import ExchangeAlgebra.Value (MoneyDecimal)
+import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 import Data.Time
 
 data Unit = Yen

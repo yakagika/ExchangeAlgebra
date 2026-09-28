@@ -17,7 +17,7 @@ import ExchangeAlgebra.Algebra (Alg)
 import ExchangeAlgebra.Algebra.Base (AccountTitles, HatBase)
 import ExchangeAlgebra.Convert.Checked (EntryError)
 import ExchangeAlgebra.Journal (Note(..))
-import ExchangeAlgebra.Value (MoneyDecimal)
+import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 
 -- * Identifiers
 

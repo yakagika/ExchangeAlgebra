@@ -6,4 +6,4 @@ module ExchangeAlgebra.Assist.Descriptions
     ( accountDescriptions
     ) where
 
-import ExchangeAlgebra.Algebra.Base.Account.Registry (accountDescriptions)
+import ExchangeAlgebra.Accounting.Account.Registry (accountDescriptions)

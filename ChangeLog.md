@@ -34,6 +34,23 @@
   non-finite, and negative postings, and totals that round to infinity, return
   the closed `CarryError` with a fixed priority. Existing functions are unchanged.
 
+### Deprecated (module moves; definitions and behavior unchanged)
+
+- New module paths for the element, value, and account vocabulary. The old
+  modules re-export exactly the same names and still build; they carry a
+  module-level `DEPRECATED` pointing at the new path:
+  - `ExchangeAlgebra.Algebra.Base.Element` → `ExchangeAlgebra.Algebra.Element`
+    (also exports the new `matchesQuery`).
+  - `ExchangeAlgebra.Value` → `ExchangeAlgebra.Algebra.Value`.
+  - `ExchangeAlgebra.Algebra.Base.Account.Types`,
+    `ExchangeAlgebra.Algebra.Base.Account.Registry`,
+    `ExchangeAlgebra.Algebra.Base.Account.JcciAliases`, and
+    `ExchangeAlgebra.Accounting.PostingPolicy` →
+    `ExchangeAlgebra.Accounting.Account`.
+- `ExchangeAlgebra.Algebra.Base`, `ExchangeAlgebra.Algebra.Internal`,
+  `ExchangeAlgebra.Algebra`, `ExchangeAlgebra.Journal`, and the root module keep
+  their current export lists unchanged in this release line.
+
 ## 0.5.3.0 - 2026-09-26
 
 ### Added

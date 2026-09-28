@@ -23,10 +23,10 @@ import ExchangeAlgebra.Algebra
     , toList
     )
 import ExchangeAlgebra.Algebra.Base (AccountTitles(..))
-import ExchangeAlgebra.Algebra.Base.Account.Registry (concreteAccountTitles)
+import ExchangeAlgebra.Accounting.Account (concreteAccountTitles)
 import qualified ExchangeAlgebra.Algebra.Transfer as Transfer
 import qualified ExchangeAlgebra.Bookkeeping as Bookkeeping
-import ExchangeAlgebra.Value (MoneyDecimal)
+import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 
 -- * Fixture inputs
 

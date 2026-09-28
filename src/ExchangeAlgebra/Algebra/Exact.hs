@@ -60,7 +60,7 @@ import ExchangeAlgebra.Algebra.Base (
                                     , Side(..)
                                     )
 import ExchangeAlgebra.TrialBalance.Balance (AccountBalance(..))
-import ExchangeAlgebra.Value (MoneyDecimal(..), MoneyDouble(..))
+import ExchangeAlgebra.Algebra.Value (MoneyDecimal(..), MoneyDouble(..))
 
 -- * Accumulators
 

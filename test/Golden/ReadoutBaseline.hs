@@ -29,7 +29,7 @@ import qualified ExchangeAlgebra.Journal.Transfer.Rule as JR
 import qualified ExchangeAlgebra.Reporting.Metric as Metric
 import qualified ExchangeAlgebra.TrialBalance.Balance as TB
 import qualified ExchangeAlgebra.TrialBalance.Validation as Validation
-import           ExchangeAlgebra.Value (MoneyDecimal)
+import           ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 import qualified ExchangeAlgebra.Write as Write
 
 -- | Account-only bases for the main readout series.

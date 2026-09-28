@@ -91,7 +91,7 @@ module ExchangeAlgebra.Foundation
 
 import           Prelude hiding (map, filter)
 
-import           ExchangeAlgebra.Algebra.Base.Element
+import           ExchangeAlgebra.Algebra.Element
                      ( Element(..)
                      , AxisDecompose(..)
                      , (.#)

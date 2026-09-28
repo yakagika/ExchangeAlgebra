@@ -9,7 +9,7 @@ module Main (main) where
 import           ExchangeAlgebra.Journal
 import qualified ExchangeAlgebra.Convert      as EC
 import qualified ExchangeAlgebra.Convert.Checked as ECC
-import qualified ExchangeAlgebra.Accounting.PostingPolicy as PP
+import qualified ExchangeAlgebra.Accounting.Account as PP
 import qualified ExchangeAlgebra.Consolidation.Worksheet as CW
 import qualified ExchangeAlgebra.TrialBalance.Balance as TBB
 import qualified ExchangeAlgebra.TrialBalance.Validation as TB
@@ -19,14 +19,14 @@ import qualified ExchangeAlgebra.Reporting.Group as RG
 import qualified ExchangeAlgebra.Convert.Csv  as ECsv
 import qualified ExchangeAlgebra.Assist       as Assist
 import qualified ExchangeAlgebra.Assist.Descriptions as AssistDesc
-import qualified ExchangeAlgebra.Algebra.Base.Account.Registry as Registry
+import qualified ExchangeAlgebra.Accounting.Account as Registry
 import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Algebra.Internal as EAI
 import qualified ExchangeAlgebra.Algebra.Transfer as EAT
 import qualified ExchangeAlgebra.Journal  as EJ
 import qualified ExchangeAlgebra.Journal.Transfer as EJT
 import qualified ExchangeAlgebra.Bookkeeping as EB
-import           ExchangeAlgebra.Value    (MoneyDecimal, bankersRound)
+import           ExchangeAlgebra.Algebra.Value    (MoneyDecimal, bankersRound)
 import qualified ExchangeAlgebra.Simulate as ES
 import           ExchangeAlgebra.Simulate
 import qualified ExchangeAlgebra.Simulate.Lite as Lite
@@ -52,7 +52,7 @@ import           ExchangeAlgebra.Simulate.Lite
                      , runLiteWithPolicy, runLiteWithPolicyObs )
 import qualified ExchangeAlgebra.Simulate.Policy as Policy
 import qualified ExchangeAlgebra.Render.Simulation as RenderSimulation
-import           ExchangeAlgebra.Value    (MoneyDouble)
+import           ExchangeAlgebra.Algebra.Value    (MoneyDouble)
 import qualified ExchangeAlgebra.Write    as EW
 import           ExchangeAlgebra.Write
 import qualified ExchangeAlgebra.Optimize           as O

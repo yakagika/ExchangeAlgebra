@@ -115,4 +115,7 @@ import              ExchangeAlgebra.Algebra.Transfer.Rule
 import              ExchangeAlgebra.Algebra
 import              ExchangeAlgebra.Algebra.Transfer
 import              ExchangeAlgebra.Write
-import              ExchangeAlgebra.Value    -- MoneyDouble / MoneyDecimal value types
+import              ExchangeAlgebra.Algebra.Value as ExchangeAlgebra.Value
+    ( MoneyDecimal(..), toDecimal, bankersRound, ceilingRound
+    , MoneyParseError(..), moneyDecimalFromText, moneyDecimalFromScientific
+    , MoneyDouble(..), toDouble )

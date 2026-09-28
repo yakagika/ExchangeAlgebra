@@ -20,7 +20,7 @@ import           ExchangeAlgebra.Algebra.Transfer.Rule
 import qualified ExchangeAlgebra.Journal as Journal
 import           ExchangeAlgebra.Journal ((.|), Note(..))
 import qualified ExchangeAlgebra.Journal.Transfer.Rule as JournalRule
-import           ExchangeAlgebra.Value (MoneyDecimal)
+import           ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 
 -- | Concrete account and unit coordinates for compatibility properties.
 type TestBase = HatBase (AccountTitles, CountUnit)

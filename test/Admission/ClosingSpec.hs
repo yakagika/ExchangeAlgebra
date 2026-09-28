@@ -13,15 +13,15 @@ import Test.QuickCheck
 
 import ExchangeAlgebra.Algebra (Alg(..), Hat(..), HatBase((:<)), (.+), (.@))
 import ExchangeAlgebra.Algebra.Base (ExBaseClass(whichSide))
-import ExchangeAlgebra.Algebra.Base.Account.Registry
+import ExchangeAlgebra.Accounting.Account
     ( AccountSpec(..), accountSpec, concreteAccountTitles )
-import ExchangeAlgebra.Algebra.Base.Account.Types
+import ExchangeAlgebra.Accounting.Account
     ( AccountDivision(..), Side(..) )
-import ExchangeAlgebra.Algebra.Base.Element (AccountTitles(..))
+import ExchangeAlgebra.Accounting.Account (AccountTitles(..))
 import ExchangeAlgebra.IO.Input.Admission (EntityId(..), PeriodId(..), TxId(..), TxKey(..), Entry)
 import ExchangeAlgebra.IO.Input.Admission.Equivalence
     ( ClosingDifference(..), ClosingSource(..), closingDifferences, isClosingEquivalent )
-import ExchangeAlgebra.Value (MoneyDecimal(..))
+import ExchangeAlgebra.Algebra.Value (MoneyDecimal(..))
 
 -- | Report an exact assertion failure through the suite convention.
 assertTest :: String -> Bool -> IO ()

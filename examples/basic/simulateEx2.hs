@@ -11,7 +11,7 @@ import           ExchangeAlgebra.Journal
 import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Journal  as EJ
 import qualified ExchangeAlgebra.Journal.Transfer as EJT
-import           ExchangeAlgebra.Value    (MoneyDecimal)  -- exact accounting value type
+import           ExchangeAlgebra.Algebra.Value    (MoneyDecimal)  -- exact accounting value type
 import qualified ExchangeAlgebra.Simulate as ES
 import           ExchangeAlgebra.Simulate
 import qualified ExchangeAlgebra.Simulate.Visualize as ESV

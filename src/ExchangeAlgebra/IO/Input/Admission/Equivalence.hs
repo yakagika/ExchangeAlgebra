@@ -31,12 +31,12 @@ import ExchangeAlgebra.Algebra
     , ExBaseClass(whichSide)
     )
 import qualified ExchangeAlgebra.Algebra as Algebra
-import ExchangeAlgebra.Algebra.Base.Element (AccountTitles)
-import ExchangeAlgebra.Algebra.Base.Account.Registry (accountSpec)
-import ExchangeAlgebra.Algebra.Base.Account.Types (Side(..))
+import ExchangeAlgebra.Accounting.Account.Title (AccountTitles)
+import ExchangeAlgebra.Accounting.Account.Registry (accountSpec)
+import ExchangeAlgebra.Accounting.Account.Classification (Side(..))
 import ExchangeAlgebra.IO.Input.Admission.Registry (isBlankKey)
 import ExchangeAlgebra.IO.Input.Admission.Types (Entry, TxKey)
-import ExchangeAlgebra.Value (MoneyDecimal)
+import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 
 -- * Observation policy
 

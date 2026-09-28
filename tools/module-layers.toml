@@ -8,6 +8,9 @@ Algebra = "Algebra"
 "Algebra.Internal" = "Algebra"
 "Algebra.Base" = "Algebra"
 "Algebra.Base.Element" = "Algebra"
+"Algebra.Base.Account.JcciAliases" = "Algebra"
+"Algebra.Base.Account.Registry" = "Algebra"
+"Algebra.Base.Account.Types" = "Algebra"
 "Algebra.Exact" = "Algebra"
 "Algebra.Readout.Net" = "Algebra"
 Value = "Algebra"
@@ -59,15 +62,33 @@ remove_by = "upstream instance or newtype migration"
 
 [[exceptions]]
 from = "Algebra.Base"
-to = "Algebra.Base.Account.Registry"
-reason = "Legacy algebra umbrella re-exports the account registry."
-remove_by = "0.6.0.0"
+to = "Accounting.Account"
+reason = "Legacy Base re-exports account entities during P2."
+remove_by = "P4"
 
 [[exceptions]]
-from = "Algebra.Base"
-to = "Algebra.Base.Account.Types"
-reason = "Legacy algebra umbrella re-exports account types."
-remove_by = "0.6.0.0"
+from = "Algebra.Base.Element"
+to = "Accounting.Account"
+reason = "Legacy element path re-exports AccountTitles during 0.6."
+remove_by = "0.7.0.0"
+
+[[exceptions]]
+from = "Algebra.Base.Account.JcciAliases"
+to = "Accounting.Account.Aliases"
+reason = "Legacy account alias namespace re-exports the new owner."
+remove_by = "0.7.0.0"
+
+[[exceptions]]
+from = "Algebra.Base.Account.Registry"
+to = "Accounting.Account.Registry"
+reason = "Legacy account registry namespace re-exports the new owner."
+remove_by = "0.7.0.0"
+
+[[exceptions]]
+from = "Algebra.Base.Account.Types"
+to = "Accounting.Account.Classification"
+reason = "Legacy account types namespace re-exports the new owner."
+remove_by = "0.7.0.0"
 
 [[exceptions]]
 from = "Algebra.Exact"

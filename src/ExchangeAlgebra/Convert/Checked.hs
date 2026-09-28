@@ -46,7 +46,7 @@ import           ExchangeAlgebra.Algebra
                      , HatVal(..)
                      , Redundant((.+), norm)
                      )
-import           ExchangeAlgebra.Accounting.PostingPolicy
+import           ExchangeAlgebra.Accounting.Account.PostingPolicy
                      ( ProcessingContext(..)
                      , postingAllowedIn
                      , postingCapabilityFor

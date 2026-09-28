@@ -25,7 +25,7 @@ module Main (main) where
 
 import           Text.Printf           (printf)
 
-import           ExchangeAlgebra.Value (MoneyDouble)
+import           ExchangeAlgebra.Algebra.Value (MoneyDouble)
 import           MarketModel
                      ( readParams, runMarket
                      , MarketParams(..), RunResult(..) )

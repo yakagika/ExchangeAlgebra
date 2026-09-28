@@ -29,7 +29,7 @@ import ExchangeAlgebra.Algebra.Base (AccountTitles(..), HatBase((:<)))
 import qualified ExchangeAlgebra.Reporting.Presentation as Presentation
 import ExchangeAlgebra.TrialBalance.Balance
     ( AccountBalance(..), accountBalances )
-import ExchangeAlgebra.Value (MoneyDecimal)
+import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 
 -- | Exit on a failed assertion using the surrounding test suite convention.
 assertTest :: String -> Bool -> IO ()

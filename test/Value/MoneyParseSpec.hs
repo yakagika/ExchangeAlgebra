@@ -8,7 +8,7 @@ import qualified Data.Text as Text
 import System.Exit (exitFailure)
 import Test.QuickCheck
 
-import ExchangeAlgebra.Value
+import ExchangeAlgebra.Algebra.Value
     ( MoneyDecimal (..)
     , MoneyParseError (..)
     , moneyDecimalFromScientific

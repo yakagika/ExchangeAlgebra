@@ -5,7 +5,9 @@ module OldPath where
 import qualified ExchangeAlgebra as Umbrella
 import ExchangeAlgebra.Algebra (Alg(Zero, (:@)), Redundant((.+)), ( .@ ))
 import qualified ExchangeAlgebra.Algebra.Base as Base
-import ExchangeAlgebra.Algebra.Base (AccountTitles(Cash, Sales), Hat(Not), HatBase((:<)))
+import ExchangeAlgebra.Algebra.Base (Hat(Not), HatBase((:<)))
+import ExchangeAlgebra.Algebra.Base.Element (AccountTitles(Cash, Sales))
+import qualified ExchangeAlgebra.Algebra.Base.Account.Registry as Registry
 import ExchangeAlgebra.Algebra.Transfer.Rule ()
 import qualified ExchangeAlgebra.Journal as Journal
 import qualified ExchangeAlgebra.Posting as Posting
@@ -32,3 +34,6 @@ postingClient = Posting.posted 1
 
 valueClient :: Value.MoneyDecimal -> Value.MoneyDecimal
 valueClient = id
+
+registryClient :: Bool
+registryClient = maybe False (const True) (Registry.accountSpec Cash)

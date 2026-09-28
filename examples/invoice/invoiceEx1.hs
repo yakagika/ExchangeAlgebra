@@ -76,7 +76,7 @@ import           ExchangeAlgebra.Simulate.Lite
                      , SimSpec, mkSimSpec, specParallel, runLite )
 import           ExchangeAlgebra.Simulate.Network
                      ( circulant, edges, edgeCount )
-import           ExchangeAlgebra.Value       (MoneyDouble)
+import           ExchangeAlgebra.Algebra.Value       (MoneyDouble)
 
 ------------------------------------------------------------------
 -- * Model types

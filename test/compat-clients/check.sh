@@ -16,7 +16,7 @@ for compat_client in OldPath NewPath MixedPath; do
         -outputdir "$compat_tmp" \
         "$compat_root/test/compat-clients/$compat_client.hs"
 done
-printf '[PASS] old, new placeholder, and mixed placeholder clients compiled\n'
+printf '[PASS] old, new, and mixed clients compiled\n'
 stack ${compat_stack_args[@]+"${compat_stack_args[@]}"} \
     --stack-yaml "$compat_root/stack.yaml" exec -- ghc \
     -fforce-recomp -v0 -fdiagnostics-color=never -i \

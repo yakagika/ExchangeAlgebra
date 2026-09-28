@@ -42,25 +42,25 @@ import ExchangeAlgebra.Algebra
     , projByAccountTitle
     , toList
     )
-import ExchangeAlgebra.Algebra.Base.Account.Registry
+import ExchangeAlgebra.Accounting.Account.Registry
     ( AccountSemantics(..)
     , AccountSpec(..)
     , accountSemantics
     , accountSpec
     , concreteAccountTitles
     )
-import ExchangeAlgebra.Algebra.Base.Account.Types
+import ExchangeAlgebra.Accounting.Account.Classification
     ( AccountDivision(..)
     , AccountRole(..)
     , ClosingRule(..)
     , DivisionSemantics(..)
     , PostingCapability(..)
     )
-import ExchangeAlgebra.Algebra.Base.Element (AccountTitles(..))
+import ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
 import qualified ExchangeAlgebra.Algebra.Transfer as Transfer
 import qualified ExchangeAlgebra.Bookkeeping as Bookkeeping
 import ExchangeAlgebra.Convert.Checked (ProcessingContext(..))
-import ExchangeAlgebra.Value (MoneyDecimal(..))
+import ExchangeAlgebra.Algebra.Value (MoneyDecimal(..))
 import ExchangeAlgebra.IO.Input.Admission.Types
 
 -- * Catalog metadata

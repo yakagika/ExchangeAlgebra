@@ -52,7 +52,7 @@ import           ExchangeAlgebra.Algebra.Base    ( AccountTitles(..)
                                                  , Side(..)
                                                  , accountAliases
                                                  , whichSide )
-import           ExchangeAlgebra.Algebra.Base.Account.Registry ( concreteAccountTitles )
+import           ExchangeAlgebra.Accounting.Account.Registry ( concreteAccountTitles )
 
 -- $setup
 -- The examples use 'Text' literals, so enable @OverloadedStrings@ in doctest.

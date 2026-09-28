@@ -2,7 +2,7 @@ import qualified ExchangeAlgebra.Algebra as EA
 import qualified ExchangeAlgebra.Algebra.Transfer as Transfer
 import qualified ExchangeAlgebra.Journal as EJ
 import ExchangeAlgebra.Journal (Hat(..), HatBase((:<)), AccountTitles(..), (.@), (.+), (.|))
-import ExchangeAlgebra.Value (MoneyDecimal)
+import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 
 -- | One transaction before it receives a period and transaction note.
 type Entry = EA.Alg MoneyDecimal (HatBase AccountTitles)

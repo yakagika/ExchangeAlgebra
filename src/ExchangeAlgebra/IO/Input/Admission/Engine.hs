@@ -40,7 +40,7 @@ import ExchangeAlgebra.Algebra.Base
 import ExchangeAlgebra.Convert.Checked (checkedEntryTextIn, checkedEntryIn)
 import ExchangeAlgebra.Convert (parseAccountTitle)
 import qualified ExchangeAlgebra.Journal as Journal
-import ExchangeAlgebra.Value (MoneyDecimal)
+import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 
 -- * Validation helpers
 

@@ -47,7 +47,7 @@ import qualified Data.Map.Strict               as M
 import           GHC.Generics                  (Generic)
 
 import           ExchangeAlgebra.Algebra              hiding (map, filter)
-import           ExchangeAlgebra.Algebra.Base.Element (Element (..))
+import           ExchangeAlgebra.Algebra.Element (Element (..))
 
 import           LhrCalibration (Ac (..), LhrBase (..), LhrCalibration (..),
                                  LhrParams (..), LhrSets (..))

@@ -56,7 +56,7 @@ import           ExchangeAlgebra.Algebra.Base
                      , ReportingEligibility(..)
                      , Side(..)
                      )
-import qualified ExchangeAlgebra.Algebra.Base.Account.Registry as Registry
+import qualified ExchangeAlgebra.Accounting.Account.Registry as Registry
 import           ExchangeAlgebra.Reporting.Metric
                      ( DerivedMetric(..), MetricId )
 import qualified ExchangeAlgebra.TrialBalance.Validation as TB

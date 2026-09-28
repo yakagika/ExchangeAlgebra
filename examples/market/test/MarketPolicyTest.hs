@@ -20,7 +20,7 @@ import qualified ExchangeAlgebra.Journal              as EJ
 import           ExchangeAlgebra.Simulate.Lite        (InitT,
                                                        runLiteWithPolicy)
 import qualified ExchangeAlgebra.Simulate.Policy      as Policy
-import           ExchangeAlgebra.Value                (MoneyDecimal)
+import           ExchangeAlgebra.Algebra.Value                (MoneyDecimal)
 import           MarketModel
 
 -- | A named exact check. 'Nothing' records success; 'Just' carries the failure.

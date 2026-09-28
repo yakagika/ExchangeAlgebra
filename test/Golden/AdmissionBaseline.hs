@@ -23,13 +23,13 @@ import ExchangeAlgebra.Algebra
     , toList
     )
 import ExchangeAlgebra.Algebra.Base (AccountTitles(..), HatBase((:<)))
-import ExchangeAlgebra.Algebra.Base.Account.Registry (concreteAccountTitles)
+import ExchangeAlgebra.Accounting.Account (concreteAccountTitles)
 import ExchangeAlgebra.IO.Input.Admission
 import ExchangeAlgebra.IO.Input.Admission.Equivalence
     ( Equivalence(..), equivalentUpTo )
 import qualified ExchangeAlgebra.Reporting.Presentation as Presentation
 import ExchangeAlgebra.TrialBalance.Balance (accountBalances)
-import ExchangeAlgebra.Value (MoneyDecimal)
+import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 
 -- | Directory containing the committed admission observations.
 admissionFixtureDir :: FilePath

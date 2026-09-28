@@ -179,6 +179,7 @@ library
   exposed-modules:
       ExchangeAlgebra
       ExchangeAlgebra.Accounting
+      ExchangeAlgebra.Accounting.Account
       ExchangeAlgebra.Accounting.PostingPolicy
       ExchangeAlgebra.Algebra
       ExchangeAlgebra.Algebra.Base
@@ -186,11 +187,13 @@ library
       ExchangeAlgebra.Algebra.Base.Account.Registry
       ExchangeAlgebra.Algebra.Base.Account.Types
       ExchangeAlgebra.Algebra.Base.Element
+      ExchangeAlgebra.Algebra.Element
       ExchangeAlgebra.Algebra.Exact
       ExchangeAlgebra.Algebra.Internal
       ExchangeAlgebra.Algebra.Readout.Net
       ExchangeAlgebra.Algebra.Transfer
       ExchangeAlgebra.Algebra.Transfer.Rule
+      ExchangeAlgebra.Algebra.Value
       ExchangeAlgebra.Assist
       ExchangeAlgebra.Assist.Descriptions
       ExchangeAlgebra.Bookkeeping
@@ -228,6 +231,14 @@ library
       ExchangeAlgebra.Value
       ExchangeAlgebra.Write
   other-modules:
+      ExchangeAlgebra.Algebra.Element.Representation
+      ExchangeAlgebra.Algebra.Base.Representation
+      ExchangeAlgebra.Algebra.Value.Class
+      ExchangeAlgebra.Accounting.Account.Title
+      ExchangeAlgebra.Accounting.Account.Classification
+      ExchangeAlgebra.Accounting.Account.Aliases
+      ExchangeAlgebra.Accounting.Account.Registry
+      ExchangeAlgebra.Accounting.Account.PostingPolicy
       ExchangeAlgebra.Algebra.Transfer.Closing
       ExchangeAlgebra.IO.Input.Admission.Catalog
       ExchangeAlgebra.IO.Input.Admission.Derive

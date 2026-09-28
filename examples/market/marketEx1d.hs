@@ -14,7 +14,7 @@ module Main (main) where
 
 import           Text.Printf            (printf)
 
-import           ExchangeAlgebra.Value  (MoneyDecimal)
+import           ExchangeAlgebra.Algebra.Value  (MoneyDecimal)
 import           MarketModel
                      ( readParams, runMarket
                      , MarketParams(..), RunResult(..) )
