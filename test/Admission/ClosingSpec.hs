@@ -15,7 +15,6 @@ import ExchangeAlgebra.Algebra (Alg(..), Hat(..), HatBase((:<)), (.+), (.@))
 import ExchangeAlgebra.Algebra.Base (ExBaseClass(whichSide))
 import ExchangeAlgebra.Accounting.Account
     ( AccountSpec(..), accountSpec, concreteAccountTitles )
-import ExchangeAlgebra.Accounting.Account
     ( AccountDivision(..), Side(..) )
 import ExchangeAlgebra.Accounting.Account (AccountTitles(..))
 import ExchangeAlgebra.IO.Input.Admission (EntityId(..), PeriodId(..), TxId(..), TxKey(..), Entry)

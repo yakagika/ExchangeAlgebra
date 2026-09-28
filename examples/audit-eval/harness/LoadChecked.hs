@@ -39,7 +39,6 @@ import           ExchangeAlgebra.Convert (parseAccountTitle)
 import qualified ExchangeAlgebra.Bookkeeping as BK
 import qualified ExchangeAlgebra.Algebra.Transfer as EAT
 import           ExchangeAlgebra.Accounting.Account
-import           ExchangeAlgebra.Accounting.Account
 import           Data.List (foldl', intercalate, nub, sort, intersect, isInfixOf)
 import           Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
