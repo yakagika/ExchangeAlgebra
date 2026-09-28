@@ -67,5 +67,5 @@ import ExchangeAlgebra.Algebra.Value
     ( MoneyDecimal(..), toDecimal, bankersRound, ceilingRound
     , MoneyParseError(..), moneyDecimalFromText, moneyDecimalFromScientific
     , MoneyDouble(..), toDouble )
--- The old Algebra import keeps the existing instance-loading path until bc-exchange.
-import ExchangeAlgebra.Algebra ()
+-- Preserve the existing Hashable Day and TimeOfDay instance visibility.
+import ExchangeAlgebra.Algebra.Element.Representation ()

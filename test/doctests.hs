@@ -5,13 +5,14 @@ import Test.DocTest
 main :: IO ()
 main = doctest  [ "-isrc"
                 , "src/ExchangeAlgebra.hs"
-                , "src/ExchangeAlgebra/Algebra/Internal.hs"
                 , "src/ExchangeAlgebra/Algebra/Core/Representation.hs"
                   -- not reachable from the umbrella above; listed explicitly so
                   -- its Haddock examples are checked too.
                 , "src/ExchangeAlgebra/Algebra/Element/Representation.hs"
                 , "src/ExchangeAlgebra/Algebra/Base/Representation.hs"
                 , "src/ExchangeAlgebra/Accounting/Account.hs"
+                , "src/ExchangeAlgebra/Accounting/Exchange.hs"
+                , "src/ExchangeAlgebra/Journal/Core/Representation.hs"
                 , "src/ExchangeAlgebra/Algebra/Value.hs"
                 , "src/ExchangeAlgebra/Simulate/Network.hs"
                 , "src/ExchangeAlgebra/Simulate/Policy.hs"

@@ -75,5 +75,20 @@ module ExchangeAlgebra.Algebra
     ) where
 
 import Prelude hiding (map, filter)
-import ExchangeAlgebra.Algebra.Internal
+import ExchangeAlgebra.Algebra.Core.Representation
+import ExchangeAlgebra.Algebra.Value.Class
+import ExchangeAlgebra.Accounting.Exchange
+    ( Exchange(..)
+    , projCredit
+    , projDebit
+    , projByAccountTitle
+    , projCurrentAssets
+    , projFixedAssets
+    , projDeferredAssets
+    , projCurrentLiability
+    , projFixedLiability
+    , projCapitalStock
+    , projContraAssets
+    , projContra
+    )
 import ExchangeAlgebra.Algebra.Base

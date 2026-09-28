@@ -6,4 +6,3 @@ module ExchangeAlgebra.Posting {-# DEPRECATED "Use ExchangeAlgebra.Algebra.Posti
     ) where
 
 import ExchangeAlgebra.Algebra.Posting
-import ExchangeAlgebra.Algebra ()

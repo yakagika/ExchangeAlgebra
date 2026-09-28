@@ -180,6 +180,7 @@ library
       ExchangeAlgebra
       ExchangeAlgebra.Accounting
       ExchangeAlgebra.Accounting.Account
+      ExchangeAlgebra.Accounting.Exchange
       ExchangeAlgebra.Accounting.PostingPolicy
       ExchangeAlgebra.Algebra
       ExchangeAlgebra.Algebra.Base
@@ -207,6 +208,7 @@ library
       ExchangeAlgebra.IO.Input.Admission
       ExchangeAlgebra.IO.Input.Admission.Equivalence
       ExchangeAlgebra.Journal
+      ExchangeAlgebra.Journal.Core
       ExchangeAlgebra.Journal.Exact
       ExchangeAlgebra.Journal.Transfer
       ExchangeAlgebra.Journal.Transfer.Rule
@@ -237,6 +239,7 @@ library
       ExchangeAlgebra.Algebra.Base.Representation
       ExchangeAlgebra.Algebra.Value.Class
       ExchangeAlgebra.Algebra.Core.Representation
+      ExchangeAlgebra.Journal.Core.Representation
       ExchangeAlgebra.Accounting.Account.Title
       ExchangeAlgebra.Accounting.Account.Classification
       ExchangeAlgebra.Accounting.Account.Aliases

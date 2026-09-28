@@ -23,11 +23,14 @@ Foundation = "Algebra"
 "Algebra.Transfer.Rule" = "Accounting"
 "Algebra.Transfer.Closing" = "Accounting"
 Accounting = "Accounting"
+"Accounting.Exchange" = "Accounting"
 Bookkeeping = "Accounting"
 TrialBalance = "Accounting"
 Reporting = "Accounting"
 Consolidation = "Accounting"
 Journal = "Journal"
+"Journal.Core" = "Journal"
+"Journal.Core.Representation" = "Journal"
 Convert = "IO"
 Assist = "IO"
 "Render.Csv" = "IO"
@@ -66,6 +69,30 @@ remove_by = "upstream instance or newtype migration"
 from = "Algebra.Base"
 to = "Accounting.Account"
 reason = "Legacy Base re-exports account entities during P2."
+remove_by = "P4"
+
+[[exceptions]]
+from = "Algebra.Base"
+to = "Accounting.Exchange"
+reason = "Legacy Base re-exports accounting exchange entities during P2."
+remove_by = "P4"
+
+[[exceptions]]
+from = "Algebra.Internal"
+to = "Accounting.Exchange"
+reason = "Legacy Internal re-exports accounting exchange entities during P2."
+remove_by = "P4"
+
+[[exceptions]]
+from = "Algebra"
+to = "Accounting.Exchange"
+reason = "Legacy Algebra re-exports accounting exchange entities during P2."
+remove_by = "P4"
+
+[[exceptions]]
+from = "Journal"
+to = "Accounting.Exchange"
+reason = "Legacy Journal re-exports accounting exchange entities during P2."
 remove_by = "P4"
 
 [[exceptions]]

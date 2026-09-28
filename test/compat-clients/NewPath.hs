@@ -8,9 +8,10 @@ import qualified ExchangeAlgebra.Algebra.Core as Core
 import qualified ExchangeAlgebra.Algebra.Base as Base
 import ExchangeAlgebra.Algebra.Base (Hat(Not), HatBase((:<)))
 import ExchangeAlgebra.Accounting.Account (AccountTitles(Cash, Sales))
+import qualified ExchangeAlgebra.Accounting.Exchange as Exchange
 import qualified ExchangeAlgebra.Algebra.Element as Element
 import ExchangeAlgebra.Algebra.Transfer.Rule ()
-import qualified ExchangeAlgebra.Journal as Journal
+import qualified ExchangeAlgebra.Journal.Core as Journal
 import qualified ExchangeAlgebra.Algebra.Posting as Posting
 import qualified ExchangeAlgebra.Algebra.Value as Value
 
@@ -27,8 +28,14 @@ oldConstructor _ = False
 oldClassMethod :: Bool
 oldClassMethod = Umbrella.balance oldExpression
 
+exchangeClient :: Bool
+exchangeClient = Exchange.balance oldExpression
+
 journalClient :: Journal.Journal String Double (HatBase AccountTitles)
 journalClient = oldExpression Journal..| "client"
+
+journalExchangeClient :: Bool
+journalExchangeClient = Exchange.balance journalClient
 
 postingClient :: Either Posting.PostedError Posting.Posted
 postingClient = Posting.posted 1

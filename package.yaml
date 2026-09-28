@@ -63,6 +63,7 @@ library:
   - ExchangeAlgebra.Algebra.Base.Representation
   - ExchangeAlgebra.Algebra.Value.Class
   - ExchangeAlgebra.Algebra.Core.Representation
+  - ExchangeAlgebra.Journal.Core.Representation
   - ExchangeAlgebra.Accounting.Account.Title
   - ExchangeAlgebra.Accounting.Account.Classification
   - ExchangeAlgebra.Accounting.Account.Aliases
