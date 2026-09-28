@@ -68,6 +68,9 @@ jobs:
       - name: Check P2 compatibility clients
         run: STACK_ARGS="--system-ghc --no-install-ghc" bash test/compat-clients/check.sh
 
+      - name: Check user-facing API samples
+        run: STACK_ARGS="--system-ghc --no-install-ghc" bash test/api-samples/check.sh
+
       - name: Check P2 orphan instances
         run: STACK_ARGS="--system-ghc --no-install-ghc" python3 tools/check-orphans.py
 
