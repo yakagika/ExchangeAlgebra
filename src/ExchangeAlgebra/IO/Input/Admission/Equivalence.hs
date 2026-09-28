@@ -137,7 +137,7 @@ data ClosingSource
     deriving (Eq, Ord, Show)
 
 -- | One difference between a candidate and a reference closing entry.
--- Amount pairs are always in candidate, reference order. 'Side' values in
+-- Amount pairs are always in candidate, reference order. t'Side' values in
 -- totals are debit or credit sides, not Hat or Not labels.
 data ClosingDifference
     = TransactionOnlyInCandidate TxKey
@@ -227,7 +227,7 @@ entryDifferences retained key candidate reference =
 -- Results follow ascending keys. Within a key, diagnostics follow candidate
 -- then reference, and blank key, wildcard, unclassified, negative order, with
 -- accounts ascending within each kind. Comparison differences follow account
--- and 'Side' order (Credit before Debit), then retained earnings.
+-- and t'Side' order (Credit before Debit), then retained earnings.
 --
 -- Laws (for finite, fully valid input): comparison is reflexive; splitting a
 -- posting into same-side amounts with the same sum preserves the result; and

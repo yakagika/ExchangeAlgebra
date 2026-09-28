@@ -20,7 +20,7 @@
 -- 'Stage' conflicts with the stage name in Simulate.Lite; 'Allowance' and
 -- 'Adjustment' can also collide with names in other accounting modules.
 -- Evidence obligations implement Definition 8, 'FinalStock' uses the
--- Definition 9 closing transfer, and 'TxKey' supplies the note coordinates
+-- Definition 9 closing transfer, and t'TxKey' supplies the note coordinates
 -- used by Definitions 10-12.
 module ExchangeAlgebra.IO.Input.Admission
     ( -- * Identifiers and entries

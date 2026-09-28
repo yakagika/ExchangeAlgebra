@@ -39,7 +39,7 @@ import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 -- * Read-only observations
 
 -- | Observe the original journal. Its ordinary mutators produce unadmitted
--- journals and cannot reconstruct an 'Admitted' value.
+-- journals and cannot reconstruct an t'Admitted' value.
 admittedJournal :: Admitted -> AdmissionJournal
 admittedJournal (Admitted journal _ _ _ _) = journal
 
