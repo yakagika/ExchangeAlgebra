@@ -14,9 +14,8 @@ import Test.QuickCheck
 import ExchangeAlgebra.Algebra (Alg(..), Hat(..), HatBase((:<)), (.+), (.@))
 import ExchangeAlgebra.Algebra.Base (ExBaseClass(whichSide))
 import ExchangeAlgebra.Accounting.Account
-    ( AccountSpec(..), accountSpec, concreteAccountTitles )
-    ( AccountDivision(..), Side(..) )
-import ExchangeAlgebra.Accounting.Account (AccountTitles(..))
+    ( AccountDivision(..), AccountSpec(..), AccountTitles(..), Side(..)
+    , accountSpec, concreteAccountTitles )
 import ExchangeAlgebra.IO.Input.Admission (EntityId(..), PeriodId(..), TxId(..), TxKey(..), Entry)
 import ExchangeAlgebra.IO.Input.Admission.Equivalence
     ( ClosingDifference(..), ClosingSource(..), closingDifferences, isClosingEquivalent )
