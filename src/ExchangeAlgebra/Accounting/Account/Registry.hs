@@ -51,14 +51,14 @@ data AccountSpec = AccountSpec
       -- balancing postings).  GrossProfit and OrdinaryProfit retain
       -- CloseByDivision for the historical SNA/simulation transfer pipeline.
       -- That asymmetry is compatibility behavior, not a reporting rule;
-      -- statement metrics live in "ExchangeAlgebra.Reporting.Metric".
+      -- statement metrics live in "ExchangeAlgebra.Accounting.Statements.Metric".
     , asIsContra    :: Bool
     , asFixedCurrent :: FixedCurrent
     , asNameEn      :: Text
     , asNameJa      :: Text
     -- | Annotation-free Japanese display label (清書和文表示名) used for
     -- financial-statement lines
-    -- ('ExchangeAlgebra.Reporting.Presentation.presentationLabel') and LLM-facing
+    -- ('ExchangeAlgebra.Accounting.Statements.Presentation.presentationLabel') and LLM-facing
     -- names ('ExchangeAlgebra.Assist.safeNameJa'). Unlike 'asNameJa' it never
     -- carries notes, legacy-name
     -- remarks, or constructor identifiers; the JCCI level-2 A-column sweep in

@@ -58,6 +58,74 @@ flags:
 
 library:
   source-dirs: src
+  exposed-modules:
+  - ExchangeAlgebra
+  - ExchangeAlgebra.Accounting
+  - ExchangeAlgebra.Accounting.Account
+  - ExchangeAlgebra.Accounting.Closing
+  - ExchangeAlgebra.Accounting.Consolidation
+  - ExchangeAlgebra.Accounting.Entries
+  - ExchangeAlgebra.Accounting.Exchange
+  - ExchangeAlgebra.Accounting.PostingPolicy
+  - ExchangeAlgebra.Accounting.Statements
+  - ExchangeAlgebra.Accounting.Statements.Group
+  - ExchangeAlgebra.Accounting.Statements.Metric
+  - ExchangeAlgebra.Accounting.Statements.Presentation
+  - ExchangeAlgebra.Accounting.TrialBalance
+  - ExchangeAlgebra.Accounting.TrialBalance.Balance
+  - ExchangeAlgebra.Accounting.TrialBalance.Validation
+  - ExchangeAlgebra.Algebra
+  - ExchangeAlgebra.Algebra.Base
+  - ExchangeAlgebra.Algebra.Base.Account.JcciAliases
+  - ExchangeAlgebra.Algebra.Base.Account.Registry
+  - ExchangeAlgebra.Algebra.Base.Account.Types
+  - ExchangeAlgebra.Algebra.Base.Element
+  - ExchangeAlgebra.Algebra.Core
+  - ExchangeAlgebra.Algebra.Element
+  - ExchangeAlgebra.Algebra.Exact
+  - ExchangeAlgebra.Algebra.Internal
+  - ExchangeAlgebra.Algebra.Posting
+  - ExchangeAlgebra.Algebra.Readout.Net
+  - ExchangeAlgebra.Algebra.Transfer
+  - ExchangeAlgebra.Algebra.Transfer.Rule
+  - ExchangeAlgebra.Algebra.Value
+  - ExchangeAlgebra.Assist
+  - ExchangeAlgebra.Assist.Descriptions
+  - ExchangeAlgebra.Bookkeeping
+  - ExchangeAlgebra.Consolidation.Worksheet
+  - ExchangeAlgebra.Convert
+  - ExchangeAlgebra.Convert.Checked
+  - ExchangeAlgebra.Convert.Csv
+  - ExchangeAlgebra.Foundation
+  - ExchangeAlgebra.IO.Input.Admission
+  - ExchangeAlgebra.IO.Input.Admission.Equivalence
+  - ExchangeAlgebra.Journal
+  - ExchangeAlgebra.Journal.Core
+  - ExchangeAlgebra.Journal.Exact
+  - ExchangeAlgebra.Journal.Transfer
+  - ExchangeAlgebra.Journal.Transfer.Rule
+  - ExchangeAlgebra.Optimize
+  - ExchangeAlgebra.Optimize.Annealing
+  - ExchangeAlgebra.Optimize.GA
+  - ExchangeAlgebra.Posting
+  - ExchangeAlgebra.Render.Bookkeeping
+  - ExchangeAlgebra.Render.Csv
+  - ExchangeAlgebra.Render.Simulation
+  - ExchangeAlgebra.Reporting.Group
+  - ExchangeAlgebra.Reporting.Metric
+  - ExchangeAlgebra.Reporting.Presentation
+  - ExchangeAlgebra.Simulate
+  - ExchangeAlgebra.Simulate.Analysis
+  - ExchangeAlgebra.Simulate.Engine
+  - ExchangeAlgebra.Simulate.Lite
+  - ExchangeAlgebra.Simulate.Network
+  - ExchangeAlgebra.Simulate.Policy
+  - ExchangeAlgebra.Simulate.Random
+  - ExchangeAlgebra.Simulate.Spill
+  - ExchangeAlgebra.TrialBalance.Balance
+  - ExchangeAlgebra.TrialBalance.Validation
+  - ExchangeAlgebra.Value
+  - ExchangeAlgebra.Write
   other-modules:
   - ExchangeAlgebra.Algebra.Element.Representation
   - ExchangeAlgebra.Algebra.Base.Representation

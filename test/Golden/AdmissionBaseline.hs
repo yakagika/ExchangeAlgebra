@@ -27,8 +27,8 @@ import ExchangeAlgebra.Accounting.Account (concreteAccountTitles)
 import ExchangeAlgebra.IO.Input.Admission
 import ExchangeAlgebra.IO.Input.Admission.Equivalence
     ( Equivalence(..), equivalentUpTo )
-import qualified ExchangeAlgebra.Reporting.Presentation as Presentation
-import ExchangeAlgebra.TrialBalance.Balance (accountBalances)
+import qualified ExchangeAlgebra.Accounting.Statements.Presentation as Presentation
+import ExchangeAlgebra.Accounting.TrialBalance.Balance (accountBalances)
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 
 -- | Directory containing the committed admission observations.

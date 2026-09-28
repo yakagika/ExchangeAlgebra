@@ -10,13 +10,13 @@
     第 23 章 消費税 (仮払/仮受 → 確定 consumptionTaxSettlementEntry),
              法人税等 (中間納付 / 確定)
 
-  決算整理の builder は ExchangeAlgebra.Bookkeeping から。
+  決算整理の builder は ExchangeAlgebra.Accounting.Entries から。
   訂正仕訳の監査証跡を見せる箇所だけ日付つき基底 (AccountTitles, Day) を使う。
 -}
 
 import qualified ExchangeAlgebra            as EA
 import           ExchangeAlgebra
-import           ExchangeAlgebra.Bookkeeping
+import           ExchangeAlgebra.Accounting.Entries
 import           Data.Time
 import           System.Exit                (exitFailure)
 import           Control.Monad              (unless)

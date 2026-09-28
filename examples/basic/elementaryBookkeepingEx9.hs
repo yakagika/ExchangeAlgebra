@@ -15,7 +15,7 @@
 
 import qualified ExchangeAlgebra            as EA
 import           ExchangeAlgebra
-import           ExchangeAlgebra.Bookkeeping
+import           ExchangeAlgebra.Accounting.Entries
 import qualified Data.Text                  as T
 import           System.Exit                (exitFailure)
 import           Control.Monad              (unless)

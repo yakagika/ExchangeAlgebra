@@ -19,7 +19,7 @@ import qualified ExchangeAlgebra.Algebra as Algebra
 import ExchangeAlgebra.Algebra.Exact
 import qualified ExchangeAlgebra.Journal as Journal
 import qualified ExchangeAlgebra.Journal.Exact as JournalExact
-import ExchangeAlgebra.TrialBalance.Balance (AccountBalance(..))
+import ExchangeAlgebra.Accounting.TrialBalance.Balance (AccountBalance(..))
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal(..), MoneyDouble(..))
 
 -- | Concrete complete bases with no wildcard ordering in the oracle.

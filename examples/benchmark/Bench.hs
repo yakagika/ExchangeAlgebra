@@ -63,8 +63,8 @@ import qualified ExchangeAlgebra.Accounting.Closing as Closing
 import qualified ExchangeAlgebra.Convert.Checked as Checked
 import qualified ExchangeAlgebra.Journal  as EJ
 import qualified ExchangeAlgebra.Journal.Exact as JournalExact
-import qualified ExchangeAlgebra.Reporting.Metric as Metric
-import qualified ExchangeAlgebra.TrialBalance.Balance as TrialBalance
+import qualified ExchangeAlgebra.Accounting.Statements.Metric as Metric
+import qualified ExchangeAlgebra.Accounting.TrialBalance.Balance as TrialBalance
 import qualified ExchangeAlgebra.Write     as EW
 import qualified ExchangeAlgebra.Algebra.Posting as LP
 

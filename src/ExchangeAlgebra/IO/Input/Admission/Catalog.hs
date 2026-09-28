@@ -58,7 +58,7 @@ import ExchangeAlgebra.Accounting.Account.Classification
     )
 import ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
 import qualified ExchangeAlgebra.Algebra.Transfer as Transfer
-import qualified ExchangeAlgebra.Bookkeeping as Bookkeeping
+import qualified ExchangeAlgebra.Accounting.Entries as Bookkeeping
 import ExchangeAlgebra.Convert.Checked (ProcessingContext(..))
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal(..))
 import ExchangeAlgebra.IO.Input.Admission.Types

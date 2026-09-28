@@ -181,8 +181,17 @@ library
       ExchangeAlgebra.Accounting
       ExchangeAlgebra.Accounting.Account
       ExchangeAlgebra.Accounting.Closing
+      ExchangeAlgebra.Accounting.Consolidation
+      ExchangeAlgebra.Accounting.Entries
       ExchangeAlgebra.Accounting.Exchange
       ExchangeAlgebra.Accounting.PostingPolicy
+      ExchangeAlgebra.Accounting.Statements
+      ExchangeAlgebra.Accounting.Statements.Group
+      ExchangeAlgebra.Accounting.Statements.Metric
+      ExchangeAlgebra.Accounting.Statements.Presentation
+      ExchangeAlgebra.Accounting.TrialBalance
+      ExchangeAlgebra.Accounting.TrialBalance.Balance
+      ExchangeAlgebra.Accounting.TrialBalance.Validation
       ExchangeAlgebra.Algebra
       ExchangeAlgebra.Algebra.Base
       ExchangeAlgebra.Algebra.Base.Account.JcciAliases

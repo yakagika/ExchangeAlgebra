@@ -26,8 +26,8 @@ import ExchangeAlgebra.Algebra
     , Redundant(norm)
     )
 import ExchangeAlgebra.Algebra.Base (AccountTitles(..), HatBase((:<)))
-import qualified ExchangeAlgebra.Reporting.Presentation as Presentation
-import ExchangeAlgebra.TrialBalance.Balance
+import qualified ExchangeAlgebra.Accounting.Statements.Presentation as Presentation
+import ExchangeAlgebra.Accounting.TrialBalance.Balance
     ( AccountBalance(..), accountBalances )
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 

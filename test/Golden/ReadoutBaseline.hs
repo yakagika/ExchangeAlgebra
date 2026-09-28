@@ -26,9 +26,9 @@ import qualified ExchangeAlgebra.Accounting.Closing as Closing
 import qualified ExchangeAlgebra.Convert.Checked as Checked
 import qualified ExchangeAlgebra.Journal as EJ
 import qualified ExchangeAlgebra.Journal.Transfer.Rule as JR
-import qualified ExchangeAlgebra.Reporting.Metric as Metric
-import qualified ExchangeAlgebra.TrialBalance.Balance as TB
-import qualified ExchangeAlgebra.TrialBalance.Validation as Validation
+import qualified ExchangeAlgebra.Accounting.Statements.Metric as Metric
+import qualified ExchangeAlgebra.Accounting.TrialBalance.Balance as TB
+import qualified ExchangeAlgebra.Accounting.TrialBalance.Validation as Validation
 import           ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 import qualified ExchangeAlgebra.Write as Write
 

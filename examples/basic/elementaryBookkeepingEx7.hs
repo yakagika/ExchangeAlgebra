@@ -10,13 +10,13 @@
     第 18 章 減価償却 (定額法), 間接法 (depreciationIndirectEntry) と
              直接法 (depreciationDirectEntry), 月次按分の例
 
-  決算整理の builder は ExchangeAlgebra.Bookkeeping から。基底注入 mk は (:<)。
+  決算整理の builder は ExchangeAlgebra.Accounting.Entries から。基底注入 mk は (:<)。
   集約は bar/norm を明示。値は非負, 構築は '.@'。
 -}
 
 import qualified ExchangeAlgebra            as EA
 import           ExchangeAlgebra
-import           ExchangeAlgebra.Bookkeeping
+import           ExchangeAlgebra.Accounting.Entries
 import           System.Exit                (exitFailure)
 import           Control.Monad              (unless)
 

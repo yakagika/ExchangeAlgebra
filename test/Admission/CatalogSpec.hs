@@ -25,7 +25,7 @@ import ExchangeAlgebra.Algebra
 import ExchangeAlgebra.Algebra.Base (AccountTitles(..))
 import ExchangeAlgebra.Accounting.Account (concreteAccountTitles)
 import qualified ExchangeAlgebra.Algebra.Transfer as Transfer
-import qualified ExchangeAlgebra.Bookkeeping as Bookkeeping
+import qualified ExchangeAlgebra.Accounting.Entries as Bookkeeping
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 
 -- * Fixture inputs

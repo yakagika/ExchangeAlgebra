@@ -116,7 +116,7 @@ createTransfer tt = \ts -> transfer ts $ EAT.table tt
 -- The result contains a legacy NetIncome/NetLoss balancing coordinate and is
 -- an intermediate closing state, not input for reporting presentation.  New
 -- reporting code should derive the result from a validated before-closing
--- trial balance with "ExchangeAlgebra.Reporting.Metric".
+-- trial balance with "ExchangeAlgebra.Accounting.Statements.Metric".
 -- This is a legacy named transfer; see the module header for its preconditions.
 -- New transfer code should use qualified "ExchangeAlgebra.Journal.Transfer.Rule".
 --

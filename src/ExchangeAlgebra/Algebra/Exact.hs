@@ -43,23 +43,21 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Sequence as Seq
 import qualified Number.NonNegative as NN
 
-import ExchangeAlgebra.Algebra (
-                               Alg
-                               , HatVal(..)
-                               , foldEntries
-                               , (.@)
-                               , (.+)
-                               )
-import qualified ExchangeAlgebra.Algebra as Algebra
-import qualified ExchangeAlgebra.Algebra.Internal as Internal
-import ExchangeAlgebra.Algebra.Base (
-                                    AccountTitles
-                                    , ExBaseClass(..)
-                                    , Hat(..)
-                                    , HatBaseClass(..)
-                                    , Side(..)
-                                    )
-import ExchangeAlgebra.TrialBalance.Balance (AccountBalance(..))
+import ExchangeAlgebra.Algebra.Core.Representation
+    ( Alg
+    , foldEntries
+    , (.@)
+    , (.+)
+    )
+import qualified ExchangeAlgebra.Algebra.Core.Representation as Algebra
+import qualified ExchangeAlgebra.Algebra.Core.Representation as Internal
+import ExchangeAlgebra.Algebra.Value.Class (HatVal(..))
+import ExchangeAlgebra.Accounting.Account.Classification (Side(..))
+import ExchangeAlgebra.Accounting.Account.Title (AccountTitles)
+import ExchangeAlgebra.Accounting.Exchange (ExBaseClass(..))
+import ExchangeAlgebra.Algebra.Base.Representation
+    ( Hat(..), HatBaseClass(..) )
+import ExchangeAlgebra.Accounting.TrialBalance.Balance (AccountBalance(..))
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal(..), MoneyDouble(..))
 
 -- * Accumulators

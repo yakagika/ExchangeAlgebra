@@ -11,8 +11,8 @@ import Data.Map.Strict (Map)
 import ExchangeAlgebra.IO.Input.Admission.Types
 import ExchangeAlgebra.Algebra.Base (AccountTitles, HatBase)
 import ExchangeAlgebra.Journal (Journal)
-import ExchangeAlgebra.Reporting.Presentation (FinancialStatements)
-import ExchangeAlgebra.TrialBalance.Validation (ValidatedTrialBalance)
+import ExchangeAlgebra.Accounting.Statements.Presentation (FinancialStatements)
+import ExchangeAlgebra.Accounting.TrialBalance.Validation (ValidatedTrialBalance)
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 
 -- | Authoritative journal with exact entity-period-transaction notes.

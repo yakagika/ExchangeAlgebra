@@ -41,15 +41,14 @@ import qualified Data.Foldable as Foldable
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Map.Strict as Map
 
-import ExchangeAlgebra.Algebra (Alg, HatVal(..))
-import qualified ExchangeAlgebra.Algebra.Internal as Internal
-import ExchangeAlgebra.Algebra.Base (
-                                    AccountTitles
-                                    , ExBaseClass
-                                    , Hat(..)
-                                    , HatBaseClass(..)
-                                    , Side
-                                    )
+import ExchangeAlgebra.Algebra.Core.Representation (Alg)
+import ExchangeAlgebra.Algebra.Value.Class (HatVal(..))
+import qualified ExchangeAlgebra.Algebra.Core.Representation as Internal
+import ExchangeAlgebra.Accounting.Account.Classification (Side)
+import ExchangeAlgebra.Accounting.Account.Title (AccountTitles)
+import ExchangeAlgebra.Accounting.Exchange (ExBaseClass)
+import ExchangeAlgebra.Algebra.Base.Representation
+    ( Hat(..), HatBaseClass(..) )
 import ExchangeAlgebra.Algebra.Exact (
                                      ExactSum(..)
                                      , ExactSumError(..)
@@ -57,9 +56,9 @@ import ExchangeAlgebra.Algebra.Exact (
                                      , sumExact
                                      )
 import qualified ExchangeAlgebra.Algebra.Exact as Exact
-import ExchangeAlgebra.Journal (Journal, Note(..), (.|))
-import qualified ExchangeAlgebra.Journal as Journal
-import ExchangeAlgebra.TrialBalance.Balance (AccountBalance)
+import ExchangeAlgebra.Journal.Core.Representation (Journal, Note(..), (.|))
+import qualified ExchangeAlgebra.Journal.Core.Representation as Journal
+import ExchangeAlgebra.Accounting.TrialBalance.Balance (AccountBalance)
 
 -- * Accumulators
 

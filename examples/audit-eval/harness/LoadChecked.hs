@@ -36,7 +36,7 @@ import           Data.Ratio (numerator, denominator)
 import           Numeric (showHex)
 import qualified Text.ParserCombinators.ReadP as RP
 import           ExchangeAlgebra.Convert (parseAccountTitle)
-import qualified ExchangeAlgebra.Bookkeeping as BK
+import qualified ExchangeAlgebra.Accounting.Entries as BK
 import qualified ExchangeAlgebra.Algebra.Transfer as EAT
 import           ExchangeAlgebra.Accounting.Account
 import           Data.List (foldl', intercalate, nub, sort, intersect, isInfixOf)

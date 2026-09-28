@@ -6,7 +6,7 @@ Description : Accounting-domain posting authority for processing contexts.
 
 Accounting-domain posting authority: which coordinates may be posted in which
 processing context. Input adapters ("ExchangeAlgebra.Convert.Checked") and the
-consolidation worksheet ("ExchangeAlgebra.Consolidation.Worksheet") consume
+consolidation worksheet ("ExchangeAlgebra.Accounting.Consolidation") consume
 this; it does not depend on either.
 
 The policy has two inputs. The 'PostingCapability' of an account title is

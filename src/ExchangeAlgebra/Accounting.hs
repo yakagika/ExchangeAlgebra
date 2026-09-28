@@ -27,7 +27,7 @@
     is the Definition 7-9 core only: the account registry
     ("ExchangeAlgebra.Algebra.Base.Account.Registry"), the posting policy
     ("ExchangeAlgebra.Accounting.PostingPolicy"), trial-balance readouts
-    ("ExchangeAlgebra.TrialBalance.Balance") and the named closing transfers
+    ("ExchangeAlgebra.Accounting.TrialBalance.Balance") and the named closing transfers
     of "ExchangeAlgebra.Algebra.Transfer" keep their own modules.
 
     >>> import ExchangeAlgebra.Foundation

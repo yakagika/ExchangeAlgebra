@@ -10,12 +10,12 @@ import           ExchangeAlgebra.Journal
 import qualified ExchangeAlgebra.Convert      as EC
 import qualified ExchangeAlgebra.Convert.Checked as ECC
 import qualified ExchangeAlgebra.Accounting.Account as PP
-import qualified ExchangeAlgebra.Consolidation.Worksheet as CW
-import qualified ExchangeAlgebra.TrialBalance.Balance as TBB
-import qualified ExchangeAlgebra.TrialBalance.Validation as TB
-import qualified ExchangeAlgebra.Reporting.Presentation as RP
-import qualified ExchangeAlgebra.Reporting.Metric as RM
-import qualified ExchangeAlgebra.Reporting.Group as RG
+import qualified ExchangeAlgebra.Accounting.Consolidation as CW
+import qualified ExchangeAlgebra.Accounting.TrialBalance.Balance as TBB
+import qualified ExchangeAlgebra.Accounting.TrialBalance.Validation as TB
+import qualified ExchangeAlgebra.Accounting.Statements.Presentation as RP
+import qualified ExchangeAlgebra.Accounting.Statements.Metric as RM
+import qualified ExchangeAlgebra.Accounting.Statements.Group as RG
 import qualified ExchangeAlgebra.Convert.Csv  as ECsv
 import qualified ExchangeAlgebra.Assist       as Assist
 import qualified ExchangeAlgebra.Assist.Descriptions as AssistDesc
@@ -25,7 +25,7 @@ import qualified ExchangeAlgebra.Algebra.Internal as EAI
 import qualified ExchangeAlgebra.Algebra.Transfer as EAT
 import qualified ExchangeAlgebra.Journal  as EJ
 import qualified ExchangeAlgebra.Journal.Transfer as EJT
-import qualified ExchangeAlgebra.Bookkeeping as EB
+import qualified ExchangeAlgebra.Accounting.Entries as EB
 import           ExchangeAlgebra.Algebra.Value    (MoneyDecimal, bankersRound)
 import qualified ExchangeAlgebra.Simulate as ES
 import           ExchangeAlgebra.Simulate
@@ -3992,15 +3992,15 @@ loadMinimalConsolidationFixture = do
             ("expected amount direction for " ++ key ++ ", got " ++ direction)
         Nothing -> fail ("missing fixture link: " ++ key)
     fixtureResult links key = case M.lookup key links of
-        Just ("profit", amount) -> pure (CW.PeriodProfit amount)
-        Just ("loss", amount) -> pure (CW.PeriodLoss amount)
-        Just ("break-even", _) -> pure CW.PeriodBreakEven
+        Just ("profit", amount) -> pure (RM.PeriodProfit amount)
+        Just ("loss", amount) -> pure (RM.PeriodLoss amount)
+        Just ("break-even", _) -> pure RM.PeriodBreakEven
         Just (direction, _) -> fail
             ("invalid period-result direction for " ++ key ++ ": " ++ direction)
         Nothing -> fail ("missing fixture link: " ++ key)
     fixtureBalance links key = case M.lookup key links of
-        Just ("credit", amount) -> pure (CW.CreditBalance amount)
-        Just ("debit", amount) -> pure (CW.DebitBalance amount)
+        Just ("credit", amount) -> pure (TBB.CreditBalance amount)
+        Just ("debit", amount) -> pure (TBB.DebitBalance amount)
         Just (direction, _) -> fail
             ("invalid balance direction for " ++ key ++ ": " ++ direction)
         Nothing -> fail ("missing fixture link: " ++ key)
@@ -4097,17 +4097,17 @@ testConsolidationWorksheet = do
 
     let mismatchedLinks = links
             { CW._statementOfChangesNetIncomeAttributableToOwners =
-                CW.PeriodProfit 40 }
+                RM.PeriodProfit 40 }
         mismatchedInput = fixture { CW._worksheetLinkage = mismatchedLinks }
     assertEqual "consolidation worksheet: P/L to S/S mismatch is explicit"
         True
         (case CW.validateConsolidationWorksheet mismatchedInput of
             Left errors -> CW.OwnersPeriodResultLinkMismatch
-                (CW.PeriodProfit 50) (CW.PeriodProfit 40) `elem` NE.toList errors
+                (RM.PeriodProfit 50) (RM.PeriodProfit 40) `elem` NE.toList errors
             Right _ -> False)
 
     let attributionLinks = links
-            { CW._profitOrLossNetIncome = CW.PeriodProfit 60 }
+            { CW._profitOrLossNetIncome = RM.PeriodProfit 60 }
         attributionInput = fixture { CW._worksheetLinkage = attributionLinks }
     assertEqual "consolidation worksheet: total attribution mismatch is explicit"
         True
@@ -4127,13 +4127,13 @@ testConsolidationWorksheet = do
             Right _ -> False)
 
     let balanceSheetLinks = links
-            { CW._balanceSheetRetainedEarnings = CW.CreditBalance 139 }
+            { CW._balanceSheetRetainedEarnings = TBB.CreditBalance 139 }
         balanceSheetInput = fixture { CW._worksheetLinkage = balanceSheetLinks }
     assertEqual "consolidation worksheet: S/S to B/S mismatch is explicit"
         True
         (case CW.validateConsolidationWorksheet balanceSheetInput of
             Left errors -> CW.BalanceSheetRetainedEarningsMismatch
-                (CW.CreditBalance 140) (CW.CreditBalance 139)
+                (TBB.CreditBalance 140) (TBB.CreditBalance 139)
                 `elem` NE.toList errors
             Right _ -> False)
 
@@ -4147,33 +4147,33 @@ testConsolidationWorksheet = do
             Right _ -> False)
 
     let nciBalanceSheetLinks = links
-            { CW._balanceSheetNonControllingInterests = CW.CreditBalance 44 }
+            { CW._balanceSheetNonControllingInterests = TBB.CreditBalance 44 }
         nciBalanceSheetInput = fixture
             { CW._worksheetLinkage = nciBalanceSheetLinks }
     assertEqual "consolidation worksheet: NCI S/S to B/S mismatch is explicit"
         True
         (case CW.validateConsolidationWorksheet nciBalanceSheetInput of
             Left errors -> CW.BalanceSheetNonControllingInterestsMismatch
-                (CW.CreditBalance 45) (CW.CreditBalance 44)
+                (TBB.CreditBalance 45) (TBB.CreditBalance 44)
                 `elem` NE.toList errors
             Right _ -> False)
 
     let lossLinks = links
-            { CW._profitOrLossNetIncome = CW.PeriodLoss 25
-            , CW._profitOrLossNetIncomeAttributableToOwners = CW.PeriodLoss 20
+            { CW._profitOrLossNetIncome = RM.PeriodLoss 25
+            , CW._profitOrLossNetIncomeAttributableToOwners = RM.PeriodLoss 20
             , CW._statementOfChangesNetIncomeAttributableToOwners =
-                CW.PeriodLoss 20
-            , CW._openingRetainedEarnings = CW.CreditBalance 100
+                RM.PeriodLoss 20
+            , CW._openingRetainedEarnings = TBB.CreditBalance 100
             , CW._retainedEarningsDividends = 10
             , CW._statementOfChangesClosingRetainedEarnings =
-                CW.CreditBalance 70
-            , CW._balanceSheetRetainedEarnings = CW.CreditBalance 70
-            , CW._openingNonControllingInterests = CW.CreditBalance 30
-            , CW._nonControllingInterestsPeriodShare = CW.PeriodLoss 5
+                TBB.CreditBalance 70
+            , CW._balanceSheetRetainedEarnings = TBB.CreditBalance 70
+            , CW._openingNonControllingInterests = TBB.CreditBalance 30
+            , CW._nonControllingInterestsPeriodShare = RM.PeriodLoss 5
             , CW._nonControllingInterestsDividends = 5
             , CW._statementOfChangesClosingNonControllingInterests =
-                CW.CreditBalance 20
-            , CW._balanceSheetNonControllingInterests = CW.CreditBalance 20
+                TBB.CreditBalance 20
+            , CW._balanceSheetNonControllingInterests = TBB.CreditBalance 20
             }
         lossInput = fixture { CW._worksheetLinkage = lossLinks }
     assertEqual "consolidation worksheet: loss roll-forwards preserve direction"
@@ -4183,21 +4183,21 @@ testConsolidationWorksheet = do
             Left _  -> False)
 
     let deficitLinks = links
-            { CW._profitOrLossNetIncome = CW.PeriodLoss 50
-            , CW._profitOrLossNetIncomeAttributableToOwners = CW.PeriodLoss 50
+            { CW._profitOrLossNetIncome = RM.PeriodLoss 50
+            , CW._profitOrLossNetIncomeAttributableToOwners = RM.PeriodLoss 50
             , CW._statementOfChangesNetIncomeAttributableToOwners =
-                CW.PeriodLoss 50
-            , CW._openingRetainedEarnings = CW.CreditBalance 10
+                RM.PeriodLoss 50
+            , CW._openingRetainedEarnings = TBB.CreditBalance 10
             , CW._retainedEarningsDividends = 0
             , CW._statementOfChangesClosingRetainedEarnings =
-                CW.DebitBalance 40
-            , CW._balanceSheetRetainedEarnings = CW.DebitBalance 40
-            , CW._openingNonControllingInterests = CW.CreditBalance 0
-            , CW._nonControllingInterestsPeriodShare = CW.PeriodBreakEven
+                TBB.DebitBalance 40
+            , CW._balanceSheetRetainedEarnings = TBB.DebitBalance 40
+            , CW._openingNonControllingInterests = TBB.CreditBalance 0
+            , CW._nonControllingInterestsPeriodShare = RM.PeriodBreakEven
             , CW._nonControllingInterestsDividends = 0
             , CW._statementOfChangesClosingNonControllingInterests =
-                CW.CreditBalance 0
-            , CW._balanceSheetNonControllingInterests = CW.CreditBalance 0
+                TBB.CreditBalance 0
+            , CW._balanceSheetNonControllingInterests = TBB.CreditBalance 0
             }
         deficitInput = fixture { CW._worksheetLinkage = deficitLinks }
     assertEqual "consolidation worksheet: accumulated deficit is structural"
@@ -4207,7 +4207,7 @@ testConsolidationWorksheet = do
             Left _  -> False)
 
     let invalidLinks = links
-            { CW._openingRetainedEarnings = CW.CreditBalance (-1) }
+            { CW._openingRetainedEarnings = TBB.CreditBalance (-1) }
         invalidInput = fixture { CW._worksheetLinkage = invalidLinks }
     assertEqual "consolidation worksheet: negative linkage amount rejected"
         (Just (CW.InvalidLinkAmount CW.OpeningRetainedEarnings (-1) NE.:| []))

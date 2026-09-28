@@ -2,6 +2,7 @@
 
 module NewPath where
 
+import qualified Data.List.NonEmpty
 import qualified ExchangeAlgebra as Umbrella
 import ExchangeAlgebra.Algebra.Core (Alg(Zero, (:@)), Redundant((.+)), ( .@ ))
 import qualified ExchangeAlgebra.Algebra.Core as Core
@@ -15,6 +16,10 @@ import qualified ExchangeAlgebra.Accounting.Closing as Closing
 import qualified ExchangeAlgebra.Journal.Core as Journal
 import qualified ExchangeAlgebra.Algebra.Posting as Posting
 import qualified ExchangeAlgebra.Algebra.Value as Value
+import qualified ExchangeAlgebra.Accounting.Entries as Entries
+import qualified ExchangeAlgebra.Accounting.TrialBalance as TrialBalance
+import qualified ExchangeAlgebra.Accounting.Statements as Statements
+import qualified ExchangeAlgebra.Accounting.Consolidation as Consolidation
 
 type ClientBasePart = Base.BasePart (HatBase AccountTitles)
 
@@ -54,3 +59,20 @@ elementClient = Element.matchesQuery Cash Cash
 closingClient :: Either (Rule.TransferApplyError Double (HatBase AccountTitles))
                         (Alg Double (HatBase AccountTitles))
 closingClient = Closing.closingEntries oldExpression
+
+entriesClient :: Alg Double (HatBase AccountTitles)
+entriesClient = Entries.reversingEntry oldExpression
+
+trialBalanceClient :: TrialBalance.AccountBalance Double
+trialBalanceClient = TrialBalance.balanceFor Cash
+    (TrialBalance.accountBalances oldExpression)
+
+statementsClient :: Maybe Statements.DerivedMetric
+statementsClient = Statements.metricForLegacyTitle Cash
+
+consolidationClient
+    :: Consolidation.WorksheetInput String String Double
+    -> Either (Data.List.NonEmpty.NonEmpty
+                   (Consolidation.WorksheetError String String Double))
+              (Consolidation.ValidatedWorksheet String String Double)
+consolidationClient = Consolidation.validateConsolidationWorksheet

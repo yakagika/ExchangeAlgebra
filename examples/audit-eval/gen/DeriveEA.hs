@@ -3,7 +3,7 @@
 
   Backward-compatible input is a canonical posting array. New task kinds use
   an object with mode "closing" or "consolidation". Closing adjustments are
-  built with ExchangeAlgebra.Bookkeeping and closing balances are produced by
+  built with ExchangeAlgebra.Accounting.Entries and closing balances are produced by
   ExchangeAlgebra.Algebra.Transfer. Consolidation keeps entity on the Journal
   note axis and derives eliminations with bar.
 -}
@@ -20,7 +20,7 @@ import           System.IO (hPutStrLn, stderr)
 import           ExchangeAlgebra hiding (filter, map)
 import qualified ExchangeAlgebra.Algebra as EA
 import qualified ExchangeAlgebra.Algebra.Transfer as EAT
-import qualified ExchangeAlgebra.Bookkeeping as BK
+import qualified ExchangeAlgebra.Accounting.Entries as BK
 import           ExchangeAlgebra.Convert (parseAccountTitle, parseSide)
 import           ExchangeAlgebra.Convert.Checked (checkedJournal)
 import qualified ExchangeAlgebra.Journal as EJ

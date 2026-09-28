@@ -61,7 +61,7 @@ import qualified    ExchangeAlgebra.Journal     as EJ
 import              ExchangeAlgebra.Journal     ((.|))
 
 import qualified    ExchangeAlgebra.Algebra.Transfer    as ET
-import qualified    ExchangeAlgebra.Reporting.Group     as RG
+import qualified    ExchangeAlgebra.Accounting.Statements.Group     as RG
 
 import              ExchangeAlgebra.Simulate.Spill
                     ( restoreJournalFromBinarySpill
@@ -106,7 +106,7 @@ tshow :: (Show a) => a -> T.Text
 tshow = T.pack . show
 
 -- | Render one 'RG.RelativeAmount' as a statement cell. The magnitude is
--- always non-negative (see "ExchangeAlgebra.Reporting.Group"); a deduction, or
+-- always non-negative (see "ExchangeAlgebra.Accounting.Statements.Group"); a deduction, or
 -- a net that its deductions pushed past zero, is shown with a leading @-@.
 -- The minus sign exists only here, in the rendered text — never in a value.
 --
@@ -152,7 +152,7 @@ groupCells defs blocks =
 -- (@whatDiv == Assets && isContra@, e.g. 貸倒引当金\/減価償却累計額) sit on
 -- the credit side, so a plain side partition would either drop them from the
 -- statement or file them under Liability. They are instead collected into the
--- presentation groups of "ExchangeAlgebra.Reporting.Group" and shown as a
+-- presentation groups of "ExchangeAlgebra.Accounting.Statements.Group" and shown as a
 -- real deduction — @gross lines → deduction lines → net line@ — inside the
 -- Asset column, replacing Land 2's temporary placement in the Liability
 -- column. A
@@ -278,7 +278,7 @@ writeBS path alg = writeCSV path (bsRows alg)
 -- (売上割戻) sits on the debit side and a contra cost (仕入割戻, 還付法人税等)
 -- on the credit side, so the side partition above would drop all three from
 -- the statement entirely. They are instead collected into the presentation
--- groups of "ExchangeAlgebra.Reporting.Group" and shown as a real deduction
+-- groups of "ExchangeAlgebra.Accounting.Statements.Group" and shown as a real deduction
 -- (@gross lines → deduction lines → net line@) inside their own column, on
 -- the same terms as 'bsRows'. A group is formed only when one of its contra
 -- accounts carries gross activity, so a statement containing no contra

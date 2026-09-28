@@ -13,7 +13,7 @@ import qualified Data.Text as T
 import           Data.Time (Day, fromGregorian)
 
 import           ExchangeAlgebra
-import           ExchangeAlgebra.Bookkeeping
+import           ExchangeAlgebra.Accounting.Entries
 import qualified ExchangeAlgebra.Journal as EJ
 import           ExchangeAlgebra.Write
                      ( accountLedgerRows

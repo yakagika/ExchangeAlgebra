@@ -541,7 +541,7 @@ createTransfer tt =
 -- The result contains a legacy NetIncome/NetLoss balancing coordinate and is
 -- an intermediate closing state, not input for reporting presentation.  New
 -- reporting code should derive the result from a validated before-closing
--- trial balance with "ExchangeAlgebra.Reporting.Metric".
+-- trial balance with "ExchangeAlgebra.Accounting.Statements.Metric".
 -- This legacy API adds an entry whose non-account axes are wildcards: those
 -- ledger wildcards mean the axes do not apply, rather than matching patterns.
 incomeSummaryAccount :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
@@ -571,8 +571,8 @@ netIncomeTransfer = createTransfer
 -- Consolidates Sales, Purchases, WageExpenditure, Depreciation, and ValueAdded.
 -- This fixed list is not a JGAAP gross-profit definition: it excludes
 -- SalesCost and MerchandiseInventory.  New statement reporting should use
--- "ExchangeAlgebra.Reporting.Metric" and
--- "ExchangeAlgebra.Reporting.Presentation" instead.
+-- "ExchangeAlgebra.Accounting.Statements.Metric" and
+-- "ExchangeAlgebra.Accounting.Statements.Presentation" instead.
 --
 -- Complexity: O(s) (s = total number of scalar entries)
 grossProfitTransfer :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b

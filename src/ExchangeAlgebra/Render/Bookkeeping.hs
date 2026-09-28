@@ -17,7 +17,7 @@
     identical to the original module by construction. Note that 'bsRows' and
     'plRows' are the legacy presentation (no per-title aggregation, credit-
     balance assets dropped from the sheet); the grouped presentation lives in
-    "ExchangeAlgebra.Reporting.Presentation".
+    "ExchangeAlgebra.Accounting.Statements.Presentation".
 
     >>> import ExchangeAlgebra.Algebra
     >>> let x = 100 .@ Not :< Cash .+ 100 .@ Not :< Sales :: Alg Double (HatBase AccountTitles)

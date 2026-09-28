@@ -61,16 +61,16 @@
     because they introduce names that would collide with the Algebra layer
     (or with each other) and are better used under a qualified import:
 
-    * "ExchangeAlgebra.Bookkeeping" — double-entry adjusting\/closing entries.
-    * "ExchangeAlgebra.Consolidation.Worksheet" — atomic consolidation
+    * "ExchangeAlgebra.Accounting.Entries" — double-entry adjusting\/closing entries.
+    * "ExchangeAlgebra.Accounting.Consolidation" — atomic consolidation
       adjustments, source provenance, and cross-statement linkage validation.
-    * "ExchangeAlgebra.TrialBalance.Validation" — trial-balance findings,
+    * "ExchangeAlgebra.Accounting.TrialBalance.Validation" — trial-balance findings,
       reclassification instructions, and the policy-controlled reporting gate.
-    * "ExchangeAlgebra.Reporting.Metric" — typed, read-only derived metrics
+    * "ExchangeAlgebra.Accounting.Statements.Metric" — typed, read-only derived metrics
       that do not add account-basis coordinates.
-    * "ExchangeAlgebra.Reporting.Group" — reusable gross, deduction, and net
+    * "ExchangeAlgebra.Accounting.Statements.Group" — reusable gross, deduction, and net
       presentation groups for contra accounts.
-    * "ExchangeAlgebra.Reporting.Presentation" — context-sensitive JGAAP
+    * "ExchangeAlgebra.Accounting.Statements.Presentation" — context-sensitive JGAAP
       transformation from validated trial balances to financial statements.
     * "ExchangeAlgebra.IO.Input.Admission" — trusted-registry admission of
       complete submissions and derivation from accepted journal values.
@@ -88,7 +88,7 @@
     Import them explicitly when you need them, e.g.:
 
     > import           ExchangeAlgebra
-    > import qualified ExchangeAlgebra.Bookkeeping     as BK
+    > import qualified ExchangeAlgebra.Accounting.Entries     as BK
     > import           ExchangeAlgebra.Simulate          -- simulation engine
     > import qualified ExchangeAlgebra.Simulate.Lite   as Lite
 

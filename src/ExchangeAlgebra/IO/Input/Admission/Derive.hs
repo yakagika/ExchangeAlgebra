@@ -32,8 +32,8 @@ import qualified Data.Text.Encoding as Text
 import ExchangeAlgebra.IO.Input.Admission.Internal
 import ExchangeAlgebra.IO.Input.Admission.Types
 import qualified ExchangeAlgebra.Journal as Journal
-import qualified ExchangeAlgebra.Reporting.Presentation as Presentation
-import qualified ExchangeAlgebra.TrialBalance.Validation as TrialBalance
+import qualified ExchangeAlgebra.Accounting.Statements.Presentation as Presentation
+import qualified ExchangeAlgebra.Accounting.TrialBalance.Validation as TrialBalance
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 
 -- * Read-only observations

@@ -12,6 +12,11 @@ import qualified ExchangeAlgebra.Algebra.Transfer.Rule as Rule
 import qualified ExchangeAlgebra.Accounting.Closing as Closing
 import qualified ExchangeAlgebra.Journal.Core as JournalCore
 import qualified ExchangeAlgebra.Value as OldValue
+import qualified ExchangeAlgebra.TrialBalance.Balance as OldTrialBalance
+import qualified ExchangeAlgebra.Consolidation.Worksheet as OldConsolidation
+import qualified ExchangeAlgebra.Accounting.TrialBalance as TrialBalance
+import qualified ExchangeAlgebra.Accounting.Consolidation as Consolidation
+import qualified ExchangeAlgebra.Accounting.Statements as Statements
 
 mixedPathPlaceholder :: Bool
 mixedPathPlaceholder = Old.oldConstructor Old.oldExpression
@@ -47,3 +52,18 @@ mixedOldValue = id
 mixedClosing :: Either (Rule.TransferApplyError Double (HatBase Account.AccountTitles))
                        (Core.Alg Double (HatBase Account.AccountTitles))
 mixedClosing = Closing.closingEntries Old.oldExpression
+
+-- | Pass a balance made through the old path to the new account readout.
+mixedTrialBalance :: TrialBalance.AccountBalance Double
+mixedTrialBalance = TrialBalance.combineBalances oldBalance oldBalance
+  where
+    oldBalance = OldTrialBalance.balanceFor Cash
+        (OldTrialBalance.accountBalances Old.oldExpression)
+
+mixedStatements :: Maybe Statements.DerivedMetric
+mixedStatements = Statements.metricForLegacyTitle Cash
+
+mixedConsolidation
+    :: OldConsolidation.WorksheetInput String String Double
+    -> Consolidation.WorksheetInput String String Double
+mixedConsolidation = id

@@ -1,7 +1,17 @@
 # Prefixes are relative to ExchangeAlgebra. The longest matching prefix wins.
 layers = ["Algebra", "Journal", "Accounting", "IO", "Simulation"]
 umbrella = ["ExchangeAlgebra"]
-shims = ["Algebra.Readout.Net", "Posting"] # Add the 0.6 compatibility modules as they are created.
+shims = [
+  "Algebra.Readout.Net",
+  "Posting",
+  "Bookkeeping",
+  "TrialBalance.Balance",
+  "TrialBalance.Validation",
+  "Reporting.Group",
+  "Reporting.Metric",
+  "Reporting.Presentation",
+  "Consolidation.Worksheet",
+]
 
 [assign]
 Algebra = "Algebra"
@@ -23,6 +33,15 @@ Foundation = "Algebra"
 "Algebra.Transfer.Rule" = "Algebra"
 "Algebra.Transfer.Representation" = "Algebra"
 "Accounting.Closing" = "Accounting"
+"Accounting.Entries" = "Accounting"
+"Accounting.TrialBalance" = "Accounting"
+"Accounting.TrialBalance.Balance" = "Accounting"
+"Accounting.TrialBalance.Validation" = "Accounting"
+"Accounting.Statements" = "Accounting"
+"Accounting.Statements.Group" = "Accounting"
+"Accounting.Statements.Metric" = "Accounting"
+"Accounting.Statements.Presentation" = "Accounting"
+"Accounting.Consolidation" = "Accounting"
 Accounting = "Accounting"
 "Accounting.Exchange" = "Accounting"
 Bookkeeping = "Accounting"
@@ -122,9 +141,45 @@ remove_by = "0.7.0.0"
 
 [[exceptions]]
 from = "Algebra.Exact"
-to = "TrialBalance.Balance"
+to = "Accounting.Account.Classification"
+reason = "Legacy exact readout uses accounting entities until P4. Use the new owner path during P2."
+remove_by = "P4"
+
+[[exceptions]]
+from = "Algebra.Exact"
+to = "Accounting.Account.Title"
+reason = "Legacy exact readout uses accounting entities until P4. Use the new owner path during P2."
+remove_by = "P4"
+
+[[exceptions]]
+from = "Algebra.Exact"
+to = "Accounting.Exchange"
+reason = "Legacy exact readout uses accounting entities until P4. Use the new owner path during P2."
+remove_by = "P4"
+
+[[exceptions]]
+from = "Journal.Exact"
+to = "Accounting.Account.Classification"
+reason = "Legacy exact readout uses accounting entities until P4. Use the new owner path during P2."
+remove_by = "P4"
+
+[[exceptions]]
+from = "Journal.Exact"
+to = "Accounting.Account.Title"
+reason = "Legacy exact readout uses accounting entities until P4. Use the new owner path during P2."
+remove_by = "P4"
+
+[[exceptions]]
+from = "Journal.Exact"
+to = "Accounting.Exchange"
+reason = "Legacy exact readout uses accounting entities until P4. Use the new owner path during P2."
+remove_by = "P4"
+
+[[exceptions]]
+from = "Algebra.Exact"
+to = "Accounting.TrialBalance.Balance"
 reason = "Exact accounting readout still uses the trial-balance account representation."
-remove_by = "0.6.0.0"
+remove_by = "P4"
 
 [[exceptions]]
 from = "Algebra.Readout.Net"
@@ -134,9 +189,9 @@ remove_by = "0.6.0.0"
 
 [[exceptions]]
 from = "Journal.Exact"
-to = "TrialBalance.Balance"
+to = "Accounting.TrialBalance.Balance"
 reason = "Exact journal readout still exposes the account-balance representation."
-remove_by = "0.6.0.0"
+remove_by = "P4"
 
 [[exceptions]]
 from = "Journal.Transfer"

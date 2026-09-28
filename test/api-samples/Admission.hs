@@ -7,7 +7,7 @@ import Control.Monad (unless)
 import qualified ExchangeAlgebra.Algebra as EA
 import qualified ExchangeAlgebra.Algebra.Transfer as Transfer
 import qualified ExchangeAlgebra.IO.Input.Admission as Admission
-import qualified ExchangeAlgebra.Reporting.Presentation as Presentation
+import qualified ExchangeAlgebra.Accounting.Statements.Presentation as Presentation
 import ExchangeAlgebra (AccountTitles(..), MoneyDecimal)
 
 -- | Admit two submitted entries and compare the catalog and algebra closings.
