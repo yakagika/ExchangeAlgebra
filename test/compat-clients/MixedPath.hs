@@ -17,6 +17,8 @@ import qualified ExchangeAlgebra.Consolidation.Worksheet as OldConsolidation
 import qualified ExchangeAlgebra.Accounting.TrialBalance as TrialBalance
 import qualified ExchangeAlgebra.Accounting.Consolidation as Consolidation
 import qualified ExchangeAlgebra.Accounting.Statements as Statements
+import qualified ExchangeAlgebra.IO.Input as Input
+import qualified ExchangeAlgebra.IO.Output.Statements as OutputStatements
 
 mixedPathPlaceholder :: Bool
 mixedPathPlaceholder = Old.oldConstructor Old.oldExpression
@@ -67,3 +69,8 @@ mixedConsolidation
     :: OldConsolidation.WorksheetInput String String Double
     -> Consolidation.WorksheetInput String String Double
 mixedConsolidation = id
+
+mixedInput :: Core.Alg Double (HatBase Account.AccountTitles)
+mixedInput = Input.postingFromSide Account.Debit Cash 1
+
+mixedOutput = OutputStatements.accountLedgerRowsJournal [Cash] Old.journalClient

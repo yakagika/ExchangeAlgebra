@@ -151,7 +151,7 @@ import qualified Data.Vector            as V
 -- this module's import scope); 'randomR' drives the generators.
 import           System.Random          (StdGen, mkStdGen, randomR)
 
-import           ExchangeAlgebra.Convert.Csv ( splitTrim )
+import           ExchangeAlgebra.IO.Input.Csv ( splitTrim )
 import           ExchangeAlgebra.Journal ( Journal, Note, HatVal, HatBaseClass )
 import qualified ExchangeAlgebra.Journal as EJ
 

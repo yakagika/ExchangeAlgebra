@@ -214,6 +214,12 @@ library
       ExchangeAlgebra.Convert
       ExchangeAlgebra.Convert.Checked
       ExchangeAlgebra.Convert.Csv
+      ExchangeAlgebra.IO.Input
+      ExchangeAlgebra.IO.Input.Csv
+      ExchangeAlgebra.IO.Input.Assist
+      ExchangeAlgebra.IO.Output
+      ExchangeAlgebra.IO.Output.Csv
+      ExchangeAlgebra.IO.Output.Statements
       ExchangeAlgebra.Foundation
       ExchangeAlgebra.IO.Input.Admission
       ExchangeAlgebra.IO.Input.Admission.Equivalence
@@ -256,6 +262,8 @@ library
       ExchangeAlgebra.Accounting.Account.Registry
       ExchangeAlgebra.Accounting.Account.PostingPolicy
       ExchangeAlgebra.Algebra.Transfer.Representation
+      ExchangeAlgebra.IO.Input.Conversion
+      ExchangeAlgebra.IO.Input.Checked
       ExchangeAlgebra.IO.Input.Admission.Catalog
       ExchangeAlgebra.IO.Input.Admission.Derive
       ExchangeAlgebra.IO.Input.Admission.Engine

@@ -35,7 +35,7 @@ import           Data.Decimal (DecimalRaw(..))
 import           Data.Ratio (numerator, denominator)
 import           Numeric (showHex)
 import qualified Text.ParserCombinators.ReadP as RP
-import           ExchangeAlgebra.Convert (parseAccountTitle)
+import           ExchangeAlgebra.IO.Input (parseAccountTitle)
 import qualified ExchangeAlgebra.Accounting.Entries as BK
 import qualified ExchangeAlgebra.Algebra.Transfer as EAT
 import           ExchangeAlgebra.Accounting.Account
@@ -48,11 +48,11 @@ import           System.Exit (exitFailure)
 import           System.IO (hPutStrLn, stderr)
 
 import           ExchangeAlgebra hiding (map, filter)
-import           ExchangeAlgebra.Assist
+import           ExchangeAlgebra.IO.Input.Assist
                      ( explainJournalErrors
                      , explainSourceErrors
                      )
-import           ExchangeAlgebra.Convert.Checked
+import           ExchangeAlgebra.IO.Input
                      ( EntryError(..)
                      , JournalError(..)
                      , SourceError(..)

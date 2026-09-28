@@ -24,7 +24,7 @@ import           ExchangeAlgebra.Algebra
 import           ExchangeAlgebra.Algebra.Base
 import qualified ExchangeAlgebra.Algebra.Base.Account.Registry as Registry
 import           ExchangeAlgebra.Algebra.Transfer (finalStockTransfer)
-import qualified ExchangeAlgebra.Assist as Assist
+import qualified ExchangeAlgebra.IO.Input.Assist as Assist
 import qualified ExchangeAlgebra.Write as Write
 
 type B = HatBase AccountTitles

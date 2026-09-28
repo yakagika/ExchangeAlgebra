@@ -23,7 +23,7 @@ import           ExchangeAlgebra
 import qualified ExchangeAlgebra.Algebra as EA
 import qualified ExchangeAlgebra.Algebra.Internal as Internal
 import qualified ExchangeAlgebra.Accounting.Closing as Closing
-import qualified ExchangeAlgebra.Convert.Checked as Checked
+import qualified ExchangeAlgebra.IO.Input as Checked
 import qualified ExchangeAlgebra.Journal as EJ
 import qualified ExchangeAlgebra.Journal.Transfer.Rule as JR
 import qualified ExchangeAlgebra.Accounting.Statements.Metric as Metric
@@ -264,7 +264,7 @@ algRows name postings =
     ++ balanceRows (TB.accountBalances input)
     ++ [ ["Write.bsRows", "all", "row"] ++ row | row <- Write.bsRows input ]
     ++ [ ["Write.plRows", "all", "row"] ++ row | row <- Write.plRows input ]
-    ++ shownRow "Convert.Checked.exactBalanced" "all" (Checked.exactBalanced input)
+    ++ shownRow "Convert.Checked.exactBalanced" "all" (norm (decL input) == norm (decR input))
     ++ shownRow "trialBalanceFindings" "BeforeClosing" (Validation.trialBalanceFindings tbInput)
     ++ scalarRow "trialBalanceFindings.debitTotal" "BeforeClosing" (norm (decL input))
     ++ scalarRow "trialBalanceFindings.creditTotal" "BeforeClosing" (norm (decR input))

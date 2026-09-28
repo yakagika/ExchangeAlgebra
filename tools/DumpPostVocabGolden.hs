@@ -17,7 +17,7 @@ import           ExchangeAlgebra.Algebra
 import           ExchangeAlgebra.Algebra.Base
 import           ExchangeAlgebra.Algebra.Transfer (finalStockTransfer)
 import qualified ExchangeAlgebra.Algebra.Base.Account.Registry as Registry
-import qualified ExchangeAlgebra.Assist as Assist
+import qualified ExchangeAlgebra.IO.Input.Assist as Assist
 
 type B = HatBase AccountTitles
 type A = Alg Double B

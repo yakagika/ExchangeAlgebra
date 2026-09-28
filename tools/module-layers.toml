@@ -57,6 +57,14 @@ Assist = "IO"
 "Render.Bookkeeping" = "IO"
 Write = "IO"
 IO = "IO"
+"IO.Input" = "IO"
+"IO.Input.Conversion" = "IO"
+"IO.Input.Checked" = "IO"
+"IO.Input.Csv" = "IO"
+"IO.Input.Assist" = "IO"
+"IO.Output" = "IO"
+"IO.Output.Csv" = "IO"
+"IO.Output.Statements" = "IO"
 Simulate = "Simulation"
 Optimize = "Simulation"
 "Render.Simulation" = "Simulation"
@@ -89,6 +97,18 @@ remove_by = "upstream instance or newtype migration"
 from = "Algebra.Base"
 to = "Accounting.Account"
 reason = "Legacy Base re-exports account entities during P2."
+remove_by = "P4"
+
+[[exceptions]]
+from = "IO.Output.Csv"
+to = "Write"
+reason = "CSV implementation remains in Write during P2."
+remove_by = "P4"
+
+[[exceptions]]
+from = "IO.Output.Statements"
+to = "Write"
+reason = "Bookkeeping output implementation remains in Write during P2."
 remove_by = "P4"
 
 [[exceptions]]

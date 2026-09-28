@@ -11,8 +11,9 @@
     Each document comes as a pure @…Rows@ layout and a @write…@ wrapper that
     serializes the rows through 'ExchangeAlgebra.Render.Csv.writeCSV'.
 
-    Every name is re-exported unchanged from "ExchangeAlgebra.Write"; nothing
-    is defined here. The row layouts are frozen by the
+    The continuing layouts are re-exported from
+    "ExchangeAlgebra.IO.Output.Statements"; legacy names remain in
+    "ExchangeAlgebra.Write". Nothing is defined here. The row layouts are frozen by the
     @test/fixtures/write-rows-0510@ goldens, so the shim is behavior-
     identical to the original module by construction. Note that 'bsRows' and
     'plRows' are the legacy presentation (no per-title aggregation, credit-
@@ -25,7 +26,7 @@
     (Debit,100.0)
 -}
 
-module ExchangeAlgebra.Render.Bookkeeping
+module ExchangeAlgebra.Render.Bookkeeping {-# DEPRECATED "Import ExchangeAlgebra.IO.Output.Statements instead." #-}
     ( -- * Balance sheet and profit and loss
       writeBS
     , bsRows
@@ -51,24 +52,14 @@ module ExchangeAlgebra.Render.Bookkeeping
     , toSameLength
     ) where
 
+
 import           ExchangeAlgebra.Write
                      ( writeBS
                      , bsRows
                      , writePL
                      , plRows
-                     , writeJournal
-                     , journalRows
-                     , writeAccountOf
-                     , accountLedgerRows
-                     , writeAccountOfJournal
-                     , accountLedgerRowsJournal
-                     , writeCompoundTrialBalance
-                     , compoundTrialBalanceRows
-                     , writeWorksheet
-                     , worksheetRows
-                     , writePostClosingTrialBalance
-                     , postClosingTrialBalanceRows
                      , balanceOf
                      , tshow
                      , toSameLength
                      )
+import           ExchangeAlgebra.IO.Output.Statements

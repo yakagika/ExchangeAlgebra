@@ -7,8 +7,8 @@
 module Main (main) where
 
 import           ExchangeAlgebra.Journal
-import qualified ExchangeAlgebra.Convert      as EC
-import qualified ExchangeAlgebra.Convert.Checked as ECC
+import qualified ExchangeAlgebra.IO.Input      as EC
+import qualified ExchangeAlgebra.IO.Input as ECC
 import qualified ExchangeAlgebra.Accounting.Account as PP
 import qualified ExchangeAlgebra.Accounting.Consolidation as CW
 import qualified ExchangeAlgebra.Accounting.TrialBalance.Balance as TBB
@@ -16,9 +16,8 @@ import qualified ExchangeAlgebra.Accounting.TrialBalance.Validation as TB
 import qualified ExchangeAlgebra.Accounting.Statements.Presentation as RP
 import qualified ExchangeAlgebra.Accounting.Statements.Metric as RM
 import qualified ExchangeAlgebra.Accounting.Statements.Group as RG
-import qualified ExchangeAlgebra.Convert.Csv  as ECsv
-import qualified ExchangeAlgebra.Assist       as Assist
-import qualified ExchangeAlgebra.Assist.Descriptions as AssistDesc
+import qualified ExchangeAlgebra.IO.Input.Csv  as ECsv
+import qualified ExchangeAlgebra.IO.Input.Assist       as Assist
 import qualified ExchangeAlgebra.Accounting.Account as Registry
 import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Algebra.Internal as EAI
@@ -2231,7 +2230,7 @@ epsEq :: Double -> Double -> Bool
 epsEq a b = abs (a - b) <= 1e-9 * (1 + max (abs a) (abs b))
 
 -- ================================================================
--- ExchangeAlgebra.Convert.Csv: generic journal CSV reader.
+-- ExchangeAlgebra.IO.Input.Csv: generic journal CSV reader.
 -- Read-only round-trip property: a generated list of postings rendered to a
 -- fixed-schema CSV string parses back to exactly the term built directly by
 -- journalFromSides (MoneyDecimal = exact, so strict equality, no tolerance).
@@ -2240,7 +2239,7 @@ epsEq a b = abs (a - b) <= 1e-9 * (1 + max (abs a) (abs b))
 -- concrete account titles only (no wildcard); use canonical Show names so the
 -- CSV round-trip does not exercise the ambiguous-alias path.
 genAccountTitle :: Gen AccountTitles
-genAccountTitle = elements EC.concreteAccountTitles
+genAccountTitle = elements PP.concreteAccountTitles
 
 genSideCsv :: Gen Side
 genSideCsv = elements [Debit, Credit]
@@ -2310,13 +2309,13 @@ testConvertCsvRoundTrip = do
         (\e -> case e of EC.MalformedCsv _ -> True; _ -> False) badArity
 
 -- ================================================================
--- ExchangeAlgebra.Assist: account descriptions and LLM feedback helpers.
+-- ExchangeAlgebra.IO.Input.Assist: account descriptions and LLM feedback helpers.
 -- ================================================================
 
 testAssistDescriptionsDrift :: IO ()
 testAssistDescriptionsDrift =
     assertEqual "Assist descriptions are the registry projection"
-        registryProjection AssistDesc.accountDescriptions
+        registryProjection PP.accountDescriptions
   where
     registryProjection =
         [ (title, Registry.asNameEn spec, Registry.asNameJa spec, Registry.asDescription spec)
@@ -2328,7 +2327,7 @@ testAssistDescribeAccount :: IO ()
 testAssistDescribeAccount = do
     let missing =
             [ title
-            | title <- EC.concreteAccountTitles
+            | title <- PP.concreteAccountTitles
             , Assist.describeAccount title == Nothing
             ]
     assertEqual "Assist.describeAccount covers every concrete account"
@@ -2340,7 +2339,7 @@ testAssistAllAccountInfos :: IO ()
 testAssistAllAccountInfos = do
     assertEqual "Assist.allAccountInfos length" 240 (length Assist.allAccountInfos)
     assertEqual "Assist.allAccountInfos follows concreteAccountTitles order"
-        EC.concreteAccountTitles (L.map Assist.aiTitle Assist.allAccountInfos)
+        PP.concreteAccountTitles (L.map Assist.aiTitle Assist.allAccountInfos)
     forM_ Assist.allAccountInfos $ \info -> do
         let title = Assist.aiTitle info
         case Registry.accountSemantics title of
@@ -3698,7 +3697,7 @@ testLand2HatNotPolicy = do
         True (case r of Left _ -> True; Right _ -> False)
 
 -- ================================================================
--- ExchangeAlgebra.Convert.Checked: checked construction for generated entries.
+-- ExchangeAlgebra.IO.Input: checked construction for generated entries.
 -- ================================================================
 
 type CheckedAlgM = EA.Alg MoneyDecimal (HatBase AccountTitles)
@@ -3875,13 +3874,13 @@ checkedEntryAcceptsSpec :: [(Side, AccountTitles, MoneyDecimal)] -> Bool
 checkedEntryAcceptsSpec rows =
     not (null rows)
     && all validPosting rows
-    && ECC.exactBalanced (EC.journalFromSides rows :: CheckedAlgM)
+    && exactBalancedForTest (EC.journalFromSides rows :: CheckedAlgM)
   where
     validPosting (side, account, amount) =
         side /= Side
         && account /= AccountTitle
         && maybe False
-            (ECC.postingAllowedIn ECC.OrdinaryJournal
+            (PP.postingAllowedIn PP.OrdinaryJournal
                 . Registry.asemPostingCapability)
             (Registry.accountSemantics account)
         && amount > 0
@@ -4029,7 +4028,7 @@ testConsolidationWorksheet = do
         ]
     let combined = CW.combinedWorksheet validated
     assertEqual "consolidation worksheet: combined fixture stays balanced"
-        True (ECC.exactBalanced combined)
+        True (exactBalancedForTest combined)
     assertEqual "consolidation worksheet: combined debit total"
         (200 :: MoneyDecimal) (EA.norm (EA.decL combined))
     assertEqual "consolidation worksheet: combined credit total"
@@ -4063,7 +4062,7 @@ testConsolidationWorksheet = do
             , CW.WorksheetAdjustment "bad-credit" ("parent" NE.:| []) creditOnly
             ] links
     assertEqual "consolidation worksheet: malformed set can balance in aggregate"
-        True (ECC.exactBalanced cancellingSet)
+        True (exactBalancedForTest cancellingSet)
     assertEqual "consolidation worksheet: atomic gate rejects both malformed adjustments"
         (Just
             ( CW.UnbalancedAdjustment "bad-debit" 10 0 NE.:|
@@ -4964,7 +4963,7 @@ testPostingPolicyTruthTable = do
         [ PP.postingAllowedIn context capability
         | (context, capability, _) <- truthTable
         ]
-        [ ECC.postingAllowedIn context capability
+        [ PP.postingAllowedIn context capability
         | (context, capability, _) <- truthTable
         ]
     assertEqual "posting policy: wildcard title is NotPostable"
@@ -4980,10 +4979,10 @@ testPostingPolicyTruthTable = do
 testPostingCapabilityGate :: IO ()
 testPostingCapabilityGate = do
     let contexts =
-            [ ECC.OrdinaryJournal
-            , ECC.ClosingProcess
-            , ECC.ConsolidationWorksheet
-            , ECC.EngineComputation
+            [ PP.OrdinaryJournal
+            , PP.ClosingProcess
+            , PP.ConsolidationWorksheet
+            , PP.EngineComputation
             ]
         capabilities =
             [ OrdinaryPosting
@@ -4993,25 +4992,25 @@ testPostingCapabilityGate = do
             , NotPostable
             ]
         allowed context capability = (context, capability) `elem`
-            [ (ECC.OrdinaryJournal, OrdinaryPosting)
-            , (ECC.ClosingProcess, OrdinaryPosting)
-            , (ECC.ClosingProcess, ClosingOnly)
-            , (ECC.ConsolidationWorksheet, OrdinaryPosting)
-            , (ECC.ConsolidationWorksheet, ConsolidationOnly)
-            , (ECC.EngineComputation, OrdinaryPosting)
-            , (ECC.EngineComputation, EngineGeneratedOnly)
+            [ (PP.OrdinaryJournal, OrdinaryPosting)
+            , (PP.ClosingProcess, OrdinaryPosting)
+            , (PP.ClosingProcess, ClosingOnly)
+            , (PP.ConsolidationWorksheet, OrdinaryPosting)
+            , (PP.ConsolidationWorksheet, ConsolidationOnly)
+            , (PP.EngineComputation, OrdinaryPosting)
+            , (PP.EngineComputation, EngineGeneratedOnly)
             ]
     assertEqual "posting gate: closed context/capability matrix"
         [ (context, capability, allowed context capability)
         | context <- contexts
         , capability <- capabilities
         ]
-        [ (context, capability, ECC.postingAllowedIn context capability)
+        [ (context, capability, PP.postingAllowedIn context capability)
         | context <- contexts
         , capability <- capabilities
         ]
     assertEqual "posting gate: all 240 titles follow the closed matrix"
-        [ (context, title, ECC.postingAllowedIn context capability)
+        [ (context, title, PP.postingAllowedIn context capability)
         | context <- contexts
         , title <- Registry.concreteAccountTitles
         , Just semantics <- [Registry.accountSemantics title]
@@ -5041,7 +5040,7 @@ testPostingCapabilityGate = do
 
     assertEqual "posting gate: ordinary wrapper rejects engine-generated result"
         (Left (ECC.PostingNotAllowed 0 NetIncome EngineGeneratedOnly
-            ECC.OrdinaryJournal NE.:| []))
+            PP.OrdinaryJournal NE.:| []))
         (checkedEntryM
             [ (Debit, NetIncome, 10)
             , (Credit, RetainedEarnings, 10)
@@ -5049,7 +5048,7 @@ testPostingCapabilityGate = do
 
     assertEqual "posting gate: closing admits IncomeSummary"
         True
-        (case ECC.checkedEntryIn ECC.ClosingProcess
+        (case ECC.checkedEntryIn PP.ClosingProcess
             [ (Debit, Sales, 10 :: MoneyDecimal)
             , (Credit, IncomeSummary, 10)
             ] of
@@ -5057,17 +5056,17 @@ testPostingCapabilityGate = do
             Left _  -> False)
     assertEqual "posting gate: closing rejects engine-generated result"
         True
-        (case ECC.checkedEntryIn ECC.ClosingProcess
+        (case ECC.checkedEntryIn PP.ClosingProcess
             [ (Debit, NetIncome, 10 :: MoneyDecimal)
             , (Credit, RetainedEarnings, 10)
             ] of
             Left (ECC.PostingNotAllowed 0 NetIncome EngineGeneratedOnly
-                    ECC.ClosingProcess NE.:| []) -> True
+                    PP.ClosingProcess NE.:| []) -> True
             _ -> False)
 
     assertEqual "posting gate: consolidation admits NCI attribution"
         True
-        (case ECC.checkedEntryIn ECC.ConsolidationWorksheet
+        (case ECC.checkedEntryIn PP.ConsolidationWorksheet
             [ (Debit, NetIncomeAttributableToNCI, 10 :: MoneyDecimal)
             , (Credit, NonControllingInterests, 10)
             ] of
@@ -5080,11 +5079,11 @@ testPostingCapabilityGate = do
             , (Credit, NonControllingInterests, 10)
             ] of
             Left (ECC.PostingNotAllowed 1 NonControllingInterests
-                    ConsolidationOnly ECC.OrdinaryJournal NE.:| []) -> True
+                    ConsolidationOnly PP.OrdinaryJournal NE.:| []) -> True
             _ -> False)
     assertEqual "posting gate: engine admits period result"
         True
-        (case ECC.checkedEntryIn ECC.EngineComputation
+        (case ECC.checkedEntryIn PP.EngineComputation
             [ (Debit, NetIncome, 10 :: MoneyDecimal)
             , (Credit, RetainedEarnings, 10)
             ] of
@@ -5098,7 +5097,7 @@ testPostingCapabilityGate = do
             , (T.pack "credit", T.pack "RetainedEarnings", 10)
             ] of
             Left (ECC.PostingNotAllowed 0 NetIncome EngineGeneratedOnly
-                    ECC.OrdinaryJournal NE.:| []) -> True
+                    PP.OrdinaryJournal NE.:| []) -> True
             _ -> False)
     assertEqual "posting gate: unknown account does not create false imbalance"
         True
@@ -5110,7 +5109,7 @@ testPostingCapabilityGate = do
             _ -> False)
     assertEqual "posting gate: consolidation text path admits NCI loss"
         True
-        (case ECC.checkedEntryTextIn ECC.ConsolidationWorksheet
+        (case ECC.checkedEntryTextIn PP.ConsolidationWorksheet
             [ (T.pack "debit", T.pack "NonControllingInterests", 10 :: MoneyDecimal)
             , (T.pack "credit", T.pack "NetLossAttributableToNCI", 10)
             ] of
@@ -5126,7 +5125,7 @@ testPostingCapabilityGate = do
             ] of
             Left (ECC.EntryErrors 7
                     (ECC.PostingNotAllowed 0 IncomeSummary ClosingOnly
-                        ECC.OrdinaryJournal NE.:| []) NE.:| []) -> True
+                        PP.OrdinaryJournal NE.:| []) NE.:| []) -> True
             _ -> False)
     assertEqual "posting gate: certification rejects known disallowed title"
         True
@@ -5139,7 +5138,7 @@ testPostingCapabilityGate = do
             ECC.Rejected
                 (ECC.EntryErrors 9
                     (ECC.PostingNotAllowed 0 NetIncome EngineGeneratedOnly
-                        ECC.OrdinaryJournal NE.:| []) NE.:| []) -> True
+                        PP.OrdinaryJournal NE.:| []) NE.:| []) -> True
             _ -> False)
     assertEqual "posting gate: disallowed known title outranks unresolved title"
         True
@@ -5152,11 +5151,11 @@ testPostingCapabilityGate = do
             ECC.Rejected
                 (ECC.EntryErrors 11
                     (ECC.PostingNotAllowed 0 NetIncome EngineGeneratedOnly
-                        ECC.OrdinaryJournal NE.:| []) NE.:| []) -> True
+                        PP.OrdinaryJournal NE.:| []) NE.:| []) -> True
             _ -> False)
     assertEqual "posting gate: certification honors closing context"
         True
-        (case ECC.certifyJournalTextIn ECC.ClosingProcess
+        (case ECC.certifyJournalTextIn PP.ClosingProcess
             [ (10 :: Int,
                 [ (T.pack "debit", T.pack "Sales", 10 :: MoneyDecimal)
                 , (T.pack "credit", T.pack "IncomeSummary", 10)
@@ -5166,7 +5165,7 @@ testPostingCapabilityGate = do
             _                   -> False)
     assertEqual "posting gate: certification honors engine context"
         True
-        (case ECC.certifyJournalTextIn ECC.EngineComputation
+        (case ECC.certifyJournalTextIn PP.EngineComputation
             [ (12 :: Int,
                 [ (T.pack "debit", T.pack "NetLoss", 10 :: MoneyDecimal)
                 , (T.pack "credit", T.pack "RetainedEarnings", 10)
@@ -5226,7 +5225,7 @@ checkedConvertProperties = do
         forAll genAcceptedEntryRows $ \rows1 ->
         forAll genAcceptedEntryRows $ \rows2 ->
             case (checkedEntryM rows1, checkedEntryM rows2) of
-                (Right alg1, Right alg2) -> ECC.exactBalanced (alg1 .+ alg2)
+                (Right alg1, Right alg2) -> exactBalancedForTest (alg1 .+ alg2)
                 _                        -> False
 
     quickProp "convert-checked: checkedJournal duplicate txid only DuplicateTxId" $
@@ -7026,6 +7025,9 @@ testOptimizeFailFast = do
         Right v -> do
             putStrLn ("[FAIL] Optimize.GA: invalid config accepted: " ++ show v)
             exitFailure
+
+exactBalancedForTest :: (EA.HatVal v, EA.ExBaseClass b) => EA.Alg v b -> Bool
+exactBalancedForTest x = EA.norm (EA.decL x) == EA.norm (EA.decR x)
 
 main :: IO ()
 main = do

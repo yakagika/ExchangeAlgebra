@@ -7,7 +7,7 @@
 
     CSV serialization of text tables: 'writeCSV' (every cell quoted) and
     'csvTranspose' (transpose with blank padding). Both names are
-    re-exported unchanged from "ExchangeAlgebra.Write"; this module only
+    re-exported unchanged from "ExchangeAlgebra.IO.Output.Csv"; this module only
     separates the file format from the bookkeeping layouts
     ("ExchangeAlgebra.Render.Bookkeeping") and the simulation dumps
     ("ExchangeAlgebra.Render.Simulation").
@@ -17,9 +17,10 @@
     [["a","c"],["b",""]]
 -}
 
-module ExchangeAlgebra.Render.Csv
+module ExchangeAlgebra.Render.Csv {-# DEPRECATED "Import ExchangeAlgebra.IO.Output.Csv instead." #-}
     ( writeCSV
     , csvTranspose
     ) where
 
-import           ExchangeAlgebra.Write (writeCSV, csvTranspose)
+
+import           ExchangeAlgebra.IO.Output.Csv (writeCSV, csvTranspose)

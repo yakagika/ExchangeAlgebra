@@ -21,8 +21,8 @@ import           ExchangeAlgebra hiding (filter, map)
 import qualified ExchangeAlgebra.Algebra as EA
 import qualified ExchangeAlgebra.Algebra.Transfer as EAT
 import qualified ExchangeAlgebra.Accounting.Entries as BK
-import           ExchangeAlgebra.Convert (parseAccountTitle, parseSide)
-import           ExchangeAlgebra.Convert.Checked (checkedJournal)
+import           ExchangeAlgebra.IO.Input (parseAccountTitle, parseSide)
+import           ExchangeAlgebra.IO.Input (checkedJournal)
 import qualified ExchangeAlgebra.Journal as EJ
 
 data J = JStr String | JNum Integer | JArr [J] | JObj [(String, J)]

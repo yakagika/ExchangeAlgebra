@@ -55,10 +55,14 @@ module ExchangeAlgebra.Write
     , toSameLength
     ) where
 
-import qualified    ExchangeAlgebra.Algebra     as EA
-import              ExchangeAlgebra.Algebra
-import qualified    ExchangeAlgebra.Journal     as EJ
-import              ExchangeAlgebra.Journal     ((.|))
+import qualified    ExchangeAlgebra.Algebra.Core as EA
+import              ExchangeAlgebra.Algebra.Core
+import              ExchangeAlgebra.Algebra.Base.Representation
+import              ExchangeAlgebra.Algebra.Value.Class
+import              ExchangeAlgebra.Accounting.Account
+import              ExchangeAlgebra.Accounting.Exchange
+import qualified    ExchangeAlgebra.Journal.Core as EJ
+import              ExchangeAlgebra.Journal.Core ((.|))
 
 import qualified    ExchangeAlgebra.Algebra.Transfer    as ET
 import qualified    ExchangeAlgebra.Accounting.Statements.Group     as RG

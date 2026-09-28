@@ -14,7 +14,7 @@ import           System.FilePath ((</>))
 
 import           ExchangeAlgebra.Algebra.Base
 import qualified ExchangeAlgebra.Algebra.Base.Account.Registry as Registry
-import qualified ExchangeAlgebra.Assist as Assist
+import qualified ExchangeAlgebra.IO.Input.Assist as Assist
 
 header :: Text -> Text
 header what = "# account-semantics-050 Land 1 " <> what

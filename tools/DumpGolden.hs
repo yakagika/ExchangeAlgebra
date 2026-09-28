@@ -16,8 +16,8 @@ import           System.Environment (getArgs)
 import           System.FilePath ((</>))
 
 import           ExchangeAlgebra.Algebra.Base
-import           ExchangeAlgebra.Assist
-import           ExchangeAlgebra.Convert (parseAccountTitle)
+import           ExchangeAlgebra.IO.Input.Assist
+import           ExchangeAlgebra.IO.Input (parseAccountTitle)
 
 type B = HatBase AccountTitles
 
@@ -65,7 +65,7 @@ main = do
     hdr "allAccountInfos (title, aiDivision, aiHomeSide, aiNameEn, aiNameJa, aiDesc)" c
       <> T.unlines (map infoRow allAccountInfos)
 
-  -- 3. alias 解決 dump (A4): corpus = 外部 file (Convert.hs から抽出した alias 文字列)
+  -- 3. alias 解決 dump (A4): corpus = 外部 file (IO/Input/Conversion.hs から抽出した alias 文字列)
   --    + canonical 名 + 正規化変種 + 固定 unknown probe
   aliasLines <- T.lines <$> TIO.readFile corpusFile
   let canonical = map tshow concreteAccountTitles

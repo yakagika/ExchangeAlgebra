@@ -20,6 +20,12 @@ import qualified ExchangeAlgebra.Accounting.Entries as Entries
 import qualified ExchangeAlgebra.Accounting.TrialBalance as TrialBalance
 import qualified ExchangeAlgebra.Accounting.Statements as Statements
 import qualified ExchangeAlgebra.Accounting.Consolidation as Consolidation
+import qualified ExchangeAlgebra.IO.Input as Input
+import qualified ExchangeAlgebra.IO.Input.Csv as InputCsv
+import qualified ExchangeAlgebra.IO.Input.Assist as Assist
+import qualified ExchangeAlgebra.IO.Output.Csv as OutputCsv
+import qualified ExchangeAlgebra.IO.Output as Output
+import qualified ExchangeAlgebra.IO.Output.Statements as OutputStatements
 
 type ClientBasePart = Base.BasePart (HatBase AccountTitles)
 
@@ -76,3 +82,21 @@ consolidationClient
                    (Consolidation.WorksheetError String String Double))
               (Consolidation.ValidatedWorksheet String String Double)
 consolidationClient = Consolidation.validateConsolidationWorksheet
+
+inputFacadeClient :: Either Input.ConvError Base.Side
+inputFacadeClient = Input.parseSide mempty
+
+checkedClient :: Bool
+checkedClient = either (const False) (const True) (Input.checkedEntry
+    [(Base.Debit, Cash, 1 :: Double), (Base.Credit, Sales, 1 :: Double)])
+
+csvClient = OutputCsv.csvTranspose
+
+outputFacadeClient = Output.csvTranspose
+
+inputCsvClient = InputCsv.splitTrim
+
+assistClient :: Int
+assistClient = length Assist.allAccountInfos
+
+outputClient = OutputStatements.accountLedgerRowsJournal [Cash] journalClient

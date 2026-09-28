@@ -37,8 +37,8 @@ import ExchangeAlgebra.Algebra.Base
     , getAccountTitle
     , whichSide
     )
-import ExchangeAlgebra.Convert.Checked (checkedEntryTextIn, checkedEntryIn)
-import ExchangeAlgebra.Convert (parseAccountTitle)
+import ExchangeAlgebra.IO.Input.Checked (checkedEntryTextIn, checkedEntryIn)
+import ExchangeAlgebra.IO.Input.Conversion (parseAccountTitle)
 import qualified ExchangeAlgebra.Journal as Journal
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 
