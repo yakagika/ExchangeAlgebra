@@ -127,6 +127,7 @@ tests:
     - Algebra.ProjWildcardSpec
     - Golden.WriteRows
     - Golden.ReadoutBaseline
+    - Golden.WireFormat
     - Golden.AdmissionBaseline
     - Golden.ExampleNumbers.RippleAnalysis
     - Golden.ExampleNumbers.RippleFixture

@@ -74,6 +74,7 @@ import qualified Data.Text           as T
 import qualified Data.Text.IO        as TIO
 import           Golden.WriteRows
 import qualified Golden.ReadoutBaseline as ReadoutBaseline
+import qualified Golden.WireFormat as WireFormat
 import qualified Golden.ExampleNumbers.RippleFixture as RippleFixture
 import qualified Golden.AdmissionBaseline as AdmissionBaseline
 import           System.Environment (lookupEnv)
@@ -7148,6 +7149,7 @@ main = do
     testAccountSemanticsPrechangeGolden
     testWriteRowsGolden
     testReadoutBaselineGolden
+    WireFormat.checkFixture
     testExampleNumbersGolden
     testAdmissionBaselineGolden
     testRegistryGolden

@@ -80,6 +80,9 @@ extra-source-files:
     test/fixtures/readout-baseline-p1/journal-double-f-int.tsv
     test/fixtures/readout-baseline-p1/journal-double-f-sub.tsv
     test/fixtures/readout-baseline-p1/README.md
+    test/fixtures/wire-format-p2/decode-boundaries.tsv
+    test/fixtures/wire-format-p2/README.md
+    test/fixtures/wire-format-p2/wire-format.tsv
     test/fixtures/write-rows-0510/ebex6-compound-trial-balance.tsv
     test/fixtures/write-rows-0510/ebex7-compound-trial-balance.tsv
     test/fixtures/write-rows-0510/ebex8-account-ledger-journal.tsv
@@ -287,6 +290,7 @@ test-suite ExchangeAlgebra-test
       Algebra.ProjWildcardSpec
       Golden.WriteRows
       Golden.ReadoutBaseline
+      Golden.WireFormat
       Golden.AdmissionBaseline
       Golden.ExampleNumbers.RippleAnalysis
       Golden.ExampleNumbers.RippleFixture
