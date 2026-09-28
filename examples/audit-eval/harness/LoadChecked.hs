@@ -56,7 +56,6 @@ import           ExchangeAlgebra.IO.Input
                      ( EntryError(..)
                      , JournalError(..)
                      , SourceError(..)
-                     , ProcessingContext(..)
                      , checkedEntryTextIn
                      , checkedEntryText
                      , reconcileSources
