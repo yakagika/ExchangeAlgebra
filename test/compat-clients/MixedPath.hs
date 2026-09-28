@@ -8,6 +8,8 @@ import qualified ExchangeAlgebra.Algebra.Element as Element
 import qualified ExchangeAlgebra.Algebra.Value as Value
 import qualified ExchangeAlgebra.Algebra.Core as Core
 import qualified ExchangeAlgebra.Algebra.Posting as Posting
+import qualified ExchangeAlgebra.Algebra.Transfer.Rule as Rule
+import qualified ExchangeAlgebra.Accounting.Closing as Closing
 import qualified ExchangeAlgebra.Journal.Core as JournalCore
 import qualified ExchangeAlgebra.Value as OldValue
 
@@ -40,3 +42,8 @@ mixedValue = id
 
 mixedOldValue :: OldValue.MoneyDecimal -> Value.MoneyDecimal
 mixedOldValue = id
+
+-- | Apply the new closing entry point to an algebra built through the old path.
+mixedClosing :: Either (Rule.TransferApplyError Double (HatBase Account.AccountTitles))
+                       (Core.Alg Double (HatBase Account.AccountTitles))
+mixedClosing = Closing.closingEntries Old.oldExpression

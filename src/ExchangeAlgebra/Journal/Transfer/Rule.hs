@@ -32,14 +32,26 @@ module ExchangeAlgebra.Journal.Transfer.Rule
 import qualified Data.HashMap.Strict as Map
 import qualified Data.Map.Strict as OrderedMap
 import qualified Data.Set as Set
-import           ExchangeAlgebra.Algebra (Alg( (:@) ), HatVal, ExBaseClass,
-                                          foldEntries, (.@), Redundant((.^)))
+import ExchangeAlgebra.Algebra.Core ( Alg( (:@) )
+                                    , foldEntries
+                                    , (.@)
+                                    , Redundant((.^))
+                                    )
 import           ExchangeAlgebra.Algebra.Exact (ExactSum(..))
-import           ExchangeAlgebra.Algebra.Transfer.Rule (TransferRules, TransferApplyError)
-import qualified ExchangeAlgebra.Algebra.Transfer.Rule as Rule
-import           ExchangeAlgebra.Algebra.Base (Hat(..), HatBaseClass(..))
-import           ExchangeAlgebra.Journal (Journal, Note, (.|), toMap, fromMap, toAlg)
-import qualified ExchangeAlgebra.Journal as Journal
+import ExchangeAlgebra.Algebra.Transfer.Representation (TransferRules, TransferApplyError)
+import qualified ExchangeAlgebra.Algebra.Transfer.Representation as Rule
+import qualified ExchangeAlgebra.Accounting.Closing as Closing
+import ExchangeAlgebra.Algebra.Base.Representation (Hat(..), HatBaseClass(..))
+import ExchangeAlgebra.Algebra.Value.Class (HatVal)
+import ExchangeAlgebra.Algebra (ExBaseClass)
+import ExchangeAlgebra.Journal.Core ( Journal
+                                    , Note
+                                    , (.|)
+                                    , toMap
+                                    , fromMap
+                                    , toAlg
+                                    )
+import qualified ExchangeAlgebra.Journal.Core as Journal
 import           ExchangeAlgebra.Journal.Exact (ExactSumError(..))
 import qualified ExchangeAlgebra.Journal.Exact as Exact
 import           ExchangeAlgebra.Algebra.Posting (PostSide(..))
@@ -74,7 +86,7 @@ transferEntries rules journal = fromMap . Map.fromList
 -- ascending order, with Hat/Not normalized to Not. No partial result is returned.
 closingEntries :: (Note n, HatVal v, ExBaseClass b)
                => Journal n v b -> Either (TransferApplyError v b) (Alg v b)
-closingEntries = Rule.closingEntries . toAlg
+closingEntries = Closing.closingEntries . toAlg
 
 -- | Round selected complete-base nets once and attach the carry note.
 carryNetEntries :: (Note n, HatBaseClass b)

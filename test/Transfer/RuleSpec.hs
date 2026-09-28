@@ -16,7 +16,21 @@ import           Test.QuickCheck hiding (label, sample)
 import           ExchangeAlgebra.Algebra hiding (map, filter)
 import qualified ExchangeAlgebra.Algebra as Algebra
 import qualified ExchangeAlgebra.Algebra.Transfer as Legacy
-import           ExchangeAlgebra.Algebra.Transfer.Rule
+import ExchangeAlgebra.Algebra.Transfer.Rule ( TransferScale(..)
+                                             , TransferRule(..)
+                                             , TransferRules
+                                             , TransferRuleError(..)
+                                             , TransferApplyError(..)
+                                             , mkTransferRules
+                                             , rulesToList
+                                             , relabel
+                                             , scaleBy
+                                             , divideBy
+                                             , transferEntries
+                                             , collapseEntries
+                                             , collapseNetEntries
+                                             )
+import ExchangeAlgebra.Accounting.Closing (ClosingSide(..), closingSide, closingEntries)
 import qualified ExchangeAlgebra.Journal as Journal
 import           ExchangeAlgebra.Journal ((.|), Note(..))
 import qualified ExchangeAlgebra.Journal.Transfer.Rule as JournalRule

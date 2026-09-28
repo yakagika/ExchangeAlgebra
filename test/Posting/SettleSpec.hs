@@ -10,7 +10,14 @@ import System.Exit (exitFailure)
 import Test.QuickCheck hiding (label)
 
 import ExchangeAlgebra.Algebra hiding (filter, map)
-import ExchangeAlgebra.Algebra.Transfer.Rule
+import ExchangeAlgebra.Accounting.Closing ( ClosingSide(..)
+                                          , closingSide
+                                          , retainedEarningsRule
+                                          , SettleError(..)
+                                          , SettlementBatch
+                                          , settleEntries
+                                          , settlementSteps
+                                          )
 
 -- | Two coordinates exercise complete-base ordering and axis preservation.
 type TestBase = HatBase (CountUnit, AccountTitles)

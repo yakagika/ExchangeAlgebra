@@ -22,7 +22,7 @@ import           Numeric (showHex)
 import           ExchangeAlgebra
 import qualified ExchangeAlgebra.Algebra as EA
 import qualified ExchangeAlgebra.Algebra.Internal as Internal
-import qualified ExchangeAlgebra.Algebra.Transfer.Rule as AR
+import qualified ExchangeAlgebra.Accounting.Closing as Closing
 import qualified ExchangeAlgebra.Convert.Checked as Checked
 import qualified ExchangeAlgebra.Journal as EJ
 import qualified ExchangeAlgebra.Journal.Transfer.Rule as JR
@@ -260,7 +260,7 @@ algRows name postings =
          (compare (pair Cash [1]) (pair Cash [2, 3]))
     ++ shownRow "Pair.compare" "Sales notes=1,2 vs Sales note=3"
          (compare (pair Sales [1, 2]) (pair Sales [3]))
-    ++ algEitherRows "closingEntries" "Alg" (AR.closingEntries input)
+    ++ algEitherRows "closingEntries" "Alg" (Closing.closingEntries input)
     ++ balanceRows (TB.accountBalances input)
     ++ [ ["Write.bsRows", "all", "row"] ++ row | row <- Write.bsRows input ]
     ++ [ ["Write.plRows", "all", "row"] ++ row | row <- Write.plRows input ]

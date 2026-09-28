@@ -58,7 +58,8 @@ import qualified Data.Text                as T
 import           ExchangeAlgebra.Journal  -- constructors / operators: :@ :< .+ .| Hat Not Cash ...
 import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Algebra.Exact as Exact
-import qualified ExchangeAlgebra.Algebra.Transfer.Rule as Rule
+import qualified ExchangeAlgebra.Algebra.Transfer.Rule as Rule (TransferApplyError)
+import qualified ExchangeAlgebra.Accounting.Closing as Closing
 import qualified ExchangeAlgebra.Convert.Checked as Checked
 import qualified ExchangeAlgebra.Journal  as EJ
 import qualified ExchangeAlgebra.Journal.Exact as JournalExact
@@ -569,7 +570,7 @@ gateInteger =
         , ("balanceBy", \a ->
             [ bench "normal" $ nf (EA.balanceBy [gateNotQuery] [gateHatQuery]) a ])
         , ("closingEntries", \a ->
-            [ bench "normal" $ nf (forceClosingEntries . Rule.closingEntries) a ])
+            [ bench "normal" $ nf (forceClosingEntries . Closing.closingEntries) a ])
         , ("accountBalances", \a ->
             [ bench "normal" $ nf (forceAccountBalances . TrialBalance.accountBalances) a
             , bench "exact" $ nf (forceExactAccountBalances . Exact.accountBalancesExact) a ])

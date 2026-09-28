@@ -180,6 +180,7 @@ library
       ExchangeAlgebra
       ExchangeAlgebra.Accounting
       ExchangeAlgebra.Accounting.Account
+      ExchangeAlgebra.Accounting.Closing
       ExchangeAlgebra.Accounting.Exchange
       ExchangeAlgebra.Accounting.PostingPolicy
       ExchangeAlgebra.Algebra
@@ -245,7 +246,7 @@ library
       ExchangeAlgebra.Accounting.Account.Aliases
       ExchangeAlgebra.Accounting.Account.Registry
       ExchangeAlgebra.Accounting.Account.PostingPolicy
-      ExchangeAlgebra.Algebra.Transfer.Closing
+      ExchangeAlgebra.Algebra.Transfer.Representation
       ExchangeAlgebra.IO.Input.Admission.Catalog
       ExchangeAlgebra.IO.Input.Admission.Derive
       ExchangeAlgebra.IO.Input.Admission.Engine

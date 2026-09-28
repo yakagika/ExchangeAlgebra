@@ -112,7 +112,35 @@ module ExchangeAlgebra
     , module ExchangeAlgebra.Write
     , module ExchangeAlgebra.Value ) where
 
-import              ExchangeAlgebra.Algebra.Transfer.Rule
+import ExchangeAlgebra.Algebra.Transfer.Representation as ExchangeAlgebra.Algebra.Transfer.Rule
+    ( TransferScale(..)
+    , TransferRule(..)
+    , TransferRules
+    , TransferRuleError(..)
+    , TransferApplyError(..)
+    , mkTransferRules
+    , rulesToList
+    , relabel
+    , scaleBy
+    , divideBy
+    , transferEntries
+    , collapseEntries
+    , collapseNetEntries
+    )
+
+import ExchangeAlgebra.Accounting.Closing as ExchangeAlgebra.Algebra.Transfer.Rule
+    ( ClosingSide(..)
+    , closingSide
+    , closingEntries
+    , SettleRule
+    , retainedEarningsRule
+    , SettlementBatch
+    , SignedNet
+    , SettleError(..)
+    , settleEntries
+    , settlementSteps
+    )
+
 import              ExchangeAlgebra.Algebra
 import              ExchangeAlgebra.Algebra.Transfer
 import              ExchangeAlgebra.Write

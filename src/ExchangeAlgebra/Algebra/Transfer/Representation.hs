@@ -1,0 +1,283 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
+
+{- |
+Module      : ExchangeAlgebra.Algebra.Transfer.Representation
+Description : Generic transfer rules and additional entries.
+
+This Algebra layer owns transfer rules, their validation, and coordinate
+collapse. It uses generic bases and values and supplies the public
+"ExchangeAlgebra.Algebra.Transfer.Rule" entry point.
+Start with 'mkTransferRules', then 'transferEntries' or the collapse functions.
+Definition 9 describes a transfer by adding source cancellations and target
+postings: for @Right entries = transferEntries rules ledger@, use
+@ledger .+ entries@. Only 'collapseNetEntries' applies @bar@ to rewritten entries.
+
+== Laws
+
+The observation @obs@ is the map from complete bases (including Hat\/Not) to
+summed values after @bar@; it does not observe the singleton versus composite
+constructor or sequence order. Relative tolerance means a per-base difference
+of at most @1e-9 * max (abs x) (abs y)@, treating absent bases as zero.
+
+=== L1: compatibility
+
+* Subject: 'transferEntries' and legacy @transfer@.
+* Preconditions: P1, all source patterns have the same wildcard positions;
+  P2, patterns are disjoint; P3, ledger bases contain no wildcards; P4, axes
+  are not nested tuples; P5, transformed values are nonzero. The legacy table
+  translates 'Relabel', 'MulBy' and 'DivBy' to @id@, @(* p)@ and @(/ p)@,
+  respectively, and applying the new rules returns @Right entries@. P3 is
+  needed only for equivalence with legacy @transfer@, whose matching is
+  symmetric. 'transferEntries' matches one way and treats ledger wildcards
+  as values.
+* Relation: @obs (a .+ entries) ~= obs (transfer a table)@.
+* Observation: @obs@ as defined above, including every target base.
+* Tolerance: relative @1e-9@; tested values are integers in @1..1000000@,
+  and coefficients are @2@, @3@, @0.5@ and @4@.
+* Instances: 'Double' and @MoneyDecimal@ with flat @HatBase@ tuples.
+
+=== L4: canonical form
+
+* Subject: 'mkTransferRules'.
+* Preconditions: construction succeeds; the second input permutes the first.
+* Relation: both constructions return equal rule sets.
+* Observation: 'Eq' of t'TransferRules', or 'rulesToList'.
+* Tolerance: exact equality. Errors (including NaN) are outside this law.
+* Instances: all lawful 'HatVal' and 'HatBaseClass' instances.
+
+=== L6: coordinate collapse
+
+* Subject: 'collapseEntries' and 'collapseNetEntries'.
+* Preconditions: non-negative valid postings and an exact additive value type.
+* Relation: @bar (x .+ collapseEntries p f x) ==
+  bar (x .+ collapseNetEntries p f x)@. The raw form has twice as many
+  postings as @proj p x@ and twice its norm; the net form calls 'bar' after
+  rewriting the base parts.
+* Observation: net ledger and raw posting count and norm.
+* Tolerance: exact.
+* Instances: @MoneyDecimal@ with 'HatBaseClass' bases.
+-}
+module ExchangeAlgebra.Algebra.Transfer.Representation ( TransferScale(..)
+                                                       , TransferRule(..)
+                                                       , TransferRules
+                                                       , TransferRuleError(..)
+                                                       , TransferApplyError(..)
+                                                       , mkTransferRules
+                                                       , rulesToList
+                                                       , relabel
+                                                       , scaleBy
+                                                       , divideBy
+                                                       , transferEntries
+                                                       , collapseEntries
+                                                       , collapseNetEntries
+                                                       ) where
+
+import Data.Binary (Binary(..))
+import Data.Hashable (Hashable)
+import Data.List (find, sortOn, tails)
+import GHC.Generics (Generic)
+import ExchangeAlgebra.Algebra.Core ( Alg(..)
+                                    , Redundant((.+), (.^), bar, norm)
+                                    , (.@)
+                                    , foldEntries
+                                    , mapBasePart
+                                    , proj
+                                    , postFromNetBy
+                                    , vals
+                                    )
+import ExchangeAlgebra.Algebra.Base.Representation (HatBaseClass(..), Hat(..), HatBase(..))
+import ExchangeAlgebra.Algebra.Element (CountUnit(..), Element(..), ignoreWildcard)
+import ExchangeAlgebra.Algebra.Value.Class (HatVal(..))
+
+-- | How a rule changes the value it moves.
+data TransferScale v
+    = Relabel  -- ^ Keep the value.
+    | MulBy v  -- ^ Multiply by a positive finite coefficient.
+    | DivBy v  -- ^ Divide by a positive finite coefficient.
+    deriving (Eq, Ord, Show, Generic)
+
+instance Binary v => Binary (TransferScale v)
+
+instance Hashable v => Hashable (TransferScale v)
+
+-- | A source pattern, target template and value operation.
+data TransferRule v b = TransferRule
+    { ruleFrom  :: b                -- ^ One-way matching pattern.
+    , ruleTo    :: b                -- ^ Wildcards retain source coordinates.
+    , ruleScale :: TransferScale v  -- ^ Value operation, validated at construction.
+    } deriving (Eq, Ord, Show, Generic)
+
+instance (Binary v, Binary b) => Binary (TransferRule v b)
+
+instance (Hashable v, Hashable b) => Hashable (TransferRule v b)
+
+-- | Validated, pairwise-disjoint rules, sorted by source pattern.
+-- No 'Semigroup' instance: combine 'rulesToList' values and validate again.
+-- Serialize the list of rules and use 'mkTransferRules' after decoding;
+-- decoding revalidates the list to preserve this type's invariant.
+newtype TransferRules v b = TransferRules [TransferRule v b]
+    deriving (Eq, Show, Generic)
+
+instance (HatVal v, HatBaseClass b, Binary v, Binary b) => Binary (TransferRules v b) where
+    put = put . rulesToList
+    get = do
+        rules <- get
+        case mkTransferRules rules of
+            Left failure    -> fail (show failure)
+            Right validated -> pure validated
+
+instance (Hashable v, Hashable b) => Hashable (TransferRules v b)
+
+-- | A construction failure. The first invalid coefficient in input order
+-- precedes overlap checks; overlaps report the first pair @(i,j)@, @i < j@.
+data TransferRuleError v b
+    = OverlappingRules (TransferRule v b) (TransferRule v b) -- ^ Including duplicates.
+    | InvalidCoefficient (TransferRule v b)                -- ^ Zero, negative or non-finite.
+    deriving (Eq, Show)
+
+-- | A value operation produced a non-finite (or otherwise invalid) value.
+data TransferApplyError v b
+    = NonFiniteResult (TransferRule v b) v b -- ^ Rule, source value, source base.
+    | NonFiniteBalance b                   -- ^ Closing base, normalized to Not.
+    deriving (Show)
+
+-- | Validate coefficients, reject all overlapping source patterns, and sort.
+-- Matching is one-way: a wildcard in the ledger is a value, not a pattern.
+-- Overlap uses wildcard substitution recursively, including nested tuples;
+-- symmetric wildcard equality is insufficient. Complexity: O(r^2).
+mkTransferRules :: (HatVal v, HatBaseClass b)
+                => [TransferRule v b]
+                -> Either (TransferRuleError v b) (TransferRules v b)
+mkTransferRules rules = case find invalidCoefficient rules of
+    Just rule -> Left (InvalidCoefficient rule)
+    Nothing -> case find overlaps pairs of
+        Just (first, second) -> Left (OverlappingRules first second)
+        Nothing -> Right (TransferRules (sortOn ruleFrom rules))
+  where
+    invalidCoefficient rule = case ruleScale rule of
+        Relabel -> False
+        MulBy coefficient -> invalid coefficient
+        DivBy coefficient -> invalid coefficient
+    invalid coefficient = coefficient <= zeroValue || isErrorValue coefficient
+    pairs = [(first, second) | first : rest <- tails rules, second <- rest]
+    overlaps (first, second) =
+        matches (ruleFrom first)
+                (ignoreWildcard (ruleFrom first) (ruleFrom second))
+
+-- | Extract the canonical list, sorted by 'ruleFrom'.
+rulesToList :: TransferRules v b -> [TransferRule v b]
+rulesToList (TransferRules rules) = rules
+
+-- | Construct a value-preserving rule; validate with 'mkTransferRules'.
+relabel :: b -> b -> TransferRule v b
+relabel source target = TransferRule source target Relabel
+
+-- | Construct a multiplication rule; the coefficient must be positive and finite.
+scaleBy :: b -> b -> v -> TransferRule v b
+scaleBy source target coefficient = TransferRule source target (MulBy coefficient)
+
+-- | Construct a division rule. Division is not reciprocal multiplication:
+-- the latter need not round the same way for floating-point values.
+divideBy :: b -> b -> v -> TransferRule v b
+divideBy source target coefficient = TransferRule source target (DivBy coefficient)
+
+-- | Match only the pattern's wildcards, preserving literal ledger wildcards.
+matches :: HatBaseClass b => b -> b -> Bool
+matches patternBase entry = ignoreWildcard entry patternBase == entry
+
+-- * Additional entries
+
+-- | Generate cancellation and destination entries, without the input ledger.
+-- Input values must satisfy the ordinary non-negative, finite posting contract.
+-- 'Relabel'-only rules cannot fail. Scaled overflow returns 'NonFiniteResult',
+-- and no partial result is returned. Source HatNot postings are unmatched.
+-- A relabel to the identical base generates nothing; a zero scaled value
+-- generates only the cancellation. No implicit @bar@ or legacy one-to-one
+-- map is used. Complexity: O(s*r), with linear rule lookup per posting.
+transferEntries :: (HatVal v, HatBaseClass b)
+                => TransferRules v b
+                -> Alg v b
+                -> Either (TransferApplyError v b) (Alg v b)
+transferEntries (TransferRules rules) = foldEntries step (Right Zero)
+  where
+    step result value source = do
+        entries <- result
+        additions <- apply value source
+        pure (entries .+ additions)
+    apply value source = case hat source of
+        HatNot -> Right Zero
+        _ -> case find (\rule -> matches (ruleFrom rule) source) rules of
+            Nothing -> Right Zero
+            Just rule -> generate rule value source
+    generate rule value source
+        | ruleScale rule == Relabel && target == source = Right Zero
+        | isErrorValue moved = Left (NonFiniteResult rule value source)
+        | isZeroValue moved = Right cancellation
+        | otherwise = Right (cancellation .+ (moved :@ target))
+      where
+        target = ignoreWildcard source (ruleTo rule)
+        moved = case ruleScale rule of
+            Relabel -> value
+            MulBy coefficient -> value * coefficient
+            DivBy coefficient -> value / coefficient
+        cancellation = value :@ revHat source
+
+-- | Move selected entries to new base coordinates while retaining every posting.
+-- Query patterns use one-way matching: only a pattern wildcard matches any
+-- coordinate. The function rewrites each selected 'BasePart' with the supplied
+-- function, so callers can replace an axis with its wildcard. A transfer
+-- rule's target wildcard instead keeps the source coordinate; it cannot turn
+-- a concrete coordinate into a wildcard.
+--
+-- The result contains only the added entries: a Hat-reversed copy of each
+-- selected posting and its rewritten copy. Add it to the ledger with @(.+)@.
+-- Values remain non-negative, and this function does not call 'bar', so it
+-- retains redundant audit detail. 'collapseNetEntries' nets the rewritten
+-- entries instead. 'postFromNetBy' generates new postings for each netted
+-- classification; both collapse functions move the coordinates of the same
+-- entries.
+-- On an axis-preserving ledger, @norm . bar@ cannot cancel across axes.
+--
+-- >>> type T = Alg Double (HatBase CountUnit)
+-- >>> x = 10 .@ Not :< Yen .+ 4 .@ Hat :< Dollar :: T
+-- >>> let moved = collapseEntries [HatNot :< wildcard] (const wildcard) x
+-- >>> norm moved
+-- 28.0
+-- >>> length (vals moved)
+-- 4
+collapseEntries :: (HatVal v, HatBaseClass b)
+                => [b] -> (BasePart b -> BasePart b) -> Alg v b -> Alg v b
+collapseEntries pats f x = (.^) selected .+ mapBasePart f selected
+  where
+    selected = proj pats x
+
+-- | Move selected entries to new base coordinates and net the rewritten side.
+-- The result contains only added entries: a Hat-reversed copy of the selected
+-- postings plus @bar (mapBasePart f selected)@. This function calls 'bar'
+-- internally after rewriting, so opposite sides from distinct original axes
+-- can cancel when the new base parts coincide. Add the result to the original
+-- ledger with @(.+)@. It leaves the original audit entries in place.
+--
+-- Query wildcards match one way. A wildcard in a transfer rule's target
+-- preserves the source coordinate; use this function to replace a concrete
+-- coordinate with a wildcard. 'collapseEntries' retains all rewritten
+-- postings. 'postFromNetBy' generates new postings for each netted
+-- classification, while this function moves the coordinates of the same
+-- entries. On an axis-preserving ledger, @norm . bar@ does not cancel across
+-- axes.
+--
+-- >>> type T = Alg Double (HatBase CountUnit)
+-- >>> x = 10 .@ Not :< Yen .+ 4 .@ Hat :< Dollar :: T
+-- >>> norm (bar (x .+ collapseNetEntries [HatNot :< wildcard] (const wildcard) x))
+-- 6.0
+collapseNetEntries :: (HatVal v, HatBaseClass b)
+                   => [b] -> (BasePart b -> BasePart b) -> Alg v b -> Alg v b
+collapseNetEntries pats f x = (.^) selected .+ bar (mapBasePart f selected)
+  where
+    selected = proj pats x
+

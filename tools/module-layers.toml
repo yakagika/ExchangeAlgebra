@@ -20,8 +20,9 @@ Posting = "Algebra"
 Foundation = "Algebra"
 "Algebra.Base.Account" = "Accounting"
 "Algebra.Transfer" = "Accounting"
-"Algebra.Transfer.Rule" = "Accounting"
-"Algebra.Transfer.Closing" = "Accounting"
+"Algebra.Transfer.Rule" = "Algebra"
+"Algebra.Transfer.Representation" = "Algebra"
+"Accounting.Closing" = "Accounting"
 Accounting = "Accounting"
 "Accounting.Exchange" = "Accounting"
 Bookkeeping = "Accounting"
@@ -145,12 +146,18 @@ remove_by = "0.6.0.0"
 
 [[exceptions]]
 from = "Journal.Transfer.Rule"
-to = "Algebra.Transfer.Rule"
-reason = "Legacy journal rule adapter delegates to accounting transfer rules."
-remove_by = "0.6.0.0"
+to = "Accounting.Closing"
+reason = "Legacy journal closing adapter delegates to the closing owner."
+remove_by = "P4"
 
 [[exceptions]]
 from = "Write"
 to = "Simulate.Spill"
 reason = "Legacy output writer depends on simulation spill records."
 remove_by = "0.6.0.0"
+
+[[exceptions]]
+from = "Algebra.Transfer.Rule"
+to = "Accounting.Closing"
+reason = "Rule re-exports closing entities; deprecation waits for the P4 generic public entry."
+remove_by = "0.7.0.0"

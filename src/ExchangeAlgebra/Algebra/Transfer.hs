@@ -65,9 +65,14 @@ module ExchangeAlgebra.Algebra.Transfer
     , finalStockTransfer
     ) where
 
-import              ExchangeAlgebra.Algebra.Transfer.Rule (ClosingSide(..), closingSide)
-import qualified    ExchangeAlgebra.Algebra as EA
-import              ExchangeAlgebra.Algebra
+import ExchangeAlgebra.Accounting.Closing (ClosingSide(..), closingSide)
+import qualified    ExchangeAlgebra.Algebra.Core as EA
+import ExchangeAlgebra.Algebra.Core hiding (fromList, map)
+import              ExchangeAlgebra.Algebra.Base.Representation
+import              ExchangeAlgebra.Algebra.Element
+import              ExchangeAlgebra.Algebra.Value.Class
+import              ExchangeAlgebra.Accounting.Account
+import              ExchangeAlgebra.Accounting.Exchange
 
 import              Text.Show.Unicode               ( ushow)
 import              GHC.Exts                        ( reallyUnsafePtrEquality#
@@ -528,7 +533,7 @@ createTransfer tt =
 -- * Closing transfer entries
 
 -- | Income Summary Account: compute net income for the current period.
--- Legacy API: new code should use "ExchangeAlgebra.Algebra.Transfer.Rule".
+-- For additional closing entries, use "ExchangeAlgebra.Accounting.Closing".
 -- See the module header for compatibility assumptions P1-P5 and known lookup limitations.
 -- When the ledger is balanced (credit == debit, net income is zero), @diffRL@
 -- reports the wildcard v'Side'; in that case the input is returned unchanged
@@ -547,7 +552,7 @@ incomeSummaryAccount alg =  let (dc,diff) = diffRL alg
                                 Side   -> alg
 
 -- | Net income transfer. Transfers NetIncome/NetLoss to RetainedEarnings.
--- Legacy API: new code should use "ExchangeAlgebra.Algebra.Transfer.Rule".
+-- For additional closing entries, use "ExchangeAlgebra.Accounting.Closing".
 -- See the module header for compatibility assumptions P1-P5 and known lookup limitations.
 --
 -- Complexity: O(s) (s = total number of scalar entries)
@@ -692,7 +697,7 @@ finalStockTransferStep = EA.map go
     go x = x
 
 -- | Final Stock Transfer (closing entries).
--- Legacy API: new code should use "ExchangeAlgebra.Algebra.Transfer.Rule".
+-- For additional closing entries, use "ExchangeAlgebra.Accounting.Closing".
 -- See the module header for compatibility assumptions P1-P5 and known lookup limitations.
 -- Transfers registry-eligible cost and revenue accounts to RetainedEarnings
 -- and cancels via the bar operation.

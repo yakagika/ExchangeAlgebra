@@ -26,6 +26,7 @@ import           Data.Decimal (DecimalRaw(Decimal))
 import           ExchangeAlgebra.Algebra.Base
 import qualified ExchangeAlgebra.Algebra.Internal as EA
 import qualified ExchangeAlgebra.Algebra.Transfer.Rule as Rule
+import qualified ExchangeAlgebra.Accounting.Closing as Closing
 import qualified ExchangeAlgebra.Journal as Journal
 import           ExchangeAlgebra.Algebra.Posting (Posted, PostSide(..), posted)
 import           ExchangeAlgebra.Algebra.Value (MoneyDecimal(..), MoneyDouble(..))
@@ -83,8 +84,8 @@ cases =
         (validated [] :: Rule.TransferRules Double WireBase)
     , eq "TransferRules" "one" (validated [ruleA])
     , eq "TransferRules" "two sorted rules" (validated [ruleB, ruleA])
-    , eq "ClosingSide" "keep" Rule.ClosingKeep
-    , eq "ClosingSide" "flip" Rule.ClosingFlip
+    , eq "ClosingSide" "keep" Closing.ClosingKeep
+    , eq "ClosingSide" "flip" Closing.ClosingFlip
     , journalCase "Journal" "empty"
         (Journal.fromMap HM.empty :: Journal.Journal Int Double WireBase)
     , journalCase "Journal" "two notes and repeated base"

@@ -64,7 +64,16 @@ module ExchangeAlgebra.Journal.Transfer
     , ExchangeAlgebra.Journal.Transfer.finalStockTransfer
     ) where
 
-import              ExchangeAlgebra.Algebra hiding (map)
+import ExchangeAlgebra.Algebra.Core hiding (map)
+import              ExchangeAlgebra.Algebra.Base.Representation
+import              ExchangeAlgebra.Algebra.Value.Class
+import ExchangeAlgebra.Algebra ( ExBaseClass(..)
+                               , Exchange(..)
+                               , AccountBase(..)
+                               , AccountTitles(..)
+                               , Side(..)
+                               )
+import ExchangeAlgebra.Algebra.Element (Element(..), CountUnit(..))
 import qualified    ExchangeAlgebra.Algebra.Transfer as EAT
 import              ExchangeAlgebra.Algebra.Transfer (TransTable
                                                     , isNullTable
@@ -73,8 +82,8 @@ import              ExchangeAlgebra.Algebra.Transfer (TransTable
                                                     , (.->)
                                                     , (|%)
                                                     , finalStockTransferStep)
-import qualified    ExchangeAlgebra.Journal as EJ
-import              ExchangeAlgebra.Journal hiding ()
+import qualified    ExchangeAlgebra.Journal.Core as EJ
+import ExchangeAlgebra.Journal.Core hiding ()
 
 
 
