@@ -62,6 +62,15 @@ jobs:
       - name: Check admission API boundary
         run: STACK_ARGS="--system-ghc --no-install-ghc" bash test/compile-fail/check.sh
 
+      - name: Check P2 export surface
+        run: STACK_ARGS="--system-ghc --no-install-ghc" python3 tools/check-export-surface.py
+
+      - name: Check P2 compatibility clients
+        run: STACK_ARGS="--system-ghc --no-install-ghc" bash test/compat-clients/check.sh
+
+      - name: Check P2 orphan instances
+        run: STACK_ARGS="--system-ghc --no-install-ghc" python3 tools/check-orphans.py
+
   build-test-no-visualize:
     runs-on: ubuntu-latest
     steps:
@@ -88,6 +97,15 @@ jobs:
 
       - name: Check admission API boundary (visualize flag off)
         run: STACK_ARGS="--system-ghc --no-install-ghc" bash test/compile-fail/check.sh
+
+      - name: Check P2 export surface (visualize flag off)
+        run: EA_VISUALIZE=0 STACK_ARGS="--system-ghc --no-install-ghc" python3 tools/check-export-surface.py
+
+      - name: Check P2 compatibility clients (visualize flag off)
+        run: STACK_ARGS="--system-ghc --no-install-ghc" bash test/compat-clients/check.sh
+
+      - name: Check P2 orphan instances (visualize flag off)
+        run: EA_VISUALIZE=0 STACK_ARGS="--system-ghc --no-install-ghc" python3 tools/check-orphans.py
 
   # Optional formal-verification job: LiquidHaskell refinement checks for the
   # value non-negativity invariant (0 <= magnitude; sign lives in the Hat/Not

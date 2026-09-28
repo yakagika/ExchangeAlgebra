@@ -1,0 +1,15 @@
+.->
+TransTable
+TransTableParts
+createTransfer
+finalStockTransfer
+finalStockTransferAggregated
+grossProfitTransfer
+incomeSummaryAccount
+isNullTable
+netIncomeTransfer
+ordinaryProfitTransfer
+retainedEarningTransfer
+table
+transfer
+|%

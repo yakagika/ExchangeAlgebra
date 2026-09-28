@@ -1,0 +1,16 @@
+AccountInfo
+aiDesc
+aiDivisionSemantics
+aiHomeSideSemantics
+aiNameEn
+aiNameJa
+aiPostingCapability
+aiReportingEligibility
+aiRoles
+aiTitle
+allAccountInfos
+describeAccount
+explainEntryError
+explainJournalErrors
+explainSourceErrors
+suggestAccounts

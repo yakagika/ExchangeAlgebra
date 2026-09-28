@@ -1,0 +1,14 @@
+CarryError
+NegativeValue
+NonFiniteValue
+ResultOutOfRange
+SideTotals
+WildcardSide
+carryBefore
+carryEntries
+closingEntries
+hatTotal
+notTotal
+sideTotal
+sideTotalsBy
+transferEntries

@@ -13,6 +13,11 @@ extra-source-files:
 - test/fixtures/**/*
 - test/compile-fail/*.hs
 - test/compile-fail/*.sh
+- test/compat-clients/*.hs
+- test/compat-clients/*.sh
+- test/compat-clients/*.md
+- tools/check-export-surface.py
+- tools/check-orphans.py
 - docs/admission-api-design-notes.md
 
 synopsis:            Exchange Algebra for bookkeeping and economic simulation
@@ -88,8 +93,11 @@ library:
 tests:
   ExchangeAlgebra-surface:
     main:                SurfaceMain.hs
-    source-dirs:         test
+    source-dirs:
+    - test
+    - test/compat-clients
     other-modules:
+    - CompatInstance
     - Surface.Accounting
     - Surface.Algebra.Exact
     - Surface.Algebra.Readout.Net
@@ -113,6 +121,8 @@ tests:
     dependencies:
     - exchangealgebra
     - base
+    - hashable
+    - process
 
   ExchangeAlgebra-test:
     main:                Spec.hs

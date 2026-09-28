@@ -11,7 +11,12 @@ import           Surface.Render.Simulation ()
 import           Surface.Simulate.Analysis ()
 import           Surface.Simulate.Engine ()
 import           Surface.Simulate.Random ()
+import           CompatInstance (checkInstances)
+import           System.Process (callProcess)
 
--- | Report successful compilation of every surface lock module.
+-- | Check the public export snapshot and client-owned instance behavior.
 main :: IO ()
-main = putStrLn "surface ok"
+main = do
+    checkInstances
+    callProcess "python3" ["tools/check-export-surface.py", "--direct-ghc", "--suite"]
+    putStrLn "surface ok"

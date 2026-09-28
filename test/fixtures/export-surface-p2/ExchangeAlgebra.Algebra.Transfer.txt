@@ -1,0 +1,16 @@
+.->
+Size
+TransTable
+TransTableParts
+createTransfer
+finalStockTransfer
+finalStockTransferStep
+grossProfitTransfer
+incomeSummaryAccount
+isNullTable
+netIncomeTransfer
+ordinaryProfitTransfer
+retainedEarningTransfer
+table
+transfer
+|%

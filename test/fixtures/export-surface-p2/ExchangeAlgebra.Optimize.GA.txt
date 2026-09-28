@@ -1,0 +1,14 @@
+GA
+GAConfig
+defaultGAConfig
+gaBounds
+gaCrossoverRate
+gaDirection
+gaEliteCount
+gaGenerations
+gaInitSpread
+gaMutationRate
+gaMutationScale
+gaPopulationSize
+gaSeed
+gaTournamentSize

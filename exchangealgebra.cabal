@@ -34,6 +34,60 @@ extra-source-files:
     test/fixtures/consolidation-worksheet-050/README.md
     test/fixtures/example-numbers-p1/README.md
     test/fixtures/example-numbers-p1/ripple-analysis.tsv
+    test/fixtures/export-surface-p2/counts.tsv
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Accounting.PostingPolicy.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Accounting.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Algebra.Base.Account.JcciAliases.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Algebra.Base.Account.Registry.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Algebra.Base.Account.Types.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Algebra.Base.Element.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Algebra.Base.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Algebra.Exact.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Algebra.Internal.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Algebra.Readout.Net.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Algebra.Transfer.Rule.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Algebra.Transfer.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Algebra.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Assist.Descriptions.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Assist.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Bookkeeping.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Consolidation.Worksheet.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Convert.Checked.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Convert.Csv.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Convert.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Foundation.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.IO.Input.Admission.Equivalence.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.IO.Input.Admission.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Journal.Exact.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Journal.Transfer.Rule.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Journal.Transfer.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Journal.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Optimize.Annealing.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Optimize.GA.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Optimize.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Posting.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Render.Bookkeeping.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Render.Csv.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Render.Simulation.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Reporting.Group.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Reporting.Metric.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Reporting.Presentation.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Simulate.Analysis.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Simulate.Engine.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Simulate.Lite.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Simulate.Network.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Simulate.Policy.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Simulate.Random.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Simulate.Spill.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Simulate.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Simulate.Visualize.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.TrialBalance.Balance.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.TrialBalance.Validation.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Value.txt
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Write.txt
+    test/fixtures/export-surface-p2/orphans.txt
+    test/fixtures/export-surface-p2/README.md
     test/fixtures/jcci-2022/queries.tsv
     test/fixtures/jcci-2022/README.md
     test/fixtures/jcci-2022/source.tsv
@@ -101,6 +155,15 @@ extra-source-files:
     test/compile-fail/RawDerivation.hs
     test/compile-fail/RecordUpdate.hs
     test/compile-fail/check.sh
+    test/compat-clients/CompatInstance.hs
+    test/compat-clients/InstanceMain.hs
+    test/compat-clients/MixedPath.hs
+    test/compat-clients/NewPath.hs
+    test/compat-clients/OldPath.hs
+    test/compat-clients/check.sh
+    test/compat-clients/README.md
+    tools/check-export-surface.py
+    tools/check-orphans.py
     docs/admission-api-design-notes.md
 
 source-repository head
@@ -240,6 +303,7 @@ test-suite ExchangeAlgebra-surface
   type: exitcode-stdio-1.0
   main-is: SurfaceMain.hs
   other-modules:
+      CompatInstance
       Surface.Accounting
       Surface.Algebra.Exact
       Surface.Algebra.Readout.Net
@@ -253,6 +317,7 @@ test-suite ExchangeAlgebra-surface
       Surface.Simulate.Random
   hs-source-dirs:
       test
+      test/compat-clients
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wunused-imports
   build-depends:
       Decimal ==0.5.*
@@ -264,10 +329,11 @@ test-suite ExchangeAlgebra-surface
     , containers >=0.6 && <0.8
     , deepseq >=1.4 && <1.6
     , exchangealgebra
-    , hashable >=1.4 && <1.6
+    , hashable
     , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
+    , process
     , random ==1.2.*
     , scientific >=0.3.7 && <0.4
     , text >=2.0 && <2.2
