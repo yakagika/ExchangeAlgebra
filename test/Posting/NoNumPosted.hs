@@ -8,7 +8,7 @@ module Posting.NoNumPosted
     , genericPosted
     ) where
 
-import ExchangeAlgebra.Posting (Posted, Posting)
+import ExchangeAlgebra.Algebra.Posting (Posted, Posting)
 import GHC.Generics (from)
 
 -- | Demand an integer literal at the protected posting type.

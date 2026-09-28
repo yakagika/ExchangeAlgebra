@@ -1,11 +1,13 @@
 # Prefixes are relative to ExchangeAlgebra. The longest matching prefix wins.
 layers = ["Algebra", "Journal", "Accounting", "IO", "Simulation"]
 umbrella = ["ExchangeAlgebra"]
-shims = ["Algebra.Readout.Net"] # Add the 0.6 compatibility modules as they are created.
+shims = ["Algebra.Readout.Net", "Posting"] # Add the 0.6 compatibility modules as they are created.
 
 [assign]
 Algebra = "Algebra"
 "Algebra.Internal" = "Algebra"
+"Algebra.Core" = "Algebra"
+"Algebra.Posting" = "Algebra"
 "Algebra.Base" = "Algebra"
 "Algebra.Base.Element" = "Algebra"
 "Algebra.Base.Account.JcciAliases" = "Algebra"

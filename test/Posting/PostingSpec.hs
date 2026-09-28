@@ -12,8 +12,8 @@ import Data.Hashable (hash)
 import System.Exit (exitFailure)
 import Test.QuickCheck hiding (label)
 import ExchangeAlgebra.Algebra hiding (map, filter)
-import qualified ExchangeAlgebra.Posting as Posting
-import ExchangeAlgebra.Posting
+import qualified ExchangeAlgebra.Algebra.Posting as Posting
+import ExchangeAlgebra.Algebra.Posting
     ( Posted
     , PostSide(..)
     , Posting

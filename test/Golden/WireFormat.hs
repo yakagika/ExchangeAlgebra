@@ -27,7 +27,7 @@ import           ExchangeAlgebra.Algebra.Base
 import qualified ExchangeAlgebra.Algebra.Internal as EA
 import qualified ExchangeAlgebra.Algebra.Transfer.Rule as Rule
 import qualified ExchangeAlgebra.Journal as Journal
-import           ExchangeAlgebra.Posting (Posted, PostSide(..), posted)
+import           ExchangeAlgebra.Algebra.Posting (Posted, PostSide(..), posted)
 import           ExchangeAlgebra.Algebra.Value (MoneyDecimal(..), MoneyDouble(..))
 
 -- | Revision whose encodings are recorded in the fixture.

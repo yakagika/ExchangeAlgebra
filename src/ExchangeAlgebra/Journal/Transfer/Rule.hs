@@ -42,7 +42,7 @@ import           ExchangeAlgebra.Journal (Journal, Note, (.|), toMap, fromMap, t
 import qualified ExchangeAlgebra.Journal as Journal
 import           ExchangeAlgebra.Journal.Exact (ExactSumError(..))
 import qualified ExchangeAlgebra.Journal.Exact as Exact
-import           ExchangeAlgebra.Posting (PostSide(..))
+import           ExchangeAlgebra.Algebra.Posting (PostSide(..))
 
 -- * Additional entries
 

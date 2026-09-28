@@ -65,7 +65,7 @@ import qualified ExchangeAlgebra.Journal.Exact as JournalExact
 import qualified ExchangeAlgebra.Reporting.Metric as Metric
 import qualified ExchangeAlgebra.TrialBalance.Balance as TrialBalance
 import qualified ExchangeAlgebra.Write     as EW
-import qualified ExchangeAlgebra.Posting as LP
+import qualified ExchangeAlgebra.Algebra.Posting as LP
 
 -- | Complete benchmark coordinates for owner and two synthetic dimensions.
 type LedgerBase = HatBase (Int, Int, Int)

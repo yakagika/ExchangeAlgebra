@@ -18,7 +18,7 @@ import ExchangeAlgebra.Journal (Journal, (.|))
 import qualified ExchangeAlgebra.Journal as Journal
 import ExchangeAlgebra.Journal.Transfer.Rule
     ( CarryError(..), SideTotals(..), sideTotal, sideTotalsBy )
-import ExchangeAlgebra.Posting (PostSide(..))
+import ExchangeAlgebra.Algebra.Posting (PostSide(..))
 
 type Part = (CountUnit, AccountTitles)
 type Row = (Int, Part, Hat, Double)

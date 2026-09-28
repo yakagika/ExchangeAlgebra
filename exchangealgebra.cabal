@@ -187,9 +187,11 @@ library
       ExchangeAlgebra.Algebra.Base.Account.Registry
       ExchangeAlgebra.Algebra.Base.Account.Types
       ExchangeAlgebra.Algebra.Base.Element
+      ExchangeAlgebra.Algebra.Core
       ExchangeAlgebra.Algebra.Element
       ExchangeAlgebra.Algebra.Exact
       ExchangeAlgebra.Algebra.Internal
+      ExchangeAlgebra.Algebra.Posting
       ExchangeAlgebra.Algebra.Readout.Net
       ExchangeAlgebra.Algebra.Transfer
       ExchangeAlgebra.Algebra.Transfer.Rule
@@ -234,6 +236,7 @@ library
       ExchangeAlgebra.Algebra.Element.Representation
       ExchangeAlgebra.Algebra.Base.Representation
       ExchangeAlgebra.Algebra.Value.Class
+      ExchangeAlgebra.Algebra.Core.Representation
       ExchangeAlgebra.Accounting.Account.Title
       ExchangeAlgebra.Accounting.Account.Classification
       ExchangeAlgebra.Accounting.Account.Aliases
