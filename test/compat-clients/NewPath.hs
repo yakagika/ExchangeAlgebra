@@ -31,6 +31,11 @@ import qualified ExchangeAlgebra.Simulation.Network as Network
 import qualified ExchangeAlgebra.Simulation.Network.Flows as NetworkFlows
 import qualified ExchangeAlgebra.Simulation.Network.Csv as NetworkCsv
 import qualified ExchangeAlgebra.Simulation.Network.Journal as NetworkJournal
+import qualified ExchangeAlgebra.Simulation.Analysis as Analysis
+import qualified ExchangeAlgebra.Simulation.Optimize as Optimize
+import qualified ExchangeAlgebra.Simulation.Optimize.Annealing as Annealing
+import qualified ExchangeAlgebra.Simulation.Optimize.GA as GA
+import qualified ExchangeAlgebra.Simulation.Output as SimulationOutput
 
 type ClientBasePart = Base.BasePart (HatBase AccountTitles)
 
@@ -115,3 +120,18 @@ networkFlowClient = NetworkFlows.TaxRate 1 10
 networkCsvClient = NetworkCsv.readEdgeCsv
 
 networkJournalClient = NetworkJournal.sigmaEdges networkClient (\_ _ -> journalClient)
+
+analysisClient = Analysis.leontiefInverse
+
+optimizeClient :: Optimize.Direction
+optimizeClient = Optimize.Minimize
+
+annealingClient :: Annealing.Annealing Double
+annealingClient = Annealing.Annealing
+
+gaClient :: GA.GA
+gaClient = GA.GA
+
+simulationOutputClient
+    :: SimulationOutput.Header -> SimulationOutput.Header
+simulationOutputClient = id

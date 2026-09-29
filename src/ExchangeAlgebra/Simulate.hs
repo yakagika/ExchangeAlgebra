@@ -120,6 +120,8 @@ import              Data.STRef
 import qualified    Control.Monad                   as CM
 import qualified    Data.Map.Strict                 as M
 import              System.IO (IOMode(..), withFile)
+import              ExchangeAlgebra.Simulation.Array (modifyArray)
+import              ExchangeAlgebra.Simulation.Analysis (leontiefInverse, rippleEffect)
 import              ExchangeAlgebra.Simulate.Spill
 
 ------------------------------------------------------------------
@@ -250,17 +252,6 @@ class UpdatableSTRef wrapper s b | wrapper s -> b where
   modifyURef :: wrapper s -> (b -> b) -> ST s ()
   modifyURef x f = modifySTRef' (_unwrapURef x) f
 
-
-
--- | Modify the value at a given index of an array using a function. Evaluates strictly before writing back.
---
--- Complexity: O(1)
-{-# INLINE modifyArray #-}
-modifyArray ::(MArray a t m, Ix i) => a i t -> i -> (t -> t) -> m ()
-modifyArray ar e f = do
-  x <- readArray ar e
-  let y = f x
-  y `seq` writeArray ar e y
 
 
 -- | Type class for newtype wrappers around @STArray@.
@@ -505,74 +496,6 @@ instance (StateTime t, InitVariables v, GUpdatable t v f s)
         => GUpdatable t v (M1 p l f) s where -- Metadata is ignored
     gInitialize g t v = M1 <$> gInitialize g t v
     gUpdate g t v (M1 f) = gUpdate g t v f
-
-------------------------------------------------------------------
--- * Ripple Effect Analysis
-------------------------------------------------------------------
-
--- | Generate Identity Matrix
-identity :: Int -> IO (IOArray (Int, Int) Double)
-identity n = newArray ((1, 1), (n, n)) 0 >>= \arr -> do
-    forM_ [1..n] $ \i -> writeArray arr (i, i) 1
-    return arr
-
--- | Calculate inverse matrix with Gauss-Jordan Method
-inverse :: IOArray (Int, Int) Double -> IO (IOArray (Int, Int) Double)
-inverse mat = do
-    bnds <- getBounds mat
-    -- 'inverse' is only ever called on a 1-indexed square matrix, so the bounds
-    -- are @((1,1),(n,n))@; matching @((1,1),(n,_))@ is intentionally partial
-    -- (audited invariant) — a non-1-indexed matrix is a programmer error here.
-    let ((1,1),(n,_)) = bnds
-    inv <- identity n
-
-    forM_ [1..n] $ \i -> do
-        pivot <- readArray mat (i,i)
-        forM_ [1..n] $ \j -> do
-            modifyArray mat (i,j) (/pivot)
-            modifyArray inv (i,j) (/pivot)
-        forM_ [1..n] $ \k -> when (k /= i) $ do
-            factor <- readArray mat (k,i)
-            forM_ [1..n] $ \j -> do
-                mVal <- readArray mat (i,j)
-                iVal <- readArray inv (i,j)
-                modifyArray mat (k,j) (\x -> x - factor * mVal)
-                modifyArray inv (k,j) (\x -> x - factor * iVal)
-
-    return inv
-
-{- | Calculate Leontief's Inverse Matrix
-ex.
-main :: IO ()
-main = do
-    mat <- newListArray ((1,1),(2,2)) [0.2, 0.3, 0.4, 0.1]
-    result <- leontiefInverse mat
-    putStrLn "Leontief Inverse (ripple effect matrix):"
-    writeLeontiefInverse "output.csv" result
--}
-
-leontiefInverse :: IOArray (Int, Int) Double -> IO (IOArray (Int, Int) Double)
-leontiefInverse a = do
-    bnds <- getBounds a
-    temp <- newArray bnds 0
-    forM_ (range bnds) $ \(i,j) -> do
-        val <- readArray a (i,j)
-        writeArray temp (i,j) (if i == j then 1 - val else -val)
-    inverse temp
-
--- | Calculate the ripple effect of a demand increase in a specific industry using the inverse matrix.
--- Returns the ripple effect on each industry when a one-unit demand increase occurs in the specified industry.
---
--- Complexity: O(n) (n = number of industries)
-rippleEffect :: Int -> IOArray (Int, Int) Double -> IO (IOArray (Int, Int) Double)
-rippleEffect industry inverseArr = do
-    ((r1,c1),(r2,c2)) <- getBounds inverseArr
-    result <- newArray ((r1,c1),(r2,c2)) 0
-    forM_ [r1..r2] $ \i -> do
-        val <- readArray inverseArr (i, industry)
-        writeArray result (i, industry) val
-    return result
-
 
 ------------------------------------------------------------------
 -- * Random number utilities

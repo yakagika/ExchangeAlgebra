@@ -5,21 +5,13 @@
 
     Released under the OWL license
 
-    Ripple-effect analysis on input-coefficient matrices: the Leontief
-    inverse and the truncated ripple sum. Both names are re-exported
-    unchanged from "ExchangeAlgebra.Simulate"; this module only separates the
-    analysis utilities from the state-space engine
-    ("ExchangeAlgebra.Simulate.Engine").
-
-    >>> import Data.Array.IO (newListArray, getElems, IOArray)
-    >>> a <- newListArray ((1,1),(2,2)) [0,0,0,0] :: IO (IOArray (Int,Int) Double)
-    >>> leontiefInverse a >>= getElems
-    [1.0,0.0,0.0,1.0]
+    Compatibility entry point for matrix analysis. Import
+    "ExchangeAlgebra.Simulation.Analysis" for new code.
 -}
-
 module ExchangeAlgebra.Simulate.Analysis
+    {-# DEPRECATED "Use ExchangeAlgebra.Simulation.Analysis instead." #-}
     ( leontiefInverse
     , rippleEffect
     ) where
 
-import           ExchangeAlgebra.Simulate (leontiefInverse, rippleEffect)
+import ExchangeAlgebra.Simulation.Analysis (leontiefInverse, rippleEffect)

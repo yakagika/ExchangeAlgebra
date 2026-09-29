@@ -1,5 +1,5 @@
 import Data.Array.IO (IOArray, getElems, newListArray)
-import qualified ExchangeAlgebra.Simulate.Analysis as Analysis
+import qualified ExchangeAlgebra.Simulation.Analysis as Analysis
 import qualified ExchangeAlgebra.Simulation.Network as Network
 
 -- | Read the network, inverse, and output response to final demand.

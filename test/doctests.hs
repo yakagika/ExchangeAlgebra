@@ -34,18 +34,18 @@ main = doctest  [ "-isrc"
                 , "src/ExchangeAlgebra/Reporting/Group.hs"
                   -- optimization layer: not re-exported from the umbrella,
                   -- so listed explicitly to check its examples too.
-                , "src/ExchangeAlgebra/Optimize.hs"
+                , "src/ExchangeAlgebra/Simulation/Optimize.hs"
                   -- 0.5.1.0 umbrellas (re-export only): not reachable from the
                   -- top-level umbrella, so listed explicitly.
                 , "src/ExchangeAlgebra/Foundation.hs"
                 , "src/ExchangeAlgebra/Accounting.hs"
                 , "src/ExchangeAlgebra/Algebra/Readout/Net.hs"
                 , "src/ExchangeAlgebra/Simulate/Engine.hs"
-                , "src/ExchangeAlgebra/Simulate/Analysis.hs"
+                , "src/ExchangeAlgebra/Simulation/Analysis.hs"
                 , "src/ExchangeAlgebra/Simulate/Random.hs"
                 , "src/ExchangeAlgebra/IO/Output/Csv.hs"
                 , "src/ExchangeAlgebra/IO/Output/Statements.hs"
                   -- deprecated Render shims still carry the row-layout examples.
                 , "src/ExchangeAlgebra/Render/Csv.hs"
                 , "src/ExchangeAlgebra/Render/Bookkeeping.hs"
-                , "src/ExchangeAlgebra/Render/Simulation.hs"]
+                , "src/ExchangeAlgebra/Simulation/Output.hs"]

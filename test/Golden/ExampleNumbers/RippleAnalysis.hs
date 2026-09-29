@@ -9,7 +9,7 @@ import           GHC.Float (castDoubleToWord64)
 import           Numeric (showHex)
 import           System.Random (RandomGen (genWord32), StdGen, mkStdGen, randomR)
 
-import           ExchangeAlgebra.Simulate.Analysis (leontiefInverse, rippleEffect)
+import           ExchangeAlgebra.Simulation.Analysis (leontiefInverse, rippleEffect)
 
 -- | The example's nine producing industries, excluding final demand.
 type Industry = Int

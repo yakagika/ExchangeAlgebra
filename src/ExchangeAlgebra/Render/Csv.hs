@@ -10,7 +10,7 @@
     re-exported unchanged from "ExchangeAlgebra.IO.Output.Csv"; this module only
     separates the file format from the bookkeeping layouts
     ("ExchangeAlgebra.Render.Bookkeeping") and the simulation dumps
-    ("ExchangeAlgebra.Render.Simulation").
+    ("ExchangeAlgebra.Simulation.Output").
 
     >>> import qualified Data.Text as T
     >>> csvTranspose [[T.pack "a", T.pack "b"], [T.pack "c"]]

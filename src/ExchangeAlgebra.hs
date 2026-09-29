@@ -81,8 +81,8 @@
     * "ExchangeAlgebra.Simulate.Lite" — the lightweight simulation front-end.
     * "ExchangeAlgebra.Simulation.Network" — trade-network generators.
     * "ExchangeAlgebra.Simulate.Policy" — ledger\/spill policy configuration.
-    * "ExchangeAlgebra.Optimize" — pluggable optimization solvers
-      ("ExchangeAlgebra.Optimize.Annealing" \/ "ExchangeAlgebra.Optimize.GA");
+    * "ExchangeAlgebra.Simulation.Optimize" — pluggable optimization solvers
+      ("ExchangeAlgebra.Simulation.Optimize.Annealing" \/ "ExchangeAlgebra.Simulation.Optimize.GA");
       generic names (@optimize@, @Config@, ...) best used qualified.
 
     Import them explicitly when you need them, e.g.:

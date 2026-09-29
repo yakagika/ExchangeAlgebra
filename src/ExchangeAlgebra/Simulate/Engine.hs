@@ -17,7 +17,7 @@
     spill configuration and readers ('ExchangeAlgebra.Simulate.Spill.SpillOptions'
     and friends) are deliberately not re-exported here: import
     "ExchangeAlgebra.Simulate.Spill" for them. The ripple-effect utilities live
-    in "ExchangeAlgebra.Simulate.Analysis" and the random helpers in
+    in "ExchangeAlgebra.Simulation.Analysis" and the random helpers in
     "ExchangeAlgebra.Simulate.Random".
 -}
 

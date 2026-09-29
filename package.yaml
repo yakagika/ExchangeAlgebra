@@ -122,6 +122,11 @@ library:
   - ExchangeAlgebra.Reporting.Presentation
   - ExchangeAlgebra.Simulate
   - ExchangeAlgebra.Simulate.Analysis
+  - ExchangeAlgebra.Simulation.Analysis
+  - ExchangeAlgebra.Simulation.Optimize
+  - ExchangeAlgebra.Simulation.Optimize.Annealing
+  - ExchangeAlgebra.Simulation.Optimize.GA
+  - ExchangeAlgebra.Simulation.Output
   - ExchangeAlgebra.Simulate.Engine
   - ExchangeAlgebra.Simulate.Lite
   - ExchangeAlgebra.Simulate.Network
@@ -149,6 +154,7 @@ library:
   - ExchangeAlgebra.Accounting.Account.PostingPolicy
   - ExchangeAlgebra.Algebra.Transfer.Representation
   - ExchangeAlgebra.Simulation.Network.Representation
+  - ExchangeAlgebra.Simulation.Array
   - ExchangeAlgebra.IO.Input.Conversion
   - ExchangeAlgebra.IO.Input.Checked
   - ExchangeAlgebra.IO.Input.Admission.Catalog

@@ -37,7 +37,7 @@ module ExchangeAlgebra.Simulate.Visualize   (Title
                                             ,writeFuncResultsWithContext) where
 
 import              ExchangeAlgebra.Simulate
-import              ExchangeAlgebra.Render.Simulation
+import              ExchangeAlgebra.Simulation.Output
                     ( Header
                     , writeFuncResults
                     , writeFuncResultsWithContext )

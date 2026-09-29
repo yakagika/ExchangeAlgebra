@@ -52,13 +52,13 @@ import           ExchangeAlgebra.Simulate.Lite
                      , Par(..), SimSpec, mkSimSpec, runLite, runLiteFold
                      , runLiteWithPolicy, runLiteWithPolicyObs )
 import qualified ExchangeAlgebra.Simulate.Policy as Policy
-import qualified ExchangeAlgebra.Render.Simulation as RenderSimulation
+import qualified ExchangeAlgebra.Simulation.Output as RenderSimulation
 import           ExchangeAlgebra.Algebra.Value    (MoneyDouble)
 import qualified ExchangeAlgebra.Write    as EW
 import           ExchangeAlgebra.Write
-import qualified ExchangeAlgebra.Optimize           as O
-import qualified ExchangeAlgebra.Optimize.Annealing as OA
-import qualified ExchangeAlgebra.Optimize.GA        as OG
+import qualified ExchangeAlgebra.Simulation.Optimize as O
+import qualified ExchangeAlgebra.Simulation.Optimize.Annealing as OA
+import qualified ExchangeAlgebra.Simulation.Optimize.GA        as OG
 import qualified Data.Vector.Unboxed as UV
 
 import qualified Data.HashMap.Strict as HM

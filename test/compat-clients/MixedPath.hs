@@ -3,6 +3,12 @@ module MixedPath where
 import qualified OldPath as Old
 import qualified ExchangeAlgebra.Simulate.Network as OldNetwork
 import qualified ExchangeAlgebra.Simulation.Network as Network
+import qualified ExchangeAlgebra.Simulate as OldSimulate
+import qualified ExchangeAlgebra.Simulation.Analysis as Analysis
+import qualified ExchangeAlgebra.Optimize as OldOptimize
+import qualified ExchangeAlgebra.Simulation.Optimize as Optimize
+import qualified ExchangeAlgebra.Render.Simulation as OldSimulationOutput
+import qualified ExchangeAlgebra.Simulation.Output as SimulationOutput
 import ExchangeAlgebra.Algebra.Base (AccountTitles(Cash), HatBase)
 import qualified ExchangeAlgebra.Accounting.Account as Account
 import qualified ExchangeAlgebra.Accounting.Exchange as Exchange
@@ -79,3 +85,13 @@ mixedOutput = OutputStatements.accountLedgerRowsJournal [Cash] Old.journalClient
 
 mixedNetwork :: [Int]
 mixedNetwork = Network.nodes (OldNetwork.completeNetwork [1, 2])
+
+mixedAnalysis matrix = do
+    inverse <- OldSimulate.leontiefInverse matrix
+    Analysis.rippleEffect 1 inverse
+
+mixedOptimize :: OldOptimize.Direction -> Optimize.Direction
+mixedOptimize = id
+
+mixedSimulationOutput :: OldSimulationOutput.Header -> SimulationOutput.Header
+mixedSimulationOutput = id
