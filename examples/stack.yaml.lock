@@ -5,12 +5,16 @@
 
 packages:
 - completed:
-    hackage: exchangealgebra-0.5.3.0@sha256:9bb41617af37fb5cb3ce094245926019358d92564f22ef597a95ecaddcd45dd6,9232
+    commit: 16e7c88a807d0e9ef334d89d8a8ab7d1cd4ec58d
+    git: https://github.com/yakagika/ExchangeAlgebra.git
+    name: exchangealgebra
     pantry-tree:
-      sha256: f98390eb828888de1993e40ae99e596544083ce93659a2031357e0626e33a60b
-      size: 9499
+      sha256: 432b9def66b9b0eff1ec0d4c4472a1f4e991f5fb4a35cbdf7e14e8e42b2fd06d
+      size: 54790
+    version: 0.5.3.0
   original:
-    hackage: exchangealgebra-0.5.3.0
+    commit: 16e7c88a807d0e9ef334d89d8a8ab7d1cd4ec58d
+    git: https://github.com/yakagika/ExchangeAlgebra.git
 snapshots:
 - completed:
     sha256: b96cc8b203559fdd1c1617ebd71e90ea04a2db0d71b416717a2a1d1539d5d5c9
