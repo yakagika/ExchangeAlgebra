@@ -79,7 +79,7 @@
       @copy@, @modify@, @update@, @initialize@, @normal@, … — that polluted
       the bookkeeping namespace.)/
     * "ExchangeAlgebra.Simulate.Lite" — the lightweight simulation front-end.
-    * "ExchangeAlgebra.Simulate.Network" — trade-network generators.
+    * "ExchangeAlgebra.Simulation.Network" — trade-network generators.
     * "ExchangeAlgebra.Simulate.Policy" — ledger\/spill policy configuration.
     * "ExchangeAlgebra.Optimize" — pluggable optimization solvers
       ("ExchangeAlgebra.Optimize.Annealing" \/ "ExchangeAlgebra.Optimize.GA");

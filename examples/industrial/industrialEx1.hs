@@ -33,7 +33,8 @@ import           ExchangeAlgebra.Simulate.Lite
                      ( HK, InitT, carry
                      , Stage, stageOf
                      , Par(..), SimSpec, mkSimSpec, specParallel, runLite )
-import qualified ExchangeAlgebra.Simulate.Network as N
+import qualified ExchangeAlgebra.Simulation.Network as N
+import qualified ExchangeAlgebra.Simulation.Network.Flows as N
 import           ExchangeAlgebra.Algebra.Value           (MoneyDouble)
 
 type Firm = Int

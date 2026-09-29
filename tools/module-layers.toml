@@ -69,6 +69,11 @@ Simulate = "Simulation"
 Optimize = "Simulation"
 "Render.Simulation" = "Simulation"
 Simulation = "Simulation"
+"Simulation.Network" = "Simulation"
+"Simulation.Network.Representation" = "Simulation"
+"Simulation.Network.Flows" = "Simulation"
+"Simulation.Network.Csv" = "Simulation"
+"Simulation.Network.Journal" = "Simulation"
 
 [[intra]]
 from = "Simulation.Engine"
@@ -77,14 +82,6 @@ to = "Simulation.Output"
 [[intra]]
 from = "Simulation.Engine"
 to = "Simulation.Visualize"
-
-[[intra]]
-from = "Simulation.Network"
-to = "Simulation.Network.Csv"
-
-[[intra]]
-from = "Simulation.Network"
-to = "Simulation.Network.Journal"
 
 # These orphans are outside the import graph. Remove them when the dependency
 # supplies the instances or the axes become newtypes.

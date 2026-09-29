@@ -29,20 +29,22 @@ import           ExchangeAlgebra.Algebra.Value    (MoneyDecimal, bankersRound)
 import qualified ExchangeAlgebra.Simulate as ES
 import           ExchangeAlgebra.Simulate
 import qualified ExchangeAlgebra.Simulate.Lite as Lite
-import           ExchangeAlgebra.Simulate.Network
+import           ExchangeAlgebra.Simulation.Network
                      ( TradeNetwork, InputCoefficients, NetworkError(..)
                      , tradeNetwork, inputCoefficients
                      , nodes, edges, suppliersOf, buyersOf, edgeCount
-                     , coefficient, inputsOf, sigmaEdges
+                     , coefficient, inputsOf
                      , completeNetwork, kRegular, erdosRenyi, scaleFree, sectorBlock
                      , IndustrialEconomy(..), IndustrialOptions(..)
                      , defaultIndustrialOptions, industrialNetwork, industrialNetworkWith
                      , firms, industrialEdges
-                     , TaxRate(..), taxOf, IndustrialFlows(..)
-                     , FlowOptions(..), industrialFlows, industrialFlowsWith
                      , CoefOptions(..), defaultCoefOptions, randomCoefficients
                      , networkFromTable, coefficientsFromTable, fromCoefficientMatrix
-                     , parseEdgeCsv, parseCoefCsv )
+                     )
+import ExchangeAlgebra.Simulation.Network.Flows
+    (TaxRate(..), taxOf, IndustrialFlows(..), FlowOptions(..), industrialFlows, industrialFlowsWith)
+import ExchangeAlgebra.Simulation.Network.Csv (parseEdgeCsv, parseCoefCsv)
+import ExchangeAlgebra.Simulation.Network.Journal (sigmaEdges)
 import           ExchangeAlgebra.Simulate.Lite
                      ( InitT, RefT, SnapT, HK
                      , Field(..), carry, resetEach, updateEach

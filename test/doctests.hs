@@ -16,7 +16,10 @@ main = doctest  [ "-isrc"
                 , "src/ExchangeAlgebra/Accounting/Closing.hs"
                 , "src/ExchangeAlgebra/Journal/Core/Representation.hs"
                 , "src/ExchangeAlgebra/Algebra/Value.hs"
-                , "src/ExchangeAlgebra/Simulate/Network.hs"
+                , "src/ExchangeAlgebra/Simulation/Network/Representation.hs"
+                , "src/ExchangeAlgebra/Simulation/Network/Flows.hs"
+                , "src/ExchangeAlgebra/Simulation/Network/Csv.hs"
+                , "src/ExchangeAlgebra/Simulation/Network/Journal.hs"
                 , "src/ExchangeAlgebra/Simulate/Policy.hs"
                   -- closing-adjustment builders: not re-exported from the
                   -- umbrella, so listed explicitly to check its examples too.

@@ -1,6 +1,8 @@
 module MixedPath where
 
 import qualified OldPath as Old
+import qualified ExchangeAlgebra.Simulate.Network as OldNetwork
+import qualified ExchangeAlgebra.Simulation.Network as Network
 import ExchangeAlgebra.Algebra.Base (AccountTitles(Cash), HatBase)
 import qualified ExchangeAlgebra.Accounting.Account as Account
 import qualified ExchangeAlgebra.Accounting.Exchange as Exchange
@@ -74,3 +76,6 @@ mixedInput :: Core.Alg Double (HatBase Account.AccountTitles)
 mixedInput = Input.postingFromSide Account.Debit Cash 1
 
 mixedOutput = OutputStatements.accountLedgerRowsJournal [Cash] Old.journalClient
+
+mixedNetwork :: [Int]
+mixedNetwork = Network.nodes (OldNetwork.completeNetwork [1, 2])

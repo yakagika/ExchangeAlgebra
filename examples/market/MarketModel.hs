@@ -143,7 +143,7 @@ import           ExchangeAlgebra.Simulate.Lite
                      , runLite, runLiteWithPolicy )
 import           ExchangeAlgebra.Simulate        (StateTime(..))
 import qualified ExchangeAlgebra.Simulate.Policy as Policy
-import           ExchangeAlgebra.Simulate.Network
+import           ExchangeAlgebra.Simulation.Network
                      ( TradeNetwork, InputCoefficients
                      , completeNetwork, kRegular, erdosRenyi, scaleFree
                      , defaultCoefOptions, randomCoefficients

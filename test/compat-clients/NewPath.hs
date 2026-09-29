@@ -27,6 +27,11 @@ import qualified ExchangeAlgebra.IO.Output.Csv as OutputCsv
 import qualified ExchangeAlgebra.IO.Output as Output
 import qualified ExchangeAlgebra.IO.Output.Statements as OutputStatements
 
+import qualified ExchangeAlgebra.Simulation.Network as Network
+import qualified ExchangeAlgebra.Simulation.Network.Flows as NetworkFlows
+import qualified ExchangeAlgebra.Simulation.Network.Csv as NetworkCsv
+import qualified ExchangeAlgebra.Simulation.Network.Journal as NetworkJournal
+
 type ClientBasePart = Base.BasePart (HatBase AccountTitles)
 
 oldExpression :: Alg Double (HatBase AccountTitles)
@@ -100,3 +105,13 @@ assistClient :: Int
 assistClient = length Assist.allAccountInfos
 
 outputClient = OutputStatements.accountLedgerRowsJournal [Cash] journalClient
+
+networkClient :: Network.TradeNetwork Int
+networkClient = Network.completeNetwork [1, 2]
+
+networkFlowClient :: NetworkFlows.TaxRate
+networkFlowClient = NetworkFlows.TaxRate 1 10
+
+networkCsvClient = NetworkCsv.readEdgeCsv
+
+networkJournalClient = NetworkJournal.sigmaEdges networkClient (\_ _ -> journalClient)

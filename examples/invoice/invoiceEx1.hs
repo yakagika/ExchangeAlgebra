@@ -74,7 +74,7 @@ import           ExchangeAlgebra.Simulate.Lite
                      , Stage, stageOf
                      , Par(..)
                      , SimSpec, mkSimSpec, specParallel, runLite )
-import           ExchangeAlgebra.Simulate.Network
+import           ExchangeAlgebra.Simulation.Network
                      ( circulant, edges, edgeCount )
 import           ExchangeAlgebra.Algebra.Value       (MoneyDouble)
 

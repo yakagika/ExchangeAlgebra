@@ -20,7 +20,7 @@ The schema is a header line @side,account,amount@ with an optional trailing
 Blank lines and lines whose first non-space character is @#@ are skipped;
 surrounding whitespace on each field is trimmed; there is no quoting. The field
 splitter 'splitTrim' is exported and shared with the equally minimal
-@parseEdgeCsv@\/@parseCoefCsv@ readers in "ExchangeAlgebra.Simulate.Network", so
+@parseEdgeCsv@\/@parseCoefCsv@ readers in "ExchangeAlgebra.Simulation.Network.Csv", so
 the two readers cannot drift apart on how a line is split.
 
 @account@ is resolved with 'parseAccountTitle' (canonical English names or the

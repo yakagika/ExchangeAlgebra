@@ -243,6 +243,10 @@ library
       ExchangeAlgebra.Simulate.Engine
       ExchangeAlgebra.Simulate.Lite
       ExchangeAlgebra.Simulate.Network
+      ExchangeAlgebra.Simulation.Network
+      ExchangeAlgebra.Simulation.Network.Flows
+      ExchangeAlgebra.Simulation.Network.Csv
+      ExchangeAlgebra.Simulation.Network.Journal
       ExchangeAlgebra.Simulate.Policy
       ExchangeAlgebra.Simulate.Random
       ExchangeAlgebra.Simulate.Spill
@@ -262,6 +266,7 @@ library
       ExchangeAlgebra.Accounting.Account.Registry
       ExchangeAlgebra.Accounting.Account.PostingPolicy
       ExchangeAlgebra.Algebra.Transfer.Representation
+      ExchangeAlgebra.Simulation.Network.Representation
       ExchangeAlgebra.IO.Input.Conversion
       ExchangeAlgebra.IO.Input.Checked
       ExchangeAlgebra.IO.Input.Admission.Catalog
