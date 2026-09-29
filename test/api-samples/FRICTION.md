@@ -40,7 +40,7 @@
 - したかったこと: 2 仕訳の提出を, 信頼する registry と独立した借方合計の証拠で受け入れる.
 - 起きたこと: `EntityId`, `PeriodId`, `TxId`, `TxKey`, `EvidenceId`, 各 `txRule`, 証拠の `Map`, 空の fact `Map`, 勘定 vocabulary, `AdmissionSpec`, `Submission` を順に揃える必要があった. 利用者が単純な受入の最小構成を見つけるまで型と値を往復する.
 - 回避: 全てを見本の `main` で明示した. 同じ設定を再利用する補助関数は書かなかった.
-- API: `ExchangeAlgebra.IO.Input.Admission.txidRegistry` / `txRule` / `AdmissionSpec` / `Submission` / `admit`.
+- API: `ExchangeAlgebra.IO.Input.Admission.txIdRegistry` / `txRule` / `AdmissionSpec` / `Submission` / `admit`.
 
 ## 6. 受け入れた締めと別経路の締めの比較も手作業
 

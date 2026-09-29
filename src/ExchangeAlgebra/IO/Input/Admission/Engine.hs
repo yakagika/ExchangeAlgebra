@@ -18,28 +18,31 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import ExchangeAlgebra.IO.Input.Admission.Catalog
-import ExchangeAlgebra.IO.Input.Admission.Internal
+import ExchangeAlgebra.IO.Input.Admission.Representation
 import ExchangeAlgebra.IO.Input.Admission.Registry
-import ExchangeAlgebra.IO.Input.Admission.Types
-import ExchangeAlgebra.Algebra
+import ExchangeAlgebra.Accounting.Transaction
+import ExchangeAlgebra.IO.Input.Admission.Catalog.Input
+import ExchangeAlgebra.IO.Input.Admission.Workflow
+import ExchangeAlgebra.IO.Input.Admission.Registry.Definition
+import ExchangeAlgebra.IO.Input.Admission.Submission
+import ExchangeAlgebra.IO.Input.Admission.Diagnostic
+import ExchangeAlgebra.Algebra.Core
     ( Alg(_hatBase, _val)
-    , Exchange(decL)
     , Redundant((.+), norm)
     , toList
     )
-import ExchangeAlgebra.Algebra.Base
+import ExchangeAlgebra.Accounting.Account
     ( AccountDivision(..)
     , AccountSemantics(asemDivisionSemantics)
     , AccountTitles
     , DivisionSemantics(..)
     , Side
     , accountSemantics
-    , getAccountTitle
-    , whichSide
     )
+import ExchangeAlgebra.Accounting.Exchange (Exchange(decL), getAccountTitle, whichSide)
 import ExchangeAlgebra.IO.Input.Checked (checkedEntryTextIn, checkedEntryIn)
 import ExchangeAlgebra.IO.Input.Conversion (parseAccountTitle)
-import qualified ExchangeAlgebra.Journal as Journal
+import qualified ExchangeAlgebra.Journal.Core as Journal
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 
 -- * Validation helpers
@@ -66,7 +69,7 @@ callScope :: Call -> (EntityId, PeriodId)
 callScope call = (callEntity call, callPeriod call)
 
 -- | Resolve the source declaration without constructing any entries.
-sourceErrors :: Map TxKey TxRule -> (TxKey, Maybe CatalogOpKind) -> [AdmissionError]
+sourceErrors :: Map TxKey TxRule -> (TxKey, Maybe CatalogOperationKind) -> [AdmissionError]
 sourceErrors rules (key, supplied) = case Map.lookup key rules of
     Nothing -> [UnknownTransaction key]
     Just rule

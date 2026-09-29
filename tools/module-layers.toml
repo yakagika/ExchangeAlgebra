@@ -43,6 +43,8 @@ Foundation = "Algebra"
 "Accounting.Statements.Presentation" = "Accounting"
 "Accounting.Consolidation" = "Accounting"
 Accounting = "Accounting"
+"Accounting.Transaction" = "Accounting"
+"Accounting.Equivalence" = "Accounting"
 "Accounting.Exchange" = "Accounting"
 Bookkeeping = "Accounting"
 TrialBalance = "Accounting"
@@ -63,6 +65,13 @@ IO = "IO"
 "IO.Input.Csv" = "IO"
 "IO.Input.Assist" = "IO"
 "IO.Output" = "IO"
+"IO.Output.Admission" = "IO"
+"IO.Input.Admission.Catalog.Input" = "IO"
+"IO.Input.Admission.Workflow" = "IO"
+"IO.Input.Admission.Registry.Definition" = "IO"
+"IO.Input.Admission.Submission" = "IO"
+"IO.Input.Admission.Diagnostic" = "IO"
+"IO.Input.Admission.Representation" = "IO"
 "IO.Output.Csv" = "IO"
 "IO.Output.Statements" = "IO"
 Simulate = "Simulation"
@@ -78,6 +87,18 @@ Simulation = "Simulation"
 "Simulation.Network.Flows" = "Simulation"
 "Simulation.Network.Csv" = "Simulation"
 "Simulation.Network.Journal" = "Simulation"
+
+[[intra]]
+from = "IO.Input.Admission.Workflow"
+to = "IO.Input.Admission.Registry"
+
+[[intra]]
+from = "IO.Input.Admission.Workflow"
+to = "IO.Input.Admission.Registry.Definition"
+
+[[intra]]
+from = "IO.Input.Admission.Workflow"
+to = "IO.Input.Admission.Diagnostic"
 
 [[intra]]
 from = "Simulation.Engine"

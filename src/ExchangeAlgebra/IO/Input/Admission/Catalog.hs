@@ -32,15 +32,16 @@ import Data.Ratio (denominator, numerator)
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import ExchangeAlgebra.Algebra
-    ( HatBase((:<))
-    , Alg(_hatBase)
-    , ExBaseClass(..)
-    , Exchange(decL, decR)
-    , Hat(..)
+import ExchangeAlgebra.Algebra.Base.Representation (HatBase((:<)), Hat(..))
+import ExchangeAlgebra.Algebra.Core
+    ( Alg(_hatBase)
     , Redundant((.+), bar, norm)
-    , projByAccountTitle
     , toList
+    )
+import ExchangeAlgebra.Accounting.Exchange
+    ( ExBaseClass(..)
+    , Exchange(decL, decR)
+    , projByAccountTitle
     )
 import ExchangeAlgebra.Accounting.Account.Registry
     ( AccountSemantics(..)
@@ -61,12 +62,16 @@ import qualified ExchangeAlgebra.Algebra.Transfer as Transfer
 import qualified ExchangeAlgebra.Accounting.Entries as Bookkeeping
 import ExchangeAlgebra.IO.Input.Checked (ProcessingContext(..))
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal(..))
-import ExchangeAlgebra.IO.Input.Admission.Types
+import ExchangeAlgebra.Accounting.Transaction
+import ExchangeAlgebra.IO.Input.Admission.Catalog.Input
+import ExchangeAlgebra.IO.Input.Admission.Workflow
+import ExchangeAlgebra.IO.Input.Admission.Submission
+import ExchangeAlgebra.IO.Input.Admission.Diagnostic
 
 -- * Catalog metadata
 
 -- | Map a closed call to the registry's operation identity.
-catalogKind :: CatalogCall -> CatalogOpKind
+catalogKind :: CatalogCall -> CatalogOperationKind
 catalogKind call = case call of
     Cogs _ _                 -> CogsKind
     DepIndirect _            -> DepIndirectKind
@@ -92,7 +97,7 @@ catalogKind call = case call of
     Consolidate _ _          -> ConsolidateKind
 
 -- | Return the fixed execution stage of an operation kind.
-kindStage :: CatalogOpKind -> Stage
+kindStage :: CatalogOperationKind -> Stage
 kindStage kind = case kind of
     CorporateInterimKind -> OrdinaryStage
     EquityDividendKind   -> OrdinaryStage
@@ -122,7 +127,7 @@ catalogStage :: CatalogCall -> Stage
 catalogStage = kindStage . catalogKind
 
 -- | Return the accounting role assigned to a generated operation.
-kindRole :: CatalogOpKind -> Role
+kindRole :: CatalogOperationKind -> Role
 kindRole kind = case kind of
     CorporateInterimKind -> Ordinary
     EquityDividendKind   -> Ordinary
@@ -148,7 +153,7 @@ kindRole kind = case kind of
     StraightLineKind     -> Adjustment
 
 -- | Report whether an operation declares a generated transaction key.
-isGenerating :: CatalogOpKind -> Bool
+isGenerating :: CatalogOperationKind -> Bool
 isGenerating EquityBalanceKind = False
 isGenerating ConsolidateKind   = False
 isGenerating _                 = True

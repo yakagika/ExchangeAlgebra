@@ -6,19 +6,22 @@
 
 ## 契約と公開境界
 
-信頼側が `TxidRegistry`, 証憑, 与件, 語彙から `AdmissionSpec` を用意し,
+信頼側が `TxIdRegistry`, 証憑, 与件, 語彙から `AdmissionSpec` を用意し,
 実行器が提出全体を `Submission` として `admit` に渡す.
 呼出し側が提出を削除・選別してから渡したことや, 仕様そのものを偽装したことは検出対象にできない.
 固定された仕様と公開 API の下で, 未受入の Journal を新しい導出経路に渡すことは型検査で拒否される.
 `unsafeCoerce` と Safe Haskell 外の手段は保証対象外とする.
 
 `Admitted`, `AdmittedTrialBalance`, `AdmittedStatements`, `ResolvedInput`, `TxRule`,
-`TxidRegistry` の構築子と record field は公開しない. これらに `Generic`, `Data`, `Read`,
+`TxIdRegistry` の構築子と record field は公開しない. これらに `Generic`, `Data`, `Read`,
 `FromJSON`, `Binary`, `Semigroup`, `Monoid` は実装しない. 型引数はないため role annotation は不要である.
 観測値を取り出す getter は通常の関数であり, record 更新の入口にはならない.
 getter が返した Journal や Map を変更しても, 受入済み型へ戻す公開関数はない.
 
-公開 module は `ExchangeAlgebra.IO.Input.Admission` と `ExchangeAlgebra.IO.Input.Admission.Equivalence` の 2 つとする.
+公開入口は `ExchangeAlgebra.IO.Input.Admission`, 識別子と仕訳は
+`ExchangeAlgebra.Accounting.Transaction`, 同値判定は `ExchangeAlgebra.Accounting.Equivalence`,
+受入済み諸表の CSV 出力は `ExchangeAlgebra.IO.Output.Admission` に置く.
+受入の入口も同じ識別子と出力関数を再公開する.
 構築子を置く module を含む非公開 module は, `package.yaml` と生成される
 `exchangealgebra.cabal` の両方で library の `other-modules` に登録する.
 既存 Write, Bookkeeping, Checked API は変更せず, `JournalCert` からの昇格口も作らない.
@@ -34,7 +37,7 @@ getter が返した Journal や Map を変更しても, 受入済み型へ戻す
 
 `TxRule` は必須性, 許す供給方法の集合, 証憑を独立に保持する.
 役割は raw と facts の供給方法に属し, catalog では操作の種類から決まる.
-`txRule` がルールを組み, `txidRegistry` が一覧の重複・空キー・空の許可集合,
+`txRule` がルールを組み, `txIdRegistry` が一覧の重複・空キー・空の許可集合,
 facts の混在・証憑, 複数の raw 役割を検査する.
 重複はルールが同一でも拒否し, `Map.fromList` による上書きより前に検出する.
 照会専用操作を取引の供給元として登録することも拒否する.
@@ -128,7 +131,7 @@ getter はこれらを `DuringPeriod`, `Adjusted`, `Closed` として観測さ�
 
 ## 同値判定
 
-`equivalentUpTo` は受入とは独立した関数であり, 未受入の Entry の Map にも使える.
+`isEquivalentUpTo` は受入とは独立した関数であり, 未受入の Entry の Map にも使える.
 全方式でキー集合の一致を要求し, 会社・期間・取引の境界を保存する.
 posting の比較は `(Hat, AccountTitles, MoneyDecimal)` を sort した多重集合で行う.
 既存 Alg の Eq や Journal 全体の `bar` を代用にしない.
@@ -156,12 +159,16 @@ posting の比較は `(Hat, AccountTitles, MoneyDecimal)` を sort した多重�
 | module | 責務 | 再利用する既存 API |
 |---|---|---|
 | Admission | 公開入口 | 下位の受入・導出関数を限定して export |
-| Types / Internal | 入力語彙 / 非公開の検証済み表現 | MoneyDecimal, Journal, ValidatedTrialBalance |
+| Accounting.Transaction | 識別子と仕訳 | MoneyDecimal, Alg, Note |
+| Admission.Catalog.Input / Workflow | 閉じた操作の入力 / 役割・段階・出所 | 取引識別子, MoneyDecimal |
+| Admission.Registry.Definition / Submission / Diagnostic | registry 宣言 / 提出 / 診断 | Catalog.Input, Workflow, EntryError |
+| Admission.Representation | 非公開の検証済み表現 | Journal, ValidatedTrialBalance |
 | Registry | 重複を保全した registry 構築 | containers の Map |
 | Catalog | 固定 22 操作と会計方針 | Bookkeeping builders, finalStockTransfer |
 | Engine | 受入の固定順序と参照解決 | checkedEntryTextIn, checkedEntryIn, Journal.projWithNote, toAlg |
-| Derive | snapshot の検証と表示 | validateTrialBalance, present |
-| Equivalence | 指定された観測での比較 | Alg.filter, bar, toList |
+| Derive | snapshot の検証と諸表の導出 | validateTrialBalance, present |
+| IO.Output.Admission | 受入済み諸表の CSV 出力 | FinancialStatements |
+| Accounting.Equivalence | 指定された観測での比較 | Alg.filter, bar, toList |
 
 受入専用の拡張点は registry, facts, evidence, vocabulary という値であり, 新しい型クラスは作らない.
 catalog は今回承認された閉じた機能であり, model の関数を library へ注入する拡張点はない.
@@ -180,10 +187,10 @@ catalog と受入エンジンはそれぞれ独立した責務として保持し
 ## 公開 API の型と関数
 
 入力の構築子を公開する型は `EntityId`, `PeriodId`, `TxId`, `FactId`, `EvidenceId`, `CallId`,
-`TxKey`, `Role`, `Presence`, `Supply`, `AdmissionSpec`, `CatalogOpKind`, `CatalogCall`,
+`TxKey`, `Role`, `Presence`, `Supply`, `AdmissionSpec`, `CatalogOperationKind`, `CatalogCall`,
 `EntityInput`, `Call`, `Submission` である. 診断・観測の構築子を公開する型は
 `RegistryError`, `AdmissionError`, `ReferenceFailure`, `Stage`, `Provenance`, `CallAudit`,
-`Snapshot`, `Equivalence` である. 構築子を隠す公開型は `TxRule`, `TxidRegistry`, `Admitted`,
+`Snapshot`, `Equivalence` である. 構築子を隠す公開型は `TxRule`, `TxIdRegistry`, `Admitted`,
 `AdmittedTrialBalance`, `AdmittedStatements` とする.
 
 ```haskell
@@ -196,11 +203,11 @@ txRule :: Presence -> [Supply] -> Maybe EvidenceId -> TxRule
 rulePresence :: TxRule -> Presence
 ruleSupplies :: TxRule -> Set Supply
 ruleEvidence :: TxRule -> Maybe EvidenceId
-txidRegistry :: [(TxKey, TxRule)] -> Either (NonEmpty RegistryError) TxidRegistry
-registryRules :: TxidRegistry -> Map TxKey TxRule
-catalogKind :: CatalogCall -> CatalogOpKind
+txIdRegistry :: [(TxKey, TxRule)] -> Either (NonEmpty RegistryError) TxIdRegistry
+registryRules :: TxIdRegistry -> Map TxKey TxRule
+catalogKind :: CatalogCall -> CatalogOperationKind
 catalogStage :: CatalogCall -> Stage
-isGenerating :: CatalogOpKind -> Bool
+isGenerating :: CatalogOperationKind -> Bool
 
 admit :: AdmissionSpec -> Submission -> Either (NonEmpty AdmissionError) Admitted
 admittedJournal :: Admitted -> AdmissionJournal
@@ -220,14 +227,14 @@ admittedFinancialStatements :: AdmittedStatements -> FinancialStatements MoneyDe
 admittedClosingStatements :: AdmittedStatements -> FinancialStatements MoneyDecimal
 renderAdmittedStatements :: AdmittedStatements -> ByteString
 
-equivalentUpTo :: Equivalence -> Map TxKey Entry -> Map TxKey Entry -> Bool
+isEquivalentUpTo :: Equivalence -> Map TxKey Entry -> Map TxKey Entry -> Bool
 ```
 
 公開入力 record の field は次のとおりである. 受入済み型の getter とは異なり,
 これらは信頼側の仕様または未受入の提出を組み立てる record selector である.
 
 ```haskell
-admissionRegistry :: AdmissionSpec -> TxidRegistry
+admissionRegistry :: AdmissionSpec -> TxIdRegistry
 admissionEvidence :: AdmissionSpec -> Map EvidenceId MoneyDecimal
 admissionFacts :: AdmissionSpec -> Map FactId RawPostings
 admissionVocabulary :: AdmissionSpec -> Set AccountTitles
@@ -239,7 +246,7 @@ callPeriod :: Call -> PeriodId
 callGenerated :: Call -> Maybe TxKey
 callBody :: Call -> CatalogCall
 auditCall :: CallAudit -> CallId
-auditOperation :: CallAudit -> CatalogOpKind
+auditOperation :: CallAudit -> CatalogOperationKind
 auditGenerated :: CallAudit -> Maybe TxKey
 auditReferences :: CallAudit -> [(TxKey, Provenance)]
 auditProjection :: CallAudit -> Maybe MoneyDecimal

@@ -18,20 +18,16 @@ module ExchangeAlgebra.IO.Input.Admission.Derive
     , deriveLedger
     , deriveTrialBalance
     , presentAdmitted
-    , renderAdmittedStatements
     ) where
 
-import Data.ByteString (ByteString)
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import Data.Text (Text)
-import qualified Data.Text as Text
-import qualified Data.Text.Encoding as Text
 
-import ExchangeAlgebra.IO.Input.Admission.Internal
-import ExchangeAlgebra.IO.Input.Admission.Types
-import qualified ExchangeAlgebra.Journal as Journal
+import ExchangeAlgebra.IO.Input.Admission.Representation
+import ExchangeAlgebra.Accounting.Transaction (Entry)
+import ExchangeAlgebra.IO.Input.Admission.Workflow
+import qualified ExchangeAlgebra.Journal.Core as Journal
 import qualified ExchangeAlgebra.Accounting.Statements.Presentation as Presentation
 import qualified ExchangeAlgebra.Accounting.TrialBalance.Validation as TrialBalance
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
@@ -137,30 +133,3 @@ presentAdmitted context accepted@(AdmittedTrialBalance _ final adjusted) = do
         (Presentation.present context final)
     Right (AdmittedStatements accepted adjustedStatements finalStatements)
 
--- | Escape one CSV cell by quoting it and doubling embedded quotes.
-quoteCell :: Text -> Text
-quoteCell cell = "\"" <> Text.replace "\"" "\"\"" cell <> "\""
-
--- | Render statement lines with their snapshot and exact decimal amount.
-statementRows
-    :: Text
-    -> Presentation.FinancialStatements MoneyDecimal
-    -> [[Text]]
-statementRows snapshot statements =
-    [[ snapshot
-     , Text.pack (show (Presentation._lineAccount line))
-     , Presentation._lineLabel line
-     , Text.pack (show (Presentation._lineSection line))
-     , Text.pack (show (Presentation._lineSide line))
-     , Text.pack (show (Presentation._lineAmount line))
-     ] | line <- Presentation._statementLines statements]
-
--- | Render UTF-8 CSV with a header and adjusted/final snapshot labels.
--- Every cell is quoted; newlines in labels are retained inside quoted cells.
--- Only successfully presented statements enter this rendering path.
-renderAdmittedStatements :: AdmittedStatements -> ByteString
-renderAdmittedStatements (AdmittedStatements _ adjusted final) = Text.encodeUtf8
-    (Text.unlines (map (Text.intercalate "," . map quoteCell) rows))
-  where
-    rows = ["snapshot", "account", "label", "section", "side", "amount"]
-        : statementRows "adjusted" adjusted ++ statementRows "final" final

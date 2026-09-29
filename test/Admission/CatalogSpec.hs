@@ -64,11 +64,11 @@ investmentRows =
     [("debit", "InvestmentInAssociate", 75), ("credit", "Cash", 75)]
 
 -- | Build the trusted registry through the public constructor.
-registryFor :: String -> [(TxKey, TxRule)] -> IO TxidRegistry
-registryFor label rows = requireRight label (txidRegistry rows)
+registryFor :: String -> [(TxKey, TxRule)] -> IO TxIdRegistry
+registryFor label rows = requireRight label (txIdRegistry rows)
 
 -- | Construct a full vocabulary so this suite measures builder parity.
-specification :: TxidRegistry -> Map.Map FactId RawPostings -> AdmissionSpec
+specification :: TxIdRegistry -> Map.Map FactId RawPostings -> AdmissionSpec
 specification registry facts = AdmissionSpec registry Map.empty facts
     (Set.fromList concreteAccountTitles)
 
@@ -98,7 +98,7 @@ signature = sort . map row . toList
 data BuilderCase = BuilderCase
     { caseName     :: String
     , caseBody     :: CatalogCall
-    , caseKind     :: CatalogOpKind
+    , caseKind     :: CatalogOperationKind
     , caseRole     :: Role
     , caseRows     :: RawPostings
     , caseExpected :: Entry
@@ -108,7 +108,7 @@ data BuilderCase = BuilderCase
 ordinaryCase
     :: String
     -> CatalogCall
-    -> CatalogOpKind
+    -> CatalogOperationKind
     -> Role
     -> Entry
     -> BuilderCase

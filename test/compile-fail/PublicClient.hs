@@ -12,7 +12,7 @@ acceptedLedger :: Either String LedgerView
 acceptedLedger = do
     let key = TxKey (EntityId "company") (PeriodId "2026") (TxId "sale")
     registry <- either (Left . show) Right
-        (txidRegistry [(key, txRule Required [SupplySubmission Ordinary] Nothing)])
+        (txIdRegistry [(key, txRule Required [SupplySubmission Ordinary] Nothing)])
     let spec = AdmissionSpec registry Map.empty Map.empty (Set.fromList [Cash, Sales])
         submission = Submission
             [(key, [("debit", "Cash", 10), ("credit", "Sales", 10)])] []

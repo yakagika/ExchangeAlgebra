@@ -37,6 +37,11 @@ import qualified ExchangeAlgebra.Simulation.Optimize.Annealing as Annealing
 import qualified ExchangeAlgebra.Simulation.Optimize.GA as GA
 import qualified ExchangeAlgebra.Simulation.Output as SimulationOutput
 
+import qualified ExchangeAlgebra.Accounting.Transaction as Transaction
+import qualified ExchangeAlgebra.Accounting.Equivalence as Equivalence
+import qualified ExchangeAlgebra.IO.Input.Admission as Admission
+import qualified ExchangeAlgebra.IO.Output.Admission as AdmissionOutput
+
 type ClientBasePart = Base.BasePart (HatBase AccountTitles)
 
 oldExpression :: Alg Double (HatBase AccountTitles)
@@ -135,3 +140,20 @@ gaClient = GA.GA
 simulationOutputClient
     :: SimulationOutput.Header -> SimulationOutput.Header
 simulationOutputClient = id
+
+-- | Use the shared key type and its check through the new accounting path.
+transactionClient :: Transaction.TxKey -> Bool
+transactionClient = Transaction.isBlankKey
+
+-- | Compare complete transaction maps through the new accounting path.
+equivalenceClient :: Bool
+equivalenceClient = Equivalence.isEquivalentUpTo Equivalence.PostingMultiset mempty mempty
+
+-- | Render an admitted value through the new output path.
+admissionOutputClient :: Admission.AdmittedStatements -> Bool
+admissionOutputClient accepted = AdmissionOutput.renderAdmittedStatements accepted
+    == Admission.renderAdmittedStatements accepted
+
+-- | Construct an empty registry using its renamed public constructor function.
+admissionRegistryClient :: Maybe Admission.TxIdRegistry
+admissionRegistryClient = either (const Nothing) Just (Admission.txIdRegistry [])

@@ -1,14 +1,31 @@
 {-# OPTIONS_GHC -Wincomplete-patterns -Werror=incomplete-patterns #-}
 
--- | Compare transaction maps at the IO input boundary under explicit posting
+-- | Compare transaction maps in the Accounting layer under explicit posting
 -- observations. This module uses algebra filtering and netting for callers of
 -- the admission API; it does not admit or validate input. Read the policy first,
--- then use 'equivalentUpTo' to compare complete per-transaction maps.
-module ExchangeAlgebra.IO.Input.Admission.Equivalence
+-- then use 'isEquivalentUpTo' to compare complete per-transaction maps.
+--
+-- Choose an observation before comparing entries.
+--
+-- +-----------------------------------+-----------------------+
+-- | Task                              | Function              |
+-- +===================================+=======================+
+-- | Compare a selected observation    | 'isEquivalentUpTo'    |
+-- +-----------------------------------+-----------------------+
+-- | Inspect exact closing differences | 'closingDifferences'  |
+-- +-----------------------------------+-----------------------+
+-- | Test exact closing agreement      | 'isClosingEquivalent' |
+-- +-----------------------------------+-----------------------+
+--
+-- > import qualified ExchangeAlgebra.Accounting.Equivalence as Equivalence
+-- > import qualified ExchangeAlgebra.Accounting.Transaction as Transaction
+--
+-- Supply maps of 'TxKey' to 'Entry'. Comparison does not establish admission.
+module ExchangeAlgebra.Accounting.Equivalence
     ( -- * Observation policy
       Equivalence(..)
       -- * Comparison
-    , equivalentUpTo
+    , isEquivalentUpTo
       -- * Closing comparison
     , ClosingSource(..)
     , ClosingDifference(..)
@@ -22,20 +39,18 @@ import Data.Map.Strict (Map)
 import qualified Data.Set as Set
 import Data.Set (Set)
 
-import ExchangeAlgebra.Algebra
-    ( HatBase((:<))
-    , Alg(_hatBase, _val)
-    , Hat(..)
+import ExchangeAlgebra.Algebra.Base.Representation (HatBase((:<)), Hat(..))
+import ExchangeAlgebra.Algebra.Core
+    ( Alg(_hatBase, _val)
     , Redundant(bar)
     , toList
-    , ExBaseClass(whichSide)
     )
-import qualified ExchangeAlgebra.Algebra as Algebra
+import qualified ExchangeAlgebra.Algebra.Core as Algebra
+import ExchangeAlgebra.Accounting.Exchange (ExBaseClass(whichSide), Exchange(diffRL))
 import ExchangeAlgebra.Accounting.Account.Title (AccountTitles)
 import ExchangeAlgebra.Accounting.Account.Registry (accountSpec)
 import ExchangeAlgebra.Accounting.Account.Classification (Side(..))
-import ExchangeAlgebra.IO.Input.Admission.Registry (isBlankKey)
-import ExchangeAlgebra.IO.Input.Admission.Types (Entry, TxKey)
+import ExchangeAlgebra.Accounting.Transaction (Entry, TxKey, isBlankKey)
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 
 -- * Observation policy
@@ -112,15 +127,15 @@ observed (NetAccountsInTransactions keys accounts) key entry
 -- in the policy's stated scope. Comparing the resulting 'MoneyDecimal' values
 -- uses exact equality. However, for a multi-posting representation, 'bar'
 -- drops account residuals within the tolerance defined by
--- @ExchangeAlgebra.Algebra.Internal.nearlyEqScaled@, even for MoneyDecimal.
+-- @ExchangeAlgebra.Algebra.Value.nearlyEqScaled@, even for MoneyDecimal.
 -- Net policies inherit this normalization; they are not exact arithmetic
 -- netting. A single atomic posting is unchanged by 'bar', including tiny amounts.
 -- These laws apply to this 'Entry' instance. PostingMultiset does not
 -- apply this tolerance or perform any normalization.
 -- A selected entry with a wildcard Hat uses strict posting comparison because
 -- the algebra's netting operation is not defined for wildcard postings.
-equivalentUpTo :: Equivalence -> Map TxKey Entry -> Map TxKey Entry -> Bool
-equivalentUpTo policy left right =
+isEquivalentUpTo :: Equivalence -> Map TxKey Entry -> Map TxKey Entry -> Bool
+isEquivalentUpTo policy left right =
     Map.keysSet left == Map.keysSet right
     && all sameEntry (Map.toList left)
   where

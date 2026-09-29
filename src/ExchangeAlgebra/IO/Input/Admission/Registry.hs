@@ -3,7 +3,7 @@
 
 -- | Construct exact transaction registries in the IO input layer. The public
 -- admission API uses this module to check keys before constructing a map, so
--- duplicate rules cannot disappear. Read the rule getters before 'txidRegistry'.
+-- duplicate rules cannot disappear. Read the rule getters before 'txIdRegistry'.
 module ExchangeAlgebra.IO.Input.Admission.Registry
     ( -- * Rule construction and observations
       txRule
@@ -12,10 +12,9 @@ module ExchangeAlgebra.IO.Input.Admission.Registry
     , ruleEvidence
       -- * Registry construction and observations
     , registryRules
-    , txidRegistry
+    , txIdRegistry
       -- * Duplicate and key checks
     , duplicates
-    , isBlankKey
     ) where
 
 import Data.List.NonEmpty (NonEmpty(..))
@@ -23,10 +22,10 @@ import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-import qualified Data.Text as Text
 
 import ExchangeAlgebra.IO.Input.Admission.Catalog (isGenerating)
-import ExchangeAlgebra.IO.Input.Admission.Types
+import ExchangeAlgebra.Accounting.Transaction
+import ExchangeAlgebra.IO.Input.Admission.Registry.Definition
 
 -- | Declare presence, authorized routes, and an independent debit-total evidence
 -- obligation. Registry construction rejects empty or conflicting route sets.
@@ -46,18 +45,13 @@ ruleEvidence :: TxRule -> Maybe EvidenceId
 ruleEvidence (TxRule _ _ evidence) = evidence
 
 -- | Return a copy of the exact key-to-rule mapping.
-registryRules :: TxidRegistry -> Map TxKey TxRule
-registryRules (TxidRegistry rules) = rules
+registryRules :: TxIdRegistry -> Map TxKey TxRule
+registryRules (TxIdRegistry rules) = rules
 
 -- | Find repeated values without discarding any input before counting it.
 duplicates :: Ord a => [a] -> [a]
 duplicates = Map.keys . Map.filter (> (1 :: Int)) . Map.fromListWith (+)
     . map (\value -> (value, 1))
-
--- | Reject empty or whitespace-only entity, period, or transaction identities.
-isBlankKey :: TxKey -> Bool
-isBlankKey (TxKey (EntityId entity) (PeriodId period) (TxId transaction)) =
-    any (Text.null . Text.strip) [entity, period, transaction]
 
 -- | Construct a registry after checking every duplicate, blank key, and
 -- conflicting supply routes. Query-only operations cannot supply transactions.
@@ -66,10 +60,10 @@ isBlankKey (TxKey (EntityId entity) (PeriodId period) (TxId transaction)) =
 -- successful construction preserves every rule under 'registryRules'. For
 -- any repeated key, construction fails irrespective of row order. Observation
 -- is exact map equality; no monetary tolerance or type-class instance applies.
-txidRegistry :: [(TxKey, TxRule)] -> Either (NonEmpty RegistryError) TxidRegistry
-txidRegistry rows = case errors of
+txIdRegistry :: [(TxKey, TxRule)] -> Either (NonEmpty RegistryError) TxIdRegistry
+txIdRegistry rows = case errors of
     first : rest -> Left (first :| rest)
-    [] -> Right (TxidRegistry (Map.fromList rows))
+    [] -> Right (TxIdRegistry (Map.fromList rows))
   where
     errors = map DuplicateRegistryKey (duplicates (map fst rows))
         ++ [BlankRegistryKey key | (key, _) <- rows, isBlankKey key]

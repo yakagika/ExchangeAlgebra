@@ -56,7 +56,6 @@ extra-source-files:
     test/fixtures/export-surface-p2/ExchangeAlgebra.Convert.Csv.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.Convert.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.Foundation.txt
-    test/fixtures/export-surface-p2/ExchangeAlgebra.IO.Input.Admission.Equivalence.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.IO.Input.Admission.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.Journal.Exact.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.Journal.Transfer.Rule.txt
@@ -222,7 +221,9 @@ library
       ExchangeAlgebra.IO.Output.Statements
       ExchangeAlgebra.Foundation
       ExchangeAlgebra.IO.Input.Admission
-      ExchangeAlgebra.IO.Input.Admission.Equivalence
+      ExchangeAlgebra.Accounting.Transaction
+      ExchangeAlgebra.Accounting.Equivalence
+      ExchangeAlgebra.IO.Output.Admission
       ExchangeAlgebra.Journal
       ExchangeAlgebra.Journal.Core
       ExchangeAlgebra.Journal.Exact
@@ -278,9 +279,13 @@ library
       ExchangeAlgebra.IO.Input.Admission.Catalog
       ExchangeAlgebra.IO.Input.Admission.Derive
       ExchangeAlgebra.IO.Input.Admission.Engine
-      ExchangeAlgebra.IO.Input.Admission.Internal
+      ExchangeAlgebra.IO.Input.Admission.Representation
       ExchangeAlgebra.IO.Input.Admission.Registry
-      ExchangeAlgebra.IO.Input.Admission.Types
+      ExchangeAlgebra.IO.Input.Admission.Catalog.Input
+      ExchangeAlgebra.IO.Input.Admission.Workflow
+      ExchangeAlgebra.IO.Input.Admission.Registry.Definition
+      ExchangeAlgebra.IO.Input.Admission.Submission
+      ExchangeAlgebra.IO.Input.Admission.Diagnostic
   hs-source-dirs:
       src
   ghc-options: -feager-blackholing

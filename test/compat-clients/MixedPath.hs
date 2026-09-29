@@ -28,6 +28,11 @@ import qualified ExchangeAlgebra.Accounting.Statements as Statements
 import qualified ExchangeAlgebra.IO.Input as Input
 import qualified ExchangeAlgebra.IO.Output.Statements as OutputStatements
 
+import qualified ExchangeAlgebra.IO.Input.Admission as Admission
+import qualified ExchangeAlgebra.Accounting.Transaction as Transaction
+import qualified ExchangeAlgebra.Accounting.Equivalence as Equivalence
+import qualified ExchangeAlgebra.IO.Output.Admission as AdmissionOutput
+
 mixedPathPlaceholder :: Bool
 mixedPathPlaceholder = Old.oldConstructor Old.oldExpression
 
@@ -95,3 +100,19 @@ mixedOptimize = id
 
 mixedSimulationOutput :: OldSimulationOutput.Header -> SimulationOutput.Header
 mixedSimulationOutput = id
+
+-- | Feed an identifier from the retained admission entry point to its new owner.
+mixedTransaction :: Bool
+mixedTransaction = Transaction.isBlankKey
+    (Admission.TxKey (Admission.EntityId mempty)
+        (Admission.PeriodId mempty) (Admission.TxId mempty))
+
+-- | Compare a ledger returned by the retained admission entry point.
+mixedEquivalence :: Admission.Admitted -> Bool
+mixedEquivalence accepted = Equivalence.isEquivalentUpTo Equivalence.PostingMultiset
+    (Admission.deriveLedger accepted) (Admission.deriveLedger accepted)
+
+-- | Render statements typed through the retained admission entry point.
+mixedAdmissionOutput :: Admission.AdmittedStatements -> Bool
+mixedAdmissionOutput accepted = AdmissionOutput.renderAdmittedStatements accepted
+    == Admission.renderAdmittedStatements accepted

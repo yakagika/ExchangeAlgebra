@@ -34,7 +34,7 @@ main = do
             ]
             [Admission.Call (Admission.CallId "closing") entity period
                 (Just closeKey) Admission.FinalStock]
-    case Admission.txidRegistry rules of
+    case Admission.txIdRegistry rules of
         Left problems -> fail (show problems)
         Right registry -> do
             let spec = Admission.AdmissionSpec registry

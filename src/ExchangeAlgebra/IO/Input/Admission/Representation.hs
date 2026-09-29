@@ -4,13 +4,15 @@
 -- constructs these values, and the public derivation functions consume them.
 -- Journal is authoritative; snapshots retain their original posting sequence.
 -- Read entry metadata before the accepted-value constructors.
-module ExchangeAlgebra.IO.Input.Admission.Internal where
+module ExchangeAlgebra.IO.Input.Admission.Representation where
 
 import Data.Map.Strict (Map)
 
-import ExchangeAlgebra.IO.Input.Admission.Types
-import ExchangeAlgebra.Algebra.Base (AccountTitles, HatBase)
-import ExchangeAlgebra.Journal (Journal)
+import ExchangeAlgebra.Accounting.Transaction (Entry, TxKey)
+import ExchangeAlgebra.IO.Input.Admission.Workflow
+import ExchangeAlgebra.Accounting.Account (AccountTitles)
+import ExchangeAlgebra.Algebra.Base.Representation (HatBase)
+import ExchangeAlgebra.Journal.Core (Journal)
 import ExchangeAlgebra.Accounting.Statements.Presentation (FinancialStatements)
 import ExchangeAlgebra.Accounting.TrialBalance.Validation (ValidatedTrialBalance)
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)

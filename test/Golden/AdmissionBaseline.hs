@@ -25,8 +25,8 @@ import ExchangeAlgebra.Algebra
 import ExchangeAlgebra.Algebra.Base (AccountTitles(..), HatBase((:<)))
 import ExchangeAlgebra.Accounting.Account (concreteAccountTitles)
 import ExchangeAlgebra.IO.Input.Admission
-import ExchangeAlgebra.IO.Input.Admission.Equivalence
-    ( Equivalence(..), equivalentUpTo )
+import ExchangeAlgebra.Accounting.Equivalence
+    ( Equivalence(..), isEquivalentUpTo )
 import qualified ExchangeAlgebra.Accounting.Statements.Presentation as Presentation
 import ExchangeAlgebra.Accounting.TrialBalance.Balance (accountBalances)
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
@@ -99,7 +99,7 @@ snapshotSignature snapshot =
     ]
 
 -- | Observe registry construction without discarding diagnostic order.
-observeRegistry :: Either (NonEmpty RegistryError) TxidRegistry -> Text
+observeRegistry :: Either (NonEmpty RegistryError) TxIdRegistry -> Text
 observeRegistry outcome = case outcome of
     Left failures -> "Left " <> Text.pack (show failures)
     Right registry -> "Right " <> Text.pack (show (registryRules registry))
@@ -117,7 +117,7 @@ admissionCase
 admissionCase name category rules evidence facts vocabulary submission =
     GoldenCase name category result
   where
-    result = case txidRegistry rules of
+    result = case txIdRegistry rules of
         Left failures -> "RegistryLeft " <> Text.pack (show failures)
         Right registry -> observeAdmission
             (admit (AdmissionSpec registry evidence facts vocabulary) submission)
@@ -201,7 +201,7 @@ coverageCases =
         (Submission [(raw, saleRows)] [call "c" generated])
     , run "multiple-coverage-errors" defaultRules defaultEvidence [] [] "-"
     , GoldenCase "registry-duplicate-key" "-"
-        (observeRegistry (txidRegistry [(raw, rawRule), (raw, rawRule)]))
+        (observeRegistry (txIdRegistry [(raw, rawRule), (raw, rawRule)]))
     ]
   where
     raw = key entityA periodOne "raw"
@@ -237,7 +237,7 @@ registryCases =
     , check "query-kind-in-registry"
         [SupplySubmission Ordinary, SupplyCatalog EquityBalanceKind] Nothing
     , GoldenCase "blank-registry-key" "-" (observeRegistry
-        (txidRegistry [(key entityA periodOne " ",
+        (txIdRegistry [(key entityA periodOne " ",
             txRule Optional [SupplySubmission Ordinary] Nothing)]))
     , GoldenCase "authorized-routes-and-evidence" "-"
         (Text.pack (show (rulePresence allowed, ruleSupplies allowed, ruleEvidence allowed)))
@@ -247,7 +247,7 @@ registryCases =
     fact = FactId "source"
     receipt = EvidenceId "receipt"
     check name supplies evidence = GoldenCase name "-" (observeRegistry
-        (txidRegistry [(transaction, txRule Required supplies evidence)]))
+        (txIdRegistry [(transaction, txRule Required supplies evidence)]))
     allowed = txRule Optional
         [SupplyCatalog CorporateInterimKind, SupplySubmission Ordinary] (Just receipt)
 
@@ -275,7 +275,7 @@ callCases =
     [ run "stage-inversion" rules [query, adjustment] "-"
     , run "query-only-equity-balance" [(raw, rawRule)] [query] "-"
     , GoldenCase "query-only-kind-required" "-" (observeRegistry
-        (txidRegistry [(adjusted,
+        (txIdRegistry [(adjusted,
             txRule Required [SupplyCatalog EquityBalanceKind] Nothing)]))
     , run "zero-output-generated-key" rules [adjustment] "-"
     ]
@@ -406,7 +406,7 @@ alternativeCases =
 
 -- | Freeze ordinary, adjusted, and closing snapshots for one full period.
 periodCases :: [GoldenCase]
-periodCases = case txidRegistry rules of
+periodCases = case txIdRegistry rules of
     Left failures ->
         [ GoldenCase "full-period-registry" "finalstock"
             ("RegistryLeft " <> Text.pack (show failures))
@@ -580,7 +580,7 @@ equivalenceCases =
         ((2 * tiny) .@ Hat :< Cash .+ tiny .@ Not :< Cash :: Entry)
     tinySingle = Map.singleton closing (tiny .@ Hat :< Cash :: Entry)
     compare name policy first second = GoldenCase name category
-        (Text.pack (show (equivalentUpTo policy first second)))
+        (Text.pack (show (isEquivalentUpTo policy first second)))
       where
         category = case policy of
             PostingMultiset -> "-"
@@ -611,7 +611,7 @@ catalogCases = map run catalogInputs ++ queryCases ++ protectedCases
             (Just generated) body
 
 -- | Catalog inputs copied from all twenty builder parity examples.
-catalogInputs :: [(Text, CatalogCall, CatalogOpKind, Role, RawPostings, Text)]
+catalogInputs :: [(Text, CatalogCall, CatalogOperationKind, Role, RawPostings, Text)]
 catalogInputs =
     [ ordinary "Cogs" (Cogs 12 5) CogsKind Adjustment "-"
     , ordinary "DepIndirect" (DepIndirect 7) DepIndirectKind Adjustment "-"

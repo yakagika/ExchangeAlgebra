@@ -26,7 +26,7 @@ CallId
 CallPeriodMismatch
 CatalogCall
 CatalogExecutionFailure
-CatalogOpKind
+CatalogOperationKind
 CatalogProvenance
 Closed
 Closing
@@ -129,9 +129,9 @@ SupplyFacts
 SupplyNotAllowed
 SupplySubmission
 TxId
+TxIdRegistry
 TxKey
 TxRule
-TxidRegistry
 Unearned
 UnearnedKind
 UnexpectedGeneratedKey
@@ -173,5 +173,5 @@ rulePresence
 ruleSupplies
 submissionCalls
 submissionPostings
+txIdRegistry
 txRule
-txidRegistry

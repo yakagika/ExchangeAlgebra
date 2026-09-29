@@ -17,7 +17,7 @@ import ExchangeAlgebra.Accounting.Account
     ( AccountDivision(..), AccountSpec(..), AccountTitles(..), Side(..)
     , accountSpec, concreteAccountTitles )
 import ExchangeAlgebra.IO.Input.Admission (EntityId(..), PeriodId(..), TxId(..), TxKey(..), Entry)
-import ExchangeAlgebra.IO.Input.Admission.Equivalence
+import ExchangeAlgebra.Accounting.Equivalence
     ( ClosingDifference(..), ClosingSource(..), closingDifferences, isClosingEquivalent )
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal(..))
 

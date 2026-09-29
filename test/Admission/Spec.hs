@@ -16,7 +16,7 @@ import System.Exit (exitFailure)
 import Test.QuickCheck
 
 import ExchangeAlgebra.IO.Input.Admission
-import ExchangeAlgebra.IO.Input.Admission.Equivalence (Equivalence(..), equivalentUpTo)
+import ExchangeAlgebra.Accounting.Equivalence (Equivalence(..), isEquivalentUpTo)
 import ExchangeAlgebra.Algebra
     ( (.+)
     , (.@)
@@ -52,7 +52,7 @@ hasError predicate result = case result of
     Right _ -> False
 
 -- | Check one registry diagnostic without depending on error order.
-hasRegistryError :: RegistryError -> Either (NonEmpty RegistryError) TxidRegistry -> Bool
+hasRegistryError :: RegistryError -> Either (NonEmpty RegistryError) TxIdRegistry -> Bool
 hasRegistryError expected result = case result of
     Left failures -> expected `elem` NonEmpty.toList failures
     Right _ -> False
@@ -103,7 +103,7 @@ vocabulary = Set.fromList
 specFor :: [(TxKey, TxRule)] -> Map EvidenceId MoneyDecimal
         -> Map FactId RawPostings -> IO AdmissionSpec
 specFor rows evidence facts = do
-    registry <- requireRight "registry fixture" (txidRegistry rows)
+    registry <- requireRight "registry fixture" (txIdRegistry rows)
     pure (AdmissionSpec registry evidence facts vocabulary)
 
 -- | Demand an exact account balance, treating absent zero accounts as zero.
@@ -187,7 +187,7 @@ testCoverage = do
         Left errors -> length (NonEmpty.toList errors) >= 2
         Right _ -> False
     assertTest "registry duplicate survives map construction" $
-        case txidRegistry [(raw, rawRule), (raw, rawRule)] of
+        case txIdRegistry [(raw, rawRule), (raw, rawRule)] of
             Left errors -> DuplicateRegistryKey raw `elem` NonEmpty.toList errors
             Right _ -> False
 
@@ -198,7 +198,7 @@ testRegistrySupplies = do
         fact = FactId "source"
         check label supplies evidence expected = assertTest label $
             hasRegistryError (expected transaction)
-                (txidRegistry [(transaction, txRule Required supplies evidence)])
+                (txIdRegistry [(transaction, txRule Required supplies evidence)])
     check "empty supply set" [] Nothing EmptySupplySet
     check "facts and raw cannot coexist"
         [SupplyFacts fact Ordinary, SupplySubmission Ordinary] Nothing MixedFactSupply
@@ -214,11 +214,11 @@ testRegistrySupplies = do
         Nothing MultipleSubmissionRoles
     assertTest "unused query kind still rejected" $
         hasRegistryError (NonGeneratingSupply transaction EquityBalanceKind)
-            (txidRegistry [(transaction, txRule Optional
+            (txIdRegistry [(transaction, txRule Optional
                 [SupplySubmission Ordinary, SupplyCatalog EquityBalanceKind] Nothing)])
     assertTest "blank key rejected" $
         hasRegistryError (BlankRegistryKey (key entityA periodOne " "))
-            (txidRegistry [(key entityA periodOne " ",
+            (txIdRegistry [(key entityA periodOne " ",
                 txRule Optional [SupplySubmission Ordinary] Nothing)])
     let allowed = txRule Optional
             [SupplyCatalog CorporateInterimKind, SupplySubmission Ordinary]
@@ -269,7 +269,7 @@ testCalls = do
     assertTest "equity query audit, without generated key" $
         map auditGenerated (admittedAudit accepted) == [Nothing]
     assertTest "query-only producer cannot be required in registry" $
-        case txidRegistry [(adjusted, txRule Required [SupplyCatalog EquityBalanceKind] Nothing)] of
+        case txIdRegistry [(adjusted, txRule Required [SupplyCatalog EquityBalanceKind] Nothing)] of
             Left errors -> NonGeneratingSupply adjusted EquityBalanceKind
                 `elem` NonEmpty.toList errors
             Right _ -> False
@@ -638,45 +638,45 @@ testEquivalence = do
         selected = NetAccountsInTransactions
             (Set.singleton closing) (Set.singleton RetainedEarnings)
     assertTest "closing with gross cash is transaction-net equivalent" $
-        equivalentUpTo NetWithinTransaction baseline withCash
+        isEquivalentUpTo NetWithinTransaction baseline withCash
     assertTest "posting multiset preserves closing cash gross rows" $
-        not (equivalentUpTo PostingMultiset baseline withCash)
+        not (isEquivalentUpTo PostingMultiset baseline withCash)
     assertTest "RE-only net does not hide closing cash gross rows" $
-        not (equivalentUpTo selected baseline withCash)
+        not (isEquivalentUpTo selected baseline withCash)
     assertTest "closing RE gross and net differ as raw postings" $
-        not (equivalentUpTo PostingMultiset baseline withGrossRE)
+        not (isEquivalentUpTo PostingMultiset baseline withGrossRE)
     assertTest "closing RE gross and net have equal transaction net" $
-        equivalentUpTo NetWithinTransaction baseline withGrossRE
+        isEquivalentUpTo NetWithinTransaction baseline withGrossRE
     assertTest "closing RE gross and net agree under selected-account net" $
-        equivalentUpTo selected baseline withGrossRE
+        isEquivalentUpTo selected baseline withGrossRE
     let nearCancellation = Map.singleton closing
             (1000000000000 .@ Not :< Cash
              .+ (1000000000000 - 0.5) .@ Hat :< Cash :: Entry)
         zeroPosting = Map.singleton closing (mempty :: Entry)
     assertTest "bar inherits scaled residual tolerance for MoneyDecimal" $
-        equivalentUpTo NetWithinTransaction nearCancellation zeroPosting
+        isEquivalentUpTo NetWithinTransaction nearCancellation zeroPosting
     assertTest "gross residual postings remain visible to multiset" $
-        not (equivalentUpTo PostingMultiset nearCancellation zeroPosting)
+        not (isEquivalentUpTo PostingMultiset nearCancellation zeroPosting)
     assertTest "RE-only observation keeps near-canceling cash strict" $
-        not (equivalentUpTo selected nearCancellation zeroPosting)
+        not (isEquivalentUpTo selected nearCancellation zeroPosting)
     let tiny = 0.00000000000001 :: MoneyDecimal
         tinyPair = Map.singleton closing
             ((2 * tiny) .@ Hat :< Cash .+ tiny .@ Not :< Cash :: Entry)
         tinySingle = Map.singleton closing (tiny .@ Hat :< Cash :: Entry)
     assertTest "bar absolute tolerance removes a tiny multi-posting residual" $
-        equivalentUpTo NetWithinTransaction tinyPair zeroPosting
+        isEquivalentUpTo NetWithinTransaction tinyPair zeroPosting
     assertTest "multiset preserves tiny original postings" $
-        not (equivalentUpTo PostingMultiset tinyPair zeroPosting)
+        not (isEquivalentUpTo PostingMultiset tinyPair zeroPosting)
     assertTest "existing bar preserves a single atomic posting" $
-        not (equivalentUpTo NetWithinTransaction tinySingle zeroPosting)
+        not (isEquivalentUpTo NetWithinTransaction tinySingle zeroPosting)
 
 -- | Registry insertion order leaves successful lookup and duplicate rejection intact.
 propRegistryPermutation :: Property
 propRegistryPermutation = forAll (shuffle rows) $ \permuted ->
-    case (txidRegistry rows, txidRegistry permuted) of
+    case (txIdRegistry rows, txIdRegistry permuted) of
         (Right first, Right second) ->
             registryRules first == registryRules second
-            && case txidRegistry (permuted ++ [duplicate]) of
+            && case txIdRegistry (permuted ++ [duplicate]) of
                 Left errors -> DuplicateRegistryKey (fst duplicate)
                     `elem` NonEmpty.toList errors
                 Right _ -> False
@@ -689,7 +689,7 @@ propRegistryPermutation = forAll (shuffle rows) $ \permuted ->
 
 -- | Admitted debit totals agree with independent receipt obligations.
 propAcceptedDebitEvidence :: Positive Int -> Bool
-propAcceptedDebitEvidence (Positive number) = case txidRegistry [(transaction, rule)] of
+propAcceptedDebitEvidence (Positive number) = case txIdRegistry [(transaction, rule)] of
     Left _ -> False
     Right registry ->
         let specification = AdmissionSpec registry (Map.singleton receipt amount)
@@ -709,7 +709,7 @@ propAcceptedDebitEvidence (Positive number) = case txidRegistry [(transaction, r
 -- | Authorized routes cannot cause provenance to be inferred from the rule set.
 propActualSupplyProvenance :: Positive Int -> Bool
 propActualSupplyProvenance (Positive number) =
-    case txidRegistry [(source, sourceRule), (reversal, reversalRule)] of
+    case txIdRegistry [(source, sourceRule), (reversal, reversalRule)] of
         Left _ -> False
         Right registry ->
             let specification = AdmissionSpec registry (Map.singleton receipt amount)
@@ -758,13 +758,13 @@ propEquivalenceRelation (Positive number) =
   where
     amount = fromIntegral (number `mod` 100 + 1) :: MoneyDecimal
     law account side transaction policy = and
-        [ equivalentUpTo policy first first
+        [ isEquivalentUpTo policy first first
         | first <- mappings ]
-        && and [equivalentUpTo policy first second == equivalentUpTo policy second first
+        && and [isEquivalentUpTo policy first second == isEquivalentUpTo policy second first
                | first <- mappings, second <- mappings]
-        && and [not (equivalentUpTo policy first second
-                      && equivalentUpTo policy second third)
-                || equivalentUpTo policy first third
+        && and [not (isEquivalentUpTo policy first second
+                      && isEquivalentUpTo policy second third)
+                || isEquivalentUpTo policy first third
                | first <- mappings, second <- mappings, third <- mappings]
       where
         entry = amount .@ side :< account .+ amount .@ side :< Sales :: Entry
@@ -778,7 +778,7 @@ propEquivalenceRelation (Positive number) =
 
 -- | Cumulative snapshot keys and original entries are included in later views.
 propSnapshotInclusion :: Positive Int -> Bool
-propSnapshotInclusion (Positive number) = case txidRegistry rules of
+propSnapshotInclusion (Positive number) = case txIdRegistry rules of
     Left _ -> False
     Right registry -> case admit (specification registry) submission of
         Left _ -> False

@@ -50,7 +50,7 @@ reject RecordUpdate 'not a record selector|not a record field|Not in scope: reco
 reject Coerce "Couldn't match (representation|type)|Could not deduce.*Coercible"
 reject RawDerivation "Couldn't match.*(Admitted|Journal)|Expected:.*Admitted"
 reject HiddenModule 'hidden module'
-if ! grep -Fq 'ExchangeAlgebra.IO.Input.Admission.Internal' "$admission_tmp/HiddenModule.log"; then
+if ! grep -Fq 'ExchangeAlgebra.IO.Input.Admission.Representation' "$admission_tmp/HiddenModule.log"; then
     printf '[FAIL] HiddenModule rejected a module other than the admission internal module\n'
     cat "$admission_tmp/HiddenModule.log"
     exit 1
