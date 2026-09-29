@@ -10,16 +10,16 @@
   records the actual supply route, checks debit-total evidence after execution
   (including zero output), and applies raw posting restrictions under every
   declared role. Facts remain exclusive. The separate
-  `ExchangeAlgebra.IO.Input.Admission.Equivalence` module compares original
+  `ExchangeAlgebra.Accounting.Equivalence` module compares original
   postings or transaction-local and selected-account net observations.
-- `ExchangeAlgebra.IO.Input.Admission.Equivalence.closingDifferences` and
+- `ExchangeAlgebra.Accounting.Equivalence.closingDifferences` and
   `isClosingEquivalent` compare two closings by transaction key: accounts other
   than the designated retained-earnings account by their exact total per debit
   or credit side, and retained earnings by its exact credit-minus-debit net.
   The result does not depend on how the same amounts are split across lines.
   Blank keys, HatNot postings, accounts without a debit or credit side, and
   negative amounts are reported as `ClosingDifference` diagnostics before any
-  comparison. `equivalentUpTo` is unchanged.
+  comparison. `isEquivalentUpTo` is unchanged.
 - `ExchangeAlgebra.Value.moneyDecimalFromText` and
   `moneyDecimalFromScientific` convert a JSON-number text or a `Scientific`
   to `MoneyDecimal` exactly, without a binary floating-point step. The written
@@ -50,6 +50,71 @@
 - `ExchangeAlgebra.Algebra.Base`, `ExchangeAlgebra.Algebra.Internal`,
   `ExchangeAlgebra.Algebra`, `ExchangeAlgebra.Journal`, and the root module keep
   their current export lists unchanged in this release line.
+- `ExchangeAlgebra.Algebra.Core` (the generic `Alg` operations) and
+  `ExchangeAlgebra.Algebra.Posting` are new public entry points.
+  `ExchangeAlgebra.Posting` → `ExchangeAlgebra.Algebra.Posting`. `projNorm`
+  is not exported from the new `Algebra.Core`; it stays on the old paths until
+  its removal.
+- `ExchangeAlgebra.Journal.Core` is the generic Journal entry point. It does
+  not export `insert`, `projWithBaseNorm`, or `projWithNoteNorm`, which remain
+  on `ExchangeAlgebra.Journal` until their removal.
+- `ExchangeAlgebra.Accounting.Exchange` owns `ExBaseClass`, `AccountBase`,
+  `Exchange` and all their instances (including `Exchange Alg` and
+  `Exchange (Journal n)`). Default methods resolve to the same functions.
+- `ExchangeAlgebra.Accounting.Closing` owns the closing types and
+  `closingEntries` / `settleEntries`. `ExchangeAlgebra.Algebra.Transfer.Rule`
+  keeps re-exporting both the generic transfer names and the closing names and
+  is not deprecated yet (the generic transfer names get a new public path
+  later in 0.6).
+- Accounting reports: `ExchangeAlgebra.Bookkeeping` →
+  `ExchangeAlgebra.Accounting.Entries`; `ExchangeAlgebra.TrialBalance.Balance` /
+  `.Validation` → `ExchangeAlgebra.Accounting.TrialBalance`;
+  `ExchangeAlgebra.Reporting.Group` / `.Metric` / `.Presentation` →
+  `ExchangeAlgebra.Accounting.Statements`; `ExchangeAlgebra.Consolidation.Worksheet`
+  → `ExchangeAlgebra.Accounting.Consolidation` (which does not re-export
+  `PeriodResult` or `AccountBalance`; import them from `Accounting.Statements`
+  and `Accounting.TrialBalance`).
+- Input and output: `ExchangeAlgebra.Convert` and `ExchangeAlgebra.Convert.Checked`
+  → `ExchangeAlgebra.IO.Input` (which does not export `exactBalanced`; it stays
+  on the old path until its replacement), `ExchangeAlgebra.Convert.Csv` →
+  `ExchangeAlgebra.IO.Input.Csv`, `ExchangeAlgebra.Assist` →
+  `ExchangeAlgebra.IO.Input.Assist`, `ExchangeAlgebra.Assist.Descriptions` →
+  `ExchangeAlgebra.Accounting.Account`, `ExchangeAlgebra.Render.Csv` /
+  `ExchangeAlgebra.Render.Bookkeeping` → `ExchangeAlgebra.IO.Output.Csv` /
+  `ExchangeAlgebra.IO.Output.Statements` (the implementations stay in
+  `ExchangeAlgebra.Write`).
+- Simulation: `ExchangeAlgebra.Simulate.Network` → `ExchangeAlgebra.Simulation.Network`
+  (industrial flows in `.Flows`, CSV readers in `.Csv`, `sigmaEdges` in
+  `.Journal`); `ExchangeAlgebra.Simulate.Analysis` →
+  `ExchangeAlgebra.Simulation.Analysis`; `ExchangeAlgebra.Optimize` /
+  `.Annealing` / `.GA` → `ExchangeAlgebra.Simulation.Optimize` / ...;
+  `ExchangeAlgebra.Render.Simulation` keeps re-exporting its names (the output
+  functions are also on `ExchangeAlgebra.Simulation.Output`). The classic
+  engine, `Policy`, `Spill`, `Random`, `Lite`, and `Visualize` keep their
+  `Simulate.*` names.
+
+### Changed (admission API, not yet released on Hackage)
+
+- The admission API is split by responsibility. Transaction identifiers
+  (`TxKey`, `EntityId`, `PeriodId`, `TxId`, ...), `Entry`, and `isBlankKey`
+  are in `ExchangeAlgebra.Accounting.Transaction`; the equivalence checks are in
+  `ExchangeAlgebra.Accounting.Equivalence`; `renderAdmittedStatements` is also
+  in `ExchangeAlgebra.IO.Output.Admission`. `ExchangeAlgebra.IO.Input.Admission`
+  remains the entry point. The internal modules `...Admission.Types`,
+  `...Admission.Internal`, and `...Admission.Equivalence` are removed without
+  compatibility shims because this API has not been released on Hackage.
+- Renamed: `equivalentUpTo` → `isEquivalentUpTo`, `txidRegistry` →
+  `txIdRegistry`, `TxidRegistry` → `TxIdRegistry`, `CatalogOpKind` →
+  `CatalogOperationKind`. Constructors and `Show` output are unchanged.
+
+### Documentation
+
+- The root module example now debits cash and credits sales as described, and
+  builds postings with `.@`.
+- `Simulation.Analysis` documents the current preconditions: the fixed origin
+  `(1,1)`, no pivot exchange in `inverse`, that `inverse` overwrites its
+  argument while `leontiefInverse` copies it, and that `rippleEffect` takes the
+  Leontief inverse and fills one column.
 
 ## 0.5.3.0 - 2026-09-26
 
