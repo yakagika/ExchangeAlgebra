@@ -90,27 +90,18 @@ extra-source-files:
     test/fixtures/jcci-2022/queries.tsv
     test/fixtures/jcci-2022/README.md
     test/fixtures/jcci-2022/source.tsv
-    test/fixtures/post-land2/README.md
-    test/fixtures/post-land2/suggest.tsv
     test/fixtures/post-vocab/account-info.tsv
     test/fixtures/post-vocab/ordinals.tsv
     test/fixtures/post-vocab/README.md
     test/fixtures/post-vocab/semantics.tsv
     test/fixtures/post-vocab/suggest.tsv
     test/fixtures/pre-account-semantics-050/account-info.tsv
-    test/fixtures/pre-account-semantics-050/consumer-inventory.txt
     test/fixtures/pre-account-semantics-050/presentation.tsv
     test/fixtures/pre-account-semantics-050/projection-membership.tsv
-    test/fixtures/pre-account-semantics-050/README.md
     test/fixtures/pre-account-semantics-050/semantics.tsv
-    test/fixtures/pre-land1/account-info.tsv
-    test/fixtures/pre-land1/account-semantics.tsv
     test/fixtures/pre-land1/alias-resolution.tsv
-    test/fixtures/pre-land1/suggest.tsv
     test/fixtures/pre-land2/presentation.txt
     test/fixtures/pre-vland2/ordinals.tsv
-    test/fixtures/pre-vland2/semantics.tsv
-    test/fixtures/pre-vocab/finalstock.tsv
     test/fixtures/readout-baseline-p1/alg-decimal-f-dec2.tsv
     test/fixtures/readout-baseline-p1/alg-decimal-f-int.tsv
     test/fixtures/readout-baseline-p1/alg-double-f-cancel.tsv

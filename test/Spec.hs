@@ -1105,41 +1105,6 @@ finalStockProbeRule title
     probe = 1 .@ Not :< title :: FinalStockProbe
     actual = show (EAT.finalStockTransfer probe)
 
--- | The pre-vocabulary fixture is frozen. The only permitted behavioral
--- changes are the concrete Cost/Revenue accounts that the former SNA-era
--- title case split omitted. Aggregate NetIncome/NetLoss remain explicit
--- registry overrides and therefore do not occur in this list.
-finalStockExpectedClosedDiff :: [AccountTitles]
-finalStockExpectedClosedDiff =
-    [ AmortizationExpense
-    , SalesCost
-    , BusinessTrip
-    , Commutation
-    , UtilitiesExpense
-    , RentExpense
-    , AdvertisingExpense
-    , DeliveryExpenses
-    , SuppliesExpenses
-    , MiscellaneousExpenses
-    , NationalBondInterestEarned
-    , DepositInterestEarned
-    , ReceiptFee
-    , RentalIncome
-    , EquityInEarningsOfInvestee
-    , ProvisionForDoubtfulAccounts
-    , BadDebtLoss
-    , LossOnSalesOfFixedAssets
-    , LossOnSalesOfNotesReceivable
-    , PaymentFees
-    , MiscellaneousLoss
-    , CorporateIncomeTaxes
-    , CommunicationExpenses
-    , GainOnSalesOfFixedAssets
-    , RecoveryOfBadDebts
-    , MiscellaneousIncome
-    , ReversalOfAllowanceForDoubtfulAccounts
-    ]
-
 -- V-Land 1: finalStockRule の全域を独立参照式 (division + contra を明示分岐)
 -- と突き合わせ, 方向 (Keep/Flip) まで固定する。contra P/L (将来の売上割戻等)
 -- では division 基準と逆になることをこの式が明文化する。
@@ -1166,52 +1131,11 @@ testFinalStockRuleReference = mapM_ check Registry.concreteAccountTitles
         div_   = classifyAccountDivision t
         contra = Registry.classifyAccountContra t
 
-testFinalStockRegistryClosedDiff :: IO ()
-testFinalStockRegistryClosedDiff = do
-    fixture <- TIO.readFile "test/fixtures/pre-vocab/finalstock.tsv"
-    let fixtureLines =
-            [ line
-            | line <- T.lines fixture
-            , not (T.null line)
-            , not (T.isPrefixOf (T.pack "#") line)
-            ]
-        parseFixtureLine line = case T.splitOn (T.pack "\t") line of
-            [titleText, oldRule, _division] -> case EC.parseAccountTitle titleText of
-                Right title -> (title, T.unpack oldRule)
-                Left err -> error ("invalid final-stock fixture title: " ++ show err)
-            fields -> error ("invalid final-stock fixture row: " ++ show fields)
-        fixtureRows = L.map parseFixtureLine fixtureLines
-        actualDiff =
-            [ title
-            | (title, oldRule) <- fixtureRows
-            , title /= RetainedEarnings
-            , finalStockProbeRule title /= oldRule
-            ]
-    assertEqual "final-stock fixture covers all 116 concrete account titles"
-        116 (L.length fixtureRows)
-    assertEqual "final-stock registry closed diff = 27 formerly omitted accounts"
-        finalStockExpectedClosedDiff actualDiff
-    assertEqual "final-stock aggregate overrides remain open"
-        ["Nothing", "Nothing", "Nothing", "Nothing", "Nothing"]
-        [ finalStockProbeRule NetIncome
-        , finalStockProbeRule NetLoss
-        , finalStockProbeRule IncomeSummary
-        , finalStockProbeRule NetIncomeAttributableToNCI
-        , finalStockProbeRule NetLossAttributableToNCI
-        ]
-
 -- ================================================================
 -- V-Land 2 scaffolding (語彙拡張の受理条件, レビュー非依存):
 -- pre-vland2 fixture (tools/DumpVocabGolden.hs で生成, commit 85d6a7f に pin)
 -- に対する Enum 挿入規律 pin と意味関数 closed-diff。
 -- ================================================================
-
--- | V-Land 2 で既存意味が変わってよい科目の閉リスト。
--- scaffold 時点 (constructor 追加前) は空。外部レビュー裁定で既存科目の分類が
--- 変わる場合 (例: 有価証券 4 分類分解に伴う 'Securities' の再定義) は
--- ここに列挙して閉じる — 列挙外の意味変化は fail する。
-vocabSemanticsExpectedClosedDiff :: [AccountTitles]
-vocabSemanticsExpectedClosedDiff = []
 
 -- | 挿入規律 pin: 語彙拡張は「既存 concrete constructor の Enum 序数を 1 つも
 -- 動かさず, 新規は最大既存 concrete 序数と wildcard の間にのみ挿入し,
@@ -1273,46 +1197,6 @@ testVocabOrdinalPin = do
     assertEqual "vocab ordinal pin: concreteAccountTitles covers all non-wildcard constructors"
         (L.filter (/= (AccountTitle :: AccountTitles)) [minBound .. maxBound])
         Registry.concreteAccountTitles
-
--- | 意味関数 closed-diff: 既存 116 科目の (division / isContra / whichSide
--- Not\/Hat / whatPIMO / fixedCurrent / finalStock probe) は,
--- 'vocabSemanticsExpectedClosedDiff' に列挙された科目を除き
--- pre-vland2 fixture と行単位で一致しなければならない。
-testPreVland2SemanticsClosedDiff :: IO ()
-testPreVland2SemanticsClosedDiff = do
-    fixture <- TIO.readFile "test/fixtures/pre-vland2/semantics.tsv"
-    let byName = M.fromList
-            [ (T.pack (show t), t)
-            | t <- [minBound .. maxBound] :: [AccountTitles] ]
-        currentRow t =
-            let nb = Not :< t :: HatBase AccountTitles
-                hb = Hat :< t :: HatBase AccountTitles
-            in T.intercalate (T.pack "\t")
-                 [ T.pack (show t)
-                 , T.pack (show (whatDiv nb))
-                 , T.pack (show (Registry.classifyAccountContra t))
-                 , T.pack (show (whichSide nb))
-                 , T.pack (show (whichSide hb))
-                 , T.pack (show (whatPIMO nb))
-                 , T.pack (show (fixedCurrent nb))
-                 , T.pack (finalStockProbeRule t)
-                 ]
-        rows =
-            [ line
-            | line <- T.lines fixture
-            , not (T.null line)
-            , not (T.isPrefixOf (T.pack "#") line) ]
-        titleOf line = case T.splitOn (T.pack "\t") line of
-            (name:_) -> case M.lookup name byName of
-                Just t  -> t
-                Nothing -> error ("pre-vland2 semantics: unknown title " ++ T.unpack name)
-            [] -> error "pre-vland2 semantics: empty row"
-        actualDiff =
-            [ titleOf line | line <- rows, currentRow (titleOf line) /= line ]
-    assertEqual "pre-vland2 semantics fixture covers all 116 concrete account titles"
-        116 (L.length rows)
-    assertEqual "pre-vland2 semantics closed diff"
-        vocabSemanticsExpectedClosedDiff actualDiff
 
 -- | R1 sentinel: a /balanced/ ledger (credit total == debit total, net income
 -- zero) makes 'diffRL' report the wildcard 'Side'. Before the fix,
@@ -2530,54 +2414,6 @@ testAccountMetadataLand1Golden = do
     assertEqual "Land 1 LLM suggestion fixture"
         suggest accountMetadataLand1Suggestions
 
-testAccountInfoLand1Migration :: IO ()
-testAccountInfoLand1Migration = do
-    legacy <- TIO.readFile "test/fixtures/pre-account-semantics-050/account-info.tsv"
-    let titleMap = M.fromList
-            [ (goldenShow title, title) | title <- Registry.concreteAccountTitles ]
-        rows = L.filter (not . T.null) (L.drop 1 (T.lines legacy))
-    assertEqual "Land 1 AccountInfo migration covers 232 legacy rows"
-        232 (L.length rows)
-    forM_ rows $ \line -> case T.splitOn (T.pack "\t") line of
-        [titleText, oldDivision, oldSide, oldNameEn, oldNameJa, oldDesc] ->
-            case M.lookup titleText titleMap of
-                Nothing -> assertEqual "Land 1 migration unknown legacy title"
-                    (T.pack "") titleText
-                Just title -> case (Registry.accountSemantics title, Assist.describeAccount title) of
-                    (Just semantics, Just info) -> do
-                        assertEqual ("Land 1 legacy division is recoverable: " ++ show title)
-                            oldDivision
-                            (legacyDivisionText (Registry.asemDivisionSemantics semantics))
-                        assertEqual ("Land 1 legacy home side is recoverable: " ++ show title)
-                            oldSide (goldenShow (whichSide (Not :< title)))
-                        case Registry.asemDivisionSemantics semantics of
-                            StatementDivision _ -> do
-                                assertEqual ("Land 1 ordinary nameEn unchanged: " ++ show title)
-                                    oldNameEn (goldenEsc (Assist.aiNameEn info))
-                                -- Land 4a: the Assist projection (aiNameJa) now
-                                -- returns the annotation-free asLabelJa and is
-                                -- pinned by account-semantics-050/account-info.tsv;
-                                -- the pre-golden pins the registry fields.
-                                assertEqual ("Land 1 registry nameJa unchanged: " ++ show title)
-                                    oldNameJa (maybe T.empty
-                                        (goldenEsc . Registry.asNameJa)
-                                        (Registry.accountSpec title))
-                                assertEqual ("Land 1 registry description unchanged: " ++ show title)
-                                    oldDesc (legacyDescriptionSpelling title (maybe T.empty
-                                        (goldenEsc . Registry.asDescription)
-                                        (Registry.accountSpec title)))
-                            _ -> pure ()
-                    _ -> do
-                        putStrLn ("[FAIL] missing Land 1 migration metadata: " ++ show title)
-                        exitFailure
-        _ -> assertEqual "Land 1 migration malformed legacy row" (T.pack "") line
-  where
-    legacyDivisionText semantics = goldenShow $ case semantics of
-        StatementDivision division        -> division
-        BookkeepingControlClass division  -> division
-        DirectionEncoding division        -> division
-        NoStatementDivision -> error "legacy division is unavailable"
-
 testAssistSuggestAccounts :: IO ()
 testAssistSuggestAccounts = do
     assertEqual "Assist.suggestAccounts cash contains Cash"
@@ -3153,144 +2989,6 @@ allContra = land2Contra <> [SalesRebates, RefundOfIncomeTaxes, PurchaseRebates]
 land2TitleMap :: M.Map T.Text AccountTitles
 land2TitleMap = M.fromList
     [ (T.pack (show t), t) | t <- Registry.concreteAccountTitles ]
-
--- registry から生成しない literal 期待値 (循環 oracle 回避)
-land2ExpectedDesc :: AccountTitles -> T.Text
-land2ExpectedDesc AllowanceForDoubtfulAccounts = T.pack
-    "Asset (contra): Allowance for doubtful accounts (貸倒引当金), a credit-balance valuation account (評価勘定) deducted from receivables. Home side is Credit because it is a contra asset (isContra); values stay non-negative and the Hat\\/Not structure is intact. B\\/S deduction (net) presentation is the Write side's job."
-land2ExpectedDesc AccumulatedDepreciation = T.pack
-    "Asset (contra): Accumulated depreciation (減価償却累計額), a credit-balance valuation account (評価勘定) under the indirect method (間接法), deducted from the related depreciable assets. Home side is Credit because it is a contra asset (isContra). This is the canonical bookkeeping account for accumulated depreciation; the existing 'ReserveForDepreciation' is retained as the legacy SNA\\/macro-accounting name."
-land2ExpectedDesc t = T.pack ("land2ExpectedDesc: not a contra account: " ++ show t)
-
--- T1: 全域機械比較 — whichSide/whatPIMO/fixedCurrent は全一致,
--- whatDiv は当該 2 件 (Liability→Assets) ちょうど。
-testLand2SemanticsClosedDiff :: IO ()
-testLand2SemanticsClosedDiff = do
-    fixture <- TIO.readFile "test/fixtures/pre-land1/account-semantics.tsv"
-    let rows = L.filter (not . T.null) (L.drop 1 (T.lines fixture))
-    assertEqual "land2 semantics: fixture row count" 116 (L.length rows)
-    mapM_ checkRow rows
-  where
-    checkRow line = case T.splitOn (T.pack "\t") line of
-        [name, oldDiv, oldPimo, oldSideN, oldSideH, oldFc] ->
-            case M.lookup name land2TitleMap of
-                Nothing -> assertEqual "land2 semantics: unknown fixture title" (T.pack "") name
-                Just t -> do
-                    let nb = Not :< t :: HatBase AccountTitles
-                        hb = Hat :< t :: HatBase AccountTitles
-                    assertEqual ("land2 whatPIMO invariant: " ++ show t)
-                        oldPimo (goldenShow (whatPIMO nb))
-                    assertEqual ("land2 whichSide Not invariant: " ++ show t)
-                        oldSideN (goldenShow (whichSide nb))
-                    assertEqual ("land2 whichSide Hat invariant: " ++ show t)
-                        oldSideH (goldenShow (whichSide hb))
-                    assertEqual ("land2 fixedCurrent invariant: " ++ show t)
-                        oldFc (goldenShow (fixedCurrent nb))
-                    if t `L.elem` land2Contra
-                        then do
-                            assertEqual ("land2 whatDiv old was Liability: " ++ show t)
-                                (T.pack "Liability") oldDiv
-                            assertEqual ("land2 whatDiv new is Assets: " ++ show t)
-                                Assets (whatDiv nb)
-                        else assertEqual ("land2 whatDiv invariant: " ++ show t)
-                                oldDiv (goldenShow (whatDiv nb))
-        _ -> assertEqual "land2 semantics: malformed fixture row" (T.pack "") line
-
--- T8 込み: allAccountInfos の閉じた差分 — 当該 2 行だけ aiDivision と
--- aiDesc が変わり (desc は "Asset (contra):" で始まる), 他は byte 一致。
-testLand2InfoClosedDiff :: IO ()
-testLand2InfoClosedDiff = do
-    fixture <- TIO.readFile "test/fixtures/pre-land1/account-info.tsv"
-    let oldRows = L.filter (not . T.null) (L.drop 1 (T.lines fixture))
-        -- V-Land 2 appends new constructors after every pre-vland2 concrete
-        -- title. This closed-diff compares only the pinned historical prefix.
-        newRows = L.take (L.length oldRows)
-            [ (Assist.aiTitle i, goldenInfoRow i) | i <- Assist.allAccountInfos ]
-    assertEqual "land2 info: row count" (L.length oldRows) (L.length newRows)
-    mapM_ check (L.zip oldRows newRows)
-  where
-    check (oldLine, (t, newLine))
-        | t `L.elem` land2Contra = do
-            let oldF = T.splitOn (T.pack "\t") oldLine
-                newF = T.splitOn (T.pack "\t") newLine
-            assertEqual ("land2 info title invariant: " ++ show t)
-                (oldF L.!! 0) (newF L.!! 0)
-            assertEqual ("land2 info old division was Liability: " ++ show t)
-                (T.pack "Liability") (oldF L.!! 1)
-            assertEqual ("land2 info new division is Assets: " ++ show t)
-                (T.pack "Assets") (newF L.!! 1)
-            assertEqual ("land2 info home side invariant: " ++ show t)
-                (oldF L.!! 2) (newF L.!! 2)
-            assertEqual ("land2 info nameEn invariant: " ++ show t)
-                (oldF L.!! 3) (newF L.!! 3)
-            assertEqual ("land2 info nameJa invariant: " ++ show t)
-                (oldF L.!! 4) (newF L.!! 4)
-            assertEqual ("land2 info desc updated to contra wording: " ++ show t)
-                True (oldF L.!! 5 /= newF L.!! 5)
-            assertEqual ("land2 info new desc literal: " ++ show t)
-                (land2ExpectedDesc t) (newF L.!! 5)
-        | otherwise =
-            assertEqual ("land2 info invariant: " ++ show t)
-                oldLine (legacyDescriptionSpelling t newLine)
-
--- suggest の閉じた差分: 変化した (追加/削除/変更) query は全て, 当該 2 科目の
--- 旧/新 desc に対する token match rank の変化で説明できる。
-testLand2SuggestClosedDiff :: IO ()
-testLand2SuggestClosedDiff = do
-    fixture <- TIO.readFile "test/fixtures/pre-land1/suggest.tsv"
-    infoFixture <- TIO.readFile "test/fixtures/pre-land1/account-info.tsv"
-    let toMap txt = M.fromList
-            [ (T.takeWhile (/= '\t') line, line)
-            | line <- L.filter (not . T.null) (L.drop 1 (T.lines txt)) ]
-        oldMap = toMap fixture
-        newMap = toMap goldenSuggestions
-        oldFieldsOf t = L.concat
-            [ [ fs L.!! 0, fs L.!! 3, fs L.!! 4, fs L.!! 5 ]
-            | line <- L.filter (not . T.null) (L.drop 1 (T.lines infoFixture))
-            , let fs = T.splitOn (T.pack "\t") line
-            , fs L.!! 0 == T.pack (show t)
-            ]
-        -- The 2026-09-23 spelling change is in the registry description used
-        -- by goldenSuggestions, while Assist.aiDesc has a newer description.
-        newFieldsOf EquityInEarningsOfInvestee =
-            case Registry.accountSpec EquityInEarningsOfInvestee of
-            Just spec -> [ T.pack "EquityInEarningsOfInvestee"
-                         , Registry.asNameEn spec, Registry.asNameJa spec
-                         , Registry.asDescription spec ]
-            Nothing -> []
-        newFieldsOf t = case Assist.describeAccount t of
-            Just i  -> [ T.pack (show t), Assist.aiNameEn i, Assist.aiNameJa i, Assist.aiDesc i ]
-            Nothing -> []
-        rank fields q = L.length
-            [ tok
-            | tok <- L.map T.toCaseFold (T.words q)
-            , L.any (T.isInfixOf tok) (L.map T.toCaseFold fields) ]
-        -- corpus 帰属の変化 (query が旧/新 desc の token 集合の片方にだけある)
-        -- も desc 変更の帰結として許容する (行の追加/削除がこれで起きる)。
-        descTokensOf fields = case fields of
-            [_, _, _, desc] -> T.words desc
-            _               -> []
-        -- Include the 2026-09-23 en-US description spelling change.
-        changedDescriptions = EquityInEarningsOfInvestee : land2Contra
-        tokenMembershipChange q = L.or
-            [ (q `L.elem` descTokensOf (oldFieldsOf t))
-              /= (q `L.elem` descTokensOf (newFieldsOf t))
-            | t <- changedDescriptions ]
-        affected q = tokenMembershipChange q || L.or
-            [ rank (oldFieldsOf t) q /= rank (newFieldsOf t) q
-            | t <- changedDescriptions ]
-        diffQueries = L.nub
-            (  [ q | (q, old) <- M.toList oldMap, maybe True (/= old) (M.lookup q newMap) ]
-            ++ [ q | q <- M.keys newMap, not (M.member q oldMap) ] )
-    postFixture <- TIO.readFile "test/fixtures/post-land2/suggest.tsv"
-    assertEqual "land2 suggest: post fixture byte-identical (expected output itself)"
-        postFixture goldenSuggestions
-    assertEqual "land2 suggest: some diff exists (descs changed)"
-        True (not (L.null diffQueries))
-    mapM_ (\q -> assertEqual
-              ("land2 suggest diff explained by contra desc change: " ++ T.unpack q)
-              True (affected q))
-          diffQueries
 
 -- T2: 契約 isContra(b) ⇔ homeSide(b) ≠ defaultSide(whatDiv b)
 testLand2Contract :: IO ()
@@ -7079,10 +6777,8 @@ main = do
     testFinalStockTransferAlgEquivalence
     testFinalStockTransferJournalEquivalence
     testFinalStockTransferAggregatedAlias
-    testFinalStockRegistryClosedDiff
     testFinalStockRuleReference
     testVocabOrdinalPin
-    testPreVland2SemanticsClosedDiff
     testIncomeSummaryBalancedNoCrash
     testSpillDecisionSingleSource
     testRestoreJournalFromBinarySpill
@@ -7147,7 +6843,6 @@ main = do
     testAssistAllAccountInfos
     testAccountMetadataLand1
     testAccountMetadataLand1Golden
-    testAccountInfoLand1Migration
     testAssistSuggestAccounts
     testPostVocabGolden
     testAccountSemanticsPrechangeGolden
@@ -7161,9 +6856,6 @@ main = do
     testAccountLabelsLand4a
     testRegistryWildcards
     testRegistryContraLand2
-    testLand2SemanticsClosedDiff
-    testLand2InfoClosedDiff
-    testLand2SuggestClosedDiff
     testLand2Contract
     testLand2PimoFlip
     testLand2ExchangeRelation

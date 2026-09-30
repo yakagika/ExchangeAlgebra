@@ -42,7 +42,7 @@ tshow = T.pack . show
 hdr :: Text -> Text -> Text
 hdr what commit = "# pre-vland2 " <> what <> "; commit " <> commit <> "\n"
 
--- | test/Spec.hs finalStockProbeRule / tools/ProbeFinalStock.hs と同じ観測。
+-- | test/Spec.hs finalStockProbeRule と同じ観測。
 probeRule :: AccountTitles -> Text
 probeRule RetainedEarnings = "SELF"
 probeRule t = case show (finalStockTransfer (1 .@ Not :< t :: A)) of

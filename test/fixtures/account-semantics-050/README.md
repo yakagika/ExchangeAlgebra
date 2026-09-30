@@ -13,8 +13,7 @@ Land 1 baseline the fixture family was first cut from.
   and internal direction encodings.
 - `suggest.tsv` freezes LLM-facing search after removing legacy placeholder
   classifications from the search index.
-- `consumer-inventory.txt` is the post-Land 1 closed consumer set. The Land 0
-  inventory remains frozen in `pre-account-semantics-050`.
+- `consumer-inventory.txt` is the post-Land 1 closed consumer set.
 
 The wildcard `AccountTitle` is intentionally absent and must be rejected by
 `accountSemantics` and `describeAccount`.

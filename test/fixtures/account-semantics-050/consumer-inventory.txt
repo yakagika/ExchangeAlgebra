@@ -45,4 +45,3 @@ tools/DumpAccountSemanticsGolden.hs
 tools/DumpGolden.hs
 tools/DumpPostVocabGolden.hs
 tools/DumpVocabGolden.hs
-tools/ProbeFinalStock.hs
