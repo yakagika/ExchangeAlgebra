@@ -391,6 +391,14 @@ test-suite ExchangeAlgebra-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      Support
+      Algebra.CoreSpec
+      Journal.JournalSpec
+      Accounting.RegistrySpec
+      IO.InputOutputSpec
+      Simulate.SimulateSpec
+      Simulation.NetworkSpec
+      Simulation.OptimizeSpec
       Algebra.ExactSumSpec
       Admission.Spec
       Admission.ClosingSpec
