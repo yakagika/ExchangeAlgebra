@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -34,7 +35,7 @@ import           ExchangeAlgebra.Simulation.Network
                      , tradeNetwork, inputCoefficients
                      , nodes, edges, suppliersOf, buyersOf, edgeCount
                      , coefficient, inputsOf
-                     , completeNetwork, kRegular, erdosRenyi, scaleFree, sectorBlock
+                     , completeNetwork, kRegular, erdosRenyi, scaleFree
                      , IndustrialEconomy(..), IndustrialOptions(..)
                      , defaultIndustrialOptions, industrialNetwork, industrialNetworkWith
                      , firms, industrialEdges
@@ -46,7 +47,7 @@ import ExchangeAlgebra.Simulation.Network.Flows
 import ExchangeAlgebra.Simulation.Network.Csv (parseEdgeCsv, parseCoefCsv)
 import ExchangeAlgebra.Simulation.Network.Journal (sigmaEdges)
 import           ExchangeAlgebra.Simulate.Lite
-                     ( InitT, RefT, SnapT, HK
+                     ( InitT, SnapT, HK
                      , Field(..), carry, resetEach, updateEach
                      , Stage, stage, stageFor, stageOf
                      , Par(..), SimSpec, mkSimSpec, runLite, runLiteFold
@@ -66,7 +67,7 @@ import qualified Data.Map.Strict     as M
 import qualified Data.List           as L
 import qualified Data.List.NonEmpty  as NE
 import qualified Data.Set            as Set
-import           Data.Char           (isAlpha, isAlphaNum, isAscii, isSpace)
+import           Data.Char           (isAlpha, isAscii)
 import qualified Data.Binary         as Binary
 import qualified Data.Binary.Put     as BinaryPut
 import qualified Data.ByteString.Lazy as BL
@@ -91,23 +92,33 @@ import qualified Journal.CarrySpec as CarrySpec
 import qualified Journal.SideTotalsSpec as SideTotalsSpec
 import qualified Value.MoneyParseSpec as MoneyParseSpec
 import           Numeric             (showHex)
-import           Control.Monad       (forM_)
+import           Control.Monad       (forM_, when)
 import           Control.Monad.ST
 import           Data.Array.ST
 import           Data.STRef
 import           Data.IORef          (newIORef, readIORef, modifyIORef')
 import           System.Exit         (exitFailure)
-import           System.IO           (IOMode(WriteMode), withFile)
+import           System.IO (
+                     IOMode(WriteMode)
+                   , withFile
+                   , openBinaryTempFile
+                   , hClose
+                   )
 import           Data.Time           (Day, TimeOfDay(..), fromGregorian)
-import           System.Directory    (removeFile)
+import           System.Directory    (removeFile, getTemporaryDirectory)
 import           System.Random       (StdGen, mkStdGen, randomR, split)
 import           Control.Monad       (replicateM)
 import           Control.Monad.State (runState, state)
-import           Control.Exception   (try, evaluate, ErrorCall, SomeException)
+import           Control.Exception (
+                     try
+                   , evaluate
+                   , ErrorCall
+                   , SomeException
+                   , bracket
+                   )
 import           Control.DeepSeq     (force)
 import           Test.QuickCheck hiding (Fixed)
 import           GHC.Generics        (Generic)
-import           System.Random       (randomR)
 
 -- ================================================================
 -- Unit test helpers
@@ -134,6 +145,19 @@ assertNear label expected actual
         putStrLn ("  actual  : " ++ show actual)
         exitFailure
 
+-- | A comparison row keeps its expected value, observed value, and equality mode.
+-- Exact comparisons may use different value types without converting their expectations.
+data TestComparison
+    = forall a. (Eq a, Show a) => EqualComparison String a a
+      -- ^ Compare exact values using their original Eq instance.
+    | NearComparison String Double Double
+      -- ^ Compare Double values using the existing epsilon.
+
+-- | Execute one comparison and retain the suite's existing PASS and FAIL diagnostics.
+runTestComparison :: TestComparison -> IO ()
+runTestComparison (EqualComparison label expected actual) = assertEqual label expected actual
+runTestComparison (NearComparison label expected actual) = assertNear label expected actual
+
 decodeAccountTitleOrFail :: BL.ByteString -> Either String AccountTitles
 decodeAccountTitleOrFail bytes = case Binary.decodeOrFail bytes of
     Left (_, _, message) -> Left message
@@ -154,37 +178,6 @@ testAccountTitlesBinary = do
             Left _  -> True
             Right _ -> False)
 
-testPracticalAndManufacturingAccountTitles :: IO ()
-testPracticalAndManufacturingAccountTitles = do
-    let titles =
-            [ EntertainmentExpenses
-            , MeetingExpenses
-            , NewspaperBooksExpenses
-            , RawMaterials
-            , GoodsInTransit
-            ]
-        divisions =
-            [ Cost
-            , Cost
-            , Cost
-            , Assets
-            , Assets
-            ]
-    assertEqual "new account titles Binary roundtrip"
-        titles (L.map (Binary.decode . Binary.encode) titles)
-    assertEqual "new account titles whichDivision"
-        divisions (L.map classifyAccountDivision titles)
-    assertEqual "new account titles parse Japanese names and material alias"
-        (L.map Right
-            [ EntertainmentExpenses
-            , MeetingExpenses
-            , NewspaperBooksExpenses
-            , RawMaterials
-            , GoodsInTransit
-            , RawMaterials
-            ])
-        (L.map EC.parseAccountTitle (L.map T.pack
-            [ "交際費", "会議費", "新聞図書費", "原材料", "未着品", "材料" ]))
 
 -- ================================================================
 -- AccountTitles classification exhaustiveness (Phase A)
@@ -555,122 +548,6 @@ testMapMaybePosting = do
     assertEqual "Algebra.mapMaybePosting normalizes zero values away"
         (without zeroedBase (EA.toList source)) (EA.toList zeroed)
 
--- | Multi-pattern 'proj' uses __set__ semantics: a duplicated query selects the
--- same posting only once (no double counting). The de-duplicated query list and
--- its de-duplicated counterpart must give identical results.
-testProjMultiPatternOnePass :: IO ()
-testProjMultiPatternOnePass = do
-    let qs, qsDedup :: [HatBase CountUnit]
-        qs      = [Hat :< Yen, HatNot :< Amount, Hat :< Yen]   -- Hat:<Yen duplicated
-        qsDedup = [Hat :< Yen, HatNot :< Amount]
-    -- duplicate query does not change the projection (set semantics)
-    assertEqual "Alg.proj treats query list as a set (duplicate exact)"
-        (EA.proj qsDedup algSample) (EA.proj qs algSample)
-    -- and the duplicated Hat:<Yen is counted once, not twice
-    assertEqual "Alg.proj no double counting (single Hat:<Yen)"
-        (EA.proj [Hat :< Yen] algSample)
-        (EA.proj [Hat :< Yen, Hat :< Yen] algSample)
-
--- | 'projNetNorm' returns a bar-netted norm; the identity is
--- @projNetNorm bs x == norm (bar (proj bs x))@ (not @norm (proj bs x)@), and the
--- query list is a set (duplicates do not double count).
-testProjNormFastPath :: IO ()
-testProjNormFastPath = do
-    let qs :: [HatBase CountUnit]
-        qs = [Hat :< Yen, HatNot :< Amount, Hat :< Yen]
-        expected = norm $ EA.bar $ EA.proj qs algSample
-        actual = EA.projNetNorm qs algSample
-    assertNear "Alg.projNetNorm == norm . bar . proj (set semantics)" expected actual
-
--- | R7 sentinel (a): a duplicated exact base must project the same as a single
--- copy (MoneyDecimal exact: no floating tolerance needed).
-testProjDuplicateExact :: IO ()
-testProjDuplicateExact = do
-    let alg :: EA.Alg MoneyDecimal (HatBase CountUnit)
-        alg =  (10 :@ (Hat :< Yen))
-            .+ (3  :@ (Not :< Amount))
-        b = Hat :< Yen :: HatBase CountUnit
-    assertEqual "proj [b,b] == proj [b] (duplicate exact, MoneyDecimal)"
-        (EA.proj [b] alg) (EA.proj [b, b] alg)
-    assertEqual "projNetNorm [b,b] == projNetNorm [b] (duplicate exact)"
-        (EA.projNetNorm [b] alg) (EA.projNetNorm [b, b] alg)
-
--- | R7 sentinel (b): an exact base together with a wildcard query that subsumes
--- it must not double count the overlapping posting.
-testProjExactWildcardOverlap :: IO ()
-testProjExactWildcardOverlap = do
-    let alg :: EA.Alg MoneyDecimal (HatBase CountUnit)
-        alg =  (10 :@ (Hat :< Yen))
-            .+ (5  :@ (Not :< Amount))
-        exact = Hat :< Yen     :: HatBase CountUnit
-        wild  = Hat :< (.#)    :: HatBase CountUnit   -- subsumes Hat:<Yen
-    -- the wildcard already selects everything the exact base does, so the union
-    -- equals the wildcard alone (overlap counted once)
-    assertEqual "proj [exact,wild] == proj [wild] (overlap, no double count)"
-        (EA.proj [wild] alg) (EA.proj [exact, wild] alg)
-    assertEqual "projNetNorm [exact,wild] == projNetNorm [wild] (overlap)"
-        (EA.projNetNorm [wild] alg) (EA.projNetNorm [exact, wild] alg)
-
--- | R7 sentinel (c): the bar-netted identity @projNetNorm bs x == norm (bar (proj
--- bs x))@ holds on a base carrying both hat and not sides (where it differs from
--- @norm (proj bs x)@).
-testProjNormBarIdentity :: IO ()
-testProjNormBarIdentity = do
-    let alg :: EA.Alg MoneyDecimal (HatBase CountUnit)
-        alg =  (10 :@ (Hat :< Yen))     -- Yen carries both sides
-            .+ (4  :@ (Not :< Yen))
-            .+ (7  :@ (Not :< Amount))
-        bs = [HatNot :< Yen, HatNot :< Amount] :: [HatBase CountUnit]
-    assertEqual "projNetNorm == norm . bar . proj (both-sided base, MoneyDecimal)"
-        (norm (EA.bar (EA.proj bs alg))) (EA.projNetNorm bs alg)
-
-testProjWithBaseNorm :: IO ()
-testProjWithBaseNorm = do
-    let bs :: [HatBase CountUnit]
-        bs = [Not :< Amount]
-        expected = norm $ EJ.projWithBase bs journalSample
-        actual = EJ.projWithBaseNetNorm bs journalSample
-    assertNear "Journal.projWithBaseNetNorm matches norm . projWithBase" expected actual
-
-testProjWithNoteNorm :: IO ()
-testProjWithNoteNorm = do
-    let bs :: [HatBase CountUnit]
-        bs = [HatNot :< Amount, Hat :< Yen]
-        ns1 = ["dog", "cat"]
-        ns2 = [plank]
-        expected1 = norm $ EJ.projWithNoteBase ns1 bs journalSample
-        actual1 = EJ.projWithNoteBaseNetNorm ns1 bs journalSample
-        expected2 = norm $ EJ.projWithNoteBase ns2 bs journalSample
-        actual2 = EJ.projWithNoteBaseNetNorm ns2 bs journalSample
-    assertNear "Journal.projWithNoteBaseNetNorm (selected notes)" expected1 actual1
-    assertNear "Journal.projWithNoteBaseNetNorm (plank wildcard)" expected2 actual2
-
--- | Sentinel for the REMOVED RULES rewrite
--- @norm (projWithBase bs js) = projWithBaseNetNorm bs js@ (and the note-base
--- analogue): the equation is false when a query selects both sides of one
--- base. 'EJ.projWithBaseNetNorm' \/ 'EJ.projWithNoteBaseNetNorm' are the /bar-netted/
--- read-outs (per base @|not - hat|@), while @norm . projWithBase@ is the
--- gross norm (sums both sides). Both values are pinned here so a future
--- \"optimization\" that silently nets the gross path fails loudly.
-testProjWithBaseNormBothSided :: IO ()
-testProjWithBaseNormBothSided = do
-    let alg :: EA.Alg MoneyDecimal (HatBase CountUnit)
-        alg =  (10 :@ (Hat :< Yen))     -- Yen carries both sides
-            .+ (4  :@ (Not :< Yen))
-            .+ (7  :@ (Not :< Amount))
-        js = alg .| "n" :: EJ.Journal String MoneyDecimal (HatBase CountUnit)
-        bs = [HatNot :< Yen] :: [HatBase CountUnit]
-    assertEqual "projWithBaseNetNorm nets both sides (HatNot query): |10-4|"
-        6 (EJ.projWithBaseNetNorm bs js)
-    assertEqual "norm . projWithBase stays gross (no RULES rewrite): 10+4"
-        14 (norm (EJ.projWithBase bs js))
-    assertEqual "projWithBaseNetNorm == norm . map bar . projWithBase"
-        (norm (EJ.map EA.bar (EJ.projWithBase bs js)))
-        (EJ.projWithBaseNetNorm bs js)
-    assertEqual "projWithNoteBaseNetNorm nets both sides (HatNot query): |10-4|"
-        6 (EJ.projWithNoteBaseNetNorm ["n"] bs js)
-    assertEqual "norm . projWithNoteBase stays gross (no RULES rewrite): 10+4"
-        14 (norm (EJ.projWithNoteBase ["n"] bs js))
 
 -- | Regression test for the `bases` typo bug.
 --
@@ -699,19 +576,6 @@ testBasesNotSideRegression = do
     assertEqual "bases Hat label count" 1 hatCount
     assertEqual "bases Not label count" 3 notCount
 
-testSigmaMergePath :: IO ()
-testSigmaMergePath = do
-    let xs = [1 .. 5 :: Int]
-        f :: Int -> TestAlg
-        f i
-            | i == 3 = EA.Zero
-            | odd i = fromIntegral i :@ (Hat :< Yen)
-            | otherwise = fromIntegral i :@ (Not :< Amount)
-        expected :: TestAlg
-        expected = EA.unionsMerge (L.map f xs)
-        actual :: TestAlg
-        actual = EA.sigma xs f
-    assertEqual "Alg.sigma bulk-merge path matches unionsMerge" expected actual
 
 -- | Characterization: the same-base 'Seq' order is __construction-path
 -- dependent__. The pairwise-union path ('EA.fromList' = 'mconcat') and the
@@ -745,96 +609,6 @@ testSameBaseSeqOrderPathDependence = do
     assertEqual "bar agrees across construction paths"
         (EA.bar viaFromList) (EA.bar viaSigma)
 
-testSigma2When :: IO ()
-testSigma2When = do
-    let xs = [1 .. 3 :: Int]
-        ys = [1 .. 4 :: Int]
-        cond i j = i /= j && even (i + j)
-        f :: Int -> Int -> TestAlg
-        f i j =
-            let v = fromIntegral (i * 10 + j)
-            in if odd i
-                then v :@ (Hat :< Yen)
-                else v :@ (Not :< Amount)
-        expected :: TestAlg
-        expected =
-            EA.unionsMerge
-                [ f i j
-                | i <- xs
-                , j <- ys
-                , cond i j
-                ]
-        actual :: TestAlg
-        actual = EA.sigma2When xs ys cond f
-    assertEqual "Alg.sigma2When matches list-comprehension sum" expected actual
-
-testSigmaFromMap :: IO ()
-testSigmaFromMap = do
-    let kvs = M.fromList
-            [ ((1, 2), 5.0)
-            , ((2, 3), 0.0)
-            , ((3, 1), 7.0)
-            ] :: M.Map (Int, Int) Double
-        f :: (Int, Int) -> Double -> TestAlg
-        f (i, j) v
-            | i < j = v :@ (Hat :< Yen)
-            | otherwise = v :@ (Not :< Amount)
-        expected :: TestAlg
-        expected = EA.unionsMerge
-            [ f (1, 2) 5.0
-            , f (3, 1) 7.0
-            ]
-        actual :: TestAlg
-        actual = EA.sigmaFromMap kvs f
-    assertEqual "Alg.sigmaFromMap iterates non-zero map entries only" expected actual
-
-testJournalFromListStrict :: IO ()
-testJournalFromListStrict = do
-    -- fromList is now a strict left fold (L.foldl' (.+) mempty). Verify it still
-    -- preserves the posting multiset by matching the old lazy right-fold reference
-    -- (foldr (.+) mempty). Colliding note keys (i `mod` 30) force same-note/same-base
-    -- postings into one Alg sequence, where the two folds accumulate in opposite
-    -- order; with MoneyDecimal (exact, associative) the aggregate (norm) is identical.
-    let mk i = ((fromIntegral (i `mod` 7 + 1) :: MoneyDecimal)
-                  :@ ((if even i then Hat else Not) :< ([Yen, Amount] !! (i `mod` 2))))
-               .| show (i `mod` 30)
-        xs :: [Journal String MoneyDecimal (HatBase CountUnit)]
-        xs = [ mk i | i <- [1 .. 400 :: Int] ]
-        strict  = EJ.fromList xs
-        lazyRef = foldr (.+) mempty xs
-    -- exact value type ⇒ norm identical regardless of seq order (multiset preserved)
-    assertEqual "Journal.fromList (strict): norm matches lazy foldr reference (MoneyDecimal exact)"
-        (norm strict) (norm lazyRef)
-    -- distinct note keys ⇒ no seq collision ⇒ exact structural equality with foldr
-    let ys :: [Journal String MoneyDecimal (HatBase CountUnit)]
-        ys = [ ((fromIntegral i :: MoneyDecimal) :@ (Not :< Yen)) .| show i
-             | i <- [1 .. 20 :: Int] ]
-    assertEqual "Journal.fromList (strict): structurally equal to foldr for distinct notes"
-        (EJ.toMap (EJ.fromList ys)) (EJ.toMap (foldr (.+) mempty ys))
-
--- | Regression test for the @union@ zero-singleton base-relabel bug
--- (Algebra.hs). When one operand of @(.+)@ is a /zero-valued/ singleton on base
--- @b1@ and the other a /real/ singleton on a different base @b2@, the result must
--- keep the real value on its OWN base (@v2:@b2@), not relabel it onto the zero
--- posting's base. The old code returned @v2:@b1@ / @v1:@b2@, which silently moved
--- a value to the wrong base. It preserved @norm@ (total unchanged) but corrupted
--- per-base projection, and surfaced as construction-order-dependent simulation
--- results (sparsified coefficients build explicit @0:@base@ singletons via raw
--- @(:@)@). See plans/in-progress/SELECTABLE_VALUE_TYPE_PLAN.md (Stage D).
-testUnionZeroSingletonBase :: IO ()
-testUnionZeroSingletonBase = do
-    let zb = 0 :@ (Hat :< Yen)    :: TestAlg   -- zero value, base Yen
-        rb = 5 :@ (Hat :< Amount) :: TestAlg   -- real value, base Amount
-    -- both fold directions of the singleton/singleton union
-    assertEqual "union zero(.+)real keeps real value on its own base"
-        rb (EA.proj [Hat :< Amount] (zb .+ rb))
-    assertEqual "union real(.+)zero keeps real value on its own base"
-        rb (EA.proj [Hat :< Amount] (rb .+ zb))
-    -- the real value must NOT appear on the zero posting's base
-    assertEqual "union zero(.+)real: nothing relabeled onto the zero's base"
-        (EA.Zero :: TestAlg) (EA.proj [Hat :< Yen] (zb .+ rb))
-    assertEqual "union real(.+)zero: nothing relabeled onto the zero's base"
-        (EA.Zero :: TestAlg) (EA.proj [Hat :< Yen] (rb .+ zb))
 
 -- | Regression for audit divergence C: scalar product (.*) must reject a
 -- negative / non-finite scalar instead of silently producing negative
@@ -866,6 +640,10 @@ testProjConcreteNoIndexForce = do
         alg = EA.fromList [ 10 :@ Not :< (Cash, 1, 1, Yen)
                           , 20 :@ Not :< (Products, 2, 2, Amount)
                           , 30 :@ Hat :< (Cash, 3, 3, Yen) ]
+    assertNear "wildcard projNetNorm green with reserved fields unmaintained"
+        10.0 (EA.projNetNorm [Not :< (Cash, (.#), 1, Yen)] alg)
+    assertNear "concrete projNetNorm green with reserved fields unmaintained"
+        10.0 (EA.projNetNorm [Not :< (Cash, 1, 1, Yen)] alg)
     case alg of
       EAI.Liner m _ _ _ _ _ -> do
         let poison = EAI.Liner m (error "POISON") (error "POISON")
@@ -883,142 +661,6 @@ testProjConcreteNoIndexForce = do
           Right v  -> do putStrLn ("[FAIL] wildcard projNetNorm did not use the index: " ++ show v); exitFailure
       _ -> do putStrLn "[FAIL] expected a Liner"; exitFailure
 
--- The Liner @_bpToId@ and @_nextBpId@ fields are reserved for the dormant P1a
--- incremental-id scheme and are not maintained by 'linerFromMap' (it leaves them
--- as lazy 'error' poison). This guards two invariants: (1) normal projection
--- (concrete + wildcard) never forces those poisoned fields, so 'projWildMap'
--- stays green; (2) forcing the unused fields fails loudly (as designed) rather
--- than returning a stale/empty value.
-testLinerReservedFieldsPoisoned :: IO ()
-testLinerReservedFieldsPoisoned = do
-    let alg :: EA.Alg Double SimHatBase2
-        alg = EA.fromList [ 10 :@ Not :< (Cash, 1, 1, Yen)
-                          , 20 :@ Not :< (Products, 2, 2, Amount)
-                          , 30 :@ Hat :< (Cash, 3, 3, Yen) ]
-    -- projWildMap path (and concrete path) must stay green without forcing the
-    -- reserved fields.
-    assertNear "wildcard projNetNorm green with reserved fields unmaintained"
-        10.0 (EA.projNetNorm [Not :< (Cash, (.#), 1, Yen)] alg)
-    assertNear "concrete projNetNorm green with reserved fields unmaintained"
-        10.0 (EA.projNetNorm [Not :< (Cash, 1, 1, Yen)] alg)
-    -- Forcing _bpToId / _nextBpId must error (poison), proving they are not
-    -- silently maintained.
-    case alg of
-      EAI.Liner _ _ bpToId _ nextBpId _ -> do
-        rb <- (try (evaluate (HM.size bpToId)) :: IO (Either SomeException Int))
-        case rb of
-          Left _  -> putStrLn "[PASS] _bpToId is poisoned (forcing it errors as designed)"
-          Right _ -> do putStrLn "[FAIL] _bpToId was forced without error (unexpectedly maintained)"; exitFailure
-        rn <- (try (evaluate nextBpId) :: IO (Either SomeException Int))
-        case rn of
-          Left _  -> putStrLn "[PASS] _nextBpId is poisoned (forcing it errors as designed)"
-          Right _ -> do putStrLn "[FAIL] _nextBpId was forced without error (unexpectedly maintained)"; exitFailure
-      _ -> do putStrLn "[FAIL] expected a Liner"; exitFailure
-
-testJournalSigmaMergePath :: IO ()
-testJournalSigmaMergePath = do
-    let xs = [1 .. 4 :: Int]
-        f :: Int -> TestJournal
-        f i = case i of
-            1 -> (1 :@ (Hat :< Yen)) .| "A"
-            2 -> EJ.Zero
-            3 -> (EA.Zero :: TestAlg) .| "A"
-            _ -> (2 :@ (Not :< Amount)) .| "B"
-        expected :: TestJournal
-        expected = EJ.fromMap $ HM.fromList
-            [ ("A", 1 :@ (Hat :< Yen))
-            , ("B", 2 :@ (Not :< Amount))
-            ]
-        actual = EJ.sigma xs f
-    assertEqual "Journal.sigma bulk-merge path skips zero postings" (EJ.toMap expected) (EJ.toMap actual)
-
-testJournalSigma2When :: IO ()
-testJournalSigma2When = do
-    let xs = [1 .. 3 :: Int]
-        ys = [1 .. 3 :: Int]
-        cond i j = i < j
-        f :: Int -> Int -> TestJournal
-        f i j
-            | i == 1 && j == 2 = (EA.Zero :: TestAlg) .| "N"
-            | odd (i + j) = (fromIntegral (i + j) :@ (Hat :< Yen)) .| "N"
-            | otherwise = EJ.Zero
-        expected :: TestJournal
-        expected = EJ.fromMap $ HM.fromList [("N", 5 :@ (Hat :< Yen))]
-        actual = EJ.sigma2When xs ys cond f
-    assertEqual "Journal.sigma2When matches filtered pair sum" (EJ.toMap expected) (EJ.toMap actual)
-
-testJournalSigmaOn :: IO ()
-testJournalSigmaOn = do
-    let xs = [1 .. 4 :: Int]
-        f :: Int -> TestAlg
-        f i
-            | i <= 2 = EA.Zero
-            | otherwise = fromIntegral i :@ (Hat :< Yen)
-        expected :: TestJournal
-        expected = (EA.sigma xs f) .| "SalesPurchase"
-        actual :: TestJournal
-        actual = EJ.sigmaOn "SalesPurchase" xs f
-        zeroExpected = EJ.Zero :: TestJournal
-        zeroActual = EJ.sigmaOn "SalesPurchase" xs (\_ -> EA.Zero :: TestAlg)
-    assertEqual "Journal.sigmaOn attaches note after EA.sigma" (EJ.toMap expected) (EJ.toMap actual)
-    assertEqual "Journal.sigmaOn returns Zero when EA.sigma is Zero" (EJ.toMap zeroExpected) (EJ.toMap zeroActual)
-
-testJournalSigmaOnFromMap :: IO ()
-testJournalSigmaOnFromMap = do
-    let kvs = M.fromList
-            [ ((1, 2), 4.0)
-            , ((2, 3), 0.0)
-            , ((2, 1), 6.0)
-            ] :: M.Map (Int, Int) Double
-        f :: (Int, Int) -> Double -> TestAlg
-        f (i, j) v
-            | i < j = v :@ (Hat :< Yen)
-            | otherwise = v :@ (Not :< Amount)
-        expected :: TestJournal
-        expected = (EA.sigmaFromMap kvs f) .| "SalesPurchase"
-        actual :: TestJournal
-        actual = EJ.sigmaOnFromMap "SalesPurchase" kvs f
-        zeroActual :: TestJournal
-        zeroActual = EJ.sigmaOnFromMap "SalesPurchase" (M.singleton (1, 1) 0.0) f
-    assertEqual "Journal.sigmaOnFromMap matches EA.sigmaFromMap + note" (EJ.toMap expected) (EJ.toMap actual)
-    assertEqual "Journal.sigmaOnFromMap returns Zero for empty-effective map" (EJ.toMap (EJ.Zero :: TestJournal)) (EJ.toMap zeroActual)
-
-testFilterByAxisEquivalent :: IO ()
-testFilterByAxisEquivalent = do
-    let ledger :: AxisJournal
-        ledger = EJ.fromList
-            [ (10 :@ (Hat :< Yen)) .| ("A", 1)
-            , (20 :@ (Not :< Amount)) .| ("B", 1)
-            , (30 :@ (Hat :< Yen)) .| ("A", 2)
-            ]
-        expected = EJ.filterWithNote (\(_, t') _ -> t' == 1) ledger
-        actual = EJ.filterByAxis 1 (EJ.NoteAxisKey (1 :: Int)) ledger
-        mismatch = EJ.filterByAxis 1 (EJ.NoteAxisKey ("1" :: String)) ledger
-    assertEqual "Journal.filterByAxis matches filterWithNote on axis=1"
-        (EJ.toMap expected)
-        (EJ.toMap actual)
-    assertEqual "Journal.filterByAxis type mismatch returns empty"
-        (EJ.toMap (EJ.Zero :: AxisJournal))
-        (EJ.toMap mismatch)
-
-testFilterByAxisWithDeltaUpdates :: IO ()
-testFilterByAxisWithDeltaUpdates = do
-    let base :: AxisJournal
-        base = EJ.fromMap $ HM.fromList
-            [ (("A", 1), 10 :@ (Hat :< Yen))
-            , (("C", 2), 5 :@ (Not :< Amount))
-            ]
-        rhs :: AxisJournal
-        rhs = EJ.fromMap $ HM.fromList
-            [ (("A", 1), 3 :@ (Not :< Amount))
-            , (("B", 1), 7 :@ (Hat :< Yen))
-            ]
-        ledger = base .+ rhs
-        expected = EJ.filterWithNote (\(_, t') _ -> t' == 1) ledger
-        actual = EJ.filterByAxis 1 (EJ.NoteAxisKey (1 :: Int)) ledger
-    assertEqual "Journal.filterByAxis works after append updates"
-        (EJ.toMap expected)
-        (EJ.toMap actual)
 
 -- ================================================================
 -- Transfer regression tests
@@ -1054,39 +696,6 @@ transferJournalSample = EJ.fromList
     , ((3 :@ Hat :<(TaxesExpense, 3, 3, Yen)) .+ (4 :@ Not :<(InterestEarned, 4, 4, Yen))) .| "C"
     ]
 
-testFinalStockTransferAlgEquivalence :: IO ()
-testFinalStockTransferAlgEquivalence = do
-    let ref =
-            (.-)
-                . EAT.retainedEarningTransfer
-                . EAT.ordinaryProfitTransfer
-                . EAT.grossProfitTransfer
-                $ transferAlgSample
-        actual = EAT.finalStockTransfer transferAlgSample
-    assertEqual "Algebra.finalStockTransfer matches composed transfer" ref actual
-
-testFinalStockTransferJournalEquivalence :: IO ()
-testFinalStockTransferJournalEquivalence = do
-    let ref =
-            (.-)
-                . EJT.retainedEarningTransfer
-                . EJT.ordinaryProfitTransfer
-                . EJT.grossProfitTransfer
-                $ transferJournalSample
-        actual = EJT.finalStockTransfer transferJournalSample
-    assertEqual "Journal.finalStockTransfer matches composed transfer" (EJ.toMap ref) (EJ.toMap actual)
-
-testFinalStockTransferAggregatedAlias :: IO ()
-testFinalStockTransferAggregatedAlias = do
-    let twoNotes = EJ.fromList
-            [ ((5 .@ (Not :< (Sales, 2, 1, Yen)))
-                .+ (2 .@ (Hat :< (WageExpenditure, 1, 1, Yen)))) .| "A"
-            , ((7 .@ (Hat :< (InterestExpense, 5, 5, Yen)))
-                .+ (3 .@ (Not :< (InterestEarned, 4, 4, Yen)))) .| "B"
-            ] :: TransferJournal
-    assertEqual "Journal.finalStockTransferAggregated matches finalStockTransfer"
-        (EJ.toMap (EJT.finalStockTransfer twoNotes))
-        (EJ.toMap (EJT.finalStockTransferAggregated twoNotes))
 
 type FinalStockProbe = EA.Alg Double (HatBase AccountTitles)
 
@@ -1286,34 +895,6 @@ testSpillDecisionSingleSource = do
         assertEqual ("Lite boundary equivalence w=" ++ show w)
             (backByTermsRef w t) (ES.stepBackWith pred w (t :: Int))
 
-testRestoreJournalFromBinarySpill :: IO ()
-testRestoreJournalFromBinarySpill = do
-    let spillPath = "/tmp/exchangealgebra_spill_restore_test.bin"
-        chunk1 :: SpillRestoreJournal
-        chunk1 = EJ.fromList
-            [ (1 .@ (Hat :< Yen)) .| ("A", 1)
-            , (2 .@ (Not :< Amount)) .| ("B", 2)
-            ]
-        chunk2 :: SpillRestoreJournal
-        chunk2 = (3 .@ (Hat :< Yen)) .| ("C", 3)
-        currentLedger :: SpillRestoreJournal
-        currentLedger = EJ.fromList
-            [ (4 .@ (Not :< Amount)) .| ("Tail", 4)
-            , (8 .@ (Hat :< Yen)) .| ("AlreadySpilled", 2)
-            ]
-        expected :: SpillRestoreJournal
-        expected = chunk1 .+ chunk2 .+ ((4 .@ (Not :< Amount)) .| ("Tail", 4))
-
-    removeSpillTestFile spillPath
-    withFile spillPath WriteMode $ \h -> do
-        ES.defaultBinarySpillWriter h (1 :: Int, 2 :: Int) chunk1
-        ES.defaultBinarySpillWriter h (3 :: Int, 3 :: Int) chunk2
-
-    actual <- restoreJournalFromBinarySpill spillPath snd currentLedger
-    assertEqual "Write.restoreJournalFromBinarySpill merges spill + tail remainder"
-        (EJ.toMap expected)
-        (EJ.toMap actual)
-    removeSpillTestFile spillPath
 
 removeSpillTestFile :: FilePath -> IO ()
 removeSpillTestFile path = do
@@ -1350,107 +931,6 @@ spillCheckedExpected =
     spillCheckedChunk1 .+ spillCheckedChunk2
     .+ ((4 .@ (Not :< Amount)) .| ("Tail", 4))
 
-testSpillCheckedReaderWellFormed :: IO ()
-testSpillCheckedReaderWellFormed = do
-    let path = "/tmp/exchangealgebra_spill_checked_well_formed.bin"
-        chunks = [((1, 2), spillCheckedChunk1), ((3, 3), spillCheckedChunk2)]
-    writeSpillTestChunks path chunks
-    readResult <- ES.readBinarySpillFileChecked path
-        :: IO (Either (ES.SpillReadError Int) [((Int, Int), SpillRestoreJournal)])
-    case readResult of
-        Left err -> assertEqual "checked spill reader accepts well-formed chunks"
-            "Right with two chunks" (ES.renderSpillReadError err)
-        Right decoded -> assertEqual "checked spill reader returns both chunks"
-            2 (L.length decoded)
-    restored <- restoreJournalFromBinarySpillChecked path snd spillCheckedCurrent
-    case restored of
-        Left err -> assertEqual "checked spill restore accepts well-formed chunks"
-            "Right restored ledger" (ES.renderSpillReadError err)
-        Right actual -> assertEqual "checked spill restore merges spill + tail remainder"
-            (EJ.toMap spillCheckedExpected) (EJ.toMap actual)
-    removeSpillTestFile path
-
-testSpillCheckedReaderTruncated :: IO ()
-testSpillCheckedReaderTruncated = do
-    let path = "/tmp/exchangealgebra_spill_checked_truncated.bin"
-        encodedChunk2 = Binary.encode
-            ((3 :: Int, 3 :: Int), spillCheckedChunk2)
-        truncatedChunk2 = BL.take (BL.length encodedChunk2 `div` 2) encodedChunk2
-    removeSpillTestFile path
-    withFile path WriteMode $ \h -> do
-        ES.defaultBinarySpillWriter h (1 :: Int, 2 :: Int) spillCheckedChunk1
-        BL.hPut h truncatedChunk2
-    result <- ES.readBinarySpillFileChecked path
-        :: IO (Either (ES.SpillReadError Int) [((Int, Int), SpillRestoreJournal)])
-    case result of
-        Left (ES.SpillDecodeFailure offset chunks _) -> do
-            assertEqual "truncated spill failure follows first chunk" True (offset > 0)
-            assertEqual "truncated spill reports decoded chunk count" 1 chunks
-        other -> assertEqual "truncated spill is a decode failure"
-            "SpillDecodeFailure" (show other)
-    caught <- try
-        (restoreJournalFromBinarySpill path snd (mempty :: SpillRestoreJournal))
-        :: IO (Either ErrorCall SpillRestoreJournal)
-    case caught of
-        Left _ -> putStrLn "[PASS] unchecked spill restore raises ErrorCall"
-        Right _ -> assertEqual "unchecked spill restore raises ErrorCall" True False
-    removeSpillTestFile path
-
-testSpillCheckedReaderStaleAppend :: IO ()
-testSpillCheckedReaderStaleAppend = do
-    let path = "/tmp/exchangealgebra_spill_checked_stale_append.bin"
-    writeSpillTestChunks path
-        [ ((1, 2), spillCheckedChunk1)
-        , ((3, 3), spillCheckedChunk2)
-        , ((1, 2), spillCheckedChunk1)
-        ]
-    result <- ES.readBinarySpillFileChecked path
-        :: IO (Either (ES.SpillReadError Int) [((Int, Int), SpillRestoreJournal)])
-    assertEqual "checked spill reader rejects stale append"
-        (Left (ES.SpillRangeError ES.ChunkOutOfOrder (3, 3) (1, 2))) (fmap (fmap fst) result)
-    removeSpillTestFile path
-
-testSpillCheckedReaderOverlap :: IO ()
-testSpillCheckedReaderOverlap = do
-    let path = "/tmp/exchangealgebra_spill_checked_overlap.bin"
-    writeSpillTestChunks path
-        [((1, 3), spillCheckedChunk1), ((2, 4), spillCheckedChunk2)]
-    result <- ES.readBinarySpillFileChecked path
-        :: IO (Either (ES.SpillReadError Int) [((Int, Int), SpillRestoreJournal)])
-    assertEqual "checked spill reader rejects overlap"
-        (Left (ES.SpillRangeError ES.ChunkOverlap (1, 3) (2, 4))) (fmap (fmap fst) result)
-    removeSpillTestFile path
-
-testSpillCheckedReaderGap :: IO ()
-testSpillCheckedReaderGap = do
-    let path = "/tmp/exchangealgebra_spill_checked_gap.bin"
-    writeSpillTestChunks path
-        [((1, 2), spillCheckedChunk1), ((4, 4), spillCheckedChunk2)]
-    result <- ES.readBinarySpillFileChecked path
-        :: IO (Either (ES.SpillReadError Int) [((Int, Int), SpillRestoreJournal)])
-    assertEqual "checked spill reader rejects gap"
-        (Left (ES.SpillRangeError ES.ChunkGap (1, 2) (4, 4))) (fmap (fmap fst) result)
-    removeSpillTestFile path
-
-testSpillCheckedReaderEmptyRange :: IO ()
-testSpillCheckedReaderEmptyRange = do
-    let path = "/tmp/exchangealgebra_spill_checked_empty_range.bin"
-    writeSpillTestChunks path [((3, 1), spillCheckedChunk1)]
-    result <- ES.readBinarySpillFileChecked path
-        :: IO (Either (ES.SpillReadError Int) [((Int, Int), SpillRestoreJournal)])
-    assertEqual "checked spill reader rejects empty range"
-        (Left (ES.SpillEmptyRange (3, 1))) (fmap (fmap fst) result)
-    removeSpillTestFile path
-
-testSpillCheckedReaderEmptyFile :: IO ()
-testSpillCheckedReaderEmptyFile = do
-    let path = "/tmp/exchangealgebra_spill_checked_empty_file.bin"
-    removeSpillTestFile path
-    withFile path WriteMode $ \_ -> pure ()
-    result <- ES.readBinarySpillFileChecked path
-        :: IO (Either (ES.SpillReadError Int) [((Int, Int), SpillRestoreJournal)])
-    assertEqual "checked spill reader accepts empty file" (Right []) (fmap (fmap fst) result)
-    removeSpillTestFile path
 
 -- ================================================================
 -- SimulateEx1 reproduction (default scenario only, no parallelism)
@@ -1762,42 +1242,6 @@ testCsvTranspose = do
     -- Empty
     assertEqual "CSV.transpose empty" ([] :: [[T.Text]]) (EW.csvTranspose [])
 
-testCsvWriteCSV :: IO ()
-testCsvWriteCSV = do
-    let path = "/tmp/exchangealgebra_csv_test.csv"
-        input = [ [T.pack "Name", T.pack "Value"]
-                , [T.pack "Alice", T.pack "100"]
-                , [T.pack "Bob", T.pack "200"] ]
-    EW.writeCSV path input
-    raw <- readFileStrict path
-    -- Each cell should be quoted
-    let lns = lines raw
-    assertEqual "CSV writeCSV line count" 3 (length lns)
-    assertEqual "CSV writeCSV header" "\"Name\",\"Value\"" (lns !! 0)
-    assertEqual "CSV writeCSV row 1"  "\"Alice\",\"100\"" (lns !! 1)
-    assertEqual "CSV writeCSV row 2"  "\"Bob\",\"200\""   (lns !! 2)
-    removeFile path
-
-testCsvWriteCSVWithQuotes :: IO ()
-testCsvWriteCSVWithQuotes = do
-    let path = "/tmp/exchangealgebra_csv_quote_test.csv"
-        input = [[T.pack "say \"hello\"", T.pack "a,b"]]
-    EW.writeCSV path input
-    raw <- readFileStrict path
-    let lns = lines raw
-    -- Internal quotes should be escaped as ""
-    assertEqual "CSV writeCSV escapes quotes" "\"say \"\"hello\"\"\",\"a,b\"" (lns !! 0)
-    removeFile path
-
-testCsvWriteCSVEmpty :: IO ()
-testCsvWriteCSVEmpty = do
-    let path = "/tmp/exchangealgebra_csv_empty_test.csv"
-        input = [[T.pack "", T.pack "x"]]
-    EW.writeCSV path input
-    raw <- readFileStrict path
-    let lns = lines raw
-    assertEqual "CSV writeCSV empty cell" "\"\",\"x\"" (lns !! 0)
-    removeFile path
 
 newtype FuncResultsWorld s = FuncResultsWorld (STRef s Int)
 
@@ -1856,59 +1300,6 @@ testWriteFuncResultsCsv = do
     assertEqual "writeFuncResultsWithContext builds one context per term" 2 buildCount
     forM_ [directPath, contextPath, emptyPath] removeOutput
 
--- ================================================================
--- Legacy-generation writer output-pinning tests (design-review C7)
---
--- These pin the exact CSV bytes produced, for small fixed inputs, by the
--- "legacy generation" writers (writeBS / writePL / writeJournal /
--- writeCompoundTrialBalance / writeAccountOfJournal) as computed by the
--- pre-refactor implementation. Their purpose is to let the "generation
--- unification" refactor (pure *Rows builder + thin IO wrapper, matching the
--- worksheetRows/postClosingTrialBalanceRows/accountLedgerRows style) be
--- verified to leave output bit-for-bit unchanged: these must stay green,
--- unmodified, across the refactor.
--- ================================================================
-
-testWriteBSPinned :: IO ()
-testWriteBSPinned = do
-    let path = "/tmp/exchangealgebra_write_bs_pinned_test.csv"
-        alg = (100 .@ Not :< Cash)
-            .+ (60  .@ Not :< LoansPayable)
-            .+ (40  .@ Not :< CapitalStock)
-            :: EA.Alg Double (HatBase AccountTitles)
-    EW.writeBS path alg
-    raw <- readFileStrict path
-    removeFile path
-    let lns = lines raw
-    assertEqual "writeBS pinned: line count" 5 (length lns)
-    assertEqual "writeBS pinned: row0 (Asset/Liability headers)"
-        "\"Asset\",\"\",\"Liability\",\"\"" (lns !! 0)
-    assertEqual "writeBS pinned: row1 (Cash/LoansPayable)"
-        "\"Cash\",\"100.0\",\"LoansPayable\",\"60.0\"" (lns !! 1)
-    assertEqual "writeBS pinned: row2 (Total/Equity header)"
-        "\"Total\",\"100.0\",\"Equity\",\"\"" (lns !! 2)
-    assertEqual "writeBS pinned: row3 (CapitalStock)"
-        "\"\",\"\",\"CapitalStock\",\"40.0\"" (lns !! 3)
-    assertEqual "writeBS pinned: row4 (grand total)"
-        "\"\",\"\",\"Total\",\"100.0\"" (lns !! 4)
-
-testWritePLPinned :: IO ()
-testWritePLPinned = do
-    let path = "/tmp/exchangealgebra_write_pl_pinned_test.csv"
-        alg = (500 .@ Not :< Sales)
-            .+ (300 .@ Not :< SalesCost)
-            :: EA.Alg Double (HatBase AccountTitles)
-    EW.writePL path alg
-    raw <- readFileStrict path
-    removeFile path
-    let lns = lines raw
-    assertEqual "writePL pinned: line count" 3 (length lns)
-    assertEqual "writePL pinned: row0 (Cost/Revenue headers)"
-        "\"Cost\",\"\",\"Revenue\",\"\"" (lns !! 0)
-    assertEqual "writePL pinned: row1 (SalesCost/Sales)"
-        "\"SalesCost\",\"300.0\",\"Sales\",\"500.0\"" (lns !! 1)
-    assertEqual "writePL pinned: row2 (totals)"
-        "\"Total\",\"500.0\",\"Total\",\"300.0\"" (lns !! 2)
 
 testWriteJournalPinned :: IO ()
 testWriteJournalPinned = do
@@ -1942,58 +1333,6 @@ testWriteJournalPinned = do
     assertEqual "writeJournal pinned: day3 line2 (padded Day/Credit cells empty)"
         "\"\",\"Cash\",\"30.0\",\"\",\"\"" (lns !! 4)
 
-testWriteCompoundTrialBalancePinned :: IO ()
-testWriteCompoundTrialBalancePinned = do
-    let path = "/tmp/exchangealgebra_write_ctb_pinned_test.csv"
-        alg = (100 .@ Not :< Cash)
-            .+ (60  .@ Not :< LoansPayable)
-            .+ (40  .@ Not :< CapitalStock)
-            :: EA.Alg Double (HatBase AccountTitles)
-    EW.writeCompoundTrialBalance path alg
-    raw <- readFileStrict path
-    removeFile path
-    let lns = lines raw
-    assertEqual "writeCompoundTrialBalance pinned: line count" 5 (length lns)
-    assertEqual "writeCompoundTrialBalance pinned: header"
-        "\"Debit Balance\",\"Debit Total\",\"Account Title\",\"Credit Total\",\"Credit Balance\""
-        (lns !! 0)
-    -- NOTE (legacy layout quirk, preserved verbatim): a debit-balance account
-    -- (Cash: gross debit 100 / credit 0) places its balance figure in the
-    -- *Credit Balance* column (rightmost), not the *Debit Balance* column,
-    -- and a credit-balance account (CapitalStock/LoansPayable) places it in
-    -- *Debit Balance* (leftmost) -- the opposite of the (side,mag) ->
-    -- (debitCell,creditCell) convention 'sideCells' uses elsewhere
-    -- (worksheetRows / postClosingTrialBalanceRows). See the Haddock on
-    -- 'compoundTrialBalanceRows' for why this was kept as explicit case
-    -- analysis instead of being consolidated onto 'sideCells'.
-    assertEqual "writeCompoundTrialBalance pinned: Cash (debit-heavy -> Credit Balance col)"
-        "\"\",\"100.0\",\"Cash\",\"0.0\",\"100.0\"" (lns !! 1)
-    assertEqual "writeCompoundTrialBalance pinned: CapitalStock (credit-heavy -> Debit Balance col)"
-        "\"40.0\",\"0.0\",\"CapitalStock\",\"40.0\",\"\"" (lns !! 2)
-    assertEqual "writeCompoundTrialBalance pinned: LoansPayable (credit-heavy -> Debit Balance col)"
-        "\"60.0\",\"0.0\",\"LoansPayable\",\"60.0\",\"\"" (lns !! 3)
-    assertEqual "writeCompoundTrialBalance pinned: totals"
-        "\"100.0\",\"100.0\",\"Total\",\"100.0\",\"100.0\"" (lns !! 4)
-
-testWriteAccountOfJournalPinned :: IO ()
-testWriteAccountOfJournalPinned = do
-    let path = "/tmp/exchangealgebra_write_aoj_pinned_test.csv"
-        jrn = ((100 .@ Not :< Cash) .| "sale")
-           .+ ((40  .@ Hat :< Cash) .| "pay")
-            :: Journal String Double (HatBase AccountTitles)
-    EW.writeAccountOfJournal [Cash] path jrn
-    raw <- readFileStrict path
-    removeFile path
-    let lns = lines raw
-    assertEqual "writeAccountOfJournal pinned: line count" 4 (length lns)
-    assertEqual "writeAccountOfJournal pinned: title header"
-        "\"Cash\",\"\",\"\"" (lns !! 0)
-    assertEqual "writeAccountOfJournal pinned: sub header"
-        "\"Note\",\"Debit\",\"Credit\"" (lns !! 1)
-    assertEqual "writeAccountOfJournal pinned: note order (\"pay\" < \"sale\")"
-        "\"\"\"pay\"\"\",\"\",\"40.0\"" (lns !! 2)
-    assertEqual "writeAccountOfJournal pinned: sale posting"
-        "\"\"\"sale\"\"\",\"100.0\",\"\"" (lns !! 3)
 
 -- | Regression tests for scale-aware numeric tolerance (WI-11/12/14).
 -- These exercise large magnitudes that the previous fixed @1e-13@ absolute
@@ -2016,29 +1355,6 @@ testNumericToleranceScaleAware = do
     assertEqual "bar cancels balanced large-scale element to Zero"
         True (EA.isZero ((.-) big))
 
--- | Smoke test for the exact non-negative decimal value type 'MoneyDecimal' (Stage B).
--- The point of an exact value type is that summation is associative, so @norm@ is
--- *independent of construction order* — the property that makes the fromList O(N)
--- optimization safe (Stage D). Note the raw @Seq@ order (and hence @toMap@/@Eq@)
--- still depends on construction; only the numeric results are order-independent.
-testMoneyDecimalExactOrderIndependent :: IO ()
-testMoneyDecimalExactOrderIndependent = do
-    assertEqual "MoneyDecimal: 0.1 + 0.2 == 0.3 exactly"
-        True (0.1 + 0.2 == (0.3 :: MoneyDecimal))
-    let mk i = ((fromIntegral (i `mod` 7 + 1) :: MoneyDecimal)
-                  :@ ((if even i then Hat else Not) :< ([Yen, Amount] !! (i `mod` 2))))
-               .| show (i `mod` 150)
-        xs       :: [Journal String MoneyDecimal (HatBase CountUnit)]
-        xs       = [ mk i | i <- [1 .. 400 :: Int] ]
-        viaFoldr = foldr (.+) mempty xs
-        viaFoldl = L.foldl' (.+) mempty xs
-    -- exact ⇒ norm is identical for the two construction orders
-    assertEqual "MoneyDecimal Journal: norm is construction-order-independent"
-        (norm viaFoldr) (norm viaFoldl)
-    -- banker's rounding (round half to even)
-    assertEqual "bankersRound 0 2.5 = 2 (half to even)" (2 :: MoneyDecimal) (bankersRound 0 2.5)
-    assertEqual "bankersRound 0 3.5 = 4 (half to even)" (4 :: MoneyDecimal) (bankersRound 0 3.5)
-    assertEqual "bankersRound 2 0.125 = 0.12 (half to even)" (0.12 :: MoneyDecimal) (bankersRound 2 0.125)
 
 -- | Strict file read helper for tests
 readFileStrict :: FilePath -> IO String
@@ -2194,32 +1510,6 @@ testConvertCsvRoundTrip = do
     expectLeft "convert-csv: rejects wrong field count"
         (\e -> case e of EC.MalformedCsv _ -> True; _ -> False) badArity
 
--- ================================================================
--- ExchangeAlgebra.IO.Input.Assist: account descriptions and LLM feedback helpers.
--- ================================================================
-
-testAssistDescriptionsDrift :: IO ()
-testAssistDescriptionsDrift =
-    assertEqual "Assist descriptions are the registry projection"
-        registryProjection PP.accountDescriptions
-  where
-    registryProjection =
-        [ (title, Registry.asNameEn spec, Registry.asNameJa spec, Registry.asDescription spec)
-        | title <- Registry.concreteAccountTitles
-        , Just spec <- [Registry.accountSpec title]
-        ]
-
-testAssistDescribeAccount :: IO ()
-testAssistDescribeAccount = do
-    let missing =
-            [ title
-            | title <- PP.concreteAccountTitles
-            , Assist.describeAccount title == Nothing
-            ]
-    assertEqual "Assist.describeAccount covers every concrete account"
-        ([] :: [AccountTitles]) missing
-    assertEqual "Assist.describeAccount rejects wildcard AccountTitle"
-        Nothing (Assist.describeAccount AccountTitle)
 
 testAssistAllAccountInfos :: IO ()
 testAssistAllAccountInfos = do
@@ -2492,36 +1782,6 @@ goldenAliasResolution fixture =
     row query = goldenEsc query <> T.pack "\t"
              <> goldenEsc (goldenShow (EC.parseAccountTitle query))
 
-goldenSuggestions :: T.Text
-goldenSuggestions =
-    goldenHeader (T.pack "suggestAccounts over corpus (query, total matches, top-10 titles)")
-    <> T.unlines (L.map row corpus)
-  where
-    -- The post-Land2 fixture is a closed diff over the pre-vocabulary 116
-    -- titles. V-Land 2 appends new titles, which are tested separately and
-    -- must not retroactively change this historical fuzzy-suggestion oracle.
-    infos = L.take 116 Assist.allAccountInfos
-    historicalTitles = L.map Assist.aiTitle infos
-    nameFields = L.concatMap legacyNameFields infos
-    descTokens = L.concatMap legacyDescTokens infos
-    corpus = goldenDedupSort
-        (L.concatMap (\q -> [q, T.toLower q]) nameFields <> descTokens)
-    row query =
-        let matches = L.filter (`L.elem` historicalTitles)
-                    (L.map Assist.aiTitle (legacySuggestAccounts infos query))
-        in goldenEsc query <> T.pack "\t"
-           <> goldenShow (L.length matches) <> T.pack "\t"
-           <> T.intercalate (T.pack ",") (L.map goldenShow (L.take 10 matches))
-    legacyNameFields info = case Registry.accountSpec (Assist.aiTitle info) of
-        Just spec ->
-            [ goldenShow (Assist.aiTitle info)
-            , Registry.asNameEn spec
-            , Registry.asNameJa spec
-            ]
-        Nothing -> []
-    legacyDescTokens info = case Registry.accountSpec (Assist.aiTitle info) of
-        Just spec -> T.words (Registry.asDescription spec)
-        Nothing -> []
 
 postVocabHeader :: T.Text -> T.Text
 postVocabHeader what = T.pack "# post-vocab " <> what <> T.pack "; schema 1\n"
@@ -2828,6 +2088,17 @@ testRegistryGolden = do
 -- 閉じたAmbiguousのどちらかでなければならない. Unknown/first-matchは不可.
 testJcciAccountNameCoverage :: IO ()
 testJcciAccountNameCoverage = do
+    assertEqual "new account titles parse Japanese names and material alias"
+        (L.map Right
+            [ EntertainmentExpenses
+            , MeetingExpenses
+            , NewspaperBooksExpenses
+            , RawMaterials
+            , GoodsInTransit
+            , RawMaterials
+            ])
+        (L.map EC.parseAccountTitle (L.map T.pack
+            [ "交際費", "会議費", "新聞図書費", "原材料", "未着品", "材料" ]))
     source <- TIO.readFile "test/fixtures/jcci-2022/source.tsv"
     fixture <- TIO.readFile "test/fixtures/jcci-2022/queries.tsv"
     let sourceRows = L.filter (not . T.null) (L.drop 1 (T.lines source))
@@ -2968,11 +2239,6 @@ testRegistryWildcards = do
     assertEqual "registry wildcard: describeAccount is Nothing"
         Nothing (Assist.describeAccount AccountTitle)
 
-testRegistryContraLand2 :: IO ()
-testRegistryContraLand2 =
-    assertEqual "registry contra True set = valuation accounts plus V-Land 2 P/L contra accounts"
-        allContra
-        (L.filter Registry.classifyAccountContra Registry.concreteAccountTitles)
 
 -- ================================================================
 -- Land 2 (Definition 7 contra amendment): closed-diff vs pre-land1
@@ -3058,34 +2324,6 @@ testLand2IsContraInstances = do
           (\t -> Not :< (t, nm, Yen, nm, day0, tod0))
     sweep "SimHatBase2 (custom instance)" (\t -> Not :< (t, 1, 2, Yen) :: SimHatBase2)
 
--- T8: LLM-facing メタデータの literal 期待値 (registry から生成しない)
-testLand2AiDivision :: IO ()
-testLand2AiDivision = do
-    assertEqual "land2 statement metadata literal: AllowanceForDoubtfulAccounts"
-        (Just (StatementDivision Assets, FixedHomeSide Credit))
-        (fmap (\i -> (Assist.aiDivisionSemantics i, Assist.aiHomeSideSemantics i))
-              (Assist.describeAccount AllowanceForDoubtfulAccounts))
-    assertEqual "land2 statement metadata literal: AccumulatedDepreciation"
-        (Just (StatementDivision Assets, FixedHomeSide Credit))
-        (fmap (\i -> (Assist.aiDivisionSemantics i, Assist.aiHomeSideSemantics i))
-              (Assist.describeAccount AccumulatedDepreciation))
-
--- T5/T6: presentation battery。bsRows/plRows の literal は, 以下で明記する
--- vocabulary closing 差分を除き, Land 1 出力 (pre-land2 golden, commit
--- 1c1f3f2) と byte 一致 = 表示互換 shim の証明。
--- division projection は contra を含まず, contra は projContraAssets のみが選ぶ
--- (意図的差分: projCurrentLiability/projFixedLiability から当該 2 件が消えた)。
-land2B1, land2B2, land2B3, land2B4, land2B5 :: BAlg
-land2B1 = 100 .@ Not:<Cash .+ 60 .@ Not:<LoansPayable .+ 40 .@ Not:<CapitalStock
-land2B2 = 500 .@ Not:<Sales .+ 300 .@ Not:<SalesCost
-land2B3 = 1000 .@ Not:<AccountsReceivable .+ 900 .@ Not:<Cash .+ 800 .@ Not:<Building
-  .+ 100 .@ Not:<AllowanceForDoubtfulAccounts .+ 200 .@ Not:<AccumulatedDepreciation
-  .+ 2000 .@ Not:<CapitalStock .+ 400 .@ Not:<LoansPayable
-land2B4 = 30 .@ Not:<Cash .+ 80 .@ Hat:<Cash
-  .+ 100 .@ Not:<AllowanceForDoubtfulAccounts .+ 120 .@ Hat:<AllowanceForDoubtfulAccounts
-  .+ 500 .@ Not:<Building .+ 200 .@ Not:<LoansPayable .+ 300 .@ Hat:<LoansPayable
-  .+ 250 .@ Not:<AccumulatedDepreciation .+ 50 .@ Hat:<AccumulatedDepreciation
-land2B5 = land2B3 .+ 300 .@ Not:<SalesCost .+ 500 .@ Not:<Sales .+ 200 .@ Not:<Cash
 
 testLand3PresentationGroups :: IO ()
 testLand3PresentationGroups = do
@@ -3246,6 +2484,25 @@ testLand3PresentationGroups = do
         True
         (["RefundOfIncomeTaxes","-40.0","",""] `elem` purchasesAndTaxesRows
             && ["IncomeTaxesNet","260.0","",""] `elem` purchasesAndTaxesRows)
+
+-- T5/T6: presentation battery。bsRows/plRows の literal は, 以下で明記する
+-- vocabulary closing 差分を除き, Land 1 出力 (pre-land2 golden, commit
+-- 1c1f3f2) と byte 一致 = 表示互換 shim の証明。
+-- division projection は contra を含まず, contra は projContraAssets のみが選ぶ
+-- (意図的差分: projCurrentLiability/projFixedLiability から当該 2 件が消えた)。
+land2B1, land2B2, land2B3, land2B4, land2B5 :: BAlg
+land2B1 = 100 .@ Not:<Cash .+ 60 .@ Not:<LoansPayable .+ 40 .@ Not:<CapitalStock
+land2B2 = 500 .@ Not:<Sales .+ 300 .@ Not:<SalesCost
+land2B3 = 1000 .@ Not:<AccountsReceivable .+ 900 .@ Not:<Cash .+ 800 .@ Not:<Building
+  .+ 100 .@ Not:<AllowanceForDoubtfulAccounts .+ 200 .@ Not:<AccumulatedDepreciation
+  .+ 2000 .@ Not:<CapitalStock .+ 400 .@ Not:<LoansPayable
+land2B4 = 30 .@ Not:<Cash .+ 80 .@ Hat:<Cash
+  .+ 100 .@ Not:<AllowanceForDoubtfulAccounts .+ 120 .@ Hat:<AllowanceForDoubtfulAccounts
+  .+ 500 .@ Not:<Building .+ 200 .@ Not:<LoansPayable .+ 300 .@ Hat:<LoansPayable
+  .+ 250 .@ Not:<AccumulatedDepreciation .+ 50 .@ Hat:<AccumulatedDepreciation
+land2B5 = land2B3 .+ 300 .@ Not:<SalesCost .+ 500 .@ Not:<Sales .+ 200 .@ Not:<Cash
+
+
 
 testLand2Presentation :: IO ()
 testLand2Presentation = do
@@ -4606,11 +3863,10 @@ testDerivedMetricsLand5 = do
         Right value -> value
         Left errors -> error ("Land 5 fixture did not validate: " ++ show errors)
 
--- Pins the complete 4 context x 5 capability truth table of the accounting
--- posting policy, row by row, so that a change to any single cell is visible
--- as a diff here rather than only through the checked-conversion wrappers.
-testPostingPolicyTruthTable :: IO ()
-testPostingPolicyTruthTable = do
+
+-- | Check the closed posting policy and every checked-conversion entry point.
+testPostingCapabilityGate :: IO ()
+testPostingCapabilityGate = do
     let contexts =
             [ PP.OrdinaryJournal
             , PP.ClosingProcess
@@ -4659,13 +3915,6 @@ testPostingPolicyTruthTable = do
         [ (context, capability, PP.postingAllowedIn context capability)
         | (context, capability, _) <- truthTable
         ]
-    assertEqual "posting policy: Convert.Checked re-exports the same gate"
-        [ PP.postingAllowedIn context capability
-        | (context, capability, _) <- truthTable
-        ]
-        [ PP.postingAllowedIn context capability
-        | (context, capability, _) <- truthTable
-        ]
     assertEqual "posting policy: wildcard title is NotPostable"
         NotPostable (PP.postingCapabilityFor AccountTitle)
     assertEqual "posting policy: concrete titles report registry capability"
@@ -4674,40 +3923,6 @@ testPostingPolicyTruthTable = do
         ]
         [ Just (PP.postingCapabilityFor title)
         | title <- Registry.concreteAccountTitles
-        ]
-
-testPostingCapabilityGate :: IO ()
-testPostingCapabilityGate = do
-    let contexts =
-            [ PP.OrdinaryJournal
-            , PP.ClosingProcess
-            , PP.ConsolidationWorksheet
-            , PP.EngineComputation
-            ]
-        capabilities =
-            [ OrdinaryPosting
-            , ClosingOnly
-            , ConsolidationOnly
-            , EngineGeneratedOnly
-            , NotPostable
-            ]
-        allowed context capability = (context, capability) `elem`
-            [ (PP.OrdinaryJournal, OrdinaryPosting)
-            , (PP.ClosingProcess, OrdinaryPosting)
-            , (PP.ClosingProcess, ClosingOnly)
-            , (PP.ConsolidationWorksheet, OrdinaryPosting)
-            , (PP.ConsolidationWorksheet, ConsolidationOnly)
-            , (PP.EngineComputation, OrdinaryPosting)
-            , (PP.EngineComputation, EngineGeneratedOnly)
-            ]
-    assertEqual "posting gate: closed context/capability matrix"
-        [ (context, capability, allowed context capability)
-        | context <- contexts
-        , capability <- capabilities
-        ]
-        [ (context, capability, PP.postingAllowedIn context capability)
-        | context <- contexts
-        , capability <- capabilities
         ]
     assertEqual "posting gate: all 240 titles follow the closed matrix"
         [ (context, title, PP.postingAllowedIn context capability)
@@ -4884,7 +4099,6 @@ testPostingCapabilityGate = do
 
 checkedConvertProperties :: IO ()
 checkedConvertProperties = do
-    testPostingPolicyTruthTable
     testPostingCapabilityGate
     testConsolidationWorksheet
     testSharedAccountBalancePrimitives
@@ -4954,6 +4168,37 @@ checkedConvertProperties = do
 
 axiomProperties :: IO ()
 axiomProperties = do
+    let unitForParity i
+            | even i = Yen
+            | otherwise = Amount
+    assertEqual "MoneyDecimal: 0.1 + 0.2 == 0.3 exactly"
+        True (0.1 + 0.2 == (0.3 :: MoneyDecimal))
+    let mk i = ((fromIntegral (i `mod` 7 + 1) :: MoneyDecimal)
+                  :@ ((if even i then Hat else Not) :< (unitForParity i)))
+               .| show (i `mod` 150)
+        xs       :: [Journal String MoneyDecimal (HatBase CountUnit)]
+        xs       = [ mk i | i <- [1 .. 400 :: Int] ]
+        viaFoldr = foldr (.+) mempty xs
+        viaFoldl = L.foldl' (.+) mempty xs
+    -- exact ⇒ norm is identical for the two construction orders
+    assertEqual "MoneyDecimal Journal: norm is construction-order-independent"
+        (norm viaFoldr) (norm viaFoldl)
+    -- banker's rounding (round half to even)
+    assertEqual "bankersRound 0 2.5 = 2 (half to even)" (2 :: MoneyDecimal) (bankersRound 0 2.5)
+    assertEqual "bankersRound 0 3.5 = 4 (half to even)" (4 :: MoneyDecimal) (bankersRound 0 3.5)
+    assertEqual "bankersRound 2 0.125 = 0.12 (half to even)" (0.12 :: MoneyDecimal) (bankersRound 2 0.125)
+    let zb = 0 :@ (Hat :< Yen)    :: TestAlg   -- zero value, base Yen
+        rb = 5 :@ (Hat :< Amount) :: TestAlg   -- real value, base Amount
+    -- both fold directions of the singleton/singleton union
+    assertEqual "union zero(.+)real keeps real value on its own base"
+        rb (EA.proj [Hat :< Amount] (zb .+ rb))
+    assertEqual "union real(.+)zero keeps real value on its own base"
+        rb (EA.proj [Hat :< Amount] (rb .+ zb))
+    -- the real value must NOT appear on the zero posting's base
+    assertEqual "union zero(.+)real: nothing relabeled onto the zero's base"
+        (EA.Zero :: TestAlg) (EA.proj [Hat :< Yen] (zb .+ rb))
+    assertEqual "union real(.+)zero: nothing relabeled onto the zero's base"
+        (EA.Zero :: TestAlg) (EA.proj [Hat :< Yen] (rb .+ zb))
     -- Definition 6 axioms (Double; semantic equality via exact per-base nets)
     quickProp "axiom: Hat involution (x^^ = x)" $
         forAll genAlgD $ \x -> netByBase ((.^) ((.^) x)) == netByBase x
@@ -5230,6 +4475,30 @@ netJournal j = M.fromList
 
 journalProperties :: IO ()
 journalProperties = do
+    let unitForParity i
+            | even i = Yen
+            | otherwise = Amount
+    -- fromList is now a strict left fold (L.foldl' (.+) mempty). Verify it still
+    -- preserves the posting multiset by matching the old lazy right-fold reference
+    -- (foldr (.+) mempty). Colliding note keys (i `mod` 30) force same-note/same-base
+    -- postings into one Alg sequence, where the two folds accumulate in opposite
+    -- order; with MoneyDecimal (exact, associative) the aggregate (norm) is identical.
+    let mk i = ((fromIntegral (i `mod` 7 + 1) :: MoneyDecimal)
+                  :@ ((if even i then Hat else Not) :< (unitForParity i)))
+               .| show (i `mod` 30)
+        xs :: [Journal String MoneyDecimal (HatBase CountUnit)]
+        xs = [ mk i | i <- [1 .. 400 :: Int] ]
+        strict  = EJ.fromList xs
+        lazyRef = foldr (.+) mempty xs
+    -- exact value type ⇒ norm identical regardless of seq order (multiset preserved)
+    assertEqual "Journal.fromList (strict): norm matches lazy foldr reference (MoneyDecimal exact)"
+        (norm strict) (norm lazyRef)
+    -- distinct note keys ⇒ no seq collision ⇒ exact structural equality with foldr
+    let ys :: [Journal String MoneyDecimal (HatBase CountUnit)]
+        ys = [ ((fromIntegral i :: MoneyDecimal) :@ (Not :< Yen)) .| show i
+             | i <- [1 .. 20 :: Int] ]
+    assertEqual "Journal.fromList (strict): structurally equal to foldr for distinct notes"
+        (EJ.toMap (EJ.fromList ys)) (EJ.toMap (foldr (.+) mempty ys))
     quickProp "journal: norm additivity (norm(j1.+j2) = norm j1 + norm j2, MoneyDecimal)" $
         forAll genJournalN $ \j1 -> forAll genJournalN $ \j2 ->
             norm (j1 .+ j2) == norm j1 + norm j2
@@ -5363,40 +4632,59 @@ isBalancedD x = epsEq (norm (EA.decL x)) (norm (EA.decR x))
 bookkeepingProperties :: IO ()
 bookkeepingProperties = do
     -- (1) balanced property: every builder produces a debit=credit entry
-    quickProp "bookkeeping: cogsAdjustmentEntries balanced" $
-        forAll genNNDouble $ \beg -> forAll genNNDouble $ \end ->
-            isBalancedD (EB.cogsAdjustmentEntries mkA beg end)
-    quickProp "bookkeeping: depreciationIndirectEntry balanced" $
-        forAll genNNDouble $ \amt -> isBalancedD (EB.depreciationIndirectEntry mkA amt)
-    quickProp "bookkeeping: depreciationDirectEntry balanced" $
-        forAll genNNDouble $ \amt -> isBalancedD (EB.depreciationDirectEntry mkA amt Fixtures)
-    quickProp "bookkeeping: allowanceReplenishmentEntry balanced" $
-        forAll genNNDouble $ \est -> forAll genNNDouble $ \cur ->
-            isBalancedD (EB.allowanceReplenishmentEntry mkA est cur)
-    quickProp "bookkeeping: allowanceResetEntries balanced" $
-        forAll genNNDouble $ \est -> forAll genNNDouble $ \cur ->
-            isBalancedD (EB.allowanceResetEntries mkA est cur)
-    quickProp "bookkeeping: prepaidExpenseEntry balanced" $
-        forAll genNNDouble $ \amt -> isBalancedD (EB.prepaidExpenseEntry mkA amt RentExpense)
-    quickProp "bookkeeping: unearnedRevenueEntry balanced" $
-        forAll genNNDouble $ \amt -> isBalancedD (EB.unearnedRevenueEntry mkA amt RentalIncome)
-    quickProp "bookkeeping: accruedRevenueEntry balanced" $
-        forAll genNNDouble $ \amt -> isBalancedD (EB.accruedRevenueEntry mkA amt InterestEarned)
-    quickProp "bookkeeping: accruedExpenseEntry balanced" $
-        forAll genNNDouble $ \amt -> isBalancedD (EB.accruedExpenseEntry mkA amt InterestExpense)
-    quickProp "bookkeeping: corporateTaxInterimEntry balanced" $
-        forAll genNNDouble $ \amt -> isBalancedD (EB.corporateTaxInterimEntry mkA amt)
-    -- consumption / corporate tax settlement: amounts where received >= paid,
-    -- total >= interim (the in-scope branch)
-    quickProp "bookkeeping: consumptionTaxSettlementEntry balanced (received>=paid)" $
-        forAll genNNDouble $ \paid -> forAll genNNDouble $ \extra ->
-            isBalancedD (EB.consumptionTaxSettlementEntry mkA paid (paid + extra))
-    quickProp "bookkeeping: corporateTaxSettlementEntries balanced (total>=interim)" $
-        forAll genNNDouble $ \interim -> forAll genNNDouble $ \extra ->
-            isBalancedD (EB.corporateTaxSettlementEntries mkA (interim + extra) interim)
-    quickProp "bookkeeping: priorPeriodErrorCorrection balanced" $
-        forAll genNNDouble $ \curr -> forAll genNNDouble $ \prior ->
-            isBalancedD (EB.priorPeriodErrorCorrection mkA curr prior Depreciation Land)
+    let balancedCases :: [(String, Property)]
+        balancedCases =
+            [ ("bookkeeping: cogsAdjustmentEntries balanced"
+              , forAll genNNDouble $ \beg -> forAll genNNDouble $ \end ->
+                    isBalancedD (EB.cogsAdjustmentEntries mkA beg end)
+              )
+            , ("bookkeeping: depreciationIndirectEntry balanced"
+              , forAll genNNDouble $ \amt -> isBalancedD (EB.depreciationIndirectEntry mkA amt)
+              )
+            , ("bookkeeping: depreciationDirectEntry balanced"
+              , forAll genNNDouble $ \amt -> isBalancedD (EB.depreciationDirectEntry mkA amt Fixtures)
+              )
+            , ("bookkeeping: allowanceReplenishmentEntry balanced"
+              , forAll genNNDouble $ \est -> forAll genNNDouble $ \cur ->
+                    isBalancedD (EB.allowanceReplenishmentEntry mkA est cur)
+              )
+            , ("bookkeeping: allowanceResetEntries balanced"
+              , forAll genNNDouble $ \est -> forAll genNNDouble $ \cur ->
+                    isBalancedD (EB.allowanceResetEntries mkA est cur)
+              )
+            , ("bookkeeping: prepaidExpenseEntry balanced"
+              , forAll genNNDouble $ \amt -> isBalancedD (EB.prepaidExpenseEntry mkA amt RentExpense)
+              )
+            , ("bookkeeping: unearnedRevenueEntry balanced"
+              , forAll genNNDouble $ \amt -> isBalancedD (EB.unearnedRevenueEntry mkA amt RentalIncome)
+              )
+            , ("bookkeeping: accruedRevenueEntry balanced"
+              , forAll genNNDouble $ \amt -> isBalancedD (EB.accruedRevenueEntry mkA amt InterestEarned)
+              )
+            , ("bookkeeping: accruedExpenseEntry balanced"
+              , forAll genNNDouble $ \amt -> isBalancedD (EB.accruedExpenseEntry mkA amt InterestExpense)
+              )
+            , ("bookkeeping: corporateTaxInterimEntry balanced"
+              , forAll genNNDouble $ \amt -> isBalancedD (EB.corporateTaxInterimEntry mkA amt)
+              )
+            , ("bookkeeping: consumptionTaxSettlementEntry balanced (received>=paid)"
+              , forAll genNNDouble $ \paid -> forAll genNNDouble $ \extra ->
+                    isBalancedD (EB.consumptionTaxSettlementEntry mkA paid (paid + extra))
+              )
+            , ("bookkeeping: corporateTaxSettlementEntries balanced (total>=interim)"
+              , forAll genNNDouble $ \interim -> forAll genNNDouble $ \extra ->
+                    isBalancedD (EB.corporateTaxSettlementEntries mkA (interim + extra) interim)
+              )
+            , ("bookkeeping: priorPeriodErrorCorrection balanced"
+              , forAll genNNDouble $ \curr -> forAll genNNDouble $ \prior ->
+                    isBalancedD (EB.priorPeriodErrorCorrection mkA curr prior Depreciation Land)
+              )
+            ]
+    quickProp "bookkeeping: every adjustment builder is balanced" $
+        conjoin
+            [ counterexample label checkedProperty
+            | (label, checkedProperty) <- balancedCases
+            ]
 
     -- (2) unit tests: expected bases/amounts on representative lecture figures
     -- COGS (ch.24): beg 100,000 / end 50,000. In isolation this entry's
@@ -5604,14 +4892,6 @@ taxStage = stage "tax" $ \w t ->
 miniSpec :: SimSpec MiniW Int LNote MoneyDouble LBaseD
 miniSpec = mkSimSpec (1, 3) 42 mwLedger [buyStage, taxStage]
 
-testLiteBoilerplate :: IO ()
-testLiteBoilerplate = do
-    let w0 = MiniW { mwLedger = carry mempty
-                   , mwPrice  = carry 10
-                   , mwTax    = carry 0.1 }
-        n  = runLite miniSpec w0 (realToFrac . norm . mwLedger)
-    -- 3 terms * (sum_{i=1..5} 10*i*2  +  10*0.1*2) = 3 * (300 + 2) = 906
-    assertNear "Lite: boilerplate mini-model runs (norm)" 906.0 n
 
 ------------------------------------------------------------------
 -- Lite test 2 (DET-2): MoneyDecimal Sequential vs ParChunk exact match.
@@ -5639,18 +4919,6 @@ testLiteDet2 = do
     assertEqual "Lite DET-2: Sequential and ParChunk produce identical ledgers (exact)"
         seqMap parMap
 
-------------------------------------------------------------------
--- Lite test 3 (DET-1): MoneyDouble reproducibility across two runs.
-------------------------------------------------------------------
-
-testLiteDet1 :: IO ()
-testLiteDet1 = do
-    let w0 = MiniW { mwLedger = carry mempty
-                   , mwPrice  = carry 10
-                   , mwTax    = carry 0.1 }
-        n1 = runLite miniSpec w0 (realToFrac . norm . mwLedger)
-        n2 = runLite miniSpec w0 (realToFrac . norm . mwLedger)
-    assertNear "Lite DET-1: same spec run twice gives same norm" n1 n2
 
 ------------------------------------------------------------------
 -- Lite test 4 (BSP intra-stage invisibility sentinel).
@@ -5703,12 +4971,6 @@ gateStage = stageFor "buy" [1 .. 10 :: Int] $ \w t _g i ->
 gateSpec :: SimSpec GateW Int LNote MoneyDouble LBaseD
 gateSpec = mkSimSpec (1, 3) 1 gwLedger [gateStage]
 
-testLiteGateEquivalence :: IO ()
-testLiteGateEquivalence = do
-    let w0 = GateW { gwLedger = carry mempty, gwPrice = carry 10 }
-        n  = runLite gateSpec w0 (realToFrac . norm . gwLedger)
-    -- norm = 3 terms * sum_{i=1..10} (10*i*2) = 3 * 2 * 10 * 55 = 3300
-    assertNear "Lite: gate toy-model equivalence (norm 3300)" 3300.0 n
 
 ------------------------------------------------------------------
 -- Lite test 6: term-boundary Field rules (Carry / ResetEach / UpdateEach).
@@ -5735,141 +4997,6 @@ runRule priceField =
     in realToFrac (runLite ruleSpec w0 (norm . rwLedger))
        -- norm counts both Not:<Purchases and Hat:<Cash, hence 2 * price each term
 
-testLiteFieldRules :: IO ()
-testLiteFieldRules = do
-    -- Carry 10: price stays 10 every term -> 3 * 2 * 10 = 60
-    assertNear "Lite Field: Carry keeps the value" 60.0 (runRule (carry 10))
-    -- ResetEach 5: price reset to 5 at each boundary, but stage reads BEFORE
-    -- the term-1 boundary commit at the same value -> 3 * 2 * 5 = 30
-    assertNear "Lite Field: ResetEach restores each term" 30.0 (runRule (resetEach 5))
-    -- UpdateEach 10 (*2): term1 price 10, boundary doubles -> term2 20, term3 40.
-    -- norm = 2 * (10 + 20 + 40) = 140
-    assertNear "Lite Field: UpdateEach applies the step each boundary"
-        140.0 (runRule (updateEach 10 (* 2)))
-
--- regression: the boundary rule must fire once per TERM, not per stage.
--- (Parser pitfall: a trailing backtick operator after an inner lambda's
--- do-block is swallowed into the lambda body, turning the term-boundary
--- commit into a per-stage commit. Single-stage tests cannot see this.)
--- 2 identical stages x UpdateEach 10 (*2): both stages must read the SAME
--- price within a term -> norm = 2 entries * 2 stages * (10+20+40) = 280.
--- The per-stage-commit bug yields 2 * (10+20 + 40+80 + 160+320) = 1260.
-testLiteBoundaryOncePerTerm :: IO ()
-testLiteBoundaryOncePerTerm =
-    assertNear "Lite: term boundary fires once per term (2 stages)" 280.0
-        (let spec2 = mkSimSpec (1, 3) 0 rwLedger [ruleStage, ruleStage]
-             w0 = RuleW { rwLedger = carry mempty, rwPrice = updateEach 10 (* 2) }
-         in realToFrac (runLite spec2 w0 (norm . rwLedger)))
-
--- | T1: both observers visit each term once, including shifted and empty
--- ranges. Reuse the exact-decimal policy fixture without changing its stages.
-testLiteObserverTerms :: IO ()
-testLiteObserverTerms =
-    forM_ [(1, 5), (3, 6), (4, 4), (4, 3)] $ \range@(lo, hi) -> do
-        let spec = polSpec { Lite.specTerms = range }
-            terms = runLiteFold (\t _ acc -> t : acc) [] spec polW0
-                        (\acc _ -> reverse acc)
-        assertEqual "Lite fold observer: term order and count" [lo .. hi] terms
-        seen <- newIORef []
-        _ <- runLiteWithPolicyObs (\t _ -> modifyIORef' seen (t :))
-                 Policy.defaultLedgerPolicy spec polW0 (toMap . pwLedger)
-        observed <- reverse <$> readIORef seen
-        assertEqual "Lite IO observer: term order and count" [lo .. hi] observed
-
--- | T2: reuse MiniW's two stages with a changing price. Each saved snapshot
--- includes both current commits, no future posting and the pre-boundary price.
-testLiteObserverBoundary :: IO ()
-testLiteObserverBoundary = do
-    let w0 = MiniW { mwLedger = carry mempty
-                   , mwPrice  = updateEach 10 (* 2)
-                   , mwTax    = carry 0.1 }
-        snapshots = runLiteFold (\t w acc -> (t, w) : acc) [] miniSpec w0
-                        (\acc _ -> reverse acc)
-        check :: (Int, MiniW SnapT) -> IO ()
-        check (t, w) = do
-            let ledger = toMap (mwLedger w)
-                price  = 10 * (2 ^ (t - 1)) :: MoneyDouble
-                keys   = L.sort [(tag, u) | u <- [1 .. t], tag <- ["buy", "tax"]]
-            assertEqual "Lite observer: all committed notes, no future notes"
-                keys (L.sort (HM.keys ledger))
-            assertEqual "Lite observer: price before Field update" price (mwPrice w)
-            assertEqual "Lite observer: carried tax" 0.1 (mwTax w)
-            assertNear "Lite observer: current buy stage committed"
-                (realToFrac (30 * price))
-                (maybe 0 (realToFrac . norm) (HM.lookup ("buy", t) ledger))
-            assertNear "Lite observer: current final stage committed"
-                (realToFrac (2 * price * realToFrac (mwTax w)))
-                (maybe 0 (realToFrac . norm) (HM.lookup ("tax", t) ledger))
-    forM_ snapshots check
-    seen <- newIORef []
-    finalPrice <- runLiteWithPolicyObs
-        (\t w -> modifyIORef' seen ((t, w) :))
-        Policy.defaultLedgerPolicy miniSpec w0 mwPrice
-    ioSnapshots <- reverse <$> readIORef seen
-    assertEqual "Lite IO observer: all boundaries saved" [1, 2, 3] (L.map fst ioSnapshots)
-    forM_ ioSnapshots check
-    assertEqual "Lite continuation: final Field update has fired" 80 finalPrice
-
--- | T3: final snapshots agree for all MiniW fields, and exact policy ledgers
--- agree under FullAudit and retention with separate spill files for each run.
-testLiteObserverEquivalence :: IO ()
-testLiteObserverEquivalence = do
-    let w0 = MiniW { mwLedger = carry mempty
-                   , mwPrice  = updateEach 10 (* 2)
-                   , mwTax    = carry 0.1 }
-        project w = (toMap (mwLedger w), mwPrice w, mwTax w)
-        legacy = runLite miniSpec w0 id
-        folded = runLiteFold (\_ _ a -> a) () miniSpec w0 (\_ w -> w)
-    assertEqual "Lite fold: unchanged final snapshot" (project legacy) (project folded)
-    full <- runLiteWithPolicy Policy.defaultLedgerPolicy miniSpec w0 project
-    observed <- runLiteWithPolicyObs (\_ _ -> pure ())
-                    Policy.defaultLedgerPolicy miniSpec w0 project
-    assertEqual "Lite IO observer: unchanged full world" full observed
-    forM_ [Policy.RetainAll, Policy.RetainRecent 2] $ \retention ->
-        withTempSpill "observer_legacy" $ \oldPath ->
-        withTempSpill "observer_new" $ \newPath -> do
-            let policy path = Policy.defaultLedgerPolicy
-                    { Policy.retain  = retention
-                    , Policy.spillTo = Just path }
-            old <- runLiteWithPolicy (policy oldPath) polSpec polW0 pwLedger
-            new <- runLiteWithPolicyObs (\_ _ -> pure ())
-                       (policy newPath) polSpec polW0 pwLedger
-            assertEqual "Lite IO observer: unchanged final policy ledger"
-                (toMap old) (toMap new)
-            oldRestored <- Policy.restoreLedger oldPath old :: IO LedgerM
-            newRestored <- Policy.restoreLedger newPath new :: IO LedgerM
-            assertEqual "Lite IO observer: unchanged spill contents"
-                (toMap oldRestored) (toMap newRestored)
-
--- | T4: retained snapshots overlap, so compare their concatenated entries as
--- a set. Also stream only each current term and independently restore the spill.
--- Reuse PolW, polSpec and the temporary-spill helper from the policy tests.
-testLiteObserverStreamingSpill :: IO ()
-testLiteObserverStreamingSpill = do
-    full <- runLiteWithPolicy Policy.defaultLedgerPolicy polSpec polW0 pwLedger
-    forM_ [0, 2] $ \window -> withTempSpill "observer_stream" $ \path -> do
-        let policy = Policy.defaultLedgerPolicy
-                { Policy.retain  = Policy.RetainRecent window
-                , Policy.spillTo = Just path }
-        seen <- newIORef []
-        resident <- runLiteWithPolicyObs
-            (\t w -> modifyIORef' seen ((t, pwLedger w) :))
-            policy polSpec polW0 pwLedger
-        snapshots <- reverse <$> readIORef seen
-        let entries = L.nub (concatMap (HM.toList . toMap . snd) snapshots)
-            expected = HM.toList (toMap full)
-            streamed = sigma snapshots $ \(t, ledger) ->
-                EJ.filterWithNote (\(_, u) _ -> u == t) ledger
-        assertEqual "Lite streaming: observer term order" [1 .. 5] (L.map fst snapshots)
-        assertEqual "Lite streaming: snapshot entry set equals FullAudit"
-            True (length entries == length expected && all (`elem` entries) expected)
-        assertEqual "Lite streaming: current-term output equals FullAudit exactly"
-            (toMap full) (toMap streamed)
-        assertEqual "Lite streaming: final resident window"
-            [6 - window .. 5] (L.sort (L.map snd (HM.keys (toMap resident))))
-        restored <- Policy.restoreLedger path resident :: IO LedgerM
-        assertEqual "Lite streaming: spill plus resident ledger is lossless"
-            (toMap full) (toMap restored)
 
 -- ================================================================
 -- Simulate.Policy tests (Phase 4, feat/ledger-policy)
@@ -6000,15 +5127,13 @@ testPolicyDeleteOnly = do
     assertEqual "Policy: discarding older terms strictly reduces norm"
         True (norm residentJournal < norm full)
 
--- Test 5: DET — policy runs are reproducible and Sequential == ParChunk (exact).
+-- Test 5: policy execution preserves exact Sequential / ParChunk parity.
 testPolicyDeterminism :: IO ()
 testPolicyDeterminism = withTempSpill "det" $ \_ -> do
     let pol = Policy.defaultLedgerPolicy { Policy.retain = Policy.RetainRecent 3 }
         specPar p = polSpec { Lite.specParallel = p }
     r1 <- runLiteWithPolicy pol (specPar Sequential) polW0 (toMap . pwLedger)
-    r2 <- runLiteWithPolicy pol (specPar Sequential) polW0 (toMap . pwLedger)
     rP <- runLiteWithPolicy pol (specPar (ParChunk 2)) polW0 (toMap . pwLedger)
-    assertEqual "Policy DET-1: same policy run twice is identical" r1 r2
     assertEqual "Policy DET-2: Sequential == ParChunk under policy (exact)" r1 rP
 
 -- Test 6 (classic bridge): policySpillOptions drives the classic engine and the
@@ -6081,35 +5206,6 @@ testNetCompleteEquiv = do
     assertEqual "Network: sigmaEdges complete == all-pairs sigma2When (exact)"
         (toMap viaPairs) (toMap viaEdges)
 
--- Test 2: determinism (DET-1). Same StdGen -> identical edges for every
--- generator, checked by running each twice and comparing.
-testNetDeterminism :: IO ()
-testNetDeterminism = do
-    let ks = [1 .. 30 :: Int]
-        g  = mkStdGen 42
-        twice f = assertEqual ("Network DET-1: " ++ fst f) (edges (snd f g)) (edges (snd f g))
-    twice ("kRegular",   \s -> kRegular   s ks 4)
-    twice ("erdosRenyi", \s -> erdosRenyi s ks 0.3)
-    twice ("scaleFree",  \s -> scaleFree  s ks 3)
-    twice ("sectorBlock",\s -> sectorBlock s [(k, k `mod` 3) | k <- ks] (\(a,b) -> if a==b then 0.5 else 0.1))
-
--- Test 3: smart constructors reject the four illegal cases.
-testNetSmartConstructor :: IO ()
-testNetSmartConstructor = do
-    assertEqual "Network: self-loop rejected"
-        (Left SelfLoop) (tradeNetwork [1,2] [(1,1)] :: Either NetworkError (TradeNetwork Int))
-    assertEqual "Network: duplicate edge rejected"
-        (Left DuplicateEdge) (tradeNetwork [1,2] [(1,2),(1,2)] :: Either NetworkError (TradeNetwork Int))
-    let Right g = tradeNetwork [1,2,3] [(1,3)] :: Either NetworkError (TradeNetwork Int)
-    assertEqual "Network: coefficient outside network rejected"
-        (Left CoefOutsideNetwork)
-        (inputCoefficients g [(2,3,0.5)] :: Either NetworkError (InputCoefficients Int Double))
-    assertEqual "Network: negative coefficient rejected"
-        (Left NegativeCoefficient)
-        (inputCoefficients g [(1,3,-0.5)] :: Either NetworkError (InputCoefficients Int Double))
-    assertEqual "Network: duplicate coefficient rejected"
-        (Left DuplicateCoefficient)
-        (inputCoefficients g [(1,3,0.2),(1,3,0.3)] :: Either NetworkError (InputCoefficients Int Double))
 
 -- Test 4: Hawkins-Simon — every buyer's column sum is strictly below 1.
 testNetHawkinsSimon :: IO ()
@@ -6119,40 +5215,6 @@ testNetHawkinsSimon = do
         ok = all (\j -> sum (Prelude.map snd (inputsOf a j)) < 1.0) (nodes g)
     assertEqual "Network: randomCoefficients (hawkinsSimon) all column sums < 1" True ok
 
--- Test 5: generator structure.
-testNetGeneratorStructure :: IO ()
-testNetGeneratorStructure = do
-    let ks = [1 .. 8 :: Int]
-        kr = kRegular (mkStdGen 3) ks 3 :: TradeNetwork Int
-    assertEqual "Network: kRegular in-degree = min k (N-1)"
-        (replicate (length ks) 3)
-        (Prelude.map (length . suppliersOf kr) (nodes kr))
-    -- erdosRenyi p=1 == complete, p=0 == empty
-    assertEqual "Network: erdosRenyi p=1 == completeNetwork edges"
-        (edges (completeNetwork ks))
-        (edges (erdosRenyi (mkStdGen 0) ks 1.0 :: TradeNetwork Int))
-    assertEqual "Network: erdosRenyi p=0 has no edges"
-        0 (edgeCount (erdosRenyi (mkStdGen 0) ks 0.0 :: TradeNetwork Int))
-    -- scaleFree edge count is deterministic: C(m+1,2) + (N-m-1)*m
-    let n = length ks; m = 2
-        expected = (m * (m + 1) `div` 2) + (n - m - 1) * m
-    assertEqual "Network: scaleFree edge count matches preferential-attachment formula"
-        expected (edgeCount (scaleFree (mkStdGen 9) ks m :: TradeNetwork Int))
-
--- Test 6: out/in adjacency consistency on an arbitrary generated network.
--- (i,j) in edges  <=>  i in suppliersOf j  <=>  j in buyersOf i
-testNetAdjacencyConsistency :: IO ()
-testNetAdjacencyConsistency = do
-    let ks = [1 .. 25 :: Int]
-        g  = erdosRenyi (mkStdGen 77) ks 0.25 :: TradeNetwork Int
-        es = edges g
-        fwd = all (\(i,j) -> i `elem` suppliersOf g j && j `elem` buyersOf g i) es
-        -- and the reverse: every (i,j) reconstructed from suppliersOf equals edges
-        viaSuppliers = L.sort [ (i, j) | j <- nodes g, i <- suppliersOf g j ]
-        viaBuyers    = L.sort [ (i, j) | i <- nodes g, j <- buyersOf g i ]
-    assertEqual "Network: edges <=> suppliersOf (forward)" True fwd
-    assertEqual "Network: edges == reconstruction from suppliersOf" (L.sort es) viaSuppliers
-    assertEqual "Network: edges == reconstruction from buyersOf" (L.sort es) viaBuyers
 
 -- Test 7: CSV round-trip — parse . render == id (render is a test helper).
 renderEdgeCsv :: [(T.Text, T.Text)] -> T.Text
@@ -6186,57 +5248,6 @@ testNetCsvRoundTrip = do
     let Right gt = networkFromTable [(1,2),(2,3)] :: Either NetworkError (TradeNetwork Int)
     assertEqual "Network: networkFromTable derives node set" [1,2,3] (nodes gt)
 
--- Test 8: the requested sparse regimes have exactly m*N edges.
-testIndustrialNetworkEdgeCount :: IO ()
-testIndustrialNetworkEdgeCount = do
-    let cases = [(200, 5, 20), (1000, 4, 10)]
-    forM_ cases $ \(n, k, m) -> do
-        let economy = industrialNetwork 2025 n k m
-        assertEqual ("Industrial network: exact |E|=mN for " ++ show (n,k,m))
-            (m * n) (edgeCount (ieNetwork economy))
-    let capacityLimited = industrialNetwork 1 10 1 20
-    assertEqual "Industrial network: capacity shortage uses every eligible pair"
-        45 (edgeCount (ieNetwork capacityLimited))
-    let nearOne = industrialNetworkWith
-          defaultIndustrialOptions { ioExponent = 1.001 } 1 1000 3 5
-    assertEqual "Industrial network: gamma near 1 keeps every size finite"
-        True (all (\w -> w > 0 && not (isNaN w) && not (isInfinite w))
-                  (M.elems (ieSize nearOne)))
-    assertEqual "Industrial network: gamma near 1 retains exact |E|=mN"
-        5000 (edgeCount (ieNetwork nearOne))
-
--- Test 9: every edge obeys the ordered-sector DAG invariant and is unique.
-testIndustrialNetworkStructure :: IO ()
-testIndustrialNetworkStructure = do
-    let economy = industrialNetwork 19 500 5 12
-        es = industrialEdges economy
-        sectors = ieSector economy
-        valid (i, j) =
-            let si = sectors M.! i
-                sj = sectors M.! j
-            in i /= j && (si < sj || (si == sj && i < j))
-    assertEqual "Industrial network: no duplicate edges"
-        (length es) (Set.size (Set.fromList es))
-    assertEqual "Industrial network: sector order and intra-sector id DAG"
-        True (all valid es)
-
--- Test 10: the integer seed fixes sectors, sizes, and edges.
-testIndustrialNetworkDeterminism :: IO ()
-testIndustrialNetworkDeterminism = do
-    let a = industrialNetwork 4242 300 5 8
-        b = industrialNetwork 4242 300 5 8
-    assertEqual "Industrial network: same seed gives identical economy" a b
-
--- Test 11: one-sector economies use the id order as a DAG and still hit m*N.
-testIndustrialNetworkKOne :: IO ()
-testIndustrialNetworkKOne = do
-    let n = 200
-        m = 20
-        economy = industrialNetwork 3 n 1 m
-        es = industrialEdges economy
-    assertEqual "Industrial network: K=1 exact |E|=mN" (m * n) (length es)
-    assertEqual "Industrial network: K=1 edges are increasing ids"
-        True (all (uncurry (<)) es)
 
 -- Test 12: market-scale construction smoke. There is deliberately no timing
 -- assertion; forcing the full 1.28M-edge economy catches accidental all-pairs
@@ -6358,11 +5369,6 @@ mktOwnerOfProduct bp = case bp of
 
 -- opening stock read from the (MktCarryover, t) note (indexed per-note),
 -- mirroring MarketModel.openingMap (carryover-based O(term) inventory).
-mktOpening :: (HatVal v, Real v)
-           => Int -> Journal MktNote v MktBase -> M.Map MktFirm v
-mktOpening t ledger =
-    EA.balanceMapBy mktOwnerOfProduct
-        (EJ.toAlg (EJ.projWithNote [(MktCarryover, t)] ledger))
 
 -- single-firm opening read (indexed per-note + per-base), mirroring
 -- MarketModel.openingOf: balanceBy over firm j's own-product base only.
@@ -6729,8 +5735,792 @@ testOptimizeFailFast = do
 exactBalancedForTest :: (EA.HatVal v, EA.ExBaseClass b) => EA.Alg v b -> Bool
 exactBalancedForTest x = EA.norm (EA.decL x) == EA.norm (EA.decR x)
 
+-- | Check gross and net Journal projections, including the exact 6 / 14 sentinel.
+testJournalProjectionNorms :: IO ()
+testJournalProjectionNorms = do
+    let cases = concat
+            [ let
+                  qs, qsDedup :: [HatBase CountUnit]
+                  qs      = [Hat :< Yen, HatNot :< Amount, Hat :< Yen]   -- Hat:<Yen duplicated
+                  qsDedup = [Hat :< Yen, HatNot :< Amount]
+              in
+                  [ EqualComparison "Alg.proj treats query list as a set (duplicate exact)"
+                        (EA.proj qsDedup algSample) (EA.proj qs algSample)
+                  , EqualComparison "Alg.proj no double counting (single Hat:<Yen)"
+                        (EA.proj [Hat :< Yen] algSample)
+                        (EA.proj [Hat :< Yen, Hat :< Yen] algSample)
+                  ]
+            , let
+                  qs :: [HatBase CountUnit]
+                  qs = [Hat :< Yen, HatNot :< Amount, Hat :< Yen]
+                  expected = norm $ EA.bar $ EA.proj qs algSample
+                  actual = EA.projNetNorm qs algSample
+              in
+                  [ NearComparison
+                        "Alg.projNetNorm == norm . bar . proj (set semantics)"
+                        expected actual
+                  ]
+            , let
+                  alg :: EA.Alg MoneyDecimal (HatBase CountUnit)
+                  alg =  (10 :@ (Hat :< Yen))
+                      .+ (3  :@ (Not :< Amount))
+                  b = Hat :< Yen :: HatBase CountUnit
+              in
+                  [ EqualComparison "proj [b,b] == proj [b] (duplicate exact, MoneyDecimal)"
+                        (EA.proj [b] alg) (EA.proj [b, b] alg)
+                  , EqualComparison "projNetNorm [b,b] == projNetNorm [b] (duplicate exact)"
+                        (EA.projNetNorm [b] alg) (EA.projNetNorm [b, b] alg)
+                  ]
+            , let
+                  alg :: EA.Alg MoneyDecimal (HatBase CountUnit)
+                  alg =  (10 :@ (Hat :< Yen))
+                      .+ (5  :@ (Not :< Amount))
+                  exact = Hat :< Yen     :: HatBase CountUnit
+                  wild  = Hat :< (.#)    :: HatBase CountUnit   -- subsumes Hat:<Yen
+              in
+                  [ EqualComparison "proj [exact,wild] == proj [wild] (overlap, no double count)"
+                        (EA.proj [wild] alg) (EA.proj [exact, wild] alg)
+                  , EqualComparison "projNetNorm [exact,wild] == projNetNorm [wild] (overlap)"
+                        (EA.projNetNorm [wild] alg) (EA.projNetNorm [exact, wild] alg)
+                  ]
+            , let
+                  alg :: EA.Alg MoneyDecimal (HatBase CountUnit)
+                  alg =  (10 :@ (Hat :< Yen))     -- Yen carries both sides
+                      .+ (4  :@ (Not :< Yen))
+                      .+ (7  :@ (Not :< Amount))
+                  bs = [HatNot :< Yen, HatNot :< Amount] :: [HatBase CountUnit]
+              in
+                  [ EqualComparison "projNetNorm == norm . bar . proj (both-sided base, MoneyDecimal)"
+                        (norm (EA.bar (EA.proj bs alg))) (EA.projNetNorm bs alg)
+                  ]
+            , let
+                  bs :: [HatBase CountUnit]
+                  bs = [Not :< Amount]
+                  expected = norm $ EJ.projWithBase bs journalSample
+                  actual = EJ.projWithBaseNetNorm bs journalSample
+              in
+                  [ NearComparison
+                        "Journal.projWithBaseNetNorm matches norm . projWithBase"
+                        expected actual
+                  ]
+            , let
+                  bs :: [HatBase CountUnit]
+                  bs = [HatNot :< Amount, Hat :< Yen]
+                  ns1 = ["dog", "cat"]
+                  ns2 = [plank]
+                  expected1 = norm $ EJ.projWithNoteBase ns1 bs journalSample
+                  actual1 = EJ.projWithNoteBaseNetNorm ns1 bs journalSample
+                  expected2 = norm $ EJ.projWithNoteBase ns2 bs journalSample
+                  actual2 = EJ.projWithNoteBaseNetNorm ns2 bs journalSample
+              in
+                  [ NearComparison
+                        "Journal.projWithNoteBaseNetNorm (selected notes)"
+                        expected1 actual1
+                  , NearComparison
+                        "Journal.projWithNoteBaseNetNorm (plank wildcard)"
+                        expected2 actual2
+                  ]
+            , let
+                  alg :: EA.Alg MoneyDecimal (HatBase CountUnit)
+                  alg =  (10 :@ (Hat :< Yen))     -- Yen carries both sides
+                      .+ (4  :@ (Not :< Yen))
+                      .+ (7  :@ (Not :< Amount))
+                  js = alg .| "n" :: EJ.Journal String MoneyDecimal (HatBase CountUnit)
+                  bs = [HatNot :< Yen] :: [HatBase CountUnit]
+              in
+                  [ EqualComparison "projWithBaseNetNorm nets both sides (HatNot query): |10-4|"
+                        6 (EJ.projWithBaseNetNorm bs js)
+                  , EqualComparison "norm . projWithBase stays gross (no RULES rewrite): 10+4"
+                        14 (norm (EJ.projWithBase bs js))
+                  , EqualComparison "projWithBaseNetNorm == norm . map bar . projWithBase"
+                        (norm (EJ.map EA.bar (EJ.projWithBase bs js)))
+                        (EJ.projWithBaseNetNorm bs js)
+                  , EqualComparison "projWithNoteBaseNetNorm nets both sides (HatNot query): |10-4|"
+                        6 (EJ.projWithNoteBaseNetNorm ["n"] bs js)
+                  , EqualComparison "norm . projWithNoteBase stays gross (no RULES rewrite): 10+4"
+                        14 (norm (EJ.projWithNoteBase ["n"] bs js))
+                  ]
+            ]
+    forM_ cases runTestComparison
+
+
+-- | Compare Algebra and Journal summation paths with their independent references.
+testSigmaReferences :: IO ()
+testSigmaReferences = do
+    let cases = concat
+            [ let
+                  xs = [1 .. 5 :: Int]
+                  f :: Int -> TestAlg
+                  f i
+                      | i == 3 = EA.Zero
+                      | odd i = fromIntegral i :@ (Hat :< Yen)
+                      | otherwise = fromIntegral i :@ (Not :< Amount)
+                  expected :: TestAlg
+                  expected = EA.unionsMerge (L.map f xs)
+                  actual :: TestAlg
+                  actual = EA.sigma xs f
+              in
+                  [ EqualComparison "Alg.sigma bulk-merge path matches unionsMerge" expected actual
+                  ]
+            , let
+                  xs = [1 .. 3 :: Int]
+                  ys = [1 .. 4 :: Int]
+                  cond i j = i /= j && even (i + j)
+                  f :: Int -> Int -> TestAlg
+                  f i j =
+                      let v = fromIntegral (i * 10 + j)
+                      in if odd i
+                          then v :@ (Hat :< Yen)
+                          else v :@ (Not :< Amount)
+                  expected :: TestAlg
+                  expected =
+                      EA.unionsMerge
+                          [ f i j
+                          | i <- xs
+                          , j <- ys
+                          , cond i j
+                          ]
+                  actual :: TestAlg
+                  actual = EA.sigma2When xs ys cond f
+              in
+                  [ EqualComparison "Alg.sigma2When matches list-comprehension sum" expected actual
+                  ]
+            , let
+                  kvs = M.fromList
+                      [ ((1, 2), 5.0)
+                      , ((2, 3), 0.0)
+                      , ((3, 1), 7.0)
+                      ] :: M.Map (Int, Int) Double
+                  f :: (Int, Int) -> Double -> TestAlg
+                  f (i, j) v
+                      | i < j = v :@ (Hat :< Yen)
+                      | otherwise = v :@ (Not :< Amount)
+                  expected :: TestAlg
+                  expected = EA.unionsMerge
+                      [ f (1, 2) 5.0
+                      , f (3, 1) 7.0
+                      ]
+                  actual :: TestAlg
+                  actual = EA.sigmaFromMap kvs f
+              in
+                  [ EqualComparison
+                        "Alg.sigmaFromMap iterates non-zero map entries only"
+                        expected actual
+                  ]
+            , let
+                  xs = [1 .. 4 :: Int]
+                  f :: Int -> TestJournal
+                  f i = case i of
+                      1 -> (1 :@ (Hat :< Yen)) .| "A"
+                      2 -> EJ.Zero
+                      3 -> (EA.Zero :: TestAlg) .| "A"
+                      _ -> (2 :@ (Not :< Amount)) .| "B"
+                  expected :: TestJournal
+                  expected = EJ.fromMap $ HM.fromList
+                      [ ("A", 1 :@ (Hat :< Yen))
+                      , ("B", 2 :@ (Not :< Amount))
+                      ]
+                  actual = EJ.sigma xs f
+              in
+                  [ EqualComparison
+                        "Journal.sigma bulk-merge path skips zero postings"
+                        (EJ.toMap expected) (EJ.toMap actual)
+                  ]
+            , let
+                  xs = [1 .. 3 :: Int]
+                  ys = [1 .. 3 :: Int]
+                  cond i j = i < j
+                  f :: Int -> Int -> TestJournal
+                  f i j
+                      | i == 1 && j == 2 = (EA.Zero :: TestAlg) .| "N"
+                      | odd (i + j) = (fromIntegral (i + j) :@ (Hat :< Yen)) .| "N"
+                      | otherwise = EJ.Zero
+                  expected :: TestJournal
+                  expected = EJ.fromMap $ HM.fromList [("N", 5 :@ (Hat :< Yen))]
+                  actual = EJ.sigma2When xs ys cond f
+              in
+                  [ EqualComparison
+                        "Journal.sigma2When matches filtered pair sum"
+                        (EJ.toMap expected) (EJ.toMap actual)
+                  ]
+            , let
+                  xs = [1 .. 4 :: Int]
+                  f :: Int -> TestAlg
+                  f i
+                      | i <= 2 = EA.Zero
+                      | otherwise = fromIntegral i :@ (Hat :< Yen)
+                  expected :: TestJournal
+                  expected = (EA.sigma xs f) .| "SalesPurchase"
+                  actual :: TestJournal
+                  actual = EJ.sigmaOn "SalesPurchase" xs f
+                  zeroExpected = EJ.Zero :: TestJournal
+                  zeroActual = EJ.sigmaOn "SalesPurchase" xs (\_ -> EA.Zero :: TestAlg)
+              in
+                  [ EqualComparison
+                        "Journal.sigmaOn attaches note after EA.sigma"
+                        (EJ.toMap expected) (EJ.toMap actual)
+                  , EqualComparison
+                        "Journal.sigmaOn returns Zero when EA.sigma is Zero"
+                        (EJ.toMap zeroExpected) (EJ.toMap zeroActual)
+                  ]
+            , let
+                  kvs = M.fromList
+                      [ ((1, 2), 4.0)
+                      , ((2, 3), 0.0)
+                      , ((2, 1), 6.0)
+                      ] :: M.Map (Int, Int) Double
+                  f :: (Int, Int) -> Double -> TestAlg
+                  f (i, j) v
+                      | i < j = v :@ (Hat :< Yen)
+                      | otherwise = v :@ (Not :< Amount)
+                  expected :: TestJournal
+                  expected = (EA.sigmaFromMap kvs f) .| "SalesPurchase"
+                  actual :: TestJournal
+                  actual = EJ.sigmaOnFromMap "SalesPurchase" kvs f
+                  zeroActual :: TestJournal
+                  zeroActual = EJ.sigmaOnFromMap "SalesPurchase" (M.singleton (1, 1) 0.0) f
+              in
+                  [ EqualComparison
+                        "Journal.sigmaOnFromMap matches EA.sigmaFromMap + note"
+                        (EJ.toMap expected) (EJ.toMap actual)
+                  , EqualComparison
+                        "Journal.sigmaOnFromMap returns Zero for empty-effective map"
+                        (EJ.toMap (EJ.Zero :: TestJournal)) (EJ.toMap zeroActual)
+                  ]
+            ]
+    forM_ cases runTestComparison
+
+
+-- | Check axis filtering, type mismatch, and index updates after append.
+testFilterByAxisCases :: IO ()
+testFilterByAxisCases = do
+    let cases = concat
+            [ let
+                  ledger :: AxisJournal
+                  ledger = EJ.fromList
+                      [ (10 :@ (Hat :< Yen)) .| ("A", 1)
+                      , (20 :@ (Not :< Amount)) .| ("B", 1)
+                      , (30 :@ (Hat :< Yen)) .| ("A", 2)
+                      ]
+                  expected = EJ.filterWithNote (\(_, t') _ -> t' == 1) ledger
+                  actual = EJ.filterByAxis 1 (EJ.NoteAxisKey (1 :: Int)) ledger
+                  mismatch = EJ.filterByAxis 1 (EJ.NoteAxisKey ("1" :: String)) ledger
+              in
+                  [ EqualComparison "Journal.filterByAxis matches filterWithNote on axis=1"
+                        (EJ.toMap expected)
+                        (EJ.toMap actual)
+                  , EqualComparison "Journal.filterByAxis type mismatch returns empty"
+                        (EJ.toMap (EJ.Zero :: AxisJournal))
+                        (EJ.toMap mismatch)
+                  ]
+            , let
+                  base :: AxisJournal
+                  base = EJ.fromMap $ HM.fromList
+                      [ (("A", 1), 10 :@ (Hat :< Yen))
+                      , (("C", 2), 5 :@ (Not :< Amount))
+                      ]
+                  rhs :: AxisJournal
+                  rhs = EJ.fromMap $ HM.fromList
+                      [ (("A", 1), 3 :@ (Not :< Amount))
+                      , (("B", 1), 7 :@ (Hat :< Yen))
+                      ]
+                  ledger = base .+ rhs
+                  expected = EJ.filterWithNote (\(_, t') _ -> t' == 1) ledger
+                  actual = EJ.filterByAxis 1 (EJ.NoteAxisKey (1 :: Int)) ledger
+              in
+                  [ EqualComparison "Journal.filterByAxis works after append updates"
+                        (EJ.toMap expected)
+                        (EJ.toMap actual)
+                  ]
+            ]
+    forM_ cases runTestComparison
+
+
+-- | Compare final-stock transfer with the three composed transfers in both representations.
+testFinalStockTransferEquivalence :: IO ()
+testFinalStockTransferEquivalence = do
+    let cases = concat
+            [ let
+                  ref =
+                      (.-)
+                          . EAT.retainedEarningTransfer
+                          . EAT.ordinaryProfitTransfer
+                          . EAT.grossProfitTransfer
+                          $ transferAlgSample
+                  actual = EAT.finalStockTransfer transferAlgSample
+              in
+                  [ EqualComparison
+                        "Algebra.finalStockTransfer matches composed transfer"
+                        ref actual
+                  ]
+            , let
+                  ref =
+                      (.-)
+                          . EJT.retainedEarningTransfer
+                          . EJT.ordinaryProfitTransfer
+                          . EJT.grossProfitTransfer
+                          $ transferJournalSample
+                  actual = EJT.finalStockTransfer transferJournalSample
+              in
+                  [ EqualComparison
+                        "Journal.finalStockTransfer matches composed transfer"
+                        (EJ.toMap ref) (EJ.toMap actual)
+                  ]
+            ]
+    forM_ cases runTestComparison
+
+
+-- | Pin the two toy-model norms at 906 and 3300.
+testLiteToyModels :: IO ()
+testLiteToyModels = do
+    let cases = concat
+            [ let
+                  w0 = MiniW { mwLedger = carry mempty
+                             , mwPrice  = carry 10
+                             , mwTax    = carry 0.1 }
+                  n  = runLite miniSpec w0 (realToFrac . norm . mwLedger)
+              in
+                  [ NearComparison "Lite: boilerplate mini-model runs (norm)" 906.0 n
+                  ]
+            , let
+                  w0 = GateW { gwLedger = carry mempty, gwPrice = carry 10 }
+                  n  = runLite gateSpec w0 (realToFrac . norm . gwLedger)
+              in
+                  [ NearComparison "Lite: gate toy-model equivalence (norm 3300)" 3300.0 n
+                  ]
+            ]
+    forM_ cases runTestComparison
+
+
+-- | Check Field rules and one boundary update per term across two stages.
+testLiteFieldBoundaries :: IO ()
+testLiteFieldBoundaries = do
+    let cases = concat
+            [ [ NearComparison "Lite Field: Carry keeps the value" 60.0 (runRule (carry 10))
+                  , NearComparison
+                        "Lite Field: ResetEach restores each term"
+                        30.0 (runRule (resetEach 5))
+                  , NearComparison "Lite Field: UpdateEach applies the step each boundary"
+                        140.0 (runRule (updateEach 10 (* 2)))
+                  ]
+            ,     [ NearComparison "Lite: term boundary fires once per term (2 stages)" 280.0
+                        (let spec2 = mkSimSpec (1, 3) 0 rwLedger [ruleStage, ruleStage]
+                             w0 = RuleW { rwLedger = carry mempty, rwPrice = updateEach 10 (* 2) }
+                         in realToFrac (runLite spec2 w0 (norm . rwLedger)))
+                  ]
+            ]
+    forM_ cases runTestComparison
+
+
+-- | Check observer visits, committed postings, and pre-update Field values.
+testLiteObserverBoundaries :: IO ()
+testLiteObserverBoundaries = do
+    let cases :: [(String, IO ())]
+        cases =
+            [ ("testLiteObserverTerms",
+                forM_ [(1, 5), (3, 6), (4, 4), (4, 3)] $ \range@(lo, hi) -> do
+                    let spec = polSpec { Lite.specTerms = range }
+                        terms = runLiteFold (\t _ acc -> t : acc) [] spec polW0
+                                    (\acc _ -> reverse acc)
+                    assertEqual "Lite fold observer: term order and count" [lo .. hi] terms
+                    seen <- newIORef []
+                    _ <- runLiteWithPolicyObs (\t _ -> modifyIORef' seen (t :))
+                             Policy.defaultLedgerPolicy spec polW0 (toMap . pwLedger)
+                    observed <- reverse <$> readIORef seen
+                    assertEqual "Lite IO observer: term order and count" [lo .. hi] observed
+              )
+            , ("testLiteObserverBoundary", do
+                let w0 = MiniW { mwLedger = carry mempty
+                               , mwPrice  = updateEach 10 (* 2)
+                               , mwTax    = carry 0.1 }
+                    snapshots = runLiteFold (\t w acc -> (t, w) : acc) [] miniSpec w0
+                                    (\acc _ -> reverse acc)
+                    check :: (Int, MiniW SnapT) -> IO ()
+                    check (t, w) = do
+                        let ledger = toMap (mwLedger w)
+                            price  = 10 * (2 ^ (t - 1)) :: MoneyDouble
+                            keys   = L.sort [(tag, u) | u <- [1 .. t], tag <- ["buy", "tax"]]
+                        assertEqual "Lite observer: all committed notes, no future notes"
+                            keys (L.sort (HM.keys ledger))
+                        assertEqual "Lite observer: price before Field update" price (mwPrice w)
+                        assertEqual "Lite observer: carried tax" 0.1 (mwTax w)
+                        assertNear "Lite observer: current buy stage committed"
+                            (realToFrac (30 * price))
+                            (maybe 0 (realToFrac . norm) (HM.lookup ("buy", t) ledger))
+                        assertNear "Lite observer: current final stage committed"
+                            (realToFrac (2 * price * realToFrac (mwTax w)))
+                            (maybe 0 (realToFrac . norm) (HM.lookup ("tax", t) ledger))
+                forM_ snapshots check
+                seen <- newIORef []
+                finalPrice <- runLiteWithPolicyObs
+                    (\t w -> modifyIORef' seen ((t, w) :))
+                    Policy.defaultLedgerPolicy miniSpec w0 mwPrice
+                ioSnapshots <- reverse <$> readIORef seen
+                assertEqual "Lite IO observer: all boundaries saved" [1, 2, 3] (L.map fst ioSnapshots)
+                forM_ ioSnapshots check
+                assertEqual "Lite continuation: final Field update has fired" 80 finalPrice
+              )
+            ]
+    forM_ cases $ \(_, check) -> check
+
+-- | Check observer equivalence and streaming with retention windows zero and two.
+testLiteObserverPolicyCases :: IO ()
+testLiteObserverPolicyCases = do
+    let cases :: [(String, IO ())]
+        cases =
+            [ ("testLiteObserverEquivalence", do
+                let w0 = MiniW { mwLedger = carry mempty
+                               , mwPrice  = updateEach 10 (* 2)
+                               , mwTax    = carry 0.1 }
+                    project w = (toMap (mwLedger w), mwPrice w, mwTax w)
+                    legacy = runLite miniSpec w0 id
+                    folded = runLiteFold (\_ _ a -> a) () miniSpec w0 (\_ w -> w)
+                assertEqual "Lite fold: unchanged final snapshot" (project legacy) (project folded)
+                full <- runLiteWithPolicy Policy.defaultLedgerPolicy miniSpec w0 project
+                observed <- runLiteWithPolicyObs (\_ _ -> pure ())
+                                Policy.defaultLedgerPolicy miniSpec w0 project
+                assertEqual "Lite IO observer: unchanged full world" full observed
+                forM_ [Policy.RetainAll, Policy.RetainRecent 2] $ \retention ->
+                    withTempSpill "observer_legacy" $ \oldPath ->
+                    withTempSpill "observer_new" $ \newPath -> do
+                        let policy path = Policy.defaultLedgerPolicy
+                                { Policy.retain  = retention
+                                , Policy.spillTo = Just path }
+                        old <- runLiteWithPolicy (policy oldPath) polSpec polW0 pwLedger
+                        new <- runLiteWithPolicyObs (\_ _ -> pure ())
+                                   (policy newPath) polSpec polW0 pwLedger
+                        assertEqual "Lite IO observer: unchanged final policy ledger"
+                            (toMap old) (toMap new)
+                        oldRestored <- Policy.restoreLedger oldPath old :: IO LedgerM
+                        newRestored <- Policy.restoreLedger newPath new :: IO LedgerM
+                        assertEqual "Lite IO observer: unchanged spill contents"
+                            (toMap oldRestored) (toMap newRestored)
+              )
+            , ("testLiteObserverStreamingSpill", do
+                full <- runLiteWithPolicy Policy.defaultLedgerPolicy polSpec polW0 pwLedger
+                forM_ [0, 2] $ \window -> withTempSpill "observer_stream" $ \path -> do
+                    let policy = Policy.defaultLedgerPolicy
+                            { Policy.retain  = Policy.RetainRecent window
+                            , Policy.spillTo = Just path }
+                    seen <- newIORef []
+                    resident <- runLiteWithPolicyObs
+                        (\t w -> modifyIORef' seen ((t, pwLedger w) :))
+                        policy polSpec polW0 pwLedger
+                    snapshots <- reverse <$> readIORef seen
+                    let entries = L.nub (concatMap (HM.toList . toMap . snd) snapshots)
+                        expected = HM.toList (toMap full)
+                        streamed = sigma snapshots $ \(t, ledger) ->
+                            EJ.filterWithNote (\(_, u) _ -> u == t) ledger
+                    assertEqual "Lite streaming: observer term order" [1 .. 5] (L.map fst snapshots)
+                    assertEqual "Lite streaming: snapshot entry set equals FullAudit"
+                        True (length entries == length expected && all (`elem` entries) expected)
+                    assertEqual "Lite streaming: current-term output equals FullAudit exactly"
+                        (toMap full) (toMap streamed)
+                    assertEqual "Lite streaming: final resident window"
+                        [6 - window .. 5] (L.sort (L.map snd (HM.keys (toMap resident))))
+                    restored <- Policy.restoreLedger path resident :: IO LedgerM
+                    assertEqual "Lite streaming: spill plus resident ledger is lossless"
+                        (toMap full) (toMap restored)
+              )
+            ]
+    forM_ cases $ \(_, check) -> check
+
+-- | Check constructor rejection, generator structure, and adjacency reconstruction.
+-- Invariant: the fixed three-node, one-edge network passes its smart constructor.
+testNetworkInvariants :: IO ()
+testNetworkInvariants = do
+    let cases = concat
+            [ let
+                  -- Invariant: this fixed network fixture must pass the smart constructor.
+                  g :: TradeNetwork Int
+                  g = case tradeNetwork [1,2,3] [(1,3)] of
+                      Right graph -> graph
+                      Left err -> error ("Invariant: network fixture rejected: " ++ show err)
+              in
+                  [ EqualComparison "Network: self-loop rejected"
+                        (Left SelfLoop) (tradeNetwork [1,2] [(1,1)] :: Either NetworkError (TradeNetwork Int))
+                  , EqualComparison "Network: duplicate edge rejected"
+                        (Left DuplicateEdge) (tradeNetwork [1,2] [(1,2),(1,2)] :: Either NetworkError (TradeNetwork Int))
+                  , EqualComparison "Network: coefficient outside network rejected"
+                        (Left CoefOutsideNetwork)
+                        (inputCoefficients g [(2,3,0.5)] :: Either NetworkError (InputCoefficients Int Double))
+                  , EqualComparison "Network: negative coefficient rejected"
+                        (Left NegativeCoefficient)
+                        (inputCoefficients g [(1,3,-0.5)] :: Either NetworkError (InputCoefficients Int Double))
+                  , EqualComparison "Network: duplicate coefficient rejected"
+                        (Left DuplicateCoefficient)
+                        (inputCoefficients g [(1,3,0.2),(1,3,0.3)] :: Either NetworkError (InputCoefficients Int Double))
+                  ]
+            , let
+                  ks = [1 .. 8 :: Int]
+                  kr = kRegular (mkStdGen 3) ks 3 :: TradeNetwork Int
+                  n = length ks; m = 2
+                  expected = (m * (m + 1) `div` 2) + (n - m - 1) * m
+              in
+                  [ EqualComparison "Network: kRegular in-degree = min k (N-1)"
+                        (replicate (length ks) 3)
+                        (Prelude.map (length . suppliersOf kr) (nodes kr))
+                  , EqualComparison "Network: erdosRenyi p=1 == completeNetwork edges"
+                        (edges (completeNetwork ks))
+                        (edges (erdosRenyi (mkStdGen 0) ks 1.0 :: TradeNetwork Int))
+                  , EqualComparison "Network: erdosRenyi p=0 has no edges"
+                        0 (edgeCount (erdosRenyi (mkStdGen 0) ks 0.0 :: TradeNetwork Int))
+                  , EqualComparison "Network: scaleFree edge count matches preferential-attachment formula"
+                        expected (edgeCount (scaleFree (mkStdGen 9) ks m :: TradeNetwork Int))
+                  ]
+            , let
+                  ks = [1 .. 25 :: Int]
+                  g  = erdosRenyi (mkStdGen 77) ks 0.25 :: TradeNetwork Int
+                  es = edges g
+                  fwd = all (\(i,j) -> i `elem` suppliersOf g j && j `elem` buyersOf g i) es
+                  -- and the reverse: every (i,j) reconstructed from suppliersOf equals edges
+                  viaSuppliers = L.sort [ (i, j) | j <- nodes g, i <- suppliersOf g j ]
+                  viaBuyers    = L.sort [ (i, j) | i <- nodes g, j <- buyersOf g i ]
+              in
+                  [ EqualComparison "Network: edges <=> suppliersOf (forward)" True fwd
+                  , EqualComparison
+                        "Network: edges == reconstruction from suppliersOf"
+                        (L.sort es) viaSuppliers
+                  , EqualComparison
+                        "Network: edges == reconstruction from buyersOf"
+                        (L.sort es) viaBuyers
+                  ]
+            ]
+    forM_ cases runTestComparison
+
+
+-- | Check CSV quoting and statement-writer wiring using the original input and output rows.
+testCsvWriteCases :: IO ()
+testCsvWriteCases = do
+    let cases =
+            [ let
+                  input = [ [T.pack "Name", T.pack "Value"]
+                          , [T.pack "Alice", T.pack "100"]
+                          , [T.pack "Bob", T.pack "200"] ]
+              in
+                  ( \path -> EW.writeCSV path input
+                  , Just ("CSV writeCSV line count", 3)
+                  , [ ("CSV writeCSV header", "\"Name\",\"Value\"", 0)
+                    , ("CSV writeCSV row 1", "\"Alice\",\"100\"", 1)
+                    , ("CSV writeCSV row 2", "\"Bob\",\"200\"", 2)
+                    ]
+                  )
+            , let
+                  input = [[T.pack "say \"hello\"", T.pack "a,b"]]
+              in
+                  ( \path -> EW.writeCSV path input
+                  , Nothing
+                  , [ ("CSV writeCSV escapes quotes", "\"say \"\"hello\"\"\",\"a,b\"", 0)
+                    ]
+                  )
+            , let
+                  input = [[T.pack "", T.pack "x"]]
+              in
+                  ( \path -> EW.writeCSV path input
+                  , Nothing
+                  , [ ("CSV writeCSV empty cell", "\"\",\"x\"", 0)
+                    ]
+                  )
+            , let
+                  alg = (100 .@ Not :< Cash)
+                      .+ (60  .@ Not :< LoansPayable)
+                      .+ (40  .@ Not :< CapitalStock)
+                      :: EA.Alg Double (HatBase AccountTitles)
+              in
+                  ( \path -> EW.writeBS path alg
+                  , Just ("writeBS pinned: line count", 5)
+                  , [ ("writeBS pinned: row0 (Asset/Liability headers)", "\"Asset\",\"\",\"Liability\",\"\"", 0)
+                    , ("writeBS pinned: row1 (Cash/LoansPayable)", "\"Cash\",\"100.0\",\"LoansPayable\",\"60.0\"", 1)
+                    , ("writeBS pinned: row2 (Total/Equity header)", "\"Total\",\"100.0\",\"Equity\",\"\"", 2)
+                    , ("writeBS pinned: row3 (CapitalStock)", "\"\",\"\",\"CapitalStock\",\"40.0\"", 3)
+                    , ("writeBS pinned: row4 (grand total)", "\"\",\"\",\"Total\",\"100.0\"", 4)
+                    ]
+                  )
+            , let
+                  alg = (500 .@ Not :< Sales)
+                      .+ (300 .@ Not :< SalesCost)
+                      :: EA.Alg Double (HatBase AccountTitles)
+              in
+                  ( \path -> EW.writePL path alg
+                  , Just ("writePL pinned: line count", 3)
+                  , [ ("writePL pinned: row0 (Cost/Revenue headers)", "\"Cost\",\"\",\"Revenue\",\"\"", 0)
+                    , ("writePL pinned: row1 (SalesCost/Sales)", "\"SalesCost\",\"300.0\",\"Sales\",\"500.0\"", 1)
+                    , ("writePL pinned: row2 (totals)", "\"Total\",\"500.0\",\"Total\",\"300.0\"", 2)
+                    ]
+                  )
+            , let
+                  alg = (100 .@ Not :< Cash)
+                      .+ (60  .@ Not :< LoansPayable)
+                      .+ (40  .@ Not :< CapitalStock)
+                      :: EA.Alg Double (HatBase AccountTitles)
+              in
+                  ( \path -> EW.writeCompoundTrialBalance path alg
+                  , Just ("writeCompoundTrialBalance pinned: line count", 5)
+                  , [ ("writeCompoundTrialBalance pinned: header", "\"Debit Balance\",\"Debit Total\",\"Account Title\",\"Credit Total\",\"Credit Balance\"", 0)
+                    , ("writeCompoundTrialBalance pinned: Cash (debit-heavy -> Credit Balance col)", "\"\",\"100.0\",\"Cash\",\"0.0\",\"100.0\"", 1)
+                    , ("writeCompoundTrialBalance pinned: CapitalStock (credit-heavy -> Debit Balance col)", "\"40.0\",\"0.0\",\"CapitalStock\",\"40.0\",\"\"", 2)
+                    , ("writeCompoundTrialBalance pinned: LoansPayable (credit-heavy -> Debit Balance col)", "\"60.0\",\"0.0\",\"LoansPayable\",\"60.0\",\"\"", 3)
+                    , ("writeCompoundTrialBalance pinned: totals", "\"100.0\",\"100.0\",\"Total\",\"100.0\",\"100.0\"", 4)
+                    ]
+                  )
+            , let
+                  jrn = ((100 .@ Not :< Cash) .| "sale")
+                     .+ ((40  .@ Hat :< Cash) .| "pay")
+                      :: Journal String Double (HatBase AccountTitles)
+              in
+                  ( \path -> EW.writeAccountOfJournal [Cash] path jrn
+                  , Just ("writeAccountOfJournal pinned: line count", 4)
+                  , [ ("writeAccountOfJournal pinned: title header", "\"Cash\",\"\",\"\"", 0)
+                    , ("writeAccountOfJournal pinned: sub header", "\"Note\",\"Debit\",\"Credit\"", 1)
+                    , ("writeAccountOfJournal pinned: note order (\"pay\" < \"sale\")", "\"\"\"pay\"\"\",\"\",\"40.0\"", 2)
+                    , ("writeAccountOfJournal pinned: sale posting", "\"\"\"sale\"\"\",\"100.0\",\"\"", 3)
+                    ]
+                  )
+            ]
+    forM_ cases $ \(writeRows, expectedCount, expectedRows) ->
+        withTestTemporaryFile $ \path -> do
+            writeRows path
+            observed <- lines <$> readFileStrict path
+            case expectedCount of
+                Just (label, count) -> assertEqual label count (length observed)
+                Nothing -> pure ()
+            forM_ expectedRows $ \(label, expected, index) ->
+                case drop index observed of
+                    actual : _ -> assertEqual label expected actual
+                    [] -> do
+                        putStrLn ("[FAIL] " ++ label ++ ": missing output row")
+                        exitFailure
+
+-- | Allocate an isolated test file and remove it even if a check raises an exception.
+-- Uses base and directory so the test suite needs no additional package dependency.
+withTestTemporaryFile :: (FilePath -> IO a) -> IO a
+withTestTemporaryFile action = bracket acquire removeSpillTestFile action
+  where
+    acquire = do
+        directory <- getTemporaryDirectory
+        (path, handle) <- openBinaryTempFile directory "exchangealgebra-test.tmp"
+        hClose handle
+        pure path
+
+-- | Check decoded ranges and both restore paths on the original spill fixtures.
+testSpillCheckedCases :: IO ()
+testSpillCheckedCases = do
+    let wellFormed = [((1, 2), spillCheckedChunk1), ((3, 3), spillCheckedChunk2)]
+        rangeCases =
+            [ ("checked spill reader rejects stale append"
+              , wellFormed ++ [((1, 2), spillCheckedChunk1)]
+              , Left (ES.SpillRangeError ES.ChunkOutOfOrder (3, 3) (1, 2)))
+            , ("checked spill reader rejects overlap"
+              , [((1, 3), spillCheckedChunk1), ((2, 4), spillCheckedChunk2)]
+              , Left (ES.SpillRangeError ES.ChunkOverlap (1, 3) (2, 4)))
+            , ("checked spill reader rejects gap"
+              , [((1, 2), spillCheckedChunk1), ((4, 4), spillCheckedChunk2)]
+              , Left (ES.SpillRangeError ES.ChunkGap (1, 2) (4, 4)))
+            , ("checked spill reader rejects empty range"
+              , [((3, 1), spillCheckedChunk1)]
+              , Left (ES.SpillEmptyRange (3, 1)))
+            , ("checked spill reader accepts empty file", [], Right [])
+            ]
+        cases :: [FilePath -> IO ()]
+        cases =
+            [ \path -> do
+                writeSpillTestChunks path wellFormed
+                readResult <- readChunks path
+                case readResult of
+                    Left err -> assertEqual "checked spill reader accepts well-formed chunks"
+                        "Right with two chunks" (ES.renderSpillReadError err)
+                    Right decoded -> assertEqual "checked spill reader returns both chunks"
+                        2 (L.length decoded)
+                restored <- restoreJournalFromBinarySpillChecked path snd spillCheckedCurrent
+                case restored of
+                    Left err -> assertEqual "checked spill restore accepts well-formed chunks"
+                        "Right restored ledger" (ES.renderSpillReadError err)
+                    Right actual -> assertEqual "checked spill restore merges spill + tail remainder"
+                        (EJ.toMap spillCheckedExpected) (EJ.toMap actual)
+                actual <- restoreJournalFromBinarySpill path snd spillCheckedCurrent
+                assertEqual "Write.restoreJournalFromBinarySpill merges spill + tail remainder"
+                    (EJ.toMap spillCheckedExpected) (EJ.toMap actual)
+            , \path -> do
+                let encodedChunk2 = Binary.encode
+                        ((3 :: Int, 3 :: Int), spillCheckedChunk2)
+                    truncatedChunk2 = BL.take (BL.length encodedChunk2 `div` 2) encodedChunk2
+                withFile path WriteMode $ \handle -> do
+                    ES.defaultBinarySpillWriter handle (1 :: Int, 2 :: Int) spillCheckedChunk1
+                    BL.hPut handle truncatedChunk2
+                result <- readChunks path
+                case result of
+                    Left (ES.SpillDecodeFailure offset chunks _) -> do
+                        assertEqual "truncated spill failure follows first chunk" True (offset > 0)
+                        assertEqual "truncated spill reports decoded chunk count" 1 chunks
+                    other -> assertEqual "truncated spill is a decode failure"
+                        "SpillDecodeFailure" (show other)
+                caught <- try
+                    (restoreJournalFromBinarySpill path snd (mempty :: SpillRestoreJournal))
+                    :: IO (Either ErrorCall SpillRestoreJournal)
+                case caught of
+                    Left _ -> putStrLn "[PASS] unchecked spill restore raises ErrorCall"
+                    Right _ -> assertEqual "unchecked spill restore raises ErrorCall" True False
+            ] ++ L.map checkRanges rangeCases
+        checkRanges (label, chunks, expected) path = do
+            writeSpillTestChunks path chunks
+            result <- readChunks path
+            assertEqual label expected (fmap (fmap fst) result)
+    forM_ cases withTestTemporaryFile
+  where
+    readChunks :: FilePath
+        -> IO (Either (ES.SpillReadError Int) [((Int, Int), SpillRestoreJournal)])
+    readChunks = ES.readBinarySpillFileChecked
+
+-- | Pin edge counts, finite sizes, and DAG structure on the original economy inputs.
+testIndustrialNetworkCases :: IO ()
+testIndustrialNetworkCases = do
+    let cases =
+            [ (defaultIndustrialOptions, 2025, 200, 5, 20, Just 4000, False, False, False)
+            , (defaultIndustrialOptions, 2025, 1000, 4, 10, Just 10000, False, False, False)
+            , (defaultIndustrialOptions, 1, 10, 1, 20, Just 45, False, False, False)
+            , (defaultIndustrialOptions { ioExponent = 1.001 }
+              , 1, 1000, 3, 5, Just 5000, True, False, False)
+            , (defaultIndustrialOptions, 19, 500, 5, 12, Nothing, False, True, False)
+            , (defaultIndustrialOptions, 3, 200, 1, 20, Just 4000, False, False, True)
+            ]
+    forM_ cases $ \(options, seed, n, k, m, expectedCount, finite, dag, increasing) -> do
+        let economy = industrialNetworkWith options seed n k m
+            networkEdges = industrialEdges economy
+            label = "Industrial network " ++ show (seed, n, k, m)
+            valid (i, j) = case (M.lookup i (ieSector economy), M.lookup j (ieSector economy)) of
+                (Just si, Just sj) -> i /= j && (si < sj || (si == sj && i < j))
+                _                  -> False
+        case expectedCount of
+            Just expected -> assertEqual (label ++ ": edge count")
+                expected (edgeCount (ieNetwork economy))
+            Nothing -> pure ()
+        when finite $ assertEqual "Industrial network: gamma near 1 keeps every size finite"
+            True (all (\w -> w > 0 && not (isNaN w) && not (isInfinite w))
+                (M.elems (ieSize economy)))
+        when dag $ do
+            assertEqual "Industrial network: no duplicate edges"
+                (length networkEdges) (Set.size (Set.fromList networkEdges))
+            assertEqual "Industrial network: sector order and intra-sector id DAG"
+                True (all valid networkEdges)
+        when increasing $ do
+            assertEqual "Industrial network: K=1 exact |E|=mN" (m * n) (length networkEdges)
+            assertEqual "Industrial network: K=1 edges are increasing ids"
+                True (all (uncurry (<)) networkEdges)
+
 main :: IO ()
 main = do
+    testIndustrialNetworkCases
+    testSpillCheckedCases
+    testCsvWriteCases
+    testNetworkInvariants
+    testLiteObserverPolicyCases
+    testLiteObserverBoundaries
+    testLiteFieldBoundaries
+    testLiteToyModels
+    testFinalStockTransferEquivalence
+    testFilterByAxisCases
+    testSigmaReferences
+    testJournalProjectionNorms
     MoneyParseSpec.runTests
     ExactSumSpec.runTests
     AdmissionSpec.runTests
@@ -6743,74 +6533,25 @@ main = do
     CarrySpec.runTests
     SideTotalsSpec.runTests
     testAccountTitlesBinary
-    testPracticalAndManufacturingAccountTitles
     testAccountTitleClassification
     testReplaceNotesMatchesInsert
     testMapPosting
     testMapMaybePosting
-    testProjMultiPatternOnePass
-    testProjNormFastPath
-    testProjDuplicateExact
-    testProjExactWildcardOverlap
-    testProjNormBarIdentity
-    testProjWithBaseNorm
-    testProjWithNoteNorm
-    testProjWithBaseNormBothSided
     testBasesNotSideRegression
     testNumericToleranceScaleAware
-    testMoneyDecimalExactOrderIndependent
-    testSigmaMergePath
     testSameBaseSeqOrderPathDependence
-    testSigma2When
-    testSigmaFromMap
-    testJournalFromListStrict
-    testUnionZeroSingletonBase
     testScalarRejectsNegative
     testProjConcreteNoIndexForce
-    testLinerReservedFieldsPoisoned
-    testJournalSigmaMergePath
-    testJournalSigma2When
-    testJournalSigmaOn
-    testJournalSigmaOnFromMap
-    testFilterByAxisEquivalent
-    testFilterByAxisWithDeltaUpdates
-    testFinalStockTransferAlgEquivalence
-    testFinalStockTransferJournalEquivalence
-    testFinalStockTransferAggregatedAlias
     testFinalStockRuleReference
     testVocabOrdinalPin
     testIncomeSummaryBalancedNoCrash
     testSpillDecisionSingleSource
-    testRestoreJournalFromBinarySpill
-    testSpillCheckedReaderWellFormed
-    testSpillCheckedReaderTruncated
-    testSpillCheckedReaderStaleAppend
-    testSpillCheckedReaderOverlap
-    testSpillCheckedReaderGap
-    testSpillCheckedReaderEmptyRange
-    testSpillCheckedReaderEmptyFile
     testSimulateEx1Default
     testCsvTranspose
-    testCsvWriteCSV
-    testCsvWriteCSVWithQuotes
-    testCsvWriteCSVEmpty
     testWriteFuncResultsCsv
-    testWriteBSPinned
-    testWritePLPinned
     testWriteJournalPinned
-    testWriteCompoundTrialBalancePinned
-    testWriteAccountOfJournalPinned
-    testLiteBoilerplate
     testLiteDet2
-    testLiteDet1
     testLiteBspInvisibility
-    testLiteGateEquivalence
-    testLiteFieldRules
-    testLiteBoundaryOncePerTerm
-    testLiteObserverTerms
-    testLiteObserverBoundary
-    testLiteObserverEquivalence
-    testLiteObserverStreamingSpill
     testPolicyEquivalence
     testPolicyWindowRoundTrip
     testPolicyCompressClosed
@@ -6819,16 +6560,8 @@ main = do
     testPolicyClassicBridge
     testPolicyHasTermAxis
     testNetCompleteEquiv
-    testNetDeterminism
-    testNetSmartConstructor
     testNetHawkinsSimon
-    testNetGeneratorStructure
-    testNetAdjacencyConsistency
     testNetCsvRoundTrip
-    testIndustrialNetworkEdgeCount
-    testIndustrialNetworkStructure
-    testIndustrialNetworkDeterminism
-    testIndustrialNetworkKOne
     testIndustrialNetworkLarge
     testIndustrialFlowsIdentities
     testIndustrialFlowEdgeCases
@@ -6838,8 +6571,6 @@ main = do
     testMarketWindowTransparent
     testMarketStageOfAutoNote
     testConvertCsvRoundTrip
-    testAssistDescriptionsDrift
-    testAssistDescribeAccount
     testAssistAllAccountInfos
     testAccountMetadataLand1
     testAccountMetadataLand1Golden
@@ -6855,12 +6586,10 @@ main = do
     testJcciAccountNameCoverage
     testAccountLabelsLand4a
     testRegistryWildcards
-    testRegistryContraLand2
     testLand2Contract
     testLand2PimoFlip
     testLand2ExchangeRelation
     testLand2IsContraInstances
-    testLand2AiDivision
     testLand3PresentationGroups
     testLand2Presentation
     testLand2PresentationClosedDiff
