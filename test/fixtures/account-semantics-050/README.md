@@ -7,7 +7,7 @@ added three JCCI titles and made two titles consolidation-only). The commit
 Land 1 baseline the fixture family was first cut from.
 
 - `metadata.tsv` freezes role, posting capability, division semantics,
-  home-side semantics, and reporting eligibility for all 235 concrete titles.
+  home-side semantics, and reporting eligibility for all 240 concrete titles.
 - `account-info.tsv` freezes the LLM-facing projection, including descriptions
   that distinguish statement classifications from bookkeeping control classes
   and internal direction encodings.
@@ -22,6 +22,5 @@ When adding an `AccountTitles` constructor, do not mechanically regenerate
 these files. First decide its role, posting capability, division semantics,
 home-side semantics, and reporting eligibility explicitly.
 
-These fixtures are additive to `pre-account-semantics-050`: the earlier
-fixture remains the compatibility oracle for legacy algebra, closing,
-projection, and presentation behavior.
+The closing, projection-membership, and one-posting statement-row behavior of
+every concrete title is pinned in `account-algebra-behavior`.

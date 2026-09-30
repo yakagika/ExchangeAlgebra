@@ -1,4 +1,4 @@
-# pre-account-semantics-050 semantics (title, enum, binaryHex, division, closing, isContra, whichSide Not, whichSide Hat, whatPIMO, fixedCurrent, finalStockProbe); schema 1; commit 0d8e2791429145f2a48c79adbe62563328ee5c0b
+# account-algebra-behavior semantics (title, enum, binaryHex, division, closing, isContra, whichSide Not, whichSide Hat, whatPIMO, fixedCurrent, finalStockProbe); schema 1
 Cash	0	0000	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
 Deposits	1	0001	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
 CurrentDeposits	2	0002	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
@@ -231,3 +231,11 @@ HeldToMaturityBonds	228	00e4	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	
 SubsidiaryStocks	229	00e5	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
 AffiliateStocks	230	00e6	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
 AvailableForSaleSecurities	231	00e7	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+ConsumptionTaxRefundReceivable	232	00e8	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+PropertyTaxPayable	233	00e9	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+DepositsReceivedFromOfficers	234	00ea	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+EntertainmentExpenses	235	00eb	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+MeetingExpenses	236	00ec	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+NewspaperBooksExpenses	237	00ed	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+RawMaterials	238	00ee	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+GoodsInTransit	239	00ef	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing

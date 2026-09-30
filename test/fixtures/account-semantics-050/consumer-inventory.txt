@@ -41,7 +41,5 @@ src/ExchangeAlgebra/TrialBalance/Validation.hs
 src/ExchangeAlgebra/Write.hs
 test/Spec.hs
 tools/DumpAccountMetadata.hs
-tools/DumpAccountSemanticsGolden.hs
-tools/DumpGolden.hs
 tools/DumpPostVocabGolden.hs
 tools/DumpVocabGolden.hs

@@ -1,4 +1,4 @@
-# pre-land1 parseAccountTitle over corpus (query, show(Either ConvError AccountTitles)); commit 2d9164642f2862725c653e496976770f6e2c7d6f
+# registry-aliases parseAccountTitle over corpus (query, show(Either ConvError AccountTitles)); schema 1
 	Left (UnknownAccount "")
   AccountsPayable  	Right AccountsPayable
   AccountsReceivable  	Right AccountsReceivable
@@ -127,11 +127,11 @@
   仕入  	Right Purchases
   付加価値  	Right ValueAdded
   仮受消費税  	Right ConsumptionTaxReceived
-  仮受金  	Right SuspenseReceipts
+  仮受金  	Left (AmbiguousAccount "  \20206\21463\37329  " [SuspenseReceipts,ConsumptionTaxReceived])
   仮払法人税等  	Right PrepaidCorporateIncomeTaxes
   仮払消費税  	Right ConsumptionTaxPaid
-  仮払金  	Right SuspensePayments
-  借入金  	Right LoansPayable
+  仮払金  	Left (AmbiguousAccount "  \20206\25173\37329  " [SuspensePayments,ConsumptionTaxPaid,PrepaidCorporateIncomeTaxes])
+  借入金  	Left (AmbiguousAccount "  \20511\20837\37329  " [LoansPayable,NotesLoansPayable,BankOverdraft])
   備品  	Right Fixtures
   償却債権取立益  	Right RecoveryOfBadDebts
   利益準備金  	Right LegalRetainedEarnings
@@ -166,7 +166,7 @@
   手形借入金  	Right NotesLoansPayable
   手形売却損  	Right LossOnSalesOfNotesReceivable
   手形貸付金  	Right NotesLoansReceivable
-  投資有価証券  	Right InvestmentSecurities
+  投資有価証券  	Left (AmbiguousAccount "  \25237\36039\26377\20385\35388\21048  " [InvestmentSecurities,HeldToMaturityBonds,AvailableForSaleSecurities])
   支払利息  	Right InterestExpense
   支払家賃  	Right RentExpense
   支払手形  	Right NotesPayable
@@ -174,14 +174,14 @@
   政府サービス  	Right GovernmentService
   旅費交通費  	Right BusinessTrip
   普通預金  	Right Deposits
-  有価証券  	Right Securities
+  有価証券  	Left (AmbiguousAccount "  \26377\20385\35388\21048  " [Securities,TradingSecurities])
   未収入金  	Right OtherReceivables
   未収収益  	Right AccruedRevenue
   未払法人税等  	Right AccruedCorporateIncomeTaxes
   未払消費税  	Right AccruedConsumptionTax
   未払費用  	Right AccruedExpenses
   未払配当金  	Right UnpaidDividends
-  未払金  	Right OtherPayables
+  未払金  	Left (AmbiguousAccount "  \26410\25173\37329  " [OtherPayables,AccruedConsumptionTax])
   株式投資  	Right StockInvestment
   機械装置  	Right Machinery
   水道光熱費  	Right UtilitiesExpense
@@ -597,11 +597,11 @@ wageexpenditure	Right WageExpenditure
 仕入	Right Purchases
 付加価値	Right ValueAdded
 仮受消費税	Right ConsumptionTaxReceived
-仮受金	Right SuspenseReceipts
+仮受金	Left (AmbiguousAccount "\20206\21463\37329" [SuspenseReceipts,ConsumptionTaxReceived])
 仮払法人税等	Right PrepaidCorporateIncomeTaxes
 仮払消費税	Right ConsumptionTaxPaid
-仮払金	Right SuspensePayments
-借入金	Right LoansPayable
+仮払金	Left (AmbiguousAccount "\20206\25173\37329" [SuspensePayments,ConsumptionTaxPaid,PrepaidCorporateIncomeTaxes])
+借入金	Left (AmbiguousAccount "\20511\20837\37329" [LoansPayable,NotesLoansPayable,BankOverdraft])
 備品	Right Fixtures
 償却債権取立益	Right RecoveryOfBadDebts
 利益準備金	Right LegalRetainedEarnings
@@ -636,7 +636,7 @@ wageexpenditure	Right WageExpenditure
 手形借入金	Right NotesLoansPayable
 手形売却損	Right LossOnSalesOfNotesReceivable
 手形貸付金	Right NotesLoansReceivable
-投資有価証券	Right InvestmentSecurities
+投資有価証券	Left (AmbiguousAccount "\25237\36039\26377\20385\35388\21048" [InvestmentSecurities,HeldToMaturityBonds,AvailableForSaleSecurities])
 支払利息	Right InterestExpense
 支払家賃	Right RentExpense
 支払手形	Right NotesPayable
@@ -644,14 +644,14 @@ wageexpenditure	Right WageExpenditure
 政府サービス	Right GovernmentService
 旅費交通費	Right BusinessTrip
 普通預金	Right Deposits
-有価証券	Right Securities
+有価証券	Left (AmbiguousAccount "\26377\20385\35388\21048" [Securities,TradingSecurities])
 未収入金	Right OtherReceivables
 未収収益	Right AccruedRevenue
 未払法人税等	Right AccruedCorporateIncomeTaxes
 未払消費税	Right AccruedConsumptionTax
 未払費用	Right AccruedExpenses
 未払配当金	Right UnpaidDividends
-未払金	Right OtherPayables
+未払金	Left (AmbiguousAccount "\26410\25173\37329" [OtherPayables,AccruedConsumptionTax])
 株式投資	Right StockInvestment
 機械装置	Right Machinery
 水道光熱費	Right UtilitiesExpense

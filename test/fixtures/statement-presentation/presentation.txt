@@ -1,4 +1,4 @@
-# pre-land2 presentation golden; commit 1c1f3f22192d646296c4f4b4d4aff3408a573f39
+# statement-presentation battery b1-b5; schema 1
 ## b1-basic
 -- bsRows
 ["Asset","","Liability",""]
@@ -24,9 +24,9 @@
 ## b2-pl
 -- bsRows
 ["Asset","","Liability",""]
-["SalesCost","300.0","Equity",""]
-["Total","300.0","RetainedEarnings","500.0"]
-["","","Total","500.0"]
+["Total","0.0","Equity",""]
+["","","RetainedEarnings","200.0"]
+["","","Total","200.0"]
 -- plRows
 ["Cost","","Revenue",""]
 ["SalesCost","300.0","Sales","500.0"]
@@ -46,12 +46,14 @@
 ## b3-contra
 -- bsRows
 ["Asset","","Liability",""]
-["AccountsReceivable","1000.0","LoansPayable","400.0"]
-["Building","800.0","AllowanceForDoubtfulAccounts","100.0"]
-["Cash","900.0","AccumulatedDepreciation","200.0"]
-["Total","2700.0","Equity",""]
-["","","CapitalStock","2000.0"]
-["","","Total","2700.0"]
+["Cash","900.0","LoansPayable","400.0"]
+["AccountsReceivable","1000.0","Equity",""]
+["AllowanceForDoubtfulAccounts","-100.0","CapitalStock","2000.0"]
+["TradeReceivablesNet","900.0","Total","2400.0"]
+["Building","800.0","",""]
+["AccumulatedDepreciation","-200.0","",""]
+["DepreciableAssetsNet","600.0","",""]
+["Total","2400.0","",""]
 -- plRows
 ["Cost","","Revenue",""]
 ["Total","0.0","Total","0.0"]
@@ -62,18 +64,21 @@
 -- projDeferredAssets
 0
 -- projCurrentLiability
-400.00:@Not:<LoansPayable .+ 100.00:@Not:<AllowanceForDoubtfulAccounts
+400.00:@Not:<LoansPayable
 -- projFixedLiability
-200.00:@Not:<AccumulatedDepreciation
+0
 -- projCapitalStock
 2000.00:@Not:<CapitalStock
 ## b4-abnormal
 -- bsRows
 ["Asset","","Liability",""]
-["LoansPayable","100.0","AccumulatedDepreciation","200.0"]
-["AllowanceForDoubtfulAccounts","20.0","Equity",""]
-["Building","500.0","Total","250.0"]
-["Total","620.0","",""]
+["LoansPayable","100.0","Equity",""]
+["AllowanceForDoubtfulAccounts","20.0","Total","0.0"]
+["TradeReceivablesNet","20.0","",""]
+["Building","500.0","",""]
+["AccumulatedDepreciation","-200.0","",""]
+["DepreciableAssetsNet","300.0","",""]
+["Total","420.0","",""]
 -- plRows
 ["Cost","","Revenue",""]
 ["Total","0.0","Total","0.0"]
@@ -84,21 +89,22 @@
 -- projDeferredAssets
 0
 -- projCurrentLiability
-200.00:@Not:<LoansPayable .+ 100.00:@Not:<AllowanceForDoubtfulAccounts
+200.00:@Not:<LoansPayable
 -- projFixedLiability
-250.00:@Not:<AccumulatedDepreciation
+0
 -- projCapitalStock
 0
 ## b5-closing
 -- bsRows
 ["Asset","","Liability",""]
-["AccountsReceivable","1000.0","LoansPayable","400.0"]
-["Building","800.0","AllowanceForDoubtfulAccounts","100.0"]
-["SalesCost","300.0","AccumulatedDepreciation","200.0"]
-["Cash","1100.0","Equity",""]
-["Total","3200.0","CapitalStock","2000.0"]
-["","","RetainedEarnings","500.0"]
-["","","Total","3200.0"]
+["Cash","1100.0","LoansPayable","400.0"]
+["AccountsReceivable","1000.0","Equity",""]
+["AllowanceForDoubtfulAccounts","-100.0","CapitalStock","2000.0"]
+["TradeReceivablesNet","900.0","RetainedEarnings","200.0"]
+["Building","800.0","Total","2600.0"]
+["AccumulatedDepreciation","-200.0","",""]
+["DepreciableAssetsNet","600.0","",""]
+["Total","2600.0","",""]
 -- plRows
 ["Cost","","Revenue",""]
 ["SalesCost","300.0","Sales","500.0"]
@@ -110,8 +116,8 @@
 -- projDeferredAssets
 0
 -- projCurrentLiability
-400.00:@Not:<LoansPayable .+ 100.00:@Not:<AllowanceForDoubtfulAccounts
+400.00:@Not:<LoansPayable
 -- projFixedLiability
-200.00:@Not:<AccumulatedDepreciation
+0
 -- projCapitalStock
 2000.00:@Not:<CapitalStock

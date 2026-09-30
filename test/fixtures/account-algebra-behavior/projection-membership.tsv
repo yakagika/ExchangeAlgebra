@@ -1,4 +1,4 @@
-# pre-account-semantics-050 projection flags for Not then Hat (currentAssets, fixedAssets, deferredAssets, currentLiability, fixedLiability, capitalStock, contraAssets, contra); schema 1; commit 0d8e2791429145f2a48c79adbe62563328ee5c0b
+# account-algebra-behavior projection flags for Not then Hat (currentAssets, fixedAssets, deferredAssets, currentLiability, fixedLiability, capitalStock, contraAssets, contra); schema 1
 Cash	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
 Deposits	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
 CurrentDeposits	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
@@ -231,3 +231,11 @@ HeldToMaturityBonds	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0
 SubsidiaryStocks	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0
 AffiliateStocks	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0
 AvailableForSaleSecurities	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+ConsumptionTaxRefundReceivable	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+PropertyTaxPayable	0	0	0	1	0	0	0	0	0	0	0	0	0	0	0	0
+DepositsReceivedFromOfficers	0	0	0	1	0	0	0	0	0	0	0	0	0	0	0	0
+EntertainmentExpenses	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+MeetingExpenses	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+NewspaperBooksExpenses	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+RawMaterials	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+GoodsInTransit	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0

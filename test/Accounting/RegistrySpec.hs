@@ -372,8 +372,7 @@ testAccountTitleClassification = do
 
 type FinalStockProbe = EA.Alg Double (HatBase AccountTitles)
 
--- | Classify the observable image of the same one-posting probe used to
--- generate @test/fixtures/pre-vocab/finalstock.tsv@.
+-- | Classify the observable image of a one-posting probe.
 --
 -- Complexity: O(1)
 finalStockProbeRule :: AccountTitles -> String
@@ -747,15 +746,22 @@ testAssistSuggestAccounts = do
         [] (Assist.suggestAccounts (T.pack "zzzznomatch"))
 
 -- ================================================================
--- Land 1 registry: frozen pre-registry behavior.
+-- Registry goldens: alias resolution and account behavior.
 -- ================================================================
 
-goldenCommit :: T.Text
-goldenCommit = T.pack "2d9164642f2862725c653e496976770f6e2c7d6f"
-
 goldenHeader :: T.Text -> T.Text
-goldenHeader what =
-    T.pack "# pre-land1 " <> what <> T.pack "; commit " <> goldenCommit <> T.pack "\n"
+goldenHeader what = T.pack "# registry-aliases " <> what <> T.pack "; schema 1\n"
+
+-- | Compare a rendered golden with its fixture. @EA_REGEN_GOLDEN=1@ rewrites
+-- the fixture from the current output instead.
+goldenCheck :: String -> FilePath -> T.Text -> IO ()
+goldenCheck label path expected = do
+    regen <- lookupEnv "EA_REGEN_GOLDEN"
+    case regen of
+        Just "1" -> TIO.writeFile path expected
+        _ -> do
+            actual <- TIO.readFile path
+            assertEqual label actual expected
 
 goldenShow :: Show a => a -> T.Text
 goldenShow = T.pack . show
@@ -887,16 +893,13 @@ testPostVocabGolden = do
     assertEqual "post-vocab suggest fixture" suggestions postVocabSuggestionsGolden
 
 -- ================================================================
--- 0.5.0.0 account-semantics pipeline: pre-change compatibility baseline.
+-- Account behavior over every concrete title: closing, projection membership,
+-- and the one-posting statement rows.
 -- ================================================================
-
-accountSemanticsBaselineCommit :: T.Text
-accountSemanticsBaselineCommit = T.pack "0d8e2791429145f2a48c79adbe62563328ee5c0b"
 
 accountSemanticsHeader :: T.Text -> T.Text
 accountSemanticsHeader what =
-    T.pack "# pre-account-semantics-050 " <> what
-    <> T.pack "; schema 1; commit " <> accountSemanticsBaselineCommit <> T.pack "\n"
+    T.pack "# account-algebra-behavior " <> what <> T.pack "; schema 1\n"
 
 accountSemanticsBinaryHex :: AccountTitles -> T.Text
 accountSemanticsBinaryHex = T.pack . concatMap hexByte . BL.unpack . Binary.encode
@@ -905,10 +908,8 @@ accountSemanticsBinaryHex = T.pack . concatMap hexByte . BL.unpack . Binary.enco
         [digit] -> ['0', digit]
         digits  -> digits
 
--- The pre-account-semantics fixture is immutable and predates the three
--- Land 4a constructors appended after ordinal 231.
 accountSemanticsBaselineTitles :: [AccountTitles]
-accountSemanticsBaselineTitles = L.take 232 Registry.concreteAccountTitles
+accountSemanticsBaselineTitles = Registry.concreteAccountTitles
 
 accountSemanticsSemanticsGolden :: T.Text
 accountSemanticsSemanticsGolden =
@@ -934,19 +935,6 @@ accountSemanticsSemanticsGolden =
             , goldenShow (fixedCurrent nb)
             , T.pack (finalStockProbeRule title)
             ]
-
-accountSemanticsInfoGolden :: T.Text
-accountSemanticsInfoGolden =
-    accountSemanticsHeader (T.pack "AccountInfo (title, division, homeSide, nameEn, nameJa, description)")
-    <> T.unlines
-        [ legacyDescriptionSpelling (Assist.aiTitle info) (goldenInfoRow info)
-        | info <- L.take 232 Assist.allAccountInfos ]
-
--- The old baselines retain the pre-2026-09-23 en-US spelling for one description.
-legacyDescriptionSpelling :: AccountTitles -> T.Text -> T.Text
-legacyDescriptionSpelling EquityInEarningsOfInvestee =
-    T.replace (T.pack "Recognized") (T.pack "Recognised")
-legacyDescriptionSpelling _ = id
 
 accountSemanticsProjectionGolden :: T.Text
 accountSemanticsProjectionGolden =
@@ -986,39 +974,19 @@ accountSemanticsPresentationGolden =
             , goldenEsc (goldenShow (EW.plRows value))
             ]
 
-testAccountSemanticsPrechangeGolden :: IO ()
-testAccountSemanticsPrechangeGolden = do
-    semantics <- TIO.readFile "test/fixtures/pre-account-semantics-050/semantics.tsv"
-    info <- TIO.readFile "test/fixtures/pre-account-semantics-050/account-info.tsv"
-    projections <- TIO.readFile "test/fixtures/pre-account-semantics-050/projection-membership.tsv"
-    presentation <- TIO.readFile "test/fixtures/pre-account-semantics-050/presentation.tsv"
-    assertEqual "pre-account-semantics semantics fixture has 232 rows"
-        232 (L.length (L.drop 1 (T.lines semantics)))
-    assertEqual "pre-account-semantics semantics fixture"
-        semantics accountSemanticsSemanticsGolden
-    assertEqual "pre-account-semantics legacy AccountInfo fixture"
-        info accountSemanticsInfoGolden
-    assertEqual "pre-account-semantics projection fixture"
-        projections accountSemanticsProjectionGolden
-    let oldPresentation = L.drop 1 (T.lines presentation)
-        newPresentation = L.drop 1 (T.lines accountSemanticsPresentationGolden)
-        changedTitles =
-            [ T.takeWhile (/= '\t') new
-            | (old, new) <- L.zip oldPresentation newPresentation
-            , old /= new
-            ]
-    assertEqual "pre-account-semantics presentation row count"
-        (L.length oldPresentation) (L.length newPresentation)
-    assertEqual "presentation closed diff = contra rows plus two formerly phantom totals"
-        [ T.pack "NetLoss"
-        , T.pack "AllowanceForDoubtfulAccounts"
-        , T.pack "AccumulatedDepreciation"
-        , T.pack "SalesRebates"
-        , T.pack "RefundOfIncomeTaxes"
-        , T.pack "PurchaseRebates"
-        , T.pack "NetLossAttributableToNCI"
-        ]
-        changedTitles
+testAccountAlgebraBehaviorGolden :: IO ()
+testAccountAlgebraBehaviorGolden = do
+    let dir = "test/fixtures/account-algebra-behavior/"
+    goldenCheck "account algebra behavior: closing and semantics"
+        (dir ++ "semantics.tsv") accountSemanticsSemanticsGolden
+    goldenCheck "account algebra behavior: projection membership"
+        (dir ++ "projection-membership.tsv") accountSemanticsProjectionGolden
+    goldenCheck "account algebra behavior: one-posting statement rows"
+        (dir ++ "presentation.tsv") accountSemanticsPresentationGolden
+    semantics <- TIO.readFile (dir ++ "semantics.tsv")
+    assertEqual "account algebra behavior covers every concrete title"
+        (L.length Registry.concreteAccountTitles)
+        (L.length (L.filter (not . T.null) (L.drop 1 (T.lines semantics))))
 
 testWriteRowsGolden :: IO ()
 testWriteRowsGolden = do
@@ -1078,42 +1046,15 @@ testAdmissionBaselineGolden = do
                 actual <- TIO.readFile path
                 assertEqual ("admission-baseline-p1 fixture " ++ name) actual expected
 
--- Land 2 (Definition 7 contra amendment) 以降: alias 解決だけが byte 一致
--- (parseAccountTitle は division 非依存)。semantics / info / suggest は
--- 'testStatementPresentationGoldenDiff' pins the intentional differences.
-testRegistryGolden :: IO ()
-testRegistryGolden = do
-    aliases <- TIO.readFile "test/fixtures/pre-land1/alias-resolution.tsv"
-    jcci <- TIO.readFile "test/fixtures/jcci-2022/queries.tsv"
-    let oldRows = L.filter (not . T.null) (L.drop 1 (T.lines aliases))
-        currentRows = L.filter (not . T.null)
-            (L.drop 1 (T.lines (goldenAliasResolution aliases)))
-        changedQueries =
-            [ T.takeWhile (/= '\t') old
-            | (old, current) <- L.zip oldRows currentRows
-            , old /= current
-            ]
-        expectedChangedQueries = L.sort (L.map T.pack
-            [ "未払金", "借入金", "仮払金", "仮受金"
-            , "有価証券", "投資有価証券"
-            , "  未払金  ", "  借入金  ", "  仮払金  ", "  仮受金  "
-            , "  有価証券  ", "  投資有価証券  "
-            ])
-        officialQueries =
-            [ EC.normalizeTitle (fields L.!! 3)
-            | line <- L.filter (not . T.null) (L.drop 1 (T.lines jcci))
-            , let fields = T.splitOn (T.pack "\t") line
-            , L.length fields == 7
-            ]
-    assertEqual "registry golden: historical row count"
-        (L.length oldRows) (L.length currentRows)
-    assertEqual "registry golden: every changed historical alias is JCCI-scoped"
-        ([] :: [T.Text])
-        [q | q <- changedQueries, EC.normalizeTitle q `L.notElem` officialQueries]
-    -- The pre-land fixture freezes each old result; testJcciAccountNameCoverage
-    -- freezes each new result. Freezing this exact query set closes the diff.
-    assertEqual "registry golden: exact adjudicated historical alias diff"
-        expectedChangedQueries (L.sort changedQueries)
+-- | Every historical alias query resolves as pinned. The queries come from the
+-- fixture itself; regenerate with @EA_REGEN_GOLDEN=1@ after an intended change.
+testAliasResolutionGolden :: IO ()
+testAliasResolutionGolden = do
+    let path = "test/fixtures/registry-aliases/alias-resolution.tsv"
+    aliases <- TIO.readFile path
+    assertEqual "alias resolution golden: query count"
+        703 (L.length (L.filter (not . T.null) (L.drop 1 (T.lines aliases))))
+    goldenCheck "alias resolution golden" path (goldenAliasResolution aliases)
 
 -- | JCCI 2022 A欄/B欄の全 distinct query は, 一意のRightかfixtureで候補を
 -- 閉じたAmbiguousのどちらかでなければならない. Unknown/first-matchは不可.
@@ -1272,9 +1213,8 @@ testRegistryWildcards = do
 
 
 -- ================================================================
--- Land 2 (Definition 7 contra amendment): closed-diff vs pre-land1
--- golden, contract / relation properties, presentation invariance.
--- pre-land1 fixtures stay frozen as the pre-amendment reference.
+-- Contra accounts (Definition 7 contra amendment): contract and relation
+-- properties, presentation invariance.
 -- ================================================================
 
 contraAssetTitles :: [AccountTitles]
@@ -1504,9 +1444,7 @@ testPresentationGroups = do
         (["RefundOfIncomeTaxes","-40.0","",""] `elem` purchasesAndTaxesRows
             && ["IncomeTaxesNet","260.0","",""] `elem` purchasesAndTaxesRows)
 
--- T5/T6: presentation battery。bsRows/plRows の literal は, 以下で明記する
--- vocabulary closing 差分を除き, Land 1 出力 (pre-land2 golden, commit
--- 1c1f3f2) と byte 一致 = 表示互換 shim の証明。
+-- T5/T6: presentation battery。bsRows/plRows と projection の literal 期待値。
 -- division projection は contra を含まず, contra は projContraAssets のみが選ぶ
 -- (意図的差分: projCurrentLiability/projFixedLiability から当該 2 件が消えた)。
 statementFixtureB1, statementFixtureB2, statementFixtureB3, statementFixtureB4, statementFixtureB5 :: BAlg
@@ -1604,8 +1542,8 @@ testStatementRowsAndProjectionsLiteral = do
         "100.00:@Not:<AllowanceForDoubtfulAccounts .+ 200.00:@Not:<AccumulatedDepreciation"
         (show (EA.projContraAssets statementFixtureB5))
 
--- Current presentation battery. Exact Land 3 rows are pinned above; this dump
--- is also compared structurally with the pre-Land 2 fixture below.
+-- Current presentation battery. The literal rows are pinned above; this dump
+-- covers the remaining row and projection output byte for byte.
 statementPresentationLines :: [T.Text]
 statementPresentationLines = L.concatMap sect
     [ ("b1-basic", statementFixtureB1), ("b2-pl", statementFixtureB2), ("b3-contra", statementFixtureB3)
@@ -1627,42 +1565,12 @@ statementPresentationLines = L.concatMap sect
         , ("projCapitalStock",     EA.projCapitalStock)
         ]
 
-testStatementPresentationGoldenDiff :: IO ()
-testStatementPresentationGoldenDiff = do
-    fixture <- TIO.readFile "test/fixtures/pre-land2/presentation.txt"
-    let oldLines = L.filter (not . T.null) (L.drop 1 (T.lines fixture))
-        newLines = statementPresentationLines
-        names = L.map T.pack ["b1-basic", "b2-pl", "b3-contra", "b4-abnormal", "b5-closing"]
-        markers = L.map T.pack
-            [ "-- bsRows", "-- plRows", "-- projCurrentAssets"
-            , "-- projFixedAssets", "-- projDeferredAssets"
-            , "-- projCurrentLiability", "-- projFixedLiability"
-            , "-- projCapitalStock"
-            ]
-        section name xs = takeWhile (not . T.isPrefixOf (T.pack "## "))
-            (drop 1 (dropWhile (/= (T.pack "## " <> name)) xs))
-        block marker xs = marker
-            : takeWhile (not . T.isPrefixOf (T.pack "-- "))
-                (drop 1 (dropWhile (/= marker) xs))
-        changedBlocks =
-            [ (name, marker)
-            | name <- names
-            , marker <- markers
-            , block marker (section name oldLines) /= block marker (section name newLines)
-            ]
-    assertEqual "closed diff: only adjudicated battery blocks changed"
-        [ (T.pack "b2-pl", T.pack "-- bsRows")
-        , (T.pack "b3-contra", T.pack "-- bsRows")
-        , (T.pack "b3-contra", T.pack "-- projCurrentLiability")
-        , (T.pack "b3-contra", T.pack "-- projFixedLiability")
-        , (T.pack "b4-abnormal", T.pack "-- bsRows")
-        , (T.pack "b4-abnormal", T.pack "-- projCurrentLiability")
-        , (T.pack "b4-abnormal", T.pack "-- projFixedLiability")
-        , (T.pack "b5-closing", T.pack "-- bsRows")
-        , (T.pack "b5-closing", T.pack "-- projCurrentLiability")
-        , (T.pack "b5-closing", T.pack "-- projFixedLiability")
-        ]
-        changedBlocks
+testStatementPresentationGolden :: IO ()
+testStatementPresentationGolden =
+    goldenCheck "statement presentation golden"
+        "test/fixtures/statement-presentation/presentation.txt"
+        (T.pack "# statement-presentation battery b1-b5; schema 1\n"
+            <> T.unlines statementPresentationLines)
 
 -- HatNot は whichSide で明示 error (規約の regression 固定)
 testWhichSideHatNotErrors :: IO ()
@@ -2943,12 +2851,12 @@ runTests = do
     testAccountSemanticsGolden
     testAssistSuggestAccounts
     testPostVocabGolden
-    testAccountSemanticsPrechangeGolden
+    testAccountAlgebraBehaviorGolden
     testWriteRowsGolden
     testReadoutBaselineGolden
     testExampleNumbersGolden
     testAdmissionBaselineGolden
-    testRegistryGolden
+    testAliasResolutionGolden
     testJcciAccountNameCoverage
     testJapaneseAccountLabels
     testRegistryWildcards
@@ -2958,7 +2866,7 @@ runTests = do
     testIsContraSweepAcrossBaseInstances
     testPresentationGroups
     testStatementRowsAndProjectionsLiteral
-    testStatementPresentationGoldenDiff
+    testStatementPresentationGolden
     testWhichSideHatNotErrors
     testConsolidationWorksheet
     testSharedAccountBalancePrimitives

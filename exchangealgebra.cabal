@@ -21,6 +21,9 @@ extra-source-files:
     README.md
     ChangeLog.md
     docs/migration-0.5-derived-metrics.md
+    test/fixtures/account-algebra-behavior/presentation.tsv
+    test/fixtures/account-algebra-behavior/projection-membership.tsv
+    test/fixtures/account-algebra-behavior/semantics.tsv
     test/fixtures/account-semantics-050/account-info.tsv
     test/fixtures/account-semantics-050/consumer-inventory.txt
     test/fixtures/account-semantics-050/metadata.tsv
@@ -95,12 +98,6 @@ extra-source-files:
     test/fixtures/post-vocab/README.md
     test/fixtures/post-vocab/semantics.tsv
     test/fixtures/post-vocab/suggest.tsv
-    test/fixtures/pre-account-semantics-050/account-info.tsv
-    test/fixtures/pre-account-semantics-050/presentation.tsv
-    test/fixtures/pre-account-semantics-050/projection-membership.tsv
-    test/fixtures/pre-account-semantics-050/semantics.tsv
-    test/fixtures/pre-land1/alias-resolution.tsv
-    test/fixtures/pre-land2/presentation.txt
     test/fixtures/pre-vland2/ordinals.tsv
     test/fixtures/readout-baseline-p1/alg-decimal-f-dec2.tsv
     test/fixtures/readout-baseline-p1/alg-decimal-f-int.tsv
@@ -124,6 +121,8 @@ extra-source-files:
     test/fixtures/readout-baseline-p1/journal-double-f-int.tsv
     test/fixtures/readout-baseline-p1/journal-double-f-sub.tsv
     test/fixtures/readout-baseline-p1/README.md
+    test/fixtures/registry-aliases/alias-resolution.tsv
+    test/fixtures/statement-presentation/presentation.txt
     test/fixtures/wire-format-p2/decode-boundaries.tsv
     test/fixtures/wire-format-p2/README.md
     test/fixtures/wire-format-p2/wire-format.tsv
