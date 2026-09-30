@@ -37,9 +37,11 @@ def interface_path(module):
     matches = list((ROOT / ".stack-work/dist").glob(
         f"*/ghc-*/build/{module.replace('.', '/')}.hi"
     ))
-    if len(matches) != 1:
-        raise RuntimeError(f"Expected one interface for {module}, found {len(matches)}")
-    return matches[0]
+    if not matches:
+        raise RuntimeError(f"Expected an interface for {module}, found none")
+    # An old checkout keeps one dist directory per platform and GHC that built
+    # it. The interface of the build that just ran is the newest one.
+    return max(matches, key=lambda path: path.stat().st_mtime)
 
 
 def export_names(module):
