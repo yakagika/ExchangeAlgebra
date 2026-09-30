@@ -17,6 +17,23 @@
 -- sides, and values gives bit-identical scalar outputs under reordering and
 -- accumulator merging. Changing notes, compressing, or substituting rounded
 -- partial totals is outside this guarantee, as are enumeration, Show, and Binary.
+--
+-- Sum both structural sides, then explicitly cancel a complete base. The
+-- original postings remain available for the gross readout.
+--
+-- >>> import qualified ExchangeAlgebra.Algebra.Core as Algebra
+-- >>> import ExchangeAlgebra.Algebra.Base.Representation (Hat(..), HatBase(..))
+-- >>> import ExchangeAlgebra.Algebra.Element (CountUnit(..))
+-- >>> type Amounts = Algebra.Alg Double (HatBase CountUnit)
+-- >>> let increase = 10 Algebra..@ (Not :< Amount) :: Amounts
+-- >>> let decrease = 7 Algebra..@ (Hat :< Amount) :: Amounts
+-- >>> let postings = increase Algebra..+ decrease :: Amounts
+-- >>> normExact postings
+-- Right 17.0
+-- >>> normExact =<< barExact postings
+-- Right 3.0
+-- >>> projNetNormExact [HatNot :< Amount, HatNot :< Amount] postings
+-- Right 3.0
 module ExchangeAlgebra.Algebra.Exact (
                                      -- * Accumulators
                                      ExactSum(..)

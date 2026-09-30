@@ -5,6 +5,32 @@
 -- resolves references and selects a visible ledger snapshot. The admission
 -- engine uses this module to call Bookkeeping builders with fixed authority.
 -- Read metadata and parameter policy before the 'executeCatalog' entry point.
+--
+-- Inspect and execute an indirect depreciation call after its scope and
+-- generated key have been authorized. The amount uses the ledger's currency
+-- unit. The result is a balanced entry, with no query value.
+--
+-- >>> :set -XOverloadedStrings
+-- >>> import qualified Data.Map.Strict as Map
+-- >>> import qualified ExchangeAlgebra.IO.Input.Admission as Admission
+-- >>> import qualified ExchangeAlgebra.Algebra.Core as Algebra
+-- >>> import qualified ExchangeAlgebra.Accounting.Exchange as Exchange
+-- >>> let entity = Admission.EntityId "shop"
+-- >>> let period = Admission.PeriodId "2026"
+-- >>> let key = Admission.TxKey entity period (Admission.TxId "depreciation")
+-- >>> let identity = Admission.CallId "depreciate"
+-- >>> let body = Admission.DepIndirect 100
+-- >>> let invocation = Admission.Call identity entity period (Just key) body
+-- >>> (catalogKind (Admission.callBody invocation), catalogStage (Admission.callBody invocation))
+-- (DepIndirectKind,AdjustmentStage)
+-- >>> parameterErrors invocation
+-- []
+-- >>> let executed = executeCatalog Map.empty mempty invocation
+-- >>> let debit entry = Algebra.norm (Exchange.decL entry) == 100
+-- >>> let credit entry = Algebra.norm (Exchange.decR entry) == 100
+-- >>> let readResult (entry, query) = (debit entry, credit entry, query == Nothing)
+-- >>> fmap readResult executed
+-- Right (True,True,True)
 module ExchangeAlgebra.IO.Input.Admission.Catalog
     ( -- * Catalog metadata
       catalogKind

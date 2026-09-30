@@ -10,6 +10,34 @@ This module is the reporting boundary: presentation accepts only an opaque
 'TB.ValidatedTrialBalance'. Bookkeeping coordinates remain unchanged; all
 eliminations, relabelings, maturity allocations, netting decisions, and
 subtotals are recorded as presentation audit events.
+
+Present a validated cash contribution with the standalone reporting context.
+Read amounts and sections without relying on the order of statement lines.
+
+>>> import qualified Data.Map.Strict as Map
+>>> import qualified Data.Set as Set
+>>> import qualified ExchangeAlgebra.Algebra.Core as Algebra
+>>> import ExchangeAlgebra.Algebra.Base.Representation (Hat(..), HatBase(..))
+>>> import ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
+>>> import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
+>>> type TrialBalance = Algebra.Alg MoneyDecimal (HatBase AccountTitles)
+>>> let cash = 100 Algebra..@ (Not :< Cash) :: TrialBalance
+>>> let equity = 100 Algebra..@ (Not :< CapitalStock) :: TrialBalance
+>>> let capital = cash Algebra..+ equity :: TrialBalance
+>>> let input = TB.TrialBalanceInput capital TB.BeforeClosing Map.empty [] Set.empty
+>>> let validated = TB.validateTrialBalance TB.standaloneTrialBalancePolicy input
+>>> let context = jcciSecondGradeContext Standalone
+>>> let statements = fmap (present context) validated
+>>> fmap (fmap (length . _statementLines)) statements
+Right (Right 2)
+>>> fmap (fmap (sum . map _lineAmount . _statementLines)) statements == Right (Right 200)
+True
+>>> let isCash line = _lineAccount line == Cash
+>>> let isCurrent line = _lineSection line == CurrentAssetsSection
+>>> let isCurrentCash line = isCash line && isCurrent line
+>>> let hasCurrentCash = any isCurrentCash . _statementLines
+>>> fmap (fmap hasCurrentCash) statements
+Right (Right True)
 -}
 module ExchangeAlgebra.Accounting.Statements.Presentation
     ( AccountingFramework(..)

@@ -20,6 +20,28 @@ apply a transfer, then validate the resulting trial balance again.
 
 Validation uses exact equality. Prefer an exact value type such as
 @MoneyDecimal@ for deterministic accounting gates.
+
+Validate a cash contribution before preparing statements. The gate preserves
+the supplied postings and stage; it does not close or reclassify them.
+
+>>> import qualified Data.Map.Strict as Map
+>>> import qualified Data.Set as Set
+>>> import qualified ExchangeAlgebra.Algebra.Core as Algebra
+>>> import ExchangeAlgebra.Algebra.Base.Representation (Hat(..), HatBase(..))
+>>> import ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
+>>> import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
+>>> type TrialBalance = Algebra.Alg MoneyDecimal (HatBase AccountTitles)
+>>> let cash = 100 Algebra..@ (Not :< Cash) :: TrialBalance
+>>> let equity = 100 Algebra..@ (Not :< CapitalStock) :: TrialBalance
+>>> let capital = cash Algebra..+ equity :: TrialBalance
+>>> let input = TrialBalanceInput capital BeforeClosing Map.empty [] Set.empty
+>>> let accepted = validateTrialBalance strictTrialBalancePolicy input
+>>> trialBalanceFindings input
+[]
+>>> fmap (Algebra.norm . validatedTrialBalance) accepted == Right 200
+True
+>>> fmap validatedStage accepted
+Right BeforeClosing
 -}
 module ExchangeAlgebra.Accounting.TrialBalance.Validation
     ( TrialBalanceStage(..)

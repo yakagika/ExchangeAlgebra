@@ -5,6 +5,38 @@
 -- conversion and bookkeeping supply its entries; accepted values are consumed
 -- by the public derivation functions. Journal is the committed source of truth.
 -- Read the validation stages in order; 'admit' assembles them at the end.
+--
+-- Admit a cash sale against an independently supplied total debit amount.
+-- The registry authorizes ordinary submitted postings for exactly one key.
+-- Changing the evidence amount rejects the same balanced submission.
+--
+-- >>> :set -XOverloadedStrings
+-- >>> import Data.Either (isLeft)
+-- >>> import qualified Data.Map.Strict as Map
+-- >>> import qualified Data.Set as Set
+-- >>> import qualified ExchangeAlgebra.IO.Input.Admission as Admission
+-- >>> import ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
+-- >>> let entity = Admission.EntityId "shop"
+-- >>> let period = Admission.PeriodId "2026"
+-- >>> let key = Admission.TxKey entity period (Admission.TxId "sale")
+-- >>> let evidence = Admission.EvidenceId "sale-total"
+-- >>> let supplies = [Admission.SupplySubmission Admission.Ordinary]
+-- >>> let rule = Admission.txRule Admission.Required supplies (Just evidence)
+-- >>> let registryResult = Admission.txIdRegistry [(key, rule)]
+-- >>> let evidenceAmounts amount = Map.singleton evidence amount
+-- >>> let baseSpec registry amount = Admission.AdmissionSpec registry (evidenceAmounts amount)
+-- >>> let vocabulary = Set.fromList [Cash, Sales]
+-- >>> let spec registry amount = baseSpec registry amount Map.empty vocabulary
+-- >>> let postings = [("Debit", "Cash", 100), ("Credit", "Sales", 100)] :: Admission.RawPostings
+-- >>> let submitted = Admission.Submission [(key, postings)] []
+-- >>> let admitSale registry = admit (spec registry 100) submitted
+-- >>> let accepted = fmap admitSale registryResult
+-- >>> fmap (fmap (Map.size . Admission.deriveLedger)) accepted
+-- Right (Right 1)
+-- >>> fmap (fmap (null . Admission.admittedAudit)) accepted
+-- Right (Right True)
+-- >>> fmap (\registry -> isLeft (admit (spec registry 99) submitted)) registryResult
+-- Right True
 module ExchangeAlgebra.IO.Input.Admission.Engine (admit) where
 
 import Control.Monad (foldM)

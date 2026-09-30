@@ -15,6 +15,23 @@ main = doctest  [ "-isrc"
                 , "src/ExchangeAlgebra/Algebra/Transfer/Representation.hs"
                 , "src/ExchangeAlgebra/Accounting/Closing.hs"
                 , "src/ExchangeAlgebra/Journal/Core/Representation.hs"
+                  -- journal transfers are not reachable from the umbrella;
+                  -- list them explicitly to check their Haddock examples.
+                , "src/ExchangeAlgebra/Journal/Transfer.hs"
+                  -- exact readouts and reporting gates have their own examples;
+                  -- explicit roots keep them covered independently of umbrellas.
+                , "src/ExchangeAlgebra/Algebra/Exact.hs"
+                , "src/ExchangeAlgebra/Journal/Exact.hs"
+                , "src/ExchangeAlgebra/Accounting/TrialBalance/Validation.hs"
+                , "src/ExchangeAlgebra/Accounting/Statements/Presentation.hs"
+                , "src/ExchangeAlgebra/Accounting/Consolidation.hs"
+                  -- admission execution modules are not re-exported in full;
+                  -- list them explicitly to check their examples too.
+                , "src/ExchangeAlgebra/IO/Input/Admission/Catalog.hs"
+                , "src/ExchangeAlgebra/IO/Input/Admission/Engine.hs"
+                  -- the admission examples import its public API qualified;
+                  -- load that module before doctest evaluates those imports.
+                , "src/ExchangeAlgebra/IO/Input/Admission.hs"
                 , "src/ExchangeAlgebra/Algebra/Value.hs"
                 , "src/ExchangeAlgebra/Simulation/Network/Representation.hs"
                 , "src/ExchangeAlgebra/Simulation/Network/Flows.hs"

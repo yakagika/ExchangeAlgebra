@@ -15,6 +15,28 @@
 -- of (note, complete base, side, value), including under accumulator merging.
 -- Reassigning notes, compressing, substituting rounded partial sums, enumeration,
 -- Show, and Binary are outside that guarantee.
+--
+-- Opposite sides in different notes contribute to the gross norm. A base
+-- projection cancels within each note; explicit 'barExact' gathers the notes
+-- before cancellation.
+--
+-- >>> import qualified ExchangeAlgebra.Algebra.Core as Algebra
+-- >>> import ExchangeAlgebra.Algebra.Base.Representation (Hat(..), HatBase(..))
+-- >>> import ExchangeAlgebra.Algebra.Element (CountUnit(..))
+-- >>> import qualified ExchangeAlgebra.Journal.Core as Journal
+-- >>> type Amounts = Algebra.Alg Double (HatBase CountUnit)
+-- >>> type Entries = Journal.Journal String Double (HatBase CountUnit)
+-- >>> let increase = 10 Algebra..@ (Not :< Amount) :: Amounts
+-- >>> let decrease = 7 Algebra..@ (Hat :< Amount) :: Amounts
+-- >>> let arrival = increase Journal..| "arrival" :: Entries
+-- >>> let departure = decrease Journal..| "departure" :: Entries
+-- >>> let journal = arrival Algebra..+ departure :: Entries
+-- >>> normExact journal
+-- Right 17.0
+-- >>> projWithBaseNetNormExact [Not :< Amount, Hat :< Amount] journal
+-- Right 17.0
+-- >>> normExact =<< barExact journal
+-- Right 3.0
 module ExchangeAlgebra.Journal.Exact (
                                      -- * Accumulators
                                      ExactSum(..)

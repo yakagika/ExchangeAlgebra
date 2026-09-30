@@ -21,6 +21,36 @@ required.
 Validation uses exact equality, consistently with the checked-conversion
 boundary. Prefer an exact value type such as @MoneyDecimal@ for deterministic
 worksheet validation rather than a floating-point representation.
+
+Combine two balanced source trial balances without worksheet adjustments.
+The linkage records no period result or retained-earnings movement. Combining
+the sources preserves both cash postings and both capital postings.
+
+>>> import Data.List.NonEmpty (NonEmpty(..))
+>>> import qualified ExchangeAlgebra.Algebra.Core as Algebra
+>>> import ExchangeAlgebra.Algebra.Base.Representation (Hat(..), HatBase(..))
+>>> import ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
+>>> import ExchangeAlgebra.Accounting.Statements.Metric (PeriodResult(..))
+>>> import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
+>>> type TrialBalance = Algebra.Alg MoneyDecimal (HatBase AccountTitles)
+>>> let cash amount = amount Algebra..@ (Not :< Cash)
+>>> let equity amount = amount Algebra..@ (Not :< CapitalStock)
+>>> let capital amount = cash amount Algebra..+ equity amount :: TrialBalance
+>>> let periodResult = PeriodBreakEven :: PeriodResult MoneyDecimal
+>>> let resultColumns = WorksheetLinkage periodResult periodResult periodResult
+>>> let retainedColumns = resultColumns NoBalance 0 NoBalance NoBalance
+>>> let linkage = retainedColumns NoBalance periodResult 0 NoBalance NoBalance
+>>> let parent = TrialBalanceSource "parent" (capital 100)
+>>> let subsidiary = TrialBalanceSource "subsidiary" (capital 200)
+>>> let sources = parent :| [subsidiary]
+>>> let input = WorksheetInput sources [] linkage :: WorksheetInput String String MoneyDecimal
+>>> let accepted = validateConsolidationWorksheet input
+>>> fmap (length . validatedSources) accepted
+Right 2
+>>> fmap (length . Algebra.toList . combinedWorksheet) accepted
+Right 4
+>>> fmap (Algebra.norm . combinedWorksheet) accepted == Right 600
+True
 -}
 module ExchangeAlgebra.Accounting.Consolidation
     ( LinkField(..)
