@@ -115,6 +115,10 @@
   `(1,1)`, no pivot exchange in `inverse`, that `inverse` overwrites its
   argument while `leontiefInverse` copies it, and that `rippleEffect` takes the
   Leontief inverse and fills one column.
+- Runnable Haddock examples now cover `Accounting.Statements.Presentation`,
+  `Accounting.TrialBalance.Validation`, `Accounting.Consolidation`,
+  `Algebra.Exact`, `Journal.Exact`, and the admission `Catalog` and `Engine`
+  modules. The `Journal.Transfer` examples are now part of the doctest run.
 
 ## 0.5.3.0 - 2026-09-26
 
