@@ -239,3 +239,5 @@ MeetingExpenses	236	00ec	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
 NewspaperBooksExpenses	237	00ed	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
 RawMaterials	238	00ee	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
 GoodsInTransit	239	00ef	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+SalesAllowances	240	00f0	Revenue	CloseByDivision	True	Debit	Credit	OUT	Other	Flip
+PurchaseAllowances	241	00f1	Cost	CloseByDivision	True	Credit	Debit	IN	Other	Keep

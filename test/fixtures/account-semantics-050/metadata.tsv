@@ -239,3 +239,5 @@ MeetingExpenses	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Cost	FixedHo
 NewspaperBooksExpenses	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Cost	FixedHomeSide Debit	StatementEligible
 RawMaterials	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Assets	FixedHomeSide Debit	StatementEligible
 GoodsInTransit	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Assets	FixedHomeSide Debit	StatementEligible
+SalesAllowances	[OrdinaryAccount,ContraAccount]	OrdinaryPosting	StatementDivision Revenue	FixedHomeSide Debit	StatementEligible
+PurchaseAllowances	[OrdinaryAccount,ContraAccount]	OrdinaryPosting	StatementDivision Cost	FixedHomeSide Credit	StatementEligible

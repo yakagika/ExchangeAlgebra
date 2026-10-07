@@ -1,17 +1,17 @@
 module	names
 ExchangeAlgebra.Accounting.PostingPolicy	7
-ExchangeAlgebra.Accounting	339
+ExchangeAlgebra.Accounting	341
 ExchangeAlgebra.Algebra.Base.Account.JcciAliases	1
 ExchangeAlgebra.Algebra.Base.Account.Registry	23
 ExchangeAlgebra.Algebra.Base.Account.Types	46
-ExchangeAlgebra.Algebra.Base.Element	274
-ExchangeAlgebra.Algebra.Base	386
+ExchangeAlgebra.Algebra.Base.Element	276
+ExchangeAlgebra.Algebra.Base	388
 ExchangeAlgebra.Algebra.Exact	22
-ExchangeAlgebra.Algebra.Internal	467
+ExchangeAlgebra.Algebra.Internal	469
 ExchangeAlgebra.Algebra.Readout.Net	7
 ExchangeAlgebra.Algebra.Transfer.Rule	36
 ExchangeAlgebra.Algebra.Transfer	16
-ExchangeAlgebra.Algebra	456
+ExchangeAlgebra.Algebra	458
 ExchangeAlgebra.Assist.Descriptions	1
 ExchangeAlgebra.Assist	16
 ExchangeAlgebra.Bookkeeping	19
@@ -24,7 +24,7 @@ ExchangeAlgebra.IO.Input.Admission	177
 ExchangeAlgebra.Journal.Exact	24
 ExchangeAlgebra.Journal.Transfer.Rule	14
 ExchangeAlgebra.Journal.Transfer	15
-ExchangeAlgebra.Journal	443
+ExchangeAlgebra.Journal	445
 ExchangeAlgebra.Optimize.Annealing	10
 ExchangeAlgebra.Optimize.GA	14
 ExchangeAlgebra.Optimize	8
@@ -48,4 +48,4 @@ ExchangeAlgebra.TrialBalance.Balance	12
 ExchangeAlgebra.TrialBalance.Validation	54
 ExchangeAlgebra.Value	13
 ExchangeAlgebra.Write	25
-ExchangeAlgebra	546
+ExchangeAlgebra	548

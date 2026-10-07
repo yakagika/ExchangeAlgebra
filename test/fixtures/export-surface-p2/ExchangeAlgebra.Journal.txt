@@ -269,6 +269,7 @@ ProvisionForBonuses
 ProvisionForDoubtfulAccounts
 ProvisionForProductWarranties
 ProvisionForRepairs
+PurchaseAllowances
 PurchaseRebates
 Purchases
 RawMaterials
@@ -295,6 +296,7 @@ ReversalOfAllowanceForDoubtfulAccounts
 ReversalOfAllowanceForProductWarranties
 ReversalOfAllowanceForRepairs
 Sales
+SalesAllowances
 SalesCost
 SalesRebates
 Securities

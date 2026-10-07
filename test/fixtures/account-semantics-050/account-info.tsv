@@ -239,3 +239,5 @@ MeetingExpenses	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Cost	FixedHo
 NewspaperBooksExpenses	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Cost	FixedHomeSide Debit	StatementEligible	Newspapers and books	新聞図書費	Expense: Newspapers and books (新聞図書費)
 RawMaterials	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Assets	FixedHomeSide Debit	StatementEligible	Raw materials	原材料	Assets: Raw materials (原材料)
 GoodsInTransit	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Assets	FixedHomeSide Debit	StatementEligible	Goods in transit	未着品	Assets: Goods in transit (未着品)
+SalesAllowances	[OrdinaryAccount,ContraAccount]	OrdinaryPosting	StatementDivision Revenue	FixedHomeSide Debit	StatementEligible	Sales allowances	売上値引	Revenue: Sales allowances (売上値引)
+PurchaseAllowances	[OrdinaryAccount,ContraAccount]	OrdinaryPosting	StatementDivision Cost	FixedHomeSide Credit	StatementEligible	Purchase allowances	仕入値引	Cost: Purchase allowances (仕入値引)

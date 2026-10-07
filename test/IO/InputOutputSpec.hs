@@ -484,7 +484,7 @@ testPostingCapabilityGate = do
         [ Just (PP.postingCapabilityFor title)
         | title <- Registry.concreteAccountTitles
         ]
-    assertEqual "posting gate: all 240 titles follow the closed matrix"
+    assertEqual "posting gate: all 242 titles follow the closed matrix"
         [ (context, title, PP.postingAllowedIn context capability)
         | context <- contexts
         , title <- Registry.concreteAccountTitles

@@ -288,6 +288,7 @@ rolesFor title _ = case title of
     GainOnConstructionGrants                       -> [OrdinaryAccount]
     LandRentReceived                               -> [OrdinaryAccount]
     SalesRebates                                   -> [OrdinaryAccount, ContraAccount]
+    SalesAllowances                                -> [OrdinaryAccount, ContraAccount]
     CostOfServices                                 -> [OrdinaryAccount]
     OperatingExpenses                              -> [OrdinaryAccount]
     InventoryShrinkageLoss                         -> [OrdinaryAccount]
@@ -317,6 +318,7 @@ rolesFor title _ = case title of
     AdditionalIncomeTaxesForPriorPeriods           -> [OrdinaryAccount]
     RefundOfIncomeTaxes                            -> [OrdinaryAccount, ContraAccount]
     PurchaseRebates                                -> [OrdinaryAccount, ContraAccount]
+    PurchaseAllowances                             -> [OrdinaryAccount, ContraAccount]
     WelfareExpenses                                -> [OrdinaryAccount]
     MaintenanceExpenses                            -> [OrdinaryAccount]
     StatutoryWelfareExpenses                       -> [OrdinaryAccount]
@@ -532,6 +534,7 @@ postingFor title = case title of
     GainOnConstructionGrants                       -> OrdinaryPosting
     LandRentReceived                               -> OrdinaryPosting
     SalesRebates                                   -> OrdinaryPosting
+    SalesAllowances                                -> OrdinaryPosting
     CostOfServices                                 -> OrdinaryPosting
     OperatingExpenses                              -> OrdinaryPosting
     InventoryShrinkageLoss                         -> OrdinaryPosting
@@ -561,6 +564,7 @@ postingFor title = case title of
     AdditionalIncomeTaxesForPriorPeriods           -> OrdinaryPosting
     RefundOfIncomeTaxes                            -> OrdinaryPosting
     PurchaseRebates                                -> OrdinaryPosting
+    PurchaseAllowances                             -> OrdinaryPosting
     WelfareExpenses                                -> OrdinaryPosting
     MaintenanceExpenses                            -> OrdinaryPosting
     StatutoryWelfareExpenses                       -> OrdinaryPosting
@@ -776,6 +780,7 @@ divisionFor title spec = case title of
     GainOnConstructionGrants                       -> StatementDivision (asDivision spec)
     LandRentReceived                               -> StatementDivision (asDivision spec)
     SalesRebates                                   -> StatementDivision (asDivision spec)
+    SalesAllowances                                -> StatementDivision (asDivision spec)
     CostOfServices                                 -> StatementDivision (asDivision spec)
     OperatingExpenses                              -> StatementDivision (asDivision spec)
     InventoryShrinkageLoss                         -> StatementDivision (asDivision spec)
@@ -805,6 +810,7 @@ divisionFor title spec = case title of
     AdditionalIncomeTaxesForPriorPeriods           -> StatementDivision (asDivision spec)
     RefundOfIncomeTaxes                            -> StatementDivision (asDivision spec)
     PurchaseRebates                                -> StatementDivision (asDivision spec)
+    PurchaseAllowances                             -> StatementDivision (asDivision spec)
     WelfareExpenses                                -> StatementDivision (asDivision spec)
     MaintenanceExpenses                            -> StatementDivision (asDivision spec)
     StatutoryWelfareExpenses                       -> StatementDivision (asDivision spec)
@@ -1020,6 +1026,7 @@ homeSideFor title spec = case title of
     GainOnConstructionGrants                       -> FixedHomeSide (legacyHomeSide spec)
     LandRentReceived                               -> FixedHomeSide (legacyHomeSide spec)
     SalesRebates                                   -> FixedHomeSide (legacyHomeSide spec)
+    SalesAllowances                                -> FixedHomeSide (legacyHomeSide spec)
     CostOfServices                                 -> FixedHomeSide (legacyHomeSide spec)
     OperatingExpenses                              -> FixedHomeSide (legacyHomeSide spec)
     InventoryShrinkageLoss                         -> FixedHomeSide (legacyHomeSide spec)
@@ -1049,6 +1056,7 @@ homeSideFor title spec = case title of
     AdditionalIncomeTaxesForPriorPeriods           -> FixedHomeSide (legacyHomeSide spec)
     RefundOfIncomeTaxes                            -> FixedHomeSide (legacyHomeSide spec)
     PurchaseRebates                                -> FixedHomeSide (legacyHomeSide spec)
+    PurchaseAllowances                             -> FixedHomeSide (legacyHomeSide spec)
     WelfareExpenses                                -> FixedHomeSide (legacyHomeSide spec)
     MaintenanceExpenses                            -> FixedHomeSide (legacyHomeSide spec)
     StatutoryWelfareExpenses                       -> FixedHomeSide (legacyHomeSide spec)
@@ -1281,6 +1289,7 @@ reportingFor title = case title of
     GainOnConstructionGrants                       -> StatementEligible
     LandRentReceived                               -> StatementEligible
     SalesRebates                                   -> StatementEligible
+    SalesAllowances                                -> StatementEligible
     CostOfServices                                 -> StatementEligible
     OperatingExpenses                              -> StatementEligible
     InventoryShrinkageLoss                         -> StatementEligible
@@ -1310,6 +1319,7 @@ reportingFor title = case title of
     AdditionalIncomeTaxesForPriorPeriods           -> StatementEligible
     RefundOfIncomeTaxes                            -> StatementEligible
     PurchaseRebates                                -> StatementEligible
+    PurchaseAllowances                             -> StatementEligible
     WelfareExpenses                                -> StatementEligible
     MaintenanceExpenses                            -> StatementEligible
     StatutoryWelfareExpenses                       -> StatementEligible
@@ -3377,6 +3387,17 @@ accountSpec SalesRebates = Just AccountSpec
     , asDescription = "Revenue: Sales rebates (売上割戻)"
     , asAliases = ["売上割戻"]
     }
+accountSpec SalesAllowances = Just AccountSpec
+    { asDivision = Revenue
+    , asClosing = CloseByDivision
+    , asIsContra = True
+    , asFixedCurrent = Other
+    , asNameEn = "Sales allowances"
+    , asNameJa = "売上値引"
+    , asLabelJa = "売上値引"
+    , asDescription = "Revenue: Sales allowances (売上値引)"
+    , asAliases = ["売上値引"]
+    }
 accountSpec CostOfServices = Just AccountSpec
     { asDivision = Cost
     , asClosing = CloseByDivision
@@ -3695,6 +3716,17 @@ accountSpec PurchaseRebates = Just AccountSpec
     , asLabelJa = "仕入割戻"
     , asDescription = "Cost: Purchase rebates (仕入割戻)"
     , asAliases = ["仕入割戻"]
+    }
+accountSpec PurchaseAllowances = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = True
+    , asFixedCurrent = Other
+    , asNameEn = "Purchase allowances"
+    , asNameJa = "仕入値引"
+    , asLabelJa = "仕入値引"
+    , asDescription = "Cost: Purchase allowances (仕入値引)"
+    , asAliases = ["仕入値引"]
     }
 accountSpec WelfareExpenses = Just AccountSpec
     { asDivision = Cost

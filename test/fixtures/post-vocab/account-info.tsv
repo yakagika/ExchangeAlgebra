@@ -239,3 +239,5 @@ MeetingExpenses	Cost	Debit	Meeting expenses	会議費	Expense: Meeting expenses 
 NewspaperBooksExpenses	Cost	Debit	Newspapers and books	新聞図書費	Expense: Newspapers and books (新聞図書費)
 RawMaterials	Assets	Debit	Raw materials	原材料	Assets: Raw materials (原材料)
 GoodsInTransit	Assets	Debit	Goods in transit	未着品	Assets: Goods in transit (未着品)
+SalesAllowances	Revenue	Debit	Sales allowances	売上値引	Revenue: Sales allowances (売上値引)
+PurchaseAllowances	Cost	Credit	Purchase allowances	仕入値引	Cost: Purchase allowances (仕入値引)

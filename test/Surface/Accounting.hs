@@ -242,6 +242,8 @@ module Surface.Accounting
           , NewspaperBooksExpenses
           , RawMaterials
           , GoodsInTransit
+          , SalesAllowances
+          , PurchaseAllowances
           , AccountTitle
           )
     , AccountDivision
@@ -542,6 +544,8 @@ import           ExchangeAlgebra.Accounting
                            , NewspaperBooksExpenses
                            , RawMaterials
                            , GoodsInTransit
+                           , SalesAllowances
+                           , PurchaseAllowances
                            , AccountTitle
                            )
                      , AccountDivision

@@ -5,7 +5,7 @@ Hat	HatNot	02
 BaseForSingleHat	sole constructor	
 HatBase	Hat Cash	000000
 HatBase	Not Sales	01003e
-HatBase	wildcard account	0200f0
+HatBase	wildcard account	0200f2
 AccountTitles	Cash	0000
 AccountTitles	Deposits	0001
 AccountTitles	CurrentDeposits	0002
@@ -246,7 +246,9 @@ AccountTitles	MeetingExpenses	00ec
 AccountTitles	NewspaperBooksExpenses	00ed
 AccountTitles	RawMaterials	00ee
 AccountTitles	GoodsInTransit	00ef
-AccountTitles	AccountTitle	00f0
+AccountTitles	SalesAllowances	00f0
+AccountTitles	PurchaseAllowances	00f1
+AccountTitles	AccountTitle	00f2
 CountUnit	Yen	00
 CountUnit	Dollar	01
 CountUnit	Euro	02

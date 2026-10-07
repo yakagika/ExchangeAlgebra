@@ -92,8 +92,8 @@ import           ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
 data PresentationGroup
     = TradeReceivablesGroup   -- ^ 売上債権 − 貸倒引当金
     | DepreciableAssetsGroup  -- ^ 償却性有形固定資産 − 減価償却累計額
-    | NetSalesGroup           -- ^ 総売上高 − 売上割戻
-    | NetPurchasesGroup       -- ^ 総仕入高 − 仕入割戻
+    | NetSalesGroup           -- ^ 総売上高 − 売上割戻 − 売上値引
+    | NetPurchasesGroup       -- ^ 総仕入高 − 仕入割戻 − 仕入値引
     | IncomeTaxesGroup        -- ^ 法人税等 − 還付法人税等
     deriving (Show, Eq, Ord, Enum, Bounded)
 
@@ -173,7 +173,7 @@ defaultPresentationGrouping =
         , pgDivision = Revenue
         , pgLabel = "NetSales"
         , pgGross = [Sales]
-        , pgDeductions = [SalesRebates]
+        , pgDeductions = [SalesRebates, SalesAllowances]
         , pgParent = Nothing
         }
     , PresentationGroupDef
@@ -181,7 +181,7 @@ defaultPresentationGrouping =
         , pgDivision = Cost
         , pgLabel = "NetPurchases"
         , pgGross = [Purchases]
-        , pgDeductions = [PurchaseRebates]
+        , pgDeductions = [PurchaseRebates, PurchaseAllowances]
         , pgParent = Nothing
         }
     , PresentationGroupDef

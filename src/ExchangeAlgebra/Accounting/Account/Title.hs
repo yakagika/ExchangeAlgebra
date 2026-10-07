@@ -270,6 +270,8 @@ data  AccountTitles = Cash                            -- ^ Asset: Cash (現金)
                     | NewspaperBooksExpenses -- ^ Cost: Newspapers and books (新聞図書費)
                     | RawMaterials -- ^ Assets: Raw materials (原材料)
                     | GoodsInTransit -- ^ Assets: Goods in transit (未着品)
+                    | SalesAllowances -- ^ Revenue: Sales allowances (売上値引)
+                    | PurchaseAllowances -- ^ Cost: Purchase allowances (仕入値引)
                     | AccountTitle                    -- ^ Wildcard (ワイルドカード — 任意の科目にマッチ。projWithBase 等の問い合わせ用で, 実 posting には使わない)
                     deriving (Show, Ord, Eq, Enum, Generic, Bounded)
 

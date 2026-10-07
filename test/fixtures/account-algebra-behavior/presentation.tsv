@@ -239,3 +239,5 @@ MeetingExpenses	[["Asset","","Liability",""],["RetainedEarnings","1.0","Equity",
 NewspaperBooksExpenses	[["Asset","","Liability",""],["RetainedEarnings","1.0","Equity",""],["Total","1.0","Total","0.0"]]	[["Cost","","Revenue",""],["NewspaperBooksExpenses","1.0","",""],["Total","0.0","Total","1.0"]]
 RawMaterials	[["Asset","","Liability",""],["RawMaterials","1.0","Equity",""],["Total","1.0","Total","0.0"]]	[["Cost","","Revenue",""],["Total","0.0","Total","0.0"]]
 GoodsInTransit	[["Asset","","Liability",""],["GoodsInTransit","1.0","Equity",""],["Total","1.0","Total","0.0"]]	[["Cost","","Revenue",""],["Total","0.0","Total","0.0"]]
+SalesAllowances	[["Asset","","Liability",""],["RetainedEarnings","1.0","Equity",""],["Total","1.0","Total","0.0"]]	[["Cost","","Revenue",""],["","","SalesAllowances","-1.0"],["","","NetSales","-1.0"],["Total","-1.0","Total","0.0"]]
+PurchaseAllowances	[["Asset","","Liability",""],["Total","0.0","Equity",""],["","","RetainedEarnings","1.0"],["","","Total","1.0"]]	[["Cost","","Revenue",""],["PurchaseAllowances","-1.0","",""],["NetPurchases","-1.0","",""],["Total","0.0","Total","-1.0"]]

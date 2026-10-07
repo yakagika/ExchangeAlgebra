@@ -92,11 +92,11 @@ describeAccount title = do
 -- | All concrete account-title descriptions in 'Enum' order.
 --
 -- >>> length allAccountInfos
--- 240
+-- 242
 -- >>> take 1 (map aiTitle allAccountInfos)
 -- [Cash]
 -- >>> aiTitle (last allAccountInfos)
--- GoodsInTransit
+-- PurchaseAllowances
 allAccountInfos :: [AccountInfo]
 allAccountInfos = mapMaybe describeAccount concreteAccountTitles
 

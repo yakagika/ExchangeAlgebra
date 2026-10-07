@@ -66,8 +66,8 @@ testAccountTitlesBinary = do
         roundTripped = L.map (Binary.decode . Binary.encode) titles
         invalidTag = fromIntegral (fromEnum (maxBound :: AccountTitles) + 1)
         invalidBytes = BinaryPut.runPut (BinaryPut.putWord16be invalidTag)
-    assertEqual "AccountTitles Binary covers all 241 constructors"
-        241 (L.length titles)
+    assertEqual "AccountTitles Binary covers all 243 constructors"
+        243 (L.length titles)
     assertEqual "AccountTitles Binary Word16be roundtrip"
         titles roundTripped
     assertEqual "AccountTitles Binary rejects out-of-range Word16"
@@ -75,6 +75,21 @@ testAccountTitlesBinary = do
             Left _  -> True
             Right _ -> False)
 
+-- | Check the appended allowances and the additional Japanese aliases.
+testAllowanceAccountTitles :: IO ()
+testAllowanceAccountTitles = do
+    let titles = [SalesAllowances, PurchaseAllowances]
+    assertEqual "allowance account titles Binary roundtrip"
+        titles (L.map (Binary.decode . Binary.encode) titles)
+    assertEqual "allowance account titles division"
+        [Revenue, Cost] (L.map classifyAccountDivision titles)
+    assertEqual "allowance account titles home side"
+        [Debit, Credit]
+        [whichSide (Not :< title :: HatBase AccountTitles) | title <- titles]
+    assertEqual "allowance names and additional Japanese aliases parse"
+        (L.map Right [SalesAllowances, PurchaseAllowances, DeliveryExpenses, Fixtures])
+        (L.map EC.parseAccountTitle (L.map T.pack
+            ["売上値引", "仕入値引", "荷造運賃", "器具備品"]))
 
 -- ================================================================
 -- AccountTitles classification exhaustiveness (Phase A)
@@ -345,6 +360,8 @@ accountTitleClassTable =
     , (NewspaperBooksExpenses, Cost, Debit, Other)
     , (RawMaterials, Assets, Debit, Current)
     , (GoodsInTransit, Assets, Debit, Current)
+    , (SalesAllowances, Revenue, Debit, Other)
+    , (PurchaseAllowances, Cost, Credit, Other)
     ]
 
 testAccountTitleClassification :: IO ()
@@ -459,7 +476,7 @@ testVocabOrdinalPin = do
     assertEqual "vocab ordinal pin: new constructors sit between max pinned and wildcard"
         [] misplaced
     assertEqual "vocab ordinal pin: appended constructor ordinals and wildcard"
-        [232, 233, 234, 235, 236, 237, 238, 239, 240]
+        [232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242]
         (L.map fromEnum
             [ ConsumptionTaxRefundReceivable
             , PropertyTaxPayable
@@ -469,6 +486,8 @@ testVocabOrdinalPin = do
             , NewspaperBooksExpenses
             , RawMaterials
             , GoodsInTransit
+            , SalesAllowances
+            , PurchaseAllowances
             , AccountTitle
             ])
     -- concreteAccountTitles は wildcard 以外の全 constructor を被覆すること。
@@ -543,7 +562,7 @@ testIncomeSummaryBalancedNoCrash = do
 
 testAssistAllAccountInfos :: IO ()
 testAssistAllAccountInfos = do
-    assertEqual "Assist.allAccountInfos length" 240 (length Assist.allAccountInfos)
+    assertEqual "Assist.allAccountInfos length" 242 (length Assist.allAccountInfos)
     assertEqual "Assist.allAccountInfos follows concreteAccountTitles order"
         PP.concreteAccountTitles (L.map Assist.aiTitle Assist.allAccountInfos)
     forM_ Assist.allAccountInfos $ \info -> do
@@ -590,8 +609,8 @@ testAccountSemanticsRegistryInvariants = do
                 StatementDivision _ -> False
                 _                   -> True
             ]
-    assertEqual "metadata covers all 240 concrete titles"
-        240 (L.length semantics)
+    assertEqual "metadata covers all 242 concrete titles"
+        242 (L.length semantics)
     assertEqual "metadata rejects wildcard AccountTitle"
         Nothing (Registry.accountSemantics AccountTitle)
     assertEqual "non-statement metadata is exactly the reviewed exception set"
@@ -727,8 +746,8 @@ testAccountSemanticsGolden = do
             accountRegistryHeader
                 (T.pack "LLM AccountInfo (title, roles, posting, divisionSemantics, homeSideSemantics, reportingEligibility, nameEn, nameJa, description)")
             <> T.unlines (L.map accountRegistryInfoRow Assist.allAccountInfos)
-    assertEqual "metadata fixture has 240 rows"
-        240 (L.length (L.drop 1 (T.lines metadata)))
+    assertEqual "metadata fixture has 242 rows"
+        242 (L.length (L.drop 1 (T.lines metadata)))
     assertEqual "metadata fixture" metadata expectedMetadata
     assertEqual "LLM AccountInfo fixture" info expectedInfo
     assertEqual "LLM suggestion fixture"
@@ -1034,7 +1053,7 @@ testAdmissionBaselineGolden = do
             expectedCount = case name of
                 "boundary.tsv" -> 64
                 "equivalence.tsv" -> 12
-                "catalog.tsv" -> 262
+                "catalog.tsv" -> 264
                 _ -> 0
         assertEqual ("admission-baseline-p1 case count " ++ name)
             expectedCount caseCount
@@ -1153,8 +1172,8 @@ testJapaneseAccountLabels = do
             , any (`T.isInfixOf` label) forbidden
                 || T.any (\c -> isAscii c && isAlpha c) label
             ]
-    assertEqual "asLabelJa covers all 240 concrete titles"
-        240 (L.length labels)
+    assertEqual "asLabelJa covers all 242 concrete titles"
+        242 (L.length labels)
     assertEqual "asLabelJa contains only cleaned Japanese account names"
         ([] :: [(AccountTitles, T.Text)]) invalid
 
@@ -1221,7 +1240,8 @@ contraAssetTitles :: [AccountTitles]
 contraAssetTitles = [AllowanceForDoubtfulAccounts, AccumulatedDepreciation]
 
 allContra :: [AccountTitles]
-allContra = contraAssetTitles <> [SalesRebates, RefundOfIncomeTaxes, PurchaseRebates]
+allContra = contraAssetTitles
+    <> [SalesRebates, RefundOfIncomeTaxes, PurchaseRebates, SalesAllowances, PurchaseAllowances]
 
 statementTitleMap :: M.Map T.Text AccountTitles
 statementTitleMap = M.fromList
@@ -1300,6 +1320,12 @@ testPresentationGroups = do
         allMembers def = RG.pgGross def ++ RG.pgDeductions def
     assertEqual "default groups cover each registry contra exactly once"
         (L.sort contraTitles) (L.sort deductionTitles)
+    assertEqual "net sales group includes sales allowances as a deduction"
+        (Just [SalesRebates, SalesAllowances])
+        (RG.pgDeductions <$> RG.lookupGroupDef defaultDefs RG.NetSalesGroup)
+    assertEqual "net purchases group includes purchase allowances as a deduction"
+        (Just [PurchaseRebates, PurchaseAllowances])
+        (RG.pgDeductions <$> RG.lookupGroupDef defaultDefs RG.NetPurchasesGroup)
     assertEqual "default group memberships are disjoint"
         (L.length (L.concatMap allMembers defaultDefs))
         (Set.size (Set.fromList (L.concatMap allMembers defaultDefs)))
@@ -1418,7 +1444,7 @@ testPresentationGroups = do
             ])]
         (RG.gpBlocks offsetContra)
     assertEqual "edge: fully offset contra title cannot leak to ordinary rows"
-        (Set.fromList [Sales, SalesRebates]) (RG.gpConsumed offsetContra)
+        (Set.fromList [Sales, SalesRebates, SalesAllowances]) (RG.gpConsumed offsetContra)
 
     let rows f b = L.map (L.map T.unpack) (f b)
         excessiveChart = (100 .@ Not:<AccountsReceivable
@@ -2842,6 +2868,7 @@ closingDocsTests = do
 runTests :: IO ()
 runTests = do
     testAccountTitlesBinary
+    testAllowanceAccountTitles
     testAccountTitleClassification
     testFinalStockRuleReference
     testVocabOrdinalPin
