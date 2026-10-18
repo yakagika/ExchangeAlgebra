@@ -4,6 +4,10 @@ pin: session
 profiles:
   - id: manual-en
     applies_to: "README.md, docs/**, examples/README.md, Haddock と docstring の語り口"
+    targets:
+      - README.md
+      - docs/**/*.md
+      - examples/README.md
   - id: manual-ja
     applies_to: "和文の内部運用手順書, 将来の和文マニュアル"
 packs: []
