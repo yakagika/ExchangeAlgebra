@@ -469,6 +469,46 @@ testLiteDet2 = do
 
 
 ------------------------------------------------------------------
+-- Lite test 2 (DET-2): MoneyDouble with snapshot-dependent postings.
+------------------------------------------------------------------
+
+-- | Carry the uncompressed floating-point ledger across stages and terms.
+data DoubleW f = DoubleW
+  { doubleLedger :: HK f LedgerD -- ^ All postings committed before the current stage.
+  } deriving Generic
+
+-- | Post a positive fractional amount from each agent's stage generator.
+doublePostStage :: Stage DoubleW Int LNote MoneyDouble LBaseD
+doublePostStage = stageFor "double-post" [1 .. 50 :: Int] $ \_world term generator agent ->
+    let (draw, _) = randomR (1, 6 :: Int) generator
+        amount    = fromIntegral agent + fromIntegral draw / 7 :: MoneyDouble
+    in (  (amount .@ Not :< Purchases)
+       .+ (amount .@ Hat :< Cash)) .| ("double-post", term)
+
+-- | Feed the committed snapshot's norm back into the next posting amount.
+doubleSnapshotStage :: Stage DoubleW Int LNote MoneyDouble LBaseD
+doubleSnapshotStage = stage "double-snapshot" $ \world term ->
+    let amount = norm (doubleLedger world)
+    in (  (amount .@ Not :< Purchases)
+       .+ (amount .@ Hat :< Cash)) .| ("double-snapshot", term)
+
+-- | Compare ledger structure and final norm exactly for every tested chunk width.
+testLiteDet2Double :: IO ()
+testLiteDet2Double = do
+    let initialWorld = DoubleW { doubleLedger = carry mempty }
+        spec = mkSimSpec (1, 4) 7 doubleLedger [doublePostStage, doubleSnapshotStage]
+        runParallel parallel = runLite (spec { Lite.specParallel = parallel })
+            initialWorld doubleLedger
+        sequentialLedger = runParallel Sequential
+    forM_ [1, 2, 3, 8] $ \chunk -> do
+        let parallelLedger = runParallel (ParChunk chunk)
+        assertEqual ("Lite DET-2 MoneyDouble: ledger exact, chunk=" ++ show chunk)
+            (toMap sequentialLedger) (toMap parallelLedger)
+        assertEqual ("Lite DET-2 MoneyDouble: norm exact, chunk=" ++ show chunk)
+            (norm sequentialLedger) (norm parallelLedger)
+
+
+------------------------------------------------------------------
 -- Lite test 4 (BSP intra-stage invisibility sentinel).
 -- Every agent in a stage reads the SAME snapshot. We encode the snapshot
 -- ledger's norm into each agent's message; if a later agent could see an
@@ -1272,6 +1312,7 @@ runTests = do
     testSpillDecisionSingleSource
     testSimulateEx1Default
     testLiteDet2
+    testLiteDet2Double
     testLiteBspInvisibility
     testPolicyEquivalence
     testPolicyWindowRoundTrip

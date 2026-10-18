@@ -588,6 +588,8 @@ enumFromThenToInclusive from0 to0
 -- Forcing one message first materializes the shared structure in a single
 -- thread, so the sparks only evaluate agent-local work. Pure values: the
 -- result is unchanged (DET-2 asserts exact equality).
+-- Canonical merging folds in fixed agent-index order, so ledgers are equal across
+-- chunk widths even for floating-point values (tested by @testLiteDet2Double@).
 runStage :: forall w t n v b.
             (HatVal v, HatBaseClass b, Note n)
          => SimSpec w t n v b

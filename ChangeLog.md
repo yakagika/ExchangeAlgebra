@@ -4,6 +4,9 @@
 
 ### Added
 
+- A `MoneyDouble` DET-2 test checks exact ledger and norm equality between
+  `Sequential` and `ParChunk` widths 1, 2, 3, and 8 across four terms, with
+  random fractional postings and a second stage that posts the snapshot norm.
 - Two contra account titles, `SalesAllowances` (売上値引) and
   `PurchaseAllowances` (仕入値引), with their Japanese names accepted by the
   parser. The parser also accepts 荷造運賃 for `DeliveryExpenses` and 器具備品

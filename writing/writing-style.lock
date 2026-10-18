@@ -1,13 +1,13 @@
 schema: 1
-bumped_at: '2026-09-23T09:40:56+09:00'
-central_commit: 2a62d7953eb38ea6eecd5a94efdfcb4628d1061b
+bumped_at: '2026-10-18T15:49:52+09:00'
+central_commit: f22111ac7652f75f70eb17d743fc8b5aa789a325
 generator: build_writing_views.py
 views:
   manual-en:
     view: config/agents/manual-author-en.writing-style.seed.md
-    seed_version: '2026-09-19'
-    sha256: c15b9996eac2a6bc91f949fcf7837bb57d8c41bbd6770c75ea592298cf5cbab3
+    seed_version: '2026-10-01'
+    sha256: 512aaacebfdc5fdabc72dd8949a069f87d2ecb5f2a776f304872e5fc6bc40cbf
   manual-ja:
     view: config/agents/manual-author-jp.writing-style.seed.md
-    seed_version: '2026-09-16'
-    sha256: 40d9ace347e7747b36c31303c8b74a13fc4a8a38e11d6e3421ee6fd23719b429
+    seed_version: '2026-10-01'
+    sha256: 6cbc5b53ab7991ca4c58efac20677dfb167e92889dcccbd5da69684dea0390a1
