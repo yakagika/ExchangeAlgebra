@@ -1,0 +1,23 @@
+cabal-version: 2.2
+name:          Chart-cairo
+version:       1.9.4.1
+synopsis:      No-op stand-in for Chart-cairo, used only by the RCR --x86_64 route
+description:
+  Homebrew no longer installs x86_64 libraries on Apple Silicon, so an x86_64
+  cairo cannot be obtained there. The pinned revisions use Chart-cairo only to
+  write PNG charts, which no measured program does. The --x86_64 route of
+  examples/market/rcr therefore builds them against this stand-in. It keeps the
+  names that ExchangeAlgebra.Simulate.Visualize uses and raises an error
+  instead of drawing.
+license:       MIT
+author:        Kaya Akagi
+maintainer:    yakagika@icloud.com
+build-type:    Simple
+
+library
+  exposed-modules:  Graphics.Rendering.Chart.Backend.Cairo
+  hs-source-dirs:   src
+  build-depends:    base >=4.17 && <5
+                  , Chart >=1.9 && <1.10
+                  , data-default-class >=0.1 && <0.3
+  default-language: Haskell2010

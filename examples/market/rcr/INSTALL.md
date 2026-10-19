@@ -12,7 +12,8 @@ checkout or the extracted artifact.
 - Python 3.9 or later. Replication assessment uses only the Python standard library.
 - `zip`, to build the distributable artifact with `make-artifact-zip.sh`.
 - `/usr/bin/time`. It is included with macOS; on Ubuntu or Debian, install the GNU `time` package.
-- Cairo and Pango system libraries for the library's Chart-cairo dependency.
+- Cairo and Pango system libraries for the library's Chart-cairo dependency (native route; the
+  x86_64 route below does not need them).
 
 Install the Chart-cairo system dependencies on macOS with:
 
@@ -106,13 +107,32 @@ select that repository and fail to resolve the pinned revisions.
 
 ## Reproducing the x86_64 platform on Apple Silicon
 
-Install Rosetta 2 and provide an x86_64 Stack executable at `/usr/local/bin/stack`, or set
-`EA_STACK_X86` to its path. Then add `--x86_64` to the smoke or full command:
+The platform of record ran x86_64 Stack and GHC under Rosetta 2. On an Apple Silicon host,
+`--x86_64` reproduces that architecture:
+
+1. Install Rosetta 2: `softwareupdate --install-rosetta --agree-to-license`.
+2. Provide an x86_64 Stack executable at `/usr/local/bin/stack`, or set `EA_STACK_X86` to its
+   path. Homebrew no longer installs x86_64 packages on Apple Silicon, so download the macOS
+   x86_64 archive of Stack 3.x from <https://github.com/commercialhaskell/stack/releases>. The
+   platform of record used Stack 3.9.3.
+3. Add `--x86_64` to the smoke or full command:
 
 ```bash
 EA_STACK_X86=/path/to/x86_64/stack \
   examples/market/rcr/reproduce-all.sh --x86_64
 ```
+
+Stack installs the x86_64 GHC 9.10.2 on the first build, as on the native route.
+
+No x86_64 Cairo or Pango is needed. The pinned revisions depend on Chart-cairo only to write PNG
+charts in `ExchangeAlgebra.Simulate.Visualize`, and no measured program draws a chart. Under
+`--x86_64`, each pinned revision is therefore built against a no-op stand-in,
+[`x86_64-stub/Chart-cairo`](x86_64-stub/Chart-cairo). The scripts write
+`stack-rcr-x86_64.yaml` next to each `stack.yaml` of a pinned revision, with the stand-in added
+as an extra dependency. The pinned sources and their `stack.yaml` files are unchanged.
+`env.txt` records the stand-in's checksum, and the build output shows no `cairo` package. The
+stand-in raises an error if a chart is drawn. The replicated figures are drawn by
+`make_figures.py` (Matplotlib), as on the native route.
 
 The option is supported only on an Apple Silicon host and checks that the selected Stack binary
 is x86_64 before running it through Rosetta 2.

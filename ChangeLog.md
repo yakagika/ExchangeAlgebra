@@ -128,6 +128,11 @@
   `Accounting.TrialBalance.Validation`, `Accounting.Consolidation`,
   `Algebra.Exact`, `Journal.Exact`, and the admission `Catalog` and `Engine`
   modules. The `Journal.Transfer` examples are now part of the doctest run.
+- RCR: the `--x86_64` route builds the pinned revisions against a no-op
+  Chart-cairo stand-in (`examples/market/rcr/x86_64-stub/`), because Homebrew
+  no longer installs an x86_64 Cairo on Apple Silicon. No measured program
+  draws a chart, and the pinned sources are unchanged. INSTALL.md now explains
+  how to obtain an x86_64 Stack.
 
 ## 0.5.3.0 - 2026-09-26
 

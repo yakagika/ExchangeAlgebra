@@ -39,10 +39,10 @@ if [ ! -s "$DENSE_TSV" ]; then
     out=$(mktemp "$RUN_DIR/dense-rep.XXXXXX") || rcr_die "mktemp failed"
     rm -rf "${spill_dir:?}"
     if [ "$(uname -s)" = Darwin ]; then
-      (cd "$dense_wt" && /usr/bin/time -l stack --stack-yaml examples/stack.yaml \
+      (cd "$dense_wt" && /usr/bin/time -l stack --stack-yaml "$RCR_DENSE_STACK_YAML" \
         exec --system-ghc sim2 -- +RTS -N4 -s) > "$out" 2>&1
     else
-      (cd "$dense_wt" && /usr/bin/time -v stack --stack-yaml examples/stack.yaml \
+      (cd "$dense_wt" && /usr/bin/time -v stack --stack-yaml "$RCR_DENSE_STACK_YAML" \
         exec --system-ghc sim2 -- +RTS -N4 -s) > "$out" 2>&1
     fi
     elapsed=$(awk '/^[[:space:]]*Total[[:space:]]+time/ { for (i=1;i<=NF;i++) if ($i == "elapsed)") { gsub(/s/,"",$(i-1)); print $(i-1); exit } }' "$out")

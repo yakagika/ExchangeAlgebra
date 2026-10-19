@@ -20,6 +20,8 @@ repository does not change either.
 | `make-artifact-zip.sh` | script | bundles this package, the license and archives of the pinned revisions for Zenodo |
 | `make_figures.py` | script | derives every figure, table row and in-text number from the raw logs and asserts them at manuscript precision (`--table`), or plots them (matplotlib) |
 | `test_make_figures.py` | test | checks record calculations, replication criteria, partial inputs and command-line output |
+| `x86_64-stub/Chart-cairo/Chart-cairo.cabal` | source | package description of the no-op Chart-cairo stand-in used only by `--x86_64` |
+| `x86_64-stub/Chart-cairo/src/Graphics/Rendering/Chart/Backend/Cairo.hs` | source | the stand-in module: keeps the names the pinned revisions use and raises an error instead of drawing |
 | `data/round5-overnight/README.md` | doc | index of the light/heavy series raw logs |
 | `data/round5-overnight/overnight-env.txt` | data | platform-of-record environment and build provenance (light series) |
 | `data/round5-overnight/overnight-raw.tsv` | data | per-rep measurements of all Section 7 series |
@@ -39,5 +41,6 @@ repository does not change either.
 | `data/dense-baseline-v0.4.0.0/sparse-samehost-raw.tsv` | data | per-rep measurements of the sparse N=200 control |
 
 Generated at run time and deliberately not tracked in git: `.rcr-worktrees/` (pinned-revision
-checkouts), `runs/` (reproduction outputs), `revisions/` (`git archive` tarballs bundled into the
-Zenodo zip by `make-artifact-zip.sh`).
+checkouts; under `--x86_64` they also hold the generated `stack-rcr-x86_64.yaml`), `runs/`
+(reproduction outputs), `revisions/` (`git archive` tarballs bundled into the Zenodo zip by
+`make-artifact-zip.sh`).

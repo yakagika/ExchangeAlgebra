@@ -80,7 +80,8 @@ submission text also discloses this Rosetta configuration. Full provenance is re
 Absolute times will vary on an evaluator's machine. The replication criteria therefore judge
 ratios and curve shapes rather than agreement in absolute wall-clock time. On Apple Silicon,
 `--x86_64` reproduces the architecture of the platform of record; it requires Rosetta 2 and an
-x86_64 Stack executable.
+x86_64 Stack executable. It builds the pinned revisions against a no-op Chart-cairo stand-in, so
+no x86_64 Cairo is needed ([INSTALL.md](INSTALL.md#reproducing-the-x86_64-platform-on-apple-silicon)).
 
 ## Replication criteria
 
