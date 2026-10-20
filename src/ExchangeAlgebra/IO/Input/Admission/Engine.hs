@@ -235,6 +235,11 @@ inputPolicyErrors spec (CheckedTransaction key entry _) = vocabularyErrors spec 
 
 -- | Forbid protected postings and raw profit-to-equity transfers under every
 -- declared role. Facts and catalog results do not pass through this raw gate.
+-- The profit-to-equity check applies to one entry (one transaction key) at a
+-- time. It rejects cost or revenue accounts together with equity accounts in
+-- that entry. Splitting them into separate entries passes this check, subject
+-- to the other admission checks. It does not verify that closing transfers
+-- the full profit or loss balance to equity.
 rawPolicyErrors :: TxKey -> [AccountTitles] -> [AdmissionError]
 rawPolicyErrors key accounts =
     [DirectPostingForbidden key account | account <- accounts, isProtectedAccount account]
@@ -412,6 +417,9 @@ executeCall spec state call = do
 
 -- | Compare every present evidence-bearing transaction's debit total with
 -- its obligation. Optional absent transactions have no amount to reconcile.
+-- The comparison is exactly @norm (decL entry) == expected@ for that key.
+-- It does not reconcile the credit breakdown, account titles, or counterparty
+-- against evidence; those details are not supplied by the evidence amount.
 evidenceErrors :: AdmissionSpec -> Execution -> [AdmissionError]
 evidenceErrors spec (Execution journal entries _) =
     [ EvidenceMismatch key evidence expected actual
@@ -452,7 +460,13 @@ finish (Execution journal entries audits) =
 -- provenance, exact per-entry balance, and evidence debit-total equality. These
 -- are observed through the ledger and audit getters with zero tolerance, for
 -- MoneyDecimal only. The public derivation path requires this success value.
--- The guarantee excludes unsafeCoerce and mechanisms outside Safe Haskell.
+-- Success does not guarantee successful trial-balance derivation or statement
+-- presentation: each later stage returns a separate 'Either'.
+-- The guarantee assumes callers do not bypass the public API with
+-- @unsafeCoerce@, @unsafePerformIO@, internal modules (including @.Internal@),
+-- or package-private constructors. EA modules are not marked Safe or
+-- Trustworthy and cannot be imported from a Safe Haskell module. These
+-- assumptions are not enforced by the compiler.
 admit :: AdmissionSpec -> Submission -> Either (NonEmpty AdmissionError) Admitted
 admit spec submission = do
     requireClean (coverageErrors spec submission)

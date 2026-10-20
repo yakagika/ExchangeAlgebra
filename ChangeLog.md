@@ -128,6 +128,15 @@
   `Accounting.TrialBalance.Validation`, `Accounting.Consolidation`,
   `Algebra.Exact`, `Journal.Exact`, and the admission `Catalog` and `Engine`
   modules. The `Journal.Transfer` examples are now part of the doctest run.
+- The admission Haddock states what each check covers and what it does not:
+  only `Required` rules impose presence (an `Optional` menu does not enforce
+  necessity, exclusion, or a count), the profit-to-equity check is per entry,
+  a `Closing` role on any admitted transaction (including `SupplySubmission
+  Closing`) selects after-closing validation, evidence is compared with the
+  debit total only, and admission, trial-balance derivation, and presentation
+  each return their own `Either`. The safety statement now says that EA modules
+  are not Safe Haskell and that the guarantee assumes callers do not bypass the
+  public API.
 - RCR: the `--x86_64` route builds the pinned revisions against a no-op
   Chart-cairo stand-in (`examples/market/rcr/x86_64-stub/`), because Homebrew
   no longer installs an x86_64 Cairo on Apple Silicon. No measured program

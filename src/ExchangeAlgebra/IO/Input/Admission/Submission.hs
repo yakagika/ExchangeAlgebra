@@ -34,6 +34,9 @@ type RawPostings = [(Text, Text, MoneyDecimal)]
 data AdmissionSpec = AdmissionSpec
     { admissionRegistry   :: TxIdRegistry
     , admissionEvidence   :: Map EvidenceId MoneyDecimal -- ^ Evidence debit totals.
+      -- Each amount is compared only with the transaction's total debit amount.
+      -- Evidence does not reconcile the credit breakdown, account titles, or
+      -- counterparty. Supply these totals independently of submitted postings.
     , admissionFacts      :: Map FactId RawPostings -- ^ Trusted raw fact entries.
     , admissionVocabulary :: Set AccountTitles -- ^ Allowed account titles.
     }

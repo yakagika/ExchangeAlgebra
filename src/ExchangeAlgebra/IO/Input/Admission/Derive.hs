@@ -101,10 +101,16 @@ combineResults _ (Left errors) = Left errors
 -- The final snapshot is AfterClosing if the admitted registry entries include
 -- a closing transaction, otherwise BeforeClosing. No external balance,
 -- explanation, or reclassification can be injected into this path.
+-- Any admitted transaction with the Closing role selects AfterClosing for the
+-- final snapshot, including submitted postings authorized by
+-- @SupplySubmission Closing@ in the trusted registry. This decision does not
+-- require the transaction to originate from a catalog closing operation.
 --
--- For multiple entities, derivation reads the combined admitted journal;
+-- Derivation combines all entities and reporting periods in the admitted journal;
 -- acceptance proves provenance and balance, not the economic correctness of
 -- consolidation or the appropriateness of combining reporting periods.
+-- A successful admission does not guarantee success here: strict snapshot
+-- validation can return 'Left' independently of admission's checks.
 deriveTrialBalance
     :: Admitted
     -> Either (NonEmpty (TrialBalance.TBFinding MoneyDecimal)) AdmittedTrialBalance
@@ -123,6 +129,10 @@ deriveTrialBalance admitted@(Admitted journal metadata _ _ adjusted) = do
 
 -- | Present the validated adjusted and final snapshots. A reporting context
 -- can control supported classifications, but cannot replace either balance.
+-- The caller chooses the context; no default is inferred from admission.
+-- Presentation returns its own 'Either' and can fail even after trial-balance
+-- derivation succeeds. See 'Presentation.jcciSecondGradeContext' for the
+-- JGAAP and JCCI grade-2 starting context and its empty instruction lists.
 presentAdmitted
     :: Presentation.ReportingContext MoneyDecimal
     -> AdmittedTrialBalance

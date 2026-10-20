@@ -10,7 +10,11 @@
 -- the derivation functions exported here, not to the existing low-level APIs.
 -- Constructors and record fields of accepted types and the registry are hidden.
 -- No unchecked reconstruction, combination, or serialization instance is provided.
--- The guarantee excludes unsafeCoerce and mechanisms outside Safe Haskell.
+-- This guarantee assumes callers do not use @unsafeCoerce@, @unsafePerformIO@,
+-- or direct access to internal modules (including @.Internal@ modules) or
+-- package-private constructors to bypass the public API. The EA modules are
+-- not marked Safe or Trustworthy and cannot be imported from a Safe Haskell
+-- module; the compiler does not enforce these caller assumptions.
 --
 -- Use a qualified import when composing admission with simulation or other
 -- accounting APIs, for example:
@@ -22,6 +26,34 @@
 -- Evidence obligations implement Definition 8, 'FinalStock' uses the
 -- Definition 9 closing transfer, and t'TxKey' supplies the note coordinates
 -- used by Definitions 10-12.
+--
+-- = Admission, derivation, and presentation
+--
+-- Each stage returns its own 'Either'. A 'Right' from 'admit' does not imply
+-- that 'deriveTrialBalance' or 'presentAdmitted' returns 'Right'. Derivation
+-- combines all admitted entities and reporting periods; choose the trusted
+-- registry's scope accordingly. Presentation requires a reporting context
+-- chosen by the caller, not inferred from admission.
+--
+-- With @spec@ and @submitted@ prepared as in the transaction example, run this
+-- excerpt in an IO action. It reports each stage's failures independently:
+--
+-- @
+-- import qualified ExchangeAlgebra.Accounting.Statements.Presentation as Presentation
+--
+-- case Admission.admit spec submitted of
+--     Left problems -> fail (show problems)
+--     Right accepted -> case Admission.deriveTrialBalance accepted of
+--         Left findings -> fail (show findings)
+--         Right balance -> case Admission.presentAdmitted
+--             (Presentation.jcciSecondGradeContext Presentation.Standalone) balance of
+--             Left issues -> fail (show issues)
+--             Right statements -> print (Admission.admittedFinancialStatements statements)
+-- @
+--
+-- The context in this excerpt selects JGAAP and the JCCI grade-2 profile for
+-- standalone reporting, with no additional presentation instructions. Choose
+-- the scope and any allocations or other instructions for the intended report.
 --
 -- = Admit one transaction
 --

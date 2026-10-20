@@ -213,6 +213,13 @@ data ReportingContext v = ReportingContext
     }
     deriving (Show, Eq)
 
+-- | Construct a JGAAP context with the JCCI grade-2 presentation profile.
+-- The caller explicitly chooses the reporting scope; it is not inferred from
+-- transaction entities or periods. Maturity-sensitive titles start empty, as
+-- do allocations, relabels, materiality decisions, contra rules, subtotal
+-- definitions, and custom metric labels. Use record updates to supply the
+-- instructions needed for the report. This starting context does not guarantee
+-- that 'present' succeeds for every validated trial balance.
 jcciSecondGradeContext :: ReportingScope -> ReportingContext v
 jcciSecondGradeContext scope = ReportingContext
     { _reportingFramework = JGAAP
