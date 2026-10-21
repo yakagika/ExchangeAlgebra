@@ -653,8 +653,8 @@ testEquivalence = do
             (1000000000000 .@ Not :< Cash
              .+ (1000000000000 - 0.5) .@ Hat :< Cash :: Entry)
         zeroPosting = Map.singleton closing (mempty :: Entry)
-    assertTest "bar inherits scaled residual tolerance for MoneyDecimal" $
-        isEquivalentUpTo NetWithinTransaction nearCancellation zeroPosting
+    assertTest "bar retains exact MoneyDecimal residual" $
+        not (isEquivalentUpTo NetWithinTransaction nearCancellation zeroPosting)
     assertTest "gross residual postings remain visible to multiset" $
         not (isEquivalentUpTo PostingMultiset nearCancellation zeroPosting)
     assertTest "RE-only observation keeps near-canceling cash strict" $
@@ -663,8 +663,8 @@ testEquivalence = do
         tinyPair = Map.singleton closing
             ((2 * tiny) .@ Hat :< Cash .+ tiny .@ Not :< Cash :: Entry)
         tinySingle = Map.singleton closing (tiny .@ Hat :< Cash :: Entry)
-    assertTest "bar absolute tolerance removes a tiny multi-posting residual" $
-        isEquivalentUpTo NetWithinTransaction tinyPair zeroPosting
+    assertTest "bar retains a tiny exact multi-posting residual" $
+        not (isEquivalentUpTo NetWithinTransaction tinyPair zeroPosting)
     assertTest "multiset preserves tiny original postings" $
         not (isEquivalentUpTo PostingMultiset tinyPair zeroPosting)
     assertTest "existing bar preserves a single atomic posting" $

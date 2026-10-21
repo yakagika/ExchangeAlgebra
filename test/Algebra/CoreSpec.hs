@@ -196,8 +196,10 @@ testNumericToleranceScaleAware = do
         False (EA.nearlyEqScaled (0/0) (1.0 :: Double))
     let big = (1e10 :@ (Hat :< Yen)) .+ (0.1 :@ (Hat :< Yen)) .+ (0.2 :@ (Hat :< Yen))
            .+ (1e10 :@ (Not :< Yen)) .+ (0.3 :@ (Not :< Yen)) :: TestAlg
-    assertEqual "bar cancels balanced large-scale element to Zero"
-        True (EA.isZero ((.-) big))
+    assertEqual "barWithin preserves legacy large-scale cancellation"
+        True (EA.isZero (barWithin EA.defaultTolerance big))
+    assertEqual "bar preserves the exact large-scale residual"
+        [encodeFloat 1 (-55) :@ (Hat :< Yen)] (EA.toASCList (bar big))
 
 -- ================================================================
 -- Redundant-algebra axiom property tests (QuickCheck)

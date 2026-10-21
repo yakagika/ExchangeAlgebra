@@ -335,7 +335,7 @@ testClosing = do
         ledger = 1e12 .@ source .+ 1e12 .@ revHat source .+ 1 .@ source
             :: Alg Double TestBase
         expected = 1 .@ revHat source .+ 1 .@ Not :< (RetainedEarnings, Yen)
-    assertTest "bar loses historical-small residual fixture" (Map.null (obs ledger))
+    assertTest "bar retains historical-small residual fixture" (obs ledger == Map.singleton source 1)
     entries <- requireRight "historical-small balance closing" (closingEntries ledger)
     assertTest "closing preserves current one" (rawObservation entries == rawObservation expected)
     assertTest "closing-side public classification" $

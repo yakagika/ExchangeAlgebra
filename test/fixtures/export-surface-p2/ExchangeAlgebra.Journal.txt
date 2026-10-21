@@ -423,6 +423,7 @@ norm
 pimoFlip
 pimoFromDivision
 plank
+postFromNetBy
 postingUpperBound
 projWithBase
 projWithBaseNetNorm

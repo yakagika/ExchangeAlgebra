@@ -584,7 +584,7 @@ equivalenceCases =
       where
         category = case policy of
             PostingMultiset -> "-"
-            _ -> "bar-tolerance"
+            _ -> "exact-residual"
 
 -- | Catalog inputs reproduce each generating constructor and its fact role.
 catalogCases :: [GoldenCase]

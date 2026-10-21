@@ -1,8 +1,11 @@
 # readout-baseline-p1 alg-double-f-cancel; schema 1; commit 2b4e5fb6c2ff19e01cf51ba48b0d4f745e61325f
+bar	all	posting		Hat	AccountsReceivable	0x3ff0000000000000	1.0
 bar	all	posting		Hat	Purchases	0x433fffffffffffff	9.007199254740991e15
+bar	all	posting		Hat	Sales	0x3ff0000000000000	1.0
+bar	all	posting		Not	Cash	0x3ff0000000000000	1.0
 norm	all	scalar	0x4372e1bc9bf04000	8.503599627370496e16
 balance	all	result	False
-diffRL	all	Credit	0x4340000000000000	9.007199254740992e15
+diffRL	all	Credit	0x433ffffffffffffe	9.00719925474099e15
 compress	all	posting		Hat	AccountsReceivable	0x4340000000000000	9.007199254740992e15
 compress	all	posting		Hat	Cash	0x4341c37937e08000	1.0e16
 compress	all	posting		Hat	Purchases	0x4340000000000000	9.007199254740992e15
@@ -17,14 +20,20 @@ balanceMapBy	key=account	map	Cash	0x3ff0000000000000	1.0
 balanceMapBy	key=account	map	AccountsReceivable	0xbff0000000000000	-1.0
 balanceMapBy	key=account	map	RetainedEarnings	0x0000000000000000	0.0
 balanceMapBy	key=account	map	Purchases	0xc33fffffffffffff	-9.007199254740991e15
-balanceMapBy	key=account	map	Sales	0x0000000000000000	0.0
+balanceMapBy	key=account	map	Sales	0xbff0000000000000	-1.0
+netPairMapBy	key=account	map	Cash	0x3ff0000000000000	1.0	0x0000000000000000	0.0
+netPairMapBy	key=account	map	AccountsReceivable	0x0000000000000000	0.0	0x3ff0000000000000	1.0
 netPairMapBy	key=account	map	Purchases	0x0000000000000000	0.0	0x433fffffffffffff	9.007199254740991e15
+netPairMapBy	key=account	map	Sales	0x0000000000000000	0.0	0x3ff0000000000000	1.0
+postFromNetBy	key=account; callback=identity-side-Not	posting		Not	AccountsReceivable	0x3ff0000000000000	1.0
+postFromNetBy	key=account; callback=identity-side-Not	posting		Not	Cash	0x3ff0000000000000	1.0
 postFromNetBy	key=account; callback=identity-side-Not	posting		Not	Purchases	0x433fffffffffffff	9.007199254740991e15
+postFromNetBy	key=account; callback=identity-side-Not	posting		Not	Sales	0x3ff0000000000000	1.0
 projNetNorm	Cash	scalar	0x4341c37937e08000	1.0e16
 projNetNorm	Sales	scalar	0x4340000000000000	9.007199254740992e15
 projNetNorm	Cash+Sales	scalar	0x4350e1bc9bf04000	1.9007199254740992e16
-balanceBy	Cash Not-Hat	scalar	0x0000000000000000	0.0
-balanceBy	Sales Not-Hat	scalar	0x0000000000000000	0.0
+balanceBy	Cash Not-Hat	scalar	0x3ff0000000000000	1.0
+balanceBy	Sales Not-Hat	scalar	0xbff0000000000000	-1.0
 Pair.compare	Cash notes=1 vs Cash notes=2,3	result	LT
 Pair.compare	Sales notes=1,2 vs Sales note=3	result	LT
 closingEntries	Alg	Right

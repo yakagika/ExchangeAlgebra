@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE StrictData                 #-}
@@ -81,10 +82,11 @@ import ExchangeAlgebra.Algebra.Element.Representation ( Name
                                                       , matchesQuery
                                                       )
 import ExchangeAlgebra.Algebra.Core.Representation (Alg(..), Redundant(..), filter)
-import qualified ExchangeAlgebra.Algebra.Core.Representation as EA (Alg(..), filter)
-import ExchangeAlgebra.Algebra.Value.Class (HatVal, Tolerance, nearlyEqScaled)
-import qualified ExchangeAlgebra.Algebra.Value.Class as EA (nearlyEqScaled)
-import ExchangeAlgebra.Journal.Core.Representation (Journal, Note, map)
+import qualified ExchangeAlgebra.Algebra.Core.Representation as EA (Alg(..), filter, foldEntries, foldPairs, Pair(..))
+import ExchangeAlgebra.Algebra.Value.Class (HatVal(..), Tolerance(..), isErrorValue)
+import qualified Data.Foldable as Foldable
+import ExchangeAlgebra.Algebra.Value (MoneyDouble, MoneyDecimal)
+import ExchangeAlgebra.Journal.Core.Representation (Journal, Note, map, toAlg)
 import Data.Time (Day, TimeOfDay)
 import Prelude hiding (map, filter)
 
@@ -293,8 +295,9 @@ class (Redundant a n b ) => Exchange a n b where
 
 
 instance (HatVal n, ExBaseClass b) =>  Exchange Alg n b where
-    balanceWithin = undefined
-    diffRLWithin = undefined
+    {-# SPECIALIZE instance ExBaseClass b => Exchange Alg Double b #-}
+    {-# SPECIALIZE instance ExBaseClass b => Exchange Alg MoneyDouble b #-}
+    {-# SPECIALIZE instance ExBaseClass b => Exchange Alg MoneyDecimal b #-}
     -- | filter Credit side
     decR xs = filter (\x -> x /= Zero && (whichSide . _hatBase) x == Credit) xs
 
@@ -307,16 +310,42 @@ instance (HatVal n, ExBaseClass b) =>  Exchange Alg n b where
     -- | filter Minus Stock
     decM xs = filter (\x -> x /= Zero && (not. isHat. _hatBase) x) xs
 
-    -- | check Credit Debit balance (scale-aware tolerance, WI-12)
-    balance xs = nearlyEqScaled ((norm . decR) xs) ((norm . decL) xs)
+    -- | Compare the exact credit-minus-debit state before rounding.
+    balance = (== Just EQ) . signAccum . accountState
 
-    -- | (scale-aware tolerance, WI-12); near-equal sides report (Side, 0)
-    diffRL xs  | nearlyEqScaled r l = (Side, 0)
-               | r > l              = (Credit, r - l)
-               | otherwise          = (Debit, l - r)
-        where
-        r = (norm . decR) xs
-        l = (norm . decL) xs
+    diffRL algebra = case signAccum state of
+        Just EQ -> (Side, zeroValue)
+        Just GT -> (Credit, roundAccum state)
+        Just LT -> (Debit, roundAccum (negateAccum state))
+        Nothing -> (Side, roundAccum state)
+      where
+        state = accountState algebra
+
+    balanceWithin tolerance = (== Side) . fst . diffRLWithin tolerance
+    diffRLWithin tolerance algebra
+        | not (isErrorValue credit || isErrorValue debit)
+            && abs (credit - debit) <= absTol tolerance
+                + relTol tolerance * max (abs credit) (abs debit) = (Side, zeroValue)
+        | credit > debit = (Credit, credit - debit)
+        | otherwise      = (Debit, debit - credit)
+      where
+        credit = sequentialNorm (decR algebra)
+        debit  = sequentialNorm (decL algebra)
+        sequentialNorm = EA.foldPairs (\total _ (EA.Pair hats nots) ->
+            total + Foldable.foldl' (+) 0 hats + Foldable.foldl' (+) 0 nots) 0
+
+-- | Exact credit minus debit, with structural Side contributing nothing.
+accountState :: forall n b. (HatVal n, ExBaseClass b) => Alg n b -> Accum n
+{-# INLINE accountState #-}
+accountState = EA.foldPairs collect emptyAccum
+  where
+    collect total basePart (EA.Pair hats nots) =
+        mergeAccum total (mergeAccum (signed Hat hats) (signed Not nots))
+      where
+        signed side values = case whichSide (merge side basePart :: b) of
+            Credit -> Foldable.foldl' (flip addAccum) emptyAccum values
+            Debit  -> negateAccum (Foldable.foldl' (flip addAccum) emptyAccum values)
+            Side   -> emptyAccum
 
 ------------------------------------------------------------------
 -- | Projects only the credit-side elements. For 'Alg' this coincides with the
@@ -505,21 +534,12 @@ projContra = filter (isContra . _hatBase)
 
 
 instance (Note n, HatVal v, ExBaseClass b) => Exchange (Journal n) v b where
-    balanceWithin = undefined
-    diffRLWithin = undefined
+    balanceWithin tolerance = balanceWithin tolerance . toAlg
+    diffRLWithin tolerance = diffRLWithin tolerance . toAlg
     decR js = map (EA.filter (\x -> x /= EA.Zero && (whichSide . EA._hatBase) x == Credit)) js
     decL xs = map (EA.filter (\x -> x /= EA.Zero && (whichSide . EA._hatBase) x == Debit)) xs
     decP xs = map (EA.filter (\x -> x /= EA.Zero && (isHat . EA._hatBase) x)) xs
     decM xs = map (EA.filter (\x -> x /= EA.Zero && (not . isHat . EA._hatBase) x)) xs
 
-    -- scale-aware tolerance (WI-12), consistent with Alg's Exchange instance
-    balance xs = EA.nearlyEqScaled ((norm . decR) xs) ((norm . decL) xs)
-
-    diffRL xs
-        | EA.nearlyEqScaled r l = (Side, 0)
-        | r > l                 = (Credit, r - l)
-        | otherwise             = (Debit, l - r)
-      where
-        r = (norm . decR) xs
-        l = (norm . decL) xs
-
+    balance = balance . toAlg
+    diffRL = diffRL . toAlg

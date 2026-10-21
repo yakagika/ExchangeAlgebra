@@ -1,5 +1,8 @@
 # readout-baseline-p1 journal-double-f-cancel; schema 1; commit 2b4e5fb6c2ff19e01cf51ba48b0d4f745e61325f
+bar	all	posting	-1	Hat	AccountsReceivable	0x3ff0000000000000	1.0
 bar	all	posting	-1	Hat	Purchases	0x433fffffffffffff	9.007199254740991e15
+bar	all	posting	-1	Hat	Sales	0x3ff0000000000000	1.0
+bar	all	posting	-1	Not	Cash	0x3ff0000000000000	1.0
 norm	all	scalar	0x4372e1bc9bf04000	8.503599627370496e16
 projWithBaseNetNorm	Cash	scalar	0x4341c37937e08000	1.0e16
 projWithBaseNetNorm	Sales	scalar	0x4340000000000000	9.007199254740992e15

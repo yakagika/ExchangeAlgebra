@@ -29,8 +29,8 @@ separated by `;` in the order below.
 - `finalstock`: The input uses the `FinalStock` closing operation.
 - `free-text`: The result contains a `Text` diagnostic from
   `InvalidCatalogParameters` or `CatalogExecutionFailure`.
-- `bar-tolerance`: The result comes from `NetWithinTransaction` or
-  `NetAccountsInTransactions`.
+- `exact-residual`: The result compares exact base residuals through
+  `NetWithinTransaction` or `NetAccountsInTransactions`.
 - `classification`: The result depends on whether an account is protected or
   is a valuation account.
 - `-`: None of these categories applies.

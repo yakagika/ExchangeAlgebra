@@ -45,6 +45,7 @@ module ExchangeAlgebra.Journal.Core ( Note(..)
                                     , projWithNoteBaseNetNorm
                                     , filterWithNote
                                     , filterByAxis
+                                    , postFromNetBy
                                     , gather
                                     ) where
 
@@ -75,5 +76,6 @@ import ExchangeAlgebra.Journal.Core.Representation ( Note(..)
                                                    , projWithNoteBaseNetNorm
                                                    , filterWithNote
                                                    , filterByAxis
+                                                   , postFromNetBy
                                                    , gather
                                                    )

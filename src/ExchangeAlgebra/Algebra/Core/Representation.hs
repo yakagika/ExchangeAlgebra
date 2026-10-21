@@ -23,6 +23,7 @@ module ExchangeAlgebra.Algebra.Core.Representation where
 
 import ExchangeAlgebra.Algebra.Base.Representation
 import ExchangeAlgebra.Algebra.Element.Representation (Element(..), AxisDecompose(..), AxisKey, axisIsWildcard, CountUnit(..), ( .# ), matchesQuery)
+import ExchangeAlgebra.Algebra.Value (MoneyDouble, MoneyDecimal)
 import ExchangeAlgebra.Algebra.Value.Class
 
 import qualified Data.List as L (foldl', sort, sortOn, any)
@@ -76,7 +77,8 @@ import qualified Data.Binary as Binary
 --
 -- The operations above satisfy the following /axioms/ (the paper states five;
 -- they are verified as QuickCheck properties in @test\/Spec.hs@, see
--- @axiomProperties@):
+-- @axiomProperties@). Axioms 4 and 5 require exact arithmetic, including
+-- intermediate products and sums; floating-point readouts can round differently:
 --
 --   1. Hat involution:        @(.^) ((.^) x) = x@
 --   2. Scalar on an element:   @a '.*' (v ':@' b) = (a*v) ':@' b@
@@ -84,11 +86,18 @@ import qualified Data.Binary as Binary
 --   4. Norm homogeneity:       @'norm' (a '.*' x) = a * 'norm' x@  (for @a >= 0@)
 --   5. Norm additivity:        @'norm' (x '.+' y) = 'norm' x + 'norm' y@
 --
+-- For axiom 4 with Double, take @a = 10@ and two Not postings of 0.1 and
+-- 0.2 on one base: @norm (a .* x)@ is 3, but @a * norm x@ is
+-- 3.0000000000000004. For axiom 5, let @T = 2^53@, let @x@ contain
+-- Not T and Not 1 on one base, and let @y@ contain Not 1 on another:
+-- @norm (x .+ y)@ is T+2, but @norm x + norm y@ is T.
+--
 -- Derived lemmas (also property-tested): @'bar'@ idempotence
 -- (@'bar' ('bar' x) = 'bar' x@), 'Zero' identity, and associativity of @('.+')@.
 -- Note @('.+')@ accumulates same-base postings as an ordered sequence (the
--- /redundancy/), so 'Show' \/ 'Eq' observe that order; for the exact value type
--- t'ExchangeAlgebra.Value.MoneyDecimal', 'norm' \/ 'bar' are order-independent.
+-- /redundancy/), so 'Show' \/ 'Eq' \/ @Binary@ observe that order, as do the
+-- sequential sums in 'barWithin'. For finite postings, 'norm', 'bar', and
+-- balance are order-independent for every value type.
 -- The order itself is furthermore /construction-path dependent/: the
 -- pairwise-union path ('fromList'\/'mconcat') and the bulk-merge path
 -- ('sigma'\/'unionsMerge') arrange the same multiset of postings differently.
@@ -147,7 +156,11 @@ class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
     -- sums the postings exactly and rounds once, so for floating-point types the
     -- two sides of these equations can differ in the last bit (the right-hand
     -- side adds two rounded values). Because it sums both sides it does not cancel Hat
-    -- against Not; @norm ('bar' x) <= norm x@ (bar discards the canceled part).
+    -- against Not. Before rounding, @norm ('bar' x) <= norm x@ because bar
+    -- discards the canceled part. This inequality also holds for exact value
+    -- types. It need not hold after floating-point rounding: with T = 2^53,
+    -- Not T and Not 3 on one base and Not 2 on another give norm x = T+4, whereas
+    -- norm (bar x) = T+6.
     -- On an axis-preserving ledger, @norm ('bar' x)@ does not cancel across
     -- distinct axis values. Use 'balanceMapBy' or 'netPairMapBy' to read each
     -- group's net amount.
@@ -201,7 +214,18 @@ instance (Binary.Binary v) => Binary.Binary (Pair v) where
 
 instance (HatVal v) => Ord (Pair v) where
     {-# INLINE compare #-}
-    compare (Pair hs1 ns1) (Pair hs2 ns2) = compare ((sum hs1) - (sum ns1)) ((sum hs2) - (sum ns2))
+    compare first@(Pair hs1 ns1) second@(Pair hs2 ns2) =
+        compare (key first) (key second) <> compare (hs1, ns1) (hs2, ns2)
+      where
+        -- Hat minus Not; classification uses the state, never rounded overflow.
+        key pair = case exactAccum state of
+            Just value -> (1 :: Int, value)
+            Nothing -> case signAccum state of
+                Just LT -> (0, 0)
+                Just GT -> (2, 0)
+                _       -> (3, 0)
+          where
+            state = negateAccum (netPairState pair)
 
     (<) x y | compare x y == LT = True
             | otherwise         = False
@@ -634,7 +658,7 @@ mergeAlgMapIfNonZero !acc alg = mergeAlgMap acc alg
 -- same-base sequence order differs (the bulk-merge accumulates a new same-base
 -- singleton in front of the previously merged values, whereas the pairwise
 -- union path interleaves differently). 'Eq'\/@Binary@ observe that order, and
--- 'Double' observes it through the last ULP of 'norm'\/'bar'; see the
+-- 'Double' can observe it through the sequential sums in 'barWithin'; see the
 -- characterization test @testSameBaseSeqOrderPathDependence@.
 unionsMerge :: (HatVal n, Foldable f, HatBaseClass b) => f (Alg n b) -> Alg n b
 unionsMerge ts =
@@ -646,7 +670,9 @@ unionsMerge ts =
 ------------------------------------------------------------------
 
 instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
-    barWithin = undefined
+    {-# SPECIALIZE instance HatBaseClass b => Redundant Alg Double b #-}
+    {-# SPECIALIZE instance HatBaseClass b => Redundant Alg MoneyDouble b #-}
+    {-# SPECIALIZE instance HatBaseClass b => Redundant Alg MoneyDecimal b #-}
     (.^) Zero       = Zero
     (.^) (n:@ b)    = n :@ (revHat b)
     (.^) (Liner ms idx bpToId idToBp nextBpId allIds) = Liner
@@ -677,13 +703,44 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
                      allIds
 
     norm Zero       = 0
-    norm (v:@_)     = v
-    norm (Liner ms _ _ _ _ _) = Map.foldl' (\ !x (Pair hs ns) -> x + Foldable.foldl' (+) 0 hs + Foldable.foldl' (+) 0 ns) 0 ms
+    norm (v:@_)     = roundAccum (addAccum v emptyAccum)
+    norm (Liner ms _ _ _ _ _) = roundAccum $
+        Map.foldl' (\total (Pair hs ns) ->
+            Foldable.foldl' (flip addAccum)
+                (Foldable.foldl' (flip addAccum) total hs) ns) emptyAccum ms
 
     {-# INLINE (.-) #-}
     (.-) Zero = Zero
-    (.-) (v:@b) = v:@b
-    (.-) (Liner m _ _ _ _ _) = let !res = Map.mapMaybe f m
+    (.-) scalar@(v :@ _)
+        | isZeroValue v = Zero
+        | otherwise    = scalar
+    (.-) (Liner pairs ~idx ~bpToId ~idToBp ~nextBpId ~allIds)
+        | Map.null reduced = Zero
+        | Map.size reduced == Map.size pairs =
+            Liner reduced idx bpToId idToBp nextBpId allIds
+        | otherwise = linerFromMap reduced
+      where
+        reduced = Map.mapMaybe reduce pairs
+        reduce pair = case signAccum state of
+            Just EQ -> Nothing
+            Just LT -> settle Hat (negateAccum state)
+            _       -> settle Not state
+          where
+            state = netPairState pair
+            settle side magnitude =
+                let value = roundAccum magnitude
+                in if isErrorValue value && hasNonfiniteState state
+                    then Just pair
+                    else finish side value
+        finish side value
+            | isZeroValue value = Nothing
+            | side == Hat = Just (Pair (Seq.singleton value) Seq.empty)
+            | otherwise   = Just (Pair Seq.empty (Seq.singleton value))
+
+    {-# INLINE barWithin #-}
+    barWithin _ Zero = Zero
+    barWithin _ (v:@b) = v:@b
+    barWithin tolerance (Liner m _ _ _ _ _) = let !res = Map.mapMaybe f m
                    in case null res of
                         True -> Zero
                         False -> linerFromMap res
@@ -692,41 +749,84 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
             f p@(Pair hs ns) =
                 let !h = Foldable.foldl' (+) 0 hs
                     !n = Foldable.foldl' (+) 0 ns
-                in case nearlyEqScaled h n of -- scale-aware tolerance (WI-11)
+                in case (not (isErrorValue h || isErrorValue n)
+                    && abs (h - n) <= absTol tolerance
+                        + relTol tolerance * max (abs h) (abs n)) of -- scale-aware tolerance (WI-11)
                     True -> Nothing
                     False -> case (Seq.length hs, Seq.length ns) of
                         -- Already in canonical form: singleton on winning side, empty on other
                         (1, 0) | h > n -> Just p
                         (0, 1) | n > h -> Just p
-                        -- @EQ@ is unreachable here: this branch is only entered
-                        -- when 'nearlyEqScaled' h n is False above, so h and n are
-                        -- not (even approximately) equal; @compare h n@ is GT or
-                        -- LT. The non-exhaustive @case@ is by design (audited) — a
-                        -- defensive @EQ@ arm would be dead code with no canonical
-                        -- result to return.
                         _ -> case compare h n of
                             GT -> Just (Pair (Seq.singleton (h - n)) Seq.empty)
-                            LT -> Just (Pair Seq.empty (Seq.singleton (n - h)))
+                            _  -> Just (Pair Seq.empty (Seq.singleton (n - h)))
 
     {-# INLINE compress #-}
-    compress Zero       = Zero
-    compress (v:@b)     = v:@b
-    compress (Liner m idx bpToId idToBp nextBpId allIds)  = Liner
-                        (Map.map compressPair m)
-                        idx
-                        bpToId
-                        idToBp
-                        nextBpId
-                        allIds
+    compress Zero = Zero
+    compress scalar@(v :@ _)
+        | isZeroValue v = Zero
+        | otherwise    = scalar
+    compress (Liner pairs ~idx ~bpToId ~idToBp ~nextBpId ~allIds)
+        | Map.null reduced = Zero
+        | Map.size reduced == Map.size pairs =
+            Liner reduced idx bpToId idToBp nextBpId allIds
+        | otherwise = linerFromMap reduced
       where
-        {-# INLINE compressPair #-}
-        compressPair p@(Pair hs ns) = case (Seq.length hs, Seq.length ns) of
-            (1, 1) -> p  -- already singleton on both sides, reuse
-            (1, 0) -> p  -- already singleton + empty, reuse
-            (0, 1) -> p  -- already empty + singleton, reuse
-            _      -> Pair (Seq.singleton (Foldable.foldl' (+) 0 hs))
-                           (Seq.singleton (Foldable.foldl' (+) 0 ns))
+        reduced = Map.mapMaybe compressPair pairs
+        compressPair (Pair hs ns) =
+            let h = roundAccum (Foldable.foldl' (flip addAccum) emptyAccum hs)
+                n = roundAccum (Foldable.foldl' (flip addAccum) emptyAccum ns)
+                hats = if isZeroValue h then Seq.empty else Seq.singleton h
+                nots = if isZeroValue n then Seq.empty else Seq.singleton n
+            in if Seq.null hats && Seq.null nots then Nothing
+               else Just (Pair hats nots)
 
+
+-- | Visit full-base pairs without rebuilding every posting's base.
+foldPairs :: (HatVal n, HatBaseClass b)
+          => (a -> BasePart b -> Pair n -> a) -> a -> Alg n b -> a
+{-# INLINE foldPairs #-}
+foldPairs _ initial Zero = initial
+foldPairs collect initial (value :@ postingBase)
+    | isZeroValue value = initial
+    | isHat postingBase = collect initial (base postingBase)
+        (Pair (Seq.singleton value) Seq.empty)
+    | otherwise = collect initial (base postingBase)
+        (Pair Seq.empty (Seq.singleton value))
+foldPairs collect initial (Liner pairs _ _ _ _ _) = Map.foldlWithKey' collect initial pairs
+
+-- | Exact Not-minus-Hat residual for one complete base.
+netPairState :: HatVal n => Pair n -> Accum n
+{-# INLINE netPairState #-}
+netPairState (Pair hats nots) = mergeAccum
+    (Foldable.foldl' (flip addAccum) emptyAccum nots)
+    (negateAccum (Foldable.foldl' (flip addAccum) emptyAccum hats))
+
+-- | Distinguish nonfinite inputs from finite overflow of the rounded output.
+hasNonfiniteState :: HatVal n => Accum n -> Bool
+{-# INLINE hasNonfiniteState #-}
+hasNonfiniteState state = signAccum (mergeAccum state (negateAccum state)) /= Just EQ
+
+-- | Group unrounded residuals for Alg and Journal callbacks. Nonfinite bases
+-- are returned separately, unchanged, and never classified by the callback key.
+postNetStates :: (HatVal n, HatBaseClass b, Ord k)
+              => (b -> Maybe k) -> Alg n b -> (Alg n b, M.Map k (Accum n))
+{-# INLINE postNetStates #-}
+postNetStates keyOf algebra = (mkAlgFromMap retained, totals)
+  where
+    (!retained, !totals) = foldPairs collect (Map.empty, M.empty) algebra
+    collect (!unchanged, !amounts) basePart pair =
+        let state = netPairState pair
+            select side magnitude = case keyOf (merge side basePart) of
+                Nothing -> (unchanged, amounts)
+                Just key -> let !updated = M.insertWith mergeAccum key magnitude amounts
+                            in (unchanged, updated)
+        in if isErrorValue (abs (roundAccum state)) && hasNonfiniteState state
+            then let !updated = Map.insert basePart pair unchanged in (updated, amounts)
+            else case signAccum state of
+                Just EQ -> (unchanged, amounts)
+                Just LT -> select Hat (negateAccum state)
+                _       -> select Not state
 
 -- * Basic functions
 ------------------------------------------------------------------
@@ -1141,7 +1241,8 @@ mapBasePart f (Liner m _ _ _ _ _) =
 -- Through ℘ (see 'mapBasePart'), 'Alg' is the free commutative monoid on its
 -- entries, and @extendBy h@ is the unique ℘-homomorphism that agrees with @h@
 -- on the generators. It acts entry by entry in the /redundant/ layer, whereas
--- 'postFromNetBy' first nets through 'bar' and extends from that quotient.
+-- 'postFromNetBy' first nets through exact, unrounded base residuals and
+-- extends from that quotient, as described in its rounding contract.
 -- 'mapBasePart' is the special case that keeps the value and the Hat\/Not side
 -- and only relabels the base part.
 --
@@ -1158,8 +1259,11 @@ mapBasePart f (Liner m _ _ _ _ _) =
 --   @extendBy (\\v b -> v :\@ merge (hat b) (f (base b))) x@.
 -- * @norm (extendBy h x)@ equals the sum of @norm (h v b)@ over the entries of
 --   @x@ (exact additive value types; floating-point values carry the usual
---   rounding caveat). In particular @norm@ is preserved whenever every
---   @h v b@ has norm @v@.
+--   rounding caveat). In particular, for exact additive value types, @norm@
+--   is preserved whenever every @h v b@ has norm @v@. Rounded norms alone
+--   do not suffice: with T = 2^53, replace a Not T posting by Not T and Not 1,
+--   and preserve a separate Not 1 posting. Each replacement has the original
+--   rounded norm, but the total norm changes from T to T+2.
 --
 -- Zero-valued entries are skipped, as in 'foldEntries'. Well-formedness of the
 -- algebras returned by @h@ (non-negative, finite values) is the caller's
@@ -1378,25 +1482,33 @@ singlePairToAlg b (Pair hs ns) = case (Seq.viewl hs, Seq.viewl ns) of
 -- cancel only when they are exactly equal.
 --
 -- Complexity: O(cost(proj) + cost(bar) + cost(norm)).
+{-# SPECIALIZE projNetNorm :: HatBaseClass b => [b] -> Alg Double b -> Double #-}
+{-# SPECIALIZE projNetNorm :: HatBaseClass b => [b] -> Alg MoneyDouble b -> MoneyDouble #-}
+{-# SPECIALIZE projNetNorm :: HatBaseClass b => [b] -> Alg MoneyDecimal b -> MoneyDecimal #-}
 projNetNorm :: (HatVal n, HatBaseClass b) => [b] -> Alg n b -> n
-projNetNorm [] _ = 0
-projNetNorm _ Zero = 0
-projNetNorm bs (v :@ b)
-    | L.any (`matchesQuery` b) bs = v
-    | otherwise        = 0
+projNetNorm queries = roundAccum . projectedNetState queries
+
+-- | Indexed projection followed by exact base-local netting, without rounding.
+projectedNetState :: (HatVal n, HatBaseClass b) => [b] -> Alg n b -> Accum n
+{-# INLINE projectedNetState #-}
+projectedNetState [] _ = emptyAccum
+projectedNetState _ Zero = emptyAccum
+projectedNetState bs (v :@ b)
+    | L.any (`matchesQuery` b) bs = addAccum v emptyAccum
+    | otherwise        = emptyAccum
 -- Index fields bound lazily (@~@); a concrete base uses 'projExactMap' (a plain
 -- 'Map.lookup') and never forces the axis index. See 'projExactMap'.
-projNetNorm [b] (Liner m ~idx _ ~idToBp _ ~allIds) =
-    foldProjectedNorm $
+projectedNetState [b] (Liner m ~idx _ ~idToBp _ ~allIds) =
+    foldProjectedState $
         if haveWildcard (base b)
             then projWildMap  b m idx idToBp allIds
             else projExactMap b m
 -- Multi-pattern path: the query list is a /set/ (see 'proj'). Per-base results
 -- are merged with 'pairUnion' so overlapping/duplicate queries do not double
--- count. Note 'projNetNorm' returns a bar-netted norm: each base contributes its
+-- count. Note 'projectedNetState' returns a bar-netted norm: each base contributes its
 -- unrounded residual, and the residuals are rounded once at the end.
-projNetNorm bs (Liner m ~idx _ ~idToBp _ ~allIds) =
-    foldProjectedNorm $
+projectedNetState bs (Liner m ~idx _ ~idToBp _ ~allIds) =
+    foldProjectedState $
         L.foldl'
             (\acc q -> Map.unionWith pairUnion acc
                  (if haveWildcard (base q)
@@ -1405,7 +1517,7 @@ projNetNorm bs (Liner m ~idx _ ~idToBp _ ~allIds) =
             Map.empty
             bs
 
-{-# DEPRECATED projNorm "renamed to 'projNetNorm': the result is the bar-netted norm (norm (bar (proj bs x))), which the old name concealed — 'norm (proj bs x)' is NOT what this computes. 'projNorm' will be removed in 0.6" #-}
+{-# DEPRECATED projNorm "renamed to 'projNetNorm': the result is a bar-netted norm, with exact base residuals rounded only after summation — 'norm (proj bs x)' is NOT what this computes. 'projNorm' will be removed in 0.6" #-}
 -- | Deprecated alias for 'projNetNorm' (renamed in 0.5.0.0 so the name states
 -- the bar-netting).
 projNorm :: (HatVal n, HatBaseClass b) => [b] -> Alg n b -> n
@@ -1414,17 +1526,25 @@ projNorm = projNetNorm
 {-# INLINE foldProjectedNorm #-}
 -- | Complexity: O(k), where k is the number of projected base keys.
 foldProjectedNorm :: (HatVal n) => Map.HashMap k (Pair n) -> n
-foldProjectedNorm = Map.foldl' (\acc p -> acc + barNormPair p) 0
+foldProjectedNorm = roundAccum . foldProjectedState
+
+-- | Merge projected base residuals before rounding the requested output.
+foldProjectedState :: HatVal n => Map.HashMap k (Pair n) -> Accum n
+{-# INLINE foldProjectedState #-}
+foldProjectedState = Map.foldl' (\total pair ->
+    let state = netPairState pair
+    in mergeAccum total (case signAccum state of
+        Just LT -> negateAccum state
+        _       -> state)) emptyAccum
 
 {-# INLINE barNormPair #-}
--- | Complexity: O(h + n), where h/n are side lengths within the pair.
-barNormPair :: (HatVal n) => Pair n -> n
-barNormPair (Pair hs ns) =
-    let !h = Foldable.foldl' (+) 0 hs
-        !n = Foldable.foldl' (+) 0 ns
-    in if nearlyEqScaled h n
-        then 0
-        else if h > n then h - n else n - h
+-- | Round the exact magnitude of one base's residual.
+barNormPair :: HatVal n => Pair n -> n
+barNormPair pair = case signAccum state of
+    Just LT -> roundAccum (negateAccum state)
+    _       -> roundAccum state
+  where
+    state = netPairState pair
 
 
 -- | Compute the net balance as the difference of two projections.
@@ -1443,9 +1563,13 @@ barNormPair (Pair hs ns) =
 --
 -- >>> balanceBy [Hat:<Yen] [Not:<Yen] alg
 -- -70.0
+{-# SPECIALIZE balanceBy :: HatBaseClass b => [b] -> [b] -> Alg Double b -> Double #-}
+{-# SPECIALIZE balanceBy :: HatBaseClass b => [b] -> [b] -> Alg MoneyDouble b -> MoneyDouble #-}
+{-# SPECIALIZE balanceBy :: HatBaseClass b => [b] -> [b] -> Alg MoneyDecimal b -> MoneyDecimal #-}
 balanceBy :: (HatVal n, HatBaseClass b) => [b] -> [b] -> Alg n b -> n
 balanceBy plusBases minusBases alg =
-    projNetNorm plusBases alg - projNetNorm minusBases alg
+    roundAccum (mergeAccum (projectedNetState plusBases alg)
+        (negateAccum (projectedNetState minusBases alg)))
 
 -- | Aggregate the net balance of an 'Alg' by a key, in a single pass.
 --
@@ -1460,8 +1584,8 @@ balanceBy plusBases minusBases alg =
 -- key across sides.
 --
 -- This replaces @[ (k, balanceBy [Not:<k] [Hat:<k] alg) | k <- keys ]@ — one
--- wildcard projection per key — with a single fold; the result is identical up to
--- floating-point reassociation. For per-key reporting over many keys this is the
+-- wildcard projection per key — with a single fold; both readouts sum exactly
+-- before rounding. For per-key reporting over many keys this is the
 -- difference between @O(keys * entries)@ and @O(entries)@.
 --
 -- The values are /signed/ net balances and may be negative, so use a signed value
@@ -1478,21 +1602,31 @@ balanceBy plusBases minusBases alg =
 -- >>> balanceMapBy Just alg
 -- fromList [(Yen,70.0),(Dollar,50.0)]
 {-# INLINE balanceMapBy #-}
+{-# SPECIALIZE balanceMapBy :: (HatBaseClass b, Ord k) => (BasePart b -> Maybe k) -> Alg Double b -> M.Map k Double #-}
+{-# SPECIALIZE balanceMapBy :: (HatBaseClass b, Ord k) => (BasePart b -> Maybe k) -> Alg MoneyDouble b -> M.Map k MoneyDouble #-}
+{-# SPECIALIZE balanceMapBy :: (HatBaseClass b, Ord k) => (BasePart b -> Maybe k) -> Alg MoneyDecimal b -> M.Map k MoneyDecimal #-}
 balanceMapBy :: (HatVal v, HatBaseClass b, Ord k)
              => (BasePart b -> Maybe k) -> Alg v b -> M.Map k v
-balanceMapBy keyOf = foldEntriesToMap step
+balanceMapBy keyOf = M.map roundAccum . foldPairs collect M.empty
   where
-    step v b = case keyOf (base b) of
-        Nothing -> Nothing
-        Just k  -> Just (k, if isHat b then negate v else v)
+    collect totals basePart pair = case keyOf basePart of
+        Nothing -> totals
+        Just key -> M.insertWith mergeAccum key (netPairState pair) totals
 
 -- | Aggregate the per-base /netted/ balance of an 'Alg' by a key, keeping the
 -- winning side, in a single pass.
 --
 -- This is the implementation counterpart of the paper's @def:class-net@
 -- (\(\nu_\kappa\)), the __pair__ read-out of the class-net operator:
--- 'balanceMapBy' is its /signed difference/ version
--- (@balanceMapBy kf == fmap (\\(n,h) -> n - h) . netPairMapBy kf@).
+-- Before rounding, the exact Not-minus-Hat total of each key equals the
+-- difference of its two unrounded residual totals. Read a key absent from
+-- netPairMapBy as (0,0): balanceMapBy retains zero keys after full cancellation.
+-- The equality also holds for
+-- the returned values when rounding is the identity on sums and subtraction is
+-- exact (MoneyDecimal within its scale limit, or a Rational-backed value type).
+-- It does not hold for Double or MoneyDouble: let T = 2^53 and group two
+-- distinct bases containing Not T, Not 1 and Hat T under one key. The signed
+-- readout is 1, but the pair is (T,T), whose rounded-component difference is 0.
 --
 -- @netPairMapBy keyOf@ projects each entry's (side-stripped) 'BasePart' to a
 -- bucket key with @keyOf@ ('Nothing' drops the entry), and for every key
@@ -1512,9 +1646,9 @@ balanceMapBy keyOf = foldEntriesToMap step
 -- whichever residual is larger. Bases whose two sides are exactly equal
 -- contribute nothing. Because of the non-negativity,
 -- @netPairMapBy@ is well behaved for non-negative-only value types, whereas the
--- @n - h@ identity with 'balanceMapBy' only holds on a /signed/ value type
--- (e.g. 'Double', @MoneyDouble@, @MoneyDecimal@) where the difference can be
--- negative.
+-- @n - h@ identity on returned values requires a signed value type with exact
+-- sums and subtraction, as specified above; a signed floating-point type is
+-- insufficient.
 -- Each base is netted exactly; the unrounded residuals are merged per key and
 -- winning side, and each component is rounded once. Both sides of distinct
 -- bases within a key do not cancel.
@@ -1527,25 +1661,30 @@ balanceMapBy keyOf = foldEntriesToMap step
 -- >>> netPairMapBy Just alg
 -- fromList [(Yen,(70.0,0.0)),(Dollar,(50.0,0.0))]
 {-# INLINE netPairMapBy #-}
+{-# SPECIALIZE netPairMapBy :: (HatBaseClass b, Ord k) => (BasePart b -> Maybe k) -> Alg Double b -> M.Map k (Double, Double) #-}
+{-# SPECIALIZE netPairMapBy :: (HatBaseClass b, Ord k) => (BasePart b -> Maybe k) -> Alg MoneyDouble b -> M.Map k (MoneyDouble, MoneyDouble) #-}
+{-# SPECIALIZE netPairMapBy :: (HatBaseClass b, Ord k) => (BasePart b -> Maybe k) -> Alg MoneyDecimal b -> M.Map k (MoneyDecimal, MoneyDecimal) #-}
 netPairMapBy :: (HatVal v, HatBaseClass b, Ord k)
              => (BasePart b -> Maybe k) -> Alg v b -> M.Map k (v, v)
-netPairMapBy keyOf alg =
-    -- collapse the per-base (notSum, hatSum) accumulator into per-key residuals
-    Map.foldlWithKey' collapse M.empty perBase
+netPairMapBy keyOf = M.map finish . foldPairs collect M.empty
   where
-    -- pass 1: accumulate (notSum, hatSum) per BasePart in one fold
-    perBase = foldEntries step Map.empty alg
-    step !acc v b =
-        let !bp = base b
-            !(notV, hatV) = if isHat b then (zeroValue, v) else (v, zeroValue)
-        in Map.insertWith addPair bp (notV, hatV) acc
-    addPair (!n1, !h1) (!n2, !h2) = (n1 + n2, h1 + h2)
-    collapse !acc bp (!n, !h) = case keyOf bp of
-        Nothing -> acc
-        Just k
-            | nearlyEqScaled h n -> acc
-            | n > h     -> M.insertWith addPair k (n - h, zeroValue) acc
-            | otherwise -> M.insertWith addPair k (zeroValue, h - n) acc
+    collect totals basePart pair = case keyOf basePart of
+        Nothing -> totals
+        Just key ->
+            let state = netPairState pair
+            in case signAccum state of
+                Just EQ -> totals
+                Just GT -> M.insertWith combine key (state, emptyAccum) totals
+                Just LT -> M.insertWith combine key (emptyAccum, negateAccum state) totals
+                Nothing -> M.insertWith combine key (state, state) totals
+    combine (!first, !second) (!left, !right) =
+        let !notTotal = mergeAccum first left
+            !hatTotal = mergeAccum second right
+        in (notTotal, hatTotal)
+    finish (!first, !second) =
+        let !notTotal = roundAccum first
+            !hatTotal = roundAccum second
+        in (notTotal, hatTotal)
 
 -- | Fold algebra entries into a @Map@, combining values with @(+)@.
 --
@@ -1659,16 +1798,22 @@ decBy kf (Liner m _ _ _ _ _) =
 -- and runs in one pass over the netted entries — no per-pair projection loop
 -- (the naive all-pairs formulation costs O(N²) queries; this costs O(m)).
 --
--- __This function applies 'bar' internally__ (per-base netting, the standard
+-- __This function applies unrounded exact bar internally__ (per-base netting, the standard
 -- positive-part normalization). Redundancy of the input is not preserved in the
 -- intermediate; the output is whatever @post@ builds. If you need the
 -- redundancy-preserving split itself, use 'decBy'.
--- Thus it factors through the quotient induced by 'bar': it is not the free
+-- Thus it factors through exact base residuals before rounding, not through
+-- the returned 'bar'. With T = 2^53, two bases with residuals (T+1,1) and (T,1)
+-- have identical rounded bar outputs. Grouping them under one key gives callback
+-- arguments T+2 and T, respectively. It is not the free
 -- extension that acts independently on entries in the redundant layer (that
 -- one is 'extendBy').
 -- Each base is netted exactly to choose the winning side; the unrounded
 -- residuals are merged per key, and the value passed to the callback is rounded
--- once. The guarantee ends at the callback's argument.
+-- once. The guarantee ends at the callback's argument. Bases containing
+-- nonfinite inputs retain their original postings and are not passed to the
+-- callback. Finite accumulation overflow is rounded only at the callback
+-- boundary, which may receive infinity.
 --
 -- Complexity: O(m + Σ cost(post)).
 --
@@ -1678,10 +1823,15 @@ decBy kf (Liner m _ _ _ _ _) =
 -- >>> norm (postFromNetBy shortageKey (\_ v -> v :@ Not:<Amount .+ v :@ Hat:<Yen) stock)
 -- 60.0
 {-# INLINE postFromNetBy #-}
+{-# SPECIALIZE postFromNetBy :: (HatBaseClass b, Ord k) => (b -> Maybe k) -> (k -> Double -> Alg Double b) -> Alg Double b -> Alg Double b #-}
+{-# SPECIALIZE postFromNetBy :: (HatBaseClass b, Ord k) => (b -> Maybe k) -> (k -> MoneyDouble -> Alg MoneyDouble b) -> Alg MoneyDouble b -> Alg MoneyDouble b #-}
+{-# SPECIALIZE postFromNetBy :: (HatBaseClass b, Ord k) => (b -> Maybe k) -> (k -> MoneyDecimal -> Alg MoneyDecimal b) -> Alg MoneyDecimal b -> Alg MoneyDecimal b #-}
 postFromNetBy :: (HatVal v, HatBaseClass b, Ord k)
               => (b -> Maybe k)
               -> (k -> v -> Alg v b)
               -> Alg v b
               -> Alg v b
-postFromNetBy kf post x =
-    sigmaFromMap (foldEntriesToMap (\v b -> (\k -> (k, v)) <$> kf b) ((.-) x)) post
+postFromNetBy keyOf post algebra =
+    retained .+ sigmaFromMap (M.map roundAccum amounts) post
+  where
+    (!retained, !amounts) = postNetStates keyOf algebra

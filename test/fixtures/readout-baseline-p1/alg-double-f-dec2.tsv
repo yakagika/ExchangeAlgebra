@@ -2,11 +2,11 @@
 bar	all	posting		Hat	Cash	0x40934a3333333333	1234.55
 bar	all	posting		Hat	Purchases	0x3fb70a3d70a3d70b	9.000000000000001e-2
 bar	all	posting		Hat	RetainedEarnings	0x3fb9999999999998	9.999999999999998e-2
-bar	all	posting		Hat	Sales	0x40342e147ae147ad	20.179999999999996
+bar	all	posting		Hat	Sales	0x40342e147ae147ae	20.18
 bar	all	posting		Not	AccountsReceivable	0x4092fa47ae147ae1	1214.57
 norm	all	scalar	0x40a39d0f5c28f5c2	2510.5299999999997
 balance	all	result	False
-diffRL	all	Debit	0x3fcae147ae148000	0.21000000000003638
+diffRL	all	Debit	0x3fcae147ae147ae2	0.21000000000000002
 compress	all	posting		Hat	AccountsReceivable	0x4033fd70a3d70a3d	19.99
 compress	all	posting		Hat	Cash	0x40934b70a3d70a3d	1234.86
 compress	all	posting		Hat	Purchases	0x3fb999999999999a	0.1
@@ -21,22 +21,22 @@ balanceMapBy	key=account	map	Cash	0xc0934a3333333333	-1234.55
 balanceMapBy	key=account	map	AccountsReceivable	0x4092fa47ae147ae1	1214.57
 balanceMapBy	key=account	map	RetainedEarnings	0xbfb9999999999998	-9.999999999999998e-2
 balanceMapBy	key=account	map	Purchases	0xbfb70a3d70a3d70b	-9.000000000000001e-2
-balanceMapBy	key=account	map	Sales	0xc0342e147ae147ad	-20.179999999999996
+balanceMapBy	key=account	map	Sales	0xc0342e147ae147ae	-20.18
 netPairMapBy	key=account	map	Cash	0x0000000000000000	0.0	0x40934a3333333333	1234.55
 netPairMapBy	key=account	map	AccountsReceivable	0x4092fa47ae147ae1	1214.57	0x0000000000000000	0.0
 netPairMapBy	key=account	map	RetainedEarnings	0x0000000000000000	0.0	0x3fb9999999999998	9.999999999999998e-2
 netPairMapBy	key=account	map	Purchases	0x0000000000000000	0.0	0x3fb70a3d70a3d70b	9.000000000000001e-2
-netPairMapBy	key=account	map	Sales	0x0000000000000000	0.0	0x40342e147ae147ad	20.179999999999996
+netPairMapBy	key=account	map	Sales	0x0000000000000000	0.0	0x40342e147ae147ae	20.18
 postFromNetBy	key=account; callback=identity-side-Not	posting		Not	AccountsReceivable	0x4092fa47ae147ae1	1214.57
 postFromNetBy	key=account; callback=identity-side-Not	posting		Not	Cash	0x40934a3333333333	1234.55
 postFromNetBy	key=account; callback=identity-side-Not	posting		Not	Purchases	0x3fb70a3d70a3d70b	9.000000000000001e-2
 postFromNetBy	key=account; callback=identity-side-Not	posting		Not	RetainedEarnings	0x3fb9999999999998	9.999999999999998e-2
-postFromNetBy	key=account; callback=identity-side-Not	posting		Not	Sales	0x40342e147ae147ad	20.179999999999996
+postFromNetBy	key=account; callback=identity-side-Not	posting		Not	Sales	0x40342e147ae147ae	20.18
 projNetNorm	Cash	scalar	0x3fd3d70a3d70a3d7	0.31
 projNetNorm	Sales	scalar	0x3f847ae147ae147b	1.0e-2
 projNetNorm	Cash+Sales	scalar	0x3fd47ae147ae147b	0.32
 balanceBy	Cash Not-Hat	scalar	0xc0934a3333333333	-1234.55
-balanceBy	Sales Not-Hat	scalar	0xc0342e147ae147ad	-20.179999999999996
+balanceBy	Sales Not-Hat	scalar	0xc0342e147ae147ae	-20.18
 Pair.compare	Cash notes=1 vs Cash notes=2,3	result	LT
 Pair.compare	Sales notes=1,2 vs Sales note=3	result	GT
 closingEntries	Alg	Right

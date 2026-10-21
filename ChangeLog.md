@@ -4,6 +4,11 @@
 
 ### Added
 
+- `Journal.postFromNetBy` (also in `Journal.Core`) groups unrounded base
+  residuals and calls the journal callback once per key after rounding. The
+  callback can return postings on multiple notes. Bases containing nonfinite
+  inputs retain their original postings and do not reach the callback.
+
 - `HatVal` now provides `Accum` with `emptyAccum`, `addAccum`, `mergeAccum`,
   `negateAccum`, `signAccum`, `roundAccum`, `splitAccum`, and `exactAccum`.
   Finite inputs accumulate exactly, including sums beyond the floating-point
@@ -60,6 +65,47 @@
   the closed `CarryError` with a fixed priority. Existing functions are unchanged.
 
 ### Changed
+
+- Posting readouts (`bar`, `norm`, `balance`, `diffRL`, `compress`, grouped
+  balances, net projections, and `postFromNetBy`) now accumulate the supplied
+  values exactly and round each output once. Finite intermediate sums can
+  exceed the value type's range without losing later cancellation. `Pair`
+  ordering compares exact net amounts, then the stored sequences.
+- `Double` and `MoneyDouble` readouts use the exact binary values supplied,
+  not their decimal spellings. Migration examples:
+  1. `0.1 + 0.2 - 0.3` leaves a `2^-55` residual instead of canceling.
+  2. A genuine difference of `0.5` at scale `1e12` remains visible.
+  3. `norm (x .+ y)` can differ from `norm x + norm y`, which adds rounded values.
+  4. Net projections merge unrounded base residuals; `norm . bar . proj`
+     rounds each base first and can give a different result. Likewise,
+     `norm (bar x) <= norm x` holds before rounding, but can fail after
+     separately rounding base residuals.
+  5. `compress` rounds sides independently: `Not 2^53, Not 1, Hat 2^53`
+     has net `1`, but applying `bar` after `compress` gives zero.
+  6. Equality of rounded side totals does not establish exact balance.
+     Validation code must compare the original postings before rounding.
+  7. Grouping separate bases with `Not T, Not 1` and `Hat T`, where `T = 2^53`,
+     gives signed balance `1` but net pair `(T,T)`. Their difference equals the
+     signed balance before rounding, or for exact sums and subtraction, not for
+     rounded `Double` or `MoneyDouble` components.
+  8. Base residuals `(T+1,1)` and `(T,1)` have the same rounded `bar` output,
+     but `postFromNetBy` grouping both bases passes `T+2` and `T`, respectively,
+     to the callback. Its factorization uses unrounded exact base residuals.
+- Use `barWithin defaultTolerance` for the former sequential sum and tolerance
+  formula. Summation order follows the representation, so bitwise identity with
+  0.5.x is not guaranteed. `balanceWithin` and `diffRLWithin` likewise retain
+  sequential totals and an explicit tolerance. Other readouts have no tolerance.
+- `compress` omits zero postings on an empty side and returns `Zero` for a
+  zero scalar. These representation changes are visible through `Eq`, `Show`,
+  and `Binary`.
+- Nonfinite inputs follow IEEE accumulator states: `norm`, signed balances,
+  and net projections return NaN or signed infinity; `compress` rounds each
+  side separately. `netPairMapBy` puts infinite residuals on the winning side,
+  or NaN on both sides. `balance` returns `False`; `diffRL` returns the direction
+  and positive infinity, or `(Side, NaN)`. `bar` and `postFromNetBy` retain the
+  original postings on nonfinite bases. `Pair` ordering classifies residuals as
+  negative infinity, finite, positive infinity, then NaN; finite residuals are
+  compared exactly before the structural tie-break.
 
 - Removed the `NN.Double` instances of `HatVal`, `Nearly`, `ExactSum`, and
   the orphan `RealFloat` instance, along with `rounding` and the `non-negative`

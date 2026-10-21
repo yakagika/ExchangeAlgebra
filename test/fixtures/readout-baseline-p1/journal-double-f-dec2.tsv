@@ -2,10 +2,10 @@
 bar	all	posting	-1	Hat	Cash	0x40934a3333333333	1234.55
 bar	all	posting	-1	Hat	Purchases	0x3fb70a3d70a3d70b	9.000000000000001e-2
 bar	all	posting	-1	Hat	RetainedEarnings	0x3fb9999999999998	9.999999999999998e-2
-bar	all	posting	-1	Hat	Sales	0x40342e147ae147ad	20.179999999999996
+bar	all	posting	-1	Hat	Sales	0x40342e147ae147ae	20.18
 bar	all	posting	-1	Not	AccountsReceivable	0x4092fa47ae147ae1	1214.57
 norm	all	scalar	0x40a39d0f5c28f5c2	2510.5299999999997
-projWithBaseNetNorm	Cash	scalar	0x3fd3d70a3d70a3d8	0.31000000000000005
+projWithBaseNetNorm	Cash	scalar	0x3fd3d70a3d70a3d7	0.31
 projWithBaseNetNorm	Sales	scalar	0x3f847ae147ae147b	1.0e-2
 projWithNoteBaseNetNorm	note=1,Cash	scalar	0x3fd3333333333334	0.30000000000000004
 projWithNoteBaseNetNorm	notes=1,2,Sales	scalar	0x3f847ae147ae147b	1.0e-2

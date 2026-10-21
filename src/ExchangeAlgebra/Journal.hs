@@ -68,6 +68,7 @@ module ExchangeAlgebra.Journal
     , projWithNoteNorm
     , filterWithNote
     , filterByAxis
+    , postFromNetBy
     , gather
     ) where
 
@@ -105,6 +106,7 @@ import ExchangeAlgebra.Journal.Core.Representation as ExchangeAlgebra.Journal
     , projWithNoteNorm
     , filterWithNote
     , filterByAxis
+    , postFromNetBy
     , gather
     )
 import Prelude hiding (map)

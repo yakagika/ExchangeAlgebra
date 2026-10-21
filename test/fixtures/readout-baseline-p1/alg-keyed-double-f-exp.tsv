@@ -5,8 +5,8 @@ balanceMapBy.keyed	key=account	map	RetainedEarnings	0xbff0000000000000	-1.0
 balanceMapBy.keyed	key=account	map	Purchases	0xfe37e43c8800759c	-1.0e300
 balanceMapBy.keyed	key=account	map	Sales	0x7ff0000000000000	Infinity
 netPairMapBy.keyed	key=account	map	Cash	0x7e37e43c8800759c	1.0e300	0x3ff0000000000000	1.0
-netPairMapBy.keyed	key=account	map	AccountsReceivable	0x3ff0000000000000	1.0	0x0000000000000000	0.0
-netPairMapBy.keyed	key=account	map	RetainedEarnings	0x0000000000000000	0.0	0x3ff0000000000000	1.0
-netPairMapBy.keyed	key=account	map	Purchases	0x0000000000000000	0.0	0x7e37e43c8800759c	1.0e300
+netPairMapBy.keyed	key=account	map	AccountsReceivable	0x3ff0000000000000	1.0	0x01a56e1fc2f8f359	1.0e-300
+netPairMapBy.keyed	key=account	map	RetainedEarnings	0x01a56e1fc2f8f359	1.0e-300	0x3ff0000000000000	1.0
+netPairMapBy.keyed	key=account	map	Purchases	0x01a56e1fc2f8f359	1.0e-300	0x7e37e43c8800759c	1.0e300
 netPairMapBy.keyed	key=account	map	Sales	0x7ff0000000000000	Infinity	0x0000000000000000	0.0
 projNetNorm.keyed	Cash,1	scalar	0x7e37e43c8800759c	1.0e300

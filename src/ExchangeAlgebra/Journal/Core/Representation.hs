@@ -42,6 +42,7 @@ module ExchangeAlgebra.Journal.Core.Representation ( Note(..)
                                                    , projWithNoteNorm
                                                    , filterWithNote
                                                    , filterByAxis
+                                                   , postFromNetBy
                                                    , gather
                                                    ) where
 
@@ -52,8 +53,10 @@ import qualified ExchangeAlgebra.Algebra.Value.Class as EA
 import ExchangeAlgebra.Algebra.Base.Representation
 import ExchangeAlgebra.Algebra.Element.Representation
 import ExchangeAlgebra.Algebra.Value.Class (HatVal(..))
+import ExchangeAlgebra.Algebra.Value (MoneyDouble, MoneyDecimal)
 import ExchangeAlgebra.Algebra.Core.Representation (Alg((:@)), Redundant(..), (.@))
 import              Prelude                 hiding (map, filter)
+import qualified    Prelude
 import qualified    Data.HashMap.Strict     as Map
 import qualified    Data.IntMap.Strict      as IntMap
 import              Data.IntMap.Strict      (IntMap)
@@ -501,7 +504,10 @@ instance NFData (Journal n v b) where
                    delta
 
 instance (HatVal v, HatBaseClass b, Note n) => Redundant (Journal n) v b where
-    barWithin = undefined
+    {-# SPECIALIZE instance (HatBaseClass b, Note n) => Redundant (Journal n) Double b #-}
+    {-# SPECIALIZE instance (HatBaseClass b, Note n) => Redundant (Journal n) MoneyDouble b #-}
+    {-# SPECIALIZE instance (HatBaseClass b, Note n) => Redundant (Journal n) MoneyDecimal b #-}
+    barWithin tolerance x = map (barWithin tolerance) (gather plank x)
     (.^) = map (.^)
     (.+) = mappend
     (.*) x  = map ((.*) x)
@@ -517,7 +523,7 @@ instance (HatVal v, HatBaseClass b, Note n) => Redundant (Journal n) v b where
 --
 -- This was previously a lazy right fold (@foldr (.+) mempty@), kept that way to
 -- freeze the same-base accumulation order for 'Double' (whose addition is
--- non-associative, so reordering shifts the last-ULP of 'norm'). The strict left
+-- non-associative, so reordering affected the former sequential 'norm'). The strict left
 -- fold is far cheaper at scale — the lazy right fold builds a deep right-nested
 -- thunk that is expensive to force (≈40x at N=20000, ~15x at N=10000 in the core
 -- benchmark). The fold direction was switched to the fast version once the
@@ -531,15 +537,12 @@ instance (HatVal v, HatBaseClass b, Note n) => Redundant (Journal n) v b where
 -- postings collide on the /same note key and same base/ (and therefore land in
 -- one t'ExchangeAlgebra.Algebra.Core.Alg' sequence) the strict left fold orders that
 -- @Seq@ opposite to the old lazy right fold. That order is observable through
--- 'Eq' \/ 'Show' \/ 'toAlg' \/ @Binary@, and for 'Double' through the last-ULP of
--- 'norm' \/ 'bar' (IEEE-754 addition is non-associative). Postings that differ in
+-- 'Eq' \/ 'Show' \/ @Binary@, and for 'Double' through the sequential
+-- sums in 'barWithin' (IEEE-754 addition is non-associative). Postings that differ in
 -- note or base land in separate map entries and are unaffected.
 --
--- For an /exact/ value type (t'ExchangeAlgebra.Algebra.Value.MoneyDecimal') addition is
--- associative, so 'norm' \/ 'bar' \/ balance are independent of construction order
--- (the fold direction here, parallel merges, etc.). Use
--- t'ExchangeAlgebra.Algebra.Value.MoneyDecimal' when you need
--- deterministic, auditable totals.
+-- For finite postings, 'norm', 'bar', and balance are independent of
+-- construction order for every value type, including Double and MoneyDouble.
 --
 -- >>> type Test = Journal String Double (HatBase CountUnit)
 -- >>> x = [(1.00:@Hat:<Yen .| z) | z <- ["Loan Payment","Purchace Apple"]] :: [Test]
@@ -644,8 +647,10 @@ sigmaOnFromMap n kvs f =
 -- stays inside the algebra vocabulary (no external container in the result).
 -- Each note's entry is the redundancy-preserving restriction of the input to
 -- that class (same guarantees as 'EA.decBy'): no 'bar', no aggregation, and
--- @norm (decTo keyOf x) + norm residual == norm x@ (norm additivity of the
--- decomposition).
+-- @norm (decTo keyOf x) + norm residual == norm x@ before rounding, or for
+-- value types with exact sums. Rounded Double values need not satisfy this
+-- decomposition law: with T = 2^53, put Not T and Not 1 on Cash and Not 1
+-- on Sales, and classify Cash only. The left side is T, but norm x is T+2.
 --
 -- Entries classified to @Nothing@ or to 'plank' are dropped as residual
 -- ('plank' is the blank note and cannot carry a class).
@@ -677,9 +682,9 @@ decTo kf x =
 --
 -- NOTE: kept as @mconcat <$> forM xs f@ deliberately. A strict @foldM@ left fold
 -- was tried (plan WI-3) but it changes the '<>' association order, which for
--- 'Alg'/t'Journal' reorders the audit-trail sequence and (via non-associative
--- 'Double' addition) shifts 'norm' results. Although the 'Monoid' laws make the
--- value equal in exact arithmetic, it is observably different under floating point.
+-- 'Alg'/t'Journal' reorders the audit-trail sequence. The order is observable
+-- through Eq, Show, Binary, and the sequential sums in barWithin. For finite
+-- postings, norm, bar, and balance are order-independent for every value type.
 -- See plans/in-progress/LAZY_EVAL_AUDIT.md (WI-3).
 sigmaM :: (Monoid m, Monad m0) => [a] -> (a -> m0 m) -> m0 m
 sigmaM xs f = mconcat <$> CM.forM xs f
@@ -788,15 +793,21 @@ projWithBase bs js = fromMap $ Map.map (EA.proj bs) (toMap js)
 -- selects both the hat and the not side of a base: the un-netted norm sums
 -- both sides, the netted one cancels them. See 'EA.projNetNorm'.
 -- Each note is netted exactly, and the unrounded residuals of the notes are
--- added and rounded once; the equation above holds on exact values. Sides
--- cancel only when exactly equal.
+-- added and rounded once; the equation holds before rounding, or when sums
+-- are represented exactly. Residuals T+1 and 1 in separate notes (T = 2^53)
+-- yield T+2 here, but T after rounded note-local bar outputs. Sides cancel
+-- only when exactly equal.
 --
 -- Complexity: O(j * proj cost) where j is the number of Notes
+{-# SPECIALIZE projWithBaseNetNorm :: (HatBaseClass b, Note n) => [b] -> Journal n Double b -> Double #-}
+{-# SPECIALIZE projWithBaseNetNorm :: (HatBaseClass b, Note n) => [b] -> Journal n MoneyDouble b -> MoneyDouble #-}
+{-# SPECIALIZE projWithBaseNetNorm :: (HatBaseClass b, Note n) => [b] -> Journal n MoneyDecimal b -> MoneyDecimal #-}
 projWithBaseNetNorm :: (HatVal v, HatBaseClass b, Note n)
                  => [b] -> Journal n v b -> v
 projWithBaseNetNorm [] _ = 0
 projWithBaseNetNorm bs js =
-    Map.foldl' (\acc alg -> acc + EA.projNetNorm bs alg) 0 (toMap js)
+    roundAccum $ Map.foldl' (\total alg ->
+        mergeAccum total (EA.projectedNetState bs alg)) emptyAccum (toMap js)
 
 ------------------------------------------------------------------
 -- | projWithNoteBase
@@ -842,10 +853,16 @@ projWithNoteBase ns bs js =
 --
 -- which is __not__ the same as @norm (projWithNoteBase ns bs js)@ when a query
 -- selects both sides of one base (see 'projWithBaseNetNorm').
+-- The equation holds before rounding, or when sums are represented exactly.
+-- Residuals T+1 and 1 in separate notes (T = 2^53) yield T+2 here, but T
+-- after rounded note-local bar outputs.
 -- Each selected note is netted exactly, and the unrounded residuals are added
 -- and rounded once. Sides cancel only when exactly equal.
 --
 -- Complexity: O(|ns| * proj cost)
+{-# SPECIALIZE projWithNoteBaseNetNorm :: (HatBaseClass b, Note n) => [n] -> [b] -> Journal n Double b -> Double #-}
+{-# SPECIALIZE projWithNoteBaseNetNorm :: (HatBaseClass b, Note n) => [n] -> [b] -> Journal n MoneyDouble b -> MoneyDouble #-}
+{-# SPECIALIZE projWithNoteBaseNetNorm :: (HatBaseClass b, Note n) => [n] -> [b] -> Journal n MoneyDecimal b -> MoneyDecimal #-}
 projWithNoteBaseNetNorm :: (HatVal v, HatBaseClass b, Note n)
                  => [n] -> [b] -> Journal n v b -> v
 projWithNoteBaseNetNorm _ [] _ = 0
@@ -856,11 +873,11 @@ projWithNoteBaseNetNorm [n] bs js = case lookupNote n js of
     Just a  -> EA.projNetNorm bs a
 projWithNoteBaseNetNorm [] bs js = projWithBaseNetNorm bs js
 projWithNoteBaseNetNorm ns bs js =
-    S.foldl'
-        (\acc n -> case lookupNote n js of
-            Nothing -> acc
-            Just a  -> acc + EA.projNetNorm bs a)
-        0
+    roundAccum $ S.foldl'
+        (\total n -> case lookupNote n js of
+            Nothing -> total
+            Just a  -> mergeAccum total (EA.projectedNetState bs a))
+        emptyAccum
         (S.fromList ns)
 
 -- NB. Two RULES that rewrote @norm (projWithBase bs js)@ to 'projWithBaseNetNorm'
@@ -945,3 +962,30 @@ filterByAxis axis key j@(Journal _ _ baseIdx deltaIdx) =
 gather :: (HatVal v, HatBaseClass b, Note n)
        => n -> Journal n v b -> Journal n v b
 gather n js = (toAlg js) .| n
+
+-- | Gather notes, net each full base exactly, and group unrounded residuals by
+-- the winning base's key. Round each callback argument once. The callback can
+-- return multiple notes. Nonfinite-input bases retain their original postings
+-- and notes and are not passed to the callback. Finite accumulation overflow
+-- is rounded only at the callback boundary, which may receive infinity.
+--
+-- For finite postings, each callback amount is the once-rounded sum of the
+-- selected exact base residuals, independent of posting order and with no
+-- tolerance. This law applies to Double, MoneyDouble, and MoneyDecimal.
+{-# SPECIALIZE postFromNetBy :: (HatBaseClass b, Note n, Ord k) => (b -> Maybe k) -> (k -> Double -> Journal n Double b) -> Journal n Double b -> Journal n Double b #-}
+{-# SPECIALIZE postFromNetBy :: (HatBaseClass b, Note n, Ord k) => (b -> Maybe k) -> (k -> MoneyDouble -> Journal n MoneyDouble b) -> Journal n MoneyDouble b -> Journal n MoneyDouble b #-}
+{-# SPECIALIZE postFromNetBy :: (HatBaseClass b, Note n, Ord k) => (b -> Maybe k) -> (k -> MoneyDecimal -> Journal n MoneyDecimal b) -> Journal n MoneyDecimal b -> Journal n MoneyDecimal b #-}
+postFromNetBy :: (HatVal v, HatBaseClass b, Note n, Ord k)
+              => (b -> Maybe k)
+              -> (k -> v -> Journal n v b)
+              -> Journal n v b
+              -> Journal n v b
+postFromNetBy keyOf post journal = retained .+ M.foldlWithKey'
+    (\result key state -> result .+ post key (roundAccum state)) mempty amounts
+  where
+    (nonfinite, amounts) = EA.postNetStates keyOf (toAlg journal)
+    retained
+        | HSet.null nonfiniteBases = mempty
+        | otherwise = map (EA.filter (\entry ->
+            HSet.member (base (EA._hatBase entry)) nonfiniteBases)) journal
+    nonfiniteBases = HSet.fromList (Prelude.map base (EA.bases nonfinite))

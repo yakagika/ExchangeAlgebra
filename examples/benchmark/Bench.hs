@@ -18,7 +18,7 @@
 --     --benchmark-arguments '--match prefix exact/'
 --
 -- Existing scalar-producing pipelines end in 'norm' or 'projWithBaseNetNorm'.
--- The @exact/*@ comparisons and fixed @gate/*@ readouts force both ordinary
+-- The @exact/*@ comparisons and fixed @exact/gate/*@ readouts force both ordinary
 -- and checked results to normal form. Inputs are constructed inside 'env' so
 -- their cost is excluded from the timed region.
 --
@@ -502,7 +502,7 @@ gatePost owner value = value .@ (Not :< (Cash, owner))
 gateShared :: String -> Bool -> [Benchmark]
 gateShared family decimal =
     [ env (preparedAlg decimal baseCount entriesPerBase) $ \algebra ->
-        bgroup ("gate/" ++ family ++ "/" ++ function ++ "/K=" ++ show baseCount
+        bgroup ("exact/gate/" ++ family ++ "/" ++ function ++ "/K=" ++ show baseCount
               ++ "/n=" ++ show entriesPerBase) (measure algebra)
     | (function, measure) <- operations
     , baseCount <- [200, 1000]
@@ -534,7 +534,7 @@ gateShared family decimal =
 gateInteger :: [Benchmark]
 gateInteger =
     [ env (preparedAlg False baseCount entriesPerBase) $ \algebra ->
-        bgroup ("gate/I/" ++ function ++ "/K=" ++ show baseCount
+        bgroup ("exact/gate/I/" ++ function ++ "/K=" ++ show baseCount
               ++ "/n=" ++ show entriesPerBase) (measure algebra)
     | (function, measure) <- algebraOperations
     , baseCount <- [200, 1000]
@@ -548,7 +548,7 @@ gateInteger =
     , entriesPerBase <- [10, 100]
     ] ++
     [ env (preparedJournal baseCount entriesPerBase) $ \journal ->
-        bgroup ("gate/I/" ++ function ++ "/K=" ++ show baseCount
+        bgroup ("exact/gate/I/" ++ function ++ "/K=" ++ show baseCount
               ++ "/n=" ++ show entriesPerBase) (measure journal)
     | (function, measure) <- journalOperations
     , baseCount <- [200, 1000]
@@ -597,13 +597,13 @@ gateInteger =
 referenceGate :: [Benchmark]
 referenceGate =
     [ env (evaluate (forceAlgebra algebra `seq` algebra)) $ \prepared ->
-        bgroup ("gate-ref/" ++ series ++ "/norm")
+        bgroup ("exact/stress/" ++ series ++ "/norm")
             [ bench "normal" $ nf norm prepared
             , bench "exact" $ nf (forceExact . Exact.normExact) prepared ]
     | (series, algebra) <- referenceCases
     ] ++
     [ env (evaluate (forceAlgebra algebra `seq` algebra)) $ \prepared ->
-        bgroup ("gate-ref/" ++ series ++ "/bar")
+        bgroup ("exact/stress/" ++ series ++ "/bar")
             [ bench "normal" $ nf (forceAlgebra . bar) prepared
             , bench "exact" $ nf (forceExactAlgebra . Exact.barExact) prepared ]
     | (series, algebra) <- referenceCases
