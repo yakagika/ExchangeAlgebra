@@ -10,9 +10,13 @@
 - Two contra account titles, `SalesAllowances` (売上値引) and
   `PurchaseAllowances` (仕入値引), with their Japanese names accepted by the
   parser. The parser also accepts 荷造運賃 for `DeliveryExpenses` and 器具備品
-  for `Fixtures`. Net sales and net purchases deduct the respective allowances
-  alongside rebates. Existing concrete account Binary ordinals are unchanged;
-  the wildcard `AccountTitle` ordinal moves from 240 to 242.
+  for `Fixtures`; these two are registry aliases (`asAliases`), because
+  `jcciAliases` returns only the names in the frozen JCCI 2022 table. Net sales
+  and net purchases deduct the respective allowances alongside rebates.
+  Existing concrete account Binary ordinals are unchanged, but the wildcard
+  `AccountTitle` ordinal moves from 240 to 242, so `Binary` data written by
+  0.5.x that contains the wildcard account decodes as `SalesAllowances`.
+  Re-encode such data with this version.
 - `ExchangeAlgebra.IO.Input.Admission` accepts complete submissions against a
   trusted transaction registry. Accepted values retain source postings and
   support ledger, trial-balance, and statement derivation. Its closed catalog

@@ -1801,7 +1801,7 @@ accountSpec DeliveryExpenses = Just AccountSpec
     , asNameJa = "発送費"
     , asLabelJa = "発送費"
     , asDescription = "Expense: Delivery (発送費)"
-    , asAliases = ["発送費"]
+    , asAliases = ["発送費", "荷造運賃"]
     }
 accountSpec SuppliesExpenses = Just AccountSpec
     { asDivision = Cost
@@ -2296,7 +2296,7 @@ accountSpec Fixtures = Just AccountSpec
     , asNameJa = "備品"
     , asLabelJa = "備品"
     , asDescription = "Asset: Fixtures and equipment (備品)"
-    , asAliases = ["備品"]
+    , asAliases = ["備品", "器具備品"]
     }
 accountSpec Patent = Just AccountSpec
     { asDivision = Assets

@@ -134,10 +134,11 @@ groupNormalSide = defaultSide . pgDivision
 --
 -- The membership lists are presentation policy, not algebra: they say which
 -- gross titles a single undifferentiated valuation account is deducted from
--- under JGAAP's indirect method (間接控除法). The registry keeps exactly five
--- contra accounts, so there are exactly five blocks. All blocks are flat —
--- a nested default would assert a subtotal structure that the chart does not
--- yet carry.
+-- under JGAAP's indirect method (間接控除法). Tests verify that each registry
+-- contra account occurs exactly once among the default blocks' deductions.
+-- A block can deduct multiple contra accounts: net sales deducts both sales
+-- rebates and sales allowances. All blocks are flat — a nested default would
+-- assert a subtotal structure that the chart does not yet carry.
 defaultPresentationGrouping :: [PresentationGroupDef]
 defaultPresentationGrouping =
     [ PresentationGroupDef

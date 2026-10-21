@@ -1156,6 +1156,39 @@ testJcciAccountNameCoverage = do
         _ -> assertEqual "JCCI fixture row has seven columns" (7 :: Int)
             (L.length (T.splitOn (T.pack "\t") row))
 
+-- | Match the generated aliases to the frozen fixture, preserving query order
+-- and removing duplicates. Additional aliases remain in the account registry.
+-- The expectation re-implements the rule of @tools/gen-jcci-aliases.py@
+-- (candidates split on @|@, queries in file order without duplicates); keep
+-- the two in step when either changes.
+testJcciAliasesMatchFixture :: IO ()
+testJcciAliasesMatchFixture = do
+    fixture <- TIO.readFile "test/fixtures/jcci-2022/queries.tsv"
+    let rows = L.filter (not . T.null) (L.drop 1 (T.lines fixture))
+        entries =
+            [ (query, T.splitOn (T.pack "|") candidates)
+            | row <- rows
+            , [_, _, _, query, _, candidates, _] <- [T.splitOn (T.pack "\t") row]
+            ]
+    assertEqual "every JCCI fixture row has the seven expected columns"
+        (L.length rows) (L.length entries)
+    forM_ ([minBound .. maxBound] :: [AccountTitles]) $ \title -> do
+        let expected = L.nub
+                [ query
+                | (query, candidates) <- entries
+                , T.pack (show title) `L.elem` candidates
+                ]
+        assertEqual ("JCCI generated aliases: " ++ show title)
+            expected (Registry.jcciAliases title)
+    forM_
+        [ (DeliveryExpenses, "荷造運賃")
+        , (Fixtures, "器具備品")
+        , (SalesAllowances, "売上値引")
+        , (PurchaseAllowances, "仕入値引")
+        ] $ \(title, alias) ->
+            assertEqual ("registry retains alias: " ++ alias)
+                True (T.pack alias `L.elem` Registry.accountAliases title)
+
 -- | Every cleaned Japanese label is a bare account name, and every level-2
 -- JCCI A-column name that resolves uniquely is the profile display label.
 testJapaneseAccountLabels :: IO ()
@@ -2945,6 +2978,7 @@ runTests = do
     testAdmissionBaselineGolden
     testAliasResolutionGolden
     testJcciAccountNameCoverage
+    testJcciAliasesMatchFixture
     testJapaneseAccountLabels
     testRegistryWildcards
     testContraIffReversedHomeSide
