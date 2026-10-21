@@ -3,6 +3,7 @@ module Value.MoneyParseSpec (runTests) where
 
 import Control.Monad (unless)
 import Data.Decimal (DecimalRaw (Decimal), decimalMantissa, decimalPlaces)
+import Data.Hashable (hash)
 import Data.Scientific (Scientific, scientific)
 import qualified Data.Text as Text
 import System.Exit (exitFailure)
@@ -182,9 +183,21 @@ checkProperty label propertyValue = do
         exitFailure
 
 -- | Execute all money parser acceptance cases and properties.
+-- | Parsed amounts keep trailing zeros; values equal under 'Eq' must still
+-- hash equally (0.5.3.1: the hash used the raw places and mantissa).
+testHashMatchesEq :: IO ()
+testHashMatchesEq = do
+    let parsed = traverse (moneyDecimalFromText . Text.pack) ["1.0", "1.00", "1"]
+    check "parsed 1.0, 1.00, 1 compare equal" (Right True) (fmap allSame parsed)
+    check "parsed 1.0, 1.00, 1 hash equally" (Right True) (fmap (allSame . map hash) parsed)
+  where
+    allSame :: Eq a => [a] -> Bool
+    allSame values = and (zipWith (==) values (drop 1 values))
+
 runTests :: IO ()
 runTests = do
     testExamples
+    testHashMatchesEq
     checkProperty "Decimal show roundtrip" propShowRoundTrip
     checkProperty "Text and Scientific rational value" propTextScientificValue
     putStrLn "[PASS] money parser grammar, boundaries, priority, exactness, and properties"
