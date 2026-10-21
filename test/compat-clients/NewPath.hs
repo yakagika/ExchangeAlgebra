@@ -64,7 +64,7 @@ journalClient = oldExpression Journal..| "client"
 journalExchangeClient :: Bool
 journalExchangeClient = Exchange.balance journalClient
 
-postingClient :: Either Posting.PostedError Posting.Posted
+postingClient :: Either Posting.PostedError (Posting.Posted Double)
 postingClient = Posting.posted 1
 
 coreClient :: Double

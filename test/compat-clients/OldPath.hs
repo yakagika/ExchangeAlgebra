@@ -29,7 +29,7 @@ oldClassMethod = Umbrella.balance oldExpression
 journalClient :: Journal.Journal String Double (HatBase AccountTitles)
 journalClient = oldExpression Journal..| "client"
 
-postingClient :: Either Posting.PostedError Posting.Posted
+postingClient :: Either Posting.PostedError (Posting.Posted Double)
 postingClient = Posting.posted 1
 
 valueClient :: Value.MoneyDecimal -> Value.MoneyDecimal
