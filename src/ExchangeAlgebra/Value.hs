@@ -47,7 +47,7 @@
     proration, scalar product) at the point a monetary amount is /finalized/. Use
     'bankersRound': it rounds half-to-even (the unbiased financial default; also GHC's
     'Prelude.round' and IEEE-754's default mode). A ceiling variant ('ceilingRound') is
-    provided for the previous @rounding = ceiling@ behavior and for jurisdictions whose
+    provided for jurisdictions whose
     rules differ. There is no single correct rule (e.g. Japanese consumption tax rounding
     varies by company), so the rounding function is explicit and swappable.
 -}

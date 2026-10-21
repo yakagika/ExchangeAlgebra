@@ -48,7 +48,7 @@
     proration, scalar product) at the point a monetary amount is /finalized/. Use
     'bankersRound': it rounds half-to-even (the unbiased financial default; also GHC's
     'Prelude.round' and IEEE-754's default mode). A ceiling variant ('ceilingRound') is
-    provided for the previous @rounding = ceiling@ behavior and for jurisdictions whose
+    provided for jurisdictions whose
     rules differ. There is no single correct rule (e.g. Japanese consumption tax rounding
     varies by company), so the rounding function is explicit and swappable.
 -}
@@ -62,7 +62,6 @@ module ExchangeAlgebra.Algebra.Value
     , Rounding(..)
     , Tolerance(..)
     , defaultTolerance
-    , rounding
     -- * Sums
     , sumValues
     , roundScaled
@@ -83,7 +82,7 @@ module ExchangeAlgebra.Algebra.Value
     , toDouble
     ) where
 
-import           ExchangeAlgebra.Algebra.Value.Class (HatVal (..), ValueError (..), isErrorValue, Nearly (..), Rounding (..), Tolerance (..), defaultTolerance, isNearlyNum, nearlyEqScaled, rounding, sumValues, roundScaled)
+import           ExchangeAlgebra.Algebra.Value.Class (HatVal (..), ValueError (..), isErrorValue, Nearly (..), Rounding (..), Tolerance (..), defaultTolerance, isNearlyNum, nearlyEqScaled, sumValues, roundScaled)
 import           Data.Decimal            (Decimal, DecimalRaw (Decimal), normalizeDecimal, roundTo')
 import           Data.Ratio              (numerator, denominator)
 import           Data.Word               (Word8)
@@ -427,9 +426,9 @@ toDouble (MoneyDouble d) = d
 bankersRound :: Word8 -> MoneyDecimal -> MoneyDecimal
 bankersRound places (MoneyDecimal d) = MoneyDecimal (roundTo' round places d)
 
--- | Round a value to @n@ decimal places by rounding /up/ (ceiling). This preserves
--- the previous library default (@rounding = ceiling@) and suits jurisdictions whose
--- rules round up. Prefer 'bankersRound' unless a ceiling rule is specifically required.
+-- | Round a value to @n@ decimal places by rounding /up/ (ceiling).
+-- This suits jurisdictions whose rules round up.
+-- Prefer 'bankersRound' unless a ceiling rule is specifically required.
 ceilingRound :: Word8 -> MoneyDecimal -> MoneyDecimal
 ceilingRound places (MoneyDecimal d) = MoneyDecimal (roundTo' ceiling places d)
 

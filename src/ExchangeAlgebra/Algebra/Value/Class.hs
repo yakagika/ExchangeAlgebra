@@ -13,10 +13,8 @@ module ExchangeAlgebra.Algebra.Value.Class
     , Rounding(..)
     , Tolerance(..), defaultTolerance
     , sumValues
-    , roundScaled
-    , rounding ) where
+    , roundScaled ) where
 
-import qualified Number.NonNegative as NN
 import Data.Maybe (isJust)
 import qualified Data.Foldable as Foldable
 import Control.DeepSeq (NFData(..))
@@ -49,10 +47,6 @@ instance Nearly Float where
     isNearly = isNearlyNum
 
 instance Nearly Double where
-    {-# INLINE isNearly #-}
-    isNearly = isNearlyNum
-
-instance Nearly NN.Double where
     {-# INLINE isNearly #-}
     isNearly = isNearlyNum
 
@@ -107,10 +101,6 @@ nearlyEqScaled x y
 -- * @MoneyDouble@ ("ExchangeAlgebra.Algebra.Value") — same speed, dedicated money newtype.
 -- * @MoneyDecimal@ ("ExchangeAlgebra.Algebra.Value") — exact decimal, construction-order
 --   independent totals; use for audited\/deterministic ledgers.
--- * @NN.Double@ (@Number.NonNegative.Double@) — __deprecated__ since 0.5.0.0,
---   to be removed in 0.6: its @(-)@ /errors/ on a negative intermediate
---   (e.g. inside @bar@\/@(.-)@ comparisons), and everything it offered is
---   covered by @MoneyDouble@. Migrate to @MoneyDouble@ or bare 'Prelude.Double'.
 --
 -- DESIGN NOTE (2026-06-06, selectable value type — Double vs exact Decimal):
 -- The @RealFloat@ superclass was intentionally *removed* so that exact,
@@ -119,7 +109,7 @@ nearlyEqScaled x y
 -- -independent, exact summation. @RealFloat@ was only ever needed in two places:
 --   * @showV@ (rendering via 'Data.Scientific.fromFloatDigits') — now replaced by
 --     the per-instance 'showValue' method, so each representation formats itself;
---   * the @Double@/@NN.Double@ 'isErrorValue' (NaN/Infinity tests) — these stay
+--   * the @Double@ 'isErrorValue' (NaN/Infinity tests) — these stay
 --     inside the floating-point instances, which may require @RealFloat@ locally.
 -- @Fractional@ is *kept*: 'Data.Decimal' provides it (so numeric literals like
 -- @0.08@ still work without wrapping), and only an @Integer@ instance would need
@@ -333,53 +323,6 @@ defaultTolerance :: Fractional n => Tolerance n
 defaultTolerance = Tolerance { absTol = 1e-13, relTol = 1e-12 }
 
 
-instance RealFloat NN.Double where
-    floatRadix      = floatRadix    . NN.toNumber
-    floatDigits     = floatDigits   . NN.toNumber
-    floatRange      = floatRange    . NN.toNumber
-    decodeFloat     = decodeFloat   . NN.toNumber
-    encodeFloat m e = NN.fromNumber (encodeFloat m e)
-    exponent        = exponent      . NN.toNumber
-    significand     = NN.fromNumber . significand . NN.toNumber
-    scaleFloat n    = NN.fromNumber . scaleFloat n . NN.toNumber
-    isNaN           = isNaN         . NN.toNumber
-    isInfinite      = isInfinite    . NN.toNumber
-    isDenormalized  = isDenormalized . NN.toNumber
-    isNegativeZero  = isNegativeZero . NN.toNumber
-    isIEEE          = isIEEE        . NN.toNumber
-
--- | __Deprecated__ since 0.5.0.0 (removal planned for 0.6): @NN.Double@'s
--- @(-)@ errors on a negative intermediate, and @MoneyDouble@ covers the same
--- use case safely. Migrate to @MoneyDouble@ or bare 'Prelude.Double'.
--- (GHC cannot attach a @DEPRECATED@ pragma to an instance, so this notice
--- lives in the Haddock and the ChangeLog.)
--- Exception for this deprecated instance: negative @q@ gives 'Nothing'; @NN.Double@ cannot hold it.
-instance HatVal NN.Double where
-    {-# INLINE zeroValue #-}
-    zeroValue = 0
-    {-# INLINE valueError #-}
-    valueError x
-        | isNaN (NN.toNumber x) || isInfinite (NN.toNumber x) = Just NonFiniteValue
-        | otherwise = Nothing
-    -- Identical formatting to the old top-level @showV@ (fixed 2-decimal
-    -- Scientific rendering); moved here so the class no longer needs @RealFloat@.
-    {-# INLINE showValue #-}
-    showValue = D.formatScientific D.Generic (Just 2) . D.fromFloatDigits
-
-    newtype Accum NN.Double = NNDoubleAccum FloatingState
-    emptyAccum = NNDoubleAccum emptyFloating
-    addAccum x (NNDoubleAccum a) = NNDoubleAccum (addFloating (NN.toNumber x) a)
-    mergeAccum (NNDoubleAccum a) (NNDoubleAccum b) = NNDoubleAccum (mergeFloating a b)
-    negateAccum (NNDoubleAccum a) = NNDoubleAccum (negateFloating a)
-    signAccum (NNDoubleAccum a) = signFloating a
-    roundAccum (NNDoubleAccum a) = NN.fromNumber (roundFloating a)
-    splitAccum (NNDoubleAccum a) = fmap (map NN.fromNumber) (splitFloating a)
-    exactAccum (NNDoubleAccum a) = exactFloating a
-    roundRational Nearest value
-        | value < 0 = Nothing
-        | otherwise = fmap NN.fromNumber (roundRationalDouble value)
-    roundRational (ToMultipleOf _) _ = Nothing
-
 instance HatVal Prelude.Double where
     {-# INLINE zeroValue #-}
     zeroValue = 0
@@ -390,7 +333,7 @@ instance HatVal Prelude.Double where
         | x < 0                   = Just NegativeValue
         | otherwise               = Nothing
     postingUpperBound = Just (2 ^ (900 :: Int))
-    -- Identical formatting to the old top-level @showV@ (see NN.Double above).
+    -- Identical formatting to the old top-level @showV@ (fixed 2-decimal rendering).
     {-# INLINE showValue #-}
     showValue = D.formatScientific D.Generic (Just 2) . D.fromFloatDigits
 
@@ -405,19 +348,3 @@ instance HatVal Prelude.Double where
     exactAccum (DoubleAccum a) = exactFloating a
     roundRational Nearest value = roundRationalDouble value
     roundRational (ToMultipleOf _) _ = Nothing
-
--- * Rounding
-
--- | Rounding (ceiling), fixed to @NN.Double@ and to whole units.
---
--- Superseded by the explicit, value-type-appropriate rounding functions in
--- "ExchangeAlgebra.Algebra.Value": 'ExchangeAlgebra.Algebra.Value.bankersRound' (unbiased
--- financial default) and 'ExchangeAlgebra.Algebra.Value.ceilingRound' (this function's
--- behavior, with a decimal-places argument). There is no single correct
--- rounding rule, so the rule should be chosen explicitly at the call site.
---
--- Complexity: O(1)
-rounding :: NN.Double -> NN.Double
-rounding = fromIntegral . ceiling
-
-{-# DEPRECATED rounding "NN.Double-only whole-unit ceiling; use ExchangeAlgebra.Algebra.Value.ceilingRound / bankersRound (explicit, value-type-appropriate) instead" #-}

@@ -339,13 +339,10 @@ instance ExBaseClass CGEBase where
     getAccountTitle (_ :< (a, _, _, _))   = a
     setAccountTitle (h :< (_, p, e, u)) a = h :< (a, p, e, u)
 
--- | The value type. Per the 0.5.0.0 value-type guidance (umbrella Haddock,
--- @de124f7@ C3): 'Prelude.Double' is the fast, low-friction default; the
--- classic @CGE.hs@ example is intentionally frozen on the deprecated
--- @NN.Double@ (SICE), but this is a /new/ file, so it follows the current
--- guidance instead of the frozen example. Signed values matter here: trial
--- signals can make notional quantities (e.g. the fiscal closure's @T@)
--- negative, and the residual fold 'EA.balanceMapBy' needs a signed type.
+-- | The value type. 'Prelude.Double' is the fast, low-friction default.
+-- Signed values matter here: trial signals can make notional quantities
+-- (for example, the fiscal closure's @T@) negative, and the residual fold
+-- 'EA.balanceMapBy' needs a signed type.
 type V = Double
 
 -- | The BSP stage tag. Four constructors survive from the classic @CGE.hs@

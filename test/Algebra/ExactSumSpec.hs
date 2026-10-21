@@ -9,7 +9,6 @@ import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import Data.Word (Word64)
 import GHC.Float (castDoubleToWord64)
-import qualified Number.NonNegative as NN
 import System.Exit (exitFailure)
 import Test.QuickCheck hiding (collect)
 
@@ -230,16 +229,14 @@ propJournal = forAll genEntries $ \entries ->
 
 -- | Handwritten wrappers preserve the Double oracle; Decimal merge is exact.
 propInstances :: Property
-propInstances = forAll genValues $ \values -> forAll (shuffle values) $ \permuted ->
+propInstances = forAll genValues $ \values ->
     let expected = bits (sumExact values)
         money = fmap MoneyDouble values
-        nonNegative = fmap NN.fromNumber permuted :: [NN.Double]
         unwrapMoney (MoneyDouble value) = value
         decimalValues = fmap (MoneyDecimal . Decimal.Decimal 2 . toInteger) [1 .. length values]
         decimalState = accumulate decimalValues
     in conjoin
         [ bits (fmap unwrapMoney (sumExact money)) === expected
-        , bits (fmap NN.toNumber (sumExact nonNegative)) === expected
         , roundAccum (mergeAccum decimalState emptyAccum) === Right (sum decimalValues)
         , sumExact (reverse decimalValues) === Right (sum decimalValues)
         ]
@@ -316,10 +313,6 @@ testAccumulator = do
         (sumExact [MoneyDouble threshold, 1, 1])
     check "MoneyDouble nonfinite" (Left NonFiniteInput) (sumExact [MoneyDouble (1 / 0)])
     check "MoneyDouble negative" (Left NegativeInput) (sumExact [MoneyDouble (-1)])
-    check "NN.Double" (Right (NN.fromNumber (threshold + 2)))
-        (sumExact [NN.fromNumber threshold, 1, 1] :: Either ExactSumError NN.Double)
-    check "NN magnitude only" (Right (LT, 7 :: NN.Double))
-        (netAccum (accumulate [3]) (accumulate [10]))
     check "MoneyDecimal negative" (Left NegativeInput) (sumExact [-1 :: MoneyDecimal])
     let decimal = MoneyDecimal (Decimal.Decimal 2 1)
     check "MoneyDecimal scale" (Right (MoneyDecimal (Decimal.Decimal 2 101)))

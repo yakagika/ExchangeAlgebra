@@ -91,7 +91,6 @@ module ExchangeAlgebra.Algebra.Internal
     , projCapitalStock
     , projContraAssets
     , projContra
-    , rounding
     , unionsMerge)where
 
 import ExchangeAlgebra.Algebra.Core.Representation

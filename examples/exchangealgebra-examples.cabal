@@ -36,7 +36,6 @@ executable cge
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -71,7 +70,6 @@ executable cge-lite
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -104,7 +102,6 @@ executable ebex1
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -137,7 +134,6 @@ executable ebex2
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -170,7 +166,6 @@ executable ebex3
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -203,7 +198,6 @@ executable ebex4
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -236,7 +230,6 @@ executable ebex5
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -269,7 +262,6 @@ executable ebex6
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -302,7 +294,6 @@ executable ebex7
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -335,7 +326,6 @@ executable ebex8
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -368,7 +358,6 @@ executable ebex9
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -401,7 +390,6 @@ executable industrialEx1
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -434,7 +422,6 @@ executable invoiceEx1
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -467,7 +454,6 @@ executable marketEx1
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -500,7 +486,6 @@ executable marketEx1d
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -534,7 +519,6 @@ executable ripple
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -568,7 +552,6 @@ executable rippleWithStock
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -602,7 +585,6 @@ executable rippleWithStockMultiSeeds
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -635,7 +617,6 @@ executable sim1
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -668,7 +649,6 @@ executable sim2
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -701,7 +681,6 @@ executable sim2fast
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -737,7 +716,6 @@ test-suite cge-lite-lhr-calib-test
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -777,7 +755,6 @@ test-suite cge-lite-lhr-ledger-test
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -814,7 +791,6 @@ test-suite cge-lite-lhr-model-test
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -853,7 +829,6 @@ test-suite cge-lite-lhr-residual-test
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -894,7 +869,6 @@ test-suite cge-lite-lhr-shock-test
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -934,7 +908,6 @@ test-suite cge-lite-lhr-solve-test
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -973,7 +946,6 @@ test-suite cge-lite-lhr-wiring-test
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -1011,7 +983,6 @@ test-suite cge-lite-model-test
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -1047,7 +1018,6 @@ test-suite cge-lite-solver-test
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -1083,7 +1053,6 @@ test-suite cge-lite-test
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -1118,7 +1087,6 @@ test-suite market-policy-test
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*
@@ -1153,7 +1121,6 @@ benchmark bench-core
     , exchangealgebra ==0.5.*
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process ==1.6.*

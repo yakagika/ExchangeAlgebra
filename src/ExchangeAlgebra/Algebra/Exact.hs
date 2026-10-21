@@ -13,7 +13,7 @@
 -- Inputs must be finite and non-negative. Every intermediate aggregation unit
 -- and output must be at most the largest finite value of its type. Errors are
 -- sticky. Double outputs use nearest-even rounding and normalize negative zero.
--- For Double, MoneyDouble, and NN.Double, the same multiset of complete bases,
+-- For Double and MoneyDouble, the same multiset of complete bases,
 -- sides, and values gives bit-identical scalar outputs under reordering and
 -- accumulator merging. Changing notes, compressing, or substituting rounded
 -- partial totals is outside this guarantee, as are enumeration, Show, and Binary.
@@ -58,7 +58,6 @@ import qualified Data.Foldable as Foldable
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Map.Strict as Map
 import qualified Data.Sequence as Seq
-import qualified Number.NonNegative as NN
 
 import ExchangeAlgebra.Algebra.Core.Representation
     ( Alg
@@ -93,7 +92,7 @@ data ExactSumError
 --
 -- == Laws
 --
--- For all four supplied instances, on valid states whose sums are in range,
+-- For all three supplied instances, on valid states whose sums are in range,
 -- merge is commutative and associative, and empty is its identity, observed
 -- through the represented exact value. Netting returns the exact comparison
 -- and absolute difference. No tolerance applies. For floating instances,
@@ -156,18 +155,6 @@ instance ExactSum MoneyDouble where
         (direction, difference) <- netAccumState left right
         pure (direction, MoneyDoubleAccum difference)
     roundAccum (MoneyDoubleAccum state) = MoneyDouble <$> roundAccum state
-
-instance ExactSum NN.Double where
-    data Accum NN.Double = NonNegativeAccum !(Accum Double)
-    emptyAccum = NonNegativeAccum emptyAccum
-    addAccum value (NonNegativeAccum state) =
-        NonNegativeAccum (addAccum (NN.toNumber value) state)
-    mergeAccum (NonNegativeAccum left) (NonNegativeAccum right) =
-        NonNegativeAccum (mergeAccum left right)
-    netAccumState (NonNegativeAccum left) (NonNegativeAccum right) = do
-        (direction, difference) <- netAccumState left right
-        pure (direction, NonNegativeAccum difference)
-    roundAccum (NonNegativeAccum state) = NN.fromNumber <$> roundAccum state
 
 instance ExactSum MoneyDecimal where
     data Accum MoneyDecimal

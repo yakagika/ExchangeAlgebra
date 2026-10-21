@@ -997,7 +997,7 @@ initOrders initVar = do
                                 orderAmount
     return ordersArr
 
--- ** STArray s (ID, Term) NN.Double
+-- ** STArray s (Term, OrderRelation) OrderAmount
 instance Updatable Term InitVar OrderTable s where
     type Inner OrderTable s = STArray s (Term,OrderRelation) OrderAmount
     unwrap (OrderTable a) = a

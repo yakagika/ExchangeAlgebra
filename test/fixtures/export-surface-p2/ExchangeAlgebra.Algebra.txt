@@ -460,7 +460,6 @@ revHat
 roundAccum
 roundRational
 roundScaled
-rounding
 setAccountTitle
 showValue
 sigma

@@ -7,7 +7,7 @@ Description : Internal exact accumulator for IEEE binary64 values.
 
 Internal module of the Algebra layer. It holds the exact signed-sum state
 behind the 'ExchangeAlgebra.Algebra.Value.Class.Accum' instances of
-'Double', @MoneyDouble@ and the deprecated @NN.Double@. Users never name
+'Double' and @MoneyDouble@. Users never name
 'FloatingState'; they use the 'ExchangeAlgebra.Algebra.Value.Class.HatVal'
 methods. The module is not exposed: the boundary tests in
 @test/Algebra/AccumSpec.hs@ observe the state only through the public

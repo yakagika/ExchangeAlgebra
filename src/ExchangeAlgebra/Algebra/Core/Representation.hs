@@ -447,7 +447,7 @@ infixr 6 <@
 -- NOTE: the former top-level @showV@ (which hard-wired @RealFloat@ via
 -- @fromFloatDigits@) has been replaced by the per-instance 'showValue' method of
 -- 'HatVal', so that exact value types can render themselves. The 'Show' instance
--- of 'Alg' below now calls 'showValue'. The @Double@/@NN.Double@ 'showValue'
+-- of 'Alg' below now calls 'showValue'. The @Double@/@MoneyDouble@ 'showValue'
 -- implementations reproduce the old formatting byte-for-byte.
 
 instance (HatVal v, HatBaseClass b) =>  Eq (Alg v b) where

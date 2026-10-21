@@ -11,7 +11,7 @@
 -- Inputs must be finite and non-negative; all intermediate aggregation units
 -- and final outputs must fit the value type. Each scalar is rounded once,
 -- without cancellation tolerance, and negative zero becomes positive zero.
--- For Double, MoneyDouble, and NN.Double, scalar bits depend only on the multiset
+-- For Double and MoneyDouble, scalar bits depend only on the multiset
 -- of (note, complete base, side, value), including under accumulator merging.
 -- Reassigning notes, compressing, substituting rounded partial sums, enumeration,
 -- Show, and Binary are outside that guarantee.

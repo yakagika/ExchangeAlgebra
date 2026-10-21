@@ -526,7 +526,6 @@ revHat
 roundAccum
 roundRational
 roundScaled
-rounding
 ruleFrom
 ruleScale
 ruleTo

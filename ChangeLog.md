@@ -61,6 +61,10 @@
 
 ### Changed
 
+- Removed the `NN.Double` instances of `HatVal`, `Nearly`, `ExactSum`, and
+  the orphan `RealFloat` instance, along with `rounding` and the `non-negative`
+  dependency. Use `MoneyDouble` or `Double` for values. Replace `rounding` with
+  `ceilingRound` for ceiling rounding or `bankersRound` for ties-to-even rounding.
 - Custom `HatVal` instances implement `valueError :: n -> Maybe ValueError`
   instead of `isErrorValue`. Use `NonFiniteValue` for NaN and infinities,
   `NegativeValue` for finite negative values, and `Nothing` for valid values.

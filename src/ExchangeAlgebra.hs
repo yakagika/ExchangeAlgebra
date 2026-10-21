@@ -38,10 +38,6 @@
       newtype so a ledger value cannot be confused with a raw coefficient.
     * t'ExchangeAlgebra.Value.MoneyDecimal' — exact decimal; construction-order
       independent totals. Use for audited\/deterministic ledgers.
-    * @Number.NonNegative.Double@ (@NN.Double@) — __deprecated__ since
-      0.5.0.0: its @(-)@ errors on negative intermediates and the instance
-      will be removed in 0.6. Migrate to 'ExchangeAlgebra.Value.MoneyDouble'
-      (or bare 'Prelude.Double').
 
     For multi-period simulation or metadata-aware journals (notes, axes),
     switch to the Journal layer. The two umbrellas export overlapping

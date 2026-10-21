@@ -34,7 +34,6 @@ examples/optimization/CGE/CGE.hs: instance StateTime Term
 examples/optimization/cge-lite/LhrLedger.hs: instance Hashable Ac
 src/ExchangeAlgebra/Algebra/Base/Element.hs: instance Hashable Day
 src/ExchangeAlgebra/Algebra/Base/Element.hs: instance Hashable TimeOfDay
-src/ExchangeAlgebra/Algebra/Internal.hs: instance RealFloat NN.Double
 test/Spec.hs: instance BaseClass SimCompany
 test/Spec.hs: instance Element SimCompany
 test/Spec.hs: instance ExBaseClass SimHatBase2

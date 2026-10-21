@@ -459,7 +459,6 @@ projNorm
 revHat
 roundAccum
 roundRational
-rounding
 setAccountTitle
 showValue
 sigma

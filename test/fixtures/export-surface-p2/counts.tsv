@@ -7,11 +7,11 @@ ExchangeAlgebra.Algebra.Base.Account.Types	46
 ExchangeAlgebra.Algebra.Base.Element	276
 ExchangeAlgebra.Algebra.Base	388
 ExchangeAlgebra.Algebra.Exact	22
-ExchangeAlgebra.Algebra.Internal	483
+ExchangeAlgebra.Algebra.Internal	482
 ExchangeAlgebra.Algebra.Readout.Net	7
 ExchangeAlgebra.Algebra.Transfer.Rule	36
 ExchangeAlgebra.Algebra.Transfer	16
-ExchangeAlgebra.Algebra	485
+ExchangeAlgebra.Algebra	484
 ExchangeAlgebra.Assist.Descriptions	1
 ExchangeAlgebra.Assist	16
 ExchangeAlgebra.Bookkeeping	19
@@ -48,4 +48,4 @@ ExchangeAlgebra.TrialBalance.Balance	12
 ExchangeAlgebra.TrialBalance.Validation	54
 ExchangeAlgebra.Value	13
 ExchangeAlgebra.Write	25
-ExchangeAlgebra	578
+ExchangeAlgebra	577

@@ -77,7 +77,6 @@ module ExchangeAlgebra.Algebra
     , projCapitalStock
     , projContraAssets
     , projContra
-    , rounding
     , unionsMerge
     ) where
 

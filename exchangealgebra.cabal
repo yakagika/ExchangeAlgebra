@@ -290,7 +290,6 @@ library
     , containers >=0.6 && <0.8
     , deepseq >=1.4 && <1.6
     , hashable >=1.4 && <1.6
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , random ==1.2.*
@@ -327,7 +326,6 @@ test-suite ExchangeAlgebra-doctest
     , doctest
     , exchangealgebra
     , hashable >=1.4 && <1.6
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , random ==1.2.*
@@ -372,7 +370,6 @@ test-suite ExchangeAlgebra-surface
     , deepseq >=1.4 && <1.6
     , exchangealgebra
     , hashable
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , process
@@ -435,7 +432,6 @@ test-suite ExchangeAlgebra-test
     , exchangealgebra
     , hashable >=1.4 && <1.6
     , mtl ==2.3.*
-    , non-negative >=0.1.2 && <0.2
     , numeric-prelude >=0.4.4 && <0.5
     , parallel ==3.2.*
     , random ==1.2.*
