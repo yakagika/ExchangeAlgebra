@@ -81,7 +81,7 @@ import           ExchangeAlgebra.Algebra.Core.Representation
                      , bases
                      , foldEntries
                      )
-import           ExchangeAlgebra.Algebra.Value.Class (HatVal(..))
+import           ExchangeAlgebra.Algebra.Value.Class (HatVal(..), isErrorValue)
 import           ExchangeAlgebra.Accounting.Account.Classification
                      ( AccountRole(..)
                      , DivisionSemantics(..)

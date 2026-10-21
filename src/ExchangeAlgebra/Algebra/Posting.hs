@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE RoleAnnotations #-}
 
 -- | Build checked postings at the algebra entry boundary.
 -- The module uses only the foundation algebra (@Alg@, @Hat@, @HatBaseClass@)
@@ -34,7 +35,6 @@ module ExchangeAlgebra.Algebra.Posting
     ( -- * Posting values
       Posted
     , PostedError(..)
-    , postedUpperBound
     , posted
     , unPosted
       -- * Posting sides
@@ -52,7 +52,8 @@ import Data.Hashable (Hashable(..))
 import GHC.Generics (Generic)
 
 import ExchangeAlgebra.Algebra.Core.Representation (Alg(Zero), Redundant((.+)), (.@))
-import ExchangeAlgebra.Algebra.Value.Class (HatVal(isErrorValue))
+import ExchangeAlgebra.Algebra.Value.Class
+    (HatVal(isZeroValue, postingUpperBound, valueError, zeroValue), ValueError)
 import ExchangeAlgebra.Algebra.Base.Representation
     ( Hat(..)
     , HatBaseClass(BasePart, merge, base)
@@ -60,21 +61,29 @@ import ExchangeAlgebra.Algebra.Base.Representation
 
 -- * Posting values
 
--- | A checked posting value with no 'Num', 'Fractional', or 'Real' instance.
+-- | A checked posting value of value type @v@, with no 'Num', 'Fractional',
+-- or 'Real' instance (0.6.0.0: polymorphic; 0.5.x fixed @v = Double@).
 --
--- Invariant: the stored 'Double' is finite and lies in @[0, 2^900]@;
--- zero is stored as positive zero. Construct values through 'posted'.
-newtype Posted = Posted Double
+-- Invariant: @valueError x == Nothing@ and, when @postingUpperBound == Just u@,
+-- @x <= u@; zero is stored as 'zeroValue' (positive zero for 'Double').
+-- Construct values through 'posted'.
+--
+-- The value type is nominal: @coerce@ cannot turn a value checked at one type
+-- into a 'Posted' of another type (for example a user newtype with a smaller
+-- 'postingUpperBound').
+type role Posted nominal
+newtype Posted v = Posted v
     deriving stock (Eq, Ord, Show)
 
-instance NFData Posted where
+instance NFData v => NFData (Posted v) where
     rnf (Posted value) = rnf value
 
-instance Hashable Posted where
+instance Hashable v => Hashable (Posted v) where
     hashWithSalt salt (Posted value) = hashWithSalt salt value
 
 -- | Decoding checks the same invariant as 'posted' and fails on invalid input.
-instance Binary Posted where
+-- The encoding of @Posted Double@ is the 0.5.x encoding.
+instance (HatVal v, Binary v) => Binary (Posted v) where
     put = put . unPosted
     get = do
         value <- get
@@ -83,47 +92,39 @@ instance Binary Posted where
             Right validated -> pure validated
 
 -- | The first failed check, in the order used by 'posted'.
+-- (0.6.0.0: the value checks moved to 'ValueError'; 0.5.x had @NonFinite@ and
+-- @Negative@ here.)
 data PostedError
-    = NonFinite  -- ^ NaN or either infinity.
-    | Negative   -- ^ A finite value below zero.
-    | AboveBound -- ^ A finite value above 'postedUpperBound'.
+    = InvalidValue ValueError -- ^ 'valueError' rejected the value.
+    | AboveBound              -- ^ A valid value above 'postingUpperBound'.
     deriving stock (Eq, Show, Generic)
 
 instance NFData PostedError
 
--- | Inclusive bound @2^900@. A sum of nearly @2^123@ such values remains below
--- the largest finite Double (less than @2^1024@), leaving aggregation headroom.
--- Complexity: O(1).
-postedUpperBound :: Double
-postedUpperBound = 2 ^ (900 :: Int)
-
--- | Validate a value, normalizing negative zero to positive zero.
--- Checks non-finiteness, negativity, and the upper bound in that order,
--- returning the corresponding 'PostedError' on failure.
+-- | Validate a value, normalizing zero to 'zeroValue' (negative zero to
+-- positive zero for 'Double'). Checks 'valueError' and then
+-- 'postingUpperBound', returning the corresponding 'PostedError' on failure.
 --
--- For every finite @x@ in @[0, postedUpperBound]@, with @normalizeZero x@
--- equal to positive zero when @x == 0@ and to @x@ otherwise:
+-- For every @x@ with @valueError x == Nothing@ and @x <= u@ whenever
+-- @postingUpperBound == Just u@, with @normalizeZero x@ equal to 'zeroValue'
+-- when @isZeroValue x@ and to @x@ otherwise:
 --
 -- > fmap unPosted (posted x) == Right (normalizeZero x)
 --
--- The law uses exact 'Double' equality, with the sign of zero also normalized.
--- Finite, nonnegative values use the same 'isErrorValue' check as '.@'.
--- 'postedUpperBound' is checked only at the posting entry point.
+-- The law uses exact equality of the value type. The bound is checked only at
+-- the posting entry point; '.@' checks 'valueError' alone.
 -- Complexity: O(1).
-posted :: Double -> Either PostedError Posted
+posted :: HatVal v => v -> Either PostedError (Posted v)
 posted value
-    | isErrorValue value       = Left (invalidValueError value)
-    | value > postedUpperBound = Left AboveBound
-    | value == 0               = Right (Posted 0)
-    | otherwise                = Right (Posted value)
-  where
-    invalidValueError invalid
-        | isNaN invalid || isInfinite invalid = NonFinite
-        | otherwise                           = Negative
+    | Just failure <- valueError value = Left (InvalidValue failure)
+    | Just bound <- postingUpperBound
+    , value > bound                    = Left AboveBound
+    | isZeroValue value                = Right (Posted zeroValue)
+    | otherwise                        = Right (Posted value)
 
 -- | Read a checked value. For every @p@, @posted (unPosted p) == Right p@.
 -- Complexity: O(1).
-unPosted :: Posted -> Double
+unPosted :: Posted v -> v
 unPosted (Posted value) = value
 
 -- * Posting sides
@@ -153,15 +154,18 @@ sideHat NotSide = Not
 -- or compression. Equality and display delegate to the underlying 'Alg'.
 -- Equality is structural and depends on construction order. To compare
 -- multisets of postings instead, compare the results of @toASCList . postingAlg@.
-newtype Posting b = Posting (Alg Double b)
+-- (0.6.0.0: polymorphic in the value type @v@; 0.5.x fixed @v = Double@.)
+-- The value type is nominal for the same reason as in 'Posted'.
+type role Posting nominal nominal
+newtype Posting v b = Posting (Alg v b)
 
-instance HatBaseClass b => Eq (Posting b) where
+instance (HatVal v, HatBaseClass b) => Eq (Posting v b) where
     Posting left == Posting right = left == right
 
-instance HatBaseClass b => Show (Posting b) where
+instance (HatVal v, HatBaseClass b) => Show (Posting v b) where
     showsPrec precedence (Posting algebra) = showsPrec precedence algebra
 
-instance NFData (Posting b) where
+instance NFData (Posting v b) where
     rnf (Posting algebra) = rnf algebra
 
 -- | Preserve algebra addition:
@@ -176,7 +180,7 @@ instance NFData (Posting b) where
 -- > sameMultiset (postingAlg ((a <> b) <> c)) (postingAlg (a <> (b <> c)))
 --
 -- Complexity: the same as '(.+)' on the underlying algebras.
-instance HatBaseClass b => Semigroup (Posting b) where
+instance (HatVal v, HatBaseClass b) => Semigroup (Posting v b) where
     Posting left <> Posting right = Posting (left .+ right)
 
 -- | The empty posting obeys @postingAlg mempty == Zero@ using exact 'Alg' equality.
@@ -188,7 +192,7 @@ instance HatBaseClass b => Semigroup (Posting b) where
 --
 -- Here @sameMultiset x y = toASCList x == toASCList y@.
 -- Complexity: O(1) for 'mempty'; combination uses the 'Semigroup' instance.
-instance HatBaseClass b => Monoid (Posting b) where
+instance (HatVal v, HatBaseClass b) => Monoid (Posting v b) where
     mempty = Posting Zero
 
 -- | Read the underlying algebra. For every side, checked value, and base part:
@@ -208,7 +212,7 @@ instance HatBaseClass b => Monoid (Posting b) where
 --
 -- These laws use exact multiset equality without a numeric tolerance for
 -- every 'HatBaseClass' instance. Complexity of 'postingAlg': O(1).
-postingAlg :: Posting b -> Alg Double b
+postingAlg :: Posting v b -> Alg v b
 postingAlg (Posting algebra) = algebra
 
 -- | Build one posting from a side, checked value, and base coordinates.
@@ -219,5 +223,5 @@ postingAlg (Posting algebra) = algebra
 --
 -- The law holds with exact 'Alg' equality for every 'HatBaseClass' instance.
 -- Complexity: O(1).
-entry :: HatBaseClass b => PostSide -> Posted -> BasePart b -> Posting b
+entry :: (HatVal v, HatBaseClass b) => PostSide -> Posted v -> BasePart b -> Posting v b
 entry side value part = Posting (unPosted value .@ merge (sideHat side) part)

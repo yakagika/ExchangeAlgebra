@@ -92,7 +92,7 @@ import ExchangeAlgebra.Algebra.Core ( Alg(..)
                                     )
 import ExchangeAlgebra.Algebra.Base.Representation (HatBaseClass(..), Hat(..), HatBase(..))
 import ExchangeAlgebra.Algebra.Element (CountUnit(..), Element(..), ignoreWildcard)
-import ExchangeAlgebra.Algebra.Value.Class (HatVal(..))
+import ExchangeAlgebra.Algebra.Value.Class (HatVal(..), isErrorValue)
 
 -- | How a rule changes the value it moves.
 data TransferScale v

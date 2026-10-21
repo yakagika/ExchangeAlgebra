@@ -78,7 +78,7 @@ import           ExchangeAlgebra.Algebra.Core.Representation
                      , bases
                      , vals
                      )
-import           ExchangeAlgebra.Algebra.Value.Class (HatVal(..))
+import           ExchangeAlgebra.Algebra.Value.Class (HatVal(..), isErrorValue)
 import           ExchangeAlgebra.Accounting.Account.PostingPolicy
                      ( ProcessingContext(ConsolidationWorksheet)
                      , postingAllowedIn

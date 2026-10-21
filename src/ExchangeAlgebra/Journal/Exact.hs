@@ -64,7 +64,7 @@ import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Map.Strict as Map
 
 import ExchangeAlgebra.Algebra.Core.Representation (Alg)
-import ExchangeAlgebra.Algebra.Value.Class (HatVal(..))
+import ExchangeAlgebra.Algebra.Value.Class (HatVal(zeroValue, isZeroValue, showValue), isErrorValue)
 import qualified ExchangeAlgebra.Algebra.Core.Representation as Internal
 import ExchangeAlgebra.Accounting.Account.Classification (Side)
 import ExchangeAlgebra.Accounting.Account.Title (AccountTitles)

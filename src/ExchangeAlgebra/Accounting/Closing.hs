@@ -104,7 +104,7 @@ import ExchangeAlgebra.Algebra.Core ( Alg(..)
                                     , foldEntries
                                     )
 import ExchangeAlgebra.Algebra.Base.Representation (HatBaseClass(..), Hat(..))
-import ExchangeAlgebra.Algebra.Value.Class (HatVal(..))
+import ExchangeAlgebra.Algebra.Value.Class (HatVal(..), isErrorValue)
 import ExchangeAlgebra.Accounting.Exchange (ExBaseClass(..))
 import ExchangeAlgebra.Accounting.Account ( AccountTitles(..)
                                           , accountSpec

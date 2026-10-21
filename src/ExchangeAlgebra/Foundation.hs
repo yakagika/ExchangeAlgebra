@@ -54,6 +54,8 @@ module ExchangeAlgebra.Foundation
     , HatBase(..)
       -- * Definition 4: value domain
     , HatVal(..)
+    , ValueError(..)
+    , isErrorValue
     , Nearly(..)
     , isNearlyNum
     , nearlyEqScaled
@@ -105,6 +107,7 @@ import           ExchangeAlgebra.Algebra.Base
                      , HatBaseClass(..)
                      , HatBase(..)
                      )
+import           ExchangeAlgebra.Algebra.Value.Class (ValueError(..), isErrorValue)
 import           ExchangeAlgebra.Algebra.Internal
                      ( HatVal(..)
                      , Nearly(..)

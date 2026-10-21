@@ -18,19 +18,25 @@ import ExchangeAlgebra.Algebra.Posting
     , PostSide(..)
     , Posting
     , entry
-    , posted
-    , postedUpperBound
     , postingAlg
     , sideHat
     , unPosted
     )
 import qualified Posting.NoNumPosted as NoNum
 
+-- | The 'Double' bound of the posting boundary (0.5.x @postedUpperBound@).
+postedUpperBound :: Double
+postedUpperBound = 2 ^ (900 :: Int)
+
+-- | 'Posting.posted' at 'Double', so literals need no annotation.
+posted :: Double -> Either Posting.PostedError (Posted Double)
+posted = Posting.posted
+
 -- | Account and unit coordinates used for every algebraic property.
 type TestBase = HatBase (AccountTitles, CountUnit)
 
 -- | Values stay exact after all generated postings are added.
-type TestEntry = (PostSide, Posted, BasePart TestBase)
+type TestEntry = (PostSide, Posted Double, BasePart TestBase)
 
 -- | Generate accepted magnitudes across normal and subnormal exponents.
 genAccepted :: Gen Double
@@ -61,7 +67,7 @@ propPostedRoundTrip = forAll genAccepted $ \value ->
         Right checked -> posted (unPosted checked) === Right checked
 
 -- | Generate checked integer amounts without floating-point rounding in sums.
-genExactPosted :: Gen Posted
+genExactPosted :: Gen (Posted Double)
 genExactPosted = do
     value <- chooseInteger (0, 1000)
     case posted (fromInteger value) of
@@ -115,7 +121,7 @@ genAlgebraCase = do
     pure (entries, queries)
 
 -- | Convert one checked entry through the public constructor.
-single :: TestEntry -> Posting TestBase
+single :: TestEntry -> Posting Double TestBase
 single (side, value, part) = entry side value part
 
 -- | Ignore only the internal sequence order, preserving each posting's value and base.
@@ -140,7 +146,7 @@ propMonoid = forAll genAlgebraCase $ \(entries, _) ->
         x = foldMap single first
         y = foldMap single second
         z = foldMap single third
-        zero = mempty :: Posting TestBase
+        zero = mempty :: Posting Double TestBase
     in counterexample (show entries) $
         sameMultiset (postingAlg (zero <> x)) (postingAlg x)
         && sameMultiset (postingAlg (x <> zero)) (postingAlg x)
@@ -178,13 +184,13 @@ testValidation = do
         nanValue = 0 / 0 :: Double
         nextAboveBound = postedUpperBound * (1 + 2 ** (-52))
         smallestSubnormal = encodeFloat 1 (-1074) :: Double
-    assertTest "NaN rejected" (posted nanValue == Left Posting.NonFinite)
+    assertTest "NaN rejected" (posted nanValue == Left (Posting.InvalidValue NonFiniteValue))
     assertTest "positive Infinity rejected" $
-        posted positiveInfinity == Left Posting.NonFinite
+        posted positiveInfinity == Left (Posting.InvalidValue NonFiniteValue)
     assertTest "negative Infinity rejected" $
-        posted negativeInfinity == Left Posting.NonFinite
+        posted negativeInfinity == Left (Posting.InvalidValue NonFiniteValue)
     assertTest "negative finite value rejected" $
-        posted (-1e-300) == Left Posting.Negative
+        posted (-1e-300) == Left (Posting.InvalidValue NegativeValue)
     assertTest "next representable value above bound rejected" $
         posted nextAboveBound == Left Posting.AboveBound
     assertTest "2^1000 rejected" (posted (2 ** 1000) == Left Posting.AboveBound)
@@ -209,7 +215,7 @@ testBinary = do
         sides = [HatSide, NotSide]
         rejects value = case Binary.decodeOrFail (Binary.encode (value :: Double)) of
             Left _                      -> True
-            Right (_, _, (_ :: Posted)) -> False
+            Right (_, _, (_ :: Posted Double)) -> False
         decodedNegativeZero = Binary.decodeOrFail (Binary.encode (-0.0 :: Double))
     assertTest "Posted Binary round trip" $
         all (\value -> Binary.decode (Binary.encode value) == value) checkedValues
@@ -226,7 +232,7 @@ testBinary = do
             ]
     assertTest "Posted Binary normalizes negative zero" $ case decodedNegativeZero of
         Left _                          -> False
-        Right (_, _, (value :: Posted)) ->
+        Right (_, _, (value :: Posted Double)) ->
             unPosted value == 0 && 1 / unPosted value > 0
     assertTest "NFData and Hashable instances" $
         force checkedValues `seq` force sides `seq`
@@ -266,9 +272,9 @@ testAssociativityRegression = case traverse posted [1, 2, 3] of
         exitFailure
     Right [first, second, third] -> do
         let part = (Cash, Yen)
-            x = entry HatSide first part :: Posting TestBase
-            y = entry HatSide second part :: Posting TestBase
-            z = entry HatSide third part :: Posting TestBase
+            x = entry HatSide first part :: Posting Double TestBase
+            y = entry HatSide second part :: Posting Double TestBase
+            z = entry HatSide third part :: Posting Double TestBase
             left = postingAlg ((x <> y) <> z)
             right = postingAlg (x <> (y <> z))
         assertTest "equal-base grouping changes structural order" (left /= right)
@@ -301,7 +307,7 @@ testQueryCoverage = case posted 3 of
 -- | Deferred errors prove that clients cannot request Num for Posted.
 testNoNum :: IO ()
 testNoNum = do
-    literal <- try (evaluate NoNum.literalPosted) :: IO (Either TypeError Posted)
+    literal <- try (evaluate NoNum.literalPosted) :: IO (Either TypeError (Posted Double))
     assertTest "Posted numeric literal is rejected" (isTypeError literal)
     case posted 1 of
         Left failure  -> do
@@ -309,13 +315,13 @@ testNoNum = do
             exitFailure
         Right checked -> do
             arithmetic <- try (evaluate (NoNum.addPosted checked))
-                :: IO (Either TypeError Posted)
+                :: IO (Either TypeError (Posted Double))
             assertTest "Posted arithmetic is rejected" (isTypeError arithmetic)
             generic <- try (evaluate (NoNum.genericPosted checked))
                 :: IO (Either TypeError ())
             assertTest "Posted Generic is rejected" (isTypeError generic)
-            container <- try (evaluate (NoNum.addPosting (mempty :: Posting TestBase)))
-                :: IO (Either TypeError (Posting TestBase))
+            container <- try (evaluate (NoNum.addPosting (mempty :: Posting Double TestBase)))
+                :: IO (Either TypeError (Posting Double TestBase))
             assertTest "Posting arithmetic is rejected" (isTypeError container)
   where
     isTypeError (Left _) = True

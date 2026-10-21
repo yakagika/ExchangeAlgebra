@@ -82,7 +82,7 @@ import ExchangeAlgebra.Algebra.Element.Representation ( Name
                                                       )
 import ExchangeAlgebra.Algebra.Core.Representation (Alg(..), Redundant(..), filter)
 import qualified ExchangeAlgebra.Algebra.Core.Representation as EA (Alg(..), filter)
-import ExchangeAlgebra.Algebra.Value.Class (HatVal, nearlyEqScaled)
+import ExchangeAlgebra.Algebra.Value.Class (HatVal, Tolerance, nearlyEqScaled)
 import qualified ExchangeAlgebra.Algebra.Value.Class as EA (nearlyEqScaled)
 import ExchangeAlgebra.Journal.Core.Representation (Journal, Note, map)
 import Data.Time (Day, TimeOfDay)
@@ -274,23 +274,27 @@ class (Redundant a n b ) => Exchange a n b where
     -- | Extracts only the Not-side elements (the M-projection of the
     -- decomposition; @isHat@ does not hold). Complexity: O(s)
     decM :: a n b -> a n b
-    -- | Checks whether the norms of debit and credit sides are equal. The norms
-    -- sum floating-point postings sequentially, so their totals depend on order;
-    -- 'nearlyEqScaled' treats near-equal totals as balanced. For an exact check
-    -- over the original postings, see "ExchangeAlgebra.Algebra.Exact" or
-    -- "ExchangeAlgebra.Journal.Exact".
+    -- | 'True' exactly when the exact debit sum equals the exact credit sum
+    -- (compared before rounding, no tolerance). 'False' when a non-finite
+    -- posting is present. (0.6.0.0: the 0.5.x check is 'balanceWithin'.)
     -- Complexity: O(s)
     balance :: a n b -> Bool
-    -- | Returns the debit-credit difference as a (Side, difference) pair. The
-    -- side norms sum floating-point postings sequentially and depend on order;
-    -- 'nearlyEqScaled' reports a zero difference for near-equal totals. For
-    -- exact netting of the original postings, see "ExchangeAlgebra.Algebra.Exact"
-    -- or "ExchangeAlgebra.Journal.Exact".
+    -- | The exact debit-credit difference rounded once, with the winning side;
+    -- @(Side, 0)@ only when the difference is exactly zero. (0.6.0.0: the 0.5.x
+    -- result is 'diffRLWithin'.)
     -- Complexity: O(s)
     diffRL :: a n b -> (Side, n)
+    -- | The 0.5.x 'balance': sequential side totals compared within the tolerance.
+    -- Complexity: O(s)
+    balanceWithin :: Tolerance n -> a n b -> Bool
+    -- | The 0.5.x 'diffRL': sequential side totals, a zero difference within the tolerance.
+    -- Complexity: O(s)
+    diffRLWithin :: Tolerance n -> a n b -> (Side, n)
 
 
 instance (HatVal n, ExBaseClass b) =>  Exchange Alg n b where
+    balanceWithin = undefined
+    diffRLWithin = undefined
     -- | filter Credit side
     decR xs = filter (\x -> x /= Zero && (whichSide . _hatBase) x == Credit) xs
 
@@ -501,6 +505,8 @@ projContra = filter (isContra . _hatBase)
 
 
 instance (Note n, HatVal v, ExBaseClass b) => Exchange (Journal n) v b where
+    balanceWithin = undefined
+    diffRLWithin = undefined
     decR js = map (EA.filter (\x -> x /= EA.Zero && (whichSide . EA._hatBase) x == Credit)) js
     decL xs = map (EA.filter (\x -> x /= EA.Zero && (whichSide . EA._hatBase) x == Debit)) xs
     decP xs = map (EA.filter (\x -> x /= EA.Zero && (isHat . EA._hatBase) x)) xs

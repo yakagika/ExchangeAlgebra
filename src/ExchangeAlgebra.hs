@@ -147,4 +147,5 @@ import              ExchangeAlgebra.Write
 import              ExchangeAlgebra.Algebra.Value as ExchangeAlgebra.Value
     ( MoneyDecimal(..), toDecimal, bankersRound, ceilingRound
     , MoneyParseError(..), moneyDecimalFromText, moneyDecimalFromScientific
-    , MoneyDouble(..), toDouble )
+    , MoneyDouble(..), toDouble
+    , RationalAccum(..), rationalAddAccum, rationalRoundAccum )

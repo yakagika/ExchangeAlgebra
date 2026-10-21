@@ -254,6 +254,7 @@ library
       ExchangeAlgebra.Algebra.Element.Representation
       ExchangeAlgebra.Algebra.Base.Representation
       ExchangeAlgebra.Algebra.Value.Class
+      ExchangeAlgebra.Algebra.Value.Accum
       ExchangeAlgebra.Algebra.Core.Representation
       ExchangeAlgebra.Journal.Core.Representation
       ExchangeAlgebra.Accounting.Account.Title

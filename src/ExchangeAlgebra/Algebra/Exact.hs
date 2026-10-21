@@ -68,7 +68,7 @@ import ExchangeAlgebra.Algebra.Core.Representation
     )
 import qualified ExchangeAlgebra.Algebra.Core.Representation as Algebra
 import qualified ExchangeAlgebra.Algebra.Core.Representation as Internal
-import ExchangeAlgebra.Algebra.Value.Class (HatVal(..))
+import ExchangeAlgebra.Algebra.Value.Class (HatVal(zeroValue, isZeroValue, showValue), isErrorValue)
 import ExchangeAlgebra.Accounting.Account.Classification (Side(..))
 import ExchangeAlgebra.Accounting.Account.Title (AccountTitles)
 import ExchangeAlgebra.Accounting.Exchange (ExBaseClass(..))

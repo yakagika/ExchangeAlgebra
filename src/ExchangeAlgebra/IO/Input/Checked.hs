@@ -40,7 +40,7 @@ import           Data.Text (Text)
 import qualified Data.Text as T
 
 import           ExchangeAlgebra.Algebra.Core (Alg, Redundant((.+), norm))
-import           ExchangeAlgebra.Algebra.Value.Class (HatVal(..))
+import           ExchangeAlgebra.Algebra.Value.Class (HatVal(..), isErrorValue)
 import           ExchangeAlgebra.Accounting.Exchange (ExBaseClass, Exchange(decL, decR))
 import           ExchangeAlgebra.Accounting.Account.PostingPolicy
                      ( ProcessingContext(..)

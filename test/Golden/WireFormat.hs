@@ -113,6 +113,7 @@ cases =
     validated rules = case Rule.mkTransferRules rules of
         Right value -> value
         Left _ -> error "wire fixture: expected valid rules"
+    checked :: Double -> Posted Double
     checked value = case posted value of
         Right result -> result
         Left _ -> error "wire fixture: expected valid Posted"
@@ -206,10 +207,10 @@ renderBoundaries = T.unlines $ header : map renderRejected rejected
 -- Checked decoders reject invalid values and rule sets.
 rejected :: [DecodeCase]
 rejected =
-    [ DecodeCase "Posted negative" (Binary.encode (-1 :: Double)) (Proxy :: Proxy Posted)
-    , DecodeCase "Posted infinity" (Binary.encode (1 / 0 :: Double)) (Proxy :: Proxy Posted)
+    [ DecodeCase "Posted negative" (Binary.encode (-1 :: Double)) (Proxy :: Proxy (Posted Double))
+    , DecodeCase "Posted infinity" (Binary.encode (1 / 0 :: Double)) (Proxy :: Proxy (Posted Double))
     , DecodeCase "Posted above bound" (Binary.encode (2 ^ (901 :: Int) :: Double))
-        (Proxy :: Proxy Posted)
+        (Proxy :: Proxy (Posted Double))
     , DecodeCase "TransferRules zero coefficient"
         (Binary.encode [Rule.TransferRule (Hat :< Cash) (Hat :< Sales)
             (Rule.MulBy (0 :: Double))])

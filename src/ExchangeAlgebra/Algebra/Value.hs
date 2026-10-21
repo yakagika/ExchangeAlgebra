@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE DerivingStrategies         #-}
 
 {- |
@@ -56,7 +57,19 @@ module ExchangeAlgebra.Algebra.Value
     , isNearlyNum
     , nearlyEqScaled
     , HatVal(..)
+    , ValueError(..)
+    , isErrorValue
+    , Rounding(..)
+    , Tolerance(..)
+    , defaultTolerance
     , rounding
+    -- * Sums
+    , sumValues
+    , roundScaled
+    -- * Accumulators for user-defined value types
+    , RationalAccum(..)
+    , rationalAddAccum
+    , rationalRoundAccum
     , MoneyDecimal(..)
     , toDecimal
     , bankersRound
@@ -70,7 +83,7 @@ module ExchangeAlgebra.Algebra.Value
     , toDouble
     ) where
 
-import           ExchangeAlgebra.Algebra.Value.Class (HatVal (..), Nearly (..), isNearlyNum, nearlyEqScaled, rounding)
+import           ExchangeAlgebra.Algebra.Value.Class (HatVal (..), ValueError (..), isErrorValue, Nearly (..), Rounding (..), Tolerance (..), defaultTolerance, isNearlyNum, nearlyEqScaled, rounding, sumValues, roundScaled)
 import           Data.Decimal            (Decimal, DecimalRaw (Decimal), normalizeDecimal, roundTo')
 import           Data.Word               (Word8)
 import           Data.List               (foldl')
@@ -280,14 +293,29 @@ instance Nearly MoneyDecimal where
 instance HatVal MoneyDecimal where
     {-# INLINE zeroValue #-}
     zeroValue = MoneyDecimal 0
-    -- Exact decimals have no NaN/Infinity; the only "error value" is a negative
-    -- amount, which violates the non-negativity invariant of the algebra.
-    {-# INLINE isErrorValue #-}
-    isErrorValue (MoneyDecimal x) = x < 0
+    -- Exact decimals have no NaN/Infinity; the only invalid value is a negative
+    -- amount, which violates the non-negativity invariant of the algebra. No
+    -- posting bound: sums never overflow.
+    {-# INLINE valueError #-}
+    valueError (MoneyDecimal x)
+        | x < 0     = Just NegativeValue
+        | otherwise = Nothing
     -- Render exactly (e.g. "0.3", "12.34"); unlike the Double instance there is no
     -- fixed-2-decimal formatting, because the decimal value is already exact.
     {-# INLINE showValue #-}
     showValue (MoneyDecimal x) = show x
+
+    -- Decimal addition is exact, so the state is the signed exact sum.
+    newtype Accum MoneyDecimal = MoneyDecimalAccum Decimal
+    emptyAccum = undefined
+    addAccum = undefined
+    mergeAccum = undefined
+    negateAccum = undefined
+    signAccum = undefined
+    roundAccum = undefined
+    splitAccum = undefined
+    exactAccum = undefined
+    roundRational = undefined
 
 -- 'Binary'/'Hashable' are defined here (not orphan) because 'Data.Decimal' ships
 -- neither, and 'Alg'/t'Journal' serialization and the binary spill path require
@@ -342,7 +370,29 @@ newtype MoneyDouble = MoneyDouble Double
   -- is a zero-cost wrapper with identical numeric behavior and 2-decimal
   -- 'showValue' formatting.
   deriving newtype ( Eq, Ord, Show, Num, Fractional, Real, RealFrac
-                   , Nearly, HatVal, Hashable, NFData, Binary.Binary )
+                   , Nearly, Hashable, NFData, Binary.Binary )
+
+-- | Delegates to the 'Prelude.Double' accumulator. Written by hand because the
+-- associated data family 'Accum' cannot be derived through a newtype.
+instance HatVal MoneyDouble where
+    zeroValue = MoneyDouble zeroValue
+    isZeroValue (MoneyDouble x) = isZeroValue x
+    valueError (MoneyDouble x) = valueError x
+    postingUpperBound = fmap MoneyDouble postingUpperBound
+    showValue (MoneyDouble x) = showValue x
+    newtype Accum MoneyDouble = MoneyDoubleAccum (Accum Double)
+    emptyAccum = MoneyDoubleAccum emptyAccum
+    addAccum (MoneyDouble x) (MoneyDoubleAccum a) = MoneyDoubleAccum (addAccum x a)
+    mergeAccum (MoneyDoubleAccum a) (MoneyDoubleAccum b) = MoneyDoubleAccum (mergeAccum a b)
+    negateAccum (MoneyDoubleAccum a) = MoneyDoubleAccum (negateAccum a)
+    signAccum (MoneyDoubleAccum a) = signAccum a
+    roundAccum (MoneyDoubleAccum a) = MoneyDouble (roundAccum a)
+    splitAccum (MoneyDoubleAccum a) = fmap (map MoneyDouble) (splitAccum a)
+    exactAccum (MoneyDoubleAccum a) = exactAccum a
+    roundRational rule q = fmap MoneyDouble (roundRational (fmap' rule) q)
+      where
+        fmap' Nearest = Nearest
+        fmap' (ToMultipleOf (MoneyDouble u)) = ToMultipleOf u
 
 -- | Project out the underlying 'Prelude.Double'.
 toDouble :: MoneyDouble -> Double
@@ -365,3 +415,52 @@ bankersRound places (MoneyDecimal d) = MoneyDecimal (roundTo' round places d)
 -- rules round up. Prefer 'bankersRound' unless a ceiling rule is specifically required.
 ceilingRound :: Word8 -> MoneyDecimal -> MoneyDecimal
 ceilingRound places (MoneyDecimal d) = MoneyDecimal (roundTo' ceiling places d)
+
+-- * Accumulators for user-defined value types
+
+-- | Exact rational state for a user-defined value type without special values
+-- (no NaN or infinity). A complete instance for an exact amount of yen
+-- (the type name avoids the unit constructor @Yen@):
+--
+-- > newtype JPY = JPY Rational
+-- >     deriving newtype (Eq, Ord, Show, Num, Fractional, Real)
+-- >
+-- > instance HatVal JPY where
+-- >     zeroValue = 0
+-- >     valueError (JPY x)
+-- >         | x < 0 = Just NegativeValue
+-- >         | otherwise = Nothing
+-- >     showValue (JPY x) = show (fromRational x :: Double)
+-- >
+-- >     newtype Accum JPY = JPYAccum RationalAccum
+-- >     emptyAccum = JPYAccum (RationalAccum 0)
+-- >     addAccum x (JPYAccum a) = JPYAccum (rationalAddAccum x a)
+-- >     mergeAccum (JPYAccum (RationalAccum a)) (JPYAccum (RationalAccum b)) = JPYAccum (RationalAccum (a + b))
+-- >     negateAccum (JPYAccum (RationalAccum a)) = JPYAccum (RationalAccum (negate a))
+-- >     signAccum (JPYAccum (RationalAccum a)) = Just (compare a 0)
+-- >     roundAccum (JPYAccum a) = rationalRoundAccum JPY a
+-- >     splitAccum (JPYAccum (RationalAccum a))
+-- >         | a > 0 = Just [JPY a]
+-- >         | otherwise = Nothing
+-- >     exactAccum (JPYAccum (RationalAccum a)) = Just a
+-- >     roundRational Nearest q = Just (JPY q)
+-- >     roundRational (ToMultipleOf (JPY u)) q
+-- >         | u > 0 = Just (JPY (u * fromInteger (round (q / u))))
+-- >         | otherwise = Nothing
+--
+-- Every value of such a type is finite, so laws A3 and A6 hold by construction;
+-- the instance still has to satisfy A5' ('splitAccum' succeeds on every positive
+-- state) and T1-T3. 'Prelude.round' rounds ties to even.
+newtype RationalAccum = RationalAccum Rational
+    deriving (Eq, Ord, Show)
+
+-- | Add a finite value of a 'Real' type exactly.
+rationalAddAccum :: Real n => n -> RationalAccum -> RationalAccum
+rationalAddAccum = undefined
+
+-- | Round the exact value with a function the user supplies (for example
+-- 'fromRational'). 'Real' alone cannot guarantee ties-to-even, so the rule is
+-- the caller's.
+rationalRoundAccum :: (Rational -> n) -> RationalAccum -> n
+rationalRoundAccum = undefined
+

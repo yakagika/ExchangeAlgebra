@@ -18,7 +18,7 @@ import qualified Data.Set as S
 import Data.Set (Set)
 import qualified Data.Vector as V
 import System.Random (StdGen, mkStdGen, randomR)
-import ExchangeAlgebra.Algebra.Value.Class (HatVal(..))
+import ExchangeAlgebra.Algebra.Value.Class (HatVal(..), isErrorValue)
 import qualified ExchangeAlgebra.Algebra.Value.Class as EJ
 
 

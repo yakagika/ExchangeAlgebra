@@ -125,13 +125,11 @@ observed (NetAccountsInTransactions keys accounts) key entry
 -- policy is reflexive, symmetric, and transitive. The observed value is a
 -- canonical sorted posting multiset per transaction, with 'bar' applied only
 -- in the policy's stated scope. Comparing the resulting 'MoneyDecimal' values
--- uses exact equality. However, for a multi-posting representation, 'bar'
--- drops account residuals within the tolerance defined by
--- @ExchangeAlgebra.Algebra.Value.nearlyEqScaled@, even for MoneyDecimal.
--- Net policies inherit this normalization; they are not exact arithmetic
--- netting. A single atomic posting is unchanged by 'bar', including tiny amounts.
--- These laws apply to this 'Entry' instance. PostingMultiset does not
--- apply this tolerance or perform any normalization.
+-- uses exact equality. 'bar' nets each account exactly over the postings and
+-- drops a residual only when it is exactly zero, so net policies are exact
+-- arithmetic netting. A single atomic posting is unchanged by 'bar', including
+-- tiny amounts. These laws apply to this 'Entry' instance. PostingMultiset does
+-- not perform any normalization.
 -- A selected entry with a wildcard Hat uses strict posting comparison because
 -- the algebra's netting operation is not defined for wildcard postings.
 isEquivalentUpTo :: Equivalence -> Map TxKey Entry -> Map TxKey Entry -> Bool

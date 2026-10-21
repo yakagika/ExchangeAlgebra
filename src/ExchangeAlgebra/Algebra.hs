@@ -31,6 +31,13 @@ module ExchangeAlgebra.Algebra
     , Redundant(..)
     , Exchange(..)
     , HatVal(..)
+    , ValueError(..)
+    , isErrorValue
+    , Rounding(..)
+    , Tolerance(..)
+    , defaultTolerance
+    , sumValues
+    , roundScaled
     , Alg(Zero, (:@), _val, _hatBase)
     , isZero
     , (.@)

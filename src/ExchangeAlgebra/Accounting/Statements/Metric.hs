@@ -30,7 +30,7 @@ import           Data.Text (Text)
 import qualified Data.Text as T
 
 import           ExchangeAlgebra.Algebra.Core.Representation (Alg, foldEntries)
-import           ExchangeAlgebra.Algebra.Value.Class (HatVal(isErrorValue))
+import           ExchangeAlgebra.Algebra.Value.Class (HatVal, isErrorValue)
 import           ExchangeAlgebra.Accounting.Account.Classification
                      ( AccountDivision(..), DivisionSemantics(..), Side(..) )
 import           ExchangeAlgebra.Accounting.Account.Registry

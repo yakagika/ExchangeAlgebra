@@ -73,7 +73,7 @@ type LedgerBase = HatBase (Int, Int, Int)
 
 -- | Build two checked postings for one synthetic owner.
 -- Invariant: the constant magnitude 1 is accepted by @LP.posted@.
-ledgerPosting :: Int -> LP.Posting LedgerBase
+ledgerPosting :: Int -> LP.Posting Double LedgerBase
 ledgerPosting owner = LP.entry LP.NotSide amount (owner, 0, 0)
                    <> LP.entry LP.HatSide amount (owner, 0, 1)
   where

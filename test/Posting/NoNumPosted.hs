@@ -12,17 +12,17 @@ import ExchangeAlgebra.Algebra.Posting (Posted, Posting)
 import GHC.Generics (from)
 
 -- | Demand an integer literal at the protected posting type.
-literalPosted :: Posted
+literalPosted :: Posted Double
 literalPosted = 1
 
 -- | Demand arithmetic at the protected posting type.
-addPosted :: Posted -> Posted
+addPosted :: Posted Double -> Posted Double
 addPosted value = value + 1
 
 -- | Demand arithmetic at the protected posting container type.
-addPosting :: Posting b -> Posting b
+addPosting :: Posting Double b -> Posting Double b
 addPosting value = value + 1
 
 -- | Demand a Generic representation of the protected posting value.
-genericPosted :: Posted -> ()
+genericPosted :: Posted Double -> ()
 genericPosted value = from value `seq` ()

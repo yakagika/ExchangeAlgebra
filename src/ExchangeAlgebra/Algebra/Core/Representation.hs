@@ -101,24 +101,33 @@ class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
     -- Complexity: O(1) for singleton, O(n) for Liner (n is the number of base keys)
     (.^) :: a n b -> a n b
 
-    -- | Bar operation. Cancels Hat/Not on the same base and retains only the difference.
-    -- Floating-point side totals use sequential addition and depend on posting order;
-    -- near-equal sides cancel under 'nearlyEqScaled'. For exact totals, see
-    -- "ExchangeAlgebra.Algebra.Exact" or "ExchangeAlgebra.Journal.Exact".
+    -- | Bar operation. For each full base, sums the Hat side and the Not side
+    -- exactly in the value type's 'Accum', rounds the exact difference once
+    -- (to nearest, ties to even) and keeps it on the winning side; the base
+    -- disappears only when the exact sums are equal. The result does not depend
+    -- on construction order. A base holding a non-finite posting is kept as is.
+    -- (0.6.0.0: the 0.5.x sequential sum with a tolerance is 'barWithin'.)
     -- Complexity: O(n) (n is the number of base keys)
     (.-) :: a n b -> a n b
 
     -- | Alias for bar operation. Identical to @(.-)@.
     -- On an axis-preserving ledger, @norm . bar@ cancels only within each full
     -- base. Use 'balanceMapBy' or 'netPairMapBy' for net amounts by group.
-    -- Floating-point side totals depend on posting order, and near-equal sides
-    -- cancel under 'nearlyEqScaled'. See "ExchangeAlgebra.Algebra.Exact" for
-    -- exact netting of the original postings, or "ExchangeAlgebra.Journal.Exact"
-    -- for journal readouts.
     bar :: a n b -> a n b
     bar = (.-)
 
+    -- | The 0.5.x 'bar': sequential side totals, and the two sides cancel when
+    -- their difference is within the tolerance. Bits may differ from 0.5.x
+    -- because the summation order follows the internal representation.
+    -- @barWithin defaultTolerance@ reproduces the 0.5.x values.
+    -- Complexity: O(n)
+    barWithin :: Tolerance n -> a n b -> a n b
+
     -- | Aggregates values on the same base. Sums while preserving the Hat/Not distinction.
+    -- Each side's exact sum is rounded once; the sides do not cancel. Because each
+    -- side is rounded separately, the net amount of a base may change and cannot
+    -- be recovered afterwards: with @T = 2^53@, @Not T, Not 1, Hat T@ has exact
+    -- net 1, but 'compress' rounds the Not side to @T@, so a later 'bar' is zero.
     -- Complexity: O(n) (n is the number of base keys)
     compress :: a n b -> a n b
 
@@ -132,9 +141,12 @@ class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
 
     -- | Norm. Sum of all element values (both Hat and Not sides), i.e. the
     -- homomorphism from the algebra into the value domain @n@ (Akagi 2026,
-    -- Appendix A, Definition 6). It is /additive/: @norm (x '.+' y) = norm x +
-    -- norm y@ (axiom 5), and /homogeneous/: @norm (a '.*' x) = a * norm x@ for
-    -- @a >= 0@ (axiom 4). Because it sums both sides it does not cancel Hat
+    -- Appendix A, Definition 6). On exact values it is /additive/:
+    -- @norm (x '.+' y) = norm x + norm y@ (axiom 5), and /homogeneous/:
+    -- @norm (a '.*' x) = a * norm x@ for @a >= 0@ (axiom 4). The implementation
+    -- sums the postings exactly and rounds once, so for floating-point types the
+    -- two sides of these equations can differ in the last bit (the right-hand
+    -- side adds two rounded values). Because it sums both sides it does not cancel Hat
     -- against Not; @norm ('bar' x) <= norm x@ (bar discards the canceled part).
     -- On an axis-preserving ledger, @norm ('bar' x)@ does not cancel across
     -- distinct axis values. Use 'balanceMapBy' or 'netPairMapBy' to read each
@@ -634,6 +646,7 @@ unionsMerge ts =
 ------------------------------------------------------------------
 
 instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
+    barWithin = undefined
     (.^) Zero       = Zero
     (.^) (n:@ b)    = n :@ (revHat b)
     (.^) (Liner ms idx bpToId idToBp nextBpId allIds) = Liner
@@ -1092,10 +1105,9 @@ filter f (Liner m _ _ _ _ _) =
 -- * @mapBasePart f ((.^) x) == (.^) (mapBasePart f x)@ (raw).
 -- * Algebraically, @bar (mapBasePart f (bar x))@ and
 --   @bar (mapBasePart f x)@ are equal through ℘ whenever the implementation's
---   'nearlyEqScaled' tolerance does not discard a source-base residual before
---   relabelling. Raw equality can additionally distinguish singleton from
---   one-key @Liner@. With tolerance-triggering magnitudes, even ℘ equality is
---   not guaranteed.
+--   rounding of a source-base residual does not change the cancellation after
+--   relabelling (always on exact values). Raw equality can additionally
+--   distinguish singleton from one-key @Liner@.
 --
 -- In particular, @mapBasePart f (bar x) == bar (mapBasePart f x)@ is false in
 -- general: distinct source bases may collide only after relabelling. When
@@ -1347,20 +1359,23 @@ singlePairToAlg b (Pair hs ns) = case (Seq.viewl hs, Seq.viewl ns) of
 -- (see 'proj'): overlapping or duplicate queries do not double count.
 --
 -- Note the semantics include the @bar@ netting: each projected base is reduced
--- to the non-negative net of its hat and not sides (@barNormPair@). Hence
+-- to the non-negative net of its hat and not sides. On exact values
 --
 -- @projNetNorm bs x == norm (bar (proj bs x))@
 --
 -- which is /not/ the same as @norm (proj bs x)@ when a base carries both sides.
+-- The implementation adds the unrounded per-base residuals and rounds once,
+-- whereas @norm (bar (proj bs x))@ rounds each base first; for floating-point
+-- types the two can differ (residuals @2^53 + 1@ and @1@ give @2^53 + 2@ here
+-- and @2^53@ there).
 --
 -- Wildcards match one way, as in 'proj': a concrete query axis does not match
 -- a wildcard stored in a ledger base.
 -- On an axis-preserving ledger, this nets only within each projected full
 -- base; it does not cancel across axis values. Use 'balanceMapBy' or
 -- 'netPairMapBy' for net amounts by group.
--- Floating-point side and projected totals use sequential addition and depend
--- on posting order. 'nearlyEqScaled' cancels near-equal sides. See
--- "ExchangeAlgebra.Algebra.Exact" for exact sums over the original postings.
+-- Sums are exact over the given postings and the output is rounded once; sides
+-- cancel only when they are exactly equal.
 --
 -- Complexity: O(cost(proj) + cost(bar) + cost(norm)).
 projNetNorm :: (HatVal n, HatBaseClass b) => [b] -> Alg n b -> n
@@ -1378,9 +1393,8 @@ projNetNorm [b] (Liner m ~idx _ ~idToBp _ ~allIds) =
             else projExactMap b m
 -- Multi-pattern path: the query list is a /set/ (see 'proj'). Per-base results
 -- are merged with 'pairUnion' so overlapping/duplicate queries do not double
--- count. Note 'projNetNorm' returns a bar-netted norm: 'foldProjectedNorm' applies
--- @barNormPair@ (net of hat/not sides) per base, so the result equals
--- @norm (bar (proj bs x))@, not @norm (proj bs x)@.
+-- count. Note 'projNetNorm' returns a bar-netted norm: each base contributes its
+-- unrounded residual, and the residuals are rounded once at the end.
 projNetNorm bs (Liner m ~idx _ ~idToBp _ ~allIds) =
     foldProjectedNorm $
         L.foldl'
@@ -1415,10 +1429,10 @@ barNormPair (Pair hs ns) =
 
 -- | Compute the net balance as the difference of two projections.
 -- @balanceBy plusBases minusBases alg@ computes
--- @projNetNorm plusBases alg - projNetNorm minusBases alg@.
--- Floating-point totals inherit the posting-order dependence and near-equal
--- cancellation of 'projNetNorm'. See "ExchangeAlgebra.Algebra.Exact" for exact
--- sums over the original postings.
+-- @projNetNorm plusBases alg - projNetNorm minusBases alg@ on exact values.
+-- The implementation takes the exact difference of the two unrounded projected
+-- residuals and rounds once, so it is not the difference of two rounded
+-- 'projNetNorm' results.
 --
 -- Useful for calculating stock quantities, profits, etc.
 --
@@ -1438,7 +1452,10 @@ balanceBy plusBases minusBases alg =
 -- @balanceMapBy keyOf@ is the bucketed form of 'balanceBy': for every entry it
 -- projects the (side-stripped) 'BasePart' to a bucket key with @keyOf@ ('Nothing'
 -- drops the entry), and nets each bucket using the Hat\/Not convention (Not adds,
--- Hat subtracts) — exactly @projNetNorm [Not:<k] - projNetNorm [Hat:<k]@ per key.
+-- Hat subtracts) — on exact values, @projNetNorm [Not:<k] - projNetNorm [Hat:<k]@
+-- per key. The implementation takes the exact signed sum and rounds once, so with
+-- floating-point values it is not the difference of two rounded 'projNetNorm'
+-- results.
 -- @keyOf@ sees only the 'BasePart', not the Hat\/Not side, so it cannot split one
 -- key across sides.
 --
@@ -1451,9 +1468,8 @@ balanceBy plusBases minusBases alg =
 -- type (e.g. 'Double', @MoneyDouble@, @MoneyDecimal@); a non-negative-only type
 -- such as @Number.NonNegative.Double@ is unsuitable here. Keys whose net is zero
 -- are kept (like 'foldEntriesToMap'); filter afterwards if undesired.
--- Floating-point bucket sums use sequential addition and depend on posting
--- order. See "ExchangeAlgebra.Algebra.Exact" for exact sums over the original
--- postings.
+-- Each key's signed sum (Not minus Hat) is exact over the given postings and
+-- rounded once.
 --
 -- Complexity: O(total number of entries) — a single fold, no per-key projection.
 --
@@ -1493,15 +1509,15 @@ balanceMapBy keyOf = foldEntriesToMap step
 --
 -- __Both components are non-negative__ (consistent with the value domain
 -- \(V \subseteq \mathbb{R}_{\ge 0}\)): a base contributes to at most one side,
--- whichever residual is larger. Bases whose two sides are equal (up to
--- 'nearlyEqScaled') contribute nothing. Because of the non-negativity,
+-- whichever residual is larger. Bases whose two sides are exactly equal
+-- contribute nothing. Because of the non-negativity,
 -- @netPairMapBy@ is well behaved for non-negative-only value types, whereas the
 -- @n - h@ identity with 'balanceMapBy' only holds on a /signed/ value type
 -- (e.g. 'Double', @MoneyDouble@, @MoneyDecimal@) where the difference can be
 -- negative.
--- Floating-point per-base and per-key sums use sequential addition and depend
--- on posting order. 'nearlyEqScaled' drops near-equal per-base sides. See
--- "ExchangeAlgebra.Algebra.Exact" for exact sums over the original postings.
+-- Each base is netted exactly; the unrounded residuals are merged per key and
+-- winning side, and each component is rounded once. Both sides of distinct
+-- bases within a key do not cancel.
 --
 -- Complexity: O(total number of entries) — a single fold over the entries,
 -- followed by one collapse over the distinct bases.
@@ -1628,8 +1644,12 @@ decBy kf (Liner m _ _ _ _ _) =
 -- name), classify each netted entry with @keyOf@ (class totals are summed with
 -- @(+)@), then generate postings per class and bulk-merge them.
 --
+-- On exact values,
 -- @postFromNetBy keyOf post x == sigmaFromMap (foldEntriesToMap collect (bar x)) post@
--- where @collect@ pairs each netted entry with its class. The common
+-- where @collect@ pairs each netted entry with its class. With floating-point
+-- values the two differ: the left side merges the unrounded residuals of a key
+-- and rounds once, the right side rounds each base in 'bar' first (residuals
+-- @2^53 + 1@ and @1@ in one key give @2^53 + 2@ and @2^53@). The common
 -- \"shortage detection → purchase postings\" pattern becomes a single call:
 --
 -- @
@@ -1646,9 +1666,9 @@ decBy kf (Liner m _ _ _ _ _) =
 -- Thus it factors through the quotient induced by 'bar': it is not the free
 -- extension that acts independently on entries in the redundant layer (that
 -- one is 'extendBy').
--- Floating-point per-base and class totals use sequential addition and depend
--- on posting order; 'bar' cancels near-equal sides under 'nearlyEqScaled'. See
--- "ExchangeAlgebra.Algebra.Exact" for exact sums over the original postings.
+-- Each base is netted exactly to choose the winning side; the unrounded
+-- residuals are merged per key, and the value passed to the callback is rounded
+-- once. The guarantee ends at the callback's argument.
 --
 -- Complexity: O(m + Σ cost(post)).
 --

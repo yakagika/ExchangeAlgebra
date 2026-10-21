@@ -46,7 +46,9 @@ module Surface.Foundation
           , compareHatBase
           )
     , HatBase ((:<), _hat, _base)
-    , HatVal (zeroValue, isZeroValue, isErrorValue, showValue)
+    , HatVal (zeroValue, isZeroValue, valueError, showValue)
+    , ValueError (NonFiniteValue, NegativeValue)
+    , isErrorValue
     , Nearly (isNearly)
     , isNearlyNum
     , nearlyEqScaled
@@ -132,7 +134,9 @@ import           ExchangeAlgebra.Foundation
                            , compareHatBase
                            )
                      , HatBase ((:<), _hat, _base)
-                     , HatVal (zeroValue, isZeroValue, isErrorValue, showValue)
+                     , HatVal (zeroValue, isZeroValue, valueError, showValue)
+                     , ValueError (NonFiniteValue, NegativeValue)
+                     , isErrorValue
                      , Nearly (isNearly)
                      , isNearlyNum
                      , nearlyEqScaled
