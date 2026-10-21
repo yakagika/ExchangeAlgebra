@@ -25,12 +25,14 @@ module ExchangeAlgebra.Accounting.Statements.Metric
     , periodResultOf
     ) where
 
+import qualified ExchangeAlgebra.Accounting.TrialBalance.Accum as Accum
+
 import qualified Data.Map.Strict as M
 import           Data.Text (Text)
 import qualified Data.Text as T
 
 import           ExchangeAlgebra.Algebra.Core.Representation (Alg, foldEntries)
-import           ExchangeAlgebra.Algebra.Value.Class (HatVal, isErrorValue)
+import           ExchangeAlgebra.Algebra.Value.Class (HatVal(..), isErrorValue)
 import           ExchangeAlgebra.Accounting.Account.Classification
                      ( AccountDivision(..), DivisionSemantics(..), Side(..) )
 import           ExchangeAlgebra.Accounting.Account.Registry
@@ -113,17 +115,20 @@ periodResultOfAlg alg
         Left (InvalidMetricValue (getAccountTitle base))
     | (_, base) : _ <- wildcardEntries =
         Left (WildcardMetricSide (getAccountTitle base))
-    | credit == debit = Right PeriodBreakEven
-    | credit > debit = Right (PeriodProfit (credit - debit))
-    | otherwise = Right (PeriodLoss (debit - credit))
+    | signAccum result == Just EQ = Right PeriodBreakEven
+    | signAccum result == Just GT = Right (PeriodProfit (roundAccum result))
+    | otherwise = Right (PeriodLoss (roundAccum (negateAccum result)))
   where
     entries = foldEntries (\current value base -> (value, base) : current) [] alg
     invalidEntries = filter (isErrorValue . fst) entries
     wildcardEntries = filter ((== HatNot) . hat . snd) entries
-    (debit, credit) = foldEntries collect (0, 0) alg
+    result = foldEntries collect emptyAccum alg
     collect totals value base
         | isStatementNominal (getAccountTitle base) =
-            addOnSide (whichSide base) value totals
+            case whichSide base of
+                Debit -> mergeAccum totals (negateAccum (addAccum value emptyAccum))
+                Credit -> addAccum value totals
+                Side -> totals
         | otherwise = totals
 
 -- | Derive a period result from an accepted before-closing trial balance.
@@ -152,29 +157,16 @@ isStatementNominal title = case accountSemantics title of
         _ -> False
     Nothing -> False
 
-addOnSide :: Num v => Side -> v -> (v, v) -> (v, v)
-addOnSide Debit value (debit, credit) = (debit + value, credit)
-addOnSide Credit value (debit, credit) = (debit, credit + value)
-addOnSide Side _ totals = totals
-
 nonZeroLegacyTitles
     :: (HatVal v, ExBaseClass b)
     => Alg v b
     -> [AccountTitles]
 nonZeroLegacyTitles alg =
     [ title
-    | (title, (debit, credit)) <- M.toList totals
-    , debit /= credit
+    | (title, total) <- M.toList totals
+    , signAccum total /= Just EQ
     ]
   where
-    totals = foldEntries collect M.empty alg
-    collect current value base = case metricForLegacyTitle title of
-        Nothing -> current
-        Just _ -> M.insertWith add title (sidePair (whichSide base) value) current
-      where
-        title = getAccountTitle base
-    add (newDebit, newCredit) (oldDebit, oldCredit) =
-        (newDebit + oldDebit, newCredit + oldCredit)
-    sidePair Debit value = (value, 0)
-    sidePair Credit value = (0, value)
-    sidePair Side _ = (0, 0)
+    totals = M.filterWithKey (\title _ -> case metricForLegacyTitle title of
+        Nothing -> False
+        Just _ -> True) (Accum.accountAccums alg)

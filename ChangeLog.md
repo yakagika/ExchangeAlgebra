@@ -106,7 +106,31 @@
   original postings on nonfinite bases. `Pair` ordering classifies residuals as
   negative infinity, finite, positive infinity, then NaN; finite residuals are
   compared exactly before the structural tie-break.
-
+- Accounting validation now compares exact posting sums before rounding:
+  checked entries and text certification, trial balances (including reciprocal
+  accounts), and consolidation source and adjustment checks. With
+  `T = 9007199254740992 :: Double`, debit postings `[T, 1, 1]` against credit
+  `[T + 2]` now pass, although sequential addition can reject them. Debit
+  `[T, 1]` against credit `[T]` now fails, although rounded totals are equal.
+  Exactness refers to the supplied binary values, not their decimal spelling.
+- Account balances, period results, statement transformations and subtotals,
+  and trial-balance writer totals use exact accumulators and round each amount
+  once. Presentation checks use the values before rounding; displayed rows
+  need not add up to the displayed subtotal. Caller-supplied scalar linkage
+  comparisons in consolidation retain their existing meaning.
+- `relativeTo` takes `Side -> (Side, v) -> RelativeAmount v`. Replace
+  `relativeTo Debit (debitGross, creditGross)` with
+  `relativeTo Debit (diffRL originalPostings)` so the net difference is taken
+  before gross totals are rounded. When only scalar totals remain, determine
+  their direction and difference explicitly; the lost posting precision cannot
+  be recovered.
+- Writers (`bsRows`, `plRows`, compound trial balances, worksheets, and
+  post-closing trial balances), `presentGroups`, and `relativeTo` no longer
+  suppress small differences with a tolerance; for example, a `plRows` total
+  formerly displayed as `0.0` can now be `1.0e-300`.
+- Removed `exactBalanced` from checked input and its compatibility export.
+  Use `balance` for the exact posting-balance predicate in 0.6. Removed the
+  internal `netGross`; writers read net balances from their accumulators.
 - Removed the `NN.Double` instances of `HatVal`, `Nearly`, `ExactSum`, and
   the orphan `RealFloat` instance, along with `rounding` and the `non-negative`
   dependency. Use `MoneyDouble` or `Double` for values. Replace `rounding` with

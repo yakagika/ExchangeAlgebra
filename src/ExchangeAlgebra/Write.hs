@@ -55,6 +55,8 @@ module ExchangeAlgebra.Write
     , toSameLength
     ) where
 
+import qualified ExchangeAlgebra.Accounting.TrialBalance.Accum as Accum
+
 import qualified    ExchangeAlgebra.Algebra.Core as EA
 import              ExchangeAlgebra.Algebra.Core
 import              ExchangeAlgebra.Algebra.Base.Representation
@@ -126,15 +128,40 @@ renderRelative amount
 -- Gross and deduction rows are labeled by their account title, subtotal and
 -- net rows by the group's label.
 --
--- Complexity: O(r) (r = number of rows in the given blocks)
-groupCells :: (HatVal n)
-           => [RG.PresentationGroupDef]
+-- Complexity: O(r * g * (g + m) + k * log(a + 1)), where r is the row count,
+-- g the group count, m the largest membership list, a the account count, and
+-- k the total number of member lookups across rows. Group rows traverse their
+-- active subtree; each visited group scans the definitions and active blocks.
+groupCells :: HatVal n
+           => OMap.Map AccountTitles (Accum n, Accum n)
+           -> [RG.PresentationGroupDef]
            -> [(RG.PresentationGroupDef, [RG.GroupRow n])]
            -> [(T.Text, T.Text)]
-groupCells defs blocks =
-    [ (label (RG.grKind row), renderRelative (RG.grAmount row))
-    | (_, rows) <- blocks, row <- rows ]
+groupCells totals defs blocks =
+    [ (label kind, renderRelative (RG.relativeTo (RG.groupNormalSide def)
+            (readAccumBalance pair)))
+    | (def, rows) <- blocks
+    , row <- rows
+    , let kind = RG.grKind row
+    , let pair = L.foldl' merge (emptyAccum, emptyAccum)
+            [ OMap.findWithDefault (emptyAccum, emptyAccum) title totals
+            | title <- titlesOfRow kind ] ]
   where
+    merge (debit, credit) (otherDebit, otherCredit) =
+        (mergeAccum debit otherDebit, mergeAccum credit otherCredit)
+    titlesOfRow kind = case kind of
+        RG.GrossRow title -> [title]
+        RG.DeductionRow title -> [title]
+        RG.SubgroupRow key -> titlesOfGroup Set.empty key
+        RG.NetRow key -> titlesOfGroup Set.empty key
+    titlesOfGroup visited key
+        | Set.member key visited = []
+        | otherwise = case RG.lookupGroupDef defs key of
+            Nothing -> []
+            Just def -> RG.pgGross def ++ RG.pgDeductions def
+                ++ concat
+                    [ titlesOfGroup (Set.insert key visited) (RG.pgKey child)
+                    | (child, _) <- blocks, RG.pgParent child == Just key ]
     label kind = case kind of
         RG.GrossRow t      -> tshow t
         RG.DeductionRow t  -> tshow t
@@ -166,9 +193,9 @@ groupCells defs blocks =
 -- and negative-net cells carry a leading @-@; values themselves stay in
 -- \(\mathbb{R}_0^+\).
 --
--- Column totals use the ordinary cells plus each outermost group's net, so
--- nested subtotal rows are not counted twice. __Known limitation:__ an
--- ungrouped non-contra asset whose net balance is
+-- Column totals combine the exact ordinary and grouped account sums, counting
+-- each account once, and round once. Displayed cells need not sum to the total.
+-- __Known limitation:__ an ungrouped non-contra asset whose net balance is
 -- on the credit side (an abnormal balance) is still not displayed, and is now
 -- excluded from the totals as well; the side-versus-division placement of
 -- abnormal balances is a separate pre-existing issue, not part of the contra
@@ -218,7 +245,11 @@ bsRows alg = result
     transferred = ET.finalStockTransfer alg
     grouping = RG.groupingForDivisions [Assets, Liability, Equity]
                                        RG.defaultPresentationGrouping
-    grouped = RG.presentGroups grouping (accountGrossTotals transferred)
+    originalTotals = accountGrossTotals alg
+    grouped = RG.presentGroups grouping (accountGroupBalances originalTotals)
+    grossTotals = OMap.union
+        (OMap.filterWithKey (\title _ -> Set.member title consumed) originalTotals)
+        (accountGrossTotals transferred)
     consumed = RG.gpConsumed grouped
     ungrouped = EA.filter
         (\x -> not (Set.member (getAccountTitle (_hatBase x)) consumed)) transferred
@@ -230,22 +261,32 @@ bsRows alg = result
     blocksIn divisions =
         [block | block@(def, _) <- RG.gpBlocks grouped
                , RG.pgDivision def `elem` divisions]
-    rootOf division = OMap.findWithDefault (zeroValue, zeroValue) division
-        (RG.gpRootTotals grouped)
-    -- Totals are the sum of the displayed cells: the ungrouped entries of the
-    -- column plus each group's net (counted once, at its outermost block).
-    assetGross = RG.addGross (EA.norm assets, zeroValue) (rootOf Assets)
-    creditGross = RG.addGross
-        (zeroValue, EA.norm liability + EA.norm equity)
-        (RG.addGross (rootOf Liability) (rootOf Equity))
-    assetTotal = renderRelative (RG.relativeTo Debit assetGross)
-    creditTotal = renderRelative (RG.relativeTo Credit creditGross)
+    totalFor divisions ordinarySide = OMap.foldlWithKey' collect
+        (emptyAccum, emptyAccum) grossTotals
+      where
+        collect (!debits, !credits) title (debit, credit)
+            | Set.member title consumed =
+                if classifyAccountDivision title `elem` divisions
+                    then add debit credit
+                    else (debits, credits)
+            | ordinarySide == Debit = add debit emptyAccum
+            | classifyAccountDivision title `elem` divisions = add emptyAccum credit
+            | otherwise = (debits, credits)
+          where
+            add debitPart creditPart =
+                let !debits' = mergeAccum debits debitPart
+                    !credits' = mergeAccum credits creditPart
+                in (debits', credits')
+    assetGross = totalFor [Assets] Debit
+    creditGross = totalFor [Liability, Equity] Credit
+    assetTotal = renderRelative (RG.relativeTo Debit (readAccumBalance assetGross))
+    creditTotal = renderRelative (RG.relativeTo Credit (readAccumBalance creditGross))
     (assetGroupText, assetGroupValue) =
-        unzip (groupCells grouping (blocksIn [Assets]))
+        unzip (groupCells grossTotals grouping (blocksIn [Assets]))
     (liabilityGroupText, liabilityGroupValue) =
-        unzip (groupCells grouping (blocksIn [Liability]))
+        unzip (groupCells grossTotals grouping (blocksIn [Liability]))
     (equityGroupText, equityGroupValue) =
-        unzip (groupCells grouping (blocksIn [Equity]))
+        unzip (groupCells grossTotals grouping (blocksIn [Equity]))
     assetsText = L.map (tshow . getAccountTitle . _hatBase) (EA.toList assets)
                  ++ assetGroupText
     assetsValue = L.map (tshow . _val) (EA.toList assets) ++ assetGroupValue
@@ -288,7 +329,7 @@ writeBS path alg = writeCSV path (bsRows alg)
 -- accounts carries gross activity, so a statement containing no contra
 -- posting keeps its ordinary rows. The column totals keep their historical cross-placement
 -- (the Cost column's total cell states the revenue total and vice versa), but
--- are now the sum of the cells displayed in the other column.
+-- use exact sums rounded once. Displayed cells need not sum to the total.
 --
 -- Layout:
 --
@@ -325,7 +366,8 @@ plRows :: (HatVal n, HatBaseClass b, ExBaseClass b) => Alg n b -> [[T.Text]]
 plRows alg = result
   where
     grouping = RG.groupingForDivisions [Cost, Revenue] RG.defaultPresentationGrouping
-    grouped = RG.presentGroups grouping (accountGrossTotals alg)
+    grossTotals = accountGrossTotals alg
+    grouped = RG.presentGroups grouping (accountGroupBalances grossTotals)
     consumed = RG.gpConsumed grouped
     ungrouped = EA.filter
         (\x -> not (Set.member (getAccountTitle (_hatBase x)) consumed)) alg
@@ -336,17 +378,28 @@ plRows alg = result
     blocksIn division =
         [block | block@(def, _) <- RG.gpBlocks grouped
                , RG.pgDivision def == division]
-    rootOf division = OMap.findWithDefault (zeroValue, zeroValue) division
-        (RG.gpRootTotals grouped)
-    costGross = RG.addGross (EA.norm cost, zeroValue) (rootOf Cost)
-    revenueGross = RG.addGross (zeroValue, EA.norm revenue) (rootOf Revenue)
+    totalFor division side = OMap.foldlWithKey' collect
+        (emptyAccum, emptyAccum) grossTotals
+      where
+        collect (!debits, !credits) title (debit, credit)
+            | classifyAccountDivision title /= division = (debits, credits)
+            | otherwise =
+                let !debits' = mergeAccum debits
+                        (if Set.member title consumed || side == Debit
+                            then debit else emptyAccum)
+                    !credits' = mergeAccum credits
+                        (if Set.member title consumed || side == Credit
+                            then credit else emptyAccum)
+                in (debits', credits')
+    costGross = totalFor Cost Debit
+    revenueGross = totalFor Revenue Credit
     -- Historical cross-placement preserved: the Cost column's total cell
     -- states the revenue total, and the Revenue column's the cost total.
-    debitTotal = renderRelative (RG.relativeTo Debit costGross)
-    creditTotal = renderRelative (RG.relativeTo Credit revenueGross)
-    (costGroupText, costGroupValue) = unzip (groupCells grouping (blocksIn Cost))
+    debitTotal = renderRelative (RG.relativeTo Debit (readAccumBalance costGross))
+    creditTotal = renderRelative (RG.relativeTo Credit (readAccumBalance revenueGross))
+    (costGroupText, costGroupValue) = unzip (groupCells grossTotals grouping (blocksIn Cost))
     (revenueGroupText, revenueGroupValue) =
-        unzip (groupCells grouping (blocksIn Revenue))
+        unzip (groupCells grossTotals grouping (blocksIn Revenue))
     costText = L.map (tshow . getAccountTitle . _hatBase) (EA.toList cost)
                ++ costGroupText
     costValue = L.map (tshow . _val) (EA.toList cost) ++ costGroupValue
@@ -616,43 +669,49 @@ writeAccountOfJournal titles path j =
 -- 'decL'\/'decR'. The resulting 'OMap.Map' iterates titles in ascending order,
 -- matching the previous @L.sort . Set.toList . Set.fromList@ title enumeration.
 --
+-- Exact gross sums are retained until the caller has netted or combined accounts.
+-- Each displayed amount is then rounded once.
+--
 -- Complexity: O(s) (s = number of scalar entries).
-accountGrossTotals :: (HatVal n, HatBaseClass b, ExBaseClass b)
-                   => Alg n b -> OMap.Map AccountTitles (n, n)
+accountGrossTotals :: (HatVal n, ExBaseClass b)
+                   => Alg n b -> OMap.Map AccountTitles (Accum n, Accum n)
 accountGrossTotals = EA.foldEntries step OMap.empty
   where
-    -- (debit gross, credit gross)
-    step acc v b =
-        let !t   = getAccountTitle b
-            !pair = case whichSide b of
-                Debit  -> (v, zeroValue)
-                Credit -> (zeroValue, v)
-                Side   -> (zeroValue, zeroValue)
-        in OMap.insertWith addPair t pair acc
-    addPair (d1, c1) (d2, c2) = (d1 + d2, c1 + c2)
+    step totals value base =
+        let (!debit, !credit) = case whichSide base of
+                Debit -> (addAccum value emptyAccum, emptyAccum)
+                Credit -> (emptyAccum, addAccum value emptyAccum)
+                Side -> (emptyAccum, emptyAccum)
+        in OMap.insertWith merge (getAccountTitle base) (debit, credit) totals
+    merge (!debit, !credit) (!otherDebit, !otherCredit) =
+        let !debitTotal = mergeAccum debit otherDebit
+            !creditTotal = mergeAccum credit otherCredit
+        in (debitTotal, creditTotal)
 
--- | Net a @(debit gross, credit gross)@ pair into a @(Side, magnitude)@ balance,
--- reproducing 'diffRL' exactly. 'diffRL' compares @r = 'norm' . 'decR'@ (credit)
--- against @l = 'norm' . 'decL'@ (debit) with the scale-aware tolerance, so the
--- same comparison is applied here: near-equal sides report v'Side' with zero
--- magnitude, otherwise the larger side wins with the non-negative difference.
--- This function compares two supplied totals; it does not sum postings. If
--- floating-point addition has already rounded those totals, use
--- @ExchangeAlgebra.Journal.Exact.accountBalancesExact@ or
--- @ExchangeAlgebra.Algebra.Exact.diffRLExact@ upstream on the original postings.
---
--- Complexity: O(1).
-netGross :: (HatVal n) => (n, n) -> (Side, n)
-netGross (l, r)   -- l = debit gross, r = credit gross
-    | nearlyEqScaled r l = (Side, zeroValue)
-    | r > l              = (Credit, r - l)
-    | otherwise          = (Debit, l - r)
+-- | Read the exact difference before rounding its non-negative magnitude once.
+-- NaN retains the legacy debit-column placement.
+readAccumBalance :: HatVal n => (Accum n, Accum n) -> (Side, n)
+readAccumBalance (debit, credit) =
+    Accum.readAccountAccum Debit (mergeAccum debit (negateAccum credit))
+
+-- | Supply the scalar grouping API with directional balances. Group-row
+-- amounts are read separately from the original accumulators by 'groupCells'.
+accountGroupBalances :: HatVal n
+                     => OMap.Map AccountTitles (Accum n, Accum n)
+                     -> OMap.Map AccountTitles (n, n)
+accountGroupBalances = OMap.map readPair
+  where
+    readPair pair@(debit, credit) = case readAccumBalance pair of
+        (Debit, amount) -> (amount, zeroValue)
+        (Credit, amount) -> (zeroValue, amount)
+        _ -> (roundAccum debit, roundAccum credit)
 
 -- | Build the rows of a Compound Trial Balance (合計残高試算表), as a pure
 -- value (the part 'writeCompoundTrialBalance' renders to CSV). Calculates the
 -- debit total, credit total, and balance for each account title, aggregated
--- via the single-pass @accountGrossTotals@\/@netGross@ (the same
--- @diffRL@-equivalent netting as 'balanceOf'; no implicit @bar@). Layout:
+-- from exact gross accumulators. Each gross total and net balance is rounded
+-- once; netting compares the accumulators before rounding, without tolerance.
+-- Displayed rows need not sum to the displayed total. No implicit @bar@. Layout:
 --
 -- > Debit Balance | Debit Total | Account Title | Credit Total | Credit Balance
 --
@@ -696,24 +755,25 @@ compoundTrialBalanceRows alg =
     -- Single pass (O(s)): gross debit/credit totals per title, in Ord order.
     accounts = OMap.toList (accountGrossTotals alg)
     (lines', debitBalanceTotal, debitTotal, creditBalanceTotal, creditTotal) =
-        L.foldl' step ([], zeroValue, zeroValue, zeroValue, zeroValue) accounts
-    totalLine = [ tshow debitBalanceTotal
-                , tshow creditTotal
+        L.foldl' step ([], emptyAccum, emptyAccum, emptyAccum, emptyAccum) accounts
+    totalLine = [ tshow (roundAccum debitBalanceTotal)
+                , tshow (roundAccum creditTotal)
                 , T.pack "Total"
-                , tshow debitTotal
-                , tshow creditBalanceTotal
+                , tshow (roundAccum debitTotal)
+                , tshow (roundAccum creditBalanceTotal)
                 ]
     step (accLines, dbt, dt, cbt, ct) (a, gross) =
-        let xl = fst gross   -- norm (decL xs) : debit gross
-            xr = snd gross   -- norm (decR xs) : credit gross
-            (dc, diff) = netGross gross
-            -- 'netGross'/'diffRL' returns the wildcard v'Side' with a zero
+        let xl = roundAccum (fst gross)   -- norm (decL xs) : debit gross
+            xr = roundAccum (snd gross)   -- norm (decR xs) : credit gross
+            difference = mergeAccum (fst gross) (negateAccum (snd gross))
+            (dc, diff) = readAccumBalance gross
+            -- The exact difference returns the wildcard v'Side' with a zero
             -- difference when an account nets to zero (e.g. a fully-cleared
             -- suspense account). Treat that as no balance on either side
             -- (cf. 'sideCells').
             (dbt', cbt') = case dc of
-                Credit -> (dbt + diff, cbt)
-                Debit  -> (dbt, cbt + diff)
+                Credit -> (mergeAccum dbt (negateAccum difference), cbt)
+                Debit  -> (dbt, mergeAccum cbt difference)
                 Side   -> (dbt, cbt)
             -- See the Haddock above: the Credit case places 'diff' in the
             -- *Debit Balance* column (position 0) and the Debit case places
@@ -738,7 +798,7 @@ compoundTrialBalanceRows alg =
                           , tshow xr
                           , T.empty
                           ]
-         in (accLines ++ [line], dbt', dt + xr, cbt', ct + xl)
+         in (accLines ++ [line], dbt', mergeAccum dt (snd gross), cbt', mergeAccum ct (fst gross))
 
 -- | Output a Compound Trial Balance in CSV format.
 -- Calculates the debit total, credit total, and balance for each account
@@ -861,24 +921,25 @@ worksheetRows pre adj =
     combined = pre .+ adj
     -- Single pass per algebra (O(s)): gross debit/credit totals per title.
     -- 'balanceOf t alg' = 'diffRL (projByAccountTitle t alg)' is reproduced as
-    -- 'netGross' of the per-title gross pair; a title absent from a map (e.g.
-    -- only in 'adj', not 'pre') yields '(0,0)', i.e. 'diffRL Zero = (Side, 0)'.
+    -- the exact difference of the per-title gross accumulators; a title absent from a map
+    -- (e.g. only in 'adj') contributes the empty sums.
     preTotals = accountGrossTotals pre
     adjTotals = accountGrossTotals adj
     combTotals = accountGrossTotals combined
-    grossOf m t = OMap.findWithDefault (zeroValue, zeroValue) t m
+    grossOf m t = OMap.findWithDefault (emptyAccum, emptyAccum) t m
     -- Title enumeration: the keys of 'combined' in Ord order (= the previous
     -- 'L.sort . Set.toList . Set.fromList' over 'EA.toList combined').
     titles = OMap.keys combTotals
     -- per-title row + accumulate the four debit/credit column totals
     (bodyRows, tbD, tbC, plD, plC, bsD, bsC) =
-        L.foldl' step ([], zeroValue, zeroValue, zeroValue, zeroValue, zeroValue, zeroValue) titles
+        L.foldl' step
+            ([], emptyAccum, emptyAccum, emptyAccum, emptyAccum, emptyAccum, emptyAccum) titles
     step (rows, tbd, tbc, pld, plc, bsd, bsc) t =
-        let tb              = netGross (grossOf preTotals t)
+        let tb              = readAccumBalance (grossOf preTotals t)
             (tbDc, tbCc)    = sideCells tb
-            adjPair         = netGross (grossOf adjTotals t)
+            adjPair         = readAccumBalance (grossOf adjTotals t)
             (adjDc, adjCc)  = sideCells adjPair
-            finalPair@(finalSide, finalMag) = netGross (grossOf combTotals t)
+            finalPair = readAccumBalance (grossOf combTotals t)
             div'            = classifyAccountDivision t
             isPL            = div' == Cost || div' == Revenue
             (plDc, plCc, bsDc, bsCc)
@@ -886,14 +947,16 @@ worksheetRows pre adj =
               | otherwise = let (d,c) = sideCells finalPair in (T.empty, T.empty, d, c)
             row = [ tshow t, tbDc, tbCc, adjDc, adjCc, plDc, plCc, bsDc, bsCc ]
             -- column totals
-            addCol side mag d c = case side of
-                Debit  -> (d + mag, c)
-                Credit -> (d, c + mag)
-                _      -> (d, c)   -- wildcard v'Side' (balanced to zero): adds nothing
-            (ntbd, ntbc) = let (s,m) = tb in addCol s m tbd tbc
-            (npld, nplc) | isPL      = addCol finalSide finalMag pld plc
+            addCol (debit, credit) d c = case signAccum difference of
+                Just GT -> (mergeAccum d difference, c)
+                Just LT -> (d, mergeAccum c (negateAccum difference))
+                _ -> (d, c)   -- wildcard v'Side' (balanced to zero): adds nothing
+              where
+                difference = mergeAccum debit (negateAccum credit)
+            (ntbd, ntbc) = addCol (grossOf preTotals t) tbd tbc
+            (npld, nplc) | isPL      = addCol (grossOf combTotals t) pld plc
                          | otherwise = (pld, plc)
-            (nbsd, nbsc) | not isPL  = addCol finalSide finalMag bsd bsc
+            (nbsd, nbsc) | not isPL  = addCol (grossOf combTotals t) bsd bsc
                          | otherwise = (bsd, bsc)
          in (rows ++ [row], ntbd, ntbc, npld, nplc, nbsd, nbsc)
     -- trial-balance totals row (整理記入 totals are intentionally omitted: the
@@ -901,19 +964,20 @@ worksheetRows pre adj =
     -- lecture's layout; the self-check is on P/L and B/S).
     tbTotalRow =
         [ T.pack "Subtotal"
-        , tshow tbD, tshow tbC
+        , tshow (roundAccum tbD), tshow (roundAccum tbC)
         , T.empty, T.empty
-        , tshow plD, tshow plC
-        , tshow bsD, tshow bsC ]
+        , tshow (roundAccum plD), tshow (roundAccum plC)
+        , tshow (roundAccum bsD), tshow (roundAccum bsC) ]
     -- profit/loss balancing figure (当期純利益 / 純損失).
     -- P/L imbalance: if credit (revenue) side exceeds debit (cost) side, the
     -- difference is net income, recorded on the P/L debit side and the B/S
     -- credit side (it increases equity). The reverse is a net loss.
-    plDiff = absDiff plD plC
-    bsDiff = absDiff bsD bsC
-    netProfit = plC > plD   -- revenue side larger => profit
+    plDiff = snd (readAccumBalance (plD, plC))
+    bsDiff = snd (readAccumBalance (bsD, bsC))
+    netProfit = signAccum (mergeAccum plC (negateAccum plD)) == Just GT
     (netLabel, netPlD, netPlC, netBsD, netBsC)
-        | plC == plD = (T.pack "Net Income/Loss", T.empty, T.empty, T.empty, T.empty)
+        | signAccum (mergeAccum plC (negateAccum plD)) == Just EQ =
+            (T.pack "Net Income/Loss", T.empty, T.empty, T.empty, T.empty)
         | netProfit  = (T.pack "Net Income", tshow plDiff, T.empty, T.empty, tshow bsDiff)
         | otherwise  = (T.pack "Net Loss",   T.empty, tshow plDiff, tshow bsDiff, T.empty)
     netRow =
@@ -923,15 +987,16 @@ worksheetRows pre adj =
         , netPlD, netPlC
         , netBsD, netBsC ]
     -- grand totals after adding the balancing figure (both sides now equal).
-    plTotal = max plD plC
-    bsTotal = max bsD bsC
+    plTotal = if netProfit then plC else plD
+    bsTotal = case signAccum (mergeAccum bsD (negateAccum bsC)) of
+        Just GT -> bsD
+        _ -> bsC
     grandTotalRow =
         [ T.pack "Total"
         , T.empty, T.empty
         , T.empty, T.empty
-        , tshow plTotal, tshow plTotal
-        , tshow bsTotal, tshow bsTotal ]
-    absDiff a b = if a >= b then a - b else b - a
+        , tshow (roundAccum plTotal), tshow (roundAccum plTotal)
+        , tshow (roundAccum bsTotal), tshow (roundAccum bsTotal) ]
 
 -- | Output an 8-column worksheet (8 桁精算表) in CSV format.
 -- Pure layout is delegated to 'worksheetRows'; this function only writes the
@@ -990,17 +1055,20 @@ postClosingTrialBalanceRows alg =
     isReal t = let d = classifyAccountDivision t
                in d == Assets || d == Liability || d == Equity
     (bodyRows, debitTotal, creditTotal) =
-        L.foldl' step ([], zeroValue, zeroValue) titles
+        L.foldl' step ([], emptyAccum, emptyAccum) titles
     step (rows, dt, ct) t =
-        let (side, mag) = netGross (OMap.findWithDefault (zeroValue, zeroValue) t totals)
+        let (side, mag) = readAccumBalance
+                (OMap.findWithDefault (emptyAccum, emptyAccum) t totals)
+            (debit, credit) = OMap.findWithDefault (emptyAccum, emptyAccum) t totals
+            difference = mergeAccum debit (negateAccum credit)
             (dCell, cCell) = sideCells (side, mag)
             (dt', ct') = case side of
-                Debit  | mag /= zeroValue -> (dt + mag, ct)
-                Credit | mag /= zeroValue -> (dt, ct + mag)
+                Debit -> (mergeAccum dt difference, ct)
+                Credit -> (dt, mergeAccum ct (negateAccum difference))
                 _                          -> (dt, ct)
             row = [dCell, tshow t, cCell]
          in (rows ++ [row], dt', ct')
-    totalRow = [tshow debitTotal, T.pack "Total", tshow creditTotal]
+    totalRow = [tshow (roundAccum debitTotal), T.pack "Total", tshow (roundAccum creditTotal)]
 
 -- | Output a post-closing trial balance (繰越試算表) in CSV format.
 -- Pure layout is delegated to 'postClosingTrialBalanceRows'; this function only

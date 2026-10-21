@@ -2957,9 +2957,162 @@ closingDocsTests = do
     dummyDay :: Day
     dummyDay = fromGregorian 2024 4 1
 
+-- | Pin both directions of the exact-versus-rounded accounting gates.
+testAccumulatorAccounting :: IO ()
+testAccumulatorAccounting = do
+    let large = 9007199254740992 :: Double
+        entry debits credits = EC.journalFromSides
+            ([(Debit, Cash, value) | value <- debits]
+                ++ [(Credit, CapitalStock, value) | value <- credits])
+                :: EA.Alg Double (HatBase AccountTitles)
+        accepted = entry [large, 1, 1] [large + 2]
+        rejected = entry [large, 1] [large]
+        isRight (Right _) = True
+        isRight _ = False
+        validate alg = TB.validateTrialBalance TB.strictTrialBalancePolicy
+            (TB.TrialBalanceInput alg TB.BeforeClosing M.empty [] Set.empty)
+        context = RP.jcciSecondGradeContext RP.Standalone
+        linkage = CW.WorksheetLinkage
+            RM.PeriodBreakEven RM.PeriodBreakEven RM.PeriodBreakEven
+            TBB.NoBalance 0 TBB.NoBalance TBB.NoBalance
+            TBB.NoBalance RM.PeriodBreakEven 0 TBB.NoBalance TBB.NoBalance
+        worksheet alg adjustments = CW.validateConsolidationWorksheet
+            (CW.WorksheetInput (CW.TrialBalanceSource "source" alg NE.:| [])
+                adjustments linkage :: CW.WorksheetInput String String Double)
+    assertEqual "exact oracle: accepted fixture has equal Rational sums"
+        (sum (L.map toRational [large, 1, 1])) (toRational (large + 2))
+    assertEqual "exact oracle: rejected fixture has residual one"
+        1 (sum (L.map toRational [large, 1]) - toRational large)
+    assertEqual "account balances: one rounding of the exact account sum"
+        (TBB.DebitBalance (large + 2))
+        (TBB.balanceFor Cash (TBB.accountBalances accepted))
+    assertEqual "account balances: gross rounding cannot erase net one"
+        (TBB.DebitBalance 1)
+        (TBB.balanceFor Cash (TBB.accountBalances
+            (rejected EA..+ (large EA..@ (Hat :< Cash)))))
+    forM_ [(accepted, True), (rejected, False)] $ \(alg, expected) -> do
+        assertEqual "trial balance: exact acceptance in both directions"
+            expected (isRight (validate alg))
+        assertEqual "consolidation source: exact acceptance in both directions"
+            expected (isRight (worksheet alg []))
+        assertEqual "consolidation adjustment: exact acceptance in both directions"
+            expected (isRight (worksheet (entry [2] [2])
+                [CW.WorksheetAdjustment "adjustment" ("source" NE.:| []) alg]))
+    let reportingInput = EC.journalFromSides
+            [(Debit, Cash, large), (Debit, Cash, 1),
+             (Debit, AccountsReceivable, 1), (Credit, CapitalStock, large + 2)]
+                :: EA.Alg Double (HatBase AccountTitles)
+    case validate reportingInput of
+        Left findings -> fail (show findings)
+        Right validated -> do
+            case RP.present context validated of
+                Left issues -> fail (show issues)
+                Right statements -> assertEqual
+                    "presentation accepts exact balance despite rounded row mismatch"
+                    [large, 1, large + 2]
+                    (L.map RP._lineAmount (RP._statementLines statements))
+            let relabeled = context
+                    { RP._presentationRelabels =
+                        [RP.PresentationRelabel Cash AccountsReceivable (T.pack "combine")]
+                    , RP._subtotalDefinitions =
+                        [RP.SubtotalDefinition RM.GrossProfitMetric [] [AccountsReceivable]
+                            RP.RequireAllTitlesPresent] }
+            case RP.present relabeled validated of
+                Left issues -> fail (show issues)
+                Right statements -> do
+                    assertEqual "presentation relabel rounds combined postings once"
+                        [large + 2, large + 2]
+                        (L.map RP._lineAmount (RP._statementLines statements))
+                    assertEqual "presentation subtotal retains exact transformed balance"
+                        [TBB.DebitBalance (large + 2)]
+                        (L.map RP._statementSubtotalBalance (RP._statementSubtotals statements))
+    case validate (entry [large, 1] [large, 1]) of
+        Left findings -> fail (show findings)
+        Right validated -> forM_ [(1, True), (0, False)] $ \(remainder, expected) -> do
+            let allocated = context
+                    { RP._maturitySensitiveTitles = Set.singleton Cash
+                    , RP._presentationAllocations =
+                        [RP.PresentationAllocation Cash large remainder
+                            (T.pack "exact maturity split")] }
+            assertEqual "presentation allocation compares before account rounding"
+                expected (isRight (RP.present allocated validated))
+    let nominal revenues costs = EC.journalFromSides
+            ([(Credit, Sales, value) | value <- revenues]
+                ++ [(Debit, SalesCost, value) | value <- costs])
+                :: EA.Alg Double (HatBase AccountTitles)
+    assertEqual "metric: exact break-even despite sequential rounding"
+        (Right RM.PeriodBreakEven)
+        (RM.periodResultOfAlg (nominal [large, 1, 1] [large + 2]))
+    assertEqual "metric: rounded gross equality cannot erase profit"
+        (Right (RM.PeriodProfit 1))
+        (RM.periodResultOfAlg (nominal [large, 1] [large]))
+    assertEqual "relativeTo consumes a directional net without tolerance"
+        (RG.RelativeAmount True 0.5)
+        (RG.relativeTo Debit (Credit, 0.5 :: Double))
+    let groups = RG.presentGroups RG.defaultPresentationGrouping
+            (M.fromList [(AccountsReceivable, (large, 0)),
+                         (AllowanceForDoubtfulAccounts, (0, 0.5))])
+    assertEqual "group activity keeps a real small deduction"
+        True (Set.member AllowanceForDoubtfulAccounts (RG.gpConsumed groups))
+    let tinyGroups = RG.presentGroups RG.defaultPresentationGrouping
+            (M.singleton AllowanceForDoubtfulAccounts (0, 1e-14 :: Double))
+    assertEqual "group activity retains a deduction below the old tolerance"
+        True (Set.member AllowanceForDoubtfulAccounts (RG.gpConsumed tinyGroups))
+    let residualGroups = RG.presentGroups RG.defaultPresentationGrouping
+            (M.fromList [(AccountsReceivable, (1, 1 + 2 ** (-52) :: Double)),
+                         (AllowanceForDoubtfulAccounts, (0, 1))])
+    assertEqual "group gross row retains a one-ulp residual"
+        True (any ((== RG.GrossRow AccountsReceivable) . RG.grKind)
+            (concatMap snd (RG.gpBlocks residualGroups)))
+    let receivables = EC.journalFromSides
+            [(Debit, AccountsReceivable, large), (Debit, AccountsReceivable, 1),
+             (Credit, AllowanceForDoubtfulAccounts, 1), (Credit, CapitalStock, large)]
+                :: EA.Alg Double (HatBase AccountTitles)
+    assertEqual "BS group nets original postings before rounding"
+        [[T.pack "TradeReceivablesNet", T.pack (show large), T.pack "Total",
+          T.pack (show large)]]
+        [row | row@(label : _) <- EW.bsRows receivables,
+               label == T.pack "TradeReceivablesNet"]
+    let omitted = EC.journalFromSides
+            [(Debit, Cash, 100), (Credit, CapitalStock, 90), (Credit, CashOverShort, 10)]
+                :: EA.Alg Double (HatBase AccountTitles)
+        omittedInput = TB.TrialBalanceInput omitted TB.BeforeClosing
+            (M.singleton CashOverShort (T.pack "investigation pending")) [] Set.empty
+    case TB.validateTrialBalance TB.standaloneTrialBalancePolicy omittedInput of
+        Left findings -> fail (show findings)
+        Right validated -> assertEqual "presentation reconciles only the rendered balances"
+            (Left (RP.UnpresentableBalance CashOverShort (TB.CreditBalance 10)
+                NE.:| [RP.UnreconciledPresentation 100 90]))
+            (fmap (const ()) (RP.present context validated))
+    let reciprocal branchAmounts headAmounts = EC.journalFromSides
+            ([(Debit, BranchCurrentAccount, value) | value <- branchAmounts]
+                ++ [(Credit, HeadOfficeCurrentAccount, value) | value <- headAmounts])
+                :: EA.Alg Double (HatBase AccountTitles)
+    assertEqual "reciprocal comparison accepts the exact equal sums"
+        True (isRight (validate (reciprocal [large, 1, 1] [large + 2])))
+    let mismatch = reciprocal [large, 1] [large]
+            EA..+ (1 EA..@ (Not :< CapitalStock))
+    assertEqual "reciprocal comparison rejects rounded equal sums"
+        True (any isReciprocal (TB.trialBalanceFindings
+            (TB.TrialBalanceInput mismatch TB.BeforeClosing M.empty [] Set.empty)))
+    let offset = EC.journalFromSides
+            [(Debit, Cash, large), (Debit, Cash, 1), (Credit, Cash, large)]
+                :: EA.Alg Double (HatBase AccountTitles)
+    assertEqual "compound trial balance keeps exact net one"
+        [T.pack "", T.pack "9.007199254740992e15", T.pack "Cash",
+         T.pack "9.007199254740992e15", T.pack "1.0"]
+        (concat (take 1 (drop 1 (EW.compoundTrialBalanceRows offset))))
+    assertEqual "post-closing trial balance keeps exact net one"
+        [T.pack "1.0", T.pack "Cash", T.pack ""]
+        (concat (take 1 (drop 1 (EW.postClosingTrialBalanceRows offset))))
+  where
+    isReciprocal TB.ReciprocalMismatch{} = True
+    isReciprocal _ = False
+
 -- | Run this domain in its original relative test order.
 runTests :: IO ()
 runTests = do
+    testAccumulatorAccounting
     testAccountTitlesBinary
     testAllowanceAccountTitles
     testAccountTitleClassification

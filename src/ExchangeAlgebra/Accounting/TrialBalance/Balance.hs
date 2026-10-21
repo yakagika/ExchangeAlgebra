@@ -21,15 +21,17 @@ module ExchangeAlgebra.Accounting.TrialBalance.Balance
     , accountBalances
     ) where
 
+import qualified ExchangeAlgebra.Accounting.TrialBalance.Accum as Accum
+
 import qualified Data.Map.Strict as M
 import           Data.Map.Strict (Map)
 
-import           ExchangeAlgebra.Algebra.Core.Representation (Alg, foldEntries)
-import           ExchangeAlgebra.Algebra.Value.Class (HatVal)
+import           ExchangeAlgebra.Algebra.Core.Representation (Alg)
+import           ExchangeAlgebra.Algebra.Value.Class (HatVal(..))
 import           ExchangeAlgebra.Accounting.Account.Classification (Side(..))
 import           ExchangeAlgebra.Accounting.Account.Title (AccountTitles)
 import           ExchangeAlgebra.Accounting.Exchange
-                     ( ExBaseClass(getAccountTitle, whichSide) )
+                     ( ExBaseClass )
 
 -- | Net balance direction remains structural; values stay non-negative.
 data AccountBalance v
@@ -80,18 +82,15 @@ balanceAmount NoBalance = 0
 balanceAmount (DebitBalance value) = value
 balanceAmount (CreditBalance value) = value
 
--- | Aggregate postings by account and net each debit-credit total.
+-- | Net the exact posting sum of each account and round its magnitude once.
+-- The direction is determined before rounding, without a tolerance.
 accountBalances
     :: (HatVal v, ExBaseClass b)
     => Alg v b
     -> Map AccountTitles (AccountBalance v)
-accountBalances = M.map netPair . foldEntries collect M.empty
+accountBalances = M.map finish . Accum.accountAccums
   where
-    collect totals value base =
-        M.insertWith addPair (getAccountTitle base)
-            (sidePair (whichSide base) value) totals
-
-sidePair :: Num v => Side -> v -> (v, v)
-sidePair Debit value = (value, 0)
-sidePair Credit value = (0, value)
-sidePair Side _ = (0, 0)
+    finish total = case Accum.readAccountAccum Credit total of
+        (Side, _) -> NoBalance
+        (Debit, value) -> DebitBalance value
+        (Credit, value) -> CreditBalance value

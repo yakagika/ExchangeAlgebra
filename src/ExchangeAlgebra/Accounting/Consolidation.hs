@@ -74,7 +74,7 @@ import qualified Data.Map.Strict as M
 import           ExchangeAlgebra.Accounting.Exchange (decL, decR)
 import           ExchangeAlgebra.Algebra.Core.Representation
                      ( Alg
-                     , Redundant((.+), norm)
+                     , Redundant((.+)), foldEntries
                      , bases
                      , vals
                      )
@@ -301,10 +301,13 @@ validateSource source = structuralErrors ++ balanceErrors
            ]
     balanceErrors
         | not (null structuralErrors) = []
-        | debit /= credit = [UnbalancedSourceTrialBalance sourceId debit credit]
+        | signAccum difference /= Just EQ = [UnbalancedSourceTrialBalance sourceId debit credit]
         | otherwise = []
       where
-        (debit, credit) = sideTotals alg
+        (debitState, creditState) = sideTotals alg
+        difference = mergeAccum debitState (negateAccum creditState)
+        debit = roundAccum debitState
+        credit = roundAccum creditState
 
 validateAdjustment
     :: (HatVal v, Ord source)
@@ -347,10 +350,13 @@ validateAdjustment knownSources adjustment =
            ]
     balanceErrors
         | not (null structuralErrors) = []
-        | debit /= credit = [UnbalancedAdjustment adjustmentId debit credit]
+        | signAccum difference /= Just EQ = [UnbalancedAdjustment adjustmentId debit credit]
         | otherwise = []
       where
-        (debit, credit) = sideTotals alg
+        (debitState, creditState) = sideTotals alg
+        difference = mergeAccum debitState (negateAccum creditState)
+        debit = roundAccum debitState
+        credit = roundAccum creditState
 
 validateWorksheetLinkage
     :: HatVal v
@@ -509,8 +515,10 @@ rollForwardSides opening result dividends closing = case result of
     (openingDebit, openingCredit) = balancePair opening
     (closingDebit, closingCredit) = balancePair closing
 
-sideTotals :: HatVal v => Alg v (HatBase AccountTitles) -> (v, v)
-sideTotals alg = (norm (decL alg), norm (decR alg))
+sideTotals :: HatVal v => Alg v (HatBase AccountTitles) -> (Accum v, Accum v)
+sideTotals alg = (sumSide (decL alg), sumSide (decR alg))
+  where
+    sumSide = foldEntries (\total value _ -> addAccum value total) emptyAccum
 
 toListNE :: NonEmpty a -> [a]
 toListNE (x :| xs) = x : xs

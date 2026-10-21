@@ -824,9 +824,37 @@ testCsvWriteCases = do
                         putStrLn ("[FAIL] " ++ label ++ ": missing output row")
                         exitFailure
 
+-- | Check the arithmetic boundary before account resolution or row rounding.
+testAccumulatorAcceptance :: IO ()
+testAccumulatorAcceptance = do
+    let large = 9007199254740992 :: Double
+        accepted = [(Debit, Cash, large), (Debit, Cash, 1),
+                    (Debit, Cash, 1), (Credit, Sales, large + 2)]
+        rejected = [(Debit, Cash, large), (Debit, Cash, 1), (Credit, Sales, large)]
+        isRight (Right _) = True
+        isRight _ = False
+        textRows rows = [(T.pack (if side == Debit then "debit" else "credit"),
+                          T.pack (show title), value) | (side, title, value) <- rows]
+        unresolved rows = [(side, T.pack "UnknownAccumulatorAccount", value)
+                         | (side, _, value) <- textRows rows]
+    forM_ [(accepted, True), (rejected, False)] $ \(rows, expected) -> do
+        assertEqual "checked entry compares exact postings in both directions"
+            expected (isRight (ECC.checkedEntry rows))
+        assertEqual "checked text compares exact postings in both directions"
+            expected (isRight (ECC.checkedEntryText (textRows rows)))
+        assertEqual "unresolved text compares all exact amounts"
+            expected (case ECC.certifyJournalText [("entry", unresolved rows)] of
+                ECC.BalancedUnresolved{} -> True
+                _ -> False)
+        assertEqual "resolved journal certification compares exact postings"
+            expected (case ECC.certifyJournalText [("entry", textRows rows)] of
+                ECC.FullyResolved{} -> True
+                _ -> False)
+
 -- | Run this domain in its original relative test order.
 runTests :: IO ()
 runTests = do
+    testAccumulatorAcceptance
     testCsvWriteCases
     testCsvTranspose
     testWriteFuncResultsCsv

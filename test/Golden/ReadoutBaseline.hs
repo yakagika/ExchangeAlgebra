@@ -264,7 +264,7 @@ algRows name postings =
     ++ balanceRows (TB.accountBalances input)
     ++ [ ["Write.bsRows", "all", "row"] ++ row | row <- Write.bsRows input ]
     ++ [ ["Write.plRows", "all", "row"] ++ row | row <- Write.plRows input ]
-    ++ shownRow "Convert.Checked.exactBalanced" "all" (norm (decL input) == norm (decR input))
+    ++ shownRow "balance" "checked-input" (balance input)
     ++ shownRow "trialBalanceFindings" "BeforeClosing" (Validation.trialBalanceFindings tbInput)
     ++ scalarRow "trialBalanceFindings.debitTotal" "BeforeClosing" (norm (decL input))
     ++ scalarRow "trialBalanceFindings.creditTotal" "BeforeClosing" (norm (decR input))

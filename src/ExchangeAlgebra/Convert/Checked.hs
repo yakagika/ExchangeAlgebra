@@ -1,8 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# OPTIONS_GHC -Wincomplete-patterns -Werror=incomplete-patterns #-}
 {- |Compatibility import for "ExchangeAlgebra.IO.Input" and
-"ExchangeAlgebra.Accounting.Account". 'exactBalanced' remains available only
-through this legacy path.
+"ExchangeAlgebra.Accounting.Account".
 -}
 module ExchangeAlgebra.Convert.Checked {-# DEPRECATED "Import ExchangeAlgebra.IO.Input or ExchangeAlgebra.Accounting.Account for posting policy instead." #-}
     ( -- $postingPolicy
@@ -12,7 +11,6 @@ module ExchangeAlgebra.Convert.Checked {-# DEPRECATED "Import ExchangeAlgebra.IO
     , JournalCert(..)
     , SourceError(..)
     , postingAllowedIn
-    , exactBalanced
     , checkedEntryIn
     , checkedEntry
     , checkedEntryTextIn

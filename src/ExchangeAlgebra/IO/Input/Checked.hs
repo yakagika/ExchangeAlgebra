@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE BangPatterns #-}
 {-# OPTIONS_GHC -Wincomplete-patterns -Werror=incomplete-patterns #-}
 
 {- |
@@ -19,7 +20,6 @@ module ExchangeAlgebra.IO.Input.Checked
     , JournalCert(..)
     , SourceError(..)
     , postingAllowedIn
-    , exactBalanced
     , checkedEntryIn
     , checkedEntry
     , checkedEntryTextIn
@@ -41,7 +41,7 @@ import qualified Data.Text as T
 
 import           ExchangeAlgebra.Algebra.Core (Alg, Redundant((.+), norm))
 import           ExchangeAlgebra.Algebra.Value.Class (HatVal(..), isErrorValue)
-import           ExchangeAlgebra.Accounting.Exchange (ExBaseClass, Exchange(decL, decR))
+import           ExchangeAlgebra.Accounting.Exchange (Exchange(decL, balance))
 import           ExchangeAlgebra.Accounting.Account.PostingPolicy
                      ( ProcessingContext(..)
                      , postingAllowedIn
@@ -142,26 +142,12 @@ data SourceError n v
   | AmountMismatch n v v
   deriving (Show, Eq)
 
--- | Exact debit-credit balance using strict equality.
---
--- Unlike the existing 'ExchangeAlgebra.Algebra.balance', this uses @(==)@ over
--- the value type and therefore does not admit tolerance-based near-matches.
---
--- >>> let Right ok = checkedEntry [(Debit, Cash, 100), (Credit, Sales, 100)] :: Either (NonEmpty (EntryError Double)) (Alg Double (HatBase AccountTitles))
--- >>> exactBalanced ok
--- True
--- >>> let raw = journalFromSides [(Debit, Cash, 100), (Credit, Sales, 90)] :: Alg Double (HatBase AccountTitles)
--- >>> exactBalanced raw
--- False
-exactBalanced :: (HatVal v, ExBaseClass b) => Alg v b -> Bool
-exactBalanced x = norm (decL x) == norm (decR x)
-
 -- | Construct one checked entry from parsed postings in a processing context.
 --
 -- The success value is built with 'journalFromSides', so accepted entries keep
 -- the same posting semantics as the unchecked conversion path.
 --
--- >>> fmap exactBalanced (checkedEntry [(Debit, Cash, 100), (Credit, Sales, 100)] :: Either (NonEmpty (EntryError Double)) (Alg Double (HatBase AccountTitles)))
+-- >>> fmap balance (checkedEntry [(Debit, Cash, 100), (Credit, Sales, 100)] :: Either (NonEmpty (EntryError Double)) (Alg Double (HatBase AccountTitles)))
 -- Right True
 -- >>> checkedEntry [] :: Either (NonEmpty (EntryError Double)) (Alg Double (HatBase AccountTitles))
 -- Left (EmptyEntry :| [])
@@ -171,7 +157,7 @@ exactBalanced x = norm (decL x) == norm (decR x)
 -- Left (WildcardAccount 0 :| [WildcardSide 1,Imbalanced {_debitTotal = 1.0, _creditTotal = 0.0}])
 -- >>> checkedEntry [(Debit, Cash, 100), (Credit, Sales, 90)] :: Either (NonEmpty (EntryError Double)) (Alg Double (HatBase AccountTitles))
 -- Left (Imbalanced {_debitTotal = 100.0, _creditTotal = 90.0} :| [])
--- >>> fmap exactBalanced (checkedEntryIn ClosingProcess [(Debit, Sales, 100), (Credit, IncomeSummary, 100)] :: Either (NonEmpty (EntryError Double)) (Alg Double (HatBase AccountTitles)))
+-- >>> fmap balance (checkedEntryIn ClosingProcess [(Debit, Sales, 100), (Credit, IncomeSummary, 100)] :: Either (NonEmpty (EntryError Double)) (Alg Double (HatBase AccountTitles)))
 -- Right True
 checkedEntryIn :: (HatVal v)
                => ProcessingContext
@@ -196,7 +182,7 @@ checkedEntry = checkedEntryIn OrdinaryJournal
 --
 -- Parse errors are accumulated as 'EntryParse' instead of failing fast.
 --
--- >>> fmap exactBalanced (checkedEntryText [("debit", "Cash", 100), ("credit", "Sales", 100)] :: Either (NonEmpty (EntryError Double)) (Alg Double (HatBase AccountTitles)))
+-- >>> fmap balance (checkedEntryText [("debit", "Cash", 100), ("credit", "Sales", 100)] :: Either (NonEmpty (EntryError Double)) (Alg Double (HatBase AccountTitles)))
 -- Right True
 -- >>> checkedEntryText [("left", "Cash", 100)] :: Either (NonEmpty (EntryError Double)) (Alg Double (HatBase AccountTitles))
 -- Left (EntryParse 0 (UnknownSide "left") :| [])
@@ -225,13 +211,15 @@ checkedEntryTextIn context rows =
         | null rows = []
         | length sideAmounts /= length rows = []
         | any invalidSideAmount sideAmounts = []
-        | debitTotal == creditTotal = []
+        | signAccum (mergeAccum debitState (negateAccum creditState)) == Just EQ = []
         | otherwise = [Imbalanced debitTotal creditTotal]
       where
-        debitTotal = L.foldl' (+) 0
+        debitState = L.foldl' (flip addAccum) emptyAccum
             [ amount | (Debit, amount) <- sideAmounts ]
-        creditTotal = L.foldl' (+) 0
+        creditState = L.foldl' (flip addAccum) emptyAccum
             [ amount | (Credit, amount) <- sideAmounts ]
+        debitTotal = roundAccum debitState
+        creditTotal = roundAccum creditState
 
     invalidSideAmount (side, amount) =
         side == Side || isErrorValue amount || not (amount > 0)
@@ -369,8 +357,10 @@ certifyJournalTextIn context entries =
     imbalanceErrors =
         [ EntryErrors txid (Imbalanced debit credit :| [])
         | (txid, rows) <- parsedEntries
-        , let (debit, credit) = certTotals rows
-        , debit /= credit
+        , let (debitState, creditState) = certTotals rows
+        , let debit = roundAccum debitState
+        , let credit = roundAccum creditState
+        , signAccum (mergeAccum debitState (negateAccum creditState)) /= Just EQ
         ]
 
     resolvedEntries =
@@ -396,10 +386,14 @@ certifyJournalTextIn context entries =
     unresolvedPostings = concatMap snd unresolvedEntries
 
     (debitTotal, creditTotal) =
-        L.foldl' addTotals (0, 0) (map (certTotals . snd) parsedEntries)
+        let (debitState, creditState) = L.foldl' addTotals (emptyAccum, emptyAccum)
+                (map (certTotals . snd) parsedEntries)
+        in (roundAccum debitState, roundAccum creditState)
 
-    addTotals (debits, credits) (entryDebits, entryCredits) =
-        (debits + entryDebits, credits + entryCredits)
+    addTotals (!debits, !credits) (!entryDebits, !entryCredits) =
+        let !debitTotal = mergeAccum debits entryDebits
+            !creditTotal = mergeAccum credits entryCredits
+        in (debitTotal, creditTotal)
 
     journals =
         [ journalFromSides rows .| txid
@@ -462,11 +456,11 @@ certStructuralErrors context rows =
     resolvedOrWildcard (Right account) = account
     resolvedOrWildcard (Left _) = AccountTitle
 
-certTotals :: (HatVal v) => [CertPosting v] -> (v, v)
+certTotals :: (HatVal v) => [CertPosting v] -> (Accum v, Accum v)
 certTotals rows =
-    ( L.foldl' (+) 0
+    ( L.foldl' (flip addAccum) emptyAccum
         [ amount | (_, _, amount, Right Debit, _) <- rows ]
-    , L.foldl' (+) 0
+    , L.foldl' (flip addAccum) emptyAccum
         [ amount | (_, _, amount, Right Credit, _) <- rows ]
     )
 
@@ -544,20 +538,11 @@ validateIndexed context rawEmpty rows =
     imbalanceErrors
         | null rows = []
         | otherwise =
-            let (debitTotal, creditTotal) = totals rows rowErrors
-            in [ Imbalanced debitTotal creditTotal | debitTotal /= creditTotal ]
-
-totals :: (HatVal v)
-       => [(Int, (Side, AccountTitles, v))]
-       -> [EntryError v]
-       -> (v, v)
-totals rows rowErrors
-    | null rowErrors =
-        let alg = journalFromSides (map snd rows)
-        in (norm (decL alg), norm (decR alg))
-    | otherwise =
-        let debitTotal = L.foldl' (+) 0
-                [ amount | (_, (Debit, _, amount)) <- rows ]
-            creditTotal = L.foldl' (+) 0
-                [ amount | (_, (Credit, _, amount)) <- rows ]
-        in (debitTotal, creditTotal)
+            [ Imbalanced (roundAccum debit) (roundAccum credit)
+            | signAccum (mergeAccum debit (negateAccum credit)) /= Just EQ
+            ]
+      where
+        debit = L.foldl' (flip addAccum) emptyAccum
+            [amount | (_, (Debit, _, amount)) <- rows]
+        credit = L.foldl' (flip addAccum) emptyAccum
+            [amount | (_, (Credit, _, amount)) <- rows]

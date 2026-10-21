@@ -64,6 +64,8 @@ module ExchangeAlgebra.Accounting.Statements.Presentation
     , present
     ) where
 
+import qualified ExchangeAlgebra.Accounting.TrialBalance.Accum as Accum
+
 import           Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Map.Strict as M
 import           Data.Map.Strict (Map)
@@ -72,7 +74,7 @@ import           Data.Set (Set)
 import           Data.Text (Text)
 import qualified Data.Text as T
 
-import           ExchangeAlgebra.Algebra.Value.Class (HatVal)
+import           ExchangeAlgebra.Algebra.Value.Class (HatVal(..))
 import           ExchangeAlgebra.Accounting.Account.Classification
                      ( AccountDivision(..)
                      , AccountRole(..)
@@ -90,13 +92,9 @@ import           ExchangeAlgebra.Accounting.Statements.Metric
                      ( DerivedMetric(..), MetricId )
 import qualified ExchangeAlgebra.Accounting.TrialBalance.Validation as TB
 import           ExchangeAlgebra.Accounting.TrialBalance.Balance
-                     ( accountBalances
-                     , balanceAmount
+                     ( balanceAmount
                      , balanceFor
-                     , balancePair
                      , balanceSide
-                     , combineBalances
-                     , netPair
                      )
 
 -- | Land 4 deliberately supports JGAAP only.
@@ -330,6 +328,9 @@ metricLabel context metric balance = case metric of
             else _customMetricLabelJapanese label)
         _ -> Nothing
 
+-- | Prepare statements using exact posting balances for transformations,
+-- allocations, subtotals, and reconciliation. Each displayed amount is rounded
+-- once. The sum of displayed amounts is not guaranteed to equal its subtotal.
 present
     :: HatVal v
     => ReportingContext v
@@ -351,14 +352,15 @@ present context validated = case issues of
   where
     framework = case _reportingFramework context of
         JGAAP -> JGAAP
-    initial = accountBalances (TB.validatedTrialBalance validated)
+    initialStates = Accum.accountAccums (TB.validatedTrialBalance validated)
+    initial = M.map accumulatedBalance initialStates
     gatePolicy = case _reportingScope context of
         Standalone -> TB.standaloneTrialBalancePolicy
         Combined -> TB.strictTrialBalancePolicy
     gateIssues = map ValidationFindingBlocks
         (filter (TB.findingBlocksPresentation gatePolicy)
             (TB.validatedFindings validated))
-    (eliminated, eliminationAudit) = eliminateReciprocals context initial
+    (eliminated, eliminationAudit) = eliminateReciprocals context initialStates
     (relabeled, relabelAudit) = applyRelabels context eliminated
     (materialized, materialityAudit) = applyMateriality context relabeled
     (transformed, contraAudit) = applyContraRules context materialized
@@ -366,19 +368,20 @@ present context validated = case issues of
         (TB.validatedMaturityRequiredTitles validated)
         (_maturitySensitiveTitles context)
     requiredMaturity = S.union explicitRequired
-        (implicitMaturityTitles transformed)
-    statementLines = renderLines context transformed
+        (implicitMaturityTitles displayedBalances)
+    displayedBalances = M.map accumulatedBalance transformed
+    statementLines = renderLines context displayedBalances
     contextIssues = instructionIssues explicitRequired context initial
-        ++ allocationIssues requiredMaturity context transformed
-        ++ subtotalIssues context initial transformed
-        ++ coverageIssues transformed
-        ++ reconciliationIssues statementLines
+        ++ allocationIssues requiredMaturity context displayedBalances transformed
+        ++ subtotalIssues context initial displayedBalances
+        ++ coverageIssues displayedBalances
+        ++ reconciliationIssues context transformed
     issues = gateIssues ++ contextIssues
     allocationAudit =
         [ BalanceAllocated title current noncurrent evidence
         | PresentationAllocation title current noncurrent evidence
             <- _presentationAllocations context
-        , balanceFor title transformed /= TB.NoBalance
+        , balanceFor title displayedBalances /= TB.NoBalance
         ]
     subtotals =
         [ StatementSubtotal metric label balance
@@ -402,9 +405,9 @@ present context validated = case issues of
         ]
 
 eliminateReciprocals
-    :: Eq v => ReportingContext v
-    -> Map AccountTitles (TB.AccountBalance v)
-    -> (Map AccountTitles (TB.AccountBalance v), [PresentationAuditEvent v])
+    :: HatVal v => ReportingContext v
+    -> Map AccountTitles (Accum v)
+    -> (Map AccountTitles (Accum v), [PresentationAuditEvent v])
 eliminateReciprocals context balances = case _reportingScope context of
     Standalone -> (balances, [])
     Combined ->
@@ -415,30 +418,30 @@ eliminateReciprocals context balances = case _reportingScope context of
           ]
         )
   where
-    branch = balanceFor BranchCurrentAccount balances
-    headOffice = balanceFor HeadOfficeCurrentAccount balances
+    branch = accumulatedBalance (accumulatedFor BranchCurrentAccount balances)
+    headOffice = accumulatedBalance (accumulatedFor HeadOfficeCurrentAccount balances)
 
 applyRelabels
-    :: (Ord v, Num v)
+    :: HatVal v
     => ReportingContext v
-    -> Map AccountTitles (TB.AccountBalance v)
-    -> (Map AccountTitles (TB.AccountBalance v), [PresentationAuditEvent v])
+    -> Map AccountTitles (Accum v)
+    -> (Map AccountTitles (Accum v), [PresentationAuditEvent v])
 applyRelabels context balances0 =
     Prelude.foldl applyOne (balances0, []) (_presentationRelabels context)
   where
     applyOne (balances, events) (PresentationRelabel source target rationale) =
-        let sourceBalance = balanceFor source balances
-            targetBalance = balanceFor target balances
-            next = M.insert target (combineBalances targetBalance sourceBalance)
+        let sourceBalance = accumulatedBalance (accumulatedFor source balances)
+            targetBalance = accumulatedFor target balances
+            next = M.insert target (mergeAccum targetBalance (accumulatedFor source balances))
                 (M.delete source balances)
         in (next, events ++
             [AccountRelabeled source target sourceBalance rationale])
 
 applyMateriality
-    :: (Ord v, Num v)
+    :: HatVal v
     => ReportingContext v
-    -> Map AccountTitles (TB.AccountBalance v)
-    -> (Map AccountTitles (TB.AccountBalance v), [PresentationAuditEvent v])
+    -> Map AccountTitles (Accum v)
+    -> (Map AccountTitles (Accum v), [PresentationAuditEvent v])
 applyMateriality context balances0 =
     Prelude.foldl applyOne (balances0, []) (_materialityDecisions context)
   where
@@ -450,14 +453,15 @@ applyMateriality context balances0 =
                 PresentSeparately -> balances
                 NetAgainst target -> moveBalance source target balances
             event = MaterialityApplied source treatment
-                (balanceFor source balances) (_materialityRationale decision)
+                (accumulatedBalance (accumulatedFor source balances))
+                (_materialityRationale decision)
         in (next, events ++ [event])
 
 applyContraRules
-    :: (Ord v, Num v)
+    :: HatVal v
     => ReportingContext v
-    -> Map AccountTitles (TB.AccountBalance v)
-    -> (Map AccountTitles (TB.AccountBalance v), [PresentationAuditEvent v])
+    -> Map AccountTitles (Accum v)
+    -> (Map AccountTitles (Accum v), [PresentationAuditEvent v])
 applyContraRules context balances0 =
     Prelude.foldl applyOne (balances0, [])
         (_contraPresentationRules context)
@@ -465,24 +469,24 @@ applyContraRules context balances0 =
     applyOne (balances, events) rule = case rule of
         PresentContraSeparately source rationale ->
             (balances, events ++ [ContraPresentationApplied source Nothing
-                (balanceFor source balances) rationale])
+                (accumulatedBalance (accumulatedFor source balances)) rationale])
         NetContraAgainst source target rationale ->
             ( moveBalance source target balances
             , events ++ [ContraPresentationApplied source (Just target)
-                (balanceFor source balances) rationale]
+                (accumulatedBalance (accumulatedFor source balances)) rationale]
             )
 
 moveBalance
-    :: (Ord v, Num v)
+    :: HatVal v
     => AccountTitles -> AccountTitles
-    -> Map AccountTitles (TB.AccountBalance v)
-    -> Map AccountTitles (TB.AccountBalance v)
+    -> Map AccountTitles (Accum v)
+    -> Map AccountTitles (Accum v)
 moveBalance source target balances =
     if source == target
         then balances
         else M.insert target
-            (combineBalances (balanceFor target balances)
-                (balanceFor source balances))
+            (mergeAccum (accumulatedFor target balances)
+                (accumulatedFor source balances))
             (M.delete source balances)
 
 allocationIssues
@@ -490,8 +494,9 @@ allocationIssues
     => Set AccountTitles
     -> ReportingContext v
     -> Map AccountTitles (TB.AccountBalance v)
+    -> Map AccountTitles (Accum v)
     -> [PresentationIssue v]
-allocationIssues required context balances = concatMap checkTitle checkedTitles
+allocationIssues required context balances states = concatMap checkTitle checkedTitles
     ++ [ DuplicatePresentationAllocation title
        | title <- duplicateTitles (map _allocationAccount allocations)
        ]
@@ -511,24 +516,25 @@ allocationIssues required context balances = concatMap checkTitle checkedTitles
             [allocation]
                 | T.null (T.strip (_allocationEvidence allocation)) ->
                     [BlankPresentationEvidence title]
-                | allocationMatches balance allocation -> []
+                | allocationMatches (accumulatedFor title states) allocation -> []
                 | otherwise -> [InvalidPresentationAllocation title balance
                     (_allocationCurrent allocation)
                     (_allocationNoncurrent allocation)]
             _ -> []
 
 allocationMatches
-    :: (Ord v, Num v)
-    => TB.AccountBalance v -> PresentationAllocation v -> Bool
-allocationMatches TB.NoBalance _ = False
-allocationMatches (TB.DebitBalance value) allocation =
+    :: HatVal v
+    => Accum v -> PresentationAllocation v -> Bool
+allocationMatches total allocation =
     _allocationCurrent allocation >= 0
     && _allocationNoncurrent allocation >= 0
-    && _allocationCurrent allocation + _allocationNoncurrent allocation == value
-allocationMatches (TB.CreditBalance value) allocation =
-    _allocationCurrent allocation >= 0
-    && _allocationNoncurrent allocation >= 0
-    && _allocationCurrent allocation + _allocationNoncurrent allocation == value
+    && signAccum (mergeAccum allocated (negateAccum magnitude)) == Just EQ
+  where
+    magnitude
+        | signAccum total == Just LT = negateAccum total
+        | otherwise = total
+    allocated = addAccum (_allocationCurrent allocation)
+        (addAccum (_allocationNoncurrent allocation) emptyAccum)
 
 instructionIssues
     :: HatVal v
@@ -644,12 +650,27 @@ coverageIssues balances =
     ]
 
 reconciliationIssues
-    :: (Eq v, Num v) => [StatementLine v] -> [PresentationIssue v]
-reconciliationIssues lines0 =
-    [ UnreconciledPresentation debit credit | debit /= credit ]
+    :: HatVal v
+    => ReportingContext v -> Map AccountTitles (Accum v) -> [PresentationIssue v]
+reconciliationIssues context balances =
+    [ UnreconciledPresentation (roundAccum debit) (roundAccum credit)
+    | signAccum (mergeAccum debit (negateAccum credit)) /= Just EQ ]
   where
-    debit = sum [_lineAmount line | line <- lines0, _lineSide line == Debit]
-    credit = sum [_lineAmount line | line <- lines0, _lineSide line == Credit]
+    (debit, credit) = M.foldlWithKey' collect (emptyAccum, emptyAccum) balances
+    collect totals@(debits, credits) title total
+        | not (hasAllocation title)
+            && reportingSection title (accumulatedBalance total) == Nothing = totals
+        | otherwise = case signAccum total of
+            Just GT -> (mergeAccum debits (allocated title total), credits)
+            Just LT -> (debits, mergeAccum credits (allocated title (negateAccum total)))
+            _ -> (debits, credits)
+    hasAllocation title = any ((== title) . _allocationAccount)
+        (_presentationAllocations context)
+    allocated title total = case filter ((== title) . _allocationAccount)
+            (_presentationAllocations context) of
+        allocation : _ -> addAccum (_allocationCurrent allocation)
+            (addAccum (_allocationNoncurrent allocation) emptyAccum)
+        [] -> total
 
 subtotalIssues
     :: HatVal v
@@ -814,11 +835,21 @@ noncurrentSection title balance = case Registry.accountSemantics title of
         _ -> contextualSection balance
     Nothing -> contextualSection balance
 
+-- | Read one exact signed balance as a structural side and rounded magnitude.
+accumulatedBalance :: HatVal v => Accum v -> TB.AccountBalance v
+accumulatedBalance total = case Accum.readAccountAccum Credit total of
+    (Side, _) -> TB.NoBalance
+    (Debit, value) -> TB.DebitBalance value
+    (Credit, value) -> TB.CreditBalance value
+
+-- | An absent title contributes the empty exact sum.
+accumulatedFor :: HatVal v => AccountTitles -> Map AccountTitles (Accum v) -> Accum v
+accumulatedFor = M.findWithDefault emptyAccum
+
 subtotalBalance
-    :: (Ord v, Num v)
-    => Map AccountTitles (TB.AccountBalance v)
+    :: HatVal v
+    => Map AccountTitles (Accum v)
     -> [AccountTitles] -> [AccountTitles] -> TB.AccountBalance v
-subtotalBalance balances creditTitles debitTitles = netPair
-    ( sum [balanceAmount (balanceFor title balances) | title <- debitTitles]
-    , sum [balanceAmount (balanceFor title balances) | title <- creditTitles]
-    )
+subtotalBalance balances creditTitles debitTitles = accumulatedBalance
+    (foldr (mergeAccum . (`accumulatedFor` balances)) emptyAccum
+        (debitTitles ++ creditTitles))

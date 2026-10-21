@@ -36,6 +36,5 @@ checkedEntryText
 checkedEntryTextIn
 checkedJournal
 checkedJournalIn
-exactBalanced
 postingAllowedIn
 reconcileSources

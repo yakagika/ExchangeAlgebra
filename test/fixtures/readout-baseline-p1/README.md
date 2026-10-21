@@ -21,7 +21,8 @@ they do not assert that the current arithmetic is the intended 0.6 behavior.
 The `alg-*` files cover `bar`, `norm`, `balance`, `diffRL`, `compress`,
 `balanceMapBy`, `netPairMapBy`, `postFromNetBy`, `projNetNorm`, `balanceBy`,
 `Pair.compare`, `closingEntries`, `accountBalances`, the public `bsRows` and
-`plRows` outputs from `Write`, `exactBalanced`, `checkedEntry`,
+`plRows` outputs from `Write`, the public `balance` call labeled `checked-input`,
+`checkedEntry`,
 `trialBalanceFindings`, and `periodResultOfAlg`. The
 `journal-*` files cover `bar`, `norm`, `projWithBaseNetNorm`,
 `projWithNoteBaseNetNorm`, `compress`, and `closingEntries`. The Double journal

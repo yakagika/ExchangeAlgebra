@@ -46,8 +46,8 @@ Write.bsRows	all	row	Total	1.0e300	Total	Infinity
 Write.plRows	all	row	Cost		Revenue	
 Write.plRows	all	row	Purchases	1.0e-300	Sales	1.7e308
 Write.plRows	all	row			Sales	1.7e308
-Write.plRows	all	row	Total	Infinity	Total	0.0
-Convert.Checked.exactBalanced	all	result	False
+Write.plRows	all	row	Total	Infinity	Total	1.0e-300
+balance	checked-input	result	False
 trialBalanceFindings	BeforeClosing	result	[UnbalancedTrialBalance 1.0e300 Infinity,UnexplainedAbnormalBalance RetainedEarnings Credit (DebitBalance 1.0),UnexplainedAbnormalBalance Purchases Debit (CreditBalance 1.0e300)]
 trialBalanceFindings.debitTotal	BeforeClosing	scalar	0x7e37e43c8800759c	1.0e300
 trialBalanceFindings.creditTotal	BeforeClosing	scalar	0x7ff0000000000000	Infinity

@@ -38,7 +38,7 @@ value of t'RelativeAmount'.
 
 === Block invariant
 
-Within one block the displayed amounts sum to the net line:
+Within one block the exact amounts, before rounding, sum to the net line:
 
 > Σ (gross rows) + Σ (subgroup rows) + Σ (deduction rows) = net row
 
@@ -47,7 +47,8 @@ ordinary contra balance is already negative there and the sum above is a plain
 addition, not a subtraction. A contra that exceeds its gross members simply
 makes the net row negative (that is the @contra > parent@ edge case); a group
 whose gross members are absent entirely nets to the negated deduction (the
-@parent absent@ edge case). Both are handled by the same arithmetic.
+@parent absent@ edge case). Both are handled by the same arithmetic. Each output is rounded once; the
+sum of the displayed amounts need not equal the displayed net.
 -}
 module ExchangeAlgebra.Accounting.Statements.Group
     ( -- * Groups
@@ -76,7 +77,7 @@ import qualified Data.Set as S
 import           Data.Set (Set)
 import           Data.Text (Text)
 
-import           ExchangeAlgebra.Algebra.Value.Class (HatVal(zeroValue), nearlyEqScaled)
+import           ExchangeAlgebra.Algebra.Value.Class (HatVal(..))
 import           ExchangeAlgebra.Accounting.Account (defaultSide)
 import           ExchangeAlgebra.Accounting.Account.Classification
                      ( AccountDivision(..), Side(..) )
@@ -226,28 +227,16 @@ data RelativeAmount v = RelativeAmount
     }
     deriving (Show, Eq)
 
--- | Net a @(debit gross, credit gross)@ pair against a side. Uses the same
--- scale-aware near-equality as @ExchangeAlgebra.Write.netGross@\/@diffRL@, so
--- a balance that nets to zero within tolerance reports a zero magnitude
--- rather than floating-point dust.
--- This function compares two supplied totals; it does not sum postings. If
--- floating-point addition has already rounded those totals, use
--- @ExchangeAlgebra.Journal.Exact.accountBalancesExact@ or
--- @ExchangeAlgebra.Algebra.Exact.diffRLExact@ upstream on the original postings.
-relativeTo :: HatVal v => Side -> (v, v) -> RelativeAmount v
-relativeTo side (debit, credit)
-    | nearlyEqScaled debit credit = RelativeAmount False zeroValue
-    | otherwise = case side of
-        Credit -> orient credit debit
-        -- 'defaultSide' only ever answers Debit or Credit, so the wildcard
-        -- cannot arise from a group; orient it like Debit rather than
-        -- inventing a third direction.
-        Debit  -> orient debit credit
-        Side   -> orient debit credit
+-- | Orient a directional net balance, such as the output of @diffRL@,
+-- against a group's normal side. The magnitude is already netted; this
+-- function never subtracts rounded gross totals or applies a tolerance.
+relativeTo :: HatVal v => Side -> (Side, v) -> RelativeAmount v
+relativeTo side (direction, magnitude) =
+    RelativeAmount (direction /= Side && direction /= normal) magnitude
   where
-    orient toward away
-        | toward >= away = RelativeAmount False (toward - away)
-        | otherwise      = RelativeAmount True  (away - toward)
+    normal = case side of
+        Side -> Debit
+        _ -> side
 
 -- | Accumulate @(debit gross, credit gross)@ pairs.
 addGross :: Num v => (v, v) -> (v, v) -> (v, v)
@@ -268,7 +257,7 @@ data GroupRowKind
       -- ^ A contra account. Its amount is already stated relative to the
       -- group's normal side, so it is normally 'raBelowZero'.
     | NetRow PresentationGroup
-      -- ^ The block's net. Equals the sum of the rows above it.
+      -- ^ The block's net, rounded after combining the exact member amounts.
     deriving (Show, Eq)
 
 data GroupRow v = GroupRow
@@ -301,6 +290,8 @@ data GroupedPresentation v = GroupedPresentation
 -- gross activity rather than the net balance also keeps a fully offset contra
 -- title inside its group instead of leaking one side into the ordinary rows.
 --
+-- An indeterminate (NaN) net is oriented as @(Side, NaN)@, like @diffRL@.
+--
 -- Complexity: O(g · m + g²) for @g@ blocks of @m@ members (the grouping is a
 -- fixed, small table).
 presentGroups
@@ -315,12 +306,12 @@ presentGroups defs balances = GroupedPresentation
     }
   where
     grossOf title = M.findWithDefault (zeroValue, zeroValue) title balances
-    hasBalance title = not (uncurry nearlyEqScaled (grossOf title))
+    hasBalance title = uncurry (/=) (grossOf title)
     hasActivity title = case M.lookup title balances of
         Nothing -> False
         Just (debit, credit) ->
-            not (nearlyEqScaled debit zeroValue)
-            || not (nearlyEqScaled credit zeroValue)
+            debit /= zeroValue
+            || credit /= zeroValue
 
     memberTitles def = pgGross def ++ pgDeductions def
 
@@ -334,10 +325,14 @@ presentGroups defs balances = GroupedPresentation
         , not (S.member (pgKey def) visited)
         ]
 
-    ownPair def = L.foldl' addGross (zeroValue, zeroValue)
-        (map grossOf (memberTitles def))
+    ownPair def = L.foldl' mergePair (emptyAccum, emptyAccum)
+        [ (addAccum debit emptyAccum, addAccum credit emptyAccum)
+        | title <- memberTitles def, let (debit, credit) = grossOf title ]
 
-    subtreePair visited def = L.foldl' addGross (ownPair def)
+    mergePair (debit, credit) (otherDebit, otherCredit) =
+        (mergeAccum debit otherDebit, mergeAccum credit otherCredit)
+
+    subtreePair visited def = L.foldl' mergePair (ownPair def)
         (map (subtreePair visited') (activeChildrenOf visited' def))
       where
         visited' = S.insert (pgKey def) visited
@@ -390,23 +385,33 @@ presentGroups defs balances = GroupedPresentation
         activeChildren = activeChildrenOf visited' def
 
     rowsOf visited def activeChildren =
-        [ GroupRow (GrossRow title) (relative (grossOf title))
+        [ GroupRow (GrossRow title) (relativeScalar (grossOf title))
         | title <- pgGross def, hasBalance title ]
         ++
         [ GroupRow (SubgroupRow (pgKey child)) (relative (subtreePair visited child))
         | child <- activeChildren ]
         ++
-        [ GroupRow (DeductionRow title) (relative (grossOf title))
+        [ GroupRow (DeductionRow title) (relativeScalar (grossOf title))
         | title <- pgDeductions def, hasBalance title ]
         ++
         [ GroupRow (NetRow (pgKey def)) (relative (subtreePair visited def)) ]
       where
-        relative = relativeTo (groupNormalSide def)
+        relativeScalar (debit, credit) = relative
+            (addAccum debit emptyAccum, addAccum credit emptyAccum)
+        relative (debit, credit) = case signAccum difference of
+            Just EQ -> relativeTo normal (Side, zeroValue)
+            Just GT -> relativeTo normal (Debit, roundAccum difference)
+            Just LT -> relativeTo normal (Credit, roundAccum (negateAccum difference))
+            Nothing -> relativeTo normal (Side, roundAccum difference)
+          where
+            normal = groupNormalSide def
+            difference = mergeAccum debit (negateAccum credit)
 
     blocks = concatMap (blocksOf S.empty) activeRoots
 
-    rootTotals = M.fromListWith addGross
-        [ (pgDivision def, subtreePair S.empty def) | def <- activeRoots ]
+    rootTotals = M.map (\(debit, credit) -> (roundAccum debit, roundAccum credit))
+        (M.fromListWith mergePair
+            [ (pgDivision def, subtreePair S.empty def) | def <- activeRoots ])
 
     consumed = S.fromList
         [ title | (def, _) <- blocks, title <- memberTitles def ]

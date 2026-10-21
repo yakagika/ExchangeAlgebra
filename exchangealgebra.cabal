@@ -251,6 +251,7 @@ library
       ExchangeAlgebra.Value
       ExchangeAlgebra.Write
   other-modules:
+      ExchangeAlgebra.Accounting.TrialBalance.Accum
       ExchangeAlgebra.Algebra.Element.Representation
       ExchangeAlgebra.Algebra.Base.Representation
       ExchangeAlgebra.Algebra.Value.Class

@@ -55,9 +55,9 @@ Write.bsRows	all	row	Total	1.0	RetainedEarnings	1.0
 Write.bsRows	all	row			Total	1.0
 Write.plRows	all	row	Cost		Revenue	
 Write.plRows	all	row	Purchases	2.2250738585072014e-308	Sales	2.2250738585072014e-308
-Write.plRows	all	row	Total	0.0	Total	0.0
-Convert.Checked.exactBalanced	all	result	True
-trialBalanceFindings	BeforeClosing	result	[UnexplainedAbnormalBalance Cash Debit (CreditBalance 2.2250738585072004e-308),UnexplainedAbnormalBalance RetainedEarnings Credit (DebitBalance 2.225073858507201e-308),UnexplainedAbnormalBalance Purchases Debit (CreditBalance 1.0)]
+Write.plRows	all	row	Total	2.2250738585072014e-308	Total	2.2250738585072014e-308
+balance	checked-input	result	True
+trialBalanceFindings	BeforeClosing	result	[UnbalancedTrialBalance 1.0 1.0,UnexplainedAbnormalBalance Cash Debit (CreditBalance 2.2250738585072004e-308),UnexplainedAbnormalBalance RetainedEarnings Credit (DebitBalance 2.225073858507201e-308),UnexplainedAbnormalBalance Purchases Debit (CreditBalance 1.0)]
 trialBalanceFindings.debitTotal	BeforeClosing	scalar	0x3ff0000000000000	1.0
 trialBalanceFindings.creditTotal	BeforeClosing	scalar	0x3ff0000000000000	1.0
 periodResultOfAlg	all	PeriodProfit	0x3ff0000000000000	1.0

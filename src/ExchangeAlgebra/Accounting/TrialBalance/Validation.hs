@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE BangPatterns #-}
 {-# OPTIONS_GHC -Wincomplete-patterns -Werror=incomplete-patterns #-}
 
 {- |
@@ -65,6 +66,8 @@ module ExchangeAlgebra.Accounting.TrialBalance.Validation
     , validatedMaturityRequiredTitles
     ) where
 
+import qualified ExchangeAlgebra.Accounting.TrialBalance.Accum as Accum
+
 import           Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
@@ -74,11 +77,9 @@ import           Data.Set (Set)
 import           Data.Text (Text)
 import qualified Data.Text as T
 
-import           ExchangeAlgebra.Accounting.Exchange (decL, decR)
+import           ExchangeAlgebra.Accounting.Exchange (ExBaseClass(whichSide))
 import           ExchangeAlgebra.Algebra.Core.Representation
-                     ( Alg
-                     , Redundant(norm)
-                     , bases
+                     ( Alg((:@))
                      , foldEntries
                      )
 import           ExchangeAlgebra.Algebra.Value.Class (HatVal(..), isErrorValue)
@@ -97,7 +98,6 @@ import           ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
 import           ExchangeAlgebra.Algebra.Base.Representation (Hat(..), HatBase((:<)))
 import           ExchangeAlgebra.Accounting.TrialBalance.Balance
                      ( AccountBalance(..)
-                     , accountBalances
                      , balanceFor
                      , balanceSide
                      )
@@ -191,7 +191,7 @@ trialBalanceFindings :: HatVal v => TrialBalanceInput v -> [TBFinding v]
 trialBalanceFindings input
     | not (null structuralFindings) = structuralFindings
     | otherwise = balanceFindings
-        ++ reciprocalFindings balances
+        ++ reciprocalFindings totals balances
         ++ temporaryFindings input balances
         ++ closingFindings input balances
         ++ abnormalFindings input balances
@@ -199,22 +199,47 @@ trialBalanceFindings input
         ++ ruleConfigurationFindings input
   where
     alg = _trialBalanceElement input
-    structuralFindings =
-        [ InvalidTrialBalanceValue value
-        | value <- valuesOf alg
-        , isErrorValue value
-        ]
-        ++ [ WildcardTrialBalanceAccount
-           | _ :< AccountTitle <- bases alg
-           ]
-        ++ [ WildcardTrialBalanceSide
-           | HatNot :< _ <- bases alg
-           ]
-    debit = norm (decL alg)
-    credit = norm (decR alg)
+    structuralFindings = map InvalidTrialBalanceValue invalidValues
+        ++ replicate wildcardAccounts WildcardTrialBalanceAccount
+        ++ replicate wildcardSides WildcardTrialBalanceSide
+    (invalidValues, wildcardAccounts, wildcardSides, debitState, creditState, totals) =
+        case alg of
+            value :@ base -> collect initial value base
+            _ -> foldEntries collect initial alg
+    initial = ([], 0, 0, emptyAccum, emptyAccum, M.empty)
+    collect (!invalids, !accountsCount, !sidesCount, !debits, !credits, !accounts)
+            value base =
+        let !invalids' = if isErrorValue value then value : invalids else invalids
+            !accountsCount' = case base of
+                _ :< AccountTitle -> accountsCount + 1
+                _ -> accountsCount
+            !sidesCount' = case base of
+                HatNot :< _ -> sidesCount + 1
+                _ -> sidesCount
+            unchanged = (invalids', accountsCount', sidesCount', debits, credits, accounts)
+        in case base of
+            HatNot :< _ -> unchanged
+            _ :< AccountTitle -> unchanged
+            _ | value == zeroValue -> unchanged
+              | otherwise ->
+                let !accounts' = Accum.insertAccountAccum accounts value base
+                    !debits' = case whichSide base of
+                        Debit -> addAccum value debits
+                        _ -> debits
+                    !credits' = case whichSide base of
+                        Credit -> addAccum value credits
+                        _ -> credits
+                in (invalids', accountsCount', sidesCount', debits', credits', accounts')
+    debit = roundAccum debitState
+    credit = roundAccum creditState
     balanceFindings =
-        [ UnbalancedTrialBalance debit credit | debit /= credit ]
-    balances = accountBalances alg
+        [ UnbalancedTrialBalance debit credit
+        | signAccum (mergeAccum debitState (negateAccum creditState)) /= Just EQ ]
+    balances = M.map finish totals
+    finish total = case Accum.readAccountAccum Credit total of
+        (Side, _) -> NoBalance
+        (Debit, value) -> DebitBalance value
+        (Credit, value) -> CreditBalance value
 
 -- | Decide whether one finding blocks presentation under a chosen policy.
 findingBlocksPresentation :: TrialBalancePolicy -> TBFinding v -> Bool
@@ -290,31 +315,26 @@ maturityRequiredTitles input = S.fromList
     | MaturityEvidenceRequired title <- _reclassificationRules input
     ]
 
-valuesOf :: HatVal v => Alg v (HatBase AccountTitles) -> [v]
-valuesOf = foldEntries (\values value _ -> value : values) []
-
 reciprocalFindings
-    :: (Eq v)
-    => Map AccountTitles (AccountBalance v)
+    :: HatVal v
+    => Map AccountTitles (Accum v)
+    -> Map AccountTitles (AccountBalance v)
     -> [TBFinding v]
-reciprocalFindings balances =
+reciprocalFindings totals balances =
     case (branch, headOffice) of
         (NoBalance, NoBalance) -> []
         (NoBalance, balance) ->
             [StandaloneReciprocalBalance HeadOfficeCurrentAccount balance]
         (balance, NoBalance) ->
             [StandaloneReciprocalBalance BranchCurrentAccount balance]
-        _ | reciprocalBalancesMatch branch headOffice -> []
+        _ | signAccum (mergeAccum
+                (M.findWithDefault emptyAccum BranchCurrentAccount totals)
+                (M.findWithDefault emptyAccum HeadOfficeCurrentAccount totals))
+                == Just EQ -> []
           | otherwise -> [ReciprocalMismatch branch headOffice]
   where
     branch = balanceFor BranchCurrentAccount balances
     headOffice = balanceFor HeadOfficeCurrentAccount balances
-
-reciprocalBalancesMatch :: Eq v => AccountBalance v -> AccountBalance v -> Bool
-reciprocalBalancesMatch NoBalance NoBalance = True
-reciprocalBalancesMatch (DebitBalance left) (CreditBalance right) = left == right
-reciprocalBalancesMatch (CreditBalance left) (DebitBalance right) = left == right
-reciprocalBalancesMatch _ _ = False
 
 temporaryFindings
     :: TrialBalanceInput v
