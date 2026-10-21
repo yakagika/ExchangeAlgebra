@@ -57,7 +57,6 @@ Write.plRows	all	row	Cost		Revenue
 Write.plRows	all	row	Purchases	2.0	Sales	3.0
 Write.plRows	all	row			Sales	100.0
 Write.plRows	all	row	Total	103.0	Total	2.0
-balance	checked-input	result	False
 trialBalanceFindings	BeforeClosing	result	[UnbalancedTrialBalance 24794.0 214.0,UnexplainedAbnormalBalance Cash Debit (CreditBalance 3.0),UnexplainedAbnormalBalance RetainedEarnings Credit (DebitBalance 12245.0),UnexplainedAbnormalBalance Purchases Debit (CreditBalance 1.0)]
 trialBalanceFindings.debitTotal	BeforeClosing	scalar	0x40d8368000000000	24794.0
 trialBalanceFindings.creditTotal	BeforeClosing	scalar	0x406ac00000000000	214.0

@@ -51,12 +51,11 @@ accountBalances	all	map	Purchases	CreditBalance	0x3fb70a3d70a3d70b	9.00000000000
 accountBalances	all	map	Sales	DebitBalance	0x40342e147ae147ae	20.18
 Write.bsRows	all	row	Asset		Liability	
 Write.bsRows	all	row	AccountsReceivable	1214.57	Equity	
-Write.bsRows	all	row	RetainedEarnings	20.19	Total	0.0
+Write.bsRows	all	row	RetainedEarnings	20.189999999999998	Total	0.0
 Write.bsRows	all	row	Total	1234.76		
 Write.plRows	all	row	Cost		Revenue	
 Write.plRows	all	row	Purchases	1.0e-2	Sales	1.0e-2
 Write.plRows	all	row	Total	1.0e-2	Total	1.0e-2
-balance	checked-input	result	False
 trialBalanceFindings	BeforeClosing	result	[UnbalancedTrialBalance 1255.37 1255.1599999999999,UnexplainedAbnormalBalance Cash Debit (CreditBalance 1234.55),UnexplainedAbnormalBalance RetainedEarnings Credit (DebitBalance 9.999999999999998e-2),UnexplainedAbnormalBalance Purchases Debit (CreditBalance 9.000000000000001e-2),UnexplainedAbnormalBalance Sales Credit (DebitBalance 20.18)]
 trialBalanceFindings.debitTotal	BeforeClosing	scalar	0x40939d7ae147ae14	1255.37
 trialBalanceFindings.creditTotal	BeforeClosing	scalar	0x40939ca3d70a3d70	1255.1599999999999

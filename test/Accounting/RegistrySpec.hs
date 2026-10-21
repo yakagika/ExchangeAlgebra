@@ -7,6 +7,7 @@ import ExchangeAlgebra.Journal
 import qualified ExchangeAlgebra.IO.Input      as EC
 import qualified ExchangeAlgebra.Accounting.Account as PP
 import qualified ExchangeAlgebra.Accounting.Consolidation as CW
+import ExchangeAlgebra.Accounting.Closing (closingSide)
 import qualified ExchangeAlgebra.Accounting.TrialBalance.Balance as TBB
 import qualified ExchangeAlgebra.Accounting.TrialBalance.Validation as TB
 import qualified ExchangeAlgebra.Accounting.Statements.Presentation as RP
@@ -3109,10 +3110,116 @@ testAccumulatorAccounting = do
     isReciprocal TB.ReciprocalMismatch{} = True
     isReciprocal _ = False
 
+-- | A valuation account canceled within a full base cannot activate a BS group.
+testBalanceSheetCanceledGroup :: IO ()
+testBalanceSheetCanceledGroup = do
+    let ledger = (1000 EA..@ (Not :< AccountsReceivable))
+            EA..+ (100 EA..@ (Not :< AllowanceForDoubtfulAccounts))
+            EA..+ (100 EA..@ (Hat :< AllowanceForDoubtfulAccounts))
+            EA..+ (1000 EA..@ (Not :< CapitalStock))
+                :: EA.Alg Double (HatBase AccountTitles)
+    assertEqual "BS canceled allowance keeps only the ordinary receivable row"
+        (L.map (L.map T.pack)
+            [["Asset", "", "Liability", ""]
+            , ["AccountsReceivable", "1000.0", "Equity", ""]
+            , ["Total", "1000.0", "CapitalStock", "1000.0"]
+            , ["", "", "Total", "1000.0"]])
+        (EW.bsRows ledger)
+
+-- | Cancel valuation postings within each full base, rather than across axes.
+testBalanceSheetFullBases :: IO ()
+testBalanceSheetFullBases = do
+    let ledger axis = (1000 EA..@ (Not :< (AccountsReceivable, T.pack "a")))
+            EA..+ (100 EA..@ (Not :< (AllowanceForDoubtfulAccounts, T.pack "a")))
+            EA..+ (100 EA..@ (Hat :< (AllowanceForDoubtfulAccounts, axis)))
+            EA..+ (1000 EA..@ (Not :< (CapitalStock, T.pack "a")))
+                :: EA.Alg Double (HatBase (AccountTitles, T.Text))
+    assertEqual "BS different full bases retain a group with net 1000"
+        (L.map (L.map T.pack)
+            [["Asset", "", "Liability", ""]
+            , ["AccountsReceivable", "1000.0", "Equity", ""]
+            , ["TradeReceivablesNet", "1000.0", "CapitalStock", "1000.0"]
+            , ["Total", "1000.0", "Total", "1000.0"]])
+        (EW.bsRows (ledger (T.pack "b")))
+    assertEqual "BS same full base cancels the allowance and omits its group"
+        (L.map (L.map T.pack)
+            [["Asset", "", "Liability", ""]
+            , ["AccountsReceivable", "1000.0", "Equity", ""]
+            , ["Total", "1000.0", "CapitalStock", "1000.0"]
+            , ["", "", "Total", "1000.0"]])
+        (EW.bsRows (ledger (T.pack "a")))
+
+-- | Keep the default BS groups independent of the closing transfer.
+testBalanceSheetGroupsStayUnclosed :: IO ()
+testBalanceSheetGroupsStayUnclosed = do
+    let grouping = RG.groupingForDivisions [Assets, Liability, Equity]
+            RG.defaultPresentationGrouping
+        titles = concatMap (\def -> RG.pgGross def ++ RG.pgDeductions def) grouping
+    -- The private finalStockRule preserves Nothing from the public closingSide.
+    assertEqual "BS default group accounts have no final-stock closing rule"
+        [] [title | title <- titles, closingSide title /= Nothing]
+
+-- | A surviving valuation balance supplies the deduction, rather than its activity.
+testBalanceSheetResidualGroup :: IO ()
+testBalanceSheetResidualGroup = do
+    let ledger = (1000 EA..@ (Not :< AccountsReceivable))
+            EA..+ (100 EA..@ (Not :< AllowanceForDoubtfulAccounts))
+            EA..+ (70 EA..@ (Hat :< AllowanceForDoubtfulAccounts))
+            EA..+ (970 EA..@ (Not :< CapitalStock))
+                :: EA.Alg Double (HatBase AccountTitles)
+    assertEqual "BS residual allowance displays gross 1000, deduction 30, net 970"
+        (L.map (L.map T.pack)
+            [["Asset", "", "Liability", ""]
+            , ["AccountsReceivable", "1000.0", "Equity", ""]
+            , ["AllowanceForDoubtfulAccounts", "-30.0", "CapitalStock", "970.0"]
+            , ["TradeReceivablesNet", "970.0", "Total", "970.0"]
+            , ["Total", "970.0", "", ""]])
+        (EW.bsRows ledger)
+
+-- | NaN is directionless in relative amounts but retains debit placement in cells.
+testWriterNaNDirections :: IO ()
+testWriterNaNDirections = do
+    -- Invalid postings deliberately exercise the legacy nonfinite readout contract.
+    let ledger = ((0 / 0) :@ (Not :< Sales))
+            EA..+ (1 EA..@ (Not :< SalesRebates))
+                :: EA.Alg Double (HatBase AccountTitles)
+        stock = ((0 / 0) :@ (Not :< AllowanceForDoubtfulAccounts))
+            EA..+ (1000 EA..@ (Not :< AccountsReceivable))
+            EA..+ ((0 / 0) :@ (Not :< CapitalStock))
+                :: EA.Alg Double (HatBase AccountTitles)
+    assertEqual "PL NaN group and credit total are directionless NaN"
+        (L.map (L.map T.pack)
+            [["Cost", "", "Revenue", ""]
+            , ["", "", "Sales", "NaN"]
+            , ["", "", "SalesRebates", "-1.0"]
+            , ["", "", "NetSales", "NaN"]
+            , ["Total", "NaN", "Total", "0.0"]])
+        (EW.plRows ledger)
+    assertEqual "BS NaN deduction, group net, and totals display NaN"
+        (L.map (L.map T.pack)
+            [["Asset", "", "Liability", ""]
+            , ["AccountsReceivable", "1000.0", "Equity", ""]
+            , ["AllowanceForDoubtfulAccounts", "NaN", "CapitalStock", "NaN"]
+            , ["TradeReceivablesNet", "NaN", "Total", "NaN"]
+            , ["Total", "NaN", "", ""]])
+        (EW.bsRows stock)
+    let worksheet = EW.worksheetRows ledger EA.Zero
+    assertEqual "worksheet NaN remains in the debit cell"
+        [L.map T.pack ["Sales", "NaN", "", "", "", "NaN", "", "", ""]]
+        [row | row@(title : _) <- worksheet, title == T.pack "Sales"]
+    assertEqual "worksheet subtotal propagates the debit cell NaN"
+        [L.map T.pack ["Subtotal", "NaN", "0.0", "", "", "NaN", "0.0", "0.0", "0.0"]]
+        [row | row@(title : _) <- worksheet, title == T.pack "Subtotal"]
+
 -- | Run this domain in its original relative test order.
 runTests :: IO ()
 runTests = do
     testAccumulatorAccounting
+    testBalanceSheetCanceledGroup
+    testBalanceSheetFullBases
+    testBalanceSheetGroupsStayUnclosed
+    testBalanceSheetResidualGroup
+    testWriterNaNDirections
     testAccountTitlesBinary
     testAllowanceAccountTitles
     testAccountTitleClassification

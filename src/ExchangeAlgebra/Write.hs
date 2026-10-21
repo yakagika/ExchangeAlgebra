@@ -139,7 +139,7 @@ groupCells :: HatVal n
            -> [(T.Text, T.Text)]
 groupCells totals defs blocks =
     [ (label kind, renderRelative (RG.relativeTo (RG.groupNormalSide def)
-            (readAccumBalance pair)))
+            (Accum.readAccountAccum Side (mergeAccum (fst pair) (negateAccum (snd pair))))))
     | (def, rows) <- blocks
     , row <- rows
     , let kind = RG.grKind row
@@ -172,10 +172,9 @@ groupCells totals defs blocks =
 -- | Build the rows of a Balance Sheet, as a pure value (the part 'writeBS'
 -- renders to CSV).
 --
--- Internally applies @'ET.finalStockTransfer'@ -- the only netting on the
--- /algebra/ this function does -- which closes every 'Cost'\/'Revenue'
--- account into 'RetainedEarnings' via @('.-')@\/@bar@. The closed algebra is
--- then partitioned by 'whichSide'\/'whatDiv' into assets (debit side) and
+-- Applies @'ET.finalStockTransfer'@ to the ordinary rows, closing every
+-- 'Cost'\/'Revenue' account into 'RetainedEarnings' via @('.-')@\/@bar@.
+-- The closed algebra is then partitioned by 'whichSide'\/'whatDiv' into assets (debit side) and
 -- liability\/equity (credit side, further split by division);
 -- 'decL'\/'decR'\/'EA.filter' only select entries, they do not aggregate them.
 --
@@ -186,10 +185,11 @@ groupCells totals defs blocks =
 -- presentation groups of "ExchangeAlgebra.Accounting.Statements.Group" and shown as a
 -- real deduction — @gross lines → deduction lines → net line@ — inside the
 -- Asset column, replacing Land 2's temporary placement in the Liability
--- column. A
--- group is formed only when one of its contra accounts actually carries gross
--- activity, so a chart that contains no contra posting keeps its ordinary
--- rows. Deduction
+-- column. Group accounts are netted exactly per full base before their
+-- unrounded residuals are combined by account title. A group is formed only
+-- when a contra account retains a balance on at least one full base.
+-- Valuation postings canceled within each full base keep the ordinary rows.
+-- Closing transfers do not affect these asset, liability, or equity group accounts. Deduction
 -- and negative-net cells carry a leading @-@; values themselves stay in
 -- \(\mathbb{R}_0^+\).
 --
@@ -238,17 +238,41 @@ groupCells totals defs blocks =
 -- ["TradeReceivablesNet","900.0","Total","900.0"]
 -- ["Total","900.0","",""]
 --
--- Complexity: O(s) (s = total number of scalar entries)
+-- Complexity: O(s log(b + 1)) (s = scalar entries, b = distinct full bases)
 bsRows :: (HatVal n, HatBaseClass b, ExBaseClass b) => Alg n b -> [[T.Text]]
 bsRows alg = result
   where
     transferred = ET.finalStockTransfer alg
     grouping = RG.groupingForDivisions [Assets, Liability, Equity]
                                        RG.defaultPresentationGrouping
-    originalTotals = accountGrossTotals alg
-    grouped = RG.presentGroups grouping (accountGroupBalances originalTotals)
+    -- Net Not minus Hat per full base without rounding, then collect the
+    -- winning side's magnitude by account. Ordinary rows still use the closed algebra.
+    stockTotals = OMap.foldlWithKey' collectStock OMap.empty
+        (EA.foldEntries collectBase OMap.empty alg)
+    collectBase totals value postingBase =
+        let amount = addAccum value emptyAccum
+            signed = case hat postingBase of
+                Hat -> negateAccum amount
+                _   -> amount
+        in OMap.insertWith mergeAccum (toNot postingBase) signed totals
+    collectStock totals notBase residual = case signAccum residual of
+        Just EQ -> totals
+        Just LT -> addStock (toHat notBase) (negateAccum residual)
+        _       -> addStock notBase residual
+      where
+        addStock winningBase magnitude = case whichSide winningBase of
+            Debit -> OMap.insertWith combine (getAccountTitle winningBase)
+                (magnitude, emptyAccum) totals
+            Credit -> OMap.insertWith combine (getAccountTitle winningBase)
+                (emptyAccum, magnitude) totals
+            Side -> totals
+        combine (!debit, !credit) (!otherDebit, !otherCredit) =
+            let !debitTotal = mergeAccum debit otherDebit
+                !creditTotal = mergeAccum credit otherCredit
+            in (debitTotal, creditTotal)
+    grouped = RG.presentGroups grouping (accountGroupBalances stockTotals)
     grossTotals = OMap.union
-        (OMap.filterWithKey (\title _ -> Set.member title consumed) originalTotals)
+        (OMap.filterWithKey (\title _ -> Set.member title consumed) stockTotals)
         (accountGrossTotals transferred)
     consumed = RG.gpConsumed grouped
     ungrouped = EA.filter
@@ -279,8 +303,10 @@ bsRows alg = result
                 in (debits', credits')
     assetGross = totalFor [Assets] Debit
     creditGross = totalFor [Liability, Equity] Credit
-    assetTotal = renderRelative (RG.relativeTo Debit (readAccumBalance assetGross))
-    creditTotal = renderRelative (RG.relativeTo Credit (readAccumBalance creditGross))
+    assetTotal = renderRelative (RG.relativeTo Debit (Accum.readAccountAccum Side
+        (mergeAccum (fst assetGross) (negateAccum (snd assetGross)))))
+    creditTotal = renderRelative (RG.relativeTo Credit (Accum.readAccountAccum Side
+        (mergeAccum (fst creditGross) (negateAccum (snd creditGross)))))
     (assetGroupText, assetGroupValue) =
         unzip (groupCells grossTotals grouping (blocksIn [Assets]))
     (liabilityGroupText, liabilityGroupValue) =
@@ -395,8 +421,10 @@ plRows alg = result
     revenueGross = totalFor Revenue Credit
     -- Historical cross-placement preserved: the Cost column's total cell
     -- states the revenue total, and the Revenue column's the cost total.
-    debitTotal = renderRelative (RG.relativeTo Debit (readAccumBalance costGross))
-    creditTotal = renderRelative (RG.relativeTo Credit (readAccumBalance revenueGross))
+    debitTotal = renderRelative (RG.relativeTo Debit (Accum.readAccountAccum Side
+        (mergeAccum (fst costGross) (negateAccum (snd costGross)))))
+    creditTotal = renderRelative (RG.relativeTo Credit (Accum.readAccountAccum Side
+        (mergeAccum (fst revenueGross) (negateAccum (snd revenueGross)))))
     (costGroupText, costGroupValue) = unzip (groupCells grossTotals grouping (blocksIn Cost))
     (revenueGroupText, revenueGroupValue) =
         unzip (groupCells grossTotals grouping (blocksIn Revenue))
@@ -950,7 +978,8 @@ worksheetRows pre adj =
             addCol (debit, credit) d c = case signAccum difference of
                 Just GT -> (mergeAccum d difference, c)
                 Just LT -> (d, mergeAccum c (negateAccum difference))
-                _ -> (d, c)   -- wildcard v'Side' (balanced to zero): adds nothing
+                Just EQ -> (d, c)  -- balanced to zero: adds nothing
+                Nothing -> (mergeAccum d difference, c)  -- NaN follows the debit cell
               where
                 difference = mergeAccum debit (negateAccum credit)
             (ntbd, ntbc) = addCol (grossOf preTotals t) tbd tbc

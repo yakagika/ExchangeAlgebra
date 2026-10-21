@@ -127,7 +127,9 @@
 - Writers (`bsRows`, `plRows`, compound trial balances, worksheets, and
   post-closing trial balances), `presentGroups`, and `relativeTo` no longer
   suppress small differences with a tolerance; for example, a `plRows` total
-  formerly displayed as `0.0` can now be `1.0e-300`.
+  formerly displayed as `0.0` can now be `1.0e-300`. Balance-sheet groups use
+  exact period-end balances per full base; small valuation-account residuals
+  formerly suppressed by tolerance can now create a group.
 - Removed `exactBalanced` from checked input and its compatibility export.
   Use `balance` for the exact posting-balance predicate in 0.6. Removed the
   internal `netGross`; writers read net balances from their accumulators.
