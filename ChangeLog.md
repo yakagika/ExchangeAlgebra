@@ -81,11 +81,6 @@
   adapter. The value parameter has a nominal role, so `coerce` cannot bypass
   validation. `Posted Double` retains its existing binary encoding.
 
-### Fixed
-
-- Equal `MoneyDecimal` values with different scales, such as `1.0` and `1.00`,
-  now have equal hashes.
-
 ### Deprecated (module moves; definitions and behavior unchanged)
 
 - New module paths for the element, value, and account vocabulary. The old
