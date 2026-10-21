@@ -1,7 +1,6 @@
 AboveBound
 HatSide
-Negative
-NonFinite
+InvalidValue
 NotSide
 PostSide
 Posted
@@ -9,7 +8,6 @@ PostedError
 Posting
 entry
 posted
-postedUpperBound
 postingAlg
 sideHat
 unPosted

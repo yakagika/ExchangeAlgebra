@@ -29,6 +29,7 @@ AccruedConsumptionTax
 AccruedCorporateIncomeTaxes
 AccruedExpenses
 AccruedRevenue
+Accum
 AccumulatedDepreciation
 AdditionalIncomeTaxesForPriorPeriods
 AdvancesPaid
@@ -352,6 +353,7 @@ accountDescriptions
 accountSemantics
 accountSpec
 accountSpecMap
+addAccum
 asAliases
 asClosing
 asDescription
@@ -368,7 +370,9 @@ asemReportingEligibility
 asemRoles
 axisIsWildcard
 balance
+balanceWithin
 bar
+barWithin
 base
 classifyAccountContra
 classifyAccountDivision
@@ -385,7 +389,10 @@ decR
 decTo
 defaultSide
 diffRL
+diffRLWithin
+emptyAccum
 equal
+exactAccum
 filterByAxis
 filterWithNote
 fixedCurrent
@@ -400,7 +407,6 @@ haveWildcard
 ignoreWildcard
 insert
 isContra
-isErrorValue
 isHat
 isNot
 isPlank
@@ -409,12 +415,15 @@ isZeroValue
 map
 maxElement
 merge
+mergeAccum
 minElement
 mkJournal
+negateAccum
 norm
 pimoFlip
 pimoFromDivision
 plank
+postingUpperBound
 projWithBase
 projWithBaseNetNorm
 projWithBaseNorm
@@ -424,6 +433,8 @@ projWithNoteBaseNetNorm
 projWithNoteNorm
 replaceNotes
 revHat
+roundAccum
+roundRational
 setAccountTitle
 showValue
 sigma
@@ -431,6 +442,8 @@ sigma2When
 sigmaM
 sigmaOn
 sigmaOnFromMap
+signAccum
+splitAccum
 switchSide
 toAlg
 toAxisKeys
@@ -438,6 +451,7 @@ toHat
 toMap
 toNot
 toNoteAxisKeys
+valueError
 whatDiv
 whatPIMO
 whichSide

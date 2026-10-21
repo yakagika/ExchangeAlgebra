@@ -235,6 +235,7 @@ tests:
     # Surface.* / SurfaceMain が混入しないよう明示する (release-0510-additive L5).
     other-modules:
     - Support
+    - Algebra.AccumSpec
     - Algebra.CoreSpec
     - Journal.JournalSpec
     - Accounting.RegistrySpec

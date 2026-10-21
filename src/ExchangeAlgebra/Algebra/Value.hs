@@ -85,6 +85,7 @@ module ExchangeAlgebra.Algebra.Value
 
 import           ExchangeAlgebra.Algebra.Value.Class (HatVal (..), ValueError (..), isErrorValue, Nearly (..), Rounding (..), Tolerance (..), defaultTolerance, isNearlyNum, nearlyEqScaled, rounding, sumValues, roundScaled)
 import           Data.Decimal            (Decimal, DecimalRaw (Decimal), normalizeDecimal, roundTo')
+import           Data.Ratio              (numerator, denominator)
 import           Data.Word               (Word8)
 import           Data.List               (foldl')
 import           Data.Scientific         (Scientific, coefficient, base10Exponent)
@@ -307,15 +308,31 @@ instance HatVal MoneyDecimal where
 
     -- Decimal addition is exact, so the state is the signed exact sum.
     newtype Accum MoneyDecimal = MoneyDecimalAccum Decimal
-    emptyAccum = undefined
-    addAccum = undefined
-    mergeAccum = undefined
-    negateAccum = undefined
-    signAccum = undefined
-    roundAccum = undefined
-    splitAccum = undefined
-    exactAccum = undefined
-    roundRational = undefined
+    emptyAccum = MoneyDecimalAccum 0
+    addAccum (MoneyDecimal value) (MoneyDecimalAccum total) =
+        MoneyDecimalAccum (total + value)
+    mergeAccum (MoneyDecimalAccum left) (MoneyDecimalAccum right) =
+        MoneyDecimalAccum (left + right)
+    negateAccum (MoneyDecimalAccum value) = MoneyDecimalAccum (negate value)
+    signAccum (MoneyDecimalAccum value) = Just (compare value 0)
+    roundAccum (MoneyDecimalAccum value) = MoneyDecimal value
+    splitAccum (MoneyDecimalAccum value)
+        | value > 0 = Just [MoneyDecimal value]
+        | otherwise = Nothing
+    exactAccum (MoneyDecimalAccum value) = Just (toRational value)
+    roundRational Nearest value = represent 0 (numerator value) (denominator value)
+      where
+        -- Each step supplies one decimal place without rounding.
+        represent places coefficient divisor
+            | divisor == 1 = Just (MoneyDecimal (Decimal places coefficient))
+            | places == 255 || common == 1 = Nothing
+            | otherwise = represent (places + 1)
+                (coefficient * (10 `div` common)) (divisor `div` common)
+          where
+            common = gcd divisor 10
+    roundRational (ToMultipleOf (MoneyDecimal unit)) value
+        | unit > 0 = Just (MoneyDecimal (fromInteger (round (value / toRational unit)) * unit))
+        | otherwise = Nothing
 
 -- 'Binary'/'Hashable' are defined here (not orphan) because 'Data.Decimal' ships
 -- neither, and 'Alg'/t'Journal' serialization and the binary spill path require
@@ -456,11 +473,11 @@ newtype RationalAccum = RationalAccum Rational
 
 -- | Add a finite value of a 'Real' type exactly.
 rationalAddAccum :: Real n => n -> RationalAccum -> RationalAccum
-rationalAddAccum = undefined
+rationalAddAccum value (RationalAccum total) = RationalAccum (total + toRational value)
 
 -- | Round the exact value with a function the user supplies (for example
 -- 'fromRational'). 'Real' alone cannot guarantee ties-to-even, so the rule is
 -- the caller's.
 rationalRoundAccum :: (Rational -> n) -> RationalAccum -> n
-rationalRoundAccum = undefined
+rationalRoundAccum convert (RationalAccum total) = convert total
 

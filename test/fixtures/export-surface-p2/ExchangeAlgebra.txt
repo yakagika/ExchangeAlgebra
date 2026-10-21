@@ -30,6 +30,7 @@ AccruedConsumptionTax
 AccruedCorporateIncomeTaxes
 AccruedExpenses
 AccruedRevenue
+Accum
 AccumulatedDepreciation
 AdditionalIncomeTaxesForPriorPeriods
 AdvancesPaid
@@ -228,8 +229,10 @@ MoneyScaleOutOfRange
 MulBy
 Name
 NationalBondInterestEarned
+Nearest
 Nearly
 NegativeMoney
+NegativeValue
 NetDefinedBenefitAsset
 NetDefinedBenefitLiability
 NetIncome
@@ -245,6 +248,7 @@ NonControllingInterests
 NonFiniteBalance
 NonFiniteNet
 NonFiniteResult
+NonFiniteValue
 NonOperatingElectronicallyRecordedObligations
 NonOperatingElectronicallyRecordedReceivable
 NonOperatingNotesPayable
@@ -287,6 +291,7 @@ ProvisionForRepairs
 PurchaseAllowances
 PurchaseRebates
 Purchases
+RationalAccum
 RawMaterials
 ReceiptFee
 ReciprocalAccount
@@ -311,6 +316,7 @@ Revenue
 ReversalOfAllowanceForDoubtfulAccounts
 ReversalOfAllowanceForProductWarranties
 ReversalOfAllowanceForRepairs
+Rounding
 Sales
 SalesAllowances
 SalesCost
@@ -351,6 +357,8 @@ SuspenseReceipts
 TaxesExpense
 TaxesRevenue
 TimeDeposits
+ToMultipleOf
+Tolerance
 ToolsAndInstruments
 Trademark
 TradingSecurities
@@ -366,6 +374,7 @@ UnpaidDividends
 UtilitiesExpense
 ValuationDifferenceOnOtherSecurities
 ValueAdded
+ValueError
 Vehicle
 WageEarned
 WageExpenditure
@@ -377,6 +386,7 @@ _base
 _hat
 _hatBase
 _val
+absTol
 accountAliases
 accountDescriptions
 accountLedgerRows
@@ -384,6 +394,7 @@ accountLedgerRowsJournal
 accountSemantics
 accountSpec
 accountSpecMap
+addAccum
 asAliases
 asClosing
 asDescription
@@ -403,8 +414,10 @@ balance
 balanceBy
 balanceMapBy
 balanceOf
+balanceWithin
 bankersRound
 bar
+barWithin
 base
 bases
 bsRows
@@ -430,9 +443,13 @@ decM
 decP
 decR
 defaultSide
+defaultTolerance
 diffRL
+diffRLWithin
 divideBy
+emptyAccum
 equal
+exactAccum
 extendBy
 filter
 finalStockTransfer
@@ -466,11 +483,13 @@ mapMaybePosting
 mapPosting
 maxElement
 merge
+mergeAccum
 minElement
 mkTransferRules
 moneyDecimalFromScientific
 moneyDecimalFromText
 nearlyEqScaled
+negateAccum
 netIncomeTransfer
 netPairMapBy
 norm
@@ -480,6 +499,7 @@ pimoFromDivision
 plRows
 postClosingTrialBalanceRows
 postFromNetBy
+postingUpperBound
 proj
 projByAccountTitle
 projCapitalStock
@@ -494,12 +514,18 @@ projFixedAssets
 projFixedLiability
 projNetNorm
 projNorm
+rationalAddAccum
+rationalRoundAccum
+relTol
 relabel
 restoreJournalFromBinarySpill
 restoreJournalFromBinarySpillChecked
 retainedEarningTransfer
 retainedEarningsRule
 revHat
+roundAccum
+roundRational
+roundScaled
 rounding
 ruleFrom
 ruleScale
@@ -513,6 +539,9 @@ showValue
 sigma
 sigma2When
 sigmaFromMap
+signAccum
+splitAccum
+sumValues
 switchSide
 table
 toASCList
@@ -528,6 +557,7 @@ transferEntries
 tshow
 unionsMerge
 vals
+valueError
 whatDiv
 whatPIMO
 whichSide

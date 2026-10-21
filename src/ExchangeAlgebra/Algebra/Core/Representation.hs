@@ -417,12 +417,12 @@ isZero _    = False
 {-# INLINE singleton #-}
 -- | Complexity: O(1)
 singleton :: (HatVal v, HatBaseClass b) => v -> b -> Alg v b
-singleton v b | isZeroValue v  = Zero
-              | isErrorValue v = error  $ "errorValue at (.@) val: "
-                               ++ show v
+singleton v b | isZeroValue v = Zero
+              | Just reason <- valueError v = error $ "errorValue at (.@): "
+                               ++ show reason ++ " val: " ++ show v
                                ++ show ":@"
                                ++ show b
-              | otherwise      = v :@ b
+              | otherwise = v :@ b
 
 {-# INLINE (.@) #-}
 -- | Smart constructor that builds an algebra element from a value and a base.

@@ -4,6 +4,18 @@
 
 ### Added
 
+- `HatVal` now provides `Accum` with `emptyAccum`, `addAccum`, `mergeAccum`,
+  `negateAccum`, `signAccum`, `roundAccum`, `splitAccum`, and `exactAccum`.
+  Finite inputs accumulate exactly, including sums beyond the floating-point
+  range, and round once when read. `sumValues` uses this accumulator.
+  `RationalAccum`, `rationalAddAccum`, and `rationalRoundAccum` support custom
+  finite value types. Qualify imports when also using the older
+  `ExchangeAlgebra.Algebra.Exact.Accum`.
+- `Rounding` (`Nearest` or `ToMultipleOf`) controls `roundRational` and
+  `roundScaled`. Floating-point types accept only `Nearest`; `MoneyDecimal`
+  accepts `Nearest` only for exact decimals of at most 255 places, or rounds
+  to an explicit positive unit with ties to even.
+
 - A `MoneyDouble` DET-2 test checks exact ledger and norm equality between
   `Sequential` and `ParChunk` widths 1, 2, 3, and 8 across four terms, with
   random fractional postings and a second stage that posts the snapshot norm.
@@ -46,6 +58,33 @@
   succeeds even when the exact sum exceeds the largest finite value. HatNot,
   non-finite, and negative postings, and totals that round to infinity, return
   the closed `CarryError` with a fixed priority. Existing functions are unchanged.
+
+### Changed
+
+- Custom `HatVal` instances implement `valueError :: n -> Maybe ValueError`
+  instead of `isErrorValue`. Use `NonFiniteValue` for NaN and infinities,
+  `NegativeValue` for finite negative values, and `Nothing` for valid values.
+  `isErrorValue` is now a function derived from `valueError`. Rejections by
+  `.@` include the reason.
+  Custom `HatVal` instances must also define `Accum`, all eight accumulator
+  methods, and `roundRational`; there are no defaults, and a missing method
+  fails at run time. For finite exact value types, follow the complete example
+  in the Haddock for `RationalAccum`, built from `rationalAddAccum` and
+  `rationalRoundAccum`, and satisfy laws A3, A5', A6, and T1-T3.
+- `Posted v` and `Posting v b` use the caller's value type. `posted` checks
+  `valueError` before the instance's `postingUpperBound`: `Double` and
+  `MoneyDouble` use `Just (2^900)`, while `MoneyDecimal` has no upper bound.
+  `PostedError` now uses `InvalidValue ValueError` and `AboveBound`;
+  `postedUpperBound` is removed. Annotate literals, for example
+  `posted (1 :: Double)`. Downstream adapters can define
+  `type Posting b = EA.Posting Double b` once and route imports through that
+  adapter. The value parameter has a nominal role, so `coerce` cannot bypass
+  validation. `Posted Double` retains its existing binary encoding.
+
+### Fixed
+
+- Equal `MoneyDecimal` values with different scales, such as `1.0` and `1.00`,
+  now have equal hashes.
 
 ### Deprecated (module moves; definitions and behavior unchanged)
 

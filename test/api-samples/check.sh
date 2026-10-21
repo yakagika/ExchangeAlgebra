@@ -7,7 +7,7 @@ trap 'rm -rf "$sample_tmp"' EXIT
 read -r -a sample_stack_args <<< "${STACK_ARGS:-}"
 
 cd "$sample_tmp"
-for sample in Bookkeeping MultiPeriod Readout Admission Network CustomBase CustomAccount; do
+for sample in Bookkeeping MultiPeriod Readout Admission Network CustomBase CustomAccount CustomValue; do
     stack ${sample_stack_args[@]+"${sample_stack_args[@]}"} \
         --stack-yaml "$sample_root/stack.yaml" exec -- ghc \
         -fforce-recomp -v0 -fdiagnostics-color=never -i \

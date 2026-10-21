@@ -290,6 +290,7 @@ WageExpenditure
 WelfareExpenses
 WorkInProcess
 balance
+balanceWithin
 classifyAccountDivision
 closingEntries
 closingSide
@@ -302,6 +303,7 @@ decP
 decR
 defaultSide
 diffRL
+diffRLWithin
 divideBy
 fixedCurrent
 getAccountTitle

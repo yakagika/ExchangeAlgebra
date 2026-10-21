@@ -18,6 +18,7 @@ module ExchangeAlgebra.Algebra.Value.Class
 
 import qualified Number.NonNegative as NN
 import Data.Maybe (isJust)
+import qualified Data.Foldable as Foldable
 import Control.DeepSeq (NFData(..))
 import qualified Data.Scientific as D (fromFloatDigits, formatScientific, FPFormat(..))
 import ExchangeAlgebra.Algebra.Value.Accum
@@ -306,7 +307,7 @@ data Rounding n
 -- __Law__ S1 (relation @sumValues xs == roundAccum (foldr addAccum emptyAccum xs)@;
 -- premise: every element finite; observed through '=='; tolerance none; all instances).
 sumValues :: (HatVal n, Foldable f) => f n -> n
-sumValues = undefined
+sumValues = roundAccum . Foldable.foldl' (flip addAccum) emptyAccum
 
 -- | Scale the exact value of an accumulator by a ratio and round once with the
 -- given rule. This is the amount a ratio transfer (@|% Portion n d@) moves.
@@ -352,6 +353,7 @@ instance RealFloat NN.Double where
 -- use case safely. Migrate to @MoneyDouble@ or bare 'Prelude.Double'.
 -- (GHC cannot attach a @DEPRECATED@ pragma to an instance, so this notice
 -- lives in the Haddock and the ChangeLog.)
+-- Exception for this deprecated instance: negative @q@ gives 'Nothing'; @NN.Double@ cannot hold it.
 instance HatVal NN.Double where
     {-# INLINE zeroValue #-}
     zeroValue = 0
@@ -373,7 +375,10 @@ instance HatVal NN.Double where
     roundAccum (NNDoubleAccum a) = NN.fromNumber (roundFloating a)
     splitAccum (NNDoubleAccum a) = fmap (map NN.fromNumber) (splitFloating a)
     exactAccum (NNDoubleAccum a) = exactFloating a
-    roundRational = undefined
+    roundRational Nearest value
+        | value < 0 = Nothing
+        | otherwise = fmap NN.fromNumber (roundRationalDouble value)
+    roundRational (ToMultipleOf _) _ = Nothing
 
 instance HatVal Prelude.Double where
     {-# INLINE zeroValue #-}
@@ -398,7 +403,8 @@ instance HatVal Prelude.Double where
     roundAccum (DoubleAccum a) = roundFloating a
     splitAccum (DoubleAccum a) = splitFloating a
     exactAccum (DoubleAccum a) = exactFloating a
-    roundRational = undefined
+    roundRational Nearest value = roundRationalDouble value
+    roundRational (ToMultipleOf _) _ = Nothing
 
 -- * Rounding
 

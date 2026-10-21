@@ -392,6 +392,7 @@ test-suite ExchangeAlgebra-test
   main-is: Spec.hs
   other-modules:
       Support
+      Algebra.AccumSpec
       Algebra.CoreSpec
       Journal.JournalSpec
       Accounting.RegistrySpec

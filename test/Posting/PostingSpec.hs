@@ -23,6 +23,7 @@ import ExchangeAlgebra.Algebra.Posting
     , unPosted
     )
 import qualified Posting.NoNumPosted as NoNum
+import ExchangeAlgebra.Algebra.Value (MoneyDouble)
 
 -- | The 'Double' bound of the posting boundary (0.5.x @postedUpperBound@).
 postedUpperBound :: Double
@@ -314,6 +315,9 @@ testNoNum = do
             putStrLn ("[FAIL] ledger posting fixture: " ++ show failure)
             exitFailure
         Right checked -> do
+            coerced <- try (evaluate (NoNum.coercePosted checked))
+                :: IO (Either TypeError (Posted MoneyDouble))
+            assertTest "Posted value type coercion is rejected" (isTypeError coerced)
             arithmetic <- try (evaluate (NoNum.addPosted checked))
                 :: IO (Either TypeError (Posted Double))
             assertTest "Posted arithmetic is rejected" (isTypeError arithmetic)

@@ -5,11 +5,14 @@ module Posting.NoNumPosted
     ( literalPosted
     , addPosted
     , addPosting
+    , coercePosted
     , genericPosted
     ) where
 
 import ExchangeAlgebra.Algebra.Posting (Posted, Posting)
 import GHC.Generics (from)
+import Data.Coerce (coerce)
+import ExchangeAlgebra.Algebra.Value (MoneyDouble(..))
 
 -- | Demand an integer literal at the protected posting type.
 literalPosted :: Posted Double
@@ -26,3 +29,7 @@ addPosting value = value + 1
 -- | Demand a Generic representation of the protected posting value.
 genericPosted :: Posted Double -> ()
 genericPosted value = from value `seq` ()
+
+-- | Reject bypassing the value type's posting checks through representational equality.
+coercePosted :: Posted Double -> Posted MoneyDouble
+coercePosted = coerce

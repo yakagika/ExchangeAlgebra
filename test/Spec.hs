@@ -2,6 +2,7 @@
 module Main (main) where
 
 import qualified Value.MoneyParseSpec as MoneyParseSpec
+import qualified Algebra.AccumSpec as AccumSpec
 import qualified Algebra.ExactSumSpec as ExactSumSpec
 import qualified Admission.Spec as AdmissionSpec
 import qualified Admission.ClosingSpec as AdmissionClosingSpec
@@ -23,6 +24,7 @@ import qualified Simulation.OptimizeSpec as OptimizeSpec
 
 main :: IO ()
 main = do
+    AccumSpec.runTests
     MoneyParseSpec.runTests
     ExactSumSpec.runTests
     AdmissionSpec.runTests
