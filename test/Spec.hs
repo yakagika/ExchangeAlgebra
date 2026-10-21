@@ -26,7 +26,7 @@ import qualified ExchangeAlgebra.Algebra.Transfer as EAT
 import qualified ExchangeAlgebra.Journal  as EJ
 import qualified ExchangeAlgebra.Journal.Transfer as EJT
 import qualified ExchangeAlgebra.Bookkeeping as EB
-import           ExchangeAlgebra.Value    (MoneyDecimal, bankersRound)
+import           ExchangeAlgebra.Value    (MoneyDecimal (..), bankersRound)
 import qualified ExchangeAlgebra.Simulate as ES
 import           ExchangeAlgebra.Simulate
 import qualified ExchangeAlgebra.Simulate.Lite as Lite
@@ -61,6 +61,8 @@ import qualified ExchangeAlgebra.Optimize.GA        as OG
 import qualified Data.Vector.Unboxed as UV
 
 import qualified Data.HashMap.Strict as HM
+import           Data.Hashable           (hash)
+import           Data.Decimal            (DecimalRaw (Decimal))
 import qualified Data.Map.Strict     as M
 import qualified Data.List           as L
 import qualified Data.List.NonEmpty  as NE
@@ -570,6 +572,18 @@ testProjNormFastPath = do
         expected = norm $ EA.bar $ EA.proj qs algSample
         actual = EA.projNetNorm qs algSample
     assertNear "Alg.projNetNorm == norm . bar . proj (set semantics)" expected actual
+
+-- | 'MoneyDecimal' values equal under 'Eq' have equal hashes, whatever their
+-- number of decimal places (0.5.3.1: the hash used the raw places and mantissa).
+testMoneyDecimalHashMatchesEq :: IO ()
+testMoneyDecimalHashMatchesEq = do
+    let same :: [(MoneyDecimal, MoneyDecimal)]
+        same = [ (MoneyDecimal (Decimal 1 10), MoneyDecimal (Decimal 2 100))
+               , (MoneyDecimal (Decimal 0 0), MoneyDecimal (Decimal 3 0))
+               , (MoneyDecimal (Decimal 1 125), MoneyDecimal (Decimal 3 12500)) ]
+    assertEqual "equal MoneyDecimal values compare equal" True (all (uncurry (==)) same)
+    assertEqual "equal MoneyDecimal values hash equally" True
+        (all (\(a, b) -> hash a == hash b) same)
 
 -- | R7 sentinel (a): a duplicated exact base must project the same as a single
 -- copy (MoneyDecimal exact: no floating tolerance needed).
@@ -6983,6 +6997,7 @@ main = do
     testMapMaybePosting
     testProjMultiPatternOnePass
     testProjNormFastPath
+    testMoneyDecimalHashMatchesEq
     testProjDuplicateExact
     testProjExactWildcardOverlap
     testProjNormBarIdentity

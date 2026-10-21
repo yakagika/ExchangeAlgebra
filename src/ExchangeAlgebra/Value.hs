@@ -61,7 +61,7 @@ module ExchangeAlgebra.Value
     ) where
 
 import           ExchangeAlgebra.Algebra (HatVal (..), Nearly (..))
-import           Data.Decimal            (Decimal, DecimalRaw (Decimal), roundTo')
+import           Data.Decimal            (Decimal, DecimalRaw (Decimal), normalizeDecimal, roundTo')
 import           Data.Word               (Word8)
 import           Data.Hashable           (Hashable (..))
 import           Control.DeepSeq         (NFData (..))
@@ -108,7 +108,9 @@ instance HatVal MoneyDecimal where
 
 -- 'Binary'/'Hashable' are defined here (not orphan) because 'Data.Decimal' ships
 -- neither, and 'Alg'/t'Journal' serialization and the binary spill path require
--- @Binary v@. Both go through the (places, mantissa) structure of t'Decimal'.
+-- @Binary v@. 'Binary' keeps the (places, mantissa) structure of t'Decimal'.
+-- 'Hashable' hashes the normalized form (trailing zeros removed), so values that
+-- are equal under 'Eq' (@1.0 == 1.00@) have the same hash.
 instance Binary.Binary MoneyDecimal where
     {-# INLINE put #-}
     put (MoneyDecimal (Decimal places mantissa)) = do
@@ -122,8 +124,8 @@ instance Binary.Binary MoneyDecimal where
 
 instance Hashable MoneyDecimal where
     {-# INLINE hashWithSalt #-}
-    hashWithSalt s (MoneyDecimal (Decimal places mantissa)) =
-        s `hashWithSalt` places `hashWithSalt` mantissa
+    hashWithSalt s (MoneyDecimal d) = case normalizeDecimal d of
+        Decimal places mantissa -> s `hashWithSalt` places `hashWithSalt` mantissa
 
 instance NFData MoneyDecimal where
     {-# INLINE rnf #-}

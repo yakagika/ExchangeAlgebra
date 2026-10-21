@@ -1,5 +1,15 @@
 # Changelog for ExchangeAlgebra
 
+## 0.5.3.1 - 2026-10-21
+
+### Fixed
+
+- The `Hashable` instance of `MoneyDecimal` now agrees with its `Eq` instance:
+  values that differ only in trailing zeros (`1.0` and `1.00`) have the same
+  hash. The hash previously used the raw number of decimal places and the
+  mantissa, so equal values could land in different `HashMap` or `HashSet`
+  buckets. The `Binary` encoding is unchanged.
+
 ## 0.5.3.0 - 2026-09-26
 
 ### Added
