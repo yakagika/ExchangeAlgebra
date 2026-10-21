@@ -1304,6 +1304,66 @@ testIsContraSweepAcrossBaseInstances = do
     sweep "SimHatBase2 (custom instance)" (\t -> Not :< (t, 1, 2, Yen) :: SimHatBase2)
 
 
+-- | Check that allowance deductions preserve presentations without allowance activity.
+testPresentationGroupsWithoutAllowances :: IO ()
+testPresentationGroupsWithoutAllowances = do
+    let defaultDefs = RG.defaultPresentationGrouping
+        oldDefs = L.map restoreDeductions defaultDefs
+        restoreDeductions definition = case RG.pgKey definition of
+            RG.NetSalesGroup -> definition { RG.pgDeductions = [SalesRebates] }
+            RG.NetPurchasesGroup -> definition { RG.pgDeductions = [PurchaseRebates] }
+            _ -> definition
+        displayedBlocks presentation =
+            [(RG.pgKey definition, rows) | (definition, rows) <- RG.gpBlocks presentation]
+        allowanceTitles = Set.fromList [SalesAllowances, PurchaseAllowances]
+        check :: (HatVal v, Show v) => String -> M.Map AccountTitles (v, v) -> IO ()
+        check valueType ordinary = do
+            let rebates = M.union ordinary (M.fromList
+                    [ (SalesRebates, (100, 0))
+                    , (PurchaseRebates, (0, 50))
+                    ])
+                zeroAllowances = M.union rebates (M.fromList
+                    [ (SalesAllowances, (0, 0))
+                    , (PurchaseAllowances, (0, 0))
+                    ])
+            forM_ [("a", ordinary), ("b", rebates), ("c", zeroAllowances)] $
+                \(scenario, balances) -> do
+                    let current = RG.presentGroups defaultDefs balances
+                        previous = RG.presentGroups oldDefs balances
+                        label = valueType ++ " allowance compatibility " ++ scenario
+                        -- Active groups consume all members, including absent allowances.
+                        expectedConsumed = case scenario of
+                            "a" -> RG.gpConsumed previous
+                            _ -> Set.union (RG.gpConsumed previous) allowanceTitles
+                    assertEqual (label ++ " displayed blocks")
+                        (displayedBlocks previous) (displayedBlocks current)
+                    assertEqual (label ++ " root totals")
+                        (RG.gpRootTotals previous) (RG.gpRootTotals current)
+                    assertEqual (label ++ " consumed titles")
+                        expectedConsumed (RG.gpConsumed current)
+            let withAllowances = M.insert SalesAllowances (30, 0) rebates
+                netSales =
+                    [ RG.grAmount row
+                    | (definition, rows) <- RG.gpBlocks
+                        (RG.presentGroups defaultDefs withAllowances)
+                    , RG.pgKey definition == RG.NetSalesGroup
+                    , row <- rows
+                    , RG.grKind row == RG.NetRow RG.NetSalesGroup
+                    ]
+            -- Net sales: gross sales 1000 minus rebates 100 and allowances 30.
+            assertEqual (valueType ++ " d: net sales deduct rebates and allowances")
+                [RG.RelativeAmount False 870] netSales
+    check "Double" (M.fromList
+        [ (Sales, (0, 1000))
+        , (Purchases, (600, 0))
+        , (Cash, (400, 0))
+        ] :: M.Map AccountTitles (Double, Double))
+    check "MoneyDecimal" (M.fromList
+        [ (Sales, (0, 1000))
+        , (Purchases, (600, 0))
+        , (Cash, (400, 0))
+        ] :: M.Map AccountTitles (MoneyDecimal, MoneyDecimal))
+
 testPresentationGroups :: IO ()
 testPresentationGroups = do
     let defaultDefs = RG.defaultPresentationGrouping
@@ -2892,6 +2952,7 @@ runTests = do
     testExchangeRelationProp538
     testIsContraSweepAcrossBaseInstances
     testPresentationGroups
+    testPresentationGroupsWithoutAllowances
     testStatementRowsAndProjectionsLiteral
     testStatementPresentationGolden
     testWhichSideHatNotErrors
