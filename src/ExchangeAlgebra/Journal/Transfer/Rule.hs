@@ -89,26 +89,26 @@ closingEntries :: (Note n, HatVal v, ExBaseClass b)
 closingEntries = Closing.closingEntries . toAlg
 
 -- | Round selected complete-base nets once and attach the carry note.
-carryNetEntries :: (Note n, HatBaseClass b)
+-- Each complete base's Not and Hat values are accumulated exactly with the
+-- 'HatVal' accumulator; the net is rounded once. Failures are reported as
+-- 'CarryError' (see 'carryEntries').
+carryNetEntries :: (Note n, HatVal v, HatBaseClass b)
                 => n
-                -> Journal n Double b
-                -> Either ExactSumError (Journal n Double b)
-carryNetEntries carryNote selected = do
-    balances <- Exact.balanceMapByExact Just selected
-    pure (OrderedMap.foldlWithKey' append mempty balances)
-  where
-    append result coordinates (direction, value) = case direction of
-        EQ -> result
-        GT -> result <> ((value .@ merge Not coordinates) .| carryNote)
-        LT -> result <> ((value .@ merge Hat coordinates) .| carryNote)
+                -> Journal n v b
+                -> Either CarryError (Journal n v b)
+carryNetEntries _ _ = error "P3b-W2 D3: carryNetEntries on the HatVal accumulator"
 
 -- | Generate carry entries while retaining every original posting.
 -- Select source notes with the predicate, reverse the Hat or Not side of each
 -- selected scalar under its original note, and append one rounded exact net
 -- per complete base under the carry note. An exact zero net adds no entry.
--- The net uses 'Exact.balanceMapByExact' on the selected original scalars;
--- no @bar@ or intermediate rounding is applied. An aggregation failure
--- returns 'Left' with 'ExactSumError'.
+-- The net accumulates the selected original scalars exactly with the 'HatVal'
+-- accumulator and rounds once per complete base; no @bar@ or intermediate
+-- rounding is applied. Failures return 'Left' with 'CarryError': a selected
+-- nonzero HatNot posting is 'WildcardSide'; a selected value with
+-- 'valueError' is 'NonFiniteValue' or 'NegativeValue' (first in scan order,
+-- checked in that priority); a net whose single rounding is not finite is
+-- 'ResultOutOfRange'.
 --
 -- Inputs require concrete Hat or Not sides and finite, non-negative values.
 -- Selected nonzero HatNot entries lie outside this contract. Applying the
@@ -123,12 +123,13 @@ carryNetEntries carryNote selected = do
 -- journal, @s_b@ is the selected exact net, and @RN@ rounds once to Double.
 -- Observation: Rational balances of original scalar entries, including zero
 -- bases. Tolerance: exact Rational equality. Instances: 'Note' and
--- 'HatBaseClass' with Double values.
-carryEntries :: (Note n, HatBaseClass b)
+-- 'HatBaseClass' with any 'HatVal' value type. For Double, finite results are
+-- bit-identical to the 0.5.x implementation.
+carryEntries :: (Note n, HatVal v, HatBaseClass b)
              => (n -> Bool)
              -> n
-             -> Journal n Double b
-             -> Either ExactSumError (Journal n Double b)
+             -> Journal n v b
+             -> Either CarryError (Journal n v b)
 carryEntries selectedNote carryNote journal = do
     carried <- carryNetEntries carryNote selected
     pure (Journal.map (.^) selected <> carried)
@@ -157,9 +158,8 @@ carryEntries selectedNote carryNote journal = do
 -- selected notes would also remove @Q@. Selected nonzero HatNot entries lie
 -- outside the contract.
 --
--- The selected net is computed by 'Exact.balanceMapByExact' and rounded once
--- per complete base. An aggregation failure returns 'Left' with
--- 'ExactSumError'. Structurally, 'carryEntries' resembles
+-- The selected net is accumulated exactly and rounded once per complete base,
+-- with the same 'CarryError' failures as 'carryEntries'. Structurally, 'carryEntries' resembles
 -- 'ExchangeAlgebra.Algebra.Transfer.Rule.collapseNetEntries': both generate
 -- reversals and moved nets. The latter uses @bar@ after rewriting and has a
 -- different numeric contract. Complexity: O(e log(k + 1)) for e selected
@@ -168,12 +168,12 @@ carryEntries selectedNote carryNote journal = do
 -- above. Relation: the nonzero scalar-entry multiset equals that obtained
 -- from @forgetNotes p (j <> e)@ for @Right e = carryEntries p n j@.
 -- Observation: nonzero scalar-entry multiset. Tolerance: exact.
--- Instances: 'Note' and 'HatBaseClass' with Double values.
-carryBefore :: (Note n, HatBaseClass b)
+-- Instances: 'Note' and 'HatBaseClass' with any 'HatVal' value type.
+carryBefore :: (Note n, HatVal v, HatBaseClass b)
             => (n -> Bool)
             -> n
-            -> Journal n Double b
-            -> Either ExactSumError (Journal n Double b)
+            -> Journal n v b
+            -> Either CarryError (Journal n v b)
 carryBefore selectedNote carryNote journal = do
     carried <- carryNetEntries carryNote selected
     pure (retained <> carried)
@@ -194,9 +194,9 @@ sideTotal :: PostSide -> SideTotals -> Double
 sideTotal HatSide = hatTotal
 sideTotal NotSide = notTotal
 
--- | Failures of 'sideTotalsBy', in descending priority.
--- In P3 this type is planned to succeed 'ExactSumError'. It currently belongs
--- only to 'sideTotalsBy'; 'carryBefore' still reports 'ExactSumError'.
+-- | Failures of 'carryEntries', 'carryBefore', and 'sideTotalsBy', in
+-- descending priority. This is the successor of 0.5.x 'ExactSumError'
+-- for these functions.
 data CarryError
     = WildcardSide   -- ^ A posting uses HatNot, including a retained zero posting.
     | NonFiniteValue -- ^ A posting is NaN or infinite.

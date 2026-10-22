@@ -147,21 +147,32 @@ closingSide title = case accountSpec title of
         | otherwise = ordinaryDirection
     ordinaryDirection = pimoFromDivision (classifyAccountDivision title)
 
--- | Generate closing entries from each eligible base's sequential side totals.
--- Supply only postings through the closing date. Hat and Not totals are
--- compared without a tolerance; their non-negative difference is closed.
--- This deliberately folds the source sequences (audit detail) per base,
--- but preserves separate target postings from distinct source accounts.
--- It does not call @bar@: small rounding residues can become closing entries.
--- All non-account axes are retained, and no note is attached.
--- Input values must satisfy the ordinary non-negative, finite posting contract.
--- Finite inputs normally yield 'Right'; 'Left' occurs only when a side's sum
--- exceeds the value type's range. Both side totals and their difference are
--- checked before generating postings, even when both totals compare equal.
--- 'NonFiniteBalance' reports the first base in ascending 'Ord' order after
--- normalizing Hat/Not to Not. No partial result or split balance is returned.
--- Balance collection is O(s log b), for s postings and b eligible bases;
--- output construction uses the ordinary algebra addition operation.
+-- | Generate closing entries that close each eligible base exactly.
+-- Supply only postings through the closing date. For each base whose account
+-- has a 'closingSide', the Hat and Not values are accumulated without
+-- rounding ('HatVal' accumulator); the exact net (Not minus Hat) decides the
+-- winning side. A zero net generates nothing. Otherwise 'splitAccum' splits
+-- the exact magnitude into finite positive values @d1 >= d2 >= ... >= dk@
+-- whose exact sum is the net, and each @di@ becomes one pair: the reversal of
+-- the base and the posting to 'RetainedEarnings'. @k = 1@ whenever the net is
+-- representable in the value type. The pairs are not compressed back into one
+-- pair, so the exact net of every closed base after the entries is zero.
+-- This folds the source sequences (audit detail) per base, but preserves
+-- separate target postings from distinct source accounts. It does not call
+-- @bar@. All non-account axes are retained, and no note is attached.
+--
+-- 'NonFiniteBalance' is returned when an eligible base has a posting value
+-- for which 'valueError' is 'Just' (non-finite or negative), or when its net
+-- cannot be split ('splitAccum' returns 'Nothing': the rounded net is not
+-- finite). Side sums beyond the value type's range succeed when the exact
+-- net is in range. The reported base is the first in ascending 'Ord' order
+-- after normalizing Hat/Not to Not. No partial result is returned.
+--
+-- Laws (exact arithmetic; observed with 'exactAccum'): for every closed base
+-- the exact net of @x .+ c@ is zero, where @Right c = closingEntries x@;
+-- the entries of @c@ have equal exact debit and credit sums; and
+-- @closingEntries (x .+ c) == Right Zero@.
+-- Balance collection is O(s log b), for s postings and b eligible bases.
 closingEntries :: (HatVal v, ExBaseClass b)
                => Alg v b -> Either (TransferApplyError v b) (Alg v b)
 closingEntries = Map.foldlWithKey' close (Right Zero) . foldEntries collect Map.empty
