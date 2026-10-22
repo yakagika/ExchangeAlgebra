@@ -20,6 +20,7 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import           Data.Text (Text)
 import           Data.Proxy (Proxy(..))
+import           GHC.Float (castWord64ToDouble)
 import           Numeric (readHex, showHex)
 import           System.Environment (lookupEnv)
 import           Control.Monad (forM_, unless)
@@ -245,7 +246,7 @@ rejected =
             <> Binary.encode (1 :: Int) <> Binary.encode (-1 :: Double)
             <> Binary.encode (Hat :< Cash))
         (Proxy :: Proxy (Journal.Journal Int Double WireBase))
-    , DecodeCase "Alg NaN" (Binary.encode (1 :: Int) <> Binary.encode (0 / 0 :: Double)
+    , DecodeCase "Alg NaN" (Binary.encode (1 :: Int) <> Binary.encode portableNaN
         <> Binary.encode (Hat :< Cash)) (Proxy :: Proxy (EA.Alg Double WireBase))
     , DecodeCase "Alg infinity" (Binary.encode (1 :: Int) <> Binary.encode (1 / 0 :: Double)
         <> Binary.encode (Not :< Cash)) (Proxy :: Proxy (EA.Alg Double WireBase))
@@ -275,12 +276,17 @@ rejected =
         (Binary.encode (2 :: Int) <> Binary.encode (1 :: Int)
             <> Binary.encode Cash <> Binary.encode pair)
         (Proxy :: Proxy (EA.Alg Double WireBase))
-    | (description, value) <- [("negative", -1), ("NaN", 0 / 0), ("infinity", 1 / 0)]
+    | (description, value) <- [("negative", -1), ("NaN", portableNaN), ("infinity", 1 / 0)]
     , (side, pair) <-
         [ ("Hat", EA.Pair (Seq.fromList [0, value]) (Seq.singleton 0) :: EA.Pair Double)
         , ("Not", EA.Pair (Seq.singleton 0) (Seq.fromList [0, value]) :: EA.Pair Double)
         ]
     ]
+
+-- A quiet NaN with a fixed bit pattern. @0 / 0@ sets the sign bit on x86_64
+-- but not on arm64, and the sign changes the encoded bytes.
+portableNaN :: Double
+portableNaN = castWord64ToDouble 0x7FF8000000000000
 
 checkRejected :: DecodeCase -> IO ()
 checkRejected (DecodeCase name bytes (_ :: Proxy a)) = case Binary.decodeOrFail bytes of
