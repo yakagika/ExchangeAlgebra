@@ -4,6 +4,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.ByteString as ByteString
 import Control.Monad (unless)
+import qualified ExchangeAlgebra.Journal.Core as Journal
 import qualified ExchangeAlgebra.Algebra as EA
 import qualified ExchangeAlgebra.Algebra.Transfer as Transfer
 import qualified ExchangeAlgebra.IO.Input.Admission as Admission
@@ -45,10 +46,11 @@ main = do
             case Admission.admit spec submitted of
                 Left problems -> fail (show problems)
                 Right accepted -> do
-                    let adjusted = EA.fromList
-                            (Map.elems (Admission.admittedSnapshot Admission.Adjusted accepted))
-                        closed = EA.fromList
-                            (Map.elems (Admission.admittedSnapshot Admission.Closed accepted))
+                    let adjusted = Journal.toAlg $ Admission.admittedJournal $
+                            Admission.restrictAdmitted
+                                ((<= Admission.ConsolidationStage) . Admission.admissionStage)
+                                accepted
+                        closed = Journal.toAlg (Admission.admittedJournal accepted)
                     let closesAgree = EA.bar closed ==
                             EA.bar (Transfer.finalStockTransfer adjusted)
                     print closesAgree

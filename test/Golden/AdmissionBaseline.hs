@@ -7,7 +7,9 @@ module Golden.AdmissionBaseline
     , renderRows
     ) where
 
-import Data.List (sort)
+import Data.List (find, sort, sortOn)
+import qualified Data.HashMap.Strict as HashMap
+import qualified ExchangeAlgebra.Journal.Core as Journal
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -66,23 +68,33 @@ signature = sort . map posting . toList
         side :< account -> (account, side, _val value)
 
 -- | Show every accepted transaction and query value, or the ordered errors.
-observeAdmission :: Either (NonEmpty AdmissionError) Admitted -> Text
-observeAdmission outcome = case outcome of
+observeAdmission :: Text -> Either (NonEmpty AdmissionError) Admitted -> Text
+observeAdmission name outcome = case outcome of
     Left failures -> "Left " <> Text.pack (show failures)
-    Right accepted -> "Right ledger="
-        <> Text.pack (show
-            [ (transaction, signature entry)
-            | (transaction, entry) <- Map.toAscList (deriveLedger accepted)
-            ])
+    Right accepted
+        | actualMetadata accepted /= sort (expectedMetadata name) ->
+            error ("G1 admission metadata mismatch: " ++ Text.unpack name
+                ++ show (actualMetadata accepted, expectedMetadata name))
+        | any ((/= admittedCalls accepted) . admittedCalls . (`restrictAdmitted` accepted))
+              [const True, const False, (<= OrdinaryStage) . admissionStage,
+               (<= ConsolidationStage) . admissionStage] ->
+            error ("G3 call audit changed under restriction: " ++ Text.unpack name)
+        | otherwise -> "Right ledger="
+        <> Text.pack (show (snapshotSignature (admittedJournal accepted)))
         <> " audit=" <> Text.pack (show
             [ (auditOperation audit, auditGenerated audit,
                 auditReferences audit, auditProjection audit)
-            | audit <- admittedAudit accepted
+            | audit <- admittedCalls accepted
             ])
-        <> " snapshots=" <> Text.pack (show
-            [ (snapshot, snapshotSignature (admittedSnapshot snapshot accepted))
-            | snapshot <- [DuringPeriod, Adjusted, Closed]
-            ])
+        <> " snapshots=[" <> Text.intercalate ","
+            [ "(" <> label <> "," <> Text.pack (show (snapshotSignature
+                (admittedJournal (restrictAdmitted predicate accepted)))) <> ")"
+            | (label, predicate) <-
+                [ ("DuringPeriod", (<= OrdinaryStage) . admissionStage)
+                , ("Adjusted", (<= ConsolidationStage) . admissionStage)
+                , ("Closed", const True)
+                ]
+            ] <> "]"
         <> " trial=" <> case deriveTrialBalance accepted of
             Left failures -> Text.pack (show failures)
             Right trial -> Text.pack (show
@@ -91,11 +103,104 @@ observeAdmission outcome = case outcome of
                 ))
 
 -- | Observe every snapshot as a map of sorted posting multisets.
-snapshotSignature :: Map.Map TxKey Entry
-                  -> [(TxKey, [(AccountTitles, Hat, MoneyDecimal)])]
+snapshotSignature :: AdmissionJournal -> [(TxKey, [(AccountTitles, Hat, MoneyDecimal)])]
 snapshotSignature snapshot =
-    [ (transaction, signature entry)
-    | (transaction, entry) <- Map.toAscList snapshot
+    sortOn fst
+        [(admissionKey note, signature entry)
+        | (note, entry) <- HashMap.toList (Journal.toMap snapshot)]
+
+-- | G1 observes every nonempty transaction in the baseline inputs, exactly.
+actualMetadata :: Admitted -> [(TxKey, Role, Stage, Provenance)]
+actualMetadata accepted = sort
+    [(admissionKey note, admissionRole note, admissionStage note, admissionProvenance note)
+    | note <- HashMap.keys (Journal.toMap (admittedJournal accepted))]
+
+-- | Handwritten old metadata expectations, independent of the new stage getter.
+-- Catalog roles are the old builder-parity table; stages are listed explicitly.
+-- Empty generated keys have no public note and are omitted from this observation.
+expectedMetadata :: Text -> [(TxKey, Role, Stage, Provenance)]
+expectedMetadata name
+    | Just (_, body, kind, role, _, _) <- findCatalog =
+        [ (key catalogA periodOne "source", Ordinary, OrdinaryStage,
+            case body of
+                ReverseEntry _ -> SubmissionProvenance Nothing
+                _ -> FactProvenance (FactId "source"))
+        , (key catalogA periodOne "generated", role, oldStage,
+            CatalogProvenance (CallId name) kind)
+        ]
+    | "protected-" `Text.isPrefixOf` name =
+        [(key catalogA periodOne "protected", Ordinary, OrdinaryStage,
+            SubmissionProvenance Nothing)]
+    | otherwise = case name of
+        "query-only-equity-balance" -> [ordinary "ordinary"]
+        "zero-output-generated-key" -> [ordinary "ordinary"]
+        "zero-catalog" -> []
+        "alternative-raw" ->
+            [ (key entityA periodOne "either-route", Ordinary, OrdinaryStage,
+                SubmissionProvenance (Just (EvidenceId "receipt")))
+            , (key entityA periodOne "reverse", Ordinary, OrdinaryStage,
+                CatalogProvenance (CallId "reverse") ReverseEntryKind)
+            ]
+        "alternative-catalog" ->
+            [(key entityA periodOne "either-route", Ordinary, OrdinaryStage,
+                CatalogProvenance (CallId "interim") CorporateInterimKind)]
+        "full-period" ->
+            [ ordinary "sale"
+            , (key entityA periodOne "depreciation", Adjustment, AdjustmentStage,
+                CatalogProvenance (CallId "depreciate") DepIndirectKind)
+            , (key entityA periodOne "closing", Closing, ClosingStage,
+                CatalogProvenance (CallId "close") FinalStockKind)
+            ]
+        "two-company-consolidation" ->
+            [ (key entityA periodOne "source", Ordinary, OrdinaryStage, FactProvenance (FactId "a"))
+            , (key entityB periodOne "source", Ordinary, OrdinaryStage, FactProvenance (FactId "b"))
+            , (key entityA periodOne "elimination", Elimination, ConsolidationStage,
+                SubmissionProvenance Nothing)
+            ]
+        "allowance-visibility" ->
+            [ ordinary "receivable"
+            , (key entityB periodOne "receivable", Ordinary, OrdinaryStage,
+                SubmissionProvenance Nothing)
+            , (key entityA periodOne "elimination", Elimination, ConsolidationStage,
+                SubmissionProvenance Nothing)
+            , (key entityA periodOne "allowance", Adjustment, AdjustmentStage,
+                CatalogProvenance (CallId "allowance") AllowanceRateKind)
+            ]
+        "catalog-equity-balance" ->
+            [(key catalogA periodOne "investment", Ordinary, OrdinaryStage,
+                FactProvenance (FactId "investment"))]
+        "catalog-consolidate" ->
+            [ (key catalogA periodOne "source", Ordinary, OrdinaryStage,
+                FactProvenance (FactId "first"))
+            , (key (EntityId "catalog-B") periodOne "source", Ordinary, OrdinaryStage,
+                FactProvenance (FactId "second"))
+            , (key catalogA periodOne "elimination", Elimination, ConsolidationStage,
+                FactProvenance (FactId "elimination"))
+            ]
+        _ -> error ("Missing G1 metadata expectation: " ++ Text.unpack name)
+  where
+    catalogA = EntityId "catalog-A"
+    oldStage = case lookup name oldCatalogStages of
+        Just stage -> stage
+        Nothing -> error "Missing old catalog stage"
+    findCatalog = find (\(label, _, _, _, _, _) -> label == name) catalogInputs
+    ordinary :: Text -> (TxKey, Role, Stage, Provenance)
+    ordinary identity = (key entityA periodOne identity, Ordinary, OrdinaryStage,
+                         SubmissionProvenance Nothing)
+
+-- | Old catalog stage for each generating baseline input, written by hand.
+oldCatalogStages :: [(Text, Stage)]
+oldCatalogStages =
+    [ ("Cogs", AdjustmentStage), ("DepIndirect", AdjustmentStage)
+    , ("DepDirect", AdjustmentStage), ("Allowance", AdjustmentStage)
+    , ("AllowanceRate", AdjustmentStage), ("AllowanceReset", AdjustmentStage)
+    , ("Prepaid", AdjustmentStage), ("Unearned", AdjustmentStage)
+    , ("AccruedRevenue", AdjustmentStage), ("AccruedExpense", AdjustmentStage)
+    , ("ReverseEntry", OrdinaryStage), ("ConsumptionTax", AdjustmentStage)
+    , ("CorporateInterim", OrdinaryStage), ("CorporateSettlement", AdjustmentStage)
+    , ("EquityEarnings", ConsolidationStage), ("EquityDividend", OrdinaryStage)
+    , ("EquityEntries", ConsolidationStage), ("PriorError", AdjustmentStage)
+    , ("FinalStock", ClosingStage), ("StraightLine", AdjustmentStage)
     ]
 
 -- | Observe registry construction without discarding diagnostic order.
@@ -119,7 +224,7 @@ admissionCase name category rules evidence facts vocabulary submission =
   where
     result = case txIdRegistry rules of
         Left failures -> "RegistryLeft " <> Text.pack (show failures)
-        Right registry -> observeAdmission
+        Right registry -> observeAdmission name
             (admit (AdmissionSpec registry evidence facts vocabulary) submission)
 
 -- | Use the complete account vocabulary in catalog and classification cases.
@@ -414,7 +519,7 @@ periodCases = case txIdRegistry rules of
     Right registry ->
         let outcome = admit (AdmissionSpec registry Map.empty Map.empty smallVocabulary)
                 (Submission [(raw, saleRows)] calls)
-        in [ GoldenCase "full-period" "finalstock" (observeAdmission outcome)
+        in [ GoldenCase "full-period" "finalstock" (observeAdmission "full-period" outcome)
            , GoldenCase "full-period-statements" "finalstock"
                 (statementObservation outcome)
            ]

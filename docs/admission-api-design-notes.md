@@ -190,14 +190,13 @@ catalog と受入エンジンはそれぞれ独立した責務として保持し
 `TxKey`, `Role`, `Presence`, `Supply`, `AdmissionSpec`, `CatalogOperationKind`, `CatalogCall`,
 `EntityInput`, `Call`, `Submission` である. 診断・観測の構築子を公開する型は
 `RegistryError`, `AdmissionError`, `ReferenceFailure`, `Stage`, `Provenance`, `CallAudit`,
-`Snapshot`, `Equivalence` である. 構築子を隠す公開型は `TxRule`, `TxIdRegistry`, `Admitted`,
+`Equivalence` である. 構築子を隠す公開型は `TxRule`, `TxIdRegistry`, `AdmissionNote`, `Admitted`,
 `AdmittedTrialBalance`, `AdmittedStatements` とする.
 
 ```haskell
 type Entry = Alg MoneyDecimal (HatBase AccountTitles)
 type RawPostings = [(Text, Text, MoneyDecimal)]
-type AdmissionJournal = Journal TxKey MoneyDecimal (HatBase AccountTitles)
-type LedgerView = Map TxKey Entry
+type AdmissionJournal = Journal AdmissionNote MoneyDecimal (HatBase AccountTitles)
 
 txRule :: Presence -> [Supply] -> Maybe EvidenceId -> TxRule
 rulePresence :: TxRule -> Presence
@@ -211,9 +210,12 @@ isGenerating :: CatalogOperationKind -> Bool
 
 admit :: AdmissionSpec -> Submission -> Either (NonEmpty AdmissionError) Admitted
 admittedJournal :: Admitted -> AdmissionJournal
-admittedSnapshot :: Snapshot -> Admitted -> LedgerView
-admittedAudit :: Admitted -> [CallAudit]
-deriveLedger :: Admitted -> LedgerView
+admissionKey :: AdmissionNote -> TxKey
+admissionRole :: AdmissionNote -> Role
+admissionProvenance :: AdmissionNote -> Provenance
+admissionStage :: AdmissionNote -> Stage
+admittedCalls :: Admitted -> [CallAudit]
+restrictAdmitted :: (AdmissionNote -> Bool) -> Admitted -> Admitted
 deriveTrialBalance
     :: Admitted
     -> Either (NonEmpty (TBFinding MoneyDecimal)) AdmittedTrialBalance

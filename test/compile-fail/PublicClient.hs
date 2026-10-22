@@ -8,7 +8,7 @@ import ExchangeAlgebra.IO.Input.Admission
 import ExchangeAlgebra.Algebra.Base (AccountTitles(..))
 
 -- The same installed-package environment must accept a complete public path.
-acceptedLedger :: Either String LedgerView
+acceptedLedger :: Either String AdmissionJournal
 acceptedLedger = do
     let key = TxKey (EntityId "company") (PeriodId "2026") (TxId "sale")
     registry <- either (Left . show) Right
@@ -17,4 +17,4 @@ acceptedLedger = do
         submission = Submission
             [(key, [("debit", "Cash", 10), ("credit", "Sales", 10)])] []
     accepted <- either (Left . show) Right (admit spec submission)
-    Right (deriveLedger accepted)
+    Right (admittedJournal accepted)

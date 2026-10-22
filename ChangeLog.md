@@ -81,6 +81,26 @@
   HatNot postings now return `WildcardSide`.
 - Serialization formats are unchanged by the closing and carry changes.
 
+- Admission results expose `admittedJournal` with `AdmissionNote` notes carrying
+  the transaction key, role, and provenance. Read them with `admissionKey`,
+  `admissionRole`, and `admissionProvenance`; `admissionStage` recovers the
+  library-controlled processing stage. Migrate the previous readouts as follows:
+
+  | Previous readout | Replacement |
+  |---|---|
+  | `admittedSnapshot DuringPeriod` | `admittedJournal . restrictAdmitted ((<= OrdinaryStage) . admissionStage)` |
+  | `admittedSnapshot Adjusted` | `admittedJournal . restrictAdmitted ((<= ConsolidationStage) . admissionStage)` |
+  | `admittedSnapshot Closed`, `deriveLedger` | `admittedJournal` |
+  | `admittedAudit` | `admittedCalls` |
+
+  `Snapshot`, `admittedSnapshot`, and `LedgerView` are removed. The journal
+  contains original postings; transactions without postings have no public
+  journal entry. Their calls remain in `admittedCalls`, which stays complete
+  and in execution order after `restrictAdmitted`. Empty closing transactions
+  kept by the restriction still select closing validation. Acceptance,
+  generated postings, numeric results, diagnostics, and serialization are
+  unchanged.
+
 - `(.|)` now returns an empty `Journal` for a zero algebra element, consistent
   with append and summation. It no longer retains a note for `Zero`.
 

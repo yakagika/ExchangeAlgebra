@@ -14,6 +14,7 @@
 -- >>> import Data.Either (isLeft)
 -- >>> import qualified Data.Map.Strict as Map
 -- >>> import qualified Data.Set as Set
+-- >>> import qualified ExchangeAlgebra.Journal.Core as Journal
 -- >>> import qualified ExchangeAlgebra.IO.Input.Admission as Admission
 -- >>> import ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
 -- >>> let entity = Admission.EntityId "shop"
@@ -31,9 +32,9 @@
 -- >>> let submitted = Admission.Submission [(key, postings)] []
 -- >>> let admitSale registry = admit (spec registry 100) submitted
 -- >>> let accepted = fmap admitSale registryResult
--- >>> fmap (fmap (Map.size . Admission.deriveLedger)) accepted
+-- >>> fmap (fmap (length . Journal.toMap . Admission.admittedJournal)) accepted
 -- Right (Right 1)
--- >>> fmap (fmap (null . Admission.admittedAudit)) accepted
+-- >>> fmap (fmap (null . Admission.admittedCalls)) accepted
 -- Right (Right True)
 -- >>> fmap (\registry -> isLeft (admit (spec registry 99) submitted)) registryResult
 -- Right True
@@ -436,7 +437,12 @@ evidenceErrors spec (Execution journal entries _) =
 -- per-key metadata), keep the call audit, and record the notes of every
 -- accepted key, including keys whose transaction has no postings.
 finish :: Execution -> Admitted
-finish _ = error "P3a-W1 D3: finish builds AdmissionNote journal"
+finish (Execution journal entries audits) = Admitted accepted audits (Set.fromList notes)
+  where
+    notes = [AdmissionNote key role origin
+            | (key, EntryMetadata role _ origin) <- Map.toAscList entries]
+    accepted = Journal.fromList
+        [entryAt key journal Journal..| note | note@(AdmissionNote key _ _) <- notes]
 
 -- | Admit a complete submission against a fixed trusted specification.
 --

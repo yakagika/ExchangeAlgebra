@@ -46,9 +46,9 @@
 
 - 題材と行: `Admission.hs:48-65`.
 - したかったこと: 受入で生成した締めと, 決算振替 API の締めが同じ残高になることを確認し, 試算表と諸表を得る.
-- 起きたこと: `admittedSnapshot` は取引キーから仕訳への `Map` を返す. 2 つの締めを比較するには各値を `fromList` で台帳化し, 冗長列の差を消す `bar` を両側に明示する必要があった. 諸表まで `deriveTrialBalance` と `presentAdmitted` の二段の `Either` をたどる.
-- 回避: `Adjusted` / `Closed` の snapshot をそれぞれ集め, `bar closed == bar (finalStockTransfer adjusted)` を検査した. `deriveTrialBalance` と `presentAdmitted` の失敗は見本の実行失敗にした.
-- API: `ExchangeAlgebra.IO.Input.Admission.admittedSnapshot` / `deriveTrialBalance` / `presentAdmitted`, `ExchangeAlgebra.Algebra.fromList` / `bar`, `ExchangeAlgebra.Algebra.Transfer.finalStockTransfer`.
+- 起きたこと: `admittedJournal` は `AdmissionNote` を note に持つ Journal を返す. 2 つの締めを比較するには `restrictAdmitted` で調整後の取引を選び, `Journal.toAlg` で台帳を読み, 冗長列の差を消す `bar` を両側に明示する必要があった. 諸表まで `deriveTrialBalance` と `presentAdmitted` の二段の `Either` をたどる.
+- 回避: `((<= ConsolidationStage) . admissionStage)` の取引と全取引をそれぞれ読み, `bar closed == bar (finalStockTransfer adjusted)` を検査した. `deriveTrialBalance` と `presentAdmitted` の失敗は見本の実行失敗にした.
+- API: `ExchangeAlgebra.IO.Input.Admission.admittedJournal` / `restrictAdmitted` / `deriveTrialBalance` / `presentAdmitted`, `ExchangeAlgebra.Journal.Core.toAlg`, `ExchangeAlgebra.Algebra.bar`, `ExchangeAlgebra.Algebra.Transfer.finalStockTransfer`.
 
 ## 7. 取引網の係数から解析用配列へ橋渡しできない
 

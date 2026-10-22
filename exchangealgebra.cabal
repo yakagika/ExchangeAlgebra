@@ -136,6 +136,7 @@ extra-source-files:
     test/fixtures/write-rows-0510/ebex9-post-closing-trial-balance.tsv
     test/fixtures/write-rows-0510/ebex9-worksheet.tsv
     test/fixtures/write-rows-0510/README.md
+    test/compile-fail/AdmissionNoteConstructor.hs
     test/compile-fail/Coerce.hs
     test/compile-fail/Constructor.hs
     test/compile-fail/HiddenModule.hs

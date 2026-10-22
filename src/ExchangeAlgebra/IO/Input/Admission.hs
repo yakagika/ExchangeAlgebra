@@ -73,6 +73,7 @@
 -- >
 -- > import qualified Data.Map.Strict as Map
 -- > import qualified Data.Set as Set
+-- > import qualified ExchangeAlgebra.Journal.Core as Journal
 -- > import ExchangeAlgebra.Accounting.Account (AccountTitles(Cash, Sales))
 -- > import qualified ExchangeAlgebra.IO.Input.Admission as Admission
 -- >
@@ -96,7 +97,8 @@
 -- >                     }
 -- >             case Admission.admit spec submitted of
 -- >                 Left problems -> fail (show problems)
--- >                 Right accepted -> print (Map.size (Admission.deriveLedger accepted))
+-- >                 Right accepted -> print $ length $ Journal.toMap $
+-- >                     Admission.admittedJournal accepted
 module ExchangeAlgebra.IO.Input.Admission
     ( -- * Identifiers and entries
       EntityId(..)

@@ -5,6 +5,8 @@ module Admission.CatalogSpec (runTests) where
 
 import Control.Monad (forM_, unless)
 import Data.List (sort)
+import qualified Data.HashMap.Strict as HashMap
+import qualified ExchangeAlgebra.Journal.Core as Journal
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map.Strict as Map
@@ -140,13 +142,12 @@ runBuilderCase fixture = do
     admitted <- requireRight (caseName fixture) (admit
         (specification registry facts)
         (Submission postings [invocation]))
-    actual <- requireRight (caseName fixture ++ " generated key")
-        (maybe (Left "missing generated key") Right
-            (Map.lookup generated (deriveLedger admitted)))
+    let actual = Journal.toAlg $ Journal.filterWithNote
+            (\note _ -> admissionKey note == generated) (admittedJournal admitted)
     assertTest (caseName fixture ++ " builder parity") $
         signature actual == signature (caseExpected fixture)
     assertTest (caseName fixture ++ " audit") $
-        map auditOperation (admittedAudit admitted) == [caseKind fixture]
+        map auditOperation (admittedCalls admitted) == [caseKind fixture]
 
 -- | All twenty generating constructors, including the direct and indirect
 -- account paths selected by their arguments.
@@ -224,10 +225,11 @@ testEquityBalance = do
         (specification registry (Map.singleton fact investmentRows))
         (Submission [] [invocation]))
     assertTest "EquityBalance projection" $
-        map auditProjection (admittedAudit admitted)
+        map auditProjection (admittedCalls admitted)
             == [Just (Bookkeeping.equityMethodBalance ledger)]
     assertTest "EquityBalance preserves source" $
-        Map.keysSet (deriveLedger admitted) == Set.singleton source
+        Set.fromList (map admissionKey (HashMap.keys (Journal.toMap (admittedJournal admitted))))
+            == Set.singleton source
 
 -- | Verify consolidation consumes two entity facts and one elimination fact
 -- without creating a new ledger transaction.
@@ -258,8 +260,9 @@ testConsolidate = do
     admitted <- requireRight "Consolidate" (admit
         (specification registry facts) (Submission [] [invocation]))
     assertTest "Consolidate retains only referenced entries" $
-        Map.keysSet (deriveLedger admitted) == Set.fromList [first, second, elimination]
-    assertTest "Consolidate query audit" $ case admittedAudit admitted of
+        Set.fromList (map admissionKey (HashMap.keys (Journal.toMap (admittedJournal admitted))))
+            == Set.fromList [first, second, elimination]
+    assertTest "Consolidate query audit" $ case admittedCalls admitted of
         [audit] -> auditOperation audit == ConsolidateKind
             && auditGenerated audit == Nothing
             && length (auditReferences audit) == 3

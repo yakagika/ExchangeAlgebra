@@ -8,6 +8,8 @@ import Control.Monad (forM_, unless)
 import qualified Data.ByteString.Char8 as ByteString
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NonEmpty
+import qualified Data.HashMap.Strict as HashMap
+import qualified ExchangeAlgebra.Journal.Core as Journal
 import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map)
 import qualified Data.Set as Set
@@ -27,6 +29,7 @@ import ExchangeAlgebra.Algebra
     )
 import ExchangeAlgebra.Algebra.Base (AccountTitles(..), HatBase((:<)))
 import qualified ExchangeAlgebra.Accounting.Statements.Presentation as Presentation
+import qualified ExchangeAlgebra.Accounting.TrialBalance.Validation as TrialBalance
 import ExchangeAlgebra.Accounting.TrialBalance.Balance
     ( AccountBalance(..), accountBalances )
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
@@ -267,7 +270,7 @@ testCalls = do
     accepted <- requireRight "query-only equity balance"
         (admit querySpec (Submission [(raw, saleRows)] [query]))
     assertTest "equity query audit, without generated key" $
-        map auditGenerated (admittedAudit accepted) == [Nothing]
+        map auditGenerated (admittedCalls accepted) == [Nothing]
     assertTest "query-only producer cannot be required in registry" $
         case txIdRegistry [(adjusted, txRule Required [SupplyCatalog EquityBalanceKind] Nothing)] of
             Left errors -> NonGeneratingSupply adjusted EquityBalanceKind
@@ -275,8 +278,11 @@ testCalls = do
             Right _ -> False
     zero <- requireRight "zero-output catalog still fulfills generated key"
         (admit spec (Submission [(raw, saleRows)] [adjustment]))
-    assertTest "zero-output generated key retained" $
-        Map.member adjusted (deriveLedger zero)
+    assertTest "zero-output generated key absent from journal" $
+        HashMap.null $ Journal.toMap $ Journal.filterWithNote
+            (\note _ -> admissionKey note == adjusted) (admittedJournal zero)
+    assertTest "zero-output generated key retained in calls" $
+        map auditGenerated (admittedCalls zero) == [Just adjusted]
 
 -- | ReverseEntry references must match role, entity, and period exactly.
 testReferences :: IO ()
@@ -373,11 +379,12 @@ testAlternativeSupplies = do
     raw <- requireRight "either-route raw with matching evidence" $
         admit matching (Submission [(source, rows)] [reverseCall])
     assertTest "raw route permits ReverseEntry" $
-        Map.keysSet (deriveLedger raw) == Set.fromList [source, reversal]
+        Set.fromList (map admissionKey (HashMap.keys (Journal.toMap (admittedJournal raw))))
+            == Set.fromList [source, reversal]
     catalog <- requireRight "either-route catalog with matching evidence" $
         admit matching (Submission [] [generated 10])
     assertTest "catalog route accepted" $
-        Map.member source (deriveLedger catalog)
+        any ((== source) . admissionKey) (HashMap.keys (Journal.toMap (admittedJournal catalog)))
     assertTest "catalog provenance does not become submission provenance" $
         hasError (== UnresolvedReference (CallId "reverse") source Ordinary
             (ReferenceProvenanceForbidden
@@ -400,8 +407,10 @@ testAlternativeSupplies = do
     zeroSpec <- specFor [(zeroKey, zeroRule)] Map.empty Map.empty
     zero <- requireRight "zero catalog fulfills required key" $
         admit zeroSpec (Submission [] [zeroCall])
-    assertTest "zero catalog retains transaction metadata" $
-        Map.member zeroKey (deriveLedger zero)
+    assertTest "zero catalog absent from journal" $
+        HashMap.null (Journal.toMap (admittedJournal zero))
+    assertTest "zero catalog retained in calls" $
+        map auditGenerated (admittedCalls zero) == [Just zeroKey]
     assertTest "raw and zero catalog routes collide" $
         hasError (== RawGeneratedCollision zeroKey)
             (admit zeroSpec (Submission [(zeroKey, rows)] [zeroCall]))
@@ -458,15 +467,19 @@ testPeriod = do
     spec <- specFor rules Map.empty Map.empty
     admitted <- requireRight "single-company full period"
         (admit spec (Submission [(raw, saleRows)] calls))
-    let snapshot observation =
-            balances (foldr (.+) mempty (Map.elems (admittedSnapshot observation admitted)))
-    assertTest "ordinary snapshot" (snapshot DuringPeriod == expectedOrdinary)
-    assertTest "adjusted snapshot" (snapshot Adjusted == expectedAdjusted)
-    assertTest "closed snapshot" (snapshot Closed == expectedClosed)
+    let snapshot :: (AdmissionNote -> Bool) -> Map AccountTitles (AccountBalance MoneyDecimal)
+        snapshot predicate = balances $ Journal.toAlg $ admittedJournal
+            (restrictAdmitted predicate admitted)
+    assertTest "ordinary snapshot" $
+        snapshot ((<= OrdinaryStage) . admissionStage) == expectedOrdinary
+    assertTest "adjusted snapshot" $
+        snapshot ((<= ConsolidationStage) . admissionStage) == expectedAdjusted
+    assertTest "closed snapshot" (snapshot (const True) == expectedClosed)
     assertTest "every admitted transaction balances" $
-        all entryBalanced (Map.elems (deriveLedger admitted))
-    assertTest "journal and ledger keep the same keys" $
-        Map.keysSet (deriveLedger admitted) == Map.keysSet (admittedSnapshot Closed admitted)
+        all entryBalanced (HashMap.elems (Journal.toMap (admittedJournal admitted)))
+    assertTest "journal keeps all nonempty transaction keys" $
+        Set.fromList (map admissionKey (HashMap.keys (Journal.toMap (admittedJournal admitted))))
+            == Set.fromList [raw, adjustment, closing]
     trial <- requireRight "admitted trial balance" (deriveTrialBalance admitted)
     assertTest "trial balance equals independent closed totals" $
         balances (admittedTrialBalance trial) == expectedClosed
@@ -505,10 +518,11 @@ testConsolidation = do
     admitted <- requireRight "two-company facts and elimination"
         (admit spec (Submission [(elimination, eliminateRows)] [consolidation]))
     assertTest "consolidation is query-only" $
-        map auditGenerated (admittedAudit admitted) == [Nothing]
+        map auditGenerated (admittedCalls admitted) == [Nothing]
     assertTest "facts and elimination retained" $
-        Map.keysSet (deriveLedger admitted) == Set.fromList [first, second, elimination]
-    assertTest "consolidation audit resolves three origins" $ case admittedAudit admitted of
+        Set.fromList (map admissionKey (HashMap.keys (Journal.toMap (admittedJournal admitted))))
+            == Set.fromList [first, second, elimination]
+    assertTest "consolidation audit resolves three origins" $ case admittedCalls admitted of
         [audit] -> length (auditReferences audit) == 3
         _ -> False
     trial <- requireRight "consolidated trial balance" (deriveTrialBalance admitted)
@@ -599,7 +613,8 @@ testVisibility = do
             , (ProvisionForDoubtfulAccounts, DebitBalance 10)
             ]
     assertTest "allowance uses only local ordinary receivable" $
-        fmap balances (Map.lookup allowance (deriveLedger admitted)) == Just expected
+        balances (Journal.toAlg (Journal.filterWithNote
+            (\note _ -> admissionKey note == allowance) (admittedJournal admitted))) == expected
 
 -- | Invalid parameters return a structured failure without throwing.
 testParameterTotality :: IO ()
@@ -696,9 +711,10 @@ propAcceptedDebitEvidence (Positive number) = case txIdRegistry [(transaction, r
                 Map.empty vocabulary
         in case admit specification (Submission [(transaction, rows)] []) of
             Left _ -> False
-            Right admitted -> case Map.lookup transaction (deriveLedger admitted) of
-                Nothing -> False
-                Just entry -> norm (decL entry) == amount && entryBalanced entry
+            Right admitted ->
+                let entry = Journal.toAlg $ Journal.filterWithNote
+                        (\note _ -> admissionKey note == transaction) (admittedJournal admitted)
+                in norm (decL entry) == amount && entryBalanced entry
   where
     amount = fromIntegral (number `mod` 100000 + 1) :: MoneyDecimal
     transaction = key entityA periodOne "receipt-sale"
@@ -719,7 +735,8 @@ propActualSupplyProvenance (Positive number) =
                     (Submission [] [catalogCall, reverseCall])
             in case rawResult of
                 Left _ -> False
-                Right accepted -> Map.member reversal (deriveLedger accepted)
+                Right accepted -> any ((== reversal) . admissionKey)
+                    (HashMap.keys (Journal.toMap (admittedJournal accepted)))
                     && hasError catalogOrigin catalogResult
   where
     amount = fromIntegral (number `mod` 100000 + 1) :: MoneyDecimal
@@ -784,11 +801,14 @@ propSnapshotInclusion (Positive number) = case txIdRegistry rules of
         Left _ -> False
         Right accepted ->
             included during adjusted && included adjusted closed
-            && Set.fromList [ordinaryKey, adjustmentKey, closingKey] == Map.keysSet closed
+            && Set.fromList [ordinaryKey, adjustmentKey, closingKey]
+                == Set.fromList (map admissionKey (HashMap.keys closed))
           where
-            during = admittedSnapshot DuringPeriod accepted
-            adjusted = admittedSnapshot Adjusted accepted
-            closed = admittedSnapshot Closed accepted
+            during = Journal.toMap $ admittedJournal $
+                restrictAdmitted ((<= OrdinaryStage) . admissionStage) accepted
+            adjusted = Journal.toMap $ admittedJournal $
+                restrictAdmitted ((<= ConsolidationStage) . admissionStage) accepted
+            closed = Journal.toMap (admittedJournal accepted)
   where
     suffix = show (number `mod` 100000)
     ordinaryKey = key entityA periodOne ("ordinary-" ++ suffix)
@@ -804,7 +824,85 @@ propSnapshotInclusion (Positive number) = case txIdRegistry rules of
         [ Call (CallId "adjust") entityA periodOne (Just adjustmentKey) (DepIndirect 20)
         , Call (CallId "close") entityA periodOne (Just closingKey) FinalStock
         ]
-    included earlier later = Map.isSubmapOfBy (\left right -> left == right) earlier later
+    included :: HashMap.HashMap AdmissionNote Entry -> HashMap.HashMap AdmissionNote Entry -> Bool
+    included earlier later = HashMap.isSubmapOfBy (\left right -> left == right) earlier later
+
+-- | G5 selects each note axis; G6 preserves empty closing notes through composition.
+-- Domain: exact MoneyDecimal admissions with empty closings A/B and sales C.
+-- Observations: Journal entries, full call audit, and strict trial derivation.
+-- Equality is exact; predicates are entity sets and the identity predicate.
+testAdmissionRestriction :: IO ()
+testAdmissionRestriction = do
+    let entityC = EntityId "C"
+        closeA = key entityA periodOne "empty-close"
+        closeB = key entityB periodOne "empty-close"
+        saleC = key entityC periodOne "sale"
+        laterC = key entityC periodTwo "later-sale"
+        rules =
+            [ (closeA, txRule Required [SupplyCatalog FinalStockKind] Nothing)
+            , (closeB, txRule Required [SupplyCatalog FinalStockKind] Nothing)
+            , (saleC, txRule Required [SupplySubmission Ordinary] Nothing)
+            , (laterC, txRule Required [SupplySubmission Ordinary] Nothing)
+            ]
+        calls =
+            [ Call (CallId "close-A") entityA periodOne (Just closeA) FinalStock
+            , Call (CallId "close-B") entityB periodOne (Just closeB) FinalStock
+            ]
+        inEntities :: [EntityId] -> AdmissionNote -> Bool
+        inEntities entities note = case admissionKey note of
+            TxKey entity _ _ -> entity `elem` entities
+        p = inEntities [entityA, entityC]
+        q = inEntities [entityB, entityC]
+        readTrial :: Admitted
+                  -> Either (NonEmpty (TrialBalance.TBFinding MoneyDecimal)) (Entry, Entry)
+        readTrial value = (\trial ->
+            (admittedAdjustedTrialBalance trial, admittedTrialBalance trial))
+            <$> deriveTrialBalance value
+    spec <- specFor rules Map.empty Map.empty
+    accepted <- requireRight "G5/G6 empty closing fixture" $
+        admit spec (Submission [(saleC, saleRows), (laterC, saleRows)] calls)
+    let saleA = key entityA periodOne "sale-A"
+    axisSpec <- specFor
+        [(transaction, txRule Required [SupplySubmission Ordinary] Nothing)
+        | transaction <- [saleA, saleC, laterC]] Map.empty Map.empty
+    axisAccepted <- requireRight "G5 nonempty entity axes" $
+        admit axisSpec (Submission [(saleA, saleRows), (saleC, saleRows), (laterC, saleRows)] [])
+    let axisJournal = admittedJournal axisAccepted
+        journal = admittedJournal accepted
+        identity = restrictAdmitted (const True) accepted
+        ac = restrictAdmitted p accepted
+        bc = restrictAdmitted q accepted
+        acac = restrictAdmitted p ac
+        acbc = restrictAdmitted p bc
+    assertTest "G5 entity axis" $
+        Set.fromList (map admissionKey (HashMap.keys (Journal.toMap
+            (Journal.filterByAxis 0 (Journal.NoteAxisKey entityC) axisJournal))))
+            == Set.fromList [saleC, laterC]
+    assertTest "G5 period axis" $
+        map admissionKey (HashMap.keys (Journal.toMap
+            (Journal.filterByAxis 1 (Journal.NoteAxisKey periodTwo) axisJournal))) == [laterC]
+    assertTest "G5 transaction axis" $
+        map admissionKey (HashMap.keys (Journal.toMap
+            (Journal.filterByAxis 2 (Journal.NoteAxisKey (TxId "sale")) axisJournal))) == [saleC]
+    assertTest "G6 identity" $
+        Journal.toMap (admittedJournal identity) == Journal.toMap journal
+        && admittedCalls identity == admittedCalls accepted
+        && readTrial identity == readTrial accepted
+    assertTest "G3 full call audit after restriction" $
+        all ((== admittedCalls accepted) . admittedCalls) [ac, bc, acac, acbc]
+    assertTest "G6 kept empty closing still validates AfterClosing" $
+        case deriveTrialBalance acac of
+            Left findings -> TrialBalance.UnclosedNominalBalance Sales (CreditBalance 200)
+                `elem` NonEmpty.toList findings
+            Right _ -> False
+    _ <- requireRight "G6 dropped empty closings validate BeforeClosing" (deriveTrialBalance acbc)
+    forM_ [(p, p), (p, q), (q, p), (q, q)] $ \(first, second) -> do
+        let successive = restrictAdmitted first (restrictAdmitted second accepted)
+            combined = restrictAdmitted (\note -> first note && second note) accepted
+        assertTest "G6 composition" $
+            Journal.toMap (admittedJournal successive) == Journal.toMap (admittedJournal combined)
+            && admittedCalls successive == admittedCalls combined
+            && readTrial successive == readTrial combined
 
 -- | Run fixed admissions and bounded laws through the suite harness.
 runTests :: IO ()
@@ -823,6 +921,7 @@ runTests = do
     testVisibility
     testParameterTotality
     testEquivalence
+    testAdmissionRestriction
     check "registry permutation" propRegistryPermutation
     check "accepted debit evidence" propAcceptedDebitEvidence
     check "actual supply provenance" propActualSupplyProvenance
