@@ -262,6 +262,17 @@ testJournalProjectionNorms = do
 -- | Compare Algebra and Journal summation paths with their independent references.
 testSigmaReferences :: IO ()
 testSigmaReferences = do
+    let zero :: TestJournal
+        zero = (EA.Zero :: TestAlg) .| "A"
+        matchesZero :: Bool
+        matchesZero = case zero of
+            EJ.Zero -> True
+            _       -> False
+        x = 1 .@ (Hat :< Yen) :: TestAlg
+    assertEqual "Journal.(.|) Zero matches Journal.Zero" True matchesZero
+    assertEqual "Journal.(.|) Zero has no notes" HM.empty (EJ.toMap zero)
+    assertEqual "Journal.(.|) preserves a non-zero algebra element"
+        (HM.singleton "A" x) (EJ.toMap (x .| "A"))
     let cases = concat
             [ let
                   xs = [1 .. 5 :: Int]
@@ -328,7 +339,7 @@ testSigmaReferences = do
                   f i = case i of
                       1 -> (1 :@ (Hat :< Yen)) .| "A"
                       2 -> EJ.Zero
-                      3 -> (EA.Zero :: TestAlg) .| "A"
+                      3 -> EJ.fromMap (HM.singleton "A" (EA.Zero :: TestAlg))
                       _ -> (2 :@ (Not :< Amount)) .| "B"
                   expected :: TestJournal
                   expected = EJ.fromMap $ HM.fromList
@@ -347,7 +358,7 @@ testSigmaReferences = do
                   cond i j = i < j
                   f :: Int -> Int -> TestJournal
                   f i j
-                      | i == 1 && j == 2 = (EA.Zero :: TestAlg) .| "N"
+                      | i == 1 && j == 2 = EJ.fromMap (HM.singleton "N" (EA.Zero :: TestAlg))
                       | odd (i + j) = (fromIntegral (i + j) :@ (Hat :< Yen)) .| "N"
                       | otherwise = EJ.Zero
                   expected :: TestJournal

@@ -390,11 +390,15 @@ pattern Zero <- (isZero -> True)
         Zero = mkJournal Map.empty Map.empty
 
 -- | Smart constructor that attaches a Note (annotation) to an algebra element to build a Journal.
+-- Returns an empty Journal when the algebra element is zero, consistent with
+-- the zero-value handling in @appendMap@ and 'sigmaOn'.
 --
 -- Complexity: O(1)
 (.|) :: (HatVal v, HatBaseClass b, Note n)
       => Alg v b -> n -> Journal n v b
-(.|) alg n = mkJournal Map.empty (Map.singleton n alg)
+(.|) alg n
+    | EA.isZero alg = mempty
+    | otherwise    = mkJournal Map.empty (Map.singleton n alg)
 
 infixr 2 .|
 

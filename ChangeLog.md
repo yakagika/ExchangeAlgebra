@@ -66,6 +66,9 @@
 
 ### Changed
 
+- `(.|)` now returns an empty `Journal` for a zero algebra element, consistent
+  with append and summation. It no longer retains a note for `Zero`.
+
 - Posting readouts (`bar`, `norm`, `balance`, `diffRL`, `compress`, grouped
   balances, net projections, and `postFromNetBy`) now accumulate the supplied
   values exactly and round each output once. Finite intermediate sums can
