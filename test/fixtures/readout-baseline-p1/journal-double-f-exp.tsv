@@ -43,5 +43,5 @@ carryBefore	notes=1,2;carry=4	posting	4	Not	AccountsReceivable	0x3ff000000000000
 carryBefore	notes=1,2;carry=4	posting	4	Not	Cash	0x7e37e43c8800759c	1.0e300
 carryBefore	notes=1,2;carry=4	posting	4	Not	RetainedEarnings	0x01a56e1fc2f8f359	1.0e-300
 carryBefore	notes=1,2;carry=4	posting	4	Not	Sales	0x7fee42d130773b76	1.7e308
-carryEntries	notes=2,3;carry=4;overflow	Left	SumOutOfRange
-carryBefore	notes=2,3;carry=4;overflow	Left	SumOutOfRange
+carryEntries	notes=2,3;carry=4;overflow	Left	ResultOutOfRange
+carryBefore	notes=2,3;carry=4;overflow	Left	ResultOutOfRange

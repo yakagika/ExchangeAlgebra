@@ -37,8 +37,10 @@ balanceBy	Sales Not-Hat	scalar	0xbff0000000000000	-1.0
 Pair.compare	Cash notes=1 vs Cash notes=2,3	result	LT
 Pair.compare	Sales notes=1,2 vs Sales note=3	result	LT
 closingEntries	Alg	Right
+closingEntries	Alg	posting		Hat	RetainedEarnings	0x3ff0000000000000	1.0
 closingEntries	Alg	posting		Not	Purchases	0x433fffffffffffff	9.007199254740991e15
 closingEntries	Alg	posting		Not	RetainedEarnings	0x433fffffffffffff	9.007199254740991e15
+closingEntries	Alg	posting		Not	Sales	0x3ff0000000000000	1.0
 accountBalances	all	map	Cash	DebitBalance	0x3ff0000000000000	1.0
 accountBalances	all	map	AccountsReceivable	CreditBalance	0x3ff0000000000000	1.0
 accountBalances	all	map	RetainedEarnings	NoBalance

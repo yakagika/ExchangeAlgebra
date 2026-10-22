@@ -11,6 +11,8 @@ import qualified Data.HashMap.Strict as HashMap
 import           Data.List (permutations)
 import qualified Data.Map.Strict as Map
 import           Data.Proxy (Proxy(..))
+import qualified Data.Set as Set
+import qualified ExchangeAlgebra.Accounting.TrialBalance.Validation as Validation
 import           System.Exit (exitFailure)
 import           Test.QuickCheck hiding (label, sample)
 import           ExchangeAlgebra.Algebra hiding (map, filter)
@@ -349,7 +351,7 @@ testClosing = do
     let targets = Algebra.projByAccountTitle RetainedEarnings accountEntries
     assertTest "separate closing targets preserve account audit trail" (length (vals targets) == 2)
 
--- | Closing rejects either overflowing side, even if both totals are Infinity.
+-- | Closing rejects an unrepresentable net and accepts cancellation beyond the side range.
 -- Error order follows ascending normalized bases, not posting insertion order.
 testClosingOverflow :: IO ()
 testClosingOverflow = do
@@ -364,8 +366,9 @@ testClosingOverflow = do
         isBalanceError sales (closingEntries (overflowing sales))
     assertTest "closing Hat sum overflow" $
         isBalanceError sales (closingEntries (overflowing (revHat sales)))
-    assertTest "equal infinite sides must not be treated as zero" $
-        isBalanceError sales (closingEntries (overflowing sales .+ overflowing (revHat sales)))
+    cancelled <- requireRight "out-of-range sides cancel exactly" $
+        closingEntries (overflowing sales .+ overflowing (revHat sales))
+    assertTest "equal exact sides close to zero" (Algebra.isZero cancelled)
     let expectedFirst = min sales purchases
     assertTest "first overflowing base in ascending order" $
         isBalanceError expectedFirst (closingEntries (overflowing sales .+ overflowing purchases))
@@ -382,6 +385,110 @@ testClosingOverflow = do
     retained <- requireRight "distinct closing sources remain separate" (closingEntries largeDistinct)
     assertTest "closing target postings are not aggregated" $
         length (vals retained) == 4 && all (not . isErrorValue) (vals retained)
+
+-- | Observe exact Not-minus-Hat amounts before any rounded algebra readout.
+exactNets :: HatVal v => Alg v TestBase -> Map.Map TestBase Rational
+exactNets = Map.mapMaybe exactAccum . foldEntries collect Map.empty
+  where
+    collect :: HatVal v => Map.Map TestBase (Accum v) -> v -> TestBase
+            -> Map.Map TestBase (Accum v)
+    collect totals value source = Map.insertWith mergeAccum (toNot source) amount totals
+      where
+        amount = case hat source of
+            Hat -> negateAccum (addAccum value emptyAccum)
+            _   -> addAccum value emptyAccum
+
+-- | C1-C3 and C5: exact closure, positive descending pairs, balance, and idempotence.
+-- Fractions and widely separated magnitudes exercise binary splitting as well as decimals.
+propExactClosing :: forall v. HatVal v => Proxy v -> Property
+propExactClosing _ = forAll generated $ \ledger -> case closingEntries ledger of
+    Left failure -> counterexample (show failure) False
+    Right additions -> case closingEntries (ledger .+ additions) of
+        Left failure -> counterexample (show failure) False
+        Right repeated ->
+            let remaining = Map.intersection
+                    (exactNets (ledger .+ additions)) (exactNets ledger)
+            in conjoin
+            [ property $ all (== 0) $ Map.elems remaining
+            , property $ all valid $ vals additions
+            , property $ all (shape additions) $ Map.toList $ exactNets ledger
+            , total (decL additions) === total (decR additions)
+            , property (Algebra.isZero repeated)
+            ]
+  where
+    generated :: Gen (Alg v TestBase)
+    generated = do
+        count <- chooseInt (0, 24)
+        postings <- vectorOf count $ do
+            value <- elements [0.1, 0.2, 0.3, 1, 2 ^ (53 :: Int)]
+            side  <- elements [Hat, Not]
+            title <- elements [Sales, Purchases, InterestEarned]
+            unit  <- elements [Yen, Dollar]
+            pure (value .@ side :< (title, unit))
+        pure (Algebra.fromList postings)
+
+    valid :: v -> Bool
+    valid value = value > zeroValue && not (isErrorValue value)
+
+    total :: Alg v TestBase -> Maybe Rational
+    total = exactAccum . foldEntries (\acc value _ -> addAccum value acc) emptyAccum
+
+    shape :: Alg v TestBase -> (TestBase, Rational) -> Bool
+    shape additions (source, amount) =
+        let reversals = foldEntries collect [] additions
+            collect :: [v] -> v -> TestBase -> [v]
+            collect values value coordinates
+                | toNot coordinates == source = values ++ [value]
+                | otherwise = values
+            descending = and (zipWith (>=) reversals (drop 1 reversals))
+            represented :: Maybe Rational
+            represented = exactAccum
+                        $ addAccum (fromRational (abs amount) :: v) emptyAccum
+            representable = represented == Just (abs amount)
+        in case compare amount 0 of
+            EQ -> null reversals
+            _  -> not (null reversals) && descending
+                && (not representable || length reversals == 1)
+
+-- | C6: invalid eligible scalars fail before netting, for both value types.
+testClosingInvalid :: forall v. HatVal v => Proxy v -> IO ()
+testClosingInvalid _ = do
+    let source = Not :< (Sales, Yen)
+        ledger = (-1) :@ source :: Alg v TestBase
+    assertTest "negative closing value" $ case closingEntries ledger of
+        Left (NonFiniteBalance actual) -> actual == source
+        _ -> False
+
+-- | C6: overflowing sides may still have a representable exact difference.
+testClosingRange :: IO ()
+testClosingRange = do
+    let source = Not :< (Sales, Yen)
+        maximumFinite = encodeFloat (2 ^ (53 :: Int) - 1) 971 :: Double
+        ledger = maximumFinite .@ source
+              .+ maximumFinite .@ source
+              .+ maximumFinite .@ revHat source
+    additions <- requireRight "finite difference of overflowing sides" (closingEntries ledger)
+    assertTest "large closing exact cancellation" $
+        Map.findWithDefault 1 source (exactNets (ledger .+ additions)) == 0
+    mapM_ (\value -> assertTest "nonfinite closing scalar" $
+        case closingEntries (value :@ source :: Alg Double TestBase) of
+            Left (NonFiniteBalance actual) -> actual == source
+            _ -> False) [0 / 0, 1 / 0, -1 / 0]
+
+-- | C7: paying expenses 0.1 and 0.2 leaves no nominal residual after closing.
+testClosingValidation :: forall v. HatVal v => Proxy v -> IO ()
+testClosingValidation _ = do
+    let expense :: v -> Alg v (HatBase AccountTitles)
+        expense value = value .@ Not :< DeliveryExpenses .+ value .@ Hat :< Cash
+        ledger = expense 0.1 .+ expense 0.2
+    additions <- requireRight "fractional expense closing" (closingEntries ledger)
+    let input = Validation.TrialBalanceInput (ledger .+ additions)
+            Validation.AfterClosing Map.empty [] Set.empty
+        unclosed :: Validation.TBFinding v -> Bool
+        unclosed (Validation.UnclosedNominalBalance _ _) = True
+        unclosed _ = False
+    assertTest "C7 no UnclosedNominalBalance" $
+        not $ any unclosed $ Validation.trialBalanceFindings input
 
 -- | Two goods share an owner and differ only in the axis collapsed below.
 data ValuationGood = GoodA | GoodB | AnyValuationGood
@@ -579,6 +686,13 @@ runTests = do
     testApplication
     testClosing
     testClosingOverflow
+    quickProperty "C1-C3 C5 Double" (propExactClosing (Proxy :: Proxy Double))
+    quickProperty "C1-C3 C5 MoneyDecimal" (propExactClosing (Proxy :: Proxy MoneyDecimal))
+    testClosingInvalid (Proxy :: Proxy Double)
+    testClosingInvalid (Proxy :: Proxy MoneyDecimal)
+    testClosingRange
+    testClosingValidation (Proxy :: Proxy Double)
+    testClosingValidation (Proxy :: Proxy MoneyDecimal)
     testValuationCollapse
     testRetainedCollapse
     testWildcardLedger

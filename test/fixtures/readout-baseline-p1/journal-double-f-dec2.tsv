@@ -23,9 +23,13 @@ compress	all	posting	3	Hat	Cash	0x40934a3d70a3d70a	1234.56
 compress	all	posting	3	Hat	RetainedEarnings	0x3fd3333333333333	0.3
 compress	all	posting	3	Not	AccountsReceivable	0x40934a3d70a3d70a	1234.56
 closingEntries	Journal	Right
+closingEntries	Journal	posting		Hat	RetainedEarnings	0x3ce4940000000000	2.284630817861455e-15
 closingEntries	Journal	posting		Hat	RetainedEarnings	0x40342e147ae147ad	20.179999999999996
-closingEntries	Journal	posting		Not	Purchases	0x3fb70a3d70a3d70b	9.000000000000001e-2
-closingEntries	Journal	posting		Not	RetainedEarnings	0x3fb70a3d70a3d70b	9.000000000000001e-2
+closingEntries	Journal	posting		Not	Purchases	0x3c64000000000000	8.673617379884035e-18
+closingEntries	Journal	posting		Not	Purchases	0x3fb70a3d70a3d70a	9.0e-2
+closingEntries	Journal	posting		Not	RetainedEarnings	0x3c64000000000000	8.673617379884035e-18
+closingEntries	Journal	posting		Not	RetainedEarnings	0x3fb70a3d70a3d70a	9.0e-2
+closingEntries	Journal	posting		Not	Sales	0x3ce4940000000000	2.284630817861455e-15
 closingEntries	Journal	posting		Not	Sales	0x40342e147ae147ad	20.179999999999996
 carryEntries	notes=1,2;carry=4	Right
 carryEntries	notes=1,2;carry=4	posting	1	Hat	Cash	0x3fb999999999999a	0.1

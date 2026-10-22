@@ -1,3 +1,5 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 -- | Acceptance properties for explicit journal carryover.
 module Journal.CarrySpec (runTests) where
 
@@ -7,7 +9,9 @@ import qualified Data.Map.Strict as Map
 import System.Exit (exitFailure)
 import Test.QuickCheck
 
-import ExchangeAlgebra.Algebra ((.@), foldEntries)
+import ExchangeAlgebra.Algebra (Alg((:@)), (.@), foldEntries)
+import ExchangeAlgebra.Algebra.Value (HatVal, MoneyDecimal)
+import GHC.Float (castDoubleToWord64)
 import ExchangeAlgebra.Algebra.Base
     ( AccountTitles(..)
     , CountUnit(..)
@@ -16,8 +20,7 @@ import ExchangeAlgebra.Algebra.Base
     )
 import ExchangeAlgebra.Journal (Journal, (.|))
 import qualified ExchangeAlgebra.Journal as Journal
-import ExchangeAlgebra.Journal.Transfer.Rule (carryBefore, carryEntries)
-import ExchangeAlgebra.Journal.Exact (ExactSumError(..))
+import ExchangeAlgebra.Journal.Transfer.Rule (CarryError(..), carryBefore, carryEntries)
 
 -- | Test postings use two base axes and integer note labels.
 type Part = (CountUnit, AccountTitles)
@@ -209,7 +212,7 @@ propCarryEntriesFailureParity =
         before = fmap (const ()) (carryBefore (< 3) 9 original)
         entries = fmap (const ()) (carryEntries (< 3) 9 original)
     in conjoin
-        [ before === Left SumOutOfRange
+        [ before === Left ResultOutOfRange
         , entries === before
         ]
 
@@ -233,7 +236,7 @@ propSelectionExtremes =
         , allEntries === Right (multiset expectedAll)
         ]
 
--- | A selected complete base whose exact side sum exceeds Double fails.
+-- | K4: a selected complete base whose rounded net exceeds Double fails.
 testOverflow :: IO ()
 testOverflow = do
     let maximumFinite = encodeFloat (2 ^ (53 :: Int) - 1) 971 :: Double
@@ -246,9 +249,108 @@ testOverflow = do
     unless (fmap (const ()) carried == fmap (const ()) additions) $
         failTest "carryEntries and carryBefore disagree on overflow"
     case carried of
-        Left SumOutOfRange -> pure ()
+        Left ResultOutOfRange -> pure ()
         Left failure     -> failTest ("unexpected overflow error: " ++ show failure)
         Right _          -> failTest "overflowing selected side sum succeeded"
+
+-- | K1: side overflow and a tiny addend still succeed when the rounded net is finite.
+testExpandedRange :: IO ()
+testExpandedRange = do
+    let maximumFinite = encodeFloat (2 ^ (53 :: Int) - 1) 971 :: Double
+        leastSubnormal = encodeFloat 1 (-1074) :: Double
+        originals =
+            [ [(0, (Yen, Cash), Not, maximumFinite)
+              ,(1, (Yen, Cash), Not, maximumFinite)
+              ,(2, (Yen, Cash), Hat, maximumFinite)]
+            , [(0, (Yen, Cash), Not, maximumFinite)
+              ,(1, (Yen, Cash), Not, leastSubnormal)]
+            ]
+    mapM_ (\original -> do
+        let journal = build original
+        case (carryBefore (< 3) 9 journal, carryEntries (< 3) 9 journal) of
+            (Right carried, Right additions) -> do
+                unless (fmap (castDoubleToWord64 . valueOf) (rows carried)
+                    == [castDoubleToWord64 maximumFinite]) $
+                    failTest "K1 expanded range has wrong rounded net"
+                unless (all (\(_, _, _, value) -> not (isInfinite value)) (rows additions)) $
+                    failTest "K1 carry entries contain infinity"
+            failures -> failTest (show failures)) originals
+  where
+    valueOf :: Row -> Double
+    valueOf (_, _, _, value) = value
+
+-- | K2-K3: decimal carry preserves exact balances and the replacement decomposition.
+propDecimalCarry :: Property
+propDecimalCarry = forAll rowsGen $ \original ->
+    let journal = foldMap posting original
+        posting :: Row -> Journal Int MoneyDecimal (HatBase Part)
+        posting (note, coordinates, side, value) =
+            (fromRational (toRational value) .@ (side :< coordinates)) .| note
+        scalarRows :: HatVal v => Journal Int v (HatBase Part) -> [(Int, Part, Hat, v)]
+        scalarRows input = concatMap entries
+                         $ HashMap.toList
+                         $ Journal.toMap input
+          where
+            entries :: HatVal v => (Int, Alg v (HatBase Part)) -> [(Int, Part, Hat, v)]
+            entries (note, algebra) = foldEntries
+                (\previous value (side :< coordinates) ->
+                    (note, coordinates, side, value) : previous) [] algebra
+        exactBalances :: Journal Int MoneyDecimal (HatBase Part) -> Map.Map Part Rational
+        exactBalances = Map.fromListWith (+) . fmap contribution . scalarRows
+        contribution :: (Int, Part, Hat, MoneyDecimal) -> (Part, Rational)
+        contribution (_, coordinates, side, value)
+            | side == Hat = (coordinates, negate (toRational value))
+            | otherwise   = (coordinates, toRational value)
+    in case (carryEntries (< 3) 9 journal, carryBefore (< 3) 9 journal) of
+        (Right additions, Right replaced) ->
+            let decomposed = Journal.filterWithNote (\note _ -> note >= 3)
+                    (journal <> additions)
+            in conjoin
+                [ property $ all (== 0) $ Map.elems $ Map.unionWith (-)
+                    (exactBalances journal) (exactBalances (journal <> additions))
+                , property $ all (== 0) $ Map.elems $ Map.unionWith (-)
+                    (exactBalances journal) (exactBalances replaced)
+                , multiset (scalarRows replaced) === multiset (scalarRows decomposed)
+                ]
+        failures -> counterexample (show failures) False
+
+-- | K5: all selected inputs are checked before rounding, in a fixed priority.
+propFailurePriority :: Property
+propFailurePriority = forAll (shuffle [0 :: Int, 1, 2, 3, 4]) $ \order ->
+    let maximumFinite = encodeFloat (2 ^ (53 :: Int) - 1) 971 :: Double
+        invalid = [(HatNot, 1), (Not, 0 / 0), (Hat, -1)
+                  ,(Not, maximumFinite), (Not, maximumFinite)]
+        assemble :: [(Hat, Double)] -> TestJournal
+        assemble postings = Journal.fromMap $ HashMap.fromList
+            [ (note, value :@ (side :< (Yen, Cash)))
+            | (note, (side, value)) <- zip order postings ]
+        check :: [(Hat, Double)] -> CarryError -> Property
+        check postings expected = conjoin
+            [ fmap (const ()) (carryBefore (const True) 9 (assemble postings)) === Left expected
+            , fmap (const ()) (carryEntries (const True) 9 (assemble postings)) === Left expected
+            ]
+    in conjoin
+        [ check invalid WildcardSide
+        , check (drop 1 invalid) NonFiniteValue
+        , check (drop 2 invalid) NegativeValue
+        , check (drop 3 invalid) ResultOutOfRange
+        ]
+
+-- | K5: raw zero HatNot is absent from both the net and reversal.
+testZeroWildcard :: IO ()
+testZeroWildcard = do
+    let wildcardJournal = Journal.fromMap $ HashMap.singleton 0
+            (0 :@ (HatNot :< (Yen, Cash))) :: TestJournal
+        input = wildcardJournal <> build [(1, (Yen, Cash), Not, 3)]
+        expected = build [(9, (Yen, Cash), Not, 3)]
+    unless (fmap (multiset . rows) (carryBefore (< 3) 9 input)
+        == Right (multiset (rows expected))) $ failTest "zero wildcard carryBefore"
+    case carryEntries (< 3) 9 input of
+        Left failure -> failTest (show failure)
+        Right additions -> unless
+            (multiset (rows additions) == multiset
+                [(1, (Yen, Cash), Hat, 3), (9, (Yen, Cash), Not, 3)]) $
+            failTest "zero wildcard reversal"
 
 -- | Report a deterministic acceptance failure and stop the suite.
 failTest :: String -> IO ()
@@ -268,6 +370,10 @@ runTests = do
     quickProperty 1 "carry error parity" propCarryEntriesFailureParity
     quickProperty 1 "carry selection" propSelectionExtremes
     testOverflow
+    testExpandedRange
+    quickProperty 500 "K2-K3 decimal carry" propDecimalCarry
+    quickProperty 200 "K5 failure priority" propFailurePriority
+    testZeroWildcard
     putStrLn "[PASS] journal carry (retention, rounding, zero, and carry note)"
 
 -- | Run one named QuickCheck property and fail on a counterexample.

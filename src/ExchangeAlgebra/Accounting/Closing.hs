@@ -173,31 +173,52 @@ closingSide title = case accountSpec title of
 -- the entries of @c@ have equal exact debit and credit sums; and
 -- @closingEntries (x .+ c) == Right Zero@.
 -- Balance collection is O(s log b), for s postings and b eligible bases.
-closingEntries :: (HatVal v, ExBaseClass b)
+closingEntries :: forall v b. (HatVal v, ExBaseClass b)
                => Alg v b -> Either (TransferApplyError v b) (Alg v b)
 closingEntries = Map.foldlWithKey' close (Right Zero) . foldEntries collect Map.empty
   where
+    collect :: Map b (Bool, Accum v, Accum v) -> v -> b
+            -> Map b (Bool, Accum v, Accum v)
     collect balances value source = case (hat source, closingSide (getAccountTitle source)) of
-        (Hat, Just _) -> Map.insertWith addTotals (toNot source) (value, zeroValue) balances
-        (Not, Just _) -> Map.insertWith addTotals source (zeroValue, value) balances
+        (Hat, Just _) -> Map.insertWith addTotals (toNot source)
+            (isErrorValue value, addAccum value emptyAccum, emptyAccum) balances
+        (Not, Just _) -> Map.insertWith addTotals source
+            (isErrorValue value, emptyAccum, addAccum value emptyAccum) balances
         _ -> balances
-    addTotals (hatValue, notValue) (hatTotal, notTotal) =
-        (hatValue + hatTotal, notValue + notTotal)
-    close result source (hatTotal, notTotal) = do
-        entries <- result
-        additions <- netEntries source hatTotal notTotal
+
+    addTotals :: (Bool, Accum v, Accum v) -> (Bool, Accum v, Accum v)
+              -> (Bool, Accum v, Accum v)
+    addTotals (invalid, hatValue, notValue) (failed, hatTotal, notTotal) =
+        (invalid || failed, mergeAccum hatValue hatTotal, mergeAccum notValue notTotal)
+
+    close :: Either (TransferApplyError v b) (Alg v b)
+          -> b
+          -> (Bool, Accum v, Accum v)
+          -> Either (TransferApplyError v b) (Alg v b)
+    close result source (invalid, hatTotal, notTotal) = do
+        entries   <- result
+        additions <- netEntries source invalid (mergeAccum notTotal (negateAccum hatTotal))
         pure (entries .+ additions)
-    netEntries source hatTotal notTotal
-        | isErrorValue hatTotal || isErrorValue notTotal = Left (NonFiniteBalance source)
-        | hatTotal == notTotal = Right Zero
-        | hatTotal > notTotal = checkedPair source (hatTotal - notTotal) (toHat source)
-        | otherwise = checkedPair source (notTotal - hatTotal) source
-    checkedPair source value balanceBase
-        | isErrorValue value = Left (NonFiniteBalance source)
-        | otherwise = case closingSide (getAccountTitle balanceBase) of
+
+    netEntries :: b -> Bool -> Accum v -> Either (TransferApplyError v b) (Alg v b)
+    netEntries source invalid amount
+        | invalid = Left (NonFiniteBalance source)
+        | otherwise = case signAccum amount of
+            Just EQ -> Right Zero
+            Just LT -> splitPairs source (toHat source) (negateAccum amount)
+            Just GT -> splitPairs source source amount
+            Nothing -> Left (NonFiniteBalance source)
+
+    splitPairs :: b -> b -> Accum v -> Either (TransferApplyError v b) (Alg v b)
+    splitPairs source balanceBase amount = case splitAccum amount of
+        Nothing -> Left (NonFiniteBalance source)
+        Just values -> case closingSide (getAccountTitle balanceBase) of
             Nothing   -> Right Zero
-            Just side -> Right
-                (closingPairBy (targetSide side) RetainedEarnings value balanceBase)
+            Just side -> Right $ mconcat
+                [ closingPairBy (targetSide side) RetainedEarnings value balanceBase
+                | value <- values ]
+
+    targetSide :: ClosingSide -> b -> b
     targetSide side = case side of
         ClosingKeep -> id
         ClosingFlip -> revHat

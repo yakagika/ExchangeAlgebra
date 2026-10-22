@@ -14,6 +14,7 @@ additional-entry section before the complete-result section.
 -}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module ExchangeAlgebra.Journal.Transfer.Rule
     ( -- * Additional entries
@@ -31,18 +32,18 @@ module ExchangeAlgebra.Journal.Transfer.Rule
 
 import qualified Data.HashMap.Strict as Map
 import qualified Data.Map.Strict as OrderedMap
-import qualified Data.Set as Set
 import ExchangeAlgebra.Algebra.Core ( Alg( (:@) )
                                     , foldEntries
                                     , (.@)
                                     , Redundant((.^))
                                     )
-import           ExchangeAlgebra.Algebra.Exact (ExactSum(..))
+import qualified ExchangeAlgebra.Algebra.Core as Algebra
 import ExchangeAlgebra.Algebra.Transfer.Representation (TransferRules, TransferApplyError)
 import qualified ExchangeAlgebra.Algebra.Transfer.Representation as Rule
 import qualified ExchangeAlgebra.Accounting.Closing as Closing
 import ExchangeAlgebra.Algebra.Base.Representation (Hat(..), HatBaseClass(..))
-import ExchangeAlgebra.Algebra.Value.Class (HatVal)
+import ExchangeAlgebra.Algebra.Value.Class (HatVal(..), isErrorValue)
+import qualified ExchangeAlgebra.Algebra.Value.Class as Value
 import ExchangeAlgebra.Algebra (ExBaseClass)
 import ExchangeAlgebra.Journal.Core ( Journal
                                     , Note
@@ -52,8 +53,6 @@ import ExchangeAlgebra.Journal.Core ( Journal
                                     , toAlg
                                     )
 import qualified ExchangeAlgebra.Journal.Core as Journal
-import           ExchangeAlgebra.Journal.Exact (ExactSumError(..))
-import qualified ExchangeAlgebra.Journal.Exact as Exact
 import           ExchangeAlgebra.Algebra.Posting (PostSide(..))
 
 -- * Additional entries
@@ -78,12 +77,13 @@ transferEntries rules journal = fromMap . Map.fromList
 -- The input must include only postings through the closing date; 'toAlg'
 -- does not select a period. Earlier periods must already have their closing
 -- entries included. Attach the settlement note with @(.|)@ at the call site.
--- Source sequences are folded per base by the Algebra operation, without
--- a tolerance or implicit @bar@; small floating-point residues can remain.
--- Finite, non-negative inputs normally yield 'Right'; 'Left' occurs only
--- when a side's sum exceeds the value type's range. The Algebra operation
--- checks totals and differences and reports the first failing base in
--- ascending order, with Hat/Not normalized to Not. No partial result is returned.
+-- Source sequences are accumulated exactly per base by the Algebra operation,
+-- without a tolerance or implicit @bar@. Each nonzero net is split into finite
+-- positive values and each value produces a reversal and retained-earnings pair.
+-- Invalid eligible postings or an unsplittable net return 'Left', reporting
+-- the first failing base in ascending order with Hat/Not normalized to Not.
+-- Side totals beyond the value type's range can succeed through cancellation.
+-- No partial result is returned.
 closingEntries :: (Note n, HatVal v, ExBaseClass b)
                => Journal n v b -> Either (TransferApplyError v b) (Alg v b)
 closingEntries = Closing.closingEntries . toAlg
@@ -92,11 +92,57 @@ closingEntries = Closing.closingEntries . toAlg
 -- Each complete base's Not and Hat values are accumulated exactly with the
 -- 'HatVal' accumulator; the net is rounded once. Failures are reported as
 -- 'CarryError' (see 'carryEntries').
-carryNetEntries :: (Note n, HatVal v, HatBaseClass b)
+carryNetEntries :: forall n v b. (Note n, HatVal v, HatBaseClass b)
                 => n
                 -> Journal n v b
                 -> Either CarryError (Journal n v b)
-carryNetEntries _ _ = error "P3b-W2 D3: carryNetEntries on the HatVal accumulator"
+carryNetEntries carryNote journal = case validationError of
+    Just failure -> Left failure
+    Nothing -> (.| carryNote) . mconcat <$> traverse finish (OrderedMap.toAscList totals)
+  where
+    (validationError, totals) = Map.foldl' (foldEntries scanEntry)
+        (Nothing, OrderedMap.empty) (toMap journal)
+
+    scanEntry :: (Maybe CarryError, OrderedMap.Map (BasePart b) (Accum v))
+              -> v
+              -> b
+              -> (Maybe CarryError, OrderedMap.Map (BasePart b) (Accum v))
+    scanEntry (!failure, !acc) value coordinates
+        | Just current <- classify value coordinates = (Just (prefer failure current), acc)
+        | otherwise = (failure, OrderedMap.insertWith mergeAccum (base coordinates) amount acc)
+      where
+        amount = case hat coordinates of
+            Hat -> negateAccum (addAccum value emptyAccum)
+            _   -> addAccum value emptyAccum
+
+    classify :: v -> b -> Maybe CarryError
+    classify value coordinates
+        | hat coordinates == HatNot = Just WildcardSide
+        | Just Value.NonFiniteValue <- valueError value = Just NonFiniteValue
+        | Just Value.NegativeValue <- valueError value = Just NegativeValue
+        | otherwise = Nothing
+
+    prefer :: Maybe CarryError -> CarryError -> CarryError
+    prefer (Just WildcardSide) _ = WildcardSide
+    prefer _ WildcardSide = WildcardSide
+    prefer (Just NonFiniteValue) _ = NonFiniteValue
+    prefer _ NonFiniteValue = NonFiniteValue
+    prefer (Just NegativeValue) _ = NegativeValue
+    prefer _ NegativeValue = NegativeValue
+    prefer _ ResultOutOfRange = ResultOutOfRange
+
+    finish :: (BasePart b, Accum v) -> Either CarryError (Alg v b)
+    finish (coordinates, amount) = case signAccum amount of
+        Just EQ -> Right mempty
+        Just LT -> roundedPosting Hat coordinates (negateAccum amount)
+        _       -> roundedPosting Not coordinates amount
+
+    roundedPosting :: Hat -> BasePart b -> Accum v -> Either CarryError (Alg v b)
+    roundedPosting side coordinates amount
+        | isErrorValue value = Left ResultOutOfRange
+        | otherwise = Right (value .@ merge side coordinates)
+      where
+        value = roundAccum amount
 
 -- | Generate carry entries while retaining every original posting.
 -- Select source notes with the predicate, reverse the Hat or Not side of each
@@ -138,16 +184,21 @@ carryNetEntries _ _ = error "P3b-W2 D3: carryNetEntries on the HatVal accumulato
 -- for which the 0.5.x implementation returned 'Right', the results are
 -- bit-identical; some inputs it rejected because a side sum left the Double
 -- range now succeed, because only the net is rounded.
-carryEntries :: (Note n, HatVal v, HatBaseClass b)
+carryEntries :: forall n v b. (Note n, HatVal v, HatBaseClass b)
              => (n -> Bool)
              -> n
              -> Journal n v b
              -> Either CarryError (Journal n v b)
 carryEntries selectedNote carryNote journal = do
     carried <- carryNetEntries carryNote selected
-    pure (Journal.map (.^) selected <> carried)
+    pure (Journal.map ((.^) . Algebra.filter reversible) selected <> carried)
   where
     selected = Journal.filterWithNote (\note _ -> selectedNote note) journal
+
+    reversible :: Alg v b -> Bool
+    reversible (value :@ coordinates) =
+        not (isZeroValue value && hat coordinates == HatNot)
+    reversible _ = True
 
 -- * Complete results
 
@@ -229,8 +280,13 @@ emptySide = SideAccum emptyAccum
 addSideValue :: Double -> SideAccum -> SideAccum
 addSideValue value (SideAccum total) = SideAccum (addAccum value total)
 
-roundSide :: SideAccum -> Either ExactSumError Double
-roundSide (SideAccum total) = roundAccum total
+roundSide :: SideAccum -> Either CarryError Double
+roundSide (SideAccum total)
+    | isInfinite value = Left ResultOutOfRange
+    | value == 0       = Right 0
+    | otherwise        = Right value
+  where
+    value = roundAccum total
 
 -- | Sum every posting by a key derived from its 'BasePart', without netting
 -- Hat against Not or combining source postings. Each side is the exact sum of
@@ -247,8 +303,7 @@ roundSide (SideAccum total) = roundAccum total
 -- A raw zero @(:@)@ posting is inspected, including HatNot; ordinary algebra
 -- construction discards zero postings before they reach this function.
 -- Complexity: one traversal of all entries with O(log(k + 1)) map updates
--- per entry for k distinct keys. Only when a side exceeds ExactSum's range,
--- a second traversal of all entries recomputes those sides as Rational sums.
+-- per entry for k distinct keys, followed by one rounding per side and key.
 --
 -- Law: subject: 'sideTotalsBy'. Preconditions: all postings have concrete
 -- sides and finite, non-negative values, and all rounded side sums are finite.
@@ -256,22 +311,27 @@ roundSide (SideAccum total) = roundAccum total
 -- of that key's postings on that side, before Hat/Not cancellation.
 -- Observation: Double bits for each key and side. Tolerance: bit-identical.
 -- Instances: 'Note' and 'HatBaseClass' with Double values and ordered keys.
-sideTotalsBy :: (Note n, HatBaseClass b, Ord k)
+sideTotalsBy :: forall n b k. (Note n, HatBaseClass b, Ord k)
              => (BasePart b -> k)
              -> Journal n Double b
              -> Either CarryError (OrderedMap.Map k SideTotals)
 sideTotalsBy keyOf journal = case validationError of
     Just failure -> Left failure
-    Nothing -> OrderedMap.traverseWithKey finish rounded
+    Nothing -> traverse finish totals
   where
     (validationError, totals) = Map.foldl' (scanAlgebra scanEntry)
         (Nothing, OrderedMap.empty)
         (toMap journal)
 
+    scanAlgebra :: (state -> Double -> b -> state) -> state -> Alg Double b -> state
     scanAlgebra step !state algebra = case algebra of
         value :@ coordinates -> step state value coordinates
         _ -> foldEntries step state algebra
 
+    scanEntry :: (Maybe CarryError, OrderedMap.Map k SideAccums)
+              -> Double
+              -> b
+              -> (Maybe CarryError, OrderedMap.Map k SideAccums)
     scanEntry (!failure, !acc) value coordinates =
         case classify value coordinates of
             Just current -> (Just (prefer failure current), acc)
@@ -281,12 +341,14 @@ sideTotalsBy keyOf journal = case validationError of
                         . maybe (SideAccums emptySide emptySide) id) key acc
                 in (failure, updated)
 
+    classify :: Double -> b -> Maybe CarryError
     classify value coordinates
         | hat coordinates == HatNot = Just WildcardSide
         | isNaN value || isInfinite value = Just NonFiniteValue
         | value < 0 = Just NegativeValue
         | otherwise = Nothing
 
+    prefer :: Maybe CarryError -> CarryError -> CarryError
     prefer (Just WildcardSide) _ = WildcardSide
     prefer _ WildcardSide = WildcardSide
     prefer (Just NonFiniteValue) _ = NonFiniteValue
@@ -295,44 +357,13 @@ sideTotalsBy keyOf journal = case validationError of
     prefer _ NegativeValue = NegativeValue
     prefer _ ResultOutOfRange = ResultOutOfRange
 
+    addToSide :: Hat -> Double -> SideAccums -> SideAccums
     addToSide Hat value (SideAccums notSide hatSide) =
         SideAccums notSide (addSideValue value hatSide)
     addToSide Not value (SideAccums notSide hatSide) =
         SideAccums (addSideValue value notSide) hatSide
     addToSide HatNot _ sides = sides
 
-    rounded = OrderedMap.map (\(SideAccums notSide hatSide) ->
-        (roundSide notSide, roundSide hatSide)) totals
-
-    overflowing = OrderedMap.foldlWithKey' collectOverflow Set.empty rounded
-    collectOverflow !keys key (notResult, hatResult) =
-        let !withNot = if notResult == Left SumOutOfRange
-                then Set.insert (key, NotSide) keys else keys
-        in if hatResult == Left SumOutOfRange
-           then Set.insert (key, HatSide) withNot else withNot
-
-    fallbackTotals
-        | Set.null overflowing = OrderedMap.empty
-        | otherwise = Map.foldl' (scanAlgebra scanFallback) OrderedMap.empty
-            (toMap journal)
-
-    scanFallback !acc value coordinates =
-        let !side = if hat coordinates == Hat then HatSide else NotSide
-            !target = (keyOf (base coordinates), side)
-        in if Set.member target overflowing
-           then OrderedMap.insertWith (+) target (toRational value) acc
-           else acc
-
-    finish key (notResult, hatResult) =
-        SideTotals <$> finishSide (key, NotSide) notResult
-                   <*> finishSide (key, HatSide) hatResult
-
-    finishSide _ (Right value) = Right (if value == 0 then 0 else value)
-    finishSide target (Left SumOutOfRange) =
-        let !value = fromRational (OrderedMap.findWithDefault 0 target fallbackTotals)
-                :: Double
-        in if isInfinite value then Left ResultOutOfRange
-           else Right (if value == 0 then 0 else value)
-    -- The first traversal validates every input, so ExactSum cannot report
-    -- NonFiniteInput or NegativeInput here.
-    finishSide _ (Left _) = Left ResultOutOfRange
+    finish :: SideAccums -> Either CarryError SideTotals
+    finish (SideAccums notSide hatSide) =
+        SideTotals <$> roundSide notSide <*> roundSide hatSide

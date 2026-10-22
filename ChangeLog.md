@@ -66,6 +66,21 @@
 
 ### Changed
 
+- `closingEntries` closes each eligible base's exact net without a rounding
+  residue. `Double` closing values can change; finite carry and side-total
+  results retain their previous bits where the previous implementation succeeded.
+- `closingEntries` accepts side sums beyond the value type's range when their
+  net can be split into finite values. `carryEntries` and `carryBefore` now
+  support any `HatVal`, including `MoneyDecimal`, and accept overflowing side
+  sums when the once-rounded net is finite.
+- `closingEntries` can emit multiple reversal and retained-earnings pairs per
+  base to represent the exact net. Keep these pairs separate to preserve closure.
+- `carryEntries` and `carryBefore` return `CarryError` instead of `ExactSumError`.
+  Replace matches on `SumOutOfRange` with `ResultOutOfRange`, `NonFiniteInput`
+  with `NonFiniteValue`, and `NegativeInput` with `NegativeValue`; nonzero
+  HatNot postings now return `WildcardSide`.
+- Serialization formats are unchanged by the closing and carry changes.
+
 - `(.|)` now returns an empty `Journal` for a zero algebra element, consistent
   with append and summation. It no longer retains a note for `Zero`.
 

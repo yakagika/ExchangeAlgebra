@@ -144,6 +144,9 @@ propBoundaries =
         [ fmap (fmap (bits . notTotal) . Map.lookup (Yen, Cash)) success
             === Right (Just (bits maximumFinite))
         , failure === Left ResultOutOfRange
+        , sideTotalsBy id (build
+            [(0, (Yen, Cash), Not, maximumFinite),
+             (1, (Yen, Cash), Not, 2 ^ (970 :: Int))]) === Left ResultOutOfRange
         , fmap (fmap (\totals -> (bits (notTotal totals), bits (hatTotal totals)))
             . Map.lookup (Yen, Cash)) mixed
             === Right (Just (bits maximumFinite, bits 7))
