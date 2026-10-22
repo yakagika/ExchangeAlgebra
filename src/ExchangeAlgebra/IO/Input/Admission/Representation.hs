@@ -2,50 +2,72 @@
 
 -- | Hold accepted values inside the IO input layer. The admission engine alone
 -- constructs these values, and the public derivation functions consume them.
--- Journal is authoritative; snapshots retain their original posting sequence.
--- Read entry metadata before the accepted-value constructors.
+-- The journal is authoritative: every admitted transaction is one note.
+-- Read the transaction note before the accepted-value constructor.
 module ExchangeAlgebra.IO.Input.Admission.Representation where
 
-import Data.Map.Strict (Map)
+import Data.Hashable (Hashable(..))
+import Data.Set (Set)
 
-import ExchangeAlgebra.Accounting.Transaction (Entry, TxKey)
+import ExchangeAlgebra.Accounting.Transaction (Entry, TxKey(..))
 import ExchangeAlgebra.IO.Input.Admission.Workflow
 import ExchangeAlgebra.Accounting.Account (AccountTitles)
 import ExchangeAlgebra.Algebra.Base.Representation (HatBase)
-import ExchangeAlgebra.Journal.Core (Journal)
+import ExchangeAlgebra.Journal.Core (Journal, Note(..), NoteAxisKey(..))
 import ExchangeAlgebra.Accounting.Statements.Presentation (FinancialStatements)
 import ExchangeAlgebra.Accounting.TrialBalance.Validation (ValidatedTrialBalance)
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 
--- | Authoritative journal with exact entity-period-transaction notes.
-type AdmissionJournal = Journal TxKey MoneyDecimal (HatBase AccountTitles)
+-- | Note of one admitted transaction: its exact key, the role fixed by the
+-- trusted registry, and the provenance established by admission, in that
+-- positional order. The constructor is not exported; read the fields with
+-- @admissionKey@, @admissionRole@, @admissionProvenance@, and derive the
+-- processing stage with @admissionStage@.
+--
+-- Equality, order, and hashing use all three fields. The order is the key
+-- first, so notes sort by entity, period text, and transaction. 'plank' uses
+-- the blank 'TxKey', which admission rejects, so it never names an admitted
+-- transaction. The note axes are 0 = @EntityId@, 1 = @PeriodId@,
+-- 2 = @TxId@, so @filterByAxis@ selects one entity, period, or transaction.
+data AdmissionNote = AdmissionNote TxKey Role Provenance
+    deriving (Eq, Ord, Show)
 
--- | Read-only per-transaction view; editing it cannot alter an admitted value.
-type LedgerView = Map TxKey Entry
+instance Hashable AdmissionNote where
+    hashWithSalt salt (AdmissionNote key role origin) =
+        salt `hashWithSalt` key `hashWithSalt` role `hashWithSalt` origin
 
--- | Accepted role, stage, and origin, in that positional order.
+instance Note AdmissionNote where
+    plank = AdmissionNote plank Ordinary (SubmissionProvenance Nothing)
+    toNoteAxisKeys (AdmissionNote (TxKey entity period transaction) _ _) =
+        [NoteAxisKey entity, NoteAxisKey period, NoteAxisKey transaction]
+
+-- | Authoritative journal with one note per admitted transaction.
+-- Transactions without postings do not appear.
+type AdmissionJournal = Journal AdmissionNote MoneyDecimal (HatBase AccountTitles)
+
+-- | Journal keyed by the bare transaction key while admission runs. It is
+-- never exported; 'Admitted' re-notes it with 'AdmissionNote'.
+type ExecutionJournal = Journal TxKey MoneyDecimal (HatBase AccountTitles)
+
+-- | Accepted role, stage, and origin, in that positional order. Admission
+-- keeps this per key while it runs, including transactions without postings;
+-- it is never exported.
 data EntryMetadata = EntryMetadata Role Stage Provenance
 
 -- | Reference key, origin, and checked entry, in that positional order.
 -- It is never exported, including through a public constructor field.
 data ResolvedInput = ResolvedInput TxKey Provenance Entry
 
--- | Observable cumulative snapshot boundaries.
-data Snapshot
-    = DuringPeriod  -- ^ Opening and ordinary entries, including stage-zero calls.
-    | Adjusted      -- ^ All entries before closing, including consolidation.
-    | Closed        -- ^ All accepted entries, whether or not closing occurred.
-    deriving (Eq, Ord, Show)
-
--- | Accepted journal, metadata, audit, during-period journal, and adjusted
--- journal, in that positional order. The first journal is the final snapshot.
--- There are no reconstruction, serialization, or combination instances.
+-- | Accepted journal, call audit in execution order, and the roles of every
+-- accepted transaction including those without postings, in that positional
+-- order. The role set is private: it lets trial-balance derivation choose
+-- AfterClosing for a closing transaction whose postings are empty, which the
+-- journal alone cannot show. There are no reconstruction, serialization, or
+-- combination instances.
 data Admitted = Admitted
     AdmissionJournal
-    (Map TxKey EntryMetadata)
     [CallAudit]
-    AdmissionJournal
-    AdmissionJournal
+    (Set Role)
 
 -- | Admitted source, final balance, then adjusted balance. Closing affects only
 -- the final balance; the adjusted balance is read before closing.

@@ -50,6 +50,9 @@ import ExchangeAlgebra.Journal.Core (Note(..))
 newtype EntityId = EntityId Text deriving (Eq, Ord, Show)
 
 -- | Exact reporting-period identity; no implicit current period is assumed.
+-- 'Ord' is the text order, not a calendar order: "2026-9" sorts after
+-- "2026-10". Use it only for map keys; operations that need the order of
+-- periods take the earlier and later period as explicit arguments.
 newtype PeriodId = PeriodId Text deriving (Eq, Ord, Show)
 
 -- | Transaction identity within one entity and period.
@@ -63,6 +66,25 @@ newtype EvidenceId = EvidenceId Text deriving (Eq, Ord, Show)
 
 -- | Invocation identity, independent of a generated transaction key.
 newtype CallId = CallId Text deriving (Eq, Ord, Show)
+
+-- | Hash each identifier by its exact text, as 'TxKey' hashes its coordinates.
+instance Hashable EntityId where
+    hashWithSalt salt (EntityId text) = hashWithSalt salt text
+
+instance Hashable PeriodId where
+    hashWithSalt salt (PeriodId text) = hashWithSalt salt text
+
+instance Hashable TxId where
+    hashWithSalt salt (TxId text) = hashWithSalt salt text
+
+instance Hashable FactId where
+    hashWithSalt salt (FactId text) = hashWithSalt salt text
+
+instance Hashable EvidenceId where
+    hashWithSalt salt (EvidenceId text) = hashWithSalt salt text
+
+instance Hashable CallId where
+    hashWithSalt salt (CallId text) = hashWithSalt salt text
 
 -- | Exact transaction coordinate. Equality never performs wildcard matching.
 data TxKey = TxKey EntityId PeriodId TxId -- ^ Entity, period, and transaction identity.

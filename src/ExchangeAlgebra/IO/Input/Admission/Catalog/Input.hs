@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wincomplete-patterns -Werror=incomplete-patterns #-}
 
@@ -7,7 +8,9 @@
 -- Read operation identities before entity inputs and calls.
 module ExchangeAlgebra.IO.Input.Admission.Catalog.Input where
 
+import Data.Hashable (Hashable)
 import Data.List.NonEmpty (NonEmpty)
+import GHC.Generics (Generic)
 
 import ExchangeAlgebra.Accounting.Account (AccountTitles)
 import ExchangeAlgebra.Accounting.Transaction (EntityId, TxKey)
@@ -37,7 +40,9 @@ data CatalogOperationKind
     | FinalStockKind -- ^ Final-stock closing transfer.
     | StraightLineKind -- ^ Straight-line depreciation.
     | ConsolidateKind -- ^ Consolidation balance check.
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord, Show, Generic)
+
+instance Hashable CatalogOperationKind
 
 -- | Unresolved company input. The entity label must match each key's entity.
 -- Only the library constructs resolved inputs and their provenance.

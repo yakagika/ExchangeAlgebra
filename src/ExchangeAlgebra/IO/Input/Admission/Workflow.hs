@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wincomplete-patterns -Werror=incomplete-patterns #-}
 
@@ -5,6 +6,9 @@
 -- package-private types use identifiers and catalog inputs; registry rules
 -- and diagnostics depend on them. Read roles and stages before audit records.
 module ExchangeAlgebra.IO.Input.Admission.Workflow where
+
+import Data.Hashable (Hashable)
+import GHC.Generics (Generic)
 
 import ExchangeAlgebra.Accounting.Transaction
     ( CallId
@@ -22,7 +26,9 @@ data Role
     | Adjustment -- ^ Adjustment before closing.
     | Closing -- ^ Closing transaction.
     | Elimination -- ^ Consolidation elimination.
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord, Show, Generic)
+
+instance Hashable Role
 
 -- | Library-controlled processing order, including the final query stage.
 data Stage
@@ -38,7 +44,9 @@ data Provenance
     = FactProvenance FactId -- ^ Originated from a trusted fact.
     | SubmissionProvenance (Maybe EvidenceId) -- ^ Originated from submitted postings.
     | CatalogProvenance CallId CatalogOperationKind -- ^ Originated from a catalog call.
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show, Generic)
+
+instance Hashable Provenance
 
 -- | Observable audit record for a successfully executed invocation.
 data CallAudit = CallAudit

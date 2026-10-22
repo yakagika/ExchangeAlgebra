@@ -140,13 +140,15 @@ module ExchangeAlgebra.IO.Input.Admission
     , Admitted
     , admit
       -- * Observations and derivation
+    , AdmissionNote
+    , admissionKey
+    , admissionRole
+    , admissionProvenance
+    , admissionStage
     , AdmissionJournal
-    , LedgerView
-    , Snapshot(..)
     , admittedJournal
-    , admittedSnapshot
-    , admittedAudit
-    , deriveLedger
+    , admittedCalls
+    , restrictAdmitted
     , AdmittedTrialBalance
     , deriveTrialBalance
     , admittedTrialBalance
@@ -166,8 +168,7 @@ import ExchangeAlgebra.IO.Input.Admission.Representation
     , AdmittedStatements
     , AdmittedTrialBalance
     , AdmissionJournal
-    , LedgerView
-    , Snapshot(..)
+    , AdmissionNote
     )
 import ExchangeAlgebra.IO.Input.Admission.Registry
 import ExchangeAlgebra.Accounting.Transaction

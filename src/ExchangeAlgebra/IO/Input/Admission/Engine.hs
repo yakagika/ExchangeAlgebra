@@ -254,13 +254,13 @@ rawPolicyErrors key accounts =
 
 -- | Execution state: a committed journal, metadata, and completed audit rows.
 data Execution = Execution
-    AdmissionJournal
+    ExecutionJournal
     (Map TxKey EntryMetadata)
     [CallAudit]
 
 -- | Read exactly one note. Empty generated transactions legitimately have no
 -- stored postings, but remain present in the metadata map.
-entryAt :: TxKey -> AdmissionJournal -> Entry
+entryAt :: TxKey -> ExecutionJournal -> Entry
 entryAt key = Journal.toAlg . Journal.projWithNote [key]
 
 -- | Add a checked transaction without netting its original postings.
@@ -431,13 +431,12 @@ evidenceErrors spec (Execution journal entries _) =
     , expected /= actual
     ]
 
--- | Freeze cumulative during-period and adjusted snapshots from the journal.
+-- | Build the public accepted value: re-note each transaction of the
+-- execution journal with its 'AdmissionNote' (key, role, provenance from the
+-- per-key metadata), keep the call audit, and record the roles of every
+-- accepted key, including keys whose transaction has no postings.
 finish :: Execution -> Admitted
-finish (Execution journal entries audits) =
-    Admitted journal entries audits (through OrdinaryStage) (through ConsolidationStage)
-  where
-    through limit = Journal.projWithNote
-        [key | (key, EntryMetadata _ stage _) <- Map.toAscList entries, stage <= limit] journal
+finish _ = error "P3a-W1 D3: finish builds AdmissionNote journal"
 
 -- | Admit a complete submission against a fixed trusted specification.
 --
