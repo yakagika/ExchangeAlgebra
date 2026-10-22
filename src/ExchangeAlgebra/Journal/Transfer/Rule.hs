@@ -103,28 +103,41 @@ carryNetEntries _ _ = error "P3b-W2 D3: carryNetEntries on the HatVal accumulato
 -- selected scalar under its original note, and append one rounded exact net
 -- per complete base under the carry note. An exact zero net adds no entry.
 -- The net accumulates the selected original scalars exactly with the 'HatVal'
--- accumulator and rounds once per complete base; no @bar@ or intermediate
--- rounding is applied. Failures return 'Left' with 'CarryError': a selected
--- nonzero HatNot posting is 'WildcardSide'; a selected value with
--- 'valueError' is 'NonFiniteValue' or 'NegativeValue' (first in scan order,
--- checked in that priority); a net whose single rounding is not finite is
--- 'ResultOutOfRange'.
+-- accumulator and rounds once per complete base with the value type's
+-- 'ExchangeAlgebra.Algebra.Value.Class.roundAccum'; no @bar@ or intermediate
+-- rounding is applied.
+--
+-- Failures return 'Left' with 'CarryError' and no partial journal. Every
+-- selected posting is checked before any net is rounded, and the
+-- highest-priority failure wins regardless of traversal order:
+-- 'WildcardSide' (a selected nonzero HatNot posting), 'NonFiniteValue',
+-- 'NegativeValue', then 'ResultOutOfRange' (a rounded net is not finite).
+-- A selected raw zero HatNot posting, which ordinary construction never
+-- produces, is not reported: it contributes nothing to the net and is
+-- omitted from the reversal, since 'revHat' is undefined for HatNot.
 --
 -- Inputs require concrete Hat or Not sides and finite, non-negative values.
--- Selected nonzero HatNot entries lie outside this contract. Applying the
--- returned entries cancels selected notes mathematically, but reading the
--- resulting journal with Exact can fail: reversing Not and Hat entries of
--- @2^1023@ at one base makes each side total @2^1024@.
+-- Applying the returned entries cancels selected notes mathematically. The
+-- net read out by the 'HatVal' accumulator succeeds on the resulting journal,
+-- but the 0.5.x @*Exact@ readers can fail on it: reversing Not and Hat
+-- entries of @2^1023@ at one base makes each side total @2^1024@. For the
+-- same reason 'sideTotalsBy' reports 'ResultOutOfRange' on such a journal,
+-- because it rounds each side total rather than the net.
 --
--- Law: subject: 'carryEntries'. Preconditions: selected exact aggregation
--- succeeds and the input meets the side and value contract above.
+-- Law: subject: 'carryEntries'. Preconditions: the input meets the side and
+-- value contract above and every rounded net is finite.
 -- Relation: for each base @b@, the Rational Not-minus-Hat balance obeys
 -- @exact_b(j <> e) - exact_b(j) = RN(s_b) - s_b@, where @e@ is the generated
--- journal, @s_b@ is the selected exact net, and @RN@ rounds once to Double.
+-- journal, @s_b@ is the selected exact net, and @RN@ is one rounding by
+-- 'ExchangeAlgebra.Algebra.Value.Class.roundAccum' of the value type (the
+-- identity for 'ExchangeAlgebra.Algebra.Value.MoneyDecimal' within its
+-- range, nearest-even for Double).
 -- Observation: Rational balances of original scalar entries, including zero
 -- bases. Tolerance: exact Rational equality. Instances: 'Note' and
--- 'HatBaseClass' with any 'HatVal' value type. For Double, finite results are
--- bit-identical to the 0.5.x implementation.
+-- 'HatBaseClass' with any 'HatVal' value type. For Double, on every input
+-- for which the 0.5.x implementation returned 'Right', the results are
+-- bit-identical; some inputs it rejected because a side sum left the Double
+-- range now succeed, because only the net is rounded.
 carryEntries :: (Note n, HatVal v, HatBaseClass b)
              => (n -> Bool)
              -> n
@@ -201,7 +214,7 @@ data CarryError
     = WildcardSide   -- ^ A posting uses HatNot, including a retained zero posting.
     | NonFiniteValue -- ^ A posting is NaN or infinite.
     | NegativeValue  -- ^ A posting has a negative value.
-    | ResultOutOfRange -- ^ A rounded side total is infinite.
+    | ResultOutOfRange -- ^ A rounded side total or net is not finite.
     deriving (Eq, Show)
 
 -- | Accumulate one side without retaining its source postings.
