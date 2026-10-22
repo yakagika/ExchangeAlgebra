@@ -1,4 +1,8 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.10"
+# dependencies = []
+# ///
 """Run the steps of .github/workflows/ci.yml locally, in order.
 
 The land check must cover every CI step, not only the build. This script
@@ -9,17 +13,19 @@ skipped. The CI flags `--system-ghc --no-install-ghc` are removed so that
 Stack uses its own GHC.
 
 The reader understands the subset of the workflow syntax that the selected
-jobs use: steps with `name`, `run`, `uses`, `with` and `id`. It stops with a
+jobs use: steps with `name`, `run`, `uses`, `with`, and `id`, including literal
+`run` blocks marked `|`, `|-`, or `|+`. It stops with a
 non-zero exit, before running anything, when a selected job uses a key it
 does not interpret (for example `if`, `env`, `working-directory`, `shell`,
-`strategy`), or when the number of `run:` lines in a job differs from the
-number of steps it read. In that case extend this reader rather than running
-an incomplete check.
+`strategy`), uses a folded block or an indentation indicator, or contains
+deeper step lines outside a supported `run` block or a `with` mapping. It also
+stops when the number of `run:` lines in a job differs from the number of
+steps it read. In that case extend this reader before running the check.
 
 Usage:
-    python3 tools/ci-local.py                      # build-test and build-test-no-visualize
-    python3 tools/ci-local.py --job build-test     # one job
-    python3 tools/ci-local.py --list               # print the steps without running them
+    uv run --script tools/ci-local.py                  # build-test and build-test-no-visualize
+    uv run --script tools/ci-local.py --job build-test # one job
+    uv run --script tools/ci-local.py --list           # print the steps without running them
 """
 
 from __future__ import annotations
@@ -39,10 +45,10 @@ RUN_LINE = re.compile(r"^\s+(?:- )?run:")
 
 
 def parse_jobs(workflow: Path) -> dict[str, dict]:
-    """Return {job: {"keys": set, "steps": [step], "run_lines": int}}.
+    """Return each job's keys, steps, run-line count, and syntax problems.
 
-    A step is {"line": int, "keys": {key: value}}; a block scalar (`run: |`)
-    is joined with newlines. Indentation follows the two-space layout of
+    A step is {"line": int, "keys": {key: value}}; literal `run` blocks
+    (`|`, `|-`, `|+`) are joined with newlines. Indentation follows the layout of
     ci.yml: jobs at 2, job keys at 4, step items at 6, step keys at 8.
     """
     lines = workflow.read_text(encoding="utf-8").splitlines()
@@ -68,7 +74,7 @@ def parse_jobs(workflow: Path) -> dict[str, dict]:
             continue
         if indent == 2 and re.match(r"^[A-Za-z0-9_-]+:\s*$", stripped):
             job = stripped.rstrip(":")
-            jobs[job] = {"keys": set(), "steps": [], "run_lines": 0}
+            jobs[job] = {"keys": set(), "steps": [], "run_lines": 0, "problems": []}
             in_steps = False
             step = None
             i += 1
@@ -96,11 +102,19 @@ def parse_jobs(workflow: Path) -> dict[str, dict]:
         elif step is not None and indent == 8:
             entry, key_indent = stripped, 8
         else:
+            if indent > 8 and (step is None or next(reversed(step["keys"]), None) != "with"):
+                jobs[job]["problems"].append(
+                    f"{job}: step content at line {i + 1} is not interpreted"
+                )
             i += 1
             continue
         key, _, value = entry.partition(":")
         key, value = key.strip(), value.strip()
-        if key == "run" and value in ("|", ">"):
+        if key == "run" and value.startswith(("|", ">")) and value not in ("|", "|-", "|+"):
+            jobs[job]["problems"].append(
+                f"{job}: run scalar `{value}` at line {i + 1} is not interpreted"
+            )
+        if key == "run" and value in ("|", "|-", "|+"):
             body = []
             i += 1
             while i < len(lines) and (not lines[i].strip()
@@ -122,7 +136,7 @@ def localize(command: str) -> str:
 
 
 def check_supported(job: str, data: dict) -> list[str]:
-    problems = []
+    problems = list(data["problems"])
     for key in sorted(data["keys"] - JOB_KEYS):
         problems.append(f"{job}: job key `{key}` is not interpreted")
     runs = 0
