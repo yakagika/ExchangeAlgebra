@@ -1,0 +1,16 @@
+{
+  "format": "exchangealgebra-admission-spec/dev",
+  "registry": [],
+  "evidence": [
+    {
+      "id": "e",
+      "amount": 1
+    },
+    {
+      "id": "e",
+      "amount": false
+    }
+  ],
+  "facts": [],
+  "vocabulary": []
+}

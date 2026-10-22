@@ -1,0 +1,11 @@
+{
+  "format": "exchangealgebra-submission/dev",
+  "postings": [
+    {
+      "entity": " \t",
+      "period": "2026",
+      "tx": "t1",
+      "rows": []
+    }
+  ]
+}

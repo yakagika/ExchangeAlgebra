@@ -8,6 +8,8 @@
   `ExchangeAlgebra.Journal.Core`. `ExchangeAlgebra.Simulate.Policy` re-exports
   the same class and instances.
 
+- The `exchangealgebra-aeson` adapter package adds explicit JSON admission input decoders; the core library does not depend on `aeson`.
+
 - `Journal.postFromNetBy` (also in `Journal.Core`) groups unrounded base
   residuals and calls the journal callback once per key after rounding. The
   callback can return postings on multiple notes. Bases containing nonfinite

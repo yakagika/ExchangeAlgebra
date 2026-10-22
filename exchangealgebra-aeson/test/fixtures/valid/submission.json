@@ -1,0 +1,17 @@
+{
+  "format": "exchangealgebra-submission/dev",
+  "postings": [
+    {
+      "entity": "A",
+      "period": "2026",
+      "tx": "t1",
+      "rows": [
+        {
+          "side": "debit",
+          "account": "Cash",
+          "amount": 25
+        }
+      ]
+    }
+  ]
+}

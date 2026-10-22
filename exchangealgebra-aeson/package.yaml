@@ -9,6 +9,8 @@ copyright:           "2026 Kaya Akagi"
 extra-source-files:
 - README.md
 - ChangeLog.md
+- test/fixtures/valid/*.json
+- test/fixtures/reject/*.json
 
 synopsis:            JSON decoders for the ExchangeAlgebra admission inputs
 category:            Accounting, Finance, JSON
@@ -32,3 +34,13 @@ library:
   - ExchangeAlgebra.Aeson.Admission
   ghc-options:
   - -Wall
+
+tests:
+  admission-test:
+    main: Main.hs
+    source-dirs: test
+    ghc-options:
+    - -Wall
+    - -Werror=incomplete-patterns
+    dependencies:
+    - exchangealgebra-aeson

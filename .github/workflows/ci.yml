@@ -46,7 +46,7 @@ jobs:
             ~/.stack
             .stack-work
             examples/.stack-work
-          key: ${{ runner.os }}-stack-${{ hashFiles('stack.yaml', 'package.yaml', 'examples/package.yaml') }}
+          key: ${{ runner.os }}-stack-${{ hashFiles('stack.yaml', 'package.yaml', 'examples/package.yaml', 'exchangealgebra-aeson/package.yaml') }}
           restore-keys: |
             ${{ runner.os }}-stack-
 
@@ -61,6 +61,12 @@ jobs:
       # benchmark is built but not run (--no-run-benchmarks) to keep CI fast.
       - name: Build + test + doctest (bench build-only)
         run: stack build --system-ghc --no-install-ghc --test --bench --no-run-benchmarks
+
+      - name: Build adapter Haddock
+        run: stack haddock --system-ghc --no-install-ghc --no-haddock-deps exchangealgebra-aeson
+
+      - name: Build source distributions
+        run: stack sdist --system-ghc --no-install-ghc . exchangealgebra-aeson
 
       - name: Check admission API boundary
         run: STACK_ARGS="--system-ghc --no-install-ghc" bash test/compile-fail/check.sh
@@ -97,12 +103,12 @@ jobs:
           path: |
             ~/.stack
             .stack-work
-          key: ${{ runner.os }}-stack-no-visualize-${{ hashFiles('stack.yaml', 'package.yaml') }}
+          key: ${{ runner.os }}-stack-no-visualize-${{ hashFiles('stack.yaml', 'package.yaml', 'exchangealgebra-aeson/package.yaml') }}
           restore-keys: |
             ${{ runner.os }}-stack-no-visualize-
 
       - name: Build + test library (visualize flag off)
-        run: stack build exchangealgebra --flag exchangealgebra:-visualize --test --no-run-benchmarks --system-ghc --no-install-ghc
+        run: stack build exchangealgebra exchangealgebra-aeson --flag exchangealgebra:-visualize --test --no-run-benchmarks --system-ghc --no-install-ghc
 
       - name: Check admission API boundary (visualize flag off)
         run: STACK_ARGS="--system-ghc --no-install-ghc" bash test/compile-fail/check.sh
@@ -185,7 +191,7 @@ jobs:
             ~/.stack
             .stack-work
             examples/.stack-work
-          key: ${{ runner.os }}-stack-${{ hashFiles('stack.yaml', 'package.yaml', 'examples/package.yaml') }}
+          key: ${{ runner.os }}-stack-${{ hashFiles('stack.yaml', 'package.yaml', 'examples/package.yaml', 'exchangealgebra-aeson/package.yaml') }}
           restore-keys: |
             ${{ runner.os }}-stack-
 

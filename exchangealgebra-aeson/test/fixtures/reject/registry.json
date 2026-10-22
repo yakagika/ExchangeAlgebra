@@ -1,0 +1,26 @@
+{
+  "format": "exchangealgebra-admission-spec/dev",
+  "registry": [
+    {
+      "entity": "shop",
+      "period": "2026",
+      "tx": "t",
+      "presence": "required",
+      "supplies": [
+        {
+          "kind": "facts",
+          "fact": "f",
+          "role": "opening"
+        },
+        {
+          "kind": "submission",
+          "role": "ordinary"
+        }
+      ],
+      "evidence": "e"
+    }
+  ],
+  "evidence": [],
+  "facts": [],
+  "vocabulary": []
+}

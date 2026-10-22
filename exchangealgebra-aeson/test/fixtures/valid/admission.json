@@ -1,0 +1,67 @@
+{
+  "format": "exchangealgebra-admission-spec/dev",
+  "registry": [
+    {
+      "entity": "A",
+      "period": "2026",
+      "tx": "t1",
+      "presence": "required",
+      "supplies": [
+        {
+          "kind": "submission",
+          "role": "ordinary"
+        }
+      ],
+      "evidence": "e1"
+    },
+    {
+      "entity": "A",
+      "period": "2026",
+      "tx": "t0",
+      "presence": "required",
+      "supplies": [
+        {
+          "kind": "facts",
+          "fact": "f1",
+          "role": "opening"
+        }
+      ],
+      "evidence": null
+    },
+    {
+      "entity": "A",
+      "period": "2026",
+      "tx": "close",
+      "presence": "optional",
+      "supplies": [
+        {
+          "kind": "catalog",
+          "operation": "FinalStockKind"
+        }
+      ],
+      "evidence": null
+    }
+  ],
+  "evidence": [
+    {
+      "id": "e1",
+      "amount": 120.5
+    }
+  ],
+  "facts": [
+    {
+      "id": "f1",
+      "rows": [
+        {
+          "side": "debit",
+          "account": "Cash",
+          "amount": 100
+        }
+      ]
+    }
+  ],
+  "vocabulary": [
+    "Cash",
+    "Sales"
+  ]
+}
