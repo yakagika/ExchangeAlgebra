@@ -18,6 +18,7 @@ import ExchangeAlgebra.Aeson.Admission
 import ExchangeAlgebra.Accounting.Account (AccountTitles(..))
 import ExchangeAlgebra.Algebra.Value (MoneyParseError(..))
 import qualified ExchangeAlgebra.IO.Input.Admission as A
+import qualified ExchangeAlgebra.Journal.Core as Journal
 
 -- | Fail with the assertion name and both observations.
 assertEqual :: (Eq a, Show a) => String -> a -> a -> IO ()
@@ -292,7 +293,8 @@ j3 = do
     submission <- fixture "valid/admit-submission" >>= right . decodeSubmissionPostings
     expected   <- right (A.admit expectedSpec expectedSubmission)
     actual     <- right (A.admit spec submission)
-    assertEqual "J3 ledger" (A.deriveLedger expected) (A.deriveLedger actual)
+    assertEqual "J3 journal" (Journal.toMap (A.admittedJournal expected))
+                             (Journal.toMap (A.admittedJournal actual))
     expectedTrial <- right (A.deriveTrialBalance expected)
     actualTrial   <- right (A.deriveTrialBalance actual)
     assertEqual "J3 balances" (A.admittedTrialBalance expectedTrial)
