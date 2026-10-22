@@ -20,6 +20,7 @@
 -- and "ExchangeAlgebra.Accounting.Exchange". The old "ExchangeAlgebra.Journal"
 -- path re-exports the same Journal type and also exposes accounting operations.
 module ExchangeAlgebra.Journal.Core ( Note(..)
+                                    , HasTermAxis(..)
                                     , NoteAxisKey(..)
                                     , NoteAxisPosting
                                     , Journal
@@ -51,6 +52,7 @@ module ExchangeAlgebra.Journal.Core ( Note(..)
 
 import Prelude hiding (map)
 import ExchangeAlgebra.Journal.Core.Representation ( Note(..)
+                                                   , HasTermAxis(..)
                                                    , NoteAxisKey(..)
                                                    , NoteAxisPosting
                                                    , Journal

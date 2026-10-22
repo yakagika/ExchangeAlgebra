@@ -12,6 +12,7 @@ import ExchangeAlgebra.Algebra.Base.Representation (BaseClass(..))
 import GHC.Generics (Generic)
 import Data.Hashable (Hashable(..))
 import Control.DeepSeq (NFData(..))
+import Data.Word (Word16)
 import qualified Data.Binary as Binary
 import qualified Data.Binary.Get as BinaryGet
 import qualified Data.Binary.Put as BinaryPut
@@ -285,16 +286,24 @@ instance Hashable AccountTitles where
     {-# INLINE hashWithSalt #-}
     hashWithSalt salt x = hashWithSalt salt (fromEnum x)
 
+-- | Serialize a title as a two-byte big-endian code: @0x8000 + n@, where
+-- @n@ is the title's fixed number from 'accountCode', or @0xFFFF@ for the
+-- wildcard 'AccountTitle'. The high bit marks the 0.6 encoding: bytes written
+-- by 0.5.x (the declaration index, always below @0x8000@) and unknown codes
+-- fail to decode, so a title added later never shifts an existing code.
 instance Binary.Binary AccountTitles where
     {-# INLINE put #-}
-    put = BinaryPut.putWord16be . fromIntegral . fromEnum
+    put = BinaryPut.putWord16be . accountCode
     {-# INLINE get #-}
-    get = do
-        tag <- BinaryGet.getWord16be
-        let maxTag = fromIntegral (fromEnum (maxBound :: AccountTitles))
-        if tag <= maxTag
-            then pure (toEnum (fromIntegral tag))
-            else fail ("AccountTitles: invalid binary tag " ++ show tag)
+    get = fail "P3b-W5a D3: AccountTitles decode by the inverse of accountCode"
+
+-- | The fixed wire code of each title. The case is total and written out, so
+-- adding a title without a code fails to compile. The numbers are the
+-- declaration indices of develop at this change, frozen; a new title
+-- takes the next unused number wherever it is declared. Decoding uses the
+-- inverse table built from this function, not a second hand-written table.
+accountCode :: AccountTitles -> Word16
+accountCode _ = error "P3b-W5a D3: total case of frozen account codes"
 
 instance Element AccountTitles where
     {-# INLINE wildcard #-}

@@ -106,6 +106,7 @@ import           ExchangeAlgebra.Journal           ( Journal
                                                    , HatVal
                                                    , HatBaseClass
                                                    , filterWithNote )
+import           ExchangeAlgebra.Journal.Core      (HasTermAxis(..))
 import           ExchangeAlgebra.Simulate          (StateTime)
 import           ExchangeAlgebra.Simulate.Spill    ( SpillOptions(..)
                                                    , SpillDeletePolicy(..)
@@ -172,33 +173,8 @@ defaultLedgerPolicy = LedgerPolicy
 -- * Term axis convention
 ------------------------------------------------------------------
 
--- | The convention that fixes /which/ part of a 'Note' is the simulation term.
---
--- A policy must map a Note to its term to decide which entries belong to a
--- closed period. Since a tuple Note has no intrinsic "term" component, the rule
--- is fixed here: __the term is the last component of the Note__. The shipped
--- instances follow this rule; a custom Note type provides a one-line instance.
---
--- >>> termOf ("buy", 7 :: Int)
--- 7
---
--- >>> termOf ("buy", "shopA", 3 :: Int)
--- 3
-class (Note n, Ord (TermOf n)) => HasTermAxis n where
-  -- | The term type extracted from the Note.
-  type TermOf n
-  -- | Extract the term (last Note component, by the library convention).
-  termOf :: n -> TermOf n
-
--- | Pair Note: the term is the second (last) component.
-instance (Note e, Note t) => HasTermAxis (e, t) where
-  type TermOf (e, t) = t
-  termOf = snd
-
--- | Triple Note: the term is the third (last) component.
-instance (Note e1, Note e2, Note t) => HasTermAxis (e1, e2, t) where
-  type TermOf (e1, e2, t) = t
-  termOf (_, _, t) = t
+-- 'HasTermAxis' and 'TermOf' are defined in "ExchangeAlgebra.Journal.Core"
+-- and re-exported here, so the 0.5.x import path keeps working.
 
 ------------------------------------------------------------------
 -- * Bridges to the classic spill engine

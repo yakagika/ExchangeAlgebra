@@ -8,12 +8,14 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE ExistentialQuantification  #-}
+{-# LANGUAGE TypeFamilies               #-}
 
 -- | Generic journals, note indices, and redundancy-preserving operations.
 -- This Journal layer owns the representation and instances for Definitions 10-12.
 -- It uses generic Algebra owners; "ExchangeAlgebra.Journal.Core" exposes the
 -- public operations. Read the note definitions before the journal operations.
 module ExchangeAlgebra.Journal.Core.Representation ( Note(..)
+                                                   , HasTermAxis(..)
                                                    , NoteAxisKey(..)
                                                    , NoteAxisPosting
                                                    , Journal
@@ -192,6 +194,34 @@ class (Show a, Eq a, Ord a, Hashable a, Typeable a) => Note a where
     toNoteAxisKeys :: a -> [NoteAxisKey]
     toNoteAxisKeys a = [NoteAxisKey a]
 
+-- | The convention that fixes /which/ part of a 'Note' is the simulation term.
+--
+-- A simulation policy or a multi-period ledger maps a Note to its term to
+-- decide which entries belong to a period. Since a tuple Note has no intrinsic "term" component, the rule
+-- is fixed here: __the term is the last component of the Note__. The shipped
+-- instances follow this rule; a custom Note type provides a one-line instance.
+--
+-- >>> termOf ("buy", 7 :: Int)
+-- 7
+--
+-- >>> termOf ("buy", "shopA", 3 :: Int)
+-- 3
+class (Note n, Ord (TermOf n)) => HasTermAxis n where
+  -- | The term type extracted from the Note.
+  type TermOf n
+  -- | Extract the term (last Note component, by the library convention).
+  termOf :: n -> TermOf n
+
+-- | Pair Note: the term is the second (last) component.
+instance (Note e, Note t) => HasTermAxis (e, t) where
+  type TermOf (e, t) = t
+  termOf = snd
+
+-- | Triple Note: the term is the third (last) component.
+instance (Note e1, Note e2, Note t) => HasTermAxis (e1, e2, t) where
+  type TermOf (e1, e2, t) = t
+  termOf (_, _, t) = t
+
 -- | Default instance for using @Int@ as a time axis (Term).
 -- @plank = -1@ is distinguished from non-negative term numbers.
 --
@@ -351,6 +381,10 @@ appendMap rhs j@(Journal bs delta baseAxis deltaAxis)
                          , deleteNoteAxisPosting (toNoteAxisKeys k) k idxAcc )
                     else ( Map.insert k dMerged dAcc, idxAcc )
 
+-- | Serialize a journal as its note count followed by each note and its
+-- algebra. Decoding checks each algebra as the 'Alg' instance does and fails
+-- on a repeated note. A note whose algebra is zero is kept as it was written
+-- (the zero-note normal form is decided separately).
 instance ( Note n
          , HatVal v
          , HatBaseClass b
@@ -366,16 +400,7 @@ instance ( Note n
             (\n alg k -> Binary.put n >> Binary.put alg >> k)
             (pure ())
             m
-    get = do
-        n <- Binary.get :: Binary.Get Int
-        fromMap <$> go n Map.empty
-      where
-        go !remaining !acc
-            | remaining <= 0 = pure acc
-            | otherwise = do
-                k <- Binary.get
-                v <- Binary.get
-                go (remaining - 1) (Map.insert k v acc)
+    get = fail "P3b-W5a D3: Journal decode rejects repeated notes"
 
 -- | Test whether the Journal is empty (zero).
 --

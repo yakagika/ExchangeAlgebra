@@ -308,7 +308,23 @@ data  Alg v b where
                  , _allBpIds    :: ~IntSet.IntSet
                  } ->  Alg v b
 
+-- | Serialize an algebra in the 0.5 wire layout (tag 0 = 'Zero', tag 1 =
+-- one posting, tag 2 = the per-base map with each 'Pair' in sequence order).
+--
+-- Decoding is a construction boundary, like '.@': it fails on a value for
+-- which 'valueError' is 'Just' (negative or non-finite), on a tag-1 posting
+-- whose base side is 'HatNot', and on a repeated base key in tag 2. The checks
+-- run before zero values are dropped, and a dropped key still counts as a
+-- repeat. Zero values are then dropped as '.@' and '.+' drop them: a tag-1
+-- zero decodes to 'Zero', zero entries leave their 'Pair' sequence with the
+-- remaining order unchanged, an empty side or base disappears, and an empty
+-- tag 2 decodes to 'Zero'. A standalone base value is not checked here, so a
+-- 'HatNot' pattern still decodes. For every algebra built from Hat or Not
+-- bases with valid values through the public constructors,
+-- @decode . encode@ is the identity under structural equality, including the
+-- order of each base's sequence.
 instance ( HatBaseClass b
+         , HatVal v
          , Binary.Binary v
          , Binary.Binary b
          , Binary.Binary (BasePart b)
@@ -328,22 +344,7 @@ instance ( HatBaseClass b
             (pure ())
             m
 
-    get = do
-        tag <- Binary.get
-        case (tag :: Int) of
-            0 -> pure Zero
-            1 -> (:@) <$> Binary.get <*> Binary.get
-            2 -> do
-                n <- Binary.get :: Binary.Get Int
-                linerFromMap <$> go n Map.empty
-            _ -> fail ("Binary decode failure for Alg: unknown tag " ++ show tag)
-      where
-        go n !acc
-            | n <= 0 = pure acc
-            | otherwise = do
-                bp <- Binary.get
-                p <- Binary.get
-                go (n - 1) (Map.insert bp p acc)
+    get = fail "P3b-W5a D3: checked Alg decode"
 
 type AxisPosting = IntMap.IntMap (Map.HashMap AxisKey IntSet.IntSet)
 
