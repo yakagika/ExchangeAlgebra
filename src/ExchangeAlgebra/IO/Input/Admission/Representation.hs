@@ -58,16 +58,18 @@ data EntryMetadata = EntryMetadata Role Stage Provenance
 -- It is never exported, including through a public constructor field.
 data ResolvedInput = ResolvedInput TxKey Provenance Entry
 
--- | Accepted journal, call audit in execution order, and the roles of every
+-- | Accepted journal, call audit in execution order, and the notes of every
 -- accepted transaction including those without postings, in that positional
--- order. The role set is private: it lets trial-balance derivation choose
+-- order. The note set is private: it lets trial-balance derivation choose
 -- AfterClosing for a closing transaction whose postings are empty, which the
--- journal alone cannot show. There are no reconstruction, serialization, or
--- combination instances.
+-- journal alone cannot show, and it is restricted by the same predicate as
+-- the journal so that repeated restriction stays consistent. Invariant: every
+-- note of the journal is in the set. There are no reconstruction,
+-- serialization, or combination instances.
 data Admitted = Admitted
     AdmissionJournal
     [CallAudit]
-    (Set Role)
+    (Set AdmissionNote)
 
 -- | Admitted source, final balance, then adjusted balance. Closing affects only
 -- the final balance; the adjusted balance is read before closing.

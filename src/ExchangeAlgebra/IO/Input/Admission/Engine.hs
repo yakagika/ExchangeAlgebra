@@ -433,7 +433,7 @@ evidenceErrors spec (Execution journal entries _) =
 
 -- | Build the public accepted value: re-note each transaction of the
 -- execution journal with its 'AdmissionNote' (key, role, provenance from the
--- per-key metadata), keep the call audit, and record the roles of every
+-- per-key metadata), keep the call audit, and record the notes of every
 -- accepted key, including keys whose transaction has no postings.
 finish :: Execution -> Admitted
 finish _ = error "P3a-W1 D3: finish builds AdmissionNote journal"

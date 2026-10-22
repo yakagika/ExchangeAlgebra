@@ -85,8 +85,12 @@ admittedCalls _ = error "P3a-W1 D3: admittedCalls"
 -- predicate drops and a closing call can generate several notes.
 -- Restricting by entity and then deriving a trial balance keeps the strict
 -- policy unchanged; for example inter-office accounts of one entity are not
--- eliminated by the restriction. Roles of dropped transactions no longer
--- count when trial-balance derivation chooses AfterClosing.
+-- eliminated by the restriction. The predicate also applies to accepted
+-- transactions without postings: a dropped closing transaction, empty or not,
+-- no longer counts when trial-balance derivation chooses AfterClosing, and a
+-- kept one still counts. Hence
+-- @restrictAdmitted p . restrictAdmitted q = restrictAdmitted (\\n -> p n && q n)@
+-- and @restrictAdmitted (const True)@ is the identity.
 restrictAdmitted :: (AdmissionNote -> Bool) -> Admitted -> Admitted
 restrictAdmitted _ _ = error "P3a-W1 D3: restrictAdmitted"
 
@@ -126,8 +130,9 @@ combineResults _ (Left errors) = Left errors
 -- | Validate the adjusted and final journals using the existing strict policy.
 -- The adjusted journal is the restriction to stages up to
 -- 'ConsolidationStage', validated BeforeClosing. The final journal is the
--- whole admitted journal; it is AfterClosing if the admitted transactions
--- include a closing transaction (with or without postings), otherwise
+-- whole admitted journal; it is AfterClosing if the accepted transactions
+-- kept by every restriction so far include a closing transaction (with or
+-- without postings), otherwise
 -- BeforeClosing. No external balance,
 -- explanation, or reclassification can be injected into this path.
 -- Any admitted transaction with the Closing role selects AfterClosing for the
