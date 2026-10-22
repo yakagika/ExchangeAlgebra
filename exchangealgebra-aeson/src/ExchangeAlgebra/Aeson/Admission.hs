@@ -8,12 +8,19 @@
 -- only the development formats 'admissionSpecFormat' and 'submissionFormat';
 -- the protocol version is independent of the package version.
 --
--- Decoding is strict: unknown fields, duplicate keys within one object,
--- missing fields, and values of the wrong JSON type are rejected. Amounts are
--- JSON numbers only and are read exactly through
--- 'ExchangeAlgebra.Algebra.Value.moneyDecimalFromScientific', never through
--- 'Double'. Independent failures are collected; a syntax failure or an
--- unsupported format stops decoding at once.
+-- Decoding is strict: unknown fields, duplicate keys within one object
+-- (compared after unescaping), missing fields, and values of the wrong JSON
+-- type are rejected. Amounts are JSON numbers only and are read exactly
+-- through 'ExchangeAlgebra.Algebra.Value.moneyDecimalFromScientific', never
+-- through 'Double'. A number whose exponent has ten or more digits is a
+-- syntax failure ('MalformedJson'): the JSON parser would otherwise truncate
+-- the exponent and read another amount.
+--
+-- Independent failures are collected. A syntax failure stops decoding at
+-- once, and so does a missing, mistyped, duplicated, or unsupported
+-- @"format"@. A value of the wrong type stops only the checks below it;
+-- the checks of its sibling fields and of other array elements continue. The
+-- value of a duplicated key is not checked.
 module ExchangeAlgebra.Aeson.Admission
     ( -- * Decoders
       decodeAdmissionSpec
@@ -75,9 +82,13 @@ submissionFormat = error "aeson D3: submissionFormat"
 -- | Decode a trusted specification. The registry is built with
 -- 'ExchangeAlgebra.IO.Input.Admission.txRule' and
 -- 'ExchangeAlgebra.IO.Input.Admission.txIdRegistry'; every 'TxKey' is a full
--- entity-period-transaction triple with no defaults. Evidence and fact
+-- entity-period-transaction triple with no defaults. The @"evidence"@ field
+-- of every rule is required: @null@ means no evidence and a string names the
+-- evidence. Combinations of supplies are checked only by @txIdRegistry@,
+-- whose failures are returned as 'RegistryRejected'. Evidence and fact
 -- identifiers must be unique. Fact rows keep their side and account text
--- unparsed, as admission parses them.
+-- unparsed, as admission parses them; vocabulary entries must be canonical
+-- account names.
 decodeAdmissionSpec :: ByteString -> Either (NonEmpty DecodeFailure) AdmissionSpec
 decodeAdmissionSpec _ = error "aeson D3: decodeAdmissionSpec"
 
