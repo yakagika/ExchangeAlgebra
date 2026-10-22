@@ -1,0 +1,44 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.39.6.
+--
+-- see: https://github.com/sol/hpack
+
+name:           exchangealgebra-aeson
+version:        0.6.0.0
+synopsis:       JSON decoders for the ExchangeAlgebra admission inputs
+description:    Please see the README on GitHub at <https://github.com/yakagika/ExchangeAlgebra/tree/master/exchangealgebra-aeson#readme>
+category:       Accounting, Finance, JSON
+homepage:       https://github.com/yakagika/ExchangeAlgebra#readme
+bug-reports:    https://github.com/yakagika/ExchangeAlgebra/issues
+author:         Kaya Akagi
+maintainer:     yakagika@icloud.com
+copyright:      2026 Kaya Akagi
+license:        OtherLicense
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    ChangeLog.md
+
+source-repository head
+  type: git
+  location: https://github.com/yakagika/ExchangeAlgebra
+
+library
+  exposed-modules:
+      ExchangeAlgebra.Aeson.Admission
+  other-modules:
+      Paths_exchangealgebra_aeson
+  hs-source-dirs:
+      src
+  ghc-options: -Wall
+  build-depends:
+      aeson ==2.2.*
+    , base >=4.17 && <5
+    , bytestring >=0.11 && <0.13
+    , containers >=0.6 && <0.8
+    , exchangealgebra >=0.5.3.1 && <0.7
+    , scientific >=0.3.7 && <0.4
+    , text >=2.0 && <2.2
+  default-language: Haskell2010
