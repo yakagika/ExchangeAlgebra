@@ -116,11 +116,11 @@ writeUArray os (t, Relation { _supplier = e1
 - 本規則は新規・変更箇所に適用する. 既存コードの一括整形はせず, 無変更箇所を lint 対象にしない.
 - formatter は未選定. 導入時は縦整列と既存 block Haddock を保持できるか実例で確認し, tool の既定値で本規則を書き換えない.
 - advisory lint は変更範囲の字句で確実に判定できる事項だけを扱う. 英語や説明の質, 整列, 分岐, 例外の妥当性は auditor が判定する.
-- 検証は CI と同じ `stack build --test --bench --no-run-benchmarks` を使う. EA の代数 contract と examples の受入規律は `EA_USAGE.md` とその seed を優先する.
+- 検証は ci.yml の全 step を手元で順に実行する `uv run --script tools/ci-local.py` を使う. EA の代数 contract と examples の受入規律は `EA_USAGE.md` とその seed を優先する.
 
 ## Repo-local slot
 
-- **build / 検査コマンド**: land 前は CI と同一の `stack build --test --bench --no-run-benchmarks` を repo root で実行する (素の `stack build && stack test` は bench をビルドしない). 加えて test suite `ExchangeAlgebra-test` / `ExchangeAlgebra-surface` / `ExchangeAlgebra-doctest` を実行し (doctest は順序非依存), standalone 利用者の再現が要る変更では `cd examples && stack build` を行う. instance を library へ昇格したら `examples/` と `test/` の orphan instance を同時に削除する.
+- **build / 検査コマンド**: land 前は repo root で `uv run --script tools/ci-local.py` を実行する. ci.yml の build-test と build-test-no-visualize の全 step (`stack build --test --bench --no-run-benchmarks`, module の層, 互換の client, export surface, orphan instance, visualize を外した build など) を手元で順に走らせる. `stack build --test --bench --no-run-benchmarks` だけでは互換の client などの検査を見逃し, 素の `stack build && stack test` は bench もビルドしない. test suite `ExchangeAlgebra-test` / `ExchangeAlgebra-surface` / `ExchangeAlgebra-doctest` もこの中で走り (doctest は順序非依存), standalone 利用者の再現が要る変更では加えて `cd examples && stack build` を行う. instance を library へ昇格したら `examples/` と `test/` の orphan instance を同時に削除する.
 - **規則 5 (と局所 `if`) の例外を適用する dir**: 上の「haskell-library の例外」に列挙した file に限る (`src/ExchangeAlgebra/Simulate.hs`, `Simulation/Analysis.hs`, `Simulation/Array.hs`, `Simulate/Visualize.hs`, `Simulate/Lite.hs`, `Simulate/Spill.hs`, `Write.hs`, `Algebra/Internal.hs`, `Algebra/Core/Representation.hs`, `Algebra/Transfer.hs`, `Algebra/Transfer/Rule.hs`, `Algebra/Transfer/Representation.hs`, `Journal/Transfer.hs`, `Journal/Transfer/Rule.hs`, `Convert/Checked.hs`, `IO/Input/Checked.hs`). それ以外の `src/`, `examples/`, `test/`, `tools/` には適用しない.
 - **凍結 kernel の所在**: 該当なし (本 repo は library であり, manifest に sha256 を持つ凍結 kernel を置かない). `examples/market/rcr/` の凍結した測定証拠 (RCR の入力 data) は整形対象でなく保全対象とする.
 - **規則 9 の記述量 trigger**: 集計は seed 規則 9 の方法 (空行とコメントを除く行, file を本体 / kit / adapter / test に排他的に割当) に従う. 単位と目安は次のとおり.

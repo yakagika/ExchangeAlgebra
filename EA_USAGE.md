@@ -108,4 +108,4 @@ engine (`Simulate`, `Simulate/Lite`) と ledger policy (`Simulate/Policy`, `Simu
 | 保存則 / 恒等式 | Lite / Policy / Market test の借貸均衡と `FullAudit` との exact 一致. examples の production model は期末検査を model 側で持つ |
 | 再現 | `examples/market/rcr/` (論文の再現 package, 凍結した測定証拠) |
 
-全層は land 前の `stack build --test --bench --no-run-benchmarks` に結線されている (examples の再現 run は含まない. rcr は family README の手順で別途実行する).
+全層は land 前の検証 `uv run --script tools/ci-local.py` に結線されている (ci.yml の全 step を手元で順に実行し, `stack build --test --bench --no-run-benchmarks` はその 1 step. examples の再現 run は含まない. rcr は family README の手順で別途実行する).
