@@ -30,6 +30,7 @@ import qualified Data.Set            as Set
 import Data.Char (isAlpha, isAscii)
 import qualified Data.Binary         as Binary
 import qualified Data.Binary.Put     as BinaryPut
+import qualified Data.Binary.Get     as BinaryGet
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text           as T
 import qualified Data.Text.IO        as TIO
@@ -65,16 +66,21 @@ testAccountTitlesBinary :: IO ()
 testAccountTitlesBinary = do
     let titles = [minBound .. maxBound] :: [AccountTitles]
         roundTripped = L.map (Binary.decode . Binary.encode) titles
-        invalidTag = fromIntegral (fromEnum (maxBound :: AccountTitles) + 1)
-        invalidBytes = BinaryPut.runPut (BinaryPut.putWord16be invalidTag)
+        codes = L.map (BinaryGet.runGet BinaryGet.getWord16be . Binary.encode) titles
+        invalidCodes = [0x0000, 0x0001, 0x00F2, 0x7FFF, 0x8000 + fromIntegral (length titles)]
     assertEqual "AccountTitles Binary covers all 243 constructors"
         243 (L.length titles)
     assertEqual "AccountTitles Binary Word16be roundtrip"
         titles roundTripped
-    assertEqual "AccountTitles Binary rejects out-of-range Word16"
-        True (case decodeAccountTitleOrFail invalidBytes of
-            Left _  -> True
-            Right _ -> False)
+    assertEqual "B4 AccountTitles codes are injective" 243 (Set.size (Set.fromList codes))
+    assertEqual "B4 AccountTitles codes carry the version bit" True (all (>= 0x8000) codes)
+    assertEqual "B4 wildcard code is fixed" (BinaryPut.runPut (BinaryPut.putWord16be 0xFFFF))
+        (Binary.encode AccountTitle)
+    forM_ invalidCodes $ \code ->
+        assertEqual "B4 AccountTitles rejects old and unused codes"
+            True (case decodeAccountTitleOrFail (BinaryPut.runPut (BinaryPut.putWord16be code)) of
+                Left _  -> True
+                Right _ -> False)
 
 -- | Check the appended allowances and the additional Japanese aliases.
 testAllowanceAccountTitles :: IO ()
@@ -2586,11 +2592,11 @@ testReportingPresentation = do
 testDerivedMetricsAndLegacyCoordinates :: IO ()
 testDerivedMetricsAndLegacyCoordinates = do
     assertEqual "legacy derived-coordinate ordinals and Binary bytes"
-        [ (NetIncome, 49, T.pack "0031")
-        , (GrossProfit, 54, T.pack "0036")
-        , (OrdinaryProfit, 55, T.pack "0037")
-        , (NetLoss, 64, T.pack "0040")
-        , (IncomeSummary, 216, T.pack "00d8")
+        [ (NetIncome, 49, T.pack "8031")
+        , (GrossProfit, 54, T.pack "8036")
+        , (OrdinaryProfit, 55, T.pack "8037")
+        , (NetLoss, 64, T.pack "8040")
+        , (IncomeSummary, 216, T.pack "80d8")
         ]
         [ (title, fromEnum title, accountSemanticsBinaryHex title)
         | title <- [NetIncome, GrossProfit, OrdinaryProfit, NetLoss, IncomeSummary]

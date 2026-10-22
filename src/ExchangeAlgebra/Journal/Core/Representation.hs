@@ -400,7 +400,19 @@ instance ( Note n
             (\n alg k -> Binary.put n >> Binary.put alg >> k)
             (pure ())
             m
-    get = fail "P3b-W5a D3: Journal decode rejects repeated notes"
+    get = do
+        count <- Binary.get :: Binary.Get Int
+        fromMap <$> go count Map.empty
+      where
+        go :: (Note note, Binary.Binary note, Binary.Binary algebra)
+           => Int -> Map.HashMap note algebra -> Binary.Get (Map.HashMap note algebra)
+        go remaining !acc
+            | remaining <= 0 = pure acc
+            | otherwise = do
+                note    <- Binary.get
+                algebra <- Binary.get
+                CM.when (Map.member note acc) (fail "Journal: repeated note")
+                go (remaining - 1) (Map.insert note algebra acc)
 
 -- | Test whether the Journal is empty (zero).
 --

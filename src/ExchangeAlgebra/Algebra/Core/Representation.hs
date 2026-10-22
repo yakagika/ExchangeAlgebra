@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
@@ -323,12 +324,12 @@ data  Alg v b where
 -- bases with valid values through the public constructors,
 -- @decode . encode@ is the identity under structural equality, including the
 -- order of each base's sequence.
-instance ( HatBaseClass b
-         , HatVal v
-         , Binary.Binary v
-         , Binary.Binary b
-         , Binary.Binary (BasePart b)
-         ) => Binary.Binary (Alg v b) where
+instance forall v b. ( HatBaseClass b
+                     , HatVal v
+                     , Binary.Binary v
+                     , Binary.Binary b
+                     , Binary.Binary (BasePart b)
+                     ) => Binary.Binary (Alg v b) where
     {-# INLINABLE put #-}
     {-# INLINABLE get #-}
     put Zero = Binary.put (0 :: Int)
@@ -344,7 +345,44 @@ instance ( HatBaseClass b
             (pure ())
             m
 
-    get = fail "P3b-W5a D3: checked Alg decode"
+    get = do
+        tag <- Binary.get :: Binary.Get Int
+        case tag of
+            0 -> pure Zero
+            1 -> do
+                value <- Binary.get
+                basis <- Binary.get
+                case valueError value of
+                    Just message -> fail ("Alg: " ++ show message)
+                    Nothing
+                        | hat basis == HatNot -> fail "Alg: HatNot posting"
+                        | isZeroValue value   -> pure Zero
+                        | otherwise           -> pure (value :@ basis)
+            2 -> do
+                count <- Binary.get :: Binary.Get Int
+                pairs <- go count Map.empty
+                let nonempty = Map.filter
+                        (\(Pair hs ns) -> not (Seq.null hs && Seq.null ns)) pairs
+                pure $ if Map.null nonempty then Zero else linerFromMap nonempty
+            _ -> fail ("Alg: unknown tag " ++ show tag)
+      where
+        go :: Int
+           -> Map.HashMap (BasePart b) (Pair v)
+           -> Binary.Get (Map.HashMap (BasePart b) (Pair v))
+        go remaining !acc
+            | remaining <= 0 = pure acc
+            | otherwise = do
+                basis      <- Binary.get
+                Pair hs ns <- Binary.get
+                if Map.member basis acc
+                    then fail "Alg: repeated base key"
+                    else do
+                        mapM_ (\value -> case valueError value of
+                            Just message -> fail ("Alg: " ++ show message)
+                            Nothing      -> pure ()) (hs Seq.>< ns)
+                        let pair = Pair (Seq.filter (not . isZeroValue) hs)
+                                        (Seq.filter (not . isZeroValue) ns)
+                        go (remaining - 1) (Map.insert basis pair acc)
 
 type AxisPosting = IntMap.IntMap (Map.HashMap AxisKey IntSet.IntSet)
 

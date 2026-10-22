@@ -4,6 +4,10 @@
 
 ### Added
 
+- `HasTermAxis(..)`, including `TermOf` and `termOf`, is available from
+  `ExchangeAlgebra.Journal.Core`. `ExchangeAlgebra.Simulate.Policy` re-exports
+  the same class and instances.
+
 - `Journal.postFromNetBy` (also in `Journal.Core`) groups unrounded base
   residuals and calls the journal callback once per key after rounding. The
   callback can return postings on multiple notes. Bases containing nonfinite
@@ -30,10 +34,7 @@
   for `Fixtures`; these two are registry aliases (`asAliases`), because
   `jcciAliases` returns only the names in the frozen JCCI 2022 table. Net sales
   and net purchases deduct the respective allowances alongside rebates.
-  Existing concrete account Binary ordinals are unchanged, but the wildcard
-  `AccountTitle` ordinal moves from 240 to 242, so `Binary` data written by
-  0.5.x that contains the wildcard account decodes as `SalesAllowances`.
-  Re-encode such data with this version.
+  Binary encoding uses the fixed account codes described under Changed.
 - `ExchangeAlgebra.IO.Input.Admission` accepts complete submissions against a
   trusted transaction registry. Accepted values retain source postings and
   support ledger, trial-balance, and statement derivation. Its closed catalog
@@ -97,8 +98,26 @@
   contains original postings; transactions without postings have no public
   journal entry. Their calls remain in `admittedCalls`, which stays complete
   and in execution order after `restrictAdmitted`. Empty closing transactions
-  kept by the restriction still select closing validation. Acceptance,
-  generated postings, numeric results, diagnostics, and serialization are
+  kept by the restriction still select closing validation. The admission
+  change leaves acceptance, generated postings, numeric results, and
+  diagnostics unchanged.
+
+- Binary decoding of `Alg` and `Journal` rejects negative or nonfinite
+  posting values, `HatNot` postings, repeated base keys, and repeated notes.
+  Zero postings are removed with the remaining sequence order preserved;
+  zero-valued journal notes are retained. `Binary (Alg v b)` now requires
+  `HatVal v`; add that constraint to polymorphic serialization code.
+- Decode diagnostics identify invalid values and duplicates. `Alg` failures
+  begin with `Alg:`.
+- `AccountTitles` uses fixed two-byte big-endian codes with the high bit set;
+  the wildcard `AccountTitle` uses `0xFFFF`. Bytes containing `AccountTitles`
+  written by 0.5.x or earlier develop revisions cannot be read: unmarked
+  codes fail to decode. Export those values with their original library
+  version and encode them again with this version. The `Alg` and `Journal`
+  wire layouts (tags, counts, and order) are unchanged. Values containing no
+  account bytes, such as `Zero` and an empty `Journal`, do not identify the
+  encoding version.
+- These serialization changes leave numeric results and valid postings
   unchanged.
 
 - `(.|)` now returns an empty `Journal` for a zero algebra element, consistent

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wincomplete-patterns -Werror=incomplete-patterns #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE ExistentialQuantification  #-}
@@ -13,6 +14,7 @@ import GHC.Generics (Generic)
 import Data.Hashable (Hashable(..))
 import Control.DeepSeq (NFData(..))
 import Data.Word (Word16)
+import qualified Data.Map.Strict as Map
 import qualified Data.Binary as Binary
 import qualified Data.Binary.Get as BinaryGet
 import qualified Data.Binary.Put as BinaryPut
@@ -295,7 +297,11 @@ instance Binary.Binary AccountTitles where
     {-# INLINE put #-}
     put = BinaryPut.putWord16be . accountCode
     {-# INLINE get #-}
-    get = fail "P3b-W5a D3: AccountTitles decode by the inverse of accountCode"
+    get = do
+        code <- BinaryGet.getWord16be
+        case Map.lookup code accountTitlesByCode of
+            Just title -> pure title
+            Nothing    -> fail ("AccountTitles: unknown or unmarked code " ++ show code)
 
 -- | The fixed wire code of each title. The case is total and written out, so
 -- adding a title without a code fails to compile. The numbers are the
@@ -303,7 +309,254 @@ instance Binary.Binary AccountTitles where
 -- takes the next unused number wherever it is declared. Decoding uses the
 -- inverse table built from this function, not a second hand-written table.
 accountCode :: AccountTitles -> Word16
-accountCode _ = error "P3b-W5a D3: total case of frozen account codes"
+accountCode title = case title of
+    Cash                                           -> 0x8000
+    Deposits                                       -> 0x8001
+    CurrentDeposits                                -> 0x8002
+    Securities                                     -> 0x8003
+    InvestmentSecurities                           -> 0x8004
+    InvestmentInAssociate                          -> 0x8005
+    LongTermNationalBonds                          -> 0x8006
+    ShortTermNationalBonds                         -> 0x8007
+    Products                                       -> 0x8008
+    Machinery                                      -> 0x8009
+    Building                                       -> 0x800A
+    Vehicle                                        -> 0x800B
+    StockInvestment                                -> 0x800C
+    EquipmentInvestment                            -> 0x800D
+    LongTermLoansReceivable                        -> 0x800E
+    AccountsReceivable                             -> 0x800F
+    ShortTermLoansReceivable                       -> 0x8010
+    ReserveDepositReceivable                       -> 0x8011
+    Gold                                           -> 0x8012
+    GovernmentService                              -> 0x8013
+    CapitalStock                                   -> 0x8014
+    RetainedEarnings                               -> 0x8015
+    LongTermLoansPayable                           -> 0x8016
+    ShortTermLoansPayable                          -> 0x8017
+    LoansPayable                                   -> 0x8018
+    ReserveForDepreciation                         -> 0x8019
+    DepositPayable                                 -> 0x801A
+    LongTermNationalBondsPayable                   -> 0x801B
+    ShortTermNationalBondsPayable                  -> 0x801C
+    ReserveDepositPayable                          -> 0x801D
+    CentralBankNotePayable                         -> 0x801E
+    Depreciation                                   -> 0x801F
+    AmortizationExpense                            -> 0x8020
+    SalesCost                                      -> 0x8021
+    BusinessTrip                                   -> 0x8022
+    Commutation                                    -> 0x8023
+    UtilitiesExpense                               -> 0x8024
+    RentExpense                                    -> 0x8025
+    AdvertisingExpense                             -> 0x8026
+    DeliveryExpenses                               -> 0x8027
+    SuppliesExpenses                               -> 0x8028
+    MiscellaneousExpenses                          -> 0x8029
+    WageExpenditure                                -> 0x802A
+    InterestExpense                                -> 0x802B
+    TaxesExpense                                   -> 0x802C
+    ConsumptionExpenditure                         -> 0x802D
+    SubsidyExpense                                 -> 0x802E
+    CentralBankPaymentExpense                      -> 0x802F
+    Purchases                                      -> 0x8030
+    NetIncome                                      -> 0x8031
+    ValueAdded                                     -> 0x8032
+    SubsidyIncome                                  -> 0x8033
+    NationalBondInterestEarned                     -> 0x8034
+    DepositInterestEarned                          -> 0x8035
+    GrossProfit                                    -> 0x8036
+    OrdinaryProfit                                 -> 0x8037
+    InterestEarned                                 -> 0x8038
+    ReceiptFee                                     -> 0x8039
+    RentalIncome                                   -> 0x803A
+    WageEarned                                     -> 0x803B
+    TaxesRevenue                                   -> 0x803C
+    CentralBankPaymentIncome                       -> 0x803D
+    Sales                                          -> 0x803E
+    EquityInEarningsOfInvestee                     -> 0x803F
+    NetLoss                                        -> 0x8040
+    PettyCash                                      -> 0x8041
+    NotesReceivable                                -> 0x8042
+    ElectronicallyRecordedReceivable               -> 0x8043
+    CreditCardReceivable                           -> 0x8044
+    NotesLoansReceivable                           -> 0x8045
+    MerchandiseInventory                           -> 0x8046
+    AdvancesPaid                                   -> 0x8047
+    PrepaidExpenses                                -> 0x8048
+    AccruedRevenue                                 -> 0x8049
+    OtherReceivables                               -> 0x804A
+    PaymentsOnBehalf                               -> 0x804B
+    SuspensePayments                               -> 0x804C
+    ConsumptionTaxPaid                             -> 0x804D
+    PrepaidCorporateIncomeTaxes                    -> 0x804E
+    Land                                           -> 0x804F
+    Fixtures                                       -> 0x8050
+    Patent                                         -> 0x8051
+    Trademark                                      -> 0x8052
+    Software                                       -> 0x8053
+    CashOverShort                                  -> 0x8054
+    AccountsPayable                                -> 0x8055
+    NotesPayable                                   -> 0x8056
+    ElectronicallyRecordedObligations              -> 0x8057
+    NotesLoansPayable                              -> 0x8058
+    BankOverdraft                                  -> 0x8059
+    AdvancesReceived                               -> 0x805A
+    UnearnedRevenue                                -> 0x805B
+    AccruedExpenses                                -> 0x805C
+    OtherPayables                                  -> 0x805D
+    DepositsReceived                               -> 0x805E
+    SuspenseReceipts                               -> 0x805F
+    ConsumptionTaxReceived                         -> 0x8060
+    AccruedConsumptionTax                          -> 0x8061
+    AccruedCorporateIncomeTaxes                    -> 0x8062
+    UnpaidDividends                                -> 0x8063
+    AllowanceForDoubtfulAccounts                   -> 0x8064
+    AccumulatedDepreciation                        -> 0x8065
+    LegalRetainedEarnings                          -> 0x8066
+    CumulativeTranslationAdjustment                -> 0x8067
+    ProvisionForDoubtfulAccounts                   -> 0x8068
+    BadDebtLoss                                    -> 0x8069
+    LossOnSalesOfFixedAssets                       -> 0x806A
+    LossOnSalesOfNotesReceivable                   -> 0x806B
+    PaymentFees                                    -> 0x806C
+    MiscellaneousLoss                              -> 0x806D
+    CorporateIncomeTaxes                           -> 0x806E
+    CommunicationExpenses                          -> 0x806F
+    GainOnSalesOfFixedAssets                       -> 0x8070
+    RecoveryOfBadDebts                             -> 0x8071
+    MiscellaneousIncome                            -> 0x8072
+    ReversalOfAllowanceForDoubtfulAccounts         -> 0x8073
+    TimeDeposits                                   -> 0x8074
+    LoansReceivable                                -> 0x8075
+    GiftCertificatesReceived                       -> 0x8076
+    SecurityDepositsPaid                           -> 0x8077
+    SuppliesOnHand                                 -> 0x8078
+    ContractAssets                                 -> 0x8079
+    IncomeTaxesRefundReceivable                    -> 0x807A
+    WorkInProcess                                  -> 0x807B
+    DeferredTaxAssets                              -> 0x807C
+    LeasedAssets                                   -> 0x807D
+    ToolsAndInstruments                            -> 0x807E
+    ConstructionInProgress                         -> 0x807F
+    Goodwill                                       -> 0x8080
+    SoftwareInProgress                             -> 0x8081
+    LongTermPrepaidExpenses                        -> 0x8082
+    DishonoredNotesReceivable                      -> 0x8083
+    PrepaidPensionCost                             -> 0x8084
+    NetDefinedBenefitAsset                         -> 0x8085
+    DepositsInSpecialAccounts                      -> 0x8086
+    Structures                                     -> 0x8087
+    LeaseholdRights                                -> 0x8088
+    NonOperatingNotesReceivable                    -> 0x8089
+    NonOperatingElectronicallyRecordedReceivable   -> 0x808A
+    RefundLiabilities                              -> 0x808B
+    NonOperatingNotesPayable                       -> 0x808C
+    NonOperatingElectronicallyRecordedObligations  -> 0x808D
+    BonusesPayable                                 -> 0x808E
+    AllowanceForRepairs                            -> 0x808F
+    AllowanceForProductWarranties                  -> 0x8090
+    AllowanceForBonuses                            -> 0x8091
+    DeferredTaxLiabilities                         -> 0x8092
+    LeaseObligations                               -> 0x8093
+    GuaranteeDepositsReceived                      -> 0x8094
+    AllowanceForRetirementBenefits                 -> 0x8095
+    LongTermOtherPayables                          -> 0x8096
+    NetDefinedBenefitLiability                     -> 0x8097
+    StockSubscriptionDeposits                      -> 0x8098
+    LegalCapitalSurplus                            -> 0x8099
+    OtherCapitalSurplus                            -> 0x809A
+    DividendEqualizationReserve                    -> 0x809B
+    RepairFundReserve                              -> 0x809C
+    ConstructionFundReserve                        -> 0x809D
+    GeneralReserve                                 -> 0x809E
+    ValuationDifferenceOnOtherSecurities           -> 0x809F
+    NonControllingInterests                        -> 0x80A0
+    CapitalSurplus                                 -> 0x80A1
+    EarnedSurplus                                  -> 0x80A2
+    ServiceRevenue                                 -> 0x80A3
+    OperatingRevenue                               -> 0x80A4
+    GainOnSalesOfSecurities                        -> 0x80A5
+    GainOnValuationOfSecurities                    -> 0x80A6
+    DividendsReceived                              -> 0x80A7
+    InterestOnSecurities                           -> 0x80A8
+    GainOnSalesOfInvestmentSecurities              -> 0x80A9
+    InsuranceGain                                  -> 0x80AA
+    GainOnBargainPurchase                          -> 0x80AB
+    ReversalOfAllowanceForRepairs                  -> 0x80AC
+    ReversalOfAllowanceForProductWarranties        -> 0x80AD
+    GainOnDonationOfFixedAssets                    -> 0x80AE
+    GainOnNationalSubsidies                        -> 0x80AF
+    GainOnConstructionGrants                       -> 0x80B0
+    LandRentReceived                               -> 0x80B1
+    SalesRebates                                   -> 0x80B2
+    CostOfServices                                 -> 0x80B3
+    OperatingExpenses                              -> 0x80B4
+    InventoryShrinkageLoss                         -> 0x80B5
+    LossOnValuationOfMerchandise                   -> 0x80B6
+    Bonuses                                        -> 0x80B7
+    RetirementBenefitExpenses                      -> 0x80B8
+    ProvisionForRepairs                            -> 0x80B9
+    ProvisionForBonuses                            -> 0x80BA
+    ProvisionForProductWarranties                  -> 0x80BB
+    ResearchAndDevelopmentExpenses                 -> 0x80BC
+    AmortizationOfGoodwill                         -> 0x80BD
+    AmortizationOfSoftware                         -> 0x80BE
+    AmortizationOfPatents                          -> 0x80BF
+    LeaseExpenses                                  -> 0x80C0
+    IncorporationExpenses                          -> 0x80C1
+    StockIssuanceCosts                             -> 0x80C2
+    BusinessCommencementExpenses                   -> 0x80C3
+    DevelopmentExpenses                            -> 0x80C4
+    LossOnSalesOfElectronicallyRecordedReceivables -> 0x80C5
+    LossOnSalesOfReceivables                       -> 0x80C6
+    LossOnSalesOfSecurities                        -> 0x80C7
+    LossOnValuationOfSecurities                    -> 0x80C8
+    LossOnSalesOfInvestmentSecurities              -> 0x80C9
+    LossOnFire                                     -> 0x80CA
+    LossOnRetirementOfFixedAssets                  -> 0x80CB
+    LossOnReductionOfFixedAssets                   -> 0x80CC
+    AdditionalIncomeTaxesForPriorPeriods           -> 0x80CD
+    RefundOfIncomeTaxes                            -> 0x80CE
+    PurchaseRebates                                -> 0x80CF
+    WelfareExpenses                                -> 0x80D0
+    MaintenanceExpenses                            -> 0x80D1
+    StatutoryWelfareExpenses                       -> 0x80D2
+    LandRentPaid                                   -> 0x80D3
+    InsuranceExpense                               -> 0x80D4
+    RepairsExpense                                 -> 0x80D5
+    StorageExpenses                                -> 0x80D6
+    MembershipFees                                 -> 0x80D7
+    IncomeSummary                                  -> 0x80D8
+    SuspenseAccount                                -> 0x80D9
+    ForeignExchangeGains                           -> 0x80DA
+    ForeignExchangeLosses                          -> 0x80DB
+    ContraAccountForGuaranteeObligations           -> 0x80DC
+    GuaranteeObligations                           -> 0x80DD
+    IncomeTaxesAdjustment                          -> 0x80DE
+    BranchCurrentAccount                           -> 0x80DF
+    HeadOfficeCurrentAccount                       -> 0x80E0
+    NetIncomeAttributableToNCI                     -> 0x80E1
+    NetLossAttributableToNCI                       -> 0x80E2
+    TradingSecurities                              -> 0x80E3
+    HeldToMaturityBonds                            -> 0x80E4
+    SubsidiaryStocks                               -> 0x80E5
+    AffiliateStocks                                -> 0x80E6
+    AvailableForSaleSecurities                     -> 0x80E7
+    ConsumptionTaxRefundReceivable                 -> 0x80E8
+    PropertyTaxPayable                             -> 0x80E9
+    DepositsReceivedFromOfficers                   -> 0x80EA
+    EntertainmentExpenses                          -> 0x80EB
+    MeetingExpenses                                -> 0x80EC
+    NewspaperBooksExpenses                         -> 0x80ED
+    RawMaterials                                   -> 0x80EE
+    GoodsInTransit                                 -> 0x80EF
+    SalesAllowances                                -> 0x80F0
+    PurchaseAllowances                             -> 0x80F1
+    AccountTitle                                   -> 0xFFFF
+
+-- | Inverse of the fixed codes, shared by every decode.
+accountTitlesByCode :: Map.Map Word16 AccountTitles
+accountTitlesByCode = Map.fromList [(accountCode title, title) | title <- [minBound .. maxBound]]
 
 instance Element AccountTitles where
     {-# INLINE wildcard #-}
