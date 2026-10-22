@@ -25,7 +25,6 @@ extra-source-files:
     test/fixtures/account-algebra-behavior/projection-membership.tsv
     test/fixtures/account-algebra-behavior/semantics.tsv
     test/fixtures/account-semantics-050/account-info.tsv
-    test/fixtures/account-semantics-050/consumer-inventory.txt
     test/fixtures/account-semantics-050/metadata.tsv
     test/fixtures/account-semantics-050/README.md
     test/fixtures/account-semantics-050/suggest.tsv
