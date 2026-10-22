@@ -19,7 +19,7 @@ do_not_auto_sync: true
 
 EA 本体 `src/` は `library`. `examples/` は公開済みの `production` examples であり, simulation / 会計 component は seed §1.1 の `Journal` / `Alg` を主状態または計算の authoritative な表現として使う. Model 1-3 に連なる `basic/simulateEx*`, `deterministic/ripple/` の 3 executable, `market/`, `industrial/`, `invoice/`, classic `CGE` と `cge-lite/Model.hs` は Journal-backed `World` を持つ. parameter, network, calibration, solver signal の `Map` は非会計状態である.
 
-`optimization/cge-lite/` の LHR 経路は temporary-production 候補として再監査する. `LhrModel.hs` / `LhrWiring.hs` は応答・instrument を `Map` で保持し, `LhrLedger.hs` は `Alg` から residual を作るため, これらが非会計 signal / oracle なのか, 主状態の replay なのかを component 境界と commit 境界で判定する. `audit-eval/oracle/` は `reference-oracle`, `audit-eval/` の残りは検査 tool であり model production ではない.
+`optimization/cge-lite/` の LHR 経路は temporary-production 候補として再監査する. `LhrModel.hs` / `LhrWiring.hs` は応答・instrument を `Map` で保持し, `LhrLedger.hs` は `Alg` から residual を作るため, これらが非会計 signal / oracle なのか, 主状態の replay なのかを component 境界と commit 境界で判定する.
 
 ## 特化
 
@@ -27,7 +27,6 @@ EA 本体 `src/` は `library`. `examples/` は公開済みの `production` exam
 
 | 現状 | 中身 (subdir / `.hs`) | seed §4 の family / 移動候補 |
 |---|---|---|
-| `audit-eval/` | `gen/DeriveEA.hs`, `harness/{EmitCanonical,LoadChecked}.hs`, `oracle/Oracle.hs`, `metrics/`, `replay/`, `runner/`, `tasks/` | model family でない. repo root `tools/audit-eval/` へ |
 | `basic/` | `elementaryBookkeepingEx1-9.hs`, `simulateEx1.hs`, `simulateEx2.hs`, `simulateEx2Fast.hs` | `bookkeeping/` と `simulate/` へ分割 |
 | `benchmark/` | `Bench.hs` | repo root `bench/` へ |
 | `deterministic/` | `ripple/{RippleEffect,ripple,rippleWithStock,rippleWithStockMultiSeeds}.hs` | 手法軸を外し `ripple/` へ |
@@ -107,6 +106,6 @@ engine (`Simulate`, `Simulate/Lite`) と ledger policy (`Simulate/Policy`, `Simu
 | unit | `test/Spec.hs` の HUnit 相当 (`assertEqual` / `assertNear`), `test/Surface/*` (suite `ExchangeAlgebra-surface`, 公開 API の面), doctest (suite `ExchangeAlgebra-doctest`, 順序非依存) |
 | fixture | `test/Golden/WriteRows.hs` (出力 golden), examples family 内の `test/` (`optimization/cge-lite/test/` 等). 期待値は実装と独立に持つ |
 | 保存則 / 恒等式 | Lite / Policy / Market test の借貸均衡と `FullAudit` との exact 一致. examples の production model は期末検査を model 側で持つ |
-| 再現 | `examples/market/rcr/` (論文の再現 package, 凍結した測定証拠) と `examples/audit-eval/oracle/` (reference-oracle) |
+| 再現 | `examples/market/rcr/` (論文の再現 package, 凍結した測定証拠) |
 
 全層は land 前の `stack build --test --bench --no-run-benchmarks` に結線されている (examples の再現 run は含まない. rcr は family README の手順で別途実行する).

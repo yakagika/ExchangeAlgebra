@@ -230,6 +230,11 @@
   `txIdRegistry`, `TxidRegistry` → `TxIdRegistry`, `CatalogOpKind` →
   `CatalogOperationKind`. Constructors and `Show` output are unchanged.
 
+### Removed
+
+- The research evaluation tooling in `examples/audit-eval` (task generators,
+  runners, checkers, and oracles) moved to a separate repository.
+
 ### Documentation
 
 - The root module example now debits cash and credits sales as described, and

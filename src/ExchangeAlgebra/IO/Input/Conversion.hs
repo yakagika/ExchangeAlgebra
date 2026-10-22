@@ -14,8 +14,8 @@ Description : Pure conversion between external (side, account-name, amount) data
 This module is the dependency-free core of the input-conversion layer: it turns
 externally supplied postings---a debit\/credit t'Side', an account name as 'Text',
 and an amount---into exchange-algebra 'Alg' terms, and back. The format glue
-(JSON\/XML, i.e. @aeson@) deliberately lives outside the published library
-(see @examples\/audit-eval\/runner@), so the algebra core stays serialization-free.
+(JSON\/XML, i.e. @aeson@) deliberately lives outside the published library,
+so the algebra core stays serialization-free.
 
 The mapping from a debit\/credit side to the @Hat@\/@Not@ marker is derived from
 the library's own 'whichSide', so the credit\/debit semantics are never duplicated.

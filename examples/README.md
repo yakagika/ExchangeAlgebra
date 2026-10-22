@@ -130,7 +130,6 @@ so you can build it from the listed revision.
 | `industrial/` | research | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0` | `git checkout v0.5.3.0 && cd examples && stack build` | SICE research example. Planned move to a separate code repository. |
 | `invoice/` | research | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0` | `git checkout v0.5.3.0 && cd examples && stack build` | SICE research example. Planned move to a separate code repository. |
 | `market/` | research | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0`. Experiment: commit `8a3a36e` (tag `experiment/round5-overnight-8a3a36e`); public reference: commit `543e268`. | `git checkout v0.5.3.0 && cd examples && stack build`<br>`git checkout 8a3a36e && cd examples && stack build`<br>`git checkout 543e268 && cd examples && stack build` | TOMACS scaling study. Remains in this repository for now. |
-| `audit-eval/` | research | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0` | See [`audit-eval/README.md`](audit-eval/README.md) (Python harness; its Haskell loaders and oracles build with `stack build` in `examples/`). | LLM accounting evaluation. Timing of a move is undecided. |
 | `benchmark/` | benchmark | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0` | `git checkout v0.5.3.0 && cd examples && stack build` | Remains in this repository. |
 
 ## Research using exchangealgebra
@@ -152,21 +151,6 @@ study. The repository's HEAD will retain teaching examples.
 This catalog is generated from `family.yaml` files and the Cabal component
 stanzas. Run benchmark and harness components with their dedicated commands
 rather than `stack run`.
-
-`examples/audit-eval/arms/**/Gen.hs` files are generated artifacts and are not
-build targets of the examples package.
-
-### `audit-eval/` — An evaluation harness for LLM-generated accounting computations against ground-truth journals. It includes task generation, checked loaders, runners, oracles, and scoring.
-
-| executable | main | kind | notes |
-|---|---|---|---|
-| — | — | — | No Cabal component is declared for this tool. |
-
-**Papers:** Exchange Algebra as a Harness for AI-driven Accounting Computation & Auditing
-
-**Ownership:** `paper-owned`. **Methods:** deterministic, stochastic
-
-**Notes:** The Python harness also writes generated attempts under arms/. Files matching arms/**/Gen.hs are generated artifacts and are not components of the examples Cabal package.
 
 ### `basic/` — Introductory bookkeeping examples and small classic-engine simulations. The series progresses from journals and statements to multi-company simulations.
 
@@ -349,7 +333,6 @@ uv run --script examples/basic/visualize_simulateEx1.py
 
 ```text
 examples/
-├── audit-eval/ [tool]
 ├── basic/ [family]
 ├── benchmark/ [bench]
 ├── deterministic/

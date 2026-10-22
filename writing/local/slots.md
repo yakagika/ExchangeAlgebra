@@ -28,7 +28,7 @@ view の §A / §B を前提に, §C の slot をこの repo の値で埋める.
 
 - en-US への固定は中央の view (§B') が持つ (2026-09-19 に slot から昇格). 本節は本 repo の例外だけを持つ.
 - 既存文書の散文は 2026-09-19 に en-US へ統一した (develop `01eb7c2`). en-GB 綴りが残るのは識別子,
-  golden fixture, 公開済み版の ChangeLog 節, `examples/audit-eval`, `examples/market/rcr` で,
+  golden fixture, 公開済み版の ChangeLog 節, `examples/market/rcr` で,
   これらは綴りだけのために書き換えない.
 - 公開 API の識別子 (`normalizeTitle` 等) は綴り規則の対象外. 綴りのために rename しない
   (PVP 上の破壊的変更になる. `CODING_STYLE.md` 規則 15).

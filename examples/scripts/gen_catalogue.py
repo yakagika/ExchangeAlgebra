@@ -210,9 +210,6 @@ def render_catalogue(
         "stanzas. Run benchmark and harness components with their dedicated commands",
         "rather than `stack run`.",
         "",
-        "`examples/audit-eval/arms/**/Gen.hs` files are generated artifacts and are not",
-        "build targets of the examples package.",
-        "",
     ]
     for family_path, family in sorted(families.items()):
         lines.append(

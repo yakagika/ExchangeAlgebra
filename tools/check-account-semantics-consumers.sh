@@ -11,8 +11,6 @@ rg -l '\b(whatDiv|whichSide|whatPIMO|aiDivision|aiRoles|aiPostingCapability|aiDi
   src test examples tools \
   --glob '*.hs' \
   --glob '*.py' \
-  --glob '!**/audit-eval/arms/**' \
-  --glob '!**/audit-eval/metrics/**' \
   | sort > "$actual"
 
 diff -u "$expected" "$actual"
