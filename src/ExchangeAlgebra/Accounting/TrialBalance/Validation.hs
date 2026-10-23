@@ -1,3 +1,4 @@
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE BangPatterns #-}
 {-# OPTIONS_GHC -Wincomplete-patterns -Werror=incomplete-patterns #-}
@@ -79,7 +80,7 @@ import qualified Data.Text as T
 
 import           ExchangeAlgebra.Accounting.Exchange (ExBaseClass(whichSide))
 import           ExchangeAlgebra.Algebra.Core.Representation
-                     ( Alg((:@))
+                     ( Alg, pattern (:@)
                      , foldEntries
                      )
 import           ExchangeAlgebra.Algebra.Value.Class (HatVal(..), isErrorValue)

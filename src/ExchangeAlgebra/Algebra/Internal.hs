@@ -51,7 +51,7 @@ module ExchangeAlgebra.Algebra.Internal
     , Exchange(..)
     , HatVal(..)
     , Pair(..)
-    , Alg(..)
+    , Alg(.., (:@), _val, _hatBase)
     , linerFromMap
     , isZero
     , (.@)

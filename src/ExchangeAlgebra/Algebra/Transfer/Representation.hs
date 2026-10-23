@@ -81,6 +81,7 @@ import Data.Binary (Binary(..))
 import Data.Hashable (Hashable)
 import Data.List (find, sortOn, tails)
 import GHC.Generics (Generic)
+import ExchangeAlgebra.Algebra.Core.Representation (Alg(Single))
 import ExchangeAlgebra.Algebra.Core ( Alg(..)
                                     , Redundant((.+), (.^), bar, norm)
                                     , (.@)
@@ -218,14 +219,14 @@ transferEntries (TransferRules rules) = foldEntries step (Right Zero)
         | ruleScale rule == Relabel && target == source = Right Zero
         | isErrorValue moved = Left (NonFiniteResult rule value source)
         | isZeroValue moved = Right cancellation
-        | otherwise = Right (cancellation .+ (moved :@ target))
+        | otherwise = Right (cancellation .+ (moved `Single` target))
       where
         target = ignoreWildcard source (ruleTo rule)
         moved = case ruleScale rule of
             Relabel -> value
             MulBy coefficient -> value * coefficient
             DivBy coefficient -> value / coefficient
-        cancellation = value :@ revHat source
+        cancellation = value `Single` revHat source
 
 -- | Move selected entries to new base coordinates while retaining every posting.
 -- Query patterns use one-way matching: only a pattern wildcard matches any

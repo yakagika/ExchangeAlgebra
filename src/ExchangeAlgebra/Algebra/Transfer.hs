@@ -65,6 +65,7 @@ module ExchangeAlgebra.Algebra.Transfer
     , finalStockTransfer
     ) where
 
+import ExchangeAlgebra.Algebra.Core.Representation (Alg(Single))
 import ExchangeAlgebra.Accounting.Closing (ClosingSide(..), closingSide)
 import qualified    ExchangeAlgebra.Algebra.Core as EA
 import ExchangeAlgebra.Algebra.Core hiding (fromList, map)
@@ -252,12 +253,12 @@ transferWithResolver :: (HatVal n, HatBaseClass b)
 transferWithResolver resolve = EA.map step
   where
     step (v :@ hb) = case resolve hb of
-        Nothing -> v :@ hb
+        Nothing -> v `Single` hb
         Just (f, hb') ->
             let !v' = f v
             in if isZeroValue v'
                 then Zero
-                else v' :@ hb'
+                else v' `Single` hb'
     step x = x
 
 {-# INLINE resolveByTree #-}
@@ -547,8 +548,8 @@ createTransfer tt =
 incomeSummaryAccount :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 incomeSummaryAccount alg =  let (dc,diff) = diffRL alg
                          in case dc of
-                                Credit -> alg .+ (diff :@ (toNot wildcard) .~ NetIncome)
-                                Debit  -> alg .+ (diff :@ (toNot wildcard) .~ NetLoss)
+                                Credit -> alg .+ (diff `Single` (toNot wildcard) .~ NetIncome)
+                                Debit  -> alg .+ (diff `Single` (toNot wildcard) .~ NetLoss)
                                 Side   -> alg
 
 -- | Net income transfer. Transfers NetIncome/NetLoss to RetainedEarnings.
@@ -689,11 +690,11 @@ finalStockTransferStep :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 finalStockTransferStep = EA.map go
   where
     go (v :@ hb) = case finalStockRule (getAccountTitle hb) of
-        Nothing -> v :@ hb
+        Nothing -> v `Single` hb
         Just FinalStockKeep ->
-            v :@ setAccountTitle hb RetainedEarnings
+            v `Single` setAccountTitle hb RetainedEarnings
         Just FinalStockFlip ->
-            v :@ setAccountTitle (revHat hb) RetainedEarnings
+            v `Single` setAccountTitle (revHat hb) RetainedEarnings
     go x = x
 
 -- | Final Stock Transfer (closing entries).

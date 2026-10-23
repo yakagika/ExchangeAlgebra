@@ -297,10 +297,16 @@ pairUnion (Pair x1 y1) (Pair x2 y2) =
 -- @_realg@. The fields @_bpToId@ and @_nextBpId@ are currently unmaintained
 -- /poison/ (reserved for a dormant scheme) — forcing them throws. Always build
 -- values via 'fromList' or the smart constructor '(.@)' rather than applying
--- @Liner@ (or @(:@)@) directly.
+-- @Liner@ (or @Single@) directly.
+--
+-- __Construction boundary (0.6).__ The singleton constructor is the internal
+-- 'Single'. Public modules export the one-way pattern synonym '(:@)' instead,
+-- so outside "ExchangeAlgebra.Algebra.Internal" a singleton can be matched
+-- (@v :@ b@, and the selectors '_val' and '_hatBase') but not built or
+-- record-updated: build with '(.@)', which checks the value and the side.
 data  Alg v b where
         Zero  :: Alg v b
-        (:@)  :: {_val :: !v, _hatBase :: !b} -> Alg v b
+        Single :: !v -> !b -> Alg v b
         Liner :: { _realg       :: !(Map.HashMap (BasePart b) (Pair v))
                  , _axisPosting :: ~(IntMap.IntMap (Map.HashMap AxisKey IntSet.IntSet))
                  , _bpToId      :: ~(Map.HashMap (BasePart b) Int)
@@ -357,7 +363,7 @@ instance forall v b. ( HatBaseClass b
                     Nothing
                         | hat basis == HatNot -> fail "Alg: HatNot posting"
                         | isZeroValue value   -> pure Zero
-                        | otherwise           -> pure (value :@ basis)
+                        | otherwise           -> pure (value `Single` basis)
             2 -> do
                 count <- Binary.get :: Binary.Get Int
                 pairs <- go count Map.empty
@@ -478,18 +484,31 @@ isZero Zero = True
 isZero _    = False
 
 {-# INLINE singleton #-}
--- | Complexity: O(1)
+-- | The checked singleton behind '(.@)'; see its contract.
+--
+-- Complexity: O(1)
 singleton :: (HatVal v, HatBaseClass b) => v -> b -> Alg v b
+-- P3b-W5b D3: reject a 'HatNot' side with 'error' before the zero short-cut
+-- (contract of '(.@)'); do not use 'isHat', which throws on 'HatNot'.
 singleton v b | isZeroValue v = Zero
               | Just reason <- valueError v = error $ "errorValue at (.@): "
                                ++ show reason ++ " val: " ++ show v
                                ++ show ":@"
                                ++ show b
-              | otherwise = v :@ b
+              | otherwise = v `Single` b
 
 {-# INLINE (.@) #-}
 -- | Smart constructor that builds an algebra element from a value and a base.
--- Returns Zero for zero values, and throws an exception for error values.
+-- This is the public construction boundary for a posting.
+--
+-- Contract (0.6): the side of @b@ must be 'Hat' or 'Not'. A base whose side is
+-- the wildcard 'HatNot' is rejected with 'error', checked before the zero
+-- short-cut (so @0 .@ HatNot :< Cash@ also fails): 'HatNot' is a query
+-- pattern, not a side a posting can have. Then a zero value gives 'Zero', and
+-- a value for which 'valueError' is 'Just' (negative or non-finite) is
+-- rejected with 'error'. Otherwise the result is the singleton @v :@ b@.
+-- Values supplied by callbacks that rebuild postings (for example
+-- 'mapMaybePosting') are subject to the same precondition.
 --
 -- Complexity: O(1)
 (.@) :: (HatVal n, HatBaseClass b) => n -> b -> Alg n b
@@ -503,7 +522,18 @@ singleton v b | isZeroValue v = Zero
 (<@) v b = (.@) <$> v <*> (pure b)
 
 
+-- | Match a singleton: @v :@ b@ is the posting of value @v@ on base @b@.
+-- One-way: it matches and gives the record selectors '_val' and '_hatBase'
+-- (partial, as before: they fail on 'Zero' and on a multi-posting value), but
+-- it does not build. Build with '(.@)'. Library code that needs the unchecked
+-- constructor uses the internal 'Single'.
+pattern (:@) :: v -> b -> Alg v b
+pattern (:@) {_val, _hatBase} <- Single _val _hatBase
+
+{-# COMPLETE Zero, (:@), Liner #-}
+
 infixr 6 :@
+infixr 6 `Single`
 infixr 6 .@
 infixr 6 <@
 
@@ -608,9 +638,9 @@ union x Zero  = x
 union (v1:@b1) (v2:@b2)
     | isZeroValue v1 = case isZeroValue v2 of
                             True  -> Zero
-                            False -> v2:@b2
-    | isZeroValue v2 = v1:@b1
-    | otherwise      = insert b2 v2 (v1:@b1)
+                            False -> v2`Single`b2
+    | isZeroValue v2 = v1`Single`b1
+    | otherwise      = insert b2 v2 (v1`Single`b1)
 -- If one side is a singleton
 union x (v:@b) = insert b v x
 union (v:@b) x = insert b v x
@@ -713,7 +743,7 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
     {-# SPECIALIZE instance HatBaseClass b => Redundant Alg MoneyDouble b #-}
     {-# SPECIALIZE instance HatBaseClass b => Redundant Alg MoneyDecimal b #-}
     (.^) Zero       = Zero
-    (.^) (n:@ b)    = n :@ (revHat b)
+    (.^) (n:@ b)    = n `Single` (revHat b)
     (.^) (Liner ms idx bpToId idToBp nextBpId allIds) = Liner
                     (Map.map (\ (Pair hs ns) -> Pair ns hs) ms)
                     idx
@@ -732,7 +762,7 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
     -- so x*v stays non-negative and the cheap raw fmap below is safe.
     x  .*  _ | isErrorValue x =
         error ("(.*): non-negative finite scalar required, got " ++ show x)
-    x  .* (v:@b)     = (x * v) :@ b
+    x  .* (v:@b)     = (x * v) `Single` b
     x  .* (Liner ms idx bpToId idToBp nextBpId allIds) = Liner
                      (Map.map (\ (Pair hs ns) -> Pair (fmap (x *) hs) (fmap (x *) ns)) ms)
                      idx
@@ -778,7 +808,7 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
 
     {-# INLINE barWithin #-}
     barWithin _ Zero = Zero
-    barWithin _ (v:@b) = v:@b
+    barWithin _ (v:@b) = v`Single`b
     barWithin tolerance (Liner m _ _ _ _ _) = let !res = Map.mapMaybe f m
                    in case null res of
                         True -> Zero
@@ -984,7 +1014,7 @@ sigmaFromMap kvs f =
 -- []
 toList :: (HatVal v, HatBaseClass b) => Alg v b -> [Alg v b]
 toList Zero       = []
-toList (v:@b)     = [v:@b]
+toList (v:@b)     = [v`Single`b]
 toList (Liner m _ _ _ _ _)  = Map.foldlWithKey' f [] m
     where
         f :: (HatVal v, HatBaseClass b) =>  [Alg v b] -> BasePart b -> Pair v -> [Alg v b]
@@ -994,7 +1024,7 @@ toList (Liner m _ _ _ _ _)  = Map.foldlWithKey' f [] m
         g :: (HatVal v, HatBaseClass b) => Hat -> BasePart b -> [Alg v b] -> v -> [Alg v b]
         g h b ys v
             | isZeroValue v = ys
-            | otherwise     = (v :@ (merge h b)):ys
+            | otherwise     = (v `Single` (merge h b)):ys
 
 {-# INLINE foldEntries #-}
 -- | Strict left fold over scalar entries without building an intermediate list.
@@ -1056,10 +1086,10 @@ toASCList = L.sort . toList
 map :: (HasCallStack,HatVal v, HatBaseClass b)
      => (Alg v b -> Alg v b) -> Alg v b -> Alg v b
 map _ Zero      = Zero
-map f (v:@b)    = let  v2:@b2 = f (v:@b)
+map f (v:@b)    = let  v2:@b2 = f (v`Single`b)
                 in case isZeroValue v2 of
                     True  -> Zero
-                    False -> (v2 :@ b2)
+                    False -> (v2 `Single` b2)
 map f (Liner m _ _ _ _ _) = mkAlgFromMap $ (Map.foldrWithKey (p f) dnilMap m) Map.empty
     where
         {-# INLINE dnilMap #-}
@@ -1108,7 +1138,7 @@ map f (Liner m _ _ _ _ _) = mkAlgFromMap $ (Map.foldrWithKey (p f) dnilMap m) Ma
            -> (DMap (BasePart b) (Pair v), Seq v)
            -> v
            -> (DMap (BasePart b) (Pair v), Seq v)
-        r fn h b (dlAcc,vsAcc) v = case fn (v:@(merge h b)) of
+        r fn h b (dlAcc,vsAcc) v = case fn (v`Single`(merge h b)) of
                             Zero   ->  (dlAcc, vsAcc)
                             ------------------------------------------------------------------
                             v2:@b2
@@ -1185,7 +1215,7 @@ type DMap k v = Map.HashMap k v -> Map.HashMap k v
 
 filter :: (HatVal v, HatBaseClass b) => (Alg v b -> Bool) -> Alg v b -> Alg v b
 filter _ Zero                 = Zero
-filter f (v:@b) | f (v:@b)    = v:@b
+filter f (v:@b) | f (v`Single`b)    = v`Single`b
                 | otherwise   = Zero
 
 filter f (Liner m _ _ _ _ _) =
@@ -1211,7 +1241,7 @@ filter f (Liner m _ _ _ _ _) =
     ----------------------------------------------------------------
     -- filterSide :: BasePart b -> Hat -> Seq v -> Seq v
     {-# INLINE filterSide #-}
-    filterSide bp h = Seq.filter (\val -> f (val :@ merge h bp))
+    filterSide bp h = Seq.filter (\val -> f (val `Single` merge h bp))
 
 ------------------------------------------------------------
 -- | Relabel the /base part/ of every element, preserving the Hat\/Not structure
@@ -1388,7 +1418,7 @@ proj :: (HatVal v, HatBaseClass b)  => [b] -> Alg v b -> Alg v b
 proj []     _         = Zero
 proj _     Zero       = Zero
 proj [b] (v:@b2)
-    | matchesQuery b b2  = v:@b2
+    | matchesQuery b b2  = v`Single`b2
     | otherwise = Zero
 -- Index fields bound lazily (@~@) so a concrete (non-wildcard) base never forces
 -- the axis index (the module is @Strict@; see 'projExactMap').
@@ -1398,8 +1428,8 @@ proj [b] (Liner m ~idx _ ~idToBp _ ~allIds) =
             then projWildMap  b m idx idToBp allIds
             else projExactMap b m
 proj (b:bs) (v:@b2)
-    |  matchesQuery b b2 = v:@b2
-    | otherwise       = proj bs (v:@b2)
+    |  matchesQuery b b2 = v`Single`b2
+    | otherwise       = proj bs (v`Single`b2)
 -- Multi-pattern path: the query list is treated as a /set/. Overlapping or
 -- duplicate queries (e.g. a duplicated base, or an exact base subsumed by a
 -- wildcard) select the same posting only once. Per-base results are merged
@@ -1492,8 +1522,8 @@ mkAlgFromMap m
 -- | Complexity: O(1)
 singlePairToAlg :: (HatVal v, HatBaseClass b) => BasePart b -> Pair v -> Maybe (Alg v b)
 singlePairToAlg b (Pair hs ns) = case (Seq.viewl hs, Seq.viewl ns) of
-    (Seq.EmptyL, n Seq.:< nsRest) | Seq.null nsRest -> Just (n :@ merge Not b)
-    (h Seq.:< hsRest, Seq.EmptyL) | Seq.null hsRest -> Just (h :@ merge Hat b)
+    (Seq.EmptyL, n Seq.:< nsRest) | Seq.null nsRest -> Just (n `Single` merge Not b)
+    (h Seq.:< hsRest, Seq.EmptyL) | Seq.null hsRest -> Just (h `Single` merge Hat b)
     _                                                 -> Nothing
 
 ------------------------------------------------------------------

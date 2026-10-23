@@ -81,8 +81,8 @@ import ExchangeAlgebra.Algebra.Element.Representation ( Name
                                                       , CountUnit
                                                       , matchesQuery
                                                       )
-import ExchangeAlgebra.Algebra.Core.Representation (Alg(..), Redundant(..), filter)
-import qualified ExchangeAlgebra.Algebra.Core.Representation as EA (Alg(..), filter, foldEntries, foldPairs, Pair(..))
+import ExchangeAlgebra.Algebra.Core.Representation (Alg(..), pattern (:@), _val, _hatBase, Redundant(..), filter)
+import qualified ExchangeAlgebra.Algebra.Core.Representation as EA (Alg(..), _hatBase, filter, foldEntries, foldPairs, Pair(..))
 import ExchangeAlgebra.Algebra.Value.Class (HatVal(..), Tolerance(..), isErrorValue)
 import qualified Data.Foldable as Foldable
 import ExchangeAlgebra.Algebra.Value (MoneyDouble, MoneyDecimal)

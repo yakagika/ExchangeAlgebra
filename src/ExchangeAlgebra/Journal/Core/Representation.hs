@@ -56,7 +56,7 @@ import ExchangeAlgebra.Algebra.Base.Representation
 import ExchangeAlgebra.Algebra.Element.Representation
 import ExchangeAlgebra.Algebra.Value.Class (HatVal(..))
 import ExchangeAlgebra.Algebra.Value (MoneyDouble, MoneyDecimal)
-import ExchangeAlgebra.Algebra.Core.Representation (Alg((:@)), Redundant(..), (.@))
+import ExchangeAlgebra.Algebra.Core.Representation (Alg, pattern (:@), Redundant(..), (.@))
 import              Prelude                 hiding (map, filter)
 import qualified    Prelude
 import qualified    Data.HashMap.Strict     as Map
