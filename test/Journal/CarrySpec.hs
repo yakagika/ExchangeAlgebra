@@ -3,13 +3,14 @@
 -- | Acceptance properties for explicit journal carryover.
 module Journal.CarrySpec (runTests) where
 
+import qualified ExchangeAlgebra.Algebra.Internal as Internal
 import Control.Monad (unless)
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Map.Strict as Map
 import System.Exit (exitFailure)
 import Test.QuickCheck
 
-import ExchangeAlgebra.Algebra (Alg((:@)), (.@), foldEntries)
+import ExchangeAlgebra.Algebra (Alg, (.@), foldEntries)
 import ExchangeAlgebra.Algebra.Value (HatVal, MoneyDecimal)
 import GHC.Float (castDoubleToWord64)
 import ExchangeAlgebra.Algebra.Base
@@ -322,7 +323,7 @@ propFailurePriority = forAll (shuffle [0 :: Int, 1, 2, 3, 4]) $ \order ->
                   ,(Not, maximumFinite), (Not, maximumFinite)]
         assemble :: [(Hat, Double)] -> TestJournal
         assemble postings = Journal.fromMap $ HashMap.fromList
-            [ (note, value :@ (side :< (Yen, Cash)))
+            [ (note, value `Internal.Single` (side :< (Yen, Cash)))
             | (note, (side, value)) <- zip order postings ]
         check :: [(Hat, Double)] -> CarryError -> Property
         check postings expected = conjoin
@@ -340,7 +341,7 @@ propFailurePriority = forAll (shuffle [0 :: Int, 1, 2, 3, 4]) $ \order ->
 testZeroWildcard :: IO ()
 testZeroWildcard = do
     let wildcardJournal = Journal.fromMap $ HashMap.singleton 0
-            (0 :@ (HatNot :< (Yen, Cash))) :: TestJournal
+            (0 `Internal.Single` (HatNot :< (Yen, Cash))) :: TestJournal
         input = wildcardJournal <> build [(1, (Yen, Cash), Not, 3)]
         expected = build [(9, (Yen, Cash), Not, 3)]
     unless (fmap (multiset . rows) (carryBefore (< 3) 9 input)

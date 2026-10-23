@@ -191,7 +191,7 @@ instance UpdatableSTRef SimLedger s SimTransaction where
 
 simInitLedger :: Double -> ST s (SimLedger s)
 simInitLedger d = newURef $ EJ.fromList
-    [ realToFrac d :@ Not :<(Products, e, e, Amount) .| (plank, initTerm)  -- Double param -> MoneyDecimal
+    [ realToFrac d .@ Not :<(Products, e, e, Amount) .| (plank, initTerm)  -- Double param -> MoneyDecimal
     | e <- simCompanies
     ]
 
@@ -282,10 +282,10 @@ simGetOneProduction wld t c = do
     let arr = _simIcs wld
     inputs <- mapM (\c2 -> do
         coef <- readUArray arr (c2, c)
-        return $ realToFrac coef :@ Hat :<(Products, c2, c, Amount) .| (SimProduction, t)  -- Double coef -> MoneyDecimal
+        return $ realToFrac coef .@ Hat :<(Products, c2, c, Amount) .| (SimProduction, t)  -- Double coef -> MoneyDecimal
         ) simCompanies
     let totalInput = EJ.fromList inputs
-        result = (1 :@ Not :<(Products, c, c, Amount) .| (SimProduction, t)) .+ totalInput
+        result = (1 .@ Not :<(Products, c, c, Amount) .| (SimProduction, t)) .+ totalInput
     return result
 
 simJournal :: SimWorld s -> SimTransaction -> ST s ()
@@ -309,12 +309,12 @@ simPurchases t wld = do
         o i j = M.findWithDefault 0 (i, j) shortageMap
     return $ sigma simCompanies $ \i
            -> sigma (simCompanies L.\\ [i]) $ \j
-           -> (o i j) :@ Not :<(Products, j, i, Amount)
-           .+ (o i j) :@ Hat :<(Cash, (.#), i, Yen)
-           .+ (o i j) :@ Not :<(Purchases, (.#), i, Yen)
-           .+ (o i j) :@ Not :<(Cash, (.#), j, Yen)
-           .+ (o i j) :@ Not :<(Sales, (.#), j, Yen)
-           .+ (o i j) :@ Hat :<(Products, j, j, Amount)
+           -> (o i j) .@ Not :<(Products, j, i, Amount)
+           .+ (o i j) .@ Hat :<(Cash, (.#), i, Yen)
+           .+ (o i j) .@ Not :<(Purchases, (.#), i, Yen)
+           .+ (o i j) .@ Not :<(Cash, (.#), j, Yen)
+           .+ (o i j) .@ Not :<(Sales, (.#), j, Yen)
+           .+ (o i j) .@ Hat :<(Products, j, j, Amount)
            .| (SimSalesPurchase, t)
 
 instance StateSpace SimTerm SimInitVar SimEvent SimWorld s where

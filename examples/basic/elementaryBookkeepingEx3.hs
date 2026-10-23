@@ -32,7 +32,7 @@ main = do
     print x1 -- > 30000.00:@Not:<(Cash,Yen)
     let x2 = 0 .@ Not :<(Cash, Main.Yen) :: RedAlg
     print x2  -- > 0
-    let x3 = 3000 .@ Hat :<(Deposits,Main.Yen) .+ 3000 :@ Not :<(Cash, Main.Yen) :: RedAlg
+    let x3 = 3000 .@ Hat :<(Deposits,Main.Yen) .+ 3000 .@ Not :<(Cash, Main.Yen) :: RedAlg
     print x3 -- > 30000.00:@Not:<(Cash,Yen) .+ 3000.00:@Hat:<(Deposits,Yen)
 
     let x4 = 3000 .@ Hat :<(Cash, Main.Yen) .+ 3000 .@ Not :<(Cash, Main.Yen) :: RedAlg

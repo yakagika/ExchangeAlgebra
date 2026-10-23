@@ -3,6 +3,7 @@
 -- | Exact closing observations and input diagnostics.
 module Admission.ClosingSpec (runTests) where
 
+import qualified ExchangeAlgebra.Algebra.Internal as Internal
 import Control.Monad (forM_, unless)
 import Data.Decimal (DecimalRaw(Decimal))
 import qualified Data.Map.Strict as Map
@@ -126,11 +127,13 @@ testOrdering = do
 testDiagnostics :: IO ()
 testDiagnostics = do
     let blank = TxKey (EntityId " ") (PeriodId "2026") (TxId "x")
-        allKinds = (-1) :@ (HatNot :< AccountTitle)
-        repeated = ((-1) :@ (Not :< AccountTitle))
-            .+ ((-2) :@ (Not :< AccountTitle))
+        allKinds = (-1) `Internal.Single` (HatNot :< AccountTitle)
+        repeated = ((-1) `Internal.Single` (Not :< AccountTitle))
+            .+ ((-2) `Internal.Single` (Not :< AccountTitle))
         candidate = Map.fromList
-            [(blank, allKinds), (key "y", 1 :@ (HatNot :< Sales)), (key "z", repeated)]
+            [ (blank, allKinds)
+            , (key "y", 1 `Internal.Single` (HatNot :< Sales))
+            , (key "z", repeated) ]
         reference = Map.fromList [(blank, allKinds), (key "y", Zero), (key "z", Zero)]
     assertTest "diagnostics ordered, deduplicated, and non-comparing" $
         closingDifferences RetainedEarnings candidate reference ==
@@ -150,7 +153,7 @@ testDiagnostics = do
             [ UnclassifiedAccount Candidate (key "z") AccountTitle
             , NegativeAmount Candidate (key "z") AccountTitle ]
     assertTest "unclassified retained argument is invalid when posted" $
-        closingDifferences AccountTitle (at "a" (1 :@ (Not :< AccountTitle)))
+        closingDifferences AccountTitle (at "a" (1 .@ (Not :< AccountTitle)))
             (at "a" Zero) == [UnclassifiedAccount Candidate (key "a") AccountTitle]
 
 -- | Pin classification for every concrete title against registry divisions

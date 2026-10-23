@@ -127,7 +127,7 @@ bases4 = [Cash, Deposits, Sales, Products]
 
 mkAlgs :: Int -> [A]
 mkAlgs n =
-    [ val :@ hb
+    [ val .@ hb
     | i <- [1 .. n]
     , let val = fromIntegral (i `mod` 7 + 1) :: Double
           hb  = (if even i then Hat else Not) :< (bases4 !! (i `mod` 4))
@@ -135,7 +135,7 @@ mkAlgs n =
 
 mkJournals :: Int -> [J]
 mkJournals n =
-    [ (val :@ hb) .| (i `mod` 50)
+    [ (val .@ hb) .| (i `mod` 50)
     | i <- [1 .. n]
     , let val = fromIntegral (i `mod` 7 + 1) :: Double
           hb  = (if even i then Hat else Not) :< (bases4 !! (i `mod` 4))
@@ -165,7 +165,7 @@ titles50 = take 50 [toEnum 0 ..]
 mkTrialAlg :: Int -> A
 mkTrialAlg s =
     EA.fromList
-      [ val :@ hb
+      [ val .@ hb
       | i <- [1 .. s]
       , let val = fromIntegral (i `mod` 7 + 1) :: Double
             hb  = (if even i then Hat else Not) :< (titles50 !! (i `mod` 50))
@@ -242,7 +242,7 @@ projMultiN = 4900
 
 mkProjMultiAlg :: Int -> A
 mkProjMultiAlg n = EA.fromList
-    [ val :@ hb
+    [ val .@ hb
     | i <- [1 .. n]
     , let val = fromIntegral (i `mod` 7 + 1) :: Double
           hb  = (if even i then Hat else Not) :< (bases4 !! (i `mod` 4)) ]
@@ -273,7 +273,7 @@ appendN = 2000
 -- One posting per element. 'fromMap' so the rhs is base-only (Lite shape).
 mkBaseOnly :: Int -> [J]
 mkBaseOnly n =
-    [ EJ.fromMap (HM.singleton (i `mod` 50) (val :@ hb))
+    [ EJ.fromMap (HM.singleton (i `mod` 50) (val .@ hb))
     | i <- [1 .. n]
     , let val = fromIntegral (i `mod` 7 + 1) :: Double
           hb  = (if even i then Hat else Not) :< (bases4 !! (i `mod` 4))
@@ -282,7 +282,7 @@ mkBaseOnly n =
 -- All postings share the single note key 0 (existing-key append path).
 mkSameNote :: Int -> [J]
 mkSameNote n =
-    [ (val :@ hb) .| (0 :: Int)
+    [ (val .@ hb) .| (0 :: Int)
     | i <- [1 .. n]
     , let val = fromIntegral (i `mod` 7 + 1) :: Double
           hb  = (if even i then Hat else Not) :< (bases4 !! (i `mod` 4))
@@ -291,7 +291,7 @@ mkSameNote n =
 -- Each posting gets a distinct note key (new-key append path).
 mkDistinctNote :: Int -> [J]
 mkDistinctNote n =
-    [ (val :@ hb) .| i
+    [ (val .@ hb) .| i
     | i <- [1 .. n]
     , let val = fromIntegral (i `mod` 7 + 1) :: Double
           hb  = (if even i then Hat else Not) :< (bases4 !! (i `mod` 4))

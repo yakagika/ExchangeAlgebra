@@ -126,10 +126,10 @@ event' wld t SalesPurchase = do
                 let sellAmount = min orderAmount (stock  * (orderAmount / totalOrder))
                 when (sellAmount > 0 ) $ do
                     p <- getPrice wld t e1
-                    let toAdd =  sellAmount      :@ Hat :<(Products, e1, e1, Amount) -- 受注側 販売財
-                             .+ (sellAmount * p) :@ Not :<(Cash,(.#),e1,Yen)          -- 受注側 販売益
-                             .+  sellAmount      :@ Not :<(Products, e1, e2, Amount) -- 発注側 購入財
-                             .+ (sellAmount * p) :@ Hat :<(Cash,(.#),e2,Yen)          -- 発注側 購入額
+                    let toAdd =  sellAmount      .@ Hat :<(Products, e1, e1, Amount) -- 受注側 販売財
+                             .+ (sellAmount * p) .@ Not :<(Cash,(.#),e1,Yen)          -- 受注側 販売益
+                             .+  sellAmount      .@ Not :<(Products, e1, e2, Amount) -- 発注側 購入財
+                             .+ (sellAmount * p) .@ Hat :<(Cash,(.#),e2,Yen)          -- 発注側 購入額
                     journal wld (toAdd .| (SalesPurchase,t))
                     -- 受注を減らす
                     writeUArray os (t, Relation {_supplier = e1

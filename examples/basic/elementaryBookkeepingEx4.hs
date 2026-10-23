@@ -36,7 +36,7 @@ type Transaction = Journal Day MoneyDecimal HatBase2
 
 main :: IO ()
 main = do
-    let x7 = 3000 .@ Hat :<(Deposits,Main.Yen) .+ 3000 :@ Not :<(Cash, Main.Yen) .| (d 2024 1 1) :: Transaction
+    let x7 = 3000 .@ Hat :<(Deposits,Main.Yen) .+ 3000 .@ Not :<(Cash, Main.Yen) .| (d 2024 1 1) :: Transaction
     print x7 -- > 3000:@Hat:<(Deposits,Yen) .+ 3000:@Not:<(Cash,Yen) .| 2024-01-01
 
     let x8 =  100 .@ Not :< (Cash, Main.Yen)

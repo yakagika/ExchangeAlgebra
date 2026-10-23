@@ -162,10 +162,10 @@ event' wld t SalesPurchase = do
                 -- 在庫の有無に関わらず販売
                 when (orderAmount > 0) $ do
                     p <- getPrice wld t e1
-                    let toAdd =  orderAmount      :@ Hat :<(Products, e1, e1, Amount) -- 受注側 販売財
-                             .+ (orderAmount * p) :@ Not :<(Cash,(.#),e1,Yen)          -- 受注側 販売益
-                             .+  orderAmount      :@ Not :<(Products, e1, e2, Amount) -- 発注側 購入財
-                             .+ (orderAmount * p) :@ Hat :<(Cash,(.#),e2,Yen)          -- 発注側 購入額
+                    let toAdd =  orderAmount      .@ Hat :<(Products, e1, e1, Amount) -- 受注側 販売財
+                             .+ (orderAmount * p) .@ Not :<(Cash,(.#),e1,Yen)          -- 受注側 販売益
+                             .+  orderAmount      .@ Not :<(Products, e1, e2, Amount) -- 発注側 購入財
+                             .+ (orderAmount * p) .@ Hat :<(Cash,(.#),e2,Yen)          -- 発注側 購入額
                     journal wld (toAdd .| (SalesPurchase,t))
                     -- 受注を減らす
                     writeUArray os (t, Relation {_supplier = e1,_customer = e2}) 0

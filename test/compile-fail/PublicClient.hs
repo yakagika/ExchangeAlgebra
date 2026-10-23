@@ -2,6 +2,8 @@
 
 module PublicClient where
 
+import ExchangeAlgebra.Algebra.Core (Alg((:@), _val, _hatBase), (.@))
+import ExchangeAlgebra.Algebra.Base (HatBase((:<)), Hat(Not), CountUnit(Yen))
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import ExchangeAlgebra.IO.Input.Admission
@@ -18,3 +20,12 @@ acceptedLedger = do
             [(key, [("debit", "Cash", 10), ("credit", "Sales", 10)])] []
     accepted <- either (Left . show) Right (admit spec submission)
     Right (admittedJournal accepted)
+
+-- | Bundled selectors and the infix matching pattern remain public.
+matchPosting :: Alg Double (HatBase CountUnit) -> Maybe (Double, HatBase CountUnit)
+matchPosting entry@(_ :@ _) = Just (_val entry, _hatBase entry)
+matchPosting _ = Nothing
+
+-- | Checked construction remains available to external clients.
+publicPosting :: Alg Double (HatBase CountUnit)
+publicPosting = 1 .@ (Not :< Yen)

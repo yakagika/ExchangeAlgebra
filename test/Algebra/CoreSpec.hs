@@ -77,10 +77,10 @@ testMapMaybePosting = do
 testBasesNotSideRegression :: IO ()
 testBasesNotSideRegression = do
     let alg :: TestAlg
-        alg =  (100 :@ (Hat :< Yen))      -- Yen: hatSide = [100]
-            .+ (50  :@ (Not :< Yen))      -- Yen: notSide = [50]
-            .+ (30  :@ (Not :< Yen))      -- Yen: notSide = [50, 30]
-            .+ (20  :@ (Not :< Amount))   -- Amount: notSide = [20], hatSide = []
+        alg =  (100 .@ (Hat :< Yen))      -- Yen: hatSide = [100]
+            .+ (50  .@ (Not :< Yen))      -- Yen: notSide = [50]
+            .+ (30  .@ (Not :< Yen))      -- Yen: notSide = [50, 30]
+            .+ (20  .@ (Not :< Amount))   -- Amount: notSide = [20], hatSide = []
         vs = EA.vals alg
         bs = EA.bases alg
         hatCount = length (L.filter isHat bs)
@@ -105,7 +105,7 @@ testBasesNotSideRegression = do
 testSameBaseSeqOrderPathDependence :: IO ()
 testSameBaseSeqOrderPathDependence = do
     let f :: Int -> TestAlg
-        f i = fromIntegral i :@ (Hat :< Yen)
+        f i = fromIntegral i .@ (Hat :< Yen)
         xs = L.map f [1, 2, 3]
         viaFromList = EA.fromList xs
         viaSigma    = EA.sigma [1, 2, 3] f
@@ -132,18 +132,33 @@ testSameBaseSeqOrderPathDependence = do
 -- isErrorValue check that (.@) performs.)
 testScalarRejectsNegative :: IO ()
 testScalarRejectsNegative = do
-    let xD = 10 :@ (Not :< Yen) :: TestAlg
+    let xD = 10 .@ (Not :< Yen) :: TestAlg
     rD <- try (evaluate (norm ((-1) .* xD))) :: IO (Either SomeException Double)
     case rD of
         Left _  -> putStrLn "[PASS] (.*) rejects negative scalar (Double)"
         Right v -> do putStrLn ("[FAIL] (.*) negative scalar leaked (Double): " ++ show v); exitFailure
-    let xN = 10 :@ (Not :< Yen) :: EA.Alg MoneyDecimal (HatBase CountUnit)
+    let xN = 10 .@ (Not :< Yen) :: EA.Alg MoneyDecimal (HatBase CountUnit)
     rN <- try (evaluate (norm ((-1) .* xN))) :: IO (Either SomeException MoneyDecimal)
     case rN of
         Left _  -> putStrLn "[PASS] (.*) rejects negative scalar (MoneyDecimal)"
         Right v -> do putStrLn ("[FAIL] (.*) negative scalar leaked (MoneyDecimal): " ++ show v); exitFailure
     -- non-negative scalar still works
     assertNear "(.*) non-negative scalar works" 20.0 (norm (2 .* xD))
+    -- C1: wildcard sides remain queries, but cannot construct postings.
+    let wildcardBase = HatNot :< Cash :: HatBase AccountTitles
+        concrete = (1 .@ (Not :< Cash)) .+ (2 .@ (Hat :< Cash))
+            :: EA.Alg Double (HatBase AccountTitles)
+    mapM_ (\value -> do
+        result <- try (evaluate (value .@ wildcardBase))
+            :: IO (Either SomeException (EA.Alg Double (HatBase AccountTitles)))
+        case result of
+            Left _ -> putStrLn ("[PASS] (.@) rejects HatNot at " ++ show value)
+            Right _ -> do
+                putStrLn ("[FAIL] (.@) accepted HatNot at " ++ show value)
+                exitFailure) [0, 1]
+    assertEqual "HatBase retains standalone HatNot" HatNot (EA.hat wildcardBase)
+    assertEqual "proj accepts HatNot query"
+        (EA.toASCList concrete) (EA.toASCList (EA.proj [wildcardBase] concrete))
 
 -- Step 1 (concrete projection keeps the axis index lazy): the module is compiled
 -- @Strict@, so a concrete (non-wildcard) 'projNetNorm' must NOT force the lazy
@@ -153,9 +168,9 @@ testScalarRejectsNegative = do
 testProjConcreteNoIndexForce :: IO ()
 testProjConcreteNoIndexForce = do
     let alg :: EA.Alg Double SimHatBase2
-        alg = EA.fromList [ 10 :@ Not :< (Cash, 1, 1, Yen)
-                          , 20 :@ Not :< (Products, 2, 2, Amount)
-                          , 30 :@ Hat :< (Cash, 3, 3, Yen) ]
+        alg = EA.fromList [ 10 .@ Not :< (Cash, 1, 1, Yen)
+                          , 20 .@ Not :< (Products, 2, 2, Amount)
+                          , 30 .@ Hat :< (Cash, 3, 3, Yen) ]
     assertNear "wildcard projNetNorm green with reserved fields unmaintained"
         10.0 (EA.projNetNorm [Not :< (Cash, (.#), 1, Yen)] alg)
     assertNear "concrete projNetNorm green with reserved fields unmaintained"
@@ -194,12 +209,12 @@ testNumericToleranceScaleAware = do
         False (EA.nearlyEqScaled (1e10 + 5.0) (1e10 :: Double))
     assertEqual "nearlyEqScaled: NaN guarded (no crash, not equal)"
         False (EA.nearlyEqScaled (0/0) (1.0 :: Double))
-    let big = (1e10 :@ (Hat :< Yen)) .+ (0.1 :@ (Hat :< Yen)) .+ (0.2 :@ (Hat :< Yen))
-           .+ (1e10 :@ (Not :< Yen)) .+ (0.3 :@ (Not :< Yen)) :: TestAlg
+    let big = (1e10 .@ (Hat :< Yen)) .+ (0.1 .@ (Hat :< Yen)) .+ (0.2 .@ (Hat :< Yen))
+           .+ (1e10 .@ (Not :< Yen)) .+ (0.3 .@ (Not :< Yen)) :: TestAlg
     assertEqual "barWithin preserves legacy large-scale cancellation"
         True (EA.isZero (barWithin EA.defaultTolerance big))
     assertEqual "bar preserves the exact large-scale residual"
-        [encodeFloat 1 (-55) :@ (Hat :< Yen)] (EA.toASCList (bar big))
+        [encodeFloat 1 (-55) .@ (Hat :< Yen)] (EA.toASCList (bar big))
 
 -- ================================================================
 -- Redundant-algebra axiom property tests (QuickCheck)
@@ -239,7 +254,7 @@ axiomProperties = do
     assertEqual "MoneyDecimal: 0.1 + 0.2 == 0.3 exactly"
         True (0.1 + 0.2 == (0.3 :: MoneyDecimal))
     let mk i = ((fromIntegral (i `mod` 7 + 1) :: MoneyDecimal)
-                  :@ ((if even i then Hat else Not) :< (unitForParity i)))
+                  .@ ((if even i then Hat else Not) :< (unitForParity i)))
                .| show (i `mod` 150)
         xs       :: [Journal String MoneyDecimal (HatBase CountUnit)]
         xs       = [ mk i | i <- [1 .. 400 :: Int] ]
@@ -252,8 +267,8 @@ axiomProperties = do
     assertEqual "bankersRound 0 2.5 = 2 (half to even)" (2 :: MoneyDecimal) (bankersRound 0 2.5)
     assertEqual "bankersRound 0 3.5 = 4 (half to even)" (4 :: MoneyDecimal) (bankersRound 0 3.5)
     assertEqual "bankersRound 2 0.125 = 0.12 (half to even)" (0.12 :: MoneyDecimal) (bankersRound 2 0.125)
-    let zb = 0 :@ (Hat :< Yen)    :: TestAlg   -- zero value, base Yen
-        rb = 5 :@ (Hat :< Amount) :: TestAlg   -- real value, base Amount
+    let zb = 0 `EAI.Single` (Hat :< Yen)    :: TestAlg   -- zero value, base Yen
+        rb = 5 .@ (Hat :< Amount) :: TestAlg   -- real value, base Amount
     -- both fold directions of the singleton/singleton union
     assertEqual "union zero(.+)real keeps real value on its own base"
         rb (EA.proj [Hat :< Amount] (zb .+ rb))
@@ -292,14 +307,14 @@ axiomProperties = do
     quickProp "regression: union preserves per-base net (zero-base bug)" $
         forAll genNNDouble $ \v1 -> forAll genBase $ \b1 ->
         forAll genNNDouble $ \v2 -> forAll genBase $ \b2 ->
-            let s1 = v1 :@ b1 :: TestAlg
-                s2 = v2 :@ b2 :: TestAlg
+            let s1 = v1 `EAI.Single` b1 :: TestAlg
+                s2 = v2 `EAI.Single` b2 :: TestAlg
             in netByBase (s1 .+ s2)
                  == M.unionWith (+) (netByBase s1) (netByBase s2)
     -- construction-order independence for the exact value type (MoneyDecimal)
     quickProp "MoneyDecimal: fromList per-base net is construction-order independent" $
         forAll (listOf ((,) <$> (realToFrac <$> genNNDouble) <*> genBase)) $ \ps ->
-            let singles = [ v :@ b | (v, b) <- ps ] :: [NNAlg]
+            let singles = [ v .@ b | (v, b) <- ps ] :: [NNAlg]
                 viaList  = EA.fromList singles
                 viaFoldr = foldr   (.+) EA.Zero singles
                 viaFoldl = L.foldl' (.+) EA.Zero singles
@@ -355,7 +370,7 @@ axiomProperties = do
     --     robust to seq order and reassociation). Exact MoneyDecimal.
     quickProp "netPairMapBy: ~=_pi invariant (construction-order independent, MoneyDecimal)" $
         forAll (listOf ((,) <$> (realToFrac <$> genNNDouble) <*> genBase)) $ \ps ->
-            let singles  = [ v :@ b | (v, b) <- ps ] :: [NNAlg]
+            let singles  = [ v .@ b | (v, b) <- ps ] :: [NNAlg]
                 viaList  = EA.netPairMapBy Just (EA.fromList singles)
                 viaFoldr = EA.netPairMapBy Just (foldr   (.+) EA.Zero singles)
                 viaFoldl = EA.netPairMapBy Just (L.foldl' (.+) EA.Zero singles)
@@ -491,7 +506,7 @@ functorialityLawProperties = do
             observe (EA.extendBy dup (x .+ y) :: NNAlg)
                 == observe ((EA.extendBy dup x .+ EA.extendBy dup y) :: NNAlg)
     quickProp "extendBy: (:@) is the unit through per-base multisets" $
-        forAll genAlgN $ \x -> observe (EA.extendBy (:@) x :: NNAlg) == observe x
+        forAll genAlgN $ \x -> observe (EA.extendBy (.@) x :: NNAlg) == observe x
     quickProp "extendBy: mapBasePart is the relabelling special case" $
         forAll genAlgN $ \x ->
             observe (EA.mapBasePart (const Amount) x :: NNAlg)
@@ -507,7 +522,7 @@ functorialityLawProperties = do
             .+ (1 .@ (Hat :< Yen))
             .+ (2 .@ (Not :< Dollar)) :: NNAlg
         unitOneKey = bar unitSource
-        unitRebuilt = EA.extendBy (:@) unitOneKey :: NNAlg
+        unitRebuilt = EA.extendBy (.@) unitOneKey :: NNAlg
     assertEqual "extendBy: unit counterexample has equal multisets"
         (observe unitOneKey) (observe unitRebuilt)
     assertEqual "extendBy: unit fails under raw Eq for one-key Liner"

@@ -36,7 +36,6 @@ AdvancesPaid
 AdvancesReceived
 AdvertisingExpense
 AffiliateStocks
-Alg|
 AllowanceForBonuses
 AllowanceForDoubtfulAccounts
 AllowanceForProductWarranties

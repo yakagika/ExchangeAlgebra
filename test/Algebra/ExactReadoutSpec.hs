@@ -245,7 +245,7 @@ fixedCases = do
         let expected = fromRational (sum (Map.elems (residuals rows)))
         forM_ (List.permutations rows) $ \order ->
             check "boundary permutations" expected (norm (bar (ledger order)))
-    check "positive zero" 0 (castDoubleToWord64 (norm ((-0) Internal.:@ a)))
+    check "positive zero" 0 (castDoubleToWord64 (norm ((-0) `Internal.Single` a)))
     let grouped = ledger [(t,a),(1,a),(t,bh)]
         exactN = toRational t + 1
         exactH = toRational t
@@ -278,8 +278,8 @@ fixedCases = do
     let money = ledger [(0.1,a),(0.2,a),(0.3,ah)] :: Alg MoneyDouble Base
     check "MoneyDouble rounds like Double" (fromRational centsOracle) (norm (bar money))
     let infinity = 1/0 :: Double
-        special = EA.fromList [infinity Internal.:@ a, 1 Internal.:@ a,
-                               infinity Internal.:@ ah]
+        special = EA.fromList [infinity `Internal.Single` a, 1 `Internal.Single` a,
+                               infinity `Internal.Single` ah]
         specialValues = EA.vals (bar special)
     check "nonfinite bar retains postings" 3 (length specialValues)
     check "nonfinite balance" False (balance special)
@@ -315,7 +315,7 @@ fixedCases = do
            (infinity,ah,Credit,"-Infinity",("0.0","+Infinity")),
            (0/0,a,Side,"NaN",("NaN","NaN"))] $
         \(value,postingBase,direction,signed,pairValues) -> do
-            let input = value Internal.:@ postingBase
+            let input = value `Internal.Single` postingBase
                 (actualDirection,actualDifference) = diffRL input
             check "nonfinite diffRL direction" direction actualDirection
             check "nonfinite diffRL magnitude" (if isNaN value then "NaN" else "+Infinity")
@@ -331,9 +331,9 @@ fixedCases = do
     check "opposite infinities signed key" (Map.singleton () "NaN")
         (fmap classify (EA.balanceMapBy (const (Just ())) special))
     check "opposite infinities projection" "NaN" (classify (EA.projNetNorm allBases special))
-    let specialJournal = (infinity Internal.:@ a Journal..| "first")
+    let specialJournal = (infinity `Internal.Single` a Journal..| "first")
                       .+ (1 .@ a Journal..| "second")
-                      .+ (infinity Internal.:@ ah Journal..| "third")
+                      .+ (infinity `Internal.Single` ah Journal..| "third")
                       .+ (2 .@ b Journal..| "first")
         journalOutput = Journal.postFromNetBy (const (Just ()))
             (\_ value -> value .@ b Journal..| "callback") specialJournal

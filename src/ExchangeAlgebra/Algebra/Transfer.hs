@@ -217,21 +217,21 @@ size (TransTable s _ _ _ _ _) = s
 --
 --
 -- >>> type Test = Alg Double (HatBase (AccountTitles, CountUnit))
--- >>> x = 1:@Hat:<(Cash,Yen) .+ 1:@Not:<(Products,Amount) :: Test
--- >>> y = 2:@Not:<(Cash,Yen) .+ 2:@Hat:<(Deposits,Yen) :: Test
+-- >>> x = 1.@Hat:<(Cash,Yen) .+ 1.@Not:<(Products,Amount) :: Test
+-- >>> y = 2.@Not:<(Cash,Yen) .+ 2.@Hat:<(Deposits,Yen) :: Test
 -- >>> transfer (x .+ y) $ table $ Not:<(Products,Amount) :-> Not:<(Products,Yen) |% id ++  Hat:<(Products,Amount) :-> Hat:<(Products,Yen) |% id
 -- 1.00:@Hat:<(Cash,Yen) .+ 2.00:@Not:<(Cash,Yen) .+ 2.00:@Hat:<(Deposits,Yen) .+ 1.00:@Not:<(Products,Yen)
 --
 -- Wildcards match but are not transformed
 --  >>> type Test = Alg Double (HatBase (AccountTitles, CountUnit))
--- >>> x = 1:@Hat:<(Cash,Yen) .+ 1:@Not:<(Products,Amount) :: Test
--- >>> y = 2:@Not:<(Cash,Yen) .+ 2:@Hat:<(Deposits,Yen) :: Test
+-- >>> x = 1.@Hat:<(Cash,Yen) .+ 1.@Not:<(Products,Amount) :: Test
+-- >>> y = 2.@Not:<(Cash,Yen) .+ 2.@Hat:<(Deposits,Yen) :: Test
 -- >>> transfer (x .+ y) $ table $ HatNot:<(Products,Amount) :-> HatNot:<(Products,Yen) |% id
 -- 1.00:@Hat:<(Cash,Yen) .+ 2.00:@Not:<(Cash,Yen) .+ 2.00:@Hat:<(Deposits,Yen) .+ 1.00:@Not:<(Products,Yen)
 --
 -- >>> instance Element Int where wildcard = -1
 -- >>> type Test = Alg Double (HatBase (AccountTitles, Int,CountUnit))
--- >>> x = 1:@Hat:<(Cash,(.#),Yen) .+ 1:@Not:<(Products,1,Yen) :: Test
+-- >>> x = 1.@Hat:<(Cash,(.#),Yen) .+ 1.@Not:<(Products,1,Yen) :: Test
 -- >>> transfer x $ table $ HatNot:<((.#),(.#),Yen) :-> HatNot:<((.#),(.#),Amount) |% id
 -- 1.00:@Hat:<(Cash,-1,Amount) .+ 1.00:@Not:<(Products,1,Amount)
 
@@ -602,7 +602,7 @@ grossProfitTransfer
 -- use the typed reporting metric API instead.
 --
 -- >>>  type Test = Alg Double (HatBase (CountUnit, AccountTitles))
--- >>>  x = 2279.0:@Not:<(Yen,Depreciation) .+ 500475.0:@Not:<(Yen,InterestEarned) :: Test
+-- >>>  x = 2279.0.@Not:<(Yen,Depreciation) .+ 500475.0.@Not:<(Yen,InterestEarned) :: Test
 -- >>>  ordinaryProfitTransfer x
 -- 2279.00:@Hat:<(Yen,OrdinaryProfit) .+ 500475.00:@Not:<(Yen,OrdinaryProfit)
 

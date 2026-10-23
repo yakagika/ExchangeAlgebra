@@ -31,18 +31,18 @@ type AxisJournal = EJ.Journal (String, Int) Double (HatBase CountUnit)
 
 algSample :: TestAlg
 algSample =
-       (1 :@ (Hat    :< Yen))
-    .+ (1 :@ (Not    :< Amount))
-    .+ (2 :@ (Not    :< Yen))
-    .+ (2 :@ (Hat    :< Amount))
-    .+ (3 :@ (Hat    :< Yen))
+       (1 .@ (Hat    :< Yen))
+    .+ (1 .@ (Not    :< Amount))
+    .+ (2 .@ (Not    :< Yen))
+    .+ (2 .@ (Hat    :< Amount))
+    .+ (3 .@ (Hat    :< Yen))
 
 journalSample :: TestJournal
 journalSample = EJ.fromList [x, y, z]
   where
-    x = ((1 :@ (Hat :< Yen)) .+ (1 :@ (Not :< Amount))) .| "cat"  :: TestJournal
-    y = ((2 :@ (Not :< Yen)) .+ (2 :@ (Hat :< Amount))) .| "dog"  :: TestJournal
-    z = ((3 :@ (Hat :< Yen)) .+ (3 :@ (Not :< Amount))) .| "fish" :: TestJournal
+    x = ((1 .@ (Hat :< Yen)) .+ (1 .@ (Not :< Amount))) .| "cat"  :: TestJournal
+    y = ((2 .@ (Not :< Yen)) .+ (2 .@ (Hat :< Amount))) .| "dog"  :: TestJournal
+    z = ((3 .@ (Hat :< Yen)) .+ (3 .@ (Not :< Amount))) .| "fish" :: TestJournal
 
 testReplaceNotesMatchesInsert :: IO ()
 testReplaceNotesMatchesInsert = do
@@ -63,29 +63,29 @@ testReplaceNotesMatchesInsert = do
 
 transferAlgSample :: TransferAlg
 transferAlgSample = EA.fromList
-    [ 7  :@ Not :<(WageExpenditure, 1, 1, Yen)
-    , 3  :@ Hat :<(Depreciation, 2, 2, Yen)
-    , 11 :@ Not :<(Purchases, 3, 3, Yen)
-    , 13 :@ Not :<(ValueAdded, 1, 2, Yen)
-    , 17 :@ Hat :<(Sales, 2, 1, Yen)
-    , 19 :@ Not :<(InterestEarned, 4, 4, Yen)
-    , 23 :@ Hat :<(InterestExpense, 5, 5, Yen)
-    , 29 :@ Not :<(TaxesRevenue, 2, 2, Yen)
-    , 31 :@ Hat :<(TaxesExpense, 3, 3, Yen)
-    , 37 :@ Not :<(WageEarned, 6, 6, Yen)
-    , 41 :@ Hat :<(ConsumptionExpenditure, 6, 6, Yen)
-    , 43 :@ Not :<(CentralBankPaymentIncome, 1, 1, Yen)
-    , 47 :@ Hat :<(CentralBankPaymentExpense, 1, 1, Yen)
-    , 53 :@ Not :<(GrossProfit, 7, 7, Yen)
-    , 59 :@ Hat :<(OrdinaryProfit, 8, 8, Yen)
-    , 61 :@ Not :<(Cash, 1, 1, Yen)
+    [ 7  .@ Not :<(WageExpenditure, 1, 1, Yen)
+    , 3  .@ Hat :<(Depreciation, 2, 2, Yen)
+    , 11 .@ Not :<(Purchases, 3, 3, Yen)
+    , 13 .@ Not :<(ValueAdded, 1, 2, Yen)
+    , 17 .@ Hat :<(Sales, 2, 1, Yen)
+    , 19 .@ Not :<(InterestEarned, 4, 4, Yen)
+    , 23 .@ Hat :<(InterestExpense, 5, 5, Yen)
+    , 29 .@ Not :<(TaxesRevenue, 2, 2, Yen)
+    , 31 .@ Hat :<(TaxesExpense, 3, 3, Yen)
+    , 37 .@ Not :<(WageEarned, 6, 6, Yen)
+    , 41 .@ Hat :<(ConsumptionExpenditure, 6, 6, Yen)
+    , 43 .@ Not :<(CentralBankPaymentIncome, 1, 1, Yen)
+    , 47 .@ Hat :<(CentralBankPaymentExpense, 1, 1, Yen)
+    , 53 .@ Not :<(GrossProfit, 7, 7, Yen)
+    , 59 .@ Hat :<(OrdinaryProfit, 8, 8, Yen)
+    , 61 .@ Not :<(Cash, 1, 1, Yen)
     ]
 
 transferJournalSample :: TransferJournal
 transferJournalSample = EJ.fromList
     [ transferAlgSample .| "A"
-    , ((5 :@ Not :<(Sales, 2, 1, Yen)) .+ (2 :@ Hat :<(WageExpenditure, 1, 1, Yen))) .| "B"
-    , ((3 :@ Hat :<(TaxesExpense, 3, 3, Yen)) .+ (4 :@ Not :<(InterestEarned, 4, 4, Yen))) .| "C"
+    , ((5 .@ Not :<(Sales, 2, 1, Yen)) .+ (2 .@ Hat :<(WageExpenditure, 1, 1, Yen))) .| "B"
+    , ((3 .@ Hat :<(TaxesExpense, 3, 3, Yen)) .+ (4 .@ Not :<(InterestEarned, 4, 4, Yen))) .| "C"
     ]
 
 -- ================================================================
@@ -104,7 +104,7 @@ genJournalN :: Gen NNJournal
 genJournalN = sized $ \n -> do
     k  <- choose (0, min 30 n)
     ps <- vectorOf k ((,,) <$> genPosNN <*> genBase <*> genNote)
-    pure (EJ.fromList [ (v :@ b) .| nt | (v, b, nt) <- ps ])
+    pure (EJ.fromList [ (v .@ b) .| nt | (v, b, nt) <- ps ])
 
 -- per-(note, base) signed net; exact (Rational)
 netJournal :: NNJournal -> M.Map (String, CountUnit) Rational
@@ -124,7 +124,7 @@ journalProperties = do
     -- postings into one Alg sequence, where the two folds accumulate in opposite
     -- order; with MoneyDecimal (exact, associative) the aggregate (norm) is identical.
     let mk i = ((fromIntegral (i `mod` 7 + 1) :: MoneyDecimal)
-                  :@ ((if even i then Hat else Not) :< (unitForParity i)))
+                  .@ ((if even i then Hat else Not) :< (unitForParity i)))
                .| show (i `mod` 30)
         xs :: [Journal String MoneyDecimal (HatBase CountUnit)]
         xs = [ mk i | i <- [1 .. 400 :: Int] ]
@@ -135,7 +135,7 @@ journalProperties = do
         (norm strict) (norm lazyRef)
     -- distinct note keys ⇒ no seq collision ⇒ exact structural equality with foldr
     let ys :: [Journal String MoneyDecimal (HatBase CountUnit)]
-        ys = [ ((fromIntegral i :: MoneyDecimal) :@ (Not :< Yen)) .| show i
+        ys = [ ((fromIntegral i :: MoneyDecimal) .@ (Not :< Yen)) .| show i
              | i <- [1 .. 20 :: Int] ]
     assertEqual "Journal.fromList (strict): structurally equal to foldr for distinct notes"
         (EJ.toMap (EJ.fromList ys)) (EJ.toMap (foldr (.+) mempty ys))
@@ -147,7 +147,7 @@ journalProperties = do
             L.sort (HM.keys (EJ.toMap ((.^) j))) == L.sort (HM.keys (EJ.toMap j))
     quickProp "journal: fromList per-(note,base) net is construction-order independent (MoneyDecimal)" $
         forAll (listOf ((,,) <$> genPosNN <*> genBase <*> genNote)) $ \ps ->
-            let js = [ (v :@ b) .| nt | (v, b, nt) <- ps ] :: [NNJournal]
+            let js = [ (v .@ b) .| nt | (v, b, nt) <- ps ] :: [NNJournal]
             in netJournal (EJ.fromList js) == netJournal (foldr (.+) mempty js)
 
 -- | Check gross and net Journal projections, including the exact 6 / 14 sentinel.
@@ -177,8 +177,8 @@ testJournalProjectionNorms = do
                   ]
             , let
                   alg :: EA.Alg MoneyDecimal (HatBase CountUnit)
-                  alg =  (10 :@ (Hat :< Yen))
-                      .+ (3  :@ (Not :< Amount))
+                  alg =  (10 .@ (Hat :< Yen))
+                      .+ (3  .@ (Not :< Amount))
                   b = Hat :< Yen :: HatBase CountUnit
               in
                   [ EqualComparison "proj [b,b] == proj [b] (duplicate exact, MoneyDecimal)"
@@ -188,8 +188,8 @@ testJournalProjectionNorms = do
                   ]
             , let
                   alg :: EA.Alg MoneyDecimal (HatBase CountUnit)
-                  alg =  (10 :@ (Hat :< Yen))
-                      .+ (5  :@ (Not :< Amount))
+                  alg =  (10 .@ (Hat :< Yen))
+                      .+ (5  .@ (Not :< Amount))
                   exact = Hat :< Yen     :: HatBase CountUnit
                   wild  = Hat :< (.#)    :: HatBase CountUnit   -- subsumes Hat:<Yen
               in
@@ -200,9 +200,9 @@ testJournalProjectionNorms = do
                   ]
             , let
                   alg :: EA.Alg MoneyDecimal (HatBase CountUnit)
-                  alg =  (10 :@ (Hat :< Yen))     -- Yen carries both sides
-                      .+ (4  :@ (Not :< Yen))
-                      .+ (7  :@ (Not :< Amount))
+                  alg =  (10 .@ (Hat :< Yen))     -- Yen carries both sides
+                      .+ (4  .@ (Not :< Yen))
+                      .+ (7  .@ (Not :< Amount))
                   bs = [HatNot :< Yen, HatNot :< Amount] :: [HatBase CountUnit]
               in
                   [ EqualComparison "projNetNorm == norm . bar . proj (both-sided base, MoneyDecimal)"
@@ -237,9 +237,9 @@ testJournalProjectionNorms = do
                   ]
             , let
                   alg :: EA.Alg MoneyDecimal (HatBase CountUnit)
-                  alg =  (10 :@ (Hat :< Yen))     -- Yen carries both sides
-                      .+ (4  :@ (Not :< Yen))
-                      .+ (7  :@ (Not :< Amount))
+                  alg =  (10 .@ (Hat :< Yen))     -- Yen carries both sides
+                      .+ (4  .@ (Not :< Yen))
+                      .+ (7  .@ (Not :< Amount))
                   js = alg .| "n" :: EJ.Journal String MoneyDecimal (HatBase CountUnit)
                   bs = [HatNot :< Yen] :: [HatBase CountUnit]
               in
@@ -279,8 +279,8 @@ testSigmaReferences = do
                   f :: Int -> TestAlg
                   f i
                       | i == 3 = EA.Zero
-                      | odd i = fromIntegral i :@ (Hat :< Yen)
-                      | otherwise = fromIntegral i :@ (Not :< Amount)
+                      | odd i = fromIntegral i .@ (Hat :< Yen)
+                      | otherwise = fromIntegral i .@ (Not :< Amount)
                   expected :: TestAlg
                   expected = EA.unionsMerge (L.map f xs)
                   actual :: TestAlg
@@ -296,8 +296,8 @@ testSigmaReferences = do
                   f i j =
                       let v = fromIntegral (i * 10 + j)
                       in if odd i
-                          then v :@ (Hat :< Yen)
-                          else v :@ (Not :< Amount)
+                          then v .@ (Hat :< Yen)
+                          else v .@ (Not :< Amount)
                   expected :: TestAlg
                   expected =
                       EA.unionsMerge
@@ -319,8 +319,8 @@ testSigmaReferences = do
                       ] :: M.Map (Int, Int) Double
                   f :: (Int, Int) -> Double -> TestAlg
                   f (i, j) v
-                      | i < j = v :@ (Hat :< Yen)
-                      | otherwise = v :@ (Not :< Amount)
+                      | i < j = v .@ (Hat :< Yen)
+                      | otherwise = v .@ (Not :< Amount)
                   expected :: TestAlg
                   expected = EA.unionsMerge
                       [ f (1, 2) 5.0
@@ -337,14 +337,14 @@ testSigmaReferences = do
                   xs = [1 .. 4 :: Int]
                   f :: Int -> TestJournal
                   f i = case i of
-                      1 -> (1 :@ (Hat :< Yen)) .| "A"
+                      1 -> (1 .@ (Hat :< Yen)) .| "A"
                       2 -> EJ.Zero
                       3 -> EJ.fromMap (HM.singleton "A" (EA.Zero :: TestAlg))
-                      _ -> (2 :@ (Not :< Amount)) .| "B"
+                      _ -> (2 .@ (Not :< Amount)) .| "B"
                   expected :: TestJournal
                   expected = EJ.fromMap $ HM.fromList
-                      [ ("A", 1 :@ (Hat :< Yen))
-                      , ("B", 2 :@ (Not :< Amount))
+                      [ ("A", 1 .@ (Hat :< Yen))
+                      , ("B", 2 .@ (Not :< Amount))
                       ]
                   actual = EJ.sigma xs f
               in
@@ -359,10 +359,10 @@ testSigmaReferences = do
                   f :: Int -> Int -> TestJournal
                   f i j
                       | i == 1 && j == 2 = EJ.fromMap (HM.singleton "N" (EA.Zero :: TestAlg))
-                      | odd (i + j) = (fromIntegral (i + j) :@ (Hat :< Yen)) .| "N"
+                      | odd (i + j) = (fromIntegral (i + j) .@ (Hat :< Yen)) .| "N"
                       | otherwise = EJ.Zero
                   expected :: TestJournal
-                  expected = EJ.fromMap $ HM.fromList [("N", 5 :@ (Hat :< Yen))]
+                  expected = EJ.fromMap $ HM.fromList [("N", 5 .@ (Hat :< Yen))]
                   actual = EJ.sigma2When xs ys cond f
               in
                   [ EqualComparison
@@ -374,7 +374,7 @@ testSigmaReferences = do
                   f :: Int -> TestAlg
                   f i
                       | i <= 2 = EA.Zero
-                      | otherwise = fromIntegral i :@ (Hat :< Yen)
+                      | otherwise = fromIntegral i .@ (Hat :< Yen)
                   expected :: TestJournal
                   expected = (EA.sigma xs f) .| "SalesPurchase"
                   actual :: TestJournal
@@ -397,8 +397,8 @@ testSigmaReferences = do
                       ] :: M.Map (Int, Int) Double
                   f :: (Int, Int) -> Double -> TestAlg
                   f (i, j) v
-                      | i < j = v :@ (Hat :< Yen)
-                      | otherwise = v :@ (Not :< Amount)
+                      | i < j = v .@ (Hat :< Yen)
+                      | otherwise = v .@ (Not :< Amount)
                   expected :: TestJournal
                   expected = (EA.sigmaFromMap kvs f) .| "SalesPurchase"
                   actual :: TestJournal
@@ -424,9 +424,9 @@ testFilterByAxisCases = do
             [ let
                   ledger :: AxisJournal
                   ledger = EJ.fromList
-                      [ (10 :@ (Hat :< Yen)) .| ("A", 1)
-                      , (20 :@ (Not :< Amount)) .| ("B", 1)
-                      , (30 :@ (Hat :< Yen)) .| ("A", 2)
+                      [ (10 .@ (Hat :< Yen)) .| ("A", 1)
+                      , (20 .@ (Not :< Amount)) .| ("B", 1)
+                      , (30 .@ (Hat :< Yen)) .| ("A", 2)
                       ]
                   expected = EJ.filterWithNote (\(_, t') _ -> t' == 1) ledger
                   actual = EJ.filterByAxis 1 (EJ.NoteAxisKey (1 :: Int)) ledger
@@ -442,13 +442,13 @@ testFilterByAxisCases = do
             , let
                   base :: AxisJournal
                   base = EJ.fromMap $ HM.fromList
-                      [ (("A", 1), 10 :@ (Hat :< Yen))
-                      , (("C", 2), 5 :@ (Not :< Amount))
+                      [ (("A", 1), 10 .@ (Hat :< Yen))
+                      , (("C", 2), 5 .@ (Not :< Amount))
                       ]
                   rhs :: AxisJournal
                   rhs = EJ.fromMap $ HM.fromList
-                      [ (("A", 1), 3 :@ (Not :< Amount))
-                      , (("B", 1), 7 :@ (Hat :< Yen))
+                      [ (("A", 1), 3 .@ (Not :< Amount))
+                      , (("B", 1), 7 .@ (Hat :< Yen))
                       ]
                   ledger = base .+ rhs
                   expected = EJ.filterWithNote (\(_, t') _ -> t' == 1) ledger

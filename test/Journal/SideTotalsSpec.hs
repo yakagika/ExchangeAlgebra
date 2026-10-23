@@ -1,6 +1,7 @@
 -- | Acceptance properties for exact pre-cancellation journal side totals.
 module Journal.SideTotalsSpec (runTests) where
 
+import qualified ExchangeAlgebra.Algebra.Internal as Internal
 import Control.Monad (unless)
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.List as List
@@ -10,7 +11,7 @@ import GHC.Float (castDoubleToWord64)
 import System.Exit (exitFailure)
 import Test.QuickCheck
 
-import ExchangeAlgebra.Algebra (Alg((:@)), (.@))
+import ExchangeAlgebra.Algebra ((.@))
 import ExchangeAlgebra.Algebra.Base
     ( AccountTitles(..), CountUnit(..), Hat(..), HatBase(..) )
 import ExchangeAlgebra.Algebra.Exact (ExactSum(..))
@@ -123,7 +124,7 @@ propExactParity = forAll rowsGen $ \original ->
 -- | Build one raw scalar whose invalid value bypasses the smart constructor.
 raw :: Int -> Hat -> Double -> TestJournal
 raw note side value = Journal.fromMap $ HashMap.singleton note
-    (value :@ (side :< (Yen, Cash)))
+    (value `Internal.Single` (side :< (Yen, Cash)))
 
 propBoundaries :: Property
 propBoundaries =
@@ -179,7 +180,7 @@ propFailures :: Property
 propFailures = forAll (shuffle invalid) $ \permutation ->
     let assemble :: [(Int, Hat, Double)] -> TestJournal
         assemble entries = Journal.fromMap (HashMap.fromList
-            [ (note, value :@ (side :< (Yen, Cash)))
+            [ (note, value `Internal.Single` (side :< (Yen, Cash)))
             | (note, side, value) <- entries ])
         reassigned = zipWith (\note (_, side, value) -> (note, side, value))
             [11, 12, 13, 14] permutation

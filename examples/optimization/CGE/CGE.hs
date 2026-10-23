@@ -250,9 +250,9 @@ initTransaction e d
     | isConsumer e = Zero -- 最終需要部門
     | otherwise    = stock .+ rowMaterial
     where 
-        stock = EJ.fromList [ d :@ Not :<(Products,c,e,Amount) .| (plank,initTerm)
+        stock = EJ.fromList [ d .@ Not :<(Products,c,e,Amount) .| (plank,initTerm)
                             | c <- produceWhat e]
-        rowMaterial = EJ.fromList [ (d/10) :@ Not :<(Products,c,e,Amount) .| (plank,initTerm)
+        rowMaterial = EJ.fromList [ (d/10) .@ Not :<(Products,c,e,Amount) .| (plank,initTerm)
                                   | c <- products]
 
 initLedger :: Double -> ST s (Ledger s)
@@ -1222,11 +1222,11 @@ getOneProduction wld t c = do
         -- c を生産するために必要な c2 の投入係数
         coef <- readUArray arr (t, c2, c)
         -- c2 の消費を記録
-        return $ coef :@ Hat :<(Products, c2, producedBy c, Amount) .| (Production,t)
+        return $ coef .@ Hat :<(Products, c2, producedBy c, Amount) .| (Production,t)
         -- すべての中間投入を結合
     let !totalInput = EJ.fromList inputs
         -- 生産と投入の合計
-        !result = (1 :@ Not :<(Products, c, producedBy c, Amount) .| (Production,t)) .+ totalInput
+        !result = (1 .@ Not :<(Products, c, producedBy c, Amount) .| (Production,t)) .+ totalInput
     return result
     
 

@@ -56,3 +56,7 @@ if ! grep -Fq 'ExchangeAlgebra.IO.Input.Admission.Representation' "$admission_tm
     cat "$admission_tmp/HiddenModule.log"
     exit 1
 fi
+
+reject AlgConstructor 'non-bidirectional pattern synonym|not bidirectional'
+reject AlgRecordUpdate 'non-bidirectional pattern synonym|not a record selector|not a record field'
+reject AlgHiddenConstructor 'does not export any children|does not export.*(Single|Liner)'

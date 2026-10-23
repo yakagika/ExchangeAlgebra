@@ -79,10 +79,10 @@ cases =
     , eq "Pair" "both sides and repeated values"
         (EA.Pair (Seq.fromList [1, 1, 3]) (Seq.fromList [2, 4]) :: EA.Pair Double)
     , eq "Alg" "Zero" (EA.Zero :: EA.Alg Double WireBase)
-    , eq "Alg" "singleton" (1 EA.:@ (Hat :< Cash) :: EA.Alg Double WireBase)
+    , eq "Alg" "singleton" (1 `EA.Single` (Hat :< Cash) :: EA.Alg Double WireBase)
     , eq "Alg" "repeated base on both sides"
-        (EA.fromList [1 EA.:@ (Hat :< Cash), 2 EA.:@ (Hat :< Cash)
-                     , 3 EA.:@ (Not :< Cash), 4 EA.:@ (Not :< Sales)]
+        (EA.fromList [1 `EA.Single` (Hat :< Cash), 2 `EA.Single` (Hat :< Cash)
+                     , 3 `EA.Single` (Not :< Cash), 4 `EA.Single` (Not :< Sales)]
             :: EA.Alg Double WireBase)
     , eq "TransferScale" "Relabel" (Rule.Relabel :: Rule.TransferScale Double)
     , eq "TransferScale" "MulBy" (Rule.MulBy 2 :: Rule.TransferScale Double)
@@ -115,9 +115,9 @@ cases =
     , eq "MoneyDouble" "large finite" (MoneyDouble 1e300)
     ]
   where
-    repeated = EA.fromList [1 EA.:@ (Hat :< Cash), 2 EA.:@ (Hat :< Cash)
-                           , 3 EA.:@ (Not :< Cash)]
-    singleton = EA.fromList [4 EA.:@ (Not :< Sales)]
+    repeated = EA.fromList [1 `EA.Single` (Hat :< Cash), 2 `EA.Single` (Hat :< Cash)
+                           , 3 `EA.Single` (Not :< Cash)]
+    singleton = EA.fromList [4 `EA.Single` (Not :< Sales)]
     ruleA = Rule.relabel (Hat :< Cash) (Hat :< Sales)
     ruleB = Rule.relabel (Not :< Cash) (Not :< Sales)
     validated :: [Rule.TransferRule Double WireBase] -> Rule.TransferRules Double WireBase

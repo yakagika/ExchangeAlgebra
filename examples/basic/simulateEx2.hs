@@ -160,7 +160,7 @@ initLedger :: Double -> ST s (Ledger s)
 initLedger initialStock =
     newURef $
         EJ.fromList
-            [ realToFrac initialStock :@ Not :<(Products, e, e, Amount) .| (plank, initTerm)
+            [ realToFrac initialStock .@ Not :<(Products, e, e, Amount) .| (plank, initTerm)
             | e <- companies
             ]
 
@@ -265,10 +265,10 @@ getOneProduction world t c = do
     sparseInputs <- getSparseInputs world
     let inputs = M.findWithDefault [] c sparseInputs
         totalInput = EJ.fromList
-            [ realToFrac coef :@ Hat :<(Products, c2, c, Amount) .| (Production, t)
+            [ realToFrac coef .@ Hat :<(Products, c2, c, Amount) .| (Production, t)
             | (c2, coef) <- inputs
             ]
-        output = 1 :@ Not :<(Products, c, c, Amount) .| (Production, t)
+        output = 1 .@ Not :<(Products, c, c, Amount) .| (Production, t)
     return (output .+ totalInput)
 
 buildSparseInputs :: World s -> ST s SparseInputs
@@ -406,12 +406,12 @@ buildShortageMap t ledger =
 
 purchasePosting :: MoneyDecimal -> Company -> Company -> EA.Alg MoneyDecimal HatBase2
 purchasePosting amount i j =
-    amount :@ Not :<(Products, j, i, Amount)
-    .+ amount :@ Hat :<(Cash, (.#), i, Yen)
-    .+ amount :@ Not :<(Purchases, (.#), i, Yen)
-    .+ amount :@ Not :<(Cash, (.#), j, Yen)
-    .+ amount :@ Not :<(Sales, (.#), j, Yen)
-    .+ amount :@ Hat :<(Products, j, j, Amount)
+    amount .@ Not :<(Products, j, i, Amount)
+    .+ amount .@ Hat :<(Cash, (.#), i, Yen)
+    .+ amount .@ Not :<(Purchases, (.#), i, Yen)
+    .+ amount .@ Not :<(Cash, (.#), j, Yen)
+    .+ amount .@ Not :<(Sales, (.#), j, Yen)
+    .+ amount .@ Hat :<(Products, j, j, Amount)
 
 purchases :: Term -> World s -> ST s Transaction
 purchases t world = do

@@ -39,7 +39,7 @@
     Numeric literals work without wrapping, because 'Num'/'Fractional' are derived:
 
     > type Ledger = Journal Term MoneyDecimal (HatBase AccountTitles)
-    > entry = 10.5 :@ Hat:<Cash .+ 2 :@ Not:<Sales   -- 10.5 and 2 are MoneyDecimal literals
+    > entry = 10.5 .@ Hat:<Cash .+ 2 .@ Not:<Sales   -- 10.5 and 2 are MoneyDecimal literals
 
     == Rounding
 

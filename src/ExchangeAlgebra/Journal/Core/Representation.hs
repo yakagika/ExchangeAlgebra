@@ -453,19 +453,19 @@ infixr 2 .|
 -- >>> type ShowTest = Journal String Double (HatBase CountUnit)
 -- >>> (mempty :: ShowTest)
 -- 0
--- >>> (5.00:@Not:<Yen .| plank :: ShowTest)
+-- >>> (5.00.@Not:<Yen .| plank :: ShowTest)
 -- 5.00:@Not:<Yen
--- >>> one = 20.00:@Not:<Yen .+ 20.00:@Hat:<Dollar .| "N" :: ShowTest
+-- >>> one = 20.00.@Not:<Yen .+ 20.00.@Hat:<Dollar .| "N" :: ShowTest
 -- >>> one
 -- 20.00:@Hat:<Dollar .+ 20.00:@Not:<Yen .| "N"
--- >>> toMap (20.00:@Hat:<Dollar .+ 20.00:@Not:<Yen .| "N" :: ShowTest) == toMap one
+-- >>> toMap (20.00.@Hat:<Dollar .+ 20.00.@Not:<Yen .| "N" :: ShowTest) == toMap one
 -- True
--- >>> two = 10.00:@Hat:<Yen .| "M" :: ShowTest
+-- >>> two = 10.00.@Hat:<Yen .| "M" :: ShowTest
 -- >>> show (one .+ two) `elem` ["(10.00:@Hat:<Yen .| \"M\") .+ (20.00:@Hat:<Dollar .+ 20.00:@Not:<Yen .| \"N\")", "(20.00:@Hat:<Dollar .+ 20.00:@Not:<Yen .| \"N\") .+ (10.00:@Hat:<Yen .| \"M\")"]
 -- True
--- >>> toMap ((10.00:@Hat:<Yen .| "M") .+ (20.00:@Hat:<Dollar .+ 20.00:@Not:<Yen .| "N") :: ShowTest) == toMap (one .+ two)
+-- >>> toMap ((10.00.@Hat:<Yen .| "M") .+ (20.00.@Hat:<Dollar .+ 20.00.@Not:<Yen .| "N") :: ShowTest) == toMap (one .+ two)
 -- True
--- >>> blank = 5.00:@Not:<Yen .| plank :: ShowTest
+-- >>> blank = 5.00.@Not:<Yen .| plank :: ShowTest
 -- >>> show (one .+ blank) `elem` ["(20.00:@Hat:<Dollar .+ 20.00:@Not:<Yen .| \"N\") .+ (5.00:@Not:<Yen .| \"\")", "(5.00:@Not:<Yen .| \"\") .+ (20.00:@Hat:<Dollar .+ 20.00:@Not:<Yen .| \"N\")"]
 -- True
 instance (HatVal v, HatBaseClass b, Note n) => Show (Journal n v b) where
@@ -517,9 +517,9 @@ instance (HatVal v, HatBaseClass b, Note n) => Semigroup (Journal n v b) where
 -- Complexity: Amortized O(size(rhs)); O(n) compaction when the delta exceeds the threshold
 --
 -- >>> type Test = Journal String Double (HatBase CountUnit)
--- >>> x = 20.00:@Not:<Yen .+ 20.00:@Hat:<Dollar .| "Withdrawal" :: Test
--- >>> y = 10.00:@Hat:<Yen .+ 10.00:@Not:<Dollar .| "Deposits" :: Test
--- >>> toMap (x .+ y) == toMap ((10.00:@Not:<Dollar .+ 10.00:@Hat:<Yen .| "Deposits") .+ (20.00:@Hat:<Dollar .+ 20.00:@Not:<Yen .| "Withdrawal") :: Test)
+-- >>> x = 20.00.@Not:<Yen .+ 20.00.@Hat:<Dollar .| "Withdrawal" :: Test
+-- >>> y = 10.00.@Hat:<Yen .+ 10.00.@Not:<Dollar .| "Deposits" :: Test
+-- >>> toMap (x .+ y) == toMap ((10.00.@Not:<Dollar .+ 10.00.@Hat:<Yen .| "Deposits") .+ (20.00.@Hat:<Dollar .+ 20.00.@Not:<Yen .| "Withdrawal") :: Test)
 -- True
 addJournal :: (HatVal v, HatBaseClass b, Note n)
            => Journal n v b -> Journal n v b -> Journal n v b
@@ -586,8 +586,8 @@ instance (HatVal v, HatBaseClass b, Note n) => Redundant (Journal n) v b where
 -- construction order for every value type, including Double and MoneyDouble.
 --
 -- >>> type Test = Journal String Double (HatBase CountUnit)
--- >>> x = [(1.00:@Hat:<Yen .| z) | z <- ["Loan Payment","Purchace Apple"]] :: [Test]
--- >>> toMap (fromList x) == toMap ((1.00:@Hat:<Yen .| "Purchace Apple") .+ (1.00:@Hat:<Yen .| "Loan Payment") :: Test)
+-- >>> x = [(1.00.@Hat:<Yen .| z) | z <- ["Loan Payment","Purchace Apple"]] :: [Test]
+-- >>> toMap (fromList x) == toMap ((1.00.@Hat:<Yen .| "Purchace Apple") .+ (1.00.@Hat:<Yen .| "Loan Payment") :: Test)
 -- True
 fromList :: (HatVal v, HatBaseClass b, Note n)
          => [Journal n v b] -> Journal n v b
@@ -699,7 +699,7 @@ sigmaOnFromMap n kvs f =
 -- Complexity: O(m) single pass (via 'EA.decBy') + O(k) journal construction.
 --
 -- >>> type TJ = Journal String Double (HatBase CountUnit)
--- >>> let alg = 100 :@ Not:<Yen .+ 30 :@ Hat:<Yen .+ 50 :@ Not:<Dollar :: Alg Double (HatBase CountUnit)
+-- >>> let alg = 100 .@ Not:<Yen .+ 30 .@ Hat:<Yen .+ 50 .@ Not:<Dollar :: Alg Double (HatBase CountUnit)
 -- >>> let j = decTo (\(_ :< a) -> Just (if a == Yen then "cash" else "other")) alg :: TJ
 -- >>> norm j
 -- 180.0
@@ -768,10 +768,10 @@ replaceNotes x y = fromMap (Map.union (toMap x) (toMap y))
 -- | Deprecated alias for 'replaceNotes'.
 --
 -- >>> type Test = Journal String Double (HatBase CountUnit)
--- >>> x = 10.00:@Not:<Yen .| "A" :: Test
--- >>> y = 20.00:@Not:<Yen .| "B" :: Test
--- >>> z = 30.00:@Hat:<Yen .| "A" :: Test
--- >>> toMap (insert z (x .+ y)) == toMap ((20.00:@Not:<Yen .| "B") .+ (30.00:@Hat:<Yen .| "A") :: Test)
+-- >>> x = 10.00.@Not:<Yen .| "A" :: Test
+-- >>> y = 20.00.@Not:<Yen .| "B" :: Test
+-- >>> z = 30.00.@Hat:<Yen .| "A" :: Test
+-- >>> toMap (insert z (x .+ y)) == toMap ((20.00.@Not:<Yen .| "B") .+ (30.00.@Hat:<Yen .| "A") :: Test)
 -- True
 insert :: (HatVal v, HatBaseClass b, Note n)
         => Journal n v b -> Journal n v b -> Journal n v b
@@ -785,10 +785,10 @@ insert = replaceNotes
 -- returned unchanged (the blank note matches every note).
 --
 -- >>> type Test = Journal String Double (HatBase CountUnit)
--- >>> x = 1.00:@Hat:<Yen .+ 1.00:@Not:<Amount .| "cat"  :: Test
--- >>> y = 2.00:@Hat:<Yen .+ 2.00:@Not:<Amount .| "dog"  :: Test
--- >>> z = 3.00:@Hat:<Yen .+ 3.00:@Not:<Amount .| "fish" :: Test
--- >>> toMap (projWithNote ["dog","cat"] (x .+ y .+ z)) == toMap ((1.00:@Not:<Amount .+ 1.00:@Hat:<Yen .| "cat") .+ (2.00:@Not:<Amount .+ 2.00:@Hat:<Yen .| "dog") :: Test)
+-- >>> x = 1.00.@Hat:<Yen .+ 1.00.@Not:<Amount .| "cat"  :: Test
+-- >>> y = 2.00.@Hat:<Yen .+ 2.00.@Not:<Amount .| "dog"  :: Test
+-- >>> z = 3.00.@Hat:<Yen .+ 3.00.@Not:<Amount .| "fish" :: Test
+-- >>> toMap (projWithNote ["dog","cat"] (x .+ y .+ z)) == toMap ((1.00.@Not:<Amount .+ 1.00.@Hat:<Yen .| "cat") .+ (2.00.@Not:<Amount .+ 2.00.@Hat:<Yen .| "dog") :: Test)
 -- True
 projWithNote :: (HatVal v, HatBaseClass b, Note n)
              => [n] -> Journal n v b -> Journal n v b
@@ -811,9 +811,9 @@ projWithNote ns js =
 -- Projecting with Base.
 --
 -- >>> type Test = Journal String Double (HatBase CountUnit)
--- >>> x = 1.00:@Hat:<Yen .+ 1.00:@Not:<Amount .| "cat"  :: Test
--- >>> y = 2.00:@Not:<Yen .+ 2.00:@Hat:<Amount .| "dog"  :: Test
--- >>> z = 3.00:@Hat:<Yen .+ 3.00:@Not:<Amount .| "fish" :: Test
+-- >>> x = 1.00.@Hat:<Yen .+ 1.00.@Not:<Amount .| "cat"  :: Test
+-- >>> y = 2.00.@Not:<Yen .+ 2.00.@Hat:<Amount .| "dog"  :: Test
+-- >>> z = 3.00.@Hat:<Yen .+ 3.00.@Not:<Amount .| "fish" :: Test
 -- >>> L.sort [(n, EA.toASCList a) | (n, a) <- Map.toList (toMap (projWithBase [Not:<Amount] (x .+ y .+ z))), not (Prelude.null (EA.toASCList a))]
 -- [("cat",[1.00:@Not:<Amount]),("fish",[3.00:@Not:<Amount])]
 projWithBase :: (HatVal v, HatBaseClass b, Note n)
@@ -858,9 +858,9 @@ projWithBaseNetNorm bs js =
 -- all notes (falls back to 'projWithBase').
 --
 -- >>> type Test = Journal String Double (HatBase CountUnit)
--- >>> x = 1.00:@Hat:<Yen .+ 1.00:@Not:<Amount .| "cat"  :: Test
--- >>> y = 2.00:@Not:<Yen .+ 2.00:@Hat:<Amount .| "dog"  :: Test
--- >>> z = 3.00:@Hat:<Yen .+ 3.00:@Not:<Amount .| "fish" :: Test
+-- >>> x = 1.00.@Hat:<Yen .+ 1.00.@Not:<Amount .| "cat"  :: Test
+-- >>> y = 2.00.@Not:<Yen .+ 2.00.@Hat:<Amount .| "dog"  :: Test
+-- >>> z = 3.00.@Hat:<Yen .+ 3.00.@Not:<Amount .| "fish" :: Test
 -- >>> projWithNoteBase ["dog","fish"] [Not:<Amount] (x .+ y .+ z)
 -- 3.00:@Not:<Amount .| "fish"
 projWithNoteBase :: (HatVal v, HatBaseClass b, Note n)
@@ -968,13 +968,13 @@ filterWithNote f (Journal bs delta _ _) =
 -- Complexity: O(|result|) after index construction; O(n) for first base-axis query on a Journal value
 --
 -- >>> type Test = Journal (String, Int) Double (HatBase CountUnit)
--- >>> x = 10.00:@Not:<Yen .| ("A", 1) :: Test
--- >>> y = 20.00:@Hat:<Yen .| ("B", 1) :: Test
--- >>> z = 30.00:@Not:<Yen .| ("A", 2) :: Test
--- >>> toMap (filterByAxis 0 (NoteAxisKey "A") (x .+ y .+ z)) == toMap ((10.00:@Not:<Yen .| ("A",1)) .+ (30.00:@Not:<Yen .| ("A",2)) :: Test)
+-- >>> x = 10.00.@Not:<Yen .| ("A", 1) :: Test
+-- >>> y = 20.00.@Hat:<Yen .| ("B", 1) :: Test
+-- >>> z = 30.00.@Not:<Yen .| ("A", 2) :: Test
+-- >>> toMap (filterByAxis 0 (NoteAxisKey "A") (x .+ y .+ z)) == toMap ((10.00.@Not:<Yen .| ("A",1)) .+ (30.00.@Not:<Yen .| ("A",2)) :: Test)
 -- True
 --
--- >>> toMap (filterByAxis 1 (NoteAxisKey (1 :: Int)) (x .+ y .+ z)) == toMap ((10.00:@Not:<Yen .| ("A",1)) .+ (20.00:@Hat:<Yen .| ("B",1)) :: Test)
+-- >>> toMap (filterByAxis 1 (NoteAxisKey (1 :: Int)) (x .+ y .+ z)) == toMap ((10.00.@Not:<Yen .| ("A",1)) .+ (20.00.@Hat:<Yen .| ("B",1)) :: Test)
 -- True
 {-# INLINE filterByAxis #-}
 filterByAxis :: (HatVal v, HatBaseClass b, Note n)
@@ -996,8 +996,8 @@ filterByAxis axis key j@(Journal _ _ baseIdx deltaIdx) =
 -- Gathers all Alg into one on the given Note.
 --
 -- >>> type Test = Journal String Double (EA.HatBase EA.CountUnit)
--- >>> x = 20.00:@Not:<Yen .+ 20.00:@Hat:<Dollar .| "Withdrawal" :: Test
--- >>> y = 10.00:@Hat:<Yen .+ 10.00:@Not:<Dollar .| "Deposits" :: Test
+-- >>> x = 20.00.@Not:<Yen .+ 20.00.@Hat:<Dollar .| "Withdrawal" :: Test
+-- >>> y = 10.00.@Hat:<Yen .+ 10.00.@Not:<Dollar .| "Deposits" :: Test
 -- >>> gather "A" (x .+ y)
 -- 10.00:@Not:<Dollar .+ 20.00:@Hat:<Dollar .+ 20.00:@Not:<Yen .+ 10.00:@Hat:<Yen .| "A"
 gather :: (HatVal v, HatBaseClass b, Note n)

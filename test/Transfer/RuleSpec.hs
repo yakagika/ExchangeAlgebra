@@ -5,6 +5,7 @@
 -- | Laws, legacy regressions and multi-period acceptance for transfer entries.
 module Transfer.RuleSpec (runTests) where
 
+import qualified ExchangeAlgebra.Algebra.Internal as Internal
 import           Control.Monad (unless)
 import qualified Data.Binary as Binary
 import qualified Data.HashMap.Strict as HashMap
@@ -280,7 +281,8 @@ testApplication = do
     wildcardRule <- requireRight "HatNot rule" $
         mkTransferRules [relabel (HatNot :< (Cash, wildcard)) (HatNot :< (Deposits, wildcard))]
     invalidHat <- requireRight "HatNot posting is ignored" $
-        transferEntries wildcardRule (10 .@ HatNot :< (Cash, Yen) :: Alg Double TestBase)
+        transferEntries wildcardRule
+            (10 `Internal.Single` HatNot :< (Cash, Yen) :: Alg Double TestBase)
     assertTest "HatNot posting" (Algebra.isZero invalidHat)
     underflow <- requireRight "underflow rule" (mkTransferRules [scaleBy source target (1e-300 :: Double)])
     zeroTarget <- requireRight "underflow result" (transferEntries underflow (1e-300 .@ source))
@@ -454,7 +456,7 @@ propExactClosing _ = forAll generated $ \ledger -> case closingEntries ledger of
 testClosingInvalid :: forall v. HatVal v => Proxy v -> IO ()
 testClosingInvalid _ = do
     let source = Not :< (Sales, Yen)
-        ledger = (-1) :@ source :: Alg v TestBase
+        ledger = (-1) `Internal.Single` source :: Alg v TestBase
     assertTest "negative closing value" $ case closingEntries ledger of
         Left (NonFiniteBalance actual) -> actual == source
         _ -> False
@@ -471,7 +473,7 @@ testClosingRange = do
     assertTest "large closing exact cancellation" $
         Map.findWithDefault 1 source (exactNets (ledger .+ additions)) == 0
     mapM_ (\value -> assertTest "nonfinite closing scalar" $
-        case closingEntries (value :@ source :: Alg Double TestBase) of
+        case closingEntries (value `Internal.Single` source :: Alg Double TestBase) of
             Left (NonFiniteBalance actual) -> actual == source
             _ -> False) [0 / 0, 1 / 0, -1 / 0]
 

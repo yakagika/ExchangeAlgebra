@@ -105,30 +105,32 @@ type L = Alg Double LBase
 -- it (Hat).  Nets to @supply − demand@ on @(Products, p, _, Amount)@.
 phys :: Double -> LhrProduct -> LhrEntity -> LhrEntity -> L
 phys q p supplier absorber =
-       (q :@ (Not :< (Products, p, supplier, Amount)))
-    .+ (q :@ (Hat :< (Products, p, absorber, Amount)))
+       (q .@ (Not :< (Products, p, supplier, Amount)))
+    .+ (q .@ (Hat :< (Products, p, absorber, Amount)))
 
 -- | A cash flow in a currency: @payer@ pays @v@ (Hat), @payee@ receives (Not).
+-- Negative flows reverse both sides and post the absolute amount.
 cashIn :: CountUnit -> Double -> LhrEntity -> LhrEntity -> L
 cashIn cur v payer payee =
-       (v :@ (Hat :< (Cash, PMoney, payer, cur)))
-    .+ (v :@ (Not :< (Cash, PMoney, payee, cur)))
+       (abs v .@ ((if v < 0 then Not else Hat) :< (Cash, PMoney, payer, cur)))
+    .+ (abs v .@ ((if v < 0 then Hat else Not) :< (Cash, PMoney, payee, cur)))
 
--- | One payment leg: @e@ pays @v@ in @cur@.
+-- | One payment leg: @e@ pays @v@ in @cur@; negative payments reverse the side.
 payLeg :: Double -> CountUnit -> LhrEntity -> L
-payLeg v cur e = v :@ (Hat :< (Cash, PMoney, e, cur))
+payLeg v cur e = abs v .@ ((if v < 0 then Not else Hat) :< (Cash, PMoney, e, cur))
 
--- | One receipt leg: @e@ receives @v@ in @cur@.
+-- | One receipt leg: @e@ receives @v@ in @cur@; negative receipts reverse the side.
 recvLeg :: Double -> CountUnit -> LhrEntity -> L
-recvLeg v cur e = v :@ (Not :< (Cash, PMoney, e, cur))
+recvLeg v cur e = abs v .@ ((if v < 0 then Hat else Not) :< (Cash, PMoney, e, cur))
 
 -- | A one-sided physical creation (endowment supply) with no absorber leg.
 supply :: Double -> LhrProduct -> LhrEntity -> L
-supply q p e = q :@ (Not :< (Products, p, e, Amount))
+supply q p e = q .@ (Not :< (Products, p, e, Amount))
 
 -- | A one-sided physical absorption (final demand) with no supplier leg.
+-- Negative absorption posts a creation on the opposite side.
 absorb :: Double -> LhrProduct -> LhrEntity -> L
-absorb q p e = q :@ (Hat :< (Products, p, e, Amount))
+absorb q p e = abs q .@ ((if q < 0 then Not else Hat) :< (Products, p, e, Amount))
 
 ------------------------------------------------------------------
 -- * Residual read-out
@@ -343,8 +345,12 @@ ledgerAlg cal ins = mconcat $ concat
 
     -- (12) foreign saving FSAV: ROW provides FSAV (Dollar), S-I books FSAV*EXR.
     saveInvFlows =
-        [ (baseFsav0 base * exr :@ (Not :< (Cash, PMoney, ESaveInv, Yen)))
-          .+ (baseFsav0 base :@ (Hat :< (Cash, PMoney, ERow, Dollar))) ]
+        [ (abs (baseFsav0 base * exr)
+              .@ ((if baseFsav0 base * exr < 0 then Hat else Not)
+                  :< (Cash, PMoney, ESaveInv, Yen)))
+          .+ (abs (baseFsav0 base)
+              .@ ((if baseFsav0 base < 0 then Not else Hat)
+                  :< (Cash, PMoney, ERow, Dollar))) ]
 
     -- helpers -----------------------------------------------------------------
     mv m k = M.findWithDefault 0.0 k m

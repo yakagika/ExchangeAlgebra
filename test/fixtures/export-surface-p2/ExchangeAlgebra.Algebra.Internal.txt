@@ -307,6 +307,7 @@ ShortTermLoansReceivable
 ShortTermNationalBonds
 ShortTermNationalBondsPayable
 Side
+Single
 Software
 SoftwareInProgress
 StatementDivision

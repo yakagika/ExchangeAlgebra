@@ -7,7 +7,7 @@ ExchangeAlgebra.Algebra.Base.Account.Types	46
 ExchangeAlgebra.Algebra.Base.Element	276
 ExchangeAlgebra.Algebra.Base	388
 ExchangeAlgebra.Algebra.Exact	22
-ExchangeAlgebra.Algebra.Internal	482
+ExchangeAlgebra.Algebra.Internal	483
 ExchangeAlgebra.Algebra.Readout.Net	7
 ExchangeAlgebra.Algebra.Transfer.Rule	36
 ExchangeAlgebra.Algebra.Transfer	16
@@ -24,7 +24,7 @@ ExchangeAlgebra.IO.Input.Admission	176
 ExchangeAlgebra.Journal.Exact	24
 ExchangeAlgebra.Journal.Transfer.Rule	14
 ExchangeAlgebra.Journal.Transfer	15
-ExchangeAlgebra.Journal	460
+ExchangeAlgebra.Journal	459
 ExchangeAlgebra.Optimize.Annealing	10
 ExchangeAlgebra.Optimize.GA	14
 ExchangeAlgebra.Optimize	8

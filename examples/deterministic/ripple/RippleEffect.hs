@@ -171,8 +171,8 @@ instance UpdatableSTRef Ledger s Transaction where
 initTransaction :: Entity -> Double -> Transaction
 initTransaction e d
     | e == finalDemandSector = Zero -- 最終需要部門
-    | otherwise              = (.+) (d :@ Not :<(Products,e,e,Amount) .| (plank,initTerm))
-                             $ EJ.fromList [ (d/10) :@ Not :<(Products,e2,e,Amount) .| (plank,initTerm)
+    | otherwise              = (.+) (d .@ Not :<(Products,e,e,Amount) .| (plank,initTerm))
+                             $ EJ.fromList [ (d/10) .@ Not :<(Products,e2,e,Amount) .| (plank,initTerm)
                                            | e2 <- industries]
 
 initLedger :: Double -> ST s (Ledger s)
@@ -882,11 +882,11 @@ getOneProduction wld t c = do
         -- c を生産するために必要な c2 の投入係数
         coef <- readUArray arr (t, c2, c)
         -- c2 の消費を記録
-        return $ coef :@ Hat :<(Products, c2, c, Amount) .| (Production,t)
+        return $ coef .@ Hat :<(Products, c2, c, Amount) .| (Production,t)
         -- すべての中間投入を結合
     let !totalInput = EJ.fromList inputs
         -- 生産と投入の合計
-        !result = (1 :@ Not :<(Products, c, c, Amount) .| (Production,t)) .+ totalInput
+        !result = (1 .@ Not :<(Products, c, c, Amount) .| (Production,t)) .+ totalInput
     return result
     
 

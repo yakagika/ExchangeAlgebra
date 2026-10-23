@@ -81,7 +81,14 @@ import ExchangeAlgebra.Algebra.Element.Representation ( Name
                                                       , CountUnit
                                                       , matchesQuery
                                                       )
-import ExchangeAlgebra.Algebra.Core.Representation (Alg(..), pattern (:@), _val, _hatBase, Redundant(..), filter)
+import ExchangeAlgebra.Algebra.Core.Representation ( Alg(..)
+                                                   , pattern (:@)
+                                                   , _val
+                                                   , _hatBase
+                                                   , Redundant(..)
+                                                   , (.@)
+                                                   , filter
+                                                   )
 import qualified ExchangeAlgebra.Algebra.Core.Representation as EA (Alg(..), _hatBase, filter, foldEntries, foldPairs, Pair(..))
 import ExchangeAlgebra.Algebra.Value.Class (HatVal(..), Tolerance(..), isErrorValue)
 import qualified Data.Foldable as Foldable
@@ -483,7 +490,7 @@ projFixedLiability  = (filter (\x -> (fixedCurrent . _hatBase) x == Fixed))
 -- Complexity: O(s) (s is the total number of scalar entries)
 --
 -- >>> type Test = Alg Double (HatBase AccountTitles)
--- >>> x = 100:@Not:<CapitalStock .+ 30:@Not:<Cash .+ 20:@Not:<RetainedEarnings :: Test
+-- >>> x = 100.@Not:<CapitalStock .+ 30.@Not:<Cash .+ 20.@Not:<RetainedEarnings :: Test
 -- >>> norm (projCapitalStock x)
 -- 120.0
 projCapitalStock :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
@@ -515,7 +522,7 @@ projCapitalStock  = (filter (\x -> (whatDiv . _hatBase) x == Equity))
 -- Complexity: O(s) (s is the total number of scalar entries)
 --
 -- >>> type Test = Alg Double (HatBase AccountTitles)
--- >>> x = 100:@Not:<AllowanceForDoubtfulAccounts .+ 20:@Hat:<AllowanceForDoubtfulAccounts .+ 30:@Not:<Cash .+ 10:@Hat:<Cash :: Test
+-- >>> x = 100.@Not:<AllowanceForDoubtfulAccounts .+ 20.@Hat:<AllowanceForDoubtfulAccounts .+ 30.@Not:<Cash .+ 10.@Hat:<Cash :: Test
 -- >>> projContraAssets x
 -- 20.00:@Hat:<AllowanceForDoubtfulAccounts .+ 100.00:@Not:<AllowanceForDoubtfulAccounts
 projContraAssets :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b

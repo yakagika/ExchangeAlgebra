@@ -64,7 +64,7 @@ symmetric :: TestBase -> TestBase -> Bool
 symmetric = (.==)
 
 build :: [(Double, TestBase)] -> TestAlg
-build entries = fromList [value :@ postingBase | (value, postingBase) <- entries]
+build entries = fromList [value .@ postingBase | (value, postingBase) <- entries]
 
 -- | Raw postings keyed by the rendered base. 'HatBase' orders wildcards as
 -- equal to anything, so the base itself cannot be the key here.
@@ -93,7 +93,7 @@ propSingle :: ProjCase -> Bool
 propSingle (ProjCase entries queries) = all agrees entries
   where
     agrees entry@(value, postingBase) =
-        observe (proj queries (value :@ postingBase))
+        observe (proj queries (value .@ postingBase))
             == observe (build (selected oneWay (ProjCase [entry] queries)))
 
 propNetNorm :: ProjCase -> Bool
@@ -102,7 +102,7 @@ propNetNorm testCase@(ProjCase entries queries) =
         && all single entries
   where
     single entry@(value, postingBase) =
-        projNetNorm queries (value :@ postingBase)
+        projNetNorm queries (value .@ postingBase)
             == netNorm (selected oneWay (ProjCase [entry] queries))
 
 propConcreteRegression :: ProjCase -> Bool
@@ -127,12 +127,12 @@ quickProperty label proposition = do
 -- | The reported table: cash carries no unit axis in the ledger.
 testReportedTable :: IO ()
 testReportedTable = do
-    let cash = 10 :@ Not :< (Cash, wildcard) :: TestAlg
-        both = cash .+ 3 :@ Not :< (Products, Yen)
+    let cash = 10 .@ Not :< (Cash, wildcard) :: TestAlg
+        both = cash .+ 3 .@ Not :< (Products, Yen)
         anyTitleYen = [Not :< (wildcard, Yen)]
         cashYen = [Not :< (Cash, Yen)]
         cashAny = [Not :< (Cash, wildcard)]
-        products = 3 :@ Not :< (Products, Yen) :: TestAlg
+        products = 3 .@ Not :< (Products, Yen) :: TestAlg
     assertTest "proj: wildcard-title query skips ledger-wildcard unit (single)"
         (Algebra.isZero (proj anyTitleYen cash))
     assertTest "proj: wildcard-title query skips ledger-wildcard unit (Liner)"
@@ -154,8 +154,8 @@ testReportedTable = do
 -- | 'projByAccountTitle' follows the same one-way rule on the title axis.
 testProjByAccountTitle :: IO ()
 testProjByAccountTitle = do
-    let noTitle = 7 :@ Not :< wildcard :: Alg Double (HatBase AccountTitles)
-        cash = 10 :@ Not :< Cash
+    let noTitle = 7 .@ Not :< wildcard :: Alg Double (HatBase AccountTitles)
+        cash = 10 .@ Not :< Cash
         ledger = noTitle .+ cash
         postings = List.sort . foldEntries (\result value postingBase ->
             (show postingBase, value) : result) []
@@ -170,11 +170,11 @@ testProjByAccountTitle = do
 -- in both directions and in both ledger shapes.
 testMapRewritesWildcardAxis :: IO ()
 testMapRewritesWildcardAxis = do
-    let cash = 10 :@ Not :< (Cash, wildcard) :: TestAlg
-        cashYen = 10 :@ Not :< (Cash, Yen) :: TestAlg
-        products = 3 :@ Not :< (Products, Amount) :: TestAlg
+    let cash = 10 .@ Not :< (Cash, wildcard) :: TestAlg
+        cashYen = 10 .@ Not :< (Cash, Yen) :: TestAlg
+        products = 3 .@ Not :< (Products, Amount) :: TestAlg
         setCashUnit unit entry@(value :@ (h :< (title, _)))
-            | title == Cash = value :@ (h :< (title, unit))
+            | title == Cash = value .@ (h :< (title, unit))
             | otherwise     = entry
         setCashUnit _ entry = entry
     assertTest "map: wildcard axis rewritten to a concrete value (single)"

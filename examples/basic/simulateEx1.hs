@@ -157,7 +157,7 @@ instance UpdatableSTRef Ledger s Transaction where
 initLedger :: Double -> ST s (Ledger s)
 initLedger d = newURef
              $ EJ.fromList
-             [ realToFrac d :@ Not :<(Products,e,e,Amount) .| (plank,initTerm)
+             [ realToFrac d .@ Not :<(Products,e,e,Amount) .| (plank,initTerm)
              | e <- companies]
 
 -- 一般化の適用
@@ -259,11 +259,11 @@ getOneProduction wld t c = do
         -- c2 の消費を記録（係数 0 は明示的に Zero へ正規化し、0:@base のゼロ投稿を作らない）
         return $ if coef == 0
                     then EJ.Zero
-                    else realToFrac coef :@ Hat :<(Products, c2, c, Amount) .| (Production,t)
+                    else realToFrac coef .@ Hat :<(Products, c2, c, Amount) .| (Production,t)
         -- すべての中間投入を結合
     let totalInput = EJ.fromList inputs
         -- 生産と投入の合計
-        result = (1 :@ Not :<(Products, c, c, Amount) .| (Production,t)) .+ totalInput
+        result = (1 .@ Not :<(Products, c, c, Amount) .| (Production,t)) .+ totalInput
     return result
 
 
@@ -348,12 +348,12 @@ purchases t wld = do
         o i j = M.findWithDefault 0 (i, j) shortageMap
     return $ sigma companies $ \i
            -> sigma (companies L.\\ [i]) $ \j
-           -> (o i j) :@ Not :<(Products, j, i, Amount) -- 発注側 購入財
-           .+ (o i j) :@ Hat :<(Cash,(.#),i,Yen)        -- 発注側 購入額
-           .+ (o i j) :@ Not :<(Purchases,(.#),i,Yen)   -- 発注額 仕入高
-           .+ (o i j) :@ Not :<(Cash,(.#),j,Yen)        -- 受注側 販売額
-           .+ (o i j) :@ Not :<(Sales,(.#),j,Yen)       -- 受注側 売上高
-           .+ (o i j) :@ Hat :<(Products, j, j,Amount)  -- 受注側 販売材
+           -> (o i j) .@ Not :<(Products, j, i, Amount) -- 発注側 購入財
+           .+ (o i j) .@ Hat :<(Cash,(.#),i,Yen)        -- 発注側 購入額
+           .+ (o i j) .@ Not :<(Purchases,(.#),i,Yen)   -- 発注額 仕入高
+           .+ (o i j) .@ Not :<(Cash,(.#),j,Yen)        -- 受注側 販売額
+           .+ (o i j) .@ Not :<(Sales,(.#),j,Yen)       -- 受注側 売上高
+           .+ (o i j) .@ Hat :<(Products, j, j,Amount)  -- 受注側 販売材
            .| (SalesPurchase,t)
 
 event' :: World s -> Term -> EventName -> ST s ()

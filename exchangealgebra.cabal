@@ -137,6 +137,9 @@ extra-source-files:
     test/fixtures/write-rows-0510/ebex9-worksheet.tsv
     test/fixtures/write-rows-0510/README.md
     test/compile-fail/AdmissionNoteConstructor.hs
+    test/compile-fail/AlgConstructor.hs
+    test/compile-fail/AlgHiddenConstructor.hs
+    test/compile-fail/AlgRecordUpdate.hs
     test/compile-fail/Coerce.hs
     test/compile-fail/Constructor.hs
     test/compile-fail/HiddenModule.hs

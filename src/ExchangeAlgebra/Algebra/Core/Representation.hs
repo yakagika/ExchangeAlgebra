@@ -53,25 +53,25 @@ import qualified Data.Binary as Binary
 --  Redundant ⊃ Exchange
 --
 -- hat calculation
--- >>> (.^) (10:@Not:<Yen .+ 10:@Hat:<Dollar)
+-- >>> (.^) (10.@Not:<Yen .+ 10.@Hat:<Dollar)
 -- 10.00:@Hat:<Yen .+ 10.00:@Not:<Dollar
 --
 -- bar calculation
--- >>> x = 10:@Not:<Yen .+ 10:@Hat:<Dollar
--- >>> y = 5:@Hat:<Yen .+ 5:@Not:<Dollar
+-- >>> x = 10.@Not:<Yen .+ 10.@Hat:<Dollar
+-- >>> y = 5.@Hat:<Yen .+ 5.@Not:<Dollar
 -- >>> (.-) $ x .+ y
 -- 5.00:@Not:<Yen .+ 5.00:@Hat:<Dollar
 --
 -- norm calculation
--- >>> norm $ 10:@Not:<Yen .+ 10:@Hat:<Dollar
+-- >>> norm $ 10.@Not:<Yen .+ 10.@Hat:<Dollar
 -- 20.0
 --
 -- (.*) calculation
--- >>> (.*) 5 $ 10:@Not:<Yen .+ 10:@Hat:<Dollar
+-- >>> (.*) 5 $ 10.@Not:<Yen .+ 10.@Hat:<Dollar
 -- 50.00:@Not:<Yen .+ 50.00:@Hat:<Dollar
 --
 -- compress calculation
--- >>> compress $ 10:@Not:<Yen .+ 5:@Hat:<Yen .+ 3:@Not:<Yen
+-- >>> compress $ 10.@Not:<Yen .+ 5.@Hat:<Yen .+ 3.@Not:<Yen
 -- 5.00:@Hat:<Yen .+ 13.00:@Not:<Yen
 --
 -- == Redundant-algebra axioms (Akagi 2026, Appendix A, Definition 6)
@@ -166,7 +166,7 @@ class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
     -- distinct axis values. Use 'balanceMapBy' or 'netPairMapBy' to read each
     -- group's net amount.
     --
-    -- >>> norm (100:@Not:<Yen .+ 50:@Not:<Euro :: Alg Double (HatBase CountUnit))
+    -- >>> norm (100.@Not:<Yen .+ 50.@Not:<Euro :: Alg Double (HatBase CountUnit))
     -- 150.0
     --
     -- Complexity: O(n) (n is the number of base keys)
@@ -488,9 +488,9 @@ isZero _    = False
 --
 -- Complexity: O(1)
 singleton :: (HatVal v, HatBaseClass b) => v -> b -> Alg v b
--- P3b-W5b D3: reject a 'HatNot' side with 'error' before the zero short-cut
--- (contract of '(.@)'); do not use 'isHat', which throws on 'HatNot'.
-singleton v b | isZeroValue v = Zero
+singleton v b | hat b == HatNot = error $ "errorValue at (.@): HatNot side val: "
+                               ++ show v ++ show ":@" ++ show b
+              | isZeroValue v = Zero
               | Just reason <- valueError v = error $ "errorValue at (.@): "
                                ++ show reason ++ " val: " ++ show v
                                ++ show ":@"
@@ -616,8 +616,8 @@ instance  (HatVal n, HatBaseClass b) => Semigroup (Alg n b) where
 -- | union two trees
 --
 -- >>> type Test = Alg Double (HatBase CountUnit)
--- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
--- >>> y = 2:@Hat:<Yen .+ 2:@Not:<Amount :: Test
+-- >>> x = 1.@Hat:<Yen .+ 1.@Not:<Amount :: Test
+-- >>> y = 2.@Hat:<Yen .+ 2.@Not:<Amount :: Test
 -- >>> union x y
 -- 1.00:@Hat:<Yen .+ 2.00:@Hat:<Yen .+ 1.00:@Not:<Amount .+ 2.00:@Not:<Amount
 {-# INLINE union #-}
@@ -938,13 +938,13 @@ bases (Liner m _ _ _ _ _) = Map.foldlWithKey' f [] m
 -- Complexity: O(sum of HashMap union costs), because this is implemented via 'mconcat'.
 --
 -- >>> type Test = Alg Double (HatBase CountUnit)
--- >>> xs = [1:@Hat:<Yen,1:@Not:<Dollar, 2:@Hat:<Yen, 2:@Not:<Dollar] :: [Test]
+-- >>> xs = [1.@Hat:<Yen,1.@Not:<Dollar, 2.@Hat:<Yen, 2.@Not:<Dollar] :: [Test]
 -- >>> fromList xs
 -- 1.00:@Hat:<Yen .+ 2.00:@Hat:<Yen .+ 1.00:@Not:<Dollar .+ 2.00:@Not:<Dollar
 --
 --  >>> type Test = Alg Double (HatBase CountUnit)
---  >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
---  >>> y = 2:@Hat:<Yen .+ 2:@Not:<Amount :: Test
+--  >>> x = 1.@Hat:<Yen .+ 1.@Not:<Amount :: Test
+--  >>> y = 2.@Hat:<Yen .+ 2.@Not:<Amount :: Test
 --  >>> fromList [x,y]
 --  1.00:@Hat:<Yen .+ 2.00:@Hat:<Yen .+ 1.00:@Not:<Amount .+ 2.00:@Not:<Amount
 
@@ -960,7 +960,7 @@ fromList = mconcat
 -- sequence-order caveat relative to 'fromList'\/'mconcat'.
 --
 -- >>> type Test = Alg Double (HatBase CountUnit)
--- >>> sigma [1,2] (\x -> x:@Hat:<Yen)
+-- >>> sigma [1,2] (\x -> x.@Hat:<Yen)
 -- 1.00:@Hat:<Yen .+ 2.00:@Hat:<Yen
 
 {-# INLINE sigma #-}
@@ -1006,7 +1006,7 @@ sigmaFromMap kvs f =
 -- | Converts an algebra element to a list.
 -- Complexity: O(s) (s is the total number of scalar entries)
 --
--- >>> toList (10:@Hat:<(Yen) .+ 10:@Hat:<(Dollar) .+ Zero :: Alg Double (HatBase CountUnit))
+-- >>> toList (10.@Hat:<(Yen) .+ 10.@Hat:<(Dollar) .+ Zero :: Alg Double (HatBase CountUnit))
 -- [10.00:@Hat:<Dollar,10.00:@Hat:<Yen]
 --
 -- you need define type variables to use this for Zero
@@ -1066,15 +1066,15 @@ toASCList = L.sort . toList
 -- Typed alternatives: 'mapPosting' and 'mapMaybePosting'.
 --
 -- >>> type Test = Alg Double (HatBase CountUnit)
--- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
--- >>> y = 2:@Not:<Yen .+ 2:@Hat:<Amount :: Test
--- >>> map (\ (x:@hb) ->  x:@(toHat hb)) $ x .+ y
+-- >>> x = 1.@Hat:<Yen .+ 1.@Not:<Amount :: Test
+-- >>> y = 2.@Not:<Yen .+ 2.@Hat:<Amount :: Test
+-- >>> map (\ (x:@hb) ->  x.@(toHat hb)) $ x .+ y
 -- 1.00:@Hat:<Yen .+ 2.00:@Hat:<Yen .+ 1.00:@Hat:<Amount .+ 2.00:@Hat:<Amount
 --
 -- >>> type Test = Alg Double Hat
--- >>> x = 1:@Hat .+ 1:@Not :: Test
--- >>> y = 2:@Not .+ 2:@Hat :: Test
--- >>> map (\ (x:@hb) -> (2 * x):@hb) $ x .+ y
+-- >>> x = 1.@Hat .+ 1.@Not :: Test
+-- >>> y = 2.@Not .+ 2.@Hat :: Test
+-- >>> map (\ (x:@hb) -> (2 * x).@hb) $ x .+ y
 -- 2.00:@Hat .+ 4.00:@Hat .+ 2.00:@Not .+ 4.00:@Not
 
 -- NB. 'map' applies its function to one singleton posting at a time and requires
@@ -1201,14 +1201,14 @@ type DMap k v = Map.HashMap k v -> Map.HashMap k v
 -- Complexity: O(s), where s is total number of scalar entries.
 --
 -- >>> type Test = Alg Double (HatBase CountUnit)
--- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
--- >>> y = 2:@Not:<Yen .+ 2:@Hat:<Amount :: Test
+-- >>> x = 1.@Hat:<Yen .+ 1.@Not:<Amount :: Test
+-- >>> y = 2.@Not:<Yen .+ 2.@Hat:<Amount :: Test
 -- >>> filter (isHat . _hatBase) $ x .+ y
 -- 1.00:@Hat:<Yen .+ 2.00:@Hat:<Amount
 --
 -- >>> type Test = Alg Double (HatBase CountUnit)
--- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
--- >>> y = 2:@Not:<Yen .+ 2:@Hat:<Amount :: Test
+-- >>> x = 1.@Hat:<Yen .+ 1.@Not:<Amount :: Test
+-- >>> y = 2.@Not:<Yen .+ 2.@Hat:<Amount :: Test
 -- >>> filter ((1 <). _val) $ x .+ y
 -- 2.00:@Not:<Yen .+ 2.00:@Hat:<Amount
 
@@ -1287,10 +1287,10 @@ filter f (Liner m _ _ _ _ _) =
 -- Complexity: O(n) over distinct base keys (rebuilds the posting index once).
 --
 -- >>> type T = Alg Double (HatBase CountUnit)
--- >>> mapBasePart id (10:@Hat:<Yen :: T) :: T
+-- >>> mapBasePart id (10.@Hat:<Yen :: T) :: T
 -- 10.00:@Hat:<Yen
 --
--- >>> norm (mapBasePart (const Amount) (10:@Not:<Yen .+ 5:@Not:<Dollar :: T) :: T)
+-- >>> norm (mapBasePart (const Amount) (10.@Not:<Yen .+ 5.@Not:<Dollar :: T) :: T)
 -- 15.0
 mapBasePart :: (HatVal v, HatBaseClass b, HatBaseClass b')
             => (BasePart b -> BasePart b') -> Alg v b -> Alg v b'
@@ -1344,11 +1344,11 @@ mapBasePart f (Liner m _ _ _ _ _) =
 -- pass over the entries.
 --
 -- >>> type T = Alg Double (HatBase CountUnit)
--- >>> let split v b = (v / 2) :@ b .+ (v / 2) :@ b :: T
--- >>> norm (extendBy split (10:@Not:<Yen .+ 4:@Hat:<Dollar :: T))
+-- >>> let split v b = (v / 2) .@ b .+ (v / 2) .@ b :: T
+-- >>> norm (extendBy split (10.@Not:<Yen .+ 4.@Hat:<Dollar :: T))
 -- 14.0
 --
--- >>> extendBy (\v b -> v :@ b .+ v :@ b) (3:@Not:<Yen :: T) == (3:@Not:<Yen .+ 3:@Not:<Yen :: T)
+-- >>> extendBy (\v b -> v .@ b .+ v .@ b) (3.@Not:<Yen :: T) == (3.@Not:<Yen .+ 3.@Not:<Yen :: T)
 -- True
 {-# INLINE extendBy #-}
 extendBy :: (HatVal v, HatBaseClass b, HatBaseClass b')
@@ -1371,11 +1371,11 @@ extendBy h = foldEntries (\acc v b -> acc .+ h v b) Zero
 -- ledger is a single element or a 'Liner'.
 --
 -- >>> type Test = Alg Double (HatBase (CountUnit, CountUnit))
--- >>> proj [Not:<(Yen,Yen)] (10:@Not:<(Yen,(.#)) :: Test)
+-- >>> proj [Not:<(Yen,Yen)] (10.@Not:<(Yen,(.#)) :: Test)
 -- 0
 --
 -- >>> type Test = Alg Double (HatBase (CountUnit, CountUnit))
--- >>> proj [Not:<(Yen,(.#))] (10:@Not:<(Yen,(.#)) :: Test)
+-- >>> proj [Not:<(Yen,(.#))] (10.@Not:<(Yen,(.#)) :: Test)
 -- 10.00:@Not:<(Yen,CountUnit)
 --
 -- Complexity:
@@ -1385,20 +1385,20 @@ extendBy h = foldEntries (\acc v b -> acc .+ h v b) Zero
 --
 -- where c is candidate count returned by the posting index.
 -- >>> type Test = Alg Double (HatBase CountUnit)
--- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
--- >>> y = 2:@Not:<Yen .+ 2:@Hat:<Amount :: Test
+-- >>> x = 1.@Hat:<Yen .+ 1.@Not:<Amount :: Test
+-- >>> y = 2.@Not:<Yen .+ 2.@Hat:<Amount :: Test
 -- >>> proj [Hat:<Yen] $ x .+ y
 -- 1.00:@Hat:<Yen
 --
 -- >>> type Test = Alg Double (HatBase CountUnit)
--- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
--- >>> y = 2:@Not:<Yen .+ 2:@Hat:<Amount :: Test
+-- >>> x = 1.@Hat:<Yen .+ 1.@Not:<Amount :: Test
+-- >>> y = 2.@Not:<Yen .+ 2.@Hat:<Amount :: Test
 -- >>> proj [HatNot:<Amount] $ x .+ y
 -- 2.00:@Hat:<Amount .+ 1.00:@Not:<Amount
 --
 -- >>> type Test = Alg Double (HatBase (CountUnit, CountUnit))
--- >>> x = 1:@Hat:<(Yen,Yen) .+ 1:@Not:<(Amount,Amount) :: Test
--- >>> y = 2:@Not:<(Yen,Yen) .+ 2:@Hat:<(Dollar,Yen) :: Test
+-- >>> x = 1.@Hat:<(Yen,Yen) .+ 1.@Not:<(Amount,Amount) :: Test
+-- >>> y = 2.@Not:<(Yen,Yen) .+ 2.@Hat:<(Dollar,Yen) :: Test
 -- >>> proj [Hat:<((.#),Yen)] $ x .+ y
 -- 1.00:@Hat:<(Yen,Yen) .+ 2.00:@Hat:<(Dollar,Yen)
 --
@@ -1407,8 +1407,8 @@ extendBy h = foldEntries (\acc v b -> acc .+ h v b) Zero
 -- EQ
 --
 -- >>> type Test = Alg Double (HatBase CountUnit)
--- >>> x = 1:@Hat:<Yen .+ 1:@Not:<Amount :: Test
--- >>> y = 2:@Not:<Yen .+ 2:@Hat:<Amount :: Test
+-- >>> x = 1.@Hat:<Yen .+ 1.@Not:<Amount :: Test
+-- >>> y = 2.@Not:<Yen .+ 2.@Hat:<Amount :: Test
 -- >>> proj [Not:<(.#)] $ x .+ y
 -- 2.00:@Not:<Yen .+ 1.00:@Not:<Amount
 --
@@ -1626,7 +1626,7 @@ barNormPair pair = case signAccum state of
 -- Useful for calculating stock quantities, profits, etc.
 --
 -- >>> type T = Alg Double (HatBase CountUnit)
--- >>> let alg = 100 :@ Not:<Yen .+ 30 :@ Hat:<Yen :: T
+-- >>> let alg = 100 .@ Not:<Yen .+ 30 .@ Hat:<Yen :: T
 -- >>> balanceBy [Not:<Yen] [Hat:<Yen] alg
 -- 70.0
 --
@@ -1667,7 +1667,7 @@ balanceBy plusBases minusBases alg =
 -- Complexity: O(total number of entries) — a single fold, no per-key projection.
 --
 -- >>> type T = Alg Double (HatBase CountUnit)
--- >>> let alg = 100 :@ Not:<Yen .+ 30 :@ Hat:<Yen .+ 50 :@ Not:<Dollar :: T
+-- >>> let alg = 100 .@ Not:<Yen .+ 30 .@ Hat:<Yen .+ 50 .@ Not:<Dollar :: T
 -- >>> balanceMapBy Just alg
 -- fromList [(Yen,70.0),(Dollar,50.0)]
 {-# INLINE balanceMapBy #-}
@@ -1726,7 +1726,7 @@ balanceMapBy keyOf = M.map roundAccum . foldPairs collect M.empty
 -- followed by one collapse over the distinct bases.
 --
 -- >>> type T = Alg Double (HatBase CountUnit)
--- >>> let alg = 100 :@ Not:<Yen .+ 30 :@ Hat:<Yen .+ 50 :@ Not:<Dollar :: T
+-- >>> let alg = 100 .@ Not:<Yen .+ 30 .@ Hat:<Yen .+ 50 .@ Not:<Dollar :: T
 -- >>> netPairMapBy Just alg
 -- fromList [(Yen,(70.0,0.0)),(Dollar,(50.0,0.0))]
 {-# INLINE netPairMapBy #-}
@@ -1761,7 +1761,7 @@ netPairMapBy keyOf = M.map finish . foldPairs collect M.empty
 -- a @(key, value)@ pair. Values for duplicate keys are summed.
 --
 -- >>> type T = Alg Double (HatBase CountUnit)
--- >>> let alg = 10 :@ Hat:<Yen .+ 20 :@ Hat:<Dollar .+ 5 :@ Hat:<Yen :: T
+-- >>> let alg = 10 .@ Hat:<Yen .+ 20 .@ Hat:<Dollar .+ 5 .@ Hat:<Yen :: T
 -- >>> let f v (Hat :< a) = Just (a, v); f _ _ = Nothing
 -- >>> foldEntriesToMap f alg
 -- fromList [(Yen,15.0),(Dollar,20.0)]
@@ -1816,7 +1816,7 @@ foldEntriesToMap f = foldEntries step M.empty
 -- O(log k) in the result 'M.Map').
 --
 -- >>> type T = Alg Double (HatBase CountUnit)
--- >>> let alg = 100 :@ Not:<Yen .+ 30 :@ Hat:<Yen .+ 50 :@ Not:<Dollar :: T
+-- >>> let alg = 100 .@ Not:<Yen .+ 30 .@ Hat:<Yen .+ 50 .@ Not:<Dollar :: T
 -- >>> M.toList (M.map norm (decBy (\(_ :< a) -> Just a) alg))
 -- [(Yen,130.0),(Dollar,50.0)]
 --
@@ -1887,9 +1887,9 @@ decBy kf (Liner m _ _ _ _ _) =
 -- Complexity: O(m + Σ cost(post)).
 --
 -- >>> type T = Alg Double (HatBase CountUnit)
--- >>> let stock = 100 :@ Not:<Amount .+ 130 :@ Hat:<Amount .+ 20 :@ Not:<Yen :: T
+-- >>> let stock = 100 .@ Not:<Amount .+ 130 .@ Hat:<Amount .+ 20 .@ Not:<Yen :: T
 -- >>> let shortageKey b = case b of { Hat :< Amount -> Just () ; _ -> Nothing }
--- >>> norm (postFromNetBy shortageKey (\_ v -> v :@ Not:<Amount .+ v :@ Hat:<Yen) stock)
+-- >>> norm (postFromNetBy shortageKey (\_ v -> v .@ Not:<Amount .+ v .@ Hat:<Yen) stock)
 -- 60.0
 {-# INLINE postFromNetBy #-}
 {-# SPECIALIZE postFromNetBy :: (HatBaseClass b, Ord k) => (b -> Maybe k) -> (k -> Double -> Alg Double b) -> Alg Double b -> Alg Double b #-}

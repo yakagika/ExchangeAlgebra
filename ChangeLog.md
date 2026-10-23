@@ -69,6 +69,17 @@
 
 ### Changed
 
+- `.@` rejects a base with side `HatNot`, including when the value is zero.
+  `HatNot` remains available in query patterns.
+- Public modules expose `:@` as a one-way record pattern synonym. Pattern
+  matching and imports of `_val` and `_hatBase` still work; construction and
+  record updates no longer compile. Migrate `v :@ b` to `v .@ b`.
+  Tests that deliberately construct invalid values use `Single` from
+  `ExchangeAlgebra.Algebra.Internal`, which provides unchecked construction
+  outside the PVP guarantee.
+  For this construction change: numeric unchanged; acceptance changed;
+  postings unchanged; diagnostics unchanged; serialization unchanged.
+
 - `closingEntries` closes each eligible base's exact net without a rounding
   residue. `Double` closing values can change; finite carry and side-total
   results retain their previous bits where the previous implementation succeeded.

@@ -3,6 +3,7 @@
 -- Start with 'runTests' for the suite's execution order.
 module Accounting.RegistrySpec (runTests) where
 
+import qualified ExchangeAlgebra.Algebra.Internal as Internal
 import ExchangeAlgebra.Journal
 import qualified ExchangeAlgebra.IO.Input      as EC
 import qualified ExchangeAlgebra.Accounting.Account as PP
@@ -515,16 +516,16 @@ testVocabOrdinalPin = do
 -- (Cost/Debit) amounts so @decR == decL@ (balanced).
 balancedAlgSample :: TransferAlg
 balancedAlgSample = EA.fromList
-    [ 50 :@ Not :<(Sales,            1, 1, Yen)   -- credit (revenue)
-    , 50 :@ Not :<(WageExpenditure,  1, 1, Yen)   -- debit  (cost)
-    , 20 :@ Not :<(Purchases,        2, 2, Yen)   -- debit  (cost)
-    , 20 :@ Not :<(InterestEarned,   2, 2, Yen)   -- credit (revenue)
+    [ 50 .@ Not :<(Sales,            1, 1, Yen)   -- credit (revenue)
+    , 50 .@ Not :<(WageExpenditure,  1, 1, Yen)   -- debit  (cost)
+    , 20 .@ Not :<(Purchases,        2, 2, Yen)   -- debit  (cost)
+    , 20 .@ Not :<(InterestEarned,   2, 2, Yen)   -- credit (revenue)
     ]
 
 balancedJournalSample :: TransferJournal
 balancedJournalSample = EJ.fromList
     [ balancedAlgSample .| "A"
-    , ((10 :@ Not :<(Sales, 3, 3, Yen)) .+ (10 :@ Not :<(Purchases, 3, 3, Yen))) .| "B"
+    , ((10 .@ Not :<(Sales, 3, 3, Yen)) .+ (10 .@ Not :<(Purchases, 3, 3, Yen))) .| "B"
     ]
 
 testIncomeSummaryBalancedNoCrash :: IO ()
@@ -2060,7 +2061,7 @@ testConsolidationWorksheet = do
             Right _ -> False)
 
     let wildcardSource = CW.TrialBalanceSource "wild-source"
-            (10 :@ (HatNot :< Cash) :: CheckedAlgM)
+            (10 `Internal.Single` (HatNot :< Cash) :: CheckedAlgM)
         wildcardSourceInput
             :: CW.WorksheetInput String String MoneyDecimal
         wildcardSourceInput = CW.WorksheetInput
@@ -2070,7 +2071,7 @@ testConsolidationWorksheet = do
         (leftErrors (CW.validateConsolidationWorksheet wildcardSourceInput))
 
     let wildcardSide =
-            10 :@ (HatNot :< Cash) :: CheckedAlgM
+            10 `Internal.Single` (HatNot :< Cash) :: CheckedAlgM
         wildcardSideInput = CW.WorksheetInput sources
             [CW.WorksheetAdjustment "wild-side" ("parent" NE.:| [])
                 wildcardSide] links
@@ -2311,7 +2312,7 @@ testTrialBalanceValidation = do
         (leftErrors (TB.validateTrialBalance
             TB.standaloneTrialBalancePolicy unbalancedInput))
 
-    let wildcard = 10 :@ (HatNot :< Cash) :: CheckedAlgM
+    let wildcard = 10 `Internal.Single` (HatNot :< Cash) :: CheckedAlgM
         wildcardInput = trialBalanceInput wildcard TB.BeforeClosing
     assertEqual "trial balance: wildcard side reports without whichSide crash"
         (Just (TB.WildcardTrialBalanceSide NE.:| []))
@@ -2627,7 +2628,7 @@ testDerivedMetricsAndLegacyCoordinates = do
         (RM.periodResultOfAlg (mempty :: CheckedAlgM))
     assertEqual "raw metric boundary rejects wildcard sides"
         (Left (RM.WildcardMetricSide Sales))
-        (RM.periodResultOfAlg (10 .@ HatNot :< Sales :: CheckedAlgM))
+        (RM.periodResultOfAlg (10 `Internal.Single` HatNot :< Sales :: CheckedAlgM))
 
     let ordinaryLedger = EC.journalFromSides
             [ (Debit, Cash, 100 :: MoneyDecimal)
@@ -3186,12 +3187,12 @@ testBalanceSheetResidualGroup = do
 testWriterNaNDirections :: IO ()
 testWriterNaNDirections = do
     -- Invalid postings deliberately exercise the legacy nonfinite readout contract.
-    let ledger = ((0 / 0) :@ (Not :< Sales))
+    let ledger = ((0 / 0) `Internal.Single` (Not :< Sales))
             EA..+ (1 EA..@ (Not :< SalesRebates))
                 :: EA.Alg Double (HatBase AccountTitles)
-        stock = ((0 / 0) :@ (Not :< AllowanceForDoubtfulAccounts))
+        stock = ((0 / 0) `Internal.Single` (Not :< AllowanceForDoubtfulAccounts))
             EA..+ (1000 EA..@ (Not :< AccountsReceivable))
-            EA..+ ((0 / 0) :@ (Not :< CapitalStock))
+            EA..+ ((0 / 0) `Internal.Single` (Not :< CapitalStock))
                 :: EA.Alg Double (HatBase AccountTitles)
     assertEqual "PL NaN group and credit total are directionless NaN"
         (L.map (L.map T.pack)
