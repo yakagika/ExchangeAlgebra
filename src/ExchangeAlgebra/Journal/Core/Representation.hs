@@ -272,6 +272,18 @@ instance (Note a, Note b, Note c, Note d) => Note (a, b, c, d) where
 --   @_jDelta@ respectively. The axis-filtered query path ('filterByAxis') reads
 --   those indices, so a value whose indices disagree with its maps yields wrong
 --   answers silently (not an exception).
+--
+--   __Normal form.__ Neither layer holds a note whose algebra is zero
+--   ('EA.isZero'). The redundant '(.+)' never cancels terms, so the sum of two
+--   nonzero algebras is nonzero, and the merged entry of a note ('toMap') is
+--   never zero either. Every public operation returns a journal in this form:
+--   the operations that can produce a zero note ('map', 'projWithBase',
+--   'projWithNoteBase') drop it while they traverse the notes, and
+--   'mkJournal', 'fromMap' and the @Binary@ decoder drop the zero notes they
+--   are given. Hence a journal without postings always matches 'Zero', and
+--   the keys of 'toMap', 'Show' and @Binary@ do not depend on how a journal
+--   was built. Postings, balances and readouts are unaffected, since a zero
+--   note holds no posting.
 data Journal n v b where
      Journal :: (Note n, HatVal v, HatBaseClass b)
             => { _jBase      :: !(Map.HashMap n (Alg v b))
@@ -292,20 +304,39 @@ buildNoteAxisPosting =
         emptyNoteAxisPosting
 
 -- | The only safe way to build a t'Journal' from a base layer and a delta
--- layer. It keeps the Note-axis indices consistent with both layers; see the
--- invariants note on t'Journal'. The base axis index is lazy, while the delta
+-- layer. It keeps the Note-axis indices consistent with both layers and
+-- returns the normal form; see the invariants note on t'Journal'.
+--
+-- A note whose algebra is zero ('EA.isZero') is dropped from the layer that
+-- holds it. Both maps are read once; a map without a zero note is used as
+-- given, and only a map that holds one is rebuilt without it.
+--
+-- Complexity: O(n) where n is the number of notes in both layers; each note's
+-- algebra is evaluated to WHNF. The base axis index is lazy, while the delta
 -- axis index is built eagerly.
 {-# INLINE mkJournal #-}
 mkJournal :: (Note n, HatVal v, HatBaseClass b)
           => Map.HashMap n (Alg v b) -> Map.HashMap n (Alg v b) -> Journal n v b
-mkJournal bs delta = Journal bs delta baseIdx deltaIdx
+mkJournal = mkJournalNonZero
+
+-- Internal constructor for callers that already hold the normal form (see the
+-- invariants note on t'Journal'): neither map may hold a note whose algebra is
+-- zero. It does not check this. It builds the Note-axis indices as
+-- 'mkJournal' does: the base axis index lazily, the delta axis index eagerly.
+{-# INLINE mkJournalNonZero #-}
+mkJournalNonZero :: (Note n, HatVal v, HatBaseClass b)
+                 => Map.HashMap n (Alg v b) -> Map.HashMap n (Alg v b) -> Journal n v b
+mkJournalNonZero bs delta = Journal bs delta baseIdx deltaIdx
   where
     ~baseIdx = buildNoteAxisPosting bs
     !deltaIdx = buildNoteAxisPosting delta
 
--- | Construct a Journal from a HashMap.
+-- | Construct a Journal from a HashMap. A note whose algebra is zero is
+-- dropped (see 'mkJournal').
 --
--- Complexity: O(1). Base axis index is built lazily on first axis query.
+-- Complexity: O(n) where n is the number of notes; the map is rebuilt only
+-- when it holds a zero note. Base axis index is built lazily on first axis
+-- query.
 {-# INLINE fromMap #-}
 fromMap :: (HatVal v, HatBaseClass b, Note n)
         => Map.HashMap n (Alg v b) -> Journal n v b
@@ -383,8 +414,9 @@ appendMap rhs j@(Journal bs delta baseAxis deltaAxis)
 
 -- | Serialize a journal as its note count followed by each note and its
 -- algebra. Decoding checks each algebra as the 'Alg' instance does and fails
--- on a repeated note. A note whose algebra is zero is kept as it was written
--- (the zero-note normal form is decided separately).
+-- on a repeated note. The encoder never writes a note whose algebra is zero
+-- (see the normal form on t'Journal'); the decoder drops one written by an
+-- older encoder instead of rejecting the bytes, so they still decode.
 instance ( Note n
          , HatVal v
          , HatBaseClass b
@@ -745,6 +777,8 @@ toAlg (Journal bs delta _ _) =
 ------------------------------------------------------------------
 -- | Apply function f to the entry of each Note in the Journal.
 -- Applies to merged Note entries (base + delta), preserving semantics.
+-- A note for which @f@ returns zero is dropped (the normal form on
+-- t'Journal'), in the same traversal.
 --
 -- Complexity: O(j * cost(f)) where j is the number of Notes
 map :: (HatVal v, HatBaseClass b, Note n)
@@ -808,7 +842,8 @@ projWithNote ns js =
 
 ------------------------------------------------------------------
 -- | projWithBase
--- Projecting with Base.
+-- Projecting with Base. A note whose projection is zero is dropped (the
+-- normal form on t'Journal').
 --
 -- >>> type Test = Journal String Double (HatBase CountUnit)
 -- >>> x = 1.00.@Hat:<Yen .+ 1.00.@Not:<Amount .| "cat"  :: Test
@@ -852,7 +887,8 @@ projWithBaseNetNorm bs js =
 
 ------------------------------------------------------------------
 -- | projWithNoteBase
--- Projecting with Note and Base.
+-- Projecting with Note and Base. A note whose projection is zero is dropped
+-- (the normal form on t'Journal').
 --
 -- 'plank' in the note list acts as a note-wildcard: the projection widens to
 -- all notes (falls back to 'projWithBase').
