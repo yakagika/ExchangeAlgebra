@@ -28,6 +28,7 @@ AmortizationOfPatents
 AmortizationOfSoftware
 Assets
 AvailableForSaleSecurities
+BackwardFlow
 BadDebtLoss
 BankOverdraft
 Bonuses
@@ -124,6 +125,8 @@ InterestEarned
 InterestExpense
 InterestOnSecurities
 InvalidCoefficient
+InvalidPortion
+InvalidPosting
 InventoryShrinkageLoss
 InvestmentInAssociate
 InvestmentSecurities
@@ -194,6 +197,7 @@ Other
 OtherCapitalSurplus
 OtherPayables
 OtherReceivables
+OverlappingRows
 OverlappingRules
 PIMO
 PS
@@ -201,6 +205,7 @@ Patent
 PaymentFees
 PaymentsOnBehalf
 PettyCash
+Portion
 PrepaidCorporateIncomeTaxes
 PrepaidExpenses
 PrepaidPensionCost
@@ -275,12 +280,23 @@ TradingSecurities
 TransTable
 TransTableParts
 TransferApplyError
+TransferEnds
+TransferError
+TransferFailed
+TransferJournalError
+TransferNoteMoves
+TransferRow
 TransferRule
 TransferRuleError
 TransferRules
 TransferScale
+TransferShare
+TransferTable
+TransferTableError
+UnclassifiedAccount
 UnearnedRevenue
 UnpaidDividends
+UnroundableAmount
 UtilitiesExpense
 ValuationDifferenceOnOtherSecurities
 ValueAdded
@@ -288,6 +304,7 @@ Vehicle
 WageEarned
 WageExpenditure
 WelfareExpenses
+WildcardPosting
 WorkInProcess
 balance
 balanceWithin
@@ -310,6 +327,7 @@ getAccountTitle
 isContra
 isNullTable
 mkTransferRules
+mkTransferTable
 pimoFlip
 pimoFromDivision
 projByAccountTitle
@@ -335,8 +353,12 @@ settleEntries
 settlementSteps
 switchSide
 table
+tableRows
 transfer
 transferEntries
+transferEntriesBy
+transferEntriesByWith
+transferEntriesWith
 whatDiv
 whatPIMO
 whichSide

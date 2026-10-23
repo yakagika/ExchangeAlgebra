@@ -53,6 +53,7 @@ AttributionAccount
 AvailableForSaleSecurities
 AxisDecompose
 AxisKey
+BackwardFlow
 BadDebtLoss
 BankOverdraft
 BaseClass
@@ -179,6 +180,8 @@ InterestEarned
 InterestExpense
 InterestOnSecurities
 InvalidCoefficient
+InvalidPortion
+InvalidPosting
 InventoryShrinkageLoss
 InvestmentInAssociate
 InvestmentSecurities
@@ -270,6 +273,7 @@ Other
 OtherCapitalSurplus
 OtherPayables
 OtherReceivables
+OverlappingRows
 OverlappingRules
 PIMO
 PS
@@ -278,6 +282,7 @@ PaymentFees
 PaymentsOnBehalf
 PeriodResult
 PettyCash
+Portion
 PostingCapability
 PrepaidCorporateIncomeTaxes
 PrepaidExpenses
@@ -365,12 +370,23 @@ TradingSecurities
 TransTable
 TransTableParts
 TransferApplyError
+TransferEnds
+TransferError
+TransferFailed
+TransferJournalError
+TransferNoteMoves
+TransferRow
 TransferRule
 TransferRuleError
 TransferRules
 TransferScale
+TransferShare
+TransferTable
+TransferTableError
+UnclassifiedAccount
 UnearnedRevenue
 UnpaidDividends
+UnroundableAmount
 UtilitiesExpense
 ValuationDifferenceOnOtherSecurities
 ValueAdded
@@ -379,6 +395,7 @@ Vehicle
 WageEarned
 WageExpenditure
 WelfareExpenses
+WildcardPosting
 WorkInProcess
 Yen
 Zero
@@ -486,6 +503,7 @@ merge
 mergeAccum
 minElement
 mkTransferRules
+mkTransferTable
 moneyDecimalFromScientific
 moneyDecimalFromText
 nearlyEqScaled
@@ -543,6 +561,7 @@ splitAccum
 sumValues
 switchSide
 table
+tableRows
 toASCList
 toAxisKeys
 toDecimal
@@ -553,6 +572,9 @@ toNot
 toSameLength
 transfer
 transferEntries
+transferEntriesBy
+transferEntriesByWith
+transferEntriesWith
 tshow
 unionsMerge
 vals

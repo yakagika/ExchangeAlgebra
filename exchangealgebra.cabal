@@ -184,6 +184,7 @@ library
       ExchangeAlgebra.Accounting.TrialBalance
       ExchangeAlgebra.Accounting.TrialBalance.Balance
       ExchangeAlgebra.Accounting.TrialBalance.Validation
+      ExchangeAlgebra.Accounting.Transfer
       ExchangeAlgebra.Algebra
       ExchangeAlgebra.Algebra.Base
       ExchangeAlgebra.Algebra.Base.Account.JcciAliases

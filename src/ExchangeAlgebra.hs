@@ -20,8 +20,12 @@
 
     This top-level module is the Algebra-layer umbrella: it re-exports
     "ExchangeAlgebra.Algebra", "ExchangeAlgebra.Algebra.Transfer",
-    "ExchangeAlgebra.Algebra.Transfer.Rule",
-    "ExchangeAlgebra.Write", and "ExchangeAlgebra.Value". It is the
+    "ExchangeAlgebra.Algebra.Transfer.Rule", "ExchangeAlgebra.Accounting.Transfer",
+    "ExchangeAlgebra.Write", and "ExchangeAlgebra.Value". The transfer names
+    '.->', '|%', 'Relabel' and 'transferEntries' are the accounting transfer of
+    "ExchangeAlgebra.Accounting.Transfer"; import the legacy operators from
+    "ExchangeAlgebra.Algebra.Transfer" and the per-posting rules from
+    "ExchangeAlgebra.Algebra.Transfer.Rule". It is the
     recommended entry point for simple single-period bookkeeping:
 
     > import ExchangeAlgebra
@@ -105,11 +109,12 @@ module ExchangeAlgebra
     ( module ExchangeAlgebra.Algebra
     , module ExchangeAlgebra.Algebra.Transfer
     , module ExchangeAlgebra.Algebra.Transfer.Rule
+    , module ExchangeAlgebra.Accounting.Transfer
     , module ExchangeAlgebra.Write
     , module ExchangeAlgebra.Value ) where
 
 import ExchangeAlgebra.Algebra.Transfer.Representation as ExchangeAlgebra.Algebra.Transfer.Rule
-    ( TransferScale(..)
+    ( TransferScale(MulBy, DivBy)
     , TransferRule(..)
     , TransferRules
     , TransferRuleError(..)
@@ -119,7 +124,6 @@ import ExchangeAlgebra.Algebra.Transfer.Representation as ExchangeAlgebra.Algebr
     , relabel
     , scaleBy
     , divideBy
-    , transferEntries
     , collapseEntries
     , collapseNetEntries
     )
@@ -138,7 +142,10 @@ import ExchangeAlgebra.Accounting.Closing as ExchangeAlgebra.Algebra.Transfer.Ru
     )
 
 import              ExchangeAlgebra.Algebra
-import              ExchangeAlgebra.Algebra.Transfer
+-- The accounting transfer owns (.->), (|%), Relabel and transferEntries here;
+-- the legacy and per-posting entities of those names keep their own modules.
+import              ExchangeAlgebra.Algebra.Transfer hiding ((.->), (|%))
+import              ExchangeAlgebra.Accounting.Transfer
 import              ExchangeAlgebra.Write
 import              ExchangeAlgebra.Algebra.Value as ExchangeAlgebra.Value
     ( MoneyDecimal(..), toDecimal, bankersRound, ceilingRound

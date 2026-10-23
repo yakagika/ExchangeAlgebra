@@ -57,6 +57,8 @@ import           ExchangeAlgebra.Algebra.Posting (PostSide(..))
 
 -- * Additional entries
 
+{-# DEPRECATED transferEntries "Use transferEntriesBy of ExchangeAlgebra.Accounting.Transfer, which reads the exact balance per target note." #-}
+
 -- | Generate additional entries under the same notes as their sources.
 -- Each note is processed in the traversal order of 'toMap'. The first failure
 -- aborts the whole operation; no partial Journal is returned. This order is

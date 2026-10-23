@@ -75,6 +75,8 @@ module ExchangeAlgebra.Algebra.Transfer.Representation ( TransferScale(..)
                                                        , transferEntries
                                                        , collapseEntries
                                                        , collapseNetEntries
+                                                         -- * Shared with the accounting transfer
+                                                       , matches
                                                        ) where
 
 import Data.Binary (Binary(..))
@@ -101,6 +103,8 @@ data TransferScale v
     | MulBy v  -- ^ Multiply by a positive finite coefficient.
     | DivBy v  -- ^ Divide by a positive finite coefficient.
     deriving (Eq, Ord, Show, Generic)
+
+{-# DEPRECATED MulBy, DivBy "A factor on the destination only does not balance. Use mapPosting to convert units, or Portion of ExchangeAlgebra.Accounting.Transfer to move a share." #-}
 
 instance Binary v => Binary (TransferScale v)
 
@@ -174,6 +178,9 @@ mkTransferRules rules = case find invalidCoefficient rules of
 rulesToList :: TransferRules v b -> [TransferRule v b]
 rulesToList (TransferRules rules) = rules
 
+{-# DEPRECATED relabel "Use from .-> to |% Relabel of ExchangeAlgebra.Accounting.Transfer for an accounting transfer, or TransferRule from to Relabel to move coordinates." #-}
+{-# DEPRECATED scaleBy, divideBy "A factor on the destination only does not balance. Use mapPosting to convert units, or Portion of ExchangeAlgebra.Accounting.Transfer to move a share." #-}
+
 -- | Construct a value-preserving rule; validate with 'mkTransferRules'.
 relabel :: b -> b -> TransferRule v b
 relabel source target = TransferRule source target Relabel
@@ -188,7 +195,8 @@ divideBy :: b -> b -> v -> TransferRule v b
 divideBy source target coefficient = TransferRule source target (DivBy coefficient)
 
 -- | Match only the pattern's wildcards, preserving literal ledger wildcards.
-matches :: HatBaseClass b => b -> b -> Bool
+-- Also used by "ExchangeAlgebra.Accounting.Transfer" on 'BasePart'.
+matches :: Element b => b -> b -> Bool
 matches patternBase entry = ignoreWildcard entry patternBase == entry
 
 -- * Additional entries

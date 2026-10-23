@@ -533,6 +533,8 @@ createTransfer tt =
 
 -- * Closing transfer entries
 
+{-# DEPRECATED incomeSummaryAccount, netIncomeTransfer "The legacy income summary leaves the books unbalanced. Transfer through IncomeSummary with ExchangeAlgebra.Accounting.Transfer, or use ExchangeAlgebra.Accounting.Closing.closingEntries." #-}
+
 -- | Income Summary Account: compute net income for the current period.
 -- For additional closing entries, use "ExchangeAlgebra.Accounting.Closing".
 -- See the module header for compatibility assumptions P1-P5 and known lookup limitations.

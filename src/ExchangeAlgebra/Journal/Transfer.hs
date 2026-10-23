@@ -108,6 +108,8 @@ createTransfer tt = \ts -> transfer ts $ EAT.table tt
 
 -- * Closing transfer entries
 
+{-# DEPRECATED incomeSummaryAccount, netIncomeTransfer "The legacy income summary leaves the books unbalanced. Transfer through IncomeSummary with ExchangeAlgebra.Accounting.Transfer, or use ExchangeAlgebra.Accounting.Closing.closingEntries." #-}
+
 -- | Compute net income for the current period (Income Summary Account).
 -- Calculate the debit-credit difference and add it as NetIncome or NetLoss to the plank Note.
 -- When the ledger is balanced (credit == debit, net income is zero), @diffRL@ reports the
@@ -135,7 +137,13 @@ incomeSummaryAccount js =  let (dc,diff) = diffRL js
 --
 -- Complexity: O(j * s) (j = number of Notes, s = number of scalar entries per Note)
 netIncomeTransfer :: (Note n, HatVal v, ExBaseClass b) => Journal n v b -> Journal n v b
-netIncomeTransfer = EJ.map EAT.netIncomeTransfer
+-- The table repeats the deprecated Algebra version, so that this module builds
+-- without a deprecation warning; both are removed together.
+netIncomeTransfer = EJ.map $ EAT.createTransfer
+    $  (toNot wildcard) .~ NetIncome .-> (toNot wildcard) .~ RetainedEarnings |% id
+    ++ (toHat wildcard) .~ NetIncome .-> (toHat wildcard) .~ RetainedEarnings |% id
+    ++ (toNot wildcard) .~ NetLoss   .-> (toHat wildcard) .~ RetainedEarnings |% id
+    ++ (toHat wildcard) .~ NetLoss   .-> (toNot wildcard) .~ RetainedEarnings |% id
 
 -- ** Journalizing
 

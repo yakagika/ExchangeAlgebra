@@ -15,15 +15,19 @@
       the debit part, 'decR' the credit part).
     * Definition 8 (exchange algebra): the 'Exchange' decomposition
       ('decL' \/ 'decR' \/ 'decP' \/ 'decM') and the account-aware projections.
-    * Definition 9 (transfer): the legacy 'TransTable' triple and 'transfer',
-      plus data-defined rules and additive 'transferEntries' from
-      "ExchangeAlgebra.Algebra.Transfer.Rule".
+    * Definition 9 (transfer): the accounting transfer of
+      "ExchangeAlgebra.Accounting.Transfer" (tables written with '.->' and
+      '|%', additive 'transferEntries' from exact balances), plus the legacy
+      'TransTable' triple and 'transfer' and the per-posting rules of
+      "ExchangeAlgebra.Algebra.Transfer.Rule". The legacy operators and the
+      per-posting @transferEntries@ and @Relabel@ keep their own modules.
 
     Everything is re-exported item by item from
     "ExchangeAlgebra.Algebra.Base.Element", "ExchangeAlgebra.Algebra.Base.Account.Types",
     "ExchangeAlgebra.Algebra.Base", "ExchangeAlgebra.Algebra.Internal" and
-    "ExchangeAlgebra.Algebra.Transfer" and
-    "ExchangeAlgebra.Algebra.Transfer.Rule"; nothing is defined here. The umbrella
+    "ExchangeAlgebra.Algebra.Transfer",
+    "ExchangeAlgebra.Algebra.Transfer.Rule" and
+    "ExchangeAlgebra.Accounting.Transfer"; nothing is defined here. The umbrella
     is the Definition 7-9 core only: the account registry
     ("ExchangeAlgebra.Algebra.Base.Account.Registry"), the posting policy
     ("ExchangeAlgebra.Accounting.PostingPolicy"), trial-balance readouts
@@ -70,11 +74,11 @@ module ExchangeAlgebra.Accounting
     , Size
     , isNullTable
     , table
-    , (.->)
-    , (|%)
     , createTransfer
     , transfer
     , module ExchangeAlgebra.Algebra.Transfer.Rule
+      -- * Definition 9: accounting transfer
+    , module ExchangeAlgebra.Accounting.Transfer
     ) where
 
 import           ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
@@ -113,14 +117,13 @@ import           ExchangeAlgebra.Algebra.Transfer
                      , Size
                      , isNullTable
                      , table
-                     , (.->)
-                     , (|%)
                      , createTransfer
                      , transfer
                      )
+import           ExchangeAlgebra.Accounting.Transfer
 
 import ExchangeAlgebra.Algebra.Transfer.Representation as ExchangeAlgebra.Algebra.Transfer.Rule
-    ( TransferScale(..)
+    ( TransferScale(MulBy, DivBy)
     , TransferRule(..)
     , TransferRules
     , TransferRuleError(..)
@@ -130,7 +133,6 @@ import ExchangeAlgebra.Algebra.Transfer.Representation as ExchangeAlgebra.Algebr
     , relabel
     , scaleBy
     , divideBy
-    , transferEntries
     , collapseEntries
     , collapseNetEntries
     )
