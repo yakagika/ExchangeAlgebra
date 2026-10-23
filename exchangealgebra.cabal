@@ -142,6 +142,7 @@ extra-source-files:
     test/compile-fail/AlgRecordUpdate.hs
     test/compile-fail/Coerce.hs
     test/compile-fail/Constructor.hs
+    test/compile-fail/DeprecatedTransfer.hs
     test/compile-fail/HiddenModule.hs
     test/compile-fail/PublicClient.hs
     test/compile-fail/RawDerivation.hs
@@ -420,6 +421,7 @@ test-suite ExchangeAlgebra-test
       Posting.PostingSpec
       Posting.SettleSpec
       Transfer.RuleSpec
+      Transfer.BalanceSpec
       Value.MoneyParseSpec
   hs-source-dirs:
       test

@@ -7,7 +7,8 @@
 
 -- Original
 import qualified    ExchangeAlgebra         as EA
-import              ExchangeAlgebra
+import              ExchangeAlgebra hiding ((.->), (|%))
+import              ExchangeAlgebra.Algebra.Transfer ((.->), (|%))
 import qualified    ExchangeAlgebra.Algebra.Transfer as ET
 
 -- Day

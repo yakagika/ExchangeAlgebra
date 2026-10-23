@@ -262,6 +262,7 @@ tests:
     - Posting.PostingSpec
     - Posting.SettleSpec
     - Transfer.RuleSpec
+    - Transfer.BalanceSpec
     - Value.MoneyParseSpec
     ghc-options:
     - -threaded

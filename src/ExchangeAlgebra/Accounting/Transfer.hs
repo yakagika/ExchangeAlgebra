@@ -178,11 +178,26 @@ module ExchangeAlgebra.Accounting.Transfer
     , transferEntriesByWith
     ) where
 
-import ExchangeAlgebra.Algebra.Core (Alg(..))
-import ExchangeAlgebra.Algebra.Base.Representation (HatBaseClass(..))
-import ExchangeAlgebra.Algebra.Value.Class (HatVal(..), ValueError, Rounding(..))
-import ExchangeAlgebra.Accounting.Exchange (ExBaseClass)
+import Data.List (find, inits)
+import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
+import qualified Data.HashMap.Strict as HashMap
+import Data.Maybe (isNothing)
+import Data.Ratio ((%))
+import ExchangeAlgebra.Algebra.Core (Alg(..), Redundant((.+)), (.@), foldEntries)
+import ExchangeAlgebra.Algebra.Base.Representation (HatBaseClass(..), Hat(..))
+import ExchangeAlgebra.Algebra.Element (ignoreWildcard)
+import ExchangeAlgebra.Algebra.Transfer.Representation (matches, patternsOverlap)
+import ExchangeAlgebra.Algebra.Value.Class
+    ( HatVal(..)
+    , ValueError(..)
+    , Rounding(..)
+    , roundScaled
+    )
+import ExchangeAlgebra.Accounting.Account (accountSpec)
+import ExchangeAlgebra.Accounting.Exchange (ExBaseClass(..))
 import ExchangeAlgebra.Journal.Core (Journal, Note)
+import qualified ExchangeAlgebra.Journal.Core as Journal
 
 -- * Tables
 
@@ -250,10 +265,28 @@ deriving instance Show (BasePart b) => Show (TransferTableError b)
 -- | Validate a table and keep the rows in the order written.
 -- Matching is one-way: a wildcard in the pattern matches any coordinate,
 -- including a wildcard in the other base. Complexity: O(r^2) for r rows.
-mkTransferTable :: HatBaseClass b
+mkTransferTable :: forall b. HatBaseClass b
                 => [TransferRow b]
                 -> Either (TransferTableError b) (TransferTable b)
-mkTransferTable _ = error "P3b-W3 D3: mkTransferTable"
+mkTransferTable rows = case find invalidPortion rows of
+    Just row -> Left (InvalidPortion row)
+    Nothing -> case [(first, second)
+                    | (before, second) <- zip (inits rows) rows
+                    , first@(TransferRow source _ _) <- before
+                    , let TransferRow other _ _ = second
+                    , patternsOverlap source other] of
+        (first, second) : _ -> Left (OverlappingRows first second)
+        [] -> case [(first, second)
+                   | (before, second@(TransferRow source target _)) <- zip (inits rows) rows
+                   , first@(TransferRow previous _ _) <- before ++ [second]
+                   , patternsOverlap previous (ignoreWildcard source target)] of
+            (first, second) : _ -> Left (BackwardFlow first second)
+            [] -> Right (TransferTable rows)
+  where
+    invalidPortion :: TransferRow b -> Bool
+    invalidPortion (TransferRow _ _ Relabel) = False
+    invalidPortion (TransferRow _ _ (Portion numerator denominator)) =
+        numerator <= 0 || denominator <= 0 || numerator > denominator
 
 -- | The rows in the order written. Complexity: O(1)
 tableRows :: TransferTable b -> [TransferRow b]
@@ -296,12 +329,152 @@ transferEntries = transferEntriesWith Nearest
 -- 'Portion' whose rounded amount is zero, add nothing. Wildcards in ledger
 -- bases are values. No @bar@ is applied.
 -- Complexity: O(s log b + r * b) for s postings, b selected bases, r rows.
-transferEntriesWith :: (HatVal v, ExBaseClass b)
+transferEntriesWith :: forall v b. (HatVal v, ExBaseClass b)
                     => Rounding v
                     -> TransferTable b
                     -> Alg v b
                     -> Either (TransferError b) (Alg v b)
-transferEntriesWith _ _ _ = error "P3b-W3 D3: transferEntriesWith"
+transferEntriesWith rounding (TransferTable rows) ledger =
+    case Set.lookupMin wildcards of
+        Just source -> Left (WildcardPosting source)
+        Nothing -> case Map.lookupMin invalid of
+            Just (source, failure) -> Left (InvalidPosting source failure)
+            Nothing -> case process rows balances of
+                (unclassified, failures, entries) -> case Set.lookupMin unclassified of
+                    Just source -> Left (UnclassifiedAccount source)
+                    Nothing -> case failures of
+                        failure : _ -> Left failure
+                        [] -> Right entries
+  where
+    -- Only selected input postings enter these exact, separate side totals.
+    (_, wildcards, invalid, balances) =
+        foldEntries collect (Map.empty, Set.empty, Map.empty, Map.empty) ledger
+
+    collect :: (Map.Map b Bool, Set.Set b, Map.Map b ValueError, Map.Map b (Accum v, Accum v))
+            -> v
+            -> b
+            -> (Map.Map b Bool, Set.Set b, Map.Map b ValueError, Map.Map b (Accum v, Accum v))
+    collect (selection, wildcardBases, invalidBases, totals) value posting
+        | not isSelected = (nextSelection, wildcardBases, invalidBases, totals)
+        | otherwise = (nextSelection, nextWildcards, nextInvalid, nextTotals)
+      where
+        source = merge Not (base posting)
+        isSelected :: Bool
+        isSelected = Map.findWithDefault (any selects rows) source selection
+        nextSelection :: Map.Map b Bool
+        nextSelection = Map.insert source isSelected selection
+
+        selects :: TransferRow b -> Bool
+        selects (TransferRow patternBase _ _) = matches patternBase (base posting)
+
+        nextWildcards :: Set.Set b
+        nextWildcards
+            | hat posting == HatNot && value /= zeroValue = Set.insert source wildcardBases
+            | otherwise = wildcardBases
+
+        nextInvalid :: Map.Map b ValueError
+        nextInvalid = case valueError value of
+            Nothing -> invalidBases
+            Just failure -> Map.insertWith preferNonFinite source failure invalidBases
+
+        nextTotals :: Map.Map b (Accum v, Accum v)
+        nextTotals = case (hat posting, valueError value) of
+            (Hat, Nothing) -> addTotal source (addAccum value emptyAccum, emptyAccum) totals
+            (Not, Nothing) -> addTotal source (emptyAccum, addAccum value emptyAccum) totals
+            (HatNot, Nothing) -> addTotal source (emptyAccum, emptyAccum) totals
+            _ -> totals
+
+    preferNonFinite :: ValueError -> ValueError -> ValueError
+    preferNonFinite NonFiniteValue _ = NonFiniteValue
+    preferNonFinite _ NonFiniteValue = NonFiniteValue
+    preferNonFinite _ _ = NegativeValue
+
+    addTotal :: b
+             -> (Accum v, Accum v)
+             -> Map.Map b (Accum v, Accum v)
+             -> Map.Map b (Accum v, Accum v)
+    addTotal = Map.insertWith mergeTotals
+
+    mergeTotals :: (Accum v, Accum v) -> (Accum v, Accum v) -> (Accum v, Accum v)
+    mergeTotals (firstHat, firstNot) (secondHat, secondNot) =
+        (mergeAccum firstHat secondHat, mergeAccum firstNot secondNot)
+
+    -- Continue after a rounding failure so an unclassified account anywhere
+    -- in the table still has priority. No partial entries escape this function.
+    process :: [TransferRow b]
+            -> Map.Map b (Accum v, Accum v)
+            -> (Set.Set b, [TransferError b], Alg v b)
+    process [] _ = (Set.empty, [], Zero)
+    process (row@(TransferRow patternBase targetPattern share) : remaining) totals =
+        let selected :: [(b, (Accum v, Accum v))]
+            selected = [(source, amounts)
+                       | (source, amounts) <- Map.toAscList totals
+                       , matches patternBase (base source)]
+            (unclassified, failures, entries, nextTotals) =
+                foldl' move (Set.empty, [], Zero, totals) selected
+            (laterUnclassified, laterFailures, laterEntries) = process remaining nextTotals
+        in ( Set.union unclassified laterUnclassified
+           , failures ++ laterFailures
+           , entries .+ laterEntries )
+      where
+        move :: (Set.Set b, [TransferError b], Alg v b, Map.Map b (Accum v, Accum v))
+             -> (b, (Accum v, Accum v))
+             -> (Set.Set b, [TransferError b], Alg v b, Map.Map b (Accum v, Accum v))
+        move (unclassified, failures, entries, current) (source, (hatTotal, notTotal))
+            | not (null unknown) =
+                (Set.union unclassified (Set.fromList unknown), failures, entries, current)
+            | otherwise = case signAccum net of
+                Just EQ -> (unclassified, failures, entries, current)
+                Just LT -> emit (toHat source) (negateAccum net)
+                Just GT -> emit source net
+                Nothing -> (unclassified, failures ++ [UnroundableAmount row source], entries,
+                            current)
+          where
+            target :: b
+            target = merge Not (ignoreWildcard (base source) targetPattern)
+            unknown :: [b]
+            unknown = [postingBase | postingBase <- [source, target]
+                                  , isNothing (accountSpec (getAccountTitle postingBase))]
+            net :: Accum v
+            net = mergeAccum notTotal (negateAccum hatTotal)
+
+            emit :: b
+                 -> Accum v
+                 -> (Set.Set b, [TransferError b], Alg v b, Map.Map b (Accum v, Accum v))
+            emit balanceBase amount = case movedValues of
+                Nothing -> (unclassified, failures ++ [UnroundableAmount row source], entries,
+                            current)
+                Just values ->
+                    let additions :: Alg v b
+                        additions = mconcat [ (value .@ revHat balanceBase)
+                                          .+ (value .@ destination)
+                                           | value <- values, value > zeroValue ]
+                        next :: Map.Map b (Accum v, Accum v)
+                        next = foldl' feed current values
+                    in (unclassified, failures, entries .+ additions, next)
+              where
+                destination :: b
+                destination
+                    | whichSide source == whichSide target = merge (hat balanceBase) (base target)
+                    | otherwise = merge (hat (revHat balanceBase)) (base target)
+
+                movedValues :: Maybe [v]
+                movedValues = case share of
+                    Relabel -> splitAccum amount
+                    Portion numerator denominator ->
+                        fmap (: []) (roundScaled rounding (numerator % denominator) amount)
+
+                feed :: Map.Map b (Accum v, Accum v) -> v -> Map.Map b (Accum v, Accum v)
+                feed accumulated value
+                    | value == zeroValue || not (any selectsDestination remaining) = accumulated
+                    | hat destination == Hat =
+                        addTotal target (addAccum value emptyAccum, emptyAccum) accumulated
+                    | otherwise =
+                        addTotal target (emptyAccum, addAccum value emptyAccum) accumulated
+
+                selectsDestination :: TransferRow b -> Bool
+                selectsDestination (TransferRow nextPattern _ _) =
+                    matches nextPattern (base destination)
 
 -- * Journals
 
@@ -330,10 +503,30 @@ transferEntriesBy = transferEntriesByWith Nearest
 -- and the entries are placed under the target. Only the additional entries
 -- are returned; add them with @j .+ r@. A target with no entries creates no
 -- note. See the module header for reading balances across notes.
-transferEntriesByWith :: (Note n, HatVal v, ExBaseClass b)
+transferEntriesByWith :: forall n v b. (Note n, HatVal v, ExBaseClass b)
                       => Rounding v
                       -> (n -> n)
                       -> TransferTable b
                       -> Journal n v b
                       -> Either (TransferJournalError n b) (Journal n v b)
-transferEntriesByWith _ _ _ _ = error "P3b-W3 D3: transferEntriesByWith"
+transferEntriesByWith rounding targetOf table journal = case movingNotes of
+    (note, target) : _ -> Left (TransferNoteMoves note target)
+    [] -> fmap mconcat $ traverse transferGroup (Map.toAscList groups)
+  where
+    notes :: [(n, Alg v b)]
+    notes = HashMap.toList (Journal.toMap journal)
+    targets :: Set.Set n
+    targets = Set.fromList [targetOf note | (note, _) <- notes]
+    movingNotes :: [(n, n)]
+    movingNotes = [(note, targetOf note)
+                  | note <- Set.toAscList (Set.fromList (map fst notes))
+                  , Set.member note targets
+                  , targetOf note /= note]
+    groups :: Map.Map n (Journal n v b)
+    groups = Map.fromListWith (.+)
+        [(targetOf note, entries Journal..| note) | (note, entries) <- notes]
+
+    transferGroup :: (n, Journal n v b) -> Either (TransferJournalError n b) (Journal n v b)
+    transferGroup (target, group) = case transferEntriesWith rounding table (Journal.toAlg group) of
+        Left failure -> Left (TransferFailed target failure)
+        Right additions -> Right (additions Journal..| target)

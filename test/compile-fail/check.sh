@@ -17,7 +17,7 @@ compile() {
     local snippet=$1
     stack ${admission_stack_args[@]+"${admission_stack_args[@]}"} \
         --stack-yaml "$admission_root/stack.yaml" exec -- ghc \
-        -fno-code -fforce-recomp -v0 -fdiagnostics-color=never -i \
+        -fno-code -fforce-recomp -v0 -Wdeprecations -fdiagnostics-color=never -i \
         -hide-all-packages -package base -package text -package containers \
         -package exchangealgebra -outputdir "$admission_tmp" \
         "$admission_root/test/compile-fail/$snippet.hs" \
@@ -60,3 +60,23 @@ fi
 reject AlgConstructor 'non-bidirectional pattern synonym|not bidirectional'
 reject AlgRecordUpdate 'non-bidirectional pattern synonym|not a record selector|not a record field'
 reject AlgHiddenConstructor 'does not export any children|does not export.*(Single|Liner)'
+
+# Deprecated APIs remain usable, and their warning survives public rule-module re-export.
+warn_deprecated() {
+    local snippet=$1
+    local identifier=$2
+    if ! compile "$snippet"; then
+        printf '[FAIL] %s did not compile\n' "$snippet"
+        cat "$admission_tmp/$snippet.log"
+        exit 1
+    fi
+    if ! grep -Eq 'deprecated|deprecations' "$admission_tmp/$snippet.log" \
+        || ! grep -Fq "$identifier" "$admission_tmp/$snippet.log"; then
+        printf '[FAIL] %s compiled without the expected deprecation warning\n' "$snippet"
+        cat "$admission_tmp/$snippet.log"
+        exit 1
+    fi
+    printf '[PASS] %s compiled with the expected deprecation warning\n' "$snippet"
+}
+
+warn_deprecated DeprecatedTransfer scaleBy

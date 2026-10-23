@@ -2,8 +2,8 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 
-import ExchangeAlgebra
-import ExchangeAlgebra.Algebra.Transfer
+import ExchangeAlgebra hiding ((.->), (|%))
+import ExchangeAlgebra.Algebra.Transfer ((.->), (|%))
 
 data Unit = Yen
           | Dollor

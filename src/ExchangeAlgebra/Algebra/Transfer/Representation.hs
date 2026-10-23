@@ -77,6 +77,7 @@ module ExchangeAlgebra.Algebra.Transfer.Representation ( TransferScale(..)
                                                        , collapseNetEntries
                                                          -- * Shared with the accounting transfer
                                                        , matches
+                                                       , patternsOverlap
                                                        ) where
 
 import Data.Binary (Binary(..))
@@ -171,8 +172,7 @@ mkTransferRules rules = case find invalidCoefficient rules of
     invalid coefficient = coefficient <= zeroValue || isErrorValue coefficient
     pairs = [(first, second) | first : rest <- tails rules, second <- rest]
     overlaps (first, second) =
-        matches (ruleFrom first)
-                (ignoreWildcard (ruleFrom first) (ruleFrom second))
+        patternsOverlap (ruleFrom first) (ruleFrom second)
 
 -- | Extract the canonical list, sorted by 'ruleFrom'.
 rulesToList :: TransferRules v b -> [TransferRule v b]
@@ -198,6 +198,10 @@ divideBy source target coefficient = TransferRule source target (DivBy coefficie
 -- Also used by "ExchangeAlgebra.Accounting.Transfer" on 'BasePart'.
 matches :: Element b => b -> b -> Bool
 matches patternBase entry = ignoreWildcard entry patternBase == entry
+
+-- | Whether some base matches both patterns, with wildcard substitution per coordinate.
+patternsOverlap :: Element b => b -> b -> Bool
+patternsOverlap first second = matches first (ignoreWildcard first second)
 
 -- * Additional entries
 
@@ -289,4 +293,3 @@ collapseNetEntries :: (HatVal v, HatBaseClass b)
 collapseNetEntries pats f x = (.^) selected .+ bar (mapBasePart f selected)
   where
     selected = proj pats x
-

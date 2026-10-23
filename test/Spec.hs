@@ -9,6 +9,7 @@ import qualified Admission.Spec as AdmissionSpec
 import qualified Admission.ClosingSpec as AdmissionClosingSpec
 import qualified Admission.CatalogSpec as AdmissionCatalogSpec
 import qualified Transfer.RuleSpec as TransferRuleSpec
+import qualified Transfer.BalanceSpec as TransferBalanceSpec
 import qualified Algebra.ProjWildcardSpec as ProjWildcardSpec
 import qualified Posting.PostingSpec as PostingSpec
 import qualified Posting.SettleSpec as SettleSpec
@@ -33,6 +34,7 @@ main = do
     AdmissionClosingSpec.runTests
     AdmissionCatalogSpec.runTests
     TransferRuleSpec.runTests
+    TransferBalanceSpec.runTests
     ProjWildcardSpec.runTests
     PostingSpec.runTests
     SettleSpec.runTests
