@@ -441,6 +441,15 @@
 - The research evaluation tooling in `examples/audit-eval` (task generators,
   runners, checkers, and oracles) moved to a separate repository.
 
+### Fixed
+
+- Algebra projections (`proj` and the projections built on it) no longer keep
+  a base whose selected side is empty. Previously, projecting a multi-posting
+  element onto the side that a base does not have left that base with both
+  sides empty, so `isZero` could return `False` for a projection that selected
+  nothing, and `Journal.projWithBase` kept the emptied note. Netting results
+  such as `projNetNorm` are unchanged.
+
 ### Documentation
 
 - The root module example now debits cash and credits sales as described, and
