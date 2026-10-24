@@ -70,3 +70,32 @@ data AdmissionError
     | UnresolvedReference CallId TxKey Role ReferenceFailure -- ^ Reference could not be admitted.
     | DuplicateEffect CallId TxKey -- ^ Generated posting duplicates a raw effect.
     deriving (Eq, Show)
+
+-- | Step of the admission pipeline that stopped, in execution order. Each
+-- step is one check of 'admit', and a failed step stops the later steps.
+-- This is not the accounting 'Stage': the same 'InvalidEntry' can come from
+-- the input step and from the execution step, so the engine records the step.
+data AdmissionPhase
+    = CoveragePhase
+      -- ^ Identities, registry coverage, parameters, and call order of all calls.
+    | InputPhase -- ^ Conversion of every fact and raw entry.
+    | InputPolicyPhase -- ^ Vocabulary and direct-posting policy of the sources.
+    | ReferencePhase
+      -- ^ Unknown and repeated references of all calls, before any call runs.
+    | ExecutionPhase
+      -- ^ Calls in order: reference resolution, catalog execution, and
+      -- checks of generated entries. The first failed call stops the rest.
+    | EvidencePhase -- ^ Debit totals compared with declared evidence.
+    deriving (Eq, Ord, Show, Enum, Bounded)
+
+-- | Failures of one admission run, with the step that stopped it.
+data AdmissionFailure = AdmissionFailure AdmissionPhase (NonEmpty AdmissionError)
+    deriving (Eq, Show)
+
+-- | Step that stopped the admission run.
+failurePhase :: AdmissionFailure -> AdmissionPhase
+failurePhase (AdmissionFailure phase _) = phase
+
+-- | Failures collected by the stopped step, in the order the step found them.
+failureErrors :: AdmissionFailure -> NonEmpty AdmissionError
+failureErrors (AdmissionFailure _ errors) = errors
