@@ -49,9 +49,9 @@ requireRight label result = case result of
         exitFailure
 
 -- | Check one error while allowing independent diagnostics in the same stage.
-hasError :: (AdmissionError -> Bool) -> Either (NonEmpty AdmissionError) value -> Bool
+hasError :: (AdmissionError -> Bool) -> Either AdmissionFailure value -> Bool
 hasError predicate result = case result of
-    Left failures -> any predicate (NonEmpty.toList failures)
+    Left failures -> any predicate (NonEmpty.toList (failureErrors failures))
     Right _ -> False
 
 -- | Check one registry diagnostic without depending on error order.
@@ -171,7 +171,7 @@ testCoverage = do
         (submit [(raw, saleRows)] [Call (CallId "wrong-period") entityA periodTwo
             (Just generated) (Cogs 0 0)])
     assertTest "evidence total debit mismatch" $ hasError
-        (== EvidenceMismatch raw evidence 100 30)
+        (== EvidenceMismatch raw evidence (AmountMismatch 100 30))
         (submit [(raw, costRows)] [call "c" generated])
     absentEvidence <- specFor [(raw, rawRule)] Map.empty Map.empty
     assertTest "evidence obligation must be present" $ hasError
@@ -187,7 +187,7 @@ testCoverage = do
         (== AccountOutsideVocabulary raw Cash)
         (admit restricted (Submission [(raw, saleRows)] [call "c" generated]))
     assertTest "multiple coverage errors retained" $ case submit [] [] of
-        Left errors -> length (NonEmpty.toList errors) >= 2
+        Left errors -> length (NonEmpty.toList (failureErrors errors)) >= 2
         Right _ -> False
     assertTest "registry duplicate survives map construction" $
         case txIdRegistry [(raw, rawRule), (raw, rawRule)] of
@@ -392,10 +392,10 @@ testAlternativeSupplies = do
             (admit matching (Submission [] [generated 10, reverseCall]))
     wrongEvidence <- makeSpec 11
     assertTest "raw route checks evidence independently" $
-        hasError (== EvidenceMismatch source receipt 11 10)
+        hasError (== EvidenceMismatch source receipt (AmountMismatch 11 10))
             (admit wrongEvidence (Submission [(source, rows)] []))
     assertTest "catalog route checks evidence independently" $
-        hasError (== EvidenceMismatch source receipt 11 10)
+        hasError (== EvidenceMismatch source receipt (AmountMismatch 11 10))
             (admit wrongEvidence (Submission [] [generated 10]))
     assertTest "raw and catalog routes collide even at equal amount" $
         hasError (== RawGeneratedCollision source)
@@ -418,7 +418,7 @@ testAlternativeSupplies = do
         [SupplySubmission Ordinary, SupplyCatalog CogsKind] (Just receipt))]
         (Map.singleton receipt 10) Map.empty
     assertTest "zero catalog mismatches positive evidence at actual zero" $
-        hasError (== EvidenceMismatch zeroKey receipt 10 0)
+        hasError (== EvidenceMismatch zeroKey receipt (AmountMismatch 10 0))
             (admit zeroEvidence (Submission [] [zeroCall]))
 
 -- | A generated posting that duplicates a submitted posting is rejected.
@@ -625,7 +625,7 @@ testParameterTotality = do
             (Just generated) (AllowanceRate 10001)
     spec <- specFor [(generated, rule)] Map.empty Map.empty
     outcome <- try (evaluate (admit spec (Submission [] [invocation])))
-        :: IO (Either SomeException (Either (NonEmpty AdmissionError) Admitted))
+        :: IO (Either SomeException (Either AdmissionFailure Admitted))
     assertTest "invalid parameters yield Left" $ case outcome of
         Right result -> hasError isParameterError result
         Left _ -> False

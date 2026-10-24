@@ -11,7 +11,7 @@ import Data.Map.Strict (Map)
 import Data.Set (Set)
 
 import ExchangeAlgebra.Accounting.Transaction (EvidenceId, FactId, TxKey)
-import ExchangeAlgebra.IO.Input.Admission.Catalog.Input (CatalogOperationKind)
+import ExchangeAlgebra.Accounting.Catalog (CatalogOperationKind)
 import ExchangeAlgebra.IO.Input.Admission.Workflow (Role)
 
 -- | Whether a transaction must occur in the admitted journal.

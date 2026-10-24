@@ -90,7 +90,7 @@ fakeModel protocol scenario previous
             | otherwise -> Right acceptedResponse
 
 -- | Run at most three attempts and return the accepted value, if any, and attempt count.
--- The last rejection is printed even when no further model call will be made.
+-- The last rejection includes its admission phase, even at the attempt limit.
 runScenario :: Text.Text
             -> Admission.AdmissionSpec
             -> Scenario

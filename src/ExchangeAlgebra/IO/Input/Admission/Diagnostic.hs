@@ -9,7 +9,6 @@ module ExchangeAlgebra.IO.Input.Admission.Diagnostic where
 
 import Data.List.NonEmpty (NonEmpty)
 import Data.Set (Set)
-import Data.Text (Text)
 
 import ExchangeAlgebra.Accounting.Account (AccountTitles)
 import ExchangeAlgebra.Accounting.Transaction
@@ -21,7 +20,12 @@ import ExchangeAlgebra.Accounting.Transaction
     , TxKey
     )
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
-import ExchangeAlgebra.IO.Input.Admission.Catalog.Input (CatalogOperationKind)
+import ExchangeAlgebra.Accounting.Catalog
+    ( CatalogOperationKind
+    , CatalogParameterProblem
+    , CatalogExecutionProblem
+    , AmountMismatch
+    )
 import ExchangeAlgebra.IO.Input.Admission.Registry.Definition (Supply)
 import ExchangeAlgebra.IO.Input.Admission.Workflow (Provenance, Role, Stage)
 import ExchangeAlgebra.IO.Input.Checked (EntryError)
@@ -58,14 +62,14 @@ data AdmissionError
     | MissingFact TxKey FactId -- ^ Declared fact is absent.
     | MissingEvidence TxKey EvidenceId -- ^ Required evidence is absent.
     | InvalidEvidence TxKey EvidenceId MoneyDecimal -- ^ Evidence amount is not positive.
-    | EvidenceMismatch TxKey EvidenceId MoneyDecimal MoneyDecimal -- ^ Evidence amount differs.
+    | EvidenceMismatch TxKey EvidenceId AmountMismatch -- ^ Evidence amount differs.
     | InvalidEntry TxKey (NonEmpty (EntryError MoneyDecimal)) -- ^ Entry conversion failed.
     | AccountOutsideVocabulary TxKey AccountTitles -- ^ Account is outside the vocabulary.
     | DirectPostingForbidden TxKey AccountTitles -- ^ Raw posting uses a protected account.
     | RawProfitEquityTransfer TxKey -- ^ Raw posting moves profit to equity.
     | GeneratedAccountForbidden CallId AccountTitles -- ^ Builder emitted an unauthorized account.
-    | InvalidCatalogParameters CallId Text -- ^ Catalog parameters are invalid.
-    | CatalogExecutionFailure CallId Text -- ^ Catalog builder failed.
+    | InvalidCatalogParameters CallId CatalogParameterProblem -- ^ Catalog parameters are invalid.
+    | CatalogExecutionFailure CallId CatalogExecutionProblem -- ^ Catalog builder failed.
     | StageRegression CallId Stage Stage -- ^ Calls regress in stage order.
     | UnresolvedReference CallId TxKey Role ReferenceFailure -- ^ Reference could not be admitted.
     | DuplicateEffect CallId TxKey -- ^ Generated posting duplicates a raw effect.
@@ -78,8 +82,9 @@ data AdmissionError
 data AdmissionPhase
     = CoveragePhase
       -- ^ Identities, registry coverage, parameters, and call order of all calls.
-    | InputPhase -- ^ Conversion of every fact and raw entry.
-    | InputPolicyPhase -- ^ Vocabulary and direct-posting policy of the sources.
+    | InputPhase
+      -- ^ Every fact and raw entry, including direct-posting checks of submitted entries.
+    | InputPolicyPhase -- ^ Account vocabulary of the checked sources.
     | ReferencePhase
       -- ^ Unknown and repeated references of all calls, before any call runs.
     | ExecutionPhase

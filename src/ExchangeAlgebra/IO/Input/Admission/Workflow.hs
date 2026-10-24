@@ -17,7 +17,7 @@ import ExchangeAlgebra.Accounting.Transaction
     , TxKey
     )
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
-import ExchangeAlgebra.IO.Input.Admission.Catalog.Input (CatalogOperationKind)
+import ExchangeAlgebra.Accounting.Catalog (CatalogOperationKind)
 
 -- | Accounting role fixed by the trusted registry.
 data Role

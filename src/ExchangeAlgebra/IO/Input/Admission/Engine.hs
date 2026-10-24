@@ -41,7 +41,9 @@
 module ExchangeAlgebra.IO.Input.Admission.Engine (admit) where
 
 import Control.Monad (foldM)
+import Data.Bifunctor (first)
 import Data.Either (partitionEithers)
+import qualified Data.Foldable as Foldable
 import Data.List (sort)
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NonEmpty
@@ -54,7 +56,7 @@ import ExchangeAlgebra.IO.Input.Admission.Catalog
 import ExchangeAlgebra.IO.Input.Admission.Representation
 import ExchangeAlgebra.IO.Input.Admission.Registry
 import ExchangeAlgebra.Accounting.Transaction
-import ExchangeAlgebra.IO.Input.Admission.Catalog.Input
+import ExchangeAlgebra.Accounting.Catalog
 import ExchangeAlgebra.IO.Input.Admission.Workflow
 import ExchangeAlgebra.IO.Input.Admission.Registry.Definition
 import ExchangeAlgebra.IO.Input.Admission.Submission
@@ -309,10 +311,24 @@ isReferenceOriginAllowed _ _ = True
 resolveInputs
     :: Call
     -> Execution
-    -> Either (NonEmpty AdmissionError) [ResolvedInput]
-resolveInputs call (Execution journal entries _) = collect (map resolve (references call))
+    -> Either (NonEmpty AdmissionError) (CatalogCallOf ResolvedInput)
+resolveInputs call (Execution journal entries _) = do
+    _ <- collect (Foldable.toList resolved)
+    traverse id resolved
   where
-    resolve (entity, key@(TxKey actualEntity period _), expected) = do
+    resolved :: CatalogCallOf (Either (NonEmpty AdmissionError) ResolvedInput)
+    resolved = case callBody call of
+        Consolidate entities eliminations -> Consolidate
+            (fmap (\(EntityInput entity keys)
+                -> EntityInput entity (fmap (resolve entity Ordinary) keys)) entities)
+            (fmap (resolve (callEntity call) Elimination) eliminations)
+        body -> fmap (resolve (callEntity call) Ordinary) body
+    resolve
+        :: EntityId
+        -> Role
+        -> TxKey
+        -> Either (NonEmpty AdmissionError) ResolvedInput
+    resolve entity expected key@(TxKey actualEntity period _) = do
         requireClean
             ([failure (ReferenceEntityMismatch entity) | entity /= actualEntity]
             ++ [failure (ReferencePeriodMismatch (callPeriod call)) | period /= callPeriod call])
@@ -355,10 +371,10 @@ checkGenerated
     :: AdmissionSpec
     -> Execution
     -> Call
-    -> Entry
+    -> CatalogCallOf (TxKey, Entry)
     -> Entry
     -> Either (NonEmpty AdmissionError) (Maybe CheckedTransaction)
-checkGenerated spec (Execution journal entries _) call allowedSource delta =
+checkGenerated spec (Execution journal entries _) call resolvedCall delta =
     case callGenerated call of
         Nothing -> Right Nothing
         Just key -> do
@@ -377,7 +393,7 @@ checkGenerated spec (Execution journal entries _) call allowedSource delta =
   where
     stage = catalogStage (callBody call)
     kind = catalogKind (callBody call)
-    allowed = allowedAccounts (callBody call) allowedSource
+    allowed = allowedAccounts resolvedCall
     rows = [(whichSide (_hatBase row), getAccountTitle (_hatBase row), _val row)
            | row <- toList delta]
     signature = Set.fromList (postingSignature delta)
@@ -398,20 +414,15 @@ executeCall
     -> Either (NonEmpty AdmissionError) Execution
 executeCall spec state call = do
     resolved <- resolveInputs call state
-    let inputs = Map.fromList [(key, entry) | ResolvedInput key _ entry <- resolved]
+    let resolvedCall = fmap (\(ResolvedInput key _ entry) -> (key, entry)) resolved
         ledger = visibleLedger call state
-    allowedSource <- case callBody call of
-        ReverseEntry key -> case Map.lookup key inputs of
-            Just entry -> Right entry
-            Nothing -> Left (UnresolvedReference (callId call) key Ordinary ReferenceAbsent :| [])
-        _ -> Right ledger
-    (delta, projection) <- case executeCatalog inputs ledger call of
-        Left failure -> Left (failure :| [])
+    (delta, projection) <- case executeCatalog ledger resolvedCall of
+        Left failure -> Left (CatalogExecutionFailure (callId call) failure :| [])
         Right result -> Right result
-    generated <- checkGenerated spec state call allowedSource delta
+    generated <- checkGenerated spec state call resolvedCall delta
     let Execution journal entries audits = maybe state (`commit` state) generated
         audit = CallAudit (callId call) (catalogKind (callBody call)) (callGenerated call)
-            [(key, origin) | ResolvedInput key origin _ <- resolved] projection
+            [(key, origin) | ResolvedInput key origin _ <- Foldable.toList resolved] projection
     Right (Execution journal entries (audits ++ [audit]))
 
 -- * Evidence and snapshots
@@ -423,7 +434,7 @@ executeCall spec state call = do
 -- against evidence; those details are not supplied by the evidence amount.
 evidenceErrors :: AdmissionSpec -> Execution -> [AdmissionError]
 evidenceErrors spec (Execution journal entries _) =
-    [ EvidenceMismatch key evidence expected actual
+    [ EvidenceMismatch key evidence (AmountMismatch expected actual)
     | (key, rule) <- Map.toAscList (registryRules (admissionRegistry spec))
     , Just evidence <- [ruleEvidence rule]
     , Map.member key entries
@@ -446,10 +457,12 @@ finish (Execution journal entries audits) = Admitted accepted audits (Set.fromLi
 
 -- | Admit a complete submission against a fixed trusted specification.
 --
--- The pipeline checks (1) all raw and declared generated keys, sources, and
--- required coverage, (2) every fact and raw entry, (3) vocabulary and direct
--- posting restrictions, (4) stage-visible catalog expansion and generated-entry
--- checks, and (5) all evidence obligations. Generated keys are checked before
+-- The pipeline checks (1) CoveragePhase: keys, sources, parameters, order, and
+-- required coverage, (2) InputPhase: every fact and raw entry, including raw
+-- posting restrictions, (3) InputPolicyPhase: account vocabulary,
+-- (4) ReferencePhase: unknown and repeated references,
+-- (5) ExecutionPhase: stage-visible expansion and generated-entry checks, and
+-- (6) EvidencePhase: evidence obligations. Generated keys are checked before
 -- expansion; generated postings are checked immediately after their builder.
 -- Independent errors within each stage are accumulated in deterministic order.
 -- A failed stage stops dependent stages; a failed catalog call stops its suffix
@@ -472,12 +485,16 @@ finish (Execution journal entries audits) = Admitted accepted audits (Set.fromLi
 -- or package-private constructors. EA modules are not marked Safe or
 -- Trustworthy and cannot be imported from a Safe Haskell module. These
 -- assumptions are not enforced by the compiler.
-admit :: AdmissionSpec -> Submission -> Either (NonEmpty AdmissionError) Admitted
+admit :: AdmissionSpec -> Submission -> Either AdmissionFailure Admitted
 admit spec submission = do
-    requireClean (coverageErrors spec submission)
-    checked <- collect (map checkInput (inputEntries spec submission))
-    requireClean (concatMap (inputPolicyErrors spec) checked)
-    requireClean (referenceErrors spec (submissionCalls submission))
-    executed <- foldM (executeCall spec) (initialExecution checked) (submissionCalls submission)
-    requireClean (evidenceErrors spec executed)
+    first (AdmissionFailure CoveragePhase) $ requireClean (coverageErrors spec submission)
+    checked <- first (AdmissionFailure InputPhase)
+        $ collect (map checkInput (inputEntries spec submission))
+    first (AdmissionFailure InputPolicyPhase)
+        $ requireClean (concatMap (inputPolicyErrors spec) checked)
+    first (AdmissionFailure ReferencePhase)
+        $ requireClean (referenceErrors spec (submissionCalls submission))
+    executed <- first (AdmissionFailure ExecutionPhase)
+        $ foldM (executeCall spec) (initialExecution checked) (submissionCalls submission)
+    first (AdmissionFailure EvidencePhase) $ requireClean (evidenceErrors spec executed)
     Right (finish executed)

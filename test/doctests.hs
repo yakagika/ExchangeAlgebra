@@ -27,6 +27,7 @@ main = doctest  [ "-isrc"
                 , "src/ExchangeAlgebra/Accounting/Consolidation.hs"
                   -- admission execution modules are not re-exported in full;
                   -- list them explicitly to check their examples too.
+                , "src/ExchangeAlgebra/Accounting/Catalog.hs"
                 , "src/ExchangeAlgebra/IO/Input/Admission/Catalog.hs"
                 , "src/ExchangeAlgebra/IO/Input/Admission/Engine.hs"
                   -- the admission examples import its public API qualified;

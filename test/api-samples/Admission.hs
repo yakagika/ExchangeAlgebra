@@ -44,7 +44,8 @@ main = do
                     (Set.fromList [Cash, Sales, RentExpense, NetIncome, NetLoss,
                                    RetainedEarnings])
             case Admission.admit spec submitted of
-                Left problems -> fail (show problems)
+                Left failure -> fail (show (Admission.failurePhase failure,
+                    Admission.failureErrors failure))
                 Right accepted -> do
                     let adjusted = Journal.toAlg $ Admission.admittedJournal $
                             Admission.restrictAdmitted

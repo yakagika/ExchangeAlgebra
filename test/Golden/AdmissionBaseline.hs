@@ -68,7 +68,7 @@ signature = sort . map posting . toList
         side :< account -> (account, side, _val value)
 
 -- | Show every accepted transaction and query value, or the ordered errors.
-observeAdmission :: Text -> Either (NonEmpty AdmissionError) Admitted -> Text
+observeAdmission :: Text -> Either AdmissionFailure Admitted -> Text
 observeAdmission name outcome = case outcome of
     Left failures -> "Left " <> Text.pack (show failures)
     Right accepted

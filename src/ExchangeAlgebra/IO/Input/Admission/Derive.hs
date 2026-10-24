@@ -156,16 +156,17 @@ combineResults _ (Left errors) = Left errors
 deriveTrialBalance
     :: Admitted
     -> Either (NonEmpty (TrialBalance.TBFinding MoneyDecimal)) AdmittedTrialBalance
-deriveTrialBalance admitted@(Admitted journal _ notes) = do
-    (finalBalance, adjustedBalance) <- combineResults
-        (validate finalStage journal)
-        (validate TrialBalance.BeforeClosing adjusted)
-    Right (AdmittedTrialBalance admitted finalBalance adjustedBalance)
+deriveTrialBalance admitted@(Admitted journal _ notes)
+    | any ((== Closing) . admissionRole) notes = do
+        (finalBalance, adjustedBalance) <- combineResults
+            (validate TrialBalance.AfterClosing journal)
+            (validate TrialBalance.BeforeClosing adjusted)
+        Right (AdmittedTrialBalance admitted finalBalance adjustedBalance)
+    | otherwise = do
+        balance <- validate TrialBalance.BeforeClosing journal
+        Right (AdmittedTrialBalance admitted balance balance)
   where
     adjusted = Journal.filterWithNote (\note _ -> admissionStage note <= ConsolidationStage) journal
-    finalStage
-        | any ((== Closing) . admissionRole) notes = TrialBalance.AfterClosing
-        | otherwise = TrialBalance.BeforeClosing
     validate
         :: TrialBalance.TrialBalanceStage
         -> AdmissionJournal
@@ -184,9 +185,12 @@ presentAdmitted
     :: Presentation.ReportingContext MoneyDecimal
     -> AdmittedTrialBalance
     -> Either (NonEmpty (Presentation.PresentationIssue MoneyDecimal)) AdmittedStatements
-presentAdmitted context accepted@(AdmittedTrialBalance _ final adjusted) = do
-    (adjustedStatements, finalStatements) <- combineResults
-        (Presentation.present context adjusted)
-        (Presentation.present context final)
-    Right (AdmittedStatements accepted adjustedStatements finalStatements)
-
+presentAdmitted context accepted@(AdmittedTrialBalance (Admitted _ _ notes) final adjusted)
+    | any ((== Closing) . admissionRole) notes = do
+        (adjustedStatements, finalStatements) <- combineResults
+            (Presentation.present context adjusted)
+            (Presentation.present context final)
+        Right (AdmittedStatements accepted adjustedStatements finalStatements)
+    | otherwise = do
+        statements <- Presentation.present context final
+        Right (AdmittedStatements accepted statements statements)

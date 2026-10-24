@@ -167,7 +167,6 @@ library:
   - ExchangeAlgebra.IO.Input.Admission.Engine
   - ExchangeAlgebra.IO.Input.Admission.Representation
   - ExchangeAlgebra.IO.Input.Admission.Registry
-  - ExchangeAlgebra.IO.Input.Admission.Catalog.Input
   - ExchangeAlgebra.IO.Input.Admission.Workflow
   - ExchangeAlgebra.IO.Input.Admission.Registry.Definition
   - ExchangeAlgebra.IO.Input.Admission.Submission

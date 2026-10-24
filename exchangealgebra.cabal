@@ -30,6 +30,7 @@ extra-source-files:
     test/fixtures/account-semantics-050/suggest.tsv
     test/fixtures/admission-baseline-p1/boundary.tsv
     test/fixtures/admission-baseline-p1/catalog.tsv
+    test/fixtures/admission-baseline-p1/CHANGES-P3a-W2a.md
     test/fixtures/admission-baseline-p1/equivalence.tsv
     test/fixtures/admission-baseline-p1/README.md
     test/fixtures/consolidation-worksheet-050/minimal.tsv
@@ -136,6 +137,7 @@ extra-source-files:
     test/fixtures/write-rows-0510/ebex9-post-closing-trial-balance.tsv
     test/fixtures/write-rows-0510/ebex9-worksheet.tsv
     test/fixtures/write-rows-0510/README.md
+    test/compile-fail/AdmissionFailureConstructor.hs
     test/compile-fail/AdmissionNoteConstructor.hs
     test/compile-fail/AlgConstructor.hs
     test/compile-fail/AlgHiddenConstructor.hs
@@ -145,6 +147,7 @@ extra-source-files:
     test/compile-fail/DeprecatedTransfer.hs
     test/compile-fail/HiddenModule.hs
     test/compile-fail/PublicClient.hs
+    test/compile-fail/PublicExplicitImportClient.hs
     test/compile-fail/RawDerivation.hs
     test/compile-fail/RecordUpdate.hs
     test/compile-fail/check.sh
@@ -279,7 +282,6 @@ library
       ExchangeAlgebra.IO.Input.Admission.Engine
       ExchangeAlgebra.IO.Input.Admission.Representation
       ExchangeAlgebra.IO.Input.Admission.Registry
-      ExchangeAlgebra.IO.Input.Admission.Catalog.Input
       ExchangeAlgebra.IO.Input.Admission.Workflow
       ExchangeAlgebra.IO.Input.Admission.Registry.Definition
       ExchangeAlgebra.IO.Input.Admission.Submission

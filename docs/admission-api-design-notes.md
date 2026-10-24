@@ -160,11 +160,11 @@ posting の比較は `(Hat, AccountTitles, MoneyDecimal)` を sort した多重�
 |---|---|---|
 | Admission | 公開入口 | 下位の受入・導出関数を限定して export |
 | Accounting.Transaction | 識別子と仕訳 | MoneyDecimal, Alg, Note |
-| Admission.Catalog.Input / Workflow | 閉じた操作の入力 / 役割・段階・出所 | 取引識別子, MoneyDecimal |
-| Admission.Registry.Definition / Submission / Diagnostic | registry 宣言 / 提出 / 診断 | Catalog.Input, Workflow, EntryError |
+| Accounting.Catalog / Admission.Workflow | 閉じた操作の入力と実行 / 役割・段階・出所 | 取引識別子, MoneyDecimal, Bookkeeping builders, finalStockTransfer |
+| Admission.Registry.Definition / Submission / Diagnostic | registry 宣言 / 提出 / 診断 | Accounting.Catalog, Workflow, EntryError |
 | Admission.Representation | 非公開の検証済み表現 | Journal, ValidatedTrialBalance |
 | Registry | 重複を保全した registry 構築 | containers の Map |
-| Catalog | 固定 22 操作と会計方針 | Bookkeeping builders, finalStockTransfer |
+| Admission.Catalog | 受入の段階・役割・勘定方針と診断変換 | Accounting.Catalog, Workflow |
 | Engine | 受入の固定順序と参照解決 | checkedEntryTextIn, checkedEntryIn, Journal.projWithNote, toAlg |
 | Derive | snapshot の検証と諸表の導出 | validateTrialBalance, present |
 | IO.Output.Admission | 受入済み諸表の CSV 出力 | FinancialStatements |

@@ -21,7 +21,7 @@ import ExchangeAlgebra.Accounting.Transaction
     , TxKey
     )
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
-import ExchangeAlgebra.IO.Input.Admission.Catalog.Input (CatalogCall)
+import ExchangeAlgebra.Accounting.Catalog (CatalogCall)
 import ExchangeAlgebra.IO.Input.Admission.Registry.Definition (TxIdRegistry)
 
 -- | Untrusted side text, account text, and strictly positive monetary amount.

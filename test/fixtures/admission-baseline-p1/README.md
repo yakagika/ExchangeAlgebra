@@ -36,7 +36,9 @@ separated by `;` in the order below.
 - `-`: None of these categories applies.
 
 At P2, require every row to match this baseline. At P3, require every `-`
-row to match. For each other row, record the old and new observations together
+row to match, except for differences justified in the change record for that
+stage. The W2a changes are listed in [CHANGES-P3a-W2a.md](CHANGES-P3a-W2a.md).
+For each other row, record the old and new observations together
 when updating the fixture so the intentional change remains reviewable.
 
 To regenerate the three TSV files after an intentional change, run from the

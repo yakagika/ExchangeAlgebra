@@ -381,6 +381,60 @@
 - Renamed: `equivalentUpTo` → `isEquivalentUpTo`, `txidRegistry` →
   `txIdRegistry`, `TxidRegistry` → `TxIdRegistry`, `CatalogOpKind` →
   `CatalogOperationKind`. Constructors and `Show` output are unchanged.
+- `IO.Input.Admission.admit` now returns `Either AdmissionFailure Admitted`.
+  Read `failurePhase` for the stopped pipeline step and `failureErrors` for its
+  ordered errors; the `AdmissionFailure` constructor is hidden.
+  `InvalidCatalogParameters CallId CatalogParameterProblem` and
+  `CatalogExecutionFailure CallId CatalogExecutionProblem` replace text
+  payloads. Match the closed problems directly using this migration table:
+
+  | Previous reason | New problem |
+  |---|---|
+  | `<name> must be positive` | `NonPositiveParameter parameter amount` |
+  | `<name> must be nonnegative` | `NegativeParameter parameter amount` |
+  | `<name> account role` | `AccountOutsideDivision parameter account division` |
+  | `rate exceeds 10000` | `RateAboveLimit rate` |
+  | `received below paid` | `ReceivedBelowPaid (AmountLimit paid received)` |
+  | `interim exceeds total` | `InterimExceedsTotal (AmountLimit total interim)` |
+  | `blank referenced transaction key` | `BlankReferenceKey key` |
+  | `at least two distinct entities required` | `TooFewEntities distinctCount` |
+  | `repeated entity` | `RepeatedEntity firstRepeatedEntity` |
+  | `repeated txid references` | `RepeatedReference firstRepeatedKey` |
+  | `inexact_decimal_quotient` | `InexactQuotient reducedNumerator reducedDenominator` |
+  | `Imbalanced consolidation recipe` | `ImbalancedConsolidation (DebitCreditTotals debit credit)` |
+  | `abnormal balance <account>` | `AbnormalBalance account` |
+
+  `EvidenceMismatch key evidence (AmountMismatch expected actual)` names the
+  evidence amount and the submitted debit total. The former missing-reference
+  execution branch is eliminated by carrying resolved entries in the call.
+  Catalog execution now belongs to Accounting; its module remains private.
+  `CatalogCall` and `EntityInput` are aliases for `CatalogCallOf TxKey` and
+  `EntityInputOf TxKey`. Client instances for these aliases need
+  `FlexibleInstances`. Replace constructor imports as follows:
+
+  ```haskell
+  -- Previous import:
+  -- import ExchangeAlgebra.IO.Input.Admission (CatalogCall(..), EntityInput(..))
+  import ExchangeAlgebra.IO.Input.Admission
+      ( CatalogCall
+      , CatalogCallOf(..)
+      , EntityInput
+      , EntityInputOf(..)
+      )
+  ```
+
+  Observable changes:
+
+  - acceptance: unchanged.
+  - postings: unchanged.
+  - numeric: unchanged.
+  - diagnostics: changed (closed problems, stopped phase, and duplicate removal).
+  - serialization: unchanged.
+- Admission trial-balance derivation and presentation validate each snapshot
+  once when no accepted note has the `Closing` role, including empty
+  transactions. Final and adjusted results share that validation, so failures
+  are reported once. With a closing note, both snapshots keep their separate
+  validation and diagnostics.
 
 ### Removed
 

@@ -126,15 +126,27 @@ module ExchangeAlgebra.IO.Input.Admission
     , AdmissionSpec(..)
       -- * Untrusted submission
     , CatalogOperationKind(..)
-    , CatalogCall(..)
+    , CatalogCall
+    , CatalogCallOf(..)
     , catalogKind
     , catalogStage
     , isGenerating
-    , EntityInput(..)
+    , EntityInput
+    , EntityInputOf(..)
     , Call(..)
     , Submission(..)
       -- * Admission and diagnostics
     , AdmissionError(..)
+    , AdmissionPhase(..)
+    , AdmissionFailure
+    , failurePhase
+    , failureErrors
+    , CatalogParameter(..)
+    , CatalogParameterProblem(..)
+    , CatalogExecutionProblem(..)
+    , AmountMismatch(..)
+    , AmountLimit(..)
+    , DebitCreditTotals(..)
     , ReferenceFailure(..)
     , Stage(..)
     , Provenance(..)
@@ -174,7 +186,7 @@ import ExchangeAlgebra.IO.Input.Admission.Representation
     )
 import ExchangeAlgebra.IO.Input.Admission.Registry
 import ExchangeAlgebra.Accounting.Transaction
-import ExchangeAlgebra.IO.Input.Admission.Catalog.Input
+import ExchangeAlgebra.Accounting.Catalog
 import ExchangeAlgebra.IO.Input.Admission.Workflow
 import ExchangeAlgebra.IO.Input.Admission.Registry.Definition
 import ExchangeAlgebra.IO.Input.Admission.Submission

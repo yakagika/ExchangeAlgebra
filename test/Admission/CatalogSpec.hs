@@ -25,10 +25,12 @@ import ExchangeAlgebra.Algebra
     , toList
     )
 import ExchangeAlgebra.Algebra.Base (AccountTitles(..))
-import ExchangeAlgebra.Accounting.Account (concreteAccountTitles)
+import ExchangeAlgebra.Accounting.Account (AccountDivision(..), concreteAccountTitles)
 import qualified ExchangeAlgebra.Algebra.Transfer as Transfer
 import qualified ExchangeAlgebra.Accounting.Entries as Bookkeeping
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
+import qualified ExchangeAlgebra.Accounting.TrialBalance.Validation as TrialBalance
+import qualified ExchangeAlgebra.Accounting.Statements.Presentation as Presentation
 
 -- * Fixture inputs
 
@@ -148,6 +150,20 @@ runBuilderCase fixture = do
         signature actual == signature (caseExpected fixture)
     assertTest (caseName fixture ++ " audit") $
         map auditOperation (admittedCalls admitted) == [caseKind fixture]
+    unless (caseRole fixture == Closing) $ do
+        let single = TrialBalance.validateTrialBalance TrialBalance.strictTrialBalancePolicy
+                (TrialBalance.TrialBalanceInput (Journal.toAlg (admittedJournal admitted))
+                    TrialBalance.BeforeClosing Map.empty [] Set.empty)
+        assertTest (caseName fixture ++ " one snapshot validation") $
+            fmap admittedTrialBalance (deriveTrialBalance admitted)
+                == fmap TrialBalance.validatedTrialBalance single
+        case (deriveTrialBalance admitted, single) of
+            (Right trial, Right validated) -> do
+                let context = Presentation.jcciSecondGradeContext Presentation.Standalone
+                assertTest (caseName fixture ++ " one snapshot presentation") $
+                    fmap admittedFinancialStatements (presentAdmitted context trial)
+                        == Presentation.present context validated
+            _ -> pure ()
 
 -- | All twenty generating constructors, including the direct and indirect
 -- account paths selected by their arguments.
@@ -268,6 +284,130 @@ testConsolidate = do
             && length (auditReferences audit) == 3
         _ -> False
 
+-- | Fix closed parameter payloads and their order through public admission.
+testClosedProblems :: IO ()
+testClosedProblems = do
+    let source = key company "source"
+        blank = TxKey company period (TxId "")
+        entities = EntityInput company (source :| [source]) :|
+            [EntityInput company (source :| [])]
+        cases =
+            [ (DepIndirect 0, [NonPositiveParameter AmountParameter 0])
+            , (Cogs (-1) (-2), [NegativeParameter BeginningInventoryParameter (-1),
+                NegativeParameter EndingInventoryParameter (-2)])
+            , (DepDirect 0 Sales, [NonPositiveParameter AmountParameter 0,
+                AccountOutsideDivision AssetAccountParameter Sales Assets])
+            , (Allowance (-1) (-2), [NegativeParameter EstimateParameter (-1),
+                NegativeParameter CurrentParameter (-2)])
+            , (AllowanceRate (-1), [NegativeParameter RateParameter (-1)])
+            , (AllowanceRate 10001, [RateAboveLimit 10001])
+            , (AllowanceReset (-1) (-2), [NegativeParameter EstimateParameter (-1),
+                NegativeParameter CurrentParameter (-2)])
+            , (Prepaid 0 Sales, [NonPositiveParameter AmountParameter 0,
+                AccountOutsideDivision ExpenseAccountParameter Sales Cost])
+            , (Unearned 0 Cash, [NonPositiveParameter AmountParameter 0,
+                AccountOutsideDivision RevenueAccountParameter Cash Revenue])
+            , (AccruedExpenseCall 0 Sales, [NonPositiveParameter AmountParameter 0,
+                AccountOutsideDivision ExpenseAccountParameter Sales Cost])
+            , (AccruedRevenueCall 0 Cash, [NonPositiveParameter AmountParameter 0,
+                AccountOutsideDivision RevenueAccountParameter Cash Revenue])
+            , (ReverseEntry blank, [BlankReferenceKey blank])
+            , (ConsumptionTax (-1) (-2), [NegativeParameter PaidParameter (-1),
+                NegativeParameter ReceivedParameter (-2),
+                ReceivedBelowPaid (AmountLimit (-1) (-2))])
+            , (CorporateInterim 0, [NonPositiveParameter AmountParameter 0])
+            , (CorporateSettlement (-2) (-1), [NegativeParameter TotalParameter (-2),
+                NegativeParameter InterimParameter (-1),
+                InterimExceedsTotal (AmountLimit (-2) (-1))])
+            , (EquityEarnings (-1), [NegativeParameter ShareParameter (-1)])
+            , (EquityDividend (-1), [NegativeParameter DividendParameter (-1)])
+            , (EquityEntries (-1) (-2), [NegativeParameter ShareParameter (-1),
+                NegativeParameter DividendParameter (-2)])
+            , (PriorError (-1) (-2) Sales Sales, [NegativeParameter CurrentParameter (-1),
+                NegativeParameter PriorParameter (-2),
+                AccountOutsideDivision ExpenseAccountParameter Sales Cost,
+                AccountOutsideDivision PriorAssetAccountParameter Sales Assets])
+            , (StraightLine Sales (-1) True,
+                [AccountOutsideDivision AssetAccountParameter Sales Assets,
+                NegativeParameter AnnualParameter (-1)])
+            , (Consolidate entities (blank :| []), [TooFewEntities 1, RepeatedEntity company,
+                RepeatedReference source, BlankReferenceKey blank])
+            ]
+    forM_ cases $ \(body, expected) -> do
+        let generated = key company "generated"
+            kind = catalogKind body
+            target
+                | isGenerating kind = Just generated
+                | otherwise = Nothing
+            invocation = Call (CallId "invalid") company period target body
+            rules
+                | isGenerating kind = [(generated, txRule Required [SupplyCatalog kind] Nothing)]
+                | otherwise = [(source, txRule Optional [SupplySubmission Ordinary] Nothing)]
+        registry <- registryFor "closed parameters" rules
+        assertTest ("closed parameters " ++ show body) $
+            case admit (specification registry Map.empty) (Submission [] [invocation]) of
+                Left failure -> failurePhase failure == CoveragePhase
+                    && NonEmpty.toList (failureErrors failure)
+                        == map (InvalidCatalogParameters (CallId "invalid")) expected
+                Right _ -> False
+
+-- | Each boundary reports the stopped line, including both InvalidEntry paths.
+testAdmissionPhases :: IO ()
+testAdmissionPhases = do
+    let source = key company "source"
+        generated = key company "generated"
+        receipt = EvidenceId "receipt"
+        rawRule = txRule Required [SupplySubmission Ordinary] (Just receipt)
+        body = Unearned 1 EquityInEarningsOfInvestee
+        call = Call (CallId "generated") company period (Just generated) body
+        isInvalid :: AdmissionError -> Bool
+        isInvalid (InvalidEntry _ _) = True
+        isInvalid _ = False
+        check :: AdmissionPhase -> (AdmissionError -> Bool)
+              -> Either AdmissionFailure Admitted -> IO ()
+        check phase predicate result = assertTest ("phase " ++ show phase) $ case result of
+            Left failure -> failurePhase failure == phase
+                && any predicate (failureErrors failure)
+            Right _ -> False
+    registry <- registryFor "phase" [(source, rawRule)]
+    let spec = (specification registry Map.empty) { admissionEvidence = Map.singleton receipt 100 }
+    check CoveragePhase (const True) (admit spec (Submission [] []))
+    check InputPhase isInvalid (admit spec (Submission [(source, [])] []))
+    check InputPolicyPhase (const True) (admit (spec { admissionVocabulary = Set.empty })
+        (Submission [(source, saleRows)] []))
+    check EvidencePhase (const True)
+        (admit (spec { admissionEvidence = Map.singleton receipt 99 })
+            (Submission [(source, saleRows)] []))
+    generatedRegistry <- registryFor "execution phase"
+        [(generated, txRule Required [SupplyCatalog UnearnedKind] Nothing)]
+    check ExecutionPhase isInvalid (admit (specification generatedRegistry Map.empty)
+        (Submission [] [call]))
+    let reverseCall = Call (CallId "reverse") company period (Just generated) (ReverseEntry source)
+    referenceRegistry <- registryFor "reference phase"
+        [(generated, txRule Required [SupplyCatalog ReverseEntryKind] Nothing)]
+    check ReferencePhase (const True) (admit (specification referenceRegistry Map.empty)
+        (Submission [] [reverseCall]))
+
+-- | Traversal touches only reference positions and retains each original key.
+testReferenceTraversal :: IO ()
+testReferenceTraversal = do
+    let first = key company "first"
+        second = key otherCompany "second"
+        elimination = key company "elimination"
+        body = Consolidate (EntityInput company (first :| []) :|
+            [EntityInput otherCompany (second :| [])]) (elimination :| [])
+        resolve :: TxKey -> ([TxKey], (TxKey, Entry))
+        resolve reference = ([reference], (reference, saleEntry))
+        (visited, resolved) = traverse resolve body
+        (reverseVisited, reverseResolved) = traverse resolve (ReverseEntry first)
+        (amountVisited, amountResolved) = traverse resolve (Cogs 2 1)
+    assertTest "consolidation traversal keys and order" $
+        visited == [first, second, elimination] && fmap fst resolved == body
+    assertTest "reversal traversal key" $
+        reverseVisited == [first] && fmap fst reverseResolved == ReverseEntry first
+    assertTest "amounts are not references" $
+        null amountVisited && amountResolved == (Cogs 2 1 :: CatalogCallOf (TxKey, Entry))
+
 -- | Fix the direct-submission classification for every concrete account.
 -- The expected protected set records the current policy, including the
 -- name-based translation-account case.
@@ -280,7 +420,8 @@ testProtectedAccounts = do
             result = admit (specification registry Map.empty)
                 (Submission [(source, rows)] [])
             actual = case result of
-                Left errors -> DirectPostingForbidden source account `elem` NonEmpty.toList errors
+                Left errors -> DirectPostingForbidden source account
+                    `elem` NonEmpty.toList (failureErrors errors)
                 Right _ -> False
         assertTest ("protected account " ++ show account)
             (actual == Set.member account protected)
@@ -296,6 +437,9 @@ testProtectedAccounts = do
 -- | Run builder parity for all catalog constructors through the public API.
 runTests :: IO ()
 runTests = do
+    testClosedProblems
+    testAdmissionPhases
+    testReferenceTraversal
     testProtectedAccounts
     forM_ builderCases runBuilderCase
     testEquityBalance
