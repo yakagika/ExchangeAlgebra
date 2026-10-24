@@ -550,8 +550,8 @@ createTransfer tt =
 incomeSummaryAccount :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 incomeSummaryAccount alg =  let (dc,diff) = diffRL alg
                          in case dc of
-                                Credit -> alg .+ (diff `Single` (toNot wildcard) .~ NetIncome)
-                                Debit  -> alg .+ (diff `Single` (toNot wildcard) .~ NetLoss)
+                                Credit -> alg .+ (diff .@ (toNot wildcard) .~ NetIncome)
+                                Debit  -> alg .+ (diff .@ (toNot wildcard) .~ NetLoss)
                                 Side   -> alg
 
 -- | Net income transfer. Transfers NetIncome/NetLoss to RetainedEarnings.

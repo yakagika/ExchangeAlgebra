@@ -350,7 +350,7 @@ checkWireLaws = do
     forM_ [emptyPair, emptyLiner] $ \bytes ->
         assertEqual "B3 empty tag 2 becomes Zero" (EA.Zero :: EA.Alg Double WireBase)
             (Binary.decode bytes)
-    assertEqual "B3 Journal keeps a zero note" (HM.singleton 7 EA.Zero)
+    assertEqual "B3 Journal drops a zero note" HM.empty
         (Journal.toMap (Binary.decode journalZero :: Journal.Journal Int Double WireBase))
     assertEqual "HatNot standalone base roundtrip" (HatNot :< Cash)
         (Binary.decode (Binary.encode (HatNot :< Cash)))

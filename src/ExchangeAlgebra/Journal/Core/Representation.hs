@@ -317,7 +317,14 @@ buildNoteAxisPosting =
 {-# INLINE mkJournal #-}
 mkJournal :: (Note n, HatVal v, HatBaseClass b)
           => Map.HashMap n (Alg v b) -> Map.HashMap n (Alg v b) -> Journal n v b
-mkJournal = mkJournalNonZero
+mkJournal bs delta = mkJournalNonZero base' delta'
+  where
+    base'
+        | any EA.isZero bs = Map.filter (not . EA.isZero) bs
+        | otherwise       = bs
+    delta'
+        | any EA.isZero delta = Map.filter (not . EA.isZero) delta
+        | otherwise          = delta
 
 -- Internal constructor for callers that already hold the normal form (see the
 -- invariants note on t'Journal'): neither map may hold a note whose algebra is
@@ -337,6 +344,9 @@ mkJournalNonZero bs delta = Journal bs delta baseIdx deltaIdx
 -- Complexity: O(n) where n is the number of notes; the map is rebuilt only
 -- when it holds a zero note. Base axis index is built lazily on first axis
 -- query.
+--
+-- >>> case fromMap (Map.singleton "empty" EA.Zero) :: Journal String Double (HatBase CountUnit) of { Zero -> True; _ -> False }
+-- True
 {-# INLINE fromMap #-}
 fromMap :: (HatVal v, HatBaseClass b, Note n)
         => Map.HashMap n (Alg v b) -> Journal n v b
@@ -380,7 +390,7 @@ compactIfNeeded :: (HatVal v, HatBaseClass b, Note n)
                 => Journal n v b -> Journal n v b
 compactIfNeeded j@(Journal bs delta _ _)
     | Map.size delta < deltaCompactThreshold = j
-    | otherwise = mkJournal (Map.unionWith (.+) bs delta) Map.empty
+    | otherwise = mkJournalNonZero (Map.unionWith (.+) bs delta) Map.empty
 
 {-# INLINE appendMap #-}
 appendMap :: (HatVal v, HatBaseClass b, Note n)
@@ -456,7 +466,7 @@ isZero (Journal bs delta _ _) = Map.null bs && Map.null delta
 pattern Zero :: (HatVal v, HatBaseClass b, Note n) => Journal n v b
 pattern Zero <- (isZero -> True)
     where
-        Zero = mkJournal Map.empty Map.empty
+        Zero = mkJournalNonZero Map.empty Map.empty
 
 -- | Smart constructor that attaches a Note (annotation) to an algebra element to build a Journal.
 -- Returns an empty Journal when the algebra element is zero, consistent with
@@ -467,7 +477,7 @@ pattern Zero <- (isZero -> True)
       => Alg v b -> n -> Journal n v b
 (.|) alg n
     | EA.isZero alg = mempty
-    | otherwise    = mkJournal Map.empty (Map.singleton n alg)
+    | otherwise    = mkJournalNonZero Map.empty (Map.singleton n alg)
 
 infixr 2 .|
 
@@ -558,7 +568,7 @@ addJournal :: (HatVal v, HatBaseClass b, Note n)
 addJournal lhs rhs = appendMap (toMap rhs) lhs
 
 instance (HatVal v, HatBaseClass b, Note n) => Monoid (Journal n v b) where
-    mempty = mkJournal Map.empty Map.empty
+    mempty = mkJournalNonZero Map.empty Map.empty
     mappend = (<>)
 
 -- | Shallow-structural 'NFData', mirroring the @'Alg' v b@ instance in
@@ -656,7 +666,7 @@ mergeJournalMapIfNonZero !acc js
 {-# INLINE sigma #-}
 sigma :: (HatVal v, HatBaseClass b, Note n)
       => [a] -> (a -> Journal n v b) -> Journal n v b
-sigma xs f = fromMap $ L.foldl' step Map.empty xs
+sigma xs f = (`mkJournalNonZero` Map.empty) $ L.foldl' step Map.empty xs
   where
     step !acc !x = mergeJournalMapIfNonZero acc (f x)
 
@@ -672,7 +682,7 @@ sigma2When :: (HatVal v, HatBaseClass b, Note n)
            -> (a -> c -> Journal n v b)
            -> Journal n v b
 sigma2When xs ys cond f =
-    fromMap $ L.foldl' outer Map.empty xs
+    (`mkJournalNonZero` Map.empty) $ L.foldl' outer Map.empty xs
   where
     outer !acc !x = L.foldl' (inner x) acc ys
     inner !x !acc !y
@@ -744,7 +754,7 @@ decTo :: (HatVal v, HatBaseClass b, Note n)
       -> Alg v b
       -> Journal n v b
 decTo kf x =
-    fromMap $ Map.fromList
+    (`mkJournalNonZero` Map.empty) $ Map.fromList
         [ (n, alg)
         | (n, alg) <- M.toList (EA.decBy kf x)
         , not (isPlank n) ]
@@ -781,9 +791,16 @@ toAlg (Journal bs delta _ _) =
 -- t'Journal'), in the same traversal.
 --
 -- Complexity: O(j * cost(f)) where j is the number of Notes
+--
+-- >>> case map (const EA.Zero) (1 .@ Not:<Yen .| "entry" :: Journal String Double (HatBase CountUnit)) of { Zero -> True; _ -> False }
+-- True
 map :: (HatVal v, HatBaseClass b, Note n)
     => (Alg v b -> Alg v b) -> Journal n v b -> Journal n v b
-map f = fromMap . Map.map f . toMap
+map f js = mkJournalNonZero result Map.empty
+  where
+    result = Map.mapMaybe (\a -> case f a of
+        projected | EA.isZero projected -> Nothing
+                  | otherwise           -> Just projected) (toMap js)
 
 -- NB. The unused 'parallelMap'\/'parMap' helpers (a 'Control.Parallel.Strategies'
 -- based variant of 'map') were removed as dead code: neither was exported nor
@@ -796,7 +813,7 @@ map f = fromMap . Map.map f . toMap
 -- Complexity: O(n + m) where n, m are the number of Notes in each Journal
 replaceNotes :: (HatVal v, HatBaseClass b, Note n)
              => Journal n v b -> Journal n v b -> Journal n v b
-replaceNotes x y = fromMap (Map.union (toMap x) (toMap y))
+replaceNotes x y = mkJournalNonZero (Map.union (toMap x) (toMap y)) Map.empty
 
 {-# DEPRECATED insert "Use replaceNotes; insert replaces whole notes and is not the redundant (.+)" #-}
 -- | Deprecated alias for 'replaceNotes'.
@@ -828,11 +845,11 @@ projWithNote :: (HatVal v, HatBaseClass b, Note n)
              => [n] -> Journal n v b -> Journal n v b
 projWithNote ns js
     | any isPlank ns = js
-projWithNote [n] js = fromMap $ case lookupNote n js of
+projWithNote [n] js = (`mkJournalNonZero` Map.empty) $ case lookupNote n js of
     Nothing -> Map.empty
     Just a  -> Map.singleton n a
 projWithNote ns js =
-    fromMap $
+    (`mkJournalNonZero` Map.empty) $
       S.foldl'
         (\acc n -> case lookupNote n js of
             Nothing -> acc
@@ -849,13 +866,13 @@ projWithNote ns js =
 -- >>> x = 1.00.@Hat:<Yen .+ 1.00.@Not:<Amount .| "cat"  :: Test
 -- >>> y = 2.00.@Not:<Yen .+ 2.00.@Hat:<Amount .| "dog"  :: Test
 -- >>> z = 3.00.@Hat:<Yen .+ 3.00.@Not:<Amount .| "fish" :: Test
--- >>> L.sort [(n, EA.toASCList a) | (n, a) <- Map.toList (toMap (projWithBase [Not:<Amount] (x .+ y .+ z))), not (Prelude.null (EA.toASCList a))]
+-- >>> L.sort [(n, EA.toASCList a) | (n, a) <- Map.toList (toMap (projWithBase [Not:<Amount] (x .+ y .+ z)))]
 -- [("cat",[1.00:@Not:<Amount]),("fish",[3.00:@Not:<Amount])]
 projWithBase :: (HatVal v, HatBaseClass b, Note n)
              => [b] -> Journal n v b -> Journal n v b
 {-# INLINE projWithBase #-}
 projWithBase [] _ = mempty
-projWithBase bs js = fromMap $ Map.map (EA.proj bs) (toMap js)
+projWithBase bs js = map (EA.proj bs) js
 
 -- | Directly compute the /bar-netted/ norm of a base projection, without
 -- constructing an intermediate Journal. Per note this applies 'EA.projNetNorm',
@@ -905,16 +922,20 @@ projWithNoteBase :: (HatVal v, HatBaseClass b, Note n)
 projWithNoteBase _ [] _ = mempty
 projWithNoteBase ns bs js
     | any isPlank ns = projWithBase bs js
-projWithNoteBase [n] bs js = fromMap $ case lookupNote n js of
+projWithNoteBase [n] bs js = (`mkJournalNonZero` Map.empty) $ case lookupNote n js of
     Nothing -> Map.empty
-    Just a  -> Map.singleton n (EA.proj bs a)
+    Just a  -> case EA.proj bs a of
+        projected | EA.isZero projected -> Map.empty
+                  | otherwise           -> Map.singleton n projected
 projWithNoteBase [] bs js = projWithBase bs js
 projWithNoteBase ns bs js =
-    fromMap $
+    (`mkJournalNonZero` Map.empty) $
       S.foldl'
         (\acc n -> case lookupNote n js of
             Nothing -> acc
-            Just a  -> Map.insert n (EA.proj bs a) acc)
+            Just a  -> case EA.proj bs a of
+                projected | EA.isZero projected -> acc
+                          | otherwise           -> Map.insert n projected acc)
         Map.empty
         (S.fromList ns)
 
@@ -989,7 +1010,7 @@ filterWithNote :: (HatVal v, HatBaseClass b, Note n)
 filterWithNote f (Journal bs delta _ _) =
     let !base' = Map.filterWithKey f bs
         !delta' = Map.filterWithKey f delta
-    in mkJournal base' delta'
+    in mkJournalNonZero base' delta'
 
 -- | Efficiently filter a Journal to entries whose Note matches on the specified axis.
 -- Uses base/delta NoteAxisPosting indices for O(|result|) retrieval after index construction.
@@ -1025,7 +1046,7 @@ filterByAxis axis key j@(Journal _ _ baseIdx deltaIdx) =
                 Just alg -> Map.insert n alg acc)
             Map.empty
             matched
-    in fromMap result
+    in mkJournalNonZero result Map.empty
 
 ------------------------------------------------------------------
 -- | gather

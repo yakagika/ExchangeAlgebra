@@ -240,6 +240,7 @@ tests:
     - Algebra.AccumSpec
     - Algebra.CoreSpec
     - Journal.JournalSpec
+    - Journal.NormalFormSpec
     - Accounting.RegistrySpec
     - IO.InputOutputSpec
     - Simulate.SimulateSpec

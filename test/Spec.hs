@@ -18,6 +18,7 @@ import qualified Journal.SideTotalsSpec as SideTotalsSpec
 import qualified Golden.WireFormat as WireFormat
 import qualified Algebra.CoreSpec as CoreSpec
 import qualified Journal.JournalSpec as JournalSpec
+import qualified Journal.NormalFormSpec as NormalFormSpec
 import qualified Accounting.RegistrySpec as RegistrySpec
 import qualified IO.InputOutputSpec as InputOutputSpec
 import qualified Simulate.SimulateSpec as SimulateSpec
@@ -43,6 +44,7 @@ main = do
     WireFormat.checkFixture
     CoreSpec.runTests
     JournalSpec.runTests
+    NormalFormSpec.runTests
     RegistrySpec.runTests
     InputOutputSpec.runTests
     SimulateSpec.runTests

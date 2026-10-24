@@ -64,7 +64,6 @@ module ExchangeAlgebra.Journal.Transfer
     , ExchangeAlgebra.Journal.Transfer.finalStockTransfer
     ) where
 
-import ExchangeAlgebra.Algebra.Core.Representation (Alg(Single))
 import ExchangeAlgebra.Algebra.Core hiding (map)
 import              ExchangeAlgebra.Algebra.Base.Representation
 import              ExchangeAlgebra.Algebra.Value.Class
@@ -127,8 +126,8 @@ createTransfer tt = \ts -> transfer ts $ EAT.table tt
 incomeSummaryAccount :: (Note n, HatVal v, ExBaseClass b) => Journal n v b -> Journal n v b
 incomeSummaryAccount js =  let (dc,diff) = diffRL js
                          in case dc of
-                                Credit -> js .+ ((diff `Single` (toNot wildcard) .~ NetIncome) .| plank)
-                                Debit  -> js .+ ((diff `Single` (toNot wildcard) .~ NetLoss)   .| plank)
+                                Credit -> js .+ ((diff .@ (toNot wildcard) .~ NetIncome) .| plank)
+                                Debit  -> js .+ ((diff .@ (toNot wildcard) .~ NetLoss)   .| plank)
                                 Side   -> js
 
 -- | Legacy net income transfer (Journal version). Transfer NetIncome/NetLoss to RetainedEarnings for each Note.

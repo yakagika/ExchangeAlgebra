@@ -80,6 +80,22 @@
 
 ### Changed
 
+- Journals now have no zero-valued notes in either layer. `map`,
+  `projWithBase`, `projWithNoteBase`, `mkJournal`, `fromMap`, and Binary decoding
+  drop zero notes. `mkJournal` and `fromMap` change from O(1) to O(n), evaluating
+  each algebra to WHNF; maps without zero notes are reused without rebuilding.
+  Code inspecting `toMap` keys no longer sees notes emptied by projection.
+  `replaceNotes` no longer deletes a right-hand note when the left input has a
+  zero note: use `filterWithNote` to remove the note instead.
+  - Numeric: unchanged for direct operation results.
+  - Acceptance: unchanged; old bytes containing zero notes still decode.
+  - Postings: unchanged for direct results, except zero-valued underflow
+    postings; compositions using zero-note replacement for deletion change.
+  - Diagnostics: unchanged.
+  - Serialization: changed; zero notes are no longer written.
+- Algebra scalar multiplication `(.*)` drops postings whose products underflow
+  to zero, preserving the remaining posting sequences and projection indices.
+
 - The umbrella modules `ExchangeAlgebra` and `ExchangeAlgebra.Accounting`
   export the accounting transfer's `(.->)`, `(|%)`, `Relabel`, and
   `transferEntries`. For the old rewriting operators, import

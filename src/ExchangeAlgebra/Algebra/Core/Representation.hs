@@ -287,7 +287,8 @@ pairUnion (Pair x1 y1) (Pair x2 y2) =
 -- | Algebra element. An element of exchange algebra consisting of a value-base pair.
 -- Zero is the zero element, @(:@)@ is a singleton, and Liner is a HashMap-based multi-element representation.
 --
--- __Invariants (do not hand-construct @Liner@).__ The @Liner@ constructor carries
+-- __Invariants (do not hand-construct @Liner@).__ No posting has a zero value,
+-- and no @Pair@ has both sides empty. The @Liner@ constructor carries
 -- internal cache\/index fields (@_axisPosting@, @_idToBp@, @_allBpIds@) that are
 -- /derived from/ @_realg@ and must stay consistent with it: @_axisPosting@,
 -- @_idToBp@ and @_allBpIds@ must be exactly the axis index, id↔base map and id set
@@ -758,18 +759,21 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
     0  .*  _         = Zero
     -- The algebra is over non-negative values: reject a negative / non-finite
     -- scalar instead of silently producing out-of-domain (negative) postings.
-    -- One check on the scalar suffices — x >= 0 and the existing values are >= 0,
-    -- so x*v stays non-negative and the cheap raw fmap below is safe.
+    -- Products that underflow to zero are dropped without aggregating postings.
     x  .*  _ | isErrorValue x =
         error ("(.*): non-negative finite scalar required, got " ++ show x)
-    x  .* (v:@b)     = (x * v) `Single` b
-    x  .* (Liner ms idx bpToId idToBp nextBpId allIds) = Liner
-                     (Map.map (\ (Pair hs ns) -> Pair (fmap (x *) hs) (fmap (x *) ns)) ms)
-                     idx
-                     bpToId
-                     idToBp
-                     nextBpId
-                     allIds
+    x  .* (v:@b)
+        | isZeroValue productValue = Zero
+        | otherwise                = productValue `Single` b
+      where
+        productValue = x * v
+    x  .* (Liner ms idx bpToId idToBp nextBpId allIds)
+        | any isZeroValue (vals scaled) = filter (not . isZeroValue . _val) scaled
+        | otherwise                    = scaled
+      where
+        scaled = Liner
+            (Map.map (\(Pair hs ns) -> Pair (fmap (x *) hs) (fmap (x *) ns)) ms)
+            idx bpToId idToBp nextBpId allIds
 
     norm Zero       = 0
     norm (v:@_)     = roundAccum (addAccum v emptyAccum)
@@ -1474,7 +1478,10 @@ projExactMap
     -> Map.HashMap (BasePart b) (Pair v)
 projExactMap b m = case Map.lookup bp m of
         Nothing -> Map.empty
-        Just p  -> Map.singleton bp (choosePairByHat h p)
+        Just p  -> case choosePairByHat h p of
+            selected@(Pair hs ns) -> case (Seq.null hs, Seq.null ns) of
+                (True, True) -> Map.empty
+                _            -> Map.singleton bp selected
   where
     !bp = base b
     !h  = hat b
@@ -1500,9 +1507,12 @@ projWildMap b m idx idToBp allIds =
             Nothing -> acc
             Just bp0 -> case Map.lookup bp0 m of
                 Nothing -> acc
-                Just p  -> if matchesQuery bp bp0
-                    then Map.insert bp0 (choosePairByHat h p) acc
-                    else acc)
+                Just p
+                    | matchesQuery bp bp0 -> case choosePairByHat h p of
+                        selected@(Pair hs ns) -> case (Seq.null hs, Seq.null ns) of
+                            (True, True) -> acc
+                            _            -> Map.insert bp0 selected acc
+                    | otherwise -> acc)
         Map.empty
         ids
   where
