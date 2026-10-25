@@ -44,6 +44,7 @@ data Provenance
     = FactProvenance FactId -- ^ Originated from a trusted fact.
     | SubmissionProvenance (Maybe EvidenceId) -- ^ Originated from submitted postings.
     | CatalogProvenance CallId CatalogOperationKind -- ^ Originated from a catalog call.
+    | DerivedClosing -- ^ Closing derived from admitted transactions, not submitted or called.
     deriving (Eq, Ord, Show, Generic)
 
 instance Hashable Provenance

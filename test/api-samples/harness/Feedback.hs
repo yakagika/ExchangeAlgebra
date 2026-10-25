@@ -53,6 +53,7 @@ repair problem = case problem of
         Admission.InexactQuotient _ _ -> "Use inputs whose quotient is an exact monetary decimal."
         Admission.ImbalancedConsolidation _ -> "Balance the selected consolidation entries."
         Admission.AbnormalBalance _ -> "Correct the account balance to its normal side."
+        Admission.ClosingFailed _ -> "Closing could not close a balance; report this to the operator."
     Admission.StageRegression _ _ _ -> "Order calls by stage; put FinalStock last."
     Admission.UnresolvedReference _ _ _ _ ->
         "Use an available source with the required scope, role, provenance, and stage."

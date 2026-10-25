@@ -17,8 +17,10 @@ import ExchangeAlgebra.Accounting.Transaction
     , EvidenceId
     , FactId
     , PeriodId
+    , TxId
     , TxKey
     )
+import ExchangeAlgebra.Algebra.Base.Representation (HatBase)
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 import ExchangeAlgebra.Accounting.Catalog
     ( CatalogOperationKind
@@ -104,3 +106,22 @@ failurePhase (AdmissionFailure phase _) = phase
 -- | Failures collected by the stopped step, in the order the step found them.
 failureErrors :: AdmissionFailure -> NonEmpty AdmissionError
 failureErrors (AdmissionFailure _ errors) = errors
+
+-- | Why closing could not be derived from an admitted value. Each failure
+-- names the entity and period where derivation stopped, through the key of an
+-- admitted transaction or of the closing transaction to be created; no
+-- partial result is returned.
+data ClosingDerivationError
+    = BlankClosingTransaction TxId
+      -- ^ Supplied transaction identity is empty or whitespace only.
+    | AlreadyClosed TxKey
+      -- ^ Admitted closing transaction, with or without postings, of the
+      -- entity and period.
+    | ClosingKeyCollision TxKey
+      -- ^ Key to be created is already admitted, with or without postings.
+    | EliminationNotClosable TxKey
+      -- ^ Consolidation elimination admitted in the entity and period; an
+      -- entity's books are closed without consolidation eliminations.
+    | ClosingNotDerivable TxKey (HatBase AccountTitles)
+      -- ^ Key to be created and the base whose balance could not be closed.
+    deriving (Eq, Show)

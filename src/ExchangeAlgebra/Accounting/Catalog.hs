@@ -210,6 +210,10 @@ data CatalogExecutionProblem
       -- ^ Consolidation entry does not balance.
     | AbnormalBalance AccountTitles
       -- ^ Account balance is on the side opposite to its normal side.
+    | ClosingFailed (HatBase AccountTitles)
+      -- ^ Base whose balance closing could not close. With the exact
+      -- 'MoneyDecimal' value type this does not occur; it keeps the
+      -- closing builder total.
     deriving (Eq, Show)
 
 -- * Metadata and parameter checks

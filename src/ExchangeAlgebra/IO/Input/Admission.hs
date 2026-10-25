@@ -157,6 +157,7 @@ module ExchangeAlgebra.IO.Input.Admission
     , AdmissionFailure
     , failurePhase
     , failureErrors
+    , ClosingDerivationError(..)
     , CatalogParameter(..)
     , CatalogParameterProblem(..)
     , CatalogExecutionProblem(..)
