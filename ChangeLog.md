@@ -370,8 +370,9 @@
 
 ### Changed (admission API, not yet released on Hackage)
 
-- `closeAdmitted` derives closing entries after admission, so the model leaves
-  closing to EA. Pass a transaction ID for each entity-period closing; the
+- `closeAdmitted` derives closing entries after admission, so the submitter
+  (for example a language model) does not post them. Pass one transaction ID;
+  each admitted entity and period gets its closing under that ID. The
   library rejects blank IDs, existing closings, key collisions, and scopes with
   consolidation eliminations through `ClosingDerivationError`. Generated notes
   use `DerivedClosing`, including closings without postings; call audits stay

@@ -17,8 +17,8 @@
 -- rules are not accounting constraints. Simulations and other accounting
 -- computations that build entries themselves should use the checked-entry API
 -- in "ExchangeAlgebra.IO.Input" or construct entries directly instead.
--- The model leaves closing to EA: after admission, use 'closeAdmitted' to
--- derive closing entries for each entity and period.
+-- The submitter does not post closing entries: after admission, use
+-- 'closeAdmitted' to derive them for each entity and period.
 --
 -- The specification and executor are trusted. The static guarantee applies to
 -- the derivation functions exported here, not to the existing low-level APIs.
