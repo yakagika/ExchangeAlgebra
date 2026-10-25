@@ -105,6 +105,7 @@ library:
   - ExchangeAlgebra.Foundation
   - ExchangeAlgebra.IO.Input.Admission
   - ExchangeAlgebra.Accounting.Transaction
+  - ExchangeAlgebra.Accounting.Adjustment
   - ExchangeAlgebra.Accounting.Equivalence
   - ExchangeAlgebra.IO.Output.Admission
   - ExchangeAlgebra.Journal
