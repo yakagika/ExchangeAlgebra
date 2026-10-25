@@ -31,11 +31,11 @@ module ExchangeAlgebra.IO.Input.Admission.Catalog
     , roleStage
     , roleContext
       -- * Account and parameter policy
+    , harnessReservedAccounts
     , isProtectedAccount
     , parameterErrors
     ) where
 
-import Data.List (isInfixOf)
 import ExchangeAlgebra.Accounting.Account.Registry (AccountSemantics(..), accountSemantics)
 import ExchangeAlgebra.Accounting.Account.Classification
     ( AccountRole(..)
@@ -136,16 +136,38 @@ roleContext role    = stageContext (roleStage role)
 
 -- * Account and parameter policy
 
--- | Detect accounts reserved from direct submission by the admission policy.
+-- | Accounts that a submission may not post directly, although the account
+-- registry allows ordinary postings to them in general bookkeeping.
+--
+-- Admission is a harness for postings written by a language model. In that
+-- use, period results must be computed by the library, not by the submitter:
+-- retained earnings change only through closing and catalog operations such
+-- as 'PriorError', and the translation adjustment arises only from translating
+-- financial statements, which the catalog does not provide. This list is a
+-- rule of that harness, not a property of the accounts. Dividends and
+-- appropriations are ordinary entries to these accounts; simulations and
+-- other accounting computations should build entries with @.\@@ or
+-- @checkedEntryIn@, which apply only the registry's posting capabilities.
+harnessReservedAccounts :: [AccountTitles]
+harnessReservedAccounts =
+    [ RetainedEarnings
+    , EarnedSurplus
+    , LegalRetainedEarnings
+    , GeneralReserve
+    , CumulativeTranslationAdjustment
+    ]
+
+-- | Detect accounts that a submission may not post directly: the harness rule
+-- 'harnessReservedAccounts', and accounts whose registry semantics reserve
+-- them for the engine or for reporting. The wildcard account is rejected.
 isProtectedAccount :: AccountTitles -> Bool
 isProtectedAccount account =
-    account `elem` [RetainedEarnings, EarnedSurplus, LegalRetainedEarnings, GeneralReserve]
+    account `elem` harnessReservedAccounts
     || case accountSemantics account of
         Just semantics ->
             asemPostingCapability semantics `elem` [EngineGeneratedOnly, NotPostable]
             || any (`elem` asemRoles semantics)
                 [ClosingDevice, PeriodResult, ReportingSubtotal]
-            || "Translation" `isInfixOf` show account
         Nothing -> True
 
 -- | Check every typed catalog parameter before running a builder. Amounts are

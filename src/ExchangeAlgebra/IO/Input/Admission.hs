@@ -6,6 +6,18 @@
 -- Start with identifiers and 'txIdRegistry', supply facts, evidence, and an
 -- account vocabulary, then call 'admit' on the entire unfiltered submission.
 --
+-- = Intended use
+--
+-- Admission is a harness for journal submissions written by an untrusted
+-- author, such as a language model. Besides the accounting checks, it applies
+-- harness rules: the submitter records transactions and calls catalog
+-- operations, while the library computes closing, corrections, and other
+-- derived amounts. For example, a submission may not post retained earnings
+-- directly, although dividends are ordinary entries to that account. These
+-- rules are not accounting constraints. Simulations and other accounting
+-- computations that build entries themselves should use the checked-entry API
+-- in "ExchangeAlgebra.IO.Input" or construct entries directly instead.
+--
 -- The specification and executor are trusted. The static guarantee applies to
 -- the derivation functions exported here, not to the existing low-level APIs.
 -- Constructors and record fields of accepted types and the registry are hidden.

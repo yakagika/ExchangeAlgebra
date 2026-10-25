@@ -24,6 +24,18 @@ import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 import ExchangeAlgebra.Accounting.Catalog (CatalogCall)
 import ExchangeAlgebra.IO.Input.Admission.Registry.Definition (TxIdRegistry)
 
+-- | Side of one submitted posting. 'DebitSide' is the left side (@decL@) and
+-- 'CreditSide' the right side (@decR@). Unlike the registry's @Side@, this
+-- type has no wildcard, so a submission cannot leave the side unspecified.
+data PostingSide
+    = DebitSide -- ^ Debit (left) side.
+    | CreditSide -- ^ Credit (right) side.
+    deriving (Eq, Ord, Show)
+
+-- | Untrusted account text. Admission resolves it against the account
+-- vocabulary; this alias does not introduce a distinct type.
+type AccountName = Text
+
 -- | Untrusted side text, account text, and strictly positive monetary amount.
 -- Parsing and balance checks are performed by @checkedEntryTextIn@.
 type RawPostings = [(Text, Text, MoneyDecimal)]

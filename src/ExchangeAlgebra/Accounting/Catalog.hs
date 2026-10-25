@@ -117,6 +117,13 @@ data CatalogCallOf r
     | Consolidate (NonEmpty (EntityInputOf r)) (NonEmpty r) -- ^ Entities and elimination keys.
     deriving (Eq, Show, Functor, Foldable, Traversable)
 
+-- | How a depreciation charge reaches the asset. The direct method credits
+-- the asset account; the indirect method credits accumulated depreciation.
+data DepreciationMethod
+    = DirectMethod -- ^ Credit the asset account itself.
+    | IndirectMethod -- ^ Credit 'AccumulatedDepreciation'.
+    deriving (Eq, Ord, Show)
+
 -- | Unresolved catalog request. This alias does not introduce a distinct type.
 type CatalogCall = CatalogCallOf TxKey
 
