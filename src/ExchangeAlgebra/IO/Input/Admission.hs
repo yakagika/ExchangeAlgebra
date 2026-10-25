@@ -167,6 +167,8 @@ module ExchangeAlgebra.IO.Input.Admission
     , EntityInputOf(..)
     , Call(..)
     , Submission(..)
+    , PostingConversionError(..)
+    , journalPostings
       -- * Admission and diagnostics
     , AdmissionError(..)
     , AdmissionPhase(..)
@@ -230,4 +232,5 @@ import ExchangeAlgebra.IO.Input.Admission.Registry.Definition
 import ExchangeAlgebra.IO.Input.Admission.Submission
 import ExchangeAlgebra.IO.Input.Admission.Diagnostic
 import ExchangeAlgebra.IO.Input.Admission.Explain
+import ExchangeAlgebra.IO.Input.Admission.Posting
 import ExchangeAlgebra.IO.Output.Admission (renderAdmittedStatements)

@@ -172,6 +172,7 @@ library:
   - ExchangeAlgebra.IO.Input.Admission.Submission
   - ExchangeAlgebra.IO.Input.Admission.Diagnostic
   - ExchangeAlgebra.IO.Input.Admission.Explain
+  - ExchangeAlgebra.IO.Input.Admission.Posting
   when:
     - condition: flag(visualize)
       then:
