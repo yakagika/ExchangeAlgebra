@@ -28,7 +28,9 @@
 -- >>> let baseSpec registry amount = Admission.AdmissionSpec registry (evidenceAmounts amount)
 -- >>> let vocabulary = Set.fromList [Cash, Sales]
 -- >>> let spec registry amount = baseSpec registry amount Map.empty vocabulary
--- >>> let postings = [("Debit", "Cash", 100), ("Credit", "Sales", 100)] :: Admission.RawPostings
+-- >>> let debit = (Admission.DebitSide, "Cash", 100)
+-- >>> let credit = (Admission.CreditSide, "Sales", 100)
+-- >>> let postings = [debit, credit] :: Admission.RawPostings
 -- >>> let submitted = Admission.Submission [(key, postings)] []
 -- >>> let admitSale registry = admit (spec registry 100) submitted
 -- >>> let accepted = fmap admitSale registryResult
@@ -71,11 +73,11 @@ import ExchangeAlgebra.Accounting.Account
     , AccountSemantics(asemDivisionSemantics)
     , AccountTitles
     , DivisionSemantics(..)
-    , Side
+    , Side(..)
     , accountSemantics
     )
 import ExchangeAlgebra.Accounting.Exchange (Exchange(decL), getAccountTitle, whichSide)
-import ExchangeAlgebra.IO.Input.Checked (checkedEntryTextIn, checkedEntryIn)
+import ExchangeAlgebra.IO.Input.Checked (checkedEntryAccountTextIn, checkedEntryIn)
 import ExchangeAlgebra.IO.Input.Conversion (parseAccountTitle)
 import qualified ExchangeAlgebra.Journal.Core as Journal
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
@@ -213,12 +215,19 @@ checkInput (key, rows, role, origin) = do
     case origin of
         SubmissionProvenance _ -> requireClean (rawPolicyErrors key accounts)
         _ -> Right ()
-    case checkedEntryTextIn (roleContext role) rows of
+    case checkedEntryAccountTextIn (roleContext role) typedRows of
         Left errors -> Left (InvalidEntry key errors :| [])
         Right entry -> Right
             (CheckedTransaction key entry (EntryMetadata role (roleStage role) origin))
   where
     accounts = [account | (_, title, _) <- rows, Right account <- [parseAccountTitle title]]
+    typedRows =
+        [(case side of
+            DebitSide  -> Debit
+            CreditSide -> Credit
+         , title
+         , amount)
+        | (side, title, amount) <- rows]
 
 -- | Read concrete account titles from an already checked entry.
 entryAccounts :: Entry -> [AccountTitles]
@@ -287,8 +296,8 @@ visibleLedger call (Execution journal entries _) = Journal.toAlg
 -- | Declare references and their required roles independently of submitted data.
 references :: Call -> [(EntityId, TxKey, Role)]
 references call = case callBody call of
-    ReverseEntry key -> [(callEntity call, key, Ordinary)]
-    Consolidate entities eliminations ->
+    ReverseEntryCall key -> [(callEntity call, key, Ordinary)]
+    ConsolidateCall entities eliminations ->
         [(entity, key, Ordinary)
         | EntityInput entity keys <- NonEmpty.toList entities, key <- NonEmpty.toList keys]
         ++ [(callEntity call, key, Elimination) | key <- NonEmpty.toList eliminations]
@@ -297,14 +306,14 @@ references call = case callBody call of
 -- | Consolidation can consume opening facts, while reversal consumes only
 -- ordinary submitted entries, preserving admission's source authority.
 isExpectedRole :: CatalogCall -> Role -> Role -> Bool
-isExpectedRole (Consolidate _ _) Ordinary Opening = True
+isExpectedRole (ConsolidateCall _ _) Ordinary Opening = True
 isExpectedRole _ expected actual = expected == actual
 
 -- | Reversal never grants authority to reverse trusted facts or earlier
 -- catalog results. Consolidation uses all registry-authorized source kinds.
 isReferenceOriginAllowed :: CatalogCall -> Provenance -> Bool
-isReferenceOriginAllowed (ReverseEntry _) (SubmissionProvenance _) = True
-isReferenceOriginAllowed (ReverseEntry _) _ = False
+isReferenceOriginAllowed (ReverseEntryCall _) (SubmissionProvenance _) = True
+isReferenceOriginAllowed (ReverseEntryCall _) _ = False
 isReferenceOriginAllowed _ _ = True
 
 -- | Resolve every requested source against checked entries and registry roles.
@@ -318,7 +327,7 @@ resolveInputs call (Execution journal entries _) = do
   where
     resolved :: CatalogCallOf (Either (NonEmpty AdmissionError) ResolvedInput)
     resolved = case callBody call of
-        Consolidate entities eliminations -> Consolidate
+        ConsolidateCall entities eliminations -> ConsolidateCall
             (fmap (\(EntityInput entity keys)
                 -> EntityInput entity (fmap (resolve entity Ordinary) keys)) entities)
             (fmap (resolve (callEntity call) Elimination) eliminations)

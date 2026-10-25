@@ -14,10 +14,10 @@
 -- >>> let period = Admission.PeriodId "2026"
 -- >>> let key = Admission.TxKey entity period (Admission.TxId "depreciation")
 -- >>> let identity = Admission.CallId "depreciate"
--- >>> let body = Admission.DepIndirect 100
+-- >>> let body = Admission.DepreciationIndirectCall 100
 -- >>> let invocation = Admission.Call identity entity period (Just key) body
 -- >>> (catalogKind (Admission.callBody invocation), catalogStage (Admission.callBody invocation))
--- (DepIndirectKind,AdjustmentStage)
+-- (DepreciationIndirectKind,AdjustmentStage)
 -- >>> parameterErrors invocation
 -- []
 module ExchangeAlgebra.IO.Input.Admission.Catalog
@@ -54,28 +54,28 @@ import ExchangeAlgebra.IO.Input.Admission.Diagnostic
 -- | Return the fixed execution stage of an operation kind.
 kindStage :: CatalogOperationKind -> Stage
 kindStage kind = case kind of
-    CorporateInterimKind -> OrdinaryStage
-    EquityDividendKind   -> OrdinaryStage
-    ReverseEntryKind     -> OrdinaryStage
-    EquityEarningsKind   -> ConsolidationStage
-    EquityEntriesKind    -> ConsolidationStage
-    ConsolidateKind      -> ConsolidationStage
-    FinalStockKind       -> ClosingStage
-    EquityBalanceKind    -> QueryStage
-    CogsKind             -> AdjustmentStage
-    DepIndirectKind      -> AdjustmentStage
-    DepDirectKind        -> AdjustmentStage
-    AllowanceKind        -> AdjustmentStage
-    AllowanceRateKind    -> AdjustmentStage
-    AllowanceResetKind   -> AdjustmentStage
-    PrepaidKind          -> AdjustmentStage
-    UnearnedKind         -> AdjustmentStage
-    AccruedRevenueKind   -> AdjustmentStage
-    AccruedExpenseKind   -> AdjustmentStage
-    ConsumptionTaxKind   -> AdjustmentStage
-    CorporateSettlementKind -> AdjustmentStage
-    PriorErrorKind       -> AdjustmentStage
-    StraightLineKind     -> AdjustmentStage
+    CorporateInterimKind     -> OrdinaryStage
+    EquityDividendKind       -> OrdinaryStage
+    ReverseEntryKind         -> OrdinaryStage
+    EquityEarningsKind       -> ConsolidationStage
+    EquityEntriesKind        -> ConsolidationStage
+    ConsolidateKind          -> ConsolidationStage
+    FinalStockKind           -> ClosingStage
+    EquityBalanceKind        -> QueryStage
+    CogsKind                 -> AdjustmentStage
+    DepreciationIndirectKind -> AdjustmentStage
+    DepreciationDirectKind   -> AdjustmentStage
+    AllowanceKind            -> AdjustmentStage
+    AllowanceRateKind        -> AdjustmentStage
+    AllowanceResetKind       -> AdjustmentStage
+    PrepaidKind              -> AdjustmentStage
+    UnearnedKind             -> AdjustmentStage
+    AccruedRevenueKind       -> AdjustmentStage
+    AccruedExpenseKind       -> AdjustmentStage
+    ConsumptionTaxKind       -> AdjustmentStage
+    CorporateSettlementKind  -> AdjustmentStage
+    PriorErrorKind           -> AdjustmentStage
+    StraightLineKind         -> AdjustmentStage
 
 -- | Return the fixed execution stage of a call.
 catalogStage :: CatalogCall -> Stage
@@ -84,28 +84,28 @@ catalogStage = kindStage . catalogKind
 -- | Return the accounting role assigned to a generated operation.
 kindRole :: CatalogOperationKind -> Role
 kindRole kind = case kind of
-    CorporateInterimKind -> Ordinary
-    EquityDividendKind   -> Ordinary
-    ReverseEntryKind     -> Ordinary
-    ConsolidateKind      -> Elimination
-    FinalStockKind       -> Closing
-    EquityBalanceKind    -> Adjustment
-    CogsKind             -> Adjustment
-    DepIndirectKind      -> Adjustment
-    DepDirectKind        -> Adjustment
-    AllowanceKind        -> Adjustment
-    AllowanceRateKind    -> Adjustment
-    AllowanceResetKind   -> Adjustment
-    PrepaidKind          -> Adjustment
-    UnearnedKind         -> Adjustment
-    AccruedRevenueKind   -> Adjustment
-    AccruedExpenseKind   -> Adjustment
-    ConsumptionTaxKind   -> Adjustment
-    CorporateSettlementKind -> Adjustment
-    EquityEarningsKind   -> Adjustment
-    EquityEntriesKind    -> Adjustment
-    PriorErrorKind       -> Adjustment
-    StraightLineKind     -> Adjustment
+    CorporateInterimKind     -> Ordinary
+    EquityDividendKind       -> Ordinary
+    ReverseEntryKind         -> Ordinary
+    ConsolidateKind          -> Elimination
+    FinalStockKind           -> Closing
+    EquityBalanceKind        -> Adjustment
+    CogsKind                 -> Adjustment
+    DepreciationIndirectKind -> Adjustment
+    DepreciationDirectKind   -> Adjustment
+    AllowanceKind            -> Adjustment
+    AllowanceRateKind        -> Adjustment
+    AllowanceResetKind       -> Adjustment
+    PrepaidKind              -> Adjustment
+    UnearnedKind             -> Adjustment
+    AccruedRevenueKind       -> Adjustment
+    AccruedExpenseKind       -> Adjustment
+    ConsumptionTaxKind       -> Adjustment
+    CorporateSettlementKind  -> Adjustment
+    EquityEarningsKind       -> Adjustment
+    EquityEntriesKind        -> Adjustment
+    PriorErrorKind           -> Adjustment
+    StraightLineKind         -> Adjustment
 
 -- | Report whether an operation declares a generated transaction key.
 isGenerating :: CatalogOperationKind -> Bool
@@ -142,7 +142,7 @@ roleContext role    = stageContext (roleStage role)
 -- Admission is a harness for postings written by a language model. In that
 -- use, period results must be computed by the library, not by the submitter:
 -- retained earnings change only through closing and catalog operations such
--- as 'PriorError', and the translation adjustment arises only from translating
+-- as 'PriorErrorCall', and the translation adjustment arises only from translating
 -- financial statements, which the catalog does not provide. This list is a
 -- rule of that harness, not a property of the accounts. Dividends and
 -- appropriations are ordinary entries to these accounts; simulations and

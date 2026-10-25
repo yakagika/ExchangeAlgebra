@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wincomplete-patterns -Werror=incomplete-patterns #-}
 
 -- | Compare every public catalog invocation with its bookkeeping builder.
 module Admission.CatalogSpec (runTests) where
@@ -26,6 +27,7 @@ import ExchangeAlgebra.Algebra
     )
 import ExchangeAlgebra.Algebra.Base (AccountTitles(..))
 import ExchangeAlgebra.Accounting.Account (AccountDivision(..), concreteAccountTitles)
+import ExchangeAlgebra.Accounting.Exchange (Exchange(decL, decR))
 import qualified ExchangeAlgebra.Algebra.Transfer as Transfer
 import qualified ExchangeAlgebra.Accounting.Entries as Bookkeeping
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
@@ -52,7 +54,7 @@ key entity label = TxKey entity period (TxId (Text.pack label))
 
 -- | A balanced ordinary fact used by most builder fixtures.
 saleRows :: RawPostings
-saleRows = [("debit", "Cash", 100), ("credit", "Sales", 100)]
+saleRows = [(DebitSide, "Cash", 100), (CreditSide, "Sales", 100)]
 
 -- | The exact algebra represented by 'saleRows'.
 saleEntry :: Entry
@@ -60,12 +62,12 @@ saleEntry = 100 .@ Not :< Cash .+ 100 .@ Not :< Sales
 
 -- | A receivable fact that produces an exact 10 percent allowance estimate.
 receivableRows :: RawPostings
-receivableRows = [("debit", "AccountsReceivable", 100), ("credit", "Sales", 100)]
+receivableRows = [(DebitSide, "AccountsReceivable", 100), (CreditSide, "Sales", 100)]
 
 -- | A balanced acquisition fact for the equity-balance query.
 investmentRows :: RawPostings
 investmentRows =
-    [("debit", "InvestmentInAssociate", 75), ("credit", "Cash", 75)]
+    [(DebitSide, "InvestmentInAssociate", 75), (CreditSide, "Cash", 75)]
 
 -- | Build the trusted registry through the public constructor.
 registryFor :: String -> [(TxKey, TxRule)] -> IO TxIdRegistry
@@ -126,7 +128,7 @@ runBuilderCase fixture = do
         generated = key company "generated"
         fact = FactId "source"
         sourceSupply = case caseBody fixture of
-            ReverseEntry _ -> SupplySubmission Ordinary
+            ReverseEntryCall _ -> SupplySubmission Ordinary
             _ -> SupplyFacts fact Ordinary
         facts = case sourceSupply of
             SupplyFacts identity _ -> Map.singleton identity (caseRows fixture)
@@ -165,26 +167,97 @@ runBuilderCase fixture = do
                         == Presentation.present context validated
             _ -> pure ()
 
+-- | Give each closed operation kind one unresolved invocation.
+kindExample :: CatalogOperationKind -> CatalogCall
+kindExample kind = case kind of
+    CogsKind                    -> CogsCall 12 5
+    DepreciationIndirectKind    -> DepreciationIndirectCall 7
+    DepreciationDirectKind      -> DepreciationDirectCall 7 Fixtures
+    AllowanceKind               -> AllowanceCall 20 4
+    AllowanceRateKind           -> AllowanceRateCall 1000
+    AllowanceResetKind          -> AllowanceResetCall 20 4
+    PrepaidKind                 -> PrepaidCall 7 RentExpense
+    UnearnedKind                -> UnearnedCall 7 RentalIncome
+    AccruedRevenueKind          -> AccruedRevenueCall 7 InterestEarned
+    AccruedExpenseKind          -> AccruedExpenseCall 7 InterestExpense
+    ReverseEntryKind            -> ReverseEntryCall (key company "source")
+    ConsumptionTaxKind          -> ConsumptionTaxCall 3 10
+    CorporateInterimKind        -> CorporateInterimCall 7
+    CorporateSettlementKind     -> CorporateSettlementCall 10 3
+    EquityEarningsKind          -> EquityEarningsCall 7
+    EquityDividendKind          -> EquityDividendCall 7
+    EquityEntriesKind           -> EquityEntriesCall 7 3
+    EquityBalanceKind           -> EquityBalanceCall
+    PriorErrorKind              -> PriorErrorCall 3 4 RentExpense Fixtures
+    FinalStockKind              -> FinalStockCall
+    StraightLineKind            -> StraightLineCall Fixtures 3 DirectMethod
+    ConsolidateKind             -> ConsolidateCall
+        (EntityInput company (key company "source" :| [])
+            :| [EntityInput otherCompany (key otherCompany "source" :| [])])
+        (key company "elimination" :| [])
+
+-- | Fix the Kind/Call correspondence without extending the public type.
+testCatalogKinds :: IO ()
+testCatalogKinds = forM_
+    [ CogsKind
+    , DepreciationIndirectKind
+    , DepreciationDirectKind
+    , AllowanceKind
+    , AllowanceRateKind
+    , AllowanceResetKind
+    , PrepaidKind
+    , UnearnedKind
+    , AccruedRevenueKind
+    , AccruedExpenseKind
+    , ReverseEntryKind
+    , ConsumptionTaxKind
+    , CorporateInterimKind
+    , CorporateSettlementKind
+    , EquityEarningsKind
+    , EquityDividendKind
+    , EquityEntriesKind
+    , EquityBalanceKind
+    , PriorErrorKind
+    , FinalStockKind
+    , StraightLineKind
+    , ConsolidateKind
+    ] $ \kind -> assertTest ("kind correspondence " ++ show kind)
+        (catalogKind (kindExample kind) == kind)
+
+-- | Observe submitted debit and credit sides in an accepted entry.
+testPostingSides :: IO ()
+testPostingSides = do
+    let source = key company "sides"
+    registry <- registryFor "posting sides"
+        [(source, txRule Required [SupplySubmission Ordinary] Nothing)]
+    accepted <- requireRight "posting sides" $
+        admit (specification registry Map.empty) (Submission [(source, saleRows)] [])
+    let entry = Journal.toAlg (admittedJournal accepted)
+    assertTest "DebitSide maps to decL" $
+        signature (decL entry) == signature (100 .@ Not :< Cash)
+    assertTest "CreditSide maps to decR" $
+        signature (decR entry) == signature (100 .@ Not :< Sales)
+
 -- | All twenty generating constructors, including the direct and indirect
 -- account paths selected by their arguments.
 builderCases :: [BuilderCase]
 builderCases =
-    [ ordinaryCase "Cogs" (Cogs 12 5) CogsKind Adjustment
+    [ ordinaryCase "Cogs" (CogsCall 12 5) CogsKind Adjustment
         (Bookkeeping.cogsAdjustmentEntries mk 12 5)
-    , ordinaryCase "DepIndirect" (DepIndirect 7) DepIndirectKind Adjustment
+    , ordinaryCase "DepIndirect" (DepreciationIndirectCall 7) DepreciationIndirectKind Adjustment
         (Bookkeeping.depreciationIndirectEntry mk 7)
-    , ordinaryCase "DepDirect" (DepDirect 7 Fixtures) DepDirectKind Adjustment
+    , ordinaryCase "DepDirect" (DepreciationDirectCall 7 Fixtures) DepreciationDirectKind Adjustment
         (Bookkeeping.depreciationDirectEntry mk 7 Fixtures)
-    , ordinaryCase "Allowance" (Allowance 20 4) AllowanceKind Adjustment
+    , ordinaryCase "Allowance" (AllowanceCall 20 4) AllowanceKind Adjustment
         (Bookkeeping.allowanceReplenishmentEntry mk 20 4)
-    , (ordinaryCase "AllowanceRate" (AllowanceRate 1000) AllowanceRateKind Adjustment
+    , (ordinaryCase "AllowanceRate" (AllowanceRateCall 1000) AllowanceRateKind Adjustment
         (Bookkeeping.allowanceReplenishmentEntry mk 10 0))
         { caseRows = receivableRows }
-    , ordinaryCase "AllowanceReset" (AllowanceReset 20 4) AllowanceResetKind Adjustment
+    , ordinaryCase "AllowanceReset" (AllowanceResetCall 20 4) AllowanceResetKind Adjustment
         (Bookkeeping.allowanceResetEntries mk 20 4)
-    , ordinaryCase "Prepaid" (Prepaid 7 RentExpense) PrepaidKind Adjustment
+    , ordinaryCase "Prepaid" (PrepaidCall 7 RentExpense) PrepaidKind Adjustment
         (Bookkeeping.prepaidExpenseEntry mk 7 RentExpense)
-    , ordinaryCase "Unearned" (Unearned 7 RentalIncome) UnearnedKind Adjustment
+    , ordinaryCase "Unearned" (UnearnedCall 7 RentalIncome) UnearnedKind Adjustment
         (Bookkeeping.unearnedRevenueEntry mk 7 RentalIncome)
     , ordinaryCase "AccruedRevenue" (AccruedRevenueCall 7 InterestEarned)
         AccruedRevenueKind Adjustment
@@ -192,33 +265,36 @@ builderCases =
     , ordinaryCase "AccruedExpense" (AccruedExpenseCall 7 InterestExpense)
         AccruedExpenseKind Adjustment
         (Bookkeeping.accruedExpenseEntry mk 7 InterestExpense)
-    , ordinaryCase "ReverseEntry" (ReverseEntry (key company "source"))
+    , ordinaryCase "ReverseEntry" (ReverseEntryCall (key company "source"))
         ReverseEntryKind Ordinary (Bookkeeping.reversingEntry saleEntry)
-    , ordinaryCase "ConsumptionTax" (ConsumptionTax 3 10)
+    , ordinaryCase "ConsumptionTax" (ConsumptionTaxCall 3 10)
         ConsumptionTaxKind Adjustment
         (Bookkeeping.consumptionTaxSettlementEntry mk 3 10)
-    , ordinaryCase "CorporateInterim" (CorporateInterim 7)
+    , ordinaryCase "CorporateInterim" (CorporateInterimCall 7)
         CorporateInterimKind Ordinary
         (Bookkeeping.corporateTaxInterimEntry mk 7)
-    , ordinaryCase "CorporateSettlement" (CorporateSettlement 10 3)
+    , ordinaryCase "CorporateSettlement" (CorporateSettlementCall 10 3)
         CorporateSettlementKind Adjustment
         (Bookkeeping.corporateTaxSettlementEntries mk 10 3)
-    , ordinaryCase "EquityEarnings" (EquityEarnings 7)
+    , ordinaryCase "EquityEarnings" (EquityEarningsCall 7)
         EquityEarningsKind Adjustment
         (Bookkeeping.equityMethodEarningsEntry mk 7)
-    , ordinaryCase "EquityDividend" (EquityDividend 7)
+    , ordinaryCase "EquityDividend" (EquityDividendCall 7)
         EquityDividendKind Ordinary
         (Bookkeeping.equityMethodDividendEntry mk 7)
-    , ordinaryCase "EquityEntries" (EquityEntries 7 3)
+    , ordinaryCase "EquityEntries" (EquityEntriesCall 7 3)
         EquityEntriesKind Adjustment
         (Bookkeeping.equityMethodEntries mk 7 3)
-    , ordinaryCase "PriorError" (PriorError 3 4 RentExpense Fixtures)
+    , ordinaryCase "PriorError" (PriorErrorCall 3 4 RentExpense Fixtures)
         PriorErrorKind Adjustment
         (Bookkeeping.priorPeriodErrorCorrection mk 3 4 RentExpense Fixtures)
-    , ordinaryCase "FinalStock" FinalStock FinalStockKind Closing
+    , ordinaryCase "FinalStock" FinalStockCall FinalStockKind Closing
         (bar (Transfer.finalStockTransfer saleEntry
             .+ Bookkeeping.reversingEntry (bar saleEntry)))
-    , ordinaryCase "StraightLine" (StraightLine Fixtures 3 True)
+    , ordinaryCase "StraightLineIndirect" (StraightLineCall Fixtures 3 IndirectMethod)
+        StraightLineKind Adjustment
+        (3 .@ Not :< Depreciation .+ 3 .@ Not :< AccumulatedDepreciation)
+    , ordinaryCase "StraightLine" (StraightLineCall Fixtures 3 DirectMethod)
         StraightLineKind Adjustment
         (Bookkeeping.depreciationDirectEntry mk 3 Fixtures)
     ]
@@ -233,7 +309,7 @@ testEquityBalance = do
     let source = key company "investment"
         fact = FactId "investment"
         rule = txRule Required [SupplyFacts fact Ordinary] Nothing
-        invocation = Call (CallId "EquityBalance") company period Nothing EquityBalance
+        invocation = Call (CallId "EquityBalance") company period Nothing EquityBalanceCall
         ledger = 75 .@ Not :< InvestmentInAssociate
             .+ 75 .@ Hat :< Cash :: Entry
     registry <- registryFor "EquityBalance" [(source, rule)]
@@ -257,8 +333,8 @@ testConsolidate = do
         firstFact = FactId "first"
         secondFact = FactId "second"
         eliminationFact = FactId "elimination"
-        secondRows = [("debit", "Purchases", 100), ("credit", "Cash", 100)]
-        eliminationRows = [("debit", "Sales", 100), ("credit", "Purchases", 100)]
+        secondRows = [(DebitSide, "Purchases", 100), (CreditSide, "Cash", 100)]
+        eliminationRows = [(DebitSide, "Sales", 100), (CreditSide, "Purchases", 100)]
         rules =
             [ (first, txRule Required [SupplyFacts firstFact Ordinary] Nothing)
             , (second, txRule Required [SupplyFacts secondFact Ordinary] Nothing)
@@ -270,7 +346,7 @@ testConsolidate = do
             , (eliminationFact, eliminationRows)
             ]
         invocation = Call (CallId "Consolidate") company period Nothing
-            (Consolidate (EntityInput company (first :| []) :|
+            (ConsolidateCall (EntityInput company (first :| []) :|
                 [EntityInput otherCompany (second :| [])]) (elimination :| []))
     registry <- registryFor "Consolidate" rules
     admitted <- requireRight "Consolidate" (admit
@@ -292,45 +368,45 @@ testClosedProblems = do
         entities = EntityInput company (source :| [source]) :|
             [EntityInput company (source :| [])]
         cases =
-            [ (DepIndirect 0, [NonPositiveParameter AmountParameter 0])
-            , (Cogs (-1) (-2), [NegativeParameter BeginningInventoryParameter (-1),
+            [ (DepreciationIndirectCall 0, [NonPositiveParameter AmountParameter 0])
+            , (CogsCall (-1) (-2), [NegativeParameter BeginningInventoryParameter (-1),
                 NegativeParameter EndingInventoryParameter (-2)])
-            , (DepDirect 0 Sales, [NonPositiveParameter AmountParameter 0,
+            , (DepreciationDirectCall 0 Sales, [NonPositiveParameter AmountParameter 0,
                 AccountOutsideDivision AssetAccountParameter Sales Assets])
-            , (Allowance (-1) (-2), [NegativeParameter EstimateParameter (-1),
+            , (AllowanceCall (-1) (-2), [NegativeParameter EstimateParameter (-1),
                 NegativeParameter CurrentParameter (-2)])
-            , (AllowanceRate (-1), [NegativeParameter RateParameter (-1)])
-            , (AllowanceRate 10001, [RateAboveLimit 10001])
-            , (AllowanceReset (-1) (-2), [NegativeParameter EstimateParameter (-1),
+            , (AllowanceRateCall (-1), [NegativeParameter RateParameter (-1)])
+            , (AllowanceRateCall 10001, [RateAboveLimit 10001])
+            , (AllowanceResetCall (-1) (-2), [NegativeParameter EstimateParameter (-1),
                 NegativeParameter CurrentParameter (-2)])
-            , (Prepaid 0 Sales, [NonPositiveParameter AmountParameter 0,
+            , (PrepaidCall 0 Sales, [NonPositiveParameter AmountParameter 0,
                 AccountOutsideDivision ExpenseAccountParameter Sales Cost])
-            , (Unearned 0 Cash, [NonPositiveParameter AmountParameter 0,
+            , (UnearnedCall 0 Cash, [NonPositiveParameter AmountParameter 0,
                 AccountOutsideDivision RevenueAccountParameter Cash Revenue])
             , (AccruedExpenseCall 0 Sales, [NonPositiveParameter AmountParameter 0,
                 AccountOutsideDivision ExpenseAccountParameter Sales Cost])
             , (AccruedRevenueCall 0 Cash, [NonPositiveParameter AmountParameter 0,
                 AccountOutsideDivision RevenueAccountParameter Cash Revenue])
-            , (ReverseEntry blank, [BlankReferenceKey blank])
-            , (ConsumptionTax (-1) (-2), [NegativeParameter PaidParameter (-1),
+            , (ReverseEntryCall blank, [BlankReferenceKey blank])
+            , (ConsumptionTaxCall (-1) (-2), [NegativeParameter PaidParameter (-1),
                 NegativeParameter ReceivedParameter (-2),
                 ReceivedBelowPaid (AmountLimit (-1) (-2))])
-            , (CorporateInterim 0, [NonPositiveParameter AmountParameter 0])
-            , (CorporateSettlement (-2) (-1), [NegativeParameter TotalParameter (-2),
+            , (CorporateInterimCall 0, [NonPositiveParameter AmountParameter 0])
+            , (CorporateSettlementCall (-2) (-1), [NegativeParameter TotalParameter (-2),
                 NegativeParameter InterimParameter (-1),
                 InterimExceedsTotal (AmountLimit (-2) (-1))])
-            , (EquityEarnings (-1), [NegativeParameter ShareParameter (-1)])
-            , (EquityDividend (-1), [NegativeParameter DividendParameter (-1)])
-            , (EquityEntries (-1) (-2), [NegativeParameter ShareParameter (-1),
+            , (EquityEarningsCall (-1), [NegativeParameter ShareParameter (-1)])
+            , (EquityDividendCall (-1), [NegativeParameter DividendParameter (-1)])
+            , (EquityEntriesCall (-1) (-2), [NegativeParameter ShareParameter (-1),
                 NegativeParameter DividendParameter (-2)])
-            , (PriorError (-1) (-2) Sales Sales, [NegativeParameter CurrentParameter (-1),
+            , (PriorErrorCall (-1) (-2) Sales Sales, [NegativeParameter CurrentParameter (-1),
                 NegativeParameter PriorParameter (-2),
                 AccountOutsideDivision ExpenseAccountParameter Sales Cost,
                 AccountOutsideDivision PriorAssetAccountParameter Sales Assets])
-            , (StraightLine Sales (-1) True,
+            , (StraightLineCall Sales (-1) DirectMethod,
                 [AccountOutsideDivision AssetAccountParameter Sales Assets,
                 NegativeParameter AnnualParameter (-1)])
-            , (Consolidate entities (blank :| []), [TooFewEntities 1, RepeatedEntity company,
+            , (ConsolidateCall entities (blank :| []), [TooFewEntities 1, RepeatedEntity company,
                 RepeatedReference source, BlankReferenceKey blank])
             ]
     forM_ cases $ \(body, expected) -> do
@@ -358,7 +434,7 @@ testAdmissionPhases = do
         generated = key company "generated"
         receipt = EvidenceId "receipt"
         rawRule = txRule Required [SupplySubmission Ordinary] (Just receipt)
-        body = Unearned 1 EquityInEarningsOfInvestee
+        body = UnearnedCall 1 EquityInEarningsOfInvestee
         call = Call (CallId "generated") company period (Just generated) body
         isInvalid :: AdmissionError -> Bool
         isInvalid (InvalidEntry _ _) = True
@@ -382,7 +458,8 @@ testAdmissionPhases = do
         [(generated, txRule Required [SupplyCatalog UnearnedKind] Nothing)]
     check ExecutionPhase isInvalid (admit (specification generatedRegistry Map.empty)
         (Submission [] [call]))
-    let reverseCall = Call (CallId "reverse") company period (Just generated) (ReverseEntry source)
+    let reverseCall = Call (CallId "reverse") company period (Just generated)
+            (ReverseEntryCall source)
     referenceRegistry <- registryFor "reference phase"
         [(generated, txRule Required [SupplyCatalog ReverseEntryKind] Nothing)]
     check ReferencePhase (const True) (admit (specification referenceRegistry Map.empty)
@@ -394,29 +471,29 @@ testReferenceTraversal = do
     let first = key company "first"
         second = key otherCompany "second"
         elimination = key company "elimination"
-        body = Consolidate (EntityInput company (first :| []) :|
+        body = ConsolidateCall (EntityInput company (first :| []) :|
             [EntityInput otherCompany (second :| [])]) (elimination :| [])
         resolve :: TxKey -> ([TxKey], (TxKey, Entry))
         resolve reference = ([reference], (reference, saleEntry))
         (visited, resolved) = traverse resolve body
-        (reverseVisited, reverseResolved) = traverse resolve (ReverseEntry first)
-        (amountVisited, amountResolved) = traverse resolve (Cogs 2 1)
+        (reverseVisited, reverseResolved) = traverse resolve (ReverseEntryCall first)
+        (amountVisited, amountResolved) = traverse resolve (CogsCall 2 1)
     assertTest "consolidation traversal keys and order" $
         visited == [first, second, elimination] && fmap fst resolved == body
     assertTest "reversal traversal key" $
-        reverseVisited == [first] && fmap fst reverseResolved == ReverseEntry first
+        reverseVisited == [first] && fmap fst reverseResolved == ReverseEntryCall first
     assertTest "amounts are not references" $
-        null amountVisited && amountResolved == (Cogs 2 1 :: CatalogCallOf (TxKey, Entry))
+        null amountVisited && amountResolved == (CogsCall 2 1 :: CatalogCallOf (TxKey, Entry))
 
 -- | Fix the direct-submission classification for every concrete account.
 -- The expected protected set records the current policy, including the
--- name-based translation-account case.
+-- translation-adjustment account in the harnessReservedAccounts rule.
 testProtectedAccounts :: IO ()
 testProtectedAccounts = do
     registry <- registryFor "protected accounts"
         [(source, txRule Required [SupplySubmission Ordinary] Nothing)]
     forM_ concreteAccountTitles $ \account -> do
-        let rows = [("debit", Text.pack (show account), 1), ("credit", "Cash", 1)]
+        let rows = [(DebitSide, Text.pack (show account), 1), (CreditSide, "Cash", 1)]
             result = admit (specification registry Map.empty)
                 (Submission [(source, rows)] [])
             actual = case result of
@@ -437,6 +514,8 @@ testProtectedAccounts = do
 -- | Run builder parity for all catalog constructors through the public API.
 runTests :: IO ()
 runTests = do
+    testCatalogKinds
+    testPostingSides
     testClosedProblems
     testAdmissionPhases
     testReferenceTraversal

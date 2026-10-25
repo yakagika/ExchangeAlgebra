@@ -50,6 +50,7 @@ import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as Text
 
+import ExchangeAlgebra.IO.Input (normalizeTitle)
 import ExchangeAlgebra.IO.Input.Admission (AdmissionSpec, RegistryError, Submission)
 import qualified ExchangeAlgebra.IO.Input.Admission as Admission
 import ExchangeAlgebra.Accounting.Account (AccountTitles)
@@ -268,10 +269,15 @@ keyAt path fields = Admission.TxKey
     <*> (Admission.PeriodId <$> field "period" identifierAt path fields)
     <*> (Admission.TxId <$> field "tx" identifierAt path fields)
 
--- | Raw sides and accounts stay unparsed until admission.
+-- | Decode posting sides; account names remain untrusted text until admission.
 rowsAt :: JsonPath -> JsonTree -> Checked Admission.RawPostings
 rowsAt = arrayAt $ \path -> objectAt ["side", "account", "amount"] (\fields ->
-    (,,) <$> field "side" textAt path fields
+    (,,) <$> field "side"
+                (\sidePath value -> textAt sidePath value `andThen` \name ->
+                    case normalizeTitle name of
+                        "debit"  -> pure Admission.DebitSide
+                        "credit" -> pure Admission.CreditSide
+                        _        -> reject (WrongType sidePath "debit | credit")) path fields
          <*> field "account" textAt path fields
          <*> field "amount" moneyAt path fields) path
 
@@ -309,7 +315,7 @@ supplyAt path value = objectAt ["kind", "role", "fact", "operation"] (\fields ->
          Admission.Closing, Admission.Elimination]
     operationAt :: JsonPath -> JsonTree -> Checked Admission.CatalogOperationKind
     operationAt = enumAt id
-        [ Admission.CogsKind, Admission.DepIndirectKind, Admission.DepDirectKind
+        [ Admission.CogsKind, Admission.DepreciationIndirectKind, Admission.DepreciationDirectKind
         , Admission.AllowanceKind, Admission.AllowanceRateKind, Admission.AllowanceResetKind
         , Admission.PrepaidKind, Admission.UnearnedKind, Admission.AccruedRevenueKind
         , Admission.AccruedExpenseKind, Admission.ReverseEntryKind, Admission.ConsumptionTaxKind
@@ -412,9 +418,9 @@ documentAt format parse bytes = case checkExponents bytes >> fromTokens (lbsToTo
 -- of every rule is required: @null@ means no evidence and a string names the
 -- evidence. Combinations of supplies are checked only by @txIdRegistry@,
 -- whose failures are returned as 'RegistryRejected'. Evidence and fact
--- identifiers must be unique. Fact rows keep their side and account text
--- unparsed, as admission parses them; vocabulary entries must be canonical
--- account names.
+-- identifiers must be unique. Fact-row sides are decoded here; account text
+-- stays unparsed for admission. Vocabulary entries must be canonical account
+-- names.
 decodeAdmissionSpec :: ByteString -> Either (NonEmpty DecodeFailure) AdmissionSpec
 decodeAdmissionSpec = documentAt admissionSpecFormat $ \path ->
     objectAt ["format", "registry", "evidence", "facts", "vocabulary"] (\fields ->
@@ -426,7 +432,8 @@ decodeAdmissionSpec = documentAt admissionSpecFormat $ \path ->
 
 -- | Decode a submission that carries postings only; its call list is empty.
 -- Posting entries stay in document order and duplicate keys are kept for
--- admission to reject. Side and account text are passed through unparsed.
+-- admission to reject. Sides are decoded here; account text stays unparsed for
+-- admission.
 decodeSubmissionPostings :: ByteString -> Either (NonEmpty DecodeFailure) Submission
 decodeSubmissionPostings = documentAt submissionFormat $ \path ->
     objectAt ["format", "postings"] (\fields ->

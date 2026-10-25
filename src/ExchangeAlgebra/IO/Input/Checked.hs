@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wincomplete-patterns -Werror=incomplete-patterns #-}
 
 {- |
@@ -23,6 +24,7 @@ module ExchangeAlgebra.IO.Input.Checked
     , checkedEntryIn
     , checkedEntry
     , checkedEntryTextIn
+    , checkedEntryAccountTextIn
     , checkedEntryText
     , checkedJournalIn
     , checkedJournal
@@ -193,11 +195,36 @@ checkedEntryTextIn :: (HatVal v)
                    -> [(Text, Text, v)]
                    -> Either (NonEmpty (EntryError v)) (Alg v (HatBase AccountTitles))
 checkedEntryTextIn context rows =
+    checkedEntryParsedIn context
+        [(i, (parseSide side, parseAccountTitle account, amount))
+        | (i, (side, account, amount)) <- zip [0..] rows]
+
+-- | Check typed sides and account text in the supplied processing context.
+-- Account parse errors precede structural errors and imbalance. Amounts from
+-- unresolved accounts still contribute to the balance check.
+checkedEntryAccountTextIn
+    :: HatVal v
+    => ProcessingContext
+    -> [(Side, Text, v)]
+    -> Either (NonEmpty (EntryError v)) (Alg v (HatBase AccountTitles))
+checkedEntryAccountTextIn context rows =
+    checkedEntryParsedIn context
+        [(i, (Right side, parseAccountTitle account, amount))
+        | (i, (side, account, amount)) <- zip [0..] rows]
+
+-- | Validate all indexed parse results without dropping unresolved rows.
+-- An unresolved side suppresses imbalance; an unresolved account does not.
+checkedEntryParsedIn
+    :: forall v. HatVal v
+    => ProcessingContext
+    -> [(Int, (Either ConvError Side, Either ConvError AccountTitles, v))]
+    -> Either (NonEmpty (EntryError v)) (Alg v (HatBase AccountTitles))
+checkedEntryParsedIn context rows =
     case parseErrors ++ structuralErrors ++ textImbalanceErrors of
         []     -> Right (journalFromSides (map snd parsedRows))
         e : es -> Left (e :| es)
   where
-    parsed = map parseIndexed (zip [0..] rows)
+    parsed = map parseIndexed rows
     parseErrors = concatMap first parsed
     parsedRows = mapMaybe second parsed
     sideAmounts = mapMaybe third parsed
@@ -221,20 +248,26 @@ checkedEntryTextIn context rows =
         debitTotal = roundAccum debitState
         creditTotal = roundAccum creditState
 
+    invalidSideAmount :: (Side, v) -> Bool
     invalidSideAmount (side, amount) =
         side == Side || isErrorValue amount || not (amount > 0)
 
+    isImbalance :: EntryError v -> Bool
     isImbalance Imbalanced{} = True
     isImbalance _ = False
 
+    first :: (a, b, c) -> a
     first (x, _, _) = x
+    second :: (a, b, c) -> b
     second (_, x, _) = x
+    third :: (a, b, c) -> c
     third (_, _, x) = x
 
-    parseIndexed (i, (sideText, accountText, amount)) =
-        let sideResult = parseSide sideText
-            accountResult = parseAccountTitle accountText
-            errs =
+    parseIndexed
+        :: (Int, (Either ConvError Side, Either ConvError AccountTitles, v))
+        -> ([EntryError v], Maybe (Int, (Side, AccountTitles, v)), Maybe (Side, v))
+    parseIndexed (i, (sideResult, accountResult, amount)) =
+        let errs =
                 (case sideResult of
                     Left err -> [EntryParse i err]
                     Right _  -> [])

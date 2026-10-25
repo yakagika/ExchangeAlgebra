@@ -22,8 +22,9 @@ posting の金額は正, catalog の金額引数は非負. この題材では全
 未定義の field は使わない. entity と period は回答へ書かず, executor が固定値を使う.
 
 出典: 同 module の `RawPostings`, `Submission`, `Call`, `CatalogCall`, `admit`.
-借貸名と勘定名の変換は `ExchangeAlgebra.IO.Input` の `parseSide`, `parseAccountTitle`,
-`checkedEntryTextIn` (Documentation). JSON field 名と envelope はハーネスで設計した.
+decoder は `ExchangeAlgebra.IO.Input.normalizeTitle` で借貸名を正規化し,
+`DebitSide` / `CreditSide` に読む. 勘定名の変換は同 module の `parseAccountTitle`
+(Documentation). JSON field 名と envelope はハーネスで設計した.
 厳密な金額変換は `ExchangeAlgebra.Algebra.Value.moneyDecimalFromScientific` の契約を使う.
 JSON Schema は回答の形式を記述する. executor は aeson で読み取り, 会計の検査は `admit` に渡す.
 
@@ -93,7 +94,7 @@ Debit UtilitiesExpense 10000 / Credit AccruedExpenses 10000.
 出典: Admission の Trusted specification / Untrusted submission (`SupplySubmission`,
 `Role`, `CatalogCall`, `Submission`). 勘定の意味は `ExchangeAlgebra.Accounting.Account` の
 `AccountTitles` の説明. 月割りと個別仕訳は題材の会計判断であり, library の自動推論ではない.
-振り戻しは生仕訳なので `ReverseEntry` の参照検査を受けない. 内容の正しさは信頼側の review 対象.
+振り戻しは生仕訳なので `ReverseEntryCall` の参照検査を受けない. 内容の正しさは信頼側の review 対象.
 
 ## 必須の catalog 呼出し
 
@@ -119,7 +120,8 @@ Admission and diagnostics (`Stage`, `StageRegression`), Observations and derivat
 `depreciationIndirectEntry`, `accruedExpenseEntry`, `allowanceReplenishmentEntry`.
 締めの意味は `ExchangeAlgebra.Accounting.Closing` の Description / Laws L2,
 `ExchangeAlgebra.Algebra.Transfer.finalStockTransfer`.
-JSON の `AccruedExpense` は Haskell の `AccruedExpenseCall` に対応する手書き名.
+JSON の操作名は手書きの protocol の綴りである. Haskell ではそれぞれ
+`DepreciationIndirectCall`, `AccruedExpenseCall`, `AllowanceCall`, `FinalStockCall` に対応する.
 
 ## 勘定語彙と棄却後の修正
 

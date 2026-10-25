@@ -33,9 +33,9 @@
 --
 -- > import qualified ExchangeAlgebra.IO.Input.Admission as Admission
 --
--- 'Stage' conflicts with the stage name in Simulate.Lite; 'Allowance' and
--- 'Adjustment' can also collide with names in other accounting modules.
--- Evidence obligations implement Definition 8, 'FinalStock' uses the
+-- 'Stage' conflicts with the stage name in Simulate.Lite; 'Adjustment' can
+-- also collide with names in other accounting modules.
+-- Evidence obligations implement Definition 8, 'FinalStockCall' uses the
 -- Definition 9 closing transfer, and t'TxKey' supplies the note coordinates
 -- used by Definitions 10-12.
 --
@@ -97,7 +97,8 @@
 -- >         rule = Admission.txRule Admission.Required
 -- >             [Admission.SupplySubmission Admission.Ordinary] (Just evidence)
 -- >         submitted = Admission.Submission
--- >             [(key, [("Debit", "Cash", 100), ("Credit", "Sales", 100)])] []
+-- >             [(key, [(Admission.DebitSide, "Cash", 100)
+-- >                    , (Admission.CreditSide, "Sales", 100)])] []
 -- >     case Admission.txIdRegistry [(key, rule)] of
 -- >         Left problems -> fail (show problems)
 -- >         Right registry -> do
@@ -122,6 +123,8 @@ module ExchangeAlgebra.IO.Input.Admission
     , TxKey(..)
     , Entry
     , RawPostings
+    , PostingSide(..)
+    , AccountName
       -- * Trusted specification
     , Role(..)
     , Presence(..)
@@ -138,6 +141,7 @@ module ExchangeAlgebra.IO.Input.Admission
     , AdmissionSpec(..)
       -- * Untrusted submission
     , CatalogOperationKind(..)
+    , DepreciationMethod(..)
     , CatalogCall
     , CatalogCallOf(..)
     , catalogKind

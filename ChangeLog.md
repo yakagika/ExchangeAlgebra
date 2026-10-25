@@ -370,6 +370,59 @@
 
 ### Changed (admission API, not yet released on Hackage)
 
+- Catalog invocation constructors now end in `Call`. Migrate these names:
+
+  | Previous Call | New Call |
+  |---|---|
+  | `Cogs` | `CogsCall` |
+  | `DepIndirect` | `DepreciationIndirectCall` |
+  | `DepDirect` | `DepreciationDirectCall` |
+  | `Allowance` | `AllowanceCall` |
+  | `AllowanceRate` | `AllowanceRateCall` |
+  | `AllowanceReset` | `AllowanceResetCall` |
+  | `Prepaid` | `PrepaidCall` |
+  | `Unearned` | `UnearnedCall` |
+  | `ReverseEntry` | `ReverseEntryCall` |
+  | `ConsumptionTax` | `ConsumptionTaxCall` |
+  | `CorporateInterim` | `CorporateInterimCall` |
+  | `CorporateSettlement` | `CorporateSettlementCall` |
+  | `EquityEarnings` | `EquityEarningsCall` |
+  | `EquityDividend` | `EquityDividendCall` |
+  | `EquityEntries` | `EquityEntriesCall` |
+  | `EquityBalance` | `EquityBalanceCall` |
+  | `PriorError` | `PriorErrorCall` |
+  | `FinalStock` | `FinalStockCall` |
+  | `StraightLine` | `StraightLineCall` |
+  | `Consolidate` | `ConsolidateCall` |
+
+  `AccruedRevenueCall` and `AccruedExpenseCall` are unchanged. Operation kinds
+  use the following depreciation names; all other Kind names are unchanged:
+
+  | Previous Kind | New Kind |
+  |---|---|
+  | `DepIndirectKind` | `DepreciationIndirectKind` |
+  | `DepDirectKind` | `DepreciationDirectKind` |
+
+- `RawPostings` now takes `PostingSide` and `AccountName`:
+  replace `("debit", "Cash", 100)` with `(DebitSide, "Cash", 100)` and use
+  `CreditSide` for credit rows. Trusted facts use the same type. Account names
+  remain untrusted text and receive the same checks.
+- `StraightLineCall asset annual method` replaces the `StraightLine` Boolean
+  argument with `DepreciationMethod`: `True` becomes `DirectMethod`, and
+  `False` becomes `IndirectMethod`.
+- The internal admission rule list and the public module's "Intended use"
+  documentation state which accounts the language-model harness reserves.
+  The protected-account decisions are unchanged; general accounting entry
+  construction retains its existing posting rules.
+- Observable changes for this migration:
+  - diagnostics changed: `Show` uses the new catalog constructor names.
+  - acceptance unchanged.
+  - postings unchanged.
+  - numeric unchanged.
+  - serialization unchanged in this package. The JSON decoder in
+    `exchangealgebra-aeson` changes: operation names follow the new Kind
+    spellings, and unknown posting sides fail at decoding (see its ChangeLog).
+
 - The admission API is split by responsibility. Transaction identifiers
   (`TxKey`, `EntityId`, `PeriodId`, `TxId`, ...), `Entry`, and `isBlankKey`
   are in `ExchangeAlgebra.Accounting.Transaction`; the equivalence checks are in

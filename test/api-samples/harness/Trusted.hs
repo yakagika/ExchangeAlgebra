@@ -20,8 +20,8 @@ transactionKey = Admission.TxKey (Admission.EntityId "roastery")
 -- It is context for the model, not an additional September ledger entry.
 augustAdjustment :: Admission.RawPostings
 augustAdjustment =
-    [ ("Debit", "UtilitiesExpense", 10000)
-    , ("Credit", "AccruedExpenses", 10000)
+    [ (Admission.DebitSide, "UtilitiesExpense", 10000)
+    , (Admission.CreditSide, "AccruedExpenses", 10000)
     ]
 
 -- | Construct the fixed registry, independent evidence, facts, and vocabulary.
@@ -48,7 +48,8 @@ specification = do
             , ("beans-used", [Admission.SupplySubmission Admission.Ordinary], Nothing)
             , ("subscription-expense", [Admission.SupplySubmission Admission.Adjustment], Nothing)
             , ("roasting-loss", [Admission.SupplySubmission Admission.Adjustment], Nothing)
-            , ("depreciation", [Admission.SupplyCatalog Admission.DepIndirectKind], Nothing)
+            , ("depreciation",
+                [Admission.SupplyCatalog Admission.DepreciationIndirectKind], Nothing)
             , ("utilities-accrual", [Admission.SupplyCatalog Admission.AccruedExpenseKind], Nothing)
             , ("allowance", [Admission.SupplyCatalog Admission.AllowanceKind], Nothing)
             , ("close", [Admission.SupplyCatalog Admission.FinalStockKind], Nothing)
@@ -62,25 +63,25 @@ specification = do
             ]
         , Admission.admissionFacts = Map.fromList
             [ (Admission.FactId "opening",
-                [ ("Debit", "Cash", 20000)
-                , ("Debit", "Deposits", 500000)
-                , ("Debit", "AccountsReceivable", 30000)
-                , ("Debit", "MerchandiseInventory", 100000)
-                , ("Debit", "PrepaidExpenses", 12000)
-                , ("Debit", "Machinery", 300000)
-                , ("Credit", "AccruedExpenses", 10000)
-                , ("Credit", "AccumulatedDepreciation", 30000)
-                , ("Credit", "AllowanceForDoubtfulAccounts", 600)
-                , ("Credit", "CapitalStock", 800000)
-                , ("Credit", "RetainedEarnings", 121400)
+                [ (Admission.DebitSide, "Cash", 20000)
+                , (Admission.DebitSide, "Deposits", 500000)
+                , (Admission.DebitSide, "AccountsReceivable", 30000)
+                , (Admission.DebitSide, "MerchandiseInventory", 100000)
+                , (Admission.DebitSide, "PrepaidExpenses", 12000)
+                , (Admission.DebitSide, "Machinery", 300000)
+                , (Admission.CreditSide, "AccruedExpenses", 10000)
+                , (Admission.CreditSide, "AccumulatedDepreciation", 30000)
+                , (Admission.CreditSide, "AllowanceForDoubtfulAccounts", 600)
+                , (Admission.CreditSide, "CapitalStock", 800000)
+                , (Admission.CreditSide, "RetainedEarnings", 121400)
                 ])
             , (Admission.FactId "bank-rent",
-                [ ("Debit", "RentExpense", 60000)
-                , ("Credit", "Deposits", 60000)
+                [ (Admission.DebitSide, "RentExpense", 60000)
+                , (Admission.CreditSide, "Deposits", 60000)
                 ])
             , (Admission.FactId "bank-collection",
-                [ ("Debit", "Deposits", 10000)
-                , ("Credit", "AccountsReceivable", 10000)
+                [ (Admission.DebitSide, "Deposits", 10000)
+                , (Admission.CreditSide, "AccountsReceivable", 10000)
                 ])
             ]
         , Admission.admissionVocabulary = Set.fromList

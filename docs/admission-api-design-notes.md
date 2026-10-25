@@ -42,15 +42,16 @@ facts の混在・証憑, 複数の raw 役割を検査する.
 重複はルールが同一でも拒否し, `Map.fromList` による上書きより前に検出する.
 照会専用操作を取引の供給元として登録することも拒否する.
 
-`RawPostings = [(Text, Text, MoneyDecimal)]` は side, account, amount の列である.
-raw と与件は同じ形式とし, 両方とも `checkedEntryTextIn` を通す.
+`RawPostings = [(PostingSide, AccountName, MoneyDecimal)]` は side, account, amount の列である.
+raw と与件は同じ形式とする. `DebitSide` / `CreditSide` を借方 / 貸方へ写し,
+勘定名の parse, 金額と均衡の検査を行う.
 証憑の金額は取引の借方総額であり, 残高や各行の金額ではない.
 与件・証憑の store は信頼側の Map とし, 提出側には書き換え口を渡さない.
 
 `Submission` は raw の `(TxKey, RawPostings)` のリストと `Call` のリストを持つ.
 リストのまま受けることで, 同じキーの重複を入口で検出できる.
 各 `Call` は独立した `CallId`, 会社, 期間, `Maybe TxKey`, 閉じた `CatalogCall` を持つ.
-生成操作には `Just key`, `EquityBalance` と `Consolidate` には `Nothing` を要求する.
+生成操作には `Just key`, `EquityBalanceCall` と `ConsolidateCall` には `Nothing` を要求する.
 生成操作の結果が零であることは成功であり, 必須キーを満たす.
 零仕訳は Journal の保存表現から落ちる場合があるため, 検証済み metadata にキーの存在を保持する.
 
@@ -101,7 +102,7 @@ equity earnings / entries の生成仕訳は役割 `Adjustment`, 実行 stage `C
 同じキーの繰り返し参照は call 間も含めて拒否する.
 失敗は `UnresolvedReference CallId TxKey Role ReferenceFailure` で返す.
 
-逆仕訳の参照解決は連結と区別する. `ReverseEntry` の参照元は `Ordinary` の
+逆仕訳の参照解決は連結と区別する. `ReverseEntryCall` の参照元は `Ordinary` の
 `SubmissionProvenance` に限定し, 期首与件・通常の与件・先行 catalog の生成結果を拒否する.
 連結で認める与件参照を逆仕訳にも適用すると, 保護された期首利益剰余金を提出側が反転できるためである.
 
@@ -195,7 +196,11 @@ catalog と受入エンジンはそれぞれ独立した責務として保持し
 
 ```haskell
 type Entry = Alg MoneyDecimal (HatBase AccountTitles)
-type RawPostings = [(Text, Text, MoneyDecimal)]
+data PostingSide
+    = DebitSide
+    | CreditSide
+type AccountName = Text
+type RawPostings = [(PostingSide, AccountName, MoneyDecimal)]
 type AdmissionJournal = Journal AdmissionNote MoneyDecimal (HatBase AccountTitles)
 
 txRule :: Presence -> [Supply] -> Maybe EvidenceId -> TxRule
@@ -204,11 +209,11 @@ ruleSupplies :: TxRule -> Set Supply
 ruleEvidence :: TxRule -> Maybe EvidenceId
 txIdRegistry :: [(TxKey, TxRule)] -> Either (NonEmpty RegistryError) TxIdRegistry
 registryRules :: TxIdRegistry -> Map TxKey TxRule
-catalogKind :: CatalogCall -> CatalogOperationKind
+catalogKind :: CatalogCallOf r -> CatalogOperationKind
 catalogStage :: CatalogCall -> Stage
 isGenerating :: CatalogOperationKind -> Bool
 
-admit :: AdmissionSpec -> Submission -> Either (NonEmpty AdmissionError) Admitted
+admit :: AdmissionSpec -> Submission -> Either AdmissionFailure Admitted
 admittedJournal :: Admitted -> AdmissionJournal
 admissionKey :: AdmissionNote -> TxKey
 admissionRole :: AdmissionNote -> Role

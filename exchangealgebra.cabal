@@ -31,6 +31,7 @@ extra-source-files:
     test/fixtures/admission-baseline-p1/boundary.tsv
     test/fixtures/admission-baseline-p1/catalog.tsv
     test/fixtures/admission-baseline-p1/CHANGES-P3a-W2a.md
+    test/fixtures/admission-baseline-p1/CHANGES-P3a-W2b.md
     test/fixtures/admission-baseline-p1/equivalence.tsv
     test/fixtures/admission-baseline-p1/README.md
     test/fixtures/consolidation-worksheet-050/minimal.tsv

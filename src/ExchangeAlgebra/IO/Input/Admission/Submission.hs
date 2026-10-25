@@ -36,9 +36,9 @@ data PostingSide
 -- vocabulary; this alias does not introduce a distinct type.
 type AccountName = Text
 
--- | Untrusted side text, account text, and strictly positive monetary amount.
--- Parsing and balance checks are performed by @checkedEntryTextIn@.
-type RawPostings = [(Text, Text, MoneyDecimal)]
+-- | Typed side, untrusted account text, and strictly positive monetary amount.
+-- Admission parses account names and checks amounts and balance.
+type RawPostings = [(PostingSide, AccountName, MoneyDecimal)]
 
 -- | Trusted admission contract. Evidence amounts are /total debit amounts
 -- per transaction/, not net balances or individual posting amounts.

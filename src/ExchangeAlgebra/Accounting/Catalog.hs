@@ -57,8 +57,8 @@ import ExchangeAlgebra.Accounting.Transaction
 -- | Closed operation identities used to authorize generated transactions.
 data CatalogOperationKind
     = CogsKind -- ^ Cost-of-goods adjustment.
-    | DepIndirectKind -- ^ Indirect depreciation.
-    | DepDirectKind -- ^ Direct depreciation.
+    | DepreciationIndirectKind -- ^ Indirect depreciation.
+    | DepreciationDirectKind -- ^ Direct depreciation.
     | AllowanceKind -- ^ Allowance replenishment.
     | AllowanceRateKind -- ^ Rate-based allowance.
     | AllowanceResetKind -- ^ Allowance reset.
@@ -91,30 +91,31 @@ data EntityInputOf r = EntityInput EntityId (NonEmpty r) -- ^ Entity and its sou
 -- unit as raw postings; allowance rates use basis points (0 through 10000).
 -- Account parameters and amounts are validated before any builder executes.
 data CatalogCallOf r
-    = Cogs MoneyDecimal MoneyDecimal -- ^ Beginning and ending inventory amounts, in that order.
-    | DepIndirect MoneyDecimal -- ^ Indirect depreciation amount.
-    | DepDirect MoneyDecimal AccountTitles -- ^ Direct depreciation amount and asset account.
-    | Allowance MoneyDecimal MoneyDecimal -- ^ Estimate and current allowance.
-    | AllowanceRate MoneyDecimal -- ^ Rate in basis points.
-    | AllowanceReset MoneyDecimal MoneyDecimal -- ^ Estimate and current allowance.
-    | Prepaid MoneyDecimal AccountTitles -- ^ Amount and expense account.
-    | Unearned MoneyDecimal AccountTitles -- ^ Amount and revenue account.
+    = CogsCall MoneyDecimal MoneyDecimal -- ^ Beginning and ending inventory amounts, in that order.
+    | DepreciationIndirectCall MoneyDecimal -- ^ Indirect depreciation amount.
+    | DepreciationDirectCall MoneyDecimal AccountTitles
+      -- ^ Direct depreciation amount and asset account.
+    | AllowanceCall MoneyDecimal MoneyDecimal -- ^ Estimate and current allowance.
+    | AllowanceRateCall MoneyDecimal -- ^ Rate in basis points.
+    | AllowanceResetCall MoneyDecimal MoneyDecimal -- ^ Estimate and current allowance.
+    | PrepaidCall MoneyDecimal AccountTitles -- ^ Amount and expense account.
+    | UnearnedCall MoneyDecimal AccountTitles -- ^ Amount and revenue account.
     | AccruedRevenueCall MoneyDecimal AccountTitles -- ^ Amount and revenue account.
     | AccruedExpenseCall MoneyDecimal AccountTitles -- ^ Amount and expense account.
-    | ReverseEntry r -- ^ Exact key of the entry to reverse.
-    | ConsumptionTax MoneyDecimal MoneyDecimal -- ^ Paid and received amounts.
-    | CorporateInterim MoneyDecimal -- ^ Interim tax amount.
-    | CorporateSettlement MoneyDecimal MoneyDecimal -- ^ Total tax, then interim payment.
-    | EquityEarnings MoneyDecimal -- ^ Share of earnings.
-    | EquityDividend MoneyDecimal -- ^ Dividend amount.
-    | EquityEntries MoneyDecimal MoneyDecimal -- ^ Earnings share and dividend.
-    | EquityBalance -- ^ Query the equity-method balance.
-    | PriorError -- ^ Current amount, prior amount, expense, then asset.
+    | ReverseEntryCall r -- ^ Exact key of the entry to reverse.
+    | ConsumptionTaxCall MoneyDecimal MoneyDecimal -- ^ Paid and received amounts.
+    | CorporateInterimCall MoneyDecimal -- ^ Interim tax amount.
+    | CorporateSettlementCall MoneyDecimal MoneyDecimal -- ^ Total tax, then interim payment.
+    | EquityEarningsCall MoneyDecimal -- ^ Share of earnings.
+    | EquityDividendCall MoneyDecimal -- ^ Dividend amount.
+    | EquityEntriesCall MoneyDecimal MoneyDecimal -- ^ Earnings share and dividend.
+    | EquityBalanceCall -- ^ Query the equity-method balance.
+    | PriorErrorCall -- ^ Current amount, prior amount, expense, then asset.
         MoneyDecimal MoneyDecimal AccountTitles AccountTitles
-    | FinalStock -- ^ Close final stock against the visible ledger.
-    | StraightLine -- ^ Asset, annual amount, then True for the direct method.
-        AccountTitles MoneyDecimal Bool
-    | Consolidate (NonEmpty (EntityInputOf r)) (NonEmpty r) -- ^ Entities and elimination keys.
+    | FinalStockCall -- ^ Close final stock against the visible ledger.
+    | StraightLineCall -- ^ Asset, annual amount, then depreciation method.
+        AccountTitles MoneyDecimal DepreciationMethod
+    | ConsolidateCall (NonEmpty (EntityInputOf r)) (NonEmpty r) -- ^ Entities and elimination keys.
     deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- | How a depreciation charge reaches the asset. The direct method credits
@@ -216,69 +217,69 @@ data CatalogExecutionProblem
 -- | Map a closed call to the registry's operation identity.
 catalogKind :: CatalogCallOf r -> CatalogOperationKind
 catalogKind call = case call of
-    Cogs _ _                 -> CogsKind
-    DepIndirect _            -> DepIndirectKind
-    DepDirect _ _            -> DepDirectKind
-    Allowance _ _            -> AllowanceKind
-    AllowanceRate _          -> AllowanceRateKind
-    AllowanceReset _ _       -> AllowanceResetKind
-    Prepaid _ _              -> PrepaidKind
-    Unearned _ _             -> UnearnedKind
-    AccruedRevenueCall _ _   -> AccruedRevenueKind
-    AccruedExpenseCall _ _   -> AccruedExpenseKind
-    ReverseEntry _           -> ReverseEntryKind
-    ConsumptionTax _ _       -> ConsumptionTaxKind
-    CorporateInterim _       -> CorporateInterimKind
-    CorporateSettlement _ _  -> CorporateSettlementKind
-    EquityEarnings _         -> EquityEarningsKind
-    EquityDividend _         -> EquityDividendKind
-    EquityEntries _ _        -> EquityEntriesKind
-    EquityBalance            -> EquityBalanceKind
-    PriorError _ _ _ _       -> PriorErrorKind
-    FinalStock               -> FinalStockKind
-    StraightLine _ _ _       -> StraightLineKind
-    Consolidate _ _          -> ConsolidateKind
+    CogsCall _ _                -> CogsKind
+    DepreciationIndirectCall _  -> DepreciationIndirectKind
+    DepreciationDirectCall _ _  -> DepreciationDirectKind
+    AllowanceCall _ _           -> AllowanceKind
+    AllowanceRateCall _         -> AllowanceRateKind
+    AllowanceResetCall _ _      -> AllowanceResetKind
+    PrepaidCall _ _             -> PrepaidKind
+    UnearnedCall _ _            -> UnearnedKind
+    AccruedRevenueCall _ _      -> AccruedRevenueKind
+    AccruedExpenseCall _ _      -> AccruedExpenseKind
+    ReverseEntryCall _          -> ReverseEntryKind
+    ConsumptionTaxCall _ _      -> ConsumptionTaxKind
+    CorporateInterimCall _      -> CorporateInterimKind
+    CorporateSettlementCall _ _ -> CorporateSettlementKind
+    EquityEarningsCall _        -> EquityEarningsKind
+    EquityDividendCall _        -> EquityDividendKind
+    EquityEntriesCall _ _       -> EquityEntriesKind
+    EquityBalanceCall           -> EquityBalanceKind
+    PriorErrorCall _ _ _ _      -> PriorErrorKind
+    FinalStockCall              -> FinalStockKind
+    StraightLineCall _ _ _      -> StraightLineKind
+    ConsolidateCall _ _         -> ConsolidateKind
 
 -- | Choose the direct asset or indirect accumulated-depreciation account.
-depreciationAccount :: Bool -> AccountTitles -> AccountTitles
-depreciationAccount True account = account
-depreciationAccount False _      = AccumulatedDepreciation
+depreciationAccount :: DepreciationMethod -> AccountTitles -> AccountTitles
+depreciationAccount DirectMethod account = account
+depreciationAccount IndirectMethod _     = AccumulatedDepreciation
 
 -- | Declare the only account titles a builder may return, using the resolved
--- source entry carried by 'ReverseEntry'.
+-- source entry carried by 'ReverseEntryCall'.
 allowedAccounts :: CatalogCallOf (TxKey, Entry) -> [AccountTitles]
 allowedAccounts call = case call of
-    Cogs _ _                 -> [Purchases, MerchandiseInventory]
-    DepIndirect _            -> [Depreciation, AccumulatedDepreciation]
-    DepDirect _ account      -> [Depreciation, account]
-    Allowance _ _            -> allowanceAccounts
-    AllowanceRate _          -> allowanceAccounts
-    AllowanceReset _ _       -> allowanceAccounts
-    Prepaid _ account        -> [PrepaidExpenses, account]
-    Unearned _ account       -> [UnearnedRevenue, account]
-    AccruedRevenueCall _ revenue -> [AccruedRevenue, revenue]
-    AccruedExpenseCall _ expense -> [AccruedExpenses, expense]
-    ReverseEntry (_, source) -> map (getAccountTitle . _hatBase) (toList source)
-    ConsumptionTax _ _       ->
+    CogsCall _ _                     -> [Purchases, MerchandiseInventory]
+    DepreciationIndirectCall _       -> [Depreciation, AccumulatedDepreciation]
+    DepreciationDirectCall _ account -> [Depreciation, account]
+    AllowanceCall _ _                -> allowanceAccounts
+    AllowanceRateCall _              -> allowanceAccounts
+    AllowanceResetCall _ _           -> allowanceAccounts
+    PrepaidCall _ account            -> [PrepaidExpenses, account]
+    UnearnedCall _ account           -> [UnearnedRevenue, account]
+    AccruedRevenueCall _ revenue     -> [AccruedRevenue, revenue]
+    AccruedExpenseCall _ expense     -> [AccruedExpenses, expense]
+    ReverseEntryCall (_, source)     -> map (getAccountTitle . _hatBase) (toList source)
+    ConsumptionTaxCall _ _           ->
         [ConsumptionTaxPaid, ConsumptionTaxReceived, AccruedConsumptionTax]
-    CorporateInterim _       -> [PrepaidCorporateIncomeTaxes, Cash]
-    CorporateSettlement _ _  ->
+    CorporateInterimCall _      -> [PrepaidCorporateIncomeTaxes, Cash]
+    CorporateSettlementCall _ _ ->
         [CorporateIncomeTaxes, PrepaidCorporateIncomeTaxes, AccruedCorporateIncomeTaxes]
-    EquityEarnings _         -> [InvestmentInAssociate, EquityInEarningsOfInvestee]
-    EquityDividend _         -> [Cash, InvestmentInAssociate]
-    EquityEntries _ _        -> [Cash, InvestmentInAssociate, EquityInEarningsOfInvestee]
-    EquityBalance            -> []
-    PriorError _ _ expense asset -> [RetainedEarnings, expense, asset]
-    FinalStock               -> RetainedEarnings :
+    EquityEarningsCall _             -> [InvestmentInAssociate, EquityInEarningsOfInvestee]
+    EquityDividendCall _             -> [Cash, InvestmentInAssociate]
+    EquityEntriesCall _ _            -> [Cash, InvestmentInAssociate, EquityInEarningsOfInvestee]
+    EquityBalanceCall                -> []
+    PriorErrorCall _ _ expense asset -> [RetainedEarnings, expense, asset]
+    FinalStockCall                   -> RetainedEarnings :
         [ account
         | account <- concreteAccountTitles
         , Just spec <- [accountSpec account]
         , asClosing spec == CloseByDivision
         , asDivision spec `elem` [Cost, Revenue]
         ]
-    StraightLine account _ direct ->
+    StraightLineCall account _ direct ->
         [Depreciation, depreciationAccount direct account]
-    Consolidate _ _          -> []
+    ConsolidateCall _ _ -> []
   where
     allowanceAccounts :: [AccountTitles]
     allowanceAccounts =
@@ -312,46 +313,46 @@ keyProblems key@(TxKey (EntityId entity) (PeriodId period) (TxId transaction)) =
 -- | List parameter violations while retaining independent diagnostics.
 parameterProblems :: CatalogCall -> [CatalogParameterProblem]
 parameterProblems call = case call of
-    Cogs beginning ending -> nonnegative BeginningInventoryParameter beginning
+    CogsCall beginning ending -> nonnegative BeginningInventoryParameter beginning
         ++ nonnegative EndingInventoryParameter ending
-    DepIndirect amount -> positive AmountParameter amount
-    DepDirect amount asset -> positive AmountParameter amount
+    DepreciationIndirectCall amount     -> positive AmountParameter amount
+    DepreciationDirectCall amount asset -> positive AmountParameter amount
         ++ accountRole Assets AssetAccountParameter asset
-    Allowance estimate current -> nonnegative EstimateParameter estimate
+    AllowanceCall estimate current -> nonnegative EstimateParameter estimate
         ++ nonnegative CurrentParameter current
-    AllowanceRate rate -> nonnegative RateParameter rate
+    AllowanceRateCall rate -> nonnegative RateParameter rate
         ++ [RateAboveLimit rate | rate > 10000]
-    AllowanceReset estimate current -> nonnegative EstimateParameter estimate
+    AllowanceResetCall estimate current -> nonnegative EstimateParameter estimate
         ++ nonnegative CurrentParameter current
-    Prepaid amount expense -> positive AmountParameter amount
+    PrepaidCall amount expense -> positive AmountParameter amount
         ++ accountRole Cost ExpenseAccountParameter expense
-    Unearned amount revenue -> positive AmountParameter amount
+    UnearnedCall amount revenue -> positive AmountParameter amount
         ++ accountRole Revenue RevenueAccountParameter revenue
     AccruedRevenueCall amount revenue -> positive AmountParameter amount
         ++ accountRole Revenue RevenueAccountParameter revenue
     AccruedExpenseCall amount expense -> positive AmountParameter amount
         ++ accountRole Cost ExpenseAccountParameter expense
-    ReverseEntry key -> keyProblems key
-    ConsumptionTax paid received -> nonnegative PaidParameter paid
+    ReverseEntryCall key             -> keyProblems key
+    ConsumptionTaxCall paid received -> nonnegative PaidParameter paid
         ++ nonnegative ReceivedParameter received
         ++ [ReceivedBelowPaid (AmountLimit paid received) | received < paid]
-    CorporateInterim amount -> positive AmountParameter amount
-    CorporateSettlement total interim -> nonnegative TotalParameter total
+    CorporateInterimCall amount           -> positive AmountParameter amount
+    CorporateSettlementCall total interim -> nonnegative TotalParameter total
         ++ nonnegative InterimParameter interim
         ++ [InterimExceedsTotal (AmountLimit total interim) | interim > total]
-    EquityEarnings share -> nonnegative ShareParameter share
-    EquityDividend dividend -> nonnegative DividendParameter dividend
-    EquityEntries share dividend -> nonnegative ShareParameter share
+    EquityEarningsCall share         -> nonnegative ShareParameter share
+    EquityDividendCall dividend      -> nonnegative DividendParameter dividend
+    EquityEntriesCall share dividend -> nonnegative ShareParameter share
         ++ nonnegative DividendParameter dividend
-    EquityBalance -> []
-    PriorError current prior expense asset -> nonnegative CurrentParameter current
+    EquityBalanceCall                          -> []
+    PriorErrorCall current prior expense asset -> nonnegative CurrentParameter current
         ++ nonnegative PriorParameter prior
         ++ accountRole Cost ExpenseAccountParameter expense
         ++ accountRole Assets PriorAssetAccountParameter asset
-    FinalStock -> []
-    StraightLine asset annual _ -> accountRole Assets AssetAccountParameter asset
+    FinalStockCall                  -> []
+    StraightLineCall asset annual _ -> accountRole Assets AssetAccountParameter asset
         ++ nonnegative AnnualParameter annual
-    Consolidate entities eliminations -> consolidationProblems entities eliminations
+    ConsolidateCall entities eliminations -> consolidationProblems entities eliminations
 
 -- | Validate the distinct entities and references in a consolidation request.
 consolidationProblems
@@ -402,9 +403,9 @@ exactQuotient rational = go 0 (numerator rational) (denominator rational)
 
 -- | Execute a validated call carrying its resolved references. The entry
 -- argument is the visible cumulative ledger before execution.
--- 'FinalStock' applies 'bar' to the closing transfer and reversal, so its output
+-- 'FinalStockCall' applies 'bar' to the closing transfer and reversal, so its output
 -- loses the original posting sequence and inherits the algebra's tolerance.
--- 'AllowanceRate' reads balances after 'bar'. 'Consolidate' checks balance only
+-- 'AllowanceRateCall' reads balances after 'bar'. 'ConsolidateCall' checks balance only
 -- after applying 'bar' to the selected entries.
 --
 -- >>> import ExchangeAlgebra.Algebra.Core ((.@))
@@ -412,12 +413,13 @@ exactQuotient rational = go 0 (numerator rational) (denominator rational)
 -- >>> let tiny = fromRational (1 / 10^200) :: MoneyDecimal
 -- >>> let rate = fromRational (1 / 10^100) :: MoneyDecimal
 -- >>> let ledger = tiny .@ Not :< AccountsReceivable
--- >>> executeCatalog ledger (AllowanceRate rate) == Left (InexactQuotient 1 (fromInteger (10^304)))
+-- >>> let expected = Left (InexactQuotient 1 (fromInteger (10^304)))
+-- >>> executeCatalog ledger (AllowanceRateCall rate) == expected
 -- True
--- >>> executeCatalog (1 .@ Hat :< AccountsReceivable) (AllowanceRate 1)
+-- >>> executeCatalog (1 .@ Hat :< AccountsReceivable) (AllowanceRateCall 1)
 -- Left (AbnormalBalance AccountsReceivable)
 -- >>> let entities = EntityInput (EntityId "A") ((key, 1 .@ Not :< Cash) :| []) :| []
--- >>> let call = Consolidate entities ((key, mempty) :| [])
+-- >>> let call = ConsolidateCall entities ((key, mempty) :| [])
 -- >>> executeCatalog mempty call
 -- Left (ImbalancedConsolidation (DebitCreditTotals {debitTotal = 1, creditTotal = 0}))
 executeCatalog
@@ -425,42 +427,43 @@ executeCatalog
     -> CatalogCallOf (TxKey, Entry)
     -> Either CatalogExecutionProblem (Entry, Maybe MoneyDecimal)
 executeCatalog ledger call = case call of
-    Cogs beginning ending -> generated (Bookkeeping.cogsAdjustmentEntries mk beginning ending)
-    DepIndirect amount -> generated (Bookkeeping.depreciationIndirectEntry mk amount)
-    DepDirect amount asset -> generated (Bookkeeping.depreciationDirectEntry mk amount asset)
-    Allowance estimate current ->
+    CogsCall beginning ending -> generated (Bookkeeping.cogsAdjustmentEntries mk beginning ending)
+    DepreciationIndirectCall amount -> generated (Bookkeeping.depreciationIndirectEntry mk amount)
+    DepreciationDirectCall amount asset ->
+        generated (Bookkeeping.depreciationDirectEntry mk amount asset)
+    AllowanceCall estimate current ->
         generated (Bookkeeping.allowanceReplenishmentEntry mk estimate current)
-    AllowanceRate rate -> do
+    AllowanceRateCall rate -> do
         receivables <- balance AccountsReceivable
         current <- balance AllowanceForDoubtfulAccounts
         estimate <- exactQuotient
             (toRational receivables * toRational rate / 10000)
         generated (Bookkeeping.allowanceReplenishmentEntry mk estimate current)
-    AllowanceReset estimate current ->
+    AllowanceResetCall estimate current ->
         generated (Bookkeeping.allowanceResetEntries mk estimate current)
-    Prepaid amount expense -> generated (Bookkeeping.prepaidExpenseEntry mk amount expense)
-    Unearned amount revenue -> generated (Bookkeeping.unearnedRevenueEntry mk amount revenue)
+    PrepaidCall amount expense -> generated (Bookkeeping.prepaidExpenseEntry mk amount expense)
+    UnearnedCall amount revenue -> generated (Bookkeeping.unearnedRevenueEntry mk amount revenue)
     AccruedRevenueCall amount revenue ->
         generated (Bookkeeping.accruedRevenueEntry mk amount revenue)
     AccruedExpenseCall amount expense ->
         generated (Bookkeeping.accruedExpenseEntry mk amount expense)
-    ReverseEntry (_, entry) -> generated (Bookkeeping.reversingEntry entry)
-    ConsumptionTax paid received ->
+    ReverseEntryCall (_, entry)      -> generated (Bookkeeping.reversingEntry entry)
+    ConsumptionTaxCall paid received ->
         generated (Bookkeeping.consumptionTaxSettlementEntry mk paid received)
-    CorporateInterim amount -> generated (Bookkeeping.corporateTaxInterimEntry mk amount)
-    CorporateSettlement total interim ->
+    CorporateInterimCall amount -> generated (Bookkeeping.corporateTaxInterimEntry mk amount)
+    CorporateSettlementCall total interim ->
         generated (Bookkeeping.corporateTaxSettlementEntries mk total interim)
-    EquityEarnings share -> generated (Bookkeeping.equityMethodEarningsEntry mk share)
-    EquityDividend dividend -> generated (Bookkeeping.equityMethodDividendEntry mk dividend)
-    EquityEntries share dividend ->
+    EquityEarningsCall share         -> generated (Bookkeeping.equityMethodEarningsEntry mk share)
+    EquityDividendCall dividend -> generated (Bookkeeping.equityMethodDividendEntry mk dividend)
+    EquityEntriesCall share dividend ->
         generated (Bookkeeping.equityMethodEntries mk share dividend)
-    EquityBalance -> Right (mempty, Just (Bookkeeping.equityMethodBalance ledger))
-    PriorError current prior expense asset ->
+    EquityBalanceCall -> Right (mempty, Just (Bookkeeping.equityMethodBalance ledger))
+    PriorErrorCall current prior expense asset ->
         generated (Bookkeeping.priorPeriodErrorCorrection mk current prior expense asset)
-    FinalStock -> generated
+    FinalStockCall -> generated
         (bar (Transfer.finalStockTransfer ledger .+ Bookkeeping.reversingEntry (bar ledger)))
-    StraightLine asset amount direct -> generated (depreciationEntry direct asset amount)
-    Consolidate entities eliminations ->
+    StraightLineCall asset amount method  -> generated (depreciationEntry method asset amount)
+    ConsolidateCall entities eliminations ->
         let selected = map snd (consolidationKeys entities eliminations)
             consolidated = bar (foldr (.+) mempty selected)
         in checkedConsolidation consolidated
@@ -492,8 +495,8 @@ executeCatalog ledger call = case call of
     checkedBalance account normalSide net
         | all ((== normalSide) . whichSide . _hatBase) (toList net) = Right (norm net)
         | otherwise = Left (AbnormalBalance account)
-    depreciationEntry :: Bool -> AccountTitles -> MoneyDecimal -> Entry
-    depreciationEntry True asset amount =
+    depreciationEntry :: DepreciationMethod -> AccountTitles -> MoneyDecimal -> Entry
+    depreciationEntry DirectMethod asset amount =
         Bookkeeping.depreciationDirectEntry mk amount asset
-    depreciationEntry False _ amount =
+    depreciationEntry IndirectMethod _ amount =
         Bookkeeping.depreciationIndirectEntry mk amount

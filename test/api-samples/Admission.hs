@@ -30,11 +30,12 @@ main = do
                 [Admission.SupplyCatalog Admission.FinalStockKind] Nothing)
             ]
         submitted = Admission.Submission
-            [ (saleKey, [("Debit", "Cash", 100), ("Credit", "Sales", 100)])
-            , (expenseKey, [("Debit", "RentExpense", 100), ("Credit", "Cash", 100)])
+            [ (saleKey, [(Admission.DebitSide, "Cash", 100), (Admission.CreditSide, "Sales", 100)])
+            , (expenseKey, [(Admission.DebitSide, "RentExpense", 100)
+                           , (Admission.CreditSide, "Cash", 100)])
             ]
             [Admission.Call (Admission.CallId "closing") entity period
-                (Just closeKey) Admission.FinalStock]
+                (Just closeKey) Admission.FinalStockCall]
     case Admission.txIdRegistry rules of
         Left problems -> fail (show problems)
         Right registry -> do

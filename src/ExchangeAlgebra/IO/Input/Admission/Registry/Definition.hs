@@ -47,7 +47,7 @@ data Supply
 --     [ (closingKey, Admission.txRule Admission.Required
 --         [Admission.SupplyCatalog Admission.FinalStockKind] Nothing)
 --     , (depreciationKey, Admission.txRule Admission.Required
---         [Admission.SupplyCatalog Admission.DepIndirectKind] Nothing)
+--         [Admission.SupplyCatalog Admission.DepreciationIndirectKind] Nothing)
 --     ]
 -- @
 --
@@ -58,7 +58,7 @@ data Supply
 --     [ (closingKey, Admission.txRule Admission.Optional
 --         [Admission.SupplyCatalog Admission.FinalStockKind] Nothing)
 --     , (depreciationKey, Admission.txRule Admission.Optional
---         [Admission.SupplyCatalog Admission.DepIndirectKind] Nothing)
+--         [Admission.SupplyCatalog Admission.DepreciationIndirectKind] Nothing)
 --     ]
 -- @
 --

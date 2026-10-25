@@ -16,7 +16,7 @@ import ExchangeAlgebra.IO.Input.Admission
 
 -- | Explicit imports expose constructors through the parameterized types.
 publicCatalogCall :: CatalogCall
-publicCatalogCall = Consolidate (publicEntityInput :| []) (publicKey :| [])
+publicCatalogCall = ConsolidateCall (publicEntityInput :| []) (publicKey :| [])
 
 -- | The unresolved alias retains the original constructor.
 publicEntityInput :: EntityInput

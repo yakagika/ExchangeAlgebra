@@ -33,11 +33,15 @@ money value = do
     scientific <- parseJSON value
     either (fail . show) pure (moneyDecimalFromScientific scientific)
 
--- | Retain side and account text for admission's checked conversion.
-posting :: Value -> Parser (Text.Text, Text.Text, MoneyDecimal)
+-- | Decode the side and retain account text for admission's checked conversion.
+posting :: Value -> Parser (Admission.PostingSide, Admission.AccountName, MoneyDecimal)
 posting = withObject "posting" $ \object -> do
     fields ["side", "account", "amount"] object
-    side <- object .: "side"
+    sideText <- object .: "side"
+    side <- case Input.normalizeTitle sideText of
+        "debit"  -> pure Admission.DebitSide
+        "credit" -> pure Admission.CreditSide
+        _        -> fail "Expected debit | credit."
     account <- object .: "account"
     amount <- object .: "amount" >>= money
     pure (side, account, amount)
@@ -58,7 +62,7 @@ call = withObject "catalog call" $ \object -> do
     body <- case operation of
         "DepIndirect" -> do
             fields ["id", "txid", "operation", "amount"] object
-            Admission.DepIndirect <$> (object .: "amount" >>= money)
+            Admission.DepreciationIndirectCall <$> (object .: "amount" >>= money)
         "AccruedExpense" -> do
             fields ["id", "txid", "operation", "amount", "account"] object
             amount <- object .: "amount" >>= money
@@ -67,11 +71,11 @@ call = withObject "catalog call" $ \object -> do
             pure (Admission.AccruedExpenseCall amount account)
         "Allowance" -> do
             fields ["id", "txid", "operation", "estimate", "current"] object
-            Admission.Allowance <$> (object .: "estimate" >>= money)
+            Admission.AllowanceCall <$> (object .: "estimate" >>= money)
                                 <*> (object .: "current" >>= money)
         "FinalStock" -> do
             fields ["id", "txid", "operation"] object
-            pure Admission.FinalStock
+            pure Admission.FinalStockCall
         _ -> fail "Unknown operation; use DepIndirect, AccruedExpense, Allowance, FinalStock."
     identity <- object .: "id"
     generated <- object .: "txid"

@@ -123,7 +123,7 @@ expectedMetadata name
     | Just (_, body, kind, role, _, _) <- findCatalog =
         [ (key catalogA periodOne "source", Ordinary, OrdinaryStage,
             case body of
-                ReverseEntry _ -> SubmissionProvenance Nothing
+                ReverseEntryCall _ -> SubmissionProvenance Nothing
                 _ -> FactProvenance (FactId "source"))
         , (key catalogA periodOne "generated", role, oldStage,
             CatalogProvenance (CallId name) kind)
@@ -147,7 +147,7 @@ expectedMetadata name
         "full-period" ->
             [ ordinary "sale"
             , (key entityA periodOne "depreciation", Adjustment, AdjustmentStage,
-                CatalogProvenance (CallId "depreciate") DepIndirectKind)
+                CatalogProvenance (CallId "depreciate") DepreciationIndirectKind)
             , (key entityA periodOne "closing", Closing, ClosingStage,
                 CatalogProvenance (CallId "close") FinalStockKind)
             ]
@@ -257,12 +257,12 @@ key entity period identity = TxKey entity period (TxId identity)
 
 -- | Match the ordinary sale input in both existing admission suites.
 saleRows :: RawPostings
-saleRows = [("debit", "Cash", 100), ("credit", "Sales", 100)]
+saleRows = [(DebitSide, "Cash", 100), (CreditSide, "Sales", 100)]
 
 -- | Match the cost and receivable inputs in the boundary suite.
 costRows, receivableRows :: RawPostings
-costRows = [("debit", "Purchases", 30), ("credit", "Cash", 30)]
-receivableRows = [("debit", "AccountsReceivable", 100), ("credit", "Sales", 100)]
+costRows = [(DebitSide, "Purchases", 30), (CreditSide, "Cash", 30)]
+receivableRows = [(DebitSide, "AccountsReceivable", 100), (CreditSide, "Sales", 100)]
 
 -- | Freeze source coverage and ordered registry validation diagnostics.
 boundaryCases :: [GoldenCase]
@@ -291,10 +291,10 @@ coverageCases =
         [(raw, saleRows)] [call "c1" generated, call "c2" generated] "-"
     , run "call-entity-mismatch" defaultRules defaultEvidence
         [(raw, saleRows)]
-        [Call (CallId "wrong-entity") entityB periodOne (Just generated) (Cogs 0 0)] "-"
+        [Call (CallId "wrong-entity") entityB periodOne (Just generated) (CogsCall 0 0)] "-"
     , run "call-period-mismatch" defaultRules defaultEvidence
         [(raw, saleRows)]
-        [Call (CallId "wrong-period") entityA periodTwo (Just generated) (Cogs 0 0)] "-"
+        [Call (CallId "wrong-period") entityA periodTwo (Just generated) (CogsCall 0 0)] "-"
     , run "evidence-debit-mismatch" defaultRules defaultEvidence
         [(raw, costRows)] [call "c" generated] "-"
     , run "missing-evidence" [(raw, rawRule)] Map.empty
@@ -323,7 +323,7 @@ coverageCases =
         ]
     defaultEvidence = Map.singleton evidence 100
     defaultFacts = Map.singleton fact saleRows
-    call identity target = Call (CallId identity) entityA periodOne (Just target) (Cogs 0 0)
+    call identity target = Call (CallId identity) entityA periodOne (Just target) (CogsCall 0 0)
     run name rules evidenceValues rows calls category =
         admissionCase name category rules evidenceValues defaultFacts smallVocabulary
             (Submission rows calls)
@@ -364,11 +364,11 @@ rawPolicyCases = concatMap cases [Opening, Ordinary, Adjustment, Elimination, Cl
         [ admissionCase ("protected-retained-" <> Text.pack (show role)) "classification"
             [(retained, rule role)] Map.empty Map.empty smallVocabulary
             (Submission [(retained,
-                [("debit", "Cash", 10), ("credit", "RetainedEarnings", 10)])] [])
+                [(DebitSide, "Cash", 10), (CreditSide, "RetainedEarnings", 10)])] [])
         , admissionCase ("profit-equity-transfer-" <> Text.pack (show role))
             "classification" [(mixed, rule role)] Map.empty Map.empty smallVocabulary
             (Submission [(mixed,
-                [("debit", "Purchases", 10), ("credit", "RetainedEarnings", 10)])] [])
+                [(DebitSide, "Purchases", 10), (CreditSide, "RetainedEarnings", 10)])] [])
         ]
     retained = key entityA periodOne "retained"
     mixed = key entityA periodOne "mixed"
@@ -389,8 +389,8 @@ callCases =
     adjusted = key entityA periodOne "adjusted"
     rawRule = txRule Required [SupplySubmission Ordinary] Nothing
     rules = [(raw, rawRule), (adjusted, txRule Required [SupplyCatalog CogsKind] Nothing)]
-    adjustment = Call (CallId "adjust") entityA periodOne (Just adjusted) (Cogs 0 0)
-    query = Call (CallId "query") entityA periodOne Nothing EquityBalance
+    adjustment = Call (CallId "adjust") entityA periodOne (Just adjusted) (CogsCall 0 0)
+    query = Call (CallId "query") entityA periodOne Nothing EquityBalanceCall
     run name chosen calls category = admissionCase name category chosen Map.empty Map.empty
         smallVocabulary (Submission [(raw, saleRows)] calls)
 
@@ -420,7 +420,7 @@ referenceCases =
     run name reference = admissionCase name "-" rules Map.empty Map.empty smallVocabulary
         (Submission postings
             [Call (CallId "reverse") entityA periodOne (Just reversal)
-                (ReverseEntry reference)])
+                (ReverseEntryCall reference)])
 
 -- | Freeze the actual origin of fact and catalog references.
 provenanceCases :: [GoldenCase]
@@ -443,13 +443,13 @@ provenanceCases =
         , (reversal, txRule Required [SupplyCatalog ReverseEntryKind] Nothing)
         ]
     facts = Map.fromList
-        [ (openingId, [("debit", "Cash", 10), ("credit", "RetainedEarnings", 10)])
+        [ (openingId, [(DebitSide, "Cash", 10), (CreditSide, "RetainedEarnings", 10)])
         , (ordinaryId, saleRows)
         ]
     interimCall = Call (CallId "interim") entityA periodOne
-        (Just interim) (CorporateInterim 10)
+        (Just interim) (CorporateInterimCall 10)
     reverse reference = Call (CallId "reverse") entityA periodOne
-        (Just reversal) (ReverseEntry reference)
+        (Just reversal) (ReverseEntryCall reference)
     run name _ calls = admissionCase name "-" rules Map.empty facts smallVocabulary
         (Submission [] calls)
 
@@ -486,17 +486,17 @@ alternativeCases =
         ]
     matching = Map.singleton receipt 10
     wrongEvidence = Map.singleton receipt 11
-    rows = [("debit", "Cash", 10), ("credit", "Sales", 10)]
+    rows = [(DebitSide, "Cash", 10), (CreditSide, "Sales", 10)]
     generated amount = Call (CallId "interim") entityA periodOne
-        (Just source) (CorporateInterim amount)
+        (Just source) (CorporateInterimCall amount)
     reverseCall = Call (CallId "reverse") entityA periodOne
-        (Just reversal) (ReverseEntry source)
+        (Just reversal) (ReverseEntryCall source)
     run name evidence postings calls category = admissionCase name category rules evidence
         Map.empty smallVocabulary (Submission postings calls)
     zeroKey = key entityA periodOne "zero"
     zeroRule = txRule Required
         [SupplySubmission Ordinary, SupplyCatalog CogsKind] Nothing
-    zeroCall = Call (CallId "zero") entityA periodOne (Just zeroKey) (Cogs 0 0)
+    zeroCall = Call (CallId "zero") entityA periodOne (Just zeroKey) (CogsCall 0 0)
     duplicateRaw = key entityA periodOne "interim-raw"
     duplicateGenerated = key entityA periodOne "interim-generated"
     duplicateRules =
@@ -505,9 +505,9 @@ alternativeCases =
             txRule Required [SupplyCatalog CorporateInterimKind] Nothing)
         ]
     duplicateRows =
-        [("debit", "PrepaidCorporateIncomeTaxes", 10), ("credit", "Cash", 10)]
+        [(DebitSide, "PrepaidCorporateIncomeTaxes", 10), (CreditSide, "Cash", 10)]
     duplicateCall = Call (CallId "interim") entityA periodOne
-        (Just duplicateGenerated) (CorporateInterim 10)
+        (Just duplicateGenerated) (CorporateInterimCall 10)
 
 -- | Freeze ordinary, adjusted, and closing snapshots for one full period.
 periodCases :: [GoldenCase]
@@ -529,13 +529,13 @@ periodCases = case txIdRegistry rules of
     closing = key entityA periodOne "closing"
     rules =
         [ (raw, txRule Required [SupplySubmission Ordinary] Nothing)
-        , (adjustment, txRule Required [SupplyCatalog DepIndirectKind] Nothing)
+        , (adjustment, txRule Required [SupplyCatalog DepreciationIndirectKind] Nothing)
         , (closing, txRule Required [SupplyCatalog FinalStockKind] Nothing)
         ]
     calls =
         [ Call (CallId "depreciate") entityA periodOne
-            (Just adjustment) (DepIndirect 20)
-        , Call (CallId "close") entityA periodOne (Just closing) FinalStock
+            (Just adjustment) (DepreciationIndirectCall 20)
+        , Call (CallId "close") entityA periodOne (Just closing) FinalStockCall
         ]
     statementObservation outcome = case outcome of
         Left failures -> "AdmissionLeft " <> Text.pack (show failures)
@@ -584,17 +584,17 @@ consolidationCases =
     successFacts = Map.fromList
         [ (FactId "a", receivableRows)
         , (FactId "b",
-            [("debit", "Purchases", 100), ("credit", "AccountsPayable", 100)])
+            [(DebitSide, "Purchases", 100), (CreditSide, "AccountsPayable", 100)])
         ]
     facts = Map.fromList
         [ (firstId, receivableRows)
         , (secondId,
-            [("debit", "Purchases", 100), ("credit", "AccountsPayable", 100)])
+            [(DebitSide, "Purchases", 100), (CreditSide, "AccountsPayable", 100)])
         ]
-    rows = [("debit", "Sales", 100), ("credit", "Purchases", 100)]
+    rows = [(DebitSide, "Sales", 100), (CreditSide, "Purchases", 100)]
     call identity firstInput secondInput eliminationKey =
         Call (CallId identity) entityA periodOne Nothing
-            (Consolidate (firstInput :| [secondInput]) (eliminationKey :| []))
+            (ConsolidateCall (firstInput :| [secondInput]) (eliminationKey :| []))
     firstInput = EntityInput entityA (first :| [])
     secondInput = EntityInput entityB (second :| [])
     correct identity = call identity firstInput secondInput elimination
@@ -628,10 +628,10 @@ visibilityCases =
         [ (local, receivableRows)
         , (remote, receivableRows)
         , (elimination,
-            [("credit", "AccountsReceivable", 100), ("debit", "Sales", 100)])
+            [(CreditSide, "AccountsReceivable", 100), (DebitSide, "Sales", 100)])
         ]
     call = Call (CallId "allowance") entityA periodOne
-        (Just allowance) (AllowanceRate 1000)
+        (Just allowance) (AllowanceRateCall 1000)
 
 -- | Freeze the free-text diagnostic for invalid allowance parameters.
 parameterCases :: [GoldenCase]
@@ -643,7 +643,7 @@ parameterCases =
   where
     generated = key entityA periodOne "invalid"
     call = Call (CallId "bad-rate") entityA periodOne
-        (Just generated) (AllowanceRate 10001)
+        (Just generated) (AllowanceRateCall 10001)
 
 -- | Record each equivalence policy on the same ledger pairs as the fixed tests.
 equivalenceCases :: [GoldenCase]
@@ -704,7 +704,7 @@ catalogCases = map run catalogInputs ++ queryCases ++ protectedCases
         generated = key (EntityId "catalog-A") periodOne "generated"
         fact = FactId "source"
         sourceSupply = case body of
-            ReverseEntry _ -> SupplySubmission Ordinary
+            ReverseEntryCall _ -> SupplySubmission Ordinary
             _ -> SupplyFacts fact Ordinary
         facts = case sourceSupply of
             SupplyFacts identity _ -> Map.singleton identity rows
@@ -718,34 +718,34 @@ catalogCases = map run catalogInputs ++ queryCases ++ protectedCases
 -- | Catalog inputs copied from all twenty builder parity examples.
 catalogInputs :: [(Text, CatalogCall, CatalogOperationKind, Role, RawPostings, Text)]
 catalogInputs =
-    [ ordinary "Cogs" (Cogs 12 5) CogsKind Adjustment "-"
-    , ordinary "DepIndirect" (DepIndirect 7) DepIndirectKind Adjustment "-"
-    , ordinary "DepDirect" (DepDirect 7 Fixtures) DepDirectKind Adjustment "-"
-    , ordinary "Allowance" (Allowance 20 4) AllowanceKind Adjustment "classification"
-    , ("AllowanceRate", AllowanceRate 1000, AllowanceRateKind, Adjustment,
+    [ ordinary "Cogs" (CogsCall 12 5) CogsKind Adjustment "-"
+    , ordinary "DepIndirect" (DepreciationIndirectCall 7) DepreciationIndirectKind Adjustment "-"
+    , ordinary "DepDirect" (DepreciationDirectCall 7 Fixtures) DepreciationDirectKind Adjustment "-"
+    , ordinary "Allowance" (AllowanceCall 20 4) AllowanceKind Adjustment "classification"
+    , ("AllowanceRate", AllowanceRateCall 1000, AllowanceRateKind, Adjustment,
         receivableRows, "rate;classification")
-    , ordinary "AllowanceReset" (AllowanceReset 20 4) AllowanceResetKind
+    , ordinary "AllowanceReset" (AllowanceResetCall 20 4) AllowanceResetKind
         Adjustment "classification"
-    , ordinary "Prepaid" (Prepaid 7 RentExpense) PrepaidKind Adjustment "-"
-    , ordinary "Unearned" (Unearned 7 RentalIncome) UnearnedKind Adjustment "-"
+    , ordinary "Prepaid" (PrepaidCall 7 RentExpense) PrepaidKind Adjustment "-"
+    , ordinary "Unearned" (UnearnedCall 7 RentalIncome) UnearnedKind Adjustment "-"
     , ordinary "AccruedRevenue" (AccruedRevenueCall 7 InterestEarned)
         AccruedRevenueKind Adjustment "-"
     , ordinary "AccruedExpense" (AccruedExpenseCall 7 InterestExpense)
         AccruedExpenseKind Adjustment "-"
     , ordinary "ReverseEntry"
-        (ReverseEntry (key (EntityId "catalog-A") periodOne "source"))
+        (ReverseEntryCall (key (EntityId "catalog-A") periodOne "source"))
         ReverseEntryKind Ordinary "-"
-    , ordinary "ConsumptionTax" (ConsumptionTax 3 10) ConsumptionTaxKind Adjustment "-"
-    , ordinary "CorporateInterim" (CorporateInterim 7) CorporateInterimKind Ordinary "-"
-    , ordinary "CorporateSettlement" (CorporateSettlement 10 3)
+    , ordinary "ConsumptionTax" (ConsumptionTaxCall 3 10) ConsumptionTaxKind Adjustment "-"
+    , ordinary "CorporateInterim" (CorporateInterimCall 7) CorporateInterimKind Ordinary "-"
+    , ordinary "CorporateSettlement" (CorporateSettlementCall 10 3)
         CorporateSettlementKind Adjustment "-"
-    , ordinary "EquityEarnings" (EquityEarnings 7) EquityEarningsKind Adjustment "-"
-    , ordinary "EquityDividend" (EquityDividend 7) EquityDividendKind Ordinary "-"
-    , ordinary "EquityEntries" (EquityEntries 7 3) EquityEntriesKind Adjustment "-"
-    , ordinary "PriorError" (PriorError 3 4 RentExpense Fixtures)
+    , ordinary "EquityEarnings" (EquityEarningsCall 7) EquityEarningsKind Adjustment "-"
+    , ordinary "EquityDividend" (EquityDividendCall 7) EquityDividendKind Ordinary "-"
+    , ordinary "EquityEntries" (EquityEntriesCall 7 3) EquityEntriesKind Adjustment "-"
+    , ordinary "PriorError" (PriorErrorCall 3 4 RentExpense Fixtures)
         PriorErrorKind Adjustment "-"
-    , ordinary "FinalStock" FinalStock FinalStockKind Closing "finalstock"
-    , ordinary "StraightLine" (StraightLine Fixtures 3 True)
+    , ordinary "FinalStock" FinalStockCall FinalStockKind Closing "finalstock"
+    , ordinary "StraightLine" (StraightLineCall Fixtures 3 DirectMethod)
         StraightLineKind Adjustment "-"
     ]
   where
@@ -767,8 +767,8 @@ queryCases =
     investment = key company periodOne "investment"
     investmentFact = FactId "investment"
     investmentRows =
-        [("debit", "InvestmentInAssociate", 75), ("credit", "Cash", 75)]
-    equityCall = Call (CallId "EquityBalance") company periodOne Nothing EquityBalance
+        [(DebitSide, "InvestmentInAssociate", 75), (CreditSide, "Cash", 75)]
+    equityCall = Call (CallId "EquityBalance") company periodOne Nothing EquityBalanceCall
     first = key company periodOne "source"
     second = key otherCompany periodOne "source"
     elimination = key company periodOne "elimination"
@@ -783,12 +783,12 @@ queryCases =
         ]
     consolidationFacts = Map.fromList
         [ (firstFact, saleRows)
-        , (secondFact, [("debit", "Purchases", 100), ("credit", "Cash", 100)])
+        , (secondFact, [(DebitSide, "Purchases", 100), (CreditSide, "Cash", 100)])
         , (eliminationFact,
-            [("debit", "Sales", 100), ("credit", "Purchases", 100)])
+            [(DebitSide, "Sales", 100), (CreditSide, "Purchases", 100)])
         ]
     consolidateCall = Call (CallId "Consolidate") company periodOne Nothing
-        (Consolidate (EntityInput company (first :| []) :|
+        (ConsolidateCall (EntityInput company (first :| []) :|
             [EntityInput otherCompany (second :| [])]) (elimination :| []))
 
 -- | Fix the current protected-account decision for every concrete account.
@@ -801,7 +801,7 @@ protectedCases = map check concreteAccountTitles
         ("protected-" <> Text.pack (show account)) "classification"
         rules Map.empty Map.empty fullVocabulary
         (Submission [(source,
-            [("debit", Text.pack (show account), 1), ("credit", "Cash", 1)])] [])
+            [(DebitSide, Text.pack (show account), 1), (CreditSide, "Cash", 1)])] [])
 
 -- | Split boundary, equivalence, and catalog cases into stable TSV files.
 admissionFixtures :: [(FilePath, Text, Int)]

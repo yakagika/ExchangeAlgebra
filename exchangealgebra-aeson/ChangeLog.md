@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Changed
+
+- Posting sides are decoded to `DebitSide` or `CreditSide` after
+  `normalizeTitle`, using the same spellings as the core text input API.
+  Other spellings now fail decoding with `WrongType path "debit | credit"`,
+  rather than reaching admission as `InvalidEntry` with `UnknownSide`.
+- Registry operation names follow `CatalogOperationKind`'s `Show` spelling.
+  Replace `DepIndirectKind` with `DepreciationIndirectKind` and `DepDirectKind`
+  with `DepreciationDirectKind`. The old spellings are not accepted as aliases.
+
 ### Added
 
 - `ExchangeAlgebra.Aeson.Admission`: `decodeAdmissionSpec` and

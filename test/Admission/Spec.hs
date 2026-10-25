@@ -82,15 +82,15 @@ key entity period identity = TxKey entity period (TxId (Text.pack identity))
 
 -- | Balanced sale, cost, and receivable postings in side-text form.
 saleRows :: RawPostings
-saleRows = [("debit", "Cash", 100), ("credit", "Sales", 100)]
+saleRows = [(DebitSide, "Cash", 100), (CreditSide, "Sales", 100)]
 
 -- | Purchase payment with a thirty-unit debit total.
 costRows :: RawPostings
-costRows = [("debit", "Purchases", 30), ("credit", "Cash", 30)]
+costRows = [(DebitSide, "Purchases", 30), (CreditSide, "Cash", 30)]
 
 -- | One hundred units of earned receivables.
 receivableRows :: RawPostings
-receivableRows = [("debit", "AccountsReceivable", 100), ("credit", "Sales", 100)]
+receivableRows = [(DebitSide, "AccountsReceivable", 100), (CreditSide, "Sales", 100)]
 
 -- | Exact account vocabulary used by every fixture.
 vocabulary :: Set.Set AccountTitles
@@ -135,7 +135,7 @@ testCoverage = do
         rawRule = txRule Required [SupplySubmission Ordinary] (Just evidence)
         generatedRule = txRule Required [SupplyCatalog CogsKind] Nothing
         factRule = txRule Required [SupplyFacts fact Opening] Nothing
-        call identity target = Call (CallId identity) entityA periodOne (Just target) (Cogs 0 0)
+        call identity target = Call (CallId identity) entityA periodOne (Just target) (CogsCall 0 0)
     spec <- specFor [(raw, rawRule), (generated, generatedRule), (factKey, factRule)]
         (Map.singleton evidence 100) (Map.singleton fact saleRows)
     let submit rows calls = admit spec (Submission rows calls)
@@ -165,11 +165,11 @@ testCoverage = do
     assertTest "call entity mismatch" $ hasError
         (== CallEntityMismatch (CallId "wrong-entity") generated)
         (submit [(raw, saleRows)] [Call (CallId "wrong-entity") entityB periodOne
-            (Just generated) (Cogs 0 0)])
+            (Just generated) (CogsCall 0 0)])
     assertTest "call period mismatch" $ hasError
         (== CallPeriodMismatch (CallId "wrong-period") generated)
         (submit [(raw, saleRows)] [Call (CallId "wrong-period") entityA periodTwo
-            (Just generated) (Cogs 0 0)])
+            (Just generated) (CogsCall 0 0)])
     assertTest "evidence total debit mismatch" $ hasError
         (== EvidenceMismatch raw evidence (AmountMismatch 100 30))
         (submit [(raw, costRows)] [call "c" generated])
@@ -244,14 +244,14 @@ testRawPolicy = do
         assertTest ("raw retained earnings forbidden in " ++ show role) $ hasError
             (== DirectPostingForbidden retained RetainedEarnings)
             (admit retainedSpec (Submission
-                [(retained, [("debit", "Cash", 10)
-                            , ("credit", "RetainedEarnings", 10)])] []))
+                [(retained, [(DebitSide, "Cash", 10)
+                            , (CreditSide, "RetainedEarnings", 10)])] []))
         mixedSpec <- specFor [(mixed, rawRule)] Map.empty Map.empty
         assertTest ("raw profit-to-equity transfer forbidden in " ++ show role) $ hasError
             (== RawProfitEquityTransfer mixed)
             (admit mixedSpec (Submission
-                [(mixed, [("debit", "Purchases", 10)
-                         , ("credit", "RetainedEarnings", 10)])] []))
+                [(mixed, [(DebitSide, "Purchases", 10)
+                         , (CreditSide, "RetainedEarnings", 10)])] []))
 
 -- | Ordering and query-only catalog calls obey their declared stages.
 testCalls :: IO ()
@@ -260,8 +260,8 @@ testCalls = do
         adjusted = key entityA periodOne "adjusted"
         rawRule = txRule Required [SupplySubmission Ordinary] Nothing
         adjustmentRule = txRule Required [SupplyCatalog CogsKind] Nothing
-        adjustment = Call (CallId "adjust") entityA periodOne (Just adjusted) (Cogs 0 0)
-        query = Call (CallId "query") entityA periodOne Nothing EquityBalance
+        adjustment = Call (CallId "adjust") entityA periodOne (Just adjusted) (CogsCall 0 0)
+        query = Call (CallId "query") entityA periodOne Nothing EquityBalanceCall
     spec <- specFor [(raw, rawRule), (adjusted, adjustmentRule)] Map.empty Map.empty
     assertTest "stage inversion" $ hasError
         (== StageRegression (CallId "adjust") QueryStage AdjustmentStage)
@@ -304,7 +304,7 @@ testReferences = do
         postings = [(sourceA, saleRows), (sourceB, saleRows)
                    , (sourceLater, saleRows), (sourceAdjusted, saleRows)]
         invoke identity reference = Call (CallId identity) entityA periodOne
-            (Just reversal) (ReverseEntry reference)
+            (Just reversal) (ReverseEntryCall reference)
     spec <- specFor rules Map.empty Map.empty
     let rejected reference predicate = hasError predicate
             (admit spec (Submission postings [invoke "reverse" reference]))
@@ -337,14 +337,14 @@ testReferenceProvenance = do
             , (reversal, txRule Required [SupplyCatalog ReverseEntryKind] Nothing)
             ]
         facts = Map.fromList
-            [ (openingId, [("debit", "Cash", 10)
-                          , ("credit", "RetainedEarnings", 10)])
+            [ (openingId, [(DebitSide, "Cash", 10)
+                          , (CreditSide, "RetainedEarnings", 10)])
             , (ordinaryId, saleRows)
             ]
         interimCall = Call (CallId "interim") entityA periodOne
-            (Just interim) (CorporateInterim 10)
+            (Just interim) (CorporateInterimCall 10)
         reverse reference = Call (CallId "reverse") entityA periodOne
-            (Just reversal) (ReverseEntry reference)
+            (Just reversal) (ReverseEntryCall reference)
     spec <- specFor sourceRules Map.empty facts
     let rejects reference origin calls = hasError
             (== UnresolvedReference (CallId "reverse") reference Ordinary
@@ -368,11 +368,11 @@ testAlternativeSupplies = do
         sourceRule = txRule Required
             [SupplySubmission Ordinary, SupplyCatalog CorporateInterimKind] (Just receipt)
         reversalRule = txRule Optional [SupplyCatalog ReverseEntryKind] Nothing
-        rows = [("debit", "Cash", 10), ("credit", "Sales", 10)]
+        rows = [(DebitSide, "Cash", 10), (CreditSide, "Sales", 10)]
         generated amount = Call (CallId "interim") entityA periodOne
-            (Just source) (CorporateInterim amount)
+            (Just source) (CorporateInterimCall amount)
         reverseCall = Call (CallId "reverse") entityA periodOne
-            (Just reversal) (ReverseEntry source)
+            (Just reversal) (ReverseEntryCall source)
         makeSpec amount = specFor [(source, sourceRule), (reversal, reversalRule)]
             (Map.singleton receipt amount) Map.empty
     matching <- makeSpec 10
@@ -403,7 +403,7 @@ testAlternativeSupplies = do
     let zeroKey = key entityA periodOne "zero"
         zeroRule = txRule Required
             [SupplySubmission Ordinary, SupplyCatalog CogsKind] Nothing
-        zeroCall = Call (CallId "zero") entityA periodOne (Just zeroKey) (Cogs 0 0)
+        zeroCall = Call (CallId "zero") entityA periodOne (Just zeroKey) (CogsCall 0 0)
     zeroSpec <- specFor [(zeroKey, zeroRule)] Map.empty Map.empty
     zero <- requireRight "zero catalog fulfills required key" $
         admit zeroSpec (Submission [] [zeroCall])
@@ -430,10 +430,10 @@ testDuplicateEffect = do
             [ (raw, txRule Required [SupplySubmission Ordinary] Nothing)
             , (generated, txRule Required [SupplyCatalog CorporateInterimKind] Nothing)
             ]
-        rows = [("debit", "PrepaidCorporateIncomeTaxes", 10)
-               , ("credit", "Cash", 10)]
+        rows = [(DebitSide, "PrepaidCorporateIncomeTaxes", 10)
+               , (CreditSide, "Cash", 10)]
         call = Call (CallId "interim") entityA periodOne
-            (Just generated) (CorporateInterim 10)
+            (Just generated) (CorporateInterimCall 10)
     spec <- specFor rules Map.empty Map.empty
     assertTest "catalog duplicate effect against ordinary raw" $ hasError
         (== DuplicateEffect (CallId "interim") raw)
@@ -447,12 +447,13 @@ testPeriod = do
         closing = key entityA periodOne "closing"
         rules =
             [ (raw, txRule Required [SupplySubmission Ordinary] Nothing)
-            , (adjustment, txRule Required [SupplyCatalog DepIndirectKind] Nothing)
+            , (adjustment, txRule Required [SupplyCatalog DepreciationIndirectKind] Nothing)
             , (closing, txRule Required [SupplyCatalog FinalStockKind] Nothing)
             ]
         calls =
-            [ Call (CallId "depreciate") entityA periodOne (Just adjustment) (DepIndirect 20)
-            , Call (CallId "close") entityA periodOne (Just closing) FinalStock
+            [ Call (CallId "depreciate") entityA periodOne (Just adjustment)
+                (DepreciationIndirectCall 20)
+            , Call (CallId "close") entityA periodOne (Just closing) FinalStockCall
             ]
         expectedOrdinary = Map.fromList
             [(Cash, DebitBalance 100), (Sales, CreditBalance 100)]
@@ -502,8 +503,8 @@ testConsolidation = do
         elimination = key entityA periodOne "elimination"
         facts = Map.fromList
             [ (FactId "a", receivableRows)
-            , (FactId "b", [("debit", "Purchases", 100)
-                            , ("credit", "AccountsPayable", 100)])
+            , (FactId "b", [(DebitSide, "Purchases", 100)
+                            , (CreditSide, "AccountsPayable", 100)])
             ]
         rules =
             [ (first, txRule Required [SupplyFacts (FactId "a") Ordinary] Nothing)
@@ -511,9 +512,9 @@ testConsolidation = do
             , (elimination, txRule Required [SupplySubmission Elimination] Nothing)
             ]
         consolidation = Call (CallId "consolidate") entityA periodOne Nothing
-            (Consolidate (EntityInput entityA (first :| []) :|
+            (ConsolidateCall (EntityInput entityA (first :| []) :|
                 [EntityInput entityB (second :| [])]) (elimination :| []))
-        eliminateRows = [("debit", "Sales", 100), ("credit", "Purchases", 100)]
+        eliminateRows = [(DebitSide, "Sales", 100), (CreditSide, "Purchases", 100)]
     spec <- specFor rules Map.empty facts
     admitted <- requireRight "two-company facts and elimination"
         (admit spec (Submission [(elimination, eliminateRows)] [consolidation]))
@@ -550,13 +551,13 @@ testConsolidationReferences = do
             ]
         facts = Map.fromList
             [ (firstId, receivableRows)
-            , (secondId, [("debit", "Purchases", 100)
-                          , ("credit", "AccountsPayable", 100)])
+            , (secondId, [(DebitSide, "Purchases", 100)
+                          , (CreditSide, "AccountsPayable", 100)])
             ]
-        rows = [("debit", "Sales", 100), ("credit", "Purchases", 100)]
+        rows = [(DebitSide, "Sales", 100), (CreditSide, "Purchases", 100)]
         call identity firstInput secondInput = Call (CallId identity)
             entityA periodOne Nothing
-            (Consolidate (firstInput :| [secondInput]) (elimination :| []))
+            (ConsolidateCall (firstInput :| [secondInput]) (elimination :| []))
         entityInput = EntityInput entityA (first :| [])
         otherInput = EntityInput entityB (second :| [])
         wrongEntity = call "wrong-company"
@@ -580,7 +581,7 @@ testConsolidationReferences = do
     let opening = key entityA periodOne "opening-source"
         openingRule = (opening, txRule Required [SupplyFacts firstId Opening] Nothing)
         wrongRole = Call (CallId "opening-elimination") entityA periodOne Nothing
-            (Consolidate (entityInput :| [otherInput]) (opening :| []))
+            (ConsolidateCall (entityInput :| [otherInput]) (opening :| []))
     openingSpec <- specFor (openingRule : rules) Map.empty facts
     assertTest "opening exception does not grant elimination role" $ hasError
         (== UnresolvedReference (CallId "opening-elimination") opening Elimination
@@ -601,12 +602,12 @@ testVisibility = do
             , (allowance, txRule Required [SupplyCatalog AllowanceRateKind] Nothing)
             ]
         invocation = Call (CallId "allowance") entityA periodOne
-            (Just allowance) (AllowanceRate 1000)
+            (Just allowance) (AllowanceRateCall 1000)
     spec <- specFor rules Map.empty Map.empty
     admitted <- requireRight "allowance visibility" (admit spec (Submission
         [ (local, receivableRows)
         , (remote, receivableRows)
-        , (elimination, [("credit", "AccountsReceivable", 100), ("debit", "Sales", 100)])
+        , (elimination, [(CreditSide, "AccountsReceivable", 100), (DebitSide, "Sales", 100)])
         ] [invocation]))
     let expected = Map.fromList
             [ (AllowanceForDoubtfulAccounts, CreditBalance 10)
@@ -622,7 +623,7 @@ testParameterTotality = do
     let generated = key entityA periodOne "invalid"
         rule = txRule Required [SupplyCatalog AllowanceRateKind] Nothing
         invocation = Call (CallId "bad-rate") entityA periodOne
-            (Just generated) (AllowanceRate 10001)
+            (Just generated) (AllowanceRateCall 10001)
     spec <- specFor [(generated, rule)] Map.empty Map.empty
     outcome <- try (evaluate (admit spec (Submission [] [invocation])))
         :: IO (Either SomeException (Either AdmissionFailure Admitted))
@@ -720,7 +721,7 @@ propAcceptedDebitEvidence (Positive number) = case txIdRegistry [(transaction, r
     transaction = key entityA periodOne "receipt-sale"
     receipt = EvidenceId "receipt"
     rule = txRule Required [SupplySubmission Ordinary] (Just receipt)
-    rows = [("debit", "Cash", amount), ("credit", "Sales", amount)]
+    rows = [(DebitSide, "Cash", amount), (CreditSide, "Sales", amount)]
 
 -- | Authorized routes cannot cause provenance to be inferred from the rule set.
 propActualSupplyProvenance :: Positive Int -> Bool
@@ -746,11 +747,11 @@ propActualSupplyProvenance (Positive number) =
     sourceRule = txRule Required
         [SupplySubmission Ordinary, SupplyCatalog CorporateInterimKind] (Just receipt)
     reversalRule = txRule Required [SupplyCatalog ReverseEntryKind] Nothing
-    rows = [("debit", "Cash", amount), ("credit", "Sales", amount)]
+    rows = [(DebitSide, "Cash", amount), (CreditSide, "Sales", amount)]
     catalogCall = Call (CallId "catalog") entityA periodOne
-        (Just source) (CorporateInterim amount)
+        (Just source) (CorporateInterimCall amount)
     reverseCall = Call (CallId "reverse") entityA periodOne
-        (Just reversal) (ReverseEntry source)
+        (Just reversal) (ReverseEntryCall source)
     catalogOrigin errorValue = errorValue == UnresolvedReference
         (CallId "reverse") source Ordinary
         (ReferenceProvenanceForbidden
@@ -816,13 +817,14 @@ propSnapshotInclusion (Positive number) = case txIdRegistry rules of
     closingKey = key entityA periodOne ("closing-" ++ suffix)
     rules =
         [ (ordinaryKey, txRule Required [SupplySubmission Ordinary] Nothing)
-        , (adjustmentKey, txRule Required [SupplyCatalog DepIndirectKind] Nothing)
+        , (adjustmentKey, txRule Required [SupplyCatalog DepreciationIndirectKind] Nothing)
         , (closingKey, txRule Required [SupplyCatalog FinalStockKind] Nothing)
         ]
     specification registry = AdmissionSpec registry Map.empty Map.empty vocabulary
     submission = Submission [(ordinaryKey, saleRows)]
-        [ Call (CallId "adjust") entityA periodOne (Just adjustmentKey) (DepIndirect 20)
-        , Call (CallId "close") entityA periodOne (Just closingKey) FinalStock
+        [ Call (CallId "adjust") entityA periodOne (Just adjustmentKey)
+            (DepreciationIndirectCall 20)
+        , Call (CallId "close") entityA periodOne (Just closingKey) FinalStockCall
         ]
     included :: HashMap.HashMap AdmissionNote Entry -> HashMap.HashMap AdmissionNote Entry -> Bool
     included earlier later = HashMap.isSubmapOfBy (\left right -> left == right) earlier later
@@ -845,8 +847,8 @@ testAdmissionRestriction = do
             , (laterC, txRule Required [SupplySubmission Ordinary] Nothing)
             ]
         calls =
-            [ Call (CallId "close-A") entityA periodOne (Just closeA) FinalStock
-            , Call (CallId "close-B") entityB periodOne (Just closeB) FinalStock
+            [ Call (CallId "close-A") entityA periodOne (Just closeA) FinalStockCall
+            , Call (CallId "close-B") entityB periodOne (Just closeB) FinalStockCall
             ]
         inEntities :: [EntityId] -> AdmissionNote -> Bool
         inEntities entities note = case admissionKey note of

@@ -61,11 +61,11 @@ j1 = do
         $ A.admissionRegistry decoded
     assertEqual "J1 evidence" (Map.singleton (A.EvidenceId "e1") 120.50)
                               (A.admissionEvidence decoded)
-    assertEqual "J1 facts" (Map.singleton (A.FactId "f1") [("debit", "Cash", 100)])
+    assertEqual "J1 facts" (Map.singleton (A.FactId "f1") [(A.DebitSide, "Cash", 100)])
                            (A.admissionFacts decoded)
     assertEqual "J1 vocabulary" (Set.fromList [Cash, Sales]) (A.admissionVocabulary decoded)
     submitted <- fixture "valid/submission" >>= right . decodeSubmissionPostings
-    let expected = A.Submission [(key "A" "t1", [("debit", "Cash", 25)])] []
+    let expected = A.Submission [(key "A" "t1", [(A.DebitSide, "Cash", 25)])] []
     assertEqual "J1 submission" expected submitted
     repeated <- right $ decodeSubmissionPostings $
         "{\"format\":\"exchangealgebra-submission/dev\",\"postings\":[{\"entity\":\"A\",\
@@ -73,7 +73,7 @@ j1 = do
         \\"amount\":25},{\"side\":\"debit\",\"account\":\"Cash\",\"amount\":25}]},\
         \{\"entity\":\"A\",\"period\":\"2026\",\"tx\":\"t1\",\"rows\":[]}]}"
     assertEqual "J1 posting order and redundancy"
-        (A.Submission [(key "A" "t1", [("debit", "Cash", 25), ("debit", "Cash", 25)]),
+        (A.Submission [(key "A" "t1", [(A.DebitSide, "Cash", 25), (A.DebitSide, "Cash", 25)]),
                        (key "A" "t1", [])] []) repeated
 
 -- | Test arbitrary JSON fragments in an otherwise complete trusted specification.
@@ -92,6 +92,12 @@ j2 :: IO ()
 j2 = do
     let amountPath = [Field "evidence", Index 0, Field "amount"]
         postingPath = [Field "postings", Index 0]
+    failures "unknown posting side"
+        [WrongType (postingPath ++ [Field "rows", Index 0, Field "side"]) "debit | credit"]
+        (decodeSubmissionPostings
+            ("{\"format\":\"exchangealgebra-submission/dev\",\"postings\":[" <>
+             "{\"entity\":\"A\",\"period\":\"2026\",\"tx\":\"t1\",\"rows\":[" <>
+             "{\"side\":\"left\",\"account\":\"Cash\",\"amount\":1}]}]}"))
     forM_
         [ ("unknown-field", [UnknownField [Field "extra"] "extra"])
         , ("negative-money", [BadMoney amountPath NegativeMoney])
@@ -204,8 +210,8 @@ roleName A.Elimination = "elimination"
 isQuery :: A.CatalogOperationKind -> Bool
 isQuery operation = case operation of
     A.CogsKind -> False
-    A.DepIndirectKind -> False
-    A.DepDirectKind -> False
+    A.DepreciationIndirectKind -> False
+    A.DepreciationDirectKind -> False
     A.AllowanceKind -> False
     A.AllowanceRateKind -> False
     A.AllowanceResetKind -> False
@@ -242,7 +248,7 @@ closedEnums = do
                 $ A.registryRules
                 $ A.admissionRegistry decoded
     forM_
-        [ A.CogsKind, A.DepIndirectKind, A.DepDirectKind, A.AllowanceKind
+        [ A.CogsKind, A.DepreciationIndirectKind, A.DepreciationDirectKind, A.AllowanceKind
         , A.AllowanceRateKind, A.AllowanceResetKind, A.PrepaidKind, A.UnearnedKind
         , A.AccruedRevenueKind, A.AccruedExpenseKind, A.ReverseEntryKind, A.ConsumptionTaxKind
         , A.CorporateInterimKind, A.CorporateSettlementKind, A.EquityEarningsKind
@@ -286,8 +292,9 @@ j3 = do
             (Map.fromList [(A.EvidenceId "sale-total", 100), (A.EvidenceId "expense-total", 100)])
             Map.empty (Set.fromList [Cash, Sales, RentExpense])
         expectedSubmission = A.Submission
-            [ (key "shop" "sale", [("Debit", "Cash", 100), ("Credit", "Sales", 100)])
-            , (key "shop" "expense", [("Debit", "RentExpense", 100), ("Credit", "Cash", 100)])
+            [ (key "shop" "sale", [(A.DebitSide, "Cash", 100), (A.CreditSide, "Sales", 100)])
+            , (key "shop" "expense",
+                [(A.DebitSide, "RentExpense", 100), (A.CreditSide, "Cash", 100)])
             ] []
     spec       <- fixture "valid/admit-spec" >>= right . decodeAdmissionSpec
     submission <- fixture "valid/admit-submission" >>= right . decodeSubmissionPostings

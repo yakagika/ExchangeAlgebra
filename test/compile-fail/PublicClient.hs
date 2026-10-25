@@ -17,7 +17,7 @@ acceptedLedger = do
         (txIdRegistry [(key, txRule Required [SupplySubmission Ordinary] Nothing)])
     let spec = AdmissionSpec registry Map.empty Map.empty (Set.fromList [Cash, Sales])
         submission = Submission
-            [(key, [("debit", "Cash", 10), ("credit", "Sales", 10)])] []
+            [(key, [(DebitSide, "Cash", 10), (CreditSide, "Sales", 10)])] []
     accepted <- either (Left . show) Right (admit spec submission)
     Right (admittedJournal accepted)
 
