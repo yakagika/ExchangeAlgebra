@@ -31,6 +31,7 @@ main = doctest  [ "-isrc"
                 , "src/ExchangeAlgebra/IO/Input/Admission/Catalog.hs"
                 , "src/ExchangeAlgebra/IO/Input/Admission/Engine.hs"
                 , "src/ExchangeAlgebra/IO/Input/Admission/Explain.hs"
+                , "src/ExchangeAlgebra/IO/Input/Admission/Posting.hs"
                   -- the admission examples import its public API qualified;
                   -- load that module before doctest evaluates those imports.
                 , "src/ExchangeAlgebra/IO/Input/Admission.hs"

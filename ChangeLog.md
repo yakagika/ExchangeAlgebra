@@ -370,6 +370,11 @@
 
 ### Changed (admission API, not yet released on Hackage)
 
+- Add `journalPostings` and `PostingConversionError` to convert computed journals
+  into admission submissions. Debit and credit follow account classification;
+  `Not` does not always mean debit. Same-base postings stay separate. This is
+  additive; acceptance, diagnostics, and golden outputs are unchanged.
+
 - Add `explainAdmissionError`, `explainAdmissionFailure`, `explainAdmissionPhase`,
   and `explainClosingDerivationError` for English failure explanations.
 - Add `Disclosure` and `admissionDisclosure` to `AdmissionSpec`. Construction now

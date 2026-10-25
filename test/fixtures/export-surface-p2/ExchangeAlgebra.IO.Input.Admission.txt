@@ -55,6 +55,7 @@ ClosingNotDerivable
 ClosingStage
 CogsCall
 CogsKind
+CollidingTransaction
 ConsolidateCall
 ConsolidateKind
 ConsolidationStage
@@ -139,6 +140,7 @@ Ordinary
 OrdinaryStage
 PaidParameter
 PeriodId
+PostingConversionError
 PostingSide
 PrepaidCall
 PrepaidKind
@@ -198,6 +200,7 @@ UnexpectedGeneratedKey
 UnknownCallScope
 UnknownTransaction
 UnresolvedReference
+WildcardPosting
 actualAmount
 admissionDisclosure
 admissionEvidence
@@ -243,6 +246,7 @@ failureErrors
 failurePhase
 fullDisclosure
 isGenerating
+journalPostings
 limitAmount
 limitedAmount
 presentAdmitted

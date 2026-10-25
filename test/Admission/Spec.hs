@@ -6,6 +6,7 @@ module Admission.Spec (runTests) where
 
 import Control.Monad (forM_, unless)
 import qualified Data.ByteString.Char8 as ByteString
+import Data.List (sort)
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.HashMap.Strict as HashMap
@@ -42,6 +43,8 @@ import qualified ExchangeAlgebra.Accounting.Statements.Presentation as Presentat
 import qualified ExchangeAlgebra.Accounting.TrialBalance.Validation as TrialBalance
 import ExchangeAlgebra.Accounting.TrialBalance.Balance
     ( AccountBalance(..), accountBalances )
+import qualified ExchangeAlgebra.Algebra.Core as Algebra
+import ExchangeAlgebra.Algebra.Internal (Alg(Single))
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 
 -- | Exit on a failed assertion using the surrounding test suite convention.
@@ -1228,9 +1231,104 @@ testExplanations = do
             not (Text.isInfixOf "-5" (explainAdmissionFailure hidden failure))
         Right _ -> assertTest "invalid evidence fixture rejects" False
 
+-- | Submission preserves posting multisets, account sides, and conversion failures.
+testJournalPostings :: IO ()
+testJournalPostings = do
+    let entries :: [(String, Alg MoneyDecimal (HatBase AccountTitles))]
+        entries =
+            [ ("sale", 100 .@ Not :< Cash .+ 100 .@ Not :< Sales)
+            , ("expense", 100 .@ Not :< RentExpense .+ 100 .@ Not :< AccruedExpenses)
+            , ("cancel", 100 .@ Hat :< Sales .+ 100 .@ Hat :< Cash)
+            , ("depreciation", 100 .@ Not :< Depreciation
+                              .+ 100 .@ Not :< AccumulatedDepreciation)
+            , ("separate", 40 .@ Not :< Cash .+ 60 .@ Not :< Cash .+ 100 .@ Not :< Sales)
+            ]
+        journal = Journal.sigma [entry Journal..| name | (name, entry) <- entries] id
+        transaction :: String -> TxKey
+        transaction = key entityA periodOne
+        rule :: String -> (TxKey, TxRule)
+        rule name = (transaction name, txRule Required [SupplySubmission Ordinary]
+            (Just (EvidenceId (Text.pack name))))
+        opening = transaction "opening"
+        fact = FactId "opening"
+        openingRule = txRule Required [SupplyFacts fact Opening] Nothing
+        evidence = Map.fromList [(EvidenceId (Text.pack name), 100) | (name, _) <- entries]
+        facts = Map.singleton fact
+            [(DebitSide, "Cash", 100), (CreditSide, "RetainedEarnings", 100)]
+    submitted <- requireRight "convert computed journal" (journalPostings transaction journal)
+    assertTest "converted keys are ascending" $
+        map fst submitted == sort (map transaction (map fst entries))
+    assertTest "sale follows account classification" $
+        fmap sort (lookup (transaction "sale") submitted) == Just (sort saleRows)
+    assertTest "cancellation reverses account sides" $
+        fmap sort (lookup (transaction "cancel") submitted) == Just
+            (sort [(DebitSide, "Sales", 100), (CreditSide, "Cash", 100)])
+    assertTest "same-base postings remain separate" $
+        fmap sort (lookup (transaction "separate") submitted) == Just
+            (sort [(DebitSide, "Cash", 40), (DebitSide, "Cash", 60), (CreditSide, "Sales", 100)])
+    -- Compare row order with the journal's exposed term order, before admission.
+    forM_ (HashMap.toList (Journal.toMap journal)) $ \(name, entry) -> do
+        let amounts = map Algebra._val (Algebra.toList entry)
+            submittedAmounts = fmap (map (\(_, _, amount) -> amount)) $
+                lookup (transaction name) submitted
+        assertTest "conversion preserves term order" (submittedAmounts == Just amounts)
+    forM_ [False, True] $ \withFacts -> do
+        let registryRows = map rule (map fst entries)
+                ++ [(opening, openingRule) | withFacts]
+            openingFacts = Map.filter (const withFacts) facts
+        base <- specFor registryRows evidence openingFacts
+        let specification = base { admissionVocabulary = Set.union vocabulary
+                (Set.fromList [RentExpense, AccruedExpenses]) }
+        accepted <- requireRight "admit converted journal" $
+            admit specification (Submission submitted [])
+        let admitted = Map.fromList
+                [(admissionKey note, sort (Algebra.toList entry))
+                | (note, entry) <- HashMap.toList (Journal.toMap (admittedJournal accepted))]
+        forM_ (HashMap.toList (Journal.toMap journal)) $ \(name, entry) ->
+            assertTest "submitted key round-trips its posting multiset" $
+                Map.lookup (transaction name) admitted == Just (sort (Algebra.toList entry))
+        assertTest "opening facts are outside submitted-key comparison" $
+            Map.member opening admitted == withFacts
+    let incorrect = (100 .@ Hat :< Sales .+ 100 .@ Not :< Cash) Journal..| "sale"
+    incorrectRows <- requireRight "convert incorrectly marked sale" $
+        journalPostings transaction incorrect
+    assertTest "Hat Sales converts to debit" $
+        maybe False (elem (DebitSide, "Sales", 100)) (lookup (transaction "sale") incorrectRows)
+    incorrectSpec <- specFor [rule "sale"] (Map.singleton (EvidenceId "sale") 100) Map.empty
+    assertTest "incorrectly marked sale is rejected" $ case
+        admit incorrectSpec (Submission incorrectRows []) of
+        Left _  -> True
+        Right _ -> False
+    let marker :: Alg MoneyDecimal (HatBase AccountTitles)
+        marker = Single 100 (HatNot :< Cash)
+        title :: Alg MoneyDecimal (HatBase AccountTitles)
+        title = 40 .@ Not :< AccountTitle .+ 60 .@ Not :< AccountTitle
+        markerJournal = marker Journal..| "marker"
+        titleJournal = title Journal..| "title"
+        collisionJournal = (100 .@ Not :< Cash Journal..| "first")
+                        .+ (100 .@ Not :< Sales Journal..| "second")
+        collisionKey = transaction "collision"
+        failureKey :: String -> TxKey
+        failureKey "marker" = transaction "marker"
+        failureKey _        = collisionKey
+    assertTest "HatNot is a wildcard failure" $
+        journalPostings transaction markerJournal ==
+            Left (WildcardPosting (transaction "marker") :| [])
+    assertTest "wildcard title fails once without classifying" $
+        journalPostings transaction titleJournal ==
+            Left (WildcardPosting (transaction "title") :| [])
+    assertTest "distinct notes cannot share a transaction key" $
+        journalPostings (const collisionKey) collisionJournal ==
+            Left (CollidingTransaction collisionKey :| [])
+    assertTest "all failures are sorted and deduplicated without partial results" $
+        journalPostings failureKey (markerJournal .+ titleJournal .+ collisionJournal) ==
+            Left (WildcardPosting collisionKey :|
+                [WildcardPosting (transaction "marker"), CollidingTransaction collisionKey])
+
 -- | Run fixed admissions and bounded laws through the suite harness.
 runTests :: IO ()
 runTests = do
+    testJournalPostings
     testExplanations
     testCoverage
     testRegistrySupplies
