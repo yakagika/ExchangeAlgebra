@@ -17,6 +17,8 @@
 -- rules are not accounting constraints. Simulations and other accounting
 -- computations that build entries themselves should use the checked-entry API
 -- in "ExchangeAlgebra.IO.Input" or construct entries directly instead.
+-- The model leaves closing to EA: after admission, use 'closeAdmitted' to
+-- derive closing entries for each entity and period.
 --
 -- The specification and executor are trusted. The static guarantee applies to
 -- the derivation functions exported here, not to the existing low-level APIs.
@@ -35,9 +37,10 @@
 --
 -- 'Stage' conflicts with the stage name in Simulate.Lite; 'Adjustment' can
 -- also collide with names in other accounting modules.
--- Evidence obligations implement Definition 8, 'FinalStockCall' uses the
--- Definition 9 closing transfer, and t'TxKey' supplies the note coordinates
--- used by Definitions 10-12.
+-- Evidence obligations implement Definition 8. 'FinalStockCall' retains closing
+-- pairs per base with the same net as the legacy Definition 9 expression;
+-- debit-total evidence can increase because the pairs remain separate.
+-- t'TxKey' supplies the note coordinates used by Definitions 10-12.
 --
 -- = Admission, derivation, and presentation
 --
@@ -170,6 +173,7 @@ module ExchangeAlgebra.IO.Input.Admission
     , CallAudit(..)
     , Admitted
     , admit
+    , closeAdmitted
       -- * Observations and derivation
     , AdmissionNote
     , admissionKey
@@ -193,7 +197,7 @@ module ExchangeAlgebra.IO.Input.Admission
 
 import ExchangeAlgebra.IO.Input.Admission.Derive
 import ExchangeAlgebra.IO.Input.Admission.Catalog (catalogKind, catalogStage, isGenerating)
-import ExchangeAlgebra.IO.Input.Admission.Engine (admit)
+import ExchangeAlgebra.IO.Input.Admission.Engine (admit, closeAdmitted)
 import ExchangeAlgebra.IO.Input.Admission.Representation
     ( Admitted
     , AdmittedStatements

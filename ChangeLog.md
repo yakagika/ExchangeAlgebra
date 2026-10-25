@@ -370,6 +370,24 @@
 
 ### Changed (admission API, not yet released on Hackage)
 
+- `closeAdmitted` derives closing entries after admission, so the model leaves
+  closing to EA. Pass a transaction ID for each entity-period closing; the
+  library rejects blank IDs, existing closings, key collisions, and scopes with
+  consolidation eliminations through `ClosingDerivationError`. Generated notes
+  use `DerivedClosing`, including closings without postings; call audits stay
+  unchanged. Trial-balance validation remains a separate check: `NoClose`
+  accounts such as `NetIncome` and `IncomeSummary` can retain balances.
+- `FinalStockCall` uses `closingEntries` and preserves the closing pair for
+  each base. Its net is unchanged, but postings changed (`FinalStock`).
+  Acceptance changed for evidence on a `FinalStock` generated key: evidence
+  measures the total debits, so sales of 100 and depreciation of 20 require
+  120 instead of 100. Migrate the evidence amount to the new debit total.
+  `CatalogExecutionProblem` adds `ClosingFailed` with the failing base.
+  `FinalStockCall` still closes the visible ledger including any consolidation
+  eliminations in that entity and period; consolidation closing is not yet
+  specified. Other admission decisions, provenance checks, and projections
+  are unchanged.
+
 - Catalog invocation constructors now end in `Call`. Migrate these names:
 
   | Previous Call | New Call |

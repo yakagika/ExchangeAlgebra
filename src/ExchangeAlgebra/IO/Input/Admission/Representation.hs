@@ -1,7 +1,8 @@
 {-# OPTIONS_GHC -Wincomplete-patterns -Werror=incomplete-patterns #-}
 
--- | Hold accepted values inside the IO input layer. The admission engine alone
--- constructs these values, and the public derivation functions consume them.
+-- | Hold accepted values inside the IO input layer. Admission constructs them;
+-- closeAdmitted adds only derived closing entries to an accepted value.
+-- The public derivation functions consume these values.
 -- The journal is authoritative: every admitted transaction is one note.
 -- Read the transaction note before the accepted-value constructor.
 module ExchangeAlgebra.IO.Input.Admission.Representation where

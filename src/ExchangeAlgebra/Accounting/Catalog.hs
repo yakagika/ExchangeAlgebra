@@ -47,7 +47,8 @@ import ExchangeAlgebra.Accounting.Account.Classification
     , Side
     )
 import ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
-import qualified ExchangeAlgebra.Algebra.Transfer as Transfer
+import ExchangeAlgebra.Algebra.Transfer.Representation (TransferApplyError(..))
+import qualified ExchangeAlgebra.Accounting.Closing as Closing
 import qualified ExchangeAlgebra.Accounting.Entries as Bookkeeping
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal(..))
 import ExchangeAlgebra.Accounting.Transaction
@@ -75,7 +76,8 @@ data CatalogOperationKind
     | EquityEntriesKind -- ^ Combined equity-method entries.
     | EquityBalanceKind -- ^ Equity-method balance query.
     | PriorErrorKind -- ^ Prior-period error correction.
-    | FinalStockKind -- ^ Final-stock closing transfer.
+    | FinalStockKind
+      -- ^ Closing pairs per base, with the legacy net; debit-total evidence can increase.
     | StraightLineKind -- ^ Straight-line depreciation.
     | ConsolidateKind -- ^ Consolidation balance check.
     deriving (Eq, Ord, Show, Generic)
@@ -112,7 +114,9 @@ data CatalogCallOf r
     | EquityBalanceCall -- ^ Query the equity-method balance.
     | PriorErrorCall -- ^ Current amount, prior amount, expense, then asset.
         MoneyDecimal MoneyDecimal AccountTitles AccountTitles
-    | FinalStockCall -- ^ Close final stock against the visible ledger.
+    | FinalStockCall
+      -- ^ Close the visible ledger with a reversal and retained-earnings posting per base.
+      -- The net equals the legacy closing expression; debit-total evidence can increase.
     | StraightLineCall -- ^ Asset, annual amount, then depreciation method.
         AccountTitles MoneyDecimal DepreciationMethod
     | ConsolidateCall (NonEmpty (EntityInputOf r)) (NonEmpty r) -- ^ Entities and elimination keys.
@@ -407,8 +411,10 @@ exactQuotient rational = go 0 (numerator rational) (denominator rational)
 
 -- | Execute a validated call carrying its resolved references. The entry
 -- argument is the visible cumulative ledger before execution.
--- 'FinalStockCall' applies 'bar' to the closing transfer and reversal, so its output
--- loses the original posting sequence and inherits the algebra's tolerance.
+-- 'FinalStockCall' uses 'Closing.closingEntries', retaining a reversal and
+-- retained-earnings posting per eligible base without calling 'bar'. Its net
+-- equals the legacy closing expression, but debit-total evidence can increase
+-- because retained-earnings postings from different bases remain separate.
 -- 'AllowanceRateCall' reads balances after 'bar'. 'ConsolidateCall' checks balance only
 -- after applying 'bar' to the selected entries.
 --
@@ -464,8 +470,10 @@ executeCatalog ledger call = case call of
     EquityBalanceCall -> Right (mempty, Just (Bookkeeping.equityMethodBalance ledger))
     PriorErrorCall current prior expense asset ->
         generated (Bookkeeping.priorPeriodErrorCorrection mk current prior expense asset)
-    FinalStockCall -> generated
-        (bar (Transfer.finalStockTransfer ledger .+ Bookkeeping.reversingEntry (bar ledger)))
+    FinalStockCall -> case Closing.closingEntries ledger of
+        Right entries -> generated entries
+        Left (NonFiniteBalance base) -> Left (ClosingFailed base)
+        Left (NonFiniteResult _ _ base) -> Left (ClosingFailed base)
     StraightLineCall asset amount method  -> generated (depreciationEntry method asset amount)
     ConsolidateCall entities eliminations ->
         let selected = map snd (consolidationKeys entities eliminations)

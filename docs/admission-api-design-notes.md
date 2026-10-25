@@ -86,7 +86,7 @@ raw の直接記帳禁止は, 利益剰余金などの保護された科目と�
 | `Ordinary`, `Opening`; interim tax, dividend, reversal | `OrdinaryStage` | OrdinaryJournal; Opening のみ EngineComputation |
 | `Adjustment`; 通常の整理操作 | `AdjustmentStage` | ClosingProcess |
 | `Elimination`; equity earnings, equity entries, consolidation | `ConsolidationStage` | ConsolidationWorksheet |
-| `Closing`; final stock transfer | `ClosingStage` | EngineComputation |
+| `Closing`; `FinalStockCall`, `closeAdmitted` の導出 | `ClosingStage` | EngineComputation |
 | equity balance query | `QueryStage` | EngineComputation |
 
 equity earnings / entries の生成仕訳は役割 `Adjustment`, 実行 stage `ConsolidationStage` とする.
@@ -121,6 +121,24 @@ getter はこれらを `DuringPeriod`, `Adjusted`, `Closed` として観測さ�
 `deriveTrialBalance` は最終 snapshot と整理後 snapshot をそれぞれ既存の
 `validateTrialBalance strictTrialBalancePolicy` に渡し, 受入元と一緒に保持する.
 締め取引が存在すれば最終 snapshot の検証 stage は `AfterClosing`, なければ `BeforeClosing` である.
+締めは model が記帳せず, 受入の後に `closeAdmitted txid` で会社と期ごとに導く.
+対象は posting の無い取引も含む note の集合から昇順に選び, 同じ会社と期の
+`ClosingStage` 以下の全 posting を読む (`QueryStage` は含めない).
+空の ID を先に拒否し, 各対象では既存の締め, key の衝突, 連結の消去,
+締めの計算の失敗の順に検査する. 全検査は元の受入値に対して行い, 部分の結果は返さない.
+締めの仕訳は `closingEntries` で作り, `bar` をかけず `.+` で追加する.
+零件でも `Closing` / `DerivedClosing` の note を登録し, call audit は足さない.
+`FinalStockCall` で締めた値との併用は二重の締めとして拒否する.
+`closingSide` を持つ勘定の残高は締めの後に 0 になるが, `NoClose` の
+`NetIncome`, `IncomeSummary` などは残りうるため, 試算表の検証の成功は別に確かめる.
+個社の帳簿の締めに連結の消去を含めないので, `closeAdmitted` は消去の混在を拒否する.
+既存の `FinalStockCall` は今も消去を含む可視台帳を締める. 連結の締めは未設計である.
+一般の会計計算やシミュレーションでは `closingEntries` を直接使う.
+
+`FinalStockCall` の生成仕訳も `closingEntries` により base ごとの反対仕訳と
+利益剰余金への仕訳の組を保持する. 純額は旧の式と同じである.
+証拠の照合は生成 key の借方の総額なので, 売上 100 と減価償却 20 では
+旧の証拠額 100 を新しい総額 120 に移行する必要がある.
 独立した残高・説明・再分類を提出側から差し込む引数は置かない.
 この初期 API は strict policy を固定するため, 説明付き仮勘定等を通す緩和経路は提供しない.
 
@@ -161,12 +179,12 @@ posting の比較は `(Hat, AccountTitles, MoneyDecimal)` を sort した多重�
 |---|---|---|
 | Admission | 公開入口 | 下位の受入・導出関数を限定して export |
 | Accounting.Transaction | 識別子と仕訳 | MoneyDecimal, Alg, Note |
-| Accounting.Catalog / Admission.Workflow | 閉じた操作の入力と実行 / 役割・段階・出所 | 取引識別子, MoneyDecimal, Bookkeeping builders, finalStockTransfer |
+| Accounting.Catalog / Admission.Workflow | 閉じた操作の入力と実行 / 役割・段階・出所 | 取引識別子, MoneyDecimal, Bookkeeping builders, closingEntries |
 | Admission.Registry.Definition / Submission / Diagnostic | registry 宣言 / 提出 / 診断 | Accounting.Catalog, Workflow, EntryError |
 | Admission.Representation | 非公開の検証済み表現 | Journal, ValidatedTrialBalance |
 | Registry | 重複を保全した registry 構築 | containers の Map |
 | Admission.Catalog | 受入の段階・役割・勘定方針と診断変換 | Accounting.Catalog, Workflow |
-| Engine | 受入の固定順序と参照解決 | checkedEntryTextIn, checkedEntryIn, Journal.projWithNote, toAlg |
+| Engine | 受入の固定順序, 参照解決, 受入後の締め | checkedEntryTextIn, checkedEntryIn, Journal.projWithNote, toAlg, closingEntries |
 | Derive | snapshot の検証と諸表の導出 | validateTrialBalance, present |
 | IO.Output.Admission | 受入済み諸表の CSV 出力 | FinancialStatements |
 | Accounting.Equivalence | 指定された観測での比較 | Alg.filter, bar, toList |

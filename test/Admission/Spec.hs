@@ -25,9 +25,12 @@ import ExchangeAlgebra.Algebra
     , Alg
     , Exchange(decL)
     , Hat(..)
-    , Redundant(norm)
+    , Redundant(norm, bar)
     )
 import ExchangeAlgebra.Algebra.Base (AccountTitles(..), HatBase((:<)))
+import qualified ExchangeAlgebra.Accounting.Closing as Closing
+import qualified ExchangeAlgebra.Accounting.Entries as Bookkeeping
+import qualified ExchangeAlgebra.Algebra.Transfer as Transfer
 import qualified ExchangeAlgebra.Accounting.Statements.Presentation as Presentation
 import qualified ExchangeAlgebra.Accounting.TrialBalance.Validation as TrialBalance
 import ExchangeAlgebra.Accounting.TrialBalance.Balance
@@ -906,6 +909,186 @@ testAdmissionRestriction = do
             && admittedCalls successive == admittedCalls combined
             && readTrial successive == readTrial combined
 
+-- | Compare only the closed diagnostic, without requiring equality of admissions.
+closingFails :: ClosingDerivationError -> Either ClosingDerivationError Admitted -> Bool
+closingFails expected result = case result of
+    Left actual -> actual == expected
+    Right _ -> False
+
+-- | Closing preserves legacy nets while evidence observes the unreduced debit total.
+-- Domain: exact sales of 100 and depreciation of 20, without elimination.
+-- Observation: bar of additional entries, debit evidence, and closed balances.
+-- Equality is exact for MoneyDecimal; no floating tolerance is needed.
+testDerivedClosing :: IO ()
+testDerivedClosing = do
+    let sale = key entityA periodOne "sale"
+        depreciation = key entityA periodOne "depreciation"
+        closing = key entityA periodOne "closing"
+        receipt = EvidenceId "closing-receipt"
+        rules =
+            [ (sale, txRule Required [SupplySubmission Ordinary] Nothing)
+            , (depreciation, txRule Required [SupplyCatalog DepreciationIndirectKind] Nothing)
+            ]
+        adjust = Call (CallId "depreciate") entityA periodOne (Just depreciation)
+            (DepreciationIndirectCall 20)
+        close = Call (CallId "close") entityA periodOne (Just closing) FinalStockCall
+        submission = Submission [(sale, saleRows)] [adjust]
+        withClosing = Submission [(sale, saleRows)] [adjust, close]
+        closingRule = txRule Required [SupplyCatalog FinalStockKind] (Just receipt)
+    spec <- specFor rules Map.empty Map.empty
+    accepted <- requireRight "derived closing source" (admit spec submission)
+    derived <- requireRight "derive closing" (closeAdmitted (TxId "closing") accepted)
+    catalogSpec <- specFor (rules ++ [(closing, closingRule)])
+        (Map.singleton receipt 120) Map.empty
+    catalog <- requireRight "closing debit evidence 120" (admit catalogSpec withClosing)
+    oldSpec <- specFor (rules ++ [(closing, closingRule)])
+        (Map.singleton receipt 100) Map.empty
+    let rejected = admit oldSpec withClosing
+        ledger = Journal.toAlg (admittedJournal accepted)
+        oldEntries = bar (Transfer.finalStockTransfer ledger
+            .+ Bookkeeping.reversingEntry (bar ledger))
+        generated = Journal.toAlg $ admittedJournal $
+            restrictAdmitted ((== closing) . admissionKey) catalog
+        derivedNotes = HashMap.keys $ Journal.toMap $ admittedJournal $
+            restrictAdmitted ((== closing) . admissionKey) derived
+    assertTest "FinalStock legacy net" (bar generated == oldEntries)
+    assertTest "FinalStock evidence failure phase" $ case rejected of
+        Left failure -> failurePhase failure == EvidencePhase
+            && NonEmpty.toList (failureErrors failure)
+                == [EvidenceMismatch closing receipt (AmountMismatch 100 120)]
+        Right _ -> False
+    trial <- requireRight "derived closed trial balance" (deriveTrialBalance derived)
+    assertTest "all closable accounts have zero balance" $
+        all (\(account, balance) -> Closing.closingSide account == Nothing || balance == NoBalance)
+            (Map.toList (accountBalances (admittedTrialBalance trial)))
+    assertTest "derived closing provenance and role" $
+        not (null derivedNotes)
+        && all (\note -> admissionRole note == Closing
+            && admissionProvenance note == DerivedClosing) derivedNotes
+    assertTest "derived closing preserves call audit" $
+        admittedCalls derived == admittedCalls accepted
+    assertTest "derived and catalog closed journals agree in net" $
+        bar (Journal.toAlg (admittedJournal derived))
+            == bar (Journal.toAlg (admittedJournal catalog))
+    assertTest "second derived closing is rejected" $
+        closingFails (AlreadyClosed closing) (closeAdmitted (TxId "again") derived)
+    assertTest "catalog closing is already closed" $
+        closingFails (AlreadyClosed closing) (closeAdmitted (TxId "again") catalog)
+    forM_ [TxId "", TxId " \t\n"] $ \identity ->
+        assertTest "blank closing identity" $
+            closingFails (BlankClosingTransaction identity) (closeAdmitted identity accepted)
+    assertTest "ordinary key collision" $
+        closingFails (ClosingKeyCollision sale) (closeAdmitted (TxId "sale") accepted)
+
+-- | NoClose balances survive, and empty closing notes still select AfterClosing.
+testEmptyDerivedClosing :: IO ()
+testEmptyDerivedClosing = do
+    let opening = key entityA periodOne "opening"
+        closing = key entityA periodOne "closing"
+        fact = FactId "opening"
+        rows = [(DebitSide, "NetIncome", 100), (CreditSide, "RetainedEarnings", 100)]
+        rules = [(opening, txRule Required [SupplyFacts fact Opening] Nothing)]
+    baseSpec <- specFor rules Map.empty (Map.singleton fact rows)
+    let spec = baseSpec { admissionVocabulary = Set.insert NetIncome vocabulary }
+    accepted <- requireRight "NoClose source" (admit spec (Submission [] []))
+    derived <- requireRight "NoClose closing succeeds" (closeAdmitted (TxId "closing") accepted)
+    assertTest "NoClose closing adds zero postings" $
+        Journal.toMap (admittedJournal derived) == Journal.toMap (admittedJournal accepted)
+    assertTest "NoClose leaves derived-coordinate residual" $ case deriveTrialBalance derived of
+        Left findings -> TrialBalance.DerivedCoordinateResidual NetIncome (DebitBalance 100)
+            `elem` NonEmpty.toList findings
+        Right _ -> False
+    catalogBase <- specFor (rules ++
+        [(closing, txRule Required [SupplyCatalog FinalStockKind] Nothing)])
+        Map.empty (Map.singleton fact rows)
+    catalog <- requireRight "NoClose catalog closing" $
+        admit (catalogBase { admissionVocabulary = Set.insert NetIncome vocabulary })
+            (Submission [] [Call (CallId "close") entityA periodOne (Just closing) FinalStockCall])
+    assertTest "NoClose catalog and derived closing nets" $
+        bar (Journal.toAlg (admittedJournal catalog))
+            == bar (Journal.toAlg (admittedJournal derived))
+    let onlyDerived = restrictAdmitted (\note -> admissionRole note == Closing
+            && admissionProvenance note == DerivedClosing) derived
+    assertTest "empty derived note retains role and provenance" $
+        closingFails (AlreadyClosed closing) (closeAdmitted (TxId "again") onlyDerived)
+        && admittedCalls derived == admittedCalls accepted
+    assertTest "empty derived closing cannot be repeated" $
+        closingFails (AlreadyClosed closing) (closeAdmitted (TxId "again") derived)
+    let empty = key entityA periodOne "empty"
+    emptySpec <- specFor [(empty, txRule Required [SupplyCatalog CogsKind] Nothing)]
+        Map.empty Map.empty
+    emptyAccepted <- requireRight "empty catalog source" $
+        admit emptySpec (Submission []
+            [Call (CallId "empty") entityA periodOne (Just empty) (CogsCall 0 0)])
+    assertTest "empty transaction key collision" $
+        closingFails (ClosingKeyCollision empty) (closeAdmitted (TxId "empty") emptyAccepted)
+    emptyClosed <- requireRight "empty scope closing" $
+        closeAdmitted (TxId "closing") emptyAccepted
+    assertTest "empty scope is still closed" $
+        closingFails (AlreadyClosed closing) (closeAdmitted (TxId "again") emptyClosed)
+    let saleB = key entityB periodOne "sale"
+    combinedSpec <- specFor
+        [ (empty, txRule Required [SupplyCatalog CogsKind] Nothing)
+        , (saleB, txRule Required [SupplySubmission Ordinary] Nothing)
+        ] Map.empty Map.empty
+    combined <- requireRight "empty scope beside open sales" $
+        admit combinedSpec (Submission [(saleB, saleRows)]
+            [Call (CallId "empty") entityA periodOne (Just empty) (CogsCall 0 0)])
+    allClosed <- requireRight "close both scopes" (closeAdmitted (TxId "closing") combined)
+    let kept = restrictAdmitted (\note -> admissionKey note /= key entityB periodOne "closing")
+            allClosed
+        dropped = restrictAdmitted ((/= Closing) . admissionRole) kept
+    assertTest "kept empty closing selects AfterClosing" $ case deriveTrialBalance kept of
+        Left findings -> TrialBalance.UnclosedNominalBalance Sales (CreditBalance 100)
+            `elem` NonEmpty.toList findings
+        Right _ -> False
+    _ <- requireRight "dropping empty closing selects BeforeClosing" (deriveTrialBalance dropped)
+    pure ()
+
+-- | Scope ordering and diagnostic priority include transactions without postings.
+testClosingFailures :: IO ()
+testClosingFailures = do
+    let closing = key entityA periodOne "closing"
+        earliestClosing = key entityA periodOne "a-close"
+        laterClosing = key entityA periodOne "z-close"
+        earliestElimination = key entityA periodOne "a-elimination"
+        laterElimination = key entityA periodOne "z-elimination"
+        saleB = key entityB periodOne "sale"
+        rule :: Role -> TxRule
+        rule role = txRule Required [SupplySubmission role] Nothing
+        rows =
+            [ (laterClosing, rule Closing)
+            , (earliestClosing, rule Closing)
+            , (closing, rule Ordinary)
+            , (laterElimination, rule Elimination)
+            , (earliestElimination, rule Elimination)
+            ]
+    spec <- specFor rows Map.empty Map.empty
+    accepted <- requireRight "closing priority fixture" $
+        admit spec (Submission [(transaction, saleRows) | (transaction, _) <- rows] [])
+    assertTest "already closed selects minimum key before collision and elimination" $
+        closingFails (AlreadyClosed earliestClosing) (closeAdmitted (TxId "closing") accepted)
+    assertTest "blank identity precedes already closed" $
+        closingFails (BlankClosingTransaction (TxId "")) (closeAdmitted (TxId "") accepted)
+    let noClosings = restrictAdmitted ((/= Closing) . admissionRole) accepted
+    assertTest "collision precedes elimination" $
+        closingFails (ClosingKeyCollision closing) (closeAdmitted (TxId "closing") noClosings)
+    let eliminations = restrictAdmitted ((== Elimination) . admissionRole) accepted
+    assertTest "elimination selects minimum key" $
+        closingFails (EliminationNotClosable earliestElimination)
+            (closeAdmitted (TxId "new") eliminations)
+    twoSpec <- specFor
+        [ (key entityA periodOne "sale", rule Ordinary)
+        , (saleB, rule Ordinary)
+        , (key entityB periodOne "elimination", rule Elimination)
+        ] Map.empty Map.empty
+    two <- requireRight "two scopes with second failing" $ admit twoSpec
+        (Submission [(key entityA periodOne "sale", saleRows), (saleB, saleRows)
+                    , (key entityB periodOne "elimination", saleRows)] [])
+    assertTest "one failed company returns Left without partial admission" $
+        closingFails (EliminationNotClosable (key entityB periodOne "elimination"))
+            (closeAdmitted (TxId "closing") two)
+
 -- | Run fixed admissions and bounded laws through the suite harness.
 runTests :: IO ()
 runTests = do
@@ -924,6 +1107,9 @@ runTests = do
     testParameterTotality
     testEquivalence
     testAdmissionRestriction
+    testDerivedClosing
+    testEmptyDerivedClosing
+    testClosingFailures
     check "registry permutation" propRegistryPermutation
     check "accepted debit evidence" propAcceptedDebitEvidence
     check "actual supply provenance" propActualSupplyProvenance

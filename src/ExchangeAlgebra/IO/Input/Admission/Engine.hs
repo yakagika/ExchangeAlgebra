@@ -40,7 +40,7 @@
 -- Right (Right True)
 -- >>> fmap (\registry -> isLeft (admit (spec registry 99) submitted)) registryResult
 -- Right True
-module ExchangeAlgebra.IO.Input.Admission.Engine (admit) where
+module ExchangeAlgebra.IO.Input.Admission.Engine (admit, closeAdmitted) where
 
 import Control.Monad (foldM)
 import Data.Bifunctor (first)
@@ -63,6 +63,9 @@ import ExchangeAlgebra.IO.Input.Admission.Workflow
 import ExchangeAlgebra.IO.Input.Admission.Registry.Definition
 import ExchangeAlgebra.IO.Input.Admission.Submission
 import ExchangeAlgebra.IO.Input.Admission.Diagnostic
+import ExchangeAlgebra.IO.Input.Admission.Derive (admissionStage)
+import qualified ExchangeAlgebra.Accounting.Closing as Closing
+import ExchangeAlgebra.Algebra.Transfer.Representation (TransferApplyError(..))
 import ExchangeAlgebra.Algebra.Core
     ( Alg(_hatBase, _val)
     , Redundant((.+), norm)
@@ -284,14 +287,23 @@ commit (CheckedTransaction key entry metadata) (Execution journal entries audits
 initialExecution :: [CheckedTransaction] -> Execution
 initialExecution = foldl' (flip commit) (Execution mempty Map.empty [])
 
+-- | Match an entity-period scope and inclusive stage limit for both catalog
+-- execution and admitted closing.
+isVisibleInScope
+    :: (EntityId, PeriodId)
+    -> Stage
+    -> TxKey
+    -> Stage
+    -> Bool
+isVisibleInScope scope upper key stage = keyScope key == scope && stage <= upper
+
 -- | Read a stage-visible ledger, confined to an invocation's entity and period.
 visibleLedger :: Call -> Execution -> Entry
 visibleLedger call (Execution journal entries _) = Journal.toAlg
     (Journal.projWithNote keys journal)
   where
     keys = [key | (key, EntryMetadata _ stage _) <- Map.toAscList entries
-                , keyScope key == callScope call
-                , stage <= catalogStage (callBody call)]
+                , isVisibleInScope (callScope call) (catalogStage (callBody call)) key stage]
 
 -- | Declare references and their required roles independently of submitted data.
 references :: Call -> [(EntityId, TxKey, Role)]
@@ -463,6 +475,81 @@ finish (Execution journal entries audits) = Admitted accepted audits (Set.fromLi
             | (key, EntryMetadata role _ origin) <- Map.toAscList entries]
     accepted = Journal.fromList
         [entryAt key journal Journal..| note | note@(AdmissionNote key _ _) <- notes]
+
+-- | Derive and append closing entries for every admitted entity and period.
+-- Supply a nonblank transaction identity; it need not occur in the admission
+-- registry. Scopes come from all accepted notes, including transactions without
+-- postings, and are processed in ascending entity-period order. Each ledger
+-- contains all postings in that scope through 'ClosingStage', excluding queries.
+-- Every check and calculation reads the original admitted value.
+--
+-- The result retains existing postings and call audits, appends entries with
+-- @.+@, and registers @AdmissionNote (TxKey entity period txid) Closing DerivedClosing@.
+-- A zero closing still registers its note. No catalog call audit is added.
+-- An admitted value without notes is returned unchanged for a nonblank identity.
+--
+-- Failures are checked in this order: 'BlankClosingTransaction' before scopes;
+-- then, within each scope, 'AlreadyClosed' (smallest closing key),
+-- 'ClosingKeyCollision', 'EliminationNotClosable' (smallest elimination key),
+-- and 'ClosingNotDerivable' with the new key and failing base. The first failure
+-- returns 'Left' without a partial result. A prior 'FinalStockCall', including
+-- one with zero output, counts as already closed; do not combine both routes.
+-- Individual books exclude consolidation eliminations. Scopes containing them
+-- are rejected until closing is specified as part of consolidation design.
+--
+-- Law: for admitted MoneyDecimal postings, success makes every balance whose
+-- account has a 'Closing.closingSide' zero in the resulting scope ledger.
+-- Equality is exact, with zero tolerance; existing postings remain observable
+-- in the journal. This is the per-base law of 'Closing.closingEntries'.
+-- NoClose accounts, including NetIncome and IncomeSummary, can retain balances.
+-- 'deriveTrialBalance' validates the final ledger AfterClosing; its success is
+-- a separate check and does not follow from success here. For simulations and
+-- general accounting computations, use 'Closing.closingEntries' directly.
+closeAdmitted :: TxId -> Admitted -> Either ClosingDerivationError Admitted
+closeAdmitted txid@(TxId identity) original@(Admitted journal audits notes)
+    | Text.null (Text.strip identity) = Left (BlankClosingTransaction txid)
+    | Set.null notes = Right original
+    | otherwise = do
+        additions <- traverse closeScope scopes
+        let closingJournal :: AdmissionJournal
+            closingJournal = Journal.fromList (map snd additions)
+            closingNotes :: Set.Set AdmissionNote
+            closingNotes   = Set.fromList (map fst additions)
+        Right (Admitted (journal .+ closingJournal) audits (Set.union notes closingNotes))
+  where
+    scopes :: [(EntityId, PeriodId)]
+    scopes = Set.toAscList
+           $ Set.fromList [keyScope key | AdmissionNote key _ _ <- allNotes]
+    allNotes = Set.toAscList notes
+
+    rejectFirst :: (TxKey -> ClosingDerivationError) -> [TxKey] -> Either ClosingDerivationError ()
+    rejectFirst failure keys = case keys of
+        key : _ -> Left (failure key)
+        [] -> Right ()
+
+    closeScope
+        :: (EntityId, PeriodId)
+        -> Either ClosingDerivationError (AdmissionNote, AdmissionJournal)
+    closeScope scope@(entity, period) = do
+        rejectFirst AlreadyClosed [key | AdmissionNote key Closing _ <- scopedNotes]
+        rejectFirst ClosingKeyCollision
+            [key | AdmissionNote key _ _ <- scopedNotes, key == newKey]
+        rejectFirst EliminationNotClosable [key | AdmissionNote key Elimination _ <- scopedNotes]
+        entries <- case Closing.closingEntries ledger of
+            Right entries -> Right entries
+            Left (NonFiniteBalance base) -> Left (ClosingNotDerivable newKey base)
+            Left (NonFiniteResult _ _ base) -> Left (ClosingNotDerivable newKey base)
+        Right (closingNote, entries Journal..| closingNote)
+      where
+        newKey      = TxKey entity period txid
+        closingNote = AdmissionNote newKey Closing DerivedClosing
+        scopedNotes :: [AdmissionNote]
+        scopedNotes =
+            [scopedNote | scopedNote@(AdmissionNote key _ _) <- allNotes, keyScope key == scope]
+        ledger :: Entry
+        ledger = Journal.toAlg $ Journal.filterWithNote
+            (\sourceNote@(AdmissionNote key _ _) _ ->
+                isVisibleInScope scope ClosingStage key (admissionStage sourceNote)) journal
 
 -- | Admit a complete submission against a fixed trusted specification.
 --

@@ -23,12 +23,14 @@ AllowanceRateCall
 AllowanceRateKind
 AllowanceResetCall
 AllowanceResetKind
+AlreadyClosed
 AmountLimit
 AmountMismatch
 AmountParameter
 AnnualParameter
 AssetAccountParameter
 BeginningInventoryParameter
+BlankClosingTransaction
 BlankReferenceKey
 BlankRegistryKey
 Call
@@ -45,6 +47,10 @@ CatalogParameter
 CatalogParameterProblem
 CatalogProvenance
 Closing
+ClosingDerivationError
+ClosingFailed
+ClosingKeyCollision
+ClosingNotDerivable
 ClosingStage
 CogsCall
 CogsKind
@@ -67,6 +73,7 @@ DepreciationDirectKind
 DepreciationIndirectCall
 DepreciationIndirectKind
 DepreciationMethod
+DerivedClosing
 DirectMethod
 DirectPostingForbidden
 DividendParameter
@@ -76,6 +83,7 @@ DuplicateGeneratedTransaction
 DuplicateRawTransaction
 DuplicateRegistryKey
 Elimination
+EliminationNotClosable
 EmptySupplySet
 EndingInventoryParameter
 EntityId
@@ -216,6 +224,7 @@ callId
 callPeriod
 catalogKind
 catalogStage
+closeAdmitted
 creditTotal
 debitTotal
 deriveTrialBalance
