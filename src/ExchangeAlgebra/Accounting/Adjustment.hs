@@ -74,10 +74,41 @@ module ExchangeAlgebra.Accounting.Adjustment
     , corporateTaxSettlement
     ) where
 
+import Control.Monad (foldM, when)
+import Data.List (nub)
 import Data.List.NonEmpty (NonEmpty)
+import qualified Data.List.NonEmpty as NonEmpty
 import Numeric.Natural (Natural)
 
-import ExchangeAlgebra.Accounting.Account (AccountDivision, AccountTitles(..), Side)
+import ExchangeAlgebra.Accounting.Account
+    ( AccountDivision(..)
+    , AccountTitles(..)
+    , Side(..)
+    , classifyAccountDivision
+    , defaultSide
+    , switchSide
+    )
+import ExchangeAlgebra.Accounting.Entries
+    ( cogsAdjustmentEntries
+    , depreciationIndirectEntry
+    , depreciationDirectEntry
+    , allowanceReplenishmentEntry
+    , allowanceResetEntries
+    , prepaidExpenseEntry
+    , unearnedRevenueEntry
+    , accruedRevenueEntry
+    , accruedExpenseEntry
+    , consumptionTaxSettlementEntry
+    , corporateTaxSettlementEntries
+    )
+import ExchangeAlgebra.Accounting.Exchange
+    ( Exchange(..)
+    , ExBaseClass(..)
+    , projByAccountTitle
+    )
+import ExchangeAlgebra.Algebra.Base.Representation (Hat(..), HatBase(..))
+import ExchangeAlgebra.Algebra.Core (Redundant(..), (.@), proj)
+import ExchangeAlgebra.Algebra.Value.Class (HatVal(..), Rounding(..))
 import ExchangeAlgebra.Accounting.Catalog
     (BasisPoints, DepreciationMethod(..), basisPoints, basisPointsValue)
 import ExchangeAlgebra.Accounting.Transaction (Entry)
@@ -104,11 +135,13 @@ newtype RoundingUnit = RoundingUnit MoneyDecimal
 -- | Check a rounding unit. A unit that is not strictly positive yields
 -- 'NonPositiveRoundingUnit'.
 roundingUnit :: MoneyDecimal -> Either AdjustmentProblem RoundingUnit
-roundingUnit _ = undefined
+roundingUnit unit
+    | unit > 0  = Right (RoundingUnit unit)
+    | otherwise = Left (NonPositiveRoundingUnit unit)
 
 -- | The checked unit.
 roundingUnitValue :: RoundingUnit -> MoneyDecimal
-roundingUnitValue _ = undefined
+roundingUnitValue (RoundingUnit unit) = unit
 
 -- | How an adjustment turns an exact quotient into an amount.
 data AdjustmentRounding
@@ -122,8 +155,26 @@ data AdjustmentRounding
 -- | Round a nonnegative exact amount by the rule. Fails with 'NegativeAmount'
 -- when the amount is negative, and with 'InexactAmount' under 'ExactOnly'
 -- when the amount is not exactly representable.
+--
+-- >>> let Right unit = roundingUnit 1
+-- >>> let directions = [RoundDown, RoundUp, RoundHalfUp, RoundHalfEven]
+-- >>> traverse (\direction -> roundAmount (RoundTo unit direction) (5 / 2)) directions
+-- Right [2,3,3,2]
 roundAmount :: AdjustmentRounding -> Rational -> Either AdjustmentProblem MoneyDecimal
-roundAmount _ _ = undefined
+roundAmount rule amount
+    | amount < 0 = Left (NegativeAmount amount)
+    | otherwise  = case rule of
+        ExactOnly -> maybe (Left (InexactAmount amount)) Right (roundRational Nearest amount)
+        RoundTo (RoundingUnit unit) direction -> Right (fromInteger multiple * unit)
+          where
+            quotient :: Rational
+            quotient = amount / toRational unit
+            multiple :: Integer
+            multiple = case direction of
+                RoundDown     -> floor quotient
+                RoundUp       -> ceiling quotient
+                RoundHalfUp   -> floor (quotient + 1 / 2)
+                RoundHalfEven -> round quotient
 
 ------------------------------------------------------------
 -- Sources
@@ -143,8 +194,19 @@ data SourceAmount
 -- | Read a source amount. Fails with 'NoSourceAmount' when the net increase
 -- is not strictly positive, and with 'NonPositiveArgument' when a stated
 -- amount is not strictly positive.
+--
+-- >>> sourceAmount (AmountIn RentExpense (12000 .@ Not :< RentExpense))
+-- Right 12000
 sourceAmount :: SourceAmount -> Either AdjustmentProblem MoneyDecimal
-sourceAmount _ = undefined
+sourceAmount (AmountIn account transaction)
+    | account == AccountTitle || amount <= 0 = Left (NoSourceAmount account)
+    | otherwise                              = Right amount
+  where
+    amount :: MoneyDecimal
+    amount = norm (proj [Not :< account] transaction) - norm (proj [Hat :< account] transaction)
+sourceAmount (StatedAmount amount)
+    | amount > 0 = Right amount
+    | otherwise  = Left (NonPositiveArgument amount)
 
 ------------------------------------------------------------
 -- Problems
@@ -185,6 +247,36 @@ data AdjustmentProblem
       -- ^ Account, requested amount, then the balance it may not exceed.
     deriving (Eq, Show)
 
+-- | Require a concrete account of the division with its ordinary home side.
+checkAccountDivision :: AccountDivision -> AccountTitles -> Either AdjustmentProblem ()
+checkAccountDivision division account
+    | account == AccountTitle || classifyAccountDivision account /= division =
+        Left (NotInDivision account division)
+    | whichSide (Not :< account) /= defaultSide division = Left (ContraAccount account)
+    | otherwise = Right ()
+
+-- | Read a concrete account's signed balance, positive on its home side.
+-- No postings are canceled or aggregated in the ledger.
+accountHomeBalance :: AccountTitles -> Entry -> MoneyDecimal
+accountHomeBalance account ledger
+    | whichSide (Not :< account) == Debit = debitBalance
+    | otherwise                          = negate debitBalance
+  where
+    selected = projByAccountTitle account ledger
+    debitBalance :: MoneyDecimal
+    debitBalance = norm (decL selected) - norm (decR selected)
+
+-- | Read a concrete account's nonnegative home-side balance, rejecting a
+-- balance on the opposite side with that side in the problem.
+readAccountBalance :: AccountTitles -> Entry -> Either AdjustmentProblem MoneyDecimal
+readAccountBalance account ledger
+    | balance < 0 = Left (UnexpectedBalanceSide account (switchSide homeSide))
+    | otherwise   = Right balance
+  where
+    homeSide = whichSide (Not :< account)
+    balance :: MoneyDecimal
+    balance = accountHomeBalance account ledger
+
 ------------------------------------------------------------
 -- Cost of goods sold
 ------------------------------------------------------------
@@ -195,13 +287,26 @@ data AdjustmentProblem
 -- Fails when the inventory balance is on the credit side, or when the ending
 -- inventory is negative.
 cogsPeriodic :: Entry -> MoneyDecimal -> Either AdjustmentProblem Entry
-cogsPeriodic _ _ = undefined
+cogsPeriodic ledger ending = do
+    when (ending < 0) $ Left (NegativeArgument ending)
+    beginning <- readAccountBalance MerchandiseInventory ledger
+    pure (cogsAdjustmentEntries (:<) beginning ending)
 
 -- | Cost of goods sold through 'SalesCost': move the beginning inventory and
 -- the 'Purchases' balance, both read from the ledger, into 'SalesCost', and
 -- the ending inventory (argument) from 'SalesCost' to inventory.
 cogsThroughSalesCost :: Entry -> MoneyDecimal -> Either AdjustmentProblem Entry
-cogsThroughSalesCost _ _ = undefined
+cogsThroughSalesCost ledger ending = do
+    when (ending < 0) $ Left (NegativeArgument ending)
+    beginning <- readAccountBalance MerchandiseInventory ledger
+    purchases <- readAccountBalance Purchases ledger
+    pure $
+           beginning .@ Not :< SalesCost
+        .+ beginning .@ Hat :< MerchandiseInventory
+        .+ purchases .@ Not :< SalesCost
+        .+ purchases .@ Hat :< Purchases
+        .+ ending    .@ Not :< MerchandiseInventory
+        .+ ending    .@ Hat :< SalesCost
 
 ------------------------------------------------------------
 -- Depreciation
@@ -219,6 +324,56 @@ data DepreciationTerms = DepreciationTerms
     , termsPeriodMonths :: Natural -- ^ Months of the current period, positive.
     } deriving (Eq, Show)
 
+-- | Validate an asset schedule, recompute its rounded periods, and build the
+-- current entry. The quotient function receives cost, prior charges, and months.
+-- The final period books the unrounded remainder.
+depreciationForPeriod
+    :: (MoneyDecimal -> MoneyDecimal -> Natural -> Rational)
+    -> AdjustmentRounding
+    -> DepreciationMethod
+    -> AccountTitles
+    -> SourceAmount
+    -> DepreciationTerms
+    -> Either AdjustmentProblem Entry
+depreciationForPeriod periodQuotient rule method account source terms = do
+    checkAccountDivision Assets account
+    cost <- sourceAmount source
+    when (residual < 0) $ Left (NegativeArgument residual)
+    when (residual >= cost) $ Left (ResidualNotBelowCost residual cost)
+    when (useful == 0 || current == 0 || 0 `elem` prior) $ Left EmptyMonths
+    when (elapsed >= useful) $ Left (ScheduleFinished elapsed useful)
+    (_, _, amount) <- foldM (advancePeriod cost) (0, 0, 0) (prior ++ [current])
+    pure $ case method of
+        IndirectMethod -> depreciationIndirectEntry (:<) amount
+        DirectMethod   -> depreciationDirectEntry (:<) amount account
+  where
+    residual = termsResidual terms
+    useful   = termsUsefulMonths terms
+    prior    = termsPriorPeriods terms
+    current  = termsPeriodMonths terms
+    elapsed :: Natural
+    elapsed = sum prior
+    periodAmount
+        :: MoneyDecimal
+        -> Natural
+        -> MoneyDecimal
+        -> Natural
+        -> Either AdjustmentProblem MoneyDecimal
+    periodAmount cost used booked months
+        | used + months >= useful = Right remaining
+        | otherwise = min remaining <$> roundAmount rule (periodQuotient cost booked months)
+      where
+        remaining :: MoneyDecimal
+        remaining = cost - residual - booked
+    advancePeriod
+        :: MoneyDecimal
+        -> (Natural, MoneyDecimal, MoneyDecimal)
+        -> Natural
+        -> Either AdjustmentProblem (Natural, MoneyDecimal, MoneyDecimal)
+    advancePeriod cost (used, booked, _) months = do
+        amount <- periodAmount cost used booked months
+        pure (used + months, booked + amount, amount)
+
 -- | Straight-line depreciation (定額法) for this period. The cost is read from
 -- the acquisition transaction or stated. Each period's amount is
 -- @(cost - residual) * months / usefulMonths@ rounded by the rule, capped at
@@ -228,6 +383,12 @@ data DepreciationTerms = DepreciationTerms
 -- debit side; a contra account yields 'ContraAccount'. 'IndirectMethod' credits
 -- 'AccumulatedDepreciation'; 'DirectMethod' credits the asset account.
 -- Both methods compute from cost, never from the asset's later balance.
+--
+-- >>> let Right unit = roundingUnit 1
+-- >>> let terms = DepreciationTerms 0 36 [12, 12] 12
+-- >>> let depreciate = straightLineDepreciation (RoundTo unit RoundDown) IndirectMethod
+-- >>> fmap (norm . decL) (depreciate Fixtures (StatedAmount 100) terms)
+-- Right 34
 straightLineDepreciation
     :: AdjustmentRounding
     -> DepreciationMethod
@@ -235,7 +396,13 @@ straightLineDepreciation
     -> SourceAmount -- ^ Acquisition cost.
     -> DepreciationTerms
     -> Either AdjustmentProblem Entry
-straightLineDepreciation _ _ _ _ _ = undefined
+straightLineDepreciation rule method account source terms =
+    depreciationForPeriod periodQuotient rule method account source terms
+  where
+    periodQuotient :: MoneyDecimal -> MoneyDecimal -> Natural -> Rational
+    periodQuotient cost _ months =
+        toRational (cost - termsResidual terms) * toRational months
+            / toRational (termsUsefulMonths terms)
 
 -- | Declining-balance depreciation (定率法) for this period. Each period's
 -- amount is the smaller of @bookValue * rate * months / 12@ rounded by the
@@ -253,33 +420,66 @@ decliningBalanceDepreciation
     -> BasisPoints -- ^ Annual rate.
     -> DepreciationTerms
     -> Either AdjustmentProblem Entry
-decliningBalanceDepreciation _ _ _ _ _ _ = undefined
+decliningBalanceDepreciation rule method account source rate terms =
+    depreciationForPeriod periodQuotient rule method account source terms
+  where
+    periodQuotient :: MoneyDecimal -> MoneyDecimal -> Natural -> Rational
+    periodQuotient cost booked months =
+        toRational (cost - booked) * toRational (basisPointsValue rate)
+            * toRational months / 120000
 
 ------------------------------------------------------------
 -- Allowance for doubtful accounts
 ------------------------------------------------------------
 
+-- | Read unique receivables and the current allowance. Return the rounded
+-- estimate capped at the unrounded receivable total, then the current allowance.
+readAllowanceAmounts
+    :: AdjustmentRounding
+    -> BasisPoints
+    -> NonEmpty AccountTitles
+    -> Entry
+    -> Either AdjustmentProblem (MoneyDecimal, MoneyDecimal)
+readAllowanceAmounts rule rate accounts ledger = do
+    balances <- traverse readReceivableBalance $ nub $ NonEmpty.toList accounts
+    current  <- readAccountBalance AllowanceForDoubtfulAccounts ledger
+    let total :: MoneyDecimal
+        total = sum balances
+    estimate <- roundAmount rule (toRational total * toRational (basisPointsValue rate) / 10000)
+    pure (min total estimate, current)
+  where
+    readReceivableBalance :: AccountTitles -> Either AdjustmentProblem MoneyDecimal
+    readReceivableBalance account = do
+        checkAccountDivision Assets account
+        readAccountBalance account ledger
+
 -- | Replenishment method (差額補充法): the estimate is the sum of the named
 -- receivables' debit balances times the rate, rounded by the rule; the entry
 -- books the difference from the current 'AllowanceForDoubtfulAccounts'
 -- balance as a provision or a reversal. Each receivable must be an asset.
+-- The rounded estimate is capped at the unrounded sum of receivable balances.
 allowanceReplenishment
     :: AdjustmentRounding
     -> BasisPoints
     -> NonEmpty AccountTitles -- ^ Receivable accounts.
     -> Entry -- ^ Ledger.
     -> Either AdjustmentProblem Entry
-allowanceReplenishment _ _ _ _ = undefined
+allowanceReplenishment rule rate accounts ledger = do
+    (estimate, current) <- readAllowanceAmounts rule rate accounts ledger
+    pure (allowanceReplenishmentEntry (:<) estimate current)
 
 -- | Reset method (洗替法): release the whole current allowance and book the
 -- new estimate, computed as in 'allowanceReplenishment'.
+-- The rounded estimate is capped at the unrounded sum of receivable balances.
 allowanceReset
     :: AdjustmentRounding
     -> BasisPoints
     -> NonEmpty AccountTitles
     -> Entry
     -> Either AdjustmentProblem Entry
-allowanceReset _ _ _ _ = undefined
+allowanceReset rule rate accounts ledger = do
+    (estimate, current) <- readAllowanceAmounts rule rate accounts ledger
+    pure (allowanceResetEntries (:<) estimate current)
 
 ------------------------------------------------------------
 -- Deferrals and accruals
@@ -289,6 +489,7 @@ allowanceReset _ _ _ _ = undefined
 -- (前払費用). The deferred amount is @paid * deferredMonths / coveredMonths@
 -- rounded by the rule; it moves from the expense account to
 -- 'PrepaidExpenses'.
+-- The rounded deferral is capped at the unrounded payment amount.
 prepaidExpense
     :: AdjustmentRounding
     -> AccountTitles -- ^ Expense account.
@@ -296,11 +497,18 @@ prepaidExpense
     -> Natural -- ^ Months that belong to later periods.
     -> Natural -- ^ Months the payment covers.
     -> Either AdjustmentProblem Entry
-prepaidExpense _ _ _ _ _ = undefined
+prepaidExpense rule account source deferred covered = do
+    checkAccountDivision Cost account
+    when (deferred == 0 || covered == 0) $ Left EmptyMonths
+    when (deferred > covered) $ Left (MonthsExceedTerm deferred covered)
+    paid   <- sourceAmount source
+    amount <- roundAmount rule (toRational paid * toRational deferred / toRational covered)
+    pure (prepaidExpenseEntry (:<) (min paid amount) account)
 
 -- | Defer the part of received revenue that belongs to later periods
 -- (前受収益), as in 'prepaidExpense'; the amount moves from the revenue
 -- account to 'UnearnedRevenue'.
+-- The rounded deferral is capped at the unrounded receipt amount.
 unearnedRevenue
     :: AdjustmentRounding
     -> AccountTitles -- ^ Revenue account.
@@ -308,7 +516,13 @@ unearnedRevenue
     -> Natural -- ^ Months that belong to later periods.
     -> Natural -- ^ Months the receipt covers.
     -> Either AdjustmentProblem Entry
-unearnedRevenue _ _ _ _ _ = undefined
+unearnedRevenue rule account source deferred covered = do
+    checkAccountDivision Revenue account
+    when (deferred == 0 || covered == 0) $ Left EmptyMonths
+    when (deferred > covered) $ Left (MonthsExceedTerm deferred covered)
+    paid   <- sourceAmount source
+    amount <- roundAmount rule (toRational paid * toRational deferred / toRational covered)
+    pure (unearnedRevenueEntry (:<) (min paid amount) account)
 
 -- | Accrue interest earned but not yet received (未収利息): principal times
 -- the annual rate times @months / 12@, rounded by the rule. When the
@@ -320,7 +534,15 @@ accruedInterestRevenue
     -> BasisPoints -- ^ Annual rate.
     -> Natural -- ^ Months accrued.
     -> Either AdjustmentProblem Entry
-accruedInterestRevenue _ _ _ _ = undefined
+accruedInterestRevenue rule source rate months = do
+    case source of
+        StatedAmount _ -> pure ()
+        AmountIn account _ -> checkAccountDivision Assets account
+    when (months == 0) $ Left EmptyMonths
+    principal <- sourceAmount source
+    amount    <- roundAmount rule
+        (toRational principal * toRational (basisPointsValue rate) * toRational months / 120000)
+    pure (accruedRevenueEntry (:<) amount InterestEarned)
 
 -- | Accrue interest incurred but not yet paid (未払利息), as in
 -- 'accruedInterestRevenue'. @AmountIn@ names the loan payable; its net
@@ -331,7 +553,15 @@ accruedInterestExpense
     -> BasisPoints -- ^ Annual rate.
     -> Natural -- ^ Months accrued.
     -> Either AdjustmentProblem Entry
-accruedInterestExpense _ _ _ _ = undefined
+accruedInterestExpense rule source rate months = do
+    case source of
+        StatedAmount _ -> pure ()
+        AmountIn account _ -> checkAccountDivision Liability account
+    when (months == 0) $ Left EmptyMonths
+    principal <- sourceAmount source
+    amount    <- roundAmount rule
+        (toRational principal * toRational (basisPointsValue rate) * toRational months / 120000)
+    pure (accruedExpenseEntry (:<) amount InterestExpense)
 
 ------------------------------------------------------------
 -- Other grade-3 adjustments
@@ -341,31 +571,67 @@ accruedInterestExpense _ _ _ _ = undefined
 -- 'SuppliesOnHand' (貯蔵品). Fails when the amount exceeds the expense's
 -- debit balance.
 suppliesOnHand :: MoneyDecimal -> Entry -> Either AdjustmentProblem Entry
-suppliesOnHand _ _ = undefined
+suppliesOnHand amount ledger = do
+    when (amount < 0) $ Left (NegativeArgument amount)
+    balance <- readAccountBalance SuppliesExpenses ledger
+    when (amount > balance) $ Left (ExceedsBalance SuppliesExpenses amount balance)
+    pure $
+           amount .@ Not :< SuppliesOnHand
+        .+ amount .@ Hat :< SuppliesExpenses
 
 -- | Settle 'CashOverShort' (現金過不足): a debit balance (shortage) goes to
 -- 'MiscellaneousLoss', a credit balance (overage) to 'MiscellaneousIncome'.
 -- A zero balance yields the empty entry.
 cashOverShortSettlement :: Entry -> Either AdjustmentProblem Entry
-cashOverShortSettlement _ = undefined
+cashOverShortSettlement ledger
+    | balance > 0 = Right $
+           balance .@ Not :< MiscellaneousLoss
+        .+ balance .@ Hat :< CashOverShort
+    | balance < 0 = Right $
+           negate balance .@ Not :< CashOverShort
+        .+ negate balance .@ Not :< MiscellaneousIncome
+    | otherwise = Right mempty
+  where
+    balance :: MoneyDecimal
+    balance = accountHomeBalance CashOverShort ledger
 
 -- | Reclassify a credit balance of a current-deposit account to
 -- 'BankOverdraft' (当座借越). A debit or zero balance yields the empty
 -- entry, the correct closing procedure. Each account is judged alone; call
 -- once per account without netting accounts first.
 overdraftReclassification :: AccountTitles -> Entry -> Either AdjustmentProblem Entry
-overdraftReclassification _ _ = undefined
+overdraftReclassification account ledger = do
+    checkAccountDivision Assets account
+    let balance :: MoneyDecimal
+        balance = negate (accountHomeBalance account ledger)
+    case compare balance 0 of
+        GT -> Right $
+               balance .@ Not :< account
+            .+ balance .@ Not :< BankOverdraft
+        _ -> Right mempty
 
 -- | Settle consumption tax under the tax-exclusive method (税抜方式): offset
 -- 'ConsumptionTaxPaid' and 'ConsumptionTaxReceived', both read from the
 -- ledger, and book the excess as 'AccruedConsumptionTax' or, when paid
 -- exceeds received, as 'ConsumptionTaxRefundReceivable'.
 consumptionTaxSettlement :: Entry -> Either AdjustmentProblem Entry
-consumptionTaxSettlement _ = undefined
+consumptionTaxSettlement ledger = do
+    paid     <- readAccountBalance ConsumptionTaxPaid ledger
+    received <- readAccountBalance ConsumptionTaxReceived ledger
+    case compare paid received of
+        GT -> Right $
+               received          .@ Hat :< ConsumptionTaxReceived
+            .+ (paid - received) .@ Not :< ConsumptionTaxRefundReceivable
+            .+ paid              .@ Hat :< ConsumptionTaxPaid
+        _ -> Right (consumptionTaxSettlementEntry (:<) paid received)
 
 -- | Book corporate income taxes (法人税等) for the stated total, clear the
 -- interim payment read from 'PrepaidCorporateIncomeTaxes', and book the
 -- remainder as 'AccruedCorporateIncomeTaxes'. Fails when the interim
 -- payment exceeds the total.
 corporateTaxSettlement :: MoneyDecimal -> Entry -> Either AdjustmentProblem Entry
-corporateTaxSettlement _ _ = undefined
+corporateTaxSettlement total ledger = do
+    when (total <= 0) $ Left (NonPositiveArgument total)
+    interim <- readAccountBalance PrepaidCorporateIncomeTaxes ledger
+    when (interim > total) $ Left (ExceedsBalance PrepaidCorporateIncomeTaxes interim total)
+    pure (corporateTaxSettlementEntries (:<) total interim)

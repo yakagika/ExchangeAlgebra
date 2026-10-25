@@ -410,6 +410,7 @@ test-suite ExchangeAlgebra-test
       Algebra.CoreSpec
       Journal.JournalSpec
       Journal.NormalFormSpec
+      Accounting.AdjustmentSpec
       Accounting.RegistrySpec
       IO.InputOutputSpec
       Simulate.SimulateSpec

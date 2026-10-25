@@ -4,6 +4,13 @@
 
 ### Added
 
+- `ExchangeAlgebra.Accounting.Adjustment` provides 15 named closing adjustments
+  for grade-3 bookkeeping, with explicit rounding rules. Account-wide amounts
+  are read from ledger balances, and contract or asset amounts from a selected
+  source transaction; months, residual values, rates, and period-end counts are
+  arguments. Depreciation schedules book the whole remainder in the final period.
+  The catalog is unchanged.
+
 - `ExchangeAlgebra.Accounting.Transfer` constructs additional accounting
   entries from exact balances per complete base. Each cancellation and
   destination have the same amount. Rows apply in the order written, including

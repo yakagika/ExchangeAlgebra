@@ -19,6 +19,7 @@ import qualified Golden.WireFormat as WireFormat
 import qualified Algebra.CoreSpec as CoreSpec
 import qualified Journal.JournalSpec as JournalSpec
 import qualified Journal.NormalFormSpec as NormalFormSpec
+import qualified Accounting.AdjustmentSpec as AdjustmentSpec
 import qualified Accounting.RegistrySpec as RegistrySpec
 import qualified IO.InputOutputSpec as InputOutputSpec
 import qualified Simulate.SimulateSpec as SimulateSpec
@@ -45,6 +46,7 @@ main = do
     CoreSpec.runTests
     JournalSpec.runTests
     NormalFormSpec.runTests
+    AdjustmentSpec.runTests
     RegistrySpec.runTests
     InputOutputSpec.runTests
     SimulateSpec.runTests

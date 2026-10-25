@@ -28,6 +28,7 @@ main = doctest  [ "-isrc"
                   -- admission execution modules are not re-exported in full;
                   -- list them explicitly to check their examples too.
                 , "src/ExchangeAlgebra/Accounting/Catalog.hs"
+                , "src/ExchangeAlgebra/Accounting/Adjustment.hs"
                 , "src/ExchangeAlgebra/IO/Input/Admission/Catalog.hs"
                 , "src/ExchangeAlgebra/IO/Input/Admission/Engine.hs"
                 , "src/ExchangeAlgebra/IO/Input/Admission/Explain.hs"
