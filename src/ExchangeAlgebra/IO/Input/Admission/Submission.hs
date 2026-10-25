@@ -51,7 +51,29 @@ data AdmissionSpec = AdmissionSpec
       -- counterparty. Supply these totals independently of submitted postings.
     , admissionFacts      :: Map FactId RawPostings -- ^ Trusted raw fact entries.
     , admissionVocabulary :: Set AccountTitles -- ^ Allowed account titles.
+    , admissionDisclosure :: Disclosure
+      -- ^ What model-facing notices may reveal. Use 'fullDisclosure' unless
+      -- the specification withholds evidence amounts.
     }
+
+-- | What model-facing notices may reveal. The setting affects only the
+-- explanation functions of "ExchangeAlgebra.IO.Input.Admission" and notice
+-- encoders built on them. Admission and its typed failures always keep the
+-- full diagnostics for the trusted executor, and their 'Show' output is a
+-- trusted record, not a notice. Only evidence amounts can be withheld: facts
+-- are trusted inputs that the submitter is expected to know, and submitted
+-- amounts are the submitter's own.
+data Disclosure = Disclosure
+    { discloseEvidenceAmounts :: Bool
+      -- ^ When 'False', notices omit the expected amount and the difference
+      -- of an evidence mismatch, keeping only the submitted debit total, and
+      -- omit the amount of an invalid evidence obligation.
+    }
+    deriving (Eq, Show)
+
+-- | Reveal every diagnostic value. This is the default disclosure.
+fullDisclosure :: Disclosure
+fullDisclosure = Disclosure { discloseEvidenceAmounts = True }
 
 -- | An invocation in one entity and period. Posting operations require a
 -- generated key in that scope; queries require 'Nothing'. A posting operation

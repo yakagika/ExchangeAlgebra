@@ -428,7 +428,8 @@ decodeAdmissionSpec = documentAt admissionSpecFormat $ \path ->
             <$> field "registry" registryAt path fields
             <*> field "evidence" (namedMapAt Admission.EvidenceId "amount" moneyAt) path fields
             <*> field "facts" (namedMapAt Admission.FactId "rows" rowsAt) path fields
-            <*> (Set.fromList <$> field "vocabulary" (arrayAt accountAt) path fields)) path
+            <*> (Set.fromList <$> field "vocabulary" (arrayAt accountAt) path fields)
+            <*> pure Admission.fullDisclosure) path -- D2: the optional "disclosure" field is read in D3
 
 -- | Decode a submission that carries postings only; its call list is empty.
 -- Posting entries stay in document order and duplicate keys are kept for

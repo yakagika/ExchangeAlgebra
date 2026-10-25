@@ -142,11 +142,16 @@ module ExchangeAlgebra.IO.Input.Admission
     , txIdRegistry
     , registryRules
     , AdmissionSpec(..)
+    , Disclosure(..)
+    , fullDisclosure
       -- * Untrusted submission
     , CatalogOperationKind(..)
     , DepreciationMethod(..)
     , CatalogCall
     , CatalogCallOf(..)
+    , BasisPoints
+    , basisPoints
+    , basisPointsValue
     , catalogKind
     , catalogStage
     , isGenerating
@@ -161,6 +166,10 @@ module ExchangeAlgebra.IO.Input.Admission
     , failurePhase
     , failureErrors
     , ClosingDerivationError(..)
+    , explainAdmissionError
+    , explainAdmissionFailure
+    , explainAdmissionPhase
+    , explainClosingDerivationError
     , CatalogParameter(..)
     , CatalogParameterProblem(..)
     , CatalogExecutionProblem(..)
@@ -212,4 +221,5 @@ import ExchangeAlgebra.IO.Input.Admission.Workflow
 import ExchangeAlgebra.IO.Input.Admission.Registry.Definition
 import ExchangeAlgebra.IO.Input.Admission.Submission
 import ExchangeAlgebra.IO.Input.Admission.Diagnostic
+import ExchangeAlgebra.IO.Input.Admission.Explain
 import ExchangeAlgebra.IO.Output.Admission (renderAdmittedStatements)

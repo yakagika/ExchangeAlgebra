@@ -89,8 +89,27 @@ instance Hashable CatalogOperationKind
 data EntityInputOf r = EntityInput EntityId (NonEmpty r) -- ^ Entity and its source keys.
     deriving (Eq, Show, Functor, Foldable, Traversable)
 
+-- | Allowance rate in basis points, from 0 through 10000 inclusive. The value
+-- stays decimal, so a fractional rate such as 147.5 is accepted. Construct it
+-- with 'basisPoints'; the public admission module does not export the
+-- constructor, so an out-of-range rate cannot reach admission.
+newtype BasisPoints = BasisPoints MoneyDecimal
+    deriving (Eq, Ord, Show)
+
+-- | Check a rate in basis points. A negative rate @r@ yields
+-- @'NegativeParameter' 'RateParameter' r@ and a rate above 10000 yields
+-- @'RateAboveLimit' r@. The accepted range is exactly @0 <= r <= 10000@.
+-- A valid rate can still make 'AllowanceRateCall' fail during execution,
+-- for example with 'InexactQuotient'.
+basisPoints :: MoneyDecimal -> Either CatalogParameterProblem BasisPoints
+basisPoints _ = undefined
+
+-- | The checked rate in basis points.
+basisPointsValue :: BasisPoints -> MoneyDecimal
+basisPointsValue _ = undefined
+
 -- | Closed bookkeeping requests. Amount parameters use the same currency
--- unit as raw postings; allowance rates use basis points (0 through 10000).
+-- unit as raw postings; allowance rates use 'BasisPoints'.
 -- Account parameters and amounts are validated before any builder executes.
 data CatalogCallOf r
     = CogsCall MoneyDecimal MoneyDecimal -- ^ Beginning and ending inventory amounts, in that order.
@@ -98,7 +117,7 @@ data CatalogCallOf r
     | DepreciationDirectCall MoneyDecimal AccountTitles
       -- ^ Direct depreciation amount and asset account.
     | AllowanceCall MoneyDecimal MoneyDecimal -- ^ Estimate and current allowance.
-    | AllowanceRateCall MoneyDecimal -- ^ Rate in basis points.
+    | AllowanceRateCall BasisPoints -- ^ Rate in basis points.
     | AllowanceResetCall MoneyDecimal MoneyDecimal -- ^ Estimate and current allowance.
     | PrepaidCall MoneyDecimal AccountTitles -- ^ Amount and expense account.
     | UnearnedCall MoneyDecimal AccountTitles -- ^ Amount and revenue account.
@@ -191,7 +210,7 @@ data CatalogParameterProblem
     | AccountOutsideDivision CatalogParameter AccountTitles AccountDivision
       -- ^ Account is not a concrete account of the expected division.
     | RateAboveLimit MoneyDecimal
-      -- ^ Allowance rate exceeds 10000 basis points.
+      -- ^ Allowance rate exceeds 10000 basis points. Reported by 'basisPoints'.
     | ReceivedBelowPaid AmountLimit
       -- ^ Received tax is below the paid tax, which is the lower bound.
     | InterimExceedsTotal AmountLimit
@@ -328,8 +347,7 @@ parameterProblems call = case call of
         ++ accountRole Assets AssetAccountParameter asset
     AllowanceCall estimate current -> nonnegative EstimateParameter estimate
         ++ nonnegative CurrentParameter current
-    AllowanceRateCall rate -> nonnegative RateParameter rate
-        ++ [RateAboveLimit rate | rate > 10000]
+    AllowanceRateCall _ -> [] -- 'basisPoints' checks the rate.
     AllowanceResetCall estimate current -> nonnegative EstimateParameter estimate
         ++ nonnegative CurrentParameter current
     PrepaidCall amount expense -> positive AmountParameter amount
@@ -447,7 +465,7 @@ executeCatalog ledger call = case call of
         receivables <- balance AccountsReceivable
         current <- balance AllowanceForDoubtfulAccounts
         estimate <- exactQuotient
-            (toRational receivables * toRational rate / 10000)
+            (toRational receivables * toRational (basisPointsValue rate) / 10000)
         generated (Bookkeeping.allowanceReplenishmentEntry mk estimate current)
     AllowanceResetCall estimate current ->
         generated (Bookkeeping.allowanceResetEntries mk estimate current)
