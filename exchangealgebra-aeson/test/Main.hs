@@ -290,7 +290,7 @@ j3 = do
         ]
     let expectedSpec = A.AdmissionSpec registry
             (Map.fromList [(A.EvidenceId "sale-total", 100), (A.EvidenceId "expense-total", 100)])
-            Map.empty (Set.fromList [Cash, Sales, RentExpense])
+            Map.empty (Set.fromList [Cash, Sales, RentExpense]) A.fullDisclosure
         expectedSubmission = A.Submission
             [ (key "shop" "sale", [(A.DebitSide, "Cash", 100), (A.CreditSide, "Sales", 100)])
             , (key "shop" "expense",
@@ -307,9 +307,37 @@ j3 = do
     assertEqual "J3 balances" (A.admittedTrialBalance expectedTrial)
                               (A.admittedTrialBalance actualTrial)
 
+-- | The optional disclosure object uses the same strict field rules as the specification.
+disclosureTests :: IO ()
+disclosureTests = do
+    let base = specWith "[]" "[]"
+        withFields fields = Bytes.init base <> Ascii.pack ("," ++ fields ++ "}")
+        decode fields = decodeAdmissionSpec (withFields fields)
+        path = [Field "disclosure"]
+        amountPath = path ++ [Field "evidenceAmounts"]
+    defaults <- right (decodeAdmissionSpec base)
+    assertEqual "disclosure default" A.fullDisclosure (A.admissionDisclosure defaults)
+    withheld <- right (decode "\"disclosure\":{\"evidenceAmounts\":false}")
+    assertEqual "disclosure false" (A.Disclosure False) (A.admissionDisclosure withheld)
+    disclosed <- right (decode "\"disclosure\":{\"evidenceAmounts\":true}")
+    assertEqual "disclosure true" A.fullDisclosure (A.admissionDisclosure disclosed)
+    failures "disclosure missing field" [MissingField amountPath "evidenceAmounts"] $
+        decode "\"disclosure\":{}"
+    failures "disclosure extra field" [UnknownField (path ++ [Field "extra"]) "extra"] $
+        decode "\"disclosure\":{\"evidenceAmounts\":false,\"extra\":true}"
+    failures "disclosure wrong object type" [WrongType path "object"] $
+        decode "\"disclosure\":false"
+    failures "disclosure wrong field type" [WrongType amountPath "boolean"] $
+        decode "\"disclosure\":{\"evidenceAmounts\":0}"
+    failures "disclosure repeated field" [DuplicateKey amountPath "evidenceAmounts"] $
+        decode "\"disclosure\":{\"evidenceAmounts\":false,\"evidenceAmounts\":true}"
+    failures "disclosure repeated object" [DuplicateKey path "disclosure"] $
+        decode "\"disclosure\":{},\"disclosure\":false"
+
 -- | Run the three laws and the closed enumeration checks.
 main :: IO ()
 main = do
+    disclosureTests
     j1
     j2
     closedEnums

@@ -1,5 +1,5 @@
 -- | Translate public admission failures into repair instructions for the model.
--- This IO adapter retains structured details via Show after each instruction.
+-- This IO adapter adds disclosure-aware library explanations after each instruction.
 -- ModelRetry uses the resulting text as the next attempt's feedback.
 module Feedback (notification) where
 
@@ -60,10 +60,11 @@ repair problem = case problem of
     Admission.DuplicateEffect _ _ -> "Remove the raw entry that repeats the catalog effect."
 
 -- | Report all failures returned at the first failing admission stage.
--- EvidenceMismatch names the evidence's expected amount and the actual debit total.
-notification :: Admission.AdmissionFailure -> String
-notification failure = unlines $
+-- Evidence amounts follow the trusted specification's disclosure setting.
+notification :: Admission.Disclosure -> Admission.AdmissionFailure -> String
+notification disclosure failure = unlines $
     ("Rejected at " ++ show (Admission.failurePhase failure)
         ++ ". Resubmit the entire JSON object, not a patch.") :
-    [repair problem ++ " Detail: " ++ show problem
+    [repair problem ++ " Detail: "
+        ++ Text.unpack (Admission.explainAdmissionError disclosure problem)
     | problem <- NonEmpty.toList (Admission.failureErrors failure)]

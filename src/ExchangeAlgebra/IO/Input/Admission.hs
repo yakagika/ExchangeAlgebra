@@ -70,6 +70,13 @@
 -- standalone reporting, with no additional presentation instructions. Choose
 -- the scope and any allocations or other instructions for the intended report.
 --
+-- = Disclosure in notices
+--
+-- 'admissionDisclosure' affects only explanation functions and notices built on them;
+-- 'admit' and typed failures always return complete diagnostics.
+-- Only evidence amounts can be withheld: facts are values supplied to the model,
+-- and submitted amounts are already known to it. The default is 'fullDisclosure'.
+--
 -- = Admit one transaction
 --
 -- The caller chooses the entity, reporting period, transaction identity,
@@ -110,6 +117,7 @@
 -- >                     , Admission.admissionEvidence = Map.singleton evidence 100
 -- >                     , Admission.admissionFacts = Map.empty
 -- >                     , Admission.admissionVocabulary = Set.fromList [Cash, Sales]
+-- >                     , Admission.admissionDisclosure = Admission.fullDisclosure
 -- >                     }
 -- >             case Admission.admit spec submitted of
 -- >                 Left problems -> fail (show problems)

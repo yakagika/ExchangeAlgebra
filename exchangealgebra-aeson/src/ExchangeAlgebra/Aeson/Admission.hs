@@ -220,6 +220,32 @@ field key parse path fields = case [value | (name, value) <- fields, name == key
     location :: JsonPath
     location = path ++ [Field key]
 
+-- | Read an optional field with an explicit default, rejecting repeated keys.
+optionalField
+    :: Text
+    -> a
+    -> (JsonPath -> JsonTree -> Checked a)
+    -> JsonPath
+    -> [(Text, JsonTree)]
+    -> Checked a
+optionalField key fallback parse path fields = case [v | (name, v) <- fields, name == key] of
+    [] -> pure fallback
+    [value] -> parse location value
+    _ -> reject (DuplicateKey location key)
+  where
+    location :: JsonPath
+    location = path ++ [Field key]
+
+-- | Decode the closed disclosure object; its Boolean field is required.
+disclosureAt :: JsonPath -> JsonTree -> Checked Admission.Disclosure
+disclosureAt path = objectAt ["evidenceAmounts"] (\fields ->
+    Admission.Disclosure <$> field "evidenceAmounts" booleanAt path fields) path
+  where
+    booleanAt :: JsonPath -> JsonTree -> Checked Bool
+    booleanAt _ (Literal Tokens.LitTrue) = pure True
+    booleanAt _ (Literal Tokens.LitFalse) = pure False
+    booleanAt location _ = reject (WrongType location "boolean")
+
 -- | Traverse array elements independently with zero-based paths.
 arrayAt :: (JsonPath -> JsonTree -> Checked a) -> JsonPath -> JsonTree -> Checked [a]
 arrayAt parse path (Array values) =
@@ -420,16 +446,18 @@ documentAt format parse bytes = case checkExponents bytes >> fromTokens (lbsToTo
 -- whose failures are returned as 'RegistryRejected'. Evidence and fact
 -- identifiers must be unique. Fact-row sides are decoded here; account text
 -- stays unparsed for admission. Vocabulary entries must be canonical account
--- names.
+-- names. The optional @"disclosure"@ object defaults to @fullDisclosure@;
+-- when present it requires a Boolean @"evidenceAmounts"@ field and rejects
+-- unknown fields and duplicate keys under the same rules as other objects.
 decodeAdmissionSpec :: ByteString -> Either (NonEmpty DecodeFailure) AdmissionSpec
 decodeAdmissionSpec = documentAt admissionSpecFormat $ \path ->
-    objectAt ["format", "registry", "evidence", "facts", "vocabulary"] (\fields ->
+    objectAt ["format", "registry", "evidence", "facts", "vocabulary", "disclosure"] (\fields ->
         Admission.AdmissionSpec
             <$> field "registry" registryAt path fields
             <*> field "evidence" (namedMapAt Admission.EvidenceId "amount" moneyAt) path fields
             <*> field "facts" (namedMapAt Admission.FactId "rows" rowsAt) path fields
             <*> (Set.fromList <$> field "vocabulary" (arrayAt accountAt) path fields)
-            <*> pure Admission.fullDisclosure) path -- D2: the optional "disclosure" field is read in D3
+            <*> optionalField "disclosure" Admission.fullDisclosure disclosureAt path fields) path
 
 -- | Decode a submission that carries postings only; its call list is empty.
 -- Posting entries stay in document order and duplicate keys are kept for

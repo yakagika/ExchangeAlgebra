@@ -7,7 +7,8 @@ import Control.Monad (forM_, unless)
 import Data.Maybe (isJust)
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text
-import ModelRetry (runScenario, scenarios)
+import ModelRetry (Scenario(..), runScenario, scenarios)
+import qualified ExchangeAlgebra.IO.Input.Admission as Admission
 import Reports (report)
 import System.Environment (getArgs)
 import Trusted (augustAdjustment, specification)
@@ -26,7 +27,12 @@ main = do
     putStrLn "Trusted August adjustment (context only; already in opening balance):"
     print augustAdjustment
     forM_ scenarios $ \(scenario, expectedAttempts, expectedSuccess) -> do
-        (accepted, attempts) <- runScenario protocol trusted scenario
+        let scenarioSpec
+                | scenarioName scenario == "evidence-repair" = trusted
+                    { Admission.admissionDisclosure = Admission.fullDisclosure
+                        { Admission.discloseEvidenceAmounts = False } }
+                | otherwise = trusted
+        (accepted, attempts) <- runScenario protocol scenarioSpec scenario
         unless (attempts == expectedAttempts && isJust accepted == expectedSuccess) $
             fail "Scenario outcome or attempt count differs from the script."
         case accepted of

@@ -61,6 +61,7 @@ specification = do
             [ (Admission.EvidenceId "till-september", 400000)
             , (Admission.EvidenceId "bank-payroll", 70000)
             ]
+        , Admission.admissionDisclosure = Admission.fullDisclosure
         , Admission.admissionFacts = Map.fromList
             [ (Admission.FactId "opening",
                 [ (Admission.DebitSide, "Cash", 20000)

@@ -43,7 +43,7 @@ main = do
                     (Map.fromList [(saleEvidence, 100), (expenseEvidence, 100)])
                     Map.empty
                     (Set.fromList [Cash, Sales, RentExpense, NetIncome, NetLoss,
-                                   RetainedEarnings])
+                                   RetainedEarnings]) Admission.fullDisclosure
             case Admission.admit spec submitted of
                 Left failure -> fail (show (Admission.failurePhase failure,
                     Admission.failureErrors failure))

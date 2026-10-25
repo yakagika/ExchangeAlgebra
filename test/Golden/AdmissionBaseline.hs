@@ -27,6 +27,7 @@ import ExchangeAlgebra.Algebra
 import ExchangeAlgebra.Algebra.Base (AccountTitles(..), HatBase((:<)))
 import ExchangeAlgebra.Accounting.Account (concreteAccountTitles)
 import ExchangeAlgebra.IO.Input.Admission
+import Support (checkedRate)
 import ExchangeAlgebra.Accounting.Equivalence
     ( Equivalence(..), isEquivalentUpTo )
 import qualified ExchangeAlgebra.Accounting.Statements.Presentation as Presentation
@@ -225,7 +226,7 @@ admissionCase name category rules evidence facts vocabulary submission =
     result = case txIdRegistry rules of
         Left failures -> "RegistryLeft " <> Text.pack (show failures)
         Right registry -> observeAdmission name
-            (admit (AdmissionSpec registry evidence facts vocabulary) submission)
+            (admit (AdmissionSpec registry evidence facts vocabulary fullDisclosure) submission)
 
 -- | Use the complete account vocabulary in catalog and classification cases.
 fullVocabulary :: Set.Set AccountTitles
@@ -268,7 +269,7 @@ receivableRows = [(DebitSide, "AccountsReceivable", 100), (CreditSide, "Sales", 
 boundaryCases :: [GoldenCase]
 boundaryCases = coverageCases ++ registryCases ++ rawPolicyCases
     ++ callCases ++ referenceCases ++ provenanceCases ++ alternativeCases
-    ++ periodCases ++ consolidationCases ++ visibilityCases ++ parameterCases
+    ++ periodCases ++ consolidationCases ++ visibilityCases
 
 -- | Source, evidence, collision, and vocabulary examples from testCoverage.
 coverageCases :: [GoldenCase]
@@ -517,7 +518,8 @@ periodCases = case txIdRegistry rules of
             ("RegistryLeft " <> Text.pack (show failures))
         ]
     Right registry ->
-        let outcome = admit (AdmissionSpec registry Map.empty Map.empty smallVocabulary)
+        let outcome = admit (AdmissionSpec registry Map.empty Map.empty
+                smallVocabulary fullDisclosure)
                 (Submission [(raw, saleRows)] calls)
         in [ GoldenCase "full-period" "finalstock" (observeAdmission "full-period" outcome)
            , GoldenCase "full-period-statements" "finalstock"
@@ -631,19 +633,7 @@ visibilityCases =
             [(CreditSide, "AccountsReceivable", 100), (DebitSide, "Sales", 100)])
         ]
     call = Call (CallId "allowance") entityA periodOne
-        (Just allowance) (AllowanceRateCall 1000)
-
--- | Freeze the free-text diagnostic for invalid allowance parameters.
-parameterCases :: [GoldenCase]
-parameterCases =
-    [ admissionCase "invalid-allowance-rate" "rate;free-text"
-        [(generated, txRule Required [SupplyCatalog AllowanceRateKind] Nothing)]
-        Map.empty Map.empty smallVocabulary (Submission [] [call])
-    ]
-  where
-    generated = key entityA periodOne "invalid"
-    call = Call (CallId "bad-rate") entityA periodOne
-        (Just generated) (AllowanceRateCall 10001)
+        (Just allowance) (AllowanceRateCall (checkedRate 1000))
 
 -- | Record each equivalence policy on the same ledger pairs as the fixed tests.
 equivalenceCases :: [GoldenCase]
@@ -722,7 +712,7 @@ catalogInputs =
     , ordinary "DepIndirect" (DepreciationIndirectCall 7) DepreciationIndirectKind Adjustment "-"
     , ordinary "DepDirect" (DepreciationDirectCall 7 Fixtures) DepreciationDirectKind Adjustment "-"
     , ordinary "Allowance" (AllowanceCall 20 4) AllowanceKind Adjustment "classification"
-    , ("AllowanceRate", AllowanceRateCall 1000, AllowanceRateKind, Adjustment,
+    , ("AllowanceRate", AllowanceRateCall (checkedRate 1000), AllowanceRateKind, Adjustment,
         receivableRows, "rate;classification")
     , ordinary "AllowanceReset" (AllowanceResetCall 20 4) AllowanceResetKind
         Adjustment "classification"

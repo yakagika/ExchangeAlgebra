@@ -102,11 +102,14 @@ newtype BasisPoints = BasisPoints MoneyDecimal
 -- A valid rate can still make 'AllowanceRateCall' fail during execution,
 -- for example with 'InexactQuotient'.
 basisPoints :: MoneyDecimal -> Either CatalogParameterProblem BasisPoints
-basisPoints _ = undefined
+basisPoints rate
+    | rate < 0 = Left (NegativeParameter RateParameter rate)
+    | rate > 10000 = Left (RateAboveLimit rate)
+    | otherwise = Right (BasisPoints rate)
 
 -- | The checked rate in basis points.
 basisPointsValue :: BasisPoints -> MoneyDecimal
-basisPointsValue _ = undefined
+basisPointsValue (BasisPoints rate) = rate
 
 -- | Closed bookkeeping requests. Amount parameters use the same currency
 -- unit as raw postings; allowance rates use 'BasisPoints'.
@@ -442,10 +445,10 @@ exactQuotient rational = go 0 (numerator rational) (denominator rational)
 -- >>> let rate = fromRational (1 / 10^100) :: MoneyDecimal
 -- >>> let ledger = tiny .@ Not :< AccountsReceivable
 -- >>> let expected = Left (InexactQuotient 1 (fromInteger (10^304)))
--- >>> executeCatalog ledger (AllowanceRateCall rate) == expected
+-- >>> fmap (executeCatalog ledger . AllowanceRateCall) (basisPoints rate) == Right expected
 -- True
--- >>> executeCatalog (1 .@ Hat :< AccountsReceivable) (AllowanceRateCall 1)
--- Left (AbnormalBalance AccountsReceivable)
+-- >>> fmap (executeCatalog (1 .@ Hat :< AccountsReceivable) . AllowanceRateCall) (basisPoints 1)
+-- Right (Left (AbnormalBalance AccountsReceivable))
 -- >>> let entities = EntityInput (EntityId "A") ((key, 1 .@ Not :< Cash) :| []) :| []
 -- >>> let call = ConsolidateCall entities ((key, mempty) :| [])
 -- >>> executeCatalog mempty call

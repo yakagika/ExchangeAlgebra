@@ -14,7 +14,7 @@ import qualified ExchangeAlgebra.IO.Input.Admission as Admission
 data Scenario = Scenario
     { scenarioName    :: String    -- ^ Display label.
     , firstResponse   :: Text.Text -- ^ First complete JSON response.
-    , repairTrigger   :: Text.Text -- ^ Failure constructor required before repair.
+    , repairTrigger   :: Text.Text -- ^ Stable repair phrase required before retry.
     , keepsRejecting  :: Bool      -- ^ Repeat the first response through the limit.
     }
 
@@ -63,10 +63,10 @@ acceptedResponse = Text.unlines
 scenarios :: [(Scenario, Int, Bool)]
 scenarios =
     [ (Scenario "first-pass" acceptedResponse "" False, 1, True)
-    , (Scenario "evidence-repair" evidenceError "EvidenceMismatch" False, 2, True)
-    , (Scenario "balance-repair" balanceError "InvalidEntry" False, 2, True)
-    , (Scenario "registry-repair" unknownError "UnknownTransaction" False, 2, True)
-    , (Scenario "exhaustion" evidenceError "EvidenceMismatch" True, 3, False)
+    , (Scenario "evidence-repair" evidenceError "Match the independent debit total" False, 2, True)
+    , (Scenario "balance-repair" balanceError "Repair this entry:" False, 2, True)
+    , (Scenario "registry-repair" unknownError "Use a registered txid" False, 2, True)
+    , (Scenario "exhaustion" evidenceError "Match the independent debit total" True, 3, False)
     ]
   where
     evidenceError = Text.replace "400000" "399999" acceptedResponse
@@ -103,7 +103,8 @@ runScenario protocol specification scenario = do
         response <- either fail pure (fakeModel protocol scenario previous)
         let result = case readSubmission response of
                 Left problem -> Left ("JSON rejected: " ++ problem)
-                Right submission -> either (Left . notification) Right $
+                Right submission -> either
+                    (Left . notification (Admission.admissionDisclosure specification)) Right $
                     Admission.admit specification submission
         case result of
             Right accepted -> do

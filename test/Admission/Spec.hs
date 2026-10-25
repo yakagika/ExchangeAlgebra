@@ -1,9 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wincomplete-patterns -Werror=incomplete-patterns #-}
 
 -- | Public admission regressions and exact decimal accounting laws.
 module Admission.Spec (runTests) where
 
-import Control.Exception (SomeException, evaluate, try)
 import Control.Monad (forM_, unless)
 import qualified Data.ByteString.Char8 as ByteString
 import Data.List.NonEmpty (NonEmpty(..))
@@ -18,6 +18,13 @@ import System.Exit (exitFailure)
 import Test.QuickCheck
 
 import ExchangeAlgebra.IO.Input.Admission
+import Support (checkedRate)
+import qualified ExchangeAlgebra.IO.Input as Input
+import ExchangeAlgebra.Accounting.Account
+    ( AccountDivision(Assets)
+    , PostingCapability(EngineGeneratedOnly)
+    , ProcessingContext(OrdinaryJournal)
+    )
 import ExchangeAlgebra.Accounting.Equivalence (Equivalence(..), isEquivalentUpTo)
 import ExchangeAlgebra.Algebra
     ( (.+)
@@ -110,7 +117,7 @@ specFor :: [(TxKey, TxRule)] -> Map EvidenceId MoneyDecimal
         -> Map FactId RawPostings -> IO AdmissionSpec
 specFor rows evidence facts = do
     registry <- requireRight "registry fixture" (txIdRegistry rows)
-    pure (AdmissionSpec registry evidence facts vocabulary)
+    pure (AdmissionSpec registry evidence facts vocabulary fullDisclosure)
 
 -- | Demand an exact account balance, treating absent zero accounts as zero.
 balances :: Alg MoneyDecimal (HatBase AccountTitles)
@@ -605,7 +612,7 @@ testVisibility = do
             , (allowance, txRule Required [SupplyCatalog AllowanceRateKind] Nothing)
             ]
         invocation = Call (CallId "allowance") entityA periodOne
-            (Just allowance) (AllowanceRateCall 1000)
+            (Just allowance) (AllowanceRateCall (checkedRate 1000))
     spec <- specFor rules Map.empty Map.empty
     admitted <- requireRight "allowance visibility" (admit spec (Submission
         [ (local, receivableRows)
@@ -620,22 +627,16 @@ testVisibility = do
         balances (Journal.toAlg (Journal.filterWithNote
             (\note _ -> admissionKey note == allowance) (admittedJournal admitted))) == expected
 
--- | Invalid parameters return a structured failure without throwing.
+-- | Rate construction preserves the decimal domain and the former diagnostics.
 testParameterTotality :: IO ()
 testParameterTotality = do
-    let generated = key entityA periodOne "invalid"
-        rule = txRule Required [SupplyCatalog AllowanceRateKind] Nothing
-        invocation = Call (CallId "bad-rate") entityA periodOne
-            (Just generated) (AllowanceRateCall 10001)
-    spec <- specFor [(generated, rule)] Map.empty Map.empty
-    outcome <- try (evaluate (admit spec (Submission [] [invocation])))
-        :: IO (Either SomeException (Either AdmissionFailure Admitted))
-    assertTest "invalid parameters yield Left" $ case outcome of
-        Right result -> hasError isParameterError result
-        Left _ -> False
-  where
-    isParameterError (InvalidCatalogParameters (CallId "bad-rate") _) = True
-    isParameterError _ = False
+    forM_ [0, 147.5, 10000] $ \amount ->
+        assertTest "valid rate round trip" $
+            fmap basisPointsValue (basisPoints amount) == Right amount
+    forM_ [(-1, NegativeParameter RateParameter (-1)),
+           (10000.5, RateAboveLimit 10000.5), (10001, RateAboveLimit 10001)] $
+        \(amount, problem) -> assertTest "invalid rate diagnostic" $
+            basisPoints amount == Left problem
 
 -- | Canonical map observations distinguish gross postings from transaction net.
 testEquivalence :: IO ()
@@ -712,7 +713,7 @@ propAcceptedDebitEvidence (Positive number) = case txIdRegistry [(transaction, r
     Left _ -> False
     Right registry ->
         let specification = AdmissionSpec registry (Map.singleton receipt amount)
-                Map.empty vocabulary
+                Map.empty vocabulary fullDisclosure
         in case admit specification (Submission [(transaction, rows)] []) of
             Left _ -> False
             Right admitted ->
@@ -733,7 +734,7 @@ propActualSupplyProvenance (Positive number) =
         Left _ -> False
         Right registry ->
             let specification = AdmissionSpec registry (Map.singleton receipt amount)
-                    Map.empty vocabulary
+                    Map.empty vocabulary fullDisclosure
                 rawResult = admit specification (Submission [(source, rows)] [reverseCall])
                 catalogResult = admit specification
                     (Submission [] [catalogCall, reverseCall])
@@ -823,7 +824,7 @@ propSnapshotInclusion (Positive number) = case txIdRegistry rules of
         , (adjustmentKey, txRule Required [SupplyCatalog DepreciationIndirectKind] Nothing)
         , (closingKey, txRule Required [SupplyCatalog FinalStockKind] Nothing)
         ]
-    specification registry = AdmissionSpec registry Map.empty Map.empty vocabulary
+    specification registry = AdmissionSpec registry Map.empty Map.empty vocabulary fullDisclosure
     submission = Submission [(ordinaryKey, saleRows)]
         [ Call (CallId "adjust") entityA periodOne (Just adjustmentKey)
             (DepreciationIndirectCall 20)
@@ -1089,9 +1090,148 @@ testClosingFailures = do
         closingFails (EliminationNotClosable (key entityB periodOne "elimination"))
             (closeAdmitted (TxId "closing") two)
 
+-- | Expand nested diagnostics while making admission constructor coverage a compile check.
+explanationVariants :: AdmissionError -> [AdmissionError]
+explanationVariants problem = case problem of
+    UnknownTransaction _ -> [problem]
+    SupplyNotAllowed _ _ _ -> [problem]
+    FactOverwrite _ _ -> [problem]
+    MissingRequiredTransaction _ -> [problem]
+    DuplicateRawTransaction _ -> [problem]
+    DuplicateGeneratedTransaction _ -> [problem]
+    RawGeneratedCollision _ -> [problem]
+    DuplicateCallId _ -> [problem]
+    InvalidCallIdentity _ -> [problem]
+    MissingGeneratedKey _ -> [problem]
+    UnexpectedGeneratedKey _ _ -> [problem]
+    CallEntityMismatch _ _ -> [problem]
+    CallPeriodMismatch _ _ -> [problem]
+    UnknownCallScope _ _ _ -> [problem]
+    MissingFact _ _ -> [problem]
+    MissingEvidence _ _ -> [problem]
+    InvalidEvidence _ _ _ -> [problem]
+    EvidenceMismatch _ _ _ -> [problem]
+    InvalidEntry transaction _ ->
+        [InvalidEntry transaction (entry :| []) | entry <-
+            [ Input.EntryParse 0 (Input.UnknownAccount "unlisted\naccount")
+            , Input.NonPositiveAmount 0 Cash (-1)
+            , Input.WildcardAccount 0, Input.WildcardSide 0
+            , Input.PostingNotAllowed 0 Cash EngineGeneratedOnly OrdinaryJournal
+            , Input.EmptyEntry, Input.Imbalanced 251 137
+            ]]
+    AccountOutsideVocabulary _ _ -> [problem]
+    DirectPostingForbidden _ _ -> [problem]
+    RawProfitEquityTransfer _ -> [problem]
+    GeneratedAccountForbidden _ _ -> [problem]
+    InvalidCatalogParameters identity _ -> map (InvalidCatalogParameters identity)
+        [ NonPositiveParameter AmountParameter 0, NegativeParameter RateParameter (-1)
+        , AccountOutsideDivision AssetAccountParameter Sales Assets
+        , RateAboveLimit 10001, ReceivedBelowPaid (AmountLimit 10 5)
+        , InterimExceedsTotal (AmountLimit 10 15), BlankReferenceKey transaction
+        , TooFewEntities 1, RepeatedEntity entityA, RepeatedReference transaction
+        ]
+    CatalogExecutionFailure identity _ -> map (CatalogExecutionFailure identity)
+        [ InexactQuotient 1 3, ImbalancedConsolidation (DebitCreditTotals 137 251)
+        , AbnormalBalance Cash, ClosingFailed (Not :< Cash)
+        ]
+    StageRegression _ _ _ -> [problem]
+    UnresolvedReference identity reference role _ ->
+        map (UnresolvedReference identity reference role)
+            [ ReferenceUnknown, ReferenceAbsent, ReferenceEntityMismatch entityB
+            , ReferencePeriodMismatch periodTwo, ReferenceRoleMismatch Opening
+            , ReferenceProvenanceForbidden (FactProvenance (FactId "fact"))
+            , ReferenceNotVisible ClosingStage OrdinaryStage, ReferenceReused
+            ]
+    DuplicateEffect _ _ -> [problem]
+  where
+    transaction = key entityA periodOne "source"
+
+-- | Exercise every admission diagnostic and the disclosure boundary through public APIs.
+testExplanations :: IO ()
+testExplanations = do
+    let transaction = key entityA periodOne "sale"
+        identity = CallId "call"
+        evidence = EvidenceId "receipt"
+        fact = FactId "fact"
+        hidden = fullDisclosure { discloseEvidenceAmounts = False }
+        mismatch amount = EvidenceMismatch transaction evidence (AmountMismatch amount 251)
+        invalid = InvalidEvidence transaction evidence (-5)
+        seeds =
+            [ UnknownTransaction transaction, SupplyNotAllowed transaction Nothing Set.empty
+            , FactOverwrite transaction fact, MissingRequiredTransaction transaction
+            , DuplicateRawTransaction transaction, DuplicateGeneratedTransaction transaction
+            , RawGeneratedCollision transaction, DuplicateCallId identity
+            , InvalidCallIdentity identity
+            , MissingGeneratedKey identity, UnexpectedGeneratedKey identity transaction
+            , CallEntityMismatch identity transaction, CallPeriodMismatch identity transaction
+            , UnknownCallScope identity entityA periodOne, MissingFact transaction fact
+            , MissingEvidence transaction evidence, invalid, mismatch 137
+            , InvalidEntry transaction (Input.EmptyEntry :| [])
+            , AccountOutsideVocabulary transaction Cash, DirectPostingForbidden transaction Cash
+            , RawProfitEquityTransfer transaction, GeneratedAccountForbidden identity Cash
+            , InvalidCatalogParameters identity (RateAboveLimit 10001)
+            , CatalogExecutionFailure identity (AbnormalBalance Cash)
+            , StageRegression identity ClosingStage OrdinaryStage
+            , UnresolvedReference identity transaction Ordinary ReferenceUnknown
+            , DuplicateEffect identity transaction
+            ]
+        closingErrors =
+            [ BlankClosingTransaction (TxId ""), AlreadyClosed transaction
+            , ClosingKeyCollision transaction, EliminationNotClosable transaction
+            , ClosingNotDerivable transaction (Not :< Cash)
+            ]
+        oneLine text = not (Text.null text) && not (Text.any (`elem` ['\n', '\r']) text)
+        visible = explainAdmissionError fullDisclosure (mismatch 137)
+        withheld = explainAdmissionError hidden (mismatch 137)
+    forM_ [fullDisclosure, hidden] $ \disclosure ->
+        forM_ (concatMap explanationVariants seeds) $ \problem ->
+            assertTest ("one-line explanation: " ++ show problem) $
+                oneLine (explainAdmissionError disclosure problem)
+    forM_ [minBound .. maxBound] $ \phase ->
+        assertTest "one-line phase" (oneLine (explainAdmissionPhase phase))
+    forM_ closingErrors $ \problem ->
+        assertTest "one-line closing failure" (oneLine (explainClosingDerivationError problem))
+    assertTest "evidence disclosure includes both amounts" $
+        all (`Text.isInfixOf` visible) ["137", "251"]
+    assertTest "evidence withholding omits expected amount and difference" $
+        all (not . (`Text.isInfixOf` withheld)) ["137", "114"]
+            && Text.isInfixOf "251" withheld
+    assertTest "withheld text is independent of expected amount" $
+        withheld == explainAdmissionError hidden (mismatch 138)
+    assertTest "invalid evidence amount is withheld" $
+        not (Text.isInfixOf "-5" (explainAdmissionError hidden invalid))
+    -- Obtain private AdmissionFailure values through admission, retaining error order.
+    let sale = [(DebitSide, "Cash", 251), (CreditSide, "Sales", 251)]
+        obligation = txRule Required [SupplySubmission Ordinary] (Just evidence)
+    base <- specFor [(transaction, obligation)] (Map.singleton evidence 137) Map.empty
+    let rejected spec = admit spec (Submission [(transaction, sale)] [])
+        changed = base { admissionEvidence = Map.singleton evidence 138 }
+    case (rejected base, rejected changed) of
+        (Left first, Left second) -> do
+            let text = explainAdmissionFailure hidden first
+            assertTest "failure text preserves phase and error order" $
+                Text.lines text == explainAdmissionPhase (failurePhase first)
+                    : map (explainAdmissionError hidden) (NonEmpty.toList (failureErrors first))
+            assertTest "failure text has no trailing newline" (not (Text.isSuffixOf "\n" text))
+            assertTest "failure withholds expected amount and difference" $
+                all (not . (`Text.isInfixOf` text)) ["137", "114"]
+                    && Text.isInfixOf "251" text
+            assertTest "failure text independent of expected amount" $
+                text == explainAdmissionFailure hidden second
+            assertTest "full failure discloses expected amount" $
+                Text.isInfixOf "137" (explainAdmissionFailure fullDisclosure first)
+            assertTest "typed failure retains complete diagnostics" $
+                failureErrors first == (mismatch 137 :| [])
+        _ -> assertTest "evidence mismatch fixture rejects" False
+    case rejected (base { admissionEvidence = Map.singleton evidence (-5) }) of
+        Left failure -> assertTest "failure withholds invalid evidence amount" $
+            not (Text.isInfixOf "-5" (explainAdmissionFailure hidden failure))
+        Right _ -> assertTest "invalid evidence fixture rejects" False
+
 -- | Run fixed admissions and bounded laws through the suite harness.
 runTests :: IO ()
 runTests = do
+    testExplanations
     testCoverage
     testRegistrySupplies
     testRawPolicy

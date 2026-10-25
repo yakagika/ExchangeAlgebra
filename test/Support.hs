@@ -27,6 +27,7 @@ module Support (eps
                , epsEq
                , CheckedAlgM
                , exactBalancedForTest
+               , checkedRate
                , withTestTemporaryFile
                ) where
 
@@ -34,6 +35,7 @@ import ExchangeAlgebra.Journal
 import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Journal  as EJ
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
+import qualified ExchangeAlgebra.IO.Input.Admission as Admission
 import ExchangeAlgebra.Simulate (StateTime, initTerm, lastTerm)
 import qualified Data.Map.Strict     as M
 import qualified Data.Text           as T
@@ -179,3 +181,9 @@ withTestTemporaryFile action = bracket acquire removeSpillTestFile action
         (path, handle) <- openBinaryTempFile directory "exchangealgebra-test.tmp"
         hClose handle
         pure path
+
+-- | Construct a valid rate for synthetic fixtures only.
+checkedRate :: MoneyDecimal -> Admission.BasisPoints
+checkedRate amount = case Admission.basisPoints amount of
+    Right rate -> rate
+    Left problem -> error ("valid fixture rate: " ++ show problem)

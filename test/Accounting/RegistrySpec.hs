@@ -1059,7 +1059,7 @@ testAdmissionBaselineGolden = do
     forM_ AdmissionBaseline.admissionFixtures $ \(name, expected, caseCount) -> do
         let path = AdmissionBaseline.admissionFixtureDir ++ "/" ++ name
             expectedCount = case name of
-                "boundary.tsv" -> 64
+                "boundary.tsv" -> 63
                 "equivalence.tsv" -> 12
                 "catalog.tsv" -> 264
                 _ -> 0

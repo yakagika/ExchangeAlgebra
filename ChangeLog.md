@@ -370,6 +370,17 @@
 
 ### Changed (admission API, not yet released on Hackage)
 
+- Add `explainAdmissionError`, `explainAdmissionFailure`, `explainAdmissionPhase`,
+  and `explainClosingDerivationError` for English failure explanations.
+- Add `Disclosure` and `admissionDisclosure` to `AdmissionSpec`. Construction now
+  requires this field; use `fullDisclosure` for the default. Withholding affects
+  only evidence amounts in explanations; typed diagnostics remain complete.
+- `AllowanceRateCall` now takes checked `BasisPoints`. Construct rates with
+  `basisPoints` and read them with `basisPointsValue`. Rate validation moves from
+  `admit` to construction, with the same diagnostics; invalid rates cannot reach
+  `admit`. Acceptance is unchanged; diagnostics change location for rates.
+  The explanation and disclosure APIs are additions.
+
 - `closeAdmitted` derives closing entries after admission, so the submitter
   (for example a language model) does not post them. Pass one transaction ID;
   each admitted entity and period gets its closing under that ID. The

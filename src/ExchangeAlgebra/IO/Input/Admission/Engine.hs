@@ -27,7 +27,8 @@
 -- >>> let evidenceAmounts amount = Map.singleton evidence amount
 -- >>> let baseSpec registry amount = Admission.AdmissionSpec registry (evidenceAmounts amount)
 -- >>> let vocabulary = Set.fromList [Cash, Sales]
--- >>> let spec registry amount = baseSpec registry amount Map.empty vocabulary
+-- >>> let disclosure = Admission.fullDisclosure
+-- >>> let spec registry amount = baseSpec registry amount Map.empty vocabulary disclosure
 -- >>> let debit = (Admission.DebitSide, "Cash", 100)
 -- >>> let credit = (Admission.CreditSide, "Sales", 100)
 -- >>> let postings = [debit, credit] :: Admission.RawPostings

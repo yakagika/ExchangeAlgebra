@@ -60,15 +60,14 @@ API: `ExchangeAlgebra.IO.Input.Admission.CatalogCall`, `CatalogOperationKind`,
 外側の `AdmissionError` を扱う関数ではなかった. `IO.Output.Admission` も諸表の renderer のみ.
 `EvidenceMismatch` の 2 金額には field 名が無く, 個別説明も「Evidence amount differs」のみなので,
 どちらが期待値かを資料だけから読み取りにくかった.
-回避: `InvalidEntry` 内の失敗には `explainEntryError` を使うよう直した.
-外側は自作文にして constructor と全詳細を `show` で添えた.
-2 金額を推測でラベル付けせず, CALLS の独立金額へ戻るよう指示する.
-実行では `EvidenceMismatch ... 400000 399999`,
-`InvalidEntry ... Imbalanced {_debitTotal = 70000, _creditTotal = 69000}`,
-`UnknownTransaction` と `MissingRequiredTransaction` を受け, 各 2 回目に受理された.
-全 constructor の文は書いたが, 実行で確認した棄却はこの 3 種類の筋書きだけである.
-API: `ExchangeAlgebra.IO.Input.Assist.explainEntryError`,
-`ExchangeAlgebra.IO.Input.Admission.AdmissionError`, `EvidenceMismatch`, `admit`.
+対応: library の `explainAdmissionError` が各失敗の英文を生成するようになった.
+`Feedback.repair` はこの見本に固有の修正指示だけを担当し,
+詳細には仕様の `admissionDisclosure` を渡した説明を添える.
+`evidence-repair` の経路は証憑の期待額と差額を伏せ, 提出の借方総額だけを示す.
+`check.sh` がこの通知に期待額が現れないことを確認する.
+再提出の判定は constructor 名から修正指示の安定した語句へ移した.
+API: `ExchangeAlgebra.IO.Input.Admission.explainAdmissionError`,
+`admissionDisclosure`, `Disclosure`, `admit`.
 
 ## F5. catalog を呼ぶ側に必要な stage 表を手で組み立てた
 

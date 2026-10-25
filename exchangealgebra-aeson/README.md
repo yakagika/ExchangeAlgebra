@@ -35,11 +35,18 @@ postings, trusted facts, and an optional catalog operation:
 }
 ```
 
-All fields are required, including each rule's `evidence`: `null` means no
+All fields shown are required, including each rule's `evidence`: `null` means no
 evidence obligation. Evidence amounts are independent total debit amounts per
 transaction. `txIdRegistry` checks supply combinations; its refusals become
 `RegistryRejected`. Vocabulary names must match the account's `show` spelling
 exactly. Identifier strings must contain a non-whitespace character.
+
+The optional top-level `"disclosure"` field has the shape
+`{"evidenceAmounts": false}`. If omitted, it defaults to `fullDisclosure`.
+When present, `evidenceAmounts` is a required Boolean; unknown fields,
+incorrect types, and duplicate keys are rejected. This setting affects only
+model-facing explanations. Typed failures retain complete diagnostics.
+The development format string stays unchanged for this field addition.
 
 ## Decode a postings-only submission
 

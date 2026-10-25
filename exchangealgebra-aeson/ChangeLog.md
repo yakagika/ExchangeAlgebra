@@ -14,6 +14,11 @@
 
 ### Added
 
+- Trusted specifications accept optional `"disclosure": {"evidenceAmounts": false}`
+  to withhold evidence amounts from model-facing explanations. Omission defaults
+  to `fullDisclosure`. The object requires a Boolean `evidenceAmounts` and rejects
+  unknown fields and duplicate keys. The `/dev` format string is unchanged.
+
 - `ExchangeAlgebra.Aeson.Admission`: `decodeAdmissionSpec` and
   `decodeSubmissionPostings` for the development input formats. The decoders
   preserve duplicate object keys for rejection, collect independent failures,

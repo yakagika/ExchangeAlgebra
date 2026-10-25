@@ -53,6 +53,7 @@ printf '[PASS] explicit-import client compiled\n'
 reject Constructor 'Data constructor not in scope:.*Admitted|Not in scope:.*Admitted|Illegal term-level use of the type constructor.*Admitted'
 reject AdmissionNoteConstructor 'Data constructor not in scope:.*AdmissionNote|Not in scope:.*AdmissionNote|Illegal term-level use of the type constructor.*AdmissionNote'
 reject AdmissionFailureConstructor 'Data constructor not in scope:.*AdmissionFailure|Not in scope:.*AdmissionFailure|Illegal term-level use of the type constructor.*AdmissionFailure'
+reject BasisPointsConstructor 'Data constructor not in scope:.*BasisPoints|Not in scope:.*BasisPoints|Illegal term-level use of the type constructor.*BasisPoints'
 reject RecordUpdate 'not a record selector|not a record field|Not in scope: record field.*admittedJournal'
 reject Coerce "Couldn't match (representation|type)|Could not deduce.*Coercible"
 reject RawDerivation "Couldn't match.*(Admitted|Journal)|Expected:.*Admitted"

@@ -29,6 +29,7 @@ AmountMismatch
 AmountParameter
 AnnualParameter
 AssetAccountParameter
+BasisPoints
 BeginningInventoryParameter
 BlankClosingTransaction
 BlankReferenceKey
@@ -76,6 +77,7 @@ DepreciationMethod
 DerivedClosing
 DirectMethod
 DirectPostingForbidden
+Disclosure
 DividendParameter
 DuplicateCallId
 DuplicateEffect
@@ -197,6 +199,7 @@ UnknownCallScope
 UnknownTransaction
 UnresolvedReference
 actualAmount
+admissionDisclosure
 admissionEvidence
 admissionFacts
 admissionKey
@@ -217,6 +220,8 @@ auditGenerated
 auditOperation
 auditProjection
 auditReferences
+basisPoints
+basisPointsValue
 callBody
 callEntity
 callGenerated
@@ -228,9 +233,15 @@ closeAdmitted
 creditTotal
 debitTotal
 deriveTrialBalance
+discloseEvidenceAmounts
 expectedAmount
+explainAdmissionError
+explainAdmissionFailure
+explainAdmissionPhase
+explainClosingDerivationError
 failureErrors
 failurePhase
+fullDisclosure
 isGenerating
 limitAmount
 limitedAmount

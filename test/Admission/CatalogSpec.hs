@@ -16,6 +16,7 @@ import qualified Data.Text as Text
 import System.Exit (exitFailure)
 
 import ExchangeAlgebra.IO.Input.Admission
+import Support (checkedRate)
 import ExchangeAlgebra.Algebra
     ( HatBase((:<))
     , (.+)
@@ -76,7 +77,7 @@ registryFor label rows = requireRight label (txIdRegistry rows)
 -- | Construct a full vocabulary so this suite measures builder parity.
 specification :: TxIdRegistry -> Map.Map FactId RawPostings -> AdmissionSpec
 specification registry facts = AdmissionSpec registry Map.empty facts
-    (Set.fromList concreteAccountTitles)
+    (Set.fromList concreteAccountTitles) fullDisclosure
 
 -- | Fail the test suite on a rejected fixture with its diagnostic.
 requireRight :: Show error => String -> Either error value -> IO value
@@ -174,7 +175,7 @@ kindExample kind = case kind of
     DepreciationIndirectKind    -> DepreciationIndirectCall 7
     DepreciationDirectKind      -> DepreciationDirectCall 7 Fixtures
     AllowanceKind               -> AllowanceCall 20 4
-    AllowanceRateKind           -> AllowanceRateCall 1000
+    AllowanceRateKind           -> AllowanceRateCall (checkedRate 1000)
     AllowanceResetKind          -> AllowanceResetCall 20 4
     PrepaidKind                 -> PrepaidCall 7 RentExpense
     UnearnedKind                -> UnearnedCall 7 RentalIncome
@@ -250,7 +251,8 @@ builderCases =
         (Bookkeeping.depreciationDirectEntry mk 7 Fixtures)
     , ordinaryCase "Allowance" (AllowanceCall 20 4) AllowanceKind Adjustment
         (Bookkeeping.allowanceReplenishmentEntry mk 20 4)
-    , (ordinaryCase "AllowanceRate" (AllowanceRateCall 1000) AllowanceRateKind Adjustment
+    , (ordinaryCase "AllowanceRate" (AllowanceRateCall (checkedRate 1000))
+            AllowanceRateKind Adjustment
         (Bookkeeping.allowanceReplenishmentEntry mk 10 0))
         { caseRows = receivableRows }
     , ordinaryCase "AllowanceReset" (AllowanceResetCall 20 4) AllowanceResetKind Adjustment
@@ -363,6 +365,10 @@ testConsolidate = do
 -- | Fix closed parameter payloads and their order through public admission.
 testClosedProblems :: IO ()
 testClosedProblems = do
+    assertTest "negative rate rejected at construction" $
+        basisPoints (-1) == Left (NegativeParameter RateParameter (-1))
+    assertTest "rate above limit rejected at construction" $
+        basisPoints 10001 == Left (RateAboveLimit 10001)
     let source = key company "source"
         blank = TxKey company period (TxId "")
         entities = EntityInput company (source :| [source]) :|
@@ -375,8 +381,6 @@ testClosedProblems = do
                 AccountOutsideDivision AssetAccountParameter Sales Assets])
             , (AllowanceCall (-1) (-2), [NegativeParameter EstimateParameter (-1),
                 NegativeParameter CurrentParameter (-2)])
-            , (AllowanceRateCall (-1), [NegativeParameter RateParameter (-1)])
-            , (AllowanceRateCall 10001, [RateAboveLimit 10001])
             , (AllowanceResetCall (-1) (-2), [NegativeParameter EstimateParameter (-1),
                 NegativeParameter CurrentParameter (-2)])
             , (PrepaidCall 0 Sales, [NonPositiveParameter AmountParameter 0,

@@ -15,7 +15,8 @@ acceptedLedger = do
     let key = TxKey (EntityId "company") (PeriodId "2026") (TxId "sale")
     registry <- either (Left . show) Right
         (txIdRegistry [(key, txRule Required [SupplySubmission Ordinary] Nothing)])
-    let spec = AdmissionSpec registry Map.empty Map.empty (Set.fromList [Cash, Sales])
+    let spec = AdmissionSpec registry Map.empty Map.empty
+            (Set.fromList [Cash, Sales]) fullDisclosure
         submission = Submission
             [(key, [(DebitSide, "Cash", 10), (CreditSide, "Sales", 10)])] []
     accepted <- either (Left . show) Right (admit spec submission)
@@ -29,3 +30,7 @@ matchPosting _ = Nothing
 -- | Checked construction remains available to external clients.
 publicPosting :: Alg Double (HatBase CountUnit)
 publicPosting = 1 .@ (Not :< Yen)
+
+-- | Checked rates are available without their representation constructor.
+publicRate :: Either CatalogParameterProblem BasisPoints
+publicRate = basisPoints 147.5
