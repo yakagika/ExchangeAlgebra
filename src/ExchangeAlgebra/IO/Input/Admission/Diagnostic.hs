@@ -16,7 +16,8 @@ import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 -- other transactions, opening balances, or the answer of an exercise.
 data AdmissionError n b
     = NonPositiveAmount n b MoneyDecimal
-      -- ^ A posting whose value is zero, negative, or not finite.
+      -- ^ A posting whose value is zero or negative ('MoneyDecimal' has no
+      -- non-finite value).
     | WildcardSide n b
       -- ^ A posting whose side is the wildcard 'HatNot'. A ledger posting is
       -- on 'Hat' or 'Not'; 'HatNot' is a query pattern.
@@ -26,8 +27,8 @@ data AdmissionError n b
     | Imbalanced n MoneyDecimal MoneyDecimal
       -- ^ The debit ('decL') and credit ('decR') totals of the transaction,
       -- in that order. Each total is the exact sum rounded once. Not reported
-      -- for a transaction that has a 'WildcardSide' posting, whose side
-      -- cannot be classified.
+      -- for a transaction that has a 'WildcardSide' or 'NotPostableAccount'
+      -- posting: its side or its account cannot be classified.
     deriving (Eq, Show)
 
 -- | All violations found by one 'admit' run. The constructor is

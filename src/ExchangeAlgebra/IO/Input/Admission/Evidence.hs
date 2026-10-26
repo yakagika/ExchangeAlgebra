@@ -22,7 +22,7 @@ import ExchangeAlgebra.Journal.Core (Journal, Note)
 -- 'bar', or a change of notes. 'checkEvidence' itself does not aggregate and
 -- does not call 'bar'.
 --
--- Each expected element (note @m@, base @b@, value @v@) is a query against the
+-- Each expected posting (note @m@, base @b@, value @v@) is a query against the
 -- selected journal, matched one way as in Definition 1: the expected element is
 -- the pattern and the selected elements are ledger entries.
 --
@@ -46,11 +46,12 @@ import ExchangeAlgebra.Journal.Core (Journal, Note)
 -- Laws:
 --
 -- * @checkEvidence a f Zero == Right ()@.
--- * @checkEvidence a id e == Right ()@ when @e@ is a projection of
---   @admittedJournal a@ whose every note and base occurs once in the journal.
--- * The checks are per expected element: @checkEvidence a f (e1 .+ e2)@
---   succeeds iff @checkEvidence a f e1@ and @checkEvidence a f e2@ succeed,
---   when @e1@ and @e2@ have no note and base in common.
+-- * @checkEvidence a id e == Right ()@ when every posting of @e@ matches,
+--   under the one-way matching above, exactly one posting of
+--   @admittedJournal a@ with the same value. Postings are counted one by
+--   one: each term of a same-base sequence is a separate posting.
+-- * The checks are per expected posting: @checkEvidence a f (e1 .+ e2)@
+--   succeeds iff @checkEvidence a f e1@ and @checkEvidence a f e2@ succeed.
 checkEvidence
     :: (Note m, HatBaseClass b)
     => Admitted n b

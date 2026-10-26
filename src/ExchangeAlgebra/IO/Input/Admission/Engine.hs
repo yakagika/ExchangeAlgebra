@@ -14,16 +14,16 @@ import ExchangeAlgebra.Journal.Core (Journal, Note)
 -- | Check the accounting integrity of every transaction (note) of a journal.
 -- For each posting of each note:
 --
--- * the value is positive and finite ('NonPositiveAmount');
+-- * the value is positive ('NonPositiveAmount');
 -- * the side is 'Hat' or 'Not', not the wildcard 'HatNot' ('WildcardSide');
 -- * the account can be posted by some process, that is, its posting
 --   capability is not 'NotPostable' ('NotPostableAccount'). Capabilities that
 --   depend on the process (closing only, engine generated only) are not
 --   checked: admission does not know the process.
 --
--- For each note without a 'WildcardSide' posting, the exact sum of the values
--- whose 'decL' side is Debit equals the exact sum of those whose side is Credit
--- ('Imbalanced'). The sides come from 'decL' (Debit) and 'decR' (Credit), not
+-- For each note without a 'WildcardSide' or 'NotPostableAccount' posting, the
+-- exact sum of the values whose 'decL' side is Debit equals the exact sum of
+-- those whose side is Credit ('Imbalanced'). The sides come from 'decL' (Debit) and 'decR' (Credit), not
 -- from the 'Hat' / 'Not' sign: recording a cash sale is
 -- @100 .\@ Not :< Cash .+ 100 .\@ Not :< Sales@, debit Cash and credit Sales.
 --
