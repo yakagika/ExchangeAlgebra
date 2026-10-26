@@ -1,53 +1,19 @@
-# Admission baseline for P1
+# Accounting equivalence baseline
 
-These schema 1 fixtures record the current public admission behavior at commit
-`2a83fe178d47a1024e0e566794f39533a12b4c20`. The first line of each TSV
-file identifies the schema and commit. Each later row has a case name, a `p3`
-classification, and the observed result. The test suite reconstructs the
-inputs independently of `Admission.Spec` and `Admission.CatalogSpec`.
+`equivalence.tsv` records twelve fixed ledger comparisons with
+`PostingMultiset`, `NetWithinTransaction`, and `NetAccountsInTransactions`.
+The schema 1 header identifies the original baseline commit. Each row contains
+its case name, `p3` classification, and Boolean result. `exact-residual` marks
+comparisons of exact base residuals; `-` marks posting multiset comparisons.
+The file and directory names are retained from the admission baseline.
 
-`boundary.tsv` covers registry validation, admission successes and failures,
-references and provenance, periods, consolidation, visibility, evidence,
-protected postings, and parameter rejection. `catalog.tsv` covers the twenty
-generating operations, both query operations, and every concrete account in
-the direct posting policy. `equivalence.tsv` records the three equivalence
-policies on the fixed ledger pairs. The randomized QuickCheck inputs in the
-existing suite are not fixture rows because they do not have stable inputs.
-
-Successful admission rows list each transaction's postings as sorted
-`(account, Hat/Not, value)` triples and list the call audit, including resolved
-reference origins and any query projection. Failed rows retain the full `Show`
-output of the error and every `NonEmpty` element in its original order.
-Equivalence rows contain `True` or `False`.
-The full-period input also records the rendered statements after trial-balance
-derivation.
-
-The `p3` column uses these categories. Multiple applicable categories are
-separated by `;` in the order below.
-
-- `rate`: The input uses `AllowanceRate`.
-- `finalstock`: The input uses the `FinalStock` closing operation.
-- `free-text`: The result contains a `Text` diagnostic from
-  `InvalidCatalogParameters` or `CatalogExecutionFailure`.
-- `exact-residual`: The result compares exact base residuals through
-  `NetWithinTransaction` or `NetAccountsInTransactions`.
-- `classification`: The result depends on whether an account is protected or
-  is a valuation account.
-- `-`: None of these categories applies.
-
-At P2, require every row to match this baseline. At P3, require every `-`
-row to match, except for differences justified in the change record for that
-stage. The W2a changes are listed in [CHANGES-P3a-W2a.md](CHANGES-P3a-W2a.md).
-For each other row, record the old and new observations together
-when updating the fixture so the intentional change remains reviewable.
-
-To regenerate the three TSV files after an intentional change, run from the
+The test suite reconstructs the inputs in `Golden.AdmissionBaseline` and
+compares every row. To regenerate after an intentional change, run from the
 repository root:
 
 ```bash
 EA_REGEN_GOLDEN=1 stack build --test --bench --no-run-benchmarks
 ```
 
-Then run the same command without `EA_REGEN_GOLDEN` to compare the generated
-files with the current admission behavior. Regeneration overwrites the
-baseline; review the changed rows before accepting them.
+Review the changed rows, then run the command without `EA_REGEN_GOLDEN` to
+check the fixture.

@@ -13,8 +13,6 @@
 -- +=============================+=============================================+
 -- | Identify a transaction      | t'EntityId', t'PeriodId', t'TxId', t'TxKey' |
 -- +-----------------------------+---------------------------------------------+
--- | Identify evidence or a call | t'FactId', t'EvidenceId', t'CallId'         |
--- +-----------------------------+---------------------------------------------+
 -- | Keep original postings      | 'Entry'                                     |
 -- +-----------------------------+---------------------------------------------+
 -- | Check blank key coordinates | 'isBlankKey'                                |
@@ -28,9 +26,6 @@ module ExchangeAlgebra.Accounting.Transaction
     ( EntityId(..)
     , PeriodId(..)
     , TxId(..)
-    , FactId(..)
-    , EvidenceId(..)
-    , CallId(..)
     , TxKey(..)
     , Entry
     , isBlankKey
@@ -58,15 +53,6 @@ newtype PeriodId = PeriodId Text deriving (Eq, Ord, Show)
 -- | Transaction identity within one entity and period.
 newtype TxId = TxId Text deriving (Eq, Ord, Show)
 
--- | Identity of a trusted entry in the specification's fact store.
-newtype FactId = FactId Text deriving (Eq, Ord, Show)
-
--- | Identity of evidence stating a transaction's total debit amount.
-newtype EvidenceId = EvidenceId Text deriving (Eq, Ord, Show)
-
--- | Invocation identity, independent of a generated transaction key.
-newtype CallId = CallId Text deriving (Eq, Ord, Show)
-
 -- | Hash each identifier by its exact text, as 'TxKey' hashes its coordinates.
 instance Hashable EntityId where
     hashWithSalt salt (EntityId text) = hashWithSalt salt text
@@ -76,15 +62,6 @@ instance Hashable PeriodId where
 
 instance Hashable TxId where
     hashWithSalt salt (TxId text) = hashWithSalt salt text
-
-instance Hashable FactId where
-    hashWithSalt salt (FactId text) = hashWithSalt salt text
-
-instance Hashable EvidenceId where
-    hashWithSalt salt (EvidenceId text) = hashWithSalt salt text
-
-instance Hashable CallId where
-    hashWithSalt salt (CallId text) = hashWithSalt salt text
 
 -- | Exact transaction coordinate. Equality never performs wildcard matching.
 data TxKey = TxKey EntityId PeriodId TxId -- ^ Entity, period, and transaction identity.

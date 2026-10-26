@@ -6,8 +6,6 @@ import qualified Algebra.ExactReadoutSpec as ExactReadoutSpec
 import qualified Algebra.AccumSpec as AccumSpec
 import qualified Algebra.ExactSumSpec as ExactSumSpec
 import qualified Admission.Spec as AdmissionSpec
-import qualified Admission.ClosingSpec as AdmissionClosingSpec
-import qualified Admission.CatalogSpec as AdmissionCatalogSpec
 import qualified Transfer.RuleSpec as TransferRuleSpec
 import qualified Transfer.BalanceSpec as TransferBalanceSpec
 import qualified Algebra.ProjWildcardSpec as ProjWildcardSpec
@@ -33,8 +31,6 @@ main = do
     MoneyParseSpec.runTests
     ExactSumSpec.runTests
     AdmissionSpec.runTests
-    AdmissionClosingSpec.runTests
-    AdmissionCatalogSpec.runTests
     TransferRuleSpec.runTests
     TransferBalanceSpec.runTests
     ProjWildcardSpec.runTests

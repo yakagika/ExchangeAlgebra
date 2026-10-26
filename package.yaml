@@ -244,8 +244,6 @@ tests:
     - Simulation.OptimizeSpec
     - Algebra.ExactSumSpec
     - Admission.Spec
-    - Admission.ClosingSpec
-    - Admission.CatalogSpec
     - Algebra.ProjWildcardSpec
     - Golden.WriteRows
     - Golden.ReadoutBaseline

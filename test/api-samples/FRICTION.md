@@ -34,21 +34,9 @@
 - 回避: 勘定名が基底そのものの見本では `netPairMapBy Just` を使い, 現金と利益剰余金は `bar . projByAccountTitle` で読んだ.
 - API: `ExchangeAlgebra.Algebra.Readout.Net.balanceMapBy` / `netPairMapBy`, `ExchangeAlgebra.Algebra.projByAccountTitle`.
 
-## 5. 受入までの信頼設定が小さな提出にも多い
+## 5. 受入 API の縮小
 
-- 題材と行: `Admission.hs:16-45`.
-- したかったこと: 2 仕訳の提出を, 信頼する registry と独立した借方合計の証拠で受け入れる.
-- 起きたこと: `EntityId`, `PeriodId`, `TxId`, `TxKey`, `EvidenceId`, 各 `txRule`, 証拠の `Map`, 空の fact `Map`, 勘定 vocabulary, `AdmissionSpec`, `Submission` を順に揃える必要があった. 利用者が単純な受入の最小構成を見つけるまで型と値を往復する.
-- 回避: 全てを見本の `main` で明示した. 同じ設定を再利用する補助関数は書かなかった.
-- API: `ExchangeAlgebra.IO.Input.Admission.txIdRegistry` / `txRule` / `AdmissionSpec` / `Submission` / `admit`.
-
-## 6. 受け入れた締めと別経路の締めの比較も手作業
-
-- 題材と行: `Admission.hs:48-65`.
-- したかったこと: 受入で生成した締めと, 決算振替 API の締めが同じ残高になることを確認し, 試算表と諸表を得る.
-- 起きたこと: `admittedJournal` は `AdmissionNote` を note に持つ Journal を返す. 2 つの締めを比較するには `restrictAdmitted` で調整後の取引を選び, `Journal.toAlg` で台帳を読み, 冗長列の差を消す `bar` を両側に明示する必要があった. 諸表まで `deriveTrialBalance` と `presentAdmitted` の二段の `Either` をたどる.
-- 回避: `((<= ConsolidationStage) . admissionStage)` の取引と全取引をそれぞれ読み, `bar closed == bar (finalStockTransfer adjusted)` を検査した. `deriveTrialBalance` と `presentAdmitted` の失敗は見本の実行失敗にした.
-- API: `ExchangeAlgebra.IO.Input.Admission.admittedJournal` / `restrictAdmitted` / `deriveTrialBalance` / `presentAdmitted`, `ExchangeAlgebra.Journal.Core.toAlg`, `ExchangeAlgebra.Algebra.bar`, `ExchangeAlgebra.Algebra.Transfer.finalStockTransfer`.
+旧 API の登録簿, 役割, 証憑 ID, catalog, 締めと諸表の導出は削除した. 見本は `admit journal` と `checkEvidence` を使う.
 
 ## 7. 取引網の係数から解析用配列へ橋渡しできない
 

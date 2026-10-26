@@ -4,22 +4,20 @@ module PublicClient where
 
 import ExchangeAlgebra.Algebra.Core (Alg((:@), _val, _hatBase), (.@))
 import ExchangeAlgebra.Algebra.Base (HatBase((:<)), Hat(Not), CountUnit(Yen))
-import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
+import ExchangeAlgebra.Algebra.Core (Redundant((.+)))
+import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
+import ExchangeAlgebra.Journal.Core (Journal, (.|))
+import ExchangeAlgebra.Accounting.Adjustment (BasisPoints, basisPoints)
 import ExchangeAlgebra.IO.Input.Admission
 import ExchangeAlgebra.Algebra.Base (AccountTitles(..))
 
 -- The same installed-package environment must accept a complete public path.
-acceptedLedger :: Either String AdmissionJournal
+acceptedLedger :: Either String (Journal String MoneyDecimal (HatBase AccountTitles))
 acceptedLedger = do
-    let key = TxKey (EntityId "company") (PeriodId "2026") (TxId "sale")
-    registry <- either (Left . show) Right
-        (txIdRegistry [(key, txRule Required [SupplySubmission Ordinary] Nothing)])
-    let spec = AdmissionSpec registry Map.empty Map.empty
-            (Set.fromList [Cash, Sales]) fullDisclosure
-        submission = Submission
-            [(key, [(DebitSide, "Cash", 10), (CreditSide, "Sales", 10)])] []
-    accepted <- either (Left . show) Right (admit spec submission)
+    accepted <- either (Left . show) Right
+        (admit ((10 .@ Not :< Cash .+ 10 .@ Not :< Sales) .| "sale"))
+    either (Left . show) Right
+        (checkEvidence accepted id (10 .@ Not :< Cash .| "sale"))
     Right (admittedJournal accepted)
 
 -- | Bundled selectors and the infix matching pattern remain public.
@@ -32,5 +30,5 @@ publicPosting :: Alg Double (HatBase CountUnit)
 publicPosting = 1 .@ (Not :< Yen)
 
 -- | Checked rates are available without their representation constructor.
-publicRate :: Either CatalogParameterProblem BasisPoints
-publicRate = basisPoints 147.5
+publicRate :: Either String BasisPoints
+publicRate = either (Left . show) Right (basisPoints 147.5)

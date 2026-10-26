@@ -1,7 +1,9 @@
 module Constructor where
 
 import ExchangeAlgebra.IO.Input.Admission
+import ExchangeAlgebra.Algebra.Base (HatBase, AccountTitles)
+import ExchangeAlgebra.Journal.Core (Journal)
+import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 
--- This constructor must not be available to a package client.
-forge :: Admitted
-forge = Admitted mempty [] mempty
+forge :: Admitted String (HatBase AccountTitles)
+forge = Admitted mempty

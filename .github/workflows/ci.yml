@@ -77,9 +77,6 @@ jobs:
       - name: Check user-facing API samples
         run: STACK_ARGS="--system-ghc --no-install-ghc" bash test/api-samples/check.sh
 
-      - name: Check admission harness sample
-        run: STACK_ARGS="--system-ghc --no-install-ghc" bash test/api-samples/harness/check.sh
-
       - name: Check P2 orphan instances
         run: STACK_ARGS="--system-ghc --no-install-ghc" python3 tools/check-orphans.py
 

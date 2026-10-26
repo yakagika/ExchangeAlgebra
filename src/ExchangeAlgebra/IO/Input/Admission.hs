@@ -5,9 +5,9 @@
 -- records.
 --
 -- 'admit' takes the complete journal and checks every transaction (note) on
--- its own: positive finite values, a 'Hat' or 'Not' side on every posting,
--- postable accounts, and equal debit ('decL') and credit ('decR') totals. It
--- returns the journal unchanged as 'Admitted', a type that only 'admit'
+-- its own: positive finite values, a @Hat@ or @Not@ side on every posting,
+-- postable accounts, and equal debit (@decL@) and credit (@decR@) totals. It
+-- returns the journal unchanged as @Admitted@, a type that only 'admit'
 -- constructs. 'checkEvidence' then compares an admitted journal with expected
 -- elements, after a selection chosen by the caller.
 --
@@ -15,7 +15,7 @@
 --
 -- Admission does not post or derive entries. Adjusting and closing entries
 -- are computed by the author with the accounting functions (for example
--- "ExchangeAlgebra.Accounting.Adjustment" and 'closingEntries') and submitted
+-- "ExchangeAlgebra.Accounting.Adjustment" and @closingEntries@) and submitted
 -- in the journal; opening balances supplied by a trusted party are also
 -- submitted in the journal and confirmed with 'checkEvidence'. Admission does
 -- not compare the journal with the answer of an exercise, and does not
@@ -25,13 +25,13 @@
 -- earnings is admitted; only a comparison with a reference answer finds it.
 --
 -- After admission, derive reports from 'admittedJournal' with the existing
--- functions: 'ExchangeAlgebra.Accounting.TrialBalance.validateTrialBalance',
--- 'ExchangeAlgebra.Accounting.Statements.Presentation.present', and the CSV
+-- functions: @ExchangeAlgebra.Accounting.TrialBalance.validateTrialBalance@,
+-- @ExchangeAlgebra.Accounting.Statements.Presentation.present@, and the CSV
 -- writers in "ExchangeAlgebra.IO.Output.Statements".
 --
 -- = Guarantee
 --
--- 'Admitted' and 'AdmissionFailure' have package-private constructors and no
+-- @Admitted@ and @AdmissionFailure@ have package-private constructors and no
 -- instance that rebuilds a value from its contents. The guarantee assumes
 -- callers do not use @unsafeCoerce@ or internal modules. The EA modules are
 -- not marked Safe or Trustworthy.
@@ -62,7 +62,7 @@
 module ExchangeAlgebra.IO.Input.Admission
     ( -- * Transaction keys
       -- | A ready-made note type for journals keyed by entity, reporting
-      -- period, and transaction. Any 'ExchangeAlgebra.Journal.Core.Note' works.
+      -- period, and transaction. Any @ExchangeAlgebra.Journal.Core.Note@ works.
       EntityId(..)
     , PeriodId(..)
     , TxId(..)

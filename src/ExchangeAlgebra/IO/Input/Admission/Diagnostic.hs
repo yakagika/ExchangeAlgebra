@@ -3,7 +3,7 @@
 -- | Admission and evidence failures at the IO input boundary. This
 -- package-private module defines the vocabulary; the public module
 -- "ExchangeAlgebra.IO.Input.Admission" exports every type with its
--- constructors except 'AdmissionFailure'.
+-- constructors except @AdmissionFailure@.
 module ExchangeAlgebra.IO.Input.Admission.Diagnostic where
 
 import Data.List.NonEmpty (NonEmpty)
@@ -19,26 +19,26 @@ data AdmissionError n b
       -- ^ A posting whose value is zero or negative ('MoneyDecimal' has no
       -- non-finite value).
     | WildcardSide n b
-      -- ^ A posting whose side is the wildcard 'HatNot'. A ledger posting is
-      -- on 'Hat' or 'Not'; 'HatNot' is a query pattern.
+      -- ^ A posting whose side is the wildcard @HatNot@. A ledger posting is
+      -- on @Hat@ or @Not@; @HatNot@ is a query pattern.
     | NotPostableAccount n b
       -- ^ A posting on an account that no process may post, such as the
-      -- wildcard 'AccountTitle' ('NotPostable').
+      -- wildcard @AccountTitle@ (@NotPostable@).
     | Imbalanced n MoneyDecimal MoneyDecimal
-      -- ^ The debit ('decL') and credit ('decR') totals of the transaction,
+      -- ^ The debit (@decL@) and credit (@decR@) totals of the transaction,
       -- in that order. Each total is the exact sum rounded once. Not reported
-      -- for a transaction that has a 'WildcardSide' or 'NotPostableAccount'
+      -- for a transaction that has a @WildcardSide@ or @NotPostableAccount@
       -- posting: its side or its account cannot be classified.
     deriving (Eq, Show)
 
--- | All violations found by one 'admit' run. The constructor is
+-- | All violations found by one @admit@ run. The constructor is
 -- package-private, so a value always holds at least one violation found by
--- 'admit'.
+-- @admit@.
 newtype AdmissionFailure n b = AdmissionFailure (NonEmpty (AdmissionError n b))
     deriving (Eq, Show)
 
 -- | Violations in ascending note order; within a note, postings in ascending
--- base order, and 'Imbalanced' last.
+-- base order, and @Imbalanced@ last.
 failureErrors :: AdmissionFailure n b -> NonEmpty (AdmissionError n b)
 failureErrors (AdmissionFailure errors) = errors
 
@@ -54,6 +54,6 @@ data EvidenceMismatch m b
     | EvidenceAmbiguous m b [MoneyDecimal]
       -- ^ Two or more selected elements match the note and base; their values
       -- in ascending note and base order. Combine them into one element in
-      -- the selection, by 'bar' for the two sides of one base, or by a
+      -- the selection, by @bar@ for the two sides of one base, or by a
       -- transfer for different accounts.
     deriving (Eq, Show)

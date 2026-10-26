@@ -439,6 +439,7 @@ exactQuotient rational = go 0 (numerator rational) (denominator rational)
 -- 'AllowanceRateCall' reads balances after 'bar'. 'ConsolidateCall' checks balance only
 -- after applying 'bar' to the selected entries.
 --
+-- >>> :set -XOverloadedStrings
 -- >>> import ExchangeAlgebra.Algebra.Core ((.@))
 -- >>> let key = TxKey (EntityId "A") (PeriodId "2026") (TxId "source")
 -- >>> let tiny = fromRational (1 / 10^200) :: MoneyDecimal

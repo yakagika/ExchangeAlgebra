@@ -1,27 +1,21 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module PublicExplicitImportClient where
 
-import Data.List.NonEmpty (NonEmpty(..))
 import ExchangeAlgebra.IO.Input.Admission
-    ( CatalogCall
-    , CatalogCallOf(..)
-    , EntityInput
-    , EntityInputOf(..)
-    , TxKey(..)
-    , EntityId(..)
-    , PeriodId(..)
-    , TxId(..)
+    ( Admitted
+    , AdmissionFailure
+    , admittedJournal
+    , admit
+    , checkEvidence
     )
+import ExchangeAlgebra.Algebra.Base (HatBase, AccountTitles)
+import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
+import ExchangeAlgebra.Journal.Core (Journal)
 
--- | Explicit imports expose constructors through the parameterized types.
-publicCatalogCall :: CatalogCall
-publicCatalogCall = ConsolidateCall (publicEntityInput :| []) (publicKey :| [])
+-- | Explicit imports admit and observe an empty journal.
+publicAdmission :: Either (AdmissionFailure String (HatBase AccountTitles))
+                         (Admitted String (HatBase AccountTitles))
+publicAdmission = admit (mempty :: Journal String MoneyDecimal (HatBase AccountTitles))
 
--- | The unresolved alias retains the original constructor.
-publicEntityInput :: EntityInput
-publicEntityInput = EntityInput (EntityId "company") (publicKey :| [])
-
--- | Fixture key for the explicit-import client.
-publicKey :: TxKey
-publicKey = TxKey (EntityId "company") (PeriodId "2026") (TxId "source")
+-- | Observation and evidence checking need only the public API.
+publicEvidence :: Admitted String (HatBase AccountTitles) -> Bool
+publicEvidence accepted = checkEvidence accepted id (admittedJournal accepted) == Right ()

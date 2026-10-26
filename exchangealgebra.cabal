@@ -28,12 +28,6 @@ extra-source-files:
     test/fixtures/account-semantics-050/metadata.tsv
     test/fixtures/account-semantics-050/README.md
     test/fixtures/account-semantics-050/suggest.tsv
-    test/fixtures/admission-baseline-p1/boundary.tsv
-    test/fixtures/admission-baseline-p1/catalog.tsv
-    test/fixtures/admission-baseline-p1/CHANGES-P3a-W2a.md
-    test/fixtures/admission-baseline-p1/CHANGES-P3a-W2b.md
-    test/fixtures/admission-baseline-p1/CHANGES-P3a-W2c.md
-    test/fixtures/admission-baseline-p1/CHANGES-P3a-W3a.md
     test/fixtures/admission-baseline-p1/equivalence.tsv
     test/fixtures/admission-baseline-p1/README.md
     test/fixtures/consolidation-worksheet-050/minimal.tsv
@@ -141,11 +135,9 @@ extra-source-files:
     test/fixtures/write-rows-0510/ebex9-worksheet.tsv
     test/fixtures/write-rows-0510/README.md
     test/compile-fail/AdmissionFailureConstructor.hs
-    test/compile-fail/AdmissionNoteConstructor.hs
     test/compile-fail/AlgConstructor.hs
     test/compile-fail/AlgHiddenConstructor.hs
     test/compile-fail/AlgRecordUpdate.hs
-    test/compile-fail/BasisPointsConstructor.hs
     test/compile-fail/Coerce.hs
     test/compile-fail/Constructor.hs
     test/compile-fail/DeprecatedTransfer.hs
@@ -410,8 +402,6 @@ test-suite ExchangeAlgebra-test
       Simulation.OptimizeSpec
       Algebra.ExactSumSpec
       Admission.Spec
-      Admission.ClosingSpec
-      Admission.CatalogSpec
       Algebra.ProjWildcardSpec
       Golden.WriteRows
       Golden.ReadoutBaseline

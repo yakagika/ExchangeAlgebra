@@ -1,8 +1,11 @@
 module Coerce where
 
-import Data.Coerce (coerce)
 import ExchangeAlgebra.IO.Input.Admission
+import ExchangeAlgebra.Algebra.Base (HatBase, AccountTitles)
+import ExchangeAlgebra.Journal.Core (Journal)
+import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
+import Data.Coerce (coerce)
 
--- A raw journal has no representational coercion to an admitted value.
-forge :: AdmissionJournal -> Admitted
+forge :: Journal String MoneyDecimal (HatBase AccountTitles)
+      -> Admitted String (HatBase AccountTitles)
 forge = coerce

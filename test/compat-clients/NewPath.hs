@@ -40,7 +40,6 @@ import qualified ExchangeAlgebra.Simulation.Output as SimulationOutput
 import qualified ExchangeAlgebra.Accounting.Transaction as Transaction
 import qualified ExchangeAlgebra.Accounting.Equivalence as Equivalence
 import qualified ExchangeAlgebra.IO.Input.Admission as Admission
-import qualified ExchangeAlgebra.IO.Output.Admission as AdmissionOutput
 
 type ClientBasePart = Base.BasePart (HatBase AccountTitles)
 
@@ -149,11 +148,8 @@ transactionClient = Transaction.isBlankKey
 equivalenceClient :: Bool
 equivalenceClient = Equivalence.isEquivalentUpTo Equivalence.PostingMultiset mempty mempty
 
--- | Render an admitted value through the new output path.
-admissionOutputClient :: Admission.AdmittedStatements -> Bool
-admissionOutputClient accepted = AdmissionOutput.renderAdmittedStatements accepted
-    == Admission.renderAdmittedStatements accepted
-
--- | Construct an empty registry using its renamed public constructor function.
-admissionRegistryClient :: Maybe Admission.TxIdRegistry
-admissionRegistryClient = either (const Nothing) Just (Admission.txIdRegistry [])
+-- | Admit a journal through the new input path.
+admissionClient :: Journal.Journal String Value.MoneyDecimal (HatBase AccountTitles)
+                -> Either (Admission.AdmissionFailure String (HatBase AccountTitles))
+                          (Admission.Admitted String (HatBase AccountTitles))
+admissionClient = Admission.admit

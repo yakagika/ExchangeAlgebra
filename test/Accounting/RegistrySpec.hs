@@ -1054,14 +1054,12 @@ testExampleNumbersGolden = do
 testAdmissionBaselineGolden :: IO ()
 testAdmissionBaselineGolden = do
     assertEqual "admission-baseline-p1 fixture count"
-        3 (L.length AdmissionBaseline.admissionFixtures)
+        1 (L.length AdmissionBaseline.admissionFixtures)
     regen <- lookupEnv "EA_REGEN_GOLDEN"
     forM_ AdmissionBaseline.admissionFixtures $ \(name, expected, caseCount) -> do
         let path = AdmissionBaseline.admissionFixtureDir ++ "/" ++ name
             expectedCount = case name of
-                "boundary.tsv" -> 63
                 "equivalence.tsv" -> 12
-                "catalog.tsv" -> 264
                 _ -> 0
         assertEqual ("admission-baseline-p1 case count " ++ name)
             expectedCount caseCount

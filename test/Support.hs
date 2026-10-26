@@ -35,7 +35,7 @@ import ExchangeAlgebra.Journal
 import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Journal  as EJ
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
-import qualified ExchangeAlgebra.IO.Input.Admission as Admission
+import qualified ExchangeAlgebra.Accounting.Adjustment as Adjustment
 import ExchangeAlgebra.Simulate (StateTime, initTerm, lastTerm)
 import qualified Data.Map.Strict     as M
 import qualified Data.Text           as T
@@ -183,7 +183,7 @@ withTestTemporaryFile action = bracket acquire removeSpillTestFile action
         pure path
 
 -- | Construct a valid rate for synthetic fixtures only.
-checkedRate :: MoneyDecimal -> Admission.BasisPoints
-checkedRate amount = case Admission.basisPoints amount of
+checkedRate :: MoneyDecimal -> Adjustment.BasisPoints
+checkedRate amount = case Adjustment.basisPoints amount of
     Right rate -> rate
     Left problem -> error ("valid fixture rate: " ++ show problem)

@@ -30,7 +30,6 @@ import qualified ExchangeAlgebra.IO.Output.Statements as OutputStatements
 
 import qualified ExchangeAlgebra.IO.Input.Admission as Admission
 import qualified ExchangeAlgebra.Accounting.Transaction as Transaction
-import qualified ExchangeAlgebra.IO.Output.Admission as AdmissionOutput
 
 mixedPathPlaceholder :: Bool
 mixedPathPlaceholder = Old.oldConstructor Old.oldExpression
@@ -106,12 +105,7 @@ mixedTransaction = Transaction.isBlankKey
     (Admission.TxKey (Admission.EntityId mempty)
         (Admission.PeriodId mempty) (Admission.TxId mempty))
 
--- | Compare a ledger returned by the retained admission entry point.
-mixedEquivalence :: Admission.Admitted -> Bool
+-- | Observe a journal through admission while old and new paths coexist.
+mixedEquivalence :: Admission.Admitted String (HatBase Account.AccountTitles) -> Bool
 mixedEquivalence accepted = JournalCore.toMap (Admission.admittedJournal accepted)
     == JournalCore.toMap (Admission.admittedJournal accepted)
-
--- | Render statements typed through the retained admission entry point.
-mixedAdmissionOutput :: Admission.AdmittedStatements -> Bool
-mixedAdmissionOutput accepted = AdmissionOutput.renderAdmittedStatements accepted
-    == Admission.renderAdmittedStatements accepted
