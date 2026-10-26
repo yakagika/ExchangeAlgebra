@@ -1,278 +1,162 @@
 # 受入 API の設計ノート
 
 この文書は `ExchangeAlgebra.IO.Input.Admission` の実装判断を記録する開発者向けの設計ノートである.
-対象は固定された受入仕様の下での受入と導出であり, 仕訳の経済的意味や消去内容の正しさを保証しない.
-金額型は `MoneyDecimal`, 基底は `HatBase AccountTitles` に固定する.
+受入は, 信頼できない書き手 (言語モデルなど) が書いた仕訳帳について, 会計的な整合性を取引ごとに確かめる.
+仕訳の経済的な意味, 勘定の選び方の適否, 演習の正解との一致は確かめない.
 
-## 契約と公開境界
+## 範囲
 
-信頼側が `TxIdRegistry`, 証憑, 与件, 語彙から `AdmissionSpec` を用意し,
-実行器が提出全体を `Submission` として `admit` に渡す.
-呼出し側が提出を削除・選別してから渡したことや, 仕様そのものを偽装したことは検出対象にできない.
-固定された仕様と公開 API の下で, 未受入の Journal を新しい導出経路に渡すことは型検査で拒否される.
-`unsafeCoerce` と Safe Haskell 外の手段は保証対象外とする.
+受入が持つのは次の 2 つだけである.
 
-`Admitted`, `AdmittedTrialBalance`, `AdmittedStatements`, `ResolvedInput`, `TxRule`,
-`TxIdRegistry` の構築子と record field は公開しない. これらに `Generic`, `Data`, `Read`,
-`FromJSON`, `Binary`, `Semigroup`, `Monoid` は実装しない. 型引数はないため role annotation は不要である.
-観測値を取り出す getter は通常の関数であり, record 更新の入口にはならない.
-getter が返した Journal や Map を変更しても, 受入済み型へ戻す公開関数はない.
-
-公開入口は `ExchangeAlgebra.IO.Input.Admission`, 識別子と仕訳は
-`ExchangeAlgebra.Accounting.Transaction`, 同値判定は `ExchangeAlgebra.Accounting.Equivalence`,
-受入済み諸表の CSV 出力は `ExchangeAlgebra.IO.Output.Admission` に置く.
-受入の入口も同じ識別子と出力関数を再公開する.
-構築子を置く module を含む非公開 module は, `package.yaml` と生成される
-`exchangealgebra.cabal` の両方で library の `other-modules` に登録する.
-既存 Write, Bookkeeping, Checked API は変更せず, `JournalCert` からの昇格口も作らない.
-公開済みの既存 API に対しては additive であり, 廃止する機能はない.
-未リリースの Admission API は, 供給方法の集合化に伴って getter と診断型を改訂した.
-
-## 入力の型
-
-識別子 `EntityId`, `PeriodId`, `TxId`, `FactId`, `EvidenceId`, `CallId` はそれぞれ `Text` の newtype
-である. `TxKey = TxKey EntityId PeriodId TxId` により会社・期間・取引を分ける.
-単一会社の場合も会社と期間を明示させ, 暗黙の現在期・既定会社を置かない.
-空白だけの識別子は拒否する. 表記の正規化はせず, 大文字小文字も区別する.
-
-`TxRule` は必須性, 許す供給方法の集合, 証憑を独立に保持する.
-役割は raw と facts の供給方法に属し, catalog では操作の種類から決まる.
-`txRule` がルールを組み, `txIdRegistry` が一覧の重複・空キー・空の許可集合,
-facts の混在・証憑, 複数の raw 役割を検査する.
-重複はルールが同一でも拒否し, `Map.fromList` による上書きより前に検出する.
-照会専用操作を取引の供給元として登録することも拒否する.
-
-`RawPostings = [(PostingSide, AccountName, MoneyDecimal)]` は side, account, amount の列である.
-raw と与件は同じ形式とする. `DebitSide` / `CreditSide` を借方 / 貸方へ写し,
-勘定名の parse, 金額と均衡の検査を行う.
-証憑の金額は取引の借方総額であり, 残高や各行の金額ではない.
-与件・証憑の store は信頼側の Map とし, 提出側には書き換え口を渡さない.
-
-`Submission` は raw の `(TxKey, RawPostings)` のリストと `Call` のリストを持つ.
-リストのまま受けることで, 同じキーの重複を入口で検出できる.
-各 `Call` は独立した `CallId`, 会社, 期間, `Maybe TxKey`, 閉じた `CatalogCall` を持つ.
-生成操作には `Just key`, `EquityBalanceCall` と `ConsolidateCall` には `Nothing` を要求する.
-生成操作の結果が零であることは成功であり, 必須キーを満たす.
-零仕訳は Journal の保存表現から落ちる場合があるため, 検証済み metadata にキーの存在を保持する.
-
-## 検査順とエラー
-
-| 段階 | 検査対象 | 失敗時の進行 |
+| 関数 | 問い | 結果 |
 |---|---|---|
-| 所属と供給元 | raw 全件, 生成予定キー全件, 与件, 必須性, 衝突, call ID, 引数, 呼出し順 | 全件を集めて終了 |
-| 仕訳 | raw ごとの保護科目・P/L と純資産間振替禁止, 与件と raw の parse, 正値, 文脈, 貸借均衡 | 各仕訳のエラーを集めて終了 |
-| 語彙 | 検証済み与件・raw の科目 | 全件を集めて終了 |
-| catalog | 参照解決, 可視範囲, builder, 生成科目, 生成仕訳検査 | 失敗した call 以降を停止 |
-| 証憑 | registry 全域の証憑義務と各取引の借方総額 | 不一致を全件集めて終了 |
+| `admit` | 仕訳帳の各取引 (note) が, それ単独で会計的に整合しているか | `Either (AdmissionFailure n b) (Admitted n b)` |
+| `checkEvidence` | 受入済みの仕訳帳が, 信頼側の記録 (証憑) と一致するか | `Either (NonEmpty (EvidenceMismatch m b)) ()` |
 
-生成結果は事前にキー・役割・供給元を検査し, builder の実行直後に実際の posting を検査する.
-生成値が存在する前にその値を検査することはできないため, これらを分離する.
-後段の集計を未検証の値で続けない. catalog の後続 call は先行結果を参照しうるため,
-実行時の失敗後に後続を実行しない. 全 call の引数・順序は実行前にまとめて検査する.
-証憑 ID を持つ提出だけを事前に選別する処理はなく, 未知の均衡仕訳も所属検査で拒否する.
-`Optional` で未供給の取引には金額照合を要求しないが, 宣言した証憑・与件の参照先は仕様に必要である.
+受入は仕訳を作らない. 決算整理と締めの仕訳は, 書き手が会計の関数
+(`ExchangeAlgebra.Accounting.Adjustment`, `closingEntries` など) で計算して仕訳帳に含める.
+期首の残高のように信頼側が与える事実も仕訳帳に含めて渡し, 信頼側の記録との一致を `checkEvidence` で確かめる.
+試算表と諸表は, 受入の後に `admittedJournal` から既存の関数
+(`validateTrialBalance`, `Presentation.present`, `ExchangeAlgebra.IO.Output.Statements` の CSV 出力) で作る.
 
-raw の直接記帳禁止は, 利益剰余金などの保護された科目と科目の属性から決める.
-加えて, 1 取引に P/L 科目と純資産科目を混在させる raw 振替を拒否する.
-与件は信頼側の入力なので, 検証済みの期首利益剰余金等を持てる.
-生成結果には操作ごとの許可科目と語彙の両方を適用する.
-同じ会社・期間・stage の raw と生成結果に同じ posting がある場合は,
-同じ効果の二重計上として拒否する.
+使ってよい勘定の一覧, 特定の勘定への直接の記帳の禁止, 損益と純資産の間の振替の禁止のような規則は,
+実験や道具の側の規則であり library には置かない. 例えば売上を利益剰余金へ直接振り替える提出も受け入れられ,
+それを見つけるのは正解との照合である.
 
-## stage と参照解決
+## 型
 
-| 操作・役割 | stage | 処理文脈 |
+`admit` は note `n` と基底 `b` について多相で, 値は `MoneyDecimal` に固定する.
+
+```haskell
+admit :: (Note n, ExBaseClass b)
+      => Journal n MoneyDecimal b
+      -> Either (AdmissionFailure n b) (Admitted n b)
+```
+
+値を固定するのは, 金額の厳密な和と, 証憑との値の等号比較を, 有限の 10 進数で行うためである.
+`TxKey = TxKey EntityId PeriodId TxId` は既定の note の型で, 会社・期間・取引を分ける.
+他の `Note` の型も使える.
+
+`Admitted` と `AdmissionFailure` の構築子は非公開で, `admit` だけが作る.
+`Admitted` は「取引ごとの整合性を確かめた仕訳帳」であることを型で表す印で,
+`checkEvidence` と利用者の関数が引数の型で検査済みを要求できるようにする.
+中身は `admittedJournal` で取り出し, 既存の関数にそのまま渡せる. 印のほかに機構は持たない.
+どちらの型にも, 中身から値を作り直す instance (`Generic`, `Read`, `Binary` など) を実装しない.
+保証は `unsafeCoerce` と内部 module を使わないことを前提とする. EA の module は Safe Haskell ではない.
+
+## admit の検査
+
+各 note の各 posting について次を確かめる.
+
+| 検査 | 違反 | 理由 |
 |---|---|---|
-| `Ordinary`, `Opening`; interim tax, dividend, reversal | `OrdinaryStage` | OrdinaryJournal; Opening のみ EngineComputation |
-| `Adjustment`; 通常の整理操作 | `AdjustmentStage` | ClosingProcess |
-| `Elimination`; equity earnings, equity entries, consolidation | `ConsolidationStage` | ConsolidationWorksheet |
-| `Closing`; `FinalStockCall`, `closeAdmitted` の導出 | `ClosingStage` | EngineComputation |
-| equity balance query | `QueryStage` | EngineComputation |
+| 値が正 | `NonPositiveAmount n b v` | posting の値は非負で, 0 の項は台帳に置かない |
+| 側が `Hat` か `Not` | `WildcardSide n b` | 台帳の項の Hat / Not は借方か貸方かを決める値である. wildcard の `HatNot` は問い合わせにだけ使う |
+| 勘定が記帳できる | `NotPostableAccount n b` | どの処理でも記帳できない勘定 (wildcard の `AccountTitle`) を拒む |
 
-equity earnings / entries の生成仕訳は役割 `Adjustment`, 実行 stage `ConsolidationStage` とする.
-役割と stage は同一概念ではないため, 生成 metadata は両方を保持する.
-各 call の累積 ledger は同じ会社・期間かつ当該 stage 以下の仕訳に限る.
-先行していない生成結果と未来 stage の raw を参照できない.
-閉じた catalog の実行関数・許可科目・stage を利用者が差し替える口は作らない.
+さらに, `WildcardSide` と `NotPostableAccount` の無い note について, 借方の合計と貸方の合計が厳密に等しいことを確かめる
+(`Imbalanced n debit credit`). 借方・貸方は `decL` (Debit) と `decR` (Credit) で決め, Hat / Not の符号では決めない.
+現金売上 `100 .@ Not :< Cash .+ 100 .@ Not :< Sales` は, 借方が Cash, 貸方が Sales で釣り合う.
+和は厳密に累算し, 報告する値だけを 1 回丸める.
+`HatNot` の項に `decL` を掛けると例外になり, wildcard の勘定の区分を問うても例外になるので,
+これらを含む note では貸借を比べない.
 
-連結には `EntityInput EntityId (NonEmpty TxKey)` と消去キー列を渡す.
-会社の自己申告はキーの会社と照合し, 期間は call の期間と照合する.
-会社側の入力は `Ordinary` または `Opening`, 消去入力は `Elimination` を要求する.
-与件は registry の `SupplyFacts` からのみ取り出し, raw / catalog の出所も検査済み metadata から取得する.
-同じキーの繰り返し参照は call 間も含めて拒否する.
-失敗は `UnresolvedReference CallId TxKey Role ReferenceFailure` で返す.
+`(.@)` は `HatNot` と負の値と有限でない値を拒むので, 公開 API で作った仕訳帳では値と側の検査は通常は落ちない.
+それでも検査を残すのは, 費用が小さく, 内部の構築子で作った値も同じ型で届くからである.
 
-逆仕訳の参照解決は連結と区別する. `ReverseEntryCall` の参照元は `Ordinary` の
-`SubmissionProvenance` に限定し, 期首与件・通常の与件・先行 catalog の生成結果を拒否する.
-連結で認める与件参照を逆仕訳にも適用すると, 保護された期首利益剰余金を提出側が反転できるためである.
+違反は全部集めて返し, 最初の 1 件で止めない. 並びは note の昇順, note の中は posting の基底の昇順で,
+`Imbalanced` はその note の最後に置く. 成功したときは仕訳帳を変えずに `Admitted` に入れる.
+note を足しも消しもせず, 同じ基底の項をまとめず, `bar` を掛けない.
 
-連結の実行は解決済み参照を一度ずつ足し, `bar` 後の貸借均衡を検査して零仕訳を返す.
-元仕訳と消去仕訳はすでに Journal に一度だけ存在する.
-この操作は参照の出所を保証するが, 消去内容の会計的正しさを保証しない.
+検査しないもの:
 
-## 導出と snapshot
+- 取引の key の重複. 同じ note の元を足すと仕訳帳の中で 1 つの元にまとまるので, 仕訳帳には重複を区別する情報が残らない.
+  重複は仕訳帳を作る前の変換 (JSON の読み込みなど) で確かめる. 既存の `checkedJournalIn` も仕訳帳を作る前に `DuplicateTxId` を検出する.
+- 空の取引. 仕訳帳の正規形は値 0 の note を持たない.
+- 処理によって変わる記帳の権限 (締めでだけ記帳できる勘定など). 受入は処理を知らない.
+- 取引をまたぐ残高, 締めの有無, 証憑との一致 (`checkEvidence` で確かめる), 正解との一致.
 
-主状態は `Journal TxKey MoneyDecimal (HatBase AccountTitles)` とする.
-Map に独立した残高を蓄積せず, 必要な残高は Journal の射影と既存 readout から導く.
-metadata はキーの役割・stage・出所と零件成功の存在を保持する.
-`admit` は期中, 整理後・連結後かつ締切前, 全仕訳の 3 つの cumulative snapshot を保持する.
-getter はこれらを `DuringPeriod`, `Adjusted`, `Closed` として観測させる.
+法則:
 
-`deriveTrialBalance` は最終 snapshot と整理後 snapshot をそれぞれ既存の
-`validateTrialBalance strictTrialBalancePolicy` に渡し, 受入元と一緒に保持する.
-締め取引が存在すれば最終 snapshot の検証 stage は `AfterClosing`, なければ `BeforeClosing` である.
-締めは model が記帳せず, 受入の後に `closeAdmitted txid` で会社と期ごとに導く.
-対象は posting の無い取引も含む note の集合から昇順に選び, 同じ会社と期の
-`ClosingStage` 以下の全 posting を読む (`QueryStage` は含めない).
-空の ID を先に拒否し, 各対象では既存の締め, key の衝突, 連結の消去,
-締めの計算の失敗の順に検査する. 全検査は元の受入値に対して行い, 部分の結果は返さない.
-締めの仕訳は `closingEntries` で作り, `bar` をかけず `.+` で追加する.
-零件でも `Closing` / `DerivedClosing` の note を登録し, call audit は足さない.
-`FinalStockCall` で締めた値との併用は二重の締めとして拒否する.
-`closingSide` を持つ勘定の残高は締めの後に 0 になるが, `NoClose` の
-`NetIncome`, `IncomeSummary` などは残りうるため, 試算表の検証の成功は別に確かめる.
-個社の帳簿の締めに連結の消去を含めないので, `closeAdmitted` は消去の混在を拒否する.
-既存の `FinalStockCall` は今も消去を含む可視台帳を締める. 連結の締めは未設計である.
-一般の会計計算やシミュレーションでは `closingEntries` を直接使う.
+- `admit j == Right a` ならば `admittedJournal a == j`.
+- note が重ならない `j1`, `j2` について, `admit j1` と `admit j2` が成功すれば `admit (j1 .+ j2)` も成功する.
+- `admit Zero` は成功する.
 
-`FinalStockCall` の生成仕訳も `closingEntries` により base ごとの反対仕訳と
-利益剰余金への仕訳の組を保持する. 純額は旧の式と同じである.
-証拠の照合は生成 key の借方の総額なので, 売上 100 と減価償却 20 では
-旧の証拠額 100 を新しい総額 120 に移行する必要がある.
-独立した残高・説明・再分類を提出側から差し込む引数は置かない.
-この初期 API は strict policy を固定するため, 説明付き仮勘定等を通す緩和経路は提供しない.
+## checkEvidence の照合
 
-`presentAdmitted` は調整後と最終の両方を既存 `present` へ渡す.
-締めで P/L が消える前の表示と, 利益剰余金に振り替えた後の表示を分けて保持する.
-`renderAdmittedStatements` は UTF-8 CSV で両 snapshot を出力する.
-会社・期間を複数含む受入値の導出は全 Journal の合計である.
-それらを合計することの会計上の適切さは信頼側が決める.
+```haskell
+checkEvidence
+    :: (Note m, HatBaseClass b)
+    => Admitted n b
+    -> (Journal n MoneyDecimal b -> Journal m MoneyDecimal b)
+    -> Journal m MoneyDecimal b
+    -> Either (NonEmpty (EvidenceMismatch m b)) ()
+```
+
+証憑 (銀行の明細, 現金の実査, 信頼側が与える期首の残高など) は, 期待する元の仕訳帳で渡す.
+まず受入済みの仕訳帳に選び方 `f` を掛ける. `f` は射影, 振替, `bar`, note の付け替えなど,
+利用者が要るだけ選んでまとめる関数である. `checkEvidence` 自身は集約せず, `bar` を呼ばない.
+
+期待する posting 1 つ (note `m`, 基底 `b`, 値 `v`) を, `f` の結果への問い合わせとして片方向に照合する.
+期待の元が pattern, `f` の結果の元が台帳の entry である.
+
+- note: `plank` の note は全ての note に当たる. それ以外の note は自分自身にだけ当たる.
+- 基底: 問い合わせの向きで照合する. 期待の基底の wildcard の軸 (勘定の `AccountTitle` など) は, その軸のどの値にも当たる.
+  対称の `.==` は使わない.
+- 側: 期待の基底の側は `Hat` か `Not` で書く (`(.@)` は `HatNot` を拒む).
+  1 つの基底の両側を 1 つの正味の値として比べたいときは, `f` で `bar` を掛け, 結果の側を書く.
+
+当たる posting がちょうど 1 つで値が厳密に等しければ一致である. それ以外は次の不一致になる.
+
+| 当たる posting | 結果 |
+|---|---|
+| 0 個 | `EvidenceMissing m b v` |
+| 1 個で値が違う | `EvidenceDiffers m b expected found` |
+| 2 個以上 | `EvidenceAmbiguous m b values` (`f` で 1 つにまとめる. 同じ基底の両側なら `bar`, 別の勘定なら振替) |
+
+posting は 1 つずつ数える. 同じ基底の seq の各項は別の posting で, 1 つにしたければ `f` で `bar` を掛ける.
+期待側に同じ note と基底の posting が複数あれば, それぞれを独立の期待として照合する.
+どの期待にも当たらない `f` の結果の元は無視する. 証憑は「あるべきもの」を述べ, 仕訳帳の全体を述べない.
+全ての期待を照合し, 不一致は期待の note と基底の昇順で全部返す.
+
+例: `f` の結果が `"sale"` の現金 100 だけのとき, 期待が `"sale"` の現金 100 なら一致,
+`plank` の note の現金 100 でも一致, `"rent"` の現金 100 なら `EvidenceMissing` になる.
+
+法則:
+
+- `checkEvidence a f Zero == Right ()`.
+- `e` の各 posting が, 上の片方向の照合で `admittedJournal a` のちょうど 1 つの posting に当たり, 値が等しければ
+  `checkEvidence a id e == Right ()`. 前提の「ちょうど 1 つ」は外せない. 例えば `plank` の note の現金 100 と
+  `"sale"` の現金 200 を持つ仕訳帳で, 現金だけを射影した元を期待にすると, `plank` の期待が 2 つに当たり
+  `EvidenceAmbiguous` になる.
+- 期待ごとの検査なので, `checkEvidence a f (e1 .+ e2)` が成功するのは `checkEvidence a f e1` と `checkEvidence a f e2` が
+  ともに成功するときに限る.
+
+## module の配置
+
+| module | 公開 | 内容 |
+|---|---|---|
+| `ExchangeAlgebra.IO.Input.Admission` | 公開 | 入口. 取引の key, `admit`, `checkEvidence` と診断の型 |
+| `...Admission.Diagnostic` | 非公開 | `AdmissionError`, `AdmissionFailure`, `EvidenceMismatch` |
+| `...Admission.Representation` | 非公開 | `Admitted` と `admittedJournal` |
+| `...Admission.Engine` | 非公開 | `admit` |
+| `...Admission.Evidence` | 非公開 | `checkEvidence` |
+| `ExchangeAlgebra.Accounting.Transaction` | 公開 | `TxKey`, `EntityId`, `PeriodId`, `TxId`, `Entry`, `isBlankKey` |
+| `ExchangeAlgebra.Accounting.Equivalence` | 公開 | 取引の map の同値判定 (受入とは独立) |
+
+構築子を置く非公開 module は, `package.yaml` と生成される `exchangealgebra.cabal` の両方で library の `other-modules` に登録する.
 
 ## 同値判定
 
-`isEquivalentUpTo` は受入とは独立した関数であり, 未受入の Entry の Map にも使える.
-全方式でキー集合の一致を要求し, 会社・期間・取引の境界を保存する.
-posting の比較は `(Hat, AccountTitles, MoneyDecimal)` を sort した多重集合で行う.
-既存 Alg の Eq や Journal 全体の `bar` を代用にしない.
+`ExchangeAlgebra.Accounting.Equivalence` は受入とは独立した関数で, 受入していない `Entry` の map にも使える.
+`isEquivalentUpTo` は全ての方式でキー集合の一致を要求し, 会社・期間・取引の境界を保つ.
+posting の比較は `(Hat, AccountTitles, MoneyDecimal)` を sort した多重集合で行い, `Alg` の `Eq` や仕訳帳全体の `bar` で代用しない.
 
 | 方式 | 正規化の範囲 |
 |---|---|
-| `PostingMultiset` | 行順だけを無視する |
-| `NetWithinTransaction` | 各取引の Alg を個別に `bar` する |
-| `NetAccountsInTransactions` | 指定取引の指定科目だけ `bar` し, 他は厳密比較する |
+| `PostingMultiset` | 行の順序だけを無視する |
+| `NetWithinTransaction` | 各取引の `Alg` を個別に `bar` する |
+| `NetAccountsInTransactions` | 指定した取引の指定した勘定だけ `bar` し, 他は厳密に比べる |
 
-`Entry` の基底軸は科目だけに固定している. 正規化後の金額の比較は厳密な等号である.
-ただし, この checkout の既存 `bar` は複数 posting の表現に対して, `MoneyDecimal` にも
-`1e-13 + 1e-12 * max(abs(hatTotal), abs(notTotal))` の許容幅を適用し, その範囲の残差を落とす.
-`NetWithinTransaction` と指定科目の netting は, 仕様どおり既存 `bar` のこの性質を継承する.
-例えば Cash の Not 側 1e12 と Hat 側 1e12 - 0.5 の差は正確には 0.5 だが,
-`bar` 後は零と同値になる. `PostingMultiset` と指定外科目の厳密比較にはこの許容幅を適用しない.
-単一の atomic posting は微小額でも `bar` がそのまま返す. 複数 posting の差が 1e-14 となる
-絶対許容幅の反例と, 単一 posting の 1e-14 が保存される例をそれぞれテストに持つ.
-既存 `bar` の変更や独自の厳密 netting への置換は今回の設計・変更範囲に含めない.
-受入済み値に wildcard はない. 未受入の wildcard Hat を含む値が比較に来た場合は,
-その取引を厳密比較し, wildcard を含む値に netting を適用しない.
-
-## module と既存 API の対応
-
-| module | 責務 | 再利用する既存 API |
-|---|---|---|
-| Admission | 公開入口 | 下位の受入・導出関数を限定して export |
-| Accounting.Transaction | 識別子と仕訳 | MoneyDecimal, Alg, Note |
-| Accounting.Catalog / Admission.Workflow | 閉じた操作の入力と実行 / 役割・段階・出所 | 取引識別子, MoneyDecimal, Bookkeeping builders, closingEntries |
-| Admission.Registry.Definition / Submission / Diagnostic | registry 宣言 / 提出 / 診断 | Accounting.Catalog, Workflow, EntryError |
-| Admission.Representation | 非公開の検証済み表現 | Journal, ValidatedTrialBalance |
-| Registry | 重複を保全した registry 構築 | containers の Map |
-| Admission.Catalog | 受入の段階・役割・勘定方針と診断変換 | Accounting.Catalog, Workflow |
-| Engine | 受入の固定順序, 参照解決, 受入後の締め | checkedEntryTextIn, checkedEntryIn, Journal.projWithNote, toAlg, closingEntries |
-| Derive | snapshot の検証と諸表の導出 | validateTrialBalance, present |
-| IO.Output.Admission | 受入済み諸表の CSV 出力 | FinancialStatements |
-| Accounting.Equivalence | 指定された観測での比較 | Alg.filter, bar, toList |
-
-受入専用の拡張点は registry, facts, evidence, vocabulary という値であり, 新しい型クラスは作らない.
-catalog は今回承認された閉じた機能であり, model の関数を library へ注入する拡張点はない.
-定数として課題の金額・会社・期間を持ち込まない.
-単一会社の決算と複数会社の連結を異なる fixture として同じ入口で検証する.
-各 module は library の機能単位であり, 受入進捗は coordinator によるレビューと land で確定する.
-
-追加の実装判断は本書の識別子, stage, snapshot, strict policy, CSV の各節に記録した.
-既存の代数法則を増やす変更ではない. 新しい法則は registry の一覧保存と重複拒否,
-受入成功時の出所・均衡・証憑義務, 各比較方式の同値関係であり, Haddock と property test に対応させる.
-
-実装規模の集計は空行と `--` コメント行を除いた Haskell の行数で行う.
-新規 library module を kit, 新規 test module を test として数え, module ごとの責務を上表で確認する.
-catalog と受入エンジンはそれぞれ独立した責務として保持し, モジュールの移動を規模削減とは数えない.
-
-## 公開 API の型と関数
-
-入力の構築子を公開する型は `EntityId`, `PeriodId`, `TxId`, `FactId`, `EvidenceId`, `CallId`,
-`TxKey`, `Role`, `Presence`, `Supply`, `AdmissionSpec`, `CatalogOperationKind`, `CatalogCall`,
-`EntityInput`, `Call`, `Submission` である. 診断・観測の構築子を公開する型は
-`RegistryError`, `AdmissionError`, `ReferenceFailure`, `Stage`, `Provenance`, `CallAudit`,
-`Equivalence` である. 構築子を隠す公開型は `TxRule`, `TxIdRegistry`, `AdmissionNote`, `Admitted`,
-`AdmittedTrialBalance`, `AdmittedStatements` とする.
-
-```haskell
-type Entry = Alg MoneyDecimal (HatBase AccountTitles)
-data PostingSide
-    = DebitSide
-    | CreditSide
-type AccountName = Text
-type RawPostings = [(PostingSide, AccountName, MoneyDecimal)]
-type AdmissionJournal = Journal AdmissionNote MoneyDecimal (HatBase AccountTitles)
-
-txRule :: Presence -> [Supply] -> Maybe EvidenceId -> TxRule
-rulePresence :: TxRule -> Presence
-ruleSupplies :: TxRule -> Set Supply
-ruleEvidence :: TxRule -> Maybe EvidenceId
-txIdRegistry :: [(TxKey, TxRule)] -> Either (NonEmpty RegistryError) TxIdRegistry
-registryRules :: TxIdRegistry -> Map TxKey TxRule
-catalogKind :: CatalogCallOf r -> CatalogOperationKind
-catalogStage :: CatalogCall -> Stage
-isGenerating :: CatalogOperationKind -> Bool
-
-admit :: AdmissionSpec -> Submission -> Either AdmissionFailure Admitted
-admittedJournal :: Admitted -> AdmissionJournal
-admissionKey :: AdmissionNote -> TxKey
-admissionRole :: AdmissionNote -> Role
-admissionProvenance :: AdmissionNote -> Provenance
-admissionStage :: AdmissionNote -> Stage
-admittedCalls :: Admitted -> [CallAudit]
-restrictAdmitted :: (AdmissionNote -> Bool) -> Admitted -> Admitted
-deriveTrialBalance
-    :: Admitted
-    -> Either (NonEmpty (TBFinding MoneyDecimal)) AdmittedTrialBalance
-admittedTrialBalance :: AdmittedTrialBalance -> Entry
-admittedAdjustedTrialBalance :: AdmittedTrialBalance -> Entry
-presentAdmitted
-    :: ReportingContext MoneyDecimal
-    -> AdmittedTrialBalance
-    -> Either (NonEmpty (PresentationIssue MoneyDecimal)) AdmittedStatements
-admittedFinancialStatements :: AdmittedStatements -> FinancialStatements MoneyDecimal
-admittedClosingStatements :: AdmittedStatements -> FinancialStatements MoneyDecimal
-renderAdmittedStatements :: AdmittedStatements -> ByteString
-
-isEquivalentUpTo :: Equivalence -> Map TxKey Entry -> Map TxKey Entry -> Bool
-```
-
-公開入力 record の field は次のとおりである. 受入済み型の getter とは異なり,
-これらは信頼側の仕様または未受入の提出を組み立てる record selector である.
-
-```haskell
-admissionRegistry :: AdmissionSpec -> TxIdRegistry
-admissionEvidence :: AdmissionSpec -> Map EvidenceId MoneyDecimal
-admissionFacts :: AdmissionSpec -> Map FactId RawPostings
-admissionVocabulary :: AdmissionSpec -> Set AccountTitles
-submissionPostings :: Submission -> [(TxKey, RawPostings)]
-submissionCalls :: Submission -> [Call]
-callId :: Call -> CallId
-callEntity :: Call -> EntityId
-callPeriod :: Call -> PeriodId
-callGenerated :: Call -> Maybe TxKey
-callBody :: Call -> CatalogCall
-auditCall :: CallAudit -> CallId
-auditOperation :: CallAudit -> CatalogOperationKind
-auditGenerated :: CallAudit -> Maybe TxKey
-auditReferences :: CallAudit -> [(TxKey, Provenance)]
-auditProjection :: CallAudit -> Maybe MoneyDecimal
-```
+`closingDifferences` と `isClosingEquivalent` は 2 つの締めを取引の key ごとに比べる.
+利益剰余金以外の勘定は借方・貸方の側ごとの厳密な合計で, 利益剰余金は貸方から借方を引いた厳密な正味で比べる.

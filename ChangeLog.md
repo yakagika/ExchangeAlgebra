@@ -26,8 +26,6 @@
   `ExchangeAlgebra.Journal.Core`. `ExchangeAlgebra.Simulate.Policy` re-exports
   the same class and instances.
 
-- The `exchangealgebra-aeson` adapter package adds explicit JSON admission input decoders; the core library does not depend on `aeson`.
-
 - `Journal.postFromNetBy` (also in `Journal.Core`) groups unrounded base
   residuals and calls the journal callback once per key after rounding. The
   callback can return postings on multiple notes. Bases containing nonfinite
@@ -55,14 +53,28 @@
   `jcciAliases` returns only the names in the frozen JCCI 2022 table. Net sales
   and net purchases deduct the respective allowances alongside rebates.
   Binary encoding uses the fixed account codes described under Changed.
-- `ExchangeAlgebra.IO.Input.Admission` accepts complete submissions against a
-  trusted transaction registry. Accepted values retain source postings and
-  support ledger, trial-balance, and statement derivation. Its closed catalog
-  records the actual supply route, checks debit-total evidence after execution
-  (including zero output), and applies raw posting restrictions under every
-  declared role. Facts remain exclusive. The separate
-  `ExchangeAlgebra.Accounting.Equivalence` module compares original
-  postings or transaction-local and selected-account net observations.
+- `ExchangeAlgebra.IO.Input.Admission` checks a journal written by an
+  untrusted author, such as a language model, one transaction (note) at a
+  time. `admit` accepts the journal unchanged as `Admitted` when every posting
+  has a positive value, a `Hat` or `Not` side, and an account that some
+  process may post, and when each transaction's debit (`decL`) and credit
+  (`decR`) totals agree exactly. Otherwise it returns every violation
+  (`AdmissionFailure`, read with `failureErrors`). `admit` is polymorphic in
+  the note and base and uses `MoneyDecimal` values. `checkEvidence` compares an
+  admitted journal, after a selection chosen by the caller, with a journal of
+  expected elements from independent records. Each expected posting is a
+  one-way query; mismatches are `EvidenceMissing`, `EvidenceDiffers`, or
+  `EvidenceAmbiguous`. Neither function aggregates postings or applies `bar`.
+  Admission does not post adjusting or closing entries, restrict accounts
+  beyond the unpostable ones, or compare with a reference answer. Derive trial
+  balances and statements from `admittedJournal` with `validateTrialBalance`
+  and `Presentation.present`. `TxKey`, `EntityId`, `PeriodId`, and `TxId`
+  (also in `ExchangeAlgebra.Accounting.Transaction`) are a ready-made note
+  type. The separate `ExchangeAlgebra.Accounting.Equivalence` module compares
+  original postings or transaction-local and selected-account net
+  observations.
+- `ExchangeAlgebra.IO.Output.Statements.financialStatementRows` and
+  `writeFinancialStatements` write presented financial statements as CSV.
 - `ExchangeAlgebra.Accounting.Equivalence.closingDifferences` and
   `isClosingEquivalent` compare two closings by transaction key: accounts other
   than the designated retained-earnings account by their exact total per debit
@@ -140,26 +152,6 @@
   with `NonFiniteValue`, and `NegativeInput` with `NegativeValue`; nonzero
   HatNot postings now return `WildcardSide`.
 - Serialization formats are unchanged by the closing and carry changes.
-
-- Admission results expose `admittedJournal` with `AdmissionNote` notes carrying
-  the transaction key, role, and provenance. Read them with `admissionKey`,
-  `admissionRole`, and `admissionProvenance`; `admissionStage` recovers the
-  library-controlled processing stage. Migrate the previous readouts as follows:
-
-  | Previous readout | Replacement |
-  |---|---|
-  | `admittedSnapshot DuringPeriod` | `admittedJournal . restrictAdmitted ((<= OrdinaryStage) . admissionStage)` |
-  | `admittedSnapshot Adjusted` | `admittedJournal . restrictAdmitted ((<= ConsolidationStage) . admissionStage)` |
-  | `admittedSnapshot Closed`, `deriveLedger` | `admittedJournal` |
-  | `admittedAudit` | `admittedCalls` |
-
-  `Snapshot`, `admittedSnapshot`, and `LedgerView` are removed. The journal
-  contains original postings; transactions without postings have no public
-  journal entry. Their calls remain in `admittedCalls`, which stays complete
-  and in execution order after `restrictAdmitted`. Empty closing transactions
-  kept by the restriction still select closing validation. The admission
-  change leaves acceptance, generated postings, numeric results, and
-  diagnostics unchanged.
 
 - Binary decoding of `Alg` and `Journal` rejects negative or nonfinite
   posting values, `HatNot` postings, repeated base keys, and repeated notes.
@@ -375,162 +367,6 @@
   engine, `Policy`, `Spill`, `Random`, `Lite`, and `Visualize` keep their
   `Simulate.*` names.
 
-### Changed (admission API, not yet released on Hackage)
-
-- Add `journalPostings` and `PostingConversionError` to convert computed journals
-  into admission submissions. Debit and credit follow account classification;
-  `Not` does not always mean debit. Same-base postings stay separate. This is
-  additive; acceptance, diagnostics, and golden outputs are unchanged.
-
-- Add `explainAdmissionError`, `explainAdmissionFailure`, `explainAdmissionPhase`,
-  and `explainClosingDerivationError` for English failure explanations.
-- Add `Disclosure` and `admissionDisclosure` to `AdmissionSpec`. Construction now
-  requires this field; use `fullDisclosure` for the default. Withholding affects
-  only evidence amounts in explanations; typed diagnostics remain complete.
-- `AllowanceRateCall` now takes checked `BasisPoints`. Construct rates with
-  `basisPoints` and read them with `basisPointsValue`. Rate validation moves from
-  `admit` to construction, with the same diagnostics; invalid rates cannot reach
-  `admit`. Acceptance is unchanged; diagnostics change location for rates.
-  The explanation and disclosure APIs are additions.
-
-- `closeAdmitted` derives closing entries after admission, so the submitter
-  (for example a language model) does not post them. Pass one transaction ID;
-  each admitted entity and period gets its closing under that ID. The
-  library rejects blank IDs, existing closings, key collisions, and scopes with
-  consolidation eliminations through `ClosingDerivationError`. Generated notes
-  use `DerivedClosing`, including closings without postings; call audits stay
-  unchanged. Trial-balance validation remains a separate check: `NoClose`
-  accounts such as `NetIncome` and `IncomeSummary` can retain balances.
-- `FinalStockCall` uses `closingEntries` and preserves the closing pair for
-  each base. Its net is unchanged, but postings changed (`FinalStock`).
-  Acceptance changed for evidence on a `FinalStock` generated key: evidence
-  measures the total debits, so sales of 100 and depreciation of 20 require
-  120 instead of 100. Migrate the evidence amount to the new debit total.
-  `CatalogExecutionProblem` adds `ClosingFailed` with the failing base.
-  `FinalStockCall` still closes the visible ledger including any consolidation
-  eliminations in that entity and period; consolidation closing is not yet
-  specified. Other admission decisions, provenance checks, and projections
-  are unchanged.
-
-- Catalog invocation constructors now end in `Call`. Migrate these names:
-
-  | Previous Call | New Call |
-  |---|---|
-  | `Cogs` | `CogsCall` |
-  | `DepIndirect` | `DepreciationIndirectCall` |
-  | `DepDirect` | `DepreciationDirectCall` |
-  | `Allowance` | `AllowanceCall` |
-  | `AllowanceRate` | `AllowanceRateCall` |
-  | `AllowanceReset` | `AllowanceResetCall` |
-  | `Prepaid` | `PrepaidCall` |
-  | `Unearned` | `UnearnedCall` |
-  | `ReverseEntry` | `ReverseEntryCall` |
-  | `ConsumptionTax` | `ConsumptionTaxCall` |
-  | `CorporateInterim` | `CorporateInterimCall` |
-  | `CorporateSettlement` | `CorporateSettlementCall` |
-  | `EquityEarnings` | `EquityEarningsCall` |
-  | `EquityDividend` | `EquityDividendCall` |
-  | `EquityEntries` | `EquityEntriesCall` |
-  | `EquityBalance` | `EquityBalanceCall` |
-  | `PriorError` | `PriorErrorCall` |
-  | `FinalStock` | `FinalStockCall` |
-  | `StraightLine` | `StraightLineCall` |
-  | `Consolidate` | `ConsolidateCall` |
-
-  `AccruedRevenueCall` and `AccruedExpenseCall` are unchanged. Operation kinds
-  use the following depreciation names; all other Kind names are unchanged:
-
-  | Previous Kind | New Kind |
-  |---|---|
-  | `DepIndirectKind` | `DepreciationIndirectKind` |
-  | `DepDirectKind` | `DepreciationDirectKind` |
-
-- `RawPostings` now takes `PostingSide` and `AccountName`:
-  replace `("debit", "Cash", 100)` with `(DebitSide, "Cash", 100)` and use
-  `CreditSide` for credit rows. Trusted facts use the same type. Account names
-  remain untrusted text and receive the same checks.
-- `StraightLineCall asset annual method` replaces the `StraightLine` Boolean
-  argument with `DepreciationMethod`: `True` becomes `DirectMethod`, and
-  `False` becomes `IndirectMethod`.
-- The internal admission rule list and the public module's "Intended use"
-  documentation state which accounts the language-model harness reserves.
-  The protected-account decisions are unchanged; general accounting entry
-  construction retains its existing posting rules.
-- Observable changes for this migration:
-  - diagnostics changed: `Show` uses the new catalog constructor names.
-  - acceptance unchanged.
-  - postings unchanged.
-  - numeric unchanged.
-  - serialization unchanged in this package. The JSON decoder in
-    `exchangealgebra-aeson` changes: operation names follow the new Kind
-    spellings, and unknown posting sides fail at decoding (see its ChangeLog).
-
-- The admission API is split by responsibility. Transaction identifiers
-  (`TxKey`, `EntityId`, `PeriodId`, `TxId`, ...), `Entry`, and `isBlankKey`
-  are in `ExchangeAlgebra.Accounting.Transaction`; the equivalence checks are in
-  `ExchangeAlgebra.Accounting.Equivalence`; `renderAdmittedStatements` is also
-  in `ExchangeAlgebra.IO.Output.Admission`. `ExchangeAlgebra.IO.Input.Admission`
-  remains the entry point. The internal modules `...Admission.Types`,
-  `...Admission.Internal`, and `...Admission.Equivalence` are removed without
-  compatibility shims because this API has not been released on Hackage.
-- Renamed: `equivalentUpTo` → `isEquivalentUpTo`, `txidRegistry` →
-  `txIdRegistry`, `TxidRegistry` → `TxIdRegistry`, `CatalogOpKind` →
-  `CatalogOperationKind`. Constructors and `Show` output are unchanged.
-- `IO.Input.Admission.admit` now returns `Either AdmissionFailure Admitted`.
-  Read `failurePhase` for the stopped pipeline step and `failureErrors` for its
-  ordered errors; the `AdmissionFailure` constructor is hidden.
-  `InvalidCatalogParameters CallId CatalogParameterProblem` and
-  `CatalogExecutionFailure CallId CatalogExecutionProblem` replace text
-  payloads. Match the closed problems directly using this migration table:
-
-  | Previous reason | New problem |
-  |---|---|
-  | `<name> must be positive` | `NonPositiveParameter parameter amount` |
-  | `<name> must be nonnegative` | `NegativeParameter parameter amount` |
-  | `<name> account role` | `AccountOutsideDivision parameter account division` |
-  | `rate exceeds 10000` | `RateAboveLimit rate` |
-  | `received below paid` | `ReceivedBelowPaid (AmountLimit paid received)` |
-  | `interim exceeds total` | `InterimExceedsTotal (AmountLimit total interim)` |
-  | `blank referenced transaction key` | `BlankReferenceKey key` |
-  | `at least two distinct entities required` | `TooFewEntities distinctCount` |
-  | `repeated entity` | `RepeatedEntity firstRepeatedEntity` |
-  | `repeated txid references` | `RepeatedReference firstRepeatedKey` |
-  | `inexact_decimal_quotient` | `InexactQuotient reducedNumerator reducedDenominator` |
-  | `Imbalanced consolidation recipe` | `ImbalancedConsolidation (DebitCreditTotals debit credit)` |
-  | `abnormal balance <account>` | `AbnormalBalance account` |
-
-  `EvidenceMismatch key evidence (AmountMismatch expected actual)` names the
-  evidence amount and the submitted debit total. The former missing-reference
-  execution branch is eliminated by carrying resolved entries in the call.
-  Catalog execution now belongs to Accounting; its module remains private.
-  `CatalogCall` and `EntityInput` are aliases for `CatalogCallOf TxKey` and
-  `EntityInputOf TxKey`. Client instances for these aliases need
-  `FlexibleInstances`. Replace constructor imports as follows:
-
-  ```haskell
-  -- Previous import:
-  -- import ExchangeAlgebra.IO.Input.Admission (CatalogCall(..), EntityInput(..))
-  import ExchangeAlgebra.IO.Input.Admission
-      ( CatalogCall
-      , CatalogCallOf(..)
-      , EntityInput
-      , EntityInputOf(..)
-      )
-  ```
-
-  Observable changes:
-
-  - acceptance: unchanged.
-  - postings: unchanged.
-  - numeric: unchanged.
-  - diagnostics: changed (closed problems, stopped phase, and duplicate removal).
-  - serialization: unchanged.
-- Admission trial-balance derivation and presentation validate each snapshot
-  once when no accepted note has the `Closing` role, including empty
-  transactions. Final and adjusted results share that validation, so failures
-  are reported once. With a closing note, both snapshots keep their separate
-  validation and diagnostics.
-
 ### Removed
 
 - The research evaluation tooling in `examples/audit-eval` (task generators,
@@ -555,17 +391,8 @@
   Leontief inverse and fills one column.
 - Runnable Haddock examples now cover `Accounting.Statements.Presentation`,
   `Accounting.TrialBalance.Validation`, `Accounting.Consolidation`,
-  `Algebra.Exact`, `Journal.Exact`, and the admission `Catalog` and `Engine`
-  modules. The `Journal.Transfer` examples are now part of the doctest run.
-- The admission Haddock states what each check covers and what it does not:
-  only `Required` rules impose presence (an `Optional` menu does not enforce
-  necessity, exclusion, or a count), the profit-to-equity check is per entry,
-  a `Closing` role on any admitted transaction (including `SupplySubmission
-  Closing`) selects after-closing validation, evidence is compared with the
-  debit total only, and admission, trial-balance derivation, and presentation
-  each return their own `Either`. The safety statement now says that EA modules
-  are not Safe Haskell and that the guarantee assumes callers do not bypass the
-  public API.
+  `Algebra.Exact`, and `Journal.Exact`. The `Journal.Transfer` examples are
+  now part of the doctest run.
 - RCR: the `--x86_64` route builds the pinned revisions against a no-op
   Chart-cairo stand-in (`examples/market/rcr/x86_64-stub/`), because Homebrew
   no longer installs an x86_64 Cairo on Apple Silicon. No measured program
