@@ -1,0 +1,60 @@
+{-# OPTIONS_GHC -Wincomplete-patterns -Werror=incomplete-patterns #-}
+
+-- | Package-private implementation of 'checkEvidence'.
+module ExchangeAlgebra.IO.Input.Admission.Evidence
+    ( checkEvidence
+    ) where
+
+import Data.List.NonEmpty (NonEmpty)
+
+import ExchangeAlgebra.Algebra.Base.Representation (HatBaseClass)
+import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
+import ExchangeAlgebra.IO.Input.Admission.Diagnostic (EvidenceMismatch)
+import ExchangeAlgebra.IO.Input.Admission.Representation (Admitted)
+import ExchangeAlgebra.Journal.Core (Journal, Note)
+
+-- | Check an admitted journal against independent records (evidence), such as
+-- a bank statement, a cash count, or the opening balances supplied by a
+-- trusted party. The evidence is a journal of expected elements.
+--
+-- The selection @f@ is applied to the admitted journal first. It chooses,
+-- combines, and aggregates as the caller needs: a projection, a transfer,
+-- 'bar', or a change of notes. 'checkEvidence' itself does not aggregate and
+-- does not call 'bar'.
+--
+-- Each expected element (note @m@, base @b@, value @v@) is a query against the
+-- selected journal, matched one way as in Definition 1: the expected element is
+-- the pattern and the selected elements are ledger entries.
+--
+-- * Note: a 'plank' note matches every note; another note matches only itself.
+-- * Base: matched in the query direction, so a wildcard axis of the expected
+--   base (such as the account 'AccountTitle') matches any value of the
+--   selected base on that axis. The side of the expected base is 'Hat' or
+--   'Not' ('(.@)' rejects 'HatNot'); to compare both sides of one base as one
+--   net value, apply 'bar' in @f@ and write the resulting side.
+--
+-- The expected element matches when exactly one selected element matches the
+-- note and base and its value equals @v@ exactly. Otherwise the element yields
+-- 'EvidenceMissing' (no element), 'EvidenceDiffers' (one element with another
+-- value), or 'EvidenceAmbiguous' (two or more elements; combine them in @f@).
+-- Selected elements that no expected element matches are ignored: the
+-- evidence states what must be present, not the whole journal.
+--
+-- Every expected element is checked and every mismatch is returned, in
+-- ascending note and base order of the expected elements.
+--
+-- Laws:
+--
+-- * @checkEvidence a f Zero == Right ()@.
+-- * @checkEvidence a id e == Right ()@ when @e@ is a projection of
+--   @admittedJournal a@ whose every note and base occurs once in the journal.
+-- * The checks are per expected element: @checkEvidence a f (e1 .+ e2)@
+--   succeeds iff @checkEvidence a f e1@ and @checkEvidence a f e2@ succeed,
+--   when @e1@ and @e2@ have no note and base in common.
+checkEvidence
+    :: (Note m, HatBaseClass b)
+    => Admitted n b
+    -> (Journal n MoneyDecimal b -> Journal m MoneyDecimal b)
+    -> Journal m MoneyDecimal b
+    -> Either (NonEmpty (EvidenceMismatch m b)) ()
+checkEvidence = undefined

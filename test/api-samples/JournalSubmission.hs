@@ -1,41 +1,30 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
-import qualified Data.Text as Text
 import qualified ExchangeAlgebra.Journal.Core as Journal
 import ExchangeAlgebra.Journal.Core ((.|))
 import qualified ExchangeAlgebra.IO.Input.Admission as Admission
+import ExchangeAlgebra.IO.Input.Admission (TxKey(..), EntityId(..), PeriodId(..), TxId(..))
 import ExchangeAlgebra
 
--- | A journal computed with the algebra, keyed by transaction name.
-journal :: Journal.Journal Text.Text MoneyDecimal (HatBase AccountTitles)
-journal = ((100 .@ Not :< Cash .+ 100 .@ Not :< Sales) .| "sale")
-       .+ ((30 .@ Not :< RentExpense .+ 30 .@ Hat :< Cash) .| "rent")
+key :: TxId -> TxKey
+key = TxKey (EntityId "shop") (PeriodId "2026")
 
--- | Submit the computed journal, admit it, and derive the closing entries.
+-- | Opening balances supplied by a trusted party are part of the journal.
+opening, period :: Journal.Journal TxKey MoneyDecimal (HatBase AccountTitles)
+opening = (500 .@ Not :< Cash .+ 500 .@ Not :< CapitalStock) .| key (TxId "opening")
+period  = ((100 .@ Not :< Cash .+ 100 .@ Not :< Sales) .| key (TxId "sale"))
+       .+ ((30 .@ Not :< RentExpense .+ 30 .@ Hat :< Cash) .| key (TxId "rent"))
+
+-- | A model computes the closing entries itself, submits the whole journal,
+-- and the caller confirms the opening balance and a cash receipt with the
+-- trusted records.
 main :: IO ()
 main = do
-    let entity = Admission.EntityId "shop"
-        period = Admission.PeriodId "2026"
-        key name = Admission.TxKey entity period (Admission.TxId name)
-        evidence name = Admission.EvidenceId (name <> "-total")
-        rule name = Admission.txRule Admission.Required
-            [Admission.SupplySubmission Admission.Ordinary] (Just (evidence name))
-    postings <- either (fail . show) pure (Admission.journalPostings key journal)
-    registry <- either (fail . show) pure $
-        Admission.txIdRegistry [(key name, rule name) | name <- ["sale", "rent"]]
-    let spec = Admission.AdmissionSpec
-            { Admission.admissionRegistry = registry
-            , Admission.admissionEvidence =
-                Map.fromList [(evidence "sale", 100), (evidence "rent", 30)]
-            , Admission.admissionFacts = Map.empty
-            , Admission.admissionVocabulary = Set.fromList
-                [Cash, Sales, RentExpense, NetIncome, NetLoss, RetainedEarnings]
-            , Admission.admissionDisclosure = Admission.fullDisclosure
-            }
-    accepted <- either (fail . show . Admission.failureErrors) pure $
-        Admission.admit spec (Admission.Submission postings [])
-    closed <- either (fail . show) pure $
-        Admission.closeAdmitted (Admission.TxId "close") accepted
-    print (length (Journal.toMap (Admission.admittedJournal closed)))
+    closing <- either (fail . show) pure (closingEntries (Journal.toAlg period))
+    let submitted = opening .+ period .+ (closing .| key (TxId "close"))
+    accepted <- either (fail . show . Admission.failureErrors) pure (Admission.admit submitted)
+    let expected = ((500 .@ Not :< Cash) .| key (TxId "opening"))
+                .+ ((100 .@ Not :< Cash) .| key (TxId "sale"))
+    either (fail . show) pure $
+        Admission.checkEvidence accepted (Journal.projWithBase [Not :< Cash]) expected
+    print (length (Journal.toMap (Admission.admittedJournal accepted)))

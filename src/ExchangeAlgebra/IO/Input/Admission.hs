@@ -1,236 +1,91 @@
 {-# OPTIONS_GHC -Wincomplete-patterns -Werror=incomplete-patterns #-}
 
--- | Admit complete journal submissions at the IO input boundary.
--- This module composes checked conversion and the closed bookkeeping catalog;
--- its accepted values feed ledger, trial-balance, and statement derivation.
--- Start with identifiers and 'txIdRegistry', supply facts, evidence, and an
--- account vocabulary, then call 'admit' on the entire unfiltered submission.
+-- | Check the accounting integrity of a journal written by an untrusted
+-- author, such as a language model, and check it against independent
+-- records.
 --
--- = Intended use
+-- 'admit' takes the complete journal and checks every transaction (note) on
+-- its own: positive finite values, a 'Hat' or 'Not' side on every posting,
+-- postable accounts, and equal debit ('decL') and credit ('decR') totals. It
+-- returns the journal unchanged as 'Admitted', a type that only 'admit'
+-- constructs. 'checkEvidence' then compares an admitted journal with expected
+-- elements, after a selection chosen by the caller.
 --
--- Admission is a harness for journal submissions written by an untrusted
--- author, such as a language model. Besides the accounting checks, it applies
--- harness rules: the submitter records transactions and calls catalog
--- operations, while the library computes closing, corrections, and other
--- derived amounts. For example, a submission may not post retained earnings
--- directly, although dividends are ordinary entries to that account. These
--- rules are not accounting constraints. Simulations and other accounting
--- computations that build entries themselves should use the checked-entry API
--- in "ExchangeAlgebra.IO.Input" or construct entries directly instead.
--- The submitter does not post closing entries: after admission, use
--- 'closeAdmitted' to derive them for each entity and period.
+-- = What admission does not do
 --
--- The specification and executor are trusted. The static guarantee applies to
--- the derivation functions exported here, not to the existing low-level APIs.
--- Constructors and record fields of accepted types and the registry are hidden.
--- No unchecked reconstruction, combination, or serialization instance is provided.
--- This guarantee assumes callers do not use @unsafeCoerce@, @unsafePerformIO@,
--- or direct access to internal modules (including @.Internal@ modules) or
--- package-private constructors to bypass the public API. The EA modules are
--- not marked Safe or Trustworthy and cannot be imported from a Safe Haskell
--- module; the compiler does not enforce these caller assumptions.
+-- Admission does not post or derive entries. Adjusting and closing entries
+-- are computed by the author with the accounting functions (for example
+-- "ExchangeAlgebra.Accounting.Adjustment" and 'closingEntries') and submitted
+-- in the journal; opening balances supplied by a trusted party are also
+-- submitted in the journal and confirmed with 'checkEvidence'. Admission does
+-- not compare the journal with the answer of an exercise, and does not
+-- restrict which accounts a submission may use beyond the accounts no process
+-- may post. Such rules belong to the experiment or the tool that calls the
+-- library. For example, a submission that moves sales directly to retained
+-- earnings is admitted; only a comparison with a reference answer finds it.
 --
--- Use a qualified import when composing admission with simulation or other
--- accounting APIs, for example:
+-- After admission, derive reports from 'admittedJournal' with the existing
+-- functions: 'ExchangeAlgebra.Accounting.TrialBalance.validateTrialBalance',
+-- 'ExchangeAlgebra.Accounting.Statements.Presentation.present', and the CSV
+-- writers in "ExchangeAlgebra.IO.Output.Statements".
 --
--- > import qualified ExchangeAlgebra.IO.Input.Admission as Admission
+-- = Guarantee
 --
--- 'Stage' conflicts with the stage name in Simulate.Lite; 'Adjustment' can
--- also collide with names in other accounting modules.
--- Evidence obligations implement Definition 8. 'FinalStockCall' retains closing
--- pairs per base with the same net as the legacy Definition 9 expression;
--- debit-total evidence can increase because the pairs remain separate.
--- t'TxKey' supplies the note coordinates used by Definitions 10-12.
+-- 'Admitted' and 'AdmissionFailure' have package-private constructors and no
+-- instance that rebuilds a value from its contents. The guarantee assumes
+-- callers do not use @unsafeCoerce@ or internal modules. The EA modules are
+-- not marked Safe or Trustworthy.
 --
--- = Admission, derivation, and presentation
+-- = Example
 --
--- Each stage returns its own 'Either'. A 'Right' from 'admit' does not imply
--- that 'deriveTrialBalance' or 'presentAdmitted' returns 'Right'. Derivation
--- combines all admitted entities and reporting periods; choose the trusted
--- registry's scope accordingly. Presentation requires a reporting context
--- chosen by the caller, not inferred from admission.
---
--- With @spec@ and @submitted@ prepared as in the transaction example, run this
--- excerpt in an IO action. It reports each stage's failures independently:
---
--- @
--- import qualified ExchangeAlgebra.Accounting.Statements.Presentation as Presentation
---
--- case Admission.admit spec submitted of
---     Left problems -> fail (show problems)
---     Right accepted -> case Admission.deriveTrialBalance accepted of
---         Left findings -> fail (show findings)
---         Right balance -> case Admission.presentAdmitted
---             (Presentation.jcciSecondGradeContext Presentation.Standalone) balance of
---             Left issues -> fail (show issues)
---             Right statements -> print (Admission.admittedFinancialStatements statements)
--- @
---
--- The context in this excerpt selects JGAAP and the JCCI grade-2 profile for
--- standalone reporting, with no additional presentation instructions. Choose
--- the scope and any allocations or other instructions for the intended report.
---
--- = Disclosure in notices
---
--- 'admissionDisclosure' affects only explanation functions and notices built on them;
--- 'admit' and typed failures always return complete diagnostics.
--- Only evidence amounts can be withheld: facts are values supplied to the model,
--- and submitted amounts are already known to it. The default is 'fullDisclosure'.
---
--- = Admit one transaction
---
--- The caller chooses the entity, reporting period, transaction identity,
--- authorized supply route, account vocabulary, and evidence obligation. Obtain
--- the evidence amount independently of the untrusted postings. These choices
--- define the trust conditions and cannot be hidden behind defaults. The amount
--- 100 below represents an independently established total debit amount.
--- The library handles duplicate detection, processing stages, reference
--- resolution, and accepted-value construction; the caller does not reproduce
--- that machinery.
---
--- Run this complete example with @OverloadedStrings@ enabled. It prints @1@,
--- the number of admitted transaction keys, or reports the validation failures.
+-- Run this complete example with @OverloadedStrings@ enabled. It prints
+-- @Right ()@.
 --
 -- > {-# LANGUAGE OverloadedStrings #-}
 -- >
--- > import qualified Data.Map.Strict as Map
--- > import qualified Data.Set as Set
 -- > import qualified ExchangeAlgebra.Journal.Core as Journal
--- > import ExchangeAlgebra.Accounting.Account (AccountTitles(Cash, Sales))
+-- > import ExchangeAlgebra.Journal.Core ((.|))
 -- > import qualified ExchangeAlgebra.IO.Input.Admission as Admission
+-- > import ExchangeAlgebra.IO.Input.Admission (TxKey(..), EntityId(..), PeriodId(..), TxId(..))
+-- > import ExchangeAlgebra
 -- >
 -- > main :: IO ()
 -- > main = do
--- >     let key = Admission.TxKey (Admission.EntityId "shop")
--- >                 (Admission.PeriodId "2026") (Admission.TxId "sale")
--- >         evidence = Admission.EvidenceId "sale-total"
--- >         rule = Admission.txRule Admission.Required
--- >             [Admission.SupplySubmission Admission.Ordinary] (Just evidence)
--- >         submitted = Admission.Submission
--- >             [(key, [(Admission.DebitSide, "Cash", 100)
--- >                    , (Admission.CreditSide, "Sales", 100)])] []
--- >     case Admission.txIdRegistry [(key, rule)] of
--- >         Left problems -> fail (show problems)
--- >         Right registry -> do
--- >             let spec = Admission.AdmissionSpec
--- >                     { Admission.admissionRegistry = registry
--- >                     , Admission.admissionEvidence = Map.singleton evidence 100
--- >                     , Admission.admissionFacts = Map.empty
--- >                     , Admission.admissionVocabulary = Set.fromList [Cash, Sales]
--- >                     , Admission.admissionDisclosure = Admission.fullDisclosure
--- >                     }
--- >             case Admission.admit spec submitted of
--- >                 Left problems -> fail (show problems)
--- >                 Right accepted -> print $ length $ Journal.toMap $
--- >                     Admission.admittedJournal accepted
+-- >     let key name = TxKey (EntityId "shop") (PeriodId "2026") (TxId name)
+-- >         journal = ((500 .@ Not :< Cash .+ 500 .@ Not :< CapitalStock) .| key "opening")
+-- >               .+ ((100 .@ Not :< Cash .+ 100 .@ Not :< Sales) .| key "sale")
+-- >         expected = (500 .@ Not :< Cash) .| key "opening"
+-- >     case Admission.admit journal of
+-- >         Left failure -> fail (show (Admission.failureErrors failure))
+-- >         Right accepted -> print $
+-- >             Admission.checkEvidence accepted (Journal.projWithBase [Not :< Cash]) expected
 module ExchangeAlgebra.IO.Input.Admission
-    ( -- * Identifiers and entries
+    ( -- * Transaction keys
+      -- | A ready-made note type for journals keyed by entity, reporting
+      -- period, and transaction. Any 'ExchangeAlgebra.Journal.Core.Note' works.
       EntityId(..)
     , PeriodId(..)
     , TxId(..)
-    , FactId(..)
-    , EvidenceId(..)
-    , CallId(..)
     , TxKey(..)
-    , Entry
-    , RawPostings
-    , PostingSide(..)
-    , AccountName
-      -- * Trusted specification
-    , Role(..)
-    , Presence(..)
-    , Supply(..)
-    , TxRule
-    , txRule
-    , rulePresence
-    , ruleSupplies
-    , ruleEvidence
-    , TxIdRegistry
-    , RegistryError(..)
-    , txIdRegistry
-    , registryRules
-    , AdmissionSpec(..)
-    , Disclosure(..)
-    , fullDisclosure
-      -- * Untrusted submission
-    , CatalogOperationKind(..)
-    , DepreciationMethod(..)
-    , CatalogCall
-    , CatalogCallOf(..)
-    , BasisPoints
-    , basisPoints
-    , basisPointsValue
-    , catalogKind
-    , catalogStage
-    , isGenerating
-    , EntityInput
-    , EntityInputOf(..)
-    , Call(..)
-    , Submission(..)
-    , PostingConversionError(..)
-    , journalPostings
-      -- * Admission and diagnostics
-    , AdmissionError(..)
-    , AdmissionPhase(..)
-    , AdmissionFailure
-    , failurePhase
-    , failureErrors
-    , ClosingDerivationError(..)
-    , explainAdmissionError
-    , explainAdmissionFailure
-    , explainAdmissionPhase
-    , explainClosingDerivationError
-    , CatalogParameter(..)
-    , CatalogParameterProblem(..)
-    , CatalogExecutionProblem(..)
-    , AmountMismatch(..)
-    , AmountLimit(..)
-    , DebitCreditTotals(..)
-    , ReferenceFailure(..)
-    , Stage(..)
-    , Provenance(..)
-    , CallAudit(..)
-    , Admitted
+      -- * Admission
     , admit
-    , closeAdmitted
-      -- * Observations and derivation
-    , AdmissionNote
-    , admissionKey
-    , admissionRole
-    , admissionProvenance
-    , admissionStage
-    , AdmissionJournal
+    , Admitted
     , admittedJournal
-    , admittedCalls
-    , restrictAdmitted
-    , AdmittedTrialBalance
-    , deriveTrialBalance
-    , admittedTrialBalance
-    , admittedAdjustedTrialBalance
-    , AdmittedStatements
-    , presentAdmitted
-    , admittedFinancialStatements
-    , admittedClosingStatements
-    , renderAdmittedStatements
+    , AdmissionFailure
+    , failureErrors
+    , AdmissionError(..)
+      -- * Evidence
+    , checkEvidence
+    , EvidenceMismatch(..)
     ) where
 
-import ExchangeAlgebra.IO.Input.Admission.Derive
-import ExchangeAlgebra.IO.Input.Admission.Catalog (catalogKind, catalogStage, isGenerating)
-import ExchangeAlgebra.IO.Input.Admission.Engine (admit, closeAdmitted)
-import ExchangeAlgebra.IO.Input.Admission.Representation
-    ( Admitted
-    , AdmittedStatements
-    , AdmittedTrialBalance
-    , AdmissionJournal
-    , AdmissionNote
-    )
-import ExchangeAlgebra.IO.Input.Admission.Registry
-import ExchangeAlgebra.Accounting.Transaction
-import ExchangeAlgebra.Accounting.Catalog
-import ExchangeAlgebra.IO.Input.Admission.Workflow
-import ExchangeAlgebra.IO.Input.Admission.Registry.Definition
-import ExchangeAlgebra.IO.Input.Admission.Submission
+import ExchangeAlgebra.Accounting.Transaction (EntityId(..), PeriodId(..), TxId(..), TxKey(..))
 import ExchangeAlgebra.IO.Input.Admission.Diagnostic
-import ExchangeAlgebra.IO.Input.Admission.Explain
-import ExchangeAlgebra.IO.Input.Admission.Posting
-import ExchangeAlgebra.IO.Output.Admission (renderAdmittedStatements)
+    ( AdmissionError(..)
+    , AdmissionFailure
+    , EvidenceMismatch(..)
+    , failureErrors
+    )
+import ExchangeAlgebra.IO.Input.Admission.Engine (admit)
+import ExchangeAlgebra.IO.Input.Admission.Evidence (checkEvidence)
+import ExchangeAlgebra.IO.Input.Admission.Representation (Admitted, admittedJournal)

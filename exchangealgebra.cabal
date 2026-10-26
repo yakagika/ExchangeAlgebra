@@ -226,7 +226,6 @@ library
       ExchangeAlgebra.Accounting.Transaction
       ExchangeAlgebra.Accounting.Adjustment
       ExchangeAlgebra.Accounting.Equivalence
-      ExchangeAlgebra.IO.Output.Admission
       ExchangeAlgebra.Journal
       ExchangeAlgebra.Journal.Core
       ExchangeAlgebra.Journal.Exact
@@ -282,17 +281,10 @@ library
       ExchangeAlgebra.Simulation.Array
       ExchangeAlgebra.IO.Input.Conversion
       ExchangeAlgebra.IO.Input.Checked
-      ExchangeAlgebra.IO.Input.Admission.Catalog
-      ExchangeAlgebra.IO.Input.Admission.Derive
       ExchangeAlgebra.IO.Input.Admission.Engine
+      ExchangeAlgebra.IO.Input.Admission.Evidence
       ExchangeAlgebra.IO.Input.Admission.Representation
-      ExchangeAlgebra.IO.Input.Admission.Registry
-      ExchangeAlgebra.IO.Input.Admission.Workflow
-      ExchangeAlgebra.IO.Input.Admission.Registry.Definition
-      ExchangeAlgebra.IO.Input.Admission.Submission
       ExchangeAlgebra.IO.Input.Admission.Diagnostic
-      ExchangeAlgebra.IO.Input.Admission.Explain
-      ExchangeAlgebra.IO.Input.Admission.Posting
   hs-source-dirs:
       src
   ghc-options: -feager-blackholing

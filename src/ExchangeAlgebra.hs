@@ -72,8 +72,8 @@
       presentation groups for contra accounts.
     * "ExchangeAlgebra.Accounting.Statements.Presentation" — context-sensitive JGAAP
       transformation from validated trial balances to financial statements.
-    * "ExchangeAlgebra.IO.Input.Admission" — trusted-registry admission of
-      complete submissions and derivation from accepted journal values.
+    * "ExchangeAlgebra.IO.Input.Admission" — accounting-integrity checks of
+      untrusted journals and comparison with independent records.
     * "ExchangeAlgebra.Simulate" — the classic simulation engine. /(Removed
       from this umbrella in 0.5.0.0: it exports very generic names —
       @copy@, @modify@, @update@, @initialize@, @normal@, … — that polluted

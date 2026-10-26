@@ -1,69 +1,41 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+import Control.Monad (unless)
+import Data.Either (isLeft)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import qualified Data.ByteString as ByteString
-import Control.Monad (unless)
 import qualified ExchangeAlgebra.Journal.Core as Journal
-import qualified ExchangeAlgebra.Algebra as EA
-import qualified ExchangeAlgebra.Algebra.Transfer as Transfer
+import ExchangeAlgebra.Journal.Core ((.|))
 import qualified ExchangeAlgebra.IO.Input.Admission as Admission
+import ExchangeAlgebra.IO.Input.Admission (TxKey(..), EntityId(..), PeriodId(..), TxId(..))
+import qualified ExchangeAlgebra.Accounting.TrialBalance as TrialBalance
 import qualified ExchangeAlgebra.Accounting.Statements.Presentation as Presentation
-import ExchangeAlgebra (AccountTitles(..), MoneyDecimal)
+import ExchangeAlgebra.IO.Output.Statements (financialStatementRows)
+import ExchangeAlgebra
 
--- | Admit two submitted entries and compare the catalog and algebra closings.
+key :: TxId -> TxKey
+key = TxKey (EntityId "shop") (PeriodId "2026")
+
+-- | Admit a journal, check it against a bank record, reject an unbalanced
+-- journal, and derive statements from the admitted journal.
 main :: IO ()
 main = do
-    let entity = Admission.EntityId "shop"
-        period = Admission.PeriodId "2026"
-        saleKey = Admission.TxKey entity period (Admission.TxId "sale")
-        expenseKey = Admission.TxKey entity period (Admission.TxId "expense")
-        closeKey = Admission.TxKey entity period (Admission.TxId "close")
-        saleEvidence = Admission.EvidenceId "sale-total"
-        expenseEvidence = Admission.EvidenceId "expense-total"
-        rules =
-            [ (saleKey, Admission.txRule Admission.Required
-                [Admission.SupplySubmission Admission.Ordinary] (Just saleEvidence))
-            , (expenseKey, Admission.txRule Admission.Required
-                [Admission.SupplySubmission Admission.Ordinary] (Just expenseEvidence))
-            , (closeKey, Admission.txRule Admission.Required
-                [Admission.SupplyCatalog Admission.FinalStockKind] Nothing)
-            ]
-        submitted = Admission.Submission
-            [ (saleKey, [(Admission.DebitSide, "Cash", 100), (Admission.CreditSide, "Sales", 100)])
-            , (expenseKey, [(Admission.DebitSide, "RentExpense", 100)
-                           , (Admission.CreditSide, "Cash", 100)])
-            ]
-            [Admission.Call (Admission.CallId "closing") entity period
-                (Just closeKey) Admission.FinalStockCall]
-    case Admission.txIdRegistry rules of
-        Left problems -> fail (show problems)
-        Right registry -> do
-            let spec = Admission.AdmissionSpec registry
-                    (Map.fromList [(saleEvidence, 100), (expenseEvidence, 100)])
-                    Map.empty
-                    (Set.fromList [Cash, Sales, RentExpense, NetIncome, NetLoss,
-                                   RetainedEarnings]) Admission.fullDisclosure
-            case Admission.admit spec submitted of
-                Left failure -> fail (show (Admission.failurePhase failure,
-                    Admission.failureErrors failure))
-                Right accepted -> do
-                    let adjusted = Journal.toAlg $ Admission.admittedJournal $
-                            Admission.restrictAdmitted
-                                ((<= Admission.ConsolidationStage) . Admission.admissionStage)
-                                accepted
-                        closed = Journal.toAlg (Admission.admittedJournal accepted)
-                    let closesAgree = EA.bar closed ==
-                            EA.bar (Transfer.finalStockTransfer adjusted)
-                    print closesAgree
-                    unless closesAgree (fail "closing paths disagree")
-                    case Admission.deriveTrialBalance accepted of
-                        Left findings -> fail (show findings)
-                        Right trial -> do
-                            print (Admission.admittedTrialBalance trial)
-                            case Admission.presentAdmitted
-                                (Presentation.jcciSecondGradeContext Presentation.Standalone)
-                                trial of
-                                Left issues -> fail (show issues)
-                                Right statements -> ByteString.putStr
-                                    (Admission.renderAdmittedStatements statements)
+    let journal :: Journal.Journal TxKey MoneyDecimal (HatBase AccountTitles)
+        journal = ((500 .@ Not :< Cash .+ 500 .@ Not :< CapitalStock) .| key (TxId "opening"))
+               .+ ((100 .@ Not :< Cash .+ 100 .@ Not :< Sales) .| key (TxId "sale"))
+               .+ ((30 .@ Not :< RentExpense .+ 30 .@ Hat :< Cash) .| key (TxId "rent"))
+        unbalanced = (100 .@ Not :< Cash .+ 90 .@ Not :< Sales) .| key (TxId "sale")
+    accepted <- either (fail . show . Admission.failureErrors) pure (Admission.admit journal)
+    -- The bank records the cash receipt of the sale.
+    let bank = (100 .@ Not :< Cash) .| key (TxId "sale")
+    either (fail . show) pure $
+        Admission.checkEvidence accepted (Journal.projWithBase [Not :< Cash]) bank
+    unless (isLeft (Admission.admit unbalanced)) (fail "unbalanced journal admitted")
+    -- Reports come from the existing trial-balance and statement functions.
+    trialBalance <- either (fail . show) pure $
+        TrialBalance.validateTrialBalance TrialBalance.strictTrialBalancePolicy
+            (TrialBalance.TrialBalanceInput (Journal.toAlg (Admission.admittedJournal accepted))
+                TrialBalance.BeforeClosing Map.empty [] Set.empty)
+    statements <- either (fail . show) pure $
+        Presentation.present (Presentation.jcciSecondGradeContext Presentation.Standalone) trialBalance
+    mapM_ print (financialStatementRows statements)
