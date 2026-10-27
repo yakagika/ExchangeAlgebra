@@ -309,6 +309,12 @@
   validation. Call `present` with the trial balance and its stage, add the
   titles of `MaturityEvidenceRequired` rules to `_maturitySensitiveTitles`, and
   inspect `trialBalanceFindings` separately. They are removed before 0.6.0.0.
+- `bsRows`, `writeBS`, `plRows`, and `writePL` now warn. `bsRows` settles the
+  ledger internally, and `plRows` drops reversals of the same title. Use
+  `closingEntries`, then `present` with `AfterClosing`, then
+  `financialStatementRows` for the balance sheet, and `present` with
+  `BeforeClosing`, then `financialStatementRows` for the income statement.
+  They are removed before 0.6.0.0.
 - `relabel`, `scaleBy`, `divideBy`, `MulBy`, and `DivBy` from the per-posting
   transfer API now warn. Use `from .-> to |% Relabel` for an accounting
   transfer, or `TransferRule from to Relabel` from
