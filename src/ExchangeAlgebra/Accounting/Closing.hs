@@ -261,7 +261,7 @@ deriving instance Show (BasePart b) => Show (SettleError b)
 --
 -- A non-finite input, including at an excluded key, returns 'Left' with the
 -- first key in ascending order. Finite magnitudes above
--- 'ExchangeAlgebra.Algebra.Posting.postedUpperBound' are accepted, without passing
+-- 'ExchangeAlgebra.Algebra.Value.postingUpperBound' are accepted, without passing
 -- through 'ExchangeAlgebra.Algebra.Posting.posted'. No implicit @bar@ or @compress@ is
 -- applied. Complexity: O(b) for b input bases.
 -- Law: subject: each generated settlement pair; preconditions: all nets finite.
