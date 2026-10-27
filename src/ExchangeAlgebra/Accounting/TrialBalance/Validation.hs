@@ -5,26 +5,28 @@
 
 {- |
 Module      : ExchangeAlgebra.Accounting.TrialBalance.Validation
-Description : Explicit findings and policy gate between trial balances and reporting.
+Description : Accounting findings on trial balances, reported without blocking.
 
-An exactly balanced trial balance can still be unsuitable for financial
-statement preparation. This module detects reciprocal-account mismatches,
+An exactly balanced trial balance can still be abnormal for accounting
+purposes. 'trialBalanceFindings' reports reciprocal-account mismatches,
 temporary-account residuals, closing-device residuals, abnormal-side balances,
 and missing classification evidence independently of the double-entry balance
-check.
+check. It is an audit function: it never blocks a computation, and the caller
+(a person or a language model) decides how to treat each finding.
 
-Detection and acceptance are deliberately separate. 'trialBalanceFindings'
-always reports the facts it can observe; 'validateTrialBalance' applies a
-policy of type t'TrialBalancePolicy'. The module hides
-the constructor v'ValidatedTrialBalance'. No
-finding performs a reclassification automatically. A caller must record and
-apply a transfer, then validate the resulting trial balance again.
+Computation and audit are separate. Financial statements are prepared by
+'ExchangeAlgebra.Accounting.Statements.Presentation.present' directly from a
+trial balance, without consulting these findings. The policy gate
+('validateTrialBalance', t'TrialBalancePolicy', and v'ValidatedTrialBalance')
+is deprecated and will be removed before 0.6.0.0. No finding performs a
+reclassification automatically. A caller must record and apply a transfer,
+then inspect the resulting trial balance again.
 
-Validation uses exact equality. Prefer an exact value type such as
-@MoneyDecimal@ for deterministic accounting gates.
+Findings use exact equality. Prefer an exact value type such as
+@MoneyDecimal@ for deterministic accounting checks.
 
-Validate a cash contribution before preparing statements. The gate preserves
-the supplied postings and stage; it does not close or reclassify them.
+Inspect a cash contribution. The findings do not close or reclassify the
+supplied postings.
 
 >>> import qualified Data.Map.Strict as Map
 >>> import qualified Data.Set as Set
@@ -37,13 +39,8 @@ the supplied postings and stage; it does not close or reclassify them.
 >>> let equity = 100 Algebra..@ (Not :< CapitalStock) :: TrialBalance
 >>> let capital = cash Algebra..+ equity :: TrialBalance
 >>> let input = TrialBalanceInput capital BeforeClosing Map.empty [] Set.empty
->>> let accepted = validateTrialBalance strictTrialBalancePolicy input
 >>> trialBalanceFindings input
 []
->>> fmap (Algebra.norm . validatedTrialBalance) accepted == Right 200
-True
->>> fmap validatedStage accepted
-Right BeforeClosing
 -}
 module ExchangeAlgebra.Accounting.TrialBalance.Validation
     ( TrialBalanceStage(..)
@@ -241,6 +238,15 @@ trialBalanceFindings input
         (Side, _) -> NoBalance
         (Debit, value) -> DebitBalance value
         (Credit, value) -> CreditBalance value
+
+{-# DEPRECATED
+    ReciprocalPolicy, TemporaryBalancePolicy, TrialBalancePolicy,
+    strictTrialBalancePolicy, standaloneTrialBalancePolicy,
+    findingBlocksPresentation, ValidatedTrialBalance, validateTrialBalance,
+    validatedTrialBalance, validatedFindings, validatedPolicy, validatedStage,
+    validatedMaturityRequiredTitles
+    "Statements no longer require validation: call present with the trial balance and its stage, add the titles of MaturityEvidenceRequired rules to _maturitySensitiveTitles, and inspect trialBalanceFindings separately. Removed before 0.6.0.0."
+    #-}
 
 -- | Decide whether one finding blocks presentation under a chosen policy.
 findingBlocksPresentation :: TrialBalancePolicy -> TBFinding v -> Bool

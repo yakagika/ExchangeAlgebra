@@ -12,11 +12,21 @@ when only grouping, metrics, or presentation is needed.
 +--------------------------------+--------------------------------------------+
 | Derive a period result         | 'periodResultOf'                           |
 +--------------------------------+--------------------------------------------+
-| Present a validated balance    | 'present'                                  |
+| Present a trial balance        | 'present'                                  |
 +--------------------------------+--------------------------------------------+
 
-'present' accepts a validated trial balance and returns presentation results
-with their audit events. It does not alter bookkeeping coordinates.
+'present' accepts a trial balance over account titles and its stage, and
+returns presentation results with their audit events. It does not alter
+bookkeeping coordinates and does not judge whether the trial balance is normal
+for accounting purposes; inspect
+'ExchangeAlgebra.Accounting.TrialBalance.Validation.trialBalanceFindings' for
+that audit.
+
+Statements receive one reporting scope. A ledger with several axes (entity,
+period, department) is narrowed by the caller and mapped to account titles
+with 'ExchangeAlgebra.Algebra.Core.mapMaybePosting' or
+'ExchangeAlgebra.Algebra.Core.mapPosting' before presentation. The remaining
+axes are summed, and no axis name appears in the output.
 -}
 module ExchangeAlgebra.Accounting.Statements
     ( PresentationGroup(..)

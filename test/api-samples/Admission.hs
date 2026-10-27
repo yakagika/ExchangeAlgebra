@@ -32,10 +32,18 @@ main = do
         Admission.checkEvidence accepted (Journal.projWithBase [Not :< Cash]) bank
     unless (isLeft (Admission.admit unbalanced)) (fail "unbalanced journal admitted")
     -- Reports come from the existing trial-balance and statement functions.
-    trialBalance <- either (fail . show) pure $
-        TrialBalance.validateTrialBalance TrialBalance.strictTrialBalancePolicy
-            (TrialBalance.TrialBalanceInput (Journal.toAlg (Admission.admittedJournal accepted))
-                TrialBalance.BeforeClosing Map.empty [] Set.empty)
+    let trialBalance = Journal.toAlg (Admission.admittedJournal accepted)
     statements <- either (fail . show) pure $
-        Presentation.present (Presentation.jcciSecondGradeContext Presentation.Standalone) trialBalance
-    mapM_ print (financialStatementRows statements)
+        Presentation.present (Presentation.jcciSecondGradeContext Presentation.Standalone)
+            TrialBalance.BeforeClosing trialBalance
+    -- The audit of the trial balance is separate; this journal has no finding.
+    unless (null (TrialBalance.trialBalanceFindings
+            (TrialBalance.TrialBalanceInput trialBalance
+                TrialBalance.BeforeClosing Map.empty [] Set.empty)))
+        (fail "unexpected trial-balance finding")
+    rows <- either (fail . show) pure $
+        financialStatementRows
+            [Presentation.CurrentAssetsSection, Presentation.EquitySection,
+             Presentation.RevenueSection, Presentation.ExpenseSection]
+            statements
+    mapM_ print rows

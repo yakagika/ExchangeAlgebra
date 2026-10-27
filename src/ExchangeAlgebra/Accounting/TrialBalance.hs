@@ -1,19 +1,19 @@
 {- |
 Module      : ExchangeAlgebra.Accounting.TrialBalance
-Description : Compute and validate debit and credit account balances.
+Description : Compute debit and credit account balances and audit findings.
 
 Import this module for the complete trial-balance API. Import
 "ExchangeAlgebra.Accounting.TrialBalance.Balance" for balance calculations or
-"ExchangeAlgebra.Accounting.TrialBalance.Validation" for validation alone.
+"ExchangeAlgebra.Accounting.TrialBalance.Validation" for findings alone.
 
 +--------------------------------------+-------------------------------------------+
 | Task                                 | Entry point                               |
 +======================================+===========================================+
 | Aggregate account balances           | 'accountBalances'                         |
 +--------------------------------------+-------------------------------------------+
-| Validate a trial balance             | 'validateTrialBalance'                    |
+| Report accounting findings           | 'trialBalanceFindings'                    |
 +--------------------------------------+-------------------------------------------+
-| Read findings from a validated value | 'validatedFindings'                       |
+| Validate under a policy (deprecated) | 'validateTrialBalance'                    |
 +--------------------------------------+-------------------------------------------+
 
 'accountBalances' returns account balances directed by 'DebitBalance' or

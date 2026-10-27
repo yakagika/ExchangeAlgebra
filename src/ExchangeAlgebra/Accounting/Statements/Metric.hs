@@ -41,7 +41,7 @@ import           ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
 import           ExchangeAlgebra.Accounting.Exchange
                      ( ExBaseClass(getAccountTitle, whichSide) )
 import           ExchangeAlgebra.Algebra.Base.Representation
-                     ( Hat(..), HatBaseClass(hat) )
+                     ( Hat(..), HatBase, HatBaseClass(hat) )
 import qualified ExchangeAlgebra.Accounting.TrialBalance.Validation as TB
 
 -- | Stable identity for a caller-defined metric.  Display labels are supplied
@@ -80,6 +80,9 @@ data MetricError
   = MetricNotAvailableAtStage TB.TrialBalanceStage
   | ResidualDerivedCoordinate AccountTitles
   | WildcardMetricSide AccountTitles
+  | WildcardMetricAccount
+    -- ^ A posting carries the wildcard account title, so its statement
+    -- division cannot be determined.
   | InvalidMetricValue AccountTitles
   deriving (Show, Eq)
 
@@ -131,23 +134,31 @@ periodResultOfAlg alg
                 Side -> totals
         | otherwise = totals
 
--- | Derive a period result from an accepted before-closing trial balance.
+-- | Derive a period result from a before-closing trial balance.
+-- The stage is stated by the caller; an after-closing trial balance has no
+-- nominal balances left, so it is rejected instead of reporting break-even.
+-- Invalid values, wildcard sides, and the wildcard account title are rejected
+-- before any balance is accumulated, because accumulation determines the
+-- debit or credit side of every posting.
 -- A non-zero legacy derived coordinate is rejected to prevent a caller from
 -- treating an already-derived balancing item as another nominal account.
 -- Consolidation attribution coordinates do not participate, so the result is
 -- the period result before attribution to owners and non-controlling interests.
+-- No accounting finding is consulted; inspect
+-- 'ExchangeAlgebra.Accounting.TrialBalance.Validation.trialBalanceFindings'
+-- separately when the trial balance must also be audited.
 periodResultOf
     :: HatVal v
-    => TB.ValidatedTrialBalance v
+    => TB.TrialBalanceStage
+    -> Alg v (HatBase AccountTitles)
     -> Either MetricError (PeriodResult v)
-periodResultOf validated
-    | TB.validatedStage validated /= TB.BeforeClosing =
-        Left (MetricNotAvailableAtStage (TB.validatedStage validated))
+periodResultOf stage alg
+    | stage /= TB.BeforeClosing =
+        Left (MetricNotAvailableAtStage stage)
+    | issue : _ <- metricStructureErrors alg = Left issue
     | legacy : _ <- nonZeroLegacyTitles alg =
         Left (ResidualDerivedCoordinate legacy)
     | otherwise = periodResultOfAlg alg
-  where
-    alg = TB.validatedTrialBalance validated
 
 isStatementNominal :: AccountTitles -> Bool
 isStatementNominal title = case accountSemantics title of
@@ -156,6 +167,14 @@ isStatementNominal title = case accountSemantics title of
         StatementDivision Revenue -> True
         _ -> False
     Nothing -> False
+
+-- | Invalid values, wildcard sides, and the wildcard account title, found
+-- without determining any posting side.
+metricStructureErrors
+    :: HatVal v
+    => Alg v (HatBase AccountTitles)
+    -> [MetricError]
+metricStructureErrors = undefined -- D3
 
 nonZeroLegacyTitles
     :: (HatVal v, ExBaseClass b)

@@ -239,6 +239,9 @@ groupCells totals defs blocks =
 -- ["Total","900.0","",""]
 --
 -- Complexity: O(s log(b + 1)) (s = scalar entries, b = distinct full bases)
+{-# DEPRECATED bsRows, writeBS
+    "bsRows settles the ledger internally. Use closingEntries, then present with AfterClosing, then financialStatementRows. Removed before 0.6.0.0."
+    #-}
 bsRows :: (HatVal n, HatBaseClass b, ExBaseClass b) => Alg n b -> [[T.Text]]
 bsRows alg = result
   where
@@ -388,6 +391,9 @@ writeBS path alg = writeCSV path (bsRows alg)
 -- ["Total","450.0","Total","300.0"]
 --
 -- Complexity: O(s) (s = total number of scalar entries)
+{-# DEPRECATED plRows, writePL
+    "plRows drops reversals of the same title. Use present with BeforeClosing, then financialStatementRows. Removed before 0.6.0.0."
+    #-}
 plRows :: (HatVal n, HatBaseClass b, ExBaseClass b) => Alg n b -> [[T.Text]]
 plRows alg = result
   where
@@ -743,30 +749,24 @@ accountGroupBalances = OMap.map readPair
 --
 -- > Debit Balance | Debit Total | Account Title | Credit Total | Credit Balance
 --
--- __Legacy column-placement quirk (preserved verbatim):__ unlike
--- 'worksheetRows'\/'postClosingTrialBalanceRows' (which route a @(side,mag)@
--- balance through @sideCells@, putting a Debit balance in the Debit cell and
--- a Credit balance in the Credit cell), this layout places the balance
--- figure in the column pair /opposite/ the netted side: a debit-heavy
--- account's balance lands in the __Credit Balance__ (rightmost) column, and a
--- credit-heavy account's balance lands in the __Debit Balance__ (leftmost)
--- column — see the example below. Reusing @sideCells@ here would require
--- flipping 'Debit'\/'Credit' first, which is no clearer than the explicit
--- case analysis in @step@ below, so this was kept as-is rather than
--- consolidated (design-review C7) to guarantee output is unchanged.
+-- A debit-heavy account's balance is in the __Debit Balance__ (leftmost)
+-- column and a credit-heavy account's balance is in the __Credit Balance__
+-- (rightmost) column, as in 'worksheetRows' and
+-- 'postClosingTrialBalanceRows'. The Total row sums each column. Releases up
+-- to 0.5.3.1 placed each balance in the opposite column.
 --
 -- ==== __Examples__
 --
 -- Cash is debit-heavy (gross debit 100, credit 0); CapitalStock and
--- LoansPayable are credit-heavy. Note where each balance figure lands:
+-- LoansPayable are credit-heavy:
 --
 -- >>> type T = Alg Double (HatBase AccountTitles)
 -- >>> let alg = (100 .@ Not:<Cash) .+ (60 .@ Not:<LoansPayable) .+ (40 .@ Not:<CapitalStock) :: T
 -- >>> mapM_ print (compoundTrialBalanceRows alg)
 -- ["Debit Balance","Debit Total","Account Title","Credit Total","Credit Balance"]
--- ["","100.0","Cash","0.0","100.0"]
--- ["40.0","0.0","CapitalStock","40.0",""]
--- ["60.0","0.0","LoansPayable","60.0",""]
+-- ["100.0","100.0","Cash","0.0",""]
+-- ["","0.0","CapitalStock","40.0","40.0"]
+-- ["","0.0","LoansPayable","60.0","60.0"]
 -- ["100.0","100.0","Total","100.0","100.0"]
 --
 -- Complexity: O(s) (single pass over s scalar entries; see @accountGrossTotals@)
@@ -832,8 +832,7 @@ compoundTrialBalanceRows alg =
 -- Calculates the debit total, credit total, and balance for each account
 -- title and outputs as a table. Pure layout is delegated to
 -- 'compoundTrialBalanceRows'; this function only writes the file. See
--- 'compoundTrialBalanceRows' for the column layout (including the legacy
--- Debit\/Credit Balance placement quirk).
+-- 'compoundTrialBalanceRows' for the column layout.
 --
 -- Complexity: O(s) (single pass over s scalar entries; see
 -- 'compoundTrialBalanceRows')

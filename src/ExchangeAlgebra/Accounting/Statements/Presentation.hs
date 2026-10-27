@@ -4,18 +4,27 @@
 
 {- |
 Module      : ExchangeAlgebra.Accounting.Statements.Presentation
-Description : Context-sensitive JGAAP presentation from validated trial balances.
+Description : Context-sensitive JGAAP presentation from trial balances.
 
-This module is the reporting boundary: presentation accepts only an opaque
-'TB.ValidatedTrialBalance'. Bookkeeping coordinates remain unchanged; all
-eliminations, relabelings, maturity allocations, netting decisions, and
-subtotals are recorded as presentation audit events.
+This module is the reporting boundary between a trial balance and presented
+statements. 'present' computes statements whenever a correct statement can be
+computed; it does not judge whether the trial balance is normal for
+accounting purposes. Abnormal-side balances (for example a deficit in
+retained earnings), temporary-account residuals, reciprocal-account
+mismatches, and unclosed nominal balances are reported separately by
+'TB.trialBalanceFindings', and the caller decides how to treat them.
+Presentation fails only when no correct statement exists: an invalid value,
+a wildcard account or side, a trial balance whose debits and credits differ,
+a conflicting presentation instruction, a balance on a title that no
+statement section can hold, debits and credits that do not reconcile after
+presentation, or a period result that cannot be derived.
+Bookkeeping coordinates remain unchanged; all eliminations, relabelings,
+maturity allocations, netting decisions, and subtotals are recorded as
+presentation audit events.
 
-Present a validated cash contribution with the standalone reporting context.
+Present a cash contribution with the standalone reporting context.
 Read amounts and sections without relying on the order of statement lines.
 
->>> import qualified Data.Map.Strict as Map
->>> import qualified Data.Set as Set
 >>> import qualified ExchangeAlgebra.Algebra.Core as Algebra
 >>> import ExchangeAlgebra.Algebra.Base.Representation (Hat(..), HatBase(..))
 >>> import ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
@@ -24,20 +33,18 @@ Read amounts and sections without relying on the order of statement lines.
 >>> let cash = 100 Algebra..@ (Not :< Cash) :: TrialBalance
 >>> let equity = 100 Algebra..@ (Not :< CapitalStock) :: TrialBalance
 >>> let capital = cash Algebra..+ equity :: TrialBalance
->>> let input = TB.TrialBalanceInput capital TB.BeforeClosing Map.empty [] Set.empty
->>> let validated = TB.validateTrialBalance TB.standaloneTrialBalancePolicy input
 >>> let context = jcciSecondGradeContext Standalone
->>> let statements = fmap (present context) validated
->>> fmap (fmap (length . _statementLines)) statements
-Right (Right 2)
->>> fmap (fmap (sum . map _lineAmount . _statementLines)) statements == Right (Right 200)
+>>> let statements = present context TB.BeforeClosing capital
+>>> fmap (length . _statementLines) statements
+Right 2
+>>> fmap (sum . map _lineAmount . _statementLines) statements == Right 200
 True
 >>> let isCash line = _lineAccount line == Cash
 >>> let isCurrent line = _lineSection line == CurrentAssetsSection
 >>> let isCurrentCash line = isCash line && isCurrent line
 >>> let hasCurrentCash = any isCurrentCash . _statementLines
->>> fmap (fmap hasCurrentCash) statements
-Right (Right True)
+>>> fmap hasCurrentCash statements
+Right True
 -}
 module ExchangeAlgebra.Accounting.Statements.Presentation
     ( AccountingFramework(..)
@@ -74,6 +81,8 @@ import           Data.Set (Set)
 import           Data.Text (Text)
 import qualified Data.Text as T
 
+import           ExchangeAlgebra.Algebra.Base.Representation (HatBase)
+import           ExchangeAlgebra.Algebra.Core.Representation (Alg)
 import           ExchangeAlgebra.Algebra.Value.Class (HatVal(..))
 import           ExchangeAlgebra.Accounting.Account.Classification
                      ( AccountDivision(..)
@@ -89,7 +98,7 @@ import           ExchangeAlgebra.Accounting.Account.Registry
 import           ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
 import qualified ExchangeAlgebra.Accounting.Account.Registry as Registry
 import           ExchangeAlgebra.Accounting.Statements.Metric
-                     ( DerivedMetric(..), MetricId )
+                     ( DerivedMetric(..), MetricError, MetricId, periodResultOf )
 import qualified ExchangeAlgebra.Accounting.TrialBalance.Validation as TB
 import           ExchangeAlgebra.Accounting.TrialBalance.Balance
                      ( balanceAmount
@@ -246,8 +255,22 @@ data PresentationAuditEvent v
   | LabelOverridden AccountTitles Text Text
   deriving (Show, Eq)
 
+-- | Reasons why no correct statement can be presented. Accounting
+-- abnormalities that still allow a statement are not issues; they are
+-- reported by 'TB.trialBalanceFindings'.
 data PresentationIssue v
-  = ValidationFindingBlocks (TB.TBFinding v)
+  = InvalidStatementValue AccountTitles
+    -- ^ A posting value is invalid (for example NaN or infinite).
+  | WildcardStatementBase
+    -- ^ An account title or a Hat/Not side is a wildcard, so the debit or
+    -- credit side cannot be determined.
+  | UnbalancedStatementInput v v
+    -- ^ Debit and credit totals of the trial balance before any
+    -- presentation step. Checked before reciprocal accounts are eliminated,
+    -- so the elimination cannot hide an original imbalance.
+  | PeriodResultUnavailable MetricError
+    -- ^ The before-closing period result cannot be derived, so the mandatory
+    -- period-result subtotal cannot be presented.
   | MissingPresentationAllocation AccountTitles
   | DuplicatePresentationAllocation AccountTitles
   | InvalidPresentationAllocation
@@ -331,18 +354,44 @@ metricLabel context metric balance = case metric of
 -- | Prepare statements using exact posting balances for transformations,
 -- allocations, subtotals, and reconciliation. Each displayed amount is rounded
 -- once. The sum of displayed amounts is not guaranteed to equal its subtotal.
+--
+-- The trial balance is a single reporting scope over account titles: select
+-- an entity, period, or department and map it to account titles before calling
+-- this function. The stage is stated by the caller. A 'TB.BeforeClosing' trial
+-- balance always receives a 'PeriodResultMetric' subtotal derived as
+-- 'periodResultOf' derives it; a caller-supplied 'PeriodResultMetric'
+-- definition is rejected with 'InvalidSubtotalDefinition'. An
+-- 'TB.AfterClosing' trial balance receives no period-result subtotal.
+-- Presentation instructions that move a balance between a profit-and-loss
+-- title and a balance-sheet title (relabels, materiality netting, contra
+-- netting, and maturity allocations) are rejected with
+-- 'ConflictingPresentationInstruction', so the period-result subtotal always
+-- equals the exact sum of the revenue and expense balances. A maturity
+-- allocation or a maturity-sensitive title must be an asset or a liability.
+--
+-- Titles whose balance must be split between current and noncurrent are the
+-- union of '_maturitySensitiveTitles' and the implicitly maturity-sensitive
+-- titles. A caller migrating from the deprecated validation gate adds every
+-- title of its @MaturityEvidenceRequired@ rules to '_maturitySensitiveTitles';
+-- otherwise those balances are not required to be split.
+--
+-- Success does not mean that the trial balance is normal for accounting
+-- purposes. A balance on the side opposite to its home side is presented in
+-- its own section on the side it actually has; inspect
+-- 'TB.trialBalanceFindings' to audit it.
 present
     :: HatVal v
     => ReportingContext v
-    -> TB.ValidatedTrialBalance v
+    -> TB.TrialBalanceStage
+    -> Alg v (HatBase AccountTitles)
     -> Either (NonEmpty (PresentationIssue v)) (FinancialStatements v)
-present context validated = case issues of
+present context stage alg = case issues of
     issue : rest -> Left (issue :| rest)
     [] -> Right FinancialStatements
         { _statementFramework = framework
         , _statementScope = _reportingScope context
         , _statementProfile = _presentationProfile context
-        , _statementTrialBalanceStage = TB.validatedStage validated
+        , _statementTrialBalanceStage = stage
         , _statementLines = statementLines
         , _statementSubtotals = subtotals
         , _presentationAudit = eliminationAudit
@@ -352,21 +401,16 @@ present context validated = case issues of
   where
     framework = case _reportingFramework context of
         JGAAP -> JGAAP
-    initialStates = Accum.accountAccums (TB.validatedTrialBalance validated)
+    initialStates = Accum.accountAccums alg
     initial = M.map accumulatedBalance initialStates
-    gatePolicy = case _reportingScope context of
-        Standalone -> TB.standaloneTrialBalancePolicy
-        Combined -> TB.strictTrialBalancePolicy
-    gateIssues = map ValidationFindingBlocks
-        (filter (TB.findingBlocksPresentation gatePolicy)
-            (TB.validatedFindings validated))
+    structuralIssues = case statementStructureIssues alg of
+        [] -> inputBalanceIssues initialStates
+        issues' -> issues'
     (eliminated, eliminationAudit) = eliminateReciprocals context initialStates
     (relabeled, relabelAudit) = applyRelabels context eliminated
     (materialized, materialityAudit) = applyMateriality context relabeled
     (transformed, contraAudit) = applyContraRules context materialized
-    explicitRequired = S.union
-        (TB.validatedMaturityRequiredTitles validated)
-        (_maturitySensitiveTitles context)
+    explicitRequired = _maturitySensitiveTitles context
     requiredMaturity = S.union explicitRequired
         (implicitMaturityTitles displayedBalances)
     displayedBalances = M.map accumulatedBalance transformed
@@ -376,14 +420,18 @@ present context validated = case issues of
         ++ subtotalIssues context initial displayedBalances
         ++ coverageIssues displayedBalances
         ++ reconciliationIssues context transformed
-    issues = gateIssues ++ contextIssues
+    issues
+        | not (null structuralIssues) = structuralIssues
+        | otherwise = contextIssues ++ periodResultIssues
+    (periodResultIssues, periodResultSubtotals) =
+        periodResultSubtotal context stage alg
     allocationAudit =
         [ BalanceAllocated title current noncurrent evidence
         | PresentationAllocation title current noncurrent evidence
             <- _presentationAllocations context
         , balanceFor title displayedBalances /= TB.NoBalance
         ]
-    subtotals =
+    subtotals = periodResultSubtotals ++
         [ StatementSubtotal metric label balance
         | SubtotalDefinition metric credits debits _ <-
             _subtotalDefinitions context
@@ -639,6 +687,34 @@ implicitMaturityTitles balances = S.fromList
     , StatementDivision division <- [asemDivisionSemantics semantics]
     , division `elem` [Assets, Liability]
     ]
+
+-- | Invalid values and wildcard bases, which leave the debit or credit side
+-- undetermined. When this list is non-empty, no other check is evaluated,
+-- because the account accumulation relies on a determined side.
+statementStructureIssues
+    :: HatVal v
+    => Alg v (HatBase AccountTitles)
+    -> [PresentationIssue v]
+statementStructureIssues = undefined -- D3
+
+-- | Exact debit and credit totals of the trial balance before elimination,
+-- relabeling, netting, or allocation; empty when they are equal.
+inputBalanceIssues
+    :: HatVal v
+    => Map AccountTitles (Accum v)
+    -> [PresentationIssue v]
+inputBalanceIssues = undefined -- D3
+
+-- | The mandatory period-result subtotal of a before-closing trial balance,
+-- derived as 'periodResultOf' derives it, or the issue that prevents it. An
+-- after-closing trial balance yields neither.
+periodResultSubtotal
+    :: HatVal v
+    => ReportingContext v
+    -> TB.TrialBalanceStage
+    -> Alg v (HatBase AccountTitles)
+    -> ([PresentationIssue v], [StatementSubtotal v])
+periodResultSubtotal = undefined -- D3
 
 coverageIssues
     :: Map AccountTitles (TB.AccountBalance v) -> [PresentationIssue v]
