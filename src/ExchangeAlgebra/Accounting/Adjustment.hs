@@ -10,7 +10,7 @@
     == Named closing adjustments (決算整理)
 
     Each function computes one textbook closing adjustment of the JCCI grade-3
-    range and returns only the entry to add. Values already in the books are
+    or grade-2 range and returns only the entry to add. Values already in the books are
     read from the books; only values the books do not hold (months, residual
     value, rates, period-end counts) are arguments. No function calls @bar@ on
     its input or result.
@@ -72,6 +72,25 @@ module ExchangeAlgebra.Accounting.Adjustment
     , overdraftReclassification
     , consumptionTaxSettlement
     , corporateTaxSettlement
+      -- * Grade-2 depreciation and amortization
+    , ProductionTerms(..)
+    , unitsOfProductionDepreciation
+    , AmortizationTerms(..)
+    , amortizedCostAdjustment
+      -- * Grade-2 allowances
+    , bonusAllowanceReplenishment
+    , repairAllowanceReplenishment
+    , productWarrantyAllowanceReplenishment
+    , retirementBenefitProvision
+      -- * Securities valuation
+    , tradingSecuritiesValuation
+    , availableForSaleValuation
+      -- * Inventory shrinkage and valuation
+    , PhysicalInventory(..)
+    , inventoryShrinkageAndValuation
+      -- * Foreign currency translation and tax effects
+    , foreignCurrencyTranslation
+    , deferredTaxAssetAdjustment
     ) where
 
 import Control.Monad (foldM, when)
@@ -240,11 +259,17 @@ data AdjustmentProblem
     | MonthsExceedTerm Natural Natural
       -- ^ Months of the share, then the months of the whole term.
     | ScheduleFinished Natural Natural
-      -- ^ Months already depreciated, then the useful life; nothing remains.
+      -- ^ Progress already booked (months, or units for
+      -- 'unitsOfProductionDepreciation'), then the whole term in the same
+      -- unit; nothing remains.
     | ResidualNotBelowCost MoneyDecimal MoneyDecimal
       -- ^ Residual value, then cost; the depreciable amount is not positive.
     | ExceedsBalance AccountTitles MoneyDecimal MoneyDecimal
       -- ^ Account, requested amount, then the balance it may not exceed.
+    | TaxExceedsDifference MoneyDecimal MoneyDecimal
+      -- ^ Rounded tax, then the valuation difference it may not exceed; the
+      -- rounding rule leaves no nonnegative remainder for the valuation
+      -- difference account.
     deriving (Eq, Show)
 
 -- | Require a concrete account of the division with its ordinary home side.
@@ -635,3 +660,204 @@ corporateTaxSettlement total ledger = do
     interim <- readAccountBalance PrepaidCorporateIncomeTaxes ledger
     when (interim > total) $ Left (ExceedsBalance PrepaidCorporateIncomeTaxes interim total)
     pure (corporateTaxSettlementEntries (:<) total interim)
+
+------------------------------------------------------------
+-- Grade-2 depreciation and amortization
+------------------------------------------------------------
+
+-- | Terms of the units-of-production method (生産高比例法). Quantities are
+-- natural numbers; the allocation is a ratio, so a fractional quantity can be
+-- stated in a finer unit (for example 0.1 km as 1 unit of 100 m).
+data ProductionTerms = ProductionTerms
+    { productionResidual :: MoneyDecimal
+      -- ^ Residual value.
+    , productionTotal    :: Natural
+      -- ^ Estimated total units over the asset's life.
+    , productionPrior    :: [Natural]
+      -- ^ Units used in each earlier period, oldest first.
+    , productionCurrent  :: Natural
+      -- ^ Units used in this period.
+    }
+    deriving (Eq, Show)
+
+-- | Depreciation of one asset by the units-of-production method (生産高比例法),
+-- recorded by the chosen method. The cost is read as in
+-- 'straightLineDepreciation'. Each period books
+-- @(cost - residual) * units / total@, rounded by the rule; the period in
+-- which the cumulative units reach the total books the whole remainder, so
+-- the book value stops at the residual value even when the units used exceed
+-- the estimate. Zero units this period yields the empty entry. Fails with
+-- 'NonPositiveArgument' when the total is zero and with 'ScheduleFinished'
+-- when the earlier periods already reached the total.
+unitsOfProductionDepreciation
+    :: AdjustmentRounding
+    -> DepreciationMethod
+    -> AccountTitles
+    -> SourceAmount
+    -> ProductionTerms
+    -> Either AdjustmentProblem Entry
+unitsOfProductionDepreciation = undefined
+
+-- | Term of a held-to-maturity bond under the amortized cost method
+-- (償却原価法, straight-line).
+data AmortizationTerms = AmortizationTerms
+    { amortizationMonths       :: Natural
+      -- ^ Months from acquisition to maturity.
+    , amortizationPriorPeriods :: [Natural]
+      -- ^ Months amortized in each earlier period, oldest first.
+    , amortizationPeriodMonths :: Natural
+      -- ^ Months of this period.
+    }
+    deriving (Eq, Show)
+
+-- | Amortize the difference between the face value and the acquisition cost
+-- of one 'HeldToMaturityBonds' holding (償却原価法, straight-line) against
+-- 'InterestOnSecurities'. The cost is read from the source amount; the face
+-- value is an argument. Each period books
+-- @|face - cost| * months / amortizationMonths@, rounded by the rule, and the
+-- final period books the remainder, as in 'straightLineDepreciation'. A face
+-- value above cost debits the bond and credits interest; below cost, the
+-- reverse. Equal values yield the empty entry. Fails with
+-- 'NonPositiveArgument' for a zero face value or zero term, 'EmptyMonths' for
+-- a zero period, and 'ScheduleFinished' when the earlier periods already
+-- covered the term.
+amortizedCostAdjustment
+    :: AdjustmentRounding
+    -> SourceAmount
+    -> MoneyDecimal
+    -> AmortizationTerms
+    -> Either AdjustmentProblem Entry
+amortizedCostAdjustment = undefined
+
+------------------------------------------------------------
+-- Grade-2 allowances
+------------------------------------------------------------
+
+-- | Replenish 'AllowanceForBonuses' (賞与引当金) to the period-end estimate
+-- read against its ledger balance (差額補充法). An estimate above the balance
+-- debits 'ProvisionForBonuses'; below it, the excess is credited to
+-- 'ReversalOfAllowanceForBonuses'. An equal estimate yields the empty entry.
+-- Fails with 'NegativeArgument' for a negative estimate and
+-- 'UnexpectedBalanceSide' for a debit balance.
+bonusAllowanceReplenishment :: MoneyDecimal -> Entry -> Either AdjustmentProblem Entry
+bonusAllowanceReplenishment = undefined
+
+-- | As 'bonusAllowanceReplenishment' for 'AllowanceForRepairs' (修繕引当金),
+-- with 'ProvisionForRepairs' and 'ReversalOfAllowanceForRepairs'.
+repairAllowanceReplenishment :: MoneyDecimal -> Entry -> Either AdjustmentProblem Entry
+repairAllowanceReplenishment = undefined
+
+-- | As 'bonusAllowanceReplenishment' for 'AllowanceForProductWarranties'
+-- (商品保証引当金), with 'ProvisionForProductWarranties' and
+-- 'ReversalOfAllowanceForProductWarranties'.
+productWarrantyAllowanceReplenishment :: MoneyDecimal -> Entry -> Either AdjustmentProblem Entry
+productWarrantyAllowanceReplenishment = undefined
+
+-- | Book the stated provision for retirement benefits (退職給付引当金): debit
+-- 'RetirementBenefitExpenses', credit 'AllowanceForRetirementBenefits'. The
+-- amount is given; computing the obligation is outside grade 2. Fails with
+-- 'NonPositiveArgument' unless the amount is positive.
+retirementBenefitProvision :: MoneyDecimal -> Either AdjustmentProblem Entry
+retirementBenefitProvision = undefined
+
+------------------------------------------------------------
+-- Securities valuation
+------------------------------------------------------------
+
+-- | Revalue 'TradingSecurities' (売買目的有価証券) to the stated total fair
+-- value. The book value is the ledger balance. A gain is credited to
+-- 'GainOnValuationOfSecurities', a loss debited to
+-- 'LossOnValuationOfSecurities'; equal values yield the empty entry. The
+-- entry suits the 切放法; under the 洗替法 the caller reverses it at the start
+-- of the next period with 'ExchangeAlgebra.Accounting.Entries.reversingEntry'.
+-- Fails with 'NegativeArgument' for a negative fair value.
+tradingSecuritiesValuation :: MoneyDecimal -> Entry -> Either AdjustmentProblem Entry
+tradingSecuritiesValuation = undefined
+
+-- | Revalue 'AvailableForSaleSecurities' (その他有価証券) to the stated total
+-- fair value under the full net-assets method (全部純資産直入法). The book value
+-- is the ledger balance, so the ledger must already contain the reversal of
+-- the previous period's valuation. With no tax rate, the whole difference goes
+-- to 'ValuationDifferenceOnOtherSecurities'. With a rate, the difference times
+-- the rate is rounded once by the rule and booked to 'DeferredTaxLiabilities'
+-- for a gain or 'DeferredTaxAssets' for a loss, and the rest to the valuation
+-- difference; 'IncomeTaxesAdjustment' is not used. The rounding rule is used
+-- only with a rate. Equal values yield the empty entry. Fails with
+-- 'NegativeArgument' for a negative fair value and 'TaxExceedsDifference'
+-- when the rounded tax exceeds the difference.
+availableForSaleValuation
+    :: AdjustmentRounding
+    -> Maybe BasisPoints
+    -> MoneyDecimal
+    -> Entry
+    -> Either AdjustmentProblem Entry
+availableForSaleValuation = undefined
+
+------------------------------------------------------------
+-- Inventory shrinkage and valuation
+------------------------------------------------------------
+
+-- | Period-end physical inventory of one item or valuation group.
+data PhysicalInventory = PhysicalInventory
+    { physicalAtCost               :: MoneyDecimal
+      -- ^ Physical quantity times unit cost (実地棚卸高, 原価).
+    , physicalAtNetRealizableValue :: MoneyDecimal
+      -- ^ Physical quantity times net realizable value (正味売却価額).
+    }
+    deriving (Eq, Show)
+
+-- | Book inventory shrinkage (棚卸減耗損) and the write-down of merchandise
+-- (商品評価損) against 'MerchandiseInventory'. The book inventory is the
+-- ledger balance, so the ledger must already contain the cost-of-goods-sold
+-- entries ('cogsPeriodic'), and the list must cover every item. Shrinkage is
+-- the book inventory minus the total physical inventory at cost. The
+-- write-down is computed per item: cost minus net realizable value when
+-- positive, otherwise zero, so a gain on one item never offsets a loss on
+-- another. Transferring either loss to cost of sales is left to
+-- "ExchangeAlgebra.Accounting.Transfer". Fails with 'NegativeArgument' for a
+-- negative amount and 'ExceedsBalance' when the physical inventory at cost
+-- exceeds the book inventory.
+inventoryShrinkageAndValuation
+    :: NonEmpty PhysicalInventory
+    -> Entry
+    -> Either AdjustmentProblem Entry
+inventoryShrinkageAndValuation = undefined
+
+------------------------------------------------------------
+-- Foreign currency translation and tax effects
+------------------------------------------------------------
+
+-- | Translate one foreign-currency receivable or payable at the closing
+-- rate (外貨建債権債務の換算). The yen book value is read from the source
+-- amount; the foreign amount and the closing rate (yen per unit) are
+-- arguments, and their product is rounded once by the rule. For an asset
+-- account an increase is a gain ('ForeignExchangeGains') and a decrease a
+-- loss ('ForeignExchangeLosses'); for a liability the reverse. Equal values
+-- yield the empty entry. Fails with 'NotInDivision' unless the account is
+-- an asset or liability, 'ContraAccount' for a contra account, and
+-- 'NegativeArgument' for a negative amount or rate.
+foreignCurrencyTranslation
+    :: AdjustmentRounding
+    -> AccountTitles
+    -> SourceAmount
+    -> MoneyDecimal
+    -> MoneyDecimal
+    -> Either AdjustmentProblem Entry
+foreignCurrencyTranslation = undefined
+
+-- | Adjust 'DeferredTaxAssets' (繰延税金資産) for deductible temporary
+-- differences against 'IncomeTaxesAdjustment' (法人税等調整額). The target is
+-- the stated period-end total of the differences times the rate, rounded once
+-- by the rule; the ledger balance of 'DeferredTaxAssets' is moved to the
+-- target. Differences on available-for-sale securities are excluded: they are
+-- booked by 'availableForSaleValuation' without 'IncomeTaxesAdjustment', so the
+-- ledger must not contain this period's valuation of those securities.
+-- Equal amounts yield the empty entry. Fails with 'NegativeArgument' for a
+-- negative total and 'UnexpectedBalanceSide' for a credit balance.
+deferredTaxAssetAdjustment
+    :: AdjustmentRounding
+    -> BasisPoints
+    -> MoneyDecimal
+    -> Entry
+    -> Either AdjustmentProblem Entry
+deferredTaxAssetAdjustment = undefined
