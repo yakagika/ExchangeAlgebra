@@ -6,20 +6,22 @@ import Data.List.NonEmpty (NonEmpty(..))
 import Numeric.Natural (Natural)
 import ExchangeAlgebra.Accounting.Account (AccountDivision(..), AccountTitles(..), Side(..))
 import ExchangeAlgebra.Accounting.Adjustment
-import ExchangeAlgebra.Accounting.Exchange (Exchange(..))
+import ExchangeAlgebra.Accounting.Exchange (Exchange(..), projByAccountTitle)
+import ExchangeAlgebra.Accounting.Entries (reversingEntry)
 import ExchangeAlgebra.Accounting.Transaction (Entry)
 import ExchangeAlgebra.Algebra.Base (Hat(..), HatBase(..))
-import ExchangeAlgebra.Algebra.Core (Redundant(..), (.@))
+import ExchangeAlgebra.Algebra.Core (Redundant(..), (.@), toList)
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 import Support (assertEqual)
 
--- | Check the expected net entry and the unaggregated debit and credit totals.
+-- | Check the expected net entry, debit and credit totals, and nonnegative postings.
 expectEntry :: String -> Either AdjustmentProblem Entry -> Entry -> IO ()
 expectEntry label result expected = case result of
     Left problem -> fail (label ++ ": " ++ show problem)
     Right entry -> do
         assertEqual label (bar expected) (bar entry)
         assertEqual (label ++ " balanced") (norm (decL entry)) (norm (decR entry))
+        assertEqual (label ++ " nonnegative postings") True (all ((>= 0) . norm) (toList entry))
 
 -- | Check rounding, source selection, schedules, and the named adjustments.
 runTests :: IO ()
@@ -273,3 +275,181 @@ runTests = do
         (cogsPeriodic mempty (-1))
     assertEqual "nonpositive tax total" (Left (NonPositiveArgument 0))
         (corporateTaxSettlement 0 mempty)
+
+    -- Units-of-production periods retain rounded history and the final remainder.
+    let production :: [Natural] -> Natural -> Either AdjustmentProblem Entry
+        production prior current = unitsOfProductionDepreciation down IndirectMethod Vehicle
+            (StatedAmount 110) (ProductionTerms 10 3 prior current)
+        productionSchedule = [production [] 1, production [1] 1, production [1, 1] 1]
+    forM_ (zip productionSchedule [33, 33, 34]) $ \(entry, amount) ->
+        expectEntry "production schedule" entry
+            (   amount .@ Not :< Depreciation
+             .+ amount .@ Not :< AccumulatedDepreciation)
+    assertEqual "production total cost less residual" (Right 100)
+        (sum <$> traverse (fmap (norm . decL)) productionSchedule)
+    expectEntry "production passes estimated total" (production [1, 1] 2)
+        (   34 .@ Not :< Depreciation
+         .+ 34 .@ Not :< AccumulatedDepreciation)
+    expectEntry "zero current production" (production [1] 0) mempty
+    expectEntry "zero production skips inexact prior charges"
+        (unitsOfProductionDepreciation ExactOnly IndirectMethod Vehicle
+            (StatedAmount 110) (ProductionTerms 10 3 [1] 0)) mempty
+    expectEntry "direct production"
+        (unitsOfProductionDepreciation down DirectMethod Vehicle
+            (StatedAmount 110) (ProductionTerms 10 3 [] 1))
+        (   33 .@ Not :< Depreciation
+         .+ 33 .@ Hat :< Vehicle)
+    assertEqual "zero estimated production" (Left (NonPositiveArgument 0))
+        (unitsOfProductionDepreciation down IndirectMethod Vehicle
+            (StatedAmount 110) (ProductionTerms 10 0 [] 1))
+    assertEqual "production schedule finished" (Left (ScheduleFinished 3 3))
+        (production [1, 2] 1)
+
+    -- Both discounts and premiums amortize 100 over three periods: 33, 33, 34.
+    let amortization :: MoneyDecimal -> [Natural] -> Natural -> Either AdjustmentProblem Entry
+        amortization cost prior current = amortizedCostAdjustment down (StatedAmount cost)
+            1000 (AmortizationTerms 36 prior current)
+        discountedSchedule = [amortization 900 [] 12, amortization 900 [12] 12,
+                              amortization 900 [12, 12] 12]
+        premiumSchedule = [amortization 1100 [] 12, amortization 1100 [12] 12,
+                           amortization 1100 [12, 12] 12]
+    forM_ (zip discountedSchedule [33, 33, 34]) $ \(entry, amount) ->
+        expectEntry "bond discount schedule" entry
+            (   amount .@ Not :< HeldToMaturityBonds
+             .+ amount .@ Not :< InterestOnSecurities)
+    forM_ (zip premiumSchedule [33, 33, 34]) $ \(entry, amount) ->
+        expectEntry "bond premium schedule" entry
+            (   amount .@ Hat :< InterestOnSecurities
+             .+ amount .@ Hat :< HeldToMaturityBonds)
+    forM_ [discountedSchedule, premiumSchedule] $ \entries ->
+        assertEqual "amortization total face-cost difference" (Right 100)
+            (sum <$> traverse (fmap (norm . decL)) entries)
+    expectEntry "bond at face value" (amortization 1000 [] 12) mempty
+    assertEqual "zero bond term" (Left (NonPositiveArgument 0))
+        (amortizedCostAdjustment down (StatedAmount 900) 1000 (AmortizationTerms 0 [] 12))
+    assertEqual "zero bond period" (Left EmptyMonths) (amortization 900 [] 0)
+
+    -- Each allowance uses its own provision and reversal, including bonuses.
+    let allowanceCases =
+            [("bonuses", bonusAllowanceReplenishment, AllowanceForBonuses,
+                ProvisionForBonuses, ReversalOfAllowanceForBonuses)
+            ,("repairs", repairAllowanceReplenishment, AllowanceForRepairs,
+                ProvisionForRepairs, ReversalOfAllowanceForRepairs)
+            ,("warranties", productWarrantyAllowanceReplenishment, AllowanceForProductWarranties,
+                ProvisionForProductWarranties, ReversalOfAllowanceForProductWarranties)]
+    forM_ allowanceCases $ \(label, replenish, account, provision, reversal) -> do
+        let balance = 300 .@ Not :< account
+        expectEntry (label ++ " provision") (replenish 500 balance)
+            (   200 .@ Not :< provision
+             .+ 200 .@ Not :< account)
+        expectEntry (label ++ " reversal") (replenish 100 balance)
+            (   200 .@ Hat :< account
+             .+ 200 .@ Not :< reversal)
+        expectEntry (label ++ " unchanged") (replenish 300 balance) mempty
+        assertEqual (label ++ " negative estimate") (Left (NegativeArgument (-1)))
+            (replenish (-1) balance)
+        assertEqual (label ++ " debit balance") (Left (UnexpectedBalanceSide account Debit))
+            (replenish 500 (300 .@ Hat :< account))
+    expectEntry "retirement provision" (retirementBenefitProvision 800)
+        (   800 .@ Not :< RetirementBenefitExpenses
+         .+ 800 .@ Not :< AllowanceForRetirementBenefits)
+    assertEqual "zero retirement provision" (Left (NonPositiveArgument 0))
+        (retirementBenefitProvision 0)
+
+    let trading = 1000 .@ Not :< TradingSecurities
+    expectEntry "trading gain" (tradingSecuritiesValuation 1100 trading)
+        (   100 .@ Not :< TradingSecurities
+         .+ 100 .@ Not :< GainOnValuationOfSecurities)
+    expectEntry "trading loss" (tradingSecuritiesValuation 900 trading)
+        (   100 .@ Not :< LossOnValuationOfSecurities
+         .+ 100 .@ Hat :< TradingSecurities)
+    expectEntry "trading unchanged" (tradingSecuritiesValuation 1000 trading) mempty
+    assertEqual "negative trading fair value" (Left (NegativeArgument (-1)))
+        (tradingSecuritiesValuation (-1) trading)
+
+    tax <- either (fail . show) pure (basisPoints 3000)
+    let securities = 2000 .@ Not :< AvailableForSaleSecurities
+        gainWithoutTax = 300 .@ Not :< AvailableForSaleSecurities
+                      .+ 300 .@ Not :< ValuationDifferenceOnOtherSecurities
+        lossWithoutTax = 300 .@ Hat :< ValuationDifferenceOnOtherSecurities
+                      .+ 300 .@ Hat :< AvailableForSaleSecurities
+        gainWithTax = 300 .@ Not :< AvailableForSaleSecurities
+                   .+ 90  .@ Not :< DeferredTaxLiabilities
+                   .+ 210 .@ Not :< ValuationDifferenceOnOtherSecurities
+        lossWithTax = 90  .@ Not :< DeferredTaxAssets
+                   .+ 210 .@ Hat :< ValuationDifferenceOnOtherSecurities
+                   .+ 300 .@ Hat :< AvailableForSaleSecurities
+        valuationCases = [(Nothing, 2300, gainWithoutTax), (Nothing, 1700, lossWithoutTax),
+                          (Just tax, 2300, gainWithTax), (Just tax, 1700, lossWithTax)]
+    forM_ valuationCases $ \(taxRate, fair, expected) -> do
+        let result = availableForSaleValuation down taxRate fair securities
+        expectEntry "available-for-sale valuation" result expected
+        entry <- either (fail . show) pure result
+        forM_ [(AvailableForSaleSecurities, 2000), (ValuationDifferenceOnOtherSecurities, 0),
+               (DeferredTaxAssets, 0), (DeferredTaxLiabilities, 0)] $
+            \(account, expectedBalance) -> do
+                let restored = projByAccountTitle account
+                        (securities .+ entry .+ reversingEntry entry)
+                assertEqual ("reversal restores " ++ show account) expectedBalance
+                    (norm (decL restored) - norm (decR restored))
+    expectEntry "available-for-sale unchanged"
+        (availableForSaleValuation down (Just tax) 2000 securities) mempty
+    assertEqual "tax rounding exceeds valuation difference" (Left (TaxExceedsDifference 100 50))
+        (availableForSaleValuation upHundred (Just tax) 2050 securities)
+
+    let stock = 1000 .@ Not :< MerchandiseInventory
+    expectEntry "inventory shrinkage only"
+        (inventoryShrinkageAndValuation (PhysicalInventory 900 900 :| []) stock)
+        (   100 .@ Not :< InventoryShrinkageLoss
+         .+ 100 .@ Hat :< MerchandiseInventory)
+    expectEntry "inventory write-down only"
+        (inventoryShrinkageAndValuation (PhysicalInventory 1000 800 :| []) stock)
+        (   200 .@ Not :< LossOnValuationOfMerchandise
+         .+ 200 .@ Hat :< MerchandiseInventory)
+    expectEntry "inventory shrinkage and item losses, without offsetting gains"
+        (inventoryShrinkageAndValuation
+            (PhysicalInventory 600 500 :| [PhysicalInventory 300 350]) stock)
+        (   100 .@ Not :< InventoryShrinkageLoss
+         .+ 100 .@ Not :< LossOnValuationOfMerchandise
+         .+ 200 .@ Hat :< MerchandiseInventory)
+    assertEqual "physical inventory exceeds books"
+        (Left (ExceedsBalance MerchandiseInventory 1100 1000))
+        (inventoryShrinkageAndValuation (PhysicalInventory 1100 1100 :| []) stock)
+
+    let translate :: AccountTitles -> MoneyDecimal -> Either AdjustmentProblem Entry
+        translate account rateYen = foreignCurrencyTranslation down account
+            (StatedAmount 11000) 100 rateYen
+    expectEntry "foreign asset gain" (translate AccountsReceivable 115)
+        (   500 .@ Not :< AccountsReceivable
+         .+ 500 .@ Not :< ForeignExchangeGains)
+    expectEntry "foreign asset loss" (translate AccountsReceivable 105)
+        (   500 .@ Not :< ForeignExchangeLosses
+         .+ 500 .@ Hat :< AccountsReceivable)
+    expectEntry "foreign liability loss" (translate AccountsPayable 115)
+        (   500 .@ Not :< AccountsPayable
+         .+ 500 .@ Not :< ForeignExchangeLosses)
+    expectEntry "foreign liability gain" (translate AccountsPayable 105)
+        (   500 .@ Not :< ForeignExchangeGains
+         .+ 500 .@ Hat :< AccountsPayable)
+    forM_ [AccountsReceivable, AccountsPayable] $ \account ->
+        expectEntry "foreign unchanged" (translate account 110) mempty
+    assertEqual "foreign revenue account" (Left (NotInDivision Sales Assets))
+        (translate Sales 115)
+    assertEqual "foreign contra asset" (Left (ContraAccount AccumulatedDepreciation))
+        (translate AccumulatedDepreciation 115)
+    expectEntry "foreign product rounded once"
+        (foreignCurrencyTranslation down AccountsReceivable (StatedAmount 3600) 33.33 110.5)
+        (   82 .@ Not :< AccountsReceivable
+         .+ 82 .@ Not :< ForeignExchangeGains)
+
+    let deferred = 150 .@ Not :< DeferredTaxAssets
+    expectEntry "deferred tax increase" (deferredTaxAssetAdjustment down tax 600 deferred)
+        (   30 .@ Not :< DeferredTaxAssets
+         .+ 30 .@ Hat :< IncomeTaxesAdjustment)
+    expectEntry "deferred tax decrease" (deferredTaxAssetAdjustment down tax 400 deferred)
+        (   30 .@ Not :< IncomeTaxesAdjustment
+         .+ 30 .@ Hat :< DeferredTaxAssets)
+    expectEntry "deferred tax unchanged" (deferredTaxAssetAdjustment down tax 500 deferred) mempty
+    assertEqual "deferred tax credit balance"
+        (Left (UnexpectedBalanceSide DeferredTaxAssets Credit))
+        (deferredTaxAssetAdjustment down tax 500 (150 .@ Hat :< DeferredTaxAssets))

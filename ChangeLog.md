@@ -15,6 +15,12 @@
   arguments. Depreciation schedules book the whole remainder in the final period.
   The catalog is unchanged.
 
+- `Adjustment` adds 11 grade-2 closing adjustments: units-of-production
+  depreciation, amortized cost, three allowance replenishments, retirement
+  benefits, two securities valuations, inventory losses, foreign currency
+  translation, and deferred tax assets. `TaxExceedsDifference` rejects rounded
+  tax above the securities valuation difference.
+
 - `ExchangeAlgebra.Accounting.Transfer` constructs additional accounting
   entries from exact balances per complete base. Each cancellation and
   destination have the same amount. Rows apply in the order written, including

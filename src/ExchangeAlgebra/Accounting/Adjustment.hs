@@ -349,6 +349,31 @@ data DepreciationTerms = DepreciationTerms
     , termsPeriodMonths :: Natural -- ^ Months of the current period, positive.
     } deriving (Eq, Show)
 
+-- | Recompute a validated schedule in order and return the last charge.
+-- Nonfinal periods round the quotient and cap it at the remaining amount;
+-- the period that reaches the total books the whole unrounded remainder.
+scheduledAmount
+    :: AdjustmentRounding
+    -> MoneyDecimal
+    -> Natural
+    -> [Natural]
+    -> (MoneyDecimal -> Natural -> Rational)
+    -> Either AdjustmentProblem MoneyDecimal
+scheduledAmount rule total useful periods periodQuotient = do
+    (_, _, amount) <- foldM advancePeriod (0, 0, 0) periods
+    pure amount
+  where
+    advancePeriod
+        :: (Natural, MoneyDecimal, MoneyDecimal)
+        -> Natural
+        -> Either AdjustmentProblem (Natural, MoneyDecimal, MoneyDecimal)
+    advancePeriod (used, booked, _) progress = do
+        let remaining = total - booked
+        amount <- case compare (used + progress) useful of
+            LT -> min remaining <$> roundAmount rule (periodQuotient booked progress)
+            _  -> Right remaining
+        pure (used + progress, booked + amount, amount)
+
 -- | Validate an asset schedule, recompute its rounded periods, and build the
 -- current entry. The quotient function receives cost, prior charges, and months.
 -- The final period books the unrounded remainder.
@@ -367,7 +392,8 @@ depreciationForPeriod periodQuotient rule method account source terms = do
     when (residual >= cost) $ Left (ResidualNotBelowCost residual cost)
     when (useful == 0 || current == 0 || 0 `elem` prior) $ Left EmptyMonths
     when (elapsed >= useful) $ Left (ScheduleFinished elapsed useful)
-    (_, _, amount) <- foldM (advancePeriod cost) (0, 0, 0) (prior ++ [current])
+    amount <- scheduledAmount rule (cost - residual) useful (prior ++ [current])
+        (periodQuotient cost)
     pure $ case method of
         IndirectMethod -> depreciationIndirectEntry (:<) amount
         DirectMethod   -> depreciationDirectEntry (:<) amount account
@@ -378,26 +404,6 @@ depreciationForPeriod periodQuotient rule method account source terms = do
     current  = termsPeriodMonths terms
     elapsed :: Natural
     elapsed = sum prior
-    periodAmount
-        :: MoneyDecimal
-        -> Natural
-        -> MoneyDecimal
-        -> Natural
-        -> Either AdjustmentProblem MoneyDecimal
-    periodAmount cost used booked months
-        | used + months >= useful = Right remaining
-        | otherwise = min remaining <$> roundAmount rule (periodQuotient cost booked months)
-      where
-        remaining :: MoneyDecimal
-        remaining = cost - residual - booked
-    advancePeriod
-        :: MoneyDecimal
-        -> (Natural, MoneyDecimal, MoneyDecimal)
-        -> Natural
-        -> Either AdjustmentProblem (Natural, MoneyDecimal, MoneyDecimal)
-    advancePeriod cost (used, booked, _) months = do
-        amount <- periodAmount cost used booked months
-        pure (used + months, booked + amount, amount)
 
 -- | Straight-line depreciation (定額法) for this period. The cost is read from
 -- the acquisition transaction or stated. Each period's amount is
@@ -696,7 +702,33 @@ unitsOfProductionDepreciation
     -> SourceAmount
     -> ProductionTerms
     -> Either AdjustmentProblem Entry
-unitsOfProductionDepreciation = undefined
+unitsOfProductionDepreciation rule method account source terms = do
+    checkAccountDivision Assets account
+    cost <- sourceAmount source
+    when (residual < 0) $ Left (NegativeArgument residual)
+    when (residual >= cost) $ Left (ResidualNotBelowCost residual cost)
+    when (total == 0) $ Left (NonPositiveArgument 0)
+    when (elapsed >= total) $ Left (ScheduleFinished elapsed total)
+    if current == 0
+        then pure mempty
+        else do
+            amount <- scheduledAmount rule (cost - residual) total (prior ++ [current])
+                (periodQuotient cost)
+            pure $ case method of
+                IndirectMethod -> amount .@ Not :< Depreciation
+                               .+ amount .@ Not :< AccumulatedDepreciation
+                DirectMethod   -> amount .@ Not :< Depreciation
+                               .+ amount .@ Hat :< account
+  where
+    residual = productionResidual terms
+    total    = productionTotal terms
+    prior    = productionPrior terms
+    current  = productionCurrent terms
+    elapsed :: Natural
+    elapsed  = sum prior
+    periodQuotient :: MoneyDecimal -> MoneyDecimal -> Natural -> Rational
+    periodQuotient cost _ units =
+        toRational (cost - residual) * toRational units / toRational total
 
 -- | Term of a held-to-maturity bond under the amortized cost method
 -- (償却原価法, straight-line).
@@ -727,11 +759,52 @@ amortizedCostAdjustment
     -> MoneyDecimal
     -> AmortizationTerms
     -> Either AdjustmentProblem Entry
-amortizedCostAdjustment = undefined
+amortizedCostAdjustment rule source face terms = do
+    cost <- sourceAmount source
+    when (face <= 0) $ Left (NonPositiveArgument face)
+    when (total == 0) $ Left (NonPositiveArgument 0)
+    when (current == 0 || 0 `elem` prior) $ Left EmptyMonths
+    when (elapsed >= total) $ Left (ScheduleFinished elapsed total)
+    amount <- scheduledAmount rule (abs (face - cost)) total (prior ++ [current])
+        (periodQuotient cost)
+    pure $ case compare face cost of
+        GT -> amount .@ Not :< HeldToMaturityBonds
+           .+ amount .@ Not :< InterestOnSecurities
+        LT -> amount .@ Hat :< InterestOnSecurities
+           .+ amount .@ Hat :< HeldToMaturityBonds
+        EQ -> mempty
+  where
+    total   = amortizationMonths terms
+    prior   = amortizationPriorPeriods terms
+    current = amortizationPeriodMonths terms
+    elapsed :: Natural
+    elapsed = sum prior
+    periodQuotient :: MoneyDecimal -> MoneyDecimal -> Natural -> Rational
+    periodQuotient cost _ months =
+        toRational (abs (face - cost)) * toRational months / toRational total
 
 ------------------------------------------------------------
 -- Grade-2 allowances
 ------------------------------------------------------------
+
+-- | Move a credit-side allowance to the nonnegative estimate using the
+-- named provision and reversal accounts, preserving the individual postings.
+replenishAllowance
+    :: AccountTitles
+    -> AccountTitles
+    -> AccountTitles
+    -> MoneyDecimal
+    -> Entry
+    -> Either AdjustmentProblem Entry
+replenishAllowance allowance provision reversal estimate ledger = do
+    when (estimate < 0) $ Left (NegativeArgument estimate)
+    current <- readAccountBalance allowance ledger
+    pure $ case compare estimate current of
+        GT -> (estimate - current) .@ Not :< provision
+           .+ (estimate - current) .@ Not :< allowance
+        LT -> (current - estimate) .@ Hat :< allowance
+           .+ (current - estimate) .@ Not :< reversal
+        EQ -> mempty
 
 -- | Replenish 'AllowanceForBonuses' (賞与引当金) to the period-end estimate
 -- read against its ledger balance (差額補充法). An estimate above the balance
@@ -740,25 +813,32 @@ amortizedCostAdjustment = undefined
 -- Fails with 'NegativeArgument' for a negative estimate and
 -- 'UnexpectedBalanceSide' for a debit balance.
 bonusAllowanceReplenishment :: MoneyDecimal -> Entry -> Either AdjustmentProblem Entry
-bonusAllowanceReplenishment = undefined
+bonusAllowanceReplenishment = replenishAllowance
+    AllowanceForBonuses ProvisionForBonuses ReversalOfAllowanceForBonuses
 
 -- | As 'bonusAllowanceReplenishment' for 'AllowanceForRepairs' (修繕引当金),
 -- with 'ProvisionForRepairs' and 'ReversalOfAllowanceForRepairs'.
 repairAllowanceReplenishment :: MoneyDecimal -> Entry -> Either AdjustmentProblem Entry
-repairAllowanceReplenishment = undefined
+repairAllowanceReplenishment = replenishAllowance
+    AllowanceForRepairs ProvisionForRepairs ReversalOfAllowanceForRepairs
 
 -- | As 'bonusAllowanceReplenishment' for 'AllowanceForProductWarranties'
 -- (商品保証引当金), with 'ProvisionForProductWarranties' and
 -- 'ReversalOfAllowanceForProductWarranties'.
 productWarrantyAllowanceReplenishment :: MoneyDecimal -> Entry -> Either AdjustmentProblem Entry
-productWarrantyAllowanceReplenishment = undefined
+productWarrantyAllowanceReplenishment = replenishAllowance
+    AllowanceForProductWarranties ProvisionForProductWarranties
+    ReversalOfAllowanceForProductWarranties
 
 -- | Book the stated provision for retirement benefits (退職給付引当金): debit
 -- 'RetirementBenefitExpenses', credit 'AllowanceForRetirementBenefits'. The
 -- amount is given; computing the obligation is outside grade 2. Fails with
 -- 'NonPositiveArgument' unless the amount is positive.
 retirementBenefitProvision :: MoneyDecimal -> Either AdjustmentProblem Entry
-retirementBenefitProvision = undefined
+retirementBenefitProvision amount = do
+    when (amount <= 0) $ Left (NonPositiveArgument amount)
+    pure $ amount .@ Not :< RetirementBenefitExpenses
+        .+ amount .@ Not :< AllowanceForRetirementBenefits
 
 ------------------------------------------------------------
 -- Securities valuation
@@ -772,7 +852,15 @@ retirementBenefitProvision = undefined
 -- of the next period with 'ExchangeAlgebra.Accounting.Entries.reversingEntry'.
 -- Fails with 'NegativeArgument' for a negative fair value.
 tradingSecuritiesValuation :: MoneyDecimal -> Entry -> Either AdjustmentProblem Entry
-tradingSecuritiesValuation = undefined
+tradingSecuritiesValuation fair ledger = do
+    when (fair < 0) $ Left (NegativeArgument fair)
+    book <- readAccountBalance TradingSecurities ledger
+    pure $ case compare fair book of
+        GT -> (fair - book) .@ Not :< TradingSecurities
+           .+ (fair - book) .@ Not :< GainOnValuationOfSecurities
+        LT -> (book - fair) .@ Not :< LossOnValuationOfSecurities
+           .+ (book - fair) .@ Hat :< TradingSecurities
+        EQ -> mempty
 
 -- | Revalue 'AvailableForSaleSecurities' (その他有価証券) to the stated total
 -- fair value under the full net-assets method (全部純資産直入法). The book value
@@ -791,7 +879,24 @@ availableForSaleValuation
     -> MoneyDecimal
     -> Entry
     -> Either AdjustmentProblem Entry
-availableForSaleValuation = undefined
+availableForSaleValuation rule rate fair ledger = do
+    when (fair < 0) $ Left (NegativeArgument fair)
+    book <- readAccountBalance AvailableForSaleSecurities ledger
+    let difference = abs (fair - book)
+    tax <- case rate of
+        Nothing      -> Right 0
+        Just taxRate -> roundAmount rule
+            (toRational difference * toRational (basisPointsValue taxRate) / 10000)
+    when (tax > difference) $ Left (TaxExceedsDifference tax difference)
+    let remainder = difference - tax
+    pure $ case compare fair book of
+        GT -> difference .@ Not :< AvailableForSaleSecurities
+           .+ tax        .@ Not :< DeferredTaxLiabilities
+           .+ remainder  .@ Not :< ValuationDifferenceOnOtherSecurities
+        LT -> tax        .@ Not :< DeferredTaxAssets
+           .+ remainder  .@ Hat :< ValuationDifferenceOnOtherSecurities
+           .+ difference .@ Hat :< AvailableForSaleSecurities
+        EQ -> mempty
 
 ------------------------------------------------------------
 -- Inventory shrinkage and valuation
@@ -821,7 +926,24 @@ inventoryShrinkageAndValuation
     :: NonEmpty PhysicalInventory
     -> Entry
     -> Either AdjustmentProblem Entry
-inventoryShrinkageAndValuation = undefined
+inventoryShrinkageAndValuation items ledger = do
+    losses <- traverse itemLoss items
+    book   <- readAccountBalance MerchandiseInventory ledger
+    let physical  = sum (fmap physicalAtCost items)
+        shrinkage = book - physical
+        valuation = sum losses
+    when (physical > book) $ Left (ExceedsBalance MerchandiseInventory physical book)
+    pure $ shrinkage               .@ Not :< InventoryShrinkageLoss
+        .+ valuation               .@ Not :< LossOnValuationOfMerchandise
+        .+ (shrinkage + valuation) .@ Hat :< MerchandiseInventory
+  where
+    itemLoss :: PhysicalInventory -> Either AdjustmentProblem MoneyDecimal
+    itemLoss item = do
+        let cost = physicalAtCost item
+            net  = physicalAtNetRealizableValue item
+        when (cost < 0) $ Left (NegativeArgument cost)
+        when (net < 0) $ Left (NegativeArgument net)
+        pure (max 0 (cost - net))
 
 ------------------------------------------------------------
 -- Foreign currency translation and tax effects
@@ -843,7 +965,33 @@ foreignCurrencyTranslation
     -> MoneyDecimal
     -> MoneyDecimal
     -> Either AdjustmentProblem Entry
-foreignCurrencyTranslation = undefined
+foreignCurrencyTranslation rule account source foreignAmount rate = do
+    let division :: AccountDivision
+        division = classifyAccountDivision account
+    case account of
+        AccountTitle -> checkAccountDivision Assets account
+        _ -> case division of
+            Liability -> checkAccountDivision Liability account
+            _         -> checkAccountDivision Assets account
+    when (foreignAmount < 0) $ Left (NegativeArgument foreignAmount)
+    when (rate < 0) $ Left (NegativeArgument rate)
+    book       <- sourceAmount source
+    translated <- roundAmount rule (toRational foreignAmount * toRational rate)
+    let difference = abs (translated - book)
+        onIncrease :: AccountTitles
+        onIncrease
+            | division == Assets = ForeignExchangeGains
+            | otherwise          = ForeignExchangeLosses
+        onDecrease :: AccountTitles
+        onDecrease
+            | division == Assets = ForeignExchangeLosses
+            | otherwise          = ForeignExchangeGains
+    pure $ case compare translated book of
+        GT -> difference .@ Not :< account
+           .+ difference .@ Not :< onIncrease
+        LT -> difference .@ Not :< onDecrease
+           .+ difference .@ Hat :< account
+        EQ -> mempty
 
 -- | Adjust 'DeferredTaxAssets' (繰延税金資産) for deductible temporary
 -- differences against 'IncomeTaxesAdjustment' (法人税等調整額). The target is
@@ -860,4 +1008,14 @@ deferredTaxAssetAdjustment
     -> MoneyDecimal
     -> Entry
     -> Either AdjustmentProblem Entry
-deferredTaxAssetAdjustment = undefined
+deferredTaxAssetAdjustment rule rate differences ledger = do
+    when (differences < 0) $ Left (NegativeArgument differences)
+    current <- readAccountBalance DeferredTaxAssets ledger
+    target  <- roundAmount rule
+        (toRational differences * toRational (basisPointsValue rate) / 10000)
+    pure $ case compare target current of
+        GT -> (target - current) .@ Not :< DeferredTaxAssets
+           .+ (target - current) .@ Hat :< IncomeTaxesAdjustment
+        LT -> (current - target) .@ Not :< IncomeTaxesAdjustment
+           .+ (current - target) .@ Hat :< DeferredTaxAssets
+        EQ -> mempty
