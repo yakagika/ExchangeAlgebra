@@ -1,3 +1,4 @@
+-- | Compatibility exports for consolidation worksheets.
 module ExchangeAlgebra.Consolidation.Worksheet
 {-# DEPRECATED "Import ExchangeAlgebra.Accounting.Consolidation instead." #-}
     ( PeriodResult(..)

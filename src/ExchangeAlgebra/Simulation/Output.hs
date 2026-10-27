@@ -39,6 +39,7 @@ import           System.IO (IOMode(WriteMode), withFile)
 
 import           ExchangeAlgebra.Simulate (StateTime)
 
+-- | CSV column header text.
 type Header = T.Text
 
 -- | Build a context for each term, then evaluate multiple functions together and output to CSV.

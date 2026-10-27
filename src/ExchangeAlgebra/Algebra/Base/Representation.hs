@@ -17,6 +17,7 @@ import GHC.Stack (HasCallStack, callStack, prettyCallStack)
 import qualified Data.Binary as Binary
 import Control.DeepSeq (NFData(..))
 
+-- | Raise an error with the current call stack appended.
 customError :: HasCallStack => String -> a
 customError msg = error (msg ++ "\nCallStack:\n" ++ prettyCallStack callStack)
 
@@ -63,7 +64,8 @@ instance (Element e1, Element e2, Element e3, Element e4, Element e5, Element e6
 -- compose a base into its Hat part and BasePart. Manages the Hat (decrease) \/
 -- Not (increase) label at the base level in exchange algebra. Note that Hat\/Not
 -- is __not__ the debit\/credit distinction: the side of a posting is determined
--- by the account division /together with/ this label (see 'whichSide' — an
+-- by the account division /together with/ this label (see
+-- 'ExchangeAlgebra.Accounting.Exchange.whichSide' — an
 -- account sits on its home side when 'Not' and on the opposite side when v'Hat').
 class (BaseClass a, BaseClass (BasePart a), AxisDecompose (BasePart a)) => HatBaseClass a where
     -- | The type of the base part excluding the Hat.
@@ -115,6 +117,7 @@ instance Element Hat where
 
 instance BaseClass Hat where
 
+-- | A one-constructor basis type whose only value is its own wildcard.
 data BaseForSingleHat = BaseForSingleHat
     deriving (Eq,Ord,Generic)
 

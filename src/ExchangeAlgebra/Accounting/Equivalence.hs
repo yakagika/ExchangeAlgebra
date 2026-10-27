@@ -234,7 +234,8 @@ entryDifferences retained key candidate reference =
 -- | Compare closings by transaction key. Every input posting is checked first:
 -- blank keys, wildcard Hat labels, unclassified accounts, and negative amounts
 -- produce diagnostics, and their keys are not compared. Valid keys present in
--- only one map produce a presence difference, even when the entry is 'Zero'.
+-- only one map produce a presence difference, even when the entry is
+-- 'ExchangeAlgebra.Algebra.Core.Zero'.
 -- Other accounts compare exact sums per account and side. Retained earnings
 -- compares only its exact credit-minus-debit net, with credit for zero.
 -- Results follow ascending keys. Within a key, diagnostics follow candidate

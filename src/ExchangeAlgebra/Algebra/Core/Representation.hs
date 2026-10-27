@@ -185,6 +185,7 @@ infixr 3 .+
 infixr 3 <+
 
 ------------------------------------------------------------
+-- | Sequences of values on the Hat and Not sides of one basis.
 data Pair v where
  Pair :: {_hatSide :: !(Seq v)
          ,_notSide :: !(Seq v)} -> Pair v
@@ -1340,7 +1341,7 @@ mapBasePart f (Liner m _ _ _ _ _) =
 --
 -- Zero-valued entries are skipped, as in 'foldEntries'. Well-formedness of the
 -- algebras returned by @h@ (non-negative, finite values) is the caller's
--- responsibility: build them with @('.\@')@ rather than the raw constructor.
+-- responsibility: build them with @(.\@)@ rather than the raw constructor.
 -- The sequence order of the result is a representation detail determined by
 -- the traversal of @x@; callers must not attach semantics to it.
 --
@@ -1797,7 +1798,9 @@ foldEntriesToMap f = foldEntries step M.empty
 -- sequence order).
 --
 -- This generalizes the decomposition operators of Deguchi & Nakano (1986)
--- ('decR'\/'decL'\/'decP'\/'decM' are two-class special cases) and replaces
+-- ('ExchangeAlgebra.Accounting.Exchange.decR', 'ExchangeAlgebra.Accounting.Exchange.decL',
+-- 'ExchangeAlgebra.Accounting.Exchange.decP', and 'ExchangeAlgebra.Accounting.Exchange.decM'
+-- are two-class special cases) and replaces
 -- per-class projection loops: one pass over the entries instead of one
 -- projection query per class.
 --
@@ -1819,7 +1822,10 @@ foldEntriesToMap f = foldEntries step M.empty
 --
 -- Note on 'bar': @bar@ commutes with 'decBy' componentwise iff @keyOf@ does not
 -- distinguish Hat\/Not (i.e. factors through 'base'). Side-sensitive classifiers
--- (such as the ones underlying 'decP'\/'decM' or 'decL'\/'decR') do not commute
+-- (such as the ones underlying
+-- 'ExchangeAlgebra.Accounting.Exchange.decP'\/'ExchangeAlgebra.Accounting.Exchange.decM' or
+-- 'ExchangeAlgebra.Accounting.Exchange.decL'\/'ExchangeAlgebra.Accounting.Exchange.decR') do not
+-- commute
 -- with @bar@ — netting before or after such a split is a semantic choice.
 --
 -- Complexity: O(m) over distinct bases (single fold; per-class insert costs

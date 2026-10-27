@@ -19,3 +19,6 @@ module ExchangeAlgebra.Convert {-# DEPRECATED "Import ExchangeAlgebra.IO.Input o
 
 import ExchangeAlgebra.IO.Input
 import ExchangeAlgebra.Accounting.Account (concreteAccountTitles)
+
+-- $concreteAccountTitles
+-- Concrete account titles are listed by @concreteAccountTitles@.

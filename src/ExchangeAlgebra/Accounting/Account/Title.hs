@@ -21,6 +21,7 @@ import qualified Data.Binary.Put as BinaryPut
 
 -- ** Account Titles
 
+-- | Account titles used as bookkeeping basis coordinates.
 data  AccountTitles = Cash                            -- ^ Asset: Cash (現金)
                     | Deposits                        -- ^ Asset: Savings deposits (普通預金)
                     | CurrentDeposits                 -- ^ Asset: Current deposits (当座預金)

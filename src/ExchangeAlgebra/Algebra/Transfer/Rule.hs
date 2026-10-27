@@ -53,7 +53,8 @@ of at most @1e-9 * max (abs x) (abs y)@, treating absent bases as zero.
 * Preconditions: non-negative valid postings and an exact additive value type.
 * Relation: @bar (x .+ collapseEntries p f x) ==
   bar (x .+ collapseNetEntries p f x)@. The raw form has twice as many
-  postings as @proj p x@ and twice its norm; the net form calls 'bar' after
+  postings as @proj p x@ and twice its norm; the net form calls 'ExchangeAlgebra.Algebra.Core.bar'
+  after
   rewriting the base parts.
 * Observation: net ledger and raw posting count and norm.
 * Tolerance: exact.

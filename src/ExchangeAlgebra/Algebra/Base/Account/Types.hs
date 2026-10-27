@@ -1,3 +1,4 @@
+-- | Compatibility exports for account classification types.
 module ExchangeAlgebra.Algebra.Base.Account.Types {-# DEPRECATED "Use ExchangeAlgebra.Accounting.Account instead." #-} 
     ( AccountDivision(..), Side(..), ClosingRule(..), FixedCurrent(..)
     , AccountRole(..), PostingCapability(..), DivisionSemantics(..)

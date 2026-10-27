@@ -4,7 +4,8 @@
 --
 -- Import this module for row layouts and their file-writing wrappers.
 -- 'accountLedgerRowsJournal' produces ledger rows when no date is needed.
--- The legacy 'bsRows' settles internally, whereas 'plRows' does not; those
+-- The legacy 'ExchangeAlgebra.Write.bsRows' settles internally, whereas
+-- 'ExchangeAlgebra.Write.plRows' does not; those
 -- functions are deprecated in "ExchangeAlgebra.Write" during the 0.6
 -- migration and are omitted from this interface. Their successor is
 -- 'ExchangeAlgebra.Accounting.Closing.closingEntries' for the balance sheet,

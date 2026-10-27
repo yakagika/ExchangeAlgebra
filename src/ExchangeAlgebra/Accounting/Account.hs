@@ -36,7 +36,8 @@ switchSide Side   = Side
 
 -- | Default (home) side of an account division before any contra reversal:
 -- Assets\/Cost are debit-normal, Liability\/Equity\/Revenue are credit-normal.
--- The actual home side of a base is this, reversed when 'isContra' holds
+-- The actual home side of a base is this, reversed when
+-- 'ExchangeAlgebra.Accounting.Exchange.isContra' holds
 -- (contract: @isContra b == (homeSide of b \/= defaultSide (whatDiv b))@).
 --
 -- Complexity: O(1)
@@ -62,7 +63,8 @@ classifyAccountDivision title =
 -- | PIMO direction. In Proposition 5.3.8 (Deguchi 2004, pp.89-91) PS, IN,
 -- MS and OUT mean __plus stock, input, minus stock and output__ —
 -- directions of exchange, not statement labels. The allowed exchange pairs
--- are exactly PS ⇔ IN, PS ⇔ MS, OUT ⇔ IN, OUT ⇔ MS (the 'AccountBase'
+-- are exactly PS ⇔ IN, PS ⇔ MS, OUT ⇔ IN, OUT ⇔ MS (the
+-- t'ExchangeAlgebra.Accounting.Exchange.AccountBase'
 -- instance below). The earlier Haddock glossed these as "Product Stock \/
 -- Income \/ Money Stock \/ Outflow"; that was naming drift from the
 -- original and is kept only as a mnemonic.
@@ -78,7 +80,8 @@ instance NFData PIMO where
 -- | The division-to-PIMO map of the standard interpretation (the @g@ of
 -- Proposition 5.3.8 restricted to non-contra accounts): Assets are plus
 -- stock, Liability\/Equity are minus stock, Cost is output, Revenue is
--- input. Contra accounts flip this via 'pimoFlip' (see 'whatPIMO').
+-- input. Contra accounts flip this via 'pimoFlip' (see
+-- 'ExchangeAlgebra.Accounting.Exchange.whatPIMO').
 --
 -- Complexity: O(1)
 {-# INLINE pimoFromDivision #-}

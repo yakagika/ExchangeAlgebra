@@ -91,6 +91,7 @@ import              Utils.Containers.Internal.StrictPair
 -- * Core computation
 ------------------------------------------------------------------
 -- ** Transfer transformation
+-- | Number of entries in a transfer table; an alias for Int.
 type Size = Int
 
 -- | Transfer transformation table

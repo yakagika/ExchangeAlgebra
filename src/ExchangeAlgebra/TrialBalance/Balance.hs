@@ -1,3 +1,4 @@
+-- | Compatibility exports for trial balance construction.
 module ExchangeAlgebra.TrialBalance.Balance
 {-# DEPRECATED "Import ExchangeAlgebra.Accounting.TrialBalance.Balance instead." #-}
     ( AccountBalance(..)

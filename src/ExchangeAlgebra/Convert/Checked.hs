@@ -24,3 +24,8 @@ module ExchangeAlgebra.Convert.Checked {-# DEPRECATED "Import ExchangeAlgebra.IO
 
 import ExchangeAlgebra.IO.Input.Checked hiding (ProcessingContext, postingAllowedIn)
 import ExchangeAlgebra.Accounting.Account (ProcessingContext(..), postingAllowedIn)
+
+-- $postingPolicy
+-- 'checkedEntryIn' takes a t'ProcessingContext' as its first argument.
+-- 'postingAllowedIn' checks whether each account's posting capability is allowed
+-- in that context.

@@ -1,3 +1,4 @@
+-- | Compatibility exports for bookkeeping operations.
 module ExchangeAlgebra.Bookkeeping
 {-# DEPRECATED "Import ExchangeAlgebra.Accounting.Entries instead." #-}
     ( -- * Base injection

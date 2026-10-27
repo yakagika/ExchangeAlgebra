@@ -8,11 +8,12 @@ Description : Internal exact accumulator for IEEE binary64 values.
 Internal module of the Algebra layer. It holds the exact signed-sum state
 behind the 'ExchangeAlgebra.Algebra.Value.Class.Accum' instances of
 'Double' and @MoneyDouble@. Users never name
-'FloatingState'; they use the 'ExchangeAlgebra.Algebra.Value.Class.HatVal'
+'FloatingState'; they use the t'ExchangeAlgebra.Algebra.Value.HatVal'
 methods. The module is not exposed: the boundary tests in
 @test/Algebra/AccumSpec.hs@ observe the state only through the public
-'ExchangeAlgebra.Algebra.Value.Class.HatVal' methods ('exactAccum',
-'signAccum', 'splitAccum', 'roundAccum').
+t'ExchangeAlgebra.Algebra.Value.HatVal' methods ('ExchangeAlgebra.Algebra.Value.exactAccum',
+'ExchangeAlgebra.Algebra.Value.signAccum', 'ExchangeAlgebra.Algebra.Value.splitAccum',
+'ExchangeAlgebra.Algebra.Value.roundAccum').
 
 The module deliberately does /not/ enable @{-\# LANGUAGE Strict \#-}@: the
 cold paths (residual capture, overflow into the integer-coefficient state)
@@ -23,7 +24,7 @@ addition does not allocate an 'Integer'. Its users,
 only delegate here.
 
 Reading order: 'FloatingState', then the operations in the order of the
-'ExchangeAlgebra.Algebra.Value.Class.HatVal' methods.
+t'ExchangeAlgebra.Algebra.Value.HatVal' methods.
 -}
 module ExchangeAlgebra.Algebra.Value.Accum
     ( -- * State

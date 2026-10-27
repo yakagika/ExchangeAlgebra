@@ -40,7 +40,8 @@
 
     * The Hat\/Not label of each line follows the /accounting meaning/ of that
       line: an account that /increases/ uses @Not@ (so it lands on its home side),
-      an account that /decreases/ uses @Hat@ (the opposite side). 'whichSide'
+      an account that /decreases/ uses @Hat@ (the opposite side).
+      'ExchangeAlgebra.Accounting.Exchange.whichSide'
       then places each line on the correct debit\/credit side. Consequently every
       builder is debit-credit balanced: @'norm' ('decL' x) == 'norm' ('decR' x)@.
 -}

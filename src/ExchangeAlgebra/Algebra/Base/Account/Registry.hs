@@ -1,3 +1,4 @@
+-- | Compatibility exports for the account registry.
 module ExchangeAlgebra.Algebra.Base.Account.Registry {-# DEPRECATED "Use ExchangeAlgebra.Accounting.Account instead." #-} 
     ( AccountSpec(..), AccountSemantics(..), accountAliases, accountSpec
     , accountSemantics, accountSpecMap, concreteAccountTitles

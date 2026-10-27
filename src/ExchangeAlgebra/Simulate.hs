@@ -139,7 +139,9 @@ import              ExchangeAlgebra.Simulate.Spill
 --     -- nextTerm and prevTerm use the defaults (succ, pred)
 -- @
 class (Eq t, Show t, Ord t, Enum t, Ix t) => StateTime t where
+    -- | First simulation term.
     initTerm :: t
+    -- | Last simulation term.
     lastTerm :: t
     -- | Return the next term. Defaults to @succ@.
     nextTerm :: t -> t
@@ -185,18 +187,23 @@ class (StateTime t,InitVariables v)
     -- (the random number generator is not being advanced).
     -- To use different random numbers per instance, use updateGen or similar.
     -- Planned: allow advancing a shared random number generator across instances.
+    -- | Initialize one state component from a generator, term, and variables.
     initialize    :: StdGen -> t -> v -> ST s (a s)
 
+    -- | Return the update operation for this component.
     updatePattern :: (a s) -> ST s UpdatePattern
 
+    -- | Apply the copy update; the default implementation raises an error.
     {-# INLINE copy #-}
     copy :: StdGen -> t -> v -> (a s) -> ST s ()
     copy _ _ _ _ = error "Updatable.copy: default method not overridden"
 
+    -- | Apply the modifying update; the default implementation raises an error.
     {-# INLINE modify #-}
     modify :: StdGen -> t -> v -> (a s) -> ST s ()
     modify _ _ _ _ = error "Updatable.modify: default method not overridden"
 
+    -- | Apply the operation selected by updatePattern.
     {-# INLINE update #-}
     update :: StdGen -> t -> v -> (a s) -> ST s ()
     update g t v x = do
@@ -304,6 +311,7 @@ class (Ix b) => UpdatableSTArray wrapper s b c | wrapper s -> b c where
 -- Through DefaultSignatures with Generic, initAll and updateAll can be automatically derived.
 class (StateTime t,InitVariables v, Event e)
       => StateSpace t v e (a :: Type -> Type) s | a s -> t v e where
+    -- | Initialize the world state, using generic field initialization by default.
     {-# INLINE initAll #-}
     initAll ::  StdGen -> t -> v -> ST s (a s)
 
@@ -313,6 +321,7 @@ class (StateTime t,InitVariables v, Event e)
     initAll g t v = GHC.Generics.to <$> gInitialize g t v
 
     -- DefaultSignatures extension
+    -- | Update the world state, using generic field updates by default.
     {-# INLINE updateAll #-}
     updateAll :: StdGen -> t -> v -> a s -> ST s ()
     default updateAll :: (Generic (a s), GUpdatable t v (Rep (a s)) s)

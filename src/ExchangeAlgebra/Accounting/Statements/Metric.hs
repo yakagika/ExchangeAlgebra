@@ -57,6 +57,7 @@ mkMetricId raw
   where
     normalized = T.strip raw
 
+-- | Return the text of a custom metric identity.
 metricIdText :: MetricId -> Text
 metricIdText (MetricId value) = value
 
@@ -76,6 +77,7 @@ data PeriodResult v
   | PeriodBreakEven
   deriving (Show, Eq)
 
+-- | Reasons why a reporting metric cannot be derived.
 data MetricError
   = MetricNotAvailableAtStage TB.TrialBalanceStage
   | ResidualDerivedCoordinate AccountTitles

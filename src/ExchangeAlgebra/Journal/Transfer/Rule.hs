@@ -261,7 +261,7 @@ sideTotal HatSide = hatTotal
 sideTotal NotSide = notTotal
 
 -- | Failures of 'carryEntries', 'carryBefore', and 'sideTotalsBy', in
--- descending priority. This is the successor of 0.5.x 'ExactSumError'
+-- descending priority. This is the successor of 0.5.x t'ExchangeAlgebra.Algebra.Exact.ExactSumError'
 -- for these functions.
 data CarryError
     = WildcardSide   -- ^ A posting uses HatNot, including a retained zero posting.

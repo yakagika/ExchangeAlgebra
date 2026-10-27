@@ -1,3 +1,4 @@
+-- | Compatibility exports for financial statement presentation.
 module ExchangeAlgebra.Reporting.Presentation
 {-# DEPRECATED "Import ExchangeAlgebra.Accounting.Statements.Presentation instead." #-}
     ( AccountingFramework(..)

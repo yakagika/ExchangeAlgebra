@@ -260,6 +260,7 @@ data GroupRowKind
       -- ^ The block's net, rounded after combining the exact member amounts.
     deriving (Show, Eq)
 
+-- | A group row kind paired with its relative amount.
 data GroupRow v = GroupRow
     { grKind   :: GroupRowKind
     , grAmount :: RelativeAmount v

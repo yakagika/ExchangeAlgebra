@@ -463,6 +463,7 @@ isZero :: (HatVal v, HatBaseClass b, Note n)
        => Journal n v b -> Bool
 isZero (Journal bs delta _ _) = Map.null bs && Map.null delta
 
+-- | Construct an empty journal or match a journal with no postings.
 pattern Zero :: (HatVal v, HatBaseClass b, Note n) => Journal n v b
 pattern Zero <- (isZero -> True)
     where

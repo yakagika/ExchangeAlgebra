@@ -8,6 +8,7 @@ module ExchangeAlgebra.Accounting.Account.Aliases
 import Data.Text (Text)
 import ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
 
+-- | Return the JCCI account-name aliases for a title.
 jcciAliases :: AccountTitles -> [Text]
 jcciAliases AccountsPayable = ["〇〇商店", "買掛金"]
 jcciAliases AccountsReceivable = ["売掛金", "〇〇商店"]

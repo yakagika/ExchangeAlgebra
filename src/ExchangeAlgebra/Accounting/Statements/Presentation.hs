@@ -115,15 +115,18 @@ import           ExchangeAlgebra.Accounting.TrialBalance.Balance
 data AccountingFramework = JGAAP
   deriving (Show, Eq)
 
+-- | Whether the report covers standalone or combined accounts.
 data ReportingScope = Standalone | Combined
   deriving (Show, Eq)
 
+-- | Choice of statement labels and presentation profile.
 data PresentationProfile
   = JcciSecondGradeReport
   | CanonicalJapanese
   | CanonicalEnglish
   deriving (Show, Eq)
 
+-- | Section in which a statement line is displayed.
 data StatementSection
   = CurrentAssetsSection
   | NoncurrentAssetsSection
@@ -136,6 +139,7 @@ data StatementSection
   | ContextualCreditSection
   deriving (Show, Eq)
 
+-- | An account line with its label, section, side, amount, and deduction flag.
 data StatementLine v = StatementLine
     { _lineAccount :: AccountTitles
     , _lineLabel   :: Text
@@ -156,6 +160,7 @@ data PresentationAllocation v = PresentationAllocation
     }
     deriving (Show, Eq)
 
+-- | An account relabeling instruction with its rationale.
 data PresentationRelabel = PresentationRelabel
     { _relabelSource    :: AccountTitles
     , _relabelTarget    :: AccountTitles
@@ -163,12 +168,14 @@ data PresentationRelabel = PresentationRelabel
     }
     deriving (Show, Eq)
 
+-- | Whether an account is presented gross, separately, or net against another.
 data MaterialityTreatment
   = PresentGross
   | PresentSeparately
   | NetAgainst AccountTitles
   deriving (Show, Eq)
 
+-- | An account materiality treatment with its rationale.
 data MaterialityDecision = MaterialityDecision
     { _materialityAccount   :: AccountTitles
     , _materialityTreatment :: MaterialityTreatment
@@ -176,6 +183,7 @@ data MaterialityDecision = MaterialityDecision
     }
     deriving (Show, Eq)
 
+-- | A separate or net presentation instruction for a contra account.
 data ContraPresentationRule
   = PresentContraSeparately AccountTitles Text
   | NetContraAgainst AccountTitles AccountTitles Text
@@ -190,6 +198,7 @@ data CustomMetricLabel = CustomMetricLabel
     }
     deriving (Show, Eq)
 
+-- | How a subtotal handles absent account titles.
 data SubtotalCoverage
   = RequireAllTitlesPresent
   | TreatAbsentAsZero
@@ -204,6 +213,7 @@ data SubtotalDefinition = SubtotalDefinition
     }
     deriving (Show, Eq)
 
+-- | A reporting metric with its label and account balance.
 data StatementSubtotal v = StatementSubtotal
     { _statementSubtotalMetric  :: DerivedMetric
     , _statementSubtotalLabel   :: Text
@@ -211,6 +221,7 @@ data StatementSubtotal v = StatementSubtotal
     }
     deriving (Show, Eq)
 
+-- | Framework, scope, profile, and instructions used to present a trial balance.
 data ReportingContext v = ReportingContext
     { _reportingFramework       :: AccountingFramework
     , _reportingScope           :: ReportingScope
@@ -246,6 +257,7 @@ jcciSecondGradeContext scope = ReportingContext
     , _customMetricLabels = []
     }
 
+-- | A recorded presentation operation and its supporting values.
 data PresentationAuditEvent v
   = ReciprocalAccountsEliminated
         (TB.AccountBalance v) (TB.AccountBalance v)
@@ -293,6 +305,7 @@ data PresentationIssue v
   | UnreconciledPresentation v v
   deriving (Show, Eq)
 
+-- | Presented statement lines, subtotals, and the presentation audit.
 data FinancialStatements v = FinancialStatements
     { _statementFramework :: AccountingFramework
     , _statementScope     :: ReportingScope

@@ -19,6 +19,7 @@ import qualified Data.Set as S
 import ExchangeAlgebra.Simulation.Network
 import ExchangeAlgebra.Simulation.Network.Representation (finitePositive)
 
+-- | A tax rate represented by an integer numerator and denominator.
 data TaxRate = TaxRate
   { taxNumerator   :: !Integer
   , taxDenominator :: !Integer

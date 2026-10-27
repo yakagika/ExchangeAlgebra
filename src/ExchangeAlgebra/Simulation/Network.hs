@@ -55,7 +55,7 @@ order of the example input-coefficient tables.
 
 == Determinism
 
-Every generator is a pure function of an explicit 'StdGen' (it does not
+Every generator is a pure function of an explicit t'System.Random.StdGen' (it does not
 return a generator; split one yourself with 'System.Random.split' if you
 need an independent stream). The same seed always yields the same network,
 and all read-outs ('nodes', 'edges', 'suppliersOf', 'buyersOf', 'inputsOf')

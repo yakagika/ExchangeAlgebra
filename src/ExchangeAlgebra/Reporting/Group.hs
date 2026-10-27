@@ -1,3 +1,4 @@
+-- | Compatibility exports for statement presentation groups.
 module ExchangeAlgebra.Reporting.Group
 {-# DEPRECATED "Import ExchangeAlgebra.Accounting.Statements.Group instead." #-}
     ( -- * Groups

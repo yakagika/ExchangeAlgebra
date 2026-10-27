@@ -1,3 +1,4 @@
+-- | Compatibility exports for reporting metrics.
 module ExchangeAlgebra.Reporting.Metric
 {-# DEPRECATED "Import ExchangeAlgebra.Accounting.Statements.Metric instead." #-}
     ( MetricId

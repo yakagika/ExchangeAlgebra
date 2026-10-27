@@ -8,7 +8,7 @@ match a stored wildcard.
 
 To use your own type as a basis component, declare an 'Element' instance.
 A single distinguished value must serve as the wildcard used by the
-transfer engine and by projection operations. Derive 'NFData' when keys
+transfer engine and by projection operations. Derive t'Control.DeepSeq.NFData' when keys
 containing this component must be fully evaluated:
 
 @

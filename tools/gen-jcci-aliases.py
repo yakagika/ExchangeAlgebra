@@ -40,6 +40,7 @@ def main() -> None:
     print("import Data.Text (Text)")
     print("import ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))")
     print()
+    print("-- | Return the JCCI account-name aliases for a title.")
     print("jcciAliases :: AccountTitles -> [Text]")
     for constructor in sorted(aliases):
         rendered = ", ".join(json.dumps(alias, ensure_ascii=False) for alias in aliases[constructor])

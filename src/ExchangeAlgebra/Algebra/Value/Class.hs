@@ -132,7 +132,8 @@ class   ( Show n
             | otherwise      = False
 
         -- | Why a value cannot be posted, or 'Nothing' for a valid value. This is
-        -- the one check shared by '.@', @posted@ and 'isErrorValue' (0.6.0.0;
+        -- the one check shared by 'ExchangeAlgebra.Algebra.Core..@', @posted@ and
+        -- 'isErrorValue' (0.6.0.0;
         -- replaces the @isErrorValue@ method).
         --
         -- __Laws__ (relation; premise; observed through '=='; tolerance none;
@@ -161,7 +162,7 @@ class   ( Show n
         postingUpperBound :: Maybe n
         postingUpperBound = Nothing
 
-        -- | Render the value for the 'Show' instance of 'Alg'.
+        -- | Render the value for the 'Show' instance of t'ExchangeAlgebra.Algebra.Core.Alg'.
         -- Per-instance because formatting is representation-specific: floating-point
         -- types format to a fixed number of decimal places via 'Data.Scientific',
         -- whereas exact decimal types print their own canonical form. This replaces

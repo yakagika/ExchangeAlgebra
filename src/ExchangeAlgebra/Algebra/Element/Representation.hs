@@ -178,6 +178,7 @@ instance Eq AxisKey where
 instance Hashable AxisKey where
     hashWithSalt salt (AxisKey x) = salt `hashWithSalt` (typeOf x) `hashWithSalt` x
 
+-- | Test whether the stored axis value is its wildcard.
 {-# INLINE axisIsWildcard #-}
 axisIsWildcard :: AxisKey -> Bool
 axisIsWildcard (AxisKey x) = isWildcard x

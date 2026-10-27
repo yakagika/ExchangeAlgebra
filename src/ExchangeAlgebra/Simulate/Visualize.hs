@@ -52,13 +52,20 @@ import qualified    Data.Vector.Unboxed.Mutable as VUM
 import              Data.Array.ST
 import qualified Data.Set as Set
 
+-- | Chart title text.
 type Title          = String
+-- | Directory path for the PNG files written by plotLine.
 type FileName       = String
+-- | Time-series label text.
 type Label          = String
 
+-- | A label and collections of time-value points.
 type TimeSeries t    = (Label, [[(t, Double)]])
+-- | A collection of labeled time series.
 type TimeSerieses t  = [(TimeSeries t)]
+-- | Collections of time series arranged in grid columns.
 type GridColumns t   = [TimeSerieses t]
+-- | Rows of time-series grid columns.
 type GridMatrix t    = [GridColumns t]
 
 chunkN :: Int -> [a] -> [[a]]
