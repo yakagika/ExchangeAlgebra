@@ -276,6 +276,8 @@ data  AccountTitles = Cash                            -- ^ Asset: Cash (現金)
                     | GoodsInTransit -- ^ Assets: Goods in transit (未着品)
                     | SalesAllowances -- ^ Revenue: Sales allowances (売上値引)
                     | PurchaseAllowances -- ^ Cost: Purchase allowances (仕入値引)
+                    | ReversalOfAllowanceForBonuses
+                      -- ^ Revenue: Reversal of provision for bonuses (賞与引当金戻入)
                     | AccountTitle                    -- ^ Wildcard (ワイルドカード — 任意の科目にマッチ。projWithBase 等の問い合わせ用で, 実 posting には使わない)
                     deriving (Show, Ord, Eq, Enum, Generic, Bounded)
 
@@ -553,6 +555,7 @@ accountCode title = case title of
     GoodsInTransit                                 -> 0x80EF
     SalesAllowances                                -> 0x80F0
     PurchaseAllowances                             -> 0x80F1
+    ReversalOfAllowanceForBonuses                  -> 0x80F2
     AccountTitle                                   -> 0xFFFF
 
 -- | Inverse of the fixed codes, shared by every decode.

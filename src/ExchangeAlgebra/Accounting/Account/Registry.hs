@@ -282,6 +282,7 @@ rolesFor title _ = case title of
     InsuranceGain                                  -> [OrdinaryAccount]
     GainOnBargainPurchase                          -> [OrdinaryAccount]
     ReversalOfAllowanceForRepairs                  -> [OrdinaryAccount]
+    ReversalOfAllowanceForBonuses                  -> [OrdinaryAccount]
     ReversalOfAllowanceForProductWarranties        -> [OrdinaryAccount]
     GainOnDonationOfFixedAssets                    -> [OrdinaryAccount]
     GainOnNationalSubsidies                        -> [OrdinaryAccount]
@@ -528,6 +529,7 @@ postingFor title = case title of
     InsuranceGain                                  -> OrdinaryPosting
     GainOnBargainPurchase                          -> OrdinaryPosting
     ReversalOfAllowanceForRepairs                  -> OrdinaryPosting
+    ReversalOfAllowanceForBonuses                  -> OrdinaryPosting
     ReversalOfAllowanceForProductWarranties        -> OrdinaryPosting
     GainOnDonationOfFixedAssets                    -> OrdinaryPosting
     GainOnNationalSubsidies                        -> OrdinaryPosting
@@ -774,6 +776,7 @@ divisionFor title spec = case title of
     InsuranceGain                                  -> StatementDivision (asDivision spec)
     GainOnBargainPurchase                          -> StatementDivision (asDivision spec)
     ReversalOfAllowanceForRepairs                  -> StatementDivision (asDivision spec)
+    ReversalOfAllowanceForBonuses                  -> StatementDivision (asDivision spec)
     ReversalOfAllowanceForProductWarranties        -> StatementDivision (asDivision spec)
     GainOnDonationOfFixedAssets                    -> StatementDivision (asDivision spec)
     GainOnNationalSubsidies                        -> StatementDivision (asDivision spec)
@@ -1020,6 +1023,7 @@ homeSideFor title spec = case title of
     InsuranceGain                                  -> FixedHomeSide (legacyHomeSide spec)
     GainOnBargainPurchase                          -> FixedHomeSide (legacyHomeSide spec)
     ReversalOfAllowanceForRepairs                  -> FixedHomeSide (legacyHomeSide spec)
+    ReversalOfAllowanceForBonuses                  -> FixedHomeSide (legacyHomeSide spec)
     ReversalOfAllowanceForProductWarranties        -> FixedHomeSide (legacyHomeSide spec)
     GainOnDonationOfFixedAssets                    -> FixedHomeSide (legacyHomeSide spec)
     GainOnNationalSubsidies                        -> FixedHomeSide (legacyHomeSide spec)
@@ -1283,6 +1287,7 @@ reportingFor title = case title of
     InsuranceGain                                  -> StatementEligible
     GainOnBargainPurchase                          -> StatementEligible
     ReversalOfAllowanceForRepairs                  -> StatementEligible
+    ReversalOfAllowanceForBonuses                  -> StatementEligible
     ReversalOfAllowanceForProductWarranties        -> StatementEligible
     GainOnDonationOfFixedAssets                    -> StatementEligible
     GainOnNationalSubsidies                        -> StatementEligible
@@ -3320,6 +3325,17 @@ accountSpec ReversalOfAllowanceForRepairs = Just AccountSpec
     , asLabelJa = "修繕引当金戻入"
     , asDescription = "Revenue: Reversal of provision for repairs (修繕引当金戻入)"
     , asAliases = ["修繕引当金戻入"]
+    }
+accountSpec ReversalOfAllowanceForBonuses = Just AccountSpec
+    { asDivision = Revenue
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Reversal of provision for bonuses"
+    , asNameJa = "賞与引当金戻入"
+    , asLabelJa = "賞与引当金戻入"
+    , asDescription = "Revenue: Reversal of provision for bonuses (賞与引当金戻入)"
+    , asAliases = ["賞与引当金戻入"]
     }
 accountSpec ReversalOfAllowanceForProductWarranties = Just AccountSpec
     { asDivision = Revenue

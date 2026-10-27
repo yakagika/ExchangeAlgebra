@@ -4,6 +4,10 @@
 
 ### Added
 
+- `ReversalOfAllowanceForBonuses` (賞与引当金戻入) is a new revenue account title,
+  used when the estimate for bonuses is below the allowance balance. Its ordinal
+  follows `PurchaseAllowances`; the wildcard `AccountTitle` shifts by one.
+
 - `ExchangeAlgebra.Accounting.Adjustment` provides 15 named closing adjustments
   for grade-3 bookkeeping, with explicit rounding rules. Account-wide amounts
   are read from ledger balances, and contract or asset amounts from a selected

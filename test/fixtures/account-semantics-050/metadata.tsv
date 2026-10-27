@@ -241,3 +241,4 @@ RawMaterials	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Assets	FixedHom
 GoodsInTransit	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Assets	FixedHomeSide Debit	StatementEligible
 SalesAllowances	[OrdinaryAccount,ContraAccount]	OrdinaryPosting	StatementDivision Revenue	FixedHomeSide Debit	StatementEligible
 PurchaseAllowances	[OrdinaryAccount,ContraAccount]	OrdinaryPosting	StatementDivision Cost	FixedHomeSide Credit	StatementEligible
+ReversalOfAllowanceForBonuses	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Revenue	FixedHomeSide Credit	StatementEligible

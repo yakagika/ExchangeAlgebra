@@ -241,3 +241,4 @@ RawMaterials	Assets	False	Debit	Credit	PS	Current	Nothing
 GoodsInTransit	Assets	False	Debit	Credit	PS	Current	Nothing
 SalesAllowances	Revenue	True	Debit	Credit	OUT	Other	Flip
 PurchaseAllowances	Cost	True	Credit	Debit	IN	Other	Keep
+ReversalOfAllowanceForBonuses	Revenue	False	Credit	Debit	IN	Other	Keep

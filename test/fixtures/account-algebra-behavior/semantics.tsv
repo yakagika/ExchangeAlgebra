@@ -241,3 +241,4 @@ RawMaterials	238	80ee	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothi
 GoodsInTransit	239	80ef	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
 SalesAllowances	240	80f0	Revenue	CloseByDivision	True	Debit	Credit	OUT	Other	Flip
 PurchaseAllowances	241	80f1	Cost	CloseByDivision	True	Credit	Debit	IN	Other	Keep
+ReversalOfAllowanceForBonuses	242	80f2	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep

@@ -214,6 +214,7 @@ ReserveDepositReceivable
 ReserveForDepreciation
 RetainedEarnings
 RetirementBenefitExpenses
+ReversalOfAllowanceForBonuses
 ReversalOfAllowanceForDoubtfulAccounts
 ReversalOfAllowanceForProductWarranties
 ReversalOfAllowanceForRepairs

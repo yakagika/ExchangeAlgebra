@@ -248,6 +248,7 @@ AccountTitles	RawMaterials	80ee
 AccountTitles	GoodsInTransit	80ef
 AccountTitles	SalesAllowances	80f0
 AccountTitles	PurchaseAllowances	80f1
+AccountTitles	ReversalOfAllowanceForBonuses	80f2
 AccountTitles	AccountTitle	ffff
 CountUnit	Yen	00
 CountUnit	Dollar	01

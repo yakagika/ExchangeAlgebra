@@ -175,6 +175,7 @@ module Surface.Accounting
           , InsuranceGain
           , GainOnBargainPurchase
           , ReversalOfAllowanceForRepairs
+          , ReversalOfAllowanceForBonuses
           , ReversalOfAllowanceForProductWarranties
           , GainOnDonationOfFixedAssets
           , GainOnNationalSubsidies
@@ -477,6 +478,7 @@ import           ExchangeAlgebra.Accounting
                            , InsuranceGain
                            , GainOnBargainPurchase
                            , ReversalOfAllowanceForRepairs
+                           , ReversalOfAllowanceForBonuses
                            , ReversalOfAllowanceForProductWarranties
                            , GainOnDonationOfFixedAssets
                            , GainOnNationalSubsidies

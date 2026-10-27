@@ -241,4 +241,5 @@ RawMaterials	238
 GoodsInTransit	239
 SalesAllowances	240
 PurchaseAllowances	241
-AccountTitle	242
+ReversalOfAllowanceForBonuses	242
+AccountTitle	243

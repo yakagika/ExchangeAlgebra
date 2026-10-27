@@ -70,11 +70,11 @@ testAccountTitlesBinary = do
         roundTripped = L.map (Binary.decode . Binary.encode) titles
         codes = L.map (BinaryGet.runGet BinaryGet.getWord16be . Binary.encode) titles
         invalidCodes = [0x0000, 0x0001, 0x00F2, 0x7FFF, 0x8000 + fromIntegral (length titles)]
-    assertEqual "AccountTitles Binary covers all 243 constructors"
-        243 (L.length titles)
+    assertEqual "AccountTitles Binary covers all 244 constructors"
+        244 (L.length titles)
     assertEqual "AccountTitles Binary Word16be roundtrip"
         titles roundTripped
-    assertEqual "B4 AccountTitles codes are injective" 243 (Set.size (Set.fromList codes))
+    assertEqual "B4 AccountTitles codes are injective" 244 (Set.size (Set.fromList codes))
     assertEqual "B4 AccountTitles codes carry the version bit" True (all (>= 0x8000) codes)
     assertEqual "B4 wildcard code is fixed" (BinaryPut.runPut (BinaryPut.putWord16be 0xFFFF))
         (Binary.encode AccountTitle)
@@ -302,6 +302,7 @@ accountTitleClassTable =
     , (InsuranceGain, Revenue, Credit, Other)
     , (GainOnBargainPurchase, Revenue, Credit, Other)
     , (ReversalOfAllowanceForRepairs, Revenue, Credit, Other)
+    , (ReversalOfAllowanceForBonuses, Revenue, Credit, Other)
     , (ReversalOfAllowanceForProductWarranties, Revenue, Credit, Other)
     , (GainOnDonationOfFixedAssets, Revenue, Credit, Other)
     , (GainOnNationalSubsidies, Revenue, Credit, Other)
@@ -485,7 +486,7 @@ testVocabOrdinalPin = do
     assertEqual "vocab ordinal pin: new constructors sit between max pinned and wildcard"
         [] misplaced
     assertEqual "vocab ordinal pin: appended constructor ordinals and wildcard"
-        [232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242]
+        [232..243]
         (L.map fromEnum
             [ ConsumptionTaxRefundReceivable
             , PropertyTaxPayable
@@ -497,6 +498,7 @@ testVocabOrdinalPin = do
             , GoodsInTransit
             , SalesAllowances
             , PurchaseAllowances
+            , ReversalOfAllowanceForBonuses
             , AccountTitle
             ])
     -- concreteAccountTitles は wildcard 以外の全 constructor を被覆すること。
@@ -571,7 +573,7 @@ testIncomeSummaryBalancedNoCrash = do
 
 testAssistAllAccountInfos :: IO ()
 testAssistAllAccountInfos = do
-    assertEqual "Assist.allAccountInfos length" 242 (length Assist.allAccountInfos)
+    assertEqual "Assist.allAccountInfos length" 243 (length Assist.allAccountInfos)
     assertEqual "Assist.allAccountInfos follows concreteAccountTitles order"
         PP.concreteAccountTitles (L.map Assist.aiTitle Assist.allAccountInfos)
     forM_ Assist.allAccountInfos $ \info -> do
@@ -618,8 +620,8 @@ testAccountSemanticsRegistryInvariants = do
                 StatementDivision _ -> False
                 _                   -> True
             ]
-    assertEqual "metadata covers all 242 concrete titles"
-        242 (L.length semantics)
+    assertEqual "metadata covers all 243 concrete titles"
+        243 (L.length semantics)
     assertEqual "metadata rejects wildcard AccountTitle"
         Nothing (Registry.accountSemantics AccountTitle)
     assertEqual "non-statement metadata is exactly the reviewed exception set"
@@ -755,8 +757,8 @@ testAccountSemanticsGolden = do
             accountRegistryHeader
                 (T.pack "LLM AccountInfo (title, roles, posting, divisionSemantics, homeSideSemantics, reportingEligibility, nameEn, nameJa, description)")
             <> T.unlines (L.map accountRegistryInfoRow Assist.allAccountInfos)
-    assertEqual "metadata fixture has 242 rows"
-        242 (L.length (L.drop 1 (T.lines metadata)))
+    assertEqual "metadata fixture has 243 rows"
+        243 (L.length (L.drop 1 (T.lines metadata)))
     assertEqual "metadata fixture" metadata expectedMetadata
     assertEqual "LLM AccountInfo fixture" info expectedInfo
     assertEqual "LLM suggestion fixture"
@@ -1212,8 +1214,8 @@ testJapaneseAccountLabels = do
             , any (`T.isInfixOf` label) forbidden
                 || T.any (\c -> isAscii c && isAlpha c) label
             ]
-    assertEqual "asLabelJa covers all 242 concrete titles"
-        242 (L.length labels)
+    assertEqual "asLabelJa covers all 243 concrete titles"
+        243 (L.length labels)
     assertEqual "asLabelJa contains only cleaned Japanese account names"
         ([] :: [(AccountTitles, T.Text)]) invalid
 

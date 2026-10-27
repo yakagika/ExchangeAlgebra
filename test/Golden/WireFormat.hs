@@ -169,7 +169,7 @@ checkFixture :: IO ()
 checkFixture = do
     let path = fixtureDir ++ "/wire-format.tsv"
         boundaryPath = fixtureDir ++ "/decode-boundaries.tsv"
-    unless (length cases == 286 && length rejected == 23 && length accepted == 1)
+    unless (length cases == 287 && length rejected == 23 && length accepted == 1)
         (fail "wire-format-p2: case count differs")
     regen <- lookupEnv "EA_REGEN_GOLDEN"
     case regen of

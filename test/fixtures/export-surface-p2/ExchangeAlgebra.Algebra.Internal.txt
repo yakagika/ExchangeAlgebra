@@ -292,6 +292,7 @@ ReserveForDepreciation
 RetainedEarnings
 RetirementBenefitExpenses
 Revenue
+ReversalOfAllowanceForBonuses
 ReversalOfAllowanceForDoubtfulAccounts
 ReversalOfAllowanceForProductWarranties
 ReversalOfAllowanceForRepairs
