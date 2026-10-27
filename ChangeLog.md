@@ -460,6 +460,11 @@
   no longer installs an x86_64 Cairo on Apple Silicon. No measured program
   draws a chart, and the pinned sources are unchanged. INSTALL.md now explains
   how to obtain an x86_64 Stack.
+- `IO.Input.Admission` has a walkthrough with runnable examples: write a
+  journal, add an adjusting entry and the closing entries, `admit`, read the
+  failures, `checkEvidence` against a bank record, and present the statements.
+  The module no longer points to the deprecated `validateTrialBalance`; it
+  points to `present` and `trialBalanceFindings`.
 
 ## 0.5.3.1 - 2026-10-21
 

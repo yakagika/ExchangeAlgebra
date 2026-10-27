@@ -30,6 +30,9 @@ main = doctest  [ "-isrc"
                 , "src/ExchangeAlgebra/Accounting/Catalog.hs"
                 , "src/ExchangeAlgebra/Accounting/Adjustment.hs"
                 , "src/ExchangeAlgebra/IO/Input/Admission/Engine.hs"
+                  -- the admission walkthrough imports the trial-balance
+                  -- umbrella qualified; it is not reachable from the umbrella.
+                , "src/ExchangeAlgebra/Accounting/TrialBalance.hs"
                   -- the admission examples import its public API qualified;
                   -- load that module before doctest evaluates those imports.
                 , "src/ExchangeAlgebra/IO/Input/Admission.hs"
