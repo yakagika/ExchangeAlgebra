@@ -317,14 +317,14 @@ data  Alg v b where
                  } ->  Alg v b
 
 -- | Serialize an algebra in the 0.5 wire layout (tag 0 = 'Zero', tag 1 =
--- one posting, tag 2 = the per-base map with each 'Pair' in sequence order).
+-- one posting, tag 2 = the per-base map with each t'Pair' in sequence order).
 --
 -- Decoding is a construction boundary, like '.@': it fails on a value for
 -- which 'valueError' is 'Just' (negative or non-finite), on a tag-1 posting
 -- whose base side is 'HatNot', and on a repeated base key in tag 2. The checks
 -- run before zero values are dropped, and a dropped key still counts as a
 -- repeat. Zero values are then dropped as '.@' and '.+' drop them: a tag-1
--- zero decodes to 'Zero', zero entries leave their 'Pair' sequence with the
+-- zero decodes to 'Zero', zero entries leave their t'Pair' sequence with the
 -- remaining order unchanged, an empty side or base disappears, and an empty
 -- tag 2 decodes to 'Zero'. A standalone base value is not checked here, so a
 -- 'HatNot' pattern still decodes. For every algebra built from Hat or Not
@@ -502,7 +502,7 @@ singleton v b | hat b == HatNot = error $ "errorValue at (.@): HatNot side val: 
 -- | Smart constructor that builds an algebra element from a value and a base.
 -- This is the public construction boundary for a posting.
 --
--- Contract (0.6): the side of @b@ must be 'Hat' or 'Not'. A base whose side is
+-- Contract (0.6): the side of @b@ must be v'Hat' or 'Not'. A base whose side is
 -- the wildcard 'HatNot' is rejected with 'error', checked before the zero
 -- short-cut (so @0 .@ HatNot :< Cash@ also fails): 'HatNot' is a query
 -- pattern, not a side a posting can have. Then a zero value gives 'Zero', and

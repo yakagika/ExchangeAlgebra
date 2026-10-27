@@ -24,7 +24,7 @@
     visible ledger, such as an asset acquired in an earlier period, is stated
     with 'StatedAmount'.
 
-    Values are 'MoneyDecimal' and bases are @'HatBase' 'AccountTitles'@, the
+    Values are t'MoneyDecimal' and bases are @'HatBase' 'AccountTitles'@, the
     base of admission and the catalog. Multi-axis bases are outside 0.6.
 
     Amounts that need a division take an 'AdjustmentRounding'. There is no
@@ -219,7 +219,7 @@ data AdjustmentProblem
     | NegativeAmount Rational
       -- ^ The amount given to 'roundAmount' is negative.
     | InexactAmount Rational
-      -- ^ Under 'ExactOnly', the exact amount is not a 'MoneyDecimal'.
+      -- ^ Under 'ExactOnly', the exact amount is not a t'MoneyDecimal'.
     | NonPositiveArgument MoneyDecimal
       -- ^ A stated amount, ending count, or tax total that must be positive.
     | NegativeArgument MoneyDecimal

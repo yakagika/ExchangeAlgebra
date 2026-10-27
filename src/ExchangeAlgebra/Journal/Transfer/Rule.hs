@@ -178,7 +178,7 @@ carryNetEntries carryNote journal = case validationError of
 -- @exact_b(j <> e) - exact_b(j) = RN(s_b) - s_b@, where @e@ is the generated
 -- journal, @s_b@ is the selected exact net, and @RN@ is one rounding by
 -- 'ExchangeAlgebra.Algebra.Value.Class.roundAccum' of the value type (the
--- identity for 'ExchangeAlgebra.Algebra.Value.MoneyDecimal' within its
+-- identity for t'ExchangeAlgebra.Algebra.Value.MoneyDecimal' within its
 -- range, nearest-even for Double).
 -- Observation: Rational balances of original scalar entries, including zero
 -- bases. Tolerance: exact Rational equality. Instances: 'Note' and

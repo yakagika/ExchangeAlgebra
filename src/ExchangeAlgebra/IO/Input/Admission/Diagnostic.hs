@@ -16,7 +16,7 @@ import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 -- other transactions, opening balances, or the answer of an exercise.
 data AdmissionError n b
     = NonPositiveAmount n b MoneyDecimal
-      -- ^ A posting whose value is zero or negative ('MoneyDecimal' has no
+      -- ^ A posting whose value is zero or negative (t'MoneyDecimal' has no
       -- non-finite value).
     | WildcardSide n b
       -- ^ A posting whose side is the wildcard @HatNot@. A ledger posting is

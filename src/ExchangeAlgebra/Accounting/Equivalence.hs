@@ -20,7 +20,7 @@
 -- > import qualified ExchangeAlgebra.Accounting.Equivalence as Equivalence
 -- > import qualified ExchangeAlgebra.Accounting.Transaction as Transaction
 --
--- Supply maps of 'TxKey' to 'Entry'. Comparison does not establish admission.
+-- Supply maps of t'TxKey' to 'Entry'. Comparison does not establish admission.
 module ExchangeAlgebra.Accounting.Equivalence
     ( -- * Observation policy
       Equivalence(..)
@@ -124,7 +124,7 @@ observed (NetAccountsInTransactions keys accounts) key entry
 -- Law (equivalence relation): For finite maps with total 'Entry' values, each
 -- policy is reflexive, symmetric, and transitive. The observed value is a
 -- canonical sorted posting multiset per transaction, with 'bar' applied only
--- in the policy's stated scope. Comparing the resulting 'MoneyDecimal' values
+-- in the policy's stated scope. Comparing the resulting t'MoneyDecimal' values
 -- uses exact equality. 'bar' nets each account exactly over the postings and
 -- drops a residual only when it is exactly zero, so net policies are exact
 -- arithmetic netting. A single atomic posting is unchanged by 'bar', including
@@ -245,7 +245,7 @@ entryDifferences retained key candidate reference =
 -- Laws (for finite, fully valid input): comparison is reflexive; splitting a
 -- posting into same-side amounts with the same sum preserves the result; and
 -- retained-earnings gross and net postings with equal net amounts agree.
--- All sums use exact 'MoneyDecimal' arithmetic. Complexity: O(p log p), where
+-- All sums use exact t'MoneyDecimal' arithmetic. Complexity: O(p log p), where
 -- p is the total number of postings and transaction keys.
 closingDifferences :: AccountTitles -> Map TxKey Entry -> Map TxKey Entry
                    -> [ClosingDifference]

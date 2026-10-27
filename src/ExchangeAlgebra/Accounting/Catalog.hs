@@ -112,7 +112,7 @@ basisPointsValue :: BasisPoints -> MoneyDecimal
 basisPointsValue (BasisPoints rate) = rate
 
 -- | Closed bookkeeping requests. Amount parameters use the same currency
--- unit as raw postings; allowance rates use 'BasisPoints'.
+-- unit as raw postings; allowance rates use t'BasisPoints'.
 -- Account parameters and amounts are validated before any builder executes.
 data CatalogCallOf r
     = CogsCall MoneyDecimal MoneyDecimal -- ^ Beginning and ending inventory amounts, in that order.
@@ -238,7 +238,7 @@ data CatalogExecutionProblem
       -- ^ Account balance is on the side opposite to its normal side.
     | ClosingFailed (HatBase AccountTitles)
       -- ^ Base whose balance closing could not close. With the exact
-      -- 'MoneyDecimal' value type this does not occur; it keeps the
+      -- t'MoneyDecimal' value type this does not occur; it keeps the
       -- closing builder total.
     deriving (Eq, Show)
 

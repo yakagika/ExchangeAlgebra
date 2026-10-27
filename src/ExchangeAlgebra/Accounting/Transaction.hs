@@ -53,7 +53,7 @@ newtype PeriodId = PeriodId Text deriving (Eq, Ord, Show)
 -- | Transaction identity within one entity and period.
 newtype TxId = TxId Text deriving (Eq, Ord, Show)
 
--- | Hash each identifier by its exact text, as 'TxKey' hashes its coordinates.
+-- | Hash each identifier by its exact text, as t'TxKey' hashes its coordinates.
 instance Hashable EntityId where
     hashWithSalt salt (EntityId text) = hashWithSalt salt text
 

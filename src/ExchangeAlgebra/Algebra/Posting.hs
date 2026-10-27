@@ -69,7 +69,7 @@ import ExchangeAlgebra.Algebra.Base.Representation
 -- Construct values through 'posted'.
 --
 -- The value type is nominal: @coerce@ cannot turn a value checked at one type
--- into a 'Posted' of another type (for example a user newtype with a smaller
+-- into a t'Posted' of another type (for example a user newtype with a smaller
 -- 'postingUpperBound').
 type role Posted nominal
 newtype Posted v = Posted v
@@ -155,7 +155,7 @@ sideHat NotSide = Not
 -- Equality is structural and depends on construction order. To compare
 -- multisets of postings instead, compare the results of @toASCList . postingAlg@.
 -- (0.6.0.0: polymorphic in the value type @v@; 0.5.x fixed @v = Double@.)
--- The value type is nominal for the same reason as in 'Posted'.
+-- The value type is nominal for the same reason as in t'Posted'.
 type role Posting nominal nominal
 newtype Posting v b = Posting (Alg v b)
 
