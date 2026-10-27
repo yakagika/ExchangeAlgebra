@@ -66,15 +66,21 @@
   one-way query; mismatches are `EvidenceMissing`, `EvidenceDiffers`, or
   `EvidenceAmbiguous`. Neither function aggregates postings or applies `bar`.
   Admission does not post adjusting or closing entries, restrict accounts
-  beyond the unpostable ones, or compare with a reference answer. Derive trial
-  balances and statements from `admittedJournal` with `validateTrialBalance`
-  and `Presentation.present`. `TxKey`, `EntityId`, `PeriodId`, and `TxId`
+  beyond the unpostable ones, or compare with a reference answer. Derive
+  statements from `admittedJournal` with `Presentation.present`, and inspect
+  accounting findings with `trialBalanceFindings`. `TxKey`, `EntityId`, `PeriodId`, and `TxId`
   (also in `ExchangeAlgebra.Accounting.Transaction`) are a ready-made note
   type. The separate `ExchangeAlgebra.Accounting.Equivalence` module compares
   original postings or transaction-local and selected-account net
   observations.
 - `ExchangeAlgebra.IO.Output.Statements.financialStatementRows` and
-  `writeFinancialStatements` write presented financial statements as CSV.
+  `writeFinancialStatements` write the chosen sections of presented financial
+  statements as CSV rows (`section`, `account`, `label`, `row`, `side`,
+  `amount`), in the order of the sections given and by account within a
+  section. Each account is one line with its net balance. Choosing the revenue
+  or expense section also writes the statement subtotals, including the
+  period-result line; `PeriodResultMissing` reports a statement without one
+  (for example, one presented after closing).
 - `ExchangeAlgebra.Accounting.Equivalence.closingDifferences` and
   `isClosingEquivalent` compare two closings by transaction key: accounts other
   than the designated retained-earnings account by their exact total per debit
@@ -99,6 +105,35 @@
 
 ### Changed
 
+- `Presentation.present` takes the trial-balance stage and the trial balance
+  directly (`ReportingContext v -> TrialBalanceStage -> Alg v (HatBase
+  AccountTitles) -> Either (NonEmpty (PresentationIssue v)) (FinancialStatements
+  v)`) and no longer stops on accounting findings such as reverse balances,
+  remaining suspense balances, or unclosed nominal balances; inspect those with
+  `trialBalanceFindings`. A legitimate reverse balance (for example a deficit
+  in retained earnings) stays in its section on the side of the balance. It
+  fails only when it cannot build a correct statement: an invalid value or a
+  wildcard base (`InvalidStatementValue`, `WildcardStatementBase`), debit and
+  credit totals that differ before any presentation step
+  (`UnbalancedStatementInput`), a period result that cannot be computed
+  (`PeriodResultUnavailable`), or the existing presentation issues. Before
+  closing, the statements always include the period-result subtotal.
+  `ValidationFindingBlocks` is removed.
+  - Numeric: unchanged for statements that were accepted before.
+  - Acceptance: trial balances with accounting findings are now presented.
+    Three instructions that were accepted before are now rejected, so that
+    the period-result subtotal always equals the exact sum of the revenue and
+    expense balances: a relabel, materiality netting, or contra netting that
+    moves a balance between a profit-and-loss title and a balance-sheet title
+    (`ConflictingPresentationInstruction`); a maturity allocation or a
+    maturity-sensitive title that is not an asset or a liability (also
+    `ConflictingPresentationInstruction`); and a caller's `SubtotalDefinition`
+    for `PeriodResultMetric` (`InvalidSubtotalDefinition`; the subtotal is now
+    built in). Keep such instructions within one side, and drop the custom
+    period-result subtotal.
+  - Postings: unchanged; no posting is added for the period result.
+- `periodResultOf` takes the trial-balance stage and the trial balance, and
+  reports a wildcard account as `WildcardMetricAccount`.
 - Journals now have no zero-valued notes in either layer. `map`,
   `projWithBase`, `projWithNoteBase`, `mkJournal`, `fromMap`, and Binary decoding
   drop zero notes. `mkJournal` and `fromMap` change from O(1) to O(n), evaluating
@@ -267,6 +302,13 @@
 
 ### Deprecated (module moves; definitions and behavior unchanged)
 
+- `validateTrialBalance`, `ValidatedTrialBalance` and its accessors,
+  `findingBlocksPresentation`, `TrialBalancePolicy`, `ReciprocalPolicy`,
+  `TemporaryBalancePolicy`, `strictTrialBalancePolicy`, and
+  `standaloneTrialBalancePolicy` now warn: statements no longer require
+  validation. Call `present` with the trial balance and its stage, add the
+  titles of `MaturityEvidenceRequired` rules to `_maturitySensitiveTitles`, and
+  inspect `trialBalanceFindings` separately. They are removed before 0.6.0.0.
 - `relabel`, `scaleBy`, `divideBy`, `MulBy`, and `DivBy` from the per-posting
   transfer API now warn. Use `from .-> to |% Relabel` for an accounting
   transfer, or `TransferRule from to Relabel` from
@@ -374,6 +416,10 @@
 
 ### Fixed
 
+- `compoundTrialBalanceRows` now puts a debit balance in the debit-balance
+  column and a credit balance in the credit-balance column. Previously each
+  balance appeared in the opposite column; the total columns were already
+  correct and are unchanged.
 - Algebra projections (`proj` and the projections built on it) no longer keep
   a base whose selected side is empty. Previously, projecting a multi-posting
   element onto the side that a base does not have left that base with both

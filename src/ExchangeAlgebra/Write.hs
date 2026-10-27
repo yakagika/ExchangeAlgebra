@@ -800,21 +800,17 @@ compoundTrialBalanceRows alg =
             -- suspense account). Treat that as no balance on either side
             -- (cf. 'sideCells').
             (dbt', cbt') = case dc of
-                Credit -> (mergeAccum dbt (negateAccum difference), cbt)
-                Debit  -> (dbt, mergeAccum cbt difference)
+                Credit -> (dbt, mergeAccum cbt (negateAccum difference))
+                Debit  -> (mergeAccum dbt difference, cbt)
                 Side   -> (dbt, cbt)
-            -- See the Haddock above: the Credit case places 'diff' in the
-            -- *Debit Balance* column (position 0) and the Debit case places
-            -- it in the *Credit Balance* column (position 4) -- opposite of
-            -- 'sideCells' -- a legacy layout kept verbatim.
             line = case dc of
-                Credit -> [ tshow diff
+                Debit  -> [ tshow diff
                           , tshow xl
                           , tshow a
                           , tshow xr
                           , T.empty
                           ]
-                Debit  -> [ T.empty
+                Credit -> [ T.empty
                           , tshow xl
                           , tshow a
                           , tshow xr

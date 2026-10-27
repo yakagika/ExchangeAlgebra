@@ -790,9 +790,9 @@ testCsvWriteCases = do
                   ( \path -> EW.writeCompoundTrialBalance path alg
                   , Just ("writeCompoundTrialBalance pinned: line count", 5)
                   , [ ("writeCompoundTrialBalance pinned: header", "\"Debit Balance\",\"Debit Total\",\"Account Title\",\"Credit Total\",\"Credit Balance\"", 0)
-                    , ("writeCompoundTrialBalance pinned: Cash (debit-heavy -> Credit Balance col)", "\"\",\"100.0\",\"Cash\",\"0.0\",\"100.0\"", 1)
-                    , ("writeCompoundTrialBalance pinned: CapitalStock (credit-heavy -> Debit Balance col)", "\"40.0\",\"0.0\",\"CapitalStock\",\"40.0\",\"\"", 2)
-                    , ("writeCompoundTrialBalance pinned: LoansPayable (credit-heavy -> Debit Balance col)", "\"60.0\",\"0.0\",\"LoansPayable\",\"60.0\",\"\"", 3)
+                    , ("writeCompoundTrialBalance pinned: Cash (debit-heavy -> Debit Balance col)", "\"100.0\",\"100.0\",\"Cash\",\"0.0\",\"\"", 1)
+                    , ("writeCompoundTrialBalance pinned: CapitalStock (credit-heavy -> Credit Balance col)", "\"\",\"0.0\",\"CapitalStock\",\"40.0\",\"40.0\"", 2)
+                    , ("writeCompoundTrialBalance pinned: LoansPayable (credit-heavy -> Credit Balance col)", "\"\",\"0.0\",\"LoansPayable\",\"60.0\",\"60.0\"", 3)
                     , ("writeCompoundTrialBalance pinned: totals", "\"100.0\",\"100.0\",\"Total\",\"100.0\",\"100.0\"", 4)
                     ]
                   )

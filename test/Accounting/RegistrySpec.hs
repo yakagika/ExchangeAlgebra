@@ -5,6 +5,7 @@ module Accounting.RegistrySpec (runTests) where
 
 import qualified ExchangeAlgebra.Algebra.Internal as Internal
 import ExchangeAlgebra.Journal
+import qualified ExchangeAlgebra.IO.Output.Statements as StatementOutput
 import qualified ExchangeAlgebra.IO.Input      as EC
 import qualified ExchangeAlgebra.Accounting.Account as PP
 import qualified ExchangeAlgebra.Accounting.Consolidation as CW
@@ -2125,8 +2126,7 @@ testTrialBalanceValidation = do
             (TB.DebitBalance 40) (TB.CreditBalance 30)
     assertEqual "trial balance: reciprocal mismatch independent of global balance"
         (Just (expectedReciprocal NE.:| []))
-        (leftErrors (TB.validateTrialBalance
-            TB.strictTrialBalancePolicy reciprocalInput))
+        (NE.nonEmpty (TB.trialBalanceFindings (reciprocalInput)))
     assertEqual "trial balance: two-sided mismatch is never a standalone waiver"
         (Just (expectedReciprocal NE.:| []))
         (leftErrors (TB.validateTrialBalance
@@ -2166,19 +2166,17 @@ testTrialBalanceValidation = do
         (leftErrors (TB.validateTrialBalance
             TB.strictTrialBalancePolicy explainedInput))
     let unresolvedInput = trialBalanceInput explainedSuspense TB.BeforeClosing
-    assertEqual "trial balance: unexplained temporary balance blocks"
+    assertEqual "trial balance: unexplained temporary balance is a finding"
         (Just (TB.UnresolvedTemporaryBalance SuspensePayments
             (TB.DebitBalance 10) NE.:| []))
-        (leftErrors (TB.validateTrialBalance
-            TB.standaloneTrialBalancePolicy unresolvedInput))
+        (NE.nonEmpty (TB.trialBalanceFindings (unresolvedInput)))
     let blankInput = explainedInput
             { TB._temporaryBalanceExplanations =
                 M.singleton SuspensePayments (T.pack "  ") }
-    assertEqual "trial balance: blank explanation never opens the gate"
+    assertEqual "trial balance: blank explanation is a finding"
         (Just (TB.BlankTemporaryExplanation SuspensePayments
             (TB.DebitBalance 10) NE.:| []))
-        (leftErrors (TB.validateTrialBalance
-            TB.standaloneTrialBalancePolicy blankInput))
+        (NE.nonEmpty (TB.trialBalanceFindings (blankInput)))
 
     let closingResidual = EC.journalFromSides
             [ (Debit, CashOverShort, 10 :: MoneyDecimal)
@@ -2191,8 +2189,7 @@ testTrialBalanceValidation = do
                 NE.:|
               [TB.ClosingDeviceResidual IncomeSummary (TB.CreditBalance 10)]
             ))
-        (leftErrors (TB.validateTrialBalance
-            TB.standaloneTrialBalancePolicy closingInput))
+        (NE.nonEmpty (TB.trialBalanceFindings (closingInput)))
     let unclosedNominal = EC.journalFromSides
             [ (Debit, Cash, 10 :: MoneyDecimal)
             , (Credit, Sales, 10)
@@ -2200,8 +2197,7 @@ testTrialBalanceValidation = do
     assertEqual "trial balance: nominal balances must close after closing"
         (Just (TB.UnclosedNominalBalance Sales
             (TB.CreditBalance 10) NE.:| []))
-        (leftErrors (TB.validateTrialBalance TB.standaloneTrialBalancePolicy
-            (trialBalanceInput unclosedNominal TB.AfterClosing)))
+        (NE.nonEmpty (TB.trialBalanceFindings ((trialBalanceInput unclosedNominal TB.AfterClosing))))
 
     let derivedResidual = EC.journalFromSides
             [ (Debit, NetIncome, 10 :: MoneyDecimal)
@@ -2210,8 +2206,7 @@ testTrialBalanceValidation = do
     assertEqual "trial balance: derived coordinates are residuals after closing"
         (Just (TB.DerivedCoordinateResidual NetIncome
             (TB.DebitBalance 10) NE.:| []))
-        (leftErrors (TB.validateTrialBalance TB.standaloneTrialBalancePolicy
-            (trialBalanceInput derivedResidual TB.AfterClosing)))
+        (NE.nonEmpty (TB.trialBalanceFindings ((trialBalanceInput derivedResidual TB.AfterClosing))))
 
     let abnormalDeposit = EC.journalFromSides
             [ (Debit, Cash, 10 :: MoneyDecimal)
@@ -2225,19 +2220,16 @@ testTrialBalanceValidation = do
     assertEqual "trial balance: unexplained abnormal side is explicit"
         (Just (TB.UnexplainedAbnormalBalance CurrentDeposits Debit
             (TB.CreditBalance 10) NE.:| []))
-        (leftErrors (TB.validateTrialBalance
-            TB.standaloneTrialBalancePolicy abnormalInput))
+        (NE.nonEmpty (TB.trialBalanceFindings (abnormalInput)))
     assertEqual "trial balance: unique reclassification is an instruction"
         (Just (TB.AbnormalBalanceWithReclassificationRule CurrentDeposits
             (TB.CreditBalance 10) ShortTermLoansPayable NE.:| []))
-        (leftErrors (TB.validateTrialBalance TB.standaloneTrialBalancePolicy
-            abnormalInput { TB._reclassificationRules = [oneRule] }))
+        (NE.nonEmpty (TB.trialBalanceFindings (abnormalInput { TB._reclassificationRules = [oneRule] })))
     assertEqual "trial balance: ambiguous reclassification is never automatic"
         (Just (TB.AmbiguousReclassification CurrentDeposits
             (TB.CreditBalance 10)
             (BankOverdraft NE.:| [ShortTermLoansPayable]) NE.:| []))
-        (leftErrors (TB.validateTrialBalance TB.standaloneTrialBalancePolicy
-            abnormalInput { TB._reclassificationRules = [twoRules] }))
+        (NE.nonEmpty (TB.trialBalanceFindings (abnormalInput { TB._reclassificationRules = [twoRules] })))
 
     let recordedTransfer = EC.journalFromSides
             [ (Debit, CurrentDeposits, 10 :: MoneyDecimal)
@@ -2271,16 +2263,14 @@ testTrialBalanceValidation = do
             { TB._reclassificationRules = [invalidRule] }
     assertEqual "trial balance: inapplicable rules are explicit"
         (Just (TB.InapplicableReclassificationRule invalidRule NE.:| []))
-        (leftErrors (TB.validateTrialBalance
-            TB.standaloneTrialBalancePolicy invalidRuleInput))
+        (NE.nonEmpty (TB.trialBalanceFindings (invalidRuleInput)))
     let deadRule = TB.SideReclassificationRule CurrentDeposits Debit
             (Cash NE.:| [])
         deadRuleInput = (trialBalanceInput mempty TB.BeforeClosing)
             { TB._reclassificationRules = [deadRule] }
     assertEqual "trial balance: normal-side trigger is a dead rule"
         (Just (TB.InapplicableReclassificationRule deadRule NE.:| []))
-        (leftErrors (TB.validateTrialBalance
-            TB.standaloneTrialBalancePolicy deadRuleInput))
+        (NE.nonEmpty (TB.trialBalanceFindings (deadRuleInput)))
 
     let maturityBalance = EC.journalFromSides
             [ (Debit, LoansReceivable, 25 :: MoneyDecimal)
@@ -2293,8 +2283,7 @@ testTrialBalanceValidation = do
             { TB._maturityEvidenceTitles = Set.singleton LoansReceivable }
     assertEqual "trial balance: maturity-sensitive title requires evidence"
         (Just (TB.MissingMaturityEvidence LoansReceivable NE.:| []))
-        (leftErrors (TB.validateTrialBalance
-            TB.standaloneTrialBalancePolicy missingMaturity))
+        (NE.nonEmpty (TB.trialBalanceFindings (missingMaturity)))
     assertEqual "trial balance: supplied maturity evidence clears finding"
         True
         (case TB.validateTrialBalance
@@ -2305,17 +2294,33 @@ testTrialBalanceValidation = do
     let unbalanced = EC.journalFromSides
             [(Debit, Cash, 10 :: MoneyDecimal)] :: CheckedAlgM
         unbalancedInput = trialBalanceInput unbalanced TB.BeforeClosing
-    assertEqual "trial balance: exact global imbalance blocks"
+    assertEqual "trial balance: exact global imbalance is a finding"
         (Just (TB.UnbalancedTrialBalance 10 0 NE.:| []))
-        (leftErrors (TB.validateTrialBalance
-            TB.standaloneTrialBalancePolicy unbalancedInput))
+        (NE.nonEmpty (TB.trialBalanceFindings (unbalancedInput)))
 
     let wildcard = 10 `Internal.Single` (HatNot :< Cash) :: CheckedAlgM
         wildcardInput = trialBalanceInput wildcard TB.BeforeClosing
     assertEqual "trial balance: wildcard side reports without whichSide crash"
         (Just (TB.WildcardTrialBalanceSide NE.:| []))
-        (leftErrors (TB.validateTrialBalance
-            TB.standaloneTrialBalancePolicy wildcardInput))
+        (NE.nonEmpty (TB.trialBalanceFindings (wildcardInput)))
+
+    forM_ [reciprocalInput, standaloneInput, unresolvedInput, blankInput,
+           explainedInput, abnormalInput,
+           abnormalInput { TB._reclassificationRules = [oneRule] },
+           abnormalInput { TB._reclassificationRules = [twoRules] }] $ \input ->
+        assertEqual "audit findings do not block a presentable trial balance"
+            True (case RP.present (RP.jcciSecondGradeContext RP.Standalone)
+                    (TB._trialBalanceStage input) (TB._trialBalanceElement input) of
+                Right _ -> True
+                Left _ -> False)
+    let maturityContext = (RP.jcciSecondGradeContext RP.Standalone)
+            { RP._maturitySensitiveTitles = Set.singleton LoansReceivable
+            , RP._presentationAllocations =
+                [RP.PresentationAllocation LoansReceivable 10 15 (T.pack "schedule")] }
+    assertEqual "missing maturity audit evidence does not block supplied presentation split"
+        True (case RP.present maturityContext TB.BeforeClosing maturityBalance of
+            Right _ -> True
+            Left _ -> False)
 
     let titlesFor role =
             [ title
@@ -2345,18 +2350,10 @@ testReportingPresentation = do
             , (Credit, AdvancesReceived, 15)
             , (Credit, HeadOfficeCurrentAccount, 10)
             ] :: CheckedAlgM
-        maturityRule = TB.MaturityEvidenceRequired LoansReceivable
-        reportingInput = (trialBalanceInput reportingBalance TB.BeforeClosing)
-            { TB._reclassificationRules = [maturityRule]
-            , TB._maturityEvidenceTitles = Set.singleton LoansReceivable
-            }
-        validated = case TB.validateTrialBalance
-                TB.strictTrialBalancePolicy reportingInput of
-            Right value -> value
-            Left errors -> error ("reporting fixture did not validate: " ++ show errors)
         rationale = T.pack "material under the documented tax review"
         context scope = (RP.jcciSecondGradeContext scope)
-            { RP._presentationAllocations =
+            { RP._maturitySensitiveTitles = Set.singleton LoansReceivable
+            , RP._presentationAllocations =
                 [RP.PresentationAllocation LoansReceivable 10 20
                     (T.pack "contract maturity schedule")]
             , RP._presentationRelabels =
@@ -2372,8 +2369,8 @@ testReportingPresentation = do
                     RP.RequireAllTitlesPresent
                 ]
             }
-        standalone = rightStatements (RP.present (context RP.Standalone) validated)
-        combined = rightStatements (RP.present (context RP.Combined) validated)
+        standalone = rightStatements (RP.present (context RP.Standalone) TB.BeforeClosing reportingBalance)
+        combined = rightStatements (RP.present (context RP.Combined) TB.BeforeClosing reportingBalance)
         standaloneTitles = L.map RP._lineAccount (RP._statementLines standalone)
         combinedTitles = L.map RP._lineAccount (RP._statementLines combined)
     assertEqual "reporting: same validated TB changes with scope"
@@ -2402,7 +2399,9 @@ testReportingPresentation = do
     assertEqual "reporting: Purchases is relabeled to SalesCost"
         True (Purchases `notElem` standaloneTitles && SalesCost `elem` standaloneTitles)
     assertEqual "reporting: GrossProfit is a subtotal, not a basis line"
-        ( [ RP.StatementSubtotal RM.GrossProfitMetric
+        ( [ RP.StatementSubtotal RM.PeriodResultMetric
+                (T.pack "当期純利益") (TB.CreditBalance 30)
+          , RP.StatementSubtotal RM.GrossProfitMetric
                 (T.pack "売上総利益") (TB.CreditBalance 30)
           , RP.StatementSubtotal RM.OrdinaryProfitMetric
                 (T.pack "経常利益") (TB.CreditBalance 30)
@@ -2418,14 +2417,14 @@ testReportingPresentation = do
             RP.PresentSeparately (TB.DebitBalance 5) rationale
                 `elem` RP._presentationAudit standalone)
     assertEqual "reporting: relabel never mutates validated bookkeeping coordinates"
-        True (Purchases `elem` basesAccountTitles (TB.validatedTrialBalance validated)
+        True (Purchases `elem` basesAccountTitles reportingBalance
             && SalesCost `notElem`
-                basesAccountTitles (TB.validatedTrialBalance validated))
+                basesAccountTitles reportingBalance)
 
     let missingAllocation = (context RP.Standalone)
             { RP._presentationAllocations = [] }
     assertEqual "reporting: missing maturity evidence blocks presentation"
-        True (case RP.present missingAllocation validated of
+        True (case RP.present missingAllocation TB.BeforeClosing reportingBalance of
             Left issues -> RP.MissingPresentationAllocation LoansReceivable
                 `elem` NE.toList issues
             Right _ -> False)
@@ -2437,22 +2436,21 @@ testReportingPresentation = do
         explainedInput = (trialBalanceInput explainedSuspense TB.BeforeClosing)
             { TB._temporaryBalanceExplanations = M.singleton SuspensePayments
                 (T.pack "pending invoice") }
-        explainedValidated = case TB.validateTrialBalance
-                TB.standaloneTrialBalancePolicy explainedInput of
-            Right value -> value
-            Left errors -> error ("explained fixture rejected: " ++ show errors)
-    assertEqual "reporting: stricter combined context re-gates retained finding"
+    assertEqual "reporting: explained temporary finding is separate from presentation"
+        [TB.ExplainedTemporaryBalance SuspensePayments (TB.DebitBalance 10)
+            (T.pack "pending invoice")]
+        (TB.trialBalanceFindings explainedInput)
+    assertEqual "reporting: combined context presents an explained temporary balance"
         True (case RP.present (RP.jcciSecondGradeContext RP.Combined)
-                explainedValidated of
-            Left issues -> any isValidationBlock (NE.toList issues)
-            Right _ -> False)
+                TB.BeforeClosing explainedSuspense of
+            Left _ -> False
+            Right _ -> True)
 
     let contraBalance = EC.journalFromSides
             [ (Debit, AccountsReceivable, 100 :: MoneyDecimal)
             , (Credit, AllowanceForDoubtfulAccounts, 10)
             , (Credit, CapitalStock, 90)
             ] :: CheckedAlgM
-        contraValidated = validateFixture contraBalance
         separateContext = (RP.jcciSecondGradeContext RP.Standalone)
             { RP._contraPresentationRules =
                 [RP.PresentContraSeparately AllowanceForDoubtfulAccounts
@@ -2462,9 +2460,9 @@ testReportingPresentation = do
                 [RP.NetContraAgainst AllowanceForDoubtfulAccounts
                     AccountsReceivable (T.pack "net receivables policy")] }
         separateLines = RP._statementLines
-            (rightStatements (RP.present separateContext contraValidated))
+            (rightStatements (RP.present separateContext TB.BeforeClosing contraBalance))
         netLines = RP._statementLines
-            (rightStatements (RP.present netContext contraValidated))
+            (rightStatements (RP.present netContext TB.BeforeClosing contraBalance))
     assertEqual "reporting: contra policy supports separate presentation"
         True (any (\line -> RP._lineAccount line == AllowanceForDoubtfulAccounts
             && RP._lineIsDeduction line) separateLines)
@@ -2480,14 +2478,13 @@ testReportingPresentation = do
             , (Credit, CapitalStock, 100)
             , (Credit, RefundOfIncomeTaxes, 5)
             ] :: CheckedAlgM
-        taxValidated = validateFixture taxBalance
         netTaxContext = (RP.jcciSecondGradeContext RP.Standalone)
             { RP._materialityDecisions =
                 [RP.MaterialityDecision RefundOfIncomeTaxes
                     (RP.NetAgainst CorporateIncomeTaxes)
                     (T.pack "immaterial refund netted under tax policy")] }
         taxLines = RP._statementLines
-            (rightStatements (RP.present netTaxContext taxValidated))
+            (rightStatements (RP.present netTaxContext TB.BeforeClosing taxBalance))
     assertEqual "reporting: materiality policy supports tax netting"
         (False, [(Debit, 15)])
         ( RefundOfIncomeTaxes `elem` L.map RP._lineAccount taxLines
@@ -2500,13 +2497,13 @@ testReportingPresentation = do
                 [RP.PresentationAllocation LoansReceivable current noncurrent evidence] }
     assertEqual "reporting: blank allocation evidence blocks"
         True (hasPresentationIssue isBlankEvidence (RP.present
-            (badAllocation 10 20 (T.pack "  ")) validated))
+            (badAllocation 10 20 (T.pack "  ")) TB.BeforeClosing reportingBalance))
     assertEqual "reporting: negative allocation blocks"
         True (hasPresentationIssue isInvalidAllocation (RP.present
-            (badAllocation (-1) 31 (T.pack "schedule")) validated))
+            (badAllocation (-1) 31 (T.pack "schedule")) TB.BeforeClosing reportingBalance))
     assertEqual "reporting: non-summing allocation blocks"
         True (hasPresentationIssue isInvalidAllocation (RP.present
-            (badAllocation 10 19 (T.pack "schedule")) validated))
+            (badAllocation 10 19 (T.pack "schedule")) TB.BeforeClosing reportingBalance))
     let duplicateAllocation = (context RP.Standalone)
             { RP._presentationAllocations =
                 [ RP.PresentationAllocation LoansReceivable 10 20
@@ -2516,7 +2513,7 @@ testReportingPresentation = do
                 ] }
     assertEqual "reporting: duplicate allocation blocks"
         True (hasPresentationIssue isDuplicateAllocation
-            (RP.present duplicateAllocation validated))
+            (RP.present duplicateAllocation TB.BeforeClosing reportingBalance))
     let unexpectedAllocation = (context RP.Standalone)
             { RP._presentationAllocations =
                 [ RP.PresentationAllocation LoansReceivable 10 20
@@ -2525,26 +2522,18 @@ testReportingPresentation = do
                 ] }
     assertEqual "reporting: unrequired allocation blocks"
         True (hasPresentationIssue isUnexpectedAllocation
-            (RP.present unexpectedAllocation validated))
+            (RP.present unexpectedAllocation TB.BeforeClosing reportingBalance))
 
-    let contraRequiredInput = (trialBalanceInput contraBalance TB.BeforeClosing)
-            { TB._reclassificationRules =
-                [TB.MaturityEvidenceRequired AccountsReceivable]
-            , TB._maturityEvidenceTitles = Set.singleton AccountsReceivable
-            }
-        contraRequired = case TB.validateTrialBalance TB.strictTrialBalancePolicy
-                contraRequiredInput of
-            Right value -> value
-            Left errors -> error ("required contra fixture rejected: " ++ show errors)
-        netAllocatedContext = netContext
-            { RP._presentationAllocations =
+    let netAllocatedContext = netContext
+            { RP._maturitySensitiveTitles = Set.singleton AccountsReceivable
+            , RP._presentationAllocations =
                 [RP.PresentationAllocation AccountsReceivable 60 30
                     (T.pack "receivable maturity schedule")] }
     assertEqual "reporting: required net target can be allocated after netting"
         [(RP.CurrentAssetsSection, 60), (RP.NoncurrentAssetsSection, 30)]
         [ (RP._lineSection line, RP._lineAmount line)
         | line <- RP._statementLines
-            (rightStatements (RP.present netAllocatedContext contraRequired))
+            (rightStatements (RP.present netAllocatedContext TB.BeforeClosing contraBalance))
         , RP._lineAccount line == AccountsReceivable
         ]
     let consumeRequired = (context RP.Standalone)
@@ -2553,25 +2542,18 @@ testReportingPresentation = do
                     (T.pack "must not erase maturity obligation")] }
     assertEqual "reporting: explicit maturity obligation cannot be consumed"
         True (hasPresentationIssue isConflictingInstruction
-            (RP.present consumeRequired validated))
+            (RP.present consumeRequired TB.BeforeClosing reportingBalance))
 
-    let emptyValidated = validateFixture mempty
-        emptyStatements = rightStatements (RP.present
-            (RP.jcciSecondGradeContext RP.Combined) emptyValidated)
+    let emptyStatements = rightStatements (RP.present
+            (RP.jcciSecondGradeContext RP.Combined) TB.BeforeClosing (mempty :: CheckedAlgM))
     assertEqual "reporting: empty combined TB has no fabricated elimination"
-        ([], [])
+        ([], [RP.SubtotalCalculated RM.PeriodResultMetric TB.NoBalance])
         (RP._statementLines emptyStatements, RP._presentationAudit emptyStatements)
   where
     rightStatements (Right statements) = statements
     rightStatements (Left issues) = error ("presentation failed: " ++ show issues)
-    validateFixture alg = case TB.validateTrialBalance TB.strictTrialBalancePolicy
-            (trialBalanceInput alg TB.BeforeClosing) of
-        Right value -> value
-        Left errors -> error ("fixture did not validate: " ++ show errors)
     isElimination (RP.ReciprocalAccountsEliminated _ _) = True
     isElimination _ = False
-    isValidationBlock (RP.ValidationFindingBlocks _) = True
-    isValidationBlock _ = False
     hasPresentationIssue predicate (Left issues) = any predicate (NE.toList issues)
     hasPresentationIssue _ (Right _) = False
     isBlankEvidence (RP.BlankPresentationEvidence LoansReceivable) = True
@@ -2587,6 +2569,170 @@ testReportingPresentation = do
     isConflictingInstruction _ = False
     basesAccountTitles alg =
         [ title | _ :< title <- EA.bases alg ]
+
+-- | D1 section 7: integer MoneyDecimal observations avoid row-rounding error.
+-- Generators reuse finite non-negative amounts and bound them to whole units.
+testStatementLaws :: IO ()
+testStatementLaws = do
+    let context = RP.jcciSecondGradeContext RP.Standalone
+        amount = (\value -> fromInteger (round value `mod` 1000)) <$> genNNDouble
+        ledger a b c d = EC.journalFromSides
+            [ (Debit, Cash, a), (Credit, Sales, a)
+            , (Debit, Cash, b), (Credit, Sales, b)
+            , (Debit, Sales, c), (Credit, Cash, c)
+            , (Debit, RentExpense, d), (Credit, Cash, d)
+            ] :: CheckedAlgM
+        signed line = case RP._lineSide line of
+            Debit -> RP._lineAmount line
+            Credit -> negate (RP._lineAmount line)
+            Side -> 0
+        resultBalance result = case result of
+            RM.PeriodProfit value -> TB.CreditBalance value
+            RM.PeriodLoss value -> TB.DebitBalance value
+            RM.PeriodBreakEven -> TB.NoBalance
+    quickProp "D1 law 1: one net nominal row per nonzero title" $
+        forAll ((,,,) <$> amount <*> amount <*> amount <*> amount) $ \(a, b, c, d) ->
+            case RP.present context TB.BeforeClosing (ledger a b c d) of
+                Left _ -> False
+                Right statements ->
+                    let nominal = filter (\line -> RP._lineSection line `elem`
+                            [RP.RevenueSection, RP.ExpenseSection]) (RP._statementLines statements)
+                        sales = [line | line <- nominal, RP._lineAccount line == Sales]
+                        rent = [line | line <- nominal, RP._lineAccount line == RentExpense]
+                    in sum (L.map signed sales) == c - a - b
+                        && length sales == length [() | a + b /= c]
+                        && sum (L.map signed rent) == d
+                        && length rent == length [() | d /= 0]
+                        && all ((>= 0) . RP._lineAmount) nominal
+    quickProp "D1 laws 2 and 3: exact net and period result survive instructions" $
+        forAll ((,,,) <$> amount <*> amount <*> amount <*> amount) $ \(a, b, c, d) ->
+            let alg = ledger a b c d
+                relabeled = context
+                    { RP._presentationRelabels =
+                        [RP.PresentationRelabel Cash AccountsReceivable (T.pack "scope")
+                        | a + b /= c + d] }
+                allocated = context
+                    { RP._maturitySensitiveTitles = Set.singleton Cash
+                    , RP._presentationAllocations =
+                        [RP.PresentationAllocation Cash (abs (a + b - c - d)) 0
+                            (T.pack "within one year") | a + b /= c + d] }
+                netted = context
+                    { RP._materialityDecisions =
+                        [RP.MaterialityDecision RentExpense (RP.NetAgainst Sales)
+                            (T.pack "nominal netting") | d /= 0 && a + b /= c] }
+            in case RM.periodResultOf TB.BeforeClosing alg of
+                Left _ -> False
+                Right result -> all (\settings -> case RP.present settings TB.BeforeClosing alg of
+                    Left _ -> False
+                    Right statements ->
+                        sum (L.map signed (RP._statementLines statements)) == 0
+                        && [RP._statementSubtotalBalance subtotal
+                           | subtotal <- RP._statementSubtotals statements
+                           , RP._statementSubtotalMetric subtotal == RM.PeriodResultMetric]
+                            == [resultBalance result]) [context, relabeled, allocated, netted]
+    let deficit = EC.journalFromSides
+            [(Debit, RetainedEarnings, 20), (Credit, CapitalStock, 20)] :: CheckedAlgM
+        suspense = EC.journalFromSides
+            [(Debit, SuspensePayments, 10), (Credit, CapitalStock, 10)] :: CheckedAlgM
+        unclosed = ledger 30 20 10 15
+    forM_ [(deficit, TB.BeforeClosing), (suspense, TB.BeforeClosing),
+           (unclosed, TB.AfterClosing)] $ \(alg, stage) -> do
+        assertEqual "D1 law 4: accounting finding remains observable" True
+            (not (null (TB.trialBalanceFindings (trialBalanceInput alg stage))))
+        assertEqual "D1 law 4: accounting finding does not block presentation" True
+            (case RP.present context stage alg of Right _ -> True; Left _ -> False)
+    assertEqual "D1 law 5: deficit keeps equity section and actual debit side"
+        (Right [(RP.EquitySection, Debit, 20)])
+        (fmap (\statements -> [(RP._lineSection line, RP._lineSide line, RP._lineAmount line)
+            | line <- RP._statementLines statements, RP._lineAccount line == RetainedEarnings])
+            (RP.present context TB.BeforeClosing deficit))
+    let concealed = EC.journalFromSides
+            [(Debit, Cash, 100), (Credit, CapitalStock, 100),
+             (Debit, BranchCurrentAccount, 10)] :: CheckedAlgM
+    assertEqual "D1 counterexample 1: elimination cannot hide input imbalance"
+        (Left (RP.UnbalancedStatementInput 110 100 NE.:| []))
+        (fmap (const ()) (RP.present (RP.jcciSecondGradeContext RP.Combined)
+            TB.BeforeClosing concealed))
+    forM_ [(HatNot :< Sales, RM.WildcardMetricSide Sales),
+           (Not :< AccountTitle, RM.WildcardMetricAccount)] $ \(base, expected) -> do
+        let alg = 10 `Internal.Single` base :: CheckedAlgM
+        assertEqual "D1 counterexample 2: metric rejects wildcard before accumulation"
+            (Left expected) (RM.periodResultOf TB.BeforeClosing alg)
+        assertEqual "statement rejects wildcard before accumulation"
+            (Left (RP.WildcardStatementBase NE.:| []))
+            (fmap (const ()) (RP.present context TB.BeforeClosing alg))
+    let nominal = ledger 100 0 0 0
+        salesAllocation = context
+            { RP._maturitySensitiveTitles = Set.singleton Sales
+            , RP._presentationAllocations =
+                [RP.PresentationAllocation Sales 100 0 (T.pack "not an asset")] }
+    assertEqual "D1 counterexample 3: maturity cannot move Sales into balance sheet" True
+        (case RP.present salesAllocation TB.BeforeClosing nominal of
+            Left issues -> RP.ConflictingPresentationInstruction Sales `elem` NE.toList issues
+            Right _ -> False)
+    let receivable = EC.journalFromSides
+            [(Debit, AccountsReceivable, 30), (Credit, CapitalStock, 30)] :: CheckedAlgM
+        oldInput = (trialBalanceInput receivable TB.BeforeClosing)
+            { TB._reclassificationRules = [TB.MaturityEvidenceRequired AccountsReceivable]
+            , TB._maturityEvidenceTitles = Set.singleton AccountsReceivable }
+    old <- either (fail . show) pure (TB.validateTrialBalance TB.strictTrialBalancePolicy oldInput)
+    let allocation = RP.PresentationAllocation AccountsReceivable 10 20 (T.pack "schedule")
+        migrated = context
+            { RP._maturitySensitiveTitles = Set.singleton AccountsReceivable
+            , RP._presentationAllocations = [allocation] }
+        fromOld = context
+            { RP._maturitySensitiveTitles = TB.validatedMaturityRequiredTitles old
+            , RP._presentationAllocations = [allocation] }
+        expectedLines = Right [(RP.CurrentAssetsSection, Debit, 10),
+                               (RP.NoncurrentAssetsSection, Debit, 20)]
+    forM_ [(migrated, receivable), (fromOld, TB.validatedTrialBalance old)] $ \(settings, alg) ->
+        assertEqual "D1 counterexample 5: migrated maturity requirement preserves allocation"
+            expectedLines (fmap (\statements ->
+                [(RP._lineSection line, RP._lineSide line, RP._lineAmount line)
+                | line <- RP._statementLines statements,
+                  RP._lineAccount line == AccountsReceivable])
+                (RP.present settings TB.BeforeClosing alg))
+    forM_ [context { RP._presentationRelabels =
+                      [RP.PresentationRelabel Sales CapitalStock (T.pack "cross division")] },
+           context { RP._materialityDecisions =
+                      [RP.MaterialityDecision Sales (RP.NetAgainst Cash) (T.pack "cross division")] },
+           context { RP._contraPresentationRules =
+                      [RP.NetContraAgainst Sales Cash (T.pack "cross division")] }] $ \settings ->
+        assertEqual "period result: cross statement instructions are rejected" True
+            (case RP.present settings TB.BeforeClosing nominal of
+                Left issues -> RP.ConflictingPresentationInstruction Sales `elem` NE.toList issues
+                Right _ -> False)
+    assertEqual "period result: caller cannot redefine the period result" True
+        (case RP.present context { RP._subtotalDefinitions =
+                [RP.SubtotalDefinition RM.PeriodResultMetric [Sales] [] RP.TreatAbsentAsZero] }
+                TB.BeforeClosing nominal of
+            Left issues -> RP.InvalidSubtotalDefinition RM.PeriodResultMetric `elem` NE.toList issues
+            Right _ -> False)
+    let large = 9007199254740992 :: Double
+        exactNominal = EC.journalFromSides
+            [(Credit, Sales, large), (Credit, Sales, 1),
+             (Debit, SalesCost, large), (Debit, Cash, 1)]
+                :: EA.Alg Double (HatBase AccountTitles)
+    assertEqual "period result: subtotal retains exact one despite rounded nominal rows"
+        (Right [TB.CreditBalance 1])
+        (fmap (L.map RP._statementSubtotalBalance . RP._statementSubtotals)
+            (RP.present (RP.jcciSecondGradeContext RP.Standalone) TB.BeforeClosing exactNominal))
+    forM_ [(0 / 0, Cash), (-1, Sales), (1 / 0, CapitalStock)] $ \(value, title) -> do
+        let alg = value `Internal.Single` (Not :< title)
+                :: EA.Alg Double (HatBase AccountTitles)
+        assertEqual "statement structure: invalid posting is typed"
+            (Left (RP.InvalidStatementValue title NE.:| []))
+            (fmap (const ()) (RP.present context TB.BeforeClosing alg))
+        assertEqual "metric structure: invalid posting is typed"
+            (Left (RM.InvalidMetricValue title)) (RM.periodResultOf TB.BeforeClosing alg)
+    closed <- either (fail . show) pure (RP.present context TB.AfterClosing deficit)
+    assertEqual "statement rows: income section requires period result"
+        (Left (StatementOutput.PeriodResultMissing TB.AfterClosing))
+        (StatementOutput.financialStatementRows [RP.RevenueSection] closed)
+    assertEqual "statement writer: failed rows do not open the path"
+        (Left (StatementOutput.PeriodResultMissing TB.AfterClosing))
+        =<< StatementOutput.writeFinancialStatements
+            "/nonexistent/ea-w4-must-not-be-opened.csv" [RP.ExpenseSection] closed
 
 testDerivedMetricsAndLegacyCoordinates :: IO ()
 testDerivedMetricsAndLegacyCoordinates = do
@@ -2632,42 +2778,39 @@ testDerivedMetricsAndLegacyCoordinates = do
             [ (Debit, Cash, 100 :: MoneyDecimal)
             , (Credit, Sales, 100)
             ] :: CheckedAlgM
-        ordinaryValidated = validateBefore ordinaryLedger
     assertEqual "validated before-closing TB derives one period-result identity"
         (Right (RM.PeriodProfit 100))
-        (RM.periodResultOf ordinaryValidated)
+        (RM.periodResultOf TB.BeforeClosing ordinaryLedger)
 
     let legacyLedger = EC.journalFromSides
             [ (Debit, NetIncome, 10 :: MoneyDecimal)
             , (Credit, CapitalStock, 10)
             ] :: CheckedAlgM
-        legacyValidated = validateBefore legacyLedger
     assertEqual "typed metric rejects a residual legacy coordinate"
         (Left (RM.ResidualDerivedCoordinate NetIncome))
-        (RM.periodResultOf legacyValidated)
+        (RM.periodResultOf TB.BeforeClosing legacyLedger)
     assertEqual "legacy intermediate and presentation paths are explicit alternatives"
         True (case RP.present
-                (RP.jcciSecondGradeContext RP.Standalone) legacyValidated of
+                (RP.jcciSecondGradeContext RP.Standalone) TB.BeforeClosing legacyLedger of
             Left issues -> RP.UnpresentableBalance NetIncome
                 (TB.DebitBalance 10) `elem` NE.toList issues
             Right _ -> False)
 
-    let emptyValidated = validateBefore (mempty :: CheckedAlgM)
-        subtotal = RP.SubtotalDefinition RM.GrossProfitMetric
+    let subtotal = RP.SubtotalDefinition RM.GrossProfitMetric
             [Sales] [SalesCost] RP.TreatAbsentAsZero
         duplicateContext = (RP.jcciSecondGradeContext RP.Standalone)
             { RP._subtotalDefinitions = [subtotal, subtotal] }
     assertEqual "duplicate metric identity blocks presentation"
-        True (case RP.present duplicateContext emptyValidated of
+        True (case RP.present duplicateContext TB.BeforeClosing (mempty :: CheckedAlgM) of
             Left issues -> RP.DuplicateMetricIdentity RM.GrossProfitMetric
                 `elem` NE.toList issues
             Right _ -> False)
     let absentAsZeroContext = (RP.jcciSecondGradeContext RP.Standalone)
             { RP._subtotalDefinitions = [subtotal] }
     assertEqual "canonical subtotal may treat unposted titles as zero"
-        [RP.StatementSubtotal RM.GrossProfitMetric
-            (T.pack "売上総損益") TB.NoBalance]
-        (RP._statementSubtotals (case RP.present absentAsZeroContext emptyValidated of
+        [ RP.StatementSubtotal RM.PeriodResultMetric (T.pack "当期純損益") TB.NoBalance
+        , RP.StatementSubtotal RM.GrossProfitMetric (T.pack "売上総損益") TB.NoBalance ]
+        (RP._statementSubtotals (case RP.present absentAsZeroContext TB.BeforeClosing (mempty :: CheckedAlgM) of
             Right statements -> statements
             Left issues -> error ("absent-as-zero subtotal rejected: " ++ show issues)))
 
@@ -2675,7 +2818,6 @@ testDerivedMetricsAndLegacyCoordinates = do
             [ (Debit, Purchases, 30 :: MoneyDecimal)
             , (Credit, Sales, 30)
             ] :: CheckedAlgM
-        relabelledValidated = validateBefore relabelledLedger
         removedTitleContext = (RP.jcciSecondGradeContext RP.Standalone)
             { RP._presentationRelabels =
                 [RP.PresentationRelabel Purchases SalesCost (T.pack "policy")]
@@ -2684,7 +2826,7 @@ testDerivedMetricsAndLegacyCoordinates = do
                     [Sales] [Purchases] RP.TreatAbsentAsZero]
             }
     assertEqual "absent-as-zero does not hide a relabelled non-zero title"
-        True (case RP.present removedTitleContext relabelledValidated of
+        True (case RP.present removedTitleContext TB.BeforeClosing relabelledLedger of
             Left issues -> RP.InvalidSubtotalDefinition RM.GrossProfitMetric
                 `elem` NE.toList issues
             Right _ -> False)
@@ -2695,7 +2837,7 @@ testDerivedMetricsAndLegacyCoordinates = do
         unlabelledContext = (RP.jcciSecondGradeContext RP.Standalone)
             { RP._subtotalDefinitions = [customDefinition] }
     assertEqual "custom metric identity requires separate labels"
-        True (case RP.present unlabelledContext emptyValidated of
+        True (case RP.present unlabelledContext TB.BeforeClosing (mempty :: CheckedAlgM) of
             Left issues -> RP.UnlabelledCustomMetric customId
                 `elem` NE.toList issues
             Right _ -> False)
@@ -2706,9 +2848,10 @@ testDerivedMetricsAndLegacyCoordinates = do
                     (T.pack "調整後EBITDA") (T.pack "Adjusted EBITDA")]
             }
     assertEqual "custom metric identity and profile label are separate"
-        [RP.StatementSubtotal (RM.CustomMetric customId)
-            (T.pack "Adjusted EBITDA") TB.NoBalance]
-        (RP._statementSubtotals (case RP.present labelledContext emptyValidated of
+        [ RP.StatementSubtotal RM.PeriodResultMetric (T.pack "Net result") TB.NoBalance
+        , RP.StatementSubtotal (RM.CustomMetric customId)
+            (T.pack "Adjusted EBITDA") TB.NoBalance ]
+        (RP._statementSubtotals (case RP.present labelledContext TB.BeforeClosing (mempty :: CheckedAlgM) of
             Right statements -> statements
             Left issues -> error ("labeled custom metric rejected: " ++ show issues)))
     let duplicateLabelContext = labelledContext
@@ -2719,12 +2862,6 @@ testDerivedMetricsAndLegacyCoordinates = do
         Nothing
         (RP.metricLabel duplicateLabelContext (RM.CustomMetric customId)
             TB.NoBalance)
-  where
-    validateBefore alg = case TB.validateTrialBalance
-            TB.strictTrialBalancePolicy (trialBalanceInput alg TB.BeforeClosing) of
-        Right value -> value
-        Left errors -> error ("Land 5 fixture did not validate: " ++ show errors)
-
 -- ================================================================
 -- Bookkeeping closing-adjustment builders (Phase B)
 -- ================================================================
@@ -3010,8 +3147,8 @@ testAccumulatorAccounting = do
                 :: EA.Alg Double (HatBase AccountTitles)
     case validate reportingInput of
         Left findings -> fail (show findings)
-        Right validated -> do
-            case RP.present context validated of
+        Right _ -> do
+            case RP.present context TB.BeforeClosing reportingInput of
                 Left issues -> fail (show issues)
                 Right statements -> assertEqual
                     "presentation accepts exact balance despite rounded row mismatch"
@@ -3023,25 +3160,25 @@ testAccumulatorAccounting = do
                     , RP._subtotalDefinitions =
                         [RP.SubtotalDefinition RM.GrossProfitMetric [] [AccountsReceivable]
                             RP.RequireAllTitlesPresent] }
-            case RP.present relabeled validated of
+            case RP.present relabeled TB.BeforeClosing reportingInput of
                 Left issues -> fail (show issues)
                 Right statements -> do
                     assertEqual "presentation relabel rounds combined postings once"
                         [large + 2, large + 2]
                         (L.map RP._lineAmount (RP._statementLines statements))
                     assertEqual "presentation subtotal retains exact transformed balance"
-                        [TBB.DebitBalance (large + 2)]
+                        [TBB.NoBalance, TBB.DebitBalance (large + 2)]
                         (L.map RP._statementSubtotalBalance (RP._statementSubtotals statements))
     case validate (entry [large, 1] [large, 1]) of
         Left findings -> fail (show findings)
-        Right validated -> forM_ [(1, True), (0, False)] $ \(remainder, expected) -> do
+        Right _ -> forM_ [(1, True), (0, False)] $ \(remainder, expected) -> do
             let allocated = context
                     { RP._maturitySensitiveTitles = Set.singleton Cash
                     , RP._presentationAllocations =
                         [RP.PresentationAllocation Cash large remainder
                             (T.pack "exact maturity split")] }
             assertEqual "presentation allocation compares before account rounding"
-                expected (isRight (RP.present allocated validated))
+                expected (isRight (RP.present allocated TB.BeforeClosing (entry [large, 1] [large, 1])))
     let nominal revenues costs = EC.journalFromSides
             ([(Credit, Sales, value) | value <- revenues]
                 ++ [(Debit, SalesCost, value) | value <- costs])
@@ -3086,10 +3223,10 @@ testAccumulatorAccounting = do
             (M.singleton CashOverShort (T.pack "investigation pending")) [] Set.empty
     case TB.validateTrialBalance TB.standaloneTrialBalancePolicy omittedInput of
         Left findings -> fail (show findings)
-        Right validated -> assertEqual "presentation reconciles only the rendered balances"
+        Right _ -> assertEqual "presentation reconciles only the rendered balances"
             (Left (RP.UnpresentableBalance CashOverShort (TB.CreditBalance 10)
                 NE.:| [RP.UnreconciledPresentation 100 90]))
-            (fmap (const ()) (RP.present context validated))
+            (fmap (const ()) (RP.present context TB.BeforeClosing omitted))
     let reciprocal branchAmounts headAmounts = EC.journalFromSides
             ([(Debit, BranchCurrentAccount, value) | value <- branchAmounts]
                 ++ [(Credit, HeadOfficeCurrentAccount, value) | value <- headAmounts])
@@ -3105,8 +3242,8 @@ testAccumulatorAccounting = do
             [(Debit, Cash, large), (Debit, Cash, 1), (Credit, Cash, large)]
                 :: EA.Alg Double (HatBase AccountTitles)
     assertEqual "compound trial balance keeps exact net one"
-        [T.pack "", T.pack "9.007199254740992e15", T.pack "Cash",
-         T.pack "9.007199254740992e15", T.pack "1.0"]
+        [T.pack "1.0", T.pack "9.007199254740992e15", T.pack "Cash",
+         T.pack "9.007199254740992e15", T.pack ""]
         (concat (take 1 (drop 1 (EW.compoundTrialBalanceRows offset))))
     assertEqual "post-closing trial balance keeps exact net one"
         [T.pack "1.0", T.pack "Cash", T.pack ""]
@@ -3259,6 +3396,7 @@ runTests = do
     testSharedAccountBalancePrimitives
     testTrialBalanceValidation
     testReportingPresentation
+    testStatementLaws
     testDerivedMetricsAndLegacyCoordinates
     bookkeepingProperties
     closingDocsTests

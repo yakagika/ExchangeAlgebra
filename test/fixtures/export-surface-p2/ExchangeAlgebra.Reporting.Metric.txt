@@ -12,6 +12,7 @@ PeriodProfit
 PeriodResult
 PeriodResultMetric
 ResidualDerivedCoordinate
+WildcardMetricAccount
 WildcardMetricSide
 legacyTitlesForMetric
 metricForLegacyTitle

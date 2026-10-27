@@ -20,6 +20,7 @@ EquitySection
 ExpenseSection
 FinancialStatements
 InvalidPresentationAllocation
+InvalidStatementValue
 InvalidSubtotalDefinition
 JGAAP
 JcciSecondGradeReport
@@ -33,6 +34,7 @@ NetAgainst
 NetContraAgainst
 NoncurrentAssetsSection
 NoncurrentLiabilitiesSection
+PeriodResultUnavailable
 PresentContraSeparately
 PresentGross
 PresentSeparately
@@ -54,11 +56,12 @@ SubtotalCalculated
 SubtotalCoverage
 SubtotalDefinition
 TreatAbsentAsZero
+UnbalancedStatementInput
 UnexpectedPresentationAllocation
 UnlabelledCustomMetric
 UnpresentableBalance
 UnreconciledPresentation
-ValidationFindingBlocks
+WildcardStatementBase
 _allocationAccount
 _allocationCurrent
 _allocationEvidence

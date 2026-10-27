@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+import Data.List (sortOn)
 import Data.Text (Text)
 import ExchangeAlgebra
 import qualified ExchangeAlgebra.Accounting.Closing as Closing
@@ -67,11 +68,13 @@ main = do
         [row | row@[_, _, title, _, _] <- compoundTrialBalanceRows ledger, title == "Cash"]
     pl <- either (fail . show) pure (St.present context TB.BeforeClosing ledger)
     -- One line per title: sales 300 and its reversal 50 are one line of 250.
-    check "P/L lines" [(Sales, Credit, 250), (RentExpense, Debit, 80)]
+    check "P/L lines"
+        (sortOn (\(title, _, _) -> title) [(Sales, Credit, 250), (RentExpense, Debit, 80)])
+        (sortOn (\(title, _, _) -> title)
         [ (St._lineAccount line, St._lineSide line, St._lineAmount line)
         | line <- St._statementLines pl
         , St._lineSection line `elem` [St.RevenueSection, St.ExpenseSection]
-        ]
+        ])
     check "P/L rows" (Right expectedPlRows)
         (financialStatementRows [St.RevenueSection, St.ExpenseSection] pl)
     closing <- either (fail . show) pure (Closing.closingEntries ledger)

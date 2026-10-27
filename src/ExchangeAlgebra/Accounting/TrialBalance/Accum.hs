@@ -1,10 +1,12 @@
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE FlexibleContexts #-}
 
 -- | Internal exact account sums for trial-balance validation and reporting.
 -- The Accounting layer shares the posting fold and directional readout here;
 -- the public balance representation remains in TrialBalance.Balance.
 module ExchangeAlgebra.Accounting.TrialBalance.Accum
-    ( accountAccums
+    ( structureErrors
+    , accountAccums
     , insertAccountAccum
     , readAccountAccum
     ) where
@@ -12,12 +14,32 @@ module ExchangeAlgebra.Accounting.TrialBalance.Accum
 import qualified Data.Map.Strict as M
 import           Data.Map.Strict (Map)
 
-import           ExchangeAlgebra.Algebra.Core.Representation (Alg, foldEntries)
-import           ExchangeAlgebra.Algebra.Value.Class (HatVal(..))
+import           ExchangeAlgebra.Algebra.Core.Representation (Alg, pattern (:@), foldEntries)
+import           ExchangeAlgebra.Algebra.Value.Class (HatVal(..), isErrorValue)
 import           ExchangeAlgebra.Accounting.Account.Classification (Side(..))
-import           ExchangeAlgebra.Accounting.Account.Title (AccountTitles)
+import           ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
 import           ExchangeAlgebra.Accounting.Exchange
                      ( ExBaseClass(getAccountTitle, whichSide) )
+
+import           ExchangeAlgebra.Algebra.Base.Representation (Hat(..), HatBase(..))
+
+-- | Inspect structure without determining posting sides. Lists retain the
+-- validation fold's reverse traversal order, including a standalone zero term.
+-- The result contains invalid values with titles, wildcard accounts, and
+-- wildcard sides, respectively.
+structureErrors
+    :: HatVal v
+    => Alg v (HatBase AccountTitles)
+    -> ([(AccountTitles, v)], [AccountTitles], [AccountTitles])
+structureErrors alg = case alg of
+    value :@ base -> collect ([], [], []) value base
+    _ -> foldEntries collect ([], [], []) alg
+  where
+    collect (invalids, accounts, sides) value (side :< title) =
+        ( [(title, value) | isErrorValue value] ++ invalids
+        , [title | title == AccountTitle] ++ accounts
+        , [title | side == HatNot] ++ sides
+        )
 
 -- | Add one posting to its account's exact debit-minus-credit sum.
 insertAccountAccum

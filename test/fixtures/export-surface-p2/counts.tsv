@@ -33,8 +33,8 @@ ExchangeAlgebra.Render.Bookkeeping	19
 ExchangeAlgebra.Render.Csv	2
 ExchangeAlgebra.Render.Simulation	5
 ExchangeAlgebra.Reporting.Group	36
-ExchangeAlgebra.Reporting.Metric	21
-ExchangeAlgebra.Reporting.Presentation	108
+ExchangeAlgebra.Reporting.Metric	22
+ExchangeAlgebra.Reporting.Presentation	111
 ExchangeAlgebra.Simulate.Analysis	2
 ExchangeAlgebra.Simulate.Engine	49
 ExchangeAlgebra.Simulate.Lite	37

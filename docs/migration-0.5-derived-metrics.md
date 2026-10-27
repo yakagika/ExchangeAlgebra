@@ -43,7 +43,11 @@ The output of `incomeSummaryAccount` contains a `NetIncome` or `NetLoss`
 balancing coordinate. It is an intermediate closing state and cannot be sent
 directly to financial-statement presentation. Finish the legacy closing
 pipeline, or derive the result from the before-closing trial balance with
-`periodResultOf`.
+`periodResultOf BeforeClosing trialBalance` (from
+`ExchangeAlgebra.Accounting.Statements.Metric`, with `BeforeClosing` from
+`ExchangeAlgebra.Accounting.TrialBalance`). The 0.6 API receives the stage and
+trial balance directly. Inspect `trialBalanceFindings` separately for accounting
+findings.
 
 ## Checked and unchecked input
 

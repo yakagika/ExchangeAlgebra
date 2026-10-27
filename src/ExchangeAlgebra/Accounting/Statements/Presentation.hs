@@ -98,7 +98,12 @@ import           ExchangeAlgebra.Accounting.Account.Registry
 import           ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
 import qualified ExchangeAlgebra.Accounting.Account.Registry as Registry
 import           ExchangeAlgebra.Accounting.Statements.Metric
-                     ( DerivedMetric(..), MetricError, MetricId, periodResultOf )
+                     ( DerivedMetric(..)
+                     , MetricError
+                     , MetricId
+                     , PeriodResult(..)
+                     , periodResultOf
+                     )
 import qualified ExchangeAlgebra.Accounting.TrialBalance.Validation as TB
 import           ExchangeAlgebra.Accounting.TrialBalance.Balance
                      ( balanceAmount
@@ -266,7 +271,8 @@ data PresentationIssue v
     -- credit side cannot be determined.
   | UnbalancedStatementInput v v
     -- ^ Debit and credit totals of the trial balance before any
-    -- presentation step. Checked before reciprocal accounts are eliminated,
+    -- presentation step (the per-title net balances summed on each side,
+    -- as in a balance trial balance). Checked before reciprocal accounts are eliminated,
     -- so the elimination cannot hide an original imbalance.
   | PeriodResultUnavailable MetricError
     -- ^ The before-closing period result cannot be derived, so the mandatory
@@ -554,7 +560,12 @@ allocationIssues required context balances states = concatMap checkTitle checked
     allocations = _presentationAllocations context
     allocationTitles = S.fromList (map _allocationAccount allocations)
     checkedTitles = S.toList (required `S.union` allocationTitles)
-    checkTitle title = case balanceFor title balances of
+    checkTitle title
+        | Just semantics <- Registry.accountSemantics title
+        , StatementDivision division <- asemDivisionSemantics semantics
+        , division `elem` [Assets, Liability] = checkBalance title
+        | otherwise = [ConflictingPresentationInstruction title]
+    checkBalance title = case balanceFor title balances of
         TB.NoBalance
             | title `S.member` allocationTitles ->
                 [MissingPresentationAccount title]
@@ -614,6 +625,8 @@ instructionIssues explicitRequired context balances =
             [MissingPresentationAccount (_relabelSource rule)]
         | _relabelSource rule `S.member` explicitRequired =
             [ConflictingPresentationInstruction (_relabelSource rule)]
+        | isNominal (_relabelSource rule) /= isNominal (_relabelTarget rule) =
+            [ConflictingPresentationInstruction (_relabelSource rule)]
         | not (presentableTarget (_relabelTarget rule)) =
             [ConflictingPresentationInstruction (_relabelTarget rule)]
         | otherwise = []
@@ -629,6 +642,8 @@ instructionIssues explicitRequired context balances =
                         (_materialityAccount decision)]
                 | target == _materialityAccount decision ->
                     [ConflictingPresentationInstruction target]
+                | isNominal (_materialityAccount decision) /= isNominal target ->
+                    [ConflictingPresentationInstruction (_materialityAccount decision)]
                 | not (presentableTarget target) ->
                     [ConflictingPresentationInstruction target]
                 | M.notMember target balances ->
@@ -650,11 +665,17 @@ instructionIssues explicitRequired context balances =
                 [ConflictingPresentationInstruction source]
             | source == target ->
                 [ConflictingPresentationInstruction source]
+            | isNominal source /= isNominal target ->
+                [ConflictingPresentationInstruction source]
             | not (presentableTarget target) ->
                 [ConflictingPresentationInstruction target]
             | M.notMember target balances ->
                 [MissingPresentationAccount target]
             | otherwise -> []
+    isNominal title = case Registry.accountSemantics title of
+        Just semantics -> asemDivisionSemantics semantics `elem`
+            [StatementDivision Revenue, StatementDivision Cost]
+        Nothing -> False
     relabelTitles rule = [_relabelSource rule, _relabelTarget rule]
     materialityTitles decision = _materialityAccount decision : case
             _materialityTreatment decision of
@@ -695,7 +716,11 @@ statementStructureIssues
     :: HatVal v
     => Alg v (HatBase AccountTitles)
     -> [PresentationIssue v]
-statementStructureIssues = undefined -- D3
+statementStructureIssues alg =
+    map (InvalidStatementValue . fst) invalidValues
+    ++ map (const WildcardStatementBase) (wildcardAccounts ++ wildcardSides)
+  where
+    (invalidValues, wildcardAccounts, wildcardSides) = Accum.structureErrors alg
 
 -- | Exact debit and credit totals of the trial balance before elimination,
 -- relabeling, netting, or allocation; empty when they are equal.
@@ -703,7 +728,15 @@ inputBalanceIssues
     :: HatVal v
     => Map AccountTitles (Accum v)
     -> [PresentationIssue v]
-inputBalanceIssues = undefined -- D3
+inputBalanceIssues states =
+    [ UnbalancedStatementInput (roundAccum debit) (roundAccum credit)
+    | signAccum (mergeAccum debit (negateAccum credit)) /= Just EQ ]
+  where
+    (debit, credit) = M.foldl' collect (emptyAccum, emptyAccum) states
+    collect (debits, credits) total = case signAccum total of
+        Just GT -> (mergeAccum debits total, credits)
+        Just LT -> (debits, mergeAccum credits (negateAccum total))
+        _ -> (debits, credits)
 
 -- | The mandatory period-result subtotal of a before-closing trial balance,
 -- derived as 'periodResultOf' derives it, or the issue that prevents it. An
@@ -714,7 +747,16 @@ periodResultSubtotal
     -> TB.TrialBalanceStage
     -> Alg v (HatBase AccountTitles)
     -> ([PresentationIssue v], [StatementSubtotal v])
-periodResultSubtotal = undefined -- D3
+periodResultSubtotal _ TB.AfterClosing _ = ([], [])
+periodResultSubtotal context TB.BeforeClosing alg = case periodResultOf TB.BeforeClosing alg of
+    Left issue -> ([PeriodResultUnavailable issue], [])
+    Right result ->
+        let balance = case result of
+                PeriodProfit value -> TB.CreditBalance value
+                PeriodLoss value -> TB.DebitBalance value
+                PeriodBreakEven -> TB.NoBalance
+        in ([], [StatementSubtotal PeriodResultMetric label balance
+                | Just label <- [metricLabel context PeriodResultMetric balance]])
 
 coverageIssues
     :: Map AccountTitles (TB.AccountBalance v) -> [PresentationIssue v]
@@ -770,6 +812,7 @@ subtotalIssues context initial balances = duplicateDefinitionIssues
         | metricId <- duplicateMetricIds customLabelIds
         ]
     check (SubtotalDefinition metric credits debits coverage)
+        | metric == PeriodResultMetric = [InvalidSubtotalDefinition metric]
         | null credits && null debits = [InvalidSubtotalDefinition metric]
         | not (null (duplicateTitles (credits ++ debits))) =
             [InvalidSubtotalDefinition metric]

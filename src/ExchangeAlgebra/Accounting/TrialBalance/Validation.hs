@@ -80,7 +80,7 @@ import           ExchangeAlgebra.Algebra.Core.Representation
                      ( Alg, pattern (:@)
                      , foldEntries
                      )
-import           ExchangeAlgebra.Algebra.Value.Class (HatVal(..), isErrorValue)
+import           ExchangeAlgebra.Algebra.Value.Class (HatVal(..))
 import           ExchangeAlgebra.Accounting.Account.Classification
                      ( AccountRole(..)
                      , DivisionSemantics(..)
@@ -197,37 +197,27 @@ trialBalanceFindings input
         ++ ruleConfigurationFindings input
   where
     alg = _trialBalanceElement input
-    structuralFindings = map InvalidTrialBalanceValue invalidValues
-        ++ replicate wildcardAccounts WildcardTrialBalanceAccount
-        ++ replicate wildcardSides WildcardTrialBalanceSide
-    (invalidValues, wildcardAccounts, wildcardSides, debitState, creditState, totals) =
-        case alg of
-            value :@ base -> collect initial value base
-            _ -> foldEntries collect initial alg
-    initial = ([], 0, 0, emptyAccum, emptyAccum, M.empty)
-    collect (!invalids, !accountsCount, !sidesCount, !debits, !credits, !accounts)
-            value base =
-        let !invalids' = if isErrorValue value then value : invalids else invalids
-            !accountsCount' = case base of
-                _ :< AccountTitle -> accountsCount + 1
-                _ -> accountsCount
-            !sidesCount' = case base of
-                HatNot :< _ -> sidesCount + 1
-                _ -> sidesCount
-            unchanged = (invalids', accountsCount', sidesCount', debits, credits, accounts)
-        in case base of
-            HatNot :< _ -> unchanged
-            _ :< AccountTitle -> unchanged
-            _ | value == zeroValue -> unchanged
-              | otherwise ->
-                let !accounts' = Accum.insertAccountAccum accounts value base
-                    !debits' = case whichSide base of
-                        Debit -> addAccum value debits
-                        _ -> debits
-                    !credits' = case whichSide base of
-                        Credit -> addAccum value credits
-                        _ -> credits
-                in (invalids', accountsCount', sidesCount', debits', credits', accounts')
+    (invalidValues, wildcardAccounts, wildcardSides) = Accum.structureErrors alg
+    structuralFindings = map (InvalidTrialBalanceValue . snd) invalidValues
+        ++ map (const WildcardTrialBalanceAccount) wildcardAccounts
+        ++ map (const WildcardTrialBalanceSide) wildcardSides
+    (debitState, creditState, totals) = case alg of
+        value :@ base -> collect initial value base
+        _ -> foldEntries collect initial alg
+    initial = (emptyAccum, emptyAccum, M.empty)
+    collect (!debits, !credits, !accounts) value base = case base of
+        HatNot :< _ -> (debits, credits, accounts)
+        _ :< AccountTitle -> (debits, credits, accounts)
+        _ | value == zeroValue -> (debits, credits, accounts)
+          | otherwise ->
+            let !accounts' = Accum.insertAccountAccum accounts value base
+                !debits' = case whichSide base of
+                    Debit -> addAccum value debits
+                    _ -> debits
+                !credits' = case whichSide base of
+                    Credit -> addAccum value credits
+                    _ -> credits
+            in (debits', credits', accounts')
     debit = roundAccum debitState
     credit = roundAccum creditState
     balanceFindings =

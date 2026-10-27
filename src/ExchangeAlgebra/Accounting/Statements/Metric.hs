@@ -174,7 +174,12 @@ metricStructureErrors
     :: HatVal v
     => Alg v (HatBase AccountTitles)
     -> [MetricError]
-metricStructureErrors = undefined -- D3
+metricStructureErrors alg =
+    map (InvalidMetricValue . fst) invalidValues
+    ++ map WildcardMetricSide wildcardSides
+    ++ map (const WildcardMetricAccount) wildcardAccounts
+  where
+    (invalidValues, wildcardAccounts, wildcardSides) = Accum.structureErrors alg
 
 nonZeroLegacyTitles
     :: (HatVal v, ExBaseClass b)

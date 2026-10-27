@@ -45,10 +45,13 @@ module ExchangeAlgebra.IO.Output.Statements
     ) where
 
 import Data.Text (Text)
+import qualified Data.Text as T
+import ExchangeAlgebra.Accounting.Statements.Metric (DerivedMetric(..))
+import ExchangeAlgebra.Accounting.TrialBalance.Balance (balanceSide, balanceAmount)
 
 import qualified ExchangeAlgebra.Accounting.Statements.Presentation as Presentation
 import qualified ExchangeAlgebra.Accounting.TrialBalance.Validation as TB
-import ExchangeAlgebra.Algebra.Value.Class (HatVal)
+import ExchangeAlgebra.Algebra.Value.Class (HatVal(..))
 import ExchangeAlgebra.Write
     ( writeCSV
     , journalRows, writeJournal
@@ -84,7 +87,35 @@ financialStatementRows
     => [Presentation.StatementSection]
     -> Presentation.FinancialStatements v
     -> Either StatementRowsError [[Text]]
-financialStatementRows = undefined -- D3
+financialStatementRows sections statements
+    | requestsResult && not hasResult = Left (PeriodResultMissing
+        (Presentation._statementTrialBalanceStage statements))
+    | otherwise = Right
+        (["section", "account", "label", "row", "side", "amount"]
+        : lineRows ++ subtotalRows)
+  where
+    requestsResult = any (`elem` [Presentation.RevenueSection, Presentation.ExpenseSection])
+        sections
+    subtotals = Presentation._statementSubtotals statements
+    hasResult = any ((== PeriodResultMetric) . Presentation._statementSubtotalMetric) subtotals
+    lineRows =
+        [ [ T.pack (show section)
+          , T.pack (show (Presentation._lineAccount line))
+          , Presentation._lineLabel line
+          , "line"
+          , T.pack (show (Presentation._lineSide line))
+          , T.pack (showValue (Presentation._lineAmount line))
+          ]
+        | section <- sections
+        , line <- Presentation._statementLines statements
+        , Presentation._lineSection line == section
+        ]
+    subtotalRows =
+        [ [ "", "", label, "subtotal", T.pack (show (balanceSide balance))
+          , T.pack (showValue (balanceAmount balance)) ]
+        | requestsResult
+        , Presentation.StatementSubtotal _ label balance <- subtotals
+        ]
 
 -- | Write 'financialStatementRows' as CSV with 'writeCSV' (every cell quoted).
 -- Nothing is written when the rows cannot be rendered.
@@ -94,4 +125,9 @@ writeFinancialStatements
     -> [Presentation.StatementSection]
     -> Presentation.FinancialStatements v
     -> IO (Either StatementRowsError ())
-writeFinancialStatements = undefined -- D3
+writeFinancialStatements path sections statements =
+    case financialStatementRows sections statements of
+        Left issue -> pure (Left issue)
+        Right rows -> do
+            writeCSV path rows
+            pure (Right ())

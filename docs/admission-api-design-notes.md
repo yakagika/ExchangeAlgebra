@@ -17,7 +17,8 @@
 (`ExchangeAlgebra.Accounting.Adjustment`, `closingEntries` など) で計算して仕訳帳に含める.
 期首の残高のように信頼側が与える事実も仕訳帳に含めて渡し, 信頼側の記録との一致を `checkEvidence` で確かめる.
 試算表と諸表は, 受入の後に `admittedJournal` から既存の関数
-(`validateTrialBalance`, `Presentation.present`, `ExchangeAlgebra.IO.Output.Statements` の CSV 出力) で作る.
+(`Presentation.present`, `ExchangeAlgebra.IO.Output.Statements` の CSV 出力) で作る.
+会計的な所見 (逆残高, 仮勘定の残りなど) は `trialBalanceFindings` が返し, 帳票の作成は所見で止まらない.
 
 使ってよい勘定の一覧, 特定の勘定への直接の記帳の禁止, 損益と純資産の間の振替の禁止のような規則は,
 実験や道具の側の規則であり library には置かない. 例えば売上を利益剰余金へ直接振り替える提出も受け入れられ,
