@@ -41,9 +41,8 @@
     /Economy./ Research Square, preprint (Version 1), posted 5 January 2026.
     <https://doi.org/10.21203/rs.3.rs-8485050/v1>
 
-    Runnable companions to the preprint live in the repository under
-    @examples\/deterministic\/ripple\/@
-    (<https://github.com/yakagika/ExchangeAlgebra/tree/master/examples/deterministic/ripple>).
+    Runnable ripple examples are preserved in the
+    <https://github.com/yakagika/ExchangeAlgebra/tree/archive/research-examples-pre-p4/examples archive/research-examples-pre-p4 tag>.
 
 -}
 

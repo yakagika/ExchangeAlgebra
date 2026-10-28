@@ -41,8 +41,8 @@
     >>> leontiefInverse a >>= getElems
     [1.0,0.0,0.0,1.0]
 
-    Runnable examples are under @examples\/deterministic\/ripple\/@
-    (<https://github.com/yakagika/ExchangeAlgebra/tree/master/examples/deterministic/ripple>).
+    Runnable ripple examples are preserved in the
+    <https://github.com/yakagika/ExchangeAlgebra/tree/archive/research-examples-pre-p4/examples archive/research-examples-pre-p4 tag>.
 -}
 module ExchangeAlgebra.Simulation.Analysis
     ( leontiefInverse

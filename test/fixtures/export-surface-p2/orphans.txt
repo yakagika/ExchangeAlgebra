@@ -13,25 +13,7 @@ examples/basic/simulateEx2Fast.hs: instance BaseClass Company
 examples/basic/simulateEx2Fast.hs: instance Element Company
 examples/basic/simulateEx2Fast.hs: instance ExBaseClass HatBase2
 examples/basic/simulateEx2Fast.hs: instance StateTime Term
-examples/deterministic/ripple/RippleEffect.hs: instance BaseClass Entity
-examples/deterministic/ripple/RippleEffect.hs: instance Element Entity
-examples/deterministic/ripple/RippleEffect.hs: instance ExBaseClass VEHatBase
-examples/deterministic/ripple/RippleEffect.hs: instance StateTime Term
-examples/deterministic/ripple/ripple.hs: instance StateSpace Term InitVar EventName World s
-examples/deterministic/ripple/rippleWithStock.hs: instance StateSpace Term InitVar EventName World s
-examples/deterministic/ripple/rippleWithStockMultiSeeds.hs: instance StateSpace Term InitVar EventName World s
-examples/industrial/industrialEx1.hs: instance BaseClass Firm
-examples/industrial/industrialEx1.hs: instance Element Firm
-examples/industrial/industrialEx1.hs: instance ExBaseClass MBase
-examples/invoice/invoiceEx1.hs: instance BaseClass Firm
-examples/invoice/invoiceEx1.hs: instance Element Firm
-examples/invoice/invoiceEx1.hs: instance ExBaseClass MBase
-examples/market/MarketModel.hs: instance BaseClass Firm
-examples/market/MarketModel.hs: instance Element Firm
-examples/market/MarketModel.hs: instance ExBaseClass MBase
-examples/market/MarketModel.hs: instance StateTime Int
 examples/optimization/CGE/CGE.hs: instance StateTime Term
-examples/optimization/cge-lite/LhrLedger.hs: instance Hashable Ac
 src/ExchangeAlgebra/Algebra/Base/Element.hs: instance Hashable Day
 src/ExchangeAlgebra/Algebra/Base/Element.hs: instance Hashable TimeOfDay
 test/Spec.hs: instance BaseClass SimCompany

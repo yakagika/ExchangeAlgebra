@@ -71,21 +71,6 @@ stack build
 stack exec -- <executable-name>
 ```
 
-The ordered CL-SBM industrial example accepts `N K m T seed`. Its default is
-`10000 5 20 50 2025`, and RTS statistics include maximum residency:
-
-```bash
-stack exec industrialEx1 -- 10000 5 20 50 2025 +RTS -s
-```
-
-For a geometric firm-count sweep from 200 through 64000:
-
-```bash
-for n in 200 500 1000 2000 4000 8000 16000 32000 64000; do
-  stack exec industrialEx1 -- "$n" 5 20 50 2025 +RTS -s
-done
-```
-
 Regenerate the catalog and layout with `python3 examples/scripts/gen_catalogue.py --write`.
 Use `python3 examples/scripts/gen_catalogue.py --check` in verification and CI.
 The generator reads `family.yaml` plus `examples/exchangealgebra-examples.cabal`.
@@ -105,8 +90,6 @@ mkdir -p examples/basic/result/csv                                        # ebex
 mkdir -p examples/basic/result/csv/simulateEx1                            # sim1 CSV
 mkdir -p examples/basic/result/fig/simulateEx1                            # sim1 PNG
 mkdir -p examples/basic/result/csv/simulateEx2                            # sim2 CSV
-mkdir -p examples/deterministic/ripple/result/{csv,fig}/withoutStock      # ripple
-mkdir -p examples/deterministic/ripple/result/{csv,fig}/withStock         # rippleWithStock, rippleWithStockMultiSeeds
 mkdir -p examples/optimization/CGE/result/{csv,fig}                       # cge
 ```
 
@@ -117,19 +100,13 @@ run.
 
 Run the commands from the root of a full clone. The standalone
 `examples/stack.yaml` uses Stackage `lts-24.4` and pins the Hackage release
-`exchangealgebra-0.5.3.0`. After an example leaves HEAD, its row remains here
-so you can build it from the listed revision.
+`exchangealgebra-0.5.3.0`. The table lists the examples retained in this checkout.
 
 | Example | Kind | Builds with | How to reproduce | Notes |
 |---|---|---|---|---|
 | `basic/elementaryBookkeepingEx*` | teaching | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0` | `git checkout v0.5.3.0 && cd examples && stack build` | Remains in the next major release, updated for its API. |
 | `basic/simulateEx1`, `simulateEx2`, `simulateEx2Fast` | research | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0`. SICE reproduction: commit `543e268` (`0.5.0.0` release). | `git checkout v0.5.3.0 && cd examples && stack build`<br>`git checkout 543e268 && cd examples && stack build` | SICE simulation examples. Planned for removal from HEAD in the next major release. |
-| `deterministic/ripple/` | research | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0` | `git checkout v0.5.3.0 && cd examples && stack build` | Planned for removal from HEAD in the next major release. |
 | `optimization/CGE/` | teaching | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0` | `git checkout v0.5.3.0 && cd examples && stack build` | GAMS reference implementation and a Haskell stub that does nothing when run. The stub is planned for removal in the next major release. |
-| `optimization/cge-lite/` | research | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0` | `git checkout v0.5.3.0 && cd examples && stack build` | Planned move to a separate research repository. |
-| `industrial/` | research | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0` | `git checkout v0.5.3.0 && cd examples && stack build` | SICE research example. Planned move to a separate code repository. |
-| `invoice/` | research | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0` | `git checkout v0.5.3.0 && cd examples && stack build` | SICE research example. Planned move to a separate code repository. |
-| `market/` | research | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0`. Experiment: commit `8a3a36e` (tag `experiment/round5-overnight-8a3a36e`); public reference: commit `543e268`. | `git checkout v0.5.3.0 && cd examples && stack build`<br>`git checkout 8a3a36e && cd examples && stack build`<br>`git checkout 543e268 && cd examples && stack build` | TOMACS scaling study. Remains in this repository for now. |
 | `benchmark/` | benchmark | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0` | `git checkout v0.5.3.0 && cd examples && stack build` | Remains in this repository. |
 
 ## Research using exchangealgebra
@@ -145,6 +122,10 @@ study. The repository's HEAD will retain teaching examples.
 | LLM accounting evaluation | To be announced with the study | To be announced |
 
 ## Example catalog
+
+The research examples (industrial, invoice, cge-lite, ripple, and market) have moved
+to their respective research repositories. The pre-move version is preserved in tag
+[archive/research-examples-pre-p4](https://github.com/yakagika/ExchangeAlgebra/tree/archive/research-examples-pre-p4/examples).
 
 <!-- CATALOGUE-BEGIN -->
 
@@ -187,58 +168,6 @@ rather than `stack run`.
 
 **Notes:** Run bench-core with stack bench; an optional Criterion HTML report can be written under the gitignored result directory.
 
-### `deterministic/ripple/` — Ripple-effect simulations with and without inventory constraints. The multi-seed variant supports statistical analysis.
-
-| executable | main | kind | notes |
-|---|---|---|---|
-| `ripple` | `deterministic/ripple/ripple.hs` | executable | 10-agent ripple-effect simulation without inventory constraints |
-| `rippleWithStock` | `deterministic/ripple/rippleWithStock.hs` | executable | With inventory constraint (production is capped by stock on hand) |
-| `rippleWithStockMultiSeeds` | `deterministic/ripple/rippleWithStockMultiSeeds.hs` | executable | Multi-seed variant for statistical analysis (seed envelope / ratio boxplot) |
-
-**Papers:** Akagi (2026) AS-ABM (sn-article)
-
-**Ownership:** `paper-owned`. **Methods:** deterministic, stochastic, classic-engine
-
-**Notes:** RippleEffect.hs contains the shared world, event, and initialization code. The stock-constrained runs and visualization reproduce the AS-ABM preprint results.
-
-### `industrial/` — An ordered block-triangular, power-law industrial network with deterministic demand-driven flows. It checks consumption-tax and value-added identities exactly.
-
-| executable | main | kind | notes |
-|---|---|---|---|
-| `industrialEx1` | `industrial/industrialEx1.hs` | executable | Block-triangular, power-law industrial network with deterministic demand-driven flows and exact consumption-tax/value-added checks |
-
-**Papers:** SICE Japanese paper
-
-**Ownership:** `dual-use`. **Methods:** deterministic, lite-engine
-
-**Notes:** The command accepts N, K, m, T, and seed, and reports wall-clock and RTS statistics without writing result files.
-
-### `invoice/` — A circulant invoice-trade network used as a compact performance and accounting-invariant example. It posts balanced six-entry invoice journals.
-
-| executable | main | kind | notes |
-|---|---|---|---|
-| `invoiceEx1` | `invoice/invoiceEx1.hs` | executable | Small SICE performance example of a circulant invoice-trade network posting one balanced 6-entry invoice journal per edge and term. |
-
-**Papers:** SICE Japanese paper
-
-**Ownership:** `dual-use`. **Methods:** deterministic, lite-engine
-
-**Notes:** The example reports timing and consumption-tax invariants to standard output; EA_T and EA_K override the default term and neighbor counts.
-
-### `market/` — A sparse market simulation with scaling, parallel-execution, retention, and value-type comparisons. It supplies the measurements for the TOMACS scaling study.
-
-| executable | main | kind | notes |
-|---|---|---|---|
-| `marketEx1` | `market/marketEx1.hs` | executable | Sparse market simulation using `Double`, with scaling, parallel and retention modes |
-| `marketEx1d` | `market/marketEx1d.hs` | executable | Exact-`Decimal` variant used for the value-type comparison |
-| `market-policy-test` | `market/test/MarketPolicyTest.hs` | test | Exact checks for FullAudit equivalence, spill restoration, and no-spill retention guarantees |
-
-**Papers:** TOMACS scaling paper
-
-**Ownership:** `paper-owned`. **Methods:** stochastic, lite-engine, classic-engine
-
-**Notes:** MarketModel.hs is shared by the Double and Decimal executables. The run scripts produce measurement logs, aggregate-round4.py and fp-error-profile.py analyze them, and rcr/ is the paper reproduction package.
-
 ### `optimization/CGE/` — A standard computable general equilibrium model with two industries, a household, government, investment, and export sectors. It includes a GAMS reference implementation.
 
 | executable | main | kind | notes |
@@ -251,35 +180,12 @@ rather than `stack run`.
 
 **Notes:** CGE.hs contains the shared production, transformation, tax, and savings model. GAMS/ contains reference inputs and shock-resolution scripts.
 
-### `optimization/cge-lite/` — A Lite-engine CGE implementation with calibration, solving, policy shocks, and LHR validation fixtures. Its test suites form a library regression gate.
-
-| executable | main | kind | notes |
-|---|---|---|---|
-| `cge-lite` | `optimization/cge-lite/CGELite.hs` | executable | Thin executable that runs the Hosoe Ch.6 CGE-Lite Option-A pipeline end to end and prints benchmark residuals, a perturbed-start solve, utility, and settlement. |
-| `cge-lite-lhr-calib-test` | `optimization/cge-lite/test/LhrCalibrationTest.hs` | test | Sentinel checking the LHR standard CGE calibration transcription against bundled Python ground-truth datasets. |
-| `cge-lite-lhr-ledger-test` | `optimization/cge-lite/test/LhrLedgerTest.hs` | test | Differential sentinel checking that EA double-entry ledger residuals equal direct algebraic residuals at the base and under instrument perturbations. |
-| `cge-lite-lhr-model-test` | `optimization/cge-lite/test/LhrModelTest.hs` | test | Sentinel checking each LHR standard-CGE per-agent AS-ABM response against calibrated ground-truth quantities. |
-| `cge-lite-lhr-residual-test` | `optimization/cge-lite/test/LhrResidualTest.hs` | test | Diagnostic sentinel checking base residuals, reduced-Jacobian shape and rank, Walras dependence, and zero-profit non-degeneracy. |
-| `cge-lite-lhr-shock-test` | `optimization/cge-lite/test/LhrShockTest.hs` | test | Comparative-static sentinel checking shocked EA equilibria against an independent Python oracle and realized income against notional income. |
-| `cge-lite-lhr-solve-test` | `optimization/cge-lite/test/LhrSolveTest.hs` | test | Sentinel checking that the reduced auctioneer converges to calibrated equilibria and that the ledger reproduces them. |
-| `cge-lite-lhr-wiring-test` | `optimization/cge-lite/test/LhrWiringTest.hs` | test | Sentinel checking that the LHR auctioneer forward pass reconstructs complete Python ground-truth solutions from base instruments. |
-| `cge-lite-model-test` | `optimization/cge-lite/test/ModelTest.hs` | test | Sentinel checking that the four Hosoe Ch.6 model stages reproduce the benchmark and comparative statics through the Option-A pipeline. |
-| `cge-lite-solver-test` | `optimization/cge-lite/test/SolverTest.hs` | test | Solver-core sentinel checking known-root artificial oracles, a Cobb-Douglas exchange economy, ill-conditioning, backtracking, degenerate inputs, and failure handling. |
-| `cge-lite-test` | `optimization/cge-lite/test/CalibrationTest.hs` | test | Calibration sentinel checking SAM consistency, benchmark identities, GAMS calibrated parameters, and the solved benchmark. |
-
-**Papers:** None.
-
-**Ownership:** `dual-use`. **Methods:** deterministic, optimization, lite-engine
-
-**Notes:** The family is the EA-owned source pinned by the general-equilibrium project. The lhr/ fixtures cover Swaziland, test, and Zimbabwe calibrations and shocks.
-
 <!-- CATALOGUE-END -->
 
 ## Python visualization
 
-`sim1`, `ripple`, `rippleWithStock`, `rippleWithStockMultiSeeds`, and `cge` invoke a companion
-Python script (`visualize_*.py`) via `uv run --script` after the simulation finishes. Each
-script starts with [PEP 723 inline script metadata](https://peps.python.org/pep-0723/), so
+`sim1` invokes a companion Python script (`visualize_*.py`) via `uv run --script`
+after the simulation finishes. Each script starts with [PEP 723 inline script metadata](https://peps.python.org/pep-0723/), so
 `uv` builds an ephemeral virtual environment and installs the declared dependencies on demand:
 
 ```python
@@ -324,7 +230,6 @@ uv run --script examples/basic/visualize_simulateEx1.py
 |`python: rawSystem: posix_spawnp: does not exist`|Old revision that still calls `"python"` directly. Update to the current master branch|
 |`uv: command not found`|uv is not installed. Run `brew install uv` or install the binary|
 |`openFile: does not exist`|One of the `examples/**/result/…` output directories is missing. See "Output directories must exist before running" above|
-|Later plots in `rippleWithStock` never appear|Pre-fix revision of `visualize_rippleWithStock.py`. Update to the current master branch|
 |Linker errors involving Cairo / Pango|The main library's own dependencies. Run `brew install cairo pango freetype`|
 
 ## Layout
@@ -335,14 +240,8 @@ uv run --script examples/basic/visualize_simulateEx1.py
 examples/
 ├── basic/ [family]
 ├── benchmark/ [bench]
-├── deterministic/
-│   └── ripple/ [family]
-├── industrial/ [family]
-├── invoice/ [family]
-├── market/ [family]
 ├── optimization/
-│   ├── CGE/ [family]
-│   └── cge-lite/ [family]
+│   └── CGE/ [family]
 └── **/result/ [runtime output, gitignored]
 ```
 

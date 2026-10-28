@@ -182,8 +182,8 @@ queryNoteAxisPosting !axis !key !idx =
 -- type MNote = (MTag, Int)   -- the tuple instance keeps the (event, term) index
 -- @
 --
--- (The @marketEx1@ example and the @SimEvent@ note in the test suite follow
--- this pattern.) If the ledger is ever spilled\/restored, also give the tag a
+-- (The @SimEvent@ note in the test suite follows this pattern.)
+-- If the ledger is ever spilled\/restored, also give the tag a
 -- @Binary@ instance (structurally derivable from @Generic@).
 class (Show a, Eq a, Ord a, Hashable a, Typeable a) => Note a where
     plank :: a

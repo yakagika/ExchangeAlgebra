@@ -427,10 +427,23 @@
 
 ### Removed
 
+- `industrialEx1` (`industrial`) moved to the SICE paper repository.
+- `invoiceEx1` (`invoice`) moved to the SICE paper repository.
+- The `cge-lite` executable and its calibration, model, solver, and LHR test
+  suites moved to general-equilibrium.
+- `ripple`, `rippleWithStock`, and `rippleWithStockMultiSeeds` moved to the
+  comp-econ-asabm research repository.
+- `marketEx1`, `marketEx1d`, `market-policy-test`, and the RCR reproduction
+  package moved to the scaling paper repository. The pre-move sources for all
+  five research example families are preserved in tag
+  [archive/research-examples-pre-p4](https://github.com/yakagika/ExchangeAlgebra/tree/archive/research-examples-pre-p4/examples).
+
 - The research evaluation tooling in `examples/audit-eval` (task generators,
   runners, checkers, and oracles) moved to a separate repository.
 
 ### Fixed
+
+- The classic CGE example no longer invokes the unrelated ripple visualization script.
 
 - `compoundTrialBalanceRows` now puts a debit balance in the debit-balance
   column and a credit balance in the credit-balance column. Previously each

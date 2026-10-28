@@ -773,7 +773,7 @@ testPolicyHasTermAxis = do
 -- ================================================================
 -- MarketModel equivalence tests (Phase 5, feat/market-scale-experiments)
 --
--- The examples/market/MarketModel.hs core cannot be imported here (it declares
+-- The archived market model cannot be imported here (it declares
 -- an orphan `instance StateTime Int` that would clash with the SICE harness's
 -- `instance StateTime SimTerm`), so the trade simple/tuned stages and a small
 -- BSP world are re-stated minimally (per the Phase 5 plan §2 commit 3 note).

@@ -24,8 +24,6 @@ cabal.sandbox.config
 # statics fixtures shock_resolve.py regenerates) are test assets, tracked:
 !examples/optimization/CGE/GAMS/*.csv
 !examples/optimization/CGE/GAMS/shocks/*.csv
-# LHR standard-CGE calibration fixtures are tracked sentinel-test assets.
-!examples/optimization/cge-lite/lhr/*.csv
 .stack-work/
 cabal.project.local
 cabal.project.local~
@@ -44,8 +42,3 @@ agent-notes/
 examples/**/result/
 
 __pycache__/
-# RCR artifact package (examples/market/rcr/): run-time checkouts, outputs, tarballs, zip
-examples/market/rcr/.rcr-worktrees/
-examples/market/rcr/runs/
-examples/market/rcr/revisions/
-examples/market/rcr/*.zip

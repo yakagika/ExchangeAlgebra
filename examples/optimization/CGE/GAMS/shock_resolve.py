@@ -5,8 +5,9 @@
 # verbatim, all 48 variables; pf("LAB") fixed at 1 as the numeraire and
 # eqpf("LAB") dropped by Walras's law -> 47x47) under counterfactual tax
 # policies, and writes one results.csv-format fixture per scenario to
-# shocks/<name>.csv. The cge-lite-model-test suite compares the CGE-Lite
-# (Haskell, reduced 8-coordinate instrument-vector formulation) solution
+# shocks/<name>.csv. The archived CGE-Lite model test suite
+# (https://github.com/yakagika/ExchangeAlgebra/tree/archive/research-examples-pre-p4/examples)
+# compares the Haskell reduced 8-coordinate instrument-vector solution
 # against these fixtures — two independent formulations and solvers of the
 # same published equation system.
 #

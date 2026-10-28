@@ -1,9 +1,11 @@
 # Example number fixtures for P1
 
 The `ripple-analysis.tsv` fixture records the first-term matrix calculations
-from `examples/deterministic/ripple/ripple.hs` and
-`examples/deterministic/ripple/RippleEffect.hs` at develop revision
-`2a83fe178d47a1024e0e566794f39533a12b4c20`. The test reproduces the
+from the ripple example at develop revision
+`2a83fe178d47a1024e0e566794f39533a12b4c20`. The example has moved to the
+comp-econ-asabm research repository; its pre-move source is preserved in tag
+[archive/research-examples-pre-p4](https://github.com/yakagika/ExchangeAlgebra/tree/archive/research-examples-pre-p4/examples).
+The test reproduces the
 example's seed 42, in-house ratio 0.4, ten entities, and nine producing
 industries. It keeps the original matrix size. The copied calculation covers
 the generated input coefficients, `leontiefInverse`, and `rippleEffect` for
@@ -14,12 +16,13 @@ and its `show` output.
 The simulation outputs of `examples/basic/simulateEx1.hs` and
 `examples/basic/simulateEx2.hs` require their example-local `World`, `Event`,
 and state-space instances. Reproducing those models in the library test would
-exceed the 300-line limit per example. The cge-lite calibration lives in
-example-local `Calibration` and `LhrCalibration` modules and has no library
+exceed the 300-line limit per example. The CGE-Lite calibration has no library
 public API counterpart. These three outputs are therefore not copied into
-this fixture set. The cge-lite example-package tests retain the calibration
-reference. The simulation programs remain executable references until a
-smaller public-API model can reproduce their output.
+this fixture set. The calibration reference is maintained in the destination
+repository, general-equilibrium; the pre-move version is preserved in tag
+`archive/research-examples-pre-p4` linked in the first paragraph. The simulation
+programs remain executable references until a smaller public-API model can
+reproduce their output.
 
 Regenerate after an intentional baseline change from the repository root:
 

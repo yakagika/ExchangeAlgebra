@@ -47,7 +47,7 @@ Requirements:
   install them, build without the plotting module: `stack build --flag
   exchangealgebra:-visualize` (Cabal flag `visualize`, default on). This drops
   `ExchangeAlgebra.Simulate.Visualize` and the Chart dependencies; the bundled
-  `ripple*`, `sim*` and `cge` examples import that module and need the default
+  `sim*` and `cge` examples import that module and need the default build (flag `visualize` on).
 
 ## How to consume this package
 
@@ -68,7 +68,7 @@ Clone the repository and build from the root:
 git clone https://github.com/yakagika/ExchangeAlgebra.git
 cd ExchangeAlgebra
 stack build
-stack exec -- sim1        # or ebex1, ripple, cge, ...
+stack exec -- sim1        # or ebex1, cge, ...
 ```
 
 See the [examples directory](https://github.com/yakagika/ExchangeAlgebra/tree/master/examples)
@@ -277,7 +277,7 @@ random draws as `Double`, and convert (`realToFrac`) only where a value *enters
 the ledger*; convert reported stocks/profits back to `Double` for visualization.
 The ledger arithmetic in between is then exact. The bundled bookkeeping and
 simulation examples follow this pattern; the numeric-method examples
-(`ripple/*`, `CGE`) stay `Double` because they are inherently floating-point.
+(`CGE`) stay `Double` because they are inherently floating-point.
 
 **Large scale: precision × memory trade-off.** Retaining every posting is `O(n)`
 regardless of value type; `MoneyDecimal` adds a constant factor (~2.5× per value box)
@@ -479,7 +479,6 @@ stack build
 stack exec -- ebex1      # Introductory bookkeeping example
 stack exec -- sim1       # 100-term simulation (+ Python visualization)
 stack exec -- sim2       # spill-to-disk simulation (constant memory, binary spill + restore)
-stack exec -- ripple     # 10-agent ripple-effect simulation
 stack exec -- cge        # CGE model
 ```
 
@@ -501,8 +500,8 @@ Dual licensed under MIT and the Open World License (OWL). See `LICENSE` for deta
   DOI: [10.21203/rs.3.rs-8485050/v1](https://doi.org/10.21203/rs.3.rs-8485050/v1)
 
   The ripple-effect simulations reported in this preprint are driven by
-  `ExchangeAlgebra.Simulate` and the ripple example family under
-  [`examples/deterministic/ripple/`](https://github.com/yakagika/ExchangeAlgebra/tree/master/examples/deterministic/ripple).
+  `ExchangeAlgebra.Simulate` and the ripple examples preserved in tag
+  [archive/research-examples-pre-p4](https://github.com/yakagika/ExchangeAlgebra/tree/archive/research-examples-pre-p4/examples).
 
 If you use this library in academic work, please cite the preprint above.
 A `CITATION.cff` file at the repository root provides BibTeX and
