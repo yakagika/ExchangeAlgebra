@@ -236,6 +236,7 @@ tests:
     - Journal.JournalSpec
     - Journal.NormalFormSpec
     - Accounting.AdjustmentSpec
+    - Accounting.AuditSpec
     - Accounting.RegistrySpec
     - IO.InputOutputSpec
     - Simulate.SimulateSpec

@@ -18,6 +18,7 @@ import qualified Algebra.CoreSpec as CoreSpec
 import qualified Journal.JournalSpec as JournalSpec
 import qualified Journal.NormalFormSpec as NormalFormSpec
 import qualified Accounting.AdjustmentSpec as AdjustmentSpec
+import qualified Accounting.AuditSpec as AuditSpec
 import qualified Accounting.RegistrySpec as RegistrySpec
 import qualified IO.InputOutputSpec as InputOutputSpec
 import qualified Simulate.SimulateSpec as SimulateSpec
@@ -43,6 +44,7 @@ main = do
     JournalSpec.runTests
     NormalFormSpec.runTests
     AdjustmentSpec.runTests
+    AuditSpec.runTests
     RegistrySpec.runTests
     InputOutputSpec.runTests
     SimulateSpec.runTests

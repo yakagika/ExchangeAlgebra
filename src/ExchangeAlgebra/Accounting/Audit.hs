@@ -1,3 +1,6 @@
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+
 {-# OPTIONS_GHC -Wincomplete-patterns -Werror=incomplete-patterns #-}
 
 {- |
@@ -42,8 +45,9 @@ holds accounting findings only.
 +----------------------------+-------------------------------+--------------------------+---------+
 | 'duplicateTransactions'    | Notes with identical postings | Journal                  | Warning |
 +----------------------------+-------------------------------+--------------------------+---------+
-| 'contraryNominalPostings'  | Revenue debit or expense      | Journal, one transaction | Warning |
-|                            | credit outside closing        | per note                 |         |
+| 'contraryNominalPostings'  | Revenue or expense posting    | Journal, one transaction | Warning |
+|                            | opposite to its home side,    | per note                 |         |
+|                            | outside closing               |                          |         |
 +----------------------------+-------------------------------+--------------------------+---------+
 
 The trial-balance audits read balances as
@@ -56,6 +60,10 @@ to apply @bar@ first, and the audits do not aggregate the caller's value.
 Preconditions are stated by the function name and its documentation; the
 argument types do not enforce them. A trial-balance audit given a partial
 period reports balances of that partial period.
+
+Structure issues are ordered by kind (invalid value, wildcard account, wildcard
+side), then base and value, with journal issues ordered first by note, while
+trial-balance accounting findings are ordered by account.
 
 Read 'AuditResult' and 'Finding' first, then the trial-balance audits, then the
 journal audits.
@@ -83,18 +91,34 @@ module ExchangeAlgebra.Accounting.Audit
     , contraryNominalPostings
     ) where
 
-import           Data.List.NonEmpty (NonEmpty)
+import qualified Data.HashMap.Strict as HM
+import           Data.List (sort, sortOn)
+import           Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.Map.Strict as M
 
-import           ExchangeAlgebra.Accounting.Account.Classification (Side)
-import           ExchangeAlgebra.Accounting.Account.Title (AccountTitles)
-import           ExchangeAlgebra.Accounting.Exchange (ExBaseClass)
-import           ExchangeAlgebra.Accounting.TrialBalance.Balance
-                     ( AccountBalance
-                     , TrialBalance
+import           ExchangeAlgebra.Accounting.Account.Classification
+                     ( AccountDivision(..)
+                     , AccountRole(..)
+                     , DivisionSemantics(..)
+                     , HomeSideSemantics(..)
+                     , PostingCapability(..)
+                     , Side(..)
                      )
-import           ExchangeAlgebra.Algebra.Base.Representation (HatBase)
-import           ExchangeAlgebra.Algebra.Value.Class (HatVal)
-import           ExchangeAlgebra.Journal.Core (Journal, Note)
+import           ExchangeAlgebra.Accounting.Account.PostingPolicy (postingCapabilityFor)
+import           ExchangeAlgebra.Accounting.Account.Registry
+                     (AccountSemantics(..), accountSemantics)
+import           ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
+import           ExchangeAlgebra.Accounting.Exchange (ExBaseClass(..))
+import           ExchangeAlgebra.Accounting.TrialBalance.Balance
+                     ( AccountBalance(..)
+                     , TrialBalance
+                     , accountBalances
+                     , balanceSide
+                     )
+import           ExchangeAlgebra.Algebra.Base.Representation (Hat(..), HatBase, HatBaseClass(hat))
+import           ExchangeAlgebra.Algebra.Core.Representation (Alg, pattern (:@), foldEntries)
+import           ExchangeAlgebra.Algebra.Value.Class (HatVal, isErrorValue)
+import           ExchangeAlgebra.Journal.Core (Journal, Note(..), toMap)
 
 -- * Results
 
@@ -136,6 +160,57 @@ type TrialBalanceIssue v = StructureIssue v (HatBase AccountTitles)
 -- | Structure issues of a journal, with the note that holds the element.
 type JournalIssue n v b = (n, StructureIssue v b)
 
+-- | Check every posting before any operation that determines accounting sides.
+-- A standalone zero term is inspected just as in the presentation structure check.
+structureIssues
+    :: forall v b. (HatVal v, ExBaseClass b)
+    => Alg v b
+    -> [StructureIssue v b]
+structureIssues input =
+    [InvalidValue value base | (base, value) <- postings, isErrorValue value]
+    ++ [WildcardAccount base | (base, _) <- postings, getAccountTitle base == AccountTitle]
+    ++ [WildcardSide base | (base, _) <- postings, hat base == HatNot]
+  where
+    postings :: [(b, v)]
+    postings = sort $ case input of
+        value :@ base -> [(base, value)]
+        _             -> foldEntries (\entries value base -> (base, value) : entries) [] input
+
+-- | Specialize the common structure check to account-only trial balances.
+trialBalanceStructureIssues :: HatVal v => TrialBalance v -> [TrialBalanceIssue v]
+trialBalanceStructureIssues = structureIssues
+
+-- | Attach notes to structure issues, including those of the blank note.
+journalStructureIssues
+    :: (HatVal v, ExBaseClass b, Note n)
+    => Journal n v b
+    -> [JournalIssue n v b]
+journalStructureIssues input =
+    [ (note, issue)
+    | (note, transaction) <- sortOn fst (HM.toList (toMap input))
+    , issue <- structureIssues transaction
+    ]
+
+-- | Return warning findings only when the list is nonempty.
+warningFindings :: [f] -> AuditResult s f
+warningFindings []                   = NoProblem
+warningFindings (finding : findings) = Warning (finding :| findings)
+
+-- | Return accounting errors only when the list is nonempty.
+errorFindings :: [f] -> AuditResult s f
+errorFindings []                   = NoProblem
+errorFindings (finding : findings) =
+    Error (AccountingFinding finding :| map AccountingFinding findings)
+
+-- | Accounts and the balance directions that cannot occur in correct processing.
+impossibleBalanceSides :: [(AccountTitles, Side)]
+impossibleBalanceSides =
+    [ (Cash, Credit)
+    , (PettyCash, Credit)
+    , (CapitalStock, Debit)
+    , (AccumulatedDepreciation, Debit)
+    ]
+
 -- * Trial-balance audits
 
 -- | An account whose balance cannot occur under any correct processing.
@@ -162,7 +237,13 @@ impossibleBalances
     :: HatVal v
     => TrialBalance v
     -> AuditResult (TrialBalanceIssue v) (ImpossibleBalance v)
-impossibleBalances _ = undefined
+impossibleBalances input = case trialBalanceStructureIssues input of
+    issue : issues -> Error (StructureFinding issue :| map StructureFinding issues)
+    []             -> errorFindings
+        [ ImpossibleBalance title balance
+        | (title, balance) <- M.toAscList (accountBalances input)
+        , Just (balanceSide balance) == lookup title impossibleBalanceSides
+        ]
 
 -- | An account balance on the side opposite to its home side.
 data AbnormalBalance v = AbnormalBalance
@@ -190,7 +271,18 @@ abnormalBalances
     :: HatVal v
     => TrialBalance v
     -> AuditResult (TrialBalanceIssue v) (AbnormalBalance v)
-abnormalBalances _ = undefined
+abnormalBalances input = case trialBalanceStructureIssues input of
+    issue : issues -> Error (StructureFinding issue :| map StructureFinding issues)
+    []             -> warningFindings
+        [ AbnormalBalance title side balance
+        | (title, balance) <- M.toAscList (accountBalances input)
+        , title `notElem` map fst impossibleBalanceSides
+        , balance /= NoBalance
+        , Just semantics <- [accountSemantics title]
+        , OrdinaryAccount `elem` asemRoles semantics
+        , FixedHomeSide side <- [asemHomeSideSemantics semantics]
+        , balanceSide balance /= side
+        ]
 
 -- | A temporary account that still has a balance.
 data TemporaryAccountBalance v = TemporaryAccountBalance
@@ -212,7 +304,14 @@ temporaryAccountBalances
     :: HatVal v
     => TrialBalance v
     -> AuditResult (TrialBalanceIssue v) (TemporaryAccountBalance v)
-temporaryAccountBalances _ = undefined
+temporaryAccountBalances input = case trialBalanceStructureIssues input of
+    issue : issues -> Error (StructureFinding issue :| map StructureFinding issues)
+    []             -> warningFindings
+        [ TemporaryAccountBalance title balance
+        | (title, balance) <- M.toAscList (accountBalances input)
+        , title `elem` [SuspensePayments, SuspenseReceipts, SuspenseAccount]
+        , balance /= NoBalance
+        ]
 
 -- | An account that closing must clear but that still has a balance.
 data ClosingResidual v = ClosingResidual
@@ -231,7 +330,18 @@ closingResiduals
     :: HatVal v
     => TrialBalance v
     -> AuditResult (TrialBalanceIssue v) (ClosingResidual v)
-closingResiduals _ = undefined
+closingResiduals input = case trialBalanceStructureIssues input of
+    issue : issues -> Error (StructureFinding issue :| map StructureFinding issues)
+    []             -> errorFindings
+        [ ClosingResidual title balance
+        | (title, balance) <- M.toAscList (accountBalances input)
+        , balance /= NoBalance
+        , Just semantics <- [accountSemantics title]
+        , title == CashOverShort
+            || any (`elem` asemRoles semantics) [ClosingDevice, PeriodResult, ReportingSubtotal]
+            || asemDivisionSemantics semantics `elem`
+                [StatementDivision Revenue, StatementDivision Cost]
+        ]
 
 -- * Journal audits
 
@@ -255,10 +365,26 @@ duplicateTransactions
     :: (HatVal v, ExBaseClass b, Note n)
     => Journal n v b
     -> AuditResult (JournalIssue n v b) (DuplicateTransactions n)
-duplicateTransactions _ = undefined
+duplicateTransactions (input :: Journal n v b) = case journalStructureIssues input of
+    issue : issues -> Error (StructureFinding issue :| map StructureFinding issues)
+    []             -> warningFindings
+        [ DuplicateTransactions first (next :| rest)
+        | first : next : rest <- sortedGroups
+        ]
+  where
+    groups :: M.Map [(v, b)] [n]
+    groups = M.fromListWith (++)
+        [ ( sort $ foldEntries (\entries value base -> (value, base) : entries) [] transaction
+          , [note]
+          )
+        | (note, transaction) <- HM.toList (toMap input)
+        , note /= plank
+        ]
+    sortedGroups :: [[n]]
+    sortedGroups = sort $ map sort $ M.elems groups
 
--- | A revenue posting on the debit side or an expense posting on the credit
--- side.
+-- | A posting to a revenue or expense account on the side opposite to its
+-- home side.
 data ContraryNominalPosting n v b = ContraryNominalPosting
     { _contraryNote  :: n  -- ^ The transaction.
     , _contraryValue :: v  -- ^ The posted value.
@@ -266,10 +392,11 @@ data ContraryNominalPosting n v b = ContraryNominalPosting
     }
     deriving (Show, Eq)
 
--- | Report, within each transaction, revenue postings on the debit side and
--- expense postings on the credit side. Transactions that post to an account
--- reserved for closing (income summary) are excluded. Returns 'Warning' when
--- any is found.
+-- | Report, within each transaction, postings to revenue or expense accounts
+-- on the side opposite to their home side. For contra accounts such as sales
+-- allowances, whose home side is debit, a debit posting is normal and a credit
+-- posting is reported. Transactions that post to an account reserved for
+-- closing (income summary) are excluded. Returns 'Warning' when any is found.
 --
 -- Precondition: each note holds one transaction.
 --
@@ -280,4 +407,19 @@ contraryNominalPostings
     :: (HatVal v, ExBaseClass b, Note n)
     => Journal n v b
     -> AuditResult (JournalIssue n v b) (ContraryNominalPosting n v b)
-contraryNominalPostings _ = undefined
+contraryNominalPostings (input :: Journal n v b) = case journalStructureIssues input of
+    issue : issues -> Error (StructureFinding issue :| map StructureFinding issues)
+    []             -> warningFindings
+        [ ContraryNominalPosting note value base
+        | (note, transaction) <- sortOn fst (HM.toList (toMap input))
+        , note /= plank
+        , let postings :: [(b, v)]
+              postings = foldEntries (\entries value base -> (base, value) : entries) [] transaction
+        , all ((/= ClosingOnly) . postingCapabilityFor . getAccountTitle . fst) postings
+        , (base, value) <- sort postings
+        , Just semantics <- [accountSemantics (getAccountTitle base)]
+        , asemDivisionSemantics semantics `elem`
+            [StatementDivision Revenue, StatementDivision Cost]
+        , FixedHomeSide home <- [asemHomeSideSemantics semantics]
+        , whichSide base /= home
+        ]
