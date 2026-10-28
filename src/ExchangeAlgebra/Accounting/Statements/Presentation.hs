@@ -29,10 +29,10 @@ Read amounts and sections without relying on the order of statement lines.
 >>> import ExchangeAlgebra.Algebra.Base.Representation (Hat(..), HatBase(..))
 >>> import ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
 >>> import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
->>> type TrialBalance = Algebra.Alg MoneyDecimal (HatBase AccountTitles)
->>> let cash = 100 Algebra..@ (Not :< Cash) :: TrialBalance
->>> let equity = 100 Algebra..@ (Not :< CapitalStock) :: TrialBalance
->>> let capital = cash Algebra..+ equity :: TrialBalance
+>>> import ExchangeAlgebra.Accounting.TrialBalance.Balance (TrialBalance)
+>>> let cash = 100 Algebra..@ (Not :< Cash) :: TrialBalance MoneyDecimal
+>>> let equity = 100 Algebra..@ (Not :< CapitalStock) :: TrialBalance MoneyDecimal
+>>> let capital = cash Algebra..+ equity :: TrialBalance MoneyDecimal
 >>> let context = jcciSecondGradeContext Standalone
 >>> let statements = present context TB.BeforeClosing capital
 >>> fmap (length . _statementLines) statements

@@ -34,10 +34,10 @@ the sources preserves both cash postings and both capital postings.
 >>> import ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
 >>> import ExchangeAlgebra.Accounting.Statements.Metric (PeriodResult(..))
 >>> import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
->>> type TrialBalance = Algebra.Alg MoneyDecimal (HatBase AccountTitles)
+>>> import ExchangeAlgebra.Accounting.TrialBalance.Balance (TrialBalance)
 >>> let cash amount = amount Algebra..@ (Not :< Cash)
 >>> let equity amount = amount Algebra..@ (Not :< CapitalStock)
->>> let capital amount = cash amount Algebra..+ equity amount :: TrialBalance
+>>> let capital amount = cash amount Algebra..+ equity amount :: TrialBalance MoneyDecimal
 >>> let periodResult = PeriodBreakEven :: PeriodResult MoneyDecimal
 >>> let resultColumns = WorksheetLinkage periodResult periodResult periodResult
 >>> let retainedColumns = resultColumns NoBalance 0 NoBalance NoBalance
