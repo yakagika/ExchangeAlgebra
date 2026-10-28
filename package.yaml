@@ -82,10 +82,8 @@ library:
   - ExchangeAlgebra.Algebra.Base.Element
   - ExchangeAlgebra.Algebra.Core
   - ExchangeAlgebra.Algebra.Element
-  - ExchangeAlgebra.Algebra.Exact
   - ExchangeAlgebra.Algebra.Internal
   - ExchangeAlgebra.Algebra.Posting
-  - ExchangeAlgebra.Algebra.Readout.Net
   - ExchangeAlgebra.Algebra.Transfer
   - ExchangeAlgebra.Algebra.Transfer.Rule
   - ExchangeAlgebra.Algebra.Value
@@ -109,7 +107,6 @@ library:
   - ExchangeAlgebra.Accounting.Equivalence
   - ExchangeAlgebra.Journal
   - ExchangeAlgebra.Journal.Core
-  - ExchangeAlgebra.Journal.Exact
   - ExchangeAlgebra.Journal.Transfer
   - ExchangeAlgebra.Journal.Transfer.Rule
   - ExchangeAlgebra.Optimize
@@ -199,10 +196,7 @@ tests:
     other-modules:
     - CompatInstance
     - Surface.Accounting
-    - Surface.Algebra.Exact
-    - Surface.Algebra.Readout.Net
     - Surface.Foundation
-    - Surface.Journal.Exact
     - Surface.Render.Bookkeeping
     - Surface.Render.Csv
     - Surface.Render.Simulation

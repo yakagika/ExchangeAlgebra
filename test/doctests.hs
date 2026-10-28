@@ -18,10 +18,8 @@ main = doctest  [ "-isrc"
                   -- journal transfers are not reachable from the umbrella;
                   -- list them explicitly to check their Haddock examples.
                 , "src/ExchangeAlgebra/Journal/Transfer.hs"
-                  -- exact readouts and reporting gates have their own examples;
+                  -- reporting gates have their own examples;
                   -- explicit roots keep them covered independently of umbrellas.
-                , "src/ExchangeAlgebra/Algebra/Exact.hs"
-                , "src/ExchangeAlgebra/Journal/Exact.hs"
                 , "src/ExchangeAlgebra/Accounting/TrialBalance/Validation.hs"
                 , "src/ExchangeAlgebra/Accounting/Statements/Presentation.hs"
                 , "src/ExchangeAlgebra/Accounting/Consolidation.hs"
@@ -60,7 +58,6 @@ main = doctest  [ "-isrc"
                   -- top-level umbrella, so listed explicitly.
                 , "src/ExchangeAlgebra/Foundation.hs"
                 , "src/ExchangeAlgebra/Accounting.hs"
-                , "src/ExchangeAlgebra/Algebra/Readout/Net.hs"
                 , "src/ExchangeAlgebra/Simulate/Engine.hs"
                 , "src/ExchangeAlgebra/Simulation/Analysis.hs"
                 , "src/ExchangeAlgebra/Simulate/Random.hs"

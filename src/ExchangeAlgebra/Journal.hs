@@ -58,14 +58,11 @@ module ExchangeAlgebra.Journal
     , sigmaM
     , map
     , replaceNotes
-    , insert
     , projWithNote
     , projWithBase
     , projWithNoteBase
     , projWithBaseNetNorm
     , projWithNoteBaseNetNorm
-    , projWithBaseNorm
-    , projWithNoteNorm
     , filterWithNote
     , filterByAxis
     , postFromNetBy
@@ -96,14 +93,11 @@ import ExchangeAlgebra.Journal.Core.Representation as ExchangeAlgebra.Journal
     , sigmaM
     , map
     , replaceNotes
-    , insert
     , projWithNote
     , projWithBase
     , projWithNoteBase
     , projWithBaseNetNorm
     , projWithNoteBaseNetNorm
-    , projWithBaseNorm
-    , projWithNoteNorm
     , filterWithNote
     , filterByAxis
     , postFromNetBy

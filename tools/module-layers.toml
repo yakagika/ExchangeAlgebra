@@ -2,7 +2,6 @@
 layers = ["Algebra", "Journal", "Accounting", "IO", "Simulation"]
 umbrella = ["ExchangeAlgebra"]
 shims = [
-  "Algebra.Readout.Net",
   "Posting",
   "Bookkeeping",
   "TrialBalance.Balance",
@@ -23,8 +22,6 @@ Algebra = "Algebra"
 "Algebra.Base.Account.JcciAliases" = "Algebra"
 "Algebra.Base.Account.Registry" = "Algebra"
 "Algebra.Base.Account.Types" = "Algebra"
-"Algebra.Exact" = "Algebra"
-"Algebra.Readout.Net" = "Algebra"
 Value = "Algebra"
 Posting = "Algebra"
 Foundation = "Algebra"
@@ -169,60 +166,6 @@ from = "Algebra.Base.Account.Types"
 to = "Accounting.Account.Classification"
 reason = "Legacy account types namespace re-exports the new owner."
 remove_by = "0.7.0.0"
-
-[[exceptions]]
-from = "Algebra.Exact"
-to = "Accounting.Account.Classification"
-reason = "Legacy exact readout uses accounting entities until P4. Use the new owner path during P2."
-remove_by = "P4"
-
-[[exceptions]]
-from = "Algebra.Exact"
-to = "Accounting.Account.Title"
-reason = "Legacy exact readout uses accounting entities until P4. Use the new owner path during P2."
-remove_by = "P4"
-
-[[exceptions]]
-from = "Algebra.Exact"
-to = "Accounting.Exchange"
-reason = "Legacy exact readout uses accounting entities until P4. Use the new owner path during P2."
-remove_by = "P4"
-
-[[exceptions]]
-from = "Journal.Exact"
-to = "Accounting.Account.Classification"
-reason = "Legacy exact readout uses accounting entities until P4. Use the new owner path during P2."
-remove_by = "P4"
-
-[[exceptions]]
-from = "Journal.Exact"
-to = "Accounting.Account.Title"
-reason = "Legacy exact readout uses accounting entities until P4. Use the new owner path during P2."
-remove_by = "P4"
-
-[[exceptions]]
-from = "Journal.Exact"
-to = "Accounting.Exchange"
-reason = "Legacy exact readout uses accounting entities until P4. Use the new owner path during P2."
-remove_by = "P4"
-
-[[exceptions]]
-from = "Algebra.Exact"
-to = "Accounting.TrialBalance.Balance"
-reason = "Exact accounting readout still uses the trial-balance account representation."
-remove_by = "P4"
-
-[[exceptions]]
-from = "Algebra.Readout.Net"
-to = "Journal"
-reason = "Legacy readout shim re-exports journal net readouts."
-remove_by = "0.6.0.0"
-
-[[exceptions]]
-from = "Journal.Exact"
-to = "Accounting.TrialBalance.Balance"
-reason = "Exact journal readout still exposes the account-balance representation."
-remove_by = "P4"
 
 [[exceptions]]
 from = "Journal.Transfer"

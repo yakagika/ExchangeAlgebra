@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 
 import ExchangeAlgebra
-import qualified ExchangeAlgebra.Algebra.Readout.Net as Net
+import qualified ExchangeAlgebra.Algebra as Net (netPairMapBy)
 
 -- | A custom title alongside the built-in account vocabulary.
 data MyAccount

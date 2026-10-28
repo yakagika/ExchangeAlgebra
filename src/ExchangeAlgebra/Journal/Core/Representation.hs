@@ -34,14 +34,11 @@ module ExchangeAlgebra.Journal.Core.Representation ( Note(..)
                                                    , sigmaM
                                                    , map
                                                    , replaceNotes
-                                                   , insert
                                                    , projWithNote
                                                    , projWithBase
                                                    , projWithNoteBase
                                                    , projWithBaseNetNorm
                                                    , projWithNoteBaseNetNorm
-                                                   , projWithBaseNorm
-                                                   , projWithNoteNorm
                                                    , filterWithNote
                                                    , filterByAxis
                                                    , postFromNetBy
@@ -812,22 +809,16 @@ map f js = mkJournalNonZero result Map.empty
 -- value. This is not redundant addition; contrast with '(.+)'.
 --
 -- Complexity: O(n + m) where n, m are the number of Notes in each Journal
-replaceNotes :: (HatVal v, HatBaseClass b, Note n)
-             => Journal n v b -> Journal n v b -> Journal n v b
-replaceNotes x y = mkJournalNonZero (Map.union (toMap x) (toMap y)) Map.empty
-
-{-# DEPRECATED insert "Use replaceNotes; insert replaces whole notes and is not the redundant (.+)" #-}
--- | Deprecated alias for 'replaceNotes'.
 --
 -- >>> type Test = Journal String Double (HatBase CountUnit)
 -- >>> x = 10.00.@Not:<Yen .| "A" :: Test
 -- >>> y = 20.00.@Not:<Yen .| "B" :: Test
 -- >>> z = 30.00.@Hat:<Yen .| "A" :: Test
--- >>> toMap (insert z (x .+ y)) == toMap ((20.00.@Not:<Yen .| "B") .+ (30.00.@Hat:<Yen .| "A") :: Test)
+-- >>> toMap (replaceNotes z (x .+ y)) == toMap (y .+ z)
 -- True
-insert :: (HatVal v, HatBaseClass b, Note n)
-        => Journal n v b -> Journal n v b -> Journal n v b
-insert = replaceNotes
+replaceNotes :: (HatVal v, HatBaseClass b, Note n)
+             => Journal n v b -> Journal n v b -> Journal n v b
+replaceNotes x y = mkJournalNonZero (Map.union (toMap x) (toMap y)) Map.empty
 
 ------------------------------------------------------------------
 -- | projWithNote
@@ -986,20 +977,6 @@ projWithNoteBaseNetNorm ns bs js =
 -- 14.0 vs 6.0 on a both-sided base). A rewrite rule must be semantics-preserving;
 -- callers who want the fused netted read-out call 'projWithBaseNetNorm' \/
 -- 'projWithNoteBaseNetNorm' explicitly.
-
-{-# DEPRECATED projWithBaseNorm "renamed to 'projWithBaseNetNorm': the result is bar-netted per base, which the old name concealed. Will be removed in 0.6" #-}
--- | Deprecated alias for 'projWithBaseNetNorm' (renamed in 0.5.0.0 so the name
--- states the bar-netting).
-projWithBaseNorm :: (HatVal v, HatBaseClass b, Note n)
-                 => [b] -> Journal n v b -> v
-projWithBaseNorm = projWithBaseNetNorm
-
-{-# DEPRECATED projWithNoteNorm "renamed to 'projWithNoteBaseNetNorm': it takes note AND base queries and the result is bar-netted per base — both were missing from the old name. Will be removed in 0.6" #-}
--- | Deprecated alias for 'projWithNoteBaseNetNorm' (renamed in 0.5.0.0 so the
--- name states both the base argument and the bar-netting).
-projWithNoteNorm :: (HatVal v, HatBaseClass b, Note n)
-                 => [n] -> [b] -> Journal n v b -> v
-projWithNoteNorm = projWithNoteBaseNetNorm
 
 ------------------------------------------------------------------
 -- | Filter by a predicate on Note-entry pairs.

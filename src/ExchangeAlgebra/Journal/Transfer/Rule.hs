@@ -167,7 +167,7 @@ carryNetEntries carryNote journal = case validationError of
 -- Inputs require concrete Hat or Not sides and finite, non-negative values.
 -- Applying the returned entries cancels selected notes mathematically. The
 -- net read out by the 'HatVal' accumulator succeeds on the resulting journal,
--- but the 0.5.x @*Exact@ readers can fail on it: reversing Not and Hat
+-- but rounding each gross side can overflow: reversing Not and Hat
 -- entries of @2^1023@ at one base makes each side total @2^1024@. For the
 -- same reason 'sideTotalsBy' reports 'ResultOutOfRange' on such a journal,
 -- because it rounds each side total rather than the net.
@@ -261,8 +261,8 @@ sideTotal HatSide = hatTotal
 sideTotal NotSide = notTotal
 
 -- | Failures of 'carryEntries', 'carryBefore', and 'sideTotalsBy', in
--- descending priority. This is the successor of 0.5.x t'ExchangeAlgebra.Algebra.Exact.ExactSumError'
--- for these functions.
+-- descending priority. For these functions, this replaces the 0.5.x
+-- ExactSumError (removed in 0.6.0.0).
 data CarryError
     = WildcardSide   -- ^ A posting uses HatNot, including a retained zero posting.
     | NonFiniteValue -- ^ A posting is NaN or infinite.

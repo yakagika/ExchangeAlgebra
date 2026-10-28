@@ -455,7 +455,6 @@ projDeferredAssets
 projFixedAssets
 projFixedLiability
 projNetNorm
-projNorm
 relTol
 revHat
 roundAccum

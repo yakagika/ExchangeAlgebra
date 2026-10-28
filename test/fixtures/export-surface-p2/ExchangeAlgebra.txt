@@ -532,7 +532,6 @@ projDeferredAssets
 projFixedAssets
 projFixedLiability
 projNetNorm
-projNorm
 rationalAddAccum
 rationalRoundAccum
 relTol

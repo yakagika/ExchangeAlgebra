@@ -63,7 +63,6 @@ module ExchangeAlgebra.Algebra
     , projDebit
     , projByAccountTitle
     , projNetNorm
-    , projNorm
     , balanceBy
     , balanceMapBy
     , netPairMapBy

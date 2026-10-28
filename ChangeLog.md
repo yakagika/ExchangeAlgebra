@@ -440,6 +440,38 @@
   directly to `present`, and obtain accounting findings separately with
   `trialBalanceFindings`. Add every title in a `MaturityEvidenceRequired`
   rule to `_maturitySensitiveTitles`. Findings and their order are unchanged.
+- `ExchangeAlgebra.Algebra.Exact` and `ExchangeAlgebra.Journal.Exact` are removed.
+  Their successors below return values directly, without `Either ExactSumError`.
+- `normExact` is removed; use the existing `norm` method on algebras or journals.
+- `barExact` is removed; use the existing `bar` method on algebras or journals.
+- `projNetNormExact` is removed; use `Algebra.projNetNorm` or
+  `Journal.projWithBaseNetNorm`.
+- `balanceMapByExact` is removed; use `Algebra.balanceMapBy`, composed with `toAlg`
+  for journals. The result contains signed values rather than `(Ordering, magnitude)`.
+- `netPairMapByExact` is removed; use `Algebra.netPairMapBy`, composed with `toAlg`
+  for journals.
+- `postFromNetByExact` is removed; use `postFromNetBy` on algebras or journals.
+- `diffRLExact` is removed; use the existing `diffRL` method on algebras or journals.
+- `balanceExact` is removed; use the existing `balance` method on algebras or journals.
+- `accountBalancesExact` is removed; use
+  `Accounting.TrialBalance.Balance.accountBalances`, composed with `toAlg` for journals.
+- `projWithBaseNetNormExact` is removed; use `Journal.projWithBaseNetNorm`.
+- `projWithNoteBaseNetNormExact` is removed; use `Journal.projWithNoteBaseNetNorm`.
+- `ExactSum` and its methods are removed; use the existing `HatVal` accumulator.
+  Subtract states with `mergeAccum left (negateAccum right)`. Use `signAccum`
+  for the direction, `negateAccum` for a negative state's magnitude, and
+  `roundAccum` to round once; this also replaces `netAccumState`.
+- `ExactSumError` is removed. Posting construction rejects negative and non-finite
+  inputs; readouts retain the 0.6 accumulator contract, including IEEE overflow
+  for floating results.
+- `sumExact` is removed; use `sumValues`.
+- `netAccum` is removed; subtract `HatVal` states as above and round with `roundAccum`.
+- `ExchangeAlgebra.Algebra.Readout.Net` is removed. Import its retained functions
+  from `ExchangeAlgebra.Algebra` or `ExchangeAlgebra.Journal`.
+- `projNorm` is removed; use `projNetNorm`.
+- `Journal.insert` is removed; use `Journal.replaceNotes` for whole-note replacement.
+- `Journal.projWithBaseNorm` is removed; use `Journal.projWithBaseNetNorm`.
+- `Journal.projWithNoteNorm` is removed; use `Journal.projWithNoteBaseNetNorm`.
 
 - The research evaluation tooling in `examples/audit-eval` (task generators,
   runners, checkers, and oracles) moved to a separate repository.

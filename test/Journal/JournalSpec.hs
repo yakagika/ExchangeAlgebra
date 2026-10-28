@@ -44,8 +44,8 @@ journalSample = EJ.fromList [x, y, z]
     y = ((2 .@ (Not :< Yen)) .+ (2 .@ (Hat :< Amount))) .| "dog"  :: TestJournal
     z = ((3 .@ (Hat :< Yen)) .+ (3 .@ (Not :< Amount))) .| "fish" :: TestJournal
 
-testReplaceNotesMatchesInsert :: IO ()
-testReplaceNotesMatchesInsert = do
+testReplaceNotes :: IO ()
+testReplaceNotes = do
     let x = (10.00 .@ (Not :< Cash)) .| "A"
                 :: EJ.Journal String Double (HatBase AccountTitles)
         y = (20.00 .@ (Not :< Cash)) .| "B"
@@ -56,9 +56,6 @@ testReplaceNotesMatchesInsert = do
         expected = z .+ y
     assertEqual "Journal.replaceNotes replaces the complete matching Note"
         (EJ.toMap expected)
-        (EJ.toMap (EJ.replaceNotes z source))
-    assertEqual "Journal.replaceNotes matches insert"
-        (EJ.toMap (EJ.insert z source))
         (EJ.toMap (EJ.replaceNotes z source))
 
 transferAlgSample :: TransferAlg
@@ -502,5 +499,5 @@ runTests = do
     testFilterByAxisCases
     testSigmaReferences
     testJournalProjectionNorms
-    testReplaceNotesMatchesInsert
+    testReplaceNotes
     journalProperties

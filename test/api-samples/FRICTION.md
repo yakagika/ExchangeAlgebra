@@ -32,7 +32,7 @@
 - したかったこと: 現金残高, 科目別残高, 貸借一致, 利益剰余金を同じ台帳から読む.
 - 起きたこと: `balanceMapBy getAccountTitle ledger` は型エラーになった. `balanceMapBy` のキー関数は `BasePart b -> Maybe k` であり, `getAccountTitle` はその形でない. 借貸を混ぜて負の値を作る signed readout と非負の対を返す readout も別名である.
 - 回避: 勘定名が基底そのものの見本では `netPairMapBy Just` を使い, 現金と利益剰余金は `bar . projByAccountTitle` で読んだ.
-- API: `ExchangeAlgebra.Algebra.Readout.Net.balanceMapBy` / `netPairMapBy`, `ExchangeAlgebra.Algebra.projByAccountTitle`.
+- API: `ExchangeAlgebra.Algebra.balanceMapBy` / `netPairMapBy`, `ExchangeAlgebra.Algebra.projByAccountTitle`.
 
 ## 5. 受入 API の縮小
 
@@ -68,10 +68,12 @@
 - したかったこと: 既定科目にない `CarbonReserve` を題材 3 の残高・均衡・決算・諸表の流れへ足す.
 - 起きたこと: `decL ledger` の compile で `ExBaseClass (HatBase MyAccount)` がないと指摘された. `ExBaseClass` の科目取得・設定は `AccountTitles` を前提とし, `MyAccount` の新しい値を既定科目の分類へ渡す方法を見つけられなかった. 決算振替と既定の諸表出力も同じ境界に当たる.
 - 回避: `Element` / `BaseClass` を定義し, `bar`, `proj`, `netPairMapBy Just` までを表示した. 借貸一致と諸表はこの見本では書けなかった.
-- API: `ExchangeAlgebra.Algebra.Base.ExBaseClass`, `ExchangeAlgebra.Algebra.decL` / `decR`, `ExchangeAlgebra.Write.bsRows` / `plRows`, `ExchangeAlgebra.Algebra.Readout.Net.netPairMapBy`.
+- API: `ExchangeAlgebra.Algebra.Base.ExBaseClass`, `ExchangeAlgebra.Algebra.decL` / `decR`, `ExchangeAlgebra.Write.bsRows` / `plRows`, `ExchangeAlgebra.Algebra.netPairMapBy`.
 
 ## 全体の所感: 最も困った 3 点
 
 1. 独自勘定が基礎代数から会計読出し・決算・諸表へ進めない. 拡張した勘定に分類を与える公開の経路が見つからなかった.
 2. 取引網の係数と解析用配列が別表現で, `rippleEffect` も試した 2 × 2 配列で実行時に落ちた. 網を一度定義して波及まで進む見本を書けなかった.
 3. 決算は名目勘定の抽出, 期末繰越, 受入後の二経路比較を利用者が接続する. 小さな帳簿でも複数 module の関数と冗長列の扱いを先に理解する必要があった.
+
+旧 net readout の再公開 module は 0.6 で削除. 各関数は `Algebra` / `Journal` から import する.

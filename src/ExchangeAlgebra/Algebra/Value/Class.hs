@@ -293,7 +293,7 @@ data Rounding n
     deriving (Eq, Show)
 
 -- | Sum values exactly in the accumulator and round once. The result does not
--- depend on the order of the elements. Replaces the 0.5.2.0 @sumExact@.
+-- depend on the order of the elements.
 --
 -- __Law__ S1 (relation @sumValues xs == roundAccum (foldr addAccum emptyAccum xs)@;
 -- premise: every element finite; observed through '=='; tolerance none; all instances).

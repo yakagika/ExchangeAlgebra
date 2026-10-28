@@ -6,12 +6,10 @@ ExchangeAlgebra.Algebra.Base.Account.Registry	23
 ExchangeAlgebra.Algebra.Base.Account.Types	46
 ExchangeAlgebra.Algebra.Base.Element	277
 ExchangeAlgebra.Algebra.Base	389
-ExchangeAlgebra.Algebra.Exact	22
-ExchangeAlgebra.Algebra.Internal	484
-ExchangeAlgebra.Algebra.Readout.Net	7
+ExchangeAlgebra.Algebra.Internal	483
 ExchangeAlgebra.Algebra.Transfer.Rule	36
 ExchangeAlgebra.Algebra.Transfer	16
-ExchangeAlgebra.Algebra	485
+ExchangeAlgebra.Algebra	484
 ExchangeAlgebra.Assist.Descriptions	1
 ExchangeAlgebra.Assist	16
 ExchangeAlgebra.Bookkeeping	19
@@ -21,10 +19,9 @@ ExchangeAlgebra.Convert.Csv	5
 ExchangeAlgebra.Convert	13
 ExchangeAlgebra.Foundation	108
 ExchangeAlgebra.IO.Input.Admission	19
-ExchangeAlgebra.Journal.Exact	24
 ExchangeAlgebra.Journal.Transfer.Rule	14
 ExchangeAlgebra.Journal.Transfer	15
-ExchangeAlgebra.Journal	460
+ExchangeAlgebra.Journal	457
 ExchangeAlgebra.Optimize.Annealing	10
 ExchangeAlgebra.Optimize.GA	14
 ExchangeAlgebra.Optimize	8
@@ -48,4 +45,4 @@ ExchangeAlgebra.TrialBalance.Balance	12
 ExchangeAlgebra.TrialBalance.Validation	35
 ExchangeAlgebra.Value	13
 ExchangeAlgebra.Write	25
-ExchangeAlgebra	600
+ExchangeAlgebra	599

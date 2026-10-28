@@ -1,9 +1,10 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
--- | Rational-oracle and bit-level acceptance tests for checked exact readouts.
+-- | Rational-oracle and bit-level acceptance tests for exact readouts.
 module Algebra.ExactSumSpec (runTests) where
 
 import Control.Monad (unless)
+import Control.Exception (SomeException, evaluate, try)
 import qualified Data.Decimal as Decimal
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
@@ -13,13 +14,27 @@ import System.Exit (exitFailure)
 import Test.QuickCheck hiding (collect)
 
 import ExchangeAlgebra.Algebra.Base hiding (equal)
-import ExchangeAlgebra.Algebra (Alg, (.@))
+import ExchangeAlgebra.Algebra
+    ( Alg
+    , (.@)
+    , norm
+    , bar
+    , balanceMapBy
+    , netPairMapBy
+    , postFromNetBy
+    , projNetNorm
+    , diffRL
+    , balance
+    )
 import qualified ExchangeAlgebra.Algebra as Algebra
-import ExchangeAlgebra.Algebra.Exact
 import qualified ExchangeAlgebra.Journal as Journal
-import qualified ExchangeAlgebra.Journal.Exact as JournalExact
-import ExchangeAlgebra.Accounting.TrialBalance.Balance (AccountBalance(..))
-import ExchangeAlgebra.Algebra.Value (MoneyDecimal(..), MoneyDouble(..))
+import ExchangeAlgebra.Accounting.TrialBalance.Balance (AccountBalance(..), accountBalances)
+import ExchangeAlgebra.Algebra.Value
+    ( HatVal(..)
+    , sumValues
+    , MoneyDecimal(..)
+    , MoneyDouble(..)
+    )
 
 -- | Concrete complete bases with no wildcard ordering in the oracle.
 type TestBase = HatBase AccountTitles
@@ -43,17 +58,15 @@ threshold :: Double
 threshold = 2 ^ (53 :: Int)
 
 -- | Compare successful outputs by all 64 bits, including the sign of zero.
-bits :: Either ExactSumError Double -> Either ExactSumError Word64
-bits = fmap castDoubleToWord64
+bits :: Double -> Word64
+bits = castDoubleToWord64
 
--- | Exact reference with a range check before nearest-even conversion.
-oracle :: Rational -> Either ExactSumError Double
-oracle value
-    | value > toRational maximumFinite = Left SumOutOfRange
-    | otherwise = Right (fromRational value)
+-- | Independent nearest-even conversion, including IEEE overflow.
+oracle :: Rational -> Double
+oracle = fromRational
 
 -- | Build an accumulator without rounding its intermediate states.
-accumulate :: ExactSum n => [n] -> Accum n
+accumulate :: HatVal n => [n] -> Accum n
 accumulate = List.foldl' (flip addAccum) emptyAccum
 
 -- | Generate finite non-negative inputs across all binary64 exponent ranges.
@@ -82,8 +95,8 @@ propSum = forAll genValues $ \values -> forAll (shuffle values) $ \permuted ->
         middleState = accumulate middle
         lastState = accumulate lastPart
     in conjoin
-        [ bits (sumExact values) === expected
-        , bits (sumExact permuted) === expected
+        [ bits (sumValues values) === expected
+        , bits (sumValues permuted) === expected
         , bits (roundAccum (mergeAccum first second)) === expected
         , bits (roundAccum (mergeAccum second first)) === expected
         , bits (roundAccum (mergeAccum emptyAccum (mergeAccum first second))) === expected
@@ -92,30 +105,32 @@ propSum = forAll genValues $ \values -> forAll (shuffle values) $ \permuted ->
         , bits (roundAccum (mergeAccum (mergeAccum first middleState) lastState)) === expected
         ]
 
--- | Netting checks both exact side ranges before subtracting, without tolerance.
+-- | Subtraction rounds the exact signed difference, including overflowing sides.
 propNet :: Property
 propNet = forAll genValues $ \left -> forAll genValues $ \right ->
     let first = sum (fmap toRational left)
         second = sum (fmap toRational right)
-        expected
-            | max first second > toRational maximumFinite = Left SumOutOfRange
-            | otherwise = (,) (compare first second) <$> oracle (abs (first - second))
-        observe = fmap (\(direction, value) -> (direction, castDoubleToWord64 value))
-    in observe (netAccum (accumulate left) (accumulate right)) === observe expected
+        difference = mergeAccum (accumulate left) (negateAccum (accumulate right))
+    in bits (roundAccum difference) === bits (oracle (first - second))
 
--- | Merging signed residual expansions preserves their exact non-negative values.
+-- | Merging residual states preserves their exact non-negative values.
 propResidualMerge :: Property
 propResidualMerge = forAll genValue $ \a -> forAll genValue $ \b ->
     forAll genValue $ \c -> forAll genValue $ \d ->
-    let result = do
-            (_, first) <- netAccumState (accumulate [a]) (accumulate [b])
-            (_, second) <- netAccumState (accumulate [c]) (accumulate [d])
-            let left = mergeAccum first second
-                right = mergeAccum second first
-            pure (bits (roundAccum left), bits (roundAccum right))
+    let firstSigned = mergeAccum (accumulate [a]) (negateAccum (accumulate [b]))
+        secondSigned = mergeAccum (accumulate [c]) (negateAccum (accumulate [d]))
+        first = case signAccum firstSigned of
+            Just LT -> negateAccum firstSigned
+            _       -> firstSigned
+        second = case signAccum secondSigned of
+            Just LT -> negateAccum secondSigned
+            _       -> secondSigned
         expected = bits (oracle (abs (toRational a - toRational b)
             + abs (toRational c - toRational d)))
-    in result === Right (expected, expected)
+    in conjoin
+        [ bits (roundAccum (mergeAccum first second)) === expected
+        , bits (roundAccum (mergeAccum second first)) === expected
+        ]
 
 -- | Bias toward high-exponent ties that create a negative low partial.
 genBoundarySide :: Gen [Double]
@@ -127,28 +142,30 @@ genBoundarySide = frequency
         pure [encodeFloat high 970, encodeFloat low 970])
     ]
 
--- | Both subtraction directions must stay finite for valid near-boundary states.
+-- | Both subtraction directions stay finite for near-boundary states.
 propBoundaryNet :: Property
 propBoundaryNet = forAll genBoundarySide $ \left -> forAll genBoundarySide $ \right ->
     let first = sum (fmap toRational left)
         second = sum (fmap toRational right)
-        observe = fmap (\(direction, value) -> (direction, castDoubleToWord64 value))
-        expected = (,) (compare first second) <$> oracle (abs (first - second))
-    in observe (netAccum (accumulate left) (accumulate right)) === observe expected
+        difference = mergeAccum (accumulate left) (negateAccum (accumulate right))
+    in bits (roundAccum difference) === bits (oracle (first - second))
 
--- | Subtraction also accepts previously netted states with signed low components.
+-- | Subtraction also accepts previously netted residual states.
 propNestedNet :: Property
 propNestedNet = forAll genValue $ \a -> forAll genValue $ \b ->
     forAll genValue $ \c -> forAll genValue $ \d ->
     let first = abs (toRational a - toRational b)
         second = abs (toRational c - toRational d)
-        result = do
-            (_, left) <- netAccumState (accumulate [a]) (accumulate [b])
-            (_, right) <- netAccumState (accumulate [c]) (accumulate [d])
-            netAccum left right
-        expected = (,) (compare first second) <$> oracle (abs (first - second))
-        observe = fmap (\(direction, value) -> (direction, castDoubleToWord64 value))
-    in observe result === observe expected
+        leftSigned = mergeAccum (accumulate [a]) (negateAccum (accumulate [b]))
+        rightSigned = mergeAccum (accumulate [c]) (negateAccum (accumulate [d]))
+        left = case signAccum leftSigned of
+            Just LT -> negateAccum leftSigned
+            _       -> leftSigned
+        right = case signAccum rightSigned of
+            Just LT -> negateAccum rightSigned
+            _       -> rightSigned
+        difference = mergeAccum left (negateAccum right)
+    in bits (roundAccum difference) === bits (oracle (first - second))
 
 -- | Generate small ledgers with exact, independently calculable group residuals.
 genEntries :: Gen [(Double, TestBase)]
@@ -186,19 +203,19 @@ propReadouts = forAll genEntries $ \entries -> forAll (shuffle entries) $ \permu
         reordered = mconcat (fmap (uncurry (.@)) permuted)
         gross = sum (fmap (toRational . fst) entries)
         residual = sum (fmap abs (Map.elems groups))
-        expectedBalances = traverse (\value ->
-            (,) (compare value 0) <$> oracle (abs value)) groups
-        expectedPair = (,)
-            <$> oracle (sum [value | value <- Map.elems groups, value > 0])
-            <*> oracle (sum [abs value | value <- Map.elems groups, value < 0])
-        pairs = netPairMapByExact (const (Just ())) original
-        actualPair = fmap (Map.findWithDefault (0, 0) ()) pairs
+        expectedBalances = fmap oracle groups
+        expectedPair =
+            ( oracle (sum [value | value <- Map.elems groups, value > 0])
+            , oracle (sum [abs value | value <- Map.elems groups, value < 0])
+            )
+        pairs = netPairMapBy (const (Just ())) original
+        actualPair = Map.findWithDefault (0, 0) () pairs
         queries = [HatNot :< wildcard]
     in conjoin
-        [ fmap observeAlg (barExact original) === fmap observeAlg (barExact reordered)
-        , bits (normExact original) === bits (oracle gross)
-        , bits (projNetNormExact queries original) === bits (oracle residual)
-        , balanceMapByExact Just original === expectedBalances
+        [ observeAlg (bar original) === observeAlg (bar reordered)
+        , bits (norm original) === bits (oracle gross)
+        , bits (projNetNorm queries original) === bits (oracle residual)
+        , balanceMapBy Just original === expectedBalances
         , actualPair === expectedPair
         ]
 
@@ -219,26 +236,26 @@ propJournal = forAll genEntries $ \entries ->
     in forAll (shuffle annotated) $ \permuted ->
         let reordered = Journal.fromList (fmap make permuted)
         in conjoin
-            [ bits (JournalExact.projNetNormExact query original) === expected
-            , bits (JournalExact.projNetNormExact query reordered) === expected
-            , JournalExact.balanceMapByExact Just reordered
-                === JournalExact.balanceMapByExact Just original
-            , JournalExact.accountBalancesExact reordered
-                === JournalExact.accountBalancesExact original
+            [ bits (Journal.projWithBaseNetNorm query original) === expected
+            , bits (Journal.projWithBaseNetNorm query reordered) === expected
+            , balanceMapBy Just (Journal.toAlg reordered)
+                === balanceMapBy Just (Journal.toAlg original)
+            , accountBalances (Journal.toAlg reordered)
+                === accountBalances (Journal.toAlg original)
             ]
 
 -- | Handwritten wrappers preserve the Double oracle; Decimal merge is exact.
 propInstances :: Property
 propInstances = forAll genValues $ \values ->
-    let expected = bits (sumExact values)
+    let expected = bits (sumValues values)
         money = fmap MoneyDouble values
         unwrapMoney (MoneyDouble value) = value
         decimalValues = fmap (MoneyDecimal . Decimal.Decimal 2 . toInteger) [1 .. length values]
         decimalState = accumulate decimalValues
     in conjoin
-        [ bits (fmap unwrapMoney (sumExact money)) === expected
-        , roundAccum (mergeAccum decimalState emptyAccum) === Right (sum decimalValues)
-        , sumExact (reverse decimalValues) === Right (sum decimalValues)
+        [ bits (unwrapMoney (sumValues money)) === expected
+        , roundAccum (mergeAccum decimalState emptyAccum) === sum decimalValues
+        , sumValues (reverse decimalValues) === sum decimalValues
         ]
 
 -- | Run a deterministic check and stop the suite on failure.
@@ -256,26 +273,29 @@ propertyCheck name proposition = do
         exitFailure
     putStrLn ("[PASS] exact " ++ name ++ " (1000 cases)")
 
--- | Floating boundaries and sticky validation errors, independent of algebra construction.
+-- | Floating boundaries, exact cancellation, and invalid posting rejection.
 testAccumulator :: IO ()
 testAccumulator = do
-    check "2^53,1,1" (Right (threshold + 2)) (sumExact [threshold, 1, 1])
-    check "subnormals" (Right (3 * subnormal)) (sumExact [subnormal, subnormal, subnormal])
-    check "tie even down" (Right threshold) (sumExact [threshold, 1])
-    check "tie even up" (Right (threshold + 4)) (sumExact [threshold + 2, 1])
-    check "beyond tie" (Right (threshold + 2)) (sumExact [threshold, 1, subnormal])
-    check "net below tie" (Right (GT, threshold))
-        (netAccum (accumulate [threshold + 2]) (accumulate [1, subnormal]))
-    check "zero sign" (Right 0) (bits (sumExact [-0, 0 :: Double]))
-    check "net zero sign" (Right (EQ, 0))
-        (fmap (\(direction, value) -> (direction, castDoubleToWord64 value))
-            (netAccum (accumulate [-0 :: Double]) (accumulate [0])))
-    check "M" (Right maximumFinite) (sumExact [maximumFinite])
-    check "M boundary inside" (Right maximumFinite)
-        (sumExact [encodeFloat (2 ^ (53 :: Int) - 2) 971, encodeFloat 1 971])
-    check "M plus smallest" (Left SumOutOfRange) (sumExact [maximumFinite, subnormal])
-    check "both sides overflow" (Left SumOutOfRange)
-        (netAccum (accumulate [1e308, 1e308 :: Double]) (accumulate [1e308, 1e308]))
+    check "2^53,1,1" (threshold + 2) (sumValues [threshold, 1, 1])
+    check "subnormals" (3 * subnormal) (sumValues [subnormal, subnormal, subnormal])
+    check "tie even down" threshold (sumValues [threshold, 1])
+    check "tie even up" (threshold + 4) (sumValues [threshold + 2, 1])
+    check "beyond tie" (threshold + 2) (sumValues [threshold, 1, subnormal])
+    check "net below tie" threshold
+        (roundAccum (mergeAccum (accumulate [threshold + 2])
+            (negateAccum (accumulate [1, subnormal]))))
+    check "zero sign" 0 (bits (sumValues [-0, 0 :: Double]))
+    check "net zero sign" 0
+        (bits (roundAccum (mergeAccum (accumulate [-0 :: Double])
+            (negateAccum (accumulate [0])))))
+    check "M" maximumFinite (sumValues [maximumFinite])
+    check "M boundary inside" maximumFinite
+        (sumValues [encodeFloat (2 ^ (53 :: Int) - 2) 971, encodeFloat 1 971])
+    check "M plus smallest rounds M" maximumFinite (sumValues [maximumFinite, subnormal])
+    check "both sides overflow but cancel" 0
+        (roundAccum (mergeAccum (accumulate [1e308, 1e308 :: Double])
+            (negateAccum (accumulate [1e308, 1e308]))))
+    check "overflow rounds to infinity" True (isInfinite (sumValues [maximumFinite, maximumFinite]))
     let boundaryValues = [encodeFloat 1 1023, 3 * encodeFloat 1 970]
         boundaryState = accumulate boundaryValues
         expectedDifference = fromRational
@@ -283,44 +303,47 @@ testAccumulator = do
         boundaryLedger = build
             [(value, Not :< Cash) | value <- boundaryValues]
             <> build [(maximumFinite, Hat :< Cash)]
-    check "negative low versus M" (Right (LT, expectedDifference))
-        (netAccum boundaryState (accumulate [maximumFinite]))
-    check "M versus negative low" (Right (GT, expectedDifference))
-        (netAccum (accumulate [maximumFinite]) boundaryState)
-    check "boundary projection finite" (Right expectedDifference)
-        (projNetNormExact [HatNot :< Cash] boundaryLedger)
-    check "boundary bar does not throw" (Right expectedDifference)
-        (barExact boundaryLedger >>= normExact)
-    check "negative" (Left NegativeInput) (sumExact [-1 :: Double])
-    check "NaN" (Left NonFiniteInput) (sumExact [0 / 0 :: Double])
-    check "positive infinity" (Left NonFiniteInput) (sumExact [1 / 0 :: Double])
-    check "negative infinity" (Left NonFiniteInput) (sumExact [-1 / 0 :: Double])
-    let failed = accumulate [-1 :: Double]
-    check "sticky add" (Left NegativeInput) (roundAccum (addAccum 1 failed))
-    check "sticky merge left" (Left NegativeInput) (roundAccum (mergeAccum failed emptyAccum))
-    check "sticky merge right" (Left NegativeInput) (roundAccum (mergeAccum emptyAccum failed))
-    check "sticky net" (Left NegativeInput) (netAccum failed failed)
+    check "negative low versus M" (negate expectedDifference)
+        (roundAccum (mergeAccum boundaryState (negateAccum (accumulate [maximumFinite]))))
+    check "M versus negative low" expectedDifference
+        (roundAccum (mergeAccum (accumulate [maximumFinite]) (negateAccum boundaryState)))
+    check "boundary projection finite" expectedDifference
+        (projNetNorm [HatNot :< Cash] boundaryLedger)
+    check "boundary bar does not throw" expectedDifference (norm (bar boundaryLedger))
+    mapM_ (\value -> do
+        result <- try (evaluate (norm (value .@ (Not :< Cash) :: TestAlg)))
+            :: IO (Either SomeException Double)
+        case result of
+            Left _  -> pure ()
+            Right _ -> fail "invalid posting accepted") [-1, 0 / 0, 1 / 0, -1 / 0]
+    mapM_ (\value -> do
+        result <- try (evaluate (norm (MoneyDouble value .@ (Not :< Cash)
+            :: Alg MoneyDouble TestBase))) :: IO (Either SomeException MoneyDouble)
+        case result of
+            Left _  -> pure ()
+            Right _ -> fail "invalid MoneyDouble posting accepted") [-1, 1 / 0]
+    decimalResult <- try (evaluate (norm ((-1 :: MoneyDecimal) .@ (Not :< Cash))))
+        :: IO (Either SomeException MoneyDecimal)
+    case decimalResult of
+        Left _  -> pure ()
+        Right _ -> fail "negative MoneyDecimal posting accepted"
     let nearMaximum = accumulate [maximumFinite]
         tiny = accumulate [subnormal]
-    case netAccumState nearMaximum tiny of
-        Left failure -> check "M-small state" (Right ()) (Left failure)
-        Right (_, below) -> do
-            check "M-small rounds M" (Right maximumFinite) (roundAccum below)
-            check "M-small plus small" (Right maximumFinite) (roundAccum (mergeAccum below tiny))
-            check "small plus M-small" (Right maximumFinite) (roundAccum (mergeAccum tiny below))
-            check "nested residual" (Right (GT, subnormal)) (netAccum nearMaximum below)
-    check "MoneyDouble" (Right (MoneyDouble (threshold + 2)))
-        (sumExact [MoneyDouble threshold, 1, 1])
-    check "MoneyDouble nonfinite" (Left NonFiniteInput) (sumExact [MoneyDouble (1 / 0)])
-    check "MoneyDouble negative" (Left NegativeInput) (sumExact [MoneyDouble (-1)])
-    check "MoneyDecimal negative" (Left NegativeInput) (sumExact [-1 :: MoneyDecimal])
+        below = mergeAccum nearMaximum (negateAccum tiny)
+    check "M-small rounds M" maximumFinite (roundAccum below)
+    check "M-small plus small" maximumFinite (roundAccum (mergeAccum below tiny))
+    check "small plus M-small" maximumFinite (roundAccum (mergeAccum tiny below))
+    check "nested residual" subnormal
+        (roundAccum (mergeAccum nearMaximum (negateAccum below)))
+    check "MoneyDouble" (MoneyDouble (threshold + 2))
+        (sumValues [MoneyDouble threshold, 1, 1])
     let decimal = MoneyDecimal (Decimal.Decimal 2 1)
-    check "MoneyDecimal scale" (Right (MoneyDecimal (Decimal.Decimal 2 101)))
-        (sumExact [1, decimal])
-    check "MoneyDecimal unlimited" (Right (2 * 10 ^ (400 :: Int) :: MoneyDecimal))
-        (sumExact [10 ^ (400 :: Int), 10 ^ (400 :: Int)])
-    check "MoneyDecimal net" (Right (LT, decimal))
-        (netAccum (accumulate [1]) (accumulate [1, decimal]))
+    check "MoneyDecimal scale" (MoneyDecimal (Decimal.Decimal 2 101))
+        (sumValues [1, decimal])
+    check "MoneyDecimal unlimited" (2 * 10 ^ (400 :: Int) :: MoneyDecimal)
+        (sumValues [10 ^ (400 :: Int), 10 ^ (400 :: Int)])
+    check "MoneyDecimal net" (negate decimal)
+        (roundAccum (mergeAccum (accumulate [1]) (negateAccum (accumulate [1, decimal]))))
 
 -- | Fixed grouping, projection, and accounting cases from the accepted contract.
 testReadouts :: IO ()
@@ -335,66 +358,69 @@ testReadouts = do
         large = build [(1e308, Not :< Cash), (1e308, Not :< Deposits)]
         roundExample = build [(threshold, Not :< Cash), (1, Not :< Cash), (1, Not :< Deposits)]
         equal = build [(10, Not :< Cash), (10, Hat :< Cash)]
-    check "pair retains base distinction" (Right (Map.singleton () (10, 7)))
-        (netPairMapByExact (const (Just ())) pairExample)
-    check "post selects after netting" (Right [])
-        (fmap observeAlg (postFromNetByExact selectHat post sameBase))
-    check "balance direction" (Right (Map.fromList [(Cash, (GT, 10)), (Deposits, (LT, 7))]))
-        (balanceMapByExact Just pairExample)
-    check "zero key retained" (Right (Map.singleton Cash (EQ, 0)))
-        (balanceMapByExact Just equal)
-    check "bar zero removed" (Right []) (fmap observeAlg (barExact equal))
-    check "gross overflow" (Left SumOutOfRange) (normExact large)
-    check "residual overflow" (Left SumOutOfRange) (projNetNormExact query large)
-    check "pair overflow" (Left SumOutOfRange) (netPairMapByExact (const (Just ())) large)
-    check "post overflow" (Left SumOutOfRange)
-        (fmap observeAlg (postFromNetByExact (const (Just ())) post large))
-    check "projection rounds once" (Right (threshold + 2)) (projNetNormExact query roundExample)
-    check "pair rounds once per key side" (Right (Map.singleton () (threshold + 2, 0)))
-        (netPairMapByExact (const (Just ())) roundExample)
-    check "post rounds once per key" (Right (threshold + 2))
-        (postFromNetByExact (const (Just ())) post roundExample >>= normExact)
-    check "two rounds differ" (Right threshold) (barExact roundExample >>= normExact)
-    check "duplicate base query" (projNetNormExact query roundExample)
-        (projNetNormExact (query ++ query) roundExample)
-    check "debit difference" (Right (Debit, 3)) (diffRLExact sameBase)
-    check "exact balance" (Right True) (balanceExact equal)
-    check "account balances" (Right (Map.singleton Cash (DebitBalance 3)))
-        (accountBalancesExact sameBase)
+    check "pair retains base distinction" (Map.singleton () (10, 7))
+        (netPairMapBy (const (Just ())) pairExample)
+    check "post selects after netting" []
+        (observeAlg (postFromNetBy selectHat post sameBase))
+    check "balance direction" (Map.fromList [(Cash, 10), (Deposits, -7)])
+        (balanceMapBy Just pairExample)
+    check "zero key retained" (Map.singleton Cash 0)
+        (balanceMapBy Just equal)
+    check "bar zero removed" [] (observeAlg (bar equal))
+    check "gross overflow" True (isInfinite (norm large))
+    check "residual overflow" True (isInfinite (projNetNorm query large))
+    check "pair overflow" (Map.singleton () (1 / 0, 0))
+        (netPairMapBy (const (Just ())) large)
+    check "post overflow reaches callback" (observeAlg sameBase)
+        (observeAlg (postFromNetBy (const (Just ()))
+            (\_ value -> case value == 1 / 0 of
+                True  -> sameBase
+                False -> mempty)
+            (build [(1e308, Not :< Cash), (1e308, Not :< Cash)])))
+    check "projection rounds once" (threshold + 2) (projNetNorm query roundExample)
+    check "pair rounds once per key side" (Map.singleton () (threshold + 2, 0))
+        (netPairMapBy (const (Just ())) roundExample)
+    check "post rounds once per key" (threshold + 2)
+        (norm (postFromNetBy (const (Just ())) post roundExample))
+    check "two rounds differ" threshold (norm (bar roundExample))
+    check "duplicate base query" (projNetNorm query roundExample)
+        (projNetNorm (query ++ query) roundExample)
+    check "debit difference" (Debit, 3) (diffRL sameBase)
+    check "exact balance" True (balance equal)
+    check "account balances" (Map.singleton Cash (DebitBalance 3))
+        (accountBalances sameBase)
     let journal = (10 .@ (Not :< Cash) Journal..| "a")
                <> (10 .@ (Hat :< Cash) Journal..| "b") :: TestJournal
         roundedJournal = (build [(threshold, Not :< Cash), (1, Not :< Cash)] Journal..| "a")
                       <> (build [(1, Not :< Cash)] Journal..| "b")
-    check "journal separate notes" (Right 20) (JournalExact.projWithBaseNetNormExact query journal)
-    check "journal duplicate base queries" (Right 20)
-        (JournalExact.projWithBaseNetNormExact (query ++ query) journal)
-    check "journal note selection" (Right 10)
-        (JournalExact.projWithNoteBaseNetNormExact ["a", "a"] query journal)
-    check "journal empty notes" (Right 20)
-        (JournalExact.projWithNoteBaseNetNormExact [] query journal)
-    check "journal plank notes" (Right 20)
-        (JournalExact.projWithNoteBaseNetNormExact ["a", ""] query journal)
-    check "journal once across notes" (Right (threshold + 2))
-        (JournalExact.projWithBaseNetNormExact query roundedJournal)
-    check "journal bar gathers" (Right 0) (JournalExact.barExact journal >>= JournalExact.normExact)
-    check "journal balance" (Right True) (JournalExact.balanceExact journal)
-    check "journal diff" (Right (Side, 0)) (JournalExact.diffRLExact journal)
-    check "journal account" (Right (Map.singleton Cash NoBalance))
-        (JournalExact.accountBalancesExact journal)
-    check "journal pair gathers" (Right Map.empty)
-        (JournalExact.netPairMapByExact Just journal)
-    check "journal signed gathers" (Right (Map.singleton Cash (EQ, 0)))
-        (JournalExact.balanceMapByExact Just journal)
-    check "journal post gathers" (Right 0)
-        (JournalExact.postFromNetByExact selectHat
-            (\key value -> post key value Journal..| "new") journal >>= JournalExact.normExact)
-    check "journal post rounds once" (Right (threshold + 2))
-        (JournalExact.postFromNetByExact (const (Just ()))
-            (\key value -> post key value Journal..| "new") roundedJournal
-                >>= JournalExact.normExact)
-    check "journal alias" (Right 20) (JournalExact.projNetNormExact query journal)
-    check "journal residual overflow" (Left SumOutOfRange)
-        (JournalExact.projWithBaseNetNormExact query (large Journal..| "a"))
+    check "journal separate notes" 20 (Journal.projWithBaseNetNorm query journal)
+    check "journal duplicate base queries" 20
+        (Journal.projWithBaseNetNorm (query ++ query) journal)
+    check "journal note selection" 10
+        (Journal.projWithNoteBaseNetNorm ["a", "a"] query journal)
+    check "journal empty notes" 20
+        (Journal.projWithNoteBaseNetNorm [] query journal)
+    check "journal plank notes" 20
+        (Journal.projWithNoteBaseNetNorm ["a", ""] query journal)
+    check "journal once across notes" (threshold + 2)
+        (Journal.projWithBaseNetNorm query roundedJournal)
+    check "journal bar gathers" 0 (Journal.norm (Journal.bar journal))
+    check "journal balance" True (Journal.balance journal)
+    check "journal diff" (Side, 0) (Journal.diffRL journal)
+    check "journal account" (Map.singleton Cash NoBalance)
+        (accountBalances (Journal.toAlg journal))
+    check "journal pair gathers" Map.empty
+        (netPairMapBy Just (Journal.toAlg journal))
+    check "journal signed gathers" (Map.singleton Cash 0)
+        (balanceMapBy Just (Journal.toAlg journal))
+    check "journal post gathers" 0
+        (Journal.norm (Journal.postFromNetBy selectHat
+            (\key value -> post key value Journal..| "new") journal))
+    check "journal post rounds once" (threshold + 2)
+        (Journal.norm (Journal.postFromNetBy (const (Just ()))
+            (\key value -> post key value Journal..| "new") roundedJournal))
+    check "journal residual overflow" True
+        (isInfinite (Journal.projWithBaseNetNorm query (large Journal..| "a")))
 
 -- | Execute all exact-readout acceptance checks in the main test suite.
 runTests :: IO ()

@@ -1597,12 +1597,6 @@ projectedNetState bs (Liner m ~idx _ ~idToBp _ ~allIds) =
             Map.empty
             bs
 
-{-# DEPRECATED projNorm "renamed to 'projNetNorm': the result is a bar-netted norm, with exact base residuals rounded only after summation — 'norm (proj bs x)' is NOT what this computes. 'projNorm' will be removed in 0.6" #-}
--- | Deprecated alias for 'projNetNorm' (renamed in 0.5.0.0 so the name states
--- the bar-netting).
-projNorm :: (HatVal n, HatBaseClass b) => [b] -> Alg n b -> n
-projNorm = projNetNorm
-
 {-# INLINE foldProjectedNorm #-}
 -- | Complexity: O(k), where k is the number of projected base keys.
 foldProjectedNorm :: (HatVal n) => Map.HashMap k (Pair n) -> n

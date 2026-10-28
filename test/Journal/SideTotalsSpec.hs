@@ -14,7 +14,7 @@ import Test.QuickCheck
 import ExchangeAlgebra.Algebra ((.@))
 import ExchangeAlgebra.Algebra.Base
     ( AccountTitles(..), CountUnit(..), Hat(..), HatBase(..) )
-import ExchangeAlgebra.Algebra.Exact (ExactSum(..))
+import ExchangeAlgebra.Algebra.Value (HatVal(..))
 import ExchangeAlgebra.Journal (Journal, (.|))
 import qualified ExchangeAlgebra.Journal as Journal
 import ExchangeAlgebra.Journal.Transfer.Rule
@@ -101,7 +101,7 @@ propRearrangement = forAll rowsGen $ \original ->
         (Left left, Left right) -> left === right
         _ -> counterexample "rearrangement changed success or failure" False
 
--- | Where ExactSum succeeds, its rounded bits match each independent side.
+-- | The accumulator rounds each independent side to the same bits.
 propExactParity :: Property
 propExactParity = forAll rowsGen $ \original ->
     let checked = sideTotalsBy id (build original)
@@ -116,9 +116,7 @@ propExactParity = forAll rowsGen $ \original ->
                         (Map.lookup coordinates totals)
                     pure (sideTotal (if side == Hat then HatSide else NotSide)
                         totalsForKey)
-            in case exact of
-                Right expected -> fmap bits observed == Right (bits expected)
-                Left _ -> True
+            in fmap bits observed == Right (bits exact)
     in counterexample (show checked) (property (all compareSide (Map.toList grouped)))
 
 -- | Build one raw scalar whose invalid value bypasses the smart constructor.
@@ -220,7 +218,7 @@ runTests :: IO ()
 runTests = do
     quickProperty 500 "Rational oracle" propOracle
     quickProperty 500 "reordering and renoting" propRearrangement
-    quickProperty 500 "ExactSum parity" propExactParity
+    quickProperty 500 "accumulator parity" propExactParity
     quickProperty 1 "range boundaries" propBoundaries
     quickProperty 1 "keys and side selection" propCases
     quickProperty 100 "input failures" propFailures

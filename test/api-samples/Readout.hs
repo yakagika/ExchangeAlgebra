@@ -1,6 +1,6 @@
 import ExchangeAlgebra
 import qualified ExchangeAlgebra.Algebra as EA
-import qualified ExchangeAlgebra.Algebra.Readout.Net as Net
+import qualified ExchangeAlgebra.Algebra as Net (netPairMapBy)
 import qualified ExchangeAlgebra.Algebra.Transfer as Transfer
 
 -- | Built-in account balances for a single period.

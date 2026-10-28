@@ -405,7 +405,6 @@ hashWithSalt
 hat
 haveWildcard
 ignoreWildcard
-insert
 isContra
 isHat
 isNot
@@ -427,11 +426,9 @@ postFromNetBy
 postingUpperBound
 projWithBase
 projWithBaseNetNorm
-projWithBaseNorm
 projWithNote
 projWithNoteBase
 projWithNoteBaseNetNorm
-projWithNoteNorm
 replaceNotes
 revHat
 roundAccum
