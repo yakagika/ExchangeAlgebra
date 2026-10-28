@@ -209,6 +209,7 @@ library
       ExchangeAlgebra.Accounting.Transaction
       ExchangeAlgebra.Accounting.Adjustment
       ExchangeAlgebra.Accounting.Equivalence
+      ExchangeAlgebra.Accounting.Audit
       ExchangeAlgebra.Journal
       ExchangeAlgebra.Journal.Core
       ExchangeAlgebra.Journal.Transfer

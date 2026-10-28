@@ -10,7 +10,8 @@ values non-negative. All pair-valued functions in this module use debit first
 and credit second.
 -}
 module ExchangeAlgebra.Accounting.TrialBalance.Balance
-    ( AccountBalance(..)
+    ( TrialBalance
+    , AccountBalance(..)
     , balancePair
     , addPair
     , netPair
@@ -26,12 +27,19 @@ import qualified ExchangeAlgebra.Accounting.TrialBalance.Accum as Accum
 import qualified Data.Map.Strict as M
 import           Data.Map.Strict (Map)
 
+import           ExchangeAlgebra.Algebra.Base.Representation (HatBase)
 import           ExchangeAlgebra.Algebra.Core.Representation (Alg)
 import           ExchangeAlgebra.Algebra.Value.Class (HatVal(..))
 import           ExchangeAlgebra.Accounting.Account.Classification (Side(..))
 import           ExchangeAlgebra.Accounting.Account.Title (AccountTitles)
 import           ExchangeAlgebra.Accounting.Exchange
                      ( ExBaseClass )
+
+-- | A trial balance: postings of one scope whose bases are reduced to account
+-- titles. The caller chooses the scope and the unit before reducing a ledger
+-- to this form. The type does not record whether the postings are adjusted or
+-- closed; functions that need a processing point state it as a precondition.
+type TrialBalance v = Alg v (HatBase AccountTitles)
 
 -- | Net balance direction remains structural; values stay non-negative.
 data AccountBalance v
