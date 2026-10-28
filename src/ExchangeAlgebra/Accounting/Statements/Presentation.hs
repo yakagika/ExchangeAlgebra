@@ -390,9 +390,8 @@ metricLabel context metric balance = case metric of
 --
 -- Titles whose balance must be split between current and noncurrent are the
 -- union of '_maturitySensitiveTitles' and the implicitly maturity-sensitive
--- titles. A caller migrating from the deprecated validation gate adds every
--- title of its @MaturityEvidenceRequired@ rules to '_maturitySensitiveTitles';
--- otherwise those balances are not required to be split.
+-- titles. '_maturitySensitiveTitles' lists titles whose balances require a
+-- maturity split.
 --
 -- Success does not mean that the trial balance is normal for accounting
 -- purposes. A balance on the side opposite to its home side is presented in

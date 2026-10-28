@@ -16,10 +16,9 @@ check. It is an audit function: it never blocks a computation, and the caller
 
 Computation and audit are separate. Financial statements are prepared by
 'ExchangeAlgebra.Accounting.Statements.Presentation.present' directly from a
-trial balance, without consulting these findings. The policy gate
-('validateTrialBalance', t'TrialBalancePolicy', and v'ValidatedTrialBalance')
-is deprecated and will be removed before 0.6.0.0. No finding performs a
-reclassification automatically. A caller must record and apply a transfer,
+trial balance, without consulting these findings. The policy gate was removed
+in 0.6.0.0; inspect findings with 'trialBalanceFindings'. No finding performs
+a reclassification automatically. A caller must record and apply a transfer,
 then inspect the resulting trial balance again.
 
 Findings use exact equality. Prefer an exact value type such as
@@ -44,24 +43,11 @@ supplied postings.
 -}
 module ExchangeAlgebra.Accounting.TrialBalance.Validation
     ( TrialBalanceStage(..)
-    , ReciprocalPolicy(..)
-    , TemporaryBalancePolicy(..)
-    , TrialBalancePolicy(..)
-    , strictTrialBalancePolicy
-    , standaloneTrialBalancePolicy
     , AccountBalance(..)
     , ReclassificationRule(..)
     , TrialBalanceInput(..)
     , TBFinding(..)
     , trialBalanceFindings
-    , findingBlocksPresentation
-    , ValidatedTrialBalance
-    , validateTrialBalance
-    , validatedTrialBalance
-    , validatedFindings
-    , validatedPolicy
-    , validatedStage
-    , validatedMaturityRequiredTitles
     ) where
 
 import qualified ExchangeAlgebra.Accounting.TrialBalance.Accum as Accum
@@ -105,37 +91,6 @@ data TrialBalanceStage
   = BeforeClosing
   | AfterClosing
   deriving (Show, Eq)
-
--- | Whether reciprocal accounts must tie in this validation context.
-data ReciprocalPolicy
-  = RequireReciprocalMatch
-  | PermitStandaloneReciprocalBalance
-  deriving (Show, Eq)
-
--- | Whether an explained temporary balance may pass the validation gate.
-data TemporaryBalancePolicy
-  = RequireTemporaryAccountsCleared
-  | PermitExplainedTemporaryBalances
-  deriving (Show, Eq)
-
--- | Policy applied after the complete finding list has been constructed.
-data TrialBalancePolicy = TrialBalancePolicy
-    { _reciprocalPolicy       :: ReciprocalPolicy
-    , _temporaryBalancePolicy :: TemporaryBalancePolicy
-    }
-    deriving (Show, Eq)
-
--- | Combined/reporting default: reciprocal accounts must tie and temporary
--- accounts must be cleared.
-strictTrialBalancePolicy :: TrialBalancePolicy
-strictTrialBalancePolicy = TrialBalancePolicy
-    RequireReciprocalMatch RequireTemporaryAccountsCleared
-
--- | Standalone default: a branch or head-office control balance may remain,
--- while an explained temporary balance is retained as an auditable finding.
-standaloneTrialBalancePolicy :: TrialBalancePolicy
-standaloneTrialBalancePolicy = TrialBalancePolicy
-    PermitStandaloneReciprocalBalance PermitExplainedTemporaryBalances
 
 -- | A rule identifies a condition and possible target titles. It supplies an
 -- instruction, not an automatic mutation.
@@ -228,89 +183,6 @@ trialBalanceFindings input
         (Side, _) -> NoBalance
         (Debit, value) -> DebitBalance value
         (Credit, value) -> CreditBalance value
-
-{-# DEPRECATED
-    ReciprocalPolicy, TemporaryBalancePolicy, TrialBalancePolicy,
-    strictTrialBalancePolicy, standaloneTrialBalancePolicy,
-    findingBlocksPresentation, ValidatedTrialBalance, validateTrialBalance,
-    validatedTrialBalance, validatedFindings, validatedPolicy, validatedStage,
-    validatedMaturityRequiredTitles
-    "Statements no longer require validation: call present with the trial balance and its stage, add the titles of MaturityEvidenceRequired rules to _maturitySensitiveTitles, and inspect trialBalanceFindings separately. Removed before 0.6.0.0."
-    #-}
-
--- | Decide whether one finding blocks presentation under a chosen policy.
-findingBlocksPresentation :: TrialBalancePolicy -> TBFinding v -> Bool
-findingBlocksPresentation policy finding = case finding of
-    ExplainedTemporaryBalance _ _ _ ->
-        _temporaryBalancePolicy policy == RequireTemporaryAccountsCleared
-    StandaloneReciprocalBalance _ _ ->
-        _reciprocalPolicy policy == RequireReciprocalMatch
-    ReciprocalMismatch _ _ -> True
-    InvalidTrialBalanceValue _ -> True
-    WildcardTrialBalanceAccount -> True
-    WildcardTrialBalanceSide -> True
-    UnbalancedTrialBalance _ _ -> True
-    UnresolvedTemporaryBalance _ _ -> True
-    BlankTemporaryExplanation _ _ -> True
-    ClosingDeviceResidual _ _ -> True
-    DerivedCoordinateResidual _ _ -> True
-    UnclosedNominalBalance _ _ -> True
-    UnexplainedAbnormalBalance _ _ _ -> True
-    AbnormalBalanceWithReclassificationRule _ _ _ -> True
-    AmbiguousReclassification _ _ _ -> True
-    MissingMaturityEvidence _ -> True
-    InapplicableReclassificationRule _ -> True
-
--- | Trial balance accepted by a stated policy. The constructor is hidden.
-data ValidatedTrialBalance v = ValidatedTrialBalance
-    (Alg v (HatBase AccountTitles))
-    [TBFinding v]
-    TrialBalancePolicy
-    TrialBalanceStage
-    (Set AccountTitles)
-
--- | Apply a policy to the complete finding list.
-validateTrialBalance
-    :: HatVal v
-    => TrialBalancePolicy
-    -> TrialBalanceInput v
-    -> Either (NonEmpty (TBFinding v)) (ValidatedTrialBalance v)
-validateTrialBalance policy input =
-    case filter (findingBlocksPresentation policy) findings of
-        [] -> Right (ValidatedTrialBalance
-            (_trialBalanceElement input) findings policy
-            (_trialBalanceStage input) (maturityRequiredTitles input))
-        blocker : blockers -> Left (blocker :| blockers)
-  where
-    findings = trialBalanceFindings input
-
--- | Recover the accepted algebra element.
-validatedTrialBalance
-    :: ValidatedTrialBalance v -> Alg v (HatBase AccountTitles)
-validatedTrialBalance (ValidatedTrialBalance alg _ _ _ _) = alg
-
--- | Recover both blocking-policy-independent facts and permitted warnings.
-validatedFindings :: ValidatedTrialBalance v -> [TBFinding v]
-validatedFindings (ValidatedTrialBalance _ findings _ _ _) = findings
-
--- | Recover the policy that admitted this trial balance.
-validatedPolicy :: ValidatedTrialBalance v -> TrialBalancePolicy
-validatedPolicy (ValidatedTrialBalance _ _ policy _ _) = policy
-
--- | Recover the processing stage at which the trial balance was admitted.
-validatedStage :: ValidatedTrialBalance v -> TrialBalanceStage
-validatedStage (ValidatedTrialBalance _ _ _ stage _) = stage
-
--- | Maturity-allocation obligations that crossed the validation boundary.
-validatedMaturityRequiredTitles
-    :: ValidatedTrialBalance v -> Set AccountTitles
-validatedMaturityRequiredTitles (ValidatedTrialBalance _ _ _ _ titles) = titles
-
-maturityRequiredTitles :: TrialBalanceInput v -> Set AccountTitles
-maturityRequiredTitles input = S.fromList
-    [ title
-    | MaturityEvidenceRequired title <- _reclassificationRules input
-    ]
 
 reciprocalFindings
     :: HatVal v

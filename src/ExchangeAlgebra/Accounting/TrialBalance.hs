@@ -13,8 +13,6 @@ Import this module for the complete trial-balance API. Import
 +--------------------------------------+-------------------------------------------+
 | Report accounting findings           | 'trialBalanceFindings'                    |
 +--------------------------------------+-------------------------------------------+
-| Validate under a policy (deprecated) | 'validateTrialBalance'                    |
-+--------------------------------------+-------------------------------------------+
 
 'accountBalances' returns account balances directed by 'DebitBalance' or
 'CreditBalance'. 'ExchangeAlgebra.Algebra.Core.netPairMapBy' instead returns
@@ -32,23 +30,10 @@ module ExchangeAlgebra.Accounting.TrialBalance
     , balanceAmount
     , accountBalances
     , TrialBalanceStage(..)
-    , ReciprocalPolicy(..)
-    , TemporaryBalancePolicy(..)
-    , TrialBalancePolicy(..)
-    , strictTrialBalancePolicy
-    , standaloneTrialBalancePolicy
     , ReclassificationRule(..)
     , TrialBalanceInput(..)
     , TBFinding(..)
     , trialBalanceFindings
-    , findingBlocksPresentation
-    , ValidatedTrialBalance
-    , validateTrialBalance
-    , validatedTrialBalance
-    , validatedFindings
-    , validatedPolicy
-    , validatedStage
-    , validatedMaturityRequiredTitles
     ) where
 
 import ExchangeAlgebra.Accounting.TrialBalance.Balance

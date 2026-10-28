@@ -312,13 +312,6 @@
 
 ### Deprecated (module moves; definitions and behavior unchanged)
 
-- `validateTrialBalance`, `ValidatedTrialBalance` and its accessors,
-  `findingBlocksPresentation`, `TrialBalancePolicy`, `ReciprocalPolicy`,
-  `TemporaryBalancePolicy`, `strictTrialBalancePolicy`, and
-  `standaloneTrialBalancePolicy` now warn: statements no longer require
-  validation. Call `present` with the trial balance and its stage, add the
-  titles of `MaturityEvidenceRequired` rules to `_maturitySensitiveTitles`, and
-  inspect `trialBalanceFindings` separately. They are removed before 0.6.0.0.
 - `bsRows`, `writeBS`, `plRows`, and `writePL` now warn. `bsRows` settles the
   ledger internally, and `plRows` drops reversals of the same title. Use
   `closingEntries`, then `present` with `AfterClosing`, then
@@ -437,6 +430,16 @@
   package moved to the scaling paper repository. The pre-move sources for all
   five research example families are preserved in tag
   [archive/research-examples-pre-p4](https://github.com/yakagika/ExchangeAlgebra/tree/archive/research-examples-pre-p4/examples).
+- The trial-balance policy gate is removed in 0.6.0.0:
+  `ReciprocalPolicy(..)`, `TemporaryBalancePolicy(..)`,
+  `TrialBalancePolicy(..)`, `strictTrialBalancePolicy`,
+  `standaloneTrialBalancePolicy`, `findingBlocksPresentation`,
+  `ValidatedTrialBalance`, `validateTrialBalance`, `validatedTrialBalance`,
+  `validatedFindings`, `validatedPolicy`, `validatedStage`, and
+  `validatedMaturityRequiredTitles`. Pass the trial balance and its stage
+  directly to `present`, and obtain accounting findings separately with
+  `trialBalanceFindings`. Add every title in a `MaturityEvidenceRequired`
+  rule to `_maturitySensitiveTitles`. Findings and their order are unchanged.
 
 - The research evaluation tooling in `examples/audit-eval` (task generators,
   runners, checkers, and oracles) moved to a separate repository.

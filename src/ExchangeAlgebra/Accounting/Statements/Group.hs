@@ -14,18 +14,16 @@ display-compatibility shim so that the contra accounts still /appeared/ in the
 liability column; this module supplies the real deduction presentation and
 lets that shim be removed.
 
-This module is deliberately free of both the CSV writers and the validated
-reporting pipeline: it is the __single implementation__ of grouping and
+This module is deliberately free of both the CSV writers and the financial-statement
+presentation pipeline: it is the __single implementation__ of grouping and
 netting, and "ExchangeAlgebra.Write" ('ExchangeAlgebra.Write.bsRows',
 'ExchangeAlgebra.Write.plRows') is its consumer. Placing it here rather than
 inside "ExchangeAlgebra.Accounting.Statements.Presentation" is forced by the type of the
 legacy writers: they are total, base-polymorphic functions
 (@ExBaseClass b => Alg n b -> [[Text]]@), whereas @present@ is specialized to
-@HatBase AccountTitles@, is gated by an opaque
-@ValidatedTrialBalance@, and answers in @Either@. Routing @bsRows@ through
-@present@ would therefore change it from a pure formatter into a partial,
-validation-gated one; duplicating the netting rule in both places is exactly
-what this module exists to prevent.
+@HatBase AccountTitles@ and answers in @Either@. Routing @bsRows@ through
+@present@ would therefore require callers to handle presentation issues.
+This module keeps the netting rule in one place.
 
 === Value domain
 
