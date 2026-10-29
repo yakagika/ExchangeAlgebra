@@ -21,4 +21,4 @@ extra-deps:
 # 0.6 の開発中: examples が Hackage 未公開の module path を使うので, push 済みの
 # commit を git で pin する (0.6.0.0 の公開で Hackage 版の pin に戻す).
 - git: https://github.com/yakagika/ExchangeAlgebra.git
-  commit: 16e7c88a807d0e9ef334d89d8a8ab7d1cd4ec58d
+  commit: a5c7f47b80c234ec58a6dac0236e96b1e4123120
