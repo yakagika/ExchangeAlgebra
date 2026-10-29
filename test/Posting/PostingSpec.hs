@@ -4,6 +4,7 @@
 -- | Validation, serialization, and algebraic laws for checked ledger postings.
 module Posting.PostingSpec (runTests) where
 
+import ExchangeAlgebra.Accounting.Account
 import Control.DeepSeq (force, rnf)
 import Control.Exception (TypeError, evaluate, try)
 import Control.Monad (unless)

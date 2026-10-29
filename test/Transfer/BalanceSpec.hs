@@ -5,6 +5,8 @@
 -- sequential posting rewrite oracle. Read the fixtures before 'runTests'.
 module Transfer.BalanceSpec (runTests) where
 
+import ExchangeAlgebra.Accounting.Account
+import ExchangeAlgebra.Accounting.Exchange
 import Control.Monad (forM_, unless)
 import Data.List (sort)
 import qualified Data.HashMap.Strict as HashMap

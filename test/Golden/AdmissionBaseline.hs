@@ -7,13 +7,14 @@ module Golden.AdmissionBaseline
     , renderRows
     ) where
 
+import ExchangeAlgebra.Accounting.Account (AccountTitles(..))
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as Text
 
 import ExchangeAlgebra.Algebra ((.@), Redundant((.+)), Hat(..))
-import ExchangeAlgebra.Algebra.Base (AccountTitles(..), HatBase((:<)))
+import ExchangeAlgebra.Algebra.Base (HatBase((:<)))
 import ExchangeAlgebra.Accounting.Transaction
     ( EntityId(..)
     , PeriodId(..)

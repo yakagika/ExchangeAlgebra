@@ -3,6 +3,7 @@
 -- Start with 'runTests' for the suite's execution order.
 module Journal.JournalSpec (runTests) where
 
+import ExchangeAlgebra.Accounting.Account
 import ExchangeAlgebra.Journal
 import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Accounting.Closing as Closing

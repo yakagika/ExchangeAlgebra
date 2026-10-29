@@ -10,6 +10,7 @@ import qualified ExchangeAlgebra.Algebra.Base as Base
 import ExchangeAlgebra.Algebra.Base (Hat(Not), HatBase((:<)))
 import ExchangeAlgebra.Accounting.Account (AccountTitles(Cash, Sales))
 import qualified ExchangeAlgebra.Accounting.Exchange as Exchange
+import qualified ExchangeAlgebra.Accounting.Account as Account
 import qualified ExchangeAlgebra.Algebra.Element as Element
 import qualified ExchangeAlgebra.Algebra.Transfer.Rule as Rule
 import qualified ExchangeAlgebra.Accounting.Closing as Closing
@@ -97,12 +98,12 @@ consolidationClient
               (Consolidation.ValidatedWorksheet String String Double)
 consolidationClient = Consolidation.validateConsolidationWorksheet
 
-inputFacadeClient :: Either Input.ConvError Base.Side
+inputFacadeClient :: Either Input.ConvError Account.Side
 inputFacadeClient = Input.parseSide mempty
 
 checkedClient :: Bool
 checkedClient = either (const False) (const True) (Input.checkedEntry
-    [(Base.Debit, Cash, 1 :: Double), (Base.Credit, Sales, 1 :: Double)])
+    [(Account.Debit, Cash, 1 :: Double), (Account.Credit, Sales, 1 :: Double)])
 
 csvClient = OutputCsv.csvTranspose
 

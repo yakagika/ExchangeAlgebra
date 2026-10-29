@@ -31,6 +31,9 @@ module Support (eps
                , withTestTemporaryFile
                ) where
 
+import qualified ExchangeAlgebra.Accounting.Exchange as Exchange
+import ExchangeAlgebra.Accounting.Account
+import ExchangeAlgebra.Accounting.Exchange
 import ExchangeAlgebra.Journal
 import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Journal  as EJ
@@ -168,8 +171,8 @@ epsEq a b = abs (a - b) <= 1e-9 * (1 + max (abs a) (abs b))
 
 type CheckedAlgM = EA.Alg MoneyDecimal (HatBase AccountTitles)
 
-exactBalancedForTest :: (EA.HatVal v, EA.ExBaseClass b) => EA.Alg v b -> Bool
-exactBalancedForTest x = EA.norm (EA.decL x) == EA.norm (EA.decR x)
+exactBalancedForTest :: (EA.HatVal v, Exchange.ExBaseClass b) => EA.Alg v b -> Bool
+exactBalancedForTest x = EA.norm (Exchange.decL x) == EA.norm (Exchange.decR x)
 
 -- | Allocate an isolated test file and remove it even if a check raises an exception.
 -- Uses base and directory so the test suite needs no additional package dependency.

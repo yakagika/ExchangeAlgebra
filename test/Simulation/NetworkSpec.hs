@@ -3,6 +3,7 @@
 -- Start with 'runTests' for the suite's execution order.
 module Simulation.NetworkSpec (runTests) where
 
+import ExchangeAlgebra.Accounting.Account
 import ExchangeAlgebra.Journal
 import qualified ExchangeAlgebra.Journal  as EJ
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)

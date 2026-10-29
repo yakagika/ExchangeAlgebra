@@ -4,6 +4,8 @@
 -- boundaries of the algebra and journal contracts, including legacy tolerance.
 module Algebra.ExactReadoutSpec (runTests) where
 
+import ExchangeAlgebra.Accounting.Account
+import ExchangeAlgebra.Accounting.Exchange
 import Prelude hiding (map)
 import Control.Monad (forM_, unless)
 import qualified Data.Text as T

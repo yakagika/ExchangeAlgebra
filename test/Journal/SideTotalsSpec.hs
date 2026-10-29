@@ -1,6 +1,7 @@
 -- | Acceptance properties for exact pre-cancellation journal side totals.
 module Journal.SideTotalsSpec (runTests) where
 
+import ExchangeAlgebra.Accounting.Account (AccountTitles(..))
 import qualified ExchangeAlgebra.Algebra.Internal as Internal
 import Control.Monad (unless)
 import qualified Data.HashMap.Strict as HashMap
@@ -13,7 +14,7 @@ import Test.QuickCheck
 
 import ExchangeAlgebra.Algebra ((.@))
 import ExchangeAlgebra.Algebra.Base
-    ( AccountTitles(..), CountUnit(..), Hat(..), HatBase(..) )
+    ( CountUnit(..), Hat(..), HatBase(..) )
 import ExchangeAlgebra.Algebra.Value (HatVal(..))
 import ExchangeAlgebra.Journal (Journal, (.|))
 import qualified ExchangeAlgebra.Journal as Journal

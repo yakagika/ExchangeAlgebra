@@ -3,6 +3,8 @@
 -- Start with 'runTests' for the suite's execution order.
 module IO.InputOutputSpec (runTests) where
 
+import ExchangeAlgebra.Accounting.Account
+import ExchangeAlgebra.Accounting.Exchange
 import ExchangeAlgebra.Journal
 import qualified ExchangeAlgebra.IO.Input      as EC
 import qualified ExchangeAlgebra.IO.Input as ECC

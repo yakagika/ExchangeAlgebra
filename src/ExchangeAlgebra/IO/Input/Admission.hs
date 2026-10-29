@@ -208,5 +208,7 @@ import ExchangeAlgebra.IO.Input.Admission.Representation (Admitted, admittedJour
 -- >>> import qualified ExchangeAlgebra.Accounting.Adjustment as Adjustment
 -- >>> import ExchangeAlgebra.Algebra
 -- >>> import ExchangeAlgebra.Algebra.Base
+-- >>> import ExchangeAlgebra.Accounting.Account
+-- >>> import ExchangeAlgebra.Accounting.Exchange
 -- >>> import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 -- >>> import ExchangeAlgebra.Accounting.Closing (closingEntries)

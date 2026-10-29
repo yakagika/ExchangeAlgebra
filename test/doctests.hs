@@ -32,6 +32,7 @@ main = doctest  [ "-isrc"
                   -- load that module before doctest evaluates those imports.
                 , "src/ExchangeAlgebra/IO/Input/Admission.hs"
                 , "src/ExchangeAlgebra/Algebra/Value.hs"
+                , "src/ExchangeAlgebra/Algebra/Value/Class.hs"
                 , "src/ExchangeAlgebra/Simulation/Network/Representation.hs"
                 , "src/ExchangeAlgebra/Simulation/Network/Flows.hs"
                 , "src/ExchangeAlgebra/Simulation/Network/Csv.hs"

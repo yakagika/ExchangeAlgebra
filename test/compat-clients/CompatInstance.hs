@@ -5,12 +5,20 @@ module CompatInstance (checkInstances) where
 
 import Control.Monad (unless)
 import Data.Hashable (Hashable)
-import ExchangeAlgebra.Algebra
-    (Alg, Exchange(..), Redundant(..), (.@), (.+))
-import ExchangeAlgebra.Algebra.Base
-    ( AccountDivision(..), AccountTitles(..), BaseClass, Element(..)
-    , ExBaseClass(..), FixedCurrent(..), Hat(..), HatBase((:<))
-    , HatBaseClass(..), PIMO(..), Side(..))
+import ExchangeAlgebra.Accounting.Account ( AccountDivision(..)
+                                         , AccountTitles(..)
+                                         , FixedCurrent(..)
+                                         , PIMO(..)
+                                         , Side(..)
+                                         )
+import ExchangeAlgebra.Accounting.Exchange (ExBaseClass(..), Exchange(..))
+import ExchangeAlgebra.Algebra (Alg, Redundant(..), (.@))
+import ExchangeAlgebra.Algebra.Base ( BaseClass
+                                   , Element(..)
+                                   , Hat(..)
+                                   , HatBase((:<))
+                                   , HatBaseClass(..)
+                                   )
 import qualified ExchangeAlgebra.Journal as J
 
 newtype DefaultBase = DefaultBase (HatBase AccountTitles)

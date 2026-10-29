@@ -52,7 +52,7 @@ import           ExchangeAlgebra.IO.Input.Checked
 -- $setup
 -- >>> :set -XOverloadedStrings
 -- >>> import Data.List.NonEmpty (NonEmpty(..))
--- >>> import ExchangeAlgebra.Algebra.Base (AccountTitles(..), PostingCapability(..))
+-- >>> import ExchangeAlgebra.Accounting.Account (AccountTitles(..), PostingCapability(..))
 -- >>> import ExchangeAlgebra.IO.Input (ConvError(..), EntryError(..), JournalError(..), SourceError(..))
 -- >>> import ExchangeAlgebra.Accounting.Account (ProcessingContext(..))
 

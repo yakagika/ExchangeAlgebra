@@ -5,11 +5,11 @@ ExchangeAlgebra.Algebra.Base.Account.JcciAliases	1
 ExchangeAlgebra.Algebra.Base.Account.Registry	23
 ExchangeAlgebra.Algebra.Base.Account.Types	46
 ExchangeAlgebra.Algebra.Base.Element	277
-ExchangeAlgebra.Algebra.Base	389
-ExchangeAlgebra.Algebra.Internal	483
+ExchangeAlgebra.Algebra.Base	54
+ExchangeAlgebra.Algebra.Internal	127
 ExchangeAlgebra.Algebra.Transfer.Rule	36
 ExchangeAlgebra.Algebra.Transfer	18
-ExchangeAlgebra.Algebra	484
+ExchangeAlgebra.Algebra	128
 ExchangeAlgebra.Assist.Descriptions	1
 ExchangeAlgebra.Assist	16
 ExchangeAlgebra.Bookkeeping	19
@@ -20,7 +20,7 @@ ExchangeAlgebra.Convert	13
 ExchangeAlgebra.IO.Input.Admission	19
 ExchangeAlgebra.Journal.Transfer.Rule	13
 ExchangeAlgebra.Journal.Transfer	12
-ExchangeAlgebra.Journal	457
+ExchangeAlgebra.Journal	113
 ExchangeAlgebra.Optimize.Annealing	10
 ExchangeAlgebra.Optimize.GA	14
 ExchangeAlgebra.Optimize	8
@@ -43,4 +43,4 @@ ExchangeAlgebra.Simulate	89
 ExchangeAlgebra.TrialBalance.Balance	12
 ExchangeAlgebra.TrialBalance.Validation	35
 ExchangeAlgebra.Value	13
-ExchangeAlgebra	578
+ExchangeAlgebra	675

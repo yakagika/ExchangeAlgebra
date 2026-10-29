@@ -11,6 +11,7 @@ module Golden.WireFormat
     , checkFixture
     ) where
 
+import ExchangeAlgebra.Accounting.Account
 import qualified Data.Binary as Binary
 import qualified Data.Binary.Put as Put
 import qualified Data.ByteString.Lazy as BL

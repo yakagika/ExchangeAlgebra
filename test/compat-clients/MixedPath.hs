@@ -9,7 +9,8 @@ import qualified ExchangeAlgebra.Optimize as OldOptimize
 import qualified ExchangeAlgebra.Simulation.Optimize as Optimize
 import qualified ExchangeAlgebra.Render.Simulation as OldSimulationOutput
 import qualified ExchangeAlgebra.Simulation.Output as SimulationOutput
-import ExchangeAlgebra.Algebra.Base (AccountTitles(Cash), HatBase)
+import ExchangeAlgebra.Algebra.Base (HatBase)
+import ExchangeAlgebra.Accounting.Account (AccountTitles(Cash))
 import qualified ExchangeAlgebra.Accounting.Account as Account
 import qualified ExchangeAlgebra.Accounting.Exchange as Exchange
 import qualified ExchangeAlgebra.Algebra.Element as Element

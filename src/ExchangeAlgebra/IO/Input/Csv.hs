@@ -59,7 +59,8 @@ import           ExchangeAlgebra.IO.Input.Conversion        ( ConvError(..)
 -- $setup
 -- >>> :set -XOverloadedStrings
 -- >>> import ExchangeAlgebra.Algebra (Alg)
--- >>> import ExchangeAlgebra.Algebra.Base (HatBase, AccountTitles)
+-- >>> import ExchangeAlgebra.Algebra.Base (HatBase)
+-- >>> import ExchangeAlgebra.Accounting.Account (AccountTitles)
 
 -- | Parse a non-negative decimal amount via 'Data.Scientific' (e.g. @"1000"@,
 -- @"1000.50"@, @"1.5e3"@), converting to the value type @v@ exactly through

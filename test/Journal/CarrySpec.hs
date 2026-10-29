@@ -3,6 +3,7 @@
 -- | Acceptance properties for explicit journal carryover.
 module Journal.CarrySpec (runTests) where
 
+import ExchangeAlgebra.Accounting.Account (AccountTitles(..))
 import qualified ExchangeAlgebra.Algebra.Internal as Internal
 import Control.Monad (unless)
 import qualified Data.HashMap.Strict as HashMap
@@ -14,8 +15,7 @@ import ExchangeAlgebra.Algebra (Alg, (.@), foldEntries)
 import ExchangeAlgebra.Algebra.Value (HatVal, MoneyDecimal)
 import GHC.Float (castDoubleToWord64)
 import ExchangeAlgebra.Algebra.Base
-    ( AccountTitles(..)
-    , CountUnit(..)
+    ( CountUnit(..)
     , Hat(..)
     , HatBase(..)
     )

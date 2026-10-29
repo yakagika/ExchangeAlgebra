@@ -3,6 +3,9 @@
 -- | Rational-oracle and bit-level acceptance tests for exact readouts.
 module Algebra.ExactSumSpec (runTests) where
 
+import qualified ExchangeAlgebra.Accounting.Exchange as Exchange
+import ExchangeAlgebra.Accounting.Account
+import ExchangeAlgebra.Accounting.Exchange
 import Control.Monad (unless)
 import Control.Exception (SomeException, evaluate, try)
 import qualified Data.Decimal as Decimal
@@ -23,8 +26,6 @@ import ExchangeAlgebra.Algebra
     , netPairMapBy
     , postFromNetBy
     , projNetNorm
-    , diffRL
-    , balance
     )
 import qualified ExchangeAlgebra.Algebra as Algebra
 import qualified ExchangeAlgebra.Journal as Journal
@@ -405,8 +406,8 @@ testReadouts = do
     check "journal once across notes" (threshold + 2)
         (Journal.projWithBaseNetNorm query roundedJournal)
     check "journal bar gathers" 0 (Journal.norm (Journal.bar journal))
-    check "journal balance" True (Journal.balance journal)
-    check "journal diff" (Side, 0) (Journal.diffRL journal)
+    check "journal balance" True (Exchange.balance journal)
+    check "journal diff" (Side, 0) (Exchange.diffRL journal)
     check "journal account" (Map.singleton Cash NoBalance)
         (accountBalances (Journal.toAlg journal))
     check "journal pair gathers" Map.empty

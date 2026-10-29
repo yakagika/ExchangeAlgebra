@@ -3,6 +3,8 @@
 -- | Ordered settlement pairs preserve source nets and exact accounting balance.
 module Posting.SettleSpec (runTests) where
 
+import ExchangeAlgebra.Accounting.Account
+import ExchangeAlgebra.Accounting.Exchange
 import Control.Monad (forM_, unless)
 import Data.List (foldl', sort)
 import qualified Data.Map.Strict as Map

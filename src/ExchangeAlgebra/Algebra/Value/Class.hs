@@ -56,8 +56,9 @@ instance Nearly Double where
 --
 -- NOTE: this is an /absolute/-tolerance test (@|x - y| <= |t|@); it does not
 -- scale with magnitude. For large values, rounding error easily exceeds a small
--- fixed @t@, while for small values it can swallow a real residual. Internal
--- accounting reconciliation uses 'nearlyEqScaled' instead. The final guard
+-- fixed @t@, while for small values it can swallow a real residual.
+-- 'nearlyEqScaled' is a private helper; public comparisons use 'isNearlyNum'
+-- or an explicit 'Tolerance'. The final guard
 -- returns 'False' (was: 'error') when a NaN makes every ordered comparison fail,
 -- so a non-finite input can no longer crash the check.
 isNearlyNum :: (Show a, Num a, Ord a) => a -> a -> a -> Bool
@@ -79,6 +80,15 @@ isNearlyNum x y t
 -- non-finite error value (NaN/Inf), so error values never read as nearly equal.
 --
 -- Complexity: O(1)
+--
+-- >>> nearlyEqScaled (1e10 + 0.1 + 0.2) (1e10 + 0.3 :: Double)
+-- True
+-- >>> nearlyEqScaled (0.1 + 0.2) (0.3 :: Double)
+-- True
+-- >>> nearlyEqScaled (1e10 + 5.0) (1e10 :: Double)
+-- False
+-- >>> nearlyEqScaled (0/0) (1.0 :: Double)
+-- False
 nearlyEqScaled :: (HatVal n) => n -> n -> Bool
 nearlyEqScaled x y
     | isErrorValue x || isErrorValue y = False

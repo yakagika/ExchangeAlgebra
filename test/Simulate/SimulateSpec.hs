@@ -9,6 +9,9 @@
 -- Start with 'runTests' for the suite's execution order.
 module Simulate.SimulateSpec (runTests) where
 
+import qualified ExchangeAlgebra.Accounting.Exchange as Exchange
+import ExchangeAlgebra.Accounting.Account
+import ExchangeAlgebra.Accounting.Exchange
 import ExchangeAlgebra.Journal
 import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Journal  as EJ
@@ -689,7 +692,7 @@ testPolicyCompressClosed = do
         (norm fullJ) (norm compactedJ)
     -- (b) balance result unchanged (still balanced overall).
     assertEqual "Policy: CompressClosedTerms preserves balance"
-        (EA.balance fullJ) (EA.balance compactedJ)
+        (Exchange.balance fullJ) (Exchange.balance compactedJ)
     -- (c) each CLOSED term (1..4) has at most one posting per base/side: its Alg
     --     compresses to itself (idempotent), so compress . entry == entry.
     let compactedMap = toMap compactedJ

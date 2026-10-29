@@ -6,6 +6,8 @@
 -- element or a 'Liner').
 module Algebra.ProjWildcardSpec (runTests) where
 
+import ExchangeAlgebra.Accounting.Account
+import ExchangeAlgebra.Accounting.Exchange
 import           Control.Monad (unless)
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map

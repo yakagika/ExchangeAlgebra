@@ -5,6 +5,9 @@
 -- | Laws, independent oracles and multi-period acceptance for transfer entries.
 module Transfer.RuleSpec (runTests) where
 
+import qualified ExchangeAlgebra.Accounting.Exchange as Exchange
+import ExchangeAlgebra.Accounting.Account
+import ExchangeAlgebra.Accounting.Exchange
 import qualified ExchangeAlgebra.Algebra.Internal as Internal
 import           Control.Monad (unless)
 import qualified Data.Binary as Binary
@@ -356,7 +359,7 @@ testClosing = do
     assertTest "exactly balanced source emits nothing" (Algebra.isZero offsetEntries)
     let accounts = 10 .@ source .+ 4 .@ Not :< (InterestEarned, Yen) :: Alg Double TestBase
     accountEntries <- requireRight "separate account closing" (closingEntries accounts)
-    let targets = Algebra.projByAccountTitle RetainedEarnings accountEntries
+    let targets = Exchange.projByAccountTitle RetainedEarnings accountEntries
     assertTest "separate closing targets preserve account audit trail" (length (vals targets) == 2)
 
 -- | Closing rejects an unrepresentable net and accepts cancellation beyond the side range.
@@ -660,7 +663,7 @@ testAcceptance = do
     let afterSecond = second .+ (secondClosing .| (Settlement, 2))
         earnings owner algebra = Map.findWithDefault 0
             (Not :< (RetainedEarnings, Widget, owner, Yen)) (obs algebra)
-        salesAt term journal = fmap (Algebra.projByAccountTitle Sales)
+        salesAt term journal = fmap (Exchange.projByAccountTitle Sales)
             (HashMap.lookup (SalesPurchase, term) (Journal.toMap journal))
     assertTest "period-one owner earnings" (earnings Alice firstClosing == 70 && earnings Bob firstClosing == 110)
     assertTest "period-two only current earnings" (earnings Alice secondClosing == 40 && earnings Bob secondClosing == 60)

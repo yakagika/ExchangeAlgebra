@@ -69,8 +69,10 @@ import           ExchangeAlgebra.Journal.Core
 -- $setup
 -- >>> :set -XOverloadedStrings
 -- >>> import Data.List.NonEmpty (NonEmpty)
--- >>> import ExchangeAlgebra.Algebra (Alg, Redundant((.+), norm), Exchange(decL))
--- >>> import ExchangeAlgebra.Algebra.Base (HatBase, AccountTitles(..), Side(..))
+-- >>> import ExchangeAlgebra.Algebra (Alg, Redundant((.+), norm))
+-- >>> import ExchangeAlgebra.Accounting.Exchange (Exchange(decL))
+-- >>> import ExchangeAlgebra.Algebra.Base (HatBase)
+-- >>> import ExchangeAlgebra.Accounting.Account (AccountTitles(..), Side(..))
 -- >>> import ExchangeAlgebra.IO.Input (journalFromSides)
 -- >>> import ExchangeAlgebra.Journal (Journal)
 

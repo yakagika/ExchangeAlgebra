@@ -3,6 +3,9 @@
 -- Start with 'runTests' for the suite's execution order.
 module Accounting.RegistrySpec (runTests) where
 
+import qualified ExchangeAlgebra.Accounting.Exchange as Exchange
+import ExchangeAlgebra.Accounting.Account
+import ExchangeAlgebra.Accounting.Exchange
 import qualified ExchangeAlgebra.Algebra.Internal as Internal
 import ExchangeAlgebra.Journal
 import qualified ExchangeAlgebra.IO.Output.Statements as StatementOutput
@@ -905,14 +908,14 @@ accountSemanticsProjectionGolden =
         (goldenShow title : L.concatMap (probe title) [Not, Hat])
     probe title hat =
         let value = 1 .@ hat :< title :: EA.Alg Double (HatBase AccountTitles)
-        in [ kept EA.projCurrentAssets value
-           , kept EA.projFixedAssets value
-           , kept EA.projDeferredAssets value
-           , kept EA.projCurrentLiability value
-           , kept EA.projFixedLiability value
-           , kept EA.projCapitalStock value
-           , kept EA.projContraAssets value
-           , kept EA.projContra value
+        in [ kept Exchange.projCurrentAssets value
+           , kept Exchange.projFixedAssets value
+           , kept Exchange.projDeferredAssets value
+           , kept Exchange.projCurrentLiability value
+           , kept Exchange.projFixedLiability value
+           , kept Exchange.projCapitalStock value
+           , kept Exchange.projContraAssets value
+           , kept Exchange.projContra value
            ]
 
 accountSemanticsPresentationGolden :: T.Text
@@ -1505,31 +1508,31 @@ testStatementRowsAndProjectionsLiteral = do
     -- contra は projContraAssets のみが Hat/Not 双方を保持して選ぶ。
     assertEqual "projCurrentAssets b3 (= baseline)"
         "900.00:@Not:<Cash .+ 1000.00:@Not:<AccountsReceivable"
-        (show (EA.projCurrentAssets statementFixtureB3))
+        (show (Exchange.projCurrentAssets statementFixtureB3))
     assertEqual "projCurrentLiability b3 (intentional: contra dropped)"
         "400.00:@Not:<LoansPayable"
-        (show (EA.projCurrentLiability statementFixtureB3))
+        (show (Exchange.projCurrentLiability statementFixtureB3))
     assertEqual "projFixedLiability b3 (intentional: contra dropped)"
         "0"
-        (show (EA.projFixedLiability statementFixtureB3))
+        (show (Exchange.projFixedLiability statementFixtureB3))
     assertEqual "projContraAssets b3"
         "100.00:@Not:<AllowanceForDoubtfulAccounts .+ 200.00:@Not:<AccumulatedDepreciation"
-        (show (EA.projContraAssets statementFixtureB3))
+        (show (Exchange.projContraAssets statementFixtureB3))
     assertEqual "projCurrentAssets b4 (= baseline; no contra Hat leakage)"
         "30.00:@Not:<Cash"
-        (show (EA.projCurrentAssets statementFixtureB4))
+        (show (Exchange.projCurrentAssets statementFixtureB4))
     assertEqual "projFixedAssets b4 (= baseline; no contra Hat leakage)"
         "500.00:@Not:<Building"
-        (show (EA.projFixedAssets statementFixtureB4))
+        (show (Exchange.projFixedAssets statementFixtureB4))
     assertEqual "projCurrentLiability b4 (intentional: contra dropped)"
         "200.00:@Not:<LoansPayable"
-        (show (EA.projCurrentLiability statementFixtureB4))
+        (show (Exchange.projCurrentLiability statementFixtureB4))
     assertEqual "projContraAssets b4 keeps Hat and Not, excludes Cash"
         "120.00:@Hat:<AllowanceForDoubtfulAccounts .+ 100.00:@Not:<AllowanceForDoubtfulAccounts .+ 50.00:@Hat:<AccumulatedDepreciation .+ 250.00:@Not:<AccumulatedDepreciation"
-        (show (EA.projContraAssets statementFixtureB4))
+        (show (Exchange.projContraAssets statementFixtureB4))
     assertEqual "projContraAssets b5"
         "100.00:@Not:<AllowanceForDoubtfulAccounts .+ 200.00:@Not:<AccumulatedDepreciation"
-        (show (EA.projContraAssets statementFixtureB5))
+        (show (Exchange.projContraAssets statementFixtureB5))
 
 -- Projection output from the statement fixtures is pinned byte for byte.
 statementPresentationLines :: [T.Text]
@@ -1541,12 +1544,12 @@ statementPresentationLines = L.concatMap sect
         (T.pack ("## " ++ n))
       : L.concat [ [T.pack ("-- " ++ pn), T.pack (show (pf a))] | (pn, pf) <- projList ]
     projList =
-        [ ("projCurrentAssets",    EA.projCurrentAssets)
-        , ("projFixedAssets",      EA.projFixedAssets)
-        , ("projDeferredAssets",   EA.projDeferredAssets)
-        , ("projCurrentLiability", EA.projCurrentLiability)
-        , ("projFixedLiability",   EA.projFixedLiability)
-        , ("projCapitalStock",     EA.projCapitalStock)
+        [ ("projCurrentAssets",    Exchange.projCurrentAssets)
+        , ("projFixedAssets",      Exchange.projFixedAssets)
+        , ("projDeferredAssets",   Exchange.projDeferredAssets)
+        , ("projCurrentLiability", Exchange.projCurrentLiability)
+        , ("projFixedLiability",   Exchange.projFixedLiability)
+        , ("projCapitalStock",     Exchange.projCapitalStock)
         ]
 
 testStatementPresentationGolden :: IO ()
@@ -1708,9 +1711,9 @@ testConsolidationWorksheet = do
     assertEqual "consolidation worksheet: combined fixture stays balanced"
         True (exactBalancedForTest combined)
     assertEqual "consolidation worksheet: combined debit total"
-        (200 :: MoneyDecimal) (EA.norm (EA.decL combined))
+        (200 :: MoneyDecimal) (EA.norm (Exchange.decL combined))
     assertEqual "consolidation worksheet: combined credit total"
-        (200 :: MoneyDecimal) (EA.norm (EA.decR combined))
+        (200 :: MoneyDecimal) (EA.norm (Exchange.decR combined))
     assertEqual "consolidation worksheet: combination preserves all sequences"
         6 (L.length (EA.vals combined))
 
@@ -2688,7 +2691,7 @@ mkA = (:<)
 
 -- balanced-ness: debit-side norm equals credit-side norm (貸借一致)
 isBalancedD :: BAlg -> Bool
-isBalancedD x = epsEq (norm (EA.decL x)) (norm (EA.decR x))
+isBalancedD x = epsEq (norm (Exchange.decL x)) (norm (Exchange.decR x))
 
 bookkeepingProperties :: IO ()
 bookkeepingProperties = do
@@ -2760,31 +2763,31 @@ bookkeepingProperties = do
     -- 差額補充法, estimate>current (ch.16): 1,400 - 1,000 -> provide 400
     let repl1 = EB.allowanceReplenishmentEntry mkA 1400 1000 :: BAlg
     assertNear "allowance(差額補充, shortfall): ProvisionForDoubtfulAccounts = 400"
-        400 (norm (EA.projByAccountTitle ProvisionForDoubtfulAccounts repl1))
+        400 (norm (Exchange.projByAccountTitle ProvisionForDoubtfulAccounts repl1))
     assertNear "allowance(差額補充, shortfall): AllowanceForDoubtfulAccounts = 400"
-        400 (norm (EA.projByAccountTitle AllowanceForDoubtfulAccounts repl1))
+        400 (norm (Exchange.projByAccountTitle AllowanceForDoubtfulAccounts repl1))
     -- 差額補充法, estimate<current (ch.16): 1,800 - 2,000 -> release 200
     let repl2 = EB.allowanceReplenishmentEntry mkA 1800 2000 :: BAlg
     assertNear "allowance(差額補充, excess): ReversalOfAllowanceForDoubtfulAccounts = 200"
-        200 (norm (EA.projByAccountTitle ReversalOfAllowanceForDoubtfulAccounts repl2))
+        200 (norm (Exchange.projByAccountTitle ReversalOfAllowanceForDoubtfulAccounts repl2))
     -- estimate==current -> no entry
     assertEqual "allowance(差額補充, equal): Zero"
         True (EA.isZero (EB.allowanceReplenishmentEntry mkA 1500 1500 :: BAlg))
     -- consumption tax (ch.23): paid 1,000 / received 20,000 -> unpaid 19,000
     let ctax = EB.consumptionTaxSettlementEntry mkA 1000 20000 :: BAlg
     assertNear "consumptionTax: AccruedConsumptionTax = received - paid = 19000"
-        19000 (norm (EA.projByAccountTitle AccruedConsumptionTax ctax))
+        19000 (norm (Exchange.projByAccountTitle AccruedConsumptionTax ctax))
     -- corporate tax (ch.23): total 800,000 / interim 500,000 -> unpaid 300,000
     let crp = EB.corporateTaxSettlementEntries mkA 800000 500000 :: BAlg
     assertNear "corporateTax: AccruedCorporateIncomeTaxes = total - interim = 300000"
-        300000 (norm (EA.projByAccountTitle AccruedCorporateIncomeTaxes crp))
+        300000 (norm (Exchange.projByAccountTitle AccruedCorporateIncomeTaxes crp))
     -- prior-period error correction (#15 anchor): patent 55,000/10yr discovered 2028
     -- current 5,500 / prior 2yr 11,000 -> debit=credit=16,500 (Patent credit)
     let ppec = EB.priorPeriodErrorCorrection mkA 5500 11000 AmortizationExpense Patent :: BAlg
     assertNear "priorPeriodErrorCorrection (#15): Patent credit = 16500"
-        16500 (norm (EA.projByAccountTitle Patent ppec))
+        16500 (norm (Exchange.projByAccountTitle Patent ppec))
     assertNear "priorPeriodErrorCorrection (#15): balanced (decL == decR)"
-        (norm (EA.decL ppec)) (norm (EA.decR ppec))
+        (norm (Exchange.decL ppec)) (norm (Exchange.decR ppec))
     -- consumption-tax refund (received<paid) is rejected (out of 3-級 scope)
     rRefund <- try (evaluate (norm (EB.consumptionTaxSettlementEntry mkA 5000 1000 :: BAlg)))
                  :: IO (Either SomeException Double)
@@ -2857,7 +2860,7 @@ closingDocsTests = do
     --     account title, place the *net* balance into the debit or credit
     --     column according to its balance side.
     let titles = L.nub (EA.foldEntries (\acc _ b -> getAccountTitle b : acc) [] combined) :: [AccountTitles]
-        netSide t = EA.diffRL (EA.projByAccountTitle t combined) :: (Side, Double)
+        netSide t = Exchange.diffRL (Exchange.projByAccountTitle t combined) :: (Side, Double)
         colSums divs =
             L.foldl' (\(d,c) t ->
                 if classifyAccountDivision t `elem` divs
