@@ -9,8 +9,9 @@ This directory keeps only general examples, which show how to use the library
 without depending on any particular study:
 
 - teaching examples of introductory bookkeeping (`ebex1`–`ebex9`),
-- the simplest simulation model (`sim1`) and a larger model that exercises
-  spill-to-disk ledgers (`sim2fast`),
+- the simplest simulation model, a fixed-price input-output economy
+  (`fixed-price-io`), and a larger version of it that exercises spill-to-disk
+  ledgers (`fixed-price-io-spill`),
 - micro-benchmarks of the core operations (`benchmark/`).
 
 Models built for a particular research study do not live here. Each study
@@ -104,9 +105,9 @@ repository). Create the expected directories up front:
 ```bash
 # Run from the repository root — creates every output directory used by the examples
 mkdir -p examples/basic/result/csv                                        # ebex1, ebex2, ebex6, ebex7, ebex8, ebex9
-mkdir -p examples/basic/result/csv/simulateEx1                            # sim1 CSV
-mkdir -p examples/basic/result/fig/simulateEx1                            # sim1 PNG
-mkdir -p examples/basic/result/csv/simulateEx2Fast                        # sim2fast CSV
+mkdir -p examples/basic/result/csv/fixedPriceIO                            # fixed-price-io CSV
+mkdir -p examples/basic/result/fig/fixedPriceIO                            # fixed-price-io PNG
+mkdir -p examples/basic/result/csv/fixedPriceIOSpill                        # fixed-price-io-spill CSV
 ```
 
 The generated artifacts (`examples/**/result/**`) are git-ignored and regenerated on every
@@ -121,7 +122,7 @@ Run the commands from the root of a full clone. The standalone
 | Example | Kind | Builds with | How to reproduce | Notes |
 |---|---|---|---|---|
 | `basic/elementaryBookkeepingEx*` | teaching | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0` | `git checkout v0.5.3.0 && cd examples && stack build` | Remains in the next major release, updated for its API. |
-| `basic/simulateEx1`, `simulateEx2Fast` | simulation | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0`. SICE reproduction: commit `543e268` (`0.5.0.0` release). | `git checkout v0.5.3.0 && cd examples && stack build`<br>`git checkout 543e268 && cd examples && stack build` | Remain in the next major release as general simulation examples, updated for its API. `simulateEx2`, the `MoneyDecimal` version of `simulateEx2Fast`, is removed in the next major release; use the tag or commit in this row to build it. |
+| `basic/fixedPriceIO`, `fixedPriceIOSpill` (named `simulateEx1`, `simulateEx2Fast` before the next major release) | simulation | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0`. SICE reproduction: commit `543e268` (`0.5.0.0` release). | `git checkout v0.5.3.0 && cd examples && stack build`<br>`git checkout 543e268 && cd examples && stack build` | Remain in the next major release as general simulation examples, renamed and updated for its API (executables `sim1` → `fixed-price-io`, `sim2fast` → `fixed-price-io-spill`). `simulateEx2` (`sim2`), the `MoneyDecimal` version of `simulateEx2Fast`, is removed in the next major release; use the tag or commit in this row to build it. |
 | `benchmark/` | benchmark | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0` | `git checkout v0.5.3.0 && cd examples && stack build` | Remains in this repository. |
 
 ## Research using exchangealgebra
@@ -164,14 +165,14 @@ rather than `stack run`.
 | `ebex7` | `basic/elementaryBookkeepingEx7.hs` | executable | Lecture ch.16-18: bad debts / allowance for doubtful accounts (replenishment & reset methods), fixed-asset acquisition & disposal (gain/loss, indirect method), depreciation (indirect/direct, monthly proration). Uses the closing-entry builders in `ExchangeAlgebra.Accounting.Entries` |
 | `ebex8` | `basic/elementaryBookkeepingEx8.hs` | executable | Lecture ch.19-23: share issuance, dividends + legal reserve, correction entries via `reversingEntry` (the seq audit trail is shown with `writeAccountOf`), the four deferral/accrual accounts + next-period reversal, consumption-tax & corporate-income-tax settlement |
 | `ebex9` | `basic/elementaryBookkeepingEx9.hs` | executable | Lecture ch.24-25: full accounting cycle: period transactions → closing adjustments (COGS / depreciation / allowance / deferral) → 8-column worksheet (`writeWorksheet`) → income-summary closing → post-closing trial balance (`writePostClosingTrialBalance`) → B/S & P/L |
-| `sim1` | `basic/simulateEx1.hs` | executable | 100-term simulation (6 companies, input coefficients, Haskell + Python plots) |
-| `sim2fast` | `basic/simulateEx2Fast.hs` | executable | A larger version of `sim1` (200 companies) that spills ledger chunks to disk and restores them; uses the `MoneyDouble` (IEEE-754) value type |
+| `fixed-price-io` | `basic/fixedPriceIO.hs` | executable | The simplest simulation model: a fixed-price input-output economy of 6 companies over 100 terms. Each company produces a steady output from random input coefficients and buys the inputs it lacks from the other companies (Haskell + Python plots) |
+| `fixed-price-io-spill` | `basic/fixedPriceIOSpill.hs` | executable | A larger version of `fixed-price-io` (200 companies) that spills ledger chunks to disk and restores them; uses the `MoneyDouble` (IEEE-754) value type |
 
 **Papers:** SICE Japanese paper
 
 **Ownership:** `dual-use`. **Methods:** deterministic, stochastic, classic-engine
 
-**Notes:** The bookkeeping sequence starts with chapter 3 journal and BS/PL output, then adds a time axis, custom currency units, dated notes, and sigma aggregation across 100 companies. Chapters 9-15 cover cash over/short, petty cash, overdrafts, trade returns, advances, cards, notes, and sundry balances; chapters 16-18 cover doubtful debts, fixed assets, and depreciation; chapters 19-23 cover shares, dividends, reserves, correction audit trails, accruals, deferrals, and tax; chapters 24-25 cover the full accounting cycle, worksheet, closing, and final statements. sim1 is the simplest simulation model: 100 terms, six companies, with plots. sim2fast is a 200-company model with spill-to-disk.
+**Notes:** The bookkeeping sequence starts with chapter 3 journal and BS/PL output, then adds a time axis, custom currency units, dated notes, and sigma aggregation across 100 companies. Chapters 9-15 cover cash over/short, petty cash, overdrafts, trade returns, advances, cards, notes, and sundry balances; chapters 16-18 cover doubtful debts, fixed assets, and depreciation; chapters 19-23 cover shares, dividends, reserves, correction audit trails, accruals, deferrals, and tax; chapters 24-25 cover the full accounting cycle, worksheet, closing, and final statements. fixed-price-io is the simplest simulation model: 100 terms, six companies, with plots. fixed-price-io-spill is a 200-company model with spill-to-disk.
 
 ### `benchmark/` — Criterion micro-benchmarks for core algebra and journal operations. They expose scaling behavior for construction, netting, projection, and journal workloads.
 
@@ -189,7 +190,7 @@ rather than `stack run`.
 
 ## Python visualization
 
-`sim1` invokes a companion Python script (`visualize_*.py`) via `uv run --script`
+`fixed-price-io` invokes a companion Python script (`visualize_*.py`) via `uv run --script`
 after the simulation finishes. Each script starts with [PEP 723 inline script metadata](https://peps.python.org/pep-0723/), so
 `uv` builds an ephemeral virtual environment and installs the declared dependencies on demand:
 
@@ -213,7 +214,7 @@ The Haskell-side invocations follow a uniform pattern:
 
 ```haskell
 exitCode <- rawSystem "uv"
-    ["run", "--script", "examples/basic/visualize_simulateEx1.py"]
+    ["run", "--script", "examples/basic/visualize_fixedPriceIO.py"]
 ```
 
 ### Running a Python script on its own
@@ -221,12 +222,12 @@ exitCode <- rawSystem "uv"
 If the CSVs already exist, you can plot without involving Haskell:
 
 ```bash
-uv run --script examples/basic/visualize_simulateEx1.py
+uv run --script examples/basic/visualize_fixedPriceIO.py
 ```
 
 ### Examples that do not need Python
 
-`ebex1`〜`ebex9` and `sim2fast` do not call any Python script, so they run fine without `uv`.
+`ebex1`〜`ebex9` and `fixed-price-io-spill` do not call any Python script, so they run fine without `uv`.
 
 ## Troubleshooting
 

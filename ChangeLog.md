@@ -442,10 +442,10 @@ the original postings.
   `Accounting.Closing.closingEntries` for closing, or an accounting transfer
   row from `IncomeSummary` to `RetainedEarnings` for staged closing.
 - `grossProfitTransfer` is removed from both Transfer modules. Use
-  account-specific `Accounting.Transfer` rows; `examples/basic/simulateEx1.hs`
+  account-specific `Accounting.Transfer` rows; `examples/basic/fixedPriceIO.hs`
   demonstrates staged closing.
 - `ordinaryProfitTransfer` is removed from both Transfer modules. Use
-  account-specific `Accounting.Transfer` rows as in `simulateEx1.hs`.
+  account-specific `Accounting.Transfer` rows as in `fixedPriceIO.hs`.
 - `retainedEarningTransfer` is removed from both Transfer modules. Use an
   `Accounting.Transfer` row from `OrdinaryProfit` to `RetainedEarnings`.
 - `Algebra.Transfer.finalStockTransferStep` is removed. Use
@@ -463,12 +463,19 @@ the original postings.
 
 - The standard CGE example (`cge`) is removed; it will move to the
   general-equilibrium repository.
-- The `sim2` example (`simulateEx2`) is removed. `sim2fast` runs the same
-  200-company model with spill-to-disk on `MoneyDouble`; use `MoneyDecimal` in
-  your own model when the ledger must be exact. Tag `v0.5.3.0` still builds
-  `sim2`. The examples directory now keeps only general examples, and each
-  research study publishes its models in a separate repository (see
-  `examples/README.md`).
+- The `sim2` example (`simulateEx2`) is removed. `fixed-price-io-spill`
+  (formerly `sim2fast`) runs the same 200-company model with spill-to-disk on
+  `MoneyDouble`; use `MoneyDecimal` in your own model when the ledger must be
+  exact. Tag `v0.5.3.0` still builds `sim2`. The examples directory now keeps
+  only general examples, and each research study publishes its models in a
+  separate repository (see `examples/README.md`).
+- The simulation examples are renamed after the model they run, a fixed-price
+  input-output economy: `sim1` (`simulateEx1.hs`) is now `fixed-price-io`
+  (`fixedPriceIO.hs`), and `sim2fast` (`simulateEx2Fast.hs`) is now
+  `fixed-price-io-spill` (`fixedPriceIOSpill.hs`). Their outputs move to
+  `examples/basic/result/{csv,fig}/fixedPriceIO/` and
+  `examples/basic/result/csv/fixedPriceIOSpill/`, and the plotting script is
+  now `examples/basic/visualize_fixedPriceIO.py`.
 - `ExchangeAlgebra.Write` is removed. Import CSV serialization (`writeCSV`,
   `csvTranspose`) from `ExchangeAlgebra.IO.Output.Csv`; journals, account
   ledgers, trial balances, and worksheets from

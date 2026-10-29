@@ -396,8 +396,8 @@ event' wld t Plank = return ()
 ------------------------------------------------------------------
 
 -- * directories
-fig_dir = "examples/basic/result/fig/simulateEx1/"
-csv_dir = "examples/basic/result/csv/simulateEx1/"
+fig_dir = "examples/basic/result/fig/fixedPriceIO/"
+csv_dir = "examples/basic/result/csv/fixedPriceIO/"
 
 main :: IO ()
 main = do
@@ -450,7 +450,7 @@ main = do
                    "GrossProfit"
 
     print "visualizing with Python..."
-    exitCode <- rawSystem "uv" ["run", "--script", "examples/basic/visualize_simulateEx1.py"]
+    exitCode <- rawSystem "uv" ["run", "--script", "examples/basic/visualize_fixedPriceIO.py"]
     case exitCode of
         ExitSuccess -> print "Python visualization completed successfully"
         ExitFailure n -> print $ "Python visualization failed with exit code: " ++ show n

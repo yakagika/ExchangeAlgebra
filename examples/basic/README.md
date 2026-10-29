@@ -16,7 +16,7 @@ From the repository root:
 
 ```bash
 stack run ebex1
-stack run sim1
+stack run fixed-price-io
 ```
 
 ## Output
@@ -25,4 +25,4 @@ Outputs are written below `examples/basic/result/`; create the required CSV and 
 
 ## Related scripts
 
-- `visualize_simulateEx1.py` renders the `sim1` outputs through `uv run --script`.
+- `visualize_fixedPriceIO.py` renders the `fixed-price-io` outputs through `uv run --script`.

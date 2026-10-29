@@ -13,8 +13,8 @@ industry 9. It does not run the classic simulation engine. Each of the 243
 numeric rows contains the matrix coordinate, the Double's hexadecimal bits,
 and its `show` output.
 
-The simulation outputs of `examples/basic/simulateEx1.hs` and
-`examples/basic/simulateEx2Fast.hs` require their example-local `World`, `Event`,
+The simulation outputs of `examples/basic/fixedPriceIO.hs` and
+`examples/basic/fixedPriceIOSpill.hs` require their example-local `World`, `Event`,
 and state-space instances. Reproducing those models in the library test would
 exceed the 300-line limit per example. The CGE-Lite calibration has no library
 public API counterpart. These three outputs are therefore not copied into

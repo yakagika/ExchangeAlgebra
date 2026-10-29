@@ -24,7 +24,7 @@
 --
 -- == HatBase key-hashing study (2026-06-08)
 --
--- The MoneyDouble re-profile (sim2fast) showed HashMap *key hashing* of the
+-- The MoneyDouble re-profile (fixed-price-io-spill) showed HashMap *key hashing* of the
 -- @BasePart b@ key — for @HatBase2@ a 4-tuple @(AccountTitles,Company,Company,
 -- CountUnit)@ — is the new dominant cost (~33%). The @hash/*@ and @container/*@
 -- groups below isolate that cost and compare key representations WITHOUT
@@ -314,7 +314,7 @@ foldAppend = norm . foldl' (.+) (mempty :: J)
 -- The input alg is prebuilt in 'env' so only the query side is timed.
 ------------------------------------------------------------------
 
--- bench-local orphans, same shape as examples/basic/simulateEx2Fast.hs
+-- bench-local orphans, same shape as examples/basic/fixedPriceIOSpill.hs
 instance Element Int where
     wildcard = -1
 instance BaseClass Int where

@@ -259,8 +259,8 @@ executable ebex9
   if os(darwin)
     ghc-options: -optl-Wl,-no_warn_duplicate_libraries
 
-executable sim1
-  main-is: simulateEx1.hs
+executable fixed-price-io
+  main-is: fixedPriceIO.hs
   other-modules:
       Paths_exchangealgebra_examples
   hs-source-dirs:
@@ -286,8 +286,8 @@ executable sim1
   if os(darwin)
     ghc-options: -optl-Wl,-no_warn_duplicate_libraries
 
-executable sim2fast
-  main-is: simulateEx2Fast.hs
+executable fixed-price-io-spill
+  main-is: fixedPriceIOSpill.hs
   other-modules:
       Paths_exchangealgebra_examples
   hs-source-dirs:

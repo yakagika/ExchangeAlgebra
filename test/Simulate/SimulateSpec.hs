@@ -402,18 +402,18 @@ testSimulateEx1Default = do
     profits50 <- stToIO $ mapM (simGetTermGrossProfit wld 50) simCompanies
 
     -- Stock at t=1
-    assertSimNear "sim1 stock(t=1,c=1)" 28.487224703666264 (stocks1 !! 0)
-    assertSimNear "sim1 stock(t=1,c=3)" 30.0               (stocks1 !! 2)
-    assertSimNear "sim1 stock(t=1,c=6)" 30.0               (stocks1 !! 5)  -- re-baselined: union zero-base fix removed a phantom self-input
+    assertSimNear "fixed-price-io stock(t=1,c=1)" 28.487224703666264 (stocks1 !! 0)
+    assertSimNear "fixed-price-io stock(t=1,c=3)" 30.0               (stocks1 !! 2)
+    assertSimNear "fixed-price-io stock(t=1,c=6)" 30.0               (stocks1 !! 5)  -- re-baselined: union zero-base fix removed a phantom self-input
     -- Stock at t=50
-    assertSimNear "sim1 stock(t=50,c=1)" 304.9028131162567  (stocks50 !! 0)
-    assertSimNear "sim1 stock(t=50,c=4)" 292.4764622201871  (stocks50 !! 3)
+    assertSimNear "fixed-price-io stock(t=50,c=1)" 304.9028131162567  (stocks50 !! 0)
+    assertSimNear "fixed-price-io stock(t=50,c=4)" 292.4764622201871  (stocks50 !! 3)
     -- Stock at t=100
-    assertSimNear "sim1 stock(t=100,c=1)" 586.9595359862476  (stocks100 !! 0)
-    assertSimNear "sim1 stock(t=100,c=6)" 767.9605634804993  (stocks100 !! 5)  -- re-baselined: union zero-base fix (bug compounded over terms)
+    assertSimNear "fixed-price-io stock(t=100,c=1)" 586.9595359862476  (stocks100 !! 0)
+    assertSimNear "fixed-price-io stock(t=100,c=6)" 767.9605634804993  (stocks100 !! 5)  -- re-baselined: union zero-base fix (bug compounded over terms)
     -- Gross profit at t=50
-    assertSimNear "sim1 profit(t=50,c=1)" 0.35886554260018855 (profits50 !! 0)
-    assertSimNear "sim1 profit(t=50,c=2)" 1.572544209772035   (profits50 !! 1)
+    assertSimNear "fixed-price-io profit(t=50,c=1)" 0.35886554260018855 (profits50 !! 0)
+    assertSimNear "fixed-price-io profit(t=50,c=2)" 1.572544209772035   (profits50 !! 1)
 
 -- ================================================================
 -- Simulate.Lite tests (Phase 2, feat/simulate-lite)

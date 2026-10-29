@@ -4,7 +4,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 
--- sim2fast: the larger version of `simulateEx1` (200 companies). It spills
+-- fixed-price-io-spill: the larger version of `fixedPriceIO` (200 companies). It spills
 -- ledger chunks to binary files during the simulation and restores them
 -- afterwards. The ledger value type is MoneyDouble (fast IEEE-754). This is the
 -- performance-roadmap baseline: the value-type arithmetic cost that dominated
@@ -50,7 +50,7 @@ import           Data.Maybe (fromMaybe)
 -- * Benchmark scale knobs (env-configurable; defaults reproduce the example)
 --
 -- Let the end-to-end simulation be benchmarked at different scales without
--- recompiling, e.g. @EA_LASTC=1000 EA_LASTTERM=200 stack exec sim2fast@. This is an
+-- recompiling, e.g. @EA_LASTC=1000 EA_LASTTERM=200 stack exec fixed-price-io-spill@. This is an
 -- example-local convenience (unsafePerformIO on a CAF); the library never reads
 -- the environment.
 ------------------------------------------------------------------
@@ -467,7 +467,7 @@ type CachedMetric = TermAnalysis -> ST RealWorld Double
 type CachedHeaders = [(T.Text, CachedMetric)]
 
 csv_dir :: FilePath
-csv_dir = "examples/basic/result/csv/simulateEx2Fast/"
+csv_dir = "examples/basic/result/csv/fixedPriceIOSpill/"
 
 spillChunkTerms :: Int
 spillChunkTerms = 50

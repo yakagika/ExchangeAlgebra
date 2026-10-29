@@ -91,16 +91,16 @@ executables:
     main:                elementaryBookkeepingEx9.hs
     source-dirs:         basic
 
-  sim1:
+  fixed-price-io:
     <<: *exe-defaults
-    main:                simulateEx1.hs
+    main:                fixedPriceIO.hs
     source-dirs:         basic
 
   # 200-company simulation with spill-to-disk on MoneyDouble (fast FP), used as
   # the performance-roadmap baseline.
-  sim2fast:
+  fixed-price-io-spill:
     <<: *exe-defaults
-    main:                simulateEx2Fast.hs
+    main:                fixedPriceIOSpill.hs
     source-dirs:         basic
 
 benchmarks:
