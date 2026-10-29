@@ -1,6 +1,6 @@
 # Changelog for ExchangeAlgebra
 
-## Unreleased
+## 0.5.3.2 - 2026-10-30
 
 ### Fixed
 
