@@ -28,8 +28,10 @@ import qualified Data.Text.IO as TIO
 import           System.Environment (getArgs)
 import           System.FilePath ((</>))
 
-import           ExchangeAlgebra.Algebra.Base
-import qualified ExchangeAlgebra.Algebra.Base.Account.Registry as Registry
+import           ExchangeAlgebra.Algebra.Base (HatBase(..), Hat(..))
+import           ExchangeAlgebra.Accounting.Account
+import           ExchangeAlgebra.Accounting.Exchange
+import qualified ExchangeAlgebra.Accounting.Account as Registry
 import           ExchangeAlgebra.Accounting.Closing (ClosingSide(..), closingSide)
 
 -- | Posting coordinates used for the frozen side classification.

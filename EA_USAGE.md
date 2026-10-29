@@ -29,13 +29,16 @@ EA 本体 `src/` は `library`. `examples/` は公開済みの `production` exam
 |---|---|---|
 | `basic/` | `elementaryBookkeepingEx1-9.hs`, `fixedPriceIO.hs`, `fixedPriceIOSpill.hs` | `bookkeeping/` と `simulate/` へ分割 |
 | `benchmark/` | `Bench.hs` | repo root `bench/` へ |
-| `deterministic/` | `ripple/{RippleEffect,ripple,rippleWithStock,rippleWithStockMultiSeeds}.hs` | 手法軸を外し `ripple/` へ |
-| `industrial/` | `industrialEx1.hs` | `industrial/` として適合 |
-| `invoice/` | `invoiceEx1.hs` | `invoice/` として適合 |
-| `market/` | `MarketModel.hs`, `marketEx1.hs`, `marketEx1d.hs`, `rcr/`, scripts | `market/` として適合. `rcr/` も family-local で適合 |
-| `optimization/` | `CGE/{CGE,stdcge}.hs`, `cge-lite/` の modules と `test/` | 手法軸を外し `cge/` へ統合. Main / module 名の衝突は package metadata で解消 |
+| 移転済み: `deterministic/ripple/` | ripple の 3 executable | comp-econ-asabm research repository |
+| 移転済み: `industrial/` | `industrialEx1.hs` | SICE paper repository |
+| 移転済み: `invoice/` | `invoiceEx1.hs` | SICE paper repository |
+| 移転済み: `market/` | market の examples, policy test, RCR | scaling paper repository |
+| 移転・削除済み: `optimization/` | `cge-lite/` は general-equilibrium へ移転. 標準 CGE (`cge`) は削除され, 同 repo へ移転予定 | EA の examples から除外 |
 | `stochastic/` | source なし. main checkout に未追跡の生成物 `CGE/`, `csv/` (結果) だけがある | 出力先を family-local `result/` へ変えた後に削除 (段 8a). 将来は手法軸でなく該当 model family へ |
 | `result/` | この clone に dir なし (`examples/**/result/` は gitignore) | family-local `result/` を runner / README が実行前に作る |
+
+`simulateEx2` (`sim2`) は 0.6.0.0 で削除した. 同じ 200 社の model は
+`fixedPriceIOSpill.hs` (`fixed-price-io-spill`, `MoneyDouble`) にある.
 
 `examples/` 直下にはこのほか `README.md`, `package.yaml`, `stack.yaml` がある. `deterministic/ripple/__pycache__/` は生成物なので追跡対象外とする. family ごとの `README.md` / `family.yaml`, package metadata から生成する catalogue も未整備である. 整理は段 8a (EA repo の sub-plan) で実施し, 本 doc は現状記録にとどめる.
 
@@ -75,14 +78,14 @@ engine (`Simulate`, `Simulate/Lite`) と ledger policy (`Simulate/Policy`, `Simu
 
 | 機能単位 | 拡張の軸 | 表現 | 法則 | ただで受け取る汎用関数 | 再利用の証拠 |
 |---|---|---|---|---|---|
-| 値 `n` (`HatVal`) | 値型 (`Double`, `MoneyDouble`, `MoneyDecimal`) | 型クラス | posting 値は非負 (値型は完全には保証しない. seed §2), 加法と `Nearly` による比較 | `.+`, `.*`, `norm`, `bar`, `Write` 系出力 | `test/Spec.hs` の Lite DET-1 (`MoneyDouble`) / DET-2 (`MoneyDecimal`) が同じ model を 2 値型で build・test |
+| 値 `n` (`HatVal`) | 値型 (`Double`, `MoneyDouble`, `MoneyDecimal`) | 型クラス | posting 値は非負 (値型は完全には保証しない. seed §2), 加法と `Nearly` による比較 | `.+`, `.*`, `norm`, `bar`, `IO.Output.Statements` / `IO.Output.Csv` 系出力 | `test/Spec.hs` の Lite DET-1 (`MoneyDouble`) / DET-2 (`MoneyDecimal`) が同じ model を 2 値型で build・test |
 | 基底 `b` (`BaseClass` / `HatBaseClass` / `ExBaseClass` / `AccountBase`, 要素は `Element` / `AxisDecompose`) | 基底軸 (勘定科目, 主体, 相手, 単位, 期) | 型クラス | `Element` の `Eq` / `Ord` / `Hashable` の整合, wildcard (`HatNot` 等) の片方向照合 (seed §2. pattern 側の `#` だけが任意に一致し, 台帳の `#` は具体値の問い合わせに一致しない), 軸分解の一意性 | `proj` 系, `decL` / `decR`, `balance`, 軸ごとの射影 | examples の bookkeeping / ripple / market が別の基底 tuple で同じ代数 API を使用 |
 | 冗長代数 (`Redundant`, `Exchange`) | 表現 (`Alg`, `Journal`) | 型クラス | Definition 6 の 5 公理 (Hat 対合, norm の斉次性・加法性等), `bar` 冪等, `Zero` 単位元, `.+` 結合 (観測は `bar` / `norm`. `Double` は許容つき) | 全ての集計・振替・報告関数 | `Alg` と `Journal` の 2 表現が同じ class API を実装し, property test で固定 |
 | note `n` (`Note`, `HasTermAxis`) | event × term の記法, note の型 | 型クラス | 期軸の順序 (`Ord (TermOf n)`) と retention 窓の整合 | `Simulate/Policy` の retention / spill / restore | Policy test の `restoreLedger == FullAudit` と market model の note ADT |
 | world と stage (`Simulate/Lite`: `LiteWorld`, `Stage`, `Field`) | 状態 field, agent 種, stage 列 | data + smart constructor (`stageFor` / `stage` / `stageOf`), world は HKD + Generic | stage 内の snapshot 不変 (BSP), 逐次 = 並列 (DET-2), seed のみからの決定性 (DET-1), 繰越 `Field` 規則 | `runLite`, `runLiteWithPolicy`, `runLiteFold`, `runLiteWithPolicyObs` | `test/Spec.hs` の Lite / Policy / Market test と `examples/market/`, `optimization/cge-lite/` |
 | ledger 保持 (`LedgerPolicy`) | retention, spill, compaction | 値 (record) | `defaultLedgerPolicy` は `runLite` と観測等価, spill + 残部の restore は `FullAudit` と一致 | `runLiteWithPolicy` | Policy test 群 (exact 比較) |
 | classic engine (`StateTime`, `InitVariables`, `Event`, `StateSpace` 系, `Updatable*`) | 状態空間, event 種 | 型クラス | event 順序の決定性 (Updatable の逐次更新) | `runSimulation` 系 | `basic/simulateEx*`, `deterministic/ripple/`, classic `CGE` |
-| solver (`Optimize.Solver`) | 最適化手法 (`Annealing`, `GA`) | 型クラス | 法則なし (機能の class. seed §1.8 に照らし, 新設時は record-of-functions を検討する) | `optimize` | `Optimize.Annealing` / `Optimize.GA` の 2 instance |
+| solver (`Simulation.Optimize.Solver`) | 最適化手法 (`Annealing`, `GA`) | 型クラス | 法則なし (機能の class. seed §1.8 に照らし, 新設時は record-of-functions を検討する) | `optimize` | `Simulation.Optimize.Annealing` / `Simulation.Optimize.GA` の 2 instance |
 
 非会計状態 (価格, 履歴窓, 注文書) を Lite model に取り込む場合は, seed §1.8 の 3 択 (Journal への符号化, 期境界の `Field` 規則での再計算, classic engine との併用) を model の設計 note で選ぶ. Lite の stage が任意の field を書けるように engine を広げる提案は受けない.
 

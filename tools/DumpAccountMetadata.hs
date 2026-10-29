@@ -12,8 +12,8 @@ import           System.Directory (createDirectoryIfMissing)
 import           System.Environment (getArgs)
 import           System.FilePath ((</>))
 
-import           ExchangeAlgebra.Algebra.Base
-import qualified ExchangeAlgebra.Algebra.Base.Account.Registry as Registry
+import           ExchangeAlgebra.Accounting.Account
+import qualified ExchangeAlgebra.Accounting.Account as Registry
 import qualified ExchangeAlgebra.IO.Input.Assist as Assist
 
 header :: Text -> Text

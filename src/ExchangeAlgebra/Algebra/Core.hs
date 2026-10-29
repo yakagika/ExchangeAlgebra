@@ -11,9 +11,8 @@ Measure values                   norm, balanceBy
 @
 
 Import "ExchangeAlgebra.Accounting.Account" alongside this module when a
-base uses account titles. The old "ExchangeAlgebra.Algebra" path also exposes
-accounting operations during the transition, and
-"ExchangeAlgebra.Algebra.Internal" exposes the raw representation.
+base uses account titles, and "ExchangeAlgebra.Accounting.Exchange" for
+accounting operations. "ExchangeAlgebra.Algebra.Internal" exposes the raw representation.
 -}
 module ExchangeAlgebra.Algebra.Core
     ( Redundant(..)

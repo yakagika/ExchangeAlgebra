@@ -7,6 +7,8 @@
 -- ライブラリ内 module
 import           ExchangeAlgebra.Journal
 import qualified ExchangeAlgebra.Algebra  as EA
+import           ExchangeAlgebra.Accounting.Account
+import           ExchangeAlgebra.Accounting.Exchange
 import qualified ExchangeAlgebra.Journal  as EJ
 import qualified ExchangeAlgebra.Accounting.Closing as Closing
 import qualified ExchangeAlgebra.Accounting.Transfer as Transfer

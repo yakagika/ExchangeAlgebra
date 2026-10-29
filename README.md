@@ -93,30 +93,32 @@ needing the rest of the repository.
 
 ## Module Overview
 
-The 44 public modules (including the `visualize`-gated module) are organized
-into seven layers. Entries marked **0.5.1.0 / Git only** are not yet published
-on Hackage; use a Git pin, or keep importing the existing defining module.
+The following entry points describe the 0.6.0.0 development API. Use a Git pin
+until 0.6.0.0 is published. The layers are Algebra, Journal, Accounting, IO,
+and Simulation.
 
 ### Umbrella
 
 The recommended entry point collects the common single-period bookkeeping API.
 
-- `ExchangeAlgebra` — re-exports `Algebra`, accounting transfer and closing
-  operations, value types, and output functions.
-- **0.5.1.0 / Git only** `ExchangeAlgebra.Foundation` — re-exports the
-  Definitions 1-6 algebraic foundation without accounting vocabulary.
-- **0.5.1.0 / Git only** `ExchangeAlgebra.Accounting` — re-exports the
+- `ExchangeAlgebra` — exports named selections of generic algebra, account
+  vocabulary and exchange operations, transfers and closing, trial-balance
+  balances and findings, financial-statement presentation, CSV and bookkeeping
+  output, and value types.
+- `ExchangeAlgebra.Accounting` — re-exports the
   Definitions 7-9 accounting basis, exchange decomposition, and transfer core.
 
 ### Account vocabulary
 
 These modules define basis elements and the canonical account metadata vocabulary.
 
-- `ExchangeAlgebra.Algebra.Base.Element` — defines wildcard-aware basis components and the built-in account-title vocabulary.
-- `ExchangeAlgebra.Algebra.Base.Account.Types` — defines account metadata types shared by the basis and registry.
-- `ExchangeAlgebra.Algebra.Base.Account.JcciAliases` — supplies the generated JCCI 2022 account-name alias overlay.
-- `ExchangeAlgebra.Algebra.Base.Account.Registry` — is the exhaustive source of canonical account classification, semantics, and descriptions.
-- `ExchangeAlgebra.Algebra.Base` — defines basis classes, Hat/Not bases, account divisions, and basis display helpers.
+- `ExchangeAlgebra.Accounting.Account` — defines account titles, classifications,
+  registry metadata, posting eligibility, and PIMO direction helpers.
+- `ExchangeAlgebra.Accounting.Exchange` — defines `ExBaseClass`, `AccountBase`,
+  `Exchange`, debit/credit decomposition, balance checks, and account projections.
+- `ExchangeAlgebra.Algebra.Element` — defines generic wildcard-aware basis components.
+- `ExchangeAlgebra.Algebra.Base` — defines generic basis classes, Hat/Not bases,
+  and basis display helpers.
 
 ### Core algebra
 
@@ -128,9 +130,7 @@ These modules implement exchange-algebra values, transformations, and selectable
   carries no stability guarantee.
 - `ExchangeAlgebra.Algebra.Transfer` — generic coordinate rules that return
   additional entries to add to the original algebra.
-- **0.5.1.0 / Git only** `ExchangeAlgebra.Algebra.Readout.Net` — collects lossy,
-  netted read-outs from algebras and journals.
-- `ExchangeAlgebra.Value` — provides fast typed and exact non-negative value types for `Alg` and `Journal`.
+- `ExchangeAlgebra.Algebra.Value` — provides fast typed and exact non-negative value types for `Alg` and `Journal`.
 
 ### Wildcards: queries versus ledger entries
 
@@ -145,12 +145,14 @@ Matching is one way: a pattern `p` matches a ledger value `e` when `p = #`
 or `p = e`, on each axis. A concrete query does not select a ledger `#`:
 
 ```haskell
-import ExchangeAlgebra.Algebra
+import ExchangeAlgebra
 
 ledger = 10 .@ Not :< (Cash, (.#)) :: Alg Double (HatBase (AccountTitles, CountUnit))
-norm (proj [Not :< (Cash, Yen)] ledger)  -- 0.0
-norm (proj [Not :< (Cash, (.#))] ledger) -- 10.0
+concreteAmount = norm (proj [Not :< (Cash, Yen)] ledger)  -- 0.0
+wildcardAmount = norm (proj [Not :< (Cash, (.#))] ledger) -- 10.0
 ```
+
+Tested with exchangealgebra-0.5.3.1 on 2026-10-29 (0.6.0.0 development API).
 
 Canonical ordering treats `#` as an ordinary value. The `.==` operator remains
 symmetric; use projection or `ExchangeAlgebra.Algebra.Transfer` for one-way
@@ -164,17 +166,17 @@ These modules attach notes to postings and run classic, Lite, network, policy-dr
 - `ExchangeAlgebra.Journal.Transfer` — carries entries across notes and reads
   side totals. Use `Accounting.Transfer.transferEntriesBy` for accounting transfers.
 - `ExchangeAlgebra.Simulate` — provides the state-space engine, classic front-end, spill support, ripple utilities, and scenario execution.
-- **0.5.1.0 / Git only** `ExchangeAlgebra.Simulate.Engine` — re-exports the
+- `ExchangeAlgebra.Simulate.Engine` — re-exports the
   classic state-space protocol and runners without spill configuration or
   analysis helpers.
-- **0.5.1.0 / Git only** `ExchangeAlgebra.Simulate.Analysis` — re-exports
+- `ExchangeAlgebra.Simulation.Analysis` — re-exports
   Leontief-inverse and ripple-effect analysis.
-- **0.5.1.0 / Git only** `ExchangeAlgebra.Simulate.Random` — re-exports
+- `ExchangeAlgebra.Simulate.Random` — re-exports
   simulation random-number helpers.
 - `ExchangeAlgebra.Simulate.Spill` — provides spill chunk writers, checked readers, and ledger restoration shared by simulation and reporting layers.
 - `ExchangeAlgebra.Simulate.Policy` — declares retention, spill, and compaction policy for long simulations.
 - `ExchangeAlgebra.Simulate.Lite` — provides the product-HKD, BSP front-end with declarative field rules and stages.
-- `ExchangeAlgebra.Simulate.Network` — separates sparse trade-network topology from input coefficients and industrial flows.
+- `ExchangeAlgebra.Simulation.Network` — separates sparse trade-network topology from input coefficients and industrial flows.
 - `ExchangeAlgebra.Simulate.Visualize` — renders simulation grids and time series with Chart/Cairo.
 
 ### Which simulation API to use
@@ -191,41 +193,39 @@ maintaining or directly driving the classic protocol.
 
 These modules build adjustments, validate reporting boundaries, and produce statements and output.
 
-- `ExchangeAlgebra.Bookkeeping` — builds period-end adjustment postings from explicit external amounts.
+- `ExchangeAlgebra.Accounting.Entries` — builds period-end adjustment postings from explicit external amounts.
 - `ExchangeAlgebra.IO.Output.Statements` — writes journals, account ledgers, trial balances, worksheets, and financial statements as CSV.
-- **0.5.1.0 / Git only** `ExchangeAlgebra.Render.Csv` — re-exports CSV
+- `ExchangeAlgebra.IO.Output.Csv` — re-exports CSV
   serialization independently of document layouts.
-- **0.5.1.0 / Git only** `ExchangeAlgebra.Render.Bookkeeping` — re-exports
-  bookkeeping row builders and writers.
-- **0.5.1.0 / Git only** `ExchangeAlgebra.Render.Simulation` — re-exports
+- `ExchangeAlgebra.Simulation.Output` — re-exports
   simulation result writers.
-- `ExchangeAlgebra.Reporting.Group` — defines presentation groups and contra-account netting policy.
-- `ExchangeAlgebra.TrialBalance.Balance` — the shared `AccountBalance` type and debit-then-credit netting primitives.
-- `ExchangeAlgebra.TrialBalance.Validation` — reports trial-balance findings and gates reporting with explicit policies.
-- `ExchangeAlgebra.Reporting.Metric` — derives typed, read-only metrics without inserting posting coordinates.
-- `ExchangeAlgebra.Reporting.Presentation` — transforms validated trial balances into auditable JGAAP presentation.
-- `ExchangeAlgebra.Consolidation.Worksheet` — validates consolidation adjustments and preserves worksheet provenance.
+- `ExchangeAlgebra.Accounting.Statements.Group` — defines presentation groups and contra-account netting policy.
+- `ExchangeAlgebra.Accounting.TrialBalance.Balance` — the shared `AccountBalance` type and debit-then-credit netting primitives.
+- `ExchangeAlgebra.Accounting.TrialBalance.Validation` — reports trial-balance findings and reclassification instructions.
+- `ExchangeAlgebra.Accounting.Statements.Metric` — derives typed, read-only metrics without inserting posting coordinates.
+- `ExchangeAlgebra.Accounting.Statements.Presentation` — presents a trial balance and its stage as JGAAP financial statements.
+- `ExchangeAlgebra.Accounting.Consolidation` — validates consolidation adjustments and preserves worksheet provenance.
 
 ### Conversion and assistance
 
 These modules convert external postings safely and expose deterministic account-selection guidance.
 
-- `ExchangeAlgebra.Convert` — converts pure side, account-name, and amount data to and from algebra terms.
-- `ExchangeAlgebra.Convert.Csv` — reads a fixed journal CSV schema into normalized external postings.
-- `ExchangeAlgebra.Accounting.PostingPolicy` — which coordinates may be posted in which processing context (`ProcessingContext`, `postingAllowedIn`).
-- `ExchangeAlgebra.Convert.Checked` — validates externally generated entries before constructing journal values.
-- `ExchangeAlgebra.Assist` — provides LLM-facing account metadata, suggestions, and validation explanations.
-- `ExchangeAlgebra.Assist.Descriptions` — preserves the compatibility projection of canonical account descriptions.
+- `ExchangeAlgebra.IO.Input` — converts side, account-name, and amount data,
+  and validates externally generated entries before constructing journals.
+- `ExchangeAlgebra.IO.Input.Csv` — reads a fixed journal CSV schema into normalized external postings.
+- `ExchangeAlgebra.IO.Input.Assist` — provides LLM-facing account metadata, suggestions, and validation explanations.
 
 ### Optimization
 
 These modules define a common solver interface and two concrete stochastic strategies.
 
-- `ExchangeAlgebra.Optimize` — defines the strategy-agnostic, monadic `Solver` interface.
-- `ExchangeAlgebra.Optimize.Annealing` — implements simulated annealing over arbitrary candidate types.
-- `ExchangeAlgebra.Optimize.GA` — implements a real-coded genetic algorithm over numeric vectors.
+- `ExchangeAlgebra.Simulation.Optimize` — defines the strategy-agnostic, monadic `Solver` interface.
+- `ExchangeAlgebra.Simulation.Optimize.Annealing` — implements simulated annealing over arbitrary candidate types.
+- `ExchangeAlgebra.Simulation.Optimize.GA` — implements a real-coded genetic algorithm over numeric vectors.
 
-Dependencies point downwards in this list; spill writing, checked reading and ledger restoration live in `Simulate.Spill`, which `Simulate`, `Write` and `Simulate.Policy` all import (the historical `Write` → `Simulate` and `Policy` → `Write` edges are gone).
+Spill writing, checked reading, and ledger restoration live in `Simulate.Spill`.
+Import `Simulation.Output` for simulation writers; these functions are separate
+from the root bookkeeping API.
 
 Importing both `ExchangeAlgebra` and `ExchangeAlgebra.Journal` unqualified causes name
 collisions on `sigma`, `fromList`, `map`, `filter`, and friends. See the recommended import
@@ -234,7 +234,7 @@ patterns below.
 ## Choosing a value type
 
 The value parameter `v` in `Alg v b` / `Journal n v b` is selectable. Pick per
-workload. The bare `Double` is the default; `ExchangeAlgebra.Value` adds two
+workload. The bare `Double` is the default; `ExchangeAlgebra.Algebra.Value` adds two
 `newtype` money types — `MoneyDouble` (fast, FP) and `MoneyDecimal` (exact).
 
 | | `Double` (default) | `MoneyDouble` (`…Value`) | `MoneyDecimal` (`…Value`) |
@@ -250,10 +250,13 @@ workload. The bare `Double` is the default; `ExchangeAlgebra.Value` adds two
 | Typical use | numeric methods (Leontief inverse, optimization), quick ABM | ABM where you want a *typed* money value distinct from raw `Double` | audited ledgers, bookkeeping, anywhere a total must be reproducible |
 
 ```haskell
-import ExchangeAlgebra.Value (MoneyDecimal)        -- or MoneyDouble
-type Ledger = Journal Term MoneyDecimal (HatBase AccountTitles)
-entry = 10.5 :@ Hat:<Cash .+ 2 :@ Not:<Sales   -- numeric literals work directly
+import ExchangeAlgebra
+
+entry :: Alg MoneyDecimal (HatBase AccountTitles)
+entry = 10.5 .@ Not :< Cash .+ 10.5 .@ Not :< Sales
 ```
+
+Tested with exchangealgebra-0.5.3.1 on 2026-10-29 (0.6.0.0 development API).
 
 **FP vs exact, made concrete (measured).** In the bundled `fixed-price-io`, the same
 stock value matches both types where it lands on an exactly-representable result
@@ -334,17 +337,27 @@ The multi-posting representation and its cache fields live in the exposed
 ### Simple single-period bookkeeping
 
 ```haskell
-import ExchangeAlgebra                          -- Algebra-layer umbrella
+import ExchangeAlgebra
 
+main :: IO ()
 main = do
-    let e = 100 :@ Hat :< Cash .+ 100 :@ Not :< Sales
-    putStr (showBS e)
+    let entry = 100 .@ Not :< Cash .+ 100 .@ Not :< Sales
+            :: Alg MoneyDecimal (HatBase AccountTitles)
+        context = jcciSecondGradeContext Standalone
+    case present context BeforeClosing entry of
+        Left issues -> print issues
+        Right statements ->
+            print (financialStatementRows [CurrentAssetsSection, RevenueSection] statements)
 ```
+
+Tested with exchangealgebra-0.5.3.1 on 2026-10-29 (0.6.0.0 development API).
 
 ### Journal-based work (multi-period, notes, simulation)
 
 ```haskell
-import           ExchangeAlgebra.Journal        -- pulls in the type classes and the Journal API
+import           ExchangeAlgebra.Journal
+import           ExchangeAlgebra.Accounting.Account
+import           ExchangeAlgebra.Accounting.Exchange
 import qualified ExchangeAlgebra.Algebra           as EA
 import qualified ExchangeAlgebra.Journal           as EJ
 import qualified ExchangeAlgebra.Accounting.Transfer as Transfer
@@ -359,8 +372,8 @@ Algebra layer in as `EA` qualified is the idiomatic style for this library.**
 
 ### Modules to import directly (not re-exported by the umbrellas)
 
-`ExchangeAlgebra.Bookkeeping`, `ExchangeAlgebra.Simulate.Lite`,
-`ExchangeAlgebra.Simulate.Network`, and `ExchangeAlgebra.Simulate.Policy` are **by design
+`ExchangeAlgebra.Accounting.Entries`, `ExchangeAlgebra.Simulate.Lite`,
+`ExchangeAlgebra.Simulation.Network`, and `ExchangeAlgebra.Simulate.Policy` are **by design
 imported directly** rather than re-exported from the `ExchangeAlgebra` umbrella. They
 introduce names that would otherwise collide with the Algebra layer (or with one another),
 so the package keeps them off the umbrella and expects an explicit (usually qualified)
@@ -368,7 +381,7 @@ import:
 
 ```haskell
 import           ExchangeAlgebra
-import qualified ExchangeAlgebra.Bookkeeping     as BK
+import qualified ExchangeAlgebra.Accounting.Entries     as BK
 import qualified ExchangeAlgebra.Simulate.Lite   as Lite
 ```
 

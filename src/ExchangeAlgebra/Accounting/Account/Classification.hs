@@ -17,9 +17,8 @@ module ExchangeAlgebra.Accounting.Account.Classification
 import Control.DeepSeq (NFData(..))
 
 -- | Account division (financial-statement classification). The
--- 'ExchangeAlgebra.Algebra.Base.AccountBase'
--- correspondence instance lives in "ExchangeAlgebra.Algebra.Base" (the class's
--- home module).
+-- 'ExchangeAlgebra.Accounting.Exchange.AccountBase' correspondence instance
+-- lives in "ExchangeAlgebra.Accounting.Exchange" (the class's home module).
 data AccountDivision = Assets       -- ^ Assets
                      | Equity       -- ^ Equity
                      | Liability    -- ^ Liability

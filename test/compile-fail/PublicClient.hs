@@ -9,7 +9,7 @@ import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 import ExchangeAlgebra.Journal.Core (Journal, (.|))
 import ExchangeAlgebra.Accounting.Adjustment (BasisPoints, basisPoints)
 import ExchangeAlgebra.IO.Input.Admission
-import ExchangeAlgebra.Algebra.Base (AccountTitles(..))
+import ExchangeAlgebra.Accounting.Account (AccountTitles(..))
 
 -- The same installed-package environment must accept a complete public path.
 acceptedLedger :: Either String (Journal String MoneyDecimal (HatBase AccountTitles))

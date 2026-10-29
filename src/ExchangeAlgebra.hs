@@ -18,14 +18,14 @@
 
     == Quick start
 
-    This top-level module is the Algebra-layer umbrella: it re-exports
-    "ExchangeAlgebra.Algebra", selected coordinate rules and closing operations,
-    "ExchangeAlgebra.Accounting.Transfer",
-    "ExchangeAlgebra.IO.Output.Statements", and "ExchangeAlgebra.Value". The transfer names
-    '.->', '|%', 'Relabel' and 'transferEntries' are the accounting transfer of
-    "ExchangeAlgebra.Accounting.Transfer"; import generic per-posting rules from
-    "ExchangeAlgebra.Algebra.Transfer" qualified. It is the
-    recommended entry point for simple single-period bookkeeping:
+    This umbrella exports named selections of the generic Algebra API,
+    account titles, classifications and registry metadata, accounting exchange
+    operations, transfers and closing, trial-balance balances and findings,
+    financial-statement presentation, CSV and bookkeeping output, and value types.
+    Start with this module for single-period bookkeeping. The transfer names
+    '.->', '|%', 'Relabel' and 'transferEntries' belong to
+    "ExchangeAlgebra.Accounting.Transfer"; import generic coordinate rules from
+    "ExchangeAlgebra.Algebra.Transfer" qualified.
 
     > import ExchangeAlgebra
     >
@@ -37,65 +37,47 @@
     == Choosing the value type (@v@ in @Alg v b@)
 
     * 'Prelude.Double' — fast IEEE-754; fine for simulations and quick work.
-    * 'ExchangeAlgebra.Value.MoneyDouble' — same speed, but a dedicated money
+    * t'ExchangeAlgebra.Algebra.Value.MoneyDouble' — same speed, but a dedicated money
       newtype so a ledger value cannot be confused with a raw coefficient.
-    * t'ExchangeAlgebra.Value.MoneyDecimal' — exact decimal; construction-order
+    * t'ExchangeAlgebra.Algebra.Value.MoneyDecimal' — exact decimal; construction-order
       independent totals. Use for audited\/deterministic ledgers.
 
     For multi-period simulation or metadata-aware journals (notes, axes),
-    switch to the Journal layer. The two umbrellas export overlapping
-    names (@sigma@, @fromList@, @map@, @filter@, …), so Journal-centric
-    code should use qualified imports for the Algebra layer:
-
-    > import           ExchangeAlgebra.Journal          -- umbrella + type classes
-    > import qualified ExchangeAlgebra.Algebra          as EA
-    > import qualified ExchangeAlgebra.Journal          as EJ
-    > import qualified ExchangeAlgebra.Accounting.Transfer as Transfer
-    > import qualified ExchangeAlgebra.Accounting.Closing  as Closing
-
-    == Modules to import directly (not re-exported here)
-
-    This umbrella intentionally re-exports only the Algebra-layer modules
-    listed above. The following modules are __designed to be imported
-    directly__ and are deliberately /not/ re-exported from @ExchangeAlgebra@,
-    because they introduce names that would collide with the Algebra layer
-    (or with each other) and are better used under a qualified import:
-
-    * "ExchangeAlgebra.Accounting.Entries" — double-entry adjusting\/closing entries.
-    * "ExchangeAlgebra.Accounting.Consolidation" — atomic consolidation
-      adjustments, source provenance, and cross-statement linkage validation.
-    * "ExchangeAlgebra.Accounting.TrialBalance.Validation" — trial-balance findings,
-      reclassification instructions, and the policy-controlled reporting gate.
-    * "ExchangeAlgebra.Accounting.Statements.Metric" — typed, read-only derived metrics
-      that do not add account-basis coordinates.
-    * "ExchangeAlgebra.Accounting.Statements.Group" — reusable gross, deduction, and net
-      presentation groups for contra accounts.
-    * "ExchangeAlgebra.Accounting.Statements.Presentation" — context-sensitive JGAAP
-      transformation from validated trial balances to financial statements.
-    * "ExchangeAlgebra.IO.Input.Admission" — accounting-integrity checks of
-      untrusted journals and comparison with independent records.
-    * "ExchangeAlgebra.Simulate" — the classic simulation engine. /(Removed
-      from this umbrella in 0.5.0.0: it exports very generic names —
-      @copy@, @modify@, @update@, @initialize@, @normal@, … — that polluted
-      the bookkeeping namespace.)/
-    * "ExchangeAlgebra.Simulate.Lite" — the lightweight simulation front-end.
-    * "ExchangeAlgebra.Simulation.Network" — trade-network generators.
-    * "ExchangeAlgebra.Simulate.Policy" — ledger\/spill policy configuration.
-    * "ExchangeAlgebra.Simulation.Optimize" — pluggable optimization solvers
-      ("ExchangeAlgebra.Simulation.Optimize.Annealing" \/ "ExchangeAlgebra.Simulation.Optimize.GA");
-      generic names (@optimize@, @Config@, ...) best used qualified.
-
-    Import them explicitly when you need them, e.g.:
+    import "ExchangeAlgebra.Journal" qualified to avoid overlapping names
+    such as @sigma@, @fromList@, @map@ and @filter@:
 
     > import           ExchangeAlgebra
-    > import qualified ExchangeAlgebra.Accounting.Entries     as BK
-    > import           ExchangeAlgebra.Simulate          -- simulation engine
-    > import qualified ExchangeAlgebra.Simulate.Lite   as Lite
+    > import qualified ExchangeAlgebra.Journal as Journal
+    >
+    > journal :: Journal.Journal String Double (HatBase AccountTitles)
+    > journal = (100 .@ Not :< Cash .+ 100 .@ Not :< Sales) Journal..| "sale"
+
+    == Modules to import directly
+
+    * "ExchangeAlgebra.Journal" — note-bearing postings and journal operations.
+    * "ExchangeAlgebra.Simulation.Output" — @writeTermIO@ and @writeIOMatrix@.
+    * "ExchangeAlgebra.Simulate.Spill" — spill writers, checked readers,
+      @restoreJournalFromBinarySpill@ and @restoreJournalFromBinarySpillChecked@.
+    * "ExchangeAlgebra.Accounting.Statements.Presentation" — detailed presentation
+      configuration beyond t'ReportingContext', t'ReportingScope' and
+      'jcciSecondGradeContext'.
+    * "ExchangeAlgebra.Accounting.Statements.Group" and
+      "ExchangeAlgebra.Accounting.Statements.Metric" — presentation groups,
+      subtotal definitions and derived metrics.
+    * "ExchangeAlgebra.Accounting.Entries" — adjusting and closing entries.
+    * "ExchangeAlgebra.Accounting.Consolidation" — consolidation adjustments
+      and provenance validation.
+    * "ExchangeAlgebra.IO.Input" and "ExchangeAlgebra.IO.Input.Admission" —
+      external input conversion and admission checks.
+    * "ExchangeAlgebra.Simulate.Engine", "ExchangeAlgebra.Simulate.Lite",
+      "ExchangeAlgebra.Simulate.Policy" and "ExchangeAlgebra.Simulation.Network" —
+      simulation protocols, ledger policies and trade networks.
+    * "ExchangeAlgebra.Simulation.Optimize" — optimization solvers.
 
     == Full examples
 
-    Runnable examples (elementary bookkeeping, ripple-effect simulations,
-    a CGE model) live in the repository, not on Hackage:
+    Runnable examples (elementary bookkeeping and fixed-price simulations) live
+    in the repository, not on Hackage:
 
     <https://github.com/yakagika/ExchangeAlgebra/tree/master/examples>
 

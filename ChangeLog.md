@@ -360,10 +360,9 @@
     `ExchangeAlgebra.Algebra.Base.Account.JcciAliases`, and
     `ExchangeAlgebra.Accounting.PostingPolicy` →
     `ExchangeAlgebra.Accounting.Account`.
-- `ExchangeAlgebra.Algebra.Base`, `ExchangeAlgebra.Algebra.Internal`,
-  `ExchangeAlgebra.Algebra`, `ExchangeAlgebra.Journal`, and the root module keep
-  their current export lists in this release line, except for the accounting
-  transfer changes and the removals listed here.
+- The accounting export changes in `Algebra.Base`, `Algebra.Internal`,
+  `Algebra`, `Journal`, and the root module are listed under
+  **Breaking changes without a compatibility shim**.
 - `ExchangeAlgebra.Algebra.Core` (the generic `Alg` operations) and
   `ExchangeAlgebra.Algebra.Posting` are new public entry points.
   `ExchangeAlgebra.Posting` → `ExchangeAlgebra.Algebra.Posting`. `projNorm`
@@ -407,6 +406,49 @@
   engine, `Policy`, `Spill`, `Random`, `Lite`, and `Visualize` keep their
   `Simulate.*` names.
 
+### Breaking changes without a compatibility shim
+
+- `ExchangeAlgebra.Algebra`, `ExchangeAlgebra.Algebra.Base`,
+  `ExchangeAlgebra.Algebra.Internal`, and `ExchangeAlgebra.Journal` no longer
+  re-export accounting names. Add imports from these owners; the values and
+  types are unchanged:
+  - `ExchangeAlgebra.Accounting.Account`: `AccountTitles(..)`; classification
+    types `AccountDivision`, `Side`, `ClosingRule`, `FixedCurrent`, `AccountRole`,
+    `PostingCapability`, `DivisionSemantics`, `HomeSideSemantics`, and
+    `ReportingEligibility`; registry types `AccountSpec`, `AccountSemantics`
+    and functions `accountAliases`, `accountSpec`, `accountSemantics`,
+    `accountSpecMap`, `concreteAccountTitles`, `classifyAccountContra`,
+    `accountDescriptions`; and `PIMO(..)`, `switchSide`, `defaultSide`,
+    `classifyAccountDivision`, `pimoFromDivision`, `pimoFlip`.
+  - `ExchangeAlgebra.Accounting.Exchange`: `ExBaseClass(..)`, `AccountBase(..)`,
+    `Exchange(..)` (`decL`, `decR`, `decP`, `decM`, `balance`, `diffRL`,
+    `balanceWithin`, `diffRLWithin`) and the account projections `projCredit`,
+    `projDebit`, `projByAccountTitle`, `projCurrentAssets`, `projFixedAssets`,
+    `projDeferredAssets`, `projCurrentLiability`, `projFixedLiability`,
+    `projCapitalStock`, `projContraAssets`, `projContra`.
+  Replace qualified uses such as `EA.balance` with the corresponding name from
+  a qualified `Accounting.Exchange` import. `import ExchangeAlgebra` still
+  supplies all these accounting names.
+- `ExchangeAlgebra.Algebra.Transfer` and `ExchangeAlgebra.Journal.Transfer`
+  replace their contents under the same module names. See the opening
+  paragraph and per-name migrations in **Removed**.
+- `ExchangeAlgebra` now uses an explicit list of exported names. Account
+  vocabulary, exchange operations, transfers, closing, bookkeeping output,
+  and value types remain available. `writeTermIO`, `writeIOMatrix`,
+  `restoreJournalFromBinarySpill`, and `restoreJournalFromBinarySpillChecked`
+  require the imports listed in **Removed**. The root now also exports
+  trial-balance balances and findings (`AccountBalance(..)`, `accountBalances`,
+  `balanceFor`, `balanceSide`, `balanceAmount`, `TrialBalanceStage(..)`,
+  `TrialBalanceInput(..)`, `ReclassificationRule(..)`, `TBFinding(..)`,
+  `trialBalanceFindings`), financial-statement presentation
+  (`ReportingContext(..)`, `ReportingScope(..)`, `jcciSecondGradeContext`,
+  `FinancialStatements(..)`, `StatementSection(..)`, `StatementLine(..)`,
+  `PresentationIssue(..)`, `present`), and output (`StatementRowsError(..)`,
+  `financialStatementRows`, `writeFinancialStatements`).
+
+The same module names are used by the new contents, so compatibility shims
+cannot retain the old export surfaces under those names.
+
 ### Removed
 
 In 0.6.0.0, `ExchangeAlgebra.Algebra.Transfer` and
@@ -415,6 +457,20 @@ contents with generic coordinate transfers and note-aware carry operations,
 respectively. The old functions rewrote postings; the replacement transfer
 and closing functions return additional entries to add with `(.+)`, preserving
 the original postings.
+
+- `ExchangeAlgebra.Foundation` is removed. Import `ExchangeAlgebra.Algebra`;
+  it provides all the former foundation names.
+- The public `nearlyEqScaled` helper is removed; it has no callers in `src`.
+  Use `isNearlyNum` for public value comparisons or `Tolerance` with the
+  operations that accept an explicit tolerance.
+- `writeTermIO` is removed from `ExchangeAlgebra`. Import it from
+  `ExchangeAlgebra.Simulation.Output`.
+- `writeIOMatrix` is removed from `ExchangeAlgebra`. Import it from
+  `ExchangeAlgebra.Simulation.Output`.
+- `restoreJournalFromBinarySpill` is removed from `ExchangeAlgebra`. Import
+  it from `ExchangeAlgebra.Simulate.Spill`.
+- `restoreJournalFromBinarySpillChecked` is removed from `ExchangeAlgebra`.
+  Import it from `ExchangeAlgebra.Simulate.Spill`.
 
 - `TransTable` is removed. Use `Accounting.Transfer.TransferTable` for
   accounting transfers or `Algebra.Transfer.TransferRules` for coordinates.

@@ -55,8 +55,11 @@ import           Data.Word                (Word64)
 import qualified Data.Set                 as Set
 import qualified Data.Text                as T
 
-import           ExchangeAlgebra.Journal  -- constructors / operators: :@ :< .+ .| Hat Not Cash ...
+import           ExchangeAlgebra.Journal  -- journal constructors and operators
 import qualified ExchangeAlgebra.Algebra  as EA
+import           ExchangeAlgebra.Accounting.Account
+import qualified ExchangeAlgebra.Accounting.Account as Account
+import qualified ExchangeAlgebra.Accounting.Exchange as Accounting
 import qualified ExchangeAlgebra.Algebra.Transfer as Rule (TransferApplyError)
 import qualified ExchangeAlgebra.Accounting.Closing as Closing
 import qualified ExchangeAlgebra.IO.Input as Checked
@@ -170,7 +173,7 @@ mkTrialAlg s =
       ]
 
 -- OLD post-closing-trial-balance row builder: the per-title O(a*s) shape that
--- R6 removed (one 'EA.projByAccountTitle' filter scan per title). Kept here
+-- R6 removed (one 'Accounting.projByAccountTitle' filter scan per title). Kept here
 -- purely as the benchmark baseline; output matches the library's new rows.
 oldPostClosingRows :: A -> [[T.Text]]
 oldPostClosingRows alg =
@@ -179,26 +182,26 @@ oldPostClosingRows alg =
     header = [T.pack "Debit", T.pack "Account Title", T.pack "Credit"]
     titles = filter isReal
            $ Set.toList . Set.fromList
-           $ Prelude.map (EA.getAccountTitle . EA._hatBase)
+           $ Prelude.map (Accounting.getAccountTitle . EA._hatBase)
            $ EA.toList alg
-    isReal t = let d = EA.classifyAccountDivision t
-               in d == EA.Assets || d == EA.Liability || d == EA.Equity
+    isReal t = let d = Account.classifyAccountDivision t
+               in d == Account.Assets || d == Account.Liability || d == Account.Equity
     (bodyRows, dT, cT) = foldl' step ([], 0, 0) titles
     step (rows, dt, ct) t =
-        let (side, mag) = EA.diffRL (EA.projByAccountTitle t alg)
+        let (side, mag) = Accounting.diffRL (Accounting.projByAccountTitle t alg)
             (dCell, cCell) = sideCells (side, mag)
             (dt', ct') = case side of
-                EA.Debit  | mag /= 0 -> (dt + mag, ct)
-                EA.Credit | mag /= 0 -> (dt, ct + mag)
+                Account.Debit  | mag /= 0 -> (dt + mag, ct)
+                Account.Credit | mag /= 0 -> (dt, ct + mag)
                 _                    -> (dt, ct)
             row = [dCell, tshow t, cCell]
         in (rows ++ [row], dt', ct')
     sideCells (side, mag)
         | mag == 0  = (T.empty, T.empty)
         | otherwise = case side of
-            EA.Debit  -> (tshow mag, T.empty)
-            EA.Credit -> (T.empty, tshow mag)
-            EA.Side   -> (T.empty, T.empty)
+            Account.Debit  -> (tshow mag, T.empty)
+            Account.Credit -> (T.empty, tshow mag)
+            Account.Side   -> (T.empty, T.empty)
     totalRow = [tshow dT, T.pack "Total", tshow cT]
 
 -- | Convert a benchmark value to a text cell.
@@ -489,9 +492,9 @@ gateShared family decimal =
         , ("norm", \a ->
             [ bench "normal" $ nf norm a ])
         , ("balance", \a ->
-            [ bench "normal" $ nf balance a ])
+            [ bench "normal" $ nf Accounting.balance a ])
         , ("diffRL", \a ->
-            [ bench "normal" $ nf diffRL a ])
+            [ bench "normal" $ nf Accounting.diffRL a ])
         , ("balanceMapBy", \a ->
             [ bench "normal" $ nf (EA.balanceMapBy gateOwner) a ])
         , ("netPairMapBy", \a ->

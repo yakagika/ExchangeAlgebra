@@ -13,9 +13,11 @@ import           System.Directory (createDirectoryIfMissing)
 import           System.Environment (getArgs)
 import           System.FilePath ((</>))
 
-import           ExchangeAlgebra.Algebra.Base
+import           ExchangeAlgebra.Algebra.Base (HatBase(..), Hat(..))
+import           ExchangeAlgebra.Accounting.Account
+import           ExchangeAlgebra.Accounting.Exchange
 import           ExchangeAlgebra.Accounting.Closing (ClosingSide(..), closingSide)
-import qualified ExchangeAlgebra.Algebra.Base.Account.Registry as Registry
+import qualified ExchangeAlgebra.Accounting.Account as Registry
 import qualified ExchangeAlgebra.IO.Input.Assist as Assist
 
 -- | Posting coordinates used for the frozen side classification.

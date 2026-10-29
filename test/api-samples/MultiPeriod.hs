@@ -4,12 +4,12 @@ import qualified ExchangeAlgebra.Journal as EJ
 import qualified ExchangeAlgebra.Journal.Transfer.Rule as Carry
 import ExchangeAlgebra.Journal ( Hat(..)
                                , HatBase((:<))
-                               , AccountTitles(..)
                                , (.@)
                                , (.+)
                                , (.|)
                                )
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
+import ExchangeAlgebra.Accounting.Account (AccountTitles(..))
 
 -- | One transaction before it receives its transaction and period note.
 type Entry = EA.Alg MoneyDecimal (HatBase AccountTitles)

@@ -37,8 +37,11 @@
 
     Numeric literals work without wrapping, because 'Num'/'Fractional' are derived:
 
-    > type Ledger = Journal Term MoneyDecimal (HatBase AccountTitles)
-    > entry = 10.5 .@ Hat:<Cash .+ 2 .@ Not:<Sales   -- 10.5 and 2 are MoneyDecimal literals
+    > import ExchangeAlgebra.Algebra
+    > import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
+    >
+    > entry :: Alg MoneyDecimal (HatBase CountUnit)
+    > entry = 10.5 .@ Hat :< Amount .+ 2 .@ Not :< Yen
 
     == Rounding
 

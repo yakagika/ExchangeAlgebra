@@ -2,6 +2,8 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 
+import ExchangeAlgebra.Accounting.Account
+import ExchangeAlgebra.Accounting.Exchange
 import ExchangeAlgebra.Journal
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 import Data.Time

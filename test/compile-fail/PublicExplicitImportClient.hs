@@ -7,7 +7,8 @@ import ExchangeAlgebra.IO.Input.Admission
     , admit
     , checkEvidence
     )
-import ExchangeAlgebra.Algebra.Base (HatBase, AccountTitles)
+import ExchangeAlgebra.Algebra.Base (HatBase)
+import ExchangeAlgebra.Accounting.Account (AccountTitles)
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 import ExchangeAlgebra.Journal.Core (Journal)
 

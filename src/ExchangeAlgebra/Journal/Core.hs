@@ -17,8 +17,8 @@
 --
 -- Import this module qualified alongside "ExchangeAlgebra.Algebra.Core" for
 -- generic operations. For accounts, also import "ExchangeAlgebra.Accounting.Account"
--- and "ExchangeAlgebra.Accounting.Exchange". The old "ExchangeAlgebra.Journal"
--- path re-exports the same Journal type and also exposes accounting operations.
+-- and "ExchangeAlgebra.Accounting.Exchange". "ExchangeAlgebra.Journal"
+-- re-exports the generic Journal API.
 module ExchangeAlgebra.Journal.Core ( Note(..)
                                     , HasTermAxis(..)
                                     , NoteAxisKey(..)

@@ -39,8 +39,8 @@
 -- Import "ExchangeAlgebra.Accounting.Account" for account titles and
 -- classifications, and this module for accounting operations. For generic
 -- operations, import "ExchangeAlgebra.Algebra.Core" and qualified
--- "ExchangeAlgebra.Journal.Core". The old "ExchangeAlgebra.Algebra" and
--- "ExchangeAlgebra.Journal" paths re-export the same accounting classes.
+-- "ExchangeAlgebra.Journal.Core". Accounting classes and projections are
+-- exported here, separately from the generic Algebra and Journal APIs.
 module ExchangeAlgebra.Accounting.Exchange ( ExBaseClass(..)
                                            , AccountBase(..)
                                            , Exchange(..)
