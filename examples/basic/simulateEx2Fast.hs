@@ -4,12 +4,14 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 
--- sim2fast: the MoneyDouble (fast IEEE-754) twin of `simulateEx2` (which stays
--- MoneyDecimal as the exact/audit demo). Same model and spill path; only the
--- ledger value type differs. This is the performance-roadmap baseline — the
--- value-type arithmetic cost that dominated the MoneyDecimal profile (~68%) is
--- gone here, so re-profiling this binary surfaces the *next* bottleneck
--- (structural ops / all-pairs / spill) that the parallel/F1 work targets.
+-- sim2fast: the larger version of `simulateEx1` (200 companies). It spills
+-- ledger chunks to binary files during the simulation and restores them
+-- afterwards. The ledger value type is MoneyDouble (fast IEEE-754). This is the
+-- performance-roadmap baseline: the value-type arithmetic cost that dominated
+-- the MoneyDecimal profile (~68%) is gone here, so re-profiling this binary
+-- surfaces the *next* bottleneck (structural ops / all-pairs / spill).
+-- The MoneyDecimal version (`simulateEx2`, the `sim2` executable) was removed
+-- in 0.6.0.0; tag v0.5.3.0 still builds it.
 -- See plans/in-progress/ROAD_MAP.md "MoneyDouble 基盤での再優先付け".
 
 import           ExchangeAlgebra.Journal
@@ -48,7 +50,7 @@ import           Data.Maybe (fromMaybe)
 -- * Benchmark scale knobs (env-configurable; defaults reproduce the example)
 --
 -- Let the end-to-end simulation be benchmarked at different scales without
--- recompiling, e.g. @EA_LASTC=1000 EA_LASTTERM=200 stack exec sim2@. This is an
+-- recompiling, e.g. @EA_LASTC=1000 EA_LASTTERM=200 stack exec sim2fast@. This is an
 -- example-local convenience (unsafePerformIO on a CAF); the library never reads
 -- the environment.
 ------------------------------------------------------------------
@@ -146,7 +148,7 @@ instance ExBaseClass HatBase2 where
     getAccountTitle (h :< (a, c, e, u)) = a
     setAccountTitle (h :< (a, c, e, u)) b = h :< (b, c, e, u)
 
--- Accounting value type is MoneyDouble (fast IEEE-754; NOT exact -- see simulateEx2 for the exact MoneyDecimal twin).
+-- Accounting value type is MoneyDouble (fast IEEE-754; NOT exact. Use MoneyDecimal when the ledger must be exact).
 -- ABM params / coefficients / random draws stay Double and convert (realToFrac)
 -- at the boundary where they enter the ledger; reported stock/profit convert back.
 type Transaction = EJ.Journal (EventName, Term) MoneyDouble HatBase2

@@ -96,12 +96,8 @@ executables:
     main:                simulateEx1.hs
     source-dirs:         basic
 
-  sim2:
-    <<: *exe-defaults
-    main:                simulateEx2.hs
-    source-dirs:         basic
-
-  # MoneyDouble (fast FP) twin of sim2, used as the performance-roadmap baseline.
+  # 200-company simulation with spill-to-disk on MoneyDouble (fast FP), used as
+  # the performance-roadmap baseline.
   sim2fast:
     <<: *exe-defaults
     main:                simulateEx2Fast.hs

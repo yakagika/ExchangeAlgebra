@@ -314,7 +314,7 @@ foldAppend = norm . foldl' (.+) (mempty :: J)
 -- The input alg is prebuilt in 'env' so only the query side is timed.
 ------------------------------------------------------------------
 
--- bench-local orphans, same shape as examples/basic/simulateEx2.hs
+-- bench-local orphans, same shape as examples/basic/simulateEx2Fast.hs
 instance Element Int where
     wildcard = -1
 instance BaseClass Int where

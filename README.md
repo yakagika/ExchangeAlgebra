@@ -261,7 +261,8 @@ stock value matches both types where it lands on an exactly-representable result
 in the last ULP once FP rounding accumulates over terms
 (`stock(t=100, c=6)`: `767.960563480499` under `MoneyDouble` vs
 `767.9605634804993` under `MoneyDecimal`). The cost of that exactness is real and
-was measured: in `sim2` (all-pairs purchases over a spill-to-disk ledger),
+was measured: in the 200-company model (all-pairs purchases over a spill-to-disk
+ledger; `sim2fast`, and `sim2`, its `MoneyDecimal` version removed in 0.6.0.0),
 `MoneyDecimal` ran **~5–7× slower** in wall-clock and used **~15% more memory**
 than `MoneyDouble` (consistent at `EA_LASTC`/`EA_LASTTERM` of 40/30 and 80/50 —
 e.g. 23.3 s → 4.4 s and 1.42 GB → 1.19 GB at 80/50). The boxed `Integer`-mantissa
@@ -412,7 +413,7 @@ disk; local measurements of that pattern reduced residency by about 15x. See the
 `LedgerPolicy` record-syntax example.
 
 A runnable end-to-end example (multi-scenario run with binary spill, `KeepRecentTerms`, and
-restore) is `examples/basic/simulateEx2.hs` (the `sim2` executable).
+restore) is `examples/basic/simulateEx2Fast.hs` (the `sim2fast` executable).
 
 ## A note on visualization
 
@@ -477,7 +478,7 @@ and its [README](https://github.com/yakagika/ExchangeAlgebra/blob/master/example
 stack build
 stack exec -- ebex1      # Introductory bookkeeping example
 stack exec -- sim1       # 100-term simulation (+ Python visualization)
-stack exec -- sim2       # spill-to-disk simulation (constant memory, binary spill + restore)
+stack exec -- sim2fast   # spill-to-disk simulation (constant memory, binary spill + restore)
 ```
 
 ## Documentation

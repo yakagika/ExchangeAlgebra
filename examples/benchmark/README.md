@@ -127,6 +127,6 @@ stack bench exchangealgebra-examples:bench-core \
 
 ## Roadmap follow-ups (not yet done)
 
-- Parameterize the `sim2` simulation scale (`lastC`) via CLI or environment
+- Parameterize the `sim2fast` simulation scale (`lastC`) via CLI or environment
   variable to benchmark end-to-end runs.
 - Wire a CI job to detect regressions automatically.

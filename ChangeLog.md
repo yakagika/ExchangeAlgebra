@@ -463,6 +463,12 @@ the original postings.
 
 - The standard CGE example (`cge`) is removed; it will move to the
   general-equilibrium repository.
+- The `sim2` example (`simulateEx2`) is removed. `sim2fast` runs the same
+  200-company model with spill-to-disk on `MoneyDouble`; use `MoneyDecimal` in
+  your own model when the ledger must be exact. Tag `v0.5.3.0` still builds
+  `sim2`. The examples directory now keeps only general examples, and each
+  research study publishes its models in a separate repository (see
+  `examples/README.md`).
 - `ExchangeAlgebra.Write` is removed. Import CSV serialization (`writeCSV`,
   `csvTranspose`) from `ExchangeAlgebra.IO.Output.Csv`; journals, account
   ledgers, trial balances, and worksheets from

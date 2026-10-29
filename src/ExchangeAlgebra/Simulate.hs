@@ -28,7 +28,7 @@
     with a 'SpillDeletePolicy' (@'KeepRecentTerms' n@ for a sliding window, or
     'DeleteSpilledChunk'), evict old terms so peak memory is independent of the
     term count. Spilled data is restored with 'readBinarySpillFile'. A runnable
-    example is @examples\/basic\/simulateEx2.hs@ (the @sim2@ executable).
+    example is @examples\/basic\/simulateEx2Fast.hs@ (the @sim2fast@ executable).
 
     == Application note
 

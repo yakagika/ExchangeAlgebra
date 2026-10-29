@@ -185,7 +185,7 @@ defaultLedgerPolicy = LedgerPolicy
 -- @runSimulationWithSpill@ from
 -- a t'LedgerPolicy', deriving the per-chunk extraction and the eviction range
 -- from the Note's term axis ('termOf'). This replaces the ~20 lines of
--- hand-written 'filterWithNote' plumbing (cf. @simulateEx2@) with a single call.
+-- hand-written 'filterWithNote' plumbing (cf. @simulateEx2Fast@) with a single call.
 --
 -- The caller supplies @spillEvery@ (the chunk size in terms) and two accessors
 -- for the world's ledger field: @readLedger@ reads the current ledger, and

@@ -27,7 +27,7 @@ EA 本体 `src/` は `library`. `examples/` は公開済みの `production` exam
 
 | 現状 | 中身 (subdir / `.hs`) | seed §4 の family / 移動候補 |
 |---|---|---|
-| `basic/` | `elementaryBookkeepingEx1-9.hs`, `simulateEx1.hs`, `simulateEx2.hs`, `simulateEx2Fast.hs` | `bookkeeping/` と `simulate/` へ分割 |
+| `basic/` | `elementaryBookkeepingEx1-9.hs`, `simulateEx1.hs`, `simulateEx2Fast.hs` | `bookkeeping/` と `simulate/` へ分割 |
 | `benchmark/` | `Bench.hs` | repo root `bench/` へ |
 | `deterministic/` | `ripple/{RippleEffect,ripple,rippleWithStock,rippleWithStockMultiSeeds}.hs` | 手法軸を外し `ripple/` へ |
 | `industrial/` | `industrialEx1.hs` | `industrial/` として適合 |

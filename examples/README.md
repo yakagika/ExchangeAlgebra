@@ -3,6 +3,23 @@
 A collection of runnable examples that demonstrate the `exchangealgebra` library.
 This sub-package is **not** published to Hackage; it ships only via this repository.
 
+## What belongs here
+
+This directory keeps only general examples, which show how to use the library
+without depending on any particular study:
+
+- teaching examples of introductory bookkeeping (`ebex1`–`ebex9`),
+- the simplest simulation model (`sim1`) and a larger model that exercises
+  spill-to-disk ledgers (`sim2fast`),
+- micro-benchmarks of the core operations (`benchmark/`).
+
+Models built for a particular research study do not live here. Each study
+publishes its models as a separate repository, which pins the `exchangealgebra`
+version the study used and carries its own reproduction instructions. The
+research examples that used to live here are listed under
+[Example catalog](#example-catalog), together with the tags that preserve their
+last version in this repository.
+
 ## Requirements
 
 - Same GHC / Stackage resolver as the main library (`lts-24.4`, GHC 9.10.2).
@@ -89,7 +106,7 @@ repository). Create the expected directories up front:
 mkdir -p examples/basic/result/csv                                        # ebex1, ebex2, ebex6, ebex7, ebex8, ebex9
 mkdir -p examples/basic/result/csv/simulateEx1                            # sim1 CSV
 mkdir -p examples/basic/result/fig/simulateEx1                            # sim1 PNG
-mkdir -p examples/basic/result/csv/simulateEx2                            # sim2 CSV
+mkdir -p examples/basic/result/csv/simulateEx2Fast                        # sim2fast CSV
 ```
 
 The generated artifacts (`examples/**/result/**`) are git-ignored and regenerated on every
@@ -104,13 +121,14 @@ Run the commands from the root of a full clone. The standalone
 | Example | Kind | Builds with | How to reproduce | Notes |
 |---|---|---|---|---|
 | `basic/elementaryBookkeepingEx*` | teaching | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0` | `git checkout v0.5.3.0 && cd examples && stack build` | Remains in the next major release, updated for its API. |
-| `basic/simulateEx1`, `simulateEx2`, `simulateEx2Fast` | research | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0`. SICE reproduction: commit `543e268` (`0.5.0.0` release). | `git checkout v0.5.3.0 && cd examples && stack build`<br>`git checkout 543e268 && cd examples && stack build` | SICE simulation examples. Planned for removal from HEAD in the next major release. |
+| `basic/simulateEx1`, `simulateEx2Fast` | simulation | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0`. SICE reproduction: commit `543e268` (`0.5.0.0` release). | `git checkout v0.5.3.0 && cd examples && stack build`<br>`git checkout 543e268 && cd examples && stack build` | Remain in the next major release as general simulation examples, updated for its API. `simulateEx2`, the `MoneyDecimal` version of `simulateEx2Fast`, is removed in the next major release; use the tag or commit in this row to build it. |
 | `benchmark/` | benchmark | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0` | `git checkout v0.5.3.0 && cd examples && stack build` | Remains in this repository. |
 
 ## Research using exchangealgebra
 
-Research reproduction materials will live at publication locations for each
-study. The repository's HEAD will retain teaching examples.
+Each study publishes its models and reproduction materials in its own
+repository (see [What belongs here](#what-belongs-here)). The repository's HEAD
+keeps only the general examples.
 
 | Research | EA version | Publication location |
 |---|---|---|
@@ -133,7 +151,7 @@ This catalog is generated from `family.yaml` files and the Cabal component
 stanzas. Run benchmark and harness components with their dedicated commands
 rather than `stack run`.
 
-### `basic/` — Introductory bookkeeping examples and small classic-engine simulations. The series progresses from journals and statements to multi-company simulations.
+### `basic/` — Introductory bookkeeping examples and the simplest classic-engine simulations. The series progresses from journals and statements to multi-company simulations.
 
 | executable | main | kind | notes |
 |---|---|---|---|
@@ -143,18 +161,17 @@ rather than `stack run`.
 | `ebex4` | `basic/elementaryBookkeepingEx4.hs` | executable | `Journal` carrying `Note = Day`, i.e. date-annotated entries |
 | `ebex5` | `basic/elementaryBookkeepingEx5.hs` | executable | Uses `sigma` to aggregate 100 companies |
 | `ebex6` | `basic/elementaryBookkeepingEx6.hs` | executable | Lecture ch.9-15: cash over/short, petty cash, bank overdraft, 3-account-method trade (with returns), advances, credit-card receivables, notes, electronically-recorded claims/obligations, sundry receivables/payables. Trial-balance CSV |
-| `ebex7` | `basic/elementaryBookkeepingEx7.hs` | executable | Lecture ch.16-18: bad debts / allowance for doubtful accounts (replenishment & reset methods), fixed-asset acquisition & disposal (gain/loss, indirect method), depreciation (indirect/direct, monthly proration). Uses `ExchangeAlgebra.Bookkeeping` builders |
+| `ebex7` | `basic/elementaryBookkeepingEx7.hs` | executable | Lecture ch.16-18: bad debts / allowance for doubtful accounts (replenishment & reset methods), fixed-asset acquisition & disposal (gain/loss, indirect method), depreciation (indirect/direct, monthly proration). Uses the closing-entry builders in `ExchangeAlgebra.Accounting.Entries` |
 | `ebex8` | `basic/elementaryBookkeepingEx8.hs` | executable | Lecture ch.19-23: share issuance, dividends + legal reserve, correction entries via `reversingEntry` (the seq audit trail is shown with `writeAccountOf`), the four deferral/accrual accounts + next-period reversal, consumption-tax & corporate-income-tax settlement |
-| `ebex9` | `basic/elementaryBookkeepingEx9.hs` | executable | Lecture ch.24-25: full accounting cycle showcase — period transactions → closing adjustments (COGS / depreciation / allowance / deferral) → 8-column worksheet (`writeWorksheet`) → income-summary closing → post-closing trial balance (`writePostClosingTrialBalance`) → B/S & P/L |
+| `ebex9` | `basic/elementaryBookkeepingEx9.hs` | executable | Lecture ch.24-25: full accounting cycle: period transactions → closing adjustments (COGS / depreciation / allowance / deferral) → 8-column worksheet (`writeWorksheet`) → income-summary closing → post-closing trial balance (`writePostClosingTrialBalance`) → B/S & P/L |
 | `sim1` | `basic/simulateEx1.hs` | executable | 100-term simulation (6 companies, input coefficients, Haskell + Python plots) |
-| `sim2` | `basic/simulateEx2.hs` | executable | A larger version of `sim1` (200 companies) with spill-to-disk |
-| `sim2fast` | `basic/simulateEx2Fast.hs` | executable | MoneyDouble (fast IEEE-754) twin of `sim2`, with the same model and spill path but a different ledger value type. |
+| `sim2fast` | `basic/simulateEx2Fast.hs` | executable | A larger version of `sim1` (200 companies) that spills ledger chunks to disk and restores them; uses the `MoneyDouble` (IEEE-754) value type |
 
 **Papers:** SICE Japanese paper
 
 **Ownership:** `dual-use`. **Methods:** deterministic, stochastic, classic-engine
 
-**Notes:** The bookkeeping sequence starts with chapter 3 journal and BS/PL output, then adds a time axis, custom currency units, dated notes, and sigma aggregation across 100 companies. Chapters 9-15 cover cash over/short, petty cash, overdrafts, trade returns, advances, cards, notes, and sundry balances; chapters 16-18 cover doubtful debts, fixed assets, and depreciation; chapters 19-23 cover shares, dividends, reserves, correction audit trails, accruals, deferrals, and tax; chapters 24-25 cover the full accounting cycle, worksheet, closing, and final statements. sim1 is a 100-term six-company model with plots; sim2 is a 200-company model with spill-to-disk; sim2fast is its fast-value comparison.
+**Notes:** The bookkeeping sequence starts with chapter 3 journal and BS/PL output, then adds a time axis, custom currency units, dated notes, and sigma aggregation across 100 companies. Chapters 9-15 cover cash over/short, petty cash, overdrafts, trade returns, advances, cards, notes, and sundry balances; chapters 16-18 cover doubtful debts, fixed assets, and depreciation; chapters 19-23 cover shares, dividends, reserves, correction audit trails, accruals, deferrals, and tax; chapters 24-25 cover the full accounting cycle, worksheet, closing, and final statements. sim1 is the simplest simulation model: 100 terms, six companies, with plots. sim2fast is a 200-company model with spill-to-disk.
 
 ### `benchmark/` — Criterion micro-benchmarks for core algebra and journal operations. They expose scaling behavior for construction, netting, projection, and journal workloads.
 
@@ -209,7 +226,7 @@ uv run --script examples/basic/visualize_simulateEx1.py
 
 ### Examples that do not need Python
 
-`ebex1`〜`ebex9` and `sim2` do not call any Python script, so they run fine without `uv`.
+`ebex1`〜`ebex9` and `sim2fast` do not call any Python script, so they run fine without `uv`.
 
 ## Troubleshooting
 

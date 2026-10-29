@@ -5,10 +5,6 @@ examples/basic/simulateEx1.hs: instance BaseClass Company
 examples/basic/simulateEx1.hs: instance Element Company
 examples/basic/simulateEx1.hs: instance ExBaseClass HatBase2
 examples/basic/simulateEx1.hs: instance StateTime Term
-examples/basic/simulateEx2.hs: instance BaseClass Company
-examples/basic/simulateEx2.hs: instance Element Company
-examples/basic/simulateEx2.hs: instance ExBaseClass HatBase2
-examples/basic/simulateEx2.hs: instance StateTime Term
 examples/basic/simulateEx2Fast.hs: instance BaseClass Company
 examples/basic/simulateEx2Fast.hs: instance Element Company
 examples/basic/simulateEx2Fast.hs: instance ExBaseClass HatBase2
