@@ -63,7 +63,7 @@ import qualified ExchangeAlgebra.IO.Input as Checked
 import qualified ExchangeAlgebra.Journal  as EJ
 import qualified ExchangeAlgebra.Accounting.Statements.Metric as Metric
 import qualified ExchangeAlgebra.Accounting.TrialBalance.Balance as TrialBalance
-import qualified ExchangeAlgebra.Write     as EW
+import qualified ExchangeAlgebra.IO.Output.Statements     as EW
 import qualified ExchangeAlgebra.Algebra.Posting as LP
 
 -- | Complete benchmark coordinates for owner and two synthetic dimensions.
@@ -191,15 +191,19 @@ oldPostClosingRows alg =
                 EA.Debit  | mag /= 0 -> (dt + mag, ct)
                 EA.Credit | mag /= 0 -> (dt, ct + mag)
                 _                    -> (dt, ct)
-            row = [dCell, EW.tshow t, cCell]
+            row = [dCell, tshow t, cCell]
         in (rows ++ [row], dt', ct')
     sideCells (side, mag)
         | mag == 0  = (T.empty, T.empty)
         | otherwise = case side of
-            EA.Debit  -> (EW.tshow mag, T.empty)
-            EA.Credit -> (T.empty, EW.tshow mag)
+            EA.Debit  -> (tshow mag, T.empty)
+            EA.Credit -> (T.empty, tshow mag)
             EA.Side   -> (T.empty, T.empty)
-    totalRow = [EW.tshow dT, T.pack "Total", EW.tshow cT]
+    totalRow = [tshow dT, T.pack "Total", tshow cT]
+
+-- | Convert a benchmark value to a text cell.
+tshow :: Show a => a -> T.Text
+tshow = T.pack . show
 
 -- Force the produced rows to normal form (text cells fully realized).
 forceRows :: [[T.Text]] -> Int

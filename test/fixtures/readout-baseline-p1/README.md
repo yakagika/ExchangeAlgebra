@@ -20,8 +20,7 @@ they do not assert that the current arithmetic is the intended 0.6 behavior.
 
 The `alg-*` files cover `bar`, `norm`, `balance`, `diffRL`, `compress`,
 `balanceMapBy`, `netPairMapBy`, `postFromNetBy`, `projNetNorm`, `balanceBy`,
-`Pair.compare`, `closingEntries`, `accountBalances`, the public `bsRows` and
-`plRows` outputs from `Write`, `checkedEntry`,
+`Pair.compare`, `closingEntries`, `accountBalances`, `checkedEntry`,
 `trialBalanceFindings`, and `periodResultOfAlg`. The
 `journal-*` files cover `bar`, `norm`, `projWithBaseNetNorm`,
 `projWithNoteBaseNetNorm`, `compress`, and `closingEntries`. The Double journal
@@ -29,7 +28,7 @@ files also cover `carryEntries` and `carryBefore`; those APIs accept Double
 journals only. The `f-exp` file records `SumOutOfRange` from both carry APIs
 when notes 2 and 3 are selected together.
 
-`Write.accountGrossTotals` is internal and cannot be called through the public
+`IO.Output.Statements.accountGrossTotals` is internal and cannot be called through the public
 API. The `f-exp` series omits `postFromNetBy`: its summed Sales bucket is
 infinite, and the callback's posting constructor rejects that derived value.
 This is a current output-domain limit, not a change to the input series.

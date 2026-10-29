@@ -54,7 +54,6 @@ Convert = "IO"
 Assist = "IO"
 "Render.Csv" = "IO"
 "Render.Bookkeeping" = "IO"
-Write = "IO"
 IO = "IO"
 "IO.Input" = "IO"
 "IO.Input.Conversion" = "IO"
@@ -102,22 +101,10 @@ reason = "Legacy Base re-exports account entities during P2."
 remove_by = "P4"
 
 [[exceptions]]
-from = "IO.Output.Csv"
-to = "Write"
-reason = "CSV implementation remains in Write during P2."
-remove_by = "P4"
-
-[[exceptions]]
 from = "Render.Simulation"
 to = "Simulation.Output"
 reason = "Legacy rendering namespace re-exports simulation CSV output during 0.6."
 remove_by = "0.7.0.0"
-
-[[exceptions]]
-from = "IO.Output.Statements"
-to = "Write"
-reason = "Bookkeeping output implementation remains in Write during P2."
-remove_by = "P4"
 
 [[exceptions]]
 from = "Algebra.Base"
@@ -178,12 +165,6 @@ from = "Journal.Transfer.Rule"
 to = "Accounting.Closing"
 reason = "Legacy journal closing adapter delegates to the closing owner."
 remove_by = "P4"
-
-[[exceptions]]
-from = "Write"
-to = "Simulate.Spill"
-reason = "Legacy output writer depends on simulation spill records."
-remove_by = "0.6.0.0"
 
 [[exceptions]]
 from = "Algebra.Transfer.Rule"

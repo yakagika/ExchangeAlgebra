@@ -1,11 +1,7 @@
 -- | Compile-time lock for the public names exported by
 -- "ExchangeAlgebra.Render.Bookkeeping".
 module Surface.Render.Bookkeeping
-    ( writeBS
-    , bsRows
-    , writePL
-    , plRows
-    , writeJournal
+    ( writeJournal
     , journalRows
     , writeAccountOf
     , accountLedgerRows
@@ -17,17 +13,10 @@ module Surface.Render.Bookkeeping
     , worksheetRows
     , writePostClosingTrialBalance
     , postClosingTrialBalanceRows
-    , balanceOf
-    , tshow
-    , toSameLength
     ) where
 
 import           ExchangeAlgebra.Render.Bookkeeping
-                     ( writeBS
-                     , bsRows
-                     , writePL
-                     , plRows
-                     , writeJournal
+                     ( writeJournal
                      , journalRows
                      , writeAccountOf
                      , accountLedgerRows
@@ -39,8 +28,5 @@ import           ExchangeAlgebra.Render.Bookkeeping
                      , worksheetRows
                      , writePostClosingTrialBalance
                      , postClosingTrialBalanceRows
-                     , balanceOf
-                     , tshow
-                     , toSameLength
                      )
 

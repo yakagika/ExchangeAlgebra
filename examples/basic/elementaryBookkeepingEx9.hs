@@ -8,7 +8,7 @@
     3. 8 桁精算表 (writeWorksheet) — 決算整理前残高 + 整理仕訳
     4. 決算振替 (incomeSummaryAccount → netIncomeTransfer)
     5. 繰越試算表 (writePostClosingTrialBalance)
-    6. B/S・P/L (writeBS / writePL)
+    6. B/S・P/L (present → writeFinancialStatements)
 
   新 API のフルショーケース。構築は '.@', 集約は bar/norm を明示。
 -}
@@ -16,6 +16,9 @@
 import qualified ExchangeAlgebra            as EA
 import           ExchangeAlgebra
 import           ExchangeAlgebra.Accounting.Entries
+import qualified ExchangeAlgebra.Accounting.Statements as Statements
+import qualified ExchangeAlgebra.Accounting.TrialBalance as TrialBalance
+import ExchangeAlgebra.IO.Output.Statements (writeFinancialStatements)
 import qualified Data.Text                  as T
 import           System.Exit                (exitFailure)
 import           Control.Monad              (unless)
@@ -208,9 +211,26 @@ main = do
     putStrLn "wrote: examples/basic/result/csv/ebex9_post_closing_tb.csv (繰越試算表)"
 
     -- 6. B/S・P/L
-    writeBS "examples/basic/result/csv/ebex9_bs.csv" afterClosing
+    case Statements.present (Statements.jcciSecondGradeContext Statements.Standalone)
+            TrialBalance.AfterClosing afterClosing of
+        Left issues -> fail (show issues)
+        Right statements -> do
+            result <- writeFinancialStatements "examples/basic/result/csv/ebex9_bs.csv"
+                [ Statements.CurrentAssetsSection
+                , Statements.NoncurrentAssetsSection
+                , Statements.CurrentLiabilitiesSection
+                , Statements.NoncurrentLiabilitiesSection
+                , Statements.EquitySection
+                ] statements
+            either (fail . show) pure result
     putStrLn "wrote: examples/basic/result/csv/ebex9_bs.csv (貸借対照表)"
-    writePL "examples/basic/result/csv/ebex9_pl.csv" postAdjustment
+    case Statements.present (Statements.jcciSecondGradeContext Statements.Standalone)
+            TrialBalance.BeforeClosing postAdjustment of
+        Left issues -> fail (show issues)
+        Right statements -> do
+            result <- writeFinancialStatements "examples/basic/result/csv/ebex9_pl.csv"
+                [Statements.RevenueSection, Statements.ExpenseSection] statements
+            either (fail . show) pure result
     putStrLn "wrote: examples/basic/result/csv/ebex9_pl.csv (損益計算書)"
     putStrLn ""
 

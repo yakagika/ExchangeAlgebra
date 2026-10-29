@@ -508,7 +508,7 @@ projCapitalStock  = (filter (\x -> (whatDiv . _hatBase) x == Equity))
 -- figure is @gross - contra balance@, e.g.
 -- @norm (projCurrentAssets x) - norm ('ExchangeAlgebra.Algebra.bar' (projContraAssets x))@
 -- when the contra accounts hold normal (credit) balances; deduction\/netting
--- /presentation/ policy is the Write side's job (Land 3).
+-- /presentation/ policy is the ExchangeAlgebra.IO.Output module's job (Land 3).
 --
 -- NOTE: this selects the Assets division only. In the current registry every
 -- contra account is an asset, but the type class does not forbid contra
@@ -517,7 +517,7 @@ projCapitalStock  = (filter (\x -> (whatDiv . _hatBase) x == Equity))
 -- with the generic 'projContra'. Consumers that need a
 -- net asset figure combine the gross @proj*Assets@ family with this
 -- projection themselves; deduction\/netting presentation policy is the
--- Write side's job (Land 3 of the Definition 7 amendment).
+-- ExchangeAlgebra.IO.Output module's job (Land 3 of the Definition 7 amendment).
 --
 -- Complexity: O(s) (s is the total number of scalar entries)
 --

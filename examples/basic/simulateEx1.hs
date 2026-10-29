@@ -14,7 +14,7 @@ import           ExchangeAlgebra.Algebra.Value    (MoneyDecimal)  -- exact accou
 import           ExchangeAlgebra.Simulate
 import qualified ExchangeAlgebra.Simulate as ES
 import qualified ExchangeAlgebra.Simulate.Visualize as ESV
-import           ExchangeAlgebra.Write
+import           ExchangeAlgebra.Simulation.Output
 
 -- 外部ライブラリ
 import qualified Data.HashMap.Strict     as HM

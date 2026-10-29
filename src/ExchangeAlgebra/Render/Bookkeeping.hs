@@ -5,35 +5,16 @@
 
     Released under the OWL license
 
-    Bookkeeping documents rendered from an algebra or a journal: balance
-    sheet, profit and loss, journal, account ledgers, compound trial
-    balance, the eight-column worksheet and the post-closing trial balance.
-    Each document comes as a pure @…Rows@ layout and a @write…@ wrapper that
-    serializes the rows through 'ExchangeAlgebra.Render.Csv.writeCSV'.
-
-    The continuing layouts are re-exported from
-    "ExchangeAlgebra.IO.Output.Statements"; legacy names remain in
-    "ExchangeAlgebra.Write". Nothing is defined here. The row layouts are frozen by the
-    @test/fixtures/write-rows-0510@ goldens, so the shim is behavior-
-    identical to the original module by construction. Note that 'bsRows' and
-    'plRows' are the legacy presentation (no per-title aggregation, credit-
-    balance assets dropped from the sheet); the grouped presentation lives in
-    "ExchangeAlgebra.Accounting.Statements.Presentation".
-
-    >>> import ExchangeAlgebra.Algebra
-    >>> let x = 100 .@ Not :< Cash .+ 100 .@ Not :< Sales :: Alg Double (HatBase AccountTitles)
-    >>> balanceOf Cash x
-    (Debit,100.0)
+    Journals, account ledgers, trial balances, and closing worksheets.
+    These layouts and their file writers are re-exported from
+    "ExchangeAlgebra.IO.Output.Statements". For financial statements, use
+    "ExchangeAlgebra.Accounting.Statements.Presentation" followed by
+    'ExchangeAlgebra.IO.Output.Statements.financialStatementRows'.
 -}
 
 module ExchangeAlgebra.Render.Bookkeeping {-# DEPRECATED "Import ExchangeAlgebra.IO.Output.Statements instead." #-}
-    ( -- * Balance sheet and profit and loss
-      writeBS
-    , bsRows
-    , writePL
-    , plRows
-      -- * Journal and ledgers
-    , writeJournal
+    ( -- * Journal and ledgers
+      writeJournal
     , journalRows
     , writeAccountOf
     , accountLedgerRows
@@ -46,20 +27,6 @@ module ExchangeAlgebra.Render.Bookkeeping {-# DEPRECATED "Import ExchangeAlgebra
     , worksheetRows
     , writePostClosingTrialBalance
     , postClosingTrialBalanceRows
-      -- * Helpers
-    , balanceOf
-    , tshow
-    , toSameLength
     ) where
 
-
-import           ExchangeAlgebra.Write
-                     ( writeBS
-                     , bsRows
-                     , writePL
-                     , plRows
-                     , balanceOf
-                     , tshow
-                     , toSameLength
-                     )
-import           ExchangeAlgebra.IO.Output.Statements
+import ExchangeAlgebra.IO.Output.Statements

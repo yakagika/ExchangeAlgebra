@@ -2520,7 +2520,7 @@ accountSpec AllowanceForDoubtfulAccounts = Just AccountSpec
     , asNameEn = "Allowance for doubtful accounts"
     , asNameJa = "貸倒引当金"
     , asLabelJa = "貸倒引当金"
-    , asDescription = "Asset (contra): Allowance for doubtful accounts (貸倒引当金), a credit-balance valuation account (評価勘定) deducted from receivables. Home side is Credit because it is a contra asset (isContra); values stay non-negative and the Hat\\/Not structure is intact. B\\/S deduction (net) presentation is the Write side's job."
+    , asDescription = "Asset (contra): Allowance for doubtful accounts (貸倒引当金), a credit-balance valuation account (評価勘定) deducted from receivables. Home side is Credit because it is a contra asset (isContra); values stay non-negative and the Hat\\/Not structure is intact. B\\/S deduction (net) presentation is the ExchangeAlgebra.IO.Output module's job."
     , asAliases = ["貸倒引当金"]
     }
 accountSpec AccumulatedDepreciation = Just AccountSpec

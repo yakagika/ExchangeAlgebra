@@ -6,8 +6,7 @@
     Released under the OWL license
 
     Compatibility entry point for simulation CSV output. The CSV functions
-    live in "ExchangeAlgebra.Simulation.Output"; 'writeTermIO' and
-    'writeIOMatrix' remain in "ExchangeAlgebra.Write" until P4.
+    live in "ExchangeAlgebra.Simulation.Output".
 -}
 module ExchangeAlgebra.Render.Simulation
     ( Header
@@ -18,5 +17,4 @@ module ExchangeAlgebra.Render.Simulation
     ) where
 
 import ExchangeAlgebra.Simulation.Output
-    ( Header, writeFuncResults, writeFuncResultsWithContext )
-import ExchangeAlgebra.Write (writeTermIO, writeIOMatrix)
+    ( Header, writeFuncResults, writeFuncResultsWithContext, writeTermIO, writeIOMatrix )

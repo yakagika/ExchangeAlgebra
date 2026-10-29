@@ -8,7 +8,7 @@ Description : Fixed-schema CSV reader for general journal postings.
 A deliberately tiny, dependency-free (Text + scientific only) reader for a fixed
 journal CSV schema, building on the pure normalization\/parsing in
 "ExchangeAlgebra.IO.Input". It is the read counterpart of the report\/ledger CSV
-writers in "ExchangeAlgebra.Write" (writing is /not/ handled here).
+writers in "ExchangeAlgebra.IO.Output.Csv" (writing is /not/ handled here).
 
 The schema is a header line @side,account,amount@ with an optional trailing
 @note@ column:

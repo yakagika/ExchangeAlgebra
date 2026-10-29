@@ -420,6 +420,24 @@
 
 ### Removed
 
+- `ExchangeAlgebra.Write` is removed. Import CSV serialization (`writeCSV`,
+  `csvTranspose`) from `ExchangeAlgebra.IO.Output.Csv`; journals, account
+  ledgers, trial balances, and worksheets from
+  `ExchangeAlgebra.IO.Output.Statements`; `writeTermIO` and `writeIOMatrix`
+  from `ExchangeAlgebra.Simulation.Output`; and spill restoration from
+  `ExchangeAlgebra.Simulate.Spill`.
+- `bsRows` is removed. Use `present` with `AfterClosing`, then
+  `financialStatementRows` from `ExchangeAlgebra.IO.Output.Statements`.
+- `writeBS` is removed. Use `present` with `AfterClosing`, then
+  `writeFinancialStatements` from `ExchangeAlgebra.IO.Output.Statements`.
+- `plRows` is removed. Use `present` with `BeforeClosing`, then
+  `financialStatementRows`. Pass the whole trial balance before selecting
+  revenue and expense sections for rendering.
+- `writePL` is removed. Use `present` with `BeforeClosing`, then
+  `writeFinancialStatements`.
+- `balanceOf t` is removed. Use `diffRL . projByAccountTitle t`.
+- `tshow` is private. Use `Data.Text.pack . show` in caller code.
+- `toSameLength` is private. Pad caller-owned text columns in caller code.
 - `industrialEx1` (`industrial`) moved to the SICE paper repository.
 - `invoiceEx1` (`invoice`) moved to the SICE paper repository.
 - The `cge-lite` executable and its calibration, model, solver, and LHR test

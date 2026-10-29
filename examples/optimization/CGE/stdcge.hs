@@ -23,7 +23,7 @@ import              ExchangeAlgebra.Journal.Transfer ((.->)
 
 import qualified    ExchangeAlgebra.Simulate as ES
 import              ExchangeAlgebra.Simulate
-import              ExchangeAlgebra.Write
+import              ExchangeAlgebra.Simulation.Output
 import qualified    ExchangeAlgebra.Simulate.Visualize as ESV
 
 -- for python visualization

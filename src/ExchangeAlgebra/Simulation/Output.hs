@@ -21,16 +21,24 @@
 
     Both operations use "ExchangeAlgebra.Simulate" for its 'StateTime'
     axis. Spill-file restoration remains in
-    "ExchangeAlgebra.Simulate.Spill". Matrix and term file writers remain
-    in "ExchangeAlgebra.Write".
+    "ExchangeAlgebra.Simulate.Spill". Use 'writeTermIO' for term slices
+    and 'writeIOMatrix' for two-dimensional matrices.
 -}
 
 module ExchangeAlgebra.Simulation.Output
     ( Header
     , writeFuncResults
     , writeFuncResultsWithContext
+    , writeTermIO
+    , writeIOMatrix
     ) where
 
+import Control.Monad (forM)
+import Data.Array.IO
+import qualified Data.List as L
+import ExchangeAlgebra.Algebra.Base.Representation (BaseClass)
+import ExchangeAlgebra.Algebra.Value.Class (HatVal)
+import ExchangeAlgebra.IO.Output.Csv (writeCSV)
 import qualified Control.Monad as CM
 import           Control.Monad.ST
 import qualified Data.Text as T
@@ -101,3 +109,38 @@ escapeCsv t
     | otherwise         = t
   where
     isSpecial c = c == ',' || c == '"' || c == '\n' || c == '\r'
+
+-- | Convert a value to a text cell.
+--
+-- Complexity: O(show cost)
+tshow :: (Show a) => a -> T.Text
+tshow = T.pack . show
+
+
+-- | Output the Input-Output Table for a specified term in CSV format.
+-- Outputs a slice of the specified term from a 3D array (term, row industry, column industry).
+--
+-- Complexity: O(r * c) (r = number of rows, c = number of columns)
+writeTermIO :: (HatVal n,BaseClass b, Ix t, Ix b, Enum b)
+            => FilePath -> t -> IOArray (t, b, b) n  -> IO ()
+writeTermIO path t arr = do
+    ((_, c1Min, c2Min), (_, c1Max, c2Max)) <- getBounds arr
+    let rows = [c1Min .. c1Max]
+    let cols = [c2Min .. c2Max]
+    body <- forM rows $ \r -> do
+        cells <- forM cols $ \c -> tshow <$> readArray arr (t, r, c)
+        pure (tshow r : cells)
+    writeCSV path ((T.pack "" : L.map tshow cols) : body)
+
+-- | Output a 2D IOArray (Input-Output Table or ripple effect matrix) in CSV format.
+--
+-- Complexity: O(r * c) (r = number of rows, c = number of columns)
+writeIOMatrix :: FilePath -> IOArray (Int, Int) Double -> IO ()
+writeIOMatrix path arr = do
+    ((r1, c1), (r2, c2)) <- getBounds arr
+    let rows = [r1 .. r2]
+    let cols = [c1 .. c2]
+    body <- forM rows $ \r -> do
+        cells <- forM cols $ \c -> tshow <$> readArray arr (r, c)
+        pure (tshow r : cells)
+    writeCSV path ((T.pack "" : L.map tshow cols) : body)

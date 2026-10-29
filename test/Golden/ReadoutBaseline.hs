@@ -30,7 +30,6 @@ import qualified ExchangeAlgebra.Accounting.Statements.Metric as Metric
 import qualified ExchangeAlgebra.Accounting.TrialBalance.Balance as TB
 import qualified ExchangeAlgebra.Accounting.TrialBalance.Validation as Validation
 import           ExchangeAlgebra.Algebra.Value (MoneyDecimal)
-import qualified ExchangeAlgebra.Write as Write
 
 -- | Account-only bases for the main readout series.
 type ReadoutBase = HatBase AccountTitles
@@ -262,8 +261,6 @@ algRows name postings =
          (compare (pair Sales [1, 2]) (pair Sales [3]))
     ++ algEitherRows "closingEntries" "Alg" (Closing.closingEntries input)
     ++ balanceRows (TB.accountBalances input)
-    ++ [ ["Write.bsRows", "all", "row"] ++ row | row <- Write.bsRows input ]
-    ++ [ ["Write.plRows", "all", "row"] ++ row | row <- Write.plRows input ]
     ++ shownRow "trialBalanceFindings" "BeforeClosing" (Validation.trialBalanceFindings tbInput)
     ++ scalarRow "trialBalanceFindings.debitTotal" "BeforeClosing" (norm (decL input))
     ++ scalarRow "trialBalanceFindings.creditTotal" "BeforeClosing" (norm (decR input))

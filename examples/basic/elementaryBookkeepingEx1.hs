@@ -11,6 +11,10 @@ import              ExchangeAlgebra hiding ((.->), (|%))
 import              ExchangeAlgebra.Algebra.Transfer ((.->), (|%))
 import qualified    ExchangeAlgebra.Algebra.Transfer as ET
 
+import qualified ExchangeAlgebra.Accounting.Statements as Statements
+import qualified ExchangeAlgebra.Accounting.TrialBalance as TrialBalance
+import ExchangeAlgebra.IO.Output.Statements (writeFinancialStatements)
+
 -- Day
 import qualified    Data.Time           as Time
 import              Data.Time
@@ -235,20 +239,67 @@ netIncomeTransfer'
 
 -- 多数主体のシミュレーション
 
+-- | Complete the textbook P/L balances with their cash counterpart.
+-- The textbook lists only P/L accounts, so a counterpart account is added
+-- to form a trial balance. Legacy derived result coordinates are omitted.
+textbookTrialBalance :: MinTransaction -> MinTransaction
+textbookTrialBalance input = case diffRL nominal of
+    (Credit, amount) -> nominal .+ amount .@ Not :< Cash
+    (Debit, amount) -> nominal .+ amount .@ Hat :< Cash
+    (Side, _) -> nominal
+  where
+    nominal :: MinTransaction
+    nominal = EA.filter
+        (\posting -> getAccountTitle (_hatBase posting) `notElem` [NetIncome, NetLoss]) input
+
 main :: IO ()
 main = do
     print exp3
-    writeBS "examples/basic/result/csv/exp3.csv" exp3
+    case Statements.present (Statements.jcciSecondGradeContext Statements.Standalone)
+            TrialBalance.AfterClosing exp3 of
+        Left issues -> fail (show issues)
+        Right statements -> do
+            result <- writeFinancialStatements "examples/basic/result/csv/exp3.csv"
+                [ Statements.CurrentAssetsSection
+                , Statements.NoncurrentAssetsSection
+                , Statements.CurrentLiabilitiesSection
+                , Statements.NoncurrentLiabilitiesSection
+                , Statements.EquitySection
+                ] statements
+            either (fail . show) pure result
     print "---"
     print q3A
-    writeBS "examples/basic/result/csv/q3.csv" q3A
+    case Statements.present (Statements.jcciSecondGradeContext Statements.Standalone)
+            TrialBalance.AfterClosing q3A of
+        Left issues -> fail (show issues)
+        Right statements -> do
+            result <- writeFinancialStatements "examples/basic/result/csv/q3.csv"
+                [ Statements.CurrentAssetsSection
+                , Statements.NoncurrentAssetsSection
+                , Statements.CurrentLiabilitiesSection
+                , Statements.NoncurrentLiabilitiesSection
+                , Statements.EquitySection
+                ] statements
+            either (fail . show) pure result
     print "---"
     print exp4
-    writePL "examples/basic/result/csv/exp4.csv" exp4
+    case Statements.present (Statements.jcciSecondGradeContext Statements.Standalone)
+            TrialBalance.BeforeClosing (textbookTrialBalance exp4) of
+        Left issues -> fail (show issues)
+        Right statements -> do
+            result <- writeFinancialStatements "examples/basic/result/csv/exp4.csv"
+                [Statements.RevenueSection, Statements.ExpenseSection] statements
+            either (fail . show) pure result
     print "---"
     print q4A
     print q4A'
-    writeBS "examples/basic/result/csv/q4.csv" q4A
+    case Statements.present (Statements.jcciSecondGradeContext Statements.Standalone)
+            TrialBalance.BeforeClosing (textbookTrialBalance q4A) of
+        Left issues -> fail (show issues)
+        Right statements -> do
+            result <- writeFinancialStatements "examples/basic/result/csv/q4.csv"
+                [Statements.RevenueSection, Statements.ExpenseSection] statements
+            either (fail . show) pure result
     print "---"
     print exp5_A
     writeJournal "examples/basic/result/csv/exp5.csv" exp5_A getDay
@@ -263,5 +314,11 @@ main = do
     print $ incomeSummaryAccount exp8
     print $ netIncomeTransfer $ incomeSummaryAccount exp8
     print $ netIncomeTransfer' $ incomeSummaryAccount exp8
-    writePL "examples/basic/result/csv/exp8A.csv" $ incomeSummaryAccount exp8
+    case Statements.present (Statements.jcciSecondGradeContext Statements.Standalone)
+            TrialBalance.BeforeClosing (textbookTrialBalance exp8) of
+        Left issues -> fail (show issues)
+        Right statements -> do
+            result <- writeFinancialStatements "examples/basic/result/csv/exp8A.csv"
+                [Statements.RevenueSection, Statements.ExpenseSection] statements
+            either (fail . show) pure result
 

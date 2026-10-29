@@ -21,7 +21,7 @@
     This top-level module is the Algebra-layer umbrella: it re-exports
     "ExchangeAlgebra.Algebra", "ExchangeAlgebra.Algebra.Transfer",
     "ExchangeAlgebra.Algebra.Transfer.Rule", "ExchangeAlgebra.Accounting.Transfer",
-    "ExchangeAlgebra.Write", and "ExchangeAlgebra.Value". The transfer names
+    "ExchangeAlgebra.IO.Output.Statements", and "ExchangeAlgebra.Value". The transfer names
     '.->', '|%', 'Relabel' and 'transferEntries' are the accounting transfer of
     "ExchangeAlgebra.Accounting.Transfer"; import the legacy operators from
     "ExchangeAlgebra.Algebra.Transfer" and the per-posting rules from
@@ -110,7 +110,10 @@ module ExchangeAlgebra
     , module ExchangeAlgebra.Algebra.Transfer
     , module ExchangeAlgebra.Algebra.Transfer.Rule
     , module ExchangeAlgebra.Accounting.Transfer
-    , module ExchangeAlgebra.Write
+    , module ExchangeAlgebra.IO.Output.Csv
+    , module ExchangeAlgebra.IO.Output.Statements
+    , module ExchangeAlgebra.Simulation.Output
+    , module ExchangeAlgebra.Simulate.Spill
     , module ExchangeAlgebra.Value ) where
 
 import ExchangeAlgebra.Algebra.Transfer.Representation as ExchangeAlgebra.Algebra.Transfer.Rule
@@ -146,7 +149,24 @@ import              ExchangeAlgebra.Algebra
 -- the legacy and per-posting entities of those names keep their own modules.
 import              ExchangeAlgebra.Algebra.Transfer hiding ((.->), (|%))
 import              ExchangeAlgebra.Accounting.Transfer
-import              ExchangeAlgebra.Write
+import ExchangeAlgebra.IO.Output.Csv (writeCSV, csvTranspose)
+import ExchangeAlgebra.IO.Output.Statements
+    ( journalRows
+    , writeJournal
+    , accountLedgerRows
+    , writeAccountOf
+    , accountLedgerRowsJournal
+    , writeAccountOfJournal
+    , compoundTrialBalanceRows
+    , writeCompoundTrialBalance
+    , worksheetRows
+    , writeWorksheet
+    , postClosingTrialBalanceRows
+    , writePostClosingTrialBalance
+    )
+import ExchangeAlgebra.Simulation.Output (writeTermIO, writeIOMatrix)
+import ExchangeAlgebra.Simulate.Spill
+    (restoreJournalFromBinarySpill, restoreJournalFromBinarySpillChecked)
 import              ExchangeAlgebra.Algebra.Value as ExchangeAlgebra.Value
     ( MoneyDecimal(..), toDecimal, bankersRound, ceilingRound
     , MoneyParseError(..), moneyDecimalFromText, moneyDecimalFromScientific

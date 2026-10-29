@@ -47,7 +47,7 @@ import ExchangeAlgebra.Simulate.Lite (InitT
                                      )
 import qualified ExchangeAlgebra.Simulate.Policy as Policy
 import ExchangeAlgebra.Algebra.Value (MoneyDouble)
-import ExchangeAlgebra.Write (restoreJournalFromBinarySpill, restoreJournalFromBinarySpillChecked)
+import ExchangeAlgebra.Simulate.Spill (restoreJournalFromBinarySpill, restoreJournalFromBinarySpillChecked)
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Map.Strict     as M
 import qualified Data.List           as L
@@ -1268,7 +1268,7 @@ testSpillCheckedCases = do
                     Right actual -> assertEqual "checked spill restore merges spill + tail remainder"
                         (EJ.toMap spillCheckedExpected) (EJ.toMap actual)
                 actual <- restoreJournalFromBinarySpill path snd spillCheckedCurrent
-                assertEqual "Write.restoreJournalFromBinarySpill merges spill + tail remainder"
+                assertEqual "Spill.restoreJournalFromBinarySpill merges spill + tail remainder"
                     (EJ.toMap spillCheckedExpected) (EJ.toMap actual)
             , \path -> do
                 let encodedChunk2 = Binary.encode

@@ -139,7 +139,6 @@ library:
   - ExchangeAlgebra.TrialBalance.Balance
   - ExchangeAlgebra.TrialBalance.Validation
   - ExchangeAlgebra.Value
-  - ExchangeAlgebra.Write
   other-modules:
   - ExchangeAlgebra.Accounting.TrialBalance.Accum
   - ExchangeAlgebra.Accounting.Catalog

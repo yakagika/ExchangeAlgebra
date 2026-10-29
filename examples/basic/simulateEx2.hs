@@ -15,7 +15,8 @@ import           ExchangeAlgebra.Algebra.Value    (MoneyDecimal)  -- exact accou
 import qualified ExchangeAlgebra.Simulate as ES
 import           ExchangeAlgebra.Simulate
 import qualified ExchangeAlgebra.Simulate.Visualize as ESV
-import           ExchangeAlgebra.Write
+import           ExchangeAlgebra.Simulate.Spill (restoreJournalFromBinarySpill)
+import           ExchangeAlgebra.Simulation.Output
 
 import           Control.Concurrent.Async (forConcurrently_)
 import           Control.Monad (foldM, forM, forM_, replicateM)

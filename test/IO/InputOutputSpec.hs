@@ -13,7 +13,8 @@ import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Journal  as EJ
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 import qualified ExchangeAlgebra.Simulation.Output as RenderSimulation
-import qualified ExchangeAlgebra.Write    as EW
+import qualified ExchangeAlgebra.IO.Output.Statements    as EW
+import qualified ExchangeAlgebra.IO.Output.Csv as EW
 import qualified Data.List           as L
 import qualified Data.List.NonEmpty  as NE
 import qualified Data.ByteString.Lazy as BL
@@ -752,33 +753,6 @@ testCsvWriteCases = do
                   ( \path -> EW.writeCSV path input
                   , Nothing
                   , [ ("CSV writeCSV empty cell", "\"\",\"x\"", 0)
-                    ]
-                  )
-            , let
-                  alg = (100 .@ Not :< Cash)
-                      .+ (60  .@ Not :< LoansPayable)
-                      .+ (40  .@ Not :< CapitalStock)
-                      :: EA.Alg Double (HatBase AccountTitles)
-              in
-                  ( \path -> EW.writeBS path alg
-                  , Just ("writeBS pinned: line count", 5)
-                  , [ ("writeBS pinned: row0 (Asset/Liability headers)", "\"Asset\",\"\",\"Liability\",\"\"", 0)
-                    , ("writeBS pinned: row1 (Cash/LoansPayable)", "\"Cash\",\"100.0\",\"LoansPayable\",\"60.0\"", 1)
-                    , ("writeBS pinned: row2 (Total/Equity header)", "\"Total\",\"100.0\",\"Equity\",\"\"", 2)
-                    , ("writeBS pinned: row3 (CapitalStock)", "\"\",\"\",\"CapitalStock\",\"40.0\"", 3)
-                    , ("writeBS pinned: row4 (grand total)", "\"\",\"\",\"Total\",\"100.0\"", 4)
-                    ]
-                  )
-            , let
-                  alg = (500 .@ Not :< Sales)
-                      .+ (300 .@ Not :< SalesCost)
-                      :: EA.Alg Double (HatBase AccountTitles)
-              in
-                  ( \path -> EW.writePL path alg
-                  , Just ("writePL pinned: line count", 3)
-                  , [ ("writePL pinned: row0 (Cost/Revenue headers)", "\"Cost\",\"\",\"Revenue\",\"\"", 0)
-                    , ("writePL pinned: row1 (SalesCost/Sales)", "\"SalesCost\",\"300.0\",\"Sales\",\"500.0\"", 1)
-                    , ("writePL pinned: row2 (totals)", "\"Total\",\"500.0\",\"Total\",\"300.0\"", 2)
                     ]
                   )
             , let

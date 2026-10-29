@@ -23,8 +23,7 @@ import qualified ExchangeAlgebra.Journal  as EJ
 import qualified ExchangeAlgebra.Journal.Transfer as EJT
 import qualified ExchangeAlgebra.Accounting.Entries as EB
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
-import qualified ExchangeAlgebra.Write    as EW
-import ExchangeAlgebra.Write (bsRows, plRows)
+import qualified ExchangeAlgebra.IO.Output.Statements    as EW
 import qualified Data.Map.Strict     as M
 import qualified Data.List           as L
 import qualified Data.List.NonEmpty  as NE
@@ -993,16 +992,10 @@ accountSemanticsProjectionGolden =
 
 accountSemanticsPresentationGolden :: T.Text
 accountSemanticsPresentationGolden =
-    accountSemanticsHeader (T.pack "legacy presentation probe (title, bsRows of 1@Not, plRows of 1@Not)")
+    accountSemanticsHeader (T.pack "presentation probe (title)")
     <> T.unlines (L.map row accountSemanticsBaselineTitles)
   where
-    row title =
-        let value = 1 .@ Not :< title :: EA.Alg Double (HatBase AccountTitles)
-        in T.intercalate (T.pack "\t")
-            [ goldenShow title
-            , goldenEsc (goldenShow (EW.bsRows value))
-            , goldenEsc (goldenShow (EW.plRows value))
-            ]
+    row title = goldenShow title
 
 testAccountAlgebraBehaviorGolden :: IO ()
 testAccountAlgebraBehaviorGolden = do
@@ -1021,7 +1014,7 @@ testAccountAlgebraBehaviorGolden = do
 testWriteRowsGolden :: IO ()
 testWriteRowsGolden = do
     assertEqual "write-rows-0510 fixture count"
-        10 (L.length writeRowsFixtures)
+        8 (L.length writeRowsFixtures)
     forM_ writeRowsFixtures $ \(name, expected) -> do
         actualFile <- TIO.readFile (writeRowsFixtureDir ++ "/" ++ name)
         assertEqual ("write-rows-0510 fixture " ++ name) actualFile expected
@@ -1548,31 +1541,23 @@ testPresentationGroups = do
     assertEqual "edge: fully offset contra title cannot leak to ordinary rows"
         (Set.fromList [Sales, SalesRebates, SalesAllowances]) (RG.gpConsumed offsetContra)
 
-    let rows f b = L.map (L.map T.unpack) (f b)
-        excessiveChart = (100 .@ Not:<AccountsReceivable
-            .+ 150 .@ Not:<AllowanceForDoubtfulAccounts
-            :: EA.Alg Double (HatBase AccountTitles))
-        purchasesAndTaxes = (500 .@ Not:<Purchases
-            .+ 50 .@ Not:<PurchaseRebates
-            .+ 300 .@ Not:<CorporateIncomeTaxes
-            .+ 40 .@ Not:<RefundOfIncomeTaxes
-            :: EA.Alg Double (HatBase AccountTitles))
-        excessiveRows = rows bsRows excessiveChart
-        purchasesAndTaxesRows = rows plRows purchasesAndTaxes
-    assertEqual "rendering: contra excess signs both net and asset total"
+    let grouped = present defaultDefs
+            [ (Purchases, (500, 0))
+            , (PurchaseRebates, (0, 50))
+            , (CorporateIncomeTaxes, (300, 0))
+            , (RefundOfIncomeTaxes, (0, 40))
+            ]
+        groupRows = concatMap snd (RG.gpBlocks grouped)
+    assertEqual "grouping: purchase rebate and net amount are pinned"
         True
-        (["TradeReceivablesNet","-50.0","",""] `elem` excessiveRows
-            && ["Total","-50.0","",""] `elem` excessiveRows)
-    assertEqual "rendering: purchase rebate and net label are pinned"
+        (RG.GroupRow (RG.DeductionRow PurchaseRebates) (amount True 50) `elem` groupRows
+            && RG.GroupRow (RG.NetRow RG.NetPurchasesGroup) (amount False 450) `elem` groupRows)
+    assertEqual "grouping: tax refund and net amount are pinned"
         True
-        (["PurchaseRebates","-50.0","",""] `elem` purchasesAndTaxesRows
-            && ["NetPurchases","450.0","",""] `elem` purchasesAndTaxesRows)
-    assertEqual "rendering: tax refund and net label are pinned"
-        True
-        (["RefundOfIncomeTaxes","-40.0","",""] `elem` purchasesAndTaxesRows
-            && ["IncomeTaxesNet","260.0","",""] `elem` purchasesAndTaxesRows)
+        (RG.GroupRow (RG.DeductionRow RefundOfIncomeTaxes) (amount True 40) `elem` groupRows
+            && RG.GroupRow (RG.NetRow RG.IncomeTaxesGroup) (amount False 260) `elem` groupRows)
 
--- T5/T6: presentation battery。bsRows/plRows と projection の literal 期待値。
+-- T5/T6: projection の literal 期待値。
 -- division projection は contra を含まず, contra は projContraAssets のみが選ぶ
 -- (意図的差分: projCurrentLiability/projFixedLiability から当該 2 件が消えた)。
 statementFixtureB1, statementFixtureB2, statementFixtureB3, statementFixtureB4, statementFixtureB5 :: BAlg
@@ -1591,55 +1576,6 @@ statementFixtureB5 = statementFixtureB3 .+ 300 .@ Not:<SalesCost .+ 500 .@ Not:<
 
 testStatementRowsAndProjectionsLiteral :: IO ()
 testStatementRowsAndProjectionsLiteral = do
-    let rows f b = L.map (L.map T.unpack) (f b)
-    -- Non-contra statements remain byte-identical. Contra statements use
-    -- Land 3 gross -> deduction -> net presentation.
-    assertEqual "bsRows b1 (= baseline)"
-        [ ["Asset","","Liability",""]
-        , ["Cash","100.0","LoansPayable","60.0"]
-        , ["Total","100.0","Equity",""]
-        , ["","","CapitalStock","40.0"]
-        , ["","","Total","100.0"] ]
-        (rows bsRows statementFixtureB1)
-    assertEqual "bsRows b3 contra groups"
-        [ ["Asset","","Liability",""]
-        , ["Cash","900.0","LoansPayable","400.0"]
-        , ["AccountsReceivable","1000.0","Equity",""]
-        , ["AllowanceForDoubtfulAccounts","-100.0","CapitalStock","2000.0"]
-        , ["TradeReceivablesNet","900.0","Total","2400.0"]
-        , ["Building","800.0","",""]
-        , ["AccumulatedDepreciation","-200.0","",""]
-        , ["DepreciableAssetsNet","600.0","",""]
-        , ["Total","2400.0","",""] ]
-        (rows bsRows statementFixtureB3)
-    assertEqual "bsRows b4 abnormal balances"
-        [ ["Asset","","Liability",""]
-        , ["LoansPayable","100.0","Equity",""]
-        , ["AllowanceForDoubtfulAccounts","20.0","Total","0.0"]
-        , ["TradeReceivablesNet","20.0","",""]
-        , ["Building","500.0","",""]
-        , ["AccumulatedDepreciation","-200.0","",""]
-        , ["DepreciableAssetsNet","300.0","",""]
-        , ["Total","420.0","",""] ]
-        (rows bsRows statementFixtureB4)
-    -- Pre-vocab difference: SalesCost is now closed by the registry-derived
-    -- Cost rule, so Sales 500 - SalesCost 300 becomes RetainedEarnings 200.
-    assertEqual "bsRows b5 closing and contra groups"
-        [ ["Asset","","Liability",""]
-        , ["Cash","1100.0","LoansPayable","400.0"]
-        , ["AccountsReceivable","1000.0","Equity",""]
-        , ["AllowanceForDoubtfulAccounts","-100.0","CapitalStock","2000.0"]
-        , ["TradeReceivablesNet","900.0","RetainedEarnings","200.0"]
-        , ["Building","800.0","Total","2600.0"]
-        , ["AccumulatedDepreciation","-200.0","",""]
-        , ["DepreciableAssetsNet","600.0","",""]
-        , ["Total","2600.0","",""] ]
-        (rows bsRows statementFixtureB5)
-    assertEqual "plRows b2 (= baseline)"
-        [ ["Cost","","Revenue",""]
-        , ["SalesCost","300.0","Sales","500.0"]
-        , ["Total","500.0","Total","300.0"] ]
-        (rows plRows statementFixtureB2)
     -- projections: 資産系は Land 1 と一致, liability 系は contra が消える (意図的差分),
     -- contra は projContraAssets のみが Hat/Not 双方を保持して選ぶ。
     assertEqual "projCurrentAssets b3 (= baseline)"
@@ -1670,8 +1606,7 @@ testStatementRowsAndProjectionsLiteral = do
         "100.00:@Not:<AllowanceForDoubtfulAccounts .+ 200.00:@Not:<AccumulatedDepreciation"
         (show (EA.projContraAssets statementFixtureB5))
 
--- Current presentation battery. The literal rows are pinned above; this dump
--- covers the remaining row and projection output byte for byte.
+-- Projection output from the statement fixtures is pinned byte for byte.
 statementPresentationLines :: [T.Text]
 statementPresentationLines = L.concatMap sect
     [ ("b1-basic", statementFixtureB1), ("b2-pl", statementFixtureB2), ("b3-contra", statementFixtureB3)
@@ -1679,11 +1614,7 @@ statementPresentationLines = L.concatMap sect
   where
     sect (n, a) =
         (T.pack ("## " ++ n))
-      : T.pack "-- bsRows"
-      : L.map (T.pack . show . L.map T.unpack) (bsRows a)
-     ++ T.pack "-- plRows"
-      : L.map (T.pack . show . L.map T.unpack) (plRows a)
-     ++ L.concat [ [T.pack ("-- " ++ pn), T.pack (show (pf a))] | (pn, pf) <- projList ]
+      : L.concat [ [T.pack ("-- " ++ pn), T.pack (show (pf a))] | (pn, pf) <- projList ]
     projList =
         [ ("projCurrentAssets",    EA.projCurrentAssets)
         , ("projFixedAssets",      EA.projFixedAssets)
@@ -3167,15 +3098,6 @@ testAccumulatorAccounting = do
     assertEqual "group gross row retains a one-ulp residual"
         True (any ((== RG.GrossRow AccountsReceivable) . RG.grKind)
             (concatMap snd (RG.gpBlocks residualGroups)))
-    let receivables = EC.journalFromSides
-            [(Debit, AccountsReceivable, large), (Debit, AccountsReceivable, 1),
-             (Credit, AllowanceForDoubtfulAccounts, 1), (Credit, CapitalStock, large)]
-                :: EA.Alg Double (HatBase AccountTitles)
-    assertEqual "BS group nets original postings before rounding"
-        [[T.pack "TradeReceivablesNet", T.pack (show large), T.pack "Total",
-          T.pack (show large)]]
-        [row | row@(label : _) <- EW.bsRows receivables,
-               label == T.pack "TradeReceivablesNet"]
     let omitted = EC.journalFromSides
             [(Debit, Cash, 100), (Credit, CapitalStock, 90), (Credit, CashOverShort, 10)]
                 :: EA.Alg Double (HatBase AccountTitles)
@@ -3216,45 +3138,6 @@ testAccumulatorAccounting = do
     isReciprocal TB.ReciprocalMismatch{} = True
     isReciprocal _ = False
 
--- | A valuation account canceled within a full base cannot activate a BS group.
-testBalanceSheetCanceledGroup :: IO ()
-testBalanceSheetCanceledGroup = do
-    let ledger = (1000 EA..@ (Not :< AccountsReceivable))
-            EA..+ (100 EA..@ (Not :< AllowanceForDoubtfulAccounts))
-            EA..+ (100 EA..@ (Hat :< AllowanceForDoubtfulAccounts))
-            EA..+ (1000 EA..@ (Not :< CapitalStock))
-                :: EA.Alg Double (HatBase AccountTitles)
-    assertEqual "BS canceled allowance keeps only the ordinary receivable row"
-        (L.map (L.map T.pack)
-            [["Asset", "", "Liability", ""]
-            , ["AccountsReceivable", "1000.0", "Equity", ""]
-            , ["Total", "1000.0", "CapitalStock", "1000.0"]
-            , ["", "", "Total", "1000.0"]])
-        (EW.bsRows ledger)
-
--- | Cancel valuation postings within each full base, rather than across axes.
-testBalanceSheetFullBases :: IO ()
-testBalanceSheetFullBases = do
-    let ledger axis = (1000 EA..@ (Not :< (AccountsReceivable, T.pack "a")))
-            EA..+ (100 EA..@ (Not :< (AllowanceForDoubtfulAccounts, T.pack "a")))
-            EA..+ (100 EA..@ (Hat :< (AllowanceForDoubtfulAccounts, axis)))
-            EA..+ (1000 EA..@ (Not :< (CapitalStock, T.pack "a")))
-                :: EA.Alg Double (HatBase (AccountTitles, T.Text))
-    assertEqual "BS different full bases retain a group with net 1000"
-        (L.map (L.map T.pack)
-            [["Asset", "", "Liability", ""]
-            , ["AccountsReceivable", "1000.0", "Equity", ""]
-            , ["TradeReceivablesNet", "1000.0", "CapitalStock", "1000.0"]
-            , ["Total", "1000.0", "Total", "1000.0"]])
-        (EW.bsRows (ledger (T.pack "b")))
-    assertEqual "BS same full base cancels the allowance and omits its group"
-        (L.map (L.map T.pack)
-            [["Asset", "", "Liability", ""]
-            , ["AccountsReceivable", "1000.0", "Equity", ""]
-            , ["Total", "1000.0", "CapitalStock", "1000.0"]
-            , ["", "", "Total", "1000.0"]])
-        (EW.bsRows (ledger (T.pack "a")))
-
 -- | Keep the default BS groups independent of the closing transfer.
 testBalanceSheetGroupsStayUnclosed :: IO ()
 testBalanceSheetGroupsStayUnclosed = do
@@ -3265,23 +3148,6 @@ testBalanceSheetGroupsStayUnclosed = do
     assertEqual "BS default group accounts have no final-stock closing rule"
         [] [title | title <- titles, closingSide title /= Nothing]
 
--- | A surviving valuation balance supplies the deduction, rather than its activity.
-testBalanceSheetResidualGroup :: IO ()
-testBalanceSheetResidualGroup = do
-    let ledger = (1000 EA..@ (Not :< AccountsReceivable))
-            EA..+ (100 EA..@ (Not :< AllowanceForDoubtfulAccounts))
-            EA..+ (70 EA..@ (Hat :< AllowanceForDoubtfulAccounts))
-            EA..+ (970 EA..@ (Not :< CapitalStock))
-                :: EA.Alg Double (HatBase AccountTitles)
-    assertEqual "BS residual allowance displays gross 1000, deduction 30, net 970"
-        (L.map (L.map T.pack)
-            [["Asset", "", "Liability", ""]
-            , ["AccountsReceivable", "1000.0", "Equity", ""]
-            , ["AllowanceForDoubtfulAccounts", "-30.0", "CapitalStock", "970.0"]
-            , ["TradeReceivablesNet", "970.0", "Total", "970.0"]
-            , ["Total", "970.0", "", ""]])
-        (EW.bsRows ledger)
-
 -- | NaN is directionless in relative amounts but retains debit placement in cells.
 testWriterNaNDirections :: IO ()
 testWriterNaNDirections = do
@@ -3289,26 +3155,6 @@ testWriterNaNDirections = do
     let ledger = ((0 / 0) `Internal.Single` (Not :< Sales))
             EA..+ (1 EA..@ (Not :< SalesRebates))
                 :: EA.Alg Double (HatBase AccountTitles)
-        stock = ((0 / 0) `Internal.Single` (Not :< AllowanceForDoubtfulAccounts))
-            EA..+ (1000 EA..@ (Not :< AccountsReceivable))
-            EA..+ ((0 / 0) `Internal.Single` (Not :< CapitalStock))
-                :: EA.Alg Double (HatBase AccountTitles)
-    assertEqual "PL NaN group and credit total are directionless NaN"
-        (L.map (L.map T.pack)
-            [["Cost", "", "Revenue", ""]
-            , ["", "", "Sales", "NaN"]
-            , ["", "", "SalesRebates", "-1.0"]
-            , ["", "", "NetSales", "NaN"]
-            , ["Total", "NaN", "Total", "0.0"]])
-        (EW.plRows ledger)
-    assertEqual "BS NaN deduction, group net, and totals display NaN"
-        (L.map (L.map T.pack)
-            [["Asset", "", "Liability", ""]
-            , ["AccountsReceivable", "1000.0", "Equity", ""]
-            , ["AllowanceForDoubtfulAccounts", "NaN", "CapitalStock", "NaN"]
-            , ["TradeReceivablesNet", "NaN", "Total", "NaN"]
-            , ["Total", "NaN", "", ""]])
-        (EW.bsRows stock)
     let worksheet = EW.worksheetRows ledger EA.Zero
     assertEqual "worksheet NaN remains in the debit cell"
         [L.map T.pack ["Sales", "NaN", "", "", "", "NaN", "", "", ""]]
@@ -3321,10 +3167,7 @@ testWriterNaNDirections = do
 runTests :: IO ()
 runTests = do
     testAccumulatorAccounting
-    testBalanceSheetCanceledGroup
-    testBalanceSheetFullBases
     testBalanceSheetGroupsStayUnclosed
-    testBalanceSheetResidualGroup
     testWriterNaNDirections
     testAccountTitlesBinary
     testAllowanceAccountTitles

@@ -12,6 +12,10 @@ import              ExchangeAlgebra.Algebra.Transfer ((.->), (|%))
 import qualified    ExchangeAlgebra.Algebra.Transfer as ET
 import              ExchangeAlgebra.Simulate
 
+import qualified ExchangeAlgebra.Accounting.Statements as Statements
+import qualified ExchangeAlgebra.Accounting.TrialBalance as TrialBalance
+import ExchangeAlgebra.IO.Output.Statements (writeFinancialStatements)
+
 -- Day
 import qualified    Data.Time           as Time
 import              Data.Time
@@ -179,7 +183,18 @@ main = do
     --  .+ 220000:@Not:<NetIncome .+ 1000000:@Not:<Sales
 
     let sample2 = incomeSummaryAccount sample
-    writePL "examples/basic/result/csv/sample_PL.csv" sample2
+    -- The textbook lists only P/L accounts, so a cash counterpart is added
+    -- to form a trial balance; the derived result account is omitted.
+    let nominal = EA.filter
+            (\posting -> getAccountTitle (_hatBase posting) `notElem` [NetIncome, NetLoss]) sample2
+        sampleTrialBalance = nominal .+ snd (diffRL nominal) .@ Not :< Cash
+    case Statements.present (Statements.jcciSecondGradeContext Statements.Standalone)
+            TrialBalance.BeforeClosing sampleTrialBalance of
+        Left issues -> fail (show issues)
+        Right statements -> do
+            result <- writeFinancialStatements "examples/basic/result/csv/sample_PL.csv"
+                [Statements.RevenueSection, Statements.ExpenseSection] statements
+            either (fail . show) pure result
 
     let tf = createTransfer $ Not:<NetIncome .-> Not:<RetainedEarnings |% id
     print $ tf $ incomeSummaryAccount sample

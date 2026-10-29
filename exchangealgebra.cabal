@@ -81,7 +81,6 @@ extra-source-files:
     test/fixtures/export-surface-p2/ExchangeAlgebra.TrialBalance.Validation.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.Value.txt
-    test/fixtures/export-surface-p2/ExchangeAlgebra.Write.txt
     test/fixtures/export-surface-p2/orphans.txt
     test/fixtures/export-surface-p2/README.md
     test/fixtures/jcci-2022/queries.tsv
@@ -126,8 +125,6 @@ extra-source-files:
     test/fixtures/write-rows-0510/ebex8-account-ledger.tsv
     test/fixtures/write-rows-0510/ebex8-compound-trial-balance.tsv
     test/fixtures/write-rows-0510/ebex8-journal.tsv
-    test/fixtures/write-rows-0510/ebex9-bs.tsv
-    test/fixtures/write-rows-0510/ebex9-pl.tsv
     test/fixtures/write-rows-0510/ebex9-post-closing-trial-balance.tsv
     test/fixtures/write-rows-0510/ebex9-worksheet.tsv
     test/fixtures/write-rows-0510/README.md
@@ -247,7 +244,6 @@ library
       ExchangeAlgebra.TrialBalance.Balance
       ExchangeAlgebra.TrialBalance.Validation
       ExchangeAlgebra.Value
-      ExchangeAlgebra.Write
   other-modules:
       ExchangeAlgebra.Accounting.TrialBalance.Accum
       ExchangeAlgebra.Accounting.Catalog

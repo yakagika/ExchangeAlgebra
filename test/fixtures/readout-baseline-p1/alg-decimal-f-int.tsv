@@ -49,14 +49,6 @@ accountBalances	all	map	AccountsReceivable	DebitBalance	12342
 accountBalances	all	map	RetainedEarnings	DebitBalance	12245
 accountBalances	all	map	Purchases	CreditBalance	1
 accountBalances	all	map	Sales	CreditBalance	3
-Write.bsRows	all	row	Asset		Liability	
-Write.bsRows	all	row	AccountsReceivable	12342	Equity	
-Write.bsRows	all	row	RetainedEarnings	12241	Total	0
-Write.bsRows	all	row	Total	24583		
-Write.plRows	all	row	Cost		Revenue	
-Write.plRows	all	row	Purchases	2	Sales	3
-Write.plRows	all	row			Sales	100
-Write.plRows	all	row	Total	103	Total	2
 trialBalanceFindings	BeforeClosing	result	[UnbalancedTrialBalance 24794 214,UnexplainedAbnormalBalance Cash Debit (CreditBalance 3),UnexplainedAbnormalBalance RetainedEarnings Credit (DebitBalance 12245),UnexplainedAbnormalBalance Purchases Debit (CreditBalance 1)]
 trialBalanceFindings.debitTotal	BeforeClosing	scalar	24794
 trialBalanceFindings.creditTotal	BeforeClosing	scalar	214

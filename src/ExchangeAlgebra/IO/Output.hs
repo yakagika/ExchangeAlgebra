@@ -8,10 +8,10 @@
 -- | Serialize CSV | "ExchangeAlgebra.IO.Output.Csv" |
 -- | Render bookkeeping rows | "ExchangeAlgebra.IO.Output.Statements" |
 --
--- 'ExchangeAlgebra.Write.bsRows' settles internally, whereas 'ExchangeAlgebra.Write.plRows' does
--- not. These legacy
--- functions remain in "ExchangeAlgebra.Write". Use
--- 'accountLedgerRowsJournal' for account ledger rows without dates.
+-- Prepare financial statements with
+-- 'ExchangeAlgebra.Accounting.Statements.Presentation.present', then render
+-- them with 'financialStatementRows'. Use 'accountLedgerRowsJournal' for
+-- account ledger rows without dates.
 module ExchangeAlgebra.IO.Output
     ( module ExchangeAlgebra.IO.Output.Csv
     , module ExchangeAlgebra.IO.Output.Statements

@@ -15,13 +15,11 @@ import           Data.Time (Day, fromGregorian)
 import           ExchangeAlgebra
 import           ExchangeAlgebra.Accounting.Entries
 import qualified ExchangeAlgebra.Journal as EJ
-import           ExchangeAlgebra.Write
+import           ExchangeAlgebra.IO.Output.Statements
                      ( accountLedgerRows
                      , accountLedgerRowsJournal
-                     , bsRows
                      , compoundTrialBalanceRows
                      , journalRows
-                     , plRows
                      , postClosingTrialBalanceRows
                      , worksheetRows
                      )
@@ -85,12 +83,6 @@ writeRowsFixtures =
     , ( "ebex9-post-closing-trial-balance.tsv"
       , fixture "postClosingTrialBalanceRows ex9AfterClosing"
           (postClosingTrialBalanceRows ex9AfterClosing)
-      )
-    , ( "ebex9-bs.tsv"
-      , fixture "bsRows ex9AfterClosing" (bsRows ex9AfterClosing)
-      )
-    , ( "ebex9-pl.tsv"
-      , fixture "plRows ex9PostAdjustment" (plRows ex9PostAdjustment)
       )
     ]
 

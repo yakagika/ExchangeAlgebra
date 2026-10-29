@@ -87,13 +87,6 @@ accountBalances	all	map	AccountsReceivable	DebitBalance	0x3ff0000000000000	1.0
 accountBalances	all	map	RetainedEarnings	DebitBalance	0x000fffffffffffff	2.225073858507201e-308
 accountBalances	all	map	Purchases	CreditBalance	0x3ff0000000000000	1.0
 accountBalances	all	map	Sales	CreditBalance	0x000fffffffffffff	2.225073858507201e-308
-Write.bsRows	all	row	Asset		Liability	
-Write.bsRows	all	row	AccountsReceivable	1.0	Equity	
-Write.bsRows	all	row	Total	1.0	RetainedEarnings	1.0
-Write.bsRows	all	row			Total	1.0
-Write.plRows	all	row	Cost		Revenue	
-Write.plRows	all	row	Purchases	2.2250738585072014e-308	Sales	2.2250738585072014e-308
-Write.plRows	all	row	Total	2.2250738585072014e-308	Total	2.2250738585072014e-308
 trialBalanceFindings	BeforeClosing	result	[UnbalancedTrialBalance 1.0 1.0,UnexplainedAbnormalBalance Cash Debit (CreditBalance 2.2250738585072004e-308),UnexplainedAbnormalBalance RetainedEarnings Credit (DebitBalance 2.225073858507201e-308),UnexplainedAbnormalBalance Purchases Debit (CreditBalance 1.0)]
 trialBalanceFindings.debitTotal	BeforeClosing	scalar	0x3ff0000000000000	1.0
 trialBalanceFindings.creditTotal	BeforeClosing	scalar	0x3ff0000000000000	1.0

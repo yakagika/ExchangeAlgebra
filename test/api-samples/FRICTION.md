@@ -8,7 +8,7 @@
 - したかったこと: 日付軸のない仕訳から, 講義用に現金の総勘定元帳を表示する.
 - 起きたこと: `accountLedgerRows Cash ledger` は compile せず, 科目はリスト, 基底から `Day` を返す関数も必須だった. 日付が基底にない場合の短い入口を見つけられなかった.
 - 回避: `[Cash]` と `const (fromGregorian 2026 12 31)` を渡した. 全仕訳が同日として表示されるため, 元の取引日を復元する方法ではない.
-- API: `ExchangeAlgebra.Write.accountLedgerRows`.
+- API: `ExchangeAlgebra.IO.Output.Statements.accountLedgerRows`.
 
 ## 2. 決算前の名目勘定を利用者が切り出す
 
@@ -60,7 +60,7 @@
 - したかったこと: 既定科目に部門軸を加え, 題材 1 と同じ試算表と諸表を出す.
 - 起きたこと: `Element` と `BaseClass` に加え, `ExBaseClass` の `getAccountTitle` / `setAccountTitle` を利用者が定義する必要があった. 出力では `Cash` が部門別の複数行になり, `RetainedEarnings` も分割して現れた. 出力行から部門名は見えず, 試算表・諸表を科目ごとに一行で読む用途にはそのまま使いにくい.
 - 回避: 必要な instance を書き, 部門別の内訳は `projByAccountTitle` の代数値として表示した. 報告行の見た目は変換しなかった.
-- API: `ExchangeAlgebra.Algebra.Base.Element` / `BaseClass` / `ExBaseClass`, `ExchangeAlgebra.Write.compoundTrialBalanceRows` / `bsRows` / `plRows`.
+- API: `ExchangeAlgebra.Algebra.Base.Element` / `BaseClass` / `ExBaseClass`, `ExchangeAlgebra.IO.Output.Statements.compoundTrialBalanceRows` / `ExchangeAlgebra.Accounting.Statements.present`.
 
 ## 10. 独自勘定は基礎代数で使えても会計分類へ入らない
 
@@ -68,7 +68,7 @@
 - したかったこと: 既定科目にない `CarbonReserve` を題材 3 の残高・均衡・決算・諸表の流れへ足す.
 - 起きたこと: `decL ledger` の compile で `ExBaseClass (HatBase MyAccount)` がないと指摘された. `ExBaseClass` の科目取得・設定は `AccountTitles` を前提とし, `MyAccount` の新しい値を既定科目の分類へ渡す方法を見つけられなかった. 決算振替と既定の諸表出力も同じ境界に当たる.
 - 回避: `Element` / `BaseClass` を定義し, `bar`, `proj`, `netPairMapBy Just` までを表示した. 借貸一致と諸表はこの見本では書けなかった.
-- API: `ExchangeAlgebra.Algebra.Base.ExBaseClass`, `ExchangeAlgebra.Algebra.decL` / `decR`, `ExchangeAlgebra.Write.bsRows` / `plRows`, `ExchangeAlgebra.Algebra.netPairMapBy`.
+- API: `ExchangeAlgebra.Algebra.Base.ExBaseClass`, `ExchangeAlgebra.Algebra.decL` / `decR`, `ExchangeAlgebra.Accounting.Statements.present`, `ExchangeAlgebra.Algebra.netPairMapBy`.
 
 ## 全体の所感: 最も困った 3 点
 

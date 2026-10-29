@@ -14,16 +14,9 @@ display-compatibility shim so that the contra accounts still /appeared/ in the
 liability column; this module supplies the real deduction presentation and
 lets that shim be removed.
 
-This module is deliberately free of both the CSV writers and the financial-statement
-presentation pipeline: it is the __single implementation__ of grouping and
-netting, and "ExchangeAlgebra.Write" ('ExchangeAlgebra.Write.bsRows',
-'ExchangeAlgebra.Write.plRows') is its consumer. Placing it here rather than
-inside "ExchangeAlgebra.Accounting.Statements.Presentation" is forced by the type of the
-legacy writers: they are total, base-polymorphic functions
-(@ExBaseClass b => Alg n b -> [[Text]]@), whereas @present@ is specialized to
-@HatBase AccountTitles@ and answers in @Either@. Routing @bsRows@ through
-@present@ would therefore require callers to handle presentation issues.
-This module keeps the netting rule in one place.
+This module implements display grouping and deduction rules independently of
+CSV writers and the financial-statement presentation pipeline. Callers can use
+'presentGroups' to apply these rules in their own displays.
 
 === Value domain
 
@@ -128,8 +121,7 @@ data PresentationGroupDef = PresentationGroupDef
 groupNormalSide :: PresentationGroupDef -> Side
 groupNormalSide = defaultSide . pgDivision
 
--- | The grouping applied by 'ExchangeAlgebra.Write.bsRows' and
--- 'ExchangeAlgebra.Write.plRows' unless a caller supplies its own.
+-- | Default display groups for callers using 'presentGroups'.
 --
 -- The membership lists are presentation policy, not algebra: they say which
 -- gross titles a single undifferentiated valuation account is deducted from

@@ -26,7 +26,7 @@ ExchangeAlgebra.Optimize.Annealing	10
 ExchangeAlgebra.Optimize.GA	14
 ExchangeAlgebra.Optimize	8
 ExchangeAlgebra.Posting	13
-ExchangeAlgebra.Render.Bookkeeping	19
+ExchangeAlgebra.Render.Bookkeeping	12
 ExchangeAlgebra.Render.Csv	2
 ExchangeAlgebra.Render.Simulation	5
 ExchangeAlgebra.Reporting.Group	36
@@ -44,5 +44,4 @@ ExchangeAlgebra.Simulate	89
 ExchangeAlgebra.TrialBalance.Balance	12
 ExchangeAlgebra.TrialBalance.Validation	35
 ExchangeAlgebra.Value	13
-ExchangeAlgebra.Write	25
-ExchangeAlgebra	599
+ExchangeAlgebra	592
