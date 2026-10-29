@@ -5,15 +5,15 @@
 
 packages:
 - completed:
-    commit: a5c7f47b80c234ec58a6dac0236e96b1e4123120
+    commit: 85d3325d88be0d5e60c5f6b5c8c8947d5e8ab877
     git: https://github.com/yakagika/ExchangeAlgebra.git
     name: exchangealgebra
     pantry-tree:
-      sha256: cb12c73a665abf36ffa40646fba2b74844582e0e74614314a6d3ee8215aa96e3
-      size: 34581
+      sha256: 87015690e1de8db4f17f09255468018f6533b41f6297767aa2f3303f1fb68c7c
+      size: 33594
     version: 0.5.3.1
   original:
-    commit: a5c7f47b80c234ec58a6dac0236e96b1e4123120
+    commit: 85d3325d88be0d5e60c5f6b5c8c8947d5e8ab877
     git: https://github.com/yakagika/ExchangeAlgebra.git
 snapshots:
 - completed:
