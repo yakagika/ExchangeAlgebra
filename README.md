@@ -152,7 +152,7 @@ concreteAmount = norm (proj [Not :< (Cash, Yen)] ledger)  -- 0.0
 wildcardAmount = norm (proj [Not :< (Cash, (.#))] ledger) -- 10.0
 ```
 
-Tested with exchangealgebra-0.5.3.1 on 2026-10-29 (0.6.0.0 development API).
+Type-checked on 2026-10-29 against the 0.6.0.0 development tree (the package version is still 0.5.3.1).
 
 Canonical ordering treats `#` as an ordinary value. The `.==` operator remains
 symmetric; use projection or `ExchangeAlgebra.Algebra.Transfer` for one-way
@@ -256,7 +256,7 @@ entry :: Alg MoneyDecimal (HatBase AccountTitles)
 entry = 10.5 .@ Not :< Cash .+ 10.5 .@ Not :< Sales
 ```
 
-Tested with exchangealgebra-0.5.3.1 on 2026-10-29 (0.6.0.0 development API).
+Type-checked on 2026-10-29 against the 0.6.0.0 development tree (the package version is still 0.5.3.1).
 
 **FP vs exact, made concrete (measured).** In the bundled `fixed-price-io`, the same
 stock value matches both types where it lands on an exactly-representable result
@@ -350,7 +350,7 @@ main = do
             print (financialStatementRows [CurrentAssetsSection, RevenueSection] statements)
 ```
 
-Tested with exchangealgebra-0.5.3.1 on 2026-10-29 (0.6.0.0 development API).
+Type-checked on 2026-10-29 against the 0.6.0.0 development tree (the package version is still 0.5.3.1).
 
 ### Journal-based work (multi-period, notes, simulation)
 

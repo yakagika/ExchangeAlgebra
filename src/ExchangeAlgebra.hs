@@ -143,8 +143,8 @@ module ExchangeAlgebra
     , foldEntriesToMap
     , decBy
     , postFromNetBy
-      -- * Accounts
     , unionsMerge
+      -- * Accounts
     , AccountTitles(..)
     , AccountDivision(..)
     , Side(..)
@@ -183,8 +183,8 @@ module ExchangeAlgebra
     , projFixedLiability
     , projCapitalStock
     , projContraAssets
-      -- * Transfers and closing
     , projContra
+      -- * Transfers and closing
     , TransferScale(MulBy, DivBy)
     , TransferRule(..)
     , TransferRules
@@ -221,8 +221,8 @@ module ExchangeAlgebra
     , SignedNet
     , SettleError(..)
     , settleEntries
-      -- * Trial balance and statements
     , settlementSteps
+      -- * Trial balance and statements
     , AccountBalance(..)
     , accountBalances
     , balanceFor
@@ -240,8 +240,8 @@ module ExchangeAlgebra
     , StatementSection(..)
     , StatementLine(..)
     , PresentationIssue(..)
-      -- * Output
     , present
+      -- * Output
     , writeCSV
     , csvTranspose
     , journalRows
@@ -258,8 +258,8 @@ module ExchangeAlgebra
     , writePostClosingTrialBalance
     , StatementRowsError(..)
     , financialStatementRows
-      -- * Values
     , writeFinancialStatements
+      -- * Values
     , MoneyDecimal(..)
     , toDecimal
     , bankersRound
