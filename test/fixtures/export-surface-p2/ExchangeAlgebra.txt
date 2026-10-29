@@ -339,7 +339,6 @@ ShortTermNationalBonds
 ShortTermNationalBondsPayable
 Side
 SignedNet
-Size
 Software
 SoftwareInProgress
 StatementDivision
@@ -368,8 +367,6 @@ Tolerance
 ToolsAndInstruments
 Trademark
 TradingSecurities
-TransTable
-TransTableParts
 TransferApplyError
 TransferEnds
 TransferError
@@ -450,7 +447,6 @@ compareHatBase
 compoundTrialBalanceRows
 compress
 concreteAccountTitles
-createTransfer
 csvTranspose
 customError
 decBy
@@ -468,27 +464,22 @@ equal
 exactAccum
 extendBy
 filter
-finalStockTransfer
-finalStockTransferStep
 fixedCurrent
 foldEntries
 foldEntriesToMap
 fromList
 getAccountTitle
-grossProfitTransfer
 hash
 hashWithSalt
 hat
 haveWildcard
 ignoreWildcard
-incomeSummaryAccount
 isContra
 isErrorValue
 isHat
 isNearly
 isNearlyNum
 isNot
-isNullTable
 isWildcard
 isZero
 isZeroValue
@@ -507,10 +498,8 @@ moneyDecimalFromScientific
 moneyDecimalFromText
 nearlyEqScaled
 negateAccum
-netIncomeTransfer
 netPairMapBy
 norm
-ordinaryProfitTransfer
 pimoFlip
 pimoFromDivision
 postClosingTrialBalanceRows
@@ -535,7 +524,6 @@ relTol
 relabel
 restoreJournalFromBinarySpill
 restoreJournalFromBinarySpillChecked
-retainedEarningTransfer
 retainedEarningsRule
 revHat
 roundAccum
@@ -557,7 +545,6 @@ signAccum
 splitAccum
 sumValues
 switchSide
-table
 tableRows
 toASCList
 toAxisKeys
@@ -566,7 +553,6 @@ toDouble
 toHat
 toList
 toNot
-transfer
 transferEntries
 transferEntriesBy
 transferEntriesByWith

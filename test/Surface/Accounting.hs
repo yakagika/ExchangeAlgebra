@@ -292,15 +292,8 @@ module Surface.Accounting
     , projCapitalStock
     , projContraAssets
     , projContra
-    , TransTable
-    , TransTableParts
-    , Size
-    , isNullTable
-    , table
     , (.->)
     , (|%)
-    , createTransfer
-    , transfer
     ) where
 
 import           ExchangeAlgebra.Accounting
@@ -595,13 +588,6 @@ import           ExchangeAlgebra.Accounting
                      , projCapitalStock
                      , projContraAssets
                      , projContra
-                     , TransTable
-                     , TransTableParts
-                     , Size
-                     , isNullTable
-                     , table
                      , (.->)
                      , (|%)
-                     , createTransfer
-                     , transfer
                      )

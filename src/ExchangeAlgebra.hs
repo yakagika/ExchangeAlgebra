@@ -19,13 +19,12 @@
     == Quick start
 
     This top-level module is the Algebra-layer umbrella: it re-exports
-    "ExchangeAlgebra.Algebra", "ExchangeAlgebra.Algebra.Transfer",
-    "ExchangeAlgebra.Algebra.Transfer.Rule", "ExchangeAlgebra.Accounting.Transfer",
+    "ExchangeAlgebra.Algebra", selected coordinate rules and closing operations,
+    "ExchangeAlgebra.Accounting.Transfer",
     "ExchangeAlgebra.IO.Output.Statements", and "ExchangeAlgebra.Value". The transfer names
     '.->', '|%', 'Relabel' and 'transferEntries' are the accounting transfer of
-    "ExchangeAlgebra.Accounting.Transfer"; import the legacy operators from
-    "ExchangeAlgebra.Algebra.Transfer" and the per-posting rules from
-    "ExchangeAlgebra.Algebra.Transfer.Rule". It is the
+    "ExchangeAlgebra.Accounting.Transfer"; import generic per-posting rules from
+    "ExchangeAlgebra.Algebra.Transfer" qualified. It is the
     recommended entry point for simple single-period bookkeeping:
 
     > import ExchangeAlgebra
@@ -51,7 +50,8 @@
     > import           ExchangeAlgebra.Journal          -- umbrella + type classes
     > import qualified ExchangeAlgebra.Algebra          as EA
     > import qualified ExchangeAlgebra.Journal          as EJ
-    > import qualified ExchangeAlgebra.Journal.Transfer as EJT
+    > import qualified ExchangeAlgebra.Accounting.Transfer as Transfer
+    > import qualified ExchangeAlgebra.Accounting.Closing  as Closing
 
     == Modules to import directly (not re-exported here)
 
@@ -107,7 +107,6 @@
 
 module ExchangeAlgebra
     ( module ExchangeAlgebra.Algebra
-    , module ExchangeAlgebra.Algebra.Transfer
     , module ExchangeAlgebra.Algebra.Transfer.Rule
     , module ExchangeAlgebra.Accounting.Transfer
     , module ExchangeAlgebra.IO.Output.Csv
@@ -146,8 +145,7 @@ import ExchangeAlgebra.Accounting.Closing as ExchangeAlgebra.Algebra.Transfer.Ru
 
 import              ExchangeAlgebra.Algebra
 -- The accounting transfer owns (.->), (|%), Relabel and transferEntries here;
--- the legacy and per-posting entities of those names keep their own modules.
-import              ExchangeAlgebra.Algebra.Transfer hiding ((.->), (|%))
+-- generic per-posting rules are imported directly from Algebra.Transfer.
 import              ExchangeAlgebra.Accounting.Transfer
 import ExchangeAlgebra.IO.Output.Csv (writeCSV, csvTranspose)
 import ExchangeAlgebra.IO.Output.Statements

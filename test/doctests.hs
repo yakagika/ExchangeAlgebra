@@ -15,9 +15,6 @@ main = doctest  [ "-isrc"
                 , "src/ExchangeAlgebra/Algebra/Transfer/Representation.hs"
                 , "src/ExchangeAlgebra/Accounting/Closing.hs"
                 , "src/ExchangeAlgebra/Journal/Core/Representation.hs"
-                  -- journal transfers are not reachable from the umbrella;
-                  -- list them explicitly to check their Haddock examples.
-                , "src/ExchangeAlgebra/Journal/Transfer.hs"
                   -- reporting gates have their own examples;
                   -- explicit roots keep them covered independently of umbrellas.
                 , "src/ExchangeAlgebra/Accounting/TrialBalance/Validation.hs"

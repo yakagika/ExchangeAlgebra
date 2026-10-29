@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE MonoLocalBinds    #-}
 {-# LANGUAGE StrictData       #-}
 {- |
     Module      : ExchangeAlgebra.Simulate.Spill

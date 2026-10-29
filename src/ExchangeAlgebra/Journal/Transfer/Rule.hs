@@ -8,9 +8,8 @@ Use a qualified import to distinguish these functions from the Algebra API:
 
 The additional-entry operations return entries to add to the input journal.
 'carryBefore' instead returns the complete journal after replacing selected
-notes. Transfer lifts Definition 9 over notes; closing reads the combined
-ledger and returns an unannotated algebra through 'Either'. Read the
-additional-entry section before the complete-result section.
+notes. Transfer lifts Definition 9 over notes. Read the additional-entry
+section before the complete-result section.
 -}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -19,7 +18,6 @@ additional-entry section before the complete-result section.
 module ExchangeAlgebra.Journal.Transfer.Rule
     ( -- * Additional entries
       transferEntries
-    , closingEntries
     , carryEntries
       -- * Complete results
     , carryBefore
@@ -40,17 +38,14 @@ import ExchangeAlgebra.Algebra.Core ( Alg( (:@) )
 import qualified ExchangeAlgebra.Algebra.Core as Algebra
 import ExchangeAlgebra.Algebra.Transfer.Representation (TransferRules, TransferApplyError)
 import qualified ExchangeAlgebra.Algebra.Transfer.Representation as Rule
-import qualified ExchangeAlgebra.Accounting.Closing as Closing
 import ExchangeAlgebra.Algebra.Base.Representation (Hat(..), HatBaseClass(..))
 import ExchangeAlgebra.Algebra.Value.Class (HatVal(..), isErrorValue)
 import qualified ExchangeAlgebra.Algebra.Value.Class as Value
-import ExchangeAlgebra.Algebra (ExBaseClass)
 import ExchangeAlgebra.Journal.Core ( Journal
                                     , Note
                                     , (.|)
                                     , toMap
                                     , fromMap
-                                    , toAlg
                                     )
 import qualified ExchangeAlgebra.Journal.Core as Journal
 import           ExchangeAlgebra.Algebra.Posting (PostSide(..))
@@ -74,21 +69,6 @@ transferEntries rules journal = fromMap . Map.fromList
     apply (note, algebra) = do
         entries <- Rule.transferEntries rules algebra
         pure (note, entries)
-
--- | Read net balances across all notes and return unannotated closing entries.
--- The input must include only postings through the closing date; 'toAlg'
--- does not select a period. Earlier periods must already have their closing
--- entries included. Attach the settlement note with @(.|)@ at the call site.
--- Source sequences are accumulated exactly per base by the Algebra operation,
--- without a tolerance or implicit @bar@. Each nonzero net is split into finite
--- positive values and each value produces a reversal and retained-earnings pair.
--- Invalid eligible postings or an unsplittable net return 'Left', reporting
--- the first failing base in ascending order with Hat/Not normalized to Not.
--- Side totals beyond the value type's range can succeed through cancellation.
--- No partial result is returned.
-closingEntries :: (Note n, HatVal v, ExBaseClass b)
-               => Journal n v b -> Either (TransferApplyError v b) (Alg v b)
-closingEntries = Closing.closingEntries . toAlg
 
 -- | Round selected complete-base nets once and attach the carry note.
 -- Each complete base's Not and Hat values are accumulated exactly with the

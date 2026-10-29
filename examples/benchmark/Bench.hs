@@ -57,7 +57,7 @@ import qualified Data.Text                as T
 
 import           ExchangeAlgebra.Journal  -- constructors / operators: :@ :< .+ .| Hat Not Cash ...
 import qualified ExchangeAlgebra.Algebra  as EA
-import qualified ExchangeAlgebra.Algebra.Transfer.Rule as Rule (TransferApplyError)
+import qualified ExchangeAlgebra.Algebra.Transfer as Rule (TransferApplyError)
 import qualified ExchangeAlgebra.Accounting.Closing as Closing
 import qualified ExchangeAlgebra.IO.Input as Checked
 import qualified ExchangeAlgebra.Journal  as EJ

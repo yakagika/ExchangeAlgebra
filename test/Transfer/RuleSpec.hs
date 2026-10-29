@@ -246,8 +246,8 @@ testValidation = do
                 _ -> False
 
 -- | Mixed wildcard positions match every posting under every rule permutation.
-testLegacyMiss :: IO ()
-testLegacyMiss = do
+testMixedWildcardPermutations :: IO ()
+testMixedWildcardPermutations = do
     let rules =
             [ relabel (Hat :< (wildcard, Yen)) (Hat :< (wildcard, Amount))
             , relabel (Not :< (Cash, wildcard)) (Not :< (Deposits, wildcard))
@@ -690,7 +690,7 @@ runTests = do
     quickProperty "L5 MoneyDecimal" (propNonnegative (Proxy :: Proxy MoneyDecimal))
     quickProperty "L6 collapse" propCollapse
     testValidation
-    testLegacyMiss
+    testMixedWildcardPermutations
     testApplication
     testClosing
     testClosingOverflow

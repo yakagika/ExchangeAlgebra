@@ -11,7 +11,7 @@ Description : Generic transfer rules and additional entries.
 
 This Algebra layer owns transfer rules, their validation, and coordinate
 collapse. It uses generic bases and values and supplies the public
-"ExchangeAlgebra.Algebra.Transfer.Rule" entry point.
+"ExchangeAlgebra.Algebra.Transfer" entry point.
 Start with 'mkTransferRules', then 'transferEntries' or the collapse functions.
 Definition 9 describes a transfer by adding source cancellations and target
 postings: for @Right entries = transferEntries rules ledger@, use
@@ -24,18 +24,15 @@ summed values after @bar@; it does not observe the singleton versus composite
 constructor or sequence order. Relative tolerance means a per-base difference
 of at most @1e-9 * max (abs x) (abs y)@, treating absent bases as zero.
 
-=== L1: compatibility
+=== L1: coordinate rewriting
 
-* Subject: 'transferEntries' and legacy @transfer@.
-* Preconditions: P1, all source patterns have the same wildcard positions;
-  P2, patterns are disjoint; P3, ledger bases contain no wildcards; P4, axes
-  are not nested tuples; P5, transformed values are nonzero. The legacy table
-  translates 'Relabel', 'MulBy' and 'DivBy' to @id@, @(* p)@ and @(/ p)@,
-  respectively, and applying the new rules returns @Right entries@. P3 is
-  needed only for equivalence with legacy @transfer@, whose matching is
-  symmetric. 'transferEntries' matches one way and treats ledger wildcards
-  as values.
-* Relation: @obs (a .+ entries) ~= obs (transfer a table)@.
+* Subject: 'transferEntries'.
+* Preconditions: disjoint source patterns, valid non-negative postings and
+  a successful application returning @Right entries@. A source wildcard
+  matches any stored coordinate; a concrete source matches only itself.
+* Relation: @obs (a .+ entries)@ equals the observation of independently
+  rewriting each matched posting to its rule's target and scaled value;
+  unmatched postings remain unchanged.
 * Observation: @obs@ as defined above, including every target base.
 * Tolerance: relative @1e-9@; tested values are integers in @1..1000000@,
   and coefficients are @2@, @3@, @0.5@ and @4@.

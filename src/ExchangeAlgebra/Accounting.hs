@@ -18,22 +18,15 @@
       ('decL' \/ 'decR' \/ 'decP' \/ 'decM') and the account-aware projections.
     * Definition 9 (transfer): the accounting transfer of
       "ExchangeAlgebra.Accounting.Transfer" (tables written with '.->' and
-      '|%', additive 'transferEntries' from exact balances), plus the legacy
-      'TransTable' triple and 'transfer' and the per-posting rules of
-      "ExchangeAlgebra.Algebra.Transfer.Rule". The legacy operators and the
-      per-posting @transferEntries@ and @Relabel@ keep their own modules.
+      '|%', additive 'transferEntries' from exact balances), plus coordinate
+      rules and closing entries. Import generic per-posting @transferEntries@
+      and @Relabel@ from "ExchangeAlgebra.Algebra.Transfer" qualified.
 
-    Everything is re-exported item by item from
-    "ExchangeAlgebra.Algebra.Base.Element", "ExchangeAlgebra.Algebra.Base.Account.Types",
-    "ExchangeAlgebra.Algebra.Base", "ExchangeAlgebra.Algebra.Internal" and
-    "ExchangeAlgebra.Algebra.Transfer",
-    "ExchangeAlgebra.Algebra.Transfer.Rule" and
-    "ExchangeAlgebra.Accounting.Transfer"; nothing is defined here. The umbrella
-    is the Definition 7-9 core only: the account registry
-    ("ExchangeAlgebra.Algebra.Base.Account.Registry"), the posting policy
-    ("ExchangeAlgebra.Accounting.PostingPolicy"), trial-balance readouts
-    ("ExchangeAlgebra.Accounting.TrialBalance.Balance") and the named closing transfers
-    of "ExchangeAlgebra.Algebra.Transfer" keep their own modules.
+    This umbrella re-exports account vocabulary, exchange operations,
+    coordinate rules, closing entries, and accounting transfers. It defines
+    no operations. The account registry ("ExchangeAlgebra.Accounting.Account"),
+    trial-balance readouts ("ExchangeAlgebra.Accounting.TrialBalance.Balance"),
+    and statement modules are imported separately.
 
     >>> import ExchangeAlgebra.Foundation
     >>> import ExchangeAlgebra.Accounting
@@ -69,14 +62,7 @@ module ExchangeAlgebra.Accounting
     , projCapitalStock
     , projContraAssets
     , projContra
-      -- * Definition 9: transfer
-    , TransTable
-    , TransTableParts
-    , Size
-    , isNullTable
-    , table
-    , createTransfer
-    , transfer
+      -- * Definition 9: coordinate rules and closing
     , module ExchangeAlgebra.Algebra.Transfer.Rule
       -- * Definition 9: accounting transfer
     , module ExchangeAlgebra.Accounting.Transfer
@@ -111,15 +97,6 @@ import           ExchangeAlgebra.Algebra.Internal
                      , projCapitalStock
                      , projContraAssets
                      , projContra
-                     )
-import           ExchangeAlgebra.Algebra.Transfer
-                     ( TransTable
-                     , TransTableParts
-                     , Size
-                     , isNullTable
-                     , table
-                     , createTransfer
-                     , transfer
                      )
 import           ExchangeAlgebra.Accounting.Transfer
 

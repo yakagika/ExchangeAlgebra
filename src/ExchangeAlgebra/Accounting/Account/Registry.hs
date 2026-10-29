@@ -41,17 +41,12 @@ import ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
 data AccountSpec = AccountSpec
     { asDivision    :: AccountDivision
     , asClosing     :: ClosingRule
-      -- ^ Automatic final-stock closing policy. 'NetIncome' and 'NetLoss' are
-      -- __permanent__ explicit 'NoClose' overrides (adjudicated 2026-08-11):
-      -- their division encodes the P\/L /presentation side/ (profit sits on
-      -- the debit side to balance the statement), so the division-derived
-      -- rule would invert the transfer sign. Their closing is owned by the
-      -- dedicated net-income transfer pipeline in
-      -- "ExchangeAlgebra.Algebra.Transfer" (correct signs, engine-inserted
-      -- balancing postings).  GrossProfit and OrdinaryProfit retain
-      -- CloseByDivision for the historical SNA/simulation transfer pipeline.
-      -- That asymmetry is compatibility behavior, not a reporting rule;
-      -- statement metrics live in "ExchangeAlgebra.Accounting.Statements.Metric".
+      -- ^ Automatic closing policy. 'NetIncome' and 'NetLoss' are explicit
+      -- 'NoClose' overrides: their division describes the P\/L presentation
+      -- side, so division-derived closing would reverse their intended side.
+      -- GrossProfit and OrdinaryProfit retain CloseByDivision for staged
+      -- closing. Statement metrics live in
+      -- "ExchangeAlgebra.Accounting.Statements.Metric".
     , asIsContra    :: Bool
     , asFixedCurrent :: FixedCurrent
     , asNameEn      :: Text

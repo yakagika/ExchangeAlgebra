@@ -51,9 +51,9 @@ Conversion between units (quantity to money) is not a transfer: use
 'ExchangeAlgebra.Algebra.Core.mapPosting' (or @map@ of a journal) and keep the
 ledger in quantities.
 
-The legacy rewriting operators of "ExchangeAlgebra.Algebra.Transfer" and the
-per-posting rules of "ExchangeAlgebra.Algebra.Transfer.Rule" keep their own
-modules; the umbrella modules export the names defined here.
+For generic per-posting coordinate rules, import
+"ExchangeAlgebra.Algebra.Transfer" qualified. The umbrella modules export
+the accounting transfer names defined here.
 
 == Laws
 

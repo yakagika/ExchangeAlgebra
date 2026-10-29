@@ -101,7 +101,8 @@ on Hackage; use a Git pin, or keep importing the existing defining module.
 
 The recommended entry point collects the common single-period bookkeeping API.
 
-- `ExchangeAlgebra` — re-exports `Algebra`, `Algebra.Transfer`, `Value`, and `Write`.
+- `ExchangeAlgebra` — re-exports `Algebra`, accounting transfer and closing
+  operations, value types, and output functions.
 - **0.5.1.0 / Git only** `ExchangeAlgebra.Foundation` — re-exports the
   Definitions 1-6 algebraic foundation without accounting vocabulary.
 - **0.5.1.0 / Git only** `ExchangeAlgebra.Accounting` — re-exports the
@@ -125,7 +126,8 @@ These modules implement exchange-algebra values, transformations, and selectable
 - `ExchangeAlgebra.Algebra.Internal` — exposes the representation behind `Alg`
   for advanced use (all constructors, cache fields, rebuild helpers), but
   carries no stability guarantee.
-- `ExchangeAlgebra.Algebra.Transfer` — rewrites existing algebra balances through transfer tables and closing transfers.
+- `ExchangeAlgebra.Algebra.Transfer` — generic coordinate rules that return
+  additional entries to add to the original algebra.
 - **0.5.1.0 / Git only** `ExchangeAlgebra.Algebra.Readout.Net` — collects lossy,
   netted read-outs from algebras and journals.
 - `ExchangeAlgebra.Value` — provides fast typed and exact non-negative value types for `Alg` and `Journal`.
@@ -151,7 +153,7 @@ norm (proj [Not :< (Cash, (.#))] ledger) -- 10.0
 ```
 
 Canonical ordering treats `#` as an ordinary value. The `.==` operator remains
-symmetric; use projection or `ExchangeAlgebra.Algebra.Transfer.Rule` for one-way
+symmetric; use projection or `ExchangeAlgebra.Algebra.Transfer` for one-way
 matching against ledger entries.
 
 ### Journal and simulation
@@ -159,7 +161,8 @@ matching against ledger entries.
 These modules attach notes to postings and run classic, Lite, network, policy-driven, and visual simulation workflows.
 
 - `ExchangeAlgebra.Journal` — defines metadata-bearing `Journal` values, indexed projections, and journal aggregation.
-- `ExchangeAlgebra.Journal.Transfer` — specializes the algebra transfer API to `Journal`.
+- `ExchangeAlgebra.Journal.Transfer` — carries entries across notes and reads
+  side totals. Use `Accounting.Transfer.transferEntriesBy` for accounting transfers.
 - `ExchangeAlgebra.Simulate` — provides the state-space engine, classic front-end, spill support, ripple utilities, and scenario execution.
 - **0.5.1.0 / Git only** `ExchangeAlgebra.Simulate.Engine` — re-exports the
   classic state-space protocol and runners without spill configuration or

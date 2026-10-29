@@ -284,14 +284,16 @@ funcArrays xs fs (start,end) wlds = stToIO $ do
 
 
 -- | Extension of gridLine that
---   groups multiple series into the same cell
+--   groups multiple series into the same cell.
+-- Invariant: the series list is non-empty; an empty list raises an error.
 gridLines
   :: (Ord a, Show a, Ix a, StateTime t)
   => [Label]
   -> [STArray s (a, t) Double]
   -> ST s (GridMatrix t)
-gridLines xs arrs = do
-    idx <- getBounds (head arrs)
+gridLines _ [] = error "gridLines: non-empty series invariant"
+gridLines xs arrs@(first : _) = do
+    idx <- getBounds first
     let as = Set.toAscList
            $ Set.fromList
            $ L.map fst

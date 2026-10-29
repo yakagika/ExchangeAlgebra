@@ -6,7 +6,6 @@ SideTotals
 WildcardSide
 carryBefore
 carryEntries
-closingEntries
 hatTotal
 notTotal
 sideTotal

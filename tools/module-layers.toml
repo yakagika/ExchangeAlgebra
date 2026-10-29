@@ -26,7 +26,7 @@ Value = "Algebra"
 Posting = "Algebra"
 Foundation = "Algebra"
 "Algebra.Base.Account" = "Accounting"
-"Algebra.Transfer" = "Accounting"
+"Algebra.Transfer" = "Algebra"
 "Algebra.Transfer.Rule" = "Algebra"
 "Algebra.Transfer.Representation" = "Algebra"
 "Accounting.Closing" = "Accounting"
@@ -155,19 +155,7 @@ reason = "Legacy account types namespace re-exports the new owner."
 remove_by = "0.7.0.0"
 
 [[exceptions]]
-from = "Journal.Transfer"
-to = "Algebra.Transfer"
-reason = "Legacy journal transfer delegates to the accounting transfer API."
-remove_by = "0.6.0.0"
-
-[[exceptions]]
-from = "Journal.Transfer.Rule"
-to = "Accounting.Closing"
-reason = "Legacy journal closing adapter delegates to the closing owner."
-remove_by = "P4"
-
-[[exceptions]]
 from = "Algebra.Transfer.Rule"
 to = "Accounting.Closing"
-reason = "Rule re-exports closing entities; deprecation waits for the P4 generic public entry."
+reason = "Compatibility module deprecated in 0.6; retained until removal."
 remove_by = "0.7.0.0"

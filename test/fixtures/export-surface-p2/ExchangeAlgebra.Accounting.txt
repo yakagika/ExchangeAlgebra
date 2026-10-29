@@ -255,7 +255,6 @@ ShortTermNationalBonds
 ShortTermNationalBondsPayable
 Side
 SignedNet
-Size
 Software
 SoftwareInProgress
 StatutoryWelfareExpenses
@@ -278,8 +277,6 @@ TimeDeposits
 ToolsAndInstruments
 Trademark
 TradingSecurities
-TransTable
-TransTableParts
 TransferApplyError
 TransferEnds
 TransferError
@@ -314,7 +311,6 @@ closingEntries
 closingSide
 collapseEntries
 collapseNetEntries
-createTransfer
 decL
 decM
 decP
@@ -326,7 +322,6 @@ divideBy
 fixedCurrent
 getAccountTitle
 isContra
-isNullTable
 mkTransferRules
 mkTransferTable
 pimoFlip
@@ -353,9 +348,7 @@ setAccountTitle
 settleEntries
 settlementSteps
 switchSide
-table
 tableRows
-transfer
 transferEntries
 transferEntriesBy
 transferEntriesByWith

@@ -25,11 +25,7 @@ Supply only postings through the closing date, including earlier closing
 entries. For a journal, first use @toAlg@ from "ExchangeAlgebra.Journal.Core",
 then attach the closing note to the returned entries with @(.|)@.
 
-The legacy @incomeSummaryAccount@ / @netIncomeTransfer@ chain and
-@finalStockTransfer@ return transformed ledgers. Use 'closingEntries' for
-additional entries that retain the original audit trail. Its compatibility
-with the legacy result has the preconditions stated in L2.
-The posting pairs implement Definition 9.
+The posting pairs implement Definition 9 and retain the original audit trail.
 
 == Laws
 
@@ -40,17 +36,14 @@ of at most @1e-9 * max (abs x) (abs y)@, treating absent bases as zero.
 
 === L2: closing
 
-* Subject: 'closingEntries' and legacy @finalStockTransfer@.
-* Preconditions: concrete ledger bases, valid Hat\/Not postings and integer values
-  in @1..1000000@; the ledger includes only entries up to the closing date.
-  Closing returns @Right entries@. Concrete bases are needed only for
-  equivalence with legacy @finalStockTransfer@ and its symmetric matching;
-  'closingEntries' groups by each actual base, including ledger wildcards
-  as values.
-* Relation: @obs (a .+ entries) ~= obs (finalStockTransfer a)@.
-* Observation: @obs@, including 'RetainedEarnings' and all retained axes.
-* Tolerance: relative @1e-9@ within the stated range. Large historical
-  cancellations are deliberately outside this compatibility law.
+* Subject: 'closingEntries'.
+* Preconditions: valid Hat\/Not postings; the ledger includes only entries
+  through the closing date and the call returns @Right entries@.
+* Relation: adding the entries closes each eligible complete base exactly.
+  Each reversal has an equal retained-earnings posting on the side selected
+  by 'closingSide'; non-closing bases and non-account coordinates are retained.
+* Observation: exact net per complete base, including 'RetainedEarnings'.
+* Tolerance: none; the 'HatVal' accumulator and 'splitAccum' preserve exact nets.
 * Instances: 'Double' and @MoneyDecimal@ with 'ExBaseClass' bases.
 
 === L3: balance
@@ -130,7 +123,7 @@ instance Binary ClosingSide
 
 instance Hashable ClosingSide
 
--- | Public closing classification used by the legacy final stock transfer.
+-- | Select the retained-earnings direction for an account eligible for closing.
 -- Registry NoClose accounts, including NetIncome and NetLoss, are excluded.
 closingSide :: AccountTitles -> Maybe ClosingSide
 closingSide title = case accountSpec title of

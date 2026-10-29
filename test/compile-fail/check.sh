@@ -75,8 +75,8 @@ warn_deprecated() {
         cat "$admission_tmp/$snippet.log"
         exit 1
     fi
-    if ! grep -Eq 'deprecated|deprecations' "$admission_tmp/$snippet.log" \
-        || ! grep -Fq "$identifier" "$admission_tmp/$snippet.log"; then
+    if ! grep -Eq "In the use of [‘'\"]([^‘’'\"]*\\.)?${identifier}[’'\"]" \
+        "$admission_tmp/$snippet.log"; then
         printf '[FAIL] %s compiled without the expected deprecation warning\n' "$snippet"
         cat "$admission_tmp/$snippet.log"
         exit 1

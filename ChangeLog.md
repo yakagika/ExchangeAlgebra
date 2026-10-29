@@ -162,11 +162,8 @@
 
 - The umbrella modules `ExchangeAlgebra` and `ExchangeAlgebra.Accounting`
   export the accounting transfer's `(.->)`, `(|%)`, `Relabel`, and
-  `transferEntries`. For the old rewriting operators, import
-  `ExchangeAlgebra hiding ((.->), (|%))` and
-  `ExchangeAlgebra.Algebra.Transfer ((.->), (|%))`. Use a qualified import of
-  `ExchangeAlgebra.Algebra.Transfer.Rule` for the old `Relabel` and
-  per-posting `transferEntries` alongside the umbrella names.
+  `transferEntries`. Import `ExchangeAlgebra.Algebra.Transfer` qualified for
+  generic per-posting `Relabel` and `transferEntries` alongside these names.
   For this transfer change: numeric unchanged; acceptance unchanged;
   postings unchanged; diagnostics changed (deprecation warnings can fail
   builds using `-Werror`); serialization unchanged. These five observations
@@ -312,6 +309,12 @@
 
 ### Deprecated (module moves; definitions and behavior unchanged)
 
+- `ExchangeAlgebra.Algebra.Transfer.Rule` is deprecated in 0.6.0.0. Import
+  `ExchangeAlgebra.Algebra.Transfer` for generic coordinate transfers and
+  `ExchangeAlgebra.Accounting.Closing` for closing and settlement operations.
+  The individual deprecations of the scaling and rule-construction helpers
+  remain in effect.
+
 - `bsRows`, `writeBS`, `plRows`, and `writePL` now warn. `bsRows` settles the
   ledger internally, and `plRows` drops reversals of the same title. Use
   `closingEntries`, then `present` with `AfterClosing`, then
@@ -321,7 +324,7 @@
 - `relabel`, `scaleBy`, `divideBy`, `MulBy`, and `DivBy` from the per-posting
   transfer API now warn. Use `from .-> to |% Relabel` for an accounting
   transfer, or `TransferRule from to Relabel` from
-  `ExchangeAlgebra.Algebra.Transfer.Rule` for coordinate rewriting.
+  `ExchangeAlgebra.Algebra.Transfer` for coordinate rewriting.
   Use `Portion n d` to move an equal share on both sides. For unit conversion,
   use `mapPosting` and retain the quantity ledger. For example, with a
   positive price `p`, convert one product's quantities to yen while keeping
@@ -346,20 +349,6 @@
   shows conversion back using positive prices.
 - The per-posting `ExchangeAlgebra.Journal.Transfer.Rule.transferEntries`
   now warns; use `transferEntriesBy` for transfers from grouped exact balances.
-- `netIncomeTransfer` and `incomeSummaryAccount` in both
-  `ExchangeAlgebra.Algebra.Transfer` and `ExchangeAlgebra.Journal.Transfer`
-  now warn. Replace the chain with an `IncomeSummary` table and add the result
-  of `transferEntries` to the ledger. For bases `(AccountTitles, Text)`, this
-  table closes sales and cost through the summary into retained earnings:
-
-  ```haskell
-  mkTransferTable
-      [ (Sales, (.#)) .-> (IncomeSummary, (.#)) |% Relabel
-      , (SalesCost, (.#)) .-> (IncomeSummary, (.#)) |% Relabel
-      , (IncomeSummary, (.#)) .-> (RetainedEarnings, (.#)) |% Relabel
-      ]
-  ```
-
 - New module paths for the element, value, and account vocabulary. The old
   modules re-export exactly the same names and still build; they carry a
   module-level `DEPRECATED` pointing at the new path:
@@ -373,8 +362,8 @@
     `ExchangeAlgebra.Accounting.Account`.
 - `ExchangeAlgebra.Algebra.Base`, `ExchangeAlgebra.Algebra.Internal`,
   `ExchangeAlgebra.Algebra`, `ExchangeAlgebra.Journal`, and the root module keep
-  their current export lists unchanged in this release line, except for the
-  accounting transfer names described under Changed.
+  their current export lists in this release line, except for the accounting
+  transfer changes and the removals listed here.
 - `ExchangeAlgebra.Algebra.Core` (the generic `Alg` operations) and
   `ExchangeAlgebra.Algebra.Posting` are new public entry points.
   `ExchangeAlgebra.Posting` → `ExchangeAlgebra.Algebra.Posting`. `projNorm`
@@ -419,6 +408,58 @@
   `Simulate.*` names.
 
 ### Removed
+
+In 0.6.0.0, `ExchangeAlgebra.Algebra.Transfer` and
+`ExchangeAlgebra.Journal.Transfer` keep their module names but replace their
+contents with generic coordinate transfers and note-aware carry operations,
+respectively. The old functions rewrote postings; the replacement transfer
+and closing functions return additional entries to add with `(.+)`, preserving
+the original postings.
+
+- `TransTable` is removed. Use `Accounting.Transfer.TransferTable` for
+  accounting transfers or `Algebra.Transfer.TransferRules` for coordinates.
+- `TransTableParts` is removed. Write accounting rows with
+  `Accounting.Transfer`'s `from .-> to |% Relabel`.
+- `Size` is removed with the old table representation; it has no replacement.
+- `isNullTable` is removed. Inspect `Accounting.Transfer.tableRows` or
+  `Algebra.Transfer.rulesToList` when checking for an empty rule set.
+- `table` is removed. Use `Accounting.Transfer.mkTransferTable` or
+  `Algebra.Transfer.mkTransferRules` to validate rows.
+- The old `(.->)` in both Transfer modules is removed. Use
+  `Accounting.Transfer`'s `(.->)` with bases without Hat/Not.
+- The old `(|%)` in both Transfer modules is removed. Use
+  `Accounting.Transfer`'s `from .-> to |% Relabel` to construct a row.
+- `transfer` is removed from both Transfer modules. Use
+  `Accounting.Transfer.transferEntries`, or `transferEntriesBy` for journals.
+  For unit conversion, use `Algebra.Core.mapPosting` instead.
+- `createTransfer` is removed from both Transfer modules. Build a table with
+  `Accounting.Transfer.mkTransferTable`, then apply `transferEntries` or
+  `transferEntriesBy`; use `mapPosting` for unit conversion.
+- `incomeSummaryAccount` is removed from both Transfer modules. Use
+  `Accounting.Closing.closingEntries`, or accounting transfer rows through
+  `IncomeSummary` when the intermediate stage is needed.
+- `netIncomeTransfer` is removed from both Transfer modules. Use
+  `Accounting.Closing.closingEntries` for closing, or an accounting transfer
+  row from `IncomeSummary` to `RetainedEarnings` for staged closing.
+- `grossProfitTransfer` is removed from both Transfer modules. Use
+  account-specific `Accounting.Transfer` rows; `examples/basic/simulateEx1.hs`
+  demonstrates staged closing.
+- `ordinaryProfitTransfer` is removed from both Transfer modules. Use
+  account-specific `Accounting.Transfer` rows as in `simulateEx1.hs`.
+- `retainedEarningTransfer` is removed from both Transfer modules. Use an
+  `Accounting.Transfer` row from `OrdinaryProfit` to `RetainedEarnings`.
+- `Algebra.Transfer.finalStockTransferStep` is removed. Use
+  `Accounting.Closing.closingEntries` for additional closing entries.
+- `finalStockTransfer` is removed from both Transfer modules. Use
+  `Accounting.Closing.closingEntries`; for journals, pass `toAlg journal`,
+  attach the closing note with `(.|)`, and add the result to the journal.
+  Use `Accounting.Closing.closingSide` to observe closing classification.
+- `Journal.Transfer.finalStockTransferAggregated` is removed. Call
+  `Accounting.Closing.closingEntries (toAlg journal)`, attach a note with
+  `(.|)`, and aggregate explicitly with `bar` where needed.
+- `Journal.Transfer.Rule.closingEntries` is removed. Call
+  `Accounting.Closing.closingEntries (toAlg j)` and attach the closing note
+  to the returned entries with `(.|)`.
 
 - The standard CGE example (`cge`) is removed; it will move to the
   general-equilibrium repository.
