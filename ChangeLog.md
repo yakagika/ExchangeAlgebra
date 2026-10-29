@@ -1,5 +1,14 @@
 # Changelog for ExchangeAlgebra
 
+## Unreleased
+
+### Fixed
+
+- Queries with wildcards inside nested tuples now select matching ledger entries
+  in `proj`, `projNetNorm`, `collapseEntries`, and `collapseNetEntries`. Tuple
+  wildcard detection and symmetric matching with `.==` also inspect nested
+  components. This bug affected versions since 0.4.0.0.
+
 ## 0.5.3.1 - 2026-10-21
 
 ### Fixed

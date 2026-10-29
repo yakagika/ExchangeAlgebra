@@ -592,8 +592,8 @@ instance (Element a ,Element b)
 
     {-# INLINE haveWildcard #-}
     haveWildcard (a,b)
-        = isWildcard a
-       || isWildcard b
+        = haveWildcard a
+       || haveWildcard b
 
     {-# INLINE equal #-}
     equal (a1, a2) (b1, b2)
@@ -626,9 +626,9 @@ instance (Element a, Element b, Element c)
 
     {-# INLINE haveWildcard #-}
     haveWildcard (a,b,c)
-        = isWildcard a
-       || isWildcard b
-       || isWildcard c
+        = haveWildcard a
+       || haveWildcard b
+       || haveWildcard c
 
 
     {-# INLINE equal #-}
@@ -666,10 +666,10 @@ instance (Element a, Element b, Element c, Element d)
 
     {-# INLINE haveWildcard #-}
     haveWildcard (a,b,c,d)
-        = isWildcard a
-       || isWildcard b
-       || isWildcard c
-       || isWildcard d
+        = haveWildcard a
+       || haveWildcard b
+       || haveWildcard c
+       || haveWildcard d
 
     {-# INLINE equal #-}
     equal (a1, a2, a3, a4) (b1, b2, b3, b4)
@@ -709,11 +709,11 @@ instance (Element a, Element b, Element c, Element d, Element e)
 
     {-# INLINE haveWildcard #-}
     haveWildcard (a,b,c,d,e)
-        = isWildcard a
-       || isWildcard b
-       || isWildcard c
-       || isWildcard d
-       || isWildcard e
+        = haveWildcard a
+       || haveWildcard b
+       || haveWildcard c
+       || haveWildcard d
+       || haveWildcard e
 
     {-# INLINE equal #-}
     equal (a1, a2, a3, a4, a5) (b1, b2, b3, b4, b5)
@@ -755,12 +755,12 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f)
 
     {-# INLINE haveWildcard #-}
     haveWildcard (a,b,c,d,e,f)
-        = isWildcard a
-       || isWildcard b
-       || isWildcard c
-       || isWildcard d
-       || isWildcard e
-       || isWildcard f
+        = haveWildcard a
+       || haveWildcard b
+       || haveWildcard c
+       || haveWildcard d
+       || haveWildcard e
+       || haveWildcard f
 
     {-# INLINE equal #-}
     equal (a1, a2, a3, a4, a5, a6) (b1, b2, b3, b4, b5, b6)
@@ -804,13 +804,13 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f, Elem
 
     {-# INLINE haveWildcard #-}
     haveWildcard (a,b,c,d,e,f,g)
-        = isWildcard a
-       || isWildcard b
-       || isWildcard c
-       || isWildcard d
-       || isWildcard e
-       || isWildcard f
-       || isWildcard g
+        = haveWildcard a
+       || haveWildcard b
+       || haveWildcard c
+       || haveWildcard d
+       || haveWildcard e
+       || haveWildcard f
+       || haveWildcard g
 
     {-# INLINE equal #-}
     equal (a1, a2, a3, a4, a5, a6, a7) (b1, b2, b3, b4, b5, b6, b7)
