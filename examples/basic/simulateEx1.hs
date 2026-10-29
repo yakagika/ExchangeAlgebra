@@ -8,7 +8,9 @@
 import           ExchangeAlgebra.Journal
 import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Journal  as EJ
-import qualified ExchangeAlgebra.Journal.Transfer as EJT
+import qualified ExchangeAlgebra.Accounting.Closing as Closing
+import qualified ExchangeAlgebra.Accounting.Transfer as Transfer
+import ExchangeAlgebra.Accounting.Transfer ((.->), (|%), TransferShare(Relabel))
 import           ExchangeAlgebra.Algebra.Value    (MoneyDecimal)  -- exact accounting value type
 
 import           ExchangeAlgebra.Simulate
@@ -172,13 +174,13 @@ instance Updatable Term InitVar Ledger s where
     -- 過去のTermを次の期のTermに変更して追加する
     modify g t e x = do
         le <- readURef x
-        let added = f1 t (termJournal (t - 1) le)
+        let previous = EJ.toAlg $ termJournal (t - 1) le
+        -- Invariant: the model ledger contains finite, nonnegative posting values.
+        closing <- either (error . show) pure $ Closing.closingEntries previous
+        let added = EA.bar (previous .+ closing) .| (plank, t)
             next = compressPreviousTerm (t - 1) (le .+ added)
         writeURef x next
-      where
-        f1 t' y = EJ.gather (plank, t') $ f2 y
-        f2 = EJT.finalStockTransfer
-           . (.-)
+
 
 
 ------------------------------------------------------------------
@@ -282,7 +284,18 @@ getTermGrossProfit :: World s -> Term -> Company -> ST s Double
 getTermGrossProfit wld t e = do
     le <- readURef (_ledger wld)
     let termTr = termJournal t le
-        tr    = EJT.grossProfitTransfer termTr
+        -- Invariant: these distinct model accounts are classified and form an acyclic table.
+        rules :: Transfer.TransferTable HatBase2
+        rules = either (error . show) id $ Transfer.mkTransferTable
+            [ (Sales, (.#), (.#), (.#))           .-> (GrossProfit, (.#), (.#), (.#)) |% Relabel
+            , (Purchases, (.#), (.#), (.#))       .-> (GrossProfit, (.#), (.#), (.#)) |% Relabel
+            , (WageExpenditure, (.#), (.#), (.#)) .-> (GrossProfit, (.#), (.#), (.#)) |% Relabel
+            , (Depreciation, (.#), (.#), (.#))    .-> (GrossProfit, (.#), (.#), (.#)) |% Relabel
+            , (ValueAdded, (.#), (.#), (.#))      .-> (GrossProfit, (.#), (.#), (.#)) |% Relabel
+            ]
+        entries :: Transaction
+        entries = either (error . show) id $ Transfer.transferEntriesBy id rules termTr
+        tr = termTr .+ entries
         plus  = norm $ EJ.projWithBase [Not:<(GrossProfit,(.#),e,Yen)] tr
         minus = norm $ EJ.projWithBase [Hat:<(GrossProfit,(.#),e,Yen)] tr
     return $ realToFrac (plus - minus)  -- exact MoneyDecimal -> Double for reporting

@@ -5,9 +5,8 @@ module Journal.JournalSpec (runTests) where
 
 import ExchangeAlgebra.Journal
 import qualified ExchangeAlgebra.Algebra  as EA
-import qualified ExchangeAlgebra.Algebra.Transfer as EAT
+import qualified ExchangeAlgebra.Accounting.Closing as Closing
 import qualified ExchangeAlgebra.Journal  as EJ
-import qualified ExchangeAlgebra.Journal.Transfer as EJT
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Map.Strict     as M
@@ -459,38 +458,45 @@ testFilterByAxisCases = do
     forM_ cases runTestComparison
 
 
--- | Compare final-stock transfer with the three composed transfers in both representations.
+-- | Close against hand-calculated balances and keep the original transaction notes.
 testFinalStockTransferEquivalence :: IO ()
 testFinalStockTransferEquivalence = do
-    let cases = concat
-            [ let
-                  ref =
-                      (.-)
-                          . EAT.retainedEarningTransfer
-                          . EAT.ordinaryProfitTransfer
-                          . EAT.grossProfitTransfer
-                          $ transferAlgSample
-                  actual = EAT.finalStockTransfer transferAlgSample
-              in
-                  [ EqualComparison
-                        "Algebra.finalStockTransfer matches composed transfer"
-                        ref actual
-                  ]
-            , let
-                  ref =
-                      (.-)
-                          . EJT.retainedEarningTransfer
-                          . EJT.ordinaryProfitTransfer
-                          . EJT.grossProfitTransfer
-                          $ transferJournalSample
-                  actual = EJT.finalStockTransfer transferJournalSample
-              in
-                  [ EqualComparison
-                        "Journal.finalStockTransfer matches composed transfer"
-                        (EJ.toMap ref) (EJ.toMap actual)
-                  ]
+    let expected :: TransferAlg
+        expected = EA.fromList
+            [ 83 .@ Not :< (RetainedEarnings, 1, 1, Yen)
+            , 32 .@ Not :< (RetainedEarnings, 2, 2, Yen)
+            , 20 .@ Not :< (RetainedEarnings, 3, 3, Yen)
+            , 13 .@ Not :< (RetainedEarnings, 1, 2, Yen)
+            , 17 .@ Hat :< (RetainedEarnings, 2, 1, Yen)
+            , 19 .@ Not :< (RetainedEarnings, 4, 4, Yen)
+            , 23 .@ Not :< (RetainedEarnings, 5, 5, Yen)
+            , 78 .@ Not :< (RetainedEarnings, 6, 6, Yen)
+            , 53 .@ Not :< (RetainedEarnings, 7, 7, Yen)
+            , 59 .@ Hat :< (RetainedEarnings, 8, 8, Yen)
+            , 61 .@ Not :< (Cash, 1, 1, Yen)
             ]
-    forM_ cases runTestComparison
+        expectedJournal :: TransferAlg
+        expectedJournal = EA.bar $ expected
+            .+ 5 .@ Not :< (RetainedEarnings, 2, 1, Yen)
+            .+ 2 .@ Not :< (RetainedEarnings, 1, 1, Yen)
+            .+ 3 .@ Not :< (RetainedEarnings, 3, 3, Yen)
+            .+ 4 .@ Not :< (RetainedEarnings, 4, 4, Yen)
+    case Closing.closingEntries transferAlgSample of
+        Left failure -> fail (show failure)
+        Right entries -> assertEqual "Algebra closing retains axes and fixed balances"
+            (EA.bar expected) (EA.bar (transferAlgSample .+ entries))
+    case Closing.closingEntries (EJ.toAlg transferJournalSample) of
+        Left failure -> fail (show failure)
+        Right entries -> do
+            let closed :: TransferJournal
+                closed = transferJournalSample .+ (entries .| "closing")
+            assertEqual "Journal closing has the fixed aggregate balances"
+                expectedJournal (EA.bar (EJ.toAlg closed))
+            assertEqual "Journal closing preserves transaction notes"
+                (EJ.toMap transferJournalSample)
+                (HM.delete "closing" (EJ.toMap closed))
+            assertEqual "Journal closing records additions under the settlement note"
+                (Just entries) (HM.lookup "closing" (EJ.toMap closed))
 
 -- | Run this domain in its original relative test order.
 runTests :: IO ()

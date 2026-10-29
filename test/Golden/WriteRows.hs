@@ -13,6 +13,7 @@ import qualified Data.Text as T
 import           Data.Time (Day, fromGregorian)
 
 import           ExchangeAlgebra
+import qualified ExchangeAlgebra.Accounting.Closing as Closing
 import           ExchangeAlgebra.Accounting.Entries
 import qualified ExchangeAlgebra.Journal as EJ
 import           ExchangeAlgebra.IO.Output.Statements
@@ -408,21 +409,9 @@ ex9Adjustments = ex9AdjCOGS .+ ex9AdjDepreciation .+ ex9AdjAllowance .+ ex9AdjPr
 ex9PostAdjustment :: MinTransaction
 ex9PostAdjustment = ex9PreAdjustment .+ ex9Adjustments
 
-ex9NominalLedger :: MinTransaction
-ex9NominalLedger = ExchangeAlgebra.filter isNominal ex9PostAdjustment
-  where
-    isNominal x = let division = (whatDiv . _hatBase) x
-                  in division == Cost || division == Revenue
-
-ex9IncomeSummary :: MinTransaction
-ex9IncomeSummary = incomeSummaryAccount ex9NominalLedger
-
+-- | Add checked closing entries; the frozen post-closing TSV remains the oracle.
+-- Invariant: the fixed fixture has finite non-negative values and representable balances.
 ex9AfterClosing :: MinTransaction
-ex9AfterClosing = realLedger .+ netIncomeTransfer
-    (  projByAccountTitle NetIncome ex9IncomeSummary
-    .+ projByAccountTitle NetLoss ex9IncomeSummary
-    )
-  where
-    realLedger = ExchangeAlgebra.filter isReal ex9PostAdjustment
-    isReal x = let division = (whatDiv . _hatBase) x
-               in division == Assets || division == Liability || division == Equity
+ex9AfterClosing = case Closing.closingEntries ex9PostAdjustment of
+    Left failure -> error ("ex9 closing invariant: " ++ show failure)
+    Right entries -> ex9PostAdjustment .+ entries

@@ -3,7 +3,6 @@
 -- | Convert quantities to money without changing the quantity ledger.
 -- Use mapPosting for values and units, and EJ.map to keep journal notes.
 import ExchangeAlgebra
-import qualified ExchangeAlgebra.Algebra.Transfer as Legacy
 import qualified ExchangeAlgebra.Journal as EJ
 import qualified Data.Map.Strict as M
 import Control.Monad (unless)
@@ -43,7 +42,7 @@ check :: (Eq a, Show a) => String -> a -> a -> IO ()
 check label expected actual = unless (expected == actual) $
     fail (label ++ ": expected " ++ show expected ++ ", got " ++ show actual)
 
--- | Compare mapPosting conversion with the directly imported legacy rewriting API.
+-- | Check conversion against fixed values, round trips, and preserved notes.
 main :: IO ()
 main = do
     let prices :: Prices
@@ -55,12 +54,6 @@ main = do
         expected = 1 .@ Hat :< (Cash, "-", Yen)
                 .+ 12 .@ Not :< (Products, "g1", Yen)
                 .+ 1 .@ Hat :< (Products, "g2", Yen) :: Alg Double Base
-        legacyTable :: Legacy.TransTable Double Base
-        legacyTable = Legacy.table $
-            (HatNot :< (Products, "g1", Amount)) Legacy..->
-                (HatNot :< (Products, "g1", Yen)) Legacy.|% (* 3)
-            ++ ((HatNot :< (Products, "g2", Amount)) Legacy..->
-                (HatNot :< (Products, "g2", Yen)) Legacy.|% (* 0.5))
     check "quantity to yen" expected (toYen prices quantities)
     check "getter after conversion" 14
         $ norm
@@ -69,7 +62,6 @@ main = do
     check "journal conversion" expected
         $ EJ.toAlg
         $ EJ.map (toYen prices) journal
-    check "legacy rewriting" expected (Legacy.transfer quantities legacyTable)
     check "zero price is not divided" expected
         $ toAmount (M.fromList [("g1", 0)]) expected
     putStrLn "Conversion: all checks passed"

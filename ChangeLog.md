@@ -420,6 +420,8 @@
 
 ### Removed
 
+- The standard CGE example (`cge`) is removed; it will move to the
+  general-equilibrium repository.
 - `ExchangeAlgebra.Write` is removed. Import CSV serialization (`writeCSV`,
   `csvTranspose`) from `ExchangeAlgebra.IO.Output.Csv`; journals, account
   ledgers, trial balances, and worksheets from

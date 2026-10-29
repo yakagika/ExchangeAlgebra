@@ -10,7 +10,9 @@
 import           ExchangeAlgebra.Journal
 import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Journal  as EJ
-import qualified ExchangeAlgebra.Journal.Transfer as EJT
+import qualified ExchangeAlgebra.Accounting.Closing as Closing
+import qualified ExchangeAlgebra.Accounting.Transfer as Transfer
+import ExchangeAlgebra.Accounting.Transfer ((.->), (|%), TransferShare(Relabel))
 import           ExchangeAlgebra.Algebra.Value    (MoneyDecimal)  -- exact accounting value type
 import qualified ExchangeAlgebra.Simulate as ES
 import           ExchangeAlgebra.Simulate
@@ -175,12 +177,12 @@ instance Updatable Term InitVar Ledger s where
     -- Carry forward final stock from previous term into the current term.
     modify _ t _ ledgerRef = do
         ledger <- readURef ledgerRef
-        let carryOver = carryForwardFinalStock t (termJournal (t - 1) ledger)
+        let previous = EJ.toAlg $ termJournal (t - 1) ledger
+        -- Invariant: the model ledger contains finite, nonnegative posting values.
+        closing <- either (error . show) pure $ Closing.closingEntries previous
+        let carryOver = EA.bar (previous .+ closing) .| (plank, t)
             nextLedger = compressPreviousTerm (t - 1) (ledger .+ carryOver)
         writeURef ledgerRef nextLedger
-      where
-        carryForwardFinalStock currentTerm =
-            EJ.gather (plank, currentTerm) . EJT.finalStockTransfer . (.-)
 
 ------------------------------------------------------------------
 -- ** Input coefficient table
@@ -323,7 +325,20 @@ termAlgAt :: Term -> Transaction -> EA.Alg MoneyDecimal HatBase2
 termAlgAt t = EJ.toAlg . (.-) . termJournal t
 
 grossProfitAlgAt :: Term -> Transaction -> EA.Alg MoneyDecimal HatBase2
-grossProfitAlgAt t = EJ.toAlg . EJT.grossProfitTransfer . termJournal t
+grossProfitAlgAt t ledger = EJ.toAlg (termTr .+ entries)
+  where
+    termTr = termJournal t ledger
+    -- Invariant: distinct, classified model accounts and finite, nonnegative postings.
+    rules :: Transfer.TransferTable HatBase2
+    rules = either (error . show) id $ Transfer.mkTransferTable
+        [ (Sales, (.#), (.#), (.#))           .-> (GrossProfit, (.#), (.#), (.#)) |% Relabel
+        , (Purchases, (.#), (.#), (.#))       .-> (GrossProfit, (.#), (.#), (.#)) |% Relabel
+        , (WageExpenditure, (.#), (.#), (.#)) .-> (GrossProfit, (.#), (.#), (.#)) |% Relabel
+        , (Depreciation, (.#), (.#), (.#))    .-> (GrossProfit, (.#), (.#), (.#)) |% Relabel
+        , (ValueAdded, (.#), (.#), (.#))      .-> (GrossProfit, (.#), (.#), (.#)) |% Relabel
+        ]
+    entries :: Transaction
+    entries = either (error . show) id $ Transfer.transferEntriesBy id rules termTr
 
 stockByAlg :: Company -> EA.Alg MoneyDecimal HatBase2 -> MoneyDecimal
 stockByAlg e =

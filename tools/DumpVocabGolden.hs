@@ -28,13 +28,12 @@ import qualified Data.Text.IO as TIO
 import           System.Environment (getArgs)
 import           System.FilePath ((</>))
 
-import           ExchangeAlgebra.Algebra
 import           ExchangeAlgebra.Algebra.Base
 import qualified ExchangeAlgebra.Algebra.Base.Account.Registry as Registry
-import           ExchangeAlgebra.Algebra.Transfer (finalStockTransfer)
+import           ExchangeAlgebra.Accounting.Closing (ClosingSide(..), closingSide)
 
+-- | Posting coordinates used for the frozen side classification.
 type B = HatBase AccountTitles
-type A = Alg Double B
 
 tshow :: Show a => a -> Text
 tshow = T.pack . show
@@ -45,11 +44,10 @@ hdr what commit = "# pre-vland2 " <> what <> "; commit " <> commit <> "\n"
 -- | test/Spec.hs finalStockProbeRule と同じ観測。
 probeRule :: AccountTitles -> Text
 probeRule RetainedEarnings = "SELF"
-probeRule t = case show (finalStockTransfer (1 .@ Not :< t :: A)) of
-    s | s == show (1 .@ Not :< t :: A)                -> "Nothing"
-      | s == show (1 .@ Not :< RetainedEarnings :: A) -> "Keep"
-      | s == show (1 .@ Hat :< RetainedEarnings :: A) -> "Flip"
-      | otherwise                                     -> "UNEXPECTED:" <> T.pack s
+probeRule title = case closingSide title of
+    Nothing -> "Nothing"
+    Just ClosingKeep -> "Keep"
+    Just ClosingFlip -> "Flip"
 
 main :: IO ()
 main = do

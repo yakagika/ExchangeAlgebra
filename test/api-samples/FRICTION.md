@@ -10,25 +10,30 @@
 - 回避: `[Cash]` と `const (fromGregorian 2026 12 31)` を渡した. 全仕訳が同日として表示されるため, 元の取引日を復元する方法ではない.
 - API: `ExchangeAlgebra.IO.Output.Statements.accountLedgerRows`.
 
-## 2. 決算前の名目勘定を利用者が切り出す
+## 2. 決算仕訳を元台帳へ加える
 
-- 題材と行: `Bookkeeping.hs:28-31`, `Readout.hs:18-20`.
-- したかったこと: 期中の台帳から損益を求め, 決算振替と利益剰余金への着地を順に示す.
-- 起きたこと: 既存の講義例では `incomeSummaryAccount` へ名目勘定だけを渡していた. 全台帳を渡すと実在勘定を含む貸借差額が 0 になり, 利益の説明にならない. 科目分類による抽出を利用者側で書く必要があった.
-- 回避: `EA.filter` と `whatDiv . _hatBase` で `Cost` / `Revenue` を選んだ. その後 `netIncomeTransfer` と `finalStockTransfer` を使った.
-- API: `ExchangeAlgebra.Algebra.filter`, `ExchangeAlgebra.Algebra.Base.whatDiv`, `ExchangeAlgebra.Algebra.Transfer.incomeSummaryAccount` / `netIncomeTransfer` / `finalStockTransfer`.
+- 題材: `Readout.hs`, `Bookkeeping.hs`.
+- したかったこと: 期中の台帳から損益を求め, 決算後の利益剰余金を示す.
+- 現在の経路: `Readout.hs` は `periodResultOfAlg` で期間損益を読み, 全台帳を
+  `closingEntries` へ渡す. 成功した追加仕訳を `(.+)` で元台帳へ加える.
+  現金 590, 利益剰余金 90, 貸借一致を手指定の期待値として検査する.
+- API: `ExchangeAlgebra.Accounting.Statements.Metric.periodResultOfAlg`,
+  `ExchangeAlgebra.Accounting.Closing.closingEntries`.
 
-## 3. 期またぎの繰越は手で組み立てる
+## 3. 決算と翌期首への繰越を接続する
 
-- 題材と行: `MultiPeriod.hs:20-27`.
-- したかったこと: `(期, 取引)` を note にした Journal から当期だけを読み, 決算後残高を翌期首へ繰り越す.
-- 起きたこと: 期軸の検索には `filterByAxis 0 (NoteAxisKey period)` を使えたが, 期末 Journal から翌期首 Journal を作る一つの操作は見つけられなかった. `projWithNote` は note の完全な値の列を要求する.
-- 回避: `filterByAxis` → `toAlg` → `finalStockTransfer` → `(.|)` を見本で接続した. この接続自体が利用者側の繰越手順である.
-- API: `ExchangeAlgebra.Journal.filterByAxis` / `toAlg` / `(.|)`, `ExchangeAlgebra.Algebra.Transfer.finalStockTransfer`.
+- 題材: `MultiPeriod.hs`.
+- したかったこと: `(取引, 期)` を note にした Journal を締め, 翌期首へ繰り越す.
+- 現在の経路: `closingEntries (toAlg first)` で追加仕訳を生成し, `(.|)` で決算の
+  note を付けて元 Journal へ加える. `carryBefore` は指定した期を翌期首の残高へ
+  置き換える. 期首の現金 118, 資本 100, 利益剰余金 18 を独立の期待値にする.
+- API: `ExchangeAlgebra.Accounting.Closing.closingEntries`,
+  `ExchangeAlgebra.Journal.toAlg` / `(.|)`,
+  `ExchangeAlgebra.Journal.Transfer.Rule.carryBefore`.
 
 ## 4. 科目ごとの集計にはキー関数の形を合わせる
 
-- 題材と行: `Readout.hs:21-25`.
+- 題材と行: `Readout.hs`.
 - したかったこと: 現金残高, 科目別残高, 貸借一致, 利益剰余金を同じ台帳から読む.
 - 起きたこと: `balanceMapBy getAccountTitle ledger` は型エラーになった. `balanceMapBy` のキー関数は `BasePart b -> Maybe k` であり, `getAccountTitle` はその形でない. 借貸を混ぜて負の値を作る signed readout と非負の対を返す readout も別名である.
 - 回避: 勘定名が基底そのものの見本では `netPairMapBy Just` を使い, 現金と利益剰余金は `bar . projByAccountTitle` で読んだ.
@@ -74,6 +79,6 @@
 
 1. 独自勘定が基礎代数から会計読出し・決算・諸表へ進めない. 拡張した勘定に分類を与える公開の経路が見つからなかった.
 2. 取引網の係数と解析用配列が別表現で, `rippleEffect` も試した 2 × 2 配列で実行時に落ちた. 網を一度定義して波及まで進む見本を書けなかった.
-3. 決算は名目勘定の抽出, 期末繰越, 受入後の二経路比較を利用者が接続する. 小さな帳簿でも複数 module の関数と冗長列の扱いを先に理解する必要があった.
+3. 決算仕訳の生成, note の付与, 期末繰越を利用者が接続する. 小さな帳簿でも複数 module の関数と冗長列の扱いを先に理解する必要があった.
 
 旧 net readout の再公開 module は 0.6 で削除. 各関数は `Algebra` / `Journal` から import する.

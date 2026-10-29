@@ -90,7 +90,6 @@ mkdir -p examples/basic/result/csv                                        # ebex
 mkdir -p examples/basic/result/csv/simulateEx1                            # sim1 CSV
 mkdir -p examples/basic/result/fig/simulateEx1                            # sim1 PNG
 mkdir -p examples/basic/result/csv/simulateEx2                            # sim2 CSV
-mkdir -p examples/optimization/CGE/result/{csv,fig}                       # cge
 ```
 
 The generated artifacts (`examples/**/result/**`) are git-ignored and regenerated on every
@@ -106,7 +105,6 @@ Run the commands from the root of a full clone. The standalone
 |---|---|---|---|---|
 | `basic/elementaryBookkeepingEx*` | teaching | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0` | `git checkout v0.5.3.0 && cd examples && stack build` | Remains in the next major release, updated for its API. |
 | `basic/simulateEx1`, `simulateEx2`, `simulateEx2Fast` | research | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0`. SICE reproduction: commit `543e268` (`0.5.0.0` release). | `git checkout v0.5.3.0 && cd examples && stack build`<br>`git checkout 543e268 && cd examples && stack build` | SICE simulation examples. Planned for removal from HEAD in the next major release. |
-| `optimization/CGE/` | teaching | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0` | `git checkout v0.5.3.0 && cd examples && stack build` | GAMS reference implementation and a Haskell stub that does nothing when run. The stub is planned for removal in the next major release. |
 | `benchmark/` | benchmark | Hackage `exchangealgebra-0.5.3.0`; tag `v0.5.3.0` | `git checkout v0.5.3.0 && cd examples && stack build` | Remains in this repository. |
 
 ## Research using exchangealgebra
@@ -118,7 +116,6 @@ study. The repository's HEAD will retain teaching examples.
 |---|---|---|
 | SICE simulation paper | `0.5.0.0` release commit `543e268` | To be announced |
 | TOMACS scaling study | Experiment commit `8a3a36e` (tag `experiment/round5-overnight-8a3a36e`); public reference commit `543e268` | To be announced |
-| CGE | `0.5.3.0` (buildable examples) | To be announced |
 | LLM accounting evaluation | To be announced with the study | To be announced |
 
 ## Example catalog
@@ -126,6 +123,9 @@ study. The repository's HEAD will retain teaching examples.
 The research examples (industrial, invoice, cge-lite, ripple, and market) have moved
 to their respective research repositories. The pre-move version is preserved in tag
 [archive/research-examples-pre-p4](https://github.com/yakagika/ExchangeAlgebra/tree/archive/research-examples-pre-p4/examples).
+The standard CGE example will move to the general-equilibrium repository. Its
+pre-move version is preserved in tag
+[landed/p4-w4](https://github.com/yakagika/ExchangeAlgebra/tree/landed/p4-w4/examples/optimization/CGE).
 
 <!-- CATALOGUE-BEGIN -->
 
@@ -167,18 +167,6 @@ rather than `stack run`.
 **Ownership:** `in-tree-regression`. **Methods:** deterministic
 
 **Notes:** Run bench-core with stack bench; an optional Criterion HTML report can be written under the gitignored result directory.
-
-### `optimization/CGE/` — A standard computable general equilibrium model with two industries, a household, government, investment, and export sectors. It includes a GAMS reference implementation.
-
-| executable | main | kind | notes |
-|---|---|---|---|
-| `cge` | `optimization/CGE/stdcge.hs` | executable | Standard CGE model with two industries, household, government, investment, and export sectors |
-
-**Papers:** None.
-
-**Ownership:** `in-tree-education`. **Methods:** deterministic, optimization, classic-engine
-
-**Notes:** CGE.hs contains the shared production, transformation, tax, and savings model. GAMS/ contains reference inputs and shock-resolution scripts.
 
 <!-- CATALOGUE-END -->
 
@@ -240,8 +228,6 @@ uv run --script examples/basic/visualize_simulateEx1.py
 examples/
 ├── basic/ [family]
 ├── benchmark/ [bench]
-├── optimization/
-│   └── CGE/ [family]
 └── **/result/ [runtime output, gitignored]
 ```
 

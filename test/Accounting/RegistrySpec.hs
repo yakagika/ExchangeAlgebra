@@ -9,7 +9,7 @@ import qualified ExchangeAlgebra.IO.Output.Statements as StatementOutput
 import qualified ExchangeAlgebra.IO.Input      as EC
 import qualified ExchangeAlgebra.Accounting.Account as PP
 import qualified ExchangeAlgebra.Accounting.Consolidation as CW
-import ExchangeAlgebra.Accounting.Closing (closingSide)
+import ExchangeAlgebra.Accounting.Closing (ClosingSide(..), closingSide)
 import qualified ExchangeAlgebra.Accounting.TrialBalance.Balance as TBB
 import qualified ExchangeAlgebra.Accounting.TrialBalance.Validation as TB
 import qualified ExchangeAlgebra.Accounting.Statements.Presentation as RP
@@ -18,9 +18,6 @@ import qualified ExchangeAlgebra.Accounting.Statements.Group as RG
 import qualified ExchangeAlgebra.IO.Input.Assist       as Assist
 import qualified ExchangeAlgebra.Accounting.Account as Registry
 import qualified ExchangeAlgebra.Algebra  as EA
-import qualified ExchangeAlgebra.Algebra.Transfer as EAT
-import qualified ExchangeAlgebra.Journal  as EJ
-import qualified ExchangeAlgebra.Journal.Transfer as EJT
 import qualified ExchangeAlgebra.Accounting.Entries as EB
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 import qualified ExchangeAlgebra.IO.Output.Statements    as EW
@@ -48,8 +45,6 @@ import Control.Exception (try, evaluate, SomeException)
 import Test.QuickCheck hiding (Fixed)
 import Support (assertEqual
                , assertNear
-               , TransferAlg
-               , TransferJournal
                , SimHatBase2
                , quickProp
                , genNNDouble
@@ -396,21 +391,13 @@ testAccountTitleClassification = do
             Nothing -> return ()  -- already reported by the "missing" guard
 
 
-type FinalStockProbe = EA.Alg Double (HatBase AccountTitles)
-
--- | Classify the observable image of a one-posting probe.
---
--- Complexity: O(1)
+-- | Classify closing directions while preserving the frozen probe vocabulary.
 finalStockProbeRule :: AccountTitles -> String
 finalStockProbeRule RetainedEarnings = "SELF"
-finalStockProbeRule title
-    | actual == show probe = "Nothing"
-    | actual == show (1 .@ Not :< RetainedEarnings :: FinalStockProbe) = "Keep"
-    | actual == show (1 .@ Hat :< RetainedEarnings :: FinalStockProbe) = "Flip"
-    | otherwise = "UNEXPECTED:" ++ actual
-  where
-    probe = 1 .@ Not :< title :: FinalStockProbe
-    actual = show (EAT.finalStockTransfer probe)
+finalStockProbeRule title = case closingSide title of
+    Nothing -> "Nothing"
+    Just ClosingKeep -> "Keep"
+    Just ClosingFlip -> "Flip"
 
 -- V-Land 1: finalStockRule の全域を独立参照式 (division + contra を明示分岐)
 -- と突き合わせ, 方向 (Keep/Flip) まで固定する。contra P/L (将来の売上割戻等)
@@ -507,68 +494,6 @@ testVocabOrdinalPin = do
     assertEqual "vocab ordinal pin: concreteAccountTitles covers all non-wildcard constructors"
         (L.filter (/= (AccountTitle :: AccountTitles)) [minBound .. maxBound])
         Registry.concreteAccountTitles
-
--- | R1 sentinel: a /balanced/ ledger (credit total == debit total, net income
--- zero) makes 'diffRL' report the wildcard 'Side'. Before the fix,
--- 'incomeSummaryAccount' matched only Credit/Debit and crashed with
--- "Non-exhaustive patterns". Run every closing-transfer function (Alg and
--- Journal) over a balanced ledger and force the result; none may throw.
---
--- The ledger pairs equal Sales (Revenue/Credit) and WageExpenditure
--- (Cost/Debit) amounts so @decR == decL@ (balanced).
-balancedAlgSample :: TransferAlg
-balancedAlgSample = EA.fromList
-    [ 50 .@ Not :<(Sales,            1, 1, Yen)   -- credit (revenue)
-    , 50 .@ Not :<(WageExpenditure,  1, 1, Yen)   -- debit  (cost)
-    , 20 .@ Not :<(Purchases,        2, 2, Yen)   -- debit  (cost)
-    , 20 .@ Not :<(InterestEarned,   2, 2, Yen)   -- credit (revenue)
-    ]
-
-balancedJournalSample :: TransferJournal
-balancedJournalSample = EJ.fromList
-    [ balancedAlgSample .| "A"
-    , ((10 .@ Not :<(Sales, 3, 3, Yen)) .+ (10 .@ Not :<(Purchases, 3, 3, Yen))) .| "B"
-    ]
-
-testIncomeSummaryBalancedNoCrash :: IO ()
-testIncomeSummaryBalancedNoCrash = do
-    -- confirm the ledger really is balanced (triggers the wildcard Side)
-    case EA.diffRL balancedAlgSample of
-        (Side, _) -> return ()
-        other     -> do putStrLn ("[FAIL] balanced sample not balanced: " ++ show (fst other))
-                        exitFailure
-    let algFns =
-            [ ("incomeSummaryAccount",  EAT.incomeSummaryAccount)
-            , ("netIncomeTransfer",     EAT.netIncomeTransfer)
-            , ("grossProfitTransfer",   EAT.grossProfitTransfer)
-            , ("ordinaryProfitTransfer",EAT.ordinaryProfitTransfer)
-            , ("retainedEarningTransfer",EAT.retainedEarningTransfer)
-            , ("finalStockTransfer",    EAT.finalStockTransfer)
-            ]
-        jFns =
-            [ ("incomeSummaryAccount",  EJT.incomeSummaryAccount)
-            , ("netIncomeTransfer",     EJT.netIncomeTransfer)
-            , ("grossProfitTransfer",   EJT.grossProfitTransfer)
-            , ("ordinaryProfitTransfer",EJT.ordinaryProfitTransfer)
-            , ("retainedEarningTransfer",EJT.retainedEarningTransfer)
-            , ("finalStockTransfer",    EJT.finalStockTransfer)
-            ]
-    forM_ algFns $ \(nm, f) -> do
-        r <- try (evaluate (EA.norm (f balancedAlgSample)))
-                :: IO (Either SomeException Double)
-        case r of
-            Right _ -> return ()
-            Left e  -> do putStrLn ("[FAIL] Alg." ++ nm ++ " threw on balanced ledger: " ++ show e)
-                          exitFailure
-    forM_ jFns $ \(nm, f) -> do
-        r <- try (evaluate (EA.norm (EJ.toAlg (f balancedJournalSample))))
-                :: IO (Either SomeException Double)
-        case r of
-            Right _ -> return ()
-            Left e  -> do putStrLn ("[FAIL] Journal." ++ nm ++ " threw on balanced ledger: " ++ show e)
-                          exitFailure
-    putStrLn "[PASS] all closing transfers identity-safe on balanced ledger (R1)"
-
 
 testAssistAllAccountInfos :: IO ()
 testAssistAllAccountInfos = do
@@ -2647,7 +2572,7 @@ testDerivedMetricsAndLegacyCoordinates = do
         ]
 
     let salesOnly = 100 .@ Not :< Sales :: CheckedAlgM
-        afterLegacyBalancer = EAT.incomeSummaryAccount salesOnly
+        afterLegacyBalancer = salesOnly .+ (100 .@ Not :< NetIncome)
         hatSales = 25 .@ Hat :< Sales :: CheckedAlgM
     assertEqual "period metric ignores an inserted legacy balancer"
         (Right (RM.PeriodProfit 100), Right (RM.PeriodProfit 100))
@@ -3144,7 +3069,7 @@ testBalanceSheetGroupsStayUnclosed = do
     let grouping = RG.groupingForDivisions [Assets, Liability, Equity]
             RG.defaultPresentationGrouping
         titles = concatMap (\def -> RG.pgGross def ++ RG.pgDeductions def) grouping
-    -- The private finalStockRule preserves Nothing from the public closingSide.
+    -- NoClose accounts stay outside the public closing classification.
     assertEqual "BS default group accounts have no final-stock closing rule"
         [] [title | title <- titles, closingSide title /= Nothing]
 
@@ -3174,7 +3099,6 @@ runTests = do
     testAccountTitleClassification
     testFinalStockRuleReference
     testVocabOrdinalPin
-    testIncomeSummaryBalancedNoCrash
     testAssistAllAccountInfos
     testAccountSemanticsRegistryInvariants
     testAccountSemanticsGolden

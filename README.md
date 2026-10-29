@@ -47,7 +47,7 @@ Requirements:
   install them, build without the plotting module: `stack build --flag
   exchangealgebra:-visualize` (Cabal flag `visualize`, default on). This drops
   `ExchangeAlgebra.Simulate.Visualize` and the Chart dependencies; the bundled
-  `sim*` and `cge` examples import that module and need the default build (flag `visualize` on).
+  `sim*` examples import that module and need the default build (flag `visualize` on).
 
 ## How to consume this package
 
@@ -68,7 +68,7 @@ Clone the repository and build from the root:
 git clone https://github.com/yakagika/ExchangeAlgebra.git
 cd ExchangeAlgebra
 stack build
-stack exec -- sim1        # or ebex1, cge, ...
+stack exec -- sim1        # or ebex1, ebex2, ...
 ```
 
 See the [examples directory](https://github.com/yakagika/ExchangeAlgebra/tree/master/examples)
@@ -189,7 +189,7 @@ maintaining or directly driving the classic protocol.
 These modules build adjustments, validate reporting boundaries, and produce statements and output.
 
 - `ExchangeAlgebra.Bookkeeping` — builds period-end adjustment postings from explicit external amounts.
-- `ExchangeAlgebra.Write` — formats bookkeeping reports and journals as CSV and restores binary spill files.
+- `ExchangeAlgebra.IO.Output.Statements` — writes journals, account ledgers, trial balances, worksheets, and financial statements as CSV.
 - **0.5.1.0 / Git only** `ExchangeAlgebra.Render.Csv` — re-exports CSV
   serialization independently of document layouts.
 - **0.5.1.0 / Git only** `ExchangeAlgebra.Render.Bookkeeping` — re-exports
@@ -276,8 +276,7 @@ FP money type instead.)
 random draws as `Double`, and convert (`realToFrac`) only where a value *enters
 the ledger*; convert reported stocks/profits back to `Double` for visualization.
 The ledger arithmetic in between is then exact. The bundled bookkeeping and
-simulation examples follow this pattern; the numeric-method examples
-(`CGE`) stay `Double` because they are inherently floating-point.
+simulation examples follow this pattern.
 
 **Large scale: precision × memory trade-off.** Retaining every posting is `O(n)`
 regardless of value type; `MoneyDecimal` adds a constant factor (~2.5× per value box)
@@ -307,14 +306,12 @@ ledgers keep working and render identically. Four things to know:
   `fromList`-built journal byte-for-byte, the same-(note,base) sequence order may
   differ. Switch such ledgers to `MoneyDecimal` for order-independent results, or
   compare via `norm` / `bar` / `balanceBy` rather than raw structure.
-- **Abstract `Alg` / `Journal` / `TransTable`**: pattern-match `Alg` on `Zero`
+- **Abstract `Alg` / `Journal`**: pattern-match `Alg` on `Zero`
   and `(:@)` only and build values with `(.@)`, `(.+)`, `fromList`, `mkJournal`,
-  `(.|)` and `table`. Code that constructed `Liner` directly must import
+  and `(.|)`. Code that constructed `Liner` directly must import
   `ExchangeAlgebra.Algebra.Internal` (the exposed `Alg` representation module,
-  which carries no stability guarantee). The `Journal` and `TransTable`
-  constructors are not exported anywhere:
-  rebuild such values with `mkJournal` / `(.|)` / `fromList` and `table` /
-  `(.->)` / `(|%)`.
+  which carries no stability guarantee). Rebuild journals with `mkJournal`,
+  `(.|)`, or `fromList`.
 - **Spill files are validated**: `readBinarySpillFile` and
   `restoreJournalFromBinarySpill` now raise on a truncated, stale or gapped
   file instead of merging a partial ledger; use the `...Checked` variants for an
@@ -325,11 +322,10 @@ ledgers keep working and render identically. Four things to know:
 
 ## Recommended import patterns
 
-`Alg`, `Journal` and `TransTable` are abstract in 0.5.0.0: construct them with
-`(.@)`, `(.+)`, `fromList`, `mkJournal`, `(.|)` and `table`, and match `Alg` on
-`Zero` / `(:@)` only. The multi-posting representation and its cache fields live
-in the exposed `ExchangeAlgebra.Algebra.Internal` module, which carries no
-stability guarantee.
+`Alg` and `Journal` are abstract: construct them with `(.@)`, `(.+)`,
+`fromList`, `mkJournal`, and `(.|)`, and match `Alg` on `Zero` / `(:@)` only.
+The multi-posting representation and its cache fields live in the exposed
+`ExchangeAlgebra.Algebra.Internal` module, which carries no stability guarantee.
 
 ### Simple single-period bookkeeping
 
@@ -347,10 +343,10 @@ main = do
 import           ExchangeAlgebra.Journal        -- pulls in the type classes and the Journal API
 import qualified ExchangeAlgebra.Algebra           as EA
 import qualified ExchangeAlgebra.Journal           as EJ
-import qualified ExchangeAlgebra.Journal.Transfer  as EJT
+import qualified ExchangeAlgebra.Accounting.Transfer as Transfer
 import qualified ExchangeAlgebra.Simulate          as ES
 import           ExchangeAlgebra.Simulate          -- unqualified, for StateSpace, Updatable, etc.
-import           ExchangeAlgebra.Write             -- writeBS / writeIOMatrix and friends
+import           ExchangeAlgebra.Simulation.Output -- writeTermIO / writeIOMatrix
 ```
 
 Even in Journal-centric code you will frequently reach into the Algebra layer (for the `Alg`
@@ -433,7 +429,7 @@ plotting.
 
 ```haskell
 -- Haskell side: write the simulation outputs to CSV
-import           ExchangeAlgebra.Write           (writeIOMatrix)
+import           ExchangeAlgebra.Simulation.Output (writeIOMatrix)
 import qualified ExchangeAlgebra.Simulate.Visualize as ESV
                                                   -- qualified access to writeFuncResults etc.
 
@@ -479,7 +475,6 @@ stack build
 stack exec -- ebex1      # Introductory bookkeeping example
 stack exec -- sim1       # 100-term simulation (+ Python visualization)
 stack exec -- sim2       # spill-to-disk simulation (constant memory, binary spill + restore)
-stack exec -- cge        # CGE model
 ```
 
 ## Documentation

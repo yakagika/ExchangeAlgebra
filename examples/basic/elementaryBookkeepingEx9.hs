@@ -6,13 +6,14 @@
     1. 期中取引 (ebex6-8 の科目を横断する 15 仕訳)
     2. 決算整理 (Bookkeeping builder: 売上原価/減価償却/貸倒引当金/経過勘定)
     3. 8 桁精算表 (writeWorksheet) — 決算整理前残高 + 整理仕訳
-    4. 決算振替 (incomeSummaryAccount → netIncomeTransfer)
+    4. 決算振替 (closingEntries の追加仕訳)
     5. 繰越試算表 (writePostClosingTrialBalance)
     6. B/S・P/L (present → writeFinancialStatements)
 
   新 API のフルショーケース。構築は '.@', 集約は bar/norm を明示。
 -}
 
+import qualified ExchangeAlgebra.Accounting.Closing as Closing
 import qualified ExchangeAlgebra            as EA
 import           ExchangeAlgebra
 import           ExchangeAlgebra.Accounting.Entries
@@ -158,27 +159,11 @@ postAdjustment :: MinTransaction
 postAdjustment = preAdjustment .+ adjustments
 
 -- 損益計算の対象は名目勘定 (費用 Cost / 収益 Revenue) のみ。
--- incomeSummaryAccount は対象の貸借差額を当期純利益/純損失として算定するので,
--- 実在勘定を含めた全台帳に直接適用すると差額が 0 になり意味を成さない。
 nominalLedger :: MinTransaction
 nominalLedger = EA.filter isNominal postAdjustment
   where
     isNominal x = let dv = (whatDiv . _hatBase) x
                   in dv == Cost || dv == Revenue
-
--- 決算振替: 損益勘定で当期純利益を算定し, 繰越利益剰余金へ振り替える。
--- (名目勘定の損益 + NetIncome) を経て NetIncome を RetainedEarnings に振り替える。
-incomeSummary :: MinTransaction
-incomeSummary = incomeSummaryAccount nominalLedger
-
--- 実在勘定 (期首+期中+整理後の資産/負債/資本) に当期純利益の振替を反映した残高。
-afterClosing :: MinTransaction
-afterClosing = realLedger .+ netIncomeTransfer (projByAccountTitle NetIncome incomeSummary
-                                              .+ projByAccountTitle NetLoss  incomeSummary)
-  where
-    realLedger = EA.filter isReal postAdjustment
-    isReal x = let dv = (whatDiv . _hatBase) x
-               in dv == Assets || dv == Liability || dv == Equity
 
 ------------------------------------------------------------------
 -- 検算
@@ -186,6 +171,9 @@ afterClosing = realLedger .+ netIncomeTransfer (projByAccountTitle NetIncome inc
 
 main :: IO ()
 main = do
+    closing <- either (fail . show) pure $ Closing.closingEntries postAdjustment
+    let afterClosing = postAdjustment .+ closing
+
     putStrLn "=== ebex9: 決算の全体像・財務諸表 (第 24-25 章, 総合例) ==="
     putStrLn ""
 

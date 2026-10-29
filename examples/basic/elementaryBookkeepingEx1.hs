@@ -7,9 +7,9 @@
 
 -- Original
 import qualified    ExchangeAlgebra         as EA
-import              ExchangeAlgebra hiding ((.->), (|%))
-import              ExchangeAlgebra.Algebra.Transfer ((.->), (|%))
-import qualified    ExchangeAlgebra.Algebra.Transfer as ET
+import              ExchangeAlgebra
+import qualified ExchangeAlgebra.Accounting.Transfer as Transfer
+import Control.Monad (forM_, unless)
 
 import qualified ExchangeAlgebra.Accounting.Statements as Statements
 import qualified ExchangeAlgebra.Accounting.TrialBalance as TrialBalance
@@ -73,7 +73,6 @@ exp4    = 600000 .@Not:<SalesCost        -- 売上原価
        .+ 30000  .@Not:<SuppliesExpenses -- 消耗品費
        .+ 50000  .@Not:<UtilitiesExpense -- 水道光熱費
        .+ 300000 .@Not:<RentExpense      -- 支払家賃
-       .+ 300000 .@Not:<NetIncome        -- 当期純利益
        .+ 1700000.@Not:<Sales            -- 売上高
        .+ 150000 .@Not:<ReceiptFee       -- 受取手数料
        .+ 100000 .@Not:<InterestEarned   -- 受取利息
@@ -89,17 +88,6 @@ q4       = 150000 .@Not:<ReceiptFee       -- 受取利息
         .+ 140000 .@Not:<CommunicationExpenses -- 通信費
         .+ 840000 .@Not:<Purchases        -- 仕入
         .+ 220000 .@Not:<ReceiptFee       -- 受取手数料
-
-incomeOrLoss :: MinTransaction -> MinTransaction
-incomeOrLoss xs | x == Credit = y .@Not:<NetLoss
-                | x == Debit  = y .@Not:<NetIncome
-    where
-        (x,y) = diffRL xs
-
-q4A :: MinTransaction
-q4A = q4 .+ (incomeOrLoss q4)
-
-q4A' = ET.incomeSummaryAccount q4
 
 -- 5章
 ------------------------------------------------------------------
@@ -223,16 +211,6 @@ exp8     = 2000000 .@Not:<Sales
         .+ 800000  .@Not:<Purchases
         .+ 140000  .@Not:<WageExpenditure
 
-exp8A :: MinTransaction
-exp8A = netIncomeTransfer $ incomeSummaryAccount exp8
-
--- 当期純利益の振替
-netIncomeTransfer' :: MinTransaction -> MinTransaction
-netIncomeTransfer'
-    =  createTransfer
-    $  Not:<NetIncome .-> Not:<RetainedEarnings |% id
-    ++ Not:<NetLoss   .-> Not:<RetainedEarnings |% id
-
 -- 主体をいれる
 
 -- 物量簿記に変換する
@@ -291,10 +269,9 @@ main = do
                 [Statements.RevenueSection, Statements.ExpenseSection] statements
             either (fail . show) pure result
     print "---"
-    print q4A
-    print q4A'
+    print q4
     case Statements.present (Statements.jcciSecondGradeContext Statements.Standalone)
-            TrialBalance.BeforeClosing (textbookTrialBalance q4A) of
+            TrialBalance.BeforeClosing (textbookTrialBalance q4) of
         Left issues -> fail (show issues)
         Right statements -> do
             result <- writeFinancialStatements "examples/basic/result/csv/q4.csv"
@@ -311,9 +288,6 @@ main = do
     writeCompoundTrialBalance "examples/basic/result/csv/q7.csv" q7
     print "---"
     print exp8
-    print $ incomeSummaryAccount exp8
-    print $ netIncomeTransfer $ incomeSummaryAccount exp8
-    print $ netIncomeTransfer' $ incomeSummaryAccount exp8
     case Statements.present (Statements.jcciSecondGradeContext Statements.Standalone)
             TrialBalance.BeforeClosing (textbookTrialBalance exp8) of
         Left issues -> fail (show issues)
@@ -322,3 +296,44 @@ main = do
                 [Statements.RevenueSection, Statements.ExpenseSection] statements
             either (fail . show) pure result
 
+
+    unless (norm (decR q4) == 2870000 && norm (decL q4) == 2420000) $
+        fail "q4: incorrect revenue or expense total"
+
+    -- Close each revenue and expense account through IncomeSummary.
+    forM_ [("exp4", exp4, 300000), ("q4", q4, 450000), ("exp8", exp8, 1060000)] $
+        \(label, ledger, expectedProfit) -> do
+            putStrLn (label ++ ": close revenue and expense accounts")
+            incomeTable <- either (fail . show) pure $ Transfer.mkTransferTable
+                [ Sales                 .-> IncomeSummary |% Relabel
+                , ReceiptFee            .-> IncomeSummary |% Relabel
+                , InterestEarned        .-> IncomeSummary |% Relabel
+                , SalesCost             .-> IncomeSummary |% Relabel
+                , Purchases             .-> IncomeSummary |% Relabel
+                , WageExpenditure       .-> IncomeSummary |% Relabel
+                , BusinessTrip          .-> IncomeSummary |% Relabel
+                , CommunicationExpenses .-> IncomeSummary |% Relabel
+                , SuppliesExpenses      .-> IncomeSummary |% Relabel
+                , UtilitiesExpense      .-> IncomeSummary |% Relabel
+                , RentExpense           .-> IncomeSummary |% Relabel
+                ]
+            incomeEntries <- either (fail . show) pure $ Transfer.transferEntries incomeTable ledger
+            let afterIncome = ledger .+ incomeEntries
+                summary = bar (projByAccountTitle IncomeSummary afterIncome)
+                nominal = EA.filter
+                    (\posting -> whatDiv (_hatBase posting) `elem` [Revenue, Cost]) afterIncome
+            print afterIncome
+            print summary
+            unless (norm (bar nominal) == 0
+                    && norm (decR summary) == expectedProfit && norm (decL summary) == 0) $
+                fail (label ++ ": incorrect income-summary balance")
+            earningsTable <- either (fail . show) pure $ Transfer.mkTransferTable
+                [IncomeSummary .-> RetainedEarnings |% Relabel]
+            earningsEntries <- either (fail . show) pure $
+                Transfer.transferEntries earningsTable afterIncome
+            let afterEarnings = afterIncome .+ earningsEntries
+                earnings = bar (projByAccountTitle RetainedEarnings afterEarnings)
+            print afterEarnings
+            unless (norm (bar (projByAccountTitle IncomeSummary afterEarnings)) == 0
+                    && norm (decR earnings) == expectedProfit && norm (decL earnings) == 0) $
+                fail (label ++ ": incorrect retained-earnings balance")

@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
--- | Laws, legacy regressions and multi-period acceptance for transfer entries.
+-- | Laws, independent oracles and multi-period acceptance for transfer entries.
 module Transfer.RuleSpec (runTests) where
 
 import qualified ExchangeAlgebra.Algebra.Internal as Internal
@@ -18,7 +18,6 @@ import           System.Exit (exitFailure)
 import           Test.QuickCheck hiding (label, sample)
 import           ExchangeAlgebra.Algebra hiding (map, filter)
 import qualified ExchangeAlgebra.Algebra as Algebra
-import qualified ExchangeAlgebra.Algebra.Transfer as Legacy
 import ExchangeAlgebra.Algebra.Transfer.Rule ( TransferScale(..)
                                              , TransferRule(..)
                                              , TransferRules
@@ -48,7 +47,7 @@ instance ExBaseClass TestBase where
     getAccountTitle (_ :< (title, _)) = title
     setAccountTitle (postingHat :< (_, unit)) title = postingHat :< (title, unit)
 
--- | Integer posting quantities bounded away from zero for legacy compatibility.
+-- | Integer posting quantities bounded away from zero for the independent oracle.
 type TestQuantity = Integer
 
 -- | Generated flat postings and one permitted scale coefficient.
@@ -84,14 +83,18 @@ caseAlgebra :: HatVal v => CompatibilityCase -> Alg v TestBase
 caseAlgebra (CompatibilityCase entries _) =
     Algebra.fromList [fromInteger quantity .@ postingBase | (quantity, postingBase) <- entries]
 
--- | Translate the data operations to the legacy function-valued table.
-legacyTable :: (HatVal v, HatBaseClass b) => [TransferRule v b] -> Legacy.TransTable v b
-legacyTable rules = Legacy.table
-    [ (ruleFrom rule, ruleTo rule, operation (ruleScale rule)) | rule <- rules ]
+-- | Independently rewrite the generated concrete account coordinates.
+-- The oracle uses the input coefficient, without interpreting transfer rules.
+expectedConversion :: forall v. HatVal v => CompatibilityCase -> Alg v TestBase
+expectedConversion (CompatibilityCase entries coefficient) = Algebra.fromList
+    [ convert (fromInteger quantity) posting | (quantity, posting) <- entries ]
   where
-    operation Relabel = id
-    operation (MulBy coefficient) = (* coefficient)
-    operation (DivBy coefficient) = (/ coefficient)
+    convert :: v -> TestBase -> Alg v TestBase
+    convert value (side :< (title, unit)) = case title of
+        Cash -> value .@ side :< (Deposits, unit)
+        Products -> (value * fromRational coefficient) .@ side :< (RawMaterials, unit)
+        Sales -> (value / fromRational coefficient) .@ side :< (RetainedEarnings, unit)
+        _ -> value .@ side :< (title, unit)
 
 -- | Law observation: complete base including Hat/Not to value, after bar.
 obs :: (HatVal v, HatBaseClass b) => Alg v b -> Map.Map b v
@@ -119,7 +122,7 @@ propCompatibility _ = forAll genCompatibilityCase $ \sample ->
     in case applyChecked (mkTransferRules rules) ledger of
         Left failure -> counterexample failure False
         Right entries -> counterexample (show (obs (ledger .+ entries))) $
-            nearObservations (obs (ledger .+ entries)) (obs (Legacy.transfer ledger (legacyTable rules)))
+            nearObservations (obs (ledger .+ entries)) (obs (expectedConversion sample))
   where
     -- Keep construction and application failures visible without a partial pattern.
     applyChecked constructed ledger = case constructed of
@@ -128,7 +131,7 @@ propCompatibility _ = forAll genCompatibilityCase $ \sample ->
             Left failure -> Left (show failure)
             Right entries -> Right entries
 
--- | L2 compares net closing with the legacy final-stock transformation.
+-- | L2 checks fixed account directions and retains non-closing coordinates.
 propClosing :: forall v. HatVal v => Proxy v -> Property
 propClosing _ = forAll genCompatibilityCase $ \sample ->
     let ledger = caseAlgebra sample :: Alg v TestBase
@@ -136,7 +139,13 @@ propClosing _ = forAll genCompatibilityCase $ \sample ->
         Left failure -> counterexample (show failure) False
         Right entries -> property $
             nearObservations (obs (ledger .+ entries))
-                             (obs (Legacy.finalStockTransfer ledger))
+                             (obs (Algebra.mapPosting expected ledger))
+  where
+    expected :: v -> TestBase -> (v, TestBase)
+    expected value (side :< (title, unit)) = case title of
+        Sales -> (value, side :< (RetainedEarnings, unit))
+        Depreciation -> (value, revHat (side :< (RetainedEarnings, unit)))
+        _ -> (value, side :< (title, unit))
 
 -- | L3 compares debit and credit totals for side-preserving Relabel rules
 -- and for closing entries. Decimal totals are exact in this generator.
@@ -236,7 +245,7 @@ testValidation = do
                 Left (InvalidCoefficient rule) -> ruleFrom rule == ruleFrom invalid
                 _ -> False
 
--- | Mixed wildcard positions reproduce the frozen legacy tree's missed matches.
+-- | Mixed wildcard positions match every posting under every rule permutation.
 testLegacyMiss :: IO ()
 testLegacyMiss = do
     let rules =
@@ -256,9 +265,6 @@ testLegacyMiss = do
         validated <- requireRight "mixed wildcard rules" (mkTransferRules rules)
         entries <- requireRight "mixed wildcard application" (transferEntries validated ledger)
         assertTest "new API transforms all three entries" (obs (ledger .+ entries) == obs expected)
-        let old = Legacy.transfer ledger (legacyTable rules)
-            changed = [postingBase | postingBase@(_ :< (_, Amount)) <- bases old]
-        assertTest "legacy transforms only one entry" (length changed == 1)
 
 -- | One-way matching, no-op, zero result, HatNot and overflow edge cases.
 testApplication :: IO ()
@@ -378,7 +384,7 @@ testClosingOverflow = do
     let journal = (1e308 .@ sales .| "first") .+ (1e308 .@ sales .| "second")
             :: Journal.Journal String Double TestBase
     assertTest "Journal closing overflow across notes" $
-        isBalanceError sales (JournalRule.closingEntries journal)
+        isBalanceError sales (closingEntries (Journal.toAlg journal))
     let cash = Not :< (Cash, Yen)
     ignored <- requireRight "non-closing accounts are not summed" (closingEntries (overflowing cash))
     assertTest "non-closing overflow ignored" (Algebra.isZero ignored)
@@ -647,10 +653,10 @@ periodEntries term owner revenue cost =
 testAcceptance :: IO ()
 testAcceptance = do
     let first = periodEntries 1 Alice 100 30 .+ periodEntries 1 Bob 150 40
-    firstClosing <- requireRight "period-one closing" (JournalRule.closingEntries first)
+    firstClosing <- requireRight "period-one closing" (closingEntries (Journal.toAlg first))
     let afterFirst = first .+ (firstClosing .| (Settlement, 1))
         second = afterFirst .+ periodEntries 2 Alice 60 20 .+ periodEntries 2 Bob 90 30
-    secondClosing <- requireRight "period-two closing" (JournalRule.closingEntries second)
+    secondClosing <- requireRight "period-two closing" (closingEntries (Journal.toAlg second))
     let afterSecond = second .+ (secondClosing .| (Settlement, 2))
         earnings owner algebra = Map.findWithDefault 0
             (Not :< (RetainedEarnings, Widget, owner, Yen)) (obs algebra)
@@ -666,7 +672,7 @@ testAcceptance = do
     assertTest "settlement note contains its entries" $
         fmap rawObservation (HashMap.lookup (Settlement, 2) (Journal.toMap afterSecond))
             == Just (rawObservation secondClosing)
-    repeatedClosing <- requireRight "repeat closing" (JournalRule.closingEntries afterSecond)
+    repeatedClosing <- requireRight "repeat closing" (closingEntries (Journal.toAlg afterSecond))
     assertTest "closing twice emits no further entries" (Algebra.isZero repeatedClosing)
     assertTest "acceptance ledger stays balanced" (norm (decL afterSecond) == norm (decR afterSecond))
 

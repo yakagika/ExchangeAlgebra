@@ -7,9 +7,9 @@
 
 -- Original
 import qualified    ExchangeAlgebra         as EA
-import              ExchangeAlgebra hiding ((.->), (|%))
-import              ExchangeAlgebra.Algebra.Transfer ((.->), (|%))
-import qualified    ExchangeAlgebra.Algebra.Transfer as ET
+import              ExchangeAlgebra
+import qualified ExchangeAlgebra.Accounting.Transfer as Transfer
+import Control.Monad (unless)
 import              ExchangeAlgebra.Simulate
 
 import qualified ExchangeAlgebra.Accounting.Statements as Statements
@@ -121,17 +121,6 @@ sample   = 1000000 .@Not:<Sales
         .+ 600000  .@Not:<Purchases
         .+ 180000  .@Not:<WageExpenditure
 
-exp8A :: MinTransaction
-exp8A = netIncomeTransfer $ incomeSummaryAccount sample
-
--- 当期純利益の振替
-netIncomeTransfer' :: MinTransaction -> MinTransaction
-netIncomeTransfer' ts
-    =  transfer ts
-    $  table
-    $  Not:<NetIncome .-> Not:<RetainedEarnings |% id
-    ++ Not:<NetLoss   .-> Not:<RetainedEarnings |% id
-
 -- 主体をいれる
 
 -- 物量簿記に変換する
@@ -175,19 +164,33 @@ main = do
     print $ diffRL sample
     -- >>> (Credit,220000)
 
-    print $ sample .+ 220000 .@Not:<NetIncome
-    -- >>> 180000:@Not:<WageExpenditure .+ 600000:@Not:<Purchases
-    --  .+ 220000:@Not:<NetIncome .+ 1000000:@Not:<Sales
-    print $ incomeSummaryAccount sample
-    -- >>> 180000:@Not:<WageExpenditure .+ 600000:@Not:<Purchases
-    --  .+ 220000:@Not:<NetIncome .+ 1000000:@Not:<Sales
+    incomeTable <- either (fail . show) pure $ Transfer.mkTransferTable
+        [ Sales           .-> IncomeSummary |% Relabel
+        , Purchases       .-> IncomeSummary |% Relabel
+        , WageExpenditure .-> IncomeSummary |% Relabel
+        ]
+    incomeEntries <- either (fail . show) pure $ Transfer.transferEntries incomeTable sample
+    let afterIncome = sample .+ incomeEntries
+        summary = bar (projByAccountTitle IncomeSummary afterIncome)
+    print afterIncome
+    print summary
+    unless (norm (bar (EA.filter
+                (\posting -> whatDiv (_hatBase posting) `elem` [Revenue, Cost]) afterIncome)) == 0
+            && norm (decR summary) == 220000 && norm (decL summary) == 0) $
+        fail "incorrect income-summary balance"
+    earningsTable <- either (fail . show) pure $ Transfer.mkTransferTable
+        [IncomeSummary .-> RetainedEarnings |% Relabel]
+    earningsEntries <- either (fail . show) pure $
+        Transfer.transferEntries earningsTable afterIncome
+    let afterEarnings = afterIncome .+ earningsEntries
+        earnings = bar (projByAccountTitle RetainedEarnings afterEarnings)
+    print afterEarnings
+    unless (norm (bar (projByAccountTitle IncomeSummary afterEarnings)) == 0
+            && norm (decR earnings) == 220000 && norm (decL earnings) == 0) $
+        fail "incorrect retained-earnings balance"
 
-    let sample2 = incomeSummaryAccount sample
-    -- The textbook lists only P/L accounts, so a cash counterpart is added
-    -- to form a trial balance; the derived result account is omitted.
-    let nominal = EA.filter
-            (\posting -> getAccountTitle (_hatBase posting) `notElem` [NetIncome, NetLoss]) sample2
-        sampleTrialBalance = nominal .+ snd (diffRL nominal) .@ Not :< Cash
+    -- Complete the P/L-only example with its cash counterpart for presentation.
+    let sampleTrialBalance = sample .+ 220000 .@ Not :< Cash
     case Statements.present (Statements.jcciSecondGradeContext Statements.Standalone)
             TrialBalance.BeforeClosing sampleTrialBalance of
         Left issues -> fail (show issues)
@@ -195,12 +198,4 @@ main = do
             result <- writeFinancialStatements "examples/basic/result/csv/sample_PL.csv"
                 [Statements.RevenueSection, Statements.ExpenseSection] statements
             either (fail . show) pure result
-
-    let tf = createTransfer $ Not:<NetIncome .-> Not:<RetainedEarnings |% id
-    print $ tf $ incomeSummaryAccount sample
-    -- >>> 220000:@Not:<RetainedEarnings .+ 180000:@Not:<WageExpenditure
-    --  .+ 600000:@Not:<Purchases .+ 1000000:@Not:<Sales
-    print $ netIncomeTransfer $ incomeSummaryAccount sample
-    -- >>> 220000:@Not:<RetainedEarnings .+ 180000:@Not:<WageExpenditure
-    --  .+ 600000:@Not:<Purchases .+ 1000000:@Not:<Sales
 

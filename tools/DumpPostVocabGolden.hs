@@ -13,14 +13,13 @@ import           System.Directory (createDirectoryIfMissing)
 import           System.Environment (getArgs)
 import           System.FilePath ((</>))
 
-import           ExchangeAlgebra.Algebra
 import           ExchangeAlgebra.Algebra.Base
-import           ExchangeAlgebra.Algebra.Transfer (finalStockTransfer)
+import           ExchangeAlgebra.Accounting.Closing (ClosingSide(..), closingSide)
 import qualified ExchangeAlgebra.Algebra.Base.Account.Registry as Registry
 import qualified ExchangeAlgebra.IO.Input.Assist as Assist
 
+-- | Posting coordinates used for the frozen side classification.
 type B = HatBase AccountTitles
-type A = Alg Double B
 
 tshow :: Show a => a -> Text
 tshow = T.pack . show
@@ -39,11 +38,10 @@ dedupSort = mapMaybe listHead . L.group . L.sort
 
 probeRule :: AccountTitles -> Text
 probeRule RetainedEarnings = "SELF"
-probeRule title = case show (finalStockTransfer (1 .@ Not :< title :: A)) of
-    value | value == show (1 .@ Not :< title :: A) -> "Nothing"
-          | value == show (1 .@ Not :< RetainedEarnings :: A) -> "Keep"
-          | value == show (1 .@ Hat :< RetainedEarnings :: A) -> "Flip"
-          | otherwise -> "UNEXPECTED:" <> T.pack value
+probeRule title = case closingSide title of
+    Nothing -> "Nothing"
+    Just ClosingKeep -> "Keep"
+    Just ClosingFlip -> "Flip"
 
 -- Reconstruct the historical post-vocabulary, pre-semantics AccountInfo row.
 infoRow :: Assist.AccountInfo -> Text

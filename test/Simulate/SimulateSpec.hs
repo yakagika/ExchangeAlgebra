@@ -12,7 +12,9 @@ module Simulate.SimulateSpec (runTests) where
 import ExchangeAlgebra.Journal
 import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Journal  as EJ
-import qualified ExchangeAlgebra.Journal.Transfer as EJT
+import qualified ExchangeAlgebra.Accounting.Closing as Closing
+import qualified ExchangeAlgebra.Accounting.Transfer as Transfer
+import ExchangeAlgebra.Accounting.Transfer ((.->), (|%), TransferShare(Relabel))
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 import qualified ExchangeAlgebra.Simulate as ES
 import ExchangeAlgebra.Simulate
@@ -202,9 +204,10 @@ instance Updatable SimTerm SimInitVar SimLedger s where
     updatePattern _ = return Modify
     modify _ t _ x = do
         le <- readURef x
-        let added = EJ.gather (plank, t)
-                  $ EJT.finalStockTransfer
-                  $ (.-) $ simTermJournal (t - 1) le
+        let previous = EJ.toAlg $ simTermJournal (t - 1) le
+        -- Invariant: the fixture posts finite, nonnegative values.
+        closing <- either (error . show) pure $ Closing.closingEntries previous
+        let added = EA.bar (previous .+ closing) .| (plank, t)
             next = simCompressPreviousTerm (t - 1) (le .+ added)
         writeURef x next
 
@@ -346,7 +349,18 @@ simGetTermGrossProfit :: SimWorld s -> SimTerm -> SimCompany -> ST s Double
 simGetTermGrossProfit wld t e = do
     le <- readURef (_simLedger wld)
     let termTr = simTermJournal t le
-        tr     = EJT.grossProfitTransfer termTr
+        -- Invariant: distinct, classified fixture accounts and finite, nonnegative postings.
+        rules :: Transfer.TransferTable SimHatBase2
+        rules = either (error . show) id $ Transfer.mkTransferTable
+            [ (Sales, (.#), (.#), (.#))           .-> (GrossProfit, (.#), (.#), (.#)) |% Relabel
+            , (Purchases, (.#), (.#), (.#))       .-> (GrossProfit, (.#), (.#), (.#)) |% Relabel
+            , (WageExpenditure, (.#), (.#), (.#)) .-> (GrossProfit, (.#), (.#), (.#)) |% Relabel
+            , (Depreciation, (.#), (.#), (.#))    .-> (GrossProfit, (.#), (.#), (.#)) |% Relabel
+            , (ValueAdded, (.#), (.#), (.#))      .-> (GrossProfit, (.#), (.#), (.#)) |% Relabel
+            ]
+        entries :: SimTransaction
+        entries = either (error . show) id $ Transfer.transferEntriesBy id rules termTr
+        tr = termTr .+ entries
         plus   = norm $ EJ.projWithBase [Not :<(GrossProfit, (.#), e, Yen)] tr
         minus  = norm $ EJ.projWithBase [Hat :<(GrossProfit, (.#), e, Yen)] tr
     return $ realToFrac (plus - minus)  -- exact MoneyDecimal -> Double for reporting

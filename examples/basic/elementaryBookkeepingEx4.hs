@@ -3,7 +3,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 
 import ExchangeAlgebra.Journal
-import ExchangeAlgebra.Algebra.Transfer
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 import Data.Time
 

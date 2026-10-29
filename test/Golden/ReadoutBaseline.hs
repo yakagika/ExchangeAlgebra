@@ -297,7 +297,7 @@ journalReadoutRows postings =
     ++ scalarRow "projWithNoteBaseNetNorm" "notes=1,2,Sales"
          (EJ.projWithNoteBaseNetNorm [1, 2] [Not :< Sales] input)
     ++ postingJournalRows "compress" "all" (compress input)
-    ++ algEitherRows "closingEntries" "Journal" (JR.closingEntries input)
+    ++ algEitherRows "closingEntries" "Journal" (Closing.closingEntries (EJ.toAlg input))
   where
     input = journal postings
 
