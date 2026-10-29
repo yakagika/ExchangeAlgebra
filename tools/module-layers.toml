@@ -24,7 +24,6 @@ Algebra = "Algebra"
 "Algebra.Base.Account.Types" = "Algebra"
 Value = "Algebra"
 Posting = "Algebra"
-Foundation = "Algebra"
 "Algebra.Base.Account" = "Accounting"
 "Algebra.Transfer" = "Algebra"
 "Algebra.Transfer.Rule" = "Algebra"
@@ -95,40 +94,10 @@ reason = "Existing orphan instances; remove when upstream supplies them or axes 
 remove_by = "upstream instance or newtype migration"
 
 [[exceptions]]
-from = "Algebra.Base"
-to = "Accounting.Account"
-reason = "Legacy Base re-exports account entities during P2."
-remove_by = "P4"
-
-[[exceptions]]
 from = "Render.Simulation"
 to = "Simulation.Output"
 reason = "Legacy rendering namespace re-exports simulation CSV output during 0.6."
 remove_by = "0.7.0.0"
-
-[[exceptions]]
-from = "Algebra.Base"
-to = "Accounting.Exchange"
-reason = "Legacy Base re-exports accounting exchange entities during P2."
-remove_by = "P4"
-
-[[exceptions]]
-from = "Algebra.Internal"
-to = "Accounting.Exchange"
-reason = "Legacy Internal re-exports accounting exchange entities during P2."
-remove_by = "P4"
-
-[[exceptions]]
-from = "Algebra"
-to = "Accounting.Exchange"
-reason = "Legacy Algebra re-exports accounting exchange entities during P2."
-remove_by = "P4"
-
-[[exceptions]]
-from = "Journal"
-to = "Accounting.Exchange"
-reason = "Legacy Journal re-exports accounting exchange entities during P2."
-remove_by = "P4"
 
 [[exceptions]]
 from = "Algebra.Base.Element"

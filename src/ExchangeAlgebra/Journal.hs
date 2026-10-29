@@ -36,7 +36,6 @@ module ExchangeAlgebra.Journal
     , HatVal(..)
     , HatBaseClass(..)
     , Redundant(..)
-    , Exchange(..)
     , pattern (:@)
     , (.@)
     , Note(..)
@@ -72,7 +71,6 @@ module ExchangeAlgebra.Journal
 import ExchangeAlgebra.Algebra.Base
 import ExchangeAlgebra.Algebra.Value.Class (HatVal(..))
 import ExchangeAlgebra.Algebra.Core.Representation (Redundant(..), pattern (:@), (.@))
-import ExchangeAlgebra.Accounting.Exchange (Exchange(..))
 import ExchangeAlgebra.Journal.Core.Representation as ExchangeAlgebra.Journal
     ( Note(..)
     , NoteAxisKey(..)

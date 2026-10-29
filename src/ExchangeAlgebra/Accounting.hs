@@ -5,7 +5,7 @@
 
     Released under the OWL license
 
-    The accounting layer on top of "ExchangeAlgebra.Foundation": the names
+    The accounting layer on top of "ExchangeAlgebra.Algebra": the names
     that realize Definitions 7-9 of Akagi (2026), Appendix A.
 
     * Definition 7 (exchange base class): account titles, account divisions,
@@ -28,7 +28,7 @@
     trial-balance readouts ("ExchangeAlgebra.Accounting.TrialBalance.Balance"),
     and statement modules are imported separately.
 
-    >>> import ExchangeAlgebra.Foundation
+    >>> import ExchangeAlgebra.Algebra
     >>> import ExchangeAlgebra.Accounting
     >>> let x = 100 .@ Not :< Cash .+ 100 .@ Not :< Sales :: Alg Double (HatBase AccountTitles)
     >>> (norm (decL x), norm (decR x), balance x)
@@ -74,18 +74,18 @@ import           ExchangeAlgebra.Accounting.Account.Classification
                      , Side(..)
                      , FixedCurrent(..)
                      )
-import           ExchangeAlgebra.Algebra.Base
+import           ExchangeAlgebra.Accounting.Account
                      ( PIMO(..)
-                     , ExBaseClass(..)
-                     , AccountBase(..)
                      , switchSide
                      , defaultSide
                      , classifyAccountDivision
                      , pimoFromDivision
                      , pimoFlip
                      )
-import           ExchangeAlgebra.Algebra.Internal
-                     ( Exchange(..)
+import           ExchangeAlgebra.Accounting.Exchange
+                     ( ExBaseClass(..)
+                     , AccountBase(..)
+                     , Exchange(..)
                      , projCredit
                      , projDebit
                      , projByAccountTitle

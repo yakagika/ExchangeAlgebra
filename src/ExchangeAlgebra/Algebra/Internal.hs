@@ -46,9 +46,7 @@ module ExchangeAlgebra.Algebra.Internal
     ( module ExchangeAlgebra.Algebra.Base
     , Nearly(..)
     , isNearlyNum
-    , nearlyEqScaled
     , Redundant(..)
-    , Exchange(..)
     , HatVal(..)
     , Pair(..)
     , Alg(.., (:@), _val, _hatBase)
@@ -72,9 +70,6 @@ module ExchangeAlgebra.Algebra.Internal
     , extendBy
     , filter
     , proj
-    , projCredit
-    , projDebit
-    , projByAccountTitle
     , projNetNorm
     , balanceBy
     , balanceMapBy
@@ -82,31 +77,9 @@ module ExchangeAlgebra.Algebra.Internal
     , foldEntriesToMap
     , decBy
     , postFromNetBy
-    , projCurrentAssets
-    , projFixedAssets
-    , projDeferredAssets
-    , projCurrentLiability
-    , projFixedLiability
-    , projCapitalStock
-    , projContraAssets
-    , projContra
-    , unionsMerge)where
+    , unionsMerge) where
 
 import ExchangeAlgebra.Algebra.Core.Representation
 import ExchangeAlgebra.Algebra.Base
 import ExchangeAlgebra.Algebra.Value.Class
-import ExchangeAlgebra.Accounting.Exchange
-    ( Exchange(..)
-    , projCredit
-    , projDebit
-    , projByAccountTitle
-    , projCurrentAssets
-    , projFixedAssets
-    , projDeferredAssets
-    , projCurrentLiability
-    , projFixedLiability
-    , projCapitalStock
-    , projContraAssets
-    , projContra
-    )
 import Prelude hiding (map, filter)

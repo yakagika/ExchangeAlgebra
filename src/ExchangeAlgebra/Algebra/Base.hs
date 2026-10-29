@@ -28,30 +28,10 @@
 
 module ExchangeAlgebra.Algebra.Base
     ( module ExchangeAlgebra.Algebra.Base
-    , module ExchangeAlgebra.Algebra.Base.Account.Registry
-    , module ExchangeAlgebra.Algebra.Base.Account.Types
     , module ExchangeAlgebra.Algebra.Base.Element) where
 
 import ExchangeAlgebra.Algebra.Base.Representation as ExchangeAlgebra.Algebra.Base
     ( customError, BaseClass(..), HatBaseClass(..), Hat(..)
     , BaseForSingleHat(..), HatBase(..) )
-import ExchangeAlgebra.Accounting.Account as ExchangeAlgebra.Algebra.Base
-    ( PIMO(..), switchSide, defaultSide, classifyAccountDivision
-    , pimoFromDivision, pimoFlip )
 import ExchangeAlgebra.Algebra.Element as ExchangeAlgebra.Algebra.Base.Element
     hiding (matchesQuery)
-import ExchangeAlgebra.Accounting.Account as ExchangeAlgebra.Algebra.Base.Element
-    ( AccountTitles(..) )
-import ExchangeAlgebra.Accounting.Account as ExchangeAlgebra.Algebra.Base.Account.Registry
-    ( AccountSpec(..), AccountSemantics(..), accountAliases, accountSpec
-    , accountSemantics, accountSpecMap, concreteAccountTitles
-    , classifyAccountContra, accountDescriptions )
-import ExchangeAlgebra.Accounting.Account as ExchangeAlgebra.Algebra.Base.Account.Types
-    ( AccountDivision(..), Side(..), ClosingRule(..), FixedCurrent(..)
-    , AccountRole(..), PostingCapability(..), DivisionSemantics(..)
-    , HomeSideSemantics(..), ReportingEligibility(..) )
-
-import ExchangeAlgebra.Accounting.Exchange as ExchangeAlgebra.Algebra.Base
-    ( ExBaseClass(..)
-    , AccountBase(..)
-    )

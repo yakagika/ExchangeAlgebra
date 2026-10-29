@@ -53,7 +53,6 @@ main = doctest  [ "-isrc"
                 , "src/ExchangeAlgebra/Simulation/Optimize.hs"
                   -- 0.5.1.0 umbrellas (re-export only): not reachable from the
                   -- top-level umbrella, so listed explicitly.
-                , "src/ExchangeAlgebra/Foundation.hs"
                 , "src/ExchangeAlgebra/Accounting.hs"
                 , "src/ExchangeAlgebra/Simulate/Engine.hs"
                 , "src/ExchangeAlgebra/Simulation/Analysis.hs"

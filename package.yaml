@@ -100,7 +100,6 @@ library:
   - ExchangeAlgebra.IO.Output
   - ExchangeAlgebra.IO.Output.Csv
   - ExchangeAlgebra.IO.Output.Statements
-  - ExchangeAlgebra.Foundation
   - ExchangeAlgebra.IO.Input.Admission
   - ExchangeAlgebra.Accounting.Transaction
   - ExchangeAlgebra.Accounting.Adjustment
@@ -195,7 +194,6 @@ tests:
     other-modules:
     - CompatInstance
     - Surface.Accounting
-    - Surface.Foundation
     - Surface.Render.Bookkeeping
     - Surface.Render.Csv
     - Surface.Render.Simulation

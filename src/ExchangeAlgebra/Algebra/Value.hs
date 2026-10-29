@@ -55,7 +55,6 @@
 module ExchangeAlgebra.Algebra.Value
     ( Nearly(..)
     , isNearlyNum
-    , nearlyEqScaled
     , HatVal(..)
     , ValueError(..)
     , isErrorValue
@@ -82,7 +81,7 @@ module ExchangeAlgebra.Algebra.Value
     , toDouble
     ) where
 
-import           ExchangeAlgebra.Algebra.Value.Class (HatVal (..), ValueError (..), isErrorValue, Nearly (..), Rounding (..), Tolerance (..), defaultTolerance, isNearlyNum, nearlyEqScaled, sumValues, roundScaled)
+import           ExchangeAlgebra.Algebra.Value.Class (HatVal (..), ValueError (..), isErrorValue, Nearly (..), Rounding (..), Tolerance (..), defaultTolerance, isNearlyNum, sumValues, roundScaled)
 import           Data.Decimal            (Decimal, DecimalRaw (Decimal), normalizeDecimal, roundTo')
 import           Data.Ratio              (numerator, denominator)
 import           Data.Word               (Word8)

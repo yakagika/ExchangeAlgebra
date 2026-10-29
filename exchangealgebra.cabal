@@ -53,7 +53,6 @@ extra-source-files:
     test/fixtures/export-surface-p2/ExchangeAlgebra.Convert.Checked.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.Convert.Csv.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.Convert.txt
-    test/fixtures/export-surface-p2/ExchangeAlgebra.Foundation.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.IO.Input.Admission.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.Journal.Transfer.Rule.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.Journal.Transfer.txt
@@ -205,7 +204,6 @@ library
       ExchangeAlgebra.IO.Output
       ExchangeAlgebra.IO.Output.Csv
       ExchangeAlgebra.IO.Output.Statements
-      ExchangeAlgebra.Foundation
       ExchangeAlgebra.IO.Input.Admission
       ExchangeAlgebra.Accounting.Transaction
       ExchangeAlgebra.Accounting.Adjustment
@@ -335,7 +333,6 @@ test-suite ExchangeAlgebra-surface
   other-modules:
       CompatInstance
       Surface.Accounting
-      Surface.Foundation
       Surface.Render.Bookkeeping
       Surface.Render.Csv
       Surface.Render.Simulation

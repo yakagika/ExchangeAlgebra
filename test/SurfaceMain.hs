@@ -1,7 +1,6 @@
 module Main (main) where
 
 import           Surface.Accounting ()
-import           Surface.Foundation ()
 import           Surface.Render.Bookkeeping ()
 import           Surface.Render.Csv ()
 import           Surface.Render.Simulation ()
