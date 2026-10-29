@@ -107,122 +107,319 @@
 
 module ExchangeAlgebra
     ( -- * Algebra
-      Hat(..), HatBase(..), HatBaseClass(..), BaseClass(..), BaseForSingleHat(..)
+      Hat(..)
+    , HatBase(..)
+    , HatBaseClass(..)
+    , BaseClass(..)
+    , BaseForSingleHat(..)
     , customError
-    , Element(..), AxisKey(..), axisIsWildcard, AxisDecompose(..), (.#)
-    , Name, Subject, CountUnit(..), Hashable(..), Generic
-    , Nearly(..), isNearlyNum
+    , Element(..)
+    , AxisKey(..)
+    , axisIsWildcard
+    , AxisDecompose(..)
+    , (.#)
+    , Name
+    , Subject
+    , CountUnit(..)
+    , Hashable(..)
+    , Generic
+    , Nearly(..)
+    , isNearlyNum
     , Redundant(..)
-    , HatVal(..), ValueError(..), isErrorValue
-    , Rounding(..), Tolerance(..), defaultTolerance, sumValues, roundScaled
-    , Alg(Zero, (:@), _val, _hatBase), isZero, (.@), (<@)
-    , vals, bases, fromList, toList, foldEntries
-    , sigma, sigma2When, sigmaFromMap, toASCList
-    , map, mapPosting, mapMaybePosting, mapBasePart, extendBy, filter
-    , proj, projNetNorm, balanceBy, balanceMapBy, netPairMapBy
-    , foldEntriesToMap, decBy, postFromNetBy, unionsMerge
+    , HatVal(..)
+    , ValueError(..)
+    , isErrorValue
+    , Rounding(..)
+    , Tolerance(..)
+    , defaultTolerance
+    , sumValues
+    , roundScaled
+    , Alg(Zero, (:@), _val, _hatBase)
+    , isZero
+    , (.@)
+    , (<@)
+    , vals
+    , bases
+    , fromList
+    , toList
+    , foldEntries
+    , sigma
+    , sigma2When
+    , sigmaFromMap
+    , toASCList
+    , map
+    , mapPosting
+    , mapMaybePosting
+    , mapBasePart
+    , extendBy
+    , filter
+    , proj
+    , projNetNorm
+    , balanceBy
+    , balanceMapBy
+    , netPairMapBy
+    , foldEntriesToMap
+    , decBy
+    , postFromNetBy
       -- * Accounts
+    , unionsMerge
     , AccountTitles(..)
-    , AccountDivision(..), Side(..), ClosingRule(..), FixedCurrent(..)
-    , AccountRole(..), PostingCapability(..), DivisionSemantics(..)
-    , HomeSideSemantics(..), ReportingEligibility(..)
-    , AccountSpec(..), AccountSemantics(..), accountAliases, accountSpec
-    , accountSemantics, accountSpecMap, concreteAccountTitles
-    , classifyAccountContra, accountDescriptions
-    , PIMO(..), switchSide, defaultSide, classifyAccountDivision
-    , pimoFromDivision, pimoFlip
-    , ExBaseClass(..), AccountBase(..)
+    , AccountDivision(..)
+    , Side(..)
+    , ClosingRule(..)
+    , FixedCurrent(..)
+    , AccountRole(..)
+    , PostingCapability(..)
+    , DivisionSemantics(..)
+    , HomeSideSemantics(..)
+    , ReportingEligibility(..)
+    , AccountSpec(..)
+    , AccountSemantics(..)
+    , accountAliases
+    , accountSpec
+    , accountSemantics
+    , accountSpecMap
+    , concreteAccountTitles
+    , classifyAccountContra
+    , accountDescriptions
+    , PIMO(..)
+    , switchSide
+    , defaultSide
+    , classifyAccountDivision
+    , pimoFromDivision
+    , pimoFlip
+    , ExBaseClass(..)
+    , AccountBase(..)
     , Exchange(..)
-    , projCredit, projDebit, projByAccountTitle
-    , projCurrentAssets, projFixedAssets, projDeferredAssets
-    , projCurrentLiability, projFixedLiability, projCapitalStock
-    , projContraAssets, projContra
+    , projCredit
+    , projDebit
+    , projByAccountTitle
+    , projCurrentAssets
+    , projFixedAssets
+    , projDeferredAssets
+    , projCurrentLiability
+    , projFixedLiability
+    , projCapitalStock
+    , projContraAssets
       -- * Transfers and closing
-    , TransferScale(MulBy, DivBy), TransferRule(..), TransferRules
-    , TransferRuleError(..), TransferApplyError(..)
-    , mkTransferRules, rulesToList, relabel, scaleBy, divideBy
-    , collapseEntries, collapseNetEntries
-    , TransferShare(..), TransferEnds, TransferRow, TransferTable
-    , (.->), (|%), mkTransferTable, tableRows
-    , TransferTableError(..), TransferError(..)
-    , transferEntries, transferEntriesWith
-    , TransferJournalError(..), transferEntriesBy, transferEntriesByWith
-    , ClosingSide(..), closingSide, closingEntries
-    , SettleRule, retainedEarningsRule, SettlementBatch, SignedNet
-    , SettleError(..), settleEntries, settlementSteps
+    , projContra
+    , TransferScale(MulBy, DivBy)
+    , TransferRule(..)
+    , TransferRules
+    , TransferRuleError(..)
+    , TransferApplyError(..)
+    , mkTransferRules
+    , rulesToList
+    , relabel
+    , scaleBy
+    , divideBy
+    , collapseEntries
+    , collapseNetEntries
+    , TransferShare(..)
+    , TransferEnds
+    , TransferRow
+    , TransferTable
+    , (.->)
+    , (|%)
+    , mkTransferTable
+    , tableRows
+    , TransferTableError(..)
+    , TransferError(..)
+    , transferEntries
+    , transferEntriesWith
+    , TransferJournalError(..)
+    , transferEntriesBy
+    , transferEntriesByWith
+    , ClosingSide(..)
+    , closingSide
+    , closingEntries
+    , SettleRule
+    , retainedEarningsRule
+    , SettlementBatch
+    , SignedNet
+    , SettleError(..)
+    , settleEntries
       -- * Trial balance and statements
-    , AccountBalance(..), accountBalances, balanceFor, balanceSide, balanceAmount
-    , TrialBalanceStage(..), TrialBalanceInput(..), ReclassificationRule(..)
-    , TBFinding(..), trialBalanceFindings
-    , ReportingContext(..), ReportingScope(..), jcciSecondGradeContext
-    , FinancialStatements(..), StatementSection(..), StatementLine(..)
-    , PresentationIssue(..), present
+    , settlementSteps
+    , AccountBalance(..)
+    , accountBalances
+    , balanceFor
+    , balanceSide
+    , balanceAmount
+    , TrialBalanceStage(..)
+    , TrialBalanceInput(..)
+    , ReclassificationRule(..)
+    , TBFinding(..)
+    , trialBalanceFindings
+    , ReportingContext(..)
+    , ReportingScope(..)
+    , jcciSecondGradeContext
+    , FinancialStatements(..)
+    , StatementSection(..)
+    , StatementLine(..)
+    , PresentationIssue(..)
       -- * Output
-    , writeCSV, csvTranspose
-    , journalRows, writeJournal
-    , accountLedgerRows, writeAccountOf
-    , accountLedgerRowsJournal, writeAccountOfJournal
-    , compoundTrialBalanceRows, writeCompoundTrialBalance
-    , worksheetRows, writeWorksheet
-    , postClosingTrialBalanceRows, writePostClosingTrialBalance
-    , StatementRowsError(..), financialStatementRows, writeFinancialStatements
+    , present
+    , writeCSV
+    , csvTranspose
+    , journalRows
+    , writeJournal
+    , accountLedgerRows
+    , writeAccountOf
+    , accountLedgerRowsJournal
+    , writeAccountOfJournal
+    , compoundTrialBalanceRows
+    , writeCompoundTrialBalance
+    , worksheetRows
+    , writeWorksheet
+    , postClosingTrialBalanceRows
+    , writePostClosingTrialBalance
+    , StatementRowsError(..)
+    , financialStatementRows
       -- * Values
-    , MoneyDecimal(..), toDecimal, bankersRound, ceilingRound
-    , MoneyParseError(..), moneyDecimalFromText, moneyDecimalFromScientific
-    , MoneyDouble(..), toDouble
-    , RationalAccum(..), rationalAddAccum, rationalRoundAccum
+    , writeFinancialStatements
+    , MoneyDecimal(..)
+    , toDecimal
+    , bankersRound
+    , ceilingRound
+    , MoneyParseError(..)
+    , moneyDecimalFromText
+    , moneyDecimalFromScientific
+    , MoneyDouble(..)
+    , toDouble
+    , RationalAccum(..)
+    , rationalAddAccum
+    , rationalRoundAccum
     ) where
+
 
 import Prelude ()
 import ExchangeAlgebra.Algebra
 import ExchangeAlgebra.Accounting.Account
     ( AccountTitles(..)
-    , AccountDivision(..), Side(..), ClosingRule(..), FixedCurrent(..)
-    , AccountRole(..), PostingCapability(..), DivisionSemantics(..)
-    , HomeSideSemantics(..), ReportingEligibility(..)
-    , AccountSpec(..), AccountSemantics(..), accountAliases, accountSpec
-    , accountSemantics, accountSpecMap, concreteAccountTitles
-    , classifyAccountContra, accountDescriptions
-    , PIMO(..), switchSide, defaultSide, classifyAccountDivision
-    , pimoFromDivision, pimoFlip )
+    , AccountDivision(..)
+    , Side(..)
+    , ClosingRule(..)
+    , FixedCurrent(..)
+    , AccountRole(..)
+    , PostingCapability(..)
+    , DivisionSemantics(..)
+    , HomeSideSemantics(..)
+    , ReportingEligibility(..)
+    , AccountSpec(..)
+    , AccountSemantics(..)
+    , accountAliases
+    , accountSpec
+    , accountSemantics
+    , accountSpecMap
+    , concreteAccountTitles
+    , classifyAccountContra
+    , accountDescriptions
+    , PIMO(..)
+    , switchSide
+    , defaultSide
+    , classifyAccountDivision
+    , pimoFromDivision
+    , pimoFlip
+    )
 import ExchangeAlgebra.Accounting.Exchange
-    ( ExBaseClass(..), AccountBase(..), Exchange(..)
-    , projCredit, projDebit, projByAccountTitle
-    , projCurrentAssets, projFixedAssets, projDeferredAssets
-    , projCurrentLiability, projFixedLiability, projCapitalStock
-    , projContraAssets, projContra )
+    ( ExBaseClass(..)
+    , AccountBase(..)
+    , Exchange(..)
+    , projCredit
+    , projDebit
+    , projByAccountTitle
+    , projCurrentAssets
+    , projFixedAssets
+    , projDeferredAssets
+    , projCurrentLiability
+    , projFixedLiability
+    , projCapitalStock
+    , projContraAssets
+    , projContra
+    )
 -- Generic per-posting rules. The accounting transfer below owns Relabel and
 -- transferEntries in this module, so they are not imported from here.
 import ExchangeAlgebra.Algebra.Transfer.Representation
-    ( TransferScale(MulBy, DivBy), TransferRule(..), TransferRules
-    , TransferRuleError(..), TransferApplyError(..)
-    , mkTransferRules, rulesToList, relabel, scaleBy, divideBy
-    , collapseEntries, collapseNetEntries )
+    ( TransferScale(MulBy, DivBy)
+    , TransferRule(..)
+    , TransferRules
+    , TransferRuleError(..)
+    , TransferApplyError(..)
+    , mkTransferRules
+    , rulesToList
+    , relabel
+    , scaleBy
+    , divideBy
+    , collapseEntries
+    , collapseNetEntries
+    )
 import ExchangeAlgebra.Accounting.Transfer
 import ExchangeAlgebra.Accounting.Closing
-    ( ClosingSide(..), closingSide, closingEntries
-    , SettleRule, retainedEarningsRule, SettlementBatch, SignedNet
-    , SettleError(..), settleEntries, settlementSteps )
+    ( ClosingSide(..)
+    , closingSide
+    , closingEntries
+    , SettleRule
+    , retainedEarningsRule
+    , SettlementBatch
+    , SignedNet
+    , SettleError(..)
+    , settleEntries
+    , settlementSteps
+    )
 import ExchangeAlgebra.Accounting.TrialBalance.Balance
-    ( AccountBalance(..), accountBalances, balanceFor, balanceSide, balanceAmount )
+    ( AccountBalance(..)
+    , accountBalances
+    , balanceFor
+    , balanceSide
+    , balanceAmount
+    )
 import ExchangeAlgebra.Accounting.TrialBalance.Validation
-    ( TrialBalanceStage(..), TrialBalanceInput(..), ReclassificationRule(..)
-    , TBFinding(..), trialBalanceFindings )
+    ( TrialBalanceStage(..)
+    , TrialBalanceInput(..)
+    , ReclassificationRule(..)
+    , TBFinding(..)
+    , trialBalanceFindings
+    )
 import ExchangeAlgebra.Accounting.Statements.Presentation
-    ( ReportingContext(..), ReportingScope(..), jcciSecondGradeContext
-    , FinancialStatements(..), StatementSection(..), StatementLine(..)
-    , PresentationIssue(..), present )
+    ( ReportingContext(..)
+    , ReportingScope(..)
+    , jcciSecondGradeContext
+    , FinancialStatements(..)
+    , StatementSection(..)
+    , StatementLine(..)
+    , PresentationIssue(..)
+    , present
+    )
 import ExchangeAlgebra.IO.Output.Csv (writeCSV, csvTranspose)
 import ExchangeAlgebra.IO.Output.Statements
-    ( journalRows, writeJournal
-    , accountLedgerRows, writeAccountOf
-    , accountLedgerRowsJournal, writeAccountOfJournal
-    , compoundTrialBalanceRows, writeCompoundTrialBalance
-    , worksheetRows, writeWorksheet
-    , postClosingTrialBalanceRows, writePostClosingTrialBalance
-    , StatementRowsError(..), financialStatementRows, writeFinancialStatements )
+    ( journalRows
+    , writeJournal
+    , accountLedgerRows
+    , writeAccountOf
+    , accountLedgerRowsJournal
+    , writeAccountOfJournal
+    , compoundTrialBalanceRows
+    , writeCompoundTrialBalance
+    , worksheetRows
+    , writeWorksheet
+    , postClosingTrialBalanceRows
+    , writePostClosingTrialBalance
+    , StatementRowsError(..)
+    , financialStatementRows
+    , writeFinancialStatements
+    )
 import ExchangeAlgebra.Algebra.Value
-    ( MoneyDecimal(..), toDecimal, bankersRound, ceilingRound
-    , MoneyParseError(..), moneyDecimalFromText, moneyDecimalFromScientific
-    , MoneyDouble(..), toDouble
-    , RationalAccum(..), rationalAddAccum, rationalRoundAccum )
+    ( MoneyDecimal(..)
+    , toDecimal
+    , bankersRound
+    , ceilingRound
+    , MoneyParseError(..)
+    , moneyDecimalFromText
+    , moneyDecimalFromScientific
+    , MoneyDouble(..)
+    , toDouble
+    , RationalAccum(..)
+    , rationalAddAccum
+    , rationalRoundAccum
+    )

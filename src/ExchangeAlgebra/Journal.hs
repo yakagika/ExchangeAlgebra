@@ -32,7 +32,21 @@
 {-# LANGUAGE ExistentialQuantification  #-}
 
 module ExchangeAlgebra.Journal
-    ( module ExchangeAlgebra.Algebra.Base
+    ( customError
+    , BaseClass(..)
+    , Hat(..)
+    , BaseForSingleHat(..)
+    , HatBase(..)
+    , Element(..)
+    , AxisKey(..)
+    , axisIsWildcard
+    , AxisDecompose(..)
+    , (.#)
+    , Name
+    , Subject
+    , CountUnit(..)
+    , Hashable(..)
+    , Generic
     , HatVal(..)
     , HatBaseClass(..)
     , Redundant(..)

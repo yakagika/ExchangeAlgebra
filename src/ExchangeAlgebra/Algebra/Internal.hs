@@ -43,7 +43,22 @@
 
 
 module ExchangeAlgebra.Algebra.Internal
-    ( module ExchangeAlgebra.Algebra.Base
+    ( customError
+    , BaseClass(..)
+    , HatBaseClass(..)
+    , Hat(..)
+    , BaseForSingleHat(..)
+    , HatBase(..)
+    , Element(..)
+    , AxisKey(..)
+    , axisIsWildcard
+    , AxisDecompose(..)
+    , (.#)
+    , Name
+    , Subject
+    , CountUnit(..)
+    , Hashable(..)
+    , Generic
     , Nearly(..)
     , isNearlyNum
     , Redundant(..)

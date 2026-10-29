@@ -27,11 +27,41 @@
 {-# LANGUAGE DeriveGeneric              #-}
 
 module ExchangeAlgebra.Algebra.Base
-    ( module ExchangeAlgebra.Algebra.Base
-    , module ExchangeAlgebra.Algebra.Base.Element) where
+    ( customError
+    , BaseClass(..)
+    , HatBaseClass(..)
+    , Hat(..)
+    , BaseForSingleHat(..)
+    , HatBase(..)
+    , Element(..)
+    , AxisKey(..)
+    , axisIsWildcard
+    , AxisDecompose(..)
+    , (.#)
+    , Name
+    , Subject
+    , CountUnit(..)
+    , Hashable(..)
+    , Generic
+    ) where
 
-import ExchangeAlgebra.Algebra.Base.Representation as ExchangeAlgebra.Algebra.Base
-    ( customError, BaseClass(..), HatBaseClass(..), Hat(..)
-    , BaseForSingleHat(..), HatBase(..) )
-import ExchangeAlgebra.Algebra.Element as ExchangeAlgebra.Algebra.Base.Element
-    hiding (matchesQuery)
+import ExchangeAlgebra.Algebra.Base.Representation
+    ( customError
+    , BaseClass(..)
+    , HatBaseClass(..)
+    , Hat(..)
+    , BaseForSingleHat(..)
+    , HatBase(..)
+    )
+import ExchangeAlgebra.Algebra.Element
+    ( Element(..)
+    , AxisKey(..)
+    , axisIsWildcard
+    , AxisDecompose(..)
+    , (.#)
+    , Name
+    , Subject
+    , CountUnit(..)
+    , Hashable(..)
+    , Generic
+    )
