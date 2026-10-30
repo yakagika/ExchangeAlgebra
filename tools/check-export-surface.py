@@ -82,12 +82,17 @@ def export_names(module):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--update", action="store_true", help="Write the current exports as fixtures")
+        "--update", action="store_true", help="Rewrite the fixtures of the pinned modules")
+    parser.add_argument(
+        "--add", action="append", default=[], metavar="MODULE",
+        help="Add an exposed module to the pinned fixtures (requires --update)")
     parser.add_argument(
         "--direct-ghc", action="store_true", help="Use ghc on PATH inside Stack tests")
     parser.add_argument(
         "--suite", action="store_true", help="Skip visualize when its interface is absent")
     args = parser.parse_args()
+    if args.add and not args.update:
+        parser.error("--add requires --update")
     if args.update and os.environ.get("EA_VISUALIZE", "1") == "0":
         raise RuntimeError("Refresh export fixtures with visualization enabled")
     global COMPILER
@@ -115,17 +120,27 @@ def main():
         if not visual_iface:
             exposed.remove("ExchangeAlgebra.Simulate.Visualize")
             visual_disabled = True
-    modules = sorted(exposed)
-    if not args.update:
-        baseline = FIXTURES / "counts.tsv"
-        if not baseline.exists():
-            raise RuntimeError(f"Missing module inventory: {baseline}")
-        inventory = dict(line.split("\t", 1) for line in
-                         baseline.read_text().splitlines()[1:])
-        pinned = set(inventory)
-        fixtures = {path.stem for path in FIXTURES.glob("ExchangeAlgebra*.txt")}
-        if pinned != fixtures:
-            raise RuntimeError("The module inventory and export fixtures differ")
+    baseline = FIXTURES / "counts.tsv"
+    if not baseline.exists():
+        raise RuntimeError(f"Missing module inventory: {baseline}")
+    inventory = dict(line.split("\t", 1) for line in
+                     baseline.read_text().splitlines()[1:])
+    pinned = set(inventory)
+    fixtures = {path.stem for path in FIXTURES.glob("ExchangeAlgebra*.txt")}
+    if pinned != fixtures:
+        raise RuntimeError("The module inventory and export fixtures differ")
+    if args.update:
+        absent = pinned - exposed
+        if absent:
+            raise RuntimeError(
+                f"Previously exposed modules are missing: {sorted(absent)}. "
+                "For an intentional removal, manually delete the fixture and its counts.tsv row.")
+        unknown = set(args.add) - exposed
+        if unknown:
+            raise RuntimeError(f"Cannot add modules that are not exposed: {sorted(unknown)}")
+        pinned.update(args.add)
+        modules = list(inventory) + sorted(pinned - set(inventory))
+    else:
         for module, expected_count in inventory.items():
             actual_count = len((FIXTURES / f"{module}.txt").read_text().splitlines())
             if actual_count != int(expected_count):
@@ -156,7 +171,7 @@ def main():
     if args.update:
         (FIXTURES / "counts.tsv").write_text(
             "module\tnames\n" + "".join(
-                f"{module}\t{count}\n" for module, count in sorted(counts)))
+                f"{module}\t{count}\n" for module, count in counts))
     return int(failed)
 
 

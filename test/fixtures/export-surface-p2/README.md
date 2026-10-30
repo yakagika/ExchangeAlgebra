@@ -19,6 +19,12 @@ stack build exchangealgebra
 STACK_ARGS="--system-ghc --no-install-ghc" python3 tools/check-export-surface.py --update
 ```
 
+`--update` rewrites only the modules pinned in `counts.tsv`. To add an exposed
+module to the pinned set, use `--update --add <module>`, replacing `<module>`
+with its full module name. Repeat `--add` to add multiple modules. To remove
+a module from the pinned set, manually delete its fixture and its row in
+`counts.tsv`.
+
 Run the check after the build:
 
 ```bash
