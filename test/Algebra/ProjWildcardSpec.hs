@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 -- | The @proj@ family matches wildcards one way: only the query's wildcards
 -- act as a pattern, and a wildcard stored in a ledger base is an ordinary
@@ -11,10 +12,12 @@ import ExchangeAlgebra.Accounting.Exchange
 import           Control.Monad (unless)
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
+import           Data.Text (Text)
 import           System.Exit (exitFailure)
 import           Test.QuickCheck hiding (label)
 import           ExchangeAlgebra.Algebra hiding (map, filter)
 import qualified ExchangeAlgebra.Algebra as Algebra
+import           ExchangeAlgebra.Algebra.Transfer.Rule (collapseEntries)
 
 -- | Account and unit coordinates; either axis may hold a ledger wildcard.
 type TestBase = HatBase (AccountTitles, CountUnit)
@@ -188,11 +191,71 @@ testMapRewritesWildcardAxis = do
         (observe (Algebra.map (setCashUnit wildcard) (cashYen .+ products))
             == observe (cash .+ products))
 
+-- | Flattening Text coordinates preserves projection norms, net norms,
+-- collapse postings, and symmetric matching. Small non-negative whole values
+-- make the Double observations exact; either inner query axis may be a wildcard.
+propNestedFlattening :: (Text, Text, Text) -> (Double, Double, Double) -> Bool
+propNestedFlattening (queryFirst, querySecond, queryThird) (notValue, hatValue, otherValue) =
+    norm (proj [nestedQuery] nestedLedger) == norm (proj [flatQuery] flatLedger)
+        && projNetNorm [nestedQuery] nestedLedger == projNetNorm [flatQuery] flatLedger
+        && List.sort nestedCollapsed == List.sort flatCollapsed
+        && (nestedStored .== nestedCoordinates) == (flatStored .== flatCoordinates)
+        && ((Not :< nestedStored) .== (Not :< nestedCoordinates))
+            == ((Not :< flatStored) .== (Not :< flatCoordinates))
+  where
+    nestedStored      = (("a", "b"), "c") :: ((Text, Text), Text)
+    flatStored        = ("a", "b", "c") :: (Text, Text, Text)
+    nestedCoordinates = ((queryFirst, querySecond), queryThird)
+    flatCoordinates   = (queryFirst, querySecond, queryThird)
+    nestedQuery       = HatNot :< nestedCoordinates
+    flatQuery         = HatNot :< flatCoordinates
+    nestedLedger :: Alg Double (HatBase ((Text, Text), Text))
+    nestedLedger = notValue   .@ Not :< nestedStored
+                .+ hatValue   .@ Hat :< nestedStored
+                .+ otherValue .@ Not :< (("x", "y"), "z")
+    flatLedger :: Alg Double (HatBase (Text, Text, Text))
+    flatLedger = notValue   .@ Not :< flatStored
+              .+ hatValue   .@ Hat :< flatStored
+              .+ otherValue .@ Not :< ("x", "y", "z")
+    nestedCollapsed :: [(Double, Hat, (Text, Text, Text))]
+    nestedCollapsed = foldEntries
+        (\result value (side :< ((first, second), third)) ->
+            (value, side, (first, second, third)) : result) []
+        (collapseEntries [nestedQuery] (const (("a", "b"), "d")) nestedLedger)
+    flatCollapsed :: [(Double, Hat, (Text, Text, Text))]
+    flatCollapsed = foldEntries
+        (\result value (side :< coordinates) -> (value, side, coordinates) : result) []
+        (collapseEntries [flatQuery] (const ("a", "b", "d")) flatLedger)
+
+-- | The reported inner-only wildcard selects gross 13 and net 7, and
+-- collapseEntries adds reversal and replacement postings with total norm 26.
+testNestedWildcard :: IO ()
+testNestedWildcard = do
+    let ledger = 10 .@ Not :< (("a", "b"), "c")
+              .+  3 .@ Hat :< (("a", "b"), "c")
+              .+  2 .@ Not :< (("x", "y"), "z")
+              :: Alg Double (HatBase ((Text, Text), Text))
+        query = HatNot :< (("a", ""), "c")
+    assertTest "nested wildcard: reported projection and collapse values"
+        (norm (proj [query] ledger) == 13
+            && projNetNorm [query] ledger == 7
+            && norm (collapseEntries [query] (const (("a", "b"), "d")) ledger) == 26)
+    assertTest "nested wildcard: reported case agrees with flat coordinates"
+        (propNestedFlattening ("a", "", "c") (10, 3, 2))
+
 runTests :: IO ()
 runTests = do
     testReportedTable
     testProjByAccountTitle
     testMapRewritesWildcardAxis
+    testNestedWildcard
+    quickProperty "nested wildcard: flattening preserves projection, collapse, and matching"
+        (forAll ((,,) <$> elements ["a", ""] <*> elements ["b", ""]
+                      <*> elements ["c", ""]) $ \coordinates ->
+            forAll ((,,) <$> (fromIntegral <$> chooseInt (0, 1000))
+                         <*> (fromIntegral <$> chooseInt (0, 1000))
+                         <*> (fromIntegral <$> chooseInt (0, 1000)))
+                (propNestedFlattening coordinates))
     quickProperty "proj: Liner result equals the one-way reference (ledger wildcards)"
         (forAll genProjCase propLedger)
     quickProperty "proj: single-element result equals the one-way reference"

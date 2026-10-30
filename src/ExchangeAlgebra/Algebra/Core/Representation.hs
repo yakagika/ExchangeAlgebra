@@ -23,7 +23,7 @@
 module ExchangeAlgebra.Algebra.Core.Representation where
 
 import ExchangeAlgebra.Algebra.Base.Representation
-import ExchangeAlgebra.Algebra.Element.Representation (Element(..), AxisDecompose(..), AxisKey, axisIsWildcard, CountUnit(..), ( .# ), matchesQuery)
+import ExchangeAlgebra.Algebra.Element.Representation (Element(..), AxisDecompose(..), AxisKey(..), CountUnit(..), ( .# ), matchesQuery)
 import ExchangeAlgebra.Algebra.Value (MoneyDouble, MoneyDecimal)
 import ExchangeAlgebra.Algebra.Value.Class
 
@@ -435,13 +435,18 @@ queryAxisPosting !keys !idx !allIds =
 
     collect (Left ()) _ = Left ()
     collect (Right acc) (!axis, !k)
-        | axisIsWildcard k = Right acc
+        | axisHasWildcard k = Right acc
         | otherwise =
             case IntMap.lookup axis idx of
                 Nothing -> Left ()
                 Just axisMap -> case Map.lookup k axisMap of
                     Nothing -> Left ()
                     Just ids -> Right (ids : acc)
+
+    -- A component with a wildcard inside it (e.g. @("a", wildcard)@) must
+    -- not be looked up as an exact key; the final 'matchesQuery' check selects.
+    axisHasWildcard (AxisKey coordinate) = haveWildcard coordinate
+    {-# INLINE axisHasWildcard #-}
 
 {-# INLINE linerFromMap #-}
 -- | Complexity: O(n * d * (hash-insert + intset-insert))
