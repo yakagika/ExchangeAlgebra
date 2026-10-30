@@ -1502,31 +1502,14 @@ statementFixtureB5 = statementFixtureB3 .+ 300 .@ Not:<SalesCost .+ 500 .@ Not:<
 
 
 
-testStatementRowsAndProjectionsLiteral :: IO ()
-testStatementRowsAndProjectionsLiteral = do
-    -- projections: 資産系は Land 1 と一致, liability 系は contra が消える (意図的差分),
-    -- contra は projContraAssets のみが Hat/Not 双方を保持して選ぶ。
-    assertEqual "projCurrentAssets b3 (= baseline)"
-        "900.00:@Not:<Cash .+ 1000.00:@Not:<AccountsReceivable"
-        (show (Exchange.projCurrentAssets statementFixtureB3))
-    assertEqual "projCurrentLiability b3 (intentional: contra dropped)"
-        "400.00:@Not:<LoansPayable"
-        (show (Exchange.projCurrentLiability statementFixtureB3))
-    assertEqual "projFixedLiability b3 (intentional: contra dropped)"
-        "0"
-        (show (Exchange.projFixedLiability statementFixtureB3))
+testStatementContraAssetsLiteral :: IO ()
+testStatementContraAssetsLiteral = do
+    -- division projection (projCurrentAssets など) の値は presentation.txt の golden が
+    -- 固定する. contra は projContraAssets のみが Hat/Not 双方を保持して選び, golden の
+    -- projList に入っていないので literal で固定する。
     assertEqual "projContraAssets b3"
         "100.00:@Not:<AllowanceForDoubtfulAccounts .+ 200.00:@Not:<AccumulatedDepreciation"
         (show (Exchange.projContraAssets statementFixtureB3))
-    assertEqual "projCurrentAssets b4 (= baseline; no contra Hat leakage)"
-        "30.00:@Not:<Cash"
-        (show (Exchange.projCurrentAssets statementFixtureB4))
-    assertEqual "projFixedAssets b4 (= baseline; no contra Hat leakage)"
-        "500.00:@Not:<Building"
-        (show (Exchange.projFixedAssets statementFixtureB4))
-    assertEqual "projCurrentLiability b4 (intentional: contra dropped)"
-        "200.00:@Not:<LoansPayable"
-        (show (Exchange.projCurrentLiability statementFixtureB4))
     assertEqual "projContraAssets b4 keeps Hat and Not, excludes Cash"
         "120.00:@Hat:<AllowanceForDoubtfulAccounts .+ 100.00:@Not:<AllowanceForDoubtfulAccounts .+ 50.00:@Hat:<AccumulatedDepreciation .+ 250.00:@Not:<AccumulatedDepreciation"
         (show (Exchange.projContraAssets statementFixtureB4))
@@ -3123,7 +3106,7 @@ runTests = do
     testIsContraSweepAcrossBaseInstances
     testPresentationGroups
     testPresentationGroupsWithoutAllowances
-    testStatementRowsAndProjectionsLiteral
+    testStatementContraAssetsLiteral
     testStatementPresentationGolden
     testWhichSideHatNotErrors
     testConsolidationWorksheet
