@@ -26,6 +26,8 @@ Combine two balanced source trial balances without worksheet adjustments.
 The linkage records no period result or retained-earnings movement. Combining
 the sources preserves both cash postings and both capital postings.
 
+>>> :set -XOverloadedStrings
+>>> import Data.Text (Text)
 >>> import Data.List.NonEmpty (NonEmpty(..))
 >>> import qualified ExchangeAlgebra.Algebra.Core as Algebra
 >>> import ExchangeAlgebra.Algebra.Base.Representation (Hat(..), HatBase(..))
@@ -40,10 +42,10 @@ the sources preserves both cash postings and both capital postings.
 >>> let resultColumns = WorksheetLinkage periodResult periodResult periodResult
 >>> let retainedColumns = resultColumns NoBalance 0 NoBalance NoBalance
 >>> let linkage = retainedColumns NoBalance periodResult 0 NoBalance NoBalance
->>> let parent = TrialBalanceSource "parent" (capital 100)
->>> let subsidiary = TrialBalanceSource "subsidiary" (capital 200)
+>>> let parent = TrialBalanceSource ("parent" :: Text) (capital 100)
+>>> let subsidiary = TrialBalanceSource ("subsidiary" :: Text) (capital 200)
 >>> let sources = parent :| [subsidiary]
->>> let input = WorksheetInput sources [] linkage :: WorksheetInput String String MoneyDecimal
+>>> let input = WorksheetInput sources [] linkage :: WorksheetInput Text Text MoneyDecimal
 >>> let accepted = validateConsolidationWorksheet input
 >>> fmap (length . validatedSources) accepted
 Right 2

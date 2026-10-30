@@ -68,6 +68,9 @@ import qualified Data.HashMap.Strict as Map
 import qualified Data.Map.Strict as OMap
 import Data.Time (Day)
 
+-- $setup
+-- >>> :set -XOverloadedStrings
+
 -- | Why statement rows cannot be rendered for the requested sections.
 data StatementRowsError
     = PeriodResultMissing TB.TrialBalanceStage
@@ -326,7 +329,7 @@ writeAccountOf titles path alg f = writeCSV path (accountLedgerRows titles alg f
 -- Two Cash postings under different notes; note order ("pay" < "sale")
 -- determines the row order, not posting order:
 --
--- >>> let jrn = ((100 .@ Not:<Cash) .| "sale") .+ ((40 .@ Hat:<Cash) .| "pay") :: EJ.Journal String Double (HatBase AccountTitles)
+-- >>> let jrn = ((100 .@ Not:<Cash) .| "sale") .+ ((40 .@ Hat:<Cash) .| "pay") :: EJ.Journal Text Double (HatBase AccountTitles)
 -- >>> mapM_ print (accountLedgerRowsJournal [Cash] jrn)
 -- ["Cash","",""]
 -- ["Note","Debit","Credit"]

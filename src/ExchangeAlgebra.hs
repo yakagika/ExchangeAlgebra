@@ -46,10 +46,12 @@
     import "ExchangeAlgebra.Journal" qualified to avoid overlapping names
     such as @sigma@, @fromList@, @map@ and @filter@:
 
+    > {-# LANGUAGE OverloadedStrings #-}
     > import           ExchangeAlgebra
+    > import           Data.Text (Text)
     > import qualified ExchangeAlgebra.Journal as Journal
     >
-    > journal :: Journal.Journal String Double (HatBase AccountTitles)
+    > journal :: Journal.Journal Text Double (HatBase AccountTitles)
     > journal = (100 .@ Not :< Cash .+ 100 .@ Not :< Sales) Journal..| "sale"
 
     == Modules to import directly

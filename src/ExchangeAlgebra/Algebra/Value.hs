@@ -98,7 +98,6 @@ import           ExchangeAlgebra.Algebra.Value.Class ( HatVal (..)
 import           Data.Decimal            (Decimal, DecimalRaw (Decimal), normalizeDecimal, roundTo')
 import           Data.Ratio              (numerator, denominator)
 import           Data.Word               (Word8)
-import           Data.List               (foldl')
 import           Data.Scientific         (Scientific, coefficient, base10Exponent)
 import qualified Data.Scientific         as Scientific
 import           Data.Text               (Text)
@@ -140,34 +139,34 @@ data MoneyParseError
 -- | The parts of a fully validated JSON number, before numeric conversion.
 data ParsedMoney = ParsedMoney
     { parsedNegative       :: Bool
-    , parsedIntegerDigits  :: String
-    , parsedFractionDigits :: String
+    , parsedIntegerDigits  :: Text
+    , parsedFractionDigits :: Text
     , parsedExponentMinus  :: Bool
-    , parsedExponentDigits :: String
+    , parsedExponentDigits :: Text
     }
 
 -- | Check the complete JSON number grammar using ASCII digits only.
-parseMoneySyntax :: String -> Maybe ParsedMoney
+parseMoneySyntax :: Text -> Maybe ParsedMoney
 parseMoneySyntax input = do
-    let (negative, unsigned) = case input of
-            '-':rest -> (True, rest)
-            _        -> (False, input)
-    (integerDigits, afterInteger) <- case unsigned of
-        '0':rest -> Just ("0", rest)
-        digit:rest | isMoneyDigitNonzero digit ->
-            let (digits, suffix) = span isMoneyDigit rest
-            in Just (digit : digits, suffix)
+    let (negative, unsigned) = case Text.uncons input of
+            Just ('-', rest) -> (True, rest)
+            _                -> (False, input)
+    (integerDigits, afterInteger) <- case Text.uncons unsigned of
+        Just ('0', rest) -> Just (Text.singleton '0', rest)
+        Just (digit, rest) | isMoneyDigitNonzero digit ->
+            let (digits, suffix) = Text.span isMoneyDigit rest
+            in Just (Text.cons digit digits, suffix)
         _ -> Nothing
-    (fractionDigits, afterFraction) <- case afterInteger of
-        '.':rest -> case span isMoneyDigit rest of
-            ([], _) -> Nothing
-            result  -> Just result
-        _ -> Just ([], afterInteger)
-    (exponentMinus, exponentDigits) <- case afterFraction of
-        'e':rest -> parseExponent rest
-        'E':rest -> parseExponent rest
-        []       -> Just (False, "0")
-        _        -> Nothing
+    (fractionDigits, afterFraction) <- case Text.uncons afterInteger of
+        Just ('.', rest) -> case Text.span isMoneyDigit rest of
+            (digits, _) | Text.null digits -> Nothing
+            result -> Just result
+        _ -> Just (Text.empty, afterInteger)
+    (exponentMinus, exponentDigits) <- case Text.uncons afterFraction of
+        Just ('e', rest) -> parseExponent rest
+        Just ('E', rest) -> parseExponent rest
+        Nothing         -> Just (False, Text.singleton '0')
+        _               -> Nothing
     pure ParsedMoney
         { parsedNegative       = negative
         , parsedIntegerDigits  = integerDigits
@@ -176,16 +175,17 @@ parseMoneySyntax input = do
         , parsedExponentDigits = exponentDigits
         }
   where
-    parseExponent exponent =
-        let (minus, unsigned) = case exponent of
-                '-':rest -> (True, rest)
-                '+':rest -> (False, rest)
-                _        -> (False, exponent)
-            (digits, suffix) = span isMoneyDigit unsigned
-        in case (digits, suffix) of
-            ([], _) -> Nothing
-            (_, []) -> Just (minus, digits)
-            _       -> Nothing
+    parseExponent :: Text -> Maybe (Bool, Text)
+    parseExponent exponent
+        | Text.null digits = Nothing
+        | Text.null suffix = Just (minus, digits)
+        | otherwise        = Nothing
+      where
+        (minus, unsigned) = case Text.uncons exponent of
+                Just ('-', rest) -> (True, rest)
+                Just ('+', rest) -> (False, rest)
+                _                -> (False, exponent)
+        (digits, suffix) = Text.span isMoneyDigit unsigned
 
 -- | Recognize a JSON decimal digit without accepting Unicode numerals.
 isMoneyDigit :: Char -> Bool
@@ -196,17 +196,17 @@ isMoneyDigitNonzero :: Char -> Bool
 isMoneyDigitNonzero digit = digit >= '1' && digit <= '9'
 
 -- | Decode an exponent only after its nonzero digits pass the length bound.
-boundedExponent :: String -> Either MoneyParseError Integer
+boundedExponent :: Text -> Either MoneyParseError Integer
 boundedExponent digits
-    | length significant > 5 = Left MoneyExponentOutOfRange
-    | length significant == 5 && significant > "10000" = Left MoneyExponentOutOfRange
+    | Text.length significant > 5 = Left MoneyExponentOutOfRange
+    | Text.length significant == 5 && significant > Text.pack "10000" = Left MoneyExponentOutOfRange
     | otherwise = Right (decimalDigits significant)
   where
-    significant = dropWhile (== '0') digits
+    significant = Text.dropWhile (== '0') digits
 
 -- | Convert already validated decimal digits without a binary float.
-decimalDigits :: String -> Integer
-decimalDigits = foldl' (\value digit -> value * 10 + toInteger (fromEnum digit - fromEnum '0')) 0
+decimalDigits :: Text -> Integer
+decimalDigits = Text.foldl' (\value digit -> value * 10 + toInteger (fromEnum digit - fromEnum '0')) 0
 
 -- | Construct an exact decimal after the exponent and scale checks.
 moneyFromParts :: Integer -> Integer -> Either MoneyParseError MoneyDecimal
@@ -261,16 +261,16 @@ moneyFromParts mantissa places
 -- Right 1.50
 moneyDecimalFromText :: Text -> Either MoneyParseError MoneyDecimal
 moneyDecimalFromText source = do
-    parsed <- maybe (Left MalformedMoney) Right (parseMoneySyntax (Text.unpack source))
-    let digits = parsedIntegerDigits parsed ++ parsedFractionDigits parsed
-    if parsedNegative parsed && any (/= '0') digits
+    parsed <- maybe (Left MalformedMoney) Right (parseMoneySyntax source)
+    let digits = parsedIntegerDigits parsed <> parsedFractionDigits parsed
+    if parsedNegative parsed && Text.any (/= '0') digits
         then Left NegativeMoney
         else do
             magnitude <- boundedExponent (parsedExponentDigits parsed)
             let exponent
                     | parsedExponentMinus parsed = negate magnitude
                     | otherwise = magnitude
-                places = toInteger (length (parsedFractionDigits parsed)) - exponent
+                places = toInteger (Text.length (parsedFractionDigits parsed)) - exponent
             if places > 255
                 then Left MoneyScaleOutOfRange
                 else moneyFromParts (decimalDigits digits) places

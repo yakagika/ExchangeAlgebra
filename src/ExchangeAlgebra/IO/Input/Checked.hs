@@ -295,11 +295,11 @@ checkedEntryText = checkedEntryTextIn OrdinaryJournal
 -- Duplicate txids are detected before entry construction, because the 'Journal'
 -- representation merges equal notes.
 --
--- >>> fmap (norm . decL) (checkedJournal [("tx1", [(Debit, Cash, 100), (Credit, Sales, 100)])] :: Either (NonEmpty (JournalError String Double)) (Journal String Double (HatBase AccountTitles)))
+-- >>> fmap (norm . decL) (checkedJournal [("tx1", [(Debit, Cash, 100), (Credit, Sales, 100)])] :: Either (NonEmpty (JournalError Text Double)) (Journal Text Double (HatBase AccountTitles)))
 -- Right 100.0
--- >>> checkedJournal [("tx1", [(Debit, Cash, 100), (Credit, Sales, 100)]), ("tx1", [(Debit, Cash, 5), (Credit, Sales, 5)])] :: Either (NonEmpty (JournalError String Double)) (Journal String Double (HatBase AccountTitles))
+-- >>> checkedJournal [("tx1", [(Debit, Cash, 100), (Credit, Sales, 100)]), ("tx1", [(Debit, Cash, 5), (Credit, Sales, 5)])] :: Either (NonEmpty (JournalError Text Double)) (Journal Text Double (HatBase AccountTitles))
 -- Left (DuplicateTxId "tx1" :| [])
--- >>> checkedJournal [("bad", [(Debit, Cash, 1)])] :: Either (NonEmpty (JournalError String Double)) (Journal String Double (HatBase AccountTitles))
+-- >>> checkedJournal [("bad", [(Debit, Cash, 1)])] :: Either (NonEmpty (JournalError Text Double)) (Journal Text Double (HatBase AccountTitles))
 -- Left (EntryErrors "bad" (Imbalanced {_debitTotal = 1.0, _creditTotal = 0.0} :| []) :| [])
 checkedJournalIn :: (HatVal v, Note n, Ord n)
                  => ProcessingContext
@@ -504,14 +504,14 @@ certTotals rows =
 -- The journal side is inspected with 'toMap', giving the per-note 'Alg'. The
 -- actual amount is each note's debit-side total, @norm . decL@.
 --
--- >>> let Right j = checkedJournal [("tx1", [(Debit, Cash, 100), (Credit, Sales, 100)])] :: Either (NonEmpty (JournalError String Double)) (Journal String Double (HatBase AccountTitles))
+-- >>> let Right j = checkedJournal [("tx1", [(Debit, Cash, 100), (Credit, Sales, 100)])] :: Either (NonEmpty (JournalError Text Double)) (Journal Text Double (HatBase AccountTitles))
 -- >>> reconcileSources [("tx1", 100)] j
 -- []
 -- >>> reconcileSources [("tx1", 90)] j
 -- [AmountMismatch "tx1" 90.0 100.0]
 -- >>> reconcileSources [("tx1", 100), ("tx2", 5)] j
 -- [MissingSource "tx2"]
--- >>> let Right j2 = checkedJournal [("tx2", [(Debit, Cash, 5), (Credit, Sales, 5)])] :: Either (NonEmpty (JournalError String Double)) (Journal String Double (HatBase AccountTitles))
+-- >>> let Right j2 = checkedJournal [("tx2", [(Debit, Cash, 5), (Credit, Sales, 5)])] :: Either (NonEmpty (JournalError Text Double)) (Journal Text Double (HatBase AccountTitles))
 -- >>> reconcileSources [("tx1", 100)] (j .+ j2)
 -- [UnknownSource "tx2"]
 reconcileSources :: (HatVal v, Note n, Ord n)

@@ -225,9 +225,9 @@ explainEntryError (Imbalanced debitTotal creditTotal) =
 
 -- | Explain checked-journal errors, one line per error.
 --
--- >>> explainJournalErrors (EntryErrors "tx1" (Imbalanced 1500 1400 :| []) :| [] :: NonEmpty (JournalError String Int))
+-- >>> explainJournalErrors (EntryErrors "tx1" (Imbalanced 1500 1400 :| []) :| [] :: NonEmpty (JournalError Text Int))
 -- "transaction \"tx1\": entry is not balanced: debit total 1500 /= credit total 1400"
--- >>> explainJournalErrors (DuplicateTxId "tx1" :| [] :: NonEmpty (JournalError String Int))
+-- >>> explainJournalErrors (DuplicateTxId "tx1" :| [] :: NonEmpty (JournalError Text Int))
 -- "transaction \"tx1\" appears more than once"
 explainJournalErrors :: (Show n, Show v) => NonEmpty (JournalError n v) -> Text
 explainJournalErrors =
@@ -235,9 +235,9 @@ explainJournalErrors =
 
 -- | Explain source-coverage errors, one line per error.
 --
--- >>> explainSourceErrors [MissingSource "tx7" :: SourceError String Int]
+-- >>> explainSourceErrors [MissingSource "tx7" :: SourceError Text Int]
 -- "source transaction \"tx7\" has no journal entry"
--- >>> explainSourceErrors [AmountMismatch "tx7" 1500 1400 :: SourceError String Int]
+-- >>> explainSourceErrors [AmountMismatch "tx7" 1500 1400 :: SourceError Text Int]
 -- "source transaction \"tx7\" amount mismatch: expected 1500, journal entry has 1400"
 explainSourceErrors :: (Show n, Show v) => [SourceError n v] -> Text
 explainSourceErrors = T.intercalate "\n" . map explainSourceError

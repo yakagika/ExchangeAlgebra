@@ -70,6 +70,9 @@ import qualified    Control.Monad           as CM
 import qualified    Data.Binary             as Binary
 import              Data.Typeable           (Typeable, cast, typeOf)
 
+-- $setup
+-- >>> :set -XOverloadedStrings
+
 ------------------------------------------------------------------
 -- * NoteAxisKey
 ------------------------------------------------------------------
@@ -198,10 +201,10 @@ class (Show a, Eq a, Ord a, Hashable a, Typeable a) => Note a where
 -- is fixed here: __the term is the last component of the Note__. The shipped
 -- instances follow this rule; a custom Note type provides a one-line instance.
 --
--- >>> termOf ("buy", 7 :: Int)
+-- >>> termOf ("buy" :: T.Text, 7 :: Int)
 -- 7
 --
--- >>> termOf ("buy", "shopA", 3 :: Int)
+-- >>> termOf ("buy" :: T.Text, "shopA" :: T.Text, 3 :: Int)
 -- 3
 class (Note n, Ord (TermOf n)) => HasTermAxis n where
   -- | The term type extracted from the Note.
@@ -342,7 +345,7 @@ mkJournalNonZero bs delta = Journal bs delta baseIdx deltaIdx
 -- when it holds a zero note. Base axis index is built lazily on first axis
 -- query.
 --
--- >>> case fromMap (Map.singleton "empty" EA.Zero) :: Journal String Double (HatBase CountUnit) of { Zero -> True; _ -> False }
+-- >>> case fromMap (Map.singleton "empty" EA.Zero) :: Journal T.Text Double (HatBase CountUnit) of { Zero -> True; _ -> False }
 -- True
 {-# INLINE fromMap #-}
 fromMap :: (HatVal v, HatBaseClass b, Note n)
@@ -490,7 +493,7 @@ infixr 2 .|
 -- The blank note remains invisible when it is the only group. In a mixed
 -- journal it is rendered explicitly, so every summand is one complete group.
 --
--- >>> type ShowTest = Journal String Double (HatBase CountUnit)
+-- >>> type ShowTest = Journal T.Text Double (HatBase CountUnit)
 -- >>> (mempty :: ShowTest)
 -- 0
 -- >>> (5.00.@Not:<Yen .| plank :: ShowTest)
@@ -556,7 +559,7 @@ instance (HatVal v, HatBaseClass b, Note n) => Semigroup (Journal n v b) where
 --
 -- Complexity: Amortized O(size(rhs)); O(n) compaction when the delta exceeds the threshold
 --
--- >>> type Test = Journal String Double (HatBase CountUnit)
+-- >>> type Test = Journal T.Text Double (HatBase CountUnit)
 -- >>> x = 20.00.@Not:<Yen .+ 20.00.@Hat:<Dollar .| "Withdrawal" :: Test
 -- >>> y = 10.00.@Hat:<Yen .+ 10.00.@Not:<Dollar .| "Deposits" :: Test
 -- >>> toMap (x .+ y) == toMap ((10.00.@Not:<Dollar .+ 10.00.@Hat:<Yen .| "Deposits") .+ (20.00.@Hat:<Dollar .+ 20.00.@Not:<Yen .| "Withdrawal") :: Test)
@@ -625,7 +628,7 @@ instance (HatVal v, HatBaseClass b, Note n) => Redundant (Journal n) v b where
 -- For finite postings, 'norm', 'bar', and balance are independent of
 -- construction order for every value type, including Double and MoneyDouble.
 --
--- >>> type Test = Journal String Double (HatBase CountUnit)
+-- >>> type Test = Journal T.Text Double (HatBase CountUnit)
 -- >>> x = [(1.00.@Hat:<Yen .| z) | z <- ["Loan Payment","Purchace Apple"]] :: [Test]
 -- >>> toMap (fromList x) == toMap ((1.00.@Hat:<Yen .| "Purchace Apple") .+ (1.00.@Hat:<Yen .| "Loan Payment") :: Test)
 -- True
@@ -738,7 +741,7 @@ sigmaOnFromMap n kvs f =
 --
 -- Complexity: O(m) single pass (via 'EA.decBy') + O(k) journal construction.
 --
--- >>> type TJ = Journal String Double (HatBase CountUnit)
+-- >>> type TJ = Journal T.Text Double (HatBase CountUnit)
 -- >>> let alg = 100 .@ Not:<Yen .+ 30 .@ Hat:<Yen .+ 50 .@ Not:<Dollar :: Alg Double (HatBase CountUnit)
 -- >>> let j = decTo (\(_ :< a) -> Just (if a == Yen then "cash" else "other")) alg :: TJ
 -- >>> norm j
@@ -790,7 +793,7 @@ toAlg (Journal bs delta _ _) =
 --
 -- Complexity: O(j * cost(f)) where j is the number of Notes
 --
--- >>> case map (const EA.Zero) (1 .@ Not:<Yen .| "entry" :: Journal String Double (HatBase CountUnit)) of { Zero -> True; _ -> False }
+-- >>> case map (const EA.Zero) (1 .@ Not:<Yen .| "entry" :: Journal T.Text Double (HatBase CountUnit)) of { Zero -> True; _ -> False }
 -- True
 map :: (HatVal v, HatBaseClass b, Note n)
     => (Alg v b -> Alg v b) -> Journal n v b -> Journal n v b
@@ -810,7 +813,7 @@ map f js = mkJournalNonZero result Map.empty
 --
 -- Complexity: O(n + m) where n, m are the number of Notes in each Journal
 --
--- >>> type Test = Journal String Double (HatBase CountUnit)
+-- >>> type Test = Journal T.Text Double (HatBase CountUnit)
 -- >>> x = 10.00.@Not:<Yen .| "A" :: Test
 -- >>> y = 20.00.@Not:<Yen .| "B" :: Test
 -- >>> z = 30.00.@Hat:<Yen .| "A" :: Test
@@ -827,7 +830,7 @@ replaceNotes x y = mkJournalNonZero (Map.union (toMap x) (toMap y)) Map.empty
 -- A query list containing 'plank' acts as a __wildcard__: the journal is
 -- returned unchanged (the blank note matches every note).
 --
--- >>> type Test = Journal String Double (HatBase CountUnit)
+-- >>> type Test = Journal T.Text Double (HatBase CountUnit)
 -- >>> x = 1.00.@Hat:<Yen .+ 1.00.@Not:<Amount .| "cat"  :: Test
 -- >>> y = 2.00.@Hat:<Yen .+ 2.00.@Not:<Amount .| "dog"  :: Test
 -- >>> z = 3.00.@Hat:<Yen .+ 3.00.@Not:<Amount .| "fish" :: Test
@@ -854,7 +857,7 @@ projWithNote ns js =
 -- Projecting with Base. A note whose projection is zero is dropped (the
 -- normal form on t'Journal').
 --
--- >>> type Test = Journal String Double (HatBase CountUnit)
+-- >>> type Test = Journal T.Text Double (HatBase CountUnit)
 -- >>> x = 1.00.@Hat:<Yen .+ 1.00.@Not:<Amount .| "cat"  :: Test
 -- >>> y = 2.00.@Not:<Yen .+ 2.00.@Hat:<Amount .| "dog"  :: Test
 -- >>> z = 3.00.@Hat:<Yen .+ 3.00.@Not:<Amount .| "fish" :: Test
@@ -902,7 +905,7 @@ projWithBaseNetNorm bs js =
 -- 'plank' in the note list acts as a note-wildcard: the projection widens to
 -- all notes (falls back to 'projWithBase').
 --
--- >>> type Test = Journal String Double (HatBase CountUnit)
+-- >>> type Test = Journal T.Text Double (HatBase CountUnit)
 -- >>> x = 1.00.@Hat:<Yen .+ 1.00.@Not:<Amount .| "cat"  :: Test
 -- >>> y = 2.00.@Not:<Yen .+ 2.00.@Hat:<Amount .| "dog"  :: Test
 -- >>> z = 3.00.@Hat:<Yen .+ 3.00.@Not:<Amount .| "fish" :: Test
@@ -1002,11 +1005,11 @@ filterWithNote f (Journal bs delta _ _) =
 --
 -- Complexity: O(|result|) after index construction; O(n) for first base-axis query on a Journal value
 --
--- >>> type Test = Journal (String, Int) Double (HatBase CountUnit)
+-- >>> type Test = Journal (T.Text, Int) Double (HatBase CountUnit)
 -- >>> x = 10.00.@Not:<Yen .| ("A", 1) :: Test
 -- >>> y = 20.00.@Hat:<Yen .| ("B", 1) :: Test
 -- >>> z = 30.00.@Not:<Yen .| ("A", 2) :: Test
--- >>> toMap (filterByAxis 0 (NoteAxisKey "A") (x .+ y .+ z)) == toMap ((10.00.@Not:<Yen .| ("A",1)) .+ (30.00.@Not:<Yen .| ("A",2)) :: Test)
+-- >>> toMap (filterByAxis 0 (NoteAxisKey ("A" :: T.Text)) (x .+ y .+ z)) == toMap ((10.00.@Not:<Yen .| ("A",1)) .+ (30.00.@Not:<Yen .| ("A",2)) :: Test)
 -- True
 --
 -- >>> toMap (filterByAxis 1 (NoteAxisKey (1 :: Int)) (x .+ y .+ z)) == toMap ((10.00.@Not:<Yen .| ("A",1)) .+ (20.00.@Hat:<Yen .| ("B",1)) :: Test)
@@ -1030,7 +1033,7 @@ filterByAxis axis key j@(Journal _ _ baseIdx deltaIdx) =
 -- | gather
 -- Gathers all Alg into one on the given Note.
 --
--- >>> type Test = Journal String Double (EA.HatBase EA.CountUnit)
+-- >>> type Test = Journal T.Text Double (EA.HatBase EA.CountUnit)
 -- >>> x = 20.00.@Not:<Yen .+ 20.00.@Hat:<Dollar .| "Withdrawal" :: Test
 -- >>> y = 10.00.@Hat:<Yen .+ 10.00.@Not:<Dollar .| "Deposits" :: Test
 -- >>> gather "A" (x .+ y)
