@@ -31,8 +31,6 @@ import Data.STRef (STRef
                   )
 import System.Exit (exitFailure)
 import Data.Time (Day, fromGregorian)
-import System.Directory (removeFile)
-import Control.Exception (try, SomeException)
 import Test.QuickCheck hiding (Fixed)
 import Support (assertEqual
                , readFileStrict
@@ -75,11 +73,11 @@ testCsvTranspose = do
 newtype FuncResultsWorld s = FuncResultsWorld (STRef s Int)
 
 testWriteFuncResultsCsv :: IO ()
-testWriteFuncResultsCsv = do
-    let directPath = "/tmp/exchangealgebra_write_func_results.csv"
-        contextPath = "/tmp/exchangealgebra_write_func_results_context.csv"
-        emptyPath = "/tmp/exchangealgebra_write_func_results_empty.csv"
-        headers = L.map T.pack ["plain", "a,b", "q\"x", "line\nbreak", "carriage\rreturn"]
+testWriteFuncResultsCsv =
+  withTestTemporaryFile $ \directPath ->
+  withTestTemporaryFile $ \contextPath ->
+  withTestTemporaryFile $ \emptyPath -> do
+    let headers = L.map T.pack ["plain", "a,b", "q\"x", "line\nbreak", "carriage\rreturn"]
         directFuncs =
             zip headers
                 [ \_ t -> pure (t * 10 + 1 :: Int)
@@ -103,11 +101,7 @@ testWriteFuncResultsCsv = do
             )
         expectedHeader = BL8.pack
             "Time,plain,\"a,b\",\"q\"\"x\",\"line\nbreak\",\"carriage\rreturn\"\n"
-        removeOutput path = do
-            _ <- try (removeFile path) :: IO (Either SomeException ())
-            pure ()
 
-    forM_ [directPath, contextPath, emptyPath] removeOutput
     world@(FuncResultsWorld counter) <- stToIO (FuncResultsWorld <$> newSTRef 0)
     RenderSimulation.writeFuncResults directFuncs (1 :: Int, 2) world directPath
     RenderSimulation.writeFuncResultsWithContext
@@ -127,13 +121,11 @@ testWriteFuncResultsCsv = do
     assertEqual "writeFuncResults variants produce identical bytes" directBytes contextBytes
     assertEqual "writeFuncResults empty range writes only the header" expectedHeader emptyBytes
     assertEqual "writeFuncResultsWithContext builds one context per term" 2 buildCount
-    forM_ [directPath, contextPath, emptyPath] removeOutput
 
 
 testWriteJournalPinned :: IO ()
-testWriteJournalPinned = do
-    let path = "/tmp/exchangealgebra_write_journal_pinned_test.csv"
-        d1 = fromGregorian 2024 4 1
+testWriteJournalPinned = withTestTemporaryFile $ \path -> do
+    let d1 = fromGregorian 2024 4 1
         d2 = fromGregorian 2024 4 2
         d3 = fromGregorian 2024 4 3
         getDay' :: HatBase (AccountTitles, Day) -> Day
@@ -148,7 +140,6 @@ testWriteJournalPinned = do
             :: EA.Alg Double (HatBase (AccountTitles, Day))
     EW.writeJournal path alg getDay'
     raw <- readFileStrict path
-    removeFile path
     let lns = lines raw
     assertEqual "writeJournal pinned: line count" 5 (length lns)
     assertEqual "writeJournal pinned: header"

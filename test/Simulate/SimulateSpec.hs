@@ -69,7 +69,6 @@ import Data.STRef (STRef
 import Data.IORef (newIORef, readIORef, modifyIORef')
 import System.Exit (exitFailure)
 import System.IO (IOMode(WriteMode), withFile)
-import System.Directory (removeFile)
 import System.Random (StdGen
                      , mkStdGen
                      , randomR
@@ -77,7 +76,7 @@ import System.Random (StdGen
                      )
 import Control.Monad (replicateM)
 import Control.Monad.State (runState, state)
-import Control.Exception (try, ErrorCall, SomeException)
+import Control.Exception (try, ErrorCall)
 import GHC.Generics (Generic)
 import Support (TestComparison(..)
                , assertEqual
@@ -639,16 +638,6 @@ polSpec = mkSimSpec (1, 5) 0 pwLedger [polStage]
 polW0 :: PolW InitT
 polW0 = PolW { pwLedger = carry mempty }
 
--- run a temp spill file, returning (result, path); caller removes the file.
-withTempSpill :: String -> (FilePath -> IO a) -> IO a
-withTempSpill tag act = do
-    let path = "/tmp/exchangealgebra_policy_" ++ tag ++ ".bin"
-    -- ensure no stale file from a previous run (append-mode would accumulate)
-    _ <- try (removeFile path) :: IO (Either SomeException ())
-    r <- act path
-    _ <- try (removeFile path) :: IO (Either SomeException ())
-    pure r
-
 -- Test 1 (flagship): defaultLedgerPolicy is observationally equal to runLite.
 testPolicyEquivalence :: IO ()
 testPolicyEquivalence = do
@@ -660,7 +649,7 @@ testPolicyEquivalence = do
 -- Test 2 (flagship): RetainRecent w + spillTo gives an in-memory window AND a
 -- lossless restore that equals the FullAudit ledger.
 testPolicyWindowRoundTrip :: IO ()
-testPolicyWindowRoundTrip = withTempSpill "window" $ \path -> do
+testPolicyWindowRoundTrip = withTestTemporaryFile $ \path -> do
     let full = runLite polSpec polW0 (toMap . pwLedger)   -- FullAudit reference
         pol  = Policy.defaultLedgerPolicy
                  { Policy.retain  = Policy.RetainRecent 2
@@ -734,7 +723,7 @@ testPolicyDeleteOnly = do
 
 -- Test 5: policy execution preserves exact Sequential / ParChunk parity.
 testPolicyDeterminism :: IO ()
-testPolicyDeterminism = withTempSpill "det" $ \_ -> do
+testPolicyDeterminism = withTestTemporaryFile $ \_ -> do
     let pol = Policy.defaultLedgerPolicy { Policy.retain = Policy.RetainRecent 3 }
         specPar p = polSpec { Lite.specParallel = p }
     r1 <- runLiteWithPolicy pol (specPar Sequential) polW0 (toMap . pwLedger)
@@ -746,7 +735,7 @@ testPolicyDeterminism = withTempSpill "det" $ \_ -> do
 -- We exercise the derived chunk extraction + eviction directly (no full
 -- StateSpace needed) by checking the option fields it builds.
 testPolicyClassicBridge :: IO ()
-testPolicyClassicBridge = withTempSpill "bridge" $ \path -> do
+testPolicyClassicBridge = withTestTemporaryFile $ \path -> do
     -- Build a ledger spanning terms 1..3, spill terms 1..2 via the policy-derived
     -- chunk extractor, keep term 3 as the remainder, then restore == whole ledger.
     let pol = Policy.defaultLedgerPolicy
@@ -1013,7 +1002,7 @@ testMarketShortagePositive = do
 -- inventory sweep silently re-reading a window-truncated net: 9974.74 vs
 -- 9993.56). N=40, T=8 so the window (2) is strictly smaller than the history.
 testMarketWindowTransparent :: IO ()
-testMarketWindowTransparent = withTempSpill "market_window" $ \path -> do
+testMarketWindowTransparent = withTestTemporaryFile $ \path -> do
     let n = 40; lastT = 8
         spec = mktSpec False n lastT Sequential
         w0   = mktW0 n
@@ -1205,8 +1194,8 @@ testLiteObserverPolicyCases = do
                                 Policy.defaultLedgerPolicy miniSpec w0 project
                 assertEqual "Lite IO observer: unchanged full world" full observed
                 forM_ [Policy.RetainAll, Policy.RetainRecent 2] $ \retention ->
-                    withTempSpill "observer_legacy" $ \oldPath ->
-                    withTempSpill "observer_new" $ \newPath -> do
+                    withTestTemporaryFile $ \oldPath ->
+                    withTestTemporaryFile $ \newPath -> do
                         let policy path = Policy.defaultLedgerPolicy
                                 { Policy.retain  = retention
                                 , Policy.spillTo = Just path }
@@ -1222,7 +1211,7 @@ testLiteObserverPolicyCases = do
               )
             , ("testLiteObserverStreamingSpill", do
                 full <- runLiteWithPolicy Policy.defaultLedgerPolicy polSpec polW0 pwLedger
-                forM_ [0, 2] $ \window -> withTempSpill "observer_stream" $ \path -> do
+                forM_ [0, 2] $ \window -> withTestTemporaryFile $ \path -> do
                     let policy = Policy.defaultLedgerPolicy
                             { Policy.retain  = Policy.RetainRecent window
                             , Policy.spillTo = Just path }
