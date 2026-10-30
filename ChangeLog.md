@@ -594,7 +594,9 @@ the original postings.
 - `ExactSumError` is removed. Posting construction rejects negative and non-finite
   inputs; readouts retain the 0.6 accumulator contract, including IEEE overflow
   for floating results.
-- `sumExact` is removed; use `sumValues`.
+- `sumExact` is removed; use `sumValues`. `sumValues` does not reject negative
+  inputs, which `sumExact` reported as `NegativeInput`, so callers that add
+  values outside postings must check the sign themselves.
 - `netAccum` is removed; subtract `HatVal` states as above and round with `roundAccum`.
 - `ExchangeAlgebra.Algebra.Readout.Net` is removed. Import its retained functions
   from `ExchangeAlgebra.Algebra` or `ExchangeAlgebra.Journal`.
