@@ -155,6 +155,8 @@ module ExchangeAlgebra.Simulate.Lite
     ) where
 
 import           GHC.Generics
+import           Data.Text                  (Text)
+import qualified Data.Text                  as T
 import           Data.Kind                  (Type)
 import           Control.Monad              (foldM, forM_, when)
 import           Control.Monad.ST           (ST, runST, RealWorld, stToIO)
@@ -370,11 +372,11 @@ gCommit wi wr = gCommit' (from wi) (from wr)
 --
 -- The two constructors are observationally interchangeable for a one-note
 -- stage: @'stageOf' tag as f@ produces the same messages as
--- @'stageFor' (show tag) as (\\v t g a -> f v t g a '.|' (tag, t))@ (asserted by
+-- @'stageFor' (T.pack (show tag)) as (\\v t g a -> f v t g a '.|' (tag, t))@ (asserted by
 -- the @stageOf auto-note@ sentinel). @StageTagged@ only moves the @'.|' (tag, t)@
 -- from the stage body into the runner.
 data Stage w t n v b where
-  StageFor    :: { stName   :: String
+  StageFor    :: { stName   :: Text
                  , stAgents :: [a]
                  , stRun    :: w SnapT -> t -> StdGen -> a -> Journal n v b }
               -> Stage w t n v b
@@ -386,7 +388,7 @@ data Stage w t n v b where
 
 -- | Build a stage that runs once per element of the given agent list, each
 -- agent emitting a t'Journal' directly.
-stageFor :: String
+stageFor :: Text
          -> [a]
          -> (w SnapT -> t -> StdGen -> a -> Journal n v b)
          -> Stage w t n v b
@@ -395,7 +397,7 @@ stageFor = StageFor
 -- | Build a singleton stage with no per-agent fan-out and no random draw —
 -- handy for aggregate/bookkeeping steps. Equivalent to
 -- @'stageFor' name [()] (\\v t _ () -> f v t)@.
-stage :: String
+stage :: Text
       -> (w SnapT -> t -> Journal n v b)
       -> Stage w t n v b
 stage name f = StageFor name [()] (\v t _g () -> f v t)
@@ -425,9 +427,9 @@ stageOf = StageTagged
 -- | The display name of a stage: @stName@ for @StageFor@, @show stTag@ for
 -- @StageTagged@ (the tag's 'Show' comes from its 'Note' superclass). Use this
 -- instead of @stName@ when a stage may be either constructor.
-stageName :: Stage w t n v b -> String
+stageName :: Stage w t n v b -> Text
 stageName (StageFor    nm _ _) = nm
-stageName (StageTagged tg _ _) = show tg
+stageName (StageTagged tg _ _) = T.pack (show tg)
 
 ------------------------------------------------------------------
 -- * Simulation specification

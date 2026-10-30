@@ -25,21 +25,21 @@ import ExchangeAlgebra.Simulation.Network
 --
 -- >>> parseEdgeCsv (T.pack "from,to\na,b\nb,c\n")
 -- Right [("a","b"),("b","c")]
-parseEdgeCsv :: Text -> Either String [(Text, Text)]
+parseEdgeCsv :: Text -> Either Text [(Text, Text)]
 parseEdgeCsv txt =
     case dataRows ["from", "to"] txt of
       Left e     -> Left e
       Right rows -> traverse row rows
   where
     row [a, b] = Right (a, b)
-    row r      = Left ("edge row expected 2 fields, got " ++ show (length r))
+    row r      = Left ("edge row expected 2 fields, got " <> T.pack (show (length r)))
 
 -- | Parse a coefficient CSV with header @from,to,coef@ into
 -- @(from, to, coef)@ triples (coefficient read as 'Double').
 --
 -- >>> parseCoefCsv (T.pack "from,to,coef\na,b,0.5\n")
 -- Right [("a","b",0.5)]
-parseCoefCsv :: Text -> Either String [(Text, Text, Double)]
+parseCoefCsv :: Text -> Either Text [(Text, Text, Double)]
 parseCoefCsv txt =
     case dataRows ["from", "to", "coef"] txt of
       Left e     -> Left e
@@ -47,36 +47,36 @@ parseCoefCsv txt =
   where
     row [a, b, c] = case reads (T.unpack c) of
         [(d, "")] -> Right (a, b, d)
-        _         -> Left ("coef field not a number: " ++ show c)
-    row r         = Left ("coef row expected 3 fields, got " ++ show (length r))
+        _         -> Left ("coef field not a number: " <> T.pack (show c))
+    row r         = Left ("coef row expected 3 fields, got " <> T.pack (show (length r)))
 
 -- | Read an edge CSV file into a t'TradeNetwork'. Combines parse and validation
 -- errors into the @Left@ string.
-readEdgeCsv :: FilePath -> IO (Either String (TradeNetwork Text))
+readEdgeCsv :: FilePath -> IO (Either Text (TradeNetwork Text))
 readEdgeCsv fp = do
     txt <- TIO.readFile fp
     pure $ case parseEdgeCsv txt of
       Left e    -> Left e
-      Right es  -> either (Left . show) Right (networkFromTable es)
+      Right es  -> either (Left . T.pack . show) Right (networkFromTable es)
 
 -- | Read a coefficient CSV file into a pair of a t'TradeNetwork' and
 -- t'InputCoefficients'. Combines parse and validation errors into the @Left@ string.
-readCoefCsv :: FilePath -> IO (Either String (TradeNetwork Text, InputCoefficients Text Double))
+readCoefCsv :: FilePath -> IO (Either Text (TradeNetwork Text, InputCoefficients Text Double))
 readCoefCsv fp = do
     txt <- TIO.readFile fp
     pure $ case parseCoefCsv txt of
       Left e       -> Left e
-      Right trips  -> either (Left . show) Right (coefficientsFromTable trips)
+      Right trips  -> either (Left . T.pack . show) Right (coefficientsFromTable trips)
 
 -- | Split CSV text into trimmed data-field rows, after checking the header.
-dataRows :: [Text] -> Text -> Either String [[Text]]
+dataRows :: [Text] -> Text -> Either Text [[Text]]
 dataRows expectedHeader txt =
     case keptLines of
       []           -> Left "empty CSV (no header)"
       (h : body)
         | splitTrim h == expectedHeader -> Right (map splitTrim body)
-        | otherwise -> Left ("unexpected header: " ++ show (splitTrim h)
-                              ++ ", expected " ++ show expectedHeader)
+        | otherwise -> Left ("unexpected header: " <> T.pack (show (splitTrim h))
+                              <> ", expected " <> T.pack (show expectedHeader))
   where
     keptLines = filter keep (T.lines txt)
     keep l =

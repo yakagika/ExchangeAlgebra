@@ -55,6 +55,8 @@ import ExchangeAlgebra.Algebra.Value (MoneyDouble)
 import ExchangeAlgebra.Simulate.Spill (restoreJournalFromBinarySpill, restoreJournalFromBinarySpillChecked)
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Map.Strict     as M
+import qualified Data.Text           as T
+import qualified Data.Text.Encoding  as TE
 import qualified Data.List           as L
 import qualified Data.Binary         as Binary
 import qualified Data.ByteString.Lazy as BL
@@ -68,7 +70,11 @@ import Data.STRef (STRef
                   )
 import Data.IORef (newIORef, readIORef, modifyIORef')
 import System.Exit (exitFailure)
-import System.IO (IOMode(WriteMode), withFile)
+import System.IO (IOMode(WriteMode)
+                 , withFile
+                 , hSetEncoding
+                 , utf8
+                 )
 import System.Random (StdGen
                      , mkStdGen
                      , randomR
@@ -443,13 +449,13 @@ data MiniW f = MiniW
 
 -- stage A: each agent buys 1 unit at the snapshot price (a pure message).
 buyStage :: Stage MiniW Int LNote MoneyDouble LBaseD
-buyStage = stageFor "buy" [1 .. 5 :: Int] $ \w t _g i ->
+buyStage = stageFor (T.pack "buy") [1 .. 5 :: Int] $ \w t _g i ->
     let amt = mwPrice w * fromIntegral i
     in ((amt .@ Not :< Purchases) .+ (amt .@ Hat :< Cash)) .| ("buy", t)
 
 -- stage B: a single bookkeeping step paying tax on the snapshot price.
 taxStage :: Stage MiniW Int LNote MoneyDouble LBaseD
-taxStage = stage "tax" $ \w t ->
+taxStage = stage (T.pack "tax") $ \w t ->
     let amt = mwPrice w * realToFrac (mwTax w)
     in ((amt .@ Not :< Sales) .+ (amt .@ Hat :< Cash)) .| ("tax", t)
 
@@ -466,7 +472,7 @@ data DecW f = DecW
   } deriving Generic
 
 decStage :: Stage DecW Int LNote MoneyDecimal LBaseM
-decStage = stageFor "post" [1 .. 50 :: Int] $ \_w t g i ->
+decStage = stageFor (T.pack "post") [1 .. 50 :: Int] $ \_w t g i ->
     let (k, _) = randomR (1, 9 :: Int) g
         amt    = fromIntegral (i + k) :: MoneyDecimal
     in ((amt .@ Not :< Purchases) .+ (amt .@ Hat :< Cash)) .| ("post", t)
@@ -495,7 +501,7 @@ data DoubleW f = DoubleW
 
 -- | Post a positive fractional amount from each agent's stage generator.
 doublePostStage :: Stage DoubleW Int LNote MoneyDouble LBaseD
-doublePostStage = stageFor "double-post" [1 .. 50 :: Int] $ \_world term generator agent ->
+doublePostStage = stageFor (T.pack "double-post") [1 .. 50 :: Int] $ \_world term generator agent ->
     let (draw, _) = randomR (1, 6 :: Int) generator
         amount    = fromIntegral agent + fromIntegral draw / 7 :: MoneyDouble
     in (  (amount .@ Not :< Purchases)
@@ -503,7 +509,7 @@ doublePostStage = stageFor "double-post" [1 .. 50 :: Int] $ \_world term generat
 
 -- | Feed the committed snapshot's norm back into the next posting amount.
 doubleSnapshotStage :: Stage DoubleW Int LNote MoneyDouble LBaseD
-doubleSnapshotStage = stage "double-snapshot" $ \world term ->
+doubleSnapshotStage = stage (T.pack "double-snapshot") $ \world term ->
     let amount = norm (doubleLedger world)
     in (  (amount .@ Not :< Purchases)
        .+ (amount .@ Hat :< Cash)) .| ("double-snapshot", term)
@@ -539,7 +545,7 @@ data BspW f = BspW
 -- each agent posts (1 + norm-of-snapshot-ledger). On term 1, stage 0, the
 -- snapshot ledger is empty for every agent, so each posts exactly 1.0.
 bspStage :: Stage BspW Int LNote MoneyDouble LBaseD
-bspStage = stageFor "bsp" [1 .. 10 :: Int] $ \w t _g _i ->
+bspStage = stageFor (T.pack "bsp") [1 .. 10 :: Int] $ \w t _g _i ->
     let seenNorm = norm (bwLedger w)          -- must be 0 for ALL agents (BSP)
         amt = 1 + realToFrac seenNorm :: MoneyDouble
     in ((amt .@ Not :< Purchases) .+ (amt .@ Hat :< Cash)) .| ("bsp", t)
@@ -568,7 +574,7 @@ data GateW f = GateW
   } deriving Generic
 
 gateStage :: Stage GateW Int LNote MoneyDouble LBaseD
-gateStage = stageFor "buy" [1 .. 10 :: Int] $ \w t _g i ->
+gateStage = stageFor (T.pack "buy") [1 .. 10 :: Int] $ \w t _g i ->
     let amt = gwPrice w * fromIntegral i
     in ((amt .@ Not :< Purchases) .+ (amt .@ Hat :< Cash)) .| ("buy", t)
 
@@ -588,7 +594,7 @@ data RuleW f = RuleW
   } deriving Generic
 
 ruleStage :: Stage RuleW Int LNote MoneyDouble LBaseD
-ruleStage = stage "post" $ \w t ->
+ruleStage = stage (T.pack "post") $ \w t ->
     let amt = rwPrice w
     in ((amt .@ Not :< Purchases) .+ (amt .@ Hat :< Cash)) .| ("post", t)
 
@@ -625,7 +631,7 @@ newtype LedgerRef s = LedgerRef (STRef s LedgerM)
 -- Each agent posts twice to the SAME base within the term, so the term's per-base
 -- posting sequence has length 2 before compress and length 1 after.
 polStage :: Stage PolW Int LNote MoneyDecimal LBaseM
-polStage = stageFor "post" [1 .. 4 :: Int] $ \_w t _g i ->
+polStage = stageFor (T.pack "post") [1 .. 4 :: Int] $ \_w t _g i ->
     let amt = fromIntegral i :: MoneyDecimal
         one = 1             :: MoneyDecimal
         m1  = ((amt .@ Not :< Purchases) .+ (amt .@ Hat :< Cash)) .| ("post", t)
@@ -905,7 +911,7 @@ mktReport = stageOf MktReport [()] $ \w t _g () ->
 -- carryover stage (mirror): net this term's own-product stock and roll the
 -- positive surplus into (MktCarryover, t+1). Mirrors MarketModel.carryoverStage.
 mktCarryover :: (HatVal v, Real v) => Stage (MktW v) Int MktNote v MktBase
-mktCarryover = stage "closing" $ \w t ->
+mktCarryover = stage (T.pack "closing") $ \w t ->
     let termAlg = EJ.toAlg (EJ.filterByAxis 1 (NoteAxisKey (t :: Int)) (mkLedger w))
         netMap  = EA.balanceMapBy mktOwnerOfProduct termAlg
         perFirm (j, v) =
@@ -1034,7 +1040,7 @@ testMarketWindowTransparent = withTestTemporaryFile $ \path -> do
 -- mirror stages, but tagged explicitly with the OLD @if isZero then mempty@ form.
 mktTradeSimpleManual :: (HatVal v, Real v)
                      => [MktFirm] -> Double -> Stage (MktW v) Int MktNote v MktBase
-mktTradeSimpleManual fs target = stageFor "trade" fs $ \w t _g j ->
+mktTradeSimpleManual fs target = stageFor (T.pack "trade") fs $ \w t _g j ->
     let net = mkNet w; coef = mkCoef w
         d   = mktDemandOf target t j (mkLedger w)
         sup = suppliersOf net j
@@ -1045,7 +1051,7 @@ mktTradeSimpleManual fs target = stageFor "trade" fs $ \w t _g j ->
 
 mktProductionManual :: (HatVal v, Real v)
                     => [MktFirm] -> Double -> Stage (MktW v) Int MktNote v MktBase
-mktProductionManual fs target = stageFor "production" fs $ \w t _g j ->
+mktProductionManual fs target = stageFor (T.pack "production") fs $ \w t _g j ->
     let amt = realToFrac (mktDemandOf target t j (mkLedger w))
     in if amt <= 0 then mempty
        else ((amt .@ Hat :< (Products,  j, j, Amount))
@@ -1053,7 +1059,7 @@ mktProductionManual fs target = stageFor "production" fs $ \w t _g j ->
             .| (MktProduction, t)
 
 mktReportManual :: (HatVal v) => Stage (MktW v) Int MktNote v MktBase
-mktReportManual = stage "report" $ \w t ->
+mktReportManual = stage (T.pack "report") $ \w t ->
     let flow = EJ.toAlg (EJ.projWithNote [(MktTrade, t), (MktProduction, t)] (mkLedger w))
         shortageK b = case b of
             Hat :< (Products, o, c, _) | o == c -> Just o
@@ -1238,6 +1244,18 @@ testLiteObserverPolicyCases = do
             ]
     forM_ cases $ \(_, check) -> check
 
+-- | Preserve UTF-8 payload bytes and the text spill chunk delimiters.
+testDefaultSpillWriter :: IO ()
+testDefaultSpillWriter = withTestTemporaryFile $ \path -> do
+    let payload = T.pack "現金\n売上"
+        expected = T.pack "# chunk 1 3\n" <> payload <> T.pack "\n# end-chunk\n"
+    withFile path WriteMode $ \handle -> do
+        hSetEncoding handle utf8
+        ES.defaultSpillWriter handle (1 :: Int, 3) payload
+    actual <- BL.readFile path
+    assertEqual "defaultSpillWriter preserves UTF-8 text format"
+        (BL.fromStrict (TE.encodeUtf8 expected)) actual
+
 -- | Check decoded ranges and both restore paths on the original spill fixtures.
 testSpillCheckedCases :: IO ()
 testSpillCheckedCases = do
@@ -1310,6 +1328,7 @@ testSpillCheckedCases = do
 -- | Run this domain in its original relative test order.
 runTests :: IO ()
 runTests = do
+    testDefaultSpillWriter
     testSpillCheckedCases
     testLiteObserverPolicyCases
     testLiteObserverBoundaries

@@ -40,6 +40,7 @@ import qualified Data.HashMap.Strict as HM
 import qualified Data.List as L
 import qualified Data.Map.Strict as M
 import           Data.STRef (STRef)
+import           Data.Text (Text)
 import qualified Data.Text as T
 import           System.Directory (createDirectoryIfMissing)
 import           System.Environment (lookupEnv)
@@ -501,10 +502,10 @@ writeSimulationResult outDir spillPath world = do
     ESV.writeFuncResultsWithContext context stockHeaders (initTerm, lastTerm) world (outDir ++ "/stock.csv")
     ESV.writeFuncResultsWithContext context profitHeaders (initTerm, lastTerm) world (outDir ++ "/profit.csv")
 
-simulationScenarios :: [(String, InitVar)]
+simulationScenarios :: [(Text, InitVar)]
 simulationScenarios =
-    [ ("default-prod", defaultEnv)
-    , ("plus-prod", defaultEnv { _steadyProduction = 12 })
+    [ (T.pack "default-prod", defaultEnv)
+    , (T.pack "plus-prod", defaultEnv { _steadyProduction = 12 })
     ]
   where
     defaultEnv = InitVar
@@ -513,11 +514,11 @@ simulationScenarios =
         , _steadyProduction = 10
         }
 
-buildSpillOptions :: FilePath -> String -> ES.SpillOptions Term World Transaction
+buildSpillOptions :: FilePath -> Text -> ES.SpillOptions Term World Transaction
 buildSpillOptions spillDir envName =
     ( ES.mkBinarySpillOptions
         spillChunkTerms
-        (spillDir ++ envName ++ ".bin")
+        (spillDir ++ T.unpack envName ++ ".bin")
         (\world -> readURef (_ledger world))
         :: ES.SpillOptions Term World Transaction
     )
@@ -526,7 +527,7 @@ buildSpillOptions spillDir envName =
             ledger <- readURef (_ledger world)
             return $ EJ.filterWithNote (\(_, t') _ -> t' >= chunkStart && t' <= chunkEnd) ledger
         , ES.spillWriteChunk = \handle range payload -> do
-            putStrLn ("[" ++ envName ++ "] spill chunk: " ++ show range)
+            putStrLn ("[" ++ T.unpack envName ++ "] spill chunk: " ++ show range)
             ES.defaultBinarySpillWriter handle range payload
         , ES.spillDeleteRange = \(_, deleteEnd) world ->
             modifyURef (_ledger world) $
@@ -552,9 +553,9 @@ main = do
         case M.lookup envName _resultMap of
             Just world ->
                 writeSimulationResult
-                    (csv_dir ++ envName)
-                    (spillDir ++ envName ++ ".bin")
+                    (csv_dir ++ T.unpack envName)
+                    (spillDir ++ T.unpack envName ++ ".bin")
                     world
-            Nothing -> error ("simulation result not found: " ++ envName)
+            Nothing -> error ("simulation result not found: " ++ T.unpack envName)
     -}
     print "end"

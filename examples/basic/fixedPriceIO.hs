@@ -443,13 +443,13 @@ main = do
                            ((fstC,initTerm),(lastC,lastTerm))
                            (resMap M.! n)
                            (fig_dir ++ n ++ "/")
-                           "Stock"
+                           (T.pack "Stock")
 
         ESV.plotLineVector getTermGrossProfit
                    ((fstC,initTerm),(lastC,lastTerm))
                    (resMap M.! n)
                    (fig_dir ++ n ++ "/")
-                   "GrossProfit"
+                   (T.pack "GrossProfit")
 
     print "visualizing with Python..."
     exitCode <- rawSystem "uv" ["run", "--script", "examples/basic/visualize_fixedPriceIO.py"]

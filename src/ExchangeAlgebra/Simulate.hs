@@ -118,6 +118,7 @@ import              Data.Array.IO                   hiding (modifyArray)
 import              Data.STRef
 import qualified    Control.Monad                   as CM
 import qualified    Data.Map.Strict                 as M
+import              Data.Text (Text)
 import              System.IO (IOMode(..), withFile)
 import              ExchangeAlgebra.Simulation.Array (modifyArray)
 import              ExchangeAlgebra.Simulation.Analysis (leontiefInverse, rippleEffect)
@@ -432,15 +433,16 @@ runSimulationWithSpill opts gen v = do
 --
 -- Each scenario is a @(name, parameters)@ pair. All scenarios share the same
 -- random seed and are executed in parallel.
+-- Enable @OverloadedStrings@ for the scenario-name literals in this example.
 --
 -- @
 -- let gen = mkStdGen 2025
 --     scenarios = [(\"default\", defaultEnv), (\"plus\", plusEnv)]
 -- results <- runScenarios gen scenarios
--- -- results :: Map String (World RealWorld)
+-- -- results :: Map Text (World RealWorld)
 -- @
 runScenarios :: (StateSpace t v e a RealWorld)
-             => StdGen -> [(String, v)] -> IO (M.Map String (a RealWorld))
+             => StdGen -> [(Text, v)] -> IO (M.Map Text (a RealWorld))
 runScenarios gen scenarios = do
     results <- mapConcurrently (\(_, v) -> runSimulation gen v) scenarios
     pure $ M.fromList $ zip (fmap fst scenarios) results
@@ -452,15 +454,15 @@ runScenarios gen scenarios = do
 --
 -- @
 -- results <- runScenariosWithSpill
---     (\\name -> mkBinarySpillOptions 50 (dir ++ name ++ \".bin\") extract)
+--     (\\name -> mkBinarySpillOptions 50 (dir ++ T.unpack name ++ \".bin\") extract)
 --     gen
 --     scenarios
 -- @
 runScenariosWithSpill :: (StateSpace t v e a RealWorld)
-                      => (String -> SpillOptions t a payload)
+                      => (Text -> SpillOptions t a payload)
                       -> StdGen
-                      -> [(String, v)]
-                      -> IO (M.Map String (a RealWorld))
+                      -> [(Text, v)]
+                      -> IO (M.Map Text (a RealWorld))
 runScenariosWithSpill buildOpts gen scenarios = do
     results <- mapConcurrently
         (\(name, v) -> runSimulationWithSpill (buildOpts name) gen v)

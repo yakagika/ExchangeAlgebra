@@ -33,7 +33,10 @@ import qualified Data.Binary                      as Binary
 import qualified Data.ByteString.Lazy             as BL
 import           Data.Int                         (Int64)
 import qualified Data.List                        as L
-import           System.IO                        (Handle, hPutStr, hPutStrLn)
+import           Data.Text                        (Text)
+import qualified Data.Text                        as T
+import qualified Data.Text.IO                     as TIO
+import           System.IO                        (Handle, hPutStrLn)
 
 import           ExchangeAlgebra.Algebra          ((.+), HatBaseClass, HatVal)
 import qualified ExchangeAlgebra.Journal          as EJ
@@ -102,8 +105,8 @@ spillDeleteDecision step policy (chunkStart, chunkEnd) = case policy of
 mkSpillOptions :: Show t
                => Int
                -> FilePath
-               -> (a RealWorld -> ST RealWorld String)
-               -> SpillOptions t a String
+               -> (a RealWorld -> ST RealWorld Text)
+               -> SpillOptions t a Text
 mkSpillOptions interval path extractF =
     SpillOptions
     { spillEveryTerms = max 1 interval
@@ -137,10 +140,10 @@ mkBinarySpillOptions interval path extractF =
 
 -- | Default text-format spill writer.
 -- Writes the chunk range and payload as text to the handle.
-defaultSpillWriter :: Show t => Handle -> (t, t) -> String -> IO ()
+defaultSpillWriter :: Show t => Handle -> (t, t) -> Text -> IO ()
 defaultSpillWriter h (tStart, tEnd) payload = do
     hPutStrLn h ("# chunk " ++ show tStart ++ " " ++ show tEnd)
-    hPutStr h payload
+    TIO.hPutStr h payload
     hPutStrLn h "\n# end-chunk"
 
 -- | Default binary-format spill writer.
@@ -155,7 +158,7 @@ data SpillReadError t
     = SpillDecodeFailure
         { spillErrorOffset   :: !Int64 -- ^ Byte offset at which decoding failed.
         , spillErrorChunks   :: !Int   -- ^ Chunks decoded successfully before the failure.
-        , spillErrorMessage  :: String -- ^ Message from 'Binary.decodeOrFail'.
+        , spillErrorMessage  :: Text   -- ^ Message from 'Binary.decodeOrFail'.
         }
     | SpillRangeError
         { spillRangeIssue    :: !SpillRangeIssue
@@ -179,7 +182,7 @@ renderSpillReadError :: Show t => SpillReadError t -> String
 renderSpillReadError err = case err of
     SpillDecodeFailure offset chunks message ->
         "binary spill decode failure at byte offset " ++ show offset
-        ++ " after " ++ show chunks ++ " chunks: " ++ message
+        ++ " after " ++ show chunks ++ " chunks: " ++ T.unpack message
     SpillRangeError issue previous current ->
         "binary spill range error (" ++ show issue ++ "): chunk "
         ++ show current ++ " follows " ++ show previous
@@ -227,13 +230,13 @@ readBinarySpillFileChecked path = do
 decodeBinarySpillChunks
     :: (Binary.Binary t, Binary.Binary payload)
     => BL.ByteString
-    -> Either (Int64, Int, String) [((t, t), payload)]
+    -> Either (Int64, Int, Text) [((t, t), payload)]
 decodeBinarySpillChunks = go 0 0
   where
     go _ _ bs | BL.null bs = Right []
     go offset decoded bs = case Binary.decodeOrFail bs of
         Left (_, localOffset, message) ->
-            Left (offset + localOffset, decoded, message)
+            Left (offset + localOffset, decoded, T.pack message)
         Right (rest, consumed, entry) ->
             (entry :) <$> go (offset + consumed) (decoded + 1) rest
 

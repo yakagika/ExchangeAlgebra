@@ -41,6 +41,8 @@ import              ExchangeAlgebra.Simulation.Output
                     ( Header
                     , writeFuncResults
                     , writeFuncResultsWithContext )
+import              Data.Text (Text)
+import qualified    Data.Text as T
 import qualified    Data.List as L
 import              Graphics.Rendering.Chart.Easy            hiding ( (:<),(.~))
 import              Graphics.Rendering.Chart.Backend.Cairo
@@ -53,11 +55,11 @@ import              Data.Array.ST
 import qualified Data.Set as Set
 
 -- | Chart title text.
-type Title          = String
+type Title          = Text
 -- | Directory path for the PNG files written by plotLine.
 type FileName       = String
 -- | Time-series label text.
-type Label          = String
+type Label          = Text
 
 -- | A label and collections of time-value points.
 type TimeSeries t    = (Label, [[(t, Double)]])
@@ -104,7 +106,7 @@ plotLine
 plotLine f (start,end) wld fileDir titleStr = do
     gridMatrix <- funcArray f (start,end) wld
     let gridRenderable = createGrid gridMatrix
-    CM.void $ renderableToFile def (fileDir ++ "/" ++ titleStr ++ ".png")
+    CM.void $ renderableToFile def (fileDir ++ "/" ++ T.unpack titleStr ++ ".png")
             $ fillBackground def
             $ gridToRenderable
             $ createTitle titleStr `wideAbove` gridRenderable
@@ -124,12 +126,12 @@ plotLine f (start,end) wld fileDir titleStr = do
     -- | Render a single time series as a line plot
     linePlot seriesLabel seriesData = liftEC $ do
         plot_lines_values .= [concat seriesData]
-        plot_lines_title  .= seriesLabel
+        plot_lines_title  .= T.unpack seriesLabel
         plot_lines_style . line_color .= opaque blue
 
     -- | Set the graph title
     createTitle name = setPickFn nullPickFn $
-        label titleStyle HTA_Centre VTA_Centre name
+        label titleStyle HTA_Centre VTA_Centre (T.unpack name)
 
     -- | Define the title font style
     titleStyle :: FontStyle
@@ -179,7 +181,7 @@ gridLine arr = do
         xs <- CM.forM [initTerm .. lastTerm] $ \t -> do
             v <- readArray arr (e, t)
             pure (t, v)
-        pure [(show e, [xs])]
+        pure [(T.pack (show e), [xs])]
 
     pure (chunkN 3 cells)
 
@@ -220,12 +222,12 @@ plotMultiLines
     -> (i,i)  -- ^ Range (start, end)
     -> [a RealWorld]               -- ^ World states or similar
     -> FilePath                    -- ^ Output directory
-    -> String                      -- ^ Graph title
+    -> Title                       -- ^ Graph title
     -> IO ()
 plotMultiLines xs fs (start,end) wlds fileDir titleStr = do
     gridMatrix <- funcArrays xs fs (start,end) wlds
     let gridRenderable = createGrid gridMatrix
-    CM.void $ renderableToFile def (fileDir ++ "/" ++ titleStr ++ ".png")
+    CM.void $ renderableToFile def (fileDir ++ "/" ++ T.unpack titleStr ++ ".png")
             $ fillBackground def
             $ gridToRenderable
             $ createTitle titleStr `wideAbove` gridRenderable
@@ -244,12 +246,12 @@ plotMultiLines xs fs (start,end) wlds fileDir titleStr = do
     -- | Render time series data as a colored line plot
     linePlot idx seriesLabel seriesData = liftEC $ do
         plot_lines_values .= [concat seriesData]
-        plot_lines_title  .= seriesLabel
+        plot_lines_title  .= T.unpack seriesLabel
         plot_lines_style . line_color .= colorPalette !! (idx `mod` length colorPalette)
 
     -- | Set the graph title
     createTitle name = setPickFn nullPickFn $
-        label titleStyle HTA_Centre VTA_Centre name
+        label titleStyle HTA_Centre VTA_Centre (T.unpack name)
 
     -- | Title font style
     titleStyle :: FontStyle
@@ -307,9 +309,9 @@ gridLines xs arrs@(first : _) = do
                         return (t, v)
             return ts
       -- Group two series into the same cell
-      -- TimeSeries has type (String, [[(Term, Double)]])
+      -- TimeSeries has type (Label, [[(Term, Double)]])
       -- Multiple series form TimeSerieses = [TimeSeries]
-      let cell = map (\(l,vs) -> (show e ++ "_" ++ show l, [vs]))
+      let cell = map (\(l,vs) -> (T.pack (show e ++ "_" ++ show l), [vs]))
                $ zip xs timeVals
       pure cell
 
@@ -332,13 +334,13 @@ plotWldsDiffLine :: ( StateTime t
             -> (i,i)
             -> (a RealWorld, a RealWorld)
             -> FilePath                    -- ^ Output directory
-            -> String                      -- ^ Graph title
+            -> Title                       -- ^ Graph title
             -> IO ()
 
 plotWldsDiffLine f (start,end) wlds fileDir titleStr = do
     gridMatrix <- funcDiffArray f (start,end) wlds
     let gridRenderable = createGrid gridMatrix
-    CM.void $ renderableToFile def (fileDir ++ "/" ++ titleStr ++ ".png")
+    CM.void $ renderableToFile def (fileDir ++ "/" ++ T.unpack titleStr ++ ".png")
             $ fillBackground def
             $ gridToRenderable
             $ createTitle titleStr `wideAbove` gridRenderable
@@ -358,12 +360,12 @@ plotWldsDiffLine f (start,end) wlds fileDir titleStr = do
     -- | Render a single time series as a line plot
     linePlot seriesLabel seriesData = liftEC $ do
         plot_lines_values .= [concat seriesData]
-        plot_lines_title  .= seriesLabel
+        plot_lines_title  .= T.unpack seriesLabel
         plot_lines_style . line_color .= opaque blue
 
     -- | Set the graph title
     createTitle name = setPickFn nullPickFn $
-        label titleStyle HTA_Centre VTA_Centre name
+        label titleStyle HTA_Centre VTA_Centre (T.unpack name)
 
     -- | Define the title font style
     titleStyle :: FontStyle
@@ -453,7 +455,7 @@ gridLineVector ((i1,t1),(i2,t2)) vec = do
           -- TimeSeries has type (Label, [[(t,Double)]]) so
           -- shape it into [[(t,Double)]]
           ts :: [(Label, [[(t,Double)]])]
-          ts = [(show iVal, [series])]
+          ts = [(T.pack (show iVal), [series])]
       pure ts
 
     pure (chunkN 3 cells)
@@ -477,7 +479,7 @@ plotLineVector
   -> ((i,t),(i,t))    -- ^ (start, end)
   -> a RealWorld      -- ^ World state
   -> FilePath         -- ^ Output directory
-  -> String           -- ^ Graph title
+  -> Title            -- ^ Graph title
   -> IO ()
 plotLineVector f idx wld outDir titleStr = do
     -- 2. Convert to GridMatrix (gridLineVector)
@@ -485,7 +487,7 @@ plotLineVector f idx wld outDir titleStr = do
 
     -- 3. Render the chart
     let gridRenderable = createGrid gridMatrix
-    CM.void $ renderableToFile def (outDir ++ "/" ++ titleStr ++ ".png")
+    CM.void $ renderableToFile def (outDir ++ "/" ++ T.unpack titleStr ++ ".png")
             $ fillBackground def
             $ gridToRenderable
             $ createTitle titleStr `wideAbove` gridRenderable
@@ -504,12 +506,12 @@ plotLineVector f idx wld outDir titleStr = do
 
     linePlot seriesLabel seriesData = liftEC $ do
       plot_lines_values .= [concat seriesData]
-      plot_lines_title  .= seriesLabel
+      plot_lines_title  .= T.unpack seriesLabel
       plot_lines_style . line_color .= opaque blue
 
     createTitle name =
       setPickFn nullPickFn $
-        label titleStyle HTA_Centre VTA_Centre name
+        label titleStyle HTA_Centre VTA_Centre (T.unpack name)
 
     titleStyle :: FontStyle
     titleStyle = def

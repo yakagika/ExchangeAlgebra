@@ -446,6 +446,19 @@
   `PresentationIssue(..)`, `present`), and output (`StatementRowsError(..)`,
   `financialStatementRows`, `writeFinancialStatements`).
 
+- Public API that carries human-readable text uses `Text` instead of `String`:
+  scenario names in `runScenarios` and `runScenariosWithSpill` (the list, the
+  callback argument, and the `Map` key), stage names in `stageFor`, `stage`, and
+  `stageName`, the payload of `mkSpillOptions` and `defaultSpillWriter`,
+  `spillErrorMessage`, `Title` and `Label` in `Simulate.Visualize` (and so
+  `TimeSeries`, `TimeSerieses`, `GridColumns`, and `GridMatrix`), and the `Left`
+  of `parseEdgeCsv`, `parseCoefCsv`, `readEdgeCsv`, and `readCoefCsv`. There are
+  no `String` variants. Add `OverloadedStrings` or `Data.Text.pack` at call
+  sites, and `Data.Text.unpack` where a scenario name becomes a path.
+  `FilePath`, `FileName`, `showValue`, `renderSpillReadError`, and
+  `instance Note String` keep `String`. The text spill file format and all
+  message contents are unchanged.
+
 The same module names are used by the new contents, so compatibility shims
 cannot retain the old export surfaces under those names.
 
