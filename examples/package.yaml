@@ -1,8 +1,8 @@
 name:                exchangealgebra-examples
 version:             0.4.0.0
-license:             MIT
+license:             OtherLicense
 author:              "Kaya Akagi"
-maintainer:          "kaya3728@gmail.com"
+maintainer:          "yakagika@icloud.com"
 copyright:           "2019 Kaya Akagi"
 
 synopsis:            Example executables for the exchangealgebra library

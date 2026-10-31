@@ -6,16 +6,15 @@ title: exchangealgebra
 abstract: >-
   A Haskell library implementing Hiroshi Deguchi's Exchange Algebra, an
   algebraic description of bookkeeping systems. Provides bookkeeping
-  representation, journal entries with note metadata, transfer rewriting,
+  representation, journal entries with note metadata, transfers that add entries,
   CSV/Chart IO, and a state-space simulation framework with ripple-effect
   and Leontief-inverse utilities.
 type: software
 authors:
   - family-names: Akagi
     given-names: Kaya
-    email: kaya3728@gmail.com
-version: 0.4.0.0
-license: MIT
+version: 0.6.0.0
+license-url: https://github.com/yakagika/ExchangeAlgebra/blob/master/LICENSE
 repository-code: https://github.com/yakagika/ExchangeAlgebra
 url: https://github.com/yakagika/ExchangeAlgebra
 keywords:

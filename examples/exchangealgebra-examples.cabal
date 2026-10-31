@@ -11,9 +11,9 @@ description:    Example programs that demonstrate the @exchangealgebra@ library.
                 Not intended for Hackage publication.
 category:       Accounting, Finance, Math
 author:         Kaya Akagi
-maintainer:     kaya3728@gmail.com
+maintainer:     yakagika@icloud.com
 copyright:      2019 Kaya Akagi
-license:        MIT
+license:        OtherLicense
 build-type:     Simple
 
 executable ebex1
