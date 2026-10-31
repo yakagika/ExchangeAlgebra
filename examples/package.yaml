@@ -12,7 +12,7 @@ description:         |
 
 dependencies:
 - base                  >= 4.17    && < 5
-- exchangealgebra       == 0.5.*
+- exchangealgebra       == 0.6.*
 - text                  >= 2.0     && < 2.2
 - containers            >= 0.6     && < 0.8
 - array                 >= 0.5.5   && < 0.6
