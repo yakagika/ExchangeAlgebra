@@ -1,5 +1,9 @@
 # Derived metrics in 0.5.0.0
 
+This document describes derived metrics in 0.5.0.0 and uses the 0.6 module
+names for current reporting APIs. For migration to 0.6, see
+[Migrating to 0.6.0.0](../README.md#migrating-to-0600).
+
 ## Summary
 
 `NetIncome`, `NetLoss`, `GrossProfit`, and `OrdinaryProfit` remain
@@ -10,8 +14,8 @@ renaming them would both break source code and shift the tags of later account
 titles.
 
 They are not canonical financial-statement lines. New reporting code should
-use `ExchangeAlgebra.Reporting.Metric` and
-`ExchangeAlgebra.Reporting.Presentation`:
+use `ExchangeAlgebra.Accounting.Statements.Metric` and
+`ExchangeAlgebra.Accounting.Statements.Presentation`:
 
 - `PeriodResultMetric` is one identity. Profit, loss, and break-even are value
   directions (`PeriodProfit`, `PeriodLoss`, and `PeriodBreakEven`), not three
@@ -26,7 +30,7 @@ that may appear in closing entries and is never a statement line.
 
 ## Legacy transfer boundary
 
-The following functions remain for compatibility:
+In 0.5.0.0, the following functions remain for compatibility:
 
 - `incomeSummaryAccount` and `netIncomeTransfer`.
 - `grossProfitTransfer`, `ordinaryProfitTransfer`, and
@@ -39,10 +43,12 @@ The names predate the JCCI vocabulary. In particular,
 not cover the full JCCI chart. They must not be used as JGAAP gross-profit or
 ordinary-profit definitions.
 
-The output of `incomeSummaryAccount` contains a `NetIncome` or `NetLoss`
+In 0.5.0.0, the output of `incomeSummaryAccount` contains a `NetIncome` or `NetLoss`
 balancing coordinate. It is an intermediate closing state and cannot be sent
-directly to financial-statement presentation. Finish the legacy closing
-pipeline, or derive the result from the before-closing trial balance with
+directly to financial-statement presentation. In 0.6.0.0, these legacy transfer
+functions are removed. Add the entries returned by
+`ExchangeAlgebra.Accounting.Closing.closingEntries` to the original ledger
+with `(.+)` to close it. To read the period result without closing, use
 `periodResultOf BeforeClosing trialBalance` (from
 `ExchangeAlgebra.Accounting.Statements.Metric`, with `BeforeClosing` from
 `ExchangeAlgebra.Accounting.TrialBalance`). The 0.6 API receives the stage and
@@ -51,17 +57,17 @@ findings.
 
 ## Checked and unchecked input
 
-`EngineGeneratedOnly` is enforced by `ExchangeAlgebra.Convert.Checked`.
-Use its `OrdinaryJournal` context for external or LLM-originated postings.
+`EngineGeneratedOnly` is enforced by `ExchangeAlgebra.IO.Input`.
+Use `checkedEntry` or `checkedJournal`, which apply the `OrdinaryJournal` context, for external or LLM-originated postings.
 
-The legacy unchecked paths, including `ExchangeAlgebra.Convert.Csv`,
+The legacy unchecked paths, including `ExchangeAlgebra.IO.Input.Csv`,
 `journalFromSides`, and direct algebra construction, intentionally remain
 unchecked in 0.5.0.0. They can still construct the four legacy coordinates.
 This is compatibility behavior, not authorization for ordinary posting.
 
 ## Serialization
 
-The retained ordinals and Word16 big-endian encodings are:
+The 0.5.0.0 ordinals and Word16 big-endian encodings are:
 
 | Constructor | Ordinal | Bytes |
 |---|---:|---:|
@@ -71,6 +77,9 @@ The retained ordinals and Word16 big-endian encodings are:
 | `NetLoss` | 64 | `0040` |
 | `IncomeSummary` | 216 | `00d8` |
 
-The test suite pins these values directly. Physical removal of the four legacy
-derived coordinates is deferred to a separately planned major-version
-migration, no earlier than 0.6.0.0.
+All four derived coordinates remain `AccountTitles` constructors in 0.6.0.0.
+The 0.6.0.0 encoding uses fixed two-byte big-endian codes with the high bit set:
+`NetIncome` is `8031`, `GrossProfit` is `8036`, `OrdinaryProfit` is `8037`,
+`NetLoss` is `8040`, and `IncomeSummary` is `80d8`. The 0.5.x bytes are not
+accepted by the 0.6 decoder; export them with their original library version
+and encode them again with 0.6. See the changelog's serialization changes.

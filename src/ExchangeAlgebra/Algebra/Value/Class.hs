@@ -58,7 +58,7 @@ instance Nearly Double where
 -- scale with magnitude. For large values, rounding error easily exceeds a small
 -- fixed @t@, while for small values it can swallow a real residual.
 -- 'nearlyEqScaled' is a private helper; public comparisons use 'isNearlyNum'
--- or an explicit 'Tolerance'. The final guard
+-- or an explicit t'Tolerance'. The final guard
 -- returns 'False' (was: 'error') when a NaN makes every ordered comparison fail,
 -- so a non-finite input can no longer crash the check.
 isNearlyNum :: (Show a, Num a, Ord a) => a -> a -> a -> Bool

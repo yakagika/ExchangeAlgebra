@@ -12,7 +12,7 @@ ripple-effect analysis. See the [Publications section](#publications-using-this-
 
 - Book: <https://www.springer.com/gp/book/9784431209850>
 - Paper: <https://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/82987/1/0809-7.pdf>
-- Haddock: [haddock/index.html](https://htmlpreview.github.io/?https://raw.githubusercontent.com/yakagika/ExchangeAlgebra/master/haddock/index.html)
+- Haddock: <https://hackage.haskell.org/package/exchangealgebra>
 
 ## Installation
 
@@ -21,7 +21,7 @@ The package is on Hackage. Pin a specific version in your Stack project:
 ```yaml
 # stack.yaml
 extra-deps:
-  - exchangealgebra-0.5.2.0
+  - exchangealgebra-0.6.0.0
 ```
 
 ```yaml
@@ -42,12 +42,13 @@ extra-deps:
 Requirements:
 - GHC 9.10 (tested with Stackage `lts-24.4`)
 - Cabal 3.0 or later
-- `Chart` / `Chart-cairo` transitively require the Cairo / Pango / Freetype system libraries
-  (on macOS: `brew install cairo pango`). If you cannot or do not want to
-  install them, build without the plotting module: `stack build --flag
-  exchangealgebra:-visualize` (Cabal flag `visualize`, default on). This drops
-  `ExchangeAlgebra.Simulate.Visualize` and the Chart dependencies; the bundled
-  `sim*` examples import that module and need the default build (flag `visualize` on).
+- The plotting module `ExchangeAlgebra.Simulate.Visualize` is off by default.
+  To use it, install the Cairo / Pango / Freetype system libraries (on macOS:
+  `brew install cairo pango`) and enable `visualize` with
+  `stack build --flag exchangealgebra:visualize` or set `visualize: true`
+  under `flags` → `exchangealgebra` in `stack.yaml`. The `fixed-price-io` and
+  `fixed-price-io-spill` examples import this module; `examples/stack.yaml`
+  enables the flag.
 
 ## How to consume this package
 
@@ -93,9 +94,7 @@ needing the rest of the repository.
 
 ## Module Overview
 
-The following entry points describe the 0.6.0.0 development API. Use a Git pin
-until 0.6.0.0 is published. The layers are Algebra, Journal, Accounting, IO,
-and Simulation.
+The following entry points describe the 0.6 API. The layers are Algebra, Journal, Accounting, IO, and Simulation.
 
 ### Umbrella
 
@@ -151,8 +150,6 @@ ledger = 10 .@ Not :< (Cash, (.#)) :: Alg Double (HatBase (AccountTitles, CountU
 concreteAmount = norm (proj [Not :< (Cash, Yen)] ledger)  -- 0.0
 wildcardAmount = norm (proj [Not :< (Cash, (.#))] ledger) -- 10.0
 ```
-
-Type-checked on 2026-10-29 against the 0.6.0.0 development tree (the package version is still 0.5.3.1).
 
 Canonical ordering treats `#` as an ordinary value. The `.==` operator remains
 symmetric; use projection or `ExchangeAlgebra.Algebra.Transfer` for one-way
@@ -256,8 +253,6 @@ entry :: Alg MoneyDecimal (HatBase AccountTitles)
 entry = 10.5 .@ Not :< Cash .+ 10.5 .@ Not :< Sales
 ```
 
-Type-checked on 2026-10-29 against the 0.6.0.0 development tree (the package version is still 0.5.3.1).
-
 **FP vs exact, made concrete (measured).** In the bundled `fixed-price-io`, the same
 stock value matches both types where it lands on an exactly-representable result
 (`stock(t=1, c=6) = 30.0` under `MoneyDouble` *and* `MoneyDecimal`), but diverges
@@ -297,6 +292,41 @@ observable through `Eq` / `Show` / `toAlg` / `Binary`, and for `Double` through 
 last-ULP of `norm` / `bar`. For `MoneyDecimal` the order never affects
 `norm` / `bar` / balance. (`Integer` is intentionally not offered — it cannot
 represent the fractional relative prices the ABM work depends on.)
+
+### Migrating to 0.6.0.0
+
+`0.6.0.0` is a major (breaking) release. Update imports, transfer composition,
+value instances, and plotting configuration as described here. See the
+[changelog](https://hackage.haskell.org/package/exchangealgebra/changelog) for the full per-name migration tables.
+
+- **Transfers add entries.** Transfer and closing functions return additional
+  entries without rewriting the original postings. Add the returned entries
+  with `(.+)`. `ExchangeAlgebra.Algebra.Transfer` and
+  `ExchangeAlgebra.Journal.Transfer` replace their contents under the same
+  module names; see **Removed** in the changelog.
+- **Root exports are explicit.** `ExchangeAlgebra` has an explicit export
+  list. Import names such as `writeTermIO` from their owning modules; see
+  **Breaking changes without a compatibility shim** in the changelog.
+- **Accounting names moved.** `ExchangeAlgebra.Algebra`,
+  `ExchangeAlgebra.Algebra.Base`, `ExchangeAlgebra.Algebra.Internal`, and
+  `ExchangeAlgebra.Journal` no longer re-export accounting names. Import their
+  accounting owners, or use `import ExchangeAlgebra`, which still provides
+  all these accounting names.
+- **Module moves.** Deprecated compatibility modules remain in 0.6 and are
+  removed in 0.7.0.0. See **Deprecated** in the changelog for the new paths.
+- **Exact variants are merged.** The `*Exact` functions and
+  `ExchangeAlgebra.Algebra.Exact` and `ExchangeAlgebra.Journal.Exact` modules
+  are removed. Ordinary functions provide the same readouts; for example,
+  replace `normExact` with `norm`, which returns the value directly.
+- **Text instead of String.** Public API fields carrying human-readable text
+  now use `Text`. Enable `OverloadedStrings` or pass text with `Data.Text.pack`;
+  see the changelog for the affected fields and the exceptions.
+- **Plotting is opt-in.** The `visualize` flag is off by default. Enable it to
+  use `ExchangeAlgebra.Simulate.Visualize` as described in **Installation**.
+- **Custom `HatVal` instances.** Implement `valueError`, `Accum`, all eight
+  accumulator methods, and `roundRational`. Missing methods fail at run time.
+  See the **Custom `HatVal` instances implement** item in the changelog for
+  the signatures, helper functions, and laws.
 
 ### Migrating to 0.5.0.0
 
@@ -350,8 +380,6 @@ main = do
             print (financialStatementRows [CurrentAssetsSection, RevenueSection] statements)
 ```
 
-Type-checked on 2026-10-29 against the 0.6.0.0 development tree (the package version is still 0.5.3.1).
-
 ### Journal-based work (multi-period, notes, simulation)
 
 ```haskell
@@ -404,7 +432,8 @@ opts = (ES.mkBinarySpillOptions everyNTerms spillPath extractPayload)
 
 main = do
     _world <- ES.runSimulationWithSpill opts gen env
-    -- restore spilled chunks later with ES.readBinarySpillFile / restoreJournalFromBinarySpill
+    -- restore with ES.readBinarySpillFile, or import
+    -- restoreJournalFromBinarySpill from ExchangeAlgebra.Simulate.Spill
     pure ()
 ```
 
@@ -413,7 +442,7 @@ main = do
 - `ES.SpillDeletePolicy` bounds resident memory: `KeepRecentTerms n` keeps a sliding window,
   `DeleteSpilledChunk` evicts each chunk right after it is written, `NoDelete` keeps everything.
 - Restore spilled data with `ES.readBinarySpillFile` (binary format) or the
-  `restoreJournalFromBinarySpill` helper.
+  `restoreJournalFromBinarySpill` helper from `ExchangeAlgebra.Simulate.Spill`.
 
 For policy-driven long runs, `ExchangeAlgebra.Simulate.Policy` keeps `FullAudit` as the
 default to preserve the full audit trail, but a declared `LedgerPolicy` can opt into
@@ -496,7 +525,7 @@ stack exec -- fixed-price-io-spill   # spill-to-disk simulation (constant memory
 
 ## Documentation
 
-- Haddock: <https://htmlpreview.github.io/?https://raw.githubusercontent.com/yakagika/ExchangeAlgebra/master/haddock/index.html>
+- Haddock: <https://hackage.haskell.org/package/exchangealgebra>
 - A tutorial / guided walkthrough is planned, based on an upcoming paper.
 
 ## License

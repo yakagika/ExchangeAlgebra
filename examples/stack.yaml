@@ -22,3 +22,7 @@ extra-deps:
 # commit を git で pin する (0.6.0.0 の公開で Hackage 版の pin に戻す).
 - git: https://github.com/yakagika/ExchangeAlgebra.git
   commit: 85d3325d88be0d5e60c5f6b5c8c8947d5e8ab877
+
+flags:
+  exchangealgebra:
+    visualize: true

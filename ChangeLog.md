@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Highlights
+
+- Transfers and closing return additional entries, preserving original postings.
+- The public API has five layers: Algebra, Journal, Accounting, IO, and
+  Simulation, with explicit root exports and compatibility modules for moved paths.
+- Ordinary readouts accumulate exactly and round once; separate `*Exact`
+  functions are removed, and custom `HatVal` instances implement the accumulator.
+- Human-readable text in the affected public APIs uses `Text`.
+- Plotting is optional: the `visualize` flag is off by default.
+
+For migration steps, see the README "Migrating to 0.6.0.0" section.
+
 ### Added
 
 - `ReversalOfAllowanceForBonuses` (賞与引当金戻入) is a new revenue account title,
@@ -46,8 +58,7 @@
   Finite inputs accumulate exactly, including sums beyond the floating-point
   range, and round once when read. `sumValues` uses this accumulator.
   `RationalAccum`, `rationalAddAccum`, and `rationalRoundAccum` support custom
-  finite value types. Qualify imports when also using the older
-  `ExchangeAlgebra.Algebra.Exact.Accum`.
+  finite value types.
 - `Rounding` (`Nearest` or `ToMultipleOf`) controls `roundRational` and
   `roundScaled`. Floating-point types accept only `Nearest`; `MoneyDecimal`
   accepts `Nearest` only for exact decimals of at most 255 places, or rounds
@@ -315,12 +326,6 @@
   The individual deprecations of the scaling and rule-construction helpers
   remain in effect.
 
-- `bsRows`, `writeBS`, `plRows`, and `writePL` now warn. `bsRows` settles the
-  ledger internally, and `plRows` drops reversals of the same title. Use
-  `closingEntries`, then `present` with `AfterClosing`, then
-  `financialStatementRows` for the balance sheet, and `present` with
-  `BeforeClosing`, then `financialStatementRows` for the income statement.
-  They are removed before 0.6.0.0.
 - `relabel`, `scaleBy`, `divideBy`, `MulBy`, and `DivBy` from the per-posting
   transfer API now warn. Use `from .-> to |% Relabel` for an accounting
   transfer, or `TransferRule from to Relabel` from
@@ -365,20 +370,18 @@
   **Breaking changes without a compatibility shim**.
 - `ExchangeAlgebra.Algebra.Core` (the generic `Alg` operations) and
   `ExchangeAlgebra.Algebra.Posting` are new public entry points.
-  `ExchangeAlgebra.Posting` → `ExchangeAlgebra.Algebra.Posting`. `projNorm`
-  is not exported from the new `Algebra.Core`; it stays on the old paths until
-  its removal.
+  `ExchangeAlgebra.Posting` → `ExchangeAlgebra.Algebra.Posting`.
+  Removed projection names and their replacements are listed under **Removed**.
 - `ExchangeAlgebra.Journal.Core` is the generic Journal entry point. It does
-  not export `insert`, `projWithBaseNorm`, or `projWithNoteNorm`, which remain
-  on `ExchangeAlgebra.Journal` until their removal.
+  not export the removed `insert`, `projWithBaseNorm`, or `projWithNoteNorm`;
+  see **Removed** for their replacements.
 - `ExchangeAlgebra.Accounting.Exchange` owns `ExBaseClass`, `AccountBase`,
   `Exchange` and all their instances (including `Exchange Alg` and
   `Exchange (Journal n)`). Default methods resolve to the same functions.
 - `ExchangeAlgebra.Accounting.Closing` owns the closing types and
   `closingEntries` / `settleEntries`. `ExchangeAlgebra.Algebra.Transfer.Rule`
-  keeps re-exporting both the generic transfer names and the closing names and
-  is not deprecated yet (the generic transfer names get a new public path
-  later in 0.6).
+  re-exports both the generic transfer names and the closing names as a
+  deprecated compatibility module.
 - Accounting reports: `ExchangeAlgebra.Bookkeeping` →
   `ExchangeAlgebra.Accounting.Entries`; `ExchangeAlgebra.TrialBalance.Balance` /
   `.Validation` → `ExchangeAlgebra.Accounting.TrialBalance`;
@@ -388,14 +391,12 @@
   `PeriodResult` or `AccountBalance`; import them from `Accounting.Statements`
   and `Accounting.TrialBalance`).
 - Input and output: `ExchangeAlgebra.Convert` and `ExchangeAlgebra.Convert.Checked`
-  → `ExchangeAlgebra.IO.Input` (which does not export `exactBalanced`; it stays
-  on the old path until its replacement), `ExchangeAlgebra.Convert.Csv` →
-  `ExchangeAlgebra.IO.Input.Csv`, `ExchangeAlgebra.Assist` →
+  → `ExchangeAlgebra.IO.Input` (`exactBalanced` is removed; use `balance`),
+  `ExchangeAlgebra.Convert.Csv` → `ExchangeAlgebra.IO.Input.Csv`, `ExchangeAlgebra.Assist` →
   `ExchangeAlgebra.IO.Input.Assist`, `ExchangeAlgebra.Assist.Descriptions` →
   `ExchangeAlgebra.Accounting.Account`, `ExchangeAlgebra.Render.Csv` /
   `ExchangeAlgebra.Render.Bookkeeping` → `ExchangeAlgebra.IO.Output.Csv` /
-  `ExchangeAlgebra.IO.Output.Statements` (the implementations stay in
-  `ExchangeAlgebra.Write`).
+  `ExchangeAlgebra.IO.Output.Statements`.
 - Simulation: `ExchangeAlgebra.Simulate.Network` → `ExchangeAlgebra.Simulation.Network`
   (industrial flows in `.Flows`, CSV readers in `.Csv`, `sigmaEdges` in
   `.Journal`); `ExchangeAlgebra.Simulate.Analysis` →
@@ -458,6 +459,11 @@
   `FilePath`, `FileName`, `showValue`, `renderSpillReadError`, and
   `instance Note String` keep `String`. The text spill file format and all
   message contents are unchanged.
+
+- The Cabal flag `visualize` is now off by default, so the package builds
+  without Cairo and Pango. `ExchangeAlgebra.Simulate.Visualize` is available
+  only with `--flag exchangealgebra:visualize`, or with `visualize: true` under
+  `flags` in `stack.yaml`.
 
 The same module names are used by the new contents, so compatibility shims
 cannot retain the old export surfaces under those names.
@@ -551,11 +557,13 @@ the original postings.
   `ExchangeAlgebra.IO.Output.Statements`; `writeTermIO` and `writeIOMatrix`
   from `ExchangeAlgebra.Simulation.Output`; and spill restoration from
   `ExchangeAlgebra.Simulate.Spill`.
-- `bsRows` is removed. Use `present` with `AfterClosing`, then
+- `bsRows` is removed; it settled the ledger internally. Add `closingEntries`
+  to the ledger, then use `present` with `AfterClosing`, then
   `financialStatementRows` from `ExchangeAlgebra.IO.Output.Statements`.
 - `writeBS` is removed. Use `present` with `AfterClosing`, then
   `writeFinancialStatements` from `ExchangeAlgebra.IO.Output.Statements`.
-- `plRows` is removed. Use `present` with `BeforeClosing`, then
+- `plRows` is removed; it dropped reversals of the same title. Use `present`
+  with `BeforeClosing`, then
   `financialStatementRows`. Pass the whole trial balance before selecting
   revenue and expense sections for rendering.
 - `writePL` is removed. Use `present` with `BeforeClosing`, then
@@ -623,8 +631,6 @@ the original postings.
 
 ### Fixed
 
-- The classic CGE example no longer invokes the unrelated ripple visualization script.
-
 - `compoundTrialBalanceRows` now puts a debit balance in the debit-balance
   column and a credit balance in the credit-balance column. Previously each
   balance appeared in the opposite column; the total columns were already
@@ -645,19 +651,13 @@ the original postings.
   argument while `leontiefInverse` copies it, and that `rippleEffect` takes the
   Leontief inverse and fills one column.
 - Runnable Haddock examples now cover `Accounting.Statements.Presentation`,
-  `Accounting.TrialBalance.Validation`, `Accounting.Consolidation`,
-  `Algebra.Exact`, and `Journal.Exact`. The `Journal.Transfer` examples are
+  `Accounting.TrialBalance.Validation`, and `Accounting.Consolidation`.
+  The `Journal.Transfer` examples are
   now part of the doctest run.
-- RCR: the `--x86_64` route builds the pinned revisions against a no-op
-  Chart-cairo stand-in (`examples/market/rcr/x86_64-stub/`), because Homebrew
-  no longer installs an x86_64 Cairo on Apple Silicon. No measured program
-  draws a chart, and the pinned sources are unchanged. INSTALL.md now explains
-  how to obtain an x86_64 Stack.
 - `IO.Input.Admission` has a walkthrough with runnable examples: write a
   journal, add an adjusting entry and the closing entries, `admit`, read the
   failures, `checkEvidence` against a bank record, and present the statements.
-  The module no longer points to the deprecated `validateTrialBalance`; it
-  points to `present` and `trialBalanceFindings`.
+  The walkthrough uses `present` and `trialBalanceFindings`.
 
 ## 0.5.3.2 - 2026-10-30
 
