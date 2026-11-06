@@ -31,12 +31,12 @@ view の §A / §B を前提に, §C の slot をこの repo の値で埋める.
   golden fixture, 公開済み版の ChangeLog 節, `examples/market/rcr` で,
   これらは綴りだけのために書き換えない.
 - 公開 API の識別子 (`normalizeTitle` 等) は綴り規則の対象外. 綴りのために rename しない
-  (PVP 上の破壊的変更になる. `CODING_STYLE.md` 規則 15).
+  (PVP 上の破壊的変更になる. coding 規約の規則 15, 本 repo の特化は `coding/local/haskell-library.md`).
 
 ## 文体 (manual-ja)
 
-- 公開文書 (将来の和文マニュアル・和文 README) = 敬体. 内部運用手順書 (`EA_USAGE.md`,
-  `CODING_STYLE.md`, `plans/**`, repo-local の agent 向け指示書) = 常体.
+- 公開文書 (将来の和文マニュアル・和文 README) = 敬体. 内部運用手順書 (`coding/local/*.md`,
+  `plans/**`, repo-local の agent 向け指示書) = 常体.
 - 句読点は半角 `,` `.` を使う (repo の既存和文と同じ).
 
 ## 用語集
@@ -85,13 +85,14 @@ view の §A / §B を前提に, §C の slot をこの repo の値で埋める.
   制約 (事前条件, `-- Invariant:`) → 失敗条件 (`Left` / `Nothing` / `error` の契約) →
   例 (doctest の `>>>`. 順序に依存しない形).
 - 型クラスと代数的構造は上の後に law 節を置く (対象 / 前提 / 関係式 / 観測対象 / 数値許容 /
-  適用 instance. `CODING_STYLE.md` 規則 17).
+  適用 instance. coding 規約の規則 17).
 - 和文の内部運用手順書 (release 手順等): いつ実行するか → 前提と権限 → 手順 → 成功の判定 →
   失敗の判定と再実行可否 → 復旧. 不可逆操作 (Hackage upload, tag push) は再実行不可と明記する.
 
 ## コード内 reference の境界
 
-- Haddock / docstring の必須対象・構文・言語・契約は `CODING_STYLE.md` が正本であり, manual 規範は
+- Haddock / docstring の必須対象・構文・言語・契約は coding 規約 (profile `haskell-coding-style` の view と
+  `coding/local/haskell-library.md`) が正本であり, manual 規範は
   Haddock / docstring の語り口 (文の組み立て・語彙・警告の書き方) だけを定める.
 - module header の定型文 (view §B15) の解消は `plans/proposed/haddock-discipline-proposal.md`
   側で扱う.
