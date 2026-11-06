@@ -18,10 +18,7 @@ packages:
 - '.'
 
 extra-deps:
-# 0.6 の開発中: examples が Hackage 未公開の module path を使うので, push 済みの
-# commit を git で pin する (0.6.0.0 の公開で Hackage 版の pin に戻す).
-- git: https://github.com/yakagika/ExchangeAlgebra.git
-  commit: 85d3325d88be0d5e60c5f6b5c8c8947d5e8ab877
+- exchangealgebra-0.6.0.0
 
 flags:
   exchangealgebra:
