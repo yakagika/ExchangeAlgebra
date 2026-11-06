@@ -11,6 +11,13 @@
   functions are removed, and custom `HatVal` instances implement the accumulator.
 - Human-readable text in the affected public APIs uses `Text`.
 - Plotting is optional: the `visualize` flag is off by default.
+- Simulation modules are split by prefix. `Simulation.*` holds trade networks,
+  matrix analysis, optimization, and result output; `Simulate.*` holds the
+  runners (classic engine, Lite, ledger policies, spill files, plotting).
+  Version 0.7 is planned to move simulation into a separate package and to
+  remove the classic engine, Lite, and ledger policies without a compatibility
+  module. These modules emit no deprecation warning in 0.6. See the README
+  "Planned changes to simulation modules" section.
 
 For migration steps, see the README "Migrating to 0.6.0.0" section.
 

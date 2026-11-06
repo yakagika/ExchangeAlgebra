@@ -44,6 +44,17 @@
     Runnable ripple examples are preserved in the
     <https://github.com/yakagika/ExchangeAlgebra/tree/archive/research-examples-pre-p4/examples archive/research-examples-pre-p4 tag>.
 
+    == Planned removal
+
+    Version 0.7 is planned to move simulation into the separate
+    @exchangealgebra-simulation@ package and to remove this module, together
+    with "ExchangeAlgebra.Simulate.Engine", "ExchangeAlgebra.Simulate.Random",
+    "ExchangeAlgebra.Simulate.Lite", and "ExchangeAlgebra.Simulate.Policy",
+    without a compatibility module. The model evaluator in that package is the
+    successor. The modules under @ExchangeAlgebra.Simulation@ (networks,
+    analysis, optimization, output) and "ExchangeAlgebra.Simulate.Spill" are
+    planned to move to that package. 0.6 emits no deprecation warning because
+    that package has not been released.
 -}
 
 {-# LANGUAGE FlexibleContexts       #-}

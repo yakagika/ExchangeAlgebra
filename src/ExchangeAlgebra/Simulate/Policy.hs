@@ -85,6 +85,11 @@
     convention is fixed by the 'HasTermAxis' class: __the last component of the
     Note is the term__. The library ships instances for @(e, t)@ and
     @(e1, e2, t)@; a bespoke Note needs a one-line instance.
+
+    /Note:/ version 0.7 is planned to remove this module without a
+    compatibility module. Its successor is the model evaluator in the
+    separate @exchangealgebra-simulation@ package. 0.6 emits no deprecation
+    warning because that package has not been released.
 -}
 
 module ExchangeAlgebra.Simulate.Policy

@@ -8,6 +8,9 @@
     Description : Spill-to-disk codec and restore for long simulations: chunk writers, checked readers, and ledger restoration. Shared by the classic engine ("ExchangeAlgebra.Simulate"), the Lite runner and the ledger policy layer; depends only on Algebra and Journal.
 
     Released under the OWL license
+
+    /Note:/ version 0.7 is planned to move this module to the separate
+    @exchangealgebra-simulation@ package.
 -}
 
 module ExchangeAlgebra.Simulate.Spill

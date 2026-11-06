@@ -17,6 +17,8 @@
 
     <https://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/82987/1/0809-7.pdf>
 
+    /Note:/ version 0.7 decides whether this module moves to the separate
+    @exchangealgebra-simulation@ package behind Chart or is removed.
 -}
 
 

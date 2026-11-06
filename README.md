@@ -155,36 +155,77 @@ Canonical ordering treats `#` as an ordinary value. The `.==` operator remains
 symmetric; use projection or `ExchangeAlgebra.Algebra.Transfer` for one-way
 matching against ledger entries.
 
-### Journal and simulation
+### Journal
 
-These modules attach notes to postings and run classic, Lite, network, policy-driven, and visual simulation workflows.
+These modules attach notes to postings.
 
 - `ExchangeAlgebra.Journal` — defines metadata-bearing `Journal` values, indexed projections, and journal aggregation.
 - `ExchangeAlgebra.Journal.Transfer` — carries entries across notes and reads
   side totals. Use `Accounting.Transfer.transferEntriesBy` for accounting transfers.
-- `ExchangeAlgebra.Simulate` — provides the state-space engine, classic front-end, spill support, ripple utilities, and scenario execution.
+
+### Simulation: `Simulation.*` and `Simulate.*`
+
+Simulation code lives under two module prefixes with different futures.
+
+- `ExchangeAlgebra.Simulation.*` holds components that a model uses besides
+  the runner: trade networks, matrix analysis, optimization, and CSV output of
+  results. These modules are kept after 0.6.
+- `ExchangeAlgebra.Simulate.*` holds the simulation runners and their support:
+  the classic state-space engine, the Lite front-end, ledger policies, spill
+  files, random helpers, and Chart plotting.
+
+Components (`Simulation.*`):
+
+- `ExchangeAlgebra.Simulation.Network` — separates sparse trade-network topology from input coefficients;
+  `.Flows`, `.Csv`, and `.Journal` generate industrial flows, read network CSV
+  files, and sum flows into a `Journal`.
+- `ExchangeAlgebra.Simulation.Analysis` — computes a Leontief inverse and ripple effects.
+- `ExchangeAlgebra.Simulation.Output` — writes simulation results as CSV
+  without Chart. `writeFuncResults` and `writeFuncResultsWithContext` take the
+  classic engine's `StateTime`.
+- `ExchangeAlgebra.Simulation.Optimize` — see **Optimization** below.
+
+Runners (`Simulate.*`):
+
+- `ExchangeAlgebra.Simulate` — provides the classic state-space engine, spill support, and scenario execution, and re-exports the ripple utilities.
 - `ExchangeAlgebra.Simulate.Engine` — re-exports the
   classic state-space protocol and runners without spill configuration or
   analysis helpers.
-- `ExchangeAlgebra.Simulation.Analysis` — re-exports
-  Leontief-inverse and ripple-effect analysis.
+- `ExchangeAlgebra.Simulate.Lite` — provides the product-HKD, BSP front-end with declarative field rules and stages.
+- `ExchangeAlgebra.Simulate.Policy` — declares retention, spill, and compaction policy for long simulations.
+- `ExchangeAlgebra.Simulate.Spill` — provides spill chunk writers, checked readers, and ledger restoration shared by simulation and reporting layers.
 - `ExchangeAlgebra.Simulate.Random` — re-exports
   simulation random-number helpers.
-- `ExchangeAlgebra.Simulate.Spill` — provides spill chunk writers, checked readers, and ledger restoration shared by simulation and reporting layers.
-- `ExchangeAlgebra.Simulate.Policy` — declares retention, spill, and compaction policy for long simulations.
-- `ExchangeAlgebra.Simulate.Lite` — provides the product-HKD, BSP front-end with declarative field rules and stages.
-- `ExchangeAlgebra.Simulation.Network` — separates sparse trade-network topology from input coefficients and industrial flows.
 - `ExchangeAlgebra.Simulate.Visualize` — renders simulation grids and time series with Chart/Cairo.
 
-### Which simulation API to use
+### Planned changes to simulation modules
 
-`ExchangeAlgebra.Simulate.Lite` is the canonical front-end for new simulations:
-it provides `Generic`-derived world records, term-boundary field rules, stages,
-and `runLite` / `runLiteWithPolicy`. `ExchangeAlgebra.Simulate.Engine` is the
-lower-level classic state-space API (`StateTime`, `Updatable`, `UpdatePattern`,
-and the `runSimulation` family), retained for existing models and
-reproducibility. New models should normally use Lite; import Engine when
-maintaining or directly driving the classic protocol.
+The next major version (0.7) is planned to move simulation into a separate
+package, `exchangealgebra-simulation`, whose runner is a new model evaluator.
+The plan affects the 0.6 modules as follows:
+
+- `Simulation.*` and `Simulate.Spill` move to the new package. The writers
+  that take `StateTime` (`writeFuncResults`, `writeFuncResultsWithContext`)
+  are redesigned for the evaluator or removed.
+- The classic engine (`Simulate`, `Simulate.Engine`, `Simulate.Random`),
+  `Simulate.Lite`, and `Simulate.Policy` are removed and not moved. Their
+  successor is the model evaluator.
+- `Simulate.Visualize` either moves to the new package behind Chart or is
+  removed; the choice is made in 0.7.
+
+The 0.6 modules do not emit deprecation warnings, because the successor package
+has not been released. Changes to this plan will be recorded in the changelog.
+
+### Which simulation runner to use in 0.6
+
+`ExchangeAlgebra.Simulate.Lite` provides `Generic`-derived world records,
+term-boundary field rules, stages, and `runLite` / `runLiteWithPolicy`.
+`ExchangeAlgebra.Simulate.Engine` is the lower-level classic state-space API
+(`StateTime`, `Updatable`, `UpdatePattern`, and the `runSimulation` family),
+retained for existing models and reproducibility. Both runners are planned for
+removal in 0.7 (see above). For a new model built on 0.6, Lite needs less code;
+keep model logic separate from runner code so that it can be moved to the
+successor evaluator.
 
 ### Bookkeeping and reporting
 
@@ -192,10 +233,8 @@ These modules build adjustments, validate reporting boundaries, and produce stat
 
 - `ExchangeAlgebra.Accounting.Entries` — builds period-end adjustment postings from explicit external amounts.
 - `ExchangeAlgebra.IO.Output.Statements` — writes journals, account ledgers, trial balances, worksheets, and financial statements as CSV.
-- `ExchangeAlgebra.IO.Output.Csv` — re-exports CSV
+- `ExchangeAlgebra.IO.Output.Csv` — provides CSV
   serialization independently of document layouts.
-- `ExchangeAlgebra.Simulation.Output` — re-exports
-  simulation result writers.
 - `ExchangeAlgebra.Accounting.Statements.Group` — defines presentation groups and contra-account netting policy.
 - `ExchangeAlgebra.Accounting.TrialBalance.Balance` — the shared `AccountBalance` type and debit-then-credit netting primitives.
 - `ExchangeAlgebra.Accounting.TrialBalance.Validation` — reports trial-balance findings and reclassification instructions.
