@@ -12,7 +12,7 @@
 # The library is pinned to its Hackage release below. If an example starts
 # depending on an unreleased API, switch the extra-dep to a git commit pin
 # (see the project CLAUDE.md release policy) until the next release.
-resolver: lts-24.4
+resolver: lts-24.65
 
 packages:
 - '.'

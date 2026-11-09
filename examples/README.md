@@ -23,7 +23,7 @@ last version in this repository.
 
 ## Requirements
 
-- Same GHC / Stackage resolver as the main library (`lts-24.4`, GHC 9.10.2).
+- Same GHC / Stackage resolver as the main library (`lts-24.65`, GHC 9.10.3).
 - **[uv](https://docs.astral.sh/uv/) is required for the examples that produce Python plots.**
   - macOS: `brew install uv`
   - Linux / Windows: <https://docs.astral.sh/uv/getting-started/installation/>
@@ -117,7 +117,7 @@ run.
 ## Versions that build each example
 
 Run the commands from the root of a full clone. The standalone
-`examples/stack.yaml` uses Stackage `lts-24.4` and pins the Hackage release
+`examples/stack.yaml` uses Stackage `lts-24.65` and pins the Hackage release
 `exchangealgebra-0.6.0.0`. The table lists the examples retained in this checkout.
 
 | Example | Kind | Builds with | How to reproduce | Notes |
