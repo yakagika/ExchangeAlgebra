@@ -28,7 +28,29 @@
   are deprecated and will be removed in 0.7. Use `impossibleBalances`,
   `abnormalBalances`, `temporaryAccountBalances`, and `closingResiduals` of
   `ExchangeAlgebra.Accounting.Audit` instead; they take the trial balance
-  directly and return `AuditResult`.
+  directly and return `AuditResult`. Where each finding of `TBFinding` goes:
+  - `InvalidTrialBalanceValue`, `WildcardTrialBalanceAccount`,
+    `WildcardTrialBalanceSide`: a structure issue, reported as `Error` by
+    every audit.
+  - `UnexplainedAbnormalBalance`: `impossibleBalances` or `abnormalBalances`.
+  - `UnresolvedTemporaryBalance`: `temporaryAccountBalances`.
+  - `ClosingDeviceResidual`, `DerivedCoordinateResidual`,
+    `UnclosedNominalBalance`: `closingResiduals`.
+  - The following have no successor among the audits.
+    `UnbalancedTrialBalance`: `admit` rejects an unbalanced transaction, and
+    `present` fails with `UnbalancedStatementInput`.
+    `ReciprocalMismatch` and `StandaloneReciprocalBalance`: in the combined
+    scope `present` eliminates the head-office and branch current accounts,
+    records both balances in a `ReciprocalAccountsEliminated` audit event, and
+    fails with `UnreconciledPresentation` when the statements do not
+    reconcile. `ExplainedTemporaryBalance` and `BlankTemporaryExplanation`:
+    the audits take no explanation text; `temporaryAccountBalances` reports
+    the balance as a `Warning`. `AbnormalBalanceWithReclassificationRule`,
+    `AmbiguousReclassification`, and `InapplicableReclassificationRule`: a
+    reclassification rule is an instruction for a correction, not an audit;
+    `abnormalBalances` reports the balance and its documentation lists the
+    legitimate exceptions. `MissingMaturityEvidence`: the maturity split is
+    the presentation setting `_maturitySensitiveTitles` (since 0.6.0.0).
 
 ## 0.6.0.1 - 2026-11-09
 

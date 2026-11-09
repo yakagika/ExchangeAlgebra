@@ -92,7 +92,11 @@ data TrialBalanceStage
   | AfterClosing
   deriving (Show, Eq)
 
-{-# DEPRECATED ReclassificationRule "Use the audits of ExchangeAlgebra.Accounting.Audit (impossibleBalances, abnormalBalances, temporaryAccountBalances, closingResiduals), which take no reclassification rules. Removed in 0.7." #-}
+{-# DEPRECATED ReclassificationRule
+    [ "Use the audits of ExchangeAlgebra.Accounting.Audit (impossibleBalances,"
+    , "abnormalBalances, temporaryAccountBalances, closingResiduals), which take no"
+    , "reclassification rules. Removed in 0.7."
+    ] #-}
 -- | A rule identifies a condition and possible target titles. It supplies an
 -- instruction, not an automatic mutation.
 data ReclassificationRule
@@ -103,7 +107,12 @@ data ReclassificationRule
   | MaturityEvidenceRequired AccountTitles
   deriving (Show, Eq)
 
-{-# DEPRECATED TrialBalanceInput "Use the audits of ExchangeAlgebra.Accounting.Audit (impossibleBalances, abnormalBalances, temporaryAccountBalances, closingResiduals), which take the trial balance directly and are split by processing point instead of a TrialBalanceStage field. Removed in 0.7." #-}
+{-# DEPRECATED TrialBalanceInput
+    [ "Use the audits of ExchangeAlgebra.Accounting.Audit (impossibleBalances,"
+    , "abnormalBalances, temporaryAccountBalances, closingResiduals), which take the trial"
+    , "balance directly and are split by processing point instead of a TrialBalanceStage"
+    , "field. Removed in 0.7."
+    ] #-}
 -- | Unvalidated trial-balance input and its external evidence.
 data TrialBalanceInput v = TrialBalanceInput
     { _trialBalanceElement         :: Alg v (HatBase AccountTitles)
@@ -114,7 +123,12 @@ data TrialBalanceInput v = TrialBalanceInput
     }
     deriving (Show)
 
-{-# DEPRECATED TBFinding "Use AuditResult and the finding types of ExchangeAlgebra.Accounting.Audit (ImpossibleBalance, AbnormalBalance, TemporaryAccountBalance, ClosingResidual). Removed in 0.7." #-}
+{-# DEPRECATED TBFinding
+    [ "Use AuditResult and the finding types of ExchangeAlgebra.Accounting.Audit"
+    , "(ImpossibleBalance, AbnormalBalance, TemporaryAccountBalance, ClosingResidual). Some"
+    , "findings have no successor among the audits; the ChangeLog entry that deprecates"
+    , "this type lists where each finding goes. Removed in 0.7."
+    ] #-}
 -- | Facts detected before financial-statement presentation.
 data TBFinding v
   = InvalidTrialBalanceValue v
@@ -141,7 +155,12 @@ data TBFinding v
   | InapplicableReclassificationRule ReclassificationRule
   deriving (Show, Eq)
 
-{-# DEPRECATED trialBalanceFindings "Use impossibleBalances, abnormalBalances, temporaryAccountBalances, and closingResiduals of ExchangeAlgebra.Accounting.Audit. Removed in 0.7." #-}
+{-# DEPRECATED trialBalanceFindings
+    [ "Use impossibleBalances, abnormalBalances, temporaryAccountBalances, and"
+    , "closingResiduals of ExchangeAlgebra.Accounting.Audit. Some findings have no"
+    , "successor among the audits; the ChangeLog entry that deprecates this function lists"
+    , "where each finding goes. Removed in 0.7."
+    ] #-}
 -- | Detect every applicable finding. Structural errors suppress any operation
 -- that would call the partial legacy @whichSide@ function on wildcard bases.
 trialBalanceFindings :: HatVal v => TrialBalanceInput v -> [TBFinding v]
