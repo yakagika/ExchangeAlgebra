@@ -8,7 +8,7 @@ module Transfer.BalanceSpec (runTests) where
 import ExchangeAlgebra.Accounting.Account
 import ExchangeAlgebra.Accounting.Exchange
 import Control.Monad (forM_, unless)
-import Data.List (sort)
+import Data.List (foldl', sort)
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Map.Strict as Map
 import Data.Maybe (isJust)

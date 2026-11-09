@@ -1,0 +1,9 @@
+# GHC 9.8 での build の確認用 (package.yaml の base の下限 4.19 を CI で試すため).
+# 開発の既定は stack.yaml. examples は含めない.
+resolver: lts-23.28
+packages:
+- '.'
+extra-deps: []
+flags:
+  exchangealgebra:
+    visualize: false

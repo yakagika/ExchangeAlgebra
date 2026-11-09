@@ -33,14 +33,20 @@ def exposed_modules():
     return modules
 
 
+COMPILER_VERSION = None
+
+
 def interface_path(module):
+    # A checkout keeps one dist directory per platform and GHC that built it
+    # (stack.yaml and stack-ghc98.yaml share .stack-work). `ghc --show-iface`
+    # reads only interfaces of its own version, so take the directory of the
+    # compiler in use; before it is known, take the newest interface.
+    version_glob = f"ghc-{COMPILER_VERSION}" if COMPILER_VERSION else "ghc-*"
     matches = list((ROOT / ".stack-work/dist").glob(
-        f"*/ghc-*/build/{module.replace('.', '/')}.hi"
+        f"*/{version_glob}/build/{module.replace('.', '/')}.hi"
     ))
     if not matches:
-        raise RuntimeError(f"Expected an interface for {module}, found none")
-    # An old checkout keeps one dist directory per platform and GHC that built
-    # it. The interface of the build that just ran is the newest one.
+        raise RuntimeError(f"Expected an interface for {module} built by {version_glob}, found none")
     return max(matches, key=lambda path: path.stat().st_mtime)
 
 
@@ -112,11 +118,15 @@ def main():
              "path", "--compiler-exe"],
             check=True, capture_output=True, text=True,
         ).stdout.strip()
+    global COMPILER_VERSION
+    COMPILER_VERSION = subprocess.run(
+        [COMPILER, "--numeric-version"], check=True, capture_output=True, text=True,
+    ).stdout.strip()
     exposed = set(exposed_modules())
     visual_disabled = os.environ.get("EA_VISUALIZE", "1") == "0"
     if args.suite and "ExchangeAlgebra.Simulate.Visualize" in exposed:
         visual_iface = list((ROOT / ".stack-work/dist").glob(
-            "*/ghc-*/build/ExchangeAlgebra/Simulate/Visualize.hi"))
+            f"*/ghc-{COMPILER_VERSION}/build/ExchangeAlgebra/Simulate/Visualize.hi"))
         if not visual_iface:
             exposed.remove("ExchangeAlgebra.Simulate.Visualize")
             visual_disabled = True

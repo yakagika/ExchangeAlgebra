@@ -12,7 +12,7 @@ module ExchangeAlgebra.Simulation.Network.Flows
     , defaultFlowOptions, industrialFlows, industrialFlowsWith ) where
 
 import Control.DeepSeq (NFData (..))
-import Data.List (sortBy)
+import Data.List (foldl', sortBy)
 import qualified Data.Map.Strict as M
 import Data.Map.Strict (Map)
 import qualified Data.Set as S

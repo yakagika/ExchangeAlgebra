@@ -178,7 +178,7 @@ module ExchangeAlgebra.Accounting.Transfer
     , transferEntriesByWith
     ) where
 
-import Data.List (find, inits)
+import Data.List (find, foldl', inits)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HashMap

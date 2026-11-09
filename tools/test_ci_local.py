@@ -21,6 +21,15 @@ import unittest
 from pathlib import Path
 
 
+def default_jobs() -> tuple[str, ...]:
+    """Read DEFAULT_JOBS from ci-local.py so the fixtures follow the script."""
+    source = (Path(__file__).resolve().parent / "ci-local.py").read_text(encoding="utf-8")
+    match = re.search(r"^DEFAULT_JOBS = (\(.*?\))$", source, re.M)
+    if not match:
+        raise RuntimeError("ci-local.py has no DEFAULT_JOBS line")
+    return tuple(re.findall(r'"([^"]+)"', match.group(1)))
+
+
 class CiLocalTests(unittest.TestCase):
     """Exercise supported steps and reject unsupported syntax before execution."""
 
@@ -42,17 +51,19 @@ class CiLocalTests(unittest.TestCase):
         job_keys: str = "",
         item_indent: int = 6,
     ) -> subprocess.CompletedProcess[str]:
-        """Run the copied reader against a fixture containing both default jobs."""
+        """Run the copied reader against a fixture containing every default job.
+
+        The first default job carries the steps under test; the others are empty.
+        """
+        first, *rest = default_jobs()
         workflow = (
             "jobs:\n"
-            "  build-test:\n"
+            f"  {first}:\n"
             "    runs-on: ubuntu-latest\n"
             + textwrap.indent(job_keys, "    ")
             + "    steps:\n"
             + textwrap.indent(textwrap.dedent(steps).strip() + "\n", " " * item_indent)
-            + "  build-test-no-visualize:\n"
-            "    runs-on: ubuntu-latest\n"
-            "    steps:\n"
+            + "".join(f"  {job}:\n    runs-on: ubuntu-latest\n    steps:\n" for job in rest)
         )
         (self.root / ".github" / "workflows" / "ci.yml").write_text(workflow, encoding="utf-8")
         return subprocess.run(
@@ -165,7 +176,7 @@ class CiLocalTests(unittest.TestCase):
             cwd=self.repository,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
-        selected = {"build-test", "build-test-no-visualize"}
+        selected = set(default_jobs())
         expected = []
         job = None
         name = None

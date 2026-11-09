@@ -56,7 +56,7 @@ view の §A / §B を前提に, §C の slot をこの repo の値で埋める.
 ## 対象版と検証記録
 
 - 対応環境は `README.md` の `## Installation` 節に書く (GHC の版と Stackage snapshot. 2026-09-19 時点で
-  `GHC 9.10 (tested with Stackage lts-24.65)`). ライブラリの版は `package.yaml` の `version:` が正本で,
+  `GHC 9.8 or 9.10 (tested with Stackage lts-23.28 and lts-24.65)`). ライブラリの版は `package.yaml` の `version:` が正本で,
   文書に版を書くときは `ChangeLog.md` の節見出しと一致させる.
 - 例を検証した記録は `Tested with exchangealgebra-<version> on <yyyy-mm-dd>.` の 1 行とし,
   その例の節の末尾に置く. 未検証の例には書かない.

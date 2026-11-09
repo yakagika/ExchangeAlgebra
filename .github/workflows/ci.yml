@@ -116,6 +116,32 @@ jobs:
       - name: Check P2 orphan instances (visualize flag off)
         run: EA_VISUALIZE=0 STACK_ARGS="--system-ghc --no-install-ghc" python3 tools/check-orphans.py
 
+  # The lowest GHC the package declares (base >= 4.19, GHC 9.8). Hackage's
+  # documentation builder uses GHC 9.8, so a 9.8-only break also stops the docs.
+  build-test-ghc98:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: haskell-actions/setup@v2
+        with:
+          enable-stack: true
+          stack-version: latest
+          ghc-version: '9.8.4'
+
+      - name: Cache Stack (GHC 9.8)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.stack
+            .stack-work
+          key: ${{ runner.os }}-stack-ghc98-${{ hashFiles('stack-ghc98.yaml', 'package.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-ghc98-
+
+      - name: Build + test library (GHC 9.8, visualize flag off)
+        run: stack --stack-yaml stack-ghc98.yaml build exchangealgebra --test --no-run-benchmarks --system-ghc --no-install-ghc
+
   # Optional formal-verification job: LiquidHaskell refinement checks for the
   # value non-negativity invariant (0 <= magnitude; sign lives in the Hat/Not
   # base). Fully decoupled from build-test and from the main library build — it

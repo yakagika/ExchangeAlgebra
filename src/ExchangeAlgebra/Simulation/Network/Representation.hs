@@ -10,7 +10,7 @@ implementation. Read the network accessors before using the generators.
 module ExchangeAlgebra.Simulation.Network.Representation where
 
 import Control.DeepSeq (NFData (..))
-import Data.List (sortBy)
+import Data.List (foldl', sortBy)
 import qualified Data.Map.Strict as M
 import Data.Map.Strict (Map)
 import Data.Maybe (fromMaybe)

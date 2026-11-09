@@ -1,5 +1,20 @@
 # Changelog for ExchangeAlgebra
 
+## 0.6.0.1 - 2026-11-09
+
+### Fixed
+
+- The library builds with GHC 9.8 (`base` 4.19). Version 0.6.0.0 used
+  `foldl'` without importing it, which compiles only where the Prelude
+  exports `foldl'` (`base` 4.20, GHC 9.10). Hackage's documentation builder
+  uses GHC 9.8, so 0.6.0.0 has no documentation on Hackage.
+- The lower bound on `base` is `>= 4.19` (GHC 9.8), the oldest version tested.
+  0.6.0.0 declared `>= 4.17`, which was never tested; a Hackage metadata
+  revision raised the 0.6.0.0 bound to `>= 4.20`.
+
+No API or numeric results change. The upper bound on `random` stays `< 1.3`:
+with `random` 1.3 the same seed yields different simulation numbers.
+
 ## 0.6.0.0 - 2026-11-06
 
 ### Highlights

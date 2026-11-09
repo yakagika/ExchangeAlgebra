@@ -1,5 +1,5 @@
 name:                exchangealgebra
-version:             0.6.0.0
+version:             0.6.0.1
 github:              "yakagika/ExchangeAlgebra"
 license:             OtherLicense
 author:              "Kaya Akagi"
@@ -34,7 +34,7 @@ description: >-
   simulation. See the README for a guide and the changelog for migration notes.
 
 dependencies:
-- base                  >= 4.17    && < 5
+- base                  >= 4.19    && < 5
 - text                  >= 2.0     && < 2.2
 - time                  >= 1.12    && < 1.15
 - containers            >= 0.6     && < 0.8

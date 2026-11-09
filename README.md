@@ -40,7 +40,7 @@ extra-deps:
 ```
 
 Requirements:
-- GHC 9.10 (tested with Stackage `lts-24.65`)
+- GHC 9.8 or 9.10 (tested with Stackage `lts-23.28` and `lts-24.65`)
 - Cabal 3.0 or later
 - The plotting module `ExchangeAlgebra.Simulate.Visualize` is off by default.
   To use it, install the Cairo / Pango / Freetype system libraries (on macOS:

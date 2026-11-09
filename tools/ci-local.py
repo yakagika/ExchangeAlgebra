@@ -23,7 +23,7 @@ stops when the number of `run:` lines in a job differs from the number of
 steps it read. In that case extend this reader before running the check.
 
 Usage:
-    uv run --script tools/ci-local.py                  # build-test and build-test-no-visualize
+    uv run --script tools/ci-local.py                  # build-test, build-test-no-visualize, build-test-ghc98
     uv run --script tools/ci-local.py --job build-test # one job
     uv run --script tools/ci-local.py --list           # print the steps without running them
 """
@@ -36,7 +36,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-DEFAULT_JOBS = ("build-test", "build-test-no-visualize")
+DEFAULT_JOBS = ("build-test", "build-test-no-visualize", "build-test-ghc98")
 SKIP_NAME = re.compile(r"^Install system deps")
 CI_ONLY_FLAGS = ("--system-ghc", "--no-install-ghc")
 JOB_KEYS = {"runs-on", "steps", "name", "needs", "timeout-minutes"}
