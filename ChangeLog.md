@@ -1,5 +1,35 @@
 # Changelog for ExchangeAlgebra
 
+## Unreleased
+
+### Added
+
+- `ExchangeAlgebra.Accounting.Audit` provides audits that report one type of
+  accounting anomaly each, without blocking any computation. Every audit
+  returns `AuditResult`: `NoProblem`, `Warning` for findings with legitimate
+  exceptions, or `Error` for findings without one and for structure issues
+  (invalid values and wildcard bases, which every audit checks first).
+  - `impossibleBalances`: credit balance of cash or petty cash, debit balance
+    of capital stock or accumulated depreciation (`Error`).
+  - `abnormalBalances`: balance opposite to a fixed home side, except the
+    accounts above (`Warning`).
+  - `temporaryAccountBalances`: balance of suspense payments, suspense
+    receipts, or the suspense account after adjustment (`Warning`).
+  - `closingResiduals`: balance that closing must clear, in a trial balance
+    after closing (`Error`).
+  - `duplicateTransactions`: notes with identical postings (`Warning`).
+  - `contraryNominalPostings`: revenue or expense posting opposite to its
+    home side, outside closing transactions (`Warning`).
+
+### Deprecated
+
+- `TBFinding`, `trialBalanceFindings`, `TrialBalanceInput`, and
+  `ReclassificationRule` of `ExchangeAlgebra.Accounting.TrialBalance.Validation`
+  are deprecated and will be removed in 0.7. Use `impossibleBalances`,
+  `abnormalBalances`, `temporaryAccountBalances`, and `closingResiduals` of
+  `ExchangeAlgebra.Accounting.Audit` instead; they take the trial balance
+  directly and return `AuditResult`.
+
 ## 0.6.0.1 - 2026-11-09
 
 ### Fixed

@@ -31,6 +31,9 @@ main = doctest  [ "-isrc"
                   -- the admission examples import its public API qualified;
                   -- load that module before doctest evaluates those imports.
                 , "src/ExchangeAlgebra/IO/Input/Admission.hs"
+                  -- the admission walkthrough also imports the audits qualified;
+                  -- the module is not re-exported from the umbrella.
+                , "src/ExchangeAlgebra/Accounting/Audit.hs"
                 , "src/ExchangeAlgebra/Algebra/Value.hs"
                 , "src/ExchangeAlgebra/Algebra/Value/Class.hs"
                 , "src/ExchangeAlgebra/Simulation/Network/Representation.hs"

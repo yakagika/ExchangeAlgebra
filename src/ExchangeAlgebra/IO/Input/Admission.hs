@@ -31,8 +31,8 @@
 -- After admission, derive reports from 'admittedJournal' with the existing
 -- functions: pass the trial balance and its stage to
 -- @ExchangeAlgebra.Accounting.Statements.Presentation.present@, read the
--- trial-balance findings separately with
--- @ExchangeAlgebra.Accounting.TrialBalance.trialBalanceFindings@, and write
+-- trial-balance findings separately with the audits of
+-- "ExchangeAlgebra.Accounting.Audit", and write
 -- rows with the CSV writers in "ExchangeAlgebra.IO.Output.Statements".
 --
 -- = Guarantee
@@ -164,10 +164,11 @@
 --
 -- The audit of the trial balance is separate from presentation:
 --
--- >>> import qualified Data.Map.Strict as Map
--- >>> import qualified Data.Set as Set
--- >>> TrialBalance.trialBalanceFindings (TrialBalance.TrialBalanceInput beforeClosing TrialBalance.BeforeClosing Map.empty [] Set.empty)
--- []
+-- >>> import qualified ExchangeAlgebra.Accounting.Audit as Audit
+-- >>> Audit.impossibleBalances beforeClosing
+-- NoProblem
+-- >>> Audit.abnormalBalances beforeClosing
+-- NoProblem
 module ExchangeAlgebra.IO.Input.Admission
     ( -- * Transaction keys
       -- | A ready-made note type for journals keyed by entity, reporting
