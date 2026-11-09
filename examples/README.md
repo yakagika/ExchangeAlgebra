@@ -67,7 +67,7 @@ cd my-examples
 ### Standalone builds
 
 A companion `examples/stack.yaml` is checked in, pinning the released
-`exchangealgebra-0.6.0.0` from Hackage via `extra-deps`. So after a sparse
+`exchangealgebra-0.6.0.1` from Hackage via `extra-deps`. So after a sparse
 checkout or `degit`, the following just works:
 
 ```bash
@@ -118,13 +118,13 @@ run.
 
 Run the commands from the root of a full clone. The standalone
 `examples/stack.yaml` uses Stackage `lts-24.65` and pins the Hackage release
-`exchangealgebra-0.6.0.0`. The table lists the examples retained in this checkout.
+`exchangealgebra-0.6.0.1`. The table lists the examples retained in this checkout.
 
 | Example | Kind | Builds with | How to reproduce | Notes |
 |---|---|---|---|---|
-| `basic/elementaryBookkeepingEx*` | teaching | Hackage `exchangealgebra-0.6.0.0`; tag `v0.6.0.0` | `git checkout v0.6.0.0 && cd examples && stack build` | Uses the 0.6 API. |
-| `basic/fixedPriceIO`, `fixedPriceIOSpill` (named `simulateEx1`, `simulateEx2Fast` before 0.6.0.0) | simulation | Hackage `exchangealgebra-0.6.0.0`; tag `v0.6.0.0`. SICE reproduction: commit `543e268` (`0.5.0.0` release). | `git checkout v0.6.0.0 && cd examples && stack build`<br>`git checkout 543e268 && cd examples && stack build` | General simulation examples using the 0.6 API (executables `sim1` → `fixed-price-io`, `sim2fast` → `fixed-price-io-spill`). `simulateEx2` (`sim2`), the `MoneyDecimal` version of `simulateEx2Fast`, is removed in 0.6.0.0; use tag `v0.5.3.0` or commit `543e268` to build it. |
-| `benchmark/` | benchmark | Hackage `exchangealgebra-0.6.0.0`; tag `v0.6.0.0` | `git checkout v0.6.0.0 && cd examples && stack build` | Remains in this repository. |
+| `basic/elementaryBookkeepingEx*` | teaching | Hackage `exchangealgebra-0.6.0.1`; tag `v0.6.0.1` | `git checkout v0.6.0.1 && cd examples && stack build` | Uses the 0.6 API. |
+| `basic/fixedPriceIO`, `fixedPriceIOSpill` (named `simulateEx1`, `simulateEx2Fast` before 0.6.0.0) | simulation | Hackage `exchangealgebra-0.6.0.1`; tag `v0.6.0.1`. SICE reproduction: commit `543e268` (`0.5.0.0` release). | `git checkout v0.6.0.1 && cd examples && stack build`<br>`git checkout 543e268 && cd examples && stack build` | General simulation examples using the 0.6 API (executables `sim1` → `fixed-price-io`, `sim2fast` → `fixed-price-io-spill`). `simulateEx2` (`sim2`), the `MoneyDecimal` version of `simulateEx2Fast`, is removed in 0.6.0.0; use tag `v0.5.3.0` or commit `543e268` to build it. |
+| `benchmark/` | benchmark | Hackage `exchangealgebra-0.6.0.1`; tag `v0.6.0.1` | `git checkout v0.6.0.1 && cd examples && stack build` | Remains in this repository. |
 
 ## Research using exchangealgebra
 
