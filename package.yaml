@@ -19,7 +19,6 @@ extra-source-files:
 - test/compat-clients/*.md
 - tools/check-export-surface.py
 - tools/check-orphans.py
-- docs/admission-api-design-notes.md
 
 synopsis:            Exchange Algebra for bookkeeping and economic simulation
 category:            Accounting, Finance, Math

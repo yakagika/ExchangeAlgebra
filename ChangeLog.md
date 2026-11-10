@@ -52,6 +52,12 @@
     legitimate exceptions. `MissingMaturityEvidence`: the maturity split is
     the presentation setting `_maturitySensitiveTitles` (since 0.6.0.0).
 
+### Removed
+
+- The source distribution no longer contains
+  `docs/admission-api-design-notes.md`, an internal design note. The behavior
+  of `ExchangeAlgebra.IO.Input.Admission` is documented in its Haddock.
+
 ## 0.6.0.1 - 2026-11-09
 
 ### Fixed

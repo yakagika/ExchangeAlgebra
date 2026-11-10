@@ -150,7 +150,6 @@ extra-source-files:
     test/compat-clients/README.md
     tools/check-export-surface.py
     tools/check-orphans.py
-    docs/admission-api-design-notes.md
 
 source-repository head
   type: git
