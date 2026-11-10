@@ -50,6 +50,8 @@ import           Data.Hashable            (Hashable (..), Hashed, hashed)
 import qualified Data.IntMap.Strict       as IM
 import           Data.List                (foldl')
 import qualified Data.Map.Strict          as M
+import qualified Data.Binary              as Binary
+import qualified ExchangeAlgebra.Algebra.Transfer as Transfer
 import           Data.Word                (Word64)
 
 import qualified Data.Set                 as Set
@@ -659,9 +661,66 @@ hashMs = [40, 120]
 label :: Int -> String
 label m = "N=" ++ show (m * m)
 
+-- | One or twenty ordered postings per base, with both sides in the latter shape.
+pairFixture :: Int -> EA.Alg Double LedgerBase
+pairFixture perBase = EA.unionsMerge
+    [ fromIntegral j .@ (side (i + j) :< (0, 0, i))
+    | i <- [1 .. 1000]
+    , j <- [1 .. perBase] ]
+  where
+    side :: Int -> Hat
+    side j | odd j = Hat
+           | otherwise = Not
+
+-- | Fully traverse the fixture before timing; Alg's NFData is intentionally shallow.
+preparePairFixture :: Int -> IO (EA.Alg Double LedgerBase)
+preparePairFixture perBase = do
+    let algebra = pairFixture perBase
+    _ <- evaluate (entryCount algebra)
+    pure algebra
+
+-- | Relabel three disjoint source bases through the generic transfer API.
+pairTransfer :: EA.Alg Double LedgerBase -> Int
+pairTransfer algebra = case pairRules of
+    Left problem -> error (show problem)
+    Right rules -> case Transfer.transferEntries rules algebra of
+        Left problem -> error (show problem)
+        Right result -> entryCount result
+  where
+    pairRules :: Either (Transfer.TransferRuleError Double LedgerBase)
+                        (Transfer.TransferRules Double LedgerBase)
+    pairRules = Transfer.mkTransferRules
+        [ Transfer.TransferRule (HatNot :< (0, 0, i))
+            (HatNot :< (0, 1, i)) Transfer.Relabel
+        | i <- [1 .. 3] ]
+
+-- | Per-operation costs for compact and redundant pair shapes.
+pairBenchmarks :: [Benchmark]
+pairBenchmarks =
+    [ env (preparePairFixture perBase) $ \algebra ->
+        bgroup ("Pair/" ++ name)
+            [ bench "filter" $ nf (entryCount . EA.filter (isHat . EA._hatBase)) algebra
+            , bench "proj-concrete" $ nf
+                (entryCount . EA.proj [HatNot :< (0, 0, 1)]) algebra
+            , bench "proj-wildcard" $ nf
+                (entryCount . EA.proj [HatNot :< (0, 0, wildcard)]) algebra
+            , bench "transferEntries" $ nf pairTransfer algebra
+            , bench "mapPosting" $ nf
+                (entryCount . EA.mapPosting (\v b -> (v * 2, b))) algebra
+            , env (evaluate (force (EA.toList algebra))) $ \postings ->
+                bench "append-sequential" $ nf
+                    (entryCount . foldl' (.+) EA.Zero) postings
+            , bench "toList" $ nf (sum . fmap EA._val . EA.toList) algebra
+            , bench "foldEntries" $ nf (EA.foldEntries (\n v _ -> n + v) 0) algebra
+            , bench "encode" $ nf Binary.encode algebra
+            , env (evaluate (force (Binary.encode algebra))) $ \bytes ->
+                bench "decode" $ nf (entryCount . Binary.decode) bytes
+            ]
+    | (name, perBase) <- [("singleton", 1), ("redundant-20", 20)] ]
+
 main :: IO ()
 main = defaultMain $ gateShared "I" False ++ gateShared "D2" True ++ gateInteger
-    ++ referenceGate ++
+    ++ referenceGate ++ pairBenchmarks ++
     -- The large operand is a Liner. The small operand hits one existing and
     -- one new base key. All inputs are forced before each timed operation.
     [ bgroup "Alg/big-plus-small"

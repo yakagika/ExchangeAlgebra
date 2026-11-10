@@ -33,12 +33,15 @@ Hat
 HatBase
 HatBaseClass
 HatNot
+HatOne
 HatVal
 Liner
 Name
 Nearly
 Not
+NotOne
 Pair
+PairSeq
 Redundant
 Single
 Subject

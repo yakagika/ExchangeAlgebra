@@ -10,6 +10,7 @@ import Prelude hiding (map)
 import Control.Monad (forM_, unless)
 import qualified Data.Text as T
 import qualified Data.List as List
+import qualified Data.Foldable as Foldable
 import qualified Data.Sequence as Seq
 import qualified Data.Map.Strict as Map
 import qualified Data.HashMap.Strict as HashMap
@@ -18,6 +19,7 @@ import Test.QuickCheck hiding (label)
 
 import ExchangeAlgebra.Algebra
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal, MoneyDouble)
+import qualified ExchangeAlgebra.Algebra.Value as Value
 import qualified ExchangeAlgebra.Algebra as EA
 import qualified ExchangeAlgebra.Algebra.Internal as Internal
 import qualified ExchangeAlgebra.Journal as Journal
@@ -363,10 +365,103 @@ fixedCases = do
         check "W1 Journal difference golden" expectedDifference
             (diffRLWithin defaultTolerance (input Journal..| ("golden" :: String)))
 
+-- | The old accounting folds consume two sequences at every complete base.
+type AccountPairs = HashMap.HashMap (AccountTitles, T.Text) (Seq.Seq Double, Seq.Seq Double)
+
+-- | Keep the old grouping of exact side states, including structural Side.
+referenceAccountDifference :: AccountPairs -> (Bool, (Side, Double))
+referenceAccountDifference pairs = (Value.signAccum state == Just EQ, difference)
+  where
+    state = HashMap.foldlWithKey' collect Value.emptyAccum pairs
+    collect :: Value.Accum Double -> (AccountTitles, T.Text)
+            -> (Seq.Seq Double, Seq.Seq Double) -> Value.Accum Double
+    collect total bp (hs, ns) = Value.mergeAccum total
+        (Value.mergeAccum (signed Hat hs) (signed Not ns))
+      where
+        signed :: Hat -> Seq.Seq Double -> Value.Accum Double
+        signed side values = case whichSide (side :< bp) of
+            Credit -> Foldable.foldl' (flip Value.addAccum) Value.emptyAccum values
+            Debit -> Value.negateAccum
+                (Foldable.foldl' (flip Value.addAccum) Value.emptyAccum values)
+            Side -> Value.emptyAccum
+    difference = case Value.signAccum state of
+        Just EQ -> (Side, 0)
+        Just GT -> (Credit, Value.roundAccum state)
+        Just LT -> (Debit, Value.roundAccum (Value.negateAccum state))
+        Nothing -> (Side, Value.roundAccum state)
+
+-- | Filter sides and sum each sequence in the same order as the previous implementation.
+referenceAccountWithin :: AccountPairs -> (Side, Double)
+referenceAccountWithin pairs
+    | not (Value.isErrorValue credit || Value.isErrorValue debit)
+        && abs (credit - debit) <= absTol defaultTolerance
+            + relTol defaultTolerance * max (abs credit) (abs debit) = (Side, 0)
+    | credit > debit = (Credit, credit - debit)
+    | otherwise = (Debit, debit - credit)
+  where
+    credit = total Credit
+    debit = total Debit
+    total :: Side -> Double
+    total wanted = HashMap.foldlWithKey' collect 0 pairs
+      where
+        collect :: Double -> (AccountTitles, T.Text)
+                -> (Seq.Seq Double, Seq.Seq Double) -> Double
+        collect acc bp (hs, ns) = acc + sumSide Hat hs + sumSide Not ns
+          where
+            sumSide :: Hat -> Seq.Seq Double -> Double
+            sumSide side values
+                | whichSide (side :< bp) == wanted = Foldable.foldl' (+) 0 values
+                | otherwise = 0
+
+-- | Force every compact shape through exact and tolerance-based accounting readouts.
+accountPairCases :: IO ()
+accountPairCases = do
+    let shapes = [([3], []), ([], [5]), ([3, 7], []), ([], [5, 11]),
+                  ([3], [5]), ([2^53, 1], [2^53]), ([0.1, 0.2], [0.3]),
+                  ([1/0], []), ([], [0/0]), ([1/0, 1], [1/0])]
+    forM_ [Cash, Sales] $ \title ->
+        forM_ shapes $ \(hs, ns) -> verify $ HashMap.singleton (title, T.pack "shape")
+            (Seq.fromList hs, Seq.fromList ns)
+    verify $ HashMap.fromList
+        [ ((Cash, T.pack "hat"), (Seq.singleton 3, Seq.empty))
+        , ((Sales, T.pack "not"), (Seq.empty, Seq.singleton 5))
+        , ((Cash, T.pack "many"), (Seq.fromList [2^53, 1], Seq.fromList [2^53, 2]))
+        ]
+    -- The tolerance path sees pairs after decR/decL, so repeat each side separately.
+    forM_ [(Seq.singleton 3, Seq.empty, "HatOne"),
+           (Seq.empty, Seq.singleton 5, "NotOne"),
+           (Seq.fromList [3, 7], Seq.empty, "PairSeq"),
+           (Seq.empty, Seq.fromList [5, 11], "PairSeq")] $ \(hs, ns, expected) -> do
+        let input = Internal.linerFromMap
+                (HashMap.singleton (Cash, T.pack "shape") (Internal.Pair hs ns)) :: Alg Double Base
+            selected = if Seq.null ns then decR input else decL input
+        check "accounting input shape" [expected] (shapesOf input)
+        check "accounting shape after side selection" [expected] (shapesOf selected)
+  where
+    verify :: AccountPairs -> IO ()
+    verify pairs = do
+        let input = Internal.linerFromMap (fmap (uncurry Internal.Pair) pairs) :: Alg Double Base
+            (expectedBalance, expectedDifference) = referenceAccountDifference pairs
+            expectedWithin = referenceAccountWithin pairs
+        check "two-sequence balance" expectedBalance (balance input)
+        check "two-sequence diffRL" (show expectedDifference) (show (diffRL input))
+        check "two-sequence balanceWithin" (fst expectedWithin == Side)
+            (balanceWithin defaultTolerance input)
+        check "two-sequence diffRLWithin" (show expectedWithin)
+            (show (diffRLWithin defaultTolerance input))
+    shapesOf :: Alg Double Base -> [String]
+    shapesOf (Internal.Liner pairs _ _ _ _ _) = List.map shape (HashMap.elems pairs)
+    shapesOf _ = []
+    shape :: Internal.Pair Double -> String
+    shape (Internal.HatOne _) = "HatOne"
+    shape (Internal.NotOne _) = "NotOne"
+    shape (Internal.PairSeq _ _) = "PairSeq"
+
 -- | Run the requested properties and fixed migration cases without tolerances.
 runTests :: IO ()
 runTests = do
     fixedCases
+    accountPairCases
     forM_ [readoutProperty, journalProperty, pairOrderProperty] $ \propertyToRun -> do
         result <- quickCheckWithResult stdArgs {maxSuccess = 200} propertyToRun
         unless (isSuccess result) (fail "exact readout property failed")

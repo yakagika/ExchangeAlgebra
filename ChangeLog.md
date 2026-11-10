@@ -25,6 +25,10 @@
 
 - Reduce allocation in `MoneyDouble` Binary encoding without changing its bytes.
 - Build the Journal delta note-axis index only when an axis query needs it.
+- Store one-sided singleton algebra pairs without a `Seq` node, preserving posting order,
+  public APIs, and Binary encodings. `ExchangeAlgebra.Algebra.Internal` (outside the PVP
+  contract) now exports the `HatOne`, `NotOne`, and `PairSeq` constructors of `Pair`; the
+  `Pair hs ns` pattern and its field selectors remain.
 
 ### Deprecated
 

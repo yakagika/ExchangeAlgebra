@@ -89,7 +89,14 @@ import ExchangeAlgebra.Algebra.Core.Representation ( Alg(..)
                                                    , (.@)
                                                    , filter
                                                    )
-import qualified ExchangeAlgebra.Algebra.Core.Representation as EA (Alg(..), _hatBase, filter, foldEntries, foldPairs, Pair(..))
+import qualified ExchangeAlgebra.Algebra.Core.Representation as EA
+    ( Alg(..)
+    , _hatBase
+    , filter
+    , foldEntries
+    , foldPairs
+    , Pair(..)
+    )
 import ExchangeAlgebra.Algebra.Value.Class (HatVal(..), Tolerance(..), isErrorValue)
 import qualified Data.Foldable as Foldable
 import ExchangeAlgebra.Algebra.Value (MoneyDouble, MoneyDecimal)
@@ -338,20 +345,32 @@ instance (HatVal n, ExBaseClass b) =>  Exchange Alg n b where
       where
         credit = sequentialNorm (decR algebra)
         debit  = sequentialNorm (decL algebra)
-        sequentialNorm = EA.foldPairs (\total _ (EA.Pair hats nots) ->
-            total + Foldable.foldl' (+) 0 hats + Foldable.foldl' (+) 0 nots) 0
+        sequentialNorm = EA.foldPairs collect 0
+        collect :: HatVal v => v -> bp -> EA.Pair v -> v
+        collect total _ (EA.HatOne value) = total + (0 + value) + 0
+        collect total _ (EA.NotOne value) = total + 0 + (0 + value)
+        collect total _ (EA.PairSeq hats nots) =
+            total + Foldable.foldl' (+) 0 hats + Foldable.foldl' (+) 0 nots
 
 -- | Exact credit minus debit, with structural Side contributing nothing.
 accountState :: forall n b. (HatVal n, ExBaseClass b) => Alg n b -> Accum n
 {-# INLINE accountState #-}
 accountState = EA.foldPairs collect emptyAccum
   where
-    collect total basePart (EA.Pair hats nots) =
-        mergeAccum total (mergeAccum (signed Hat hats) (signed Not nots))
+    collect :: Accum n -> BasePart b -> EA.Pair n -> Accum n
+    collect total basePart pair = mergeAccum total $ case pair of
+        EA.HatOne value -> mergeAccum
+            (signed Hat (addAccum value emptyAccum)) (signed Not emptyAccum)
+        EA.NotOne value -> mergeAccum
+            (signed Hat emptyAccum) (signed Not (addAccum value emptyAccum))
+        EA.PairSeq hats nots -> mergeAccum
+            (signed Hat (Foldable.foldl' (flip addAccum) emptyAccum hats))
+            (signed Not (Foldable.foldl' (flip addAccum) emptyAccum nots))
       where
-        signed side values = case whichSide (merge side basePart :: b) of
-            Credit -> Foldable.foldl' (flip addAccum) emptyAccum values
-            Debit  -> negateAccum (Foldable.foldl' (flip addAccum) emptyAccum values)
+        signed :: Hat -> Accum n -> Accum n
+        signed side ~state = case whichSide (merge side basePart :: b) of
+            Credit -> state
+            Debit  -> negateAccum state
             Side   -> emptyAccum
 
 ------------------------------------------------------------------

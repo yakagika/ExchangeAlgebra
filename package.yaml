@@ -232,6 +232,7 @@ tests:
     - Algebra.ExactReadoutSpec
     - Algebra.AccumSpec
     - Algebra.CoreSpec
+    - Algebra.PairSpec
     - Journal.JournalSpec
     - Journal.NormalFormSpec
     - Accounting.AdjustmentSpec

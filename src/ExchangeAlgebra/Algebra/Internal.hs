@@ -63,7 +63,13 @@ module ExchangeAlgebra.Algebra.Internal
     , isNearlyNum
     , Redundant(..)
     , HatVal(..)
-    , Pair(..)
+    , Pair( HatOne
+          , NotOne
+          , PairSeq
+          , Pair
+          , _hatSide
+          , _notSide
+          )
     , Alg(.., (:@), _val, _hatBase)
     , linerFromMap
     , isZero

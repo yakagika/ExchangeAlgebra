@@ -20,7 +20,85 @@
 {-# LANGUAGE ViewPatterns               #-}
 {-# LANGUAGE OverloadedStrings          #-}
 -- | Generic exchange algebra representation and operations.
-module ExchangeAlgebra.Algebra.Core.Representation where
+module ExchangeAlgebra.Algebra.Core.Representation
+    ( Redundant(..)
+    , Pair( HatOne
+          , NotOne
+          , PairSeq
+          , Pair
+          , _hatSide
+          , _notSide
+          )
+    , Alg(..)
+    , pattern (:@)
+    , _val
+    , _hatBase
+    , AxisPosting
+    , DMap
+    , mkPair
+    , pairView
+    , pairNull
+    , foldPair
+    , mapPair
+    , hatPair
+    , filterPair
+    , pairSums
+    , pairStates
+    , comparePairSides
+    , nullPair
+    , pairAppend
+    , pairUnion
+    , emptyAxisPosting
+    , insertAxisPosting
+    , queryAxisPosting
+    , linerFromMap
+    , isZero
+    , singleton
+    , (.@)
+    , (<@)
+    , union
+    , insert
+    , unions
+    , mergeAlgMap
+    , mergeAlgMapIfNonZero
+    , unionsMerge
+    , foldPairs
+    , netPairState
+    , hasNonfiniteState
+    , postNetStates
+    , vals
+    , bases
+    , fromList
+    , sigma
+    , sigma2When
+    , sigmaFromMap
+    , toList
+    , foldEntries
+    , toASCList
+    , map
+    , mapPosting
+    , mapMaybePosting
+    , filter
+    , mapBasePart
+    , extendBy
+    , proj
+    , choosePairByHat
+    , projExactMap
+    , projWildMap
+    , mkAlgFromMap
+    , singlePairToAlg
+    , projNetNorm
+    , projectedNetState
+    , foldProjectedNorm
+    , foldProjectedState
+    , barNormPair
+    , balanceBy
+    , balanceMapBy
+    , netPairMapBy
+    , foldEntriesToMap
+    , decBy
+    , postFromNetBy
+    ) where
 
 import ExchangeAlgebra.Algebra.Base.Representation
 import ExchangeAlgebra.Algebra.Element.Representation (Element(..), AxisDecompose(..), AxisKey(..), CountUnit(..), ( .# ), matchesQuery)
@@ -186,25 +264,125 @@ infixr 3 <+
 
 ------------------------------------------------------------
 -- | Sequences of values on the Hat and Not sides of one basis.
-data Pair v where
- Pair :: {_hatSide :: !(Seq v)
-         ,_notSide :: !(Seq v)} -> Pair v
-         deriving (Eq)
+data Pair v
+    = HatOne ~v
+    | NotOne ~v
+    | PairSeq !(Seq v) !(Seq v)
+    deriving (Eq)
+
+-- | Normalize the representation without evaluating the values.
+-- Invariant: 'PairSeq' never holds exactly one posting in total.
+mkPair :: Seq v -> Seq v -> Pair v
+{-# INLINE mkPair #-}
+mkPair hs ns = case (Seq.length hs, Seq.length ns) of
+    (1, 0) -> case Seq.viewl hs of
+        h Seq.:< _ -> HatOne h
+        _ -> PairSeq hs ns
+    (0, 1) -> case Seq.viewl ns of
+        n Seq.:< _ -> NotOne n
+        _ -> PairSeq hs ns
+    _ -> PairSeq hs ns
+
+-- | Compatibility view. Singleton sides allocate a sequence only on this path.
+pairView :: Pair v -> (Seq v, Seq v)
+{-# INLINE pairView #-}
+pairView (HatOne v) = (Seq.singleton v, Seq.empty)
+pairView (NotOne v) = (Seq.empty, Seq.singleton v)
+pairView (PairSeq hs ns) = (hs, ns)
+
+-- | Construct, match, select, or update the two ordered sides of a pair.
+pattern Pair :: Seq v -> Seq v -> Pair v
+pattern Pair {_hatSide, _notSide} <- (pairView -> (_hatSide, _notSide))
+  where Pair hs ns = mkPair hs ns
+{-# COMPLETE Pair #-}
+
+-- | Test for an empty pair without allocating singleton sequences.
+pairNull :: Pair v -> Bool
+{-# INLINE pairNull #-}
+pairNull (HatOne _) = False
+pairNull (NotOne _) = False
+pairNull (PairSeq hs ns) = Seq.null hs && Seq.null ns
+
+-- | Fold Hat entries followed by Not entries, preserving each side's order.
+foldPair :: (a -> v -> a)
+         -> (a -> v -> a)
+         -> a
+         -> Pair v
+         -> a
+{-# INLINE foldPair #-}
+foldPair fh _ z (HatOne v) = fh z v
+foldPair _ fn z (NotOne v) = fn z v
+foldPair fh fn z (PairSeq hs ns) = Foldable.foldl' fn (Foldable.foldl' fh z hs) ns
+
+-- | Map values without evaluating singleton payloads or changing their order.
+mapPair :: (v -> w) -> Pair v -> Pair w
+{-# INLINE mapPair #-}
+mapPair f (HatOne v) = HatOne (f v)
+mapPair f (NotOne v) = NotOne (f v)
+mapPair f (PairSeq hs ns) = mkPair (fmap f hs) (fmap f ns)
+
+-- | Exchange the two sides without changing the order within either side.
+hatPair :: Pair v -> Pair v
+{-# INLINE hatPair #-}
+hatPair (HatOne v) = NotOne v
+hatPair (NotOne v) = HatOne v
+hatPair (PairSeq hs ns) = mkPair ns hs
+
+-- | Keep selected entries, preserving side order and normalizing the shape.
+filterPair :: (v -> Bool) -> (v -> Bool) -> Pair v -> Pair v
+{-# INLINE filterPair #-}
+filterPair fh _ p@(HatOne v) = if fh v then p else nullPair
+filterPair _ fn p@(NotOne v) = if fn v then p else nullPair
+filterPair fh fn (PairSeq hs ns) = mkPair (Seq.filter fh hs) (Seq.filter fn ns)
+
+-- | Sequential side totals, including the initial addition to zero.
+pairSums :: Num v => Pair v -> (v, v)
+{-# INLINE pairSums #-}
+pairSums (HatOne v) = (0 + v, 0)
+pairSums (NotOne v) = (0, 0 + v)
+pairSums (PairSeq hs ns) = (Foldable.foldl' (+) 0 hs, Foldable.foldl' (+) 0 ns)
+
+-- | Exact side totals, kept separate until the caller chooses a readout.
+pairStates :: HatVal v => Pair v -> (Accum v, Accum v)
+{-# INLINE pairStates #-}
+pairStates (HatOne v) = (addAccum v emptyAccum, emptyAccum)
+pairStates (NotOne v) = (emptyAccum, addAccum v emptyAccum)
+pairStates (PairSeq hs ns) =
+    ( Foldable.foldl' (flip addAccum) emptyAccum hs
+    , Foldable.foldl' (flip addAccum) emptyAccum ns
+    )
 
 instance (Binary.Binary v) => Binary.Binary (Pair v) where
     {-# INLINABLE put #-}
     {-# INLINABLE get #-}
-    put (Pair hs ns) = do
+    put (HatOne v) = Binary.put (1 :: Int) >> Binary.put v >> Binary.put (0 :: Int)
+    put (NotOne v) = Binary.put (0 :: Int) >> Binary.put (1 :: Int) >> Binary.put v
+    put (PairSeq hs ns) = do
         Binary.put (Seq.length hs :: Int)
         Foldable.foldr (\x k -> Binary.put x >> k) (pure ()) hs
         Binary.put (Seq.length ns :: Int)
         Foldable.foldr (\x k -> Binary.put x >> k) (pure ()) ns
     get = do
         hsLen <- Binary.get :: Binary.Get Int
-        hs <- go hsLen Seq.empty
-        nsLen <- Binary.get :: Binary.Get Int
-        ns <- go nsLen Seq.empty
-        pure (Pair hs ns)
+        case hsLen of
+            1 -> do
+                h     <- Binary.get
+                nsLen <- Binary.get :: Binary.Get Int
+                if nsLen <= 0
+                    then pure (HatOne h)
+                    else mkPair (Seq.singleton h) <$> go nsLen Seq.empty
+            _ | hsLen <= 0 -> do
+                nsLen <- Binary.get :: Binary.Get Int
+                if nsLen == 1
+                    then do
+                        n <- Binary.get
+                        pure (NotOne n)
+                    else mkPair Seq.empty <$> go nsLen Seq.empty
+              | otherwise -> do
+                hs    <- go hsLen Seq.empty
+                nsLen <- Binary.get :: Binary.Get Int
+                ns    <- go nsLen Seq.empty
+                pure (mkPair hs ns)
       where
         go :: Binary.Binary a => Int -> Seq a -> Binary.Get (Seq a)
         go n !acc
@@ -216,8 +394,8 @@ instance (Binary.Binary v) => Binary.Binary (Pair v) where
 
 instance (HatVal v) => Ord (Pair v) where
     {-# INLINE compare #-}
-    compare first@(Pair hs1 ns1) second@(Pair hs2 ns2) =
-        compare (key first) (key second) <> compare (hs1, ns1) (hs2, ns2)
+    compare first second =
+        compare (key first) (key second) <> comparePairSides first second
       where
         -- Hat minus Not; classification uses the state, never rounded overflow.
         key pair = case exactAccum state of
@@ -249,19 +427,58 @@ instance (HatVal v) => Ord (Pair v) where
     min x y | x <= y    = x
             | otherwise = y
 
+-- | Compare Hat sequences first and Not sequences second, as in the old record.
+comparePairSides :: forall v. Ord v => Pair v -> Pair v -> Ordering
+{-# INLINE comparePairSides #-}
+comparePairSides x y = compareHat x y <> compareNot x y
+  where
+    compareHat :: Pair v -> Pair v -> Ordering
+    compareHat (HatOne a) (HatOne b) = compare a b
+    compareHat (HatOne _) (NotOne _) = GT
+    compareHat (NotOne _) (HatOne _) = LT
+    compareHat (NotOne _) (NotOne _) = EQ
+    compareHat (HatOne a) (PairSeq hs _) = oneSeq a hs
+    compareHat (PairSeq hs _) (HatOne b) = seqOne hs b
+    compareHat (NotOne _) (PairSeq hs _) = if Seq.null hs then EQ else LT
+    compareHat (PairSeq hs _) (NotOne _) = if Seq.null hs then EQ else GT
+    compareHat (PairSeq hs _) (PairSeq ks _) = compare hs ks
+    compareNot :: Pair v -> Pair v -> Ordering
+    compareNot (NotOne a) (NotOne b) = compare a b
+    compareNot (NotOne _) (HatOne _) = GT
+    compareNot (HatOne _) (NotOne _) = LT
+    compareNot (HatOne _) (HatOne _) = EQ
+    compareNot (NotOne a) (PairSeq _ ns) = oneSeq a ns
+    compareNot (PairSeq _ ns) (NotOne b) = seqOne ns b
+    compareNot (HatOne _) (PairSeq _ ns) = if Seq.null ns then EQ else LT
+    compareNot (PairSeq _ ns) (HatOne _) = if Seq.null ns then EQ else GT
+    compareNot (PairSeq _ ns) (PairSeq _ ms) = compare ns ms
+    oneSeq :: v -> Seq v -> Ordering
+    oneSeq a xs = case Seq.viewl xs of
+        Seq.EmptyL -> GT
+        b Seq.:< rest -> compare a b <> if Seq.null rest then EQ else LT
+    seqOne :: Seq v -> v -> Ordering
+    seqOne xs b = case Seq.viewl xs of
+        Seq.EmptyL -> LT
+        a Seq.:< rest -> compare a b <> if Seq.null rest then EQ else GT
+
 {-# INLINE nullPair #-}
 -- | Complexity: O(1)
 nullPair :: Pair v
-nullPair = Pair Seq.empty Seq.empty
+nullPair = mkPair Seq.empty Seq.empty
 
 {-# INLINE pairAppend #-}
 -- | Complexity: O(log(min(h1,h2)) + log(min(n1,n2)))
 -- where h1/h2 and n1/n2 are the lengths of the appended 'Seq's on each side.
 pairAppend :: Pair v -> Pair v -> Pair v
-pairAppend (Pair x1 y1) (Pair x2 y2) =
-    let !hs = x1 Seq.>< x2
-        !ns = y1 Seq.>< y2
-    in Pair hs ns
+pairAppend (HatOne a) (HatOne b) = mkPair (Seq.fromList [a, b]) Seq.empty
+pairAppend (NotOne a) (NotOne b) = mkPair Seq.empty (Seq.fromList [a, b])
+pairAppend (HatOne a) (NotOne b) = mkPair (Seq.singleton a) (Seq.singleton b)
+pairAppend (NotOne a) (HatOne b) = mkPair (Seq.singleton b) (Seq.singleton a)
+pairAppend (HatOne a) (PairSeq hs ns) = mkPair (a Seq.<| hs) ns
+pairAppend (NotOne a) (PairSeq hs ns) = mkPair hs (a Seq.<| ns)
+pairAppend (PairSeq hs ns) (HatOne a) = mkPair (hs Seq.|> a) ns
+pairAppend (PairSeq hs ns) (NotOne a) = mkPair hs (ns Seq.|> a)
+pairAppend (PairSeq hs ns) (PairSeq ks ms) = mkPair (hs Seq.>< ks) (ns Seq.>< ms)
 
 {-# INLINE pairUnion #-}
 -- | Set-style merge of two single-base projection results.
@@ -280,10 +497,24 @@ pairAppend (Pair x1 y1) (Pair x2 y2) =
 --
 -- Complexity: O(1).
 pairUnion :: Pair v -> Pair v -> Pair v
-pairUnion (Pair x1 y1) (Pair x2 y2) =
-    let !hs = if Seq.null x1 then x2 else x1
-        !ns = if Seq.null y1 then y2 else y1
-    in Pair hs ns
+pairUnion p@(HatOne _) (HatOne _) = p
+pairUnion p@(NotOne _) (NotOne _) = p
+pairUnion (HatOne a) (NotOne b) = mkPair (Seq.singleton a) (Seq.singleton b)
+pairUnion (NotOne a) (HatOne b) = mkPair (Seq.singleton b) (Seq.singleton a)
+pairUnion p@(HatOne a) (PairSeq _ ns)
+    | Seq.null ns = p
+    | otherwise = mkPair (Seq.singleton a) ns
+pairUnion p@(NotOne a) (PairSeq hs _)
+    | Seq.null hs = p
+    | otherwise = mkPair hs (Seq.singleton a)
+pairUnion p@(PairSeq hs ns) (HatOne a)
+    | Seq.null hs = mkPair (Seq.singleton a) ns
+    | otherwise = p
+pairUnion p@(PairSeq hs ns) (NotOne a)
+    | Seq.null ns = mkPair hs (Seq.singleton a)
+    | otherwise = p
+pairUnion (PairSeq hs ns) (PairSeq ks ms) =
+    mkPair (if Seq.null hs then ks else hs) (if Seq.null ns then ms else ns)
 
 -- | Algebra element. An element of exchange algebra consisting of a value-base pair.
 -- Zero is the zero element, @(:@)@ is a singleton, and Liner is a HashMap-based multi-element representation.
@@ -370,7 +601,7 @@ instance forall v b. ( HatBaseClass b
                 count <- Binary.get :: Binary.Get Int
                 pairs <- go count Map.empty
                 let nonempty = Map.filter
-                        (\(Pair hs ns) -> not (Seq.null hs && Seq.null ns)) pairs
+                        (not . pairNull) pairs
                 pure $ if Map.null nonempty then Zero else linerFromMap nonempty
             _ -> fail ("Alg: unknown tag " ++ show tag)
       where
@@ -380,16 +611,20 @@ instance forall v b. ( HatBaseClass b
         go remaining !acc
             | remaining <= 0 = pure acc
             | otherwise = do
-                basis      <- Binary.get
-                Pair hs ns <- Binary.get
+                basis   <- Binary.get
+                decoded <- Binary.get
                 if Map.member basis acc
                     then fail "Alg: repeated base key"
                     else do
-                        mapM_ (\value -> case valueError value of
-                            Just message -> fail ("Alg: " ++ show message)
-                            Nothing      -> pure ()) (hs Seq.>< ns)
-                        let pair = Pair (Seq.filter (not . isZeroValue) hs)
-                                        (Seq.filter (not . isZeroValue) ns)
+                        let check :: v -> Binary.Get ()
+                            check value = case valueError value of
+                                Just message -> fail ("Alg: " ++ show message)
+                                Nothing      -> pure ()
+                        case decoded of
+                            HatOne value -> check value
+                            NotOne value -> check value
+                            PairSeq hs ns -> mapM_ check hs >> mapM_ check ns
+                        let pair = filterPair (not . isZeroValue) (not . isZeroValue) decoded
                         go (remaining - 1) (Map.insert basis pair acc)
 
 type AxisPosting = IntMap.IntMap (Map.HashMap AxisKey IntSet.IntSet)
@@ -668,14 +903,14 @@ insert !b1 !v1 (v2:@b2) = case isHat b1 of
                             True  -> insert b2 v2
                                    $ linerFromMap
                                    $ Map.singleton (base b1)
-                                   $ nullPair {_hatSide = Seq.singleton v1}
+                                   $ HatOne v1
                             False -> insert b2 v2
                                    $ linerFromMap
                                    $ Map.singleton (base b1)
-                                   $ nullPair {_notSide = Seq.singleton v1}
+                                   $ NotOne v1
 insert !b !v (Liner m _ _ _ _ _)  = case isHat b of
-                        True  -> insertLiner (nullPair {_hatSide = Seq.singleton v})
-                        False -> insertLiner (nullPair {_notSide = Seq.singleton v})
+                        True  -> insertLiner (HatOne v)
+                        False -> insertLiner (NotOne v)
   where
     !bp = base b
     insertLiner !pairToInsert =
@@ -708,8 +943,8 @@ mergeAlgMap !acc (v :@ b)
     | isZeroValue v = acc
     | otherwise =
         let !p = if isHat b
-                 then nullPair {_hatSide = Seq.singleton v}
-                 else nullPair {_notSide = Seq.singleton v}
+                 then HatOne v
+                 else NotOne v
         in Map.insertWith pairAppend (base b) p acc
 mergeAlgMap !acc (Liner m _ _ _ _ _)
     | Map.null m = acc
@@ -752,7 +987,7 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
     (.^) Zero       = Zero
     (.^) (n:@ b)    = n `Single` (revHat b)
     (.^) (Liner ms idx bpToId idToBp nextBpId allIds) = Liner
-                    (Map.map (\ (Pair hs ns) -> Pair ns hs) ms)
+                    (Map.map hatPair ms)
                     idx
                     bpToId
                     idToBp
@@ -778,15 +1013,13 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
         | otherwise                    = scaled
       where
         scaled = Liner
-            (Map.map (\(Pair hs ns) -> Pair (fmap (x *) hs) (fmap (x *) ns)) ms)
+            (Map.map (mapPair (x *)) ms)
             idx bpToId idToBp nextBpId allIds
 
     norm Zero       = 0
     norm (v:@_)     = roundAccum (addAccum v emptyAccum)
     norm (Liner ms _ _ _ _ _) = roundAccum $
-        Map.foldl' (\total (Pair hs ns) ->
-            Foldable.foldl' (flip addAccum)
-                (Foldable.foldl' (flip addAccum) total hs) ns) emptyAccum ms
+        Map.foldl' (foldPair (flip addAccum) (flip addAccum)) emptyAccum ms
 
     {-# INLINE (.-) #-}
     (.-) Zero = Zero
@@ -813,8 +1046,8 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
                     else finish side value
         finish side value
             | isZeroValue value = Nothing
-            | side == Hat = Just (Pair (Seq.singleton value) Seq.empty)
-            | otherwise   = Just (Pair Seq.empty (Seq.singleton value))
+            | side == Hat = Just (HatOne value)
+            | otherwise   = Just (NotOne value)
 
     {-# INLINE barWithin #-}
     barWithin _ Zero = Zero
@@ -825,20 +1058,18 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
                         False -> linerFromMap res
         where
             {-# INLINE f #-}
-            f p@(Pair hs ns) =
-                let !h = Foldable.foldl' (+) 0 hs
-                    !n = Foldable.foldl' (+) 0 ns
+            f p =
+                let (!h, !n) = pairSums p
                 in case (not (isErrorValue h || isErrorValue n)
                     && abs (h - n) <= absTol tolerance
                         + relTol tolerance * max (abs h) (abs n)) of -- scale-aware tolerance (WI-11)
                     True -> Nothing
-                    False -> case (Seq.length hs, Seq.length ns) of
-                        -- Already in canonical form: singleton on winning side, empty on other
-                        (1, 0) | h > n -> Just p
-                        (0, 1) | n > h -> Just p
+                    False -> case p of
+                        HatOne _ | h > n -> Just p
+                        NotOne _ | n > h -> Just p
                         _ -> case compare h n of
-                            GT -> Just (Pair (Seq.singleton (h - n)) Seq.empty)
-                            _  -> Just (Pair Seq.empty (Seq.singleton (n - h)))
+                            GT -> Just (HatOne (h - n))
+                            _  -> Just (NotOne (n - h))
 
     {-# INLINE compress #-}
     compress Zero = Zero
@@ -852,13 +1083,15 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
         | otherwise = linerFromMap reduced
       where
         reduced = Map.mapMaybe compressPair pairs
-        compressPair (Pair hs ns) =
-            let h = roundAccum (Foldable.foldl' (flip addAccum) emptyAccum hs)
-                n = roundAccum (Foldable.foldl' (flip addAccum) emptyAccum ns)
-                hats = if isZeroValue h then Seq.empty else Seq.singleton h
-                nots = if isZeroValue n then Seq.empty else Seq.singleton n
-            in if Seq.null hats && Seq.null nots then Nothing
-               else Just (Pair hats nots)
+        compressPair pair =
+            let (hatState, notState) = pairStates pair
+                h = roundAccum hatState
+                n = roundAccum notState
+            in case (isZeroValue h, isZeroValue n) of
+                (True, True) -> Nothing
+                (False, True) -> Just (HatOne h)
+                (True, False) -> Just (NotOne n)
+                (False, False) -> Just (mkPair (Seq.singleton h) (Seq.singleton n))
 
 
 -- | Visit full-base pairs without rebuilding every posting's base.
@@ -869,17 +1102,17 @@ foldPairs _ initial Zero = initial
 foldPairs collect initial (value :@ postingBase)
     | isZeroValue value = initial
     | isHat postingBase = collect initial (base postingBase)
-        (Pair (Seq.singleton value) Seq.empty)
+        (HatOne value)
     | otherwise = collect initial (base postingBase)
-        (Pair Seq.empty (Seq.singleton value))
+        (NotOne value)
 foldPairs collect initial (Liner pairs _ _ _ _ _) = Map.foldlWithKey' collect initial pairs
 
 -- | Exact Not-minus-Hat residual for one complete base.
 netPairState :: HatVal n => Pair n -> Accum n
 {-# INLINE netPairState #-}
-netPairState (Pair hats nots) = mergeAccum
-    (Foldable.foldl' (flip addAccum) emptyAccum nots)
-    (negateAccum (Foldable.foldl' (flip addAccum) emptyAccum hats))
+netPairState pair = mergeAccum nots (negateAccum hats)
+  where
+    (hats, nots) = pairStates pair
 
 -- | Distinguish nonfinite inputs from finite overflow of the rounded output.
 hasNonfiniteState :: HatVal n => Accum n -> Bool
@@ -919,11 +1152,7 @@ vals (v:@_) = [v]
 vals (Liner m _ _ _ _ _) =
     reverse $
         Map.foldl'
-            (\acc (Pair hs ns) ->
-                Foldable.foldl' (flip (:))
-                    (Foldable.foldl' (flip (:)) acc hs)
-                    ns
-            )
+            (foldPair (flip (:)) (flip (:)))
             []
             m
 
@@ -937,8 +1166,7 @@ bases (_:@b) = [b]
 bases (Liner m _ _ _ _ _) = Map.foldlWithKey' f [] m
     where
         f ::  (HatVal v, HatBaseClass b) => [b] -> BasePart b -> Pair v ->  [b]
-        f xs b (Pair {_hatSide = hs, _notSide = ns})
-            = Foldable.foldl' (g Not b) (Foldable.foldl' (g Hat b) xs hs) ns
+        f xs b = foldPair (g Hat b) (g Not b) xs
 
         g ::  (HatVal v, HatBaseClass b) => Hat -> BasePart b -> [b] -> v -> [b]
         g h b ys _ = (merge h b):ys
@@ -1028,8 +1256,10 @@ toList (v:@b)     = [v`Single`b]
 toList (Liner m _ _ _ _ _)  = Map.foldlWithKey' f [] m
     where
         f :: (HatVal v, HatBaseClass b) =>  [Alg v b] -> BasePart b -> Pair v -> [Alg v b]
-        f xs b Pair {_hatSide = hs, _notSide = ns}
-            = Foldable.foldl' (g Hat b) (Foldable.foldl' (g Not b) xs ns) hs
+        f xs b (HatOne v) = g Hat b xs v
+        f xs b (NotOne v) = g Not b xs v
+        f xs b (PairSeq hs ns) =
+            Foldable.foldl' (g Hat b) (Foldable.foldl' (g Not b) xs ns) hs
 
         g :: (HatVal v, HatBaseClass b) => Hat -> BasePart b -> [Alg v b] -> v -> [Alg v b]
         g h b ys v
@@ -1047,7 +1277,7 @@ toList (Liner m _ _ _ _ _)  = Map.foldlWithKey' f [] m
 -- accumulator, such as list append, this is only an ordinary left fold: its
 -- result records the actual traversal order and can distinguish different
 -- sequence orders of the same entry multiset.
-foldEntries :: (HatVal v, HatBaseClass b)
+foldEntries :: forall v b acc. (HatVal v, HatBaseClass b)
             => (acc -> v -> b -> acc)
             -> acc
             -> Alg v b
@@ -1059,11 +1289,13 @@ foldEntries f !acc (v :@ b)
 foldEntries f !acc (Liner m _ _ _ _ _) =
     Map.foldlWithKey' step acc m
   where
-    step !acc0 !bp (Pair hs ns) =
+    step :: acc -> BasePart b -> Pair v -> acc
+    step !acc0 !bp pair =
         let !hatBase = merge Hat bp
             !notBase = merge Not bp
-            !acc1 = Foldable.foldl' (\a v -> if isZeroValue v then a else f a v hatBase) acc0 hs
-        in Foldable.foldl' (\a v -> if isZeroValue v then a else f a v notBase) acc1 ns
+        in foldPair (entry hatBase) (entry notBase) acc0 pair
+    entry :: b -> acc -> v -> acc
+    entry b a v = if isZeroValue v then a else f a v b
 
 {-# INLINE toASCList #-}
 -- | Complexity: O(s log s), dominated by sorting the list representation.
@@ -1116,21 +1348,39 @@ map f (Liner m _ _ _ _ _) = mkAlgFromMap $ (Map.foldrWithKey (p f) dnilMap m) Ma
           -> Pair v
           -> DMap (BasePart b) (Pair v)
           -> DMap (BasePart b) (Pair v)
-        p fn b Pair {_hatSide=hs, _notSide=ns} accDList =
+        p fn b (HatOne v) accDList = pOne fn Hat b v accDList
+        p fn b (NotOne v) accDList = pOne fn Not b v accDList
+        p fn b (PairSeq hs ns) accDList =
             let (dl1, hs2) = q fn Hat b hs
                 (dl2, ns2) = q fn Not b ns
                 prefix     = dappendMap dl1 dl2
             in case (Seq.null hs2, Seq.null ns2) of
                 (True,True)   -> dappendMap prefix accDList
                 (True,False)  -> dappendMap prefix
-                               . dappendMap (dsingleMap (b, nullPair{_notSide = ns2}))
+                               . dappendMap (dsingleMap (b, mkPair Seq.empty ns2))
                                $ accDList
                 (False,True)  -> dappendMap prefix
-                               . dappendMap (dsingleMap (b, nullPair{_hatSide = hs2}))
+                               . dappendMap (dsingleMap (b, mkPair hs2 Seq.empty))
                                $ accDList
                 (False,False) -> dappendMap prefix
-                               . dappendMap (dsingleMap (b, Pair hs2 ns2))
+                               . dappendMap (dsingleMap (b, mkPair hs2 ns2))
                                $ accDList
+        pOne :: (HatVal v, HatBaseClass b)
+             => (Alg v b -> Alg v b)
+             -> Hat
+             -> BasePart b
+             -> v
+             -> DMap (BasePart b) (Pair v)
+             -> DMap (BasePart b) (Pair v)
+        pOne fn h bp v rest = case fn (v `Single` merge h bp) of
+            Zero -> rest
+            v2 :@ b2
+                | isZeroValue v2 -> rest
+                | b2 == (merge h bp) -> Map.insertWith pairAppend bp
+                    (if isHat h then HatOne v2 else NotOne v2) . rest
+                | isHat (hat b2) -> Map.insertWith pairAppend (base b2) (HatOne v2) . rest
+                | otherwise -> Map.insertWith pairAppend (base b2) (NotOne v2) . rest
+
         {-# INLINE q #-}
         q :: (HatVal v, HatBaseClass b)
           => (Alg v b -> Alg v b)
@@ -1158,10 +1408,10 @@ map f (Liner m _ _ _ _ _) = mkAlgFromMap $ (Map.foldrWithKey (p f) dnilMap m) Ma
                                 -- coordinate is a change of base, not \"the same base\".
                                 | b2 == (merge h b) -> (dlAcc, v2 Seq.<| vsAcc)
                                 | isHat (hat b2)     -> (dappendMap dlAcc (dsingleMap ( base b2
-                                                                          ,nullPair{_hatSide = Seq.singleton v2}))
+                                                                          ,HatOne v2))
                                                         ,vsAcc )
                                 | otherwise          -> (dappendMap dlAcc (dsingleMap ( base b2
-                                                                          ,nullPair{_notSide = Seq.singleton v2} ))
+                                                                          ,NotOne v2 ))
                                                         ,vsAcc )
 
 -- | Map every posting to exactly one posting. The typed form of 'map'.
@@ -1181,7 +1431,9 @@ mapMaybePosting f (Liner m _ _ _ _ _) =
     mkAlgFromMap $ Map.foldrWithKey addPair id m Map.empty
   where
     {-# INLINE addPair #-}
-    addPair bp (Pair hs ns) accDMap =
+    addPair bp (HatOne v) accDMap = mapOne (merge Hat bp) id v . accDMap
+    addPair bp (NotOne v) accDMap = mapOne (merge Not bp) id v . accDMap
+    addPair bp (PairSeq hs ns) accDMap =
         mapSide Hat bp hs . mapSide Not bp ns . accDMap
 
     {-# INLINE mapSide #-}
@@ -1197,8 +1449,8 @@ mapMaybePosting f (Liner m _ _ _ _ _) =
 
     {-# INLINE postingPair #-}
     postingPair v b
-        | isHat (hat b) = nullPair {_hatSide = Seq.singleton v}
-        | otherwise     = nullPair {_notSide = Seq.singleton v}
+        | isHat (hat b) = HatOne v
+        | otherwise     = NotOne v
 
 -- Difference-map (endo) used by 'map' to accumulate Liner rebuilds in O(1).
 -- NB. The plain difference-list helpers (dnil/dappend/dsingle/dToList/dFromList)
@@ -1223,35 +1475,21 @@ type DMap k v = Map.HashMap k v -> Map.HashMap k v
 -- 2.00:@Not:<Yen .+ 2.00:@Hat:<Amount
 
 
-filter :: (HatVal v, HatBaseClass b) => (Alg v b -> Bool) -> Alg v b -> Alg v b
+filter :: forall v b. (HatVal v, HatBaseClass b) => (Alg v b -> Bool) -> Alg v b -> Alg v b
 filter _ Zero                 = Zero
 filter f (v:@b) | f (v`Single`b)    = v`Single`b
                 | otherwise   = Zero
 
 filter f (Liner m _ _ _ _ _) =
-    -- Build a new Map using mapMaybeWithKey
-    let m' = Map.mapMaybeWithKey
-               (\basePart (Pair hs ns) ->
-                  -- Filter each of hs and ns
-                  let hs' = filterSide basePart Hat hs
-                      ns' = filterSide basePart Not ns
-                  in
-                    -- Remove the entry (Nothing) if both become empty
-                    if Seq.null hs' && Seq.null ns'
-                       then Nothing
-                       else Just (Pair hs' ns'))
-             m
-    in
-      -- If the resulting Map is empty, return Zero; otherwise Liner m'
-      if Map.null m' then Zero else linerFromMap m'
+    let selected = Map.mapMaybeWithKey select m
+    in if Map.null selected then Zero else linerFromMap selected
   where
-    ----------------------------------------------------------------
-    -- Filter function that constructs "v:@(merge h basePart)" from
-    -- basePart and Hat/Not, and tests whether it satisfies predicate f
-    ----------------------------------------------------------------
-    -- filterSide :: BasePart b -> Hat -> Seq v -> Seq v
-    {-# INLINE filterSide #-}
-    filterSide bp h = Seq.filter (\val -> f (val `Single` merge h bp))
+    select :: BasePart b -> Pair v -> Maybe (Pair v)
+    select bp pair =
+        let kept = filterPair (accept Hat bp) (accept Not bp) pair
+        in if pairNull kept then Nothing else Just kept
+    accept :: Hat -> BasePart b -> v -> Bool
+    accept h bp val = f (val `Single` merge h bp)
 
 ------------------------------------------------------------
 -- | Relabel the /base part/ of every element, preserving the Hat\/Not structure
@@ -1458,11 +1696,13 @@ proj (b:bs) (Liner m ~idx _ ~idToBp _ ~allIds) =
 {-# INLINE choosePairByHat #-}
 -- | Complexity: O(1)
 choosePairByHat :: Hat -> Pair v -> Pair v
-choosePairByHat h Pair {_hatSide = hs, _notSide = ns} =
-    case h of
-        Hat    -> nullPair {_hatSide = hs}
-        Not    -> nullPair {_notSide = ns}
-        HatNot -> Pair {_hatSide = hs, _notSide = ns}
+choosePairByHat HatNot p = p
+choosePairByHat Hat p@(HatOne _) = p
+choosePairByHat Not p@(NotOne _) = p
+choosePairByHat Hat (NotOne _) = nullPair
+choosePairByHat Not (HatOne _) = nullPair
+choosePairByHat Hat (PairSeq hs _) = mkPair hs Seq.empty
+choosePairByHat Not (PairSeq _ ns) = mkPair Seq.empty ns
 
 {-# INLINE projExactMap #-}
 -- | Exact (non-wildcard) single-base projection: a direct 'Map.lookup' on the
@@ -1485,9 +1725,8 @@ projExactMap
 projExactMap b m = case Map.lookup bp m of
         Nothing -> Map.empty
         Just p  -> case choosePairByHat h p of
-            selected@(Pair hs ns) -> case (Seq.null hs, Seq.null ns) of
-                (True, True) -> Map.empty
-                _            -> Map.singleton bp selected
+            selected | pairNull selected -> Map.empty
+                     | otherwise -> Map.singleton bp selected
   where
     !bp = base b
     !h  = hat b
@@ -1515,9 +1754,8 @@ projWildMap b m idx idToBp allIds =
                 Nothing -> acc
                 Just p
                     | matchesQuery bp bp0 -> case choosePairByHat h p of
-                        selected@(Pair hs ns) -> case (Seq.null hs, Seq.null ns) of
-                            (True, True) -> acc
-                            _            -> Map.insert bp0 selected acc
+                        selected | pairNull selected -> acc
+                                 | otherwise -> Map.insert bp0 selected acc
                     | otherwise -> acc)
         Map.empty
         ids
@@ -1537,10 +1775,9 @@ mkAlgFromMap m
 {-# INLINE singlePairToAlg #-}
 -- | Complexity: O(1)
 singlePairToAlg :: (HatVal v, HatBaseClass b) => BasePart b -> Pair v -> Maybe (Alg v b)
-singlePairToAlg b (Pair hs ns) = case (Seq.viewl hs, Seq.viewl ns) of
-    (Seq.EmptyL, n Seq.:< nsRest) | Seq.null nsRest -> Just (n `Single` merge Not b)
-    (h Seq.:< hsRest, Seq.EmptyL) | Seq.null hsRest -> Just (h `Single` merge Hat b)
-    _                                                 -> Nothing
+singlePairToAlg b (HatOne v) = Just (v `Single` merge Hat b)
+singlePairToAlg b (NotOne v) = Just (v `Single` merge Not b)
+singlePairToAlg _ (PairSeq _ _) = Nothing
 
 ------------------------------------------------------------------
 
@@ -1851,13 +2088,15 @@ decBy kf a@(v :@ b)
 decBy kf (Liner m _ _ _ _ _) =
     M.map mkAlgFromMap (Map.foldlWithKey' step M.empty m)
   where
-    step !acc !bp (Pair hs ns) =
+    step !acc !bp p@(HatOne _) = insertSide (merge Hat bp) bp p acc
+    step !acc !bp p@(NotOne _) = insertSide (merge Not bp) bp p acc
+    step !acc !bp (PairSeq hs ns) =
         let !acc1 = if Seq.null hs
                 then acc
-                else insertSide (merge Hat bp) bp (nullPair {_hatSide = hs}) acc
+                else insertSide (merge Hat bp) bp (mkPair hs Seq.empty) acc
         in if Seq.null ns
                 then acc1
-                else insertSide (merge Not bp) bp (nullPair {_notSide = ns}) acc1
+                else insertSide (merge Not bp) bp (mkPair Seq.empty ns) acc1
     {-# INLINE insertSide #-}
     insertSide hb bp p acc = case kf hb of
         Nothing -> acc
