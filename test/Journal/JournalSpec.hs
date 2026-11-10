@@ -12,6 +12,9 @@ import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Map.Strict     as M
 import qualified Data.List           as L
+import qualified Data.Binary         as Binary
+import Data.Binary.Put (runPut)
+import Control.DeepSeq (rnf)
 import Control.Monad (forM_)
 import Test.QuickCheck hiding (Fixed)
 import Support (TestComparison(..)
@@ -499,6 +502,49 @@ testFinalStockTransferEquivalence = do
             assertEqual "Journal closing records additions under the settlement note"
                 (Just entries) (HM.lookup "closing" (EJ.toMap closed))
 
+-- | Preserve axis queries and legacy bytes across construction and compaction.
+-- Distinct notes can be reordered; repeated notes keep their posting order.
+-- All values and notes are total; arbitrary bottoms are outside this contract.
+testLazyDeltaAxisCompatibility :: IO ()
+testLazyDeltaAxisCompatibility = forM_ [0, 1, 127, 128, 129, 260] $ \count -> do
+    let posting :: Int -> EA.Alg Double (HatBase CountUnit)
+        posting amount = fromIntegral amount .@ (Not :< Yen)
+
+        note :: Int -> (String, Int)
+        note index = ("event", index)
+
+        entries = [(note index, posting 1 .+ posting 2) | index <- [1 .. count]]
+        expectedMap = HM.fromList entries
+        singletons :: Int -> [AxisJournal]
+        singletons amount = [posting amount .| note index | index <- [1 .. count]]
+
+        forward = foldl (<>) mempty (singletons 1 ++ singletons 2)
+        reordered = foldl (<>) mempty (reverse (singletons 1) ++ reverse (singletons 2))
+        fromMap = EJ.fromMap expectedMap
+        splitLayers = EJ.mkJournal
+            (HM.fromList [(note index, posting 1) | index <- [1 .. count]])
+            (HM.fromList [(note index, posting 2) | index <- [1 .. count]])
+        legacyBytes = runPut $ do
+            Binary.put (HM.size expectedMap :: Int)
+            HM.foldrWithKey
+                (\key algebra rest -> Binary.put key >> Binary.put algebra >> rest)
+                (pure ()) expectedMap
+
+    forM_ [forward, reordered, fromMap, splitLayers] $ \journal -> do
+        assertEqual "lazy delta: note map" expectedMap (EJ.toMap journal)
+        assertEqual "lazy delta: legacy Binary bytes" legacyBytes (Binary.encode journal)
+        rnf journal `seq` pure ()
+        forM_ [0, 1, count, count + 1] $ \index -> do
+            let expected = HM.filterWithKey (\(_, term) _ -> term == index) expectedMap
+                selected = EJ.filterByAxis 1 (EJ.NoteAxisKey index) journal
+            assertEqual "lazy delta: axis query after NFData" expected (EJ.toMap selected)
+            assertEqual "lazy delta: repeated axis query" expected
+                (EJ.toMap (EJ.filterByAxis 1 (EJ.NoteAxisKey index) journal))
+        -- Querying a shared predecessor must not leave a stale index on append.
+        let extended = journal <> (posting 3 .| note (count + 1))
+        assertEqual "lazy delta: append after query" (HM.singleton (note (count + 1)) (posting 3))
+            (EJ.toMap (EJ.filterByAxis 1 (EJ.NoteAxisKey (count + 1)) extended))
+
 -- | Run this domain in its original relative test order.
 runTests :: IO ()
 runTests = do
@@ -508,3 +554,4 @@ runTests = do
     testJournalProjectionNorms
     testReplaceNotes
     journalProperties
+    testLazyDeltaAxisCompatibility

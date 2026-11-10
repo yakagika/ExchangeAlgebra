@@ -21,6 +21,11 @@
   - `contraryNominalPostings`: revenue or expense posting opposite to its
     home side, outside closing transactions (`Warning`).
 
+### Changed
+
+- Reduce allocation in `MoneyDouble` Binary encoding without changing its bytes.
+- Build the Journal delta note-axis index only when an axis query needs it.
+
 ### Deprecated
 
 - `TBFinding`, `trialBalanceFindings`, `TrialBalanceInput`, and

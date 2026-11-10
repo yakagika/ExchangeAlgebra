@@ -258,6 +258,7 @@ tests:
     - Transfer.RuleSpec
     - Transfer.BalanceSpec
     - Value.MoneyParseSpec
+    - Value.MoneyDoubleBinarySpec
     ghc-options:
     - -threaded
     - -rtsopts

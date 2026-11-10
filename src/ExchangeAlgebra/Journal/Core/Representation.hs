@@ -9,6 +9,7 @@
 {-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE ExistentialQuantification  #-}
 {-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
 
 -- | Generic journals, note indices, and redundancy-preserving operations.
 -- This Journal layer owns the representation and instances for Definitions 10-12.
@@ -116,28 +117,6 @@ insertNoteAxisPosting !keys !note !idx =
             !axisMap' = Map.insert k notes1 axisMap
             !acc' = IntMap.insert axis axisMap' acc
         in (axis + 1, acc')
-
-{-# INLINE deleteNoteAxisPosting #-}
--- | Complexity: O(d) where d is the number of axes in the Note
-deleteNoteAxisPosting :: (Eq n, Hashable n) => [NoteAxisKey] -> n -> NoteAxisPosting n -> NoteAxisPosting n
-deleteNoteAxisPosting !keys !note !idx =
-    snd $ L.foldl' step (0 :: Int, idx) keys
-  where
-    step (!axis, !acc) !k =
-        case IntMap.lookup axis acc of
-            Nothing -> (axis + 1, acc)
-            Just axisMap ->
-                case Map.lookup k axisMap of
-                    Nothing -> (axis + 1, acc)
-                    Just notes0 ->
-                        let !notes1 = HSet.delete note notes0
-                            !axisMap' = if HSet.null notes1
-                                        then Map.delete k axisMap
-                                        else Map.insert k notes1 axisMap
-                            !acc' = if Map.null axisMap'
-                                    then IntMap.delete axis acc
-                                    else IntMap.insert axis axisMap' acc
-                        in (axis + 1, acc')
 
 {-# INLINE queryNoteAxisPosting #-}
 -- | Query the NoteAxisPosting index for a single axis.
@@ -262,7 +241,9 @@ instance (Note a, Note b, Note c, Note d) => Note (a, b, c, d) where
 
 -- | Transaction data with annotations.
 --   Stored in a base + delta two-layer structure with per-axis indices.
---   Base index is lazy (built on first axis query), while delta index is updated incrementally.
+--   Both indices are built on the first axis query; each append leaves a fresh,
+--   unevaluated delta index, so alternating queries and appends rebuild it in time
+--   proportional to the delta note count, bounded by compaction at 128 notes.
 --   Updates are appended only to delta and periodically compacted into base.
 --
 --   __Invariants.__ The constructor is not exported; build with 'mkJournal',
@@ -289,7 +270,9 @@ data Journal n v b where
             => { _jBase      :: !(Map.HashMap n (Alg v b))
                , _jDelta     :: !(Map.HashMap n (Alg v b))
                , _jBaseAxis  :: NoteAxisPosting n
-               , _jDeltaAxis :: !(NoteAxisPosting n)
+               , _jDeltaAxis :: NoteAxisPosting n
+                 -- ^ Built lazily: only 'filterByAxis' reads this cache.
+                 -- A strict field builds an index on every '(.|)' and append.
                } -> Journal n v b
 
 deltaCompactThreshold :: Int
@@ -312,8 +295,7 @@ buildNoteAxisPosting =
 -- given, and only a map that holds one is rebuilt without it.
 --
 -- Complexity: O(n) where n is the number of notes in both layers; each note's
--- algebra is evaluated to WHNF. The base axis index is lazy, while the delta
--- axis index is built eagerly.
+-- algebra is evaluated to WHNF. Both axis indices are built lazily on demand.
 {-# INLINE mkJournal #-}
 mkJournal :: (Note n, HatVal v, HatBaseClass b)
           => Map.HashMap n (Alg v b) -> Map.HashMap n (Alg v b) -> Journal n v b
@@ -329,14 +311,14 @@ mkJournal bs delta = mkJournalNonZero base' delta'
 -- Internal constructor for callers that already hold the normal form (see the
 -- invariants note on t'Journal'): neither map may hold a note whose algebra is
 -- zero. It does not check this. It builds the Note-axis indices as
--- 'mkJournal' does: the base axis index lazily, the delta axis index eagerly.
+-- 'mkJournal' does: both axis indices are built lazily on demand.
 {-# INLINE mkJournalNonZero #-}
 mkJournalNonZero :: (Note n, HatVal v, HatBaseClass b)
                  => Map.HashMap n (Alg v b) -> Map.HashMap n (Alg v b) -> Journal n v b
 mkJournalNonZero bs delta = Journal bs delta baseIdx deltaIdx
   where
     ~baseIdx = buildNoteAxisPosting bs
-    !deltaIdx = buildNoteAxisPosting delta
+    ~deltaIdx = buildNoteAxisPosting delta
 
 -- | Construct a Journal from a HashMap. A note whose algebra is zero is
 -- dropped (see 'mkJournal').
@@ -393,34 +375,26 @@ compactIfNeeded j@(Journal bs delta _ _)
     | otherwise = mkJournalNonZero (Map.unionWith (.+) bs delta) Map.empty
 
 {-# INLINE appendMap #-}
-appendMap :: (HatVal v, HatBaseClass b, Note n)
+appendMap :: forall v b n. (HatVal v, HatBaseClass b, Note n)
           => Map.HashMap n (Alg v b) -> Journal n v b -> Journal n v b
-appendMap rhs j@(Journal bs delta baseAxis deltaAxis)
+appendMap rhs j@(Journal bs delta baseAxis _)
     | Map.null rhs = j
     | otherwise = compactIfNeeded $ Journal bs delta' baseAxis deltaAxis'
   where
-    (delta', deltaAxis') = Map.foldlWithKey' step (delta, deltaAxis) rhs
+    ~deltaAxis' = buildNoteAxisPosting delta'
+    !delta' = Map.foldlWithKey' step delta rhs
 
-    step (!dAcc, !idxAcc) !k !v =
+    step :: Map.HashMap n (Alg v b) -> n -> Alg v b -> Map.HashMap n (Alg v b)
+    step !dAcc !k !v =
         case Map.lookup k dAcc of
-            -- New note key: index it (insert) unless the value is zero.
             Nothing
-                | EA.isZero v -> (dAcc, idxAcc)
-                | otherwise   ->
-                    ( Map.insert k v dAcc
-                    , insertNoteAxisPosting (toNoteAxisKeys k) k idxAcc )
-            -- Existing note key: 'k' is already in the delta axis index
-            -- (the index tracks exactly the keys present in delta, and the
-            -- note IS the key, so its axis keys are unchanged). The
-            -- re-insert was therefore idempotent — skip it. Only a result
-            -- that collapses to zero changes the index, via delete
-            -- (audit R5 / ROAD_MAP P1b).
+                | EA.isZero v -> dAcc
+                | otherwise   -> Map.insert k v dAcc
             Just dv ->
                 let !dMerged = dv .+ v
                 in if EA.isZero dMerged
-                    then ( Map.delete k dAcc
-                         , deleteNoteAxisPosting (toNoteAxisKeys k) k idxAcc )
-                    else ( Map.insert k dMerged dAcc, idxAcc )
+                    then Map.delete k dAcc
+                    else Map.insert k dMerged dAcc
 
 -- | Serialize a journal as its note count followed by each note and its
 -- algebra. Decoding checks each algebra as the 'Alg' instance does and fails

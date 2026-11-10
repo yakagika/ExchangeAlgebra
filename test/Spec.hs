@@ -2,6 +2,7 @@
 module Main (main) where
 
 import qualified Value.MoneyParseSpec as MoneyParseSpec
+import qualified Value.MoneyDoubleBinarySpec as MoneyDoubleBinarySpec
 import qualified Algebra.ExactReadoutSpec as ExactReadoutSpec
 import qualified Algebra.AccumSpec as AccumSpec
 import qualified Algebra.ExactSumSpec as ExactSumSpec
@@ -30,6 +31,7 @@ main = do
     ExactReadoutSpec.runTests
     AccumSpec.runTests
     MoneyParseSpec.runTests
+    MoneyDoubleBinarySpec.runTests
     ExactSumSpec.runTests
     AdmissionSpec.runTests
     TransferRuleSpec.runTests

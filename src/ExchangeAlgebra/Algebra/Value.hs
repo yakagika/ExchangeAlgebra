@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE DerivingStrategies         #-}
 
@@ -97,7 +98,9 @@ import           ExchangeAlgebra.Algebra.Value.Class ( HatVal (..)
                                                      )
 import           Data.Decimal            (Decimal, DecimalRaw (Decimal), normalizeDecimal, roundTo')
 import           Data.Ratio              (numerator, denominator)
-import           Data.Word               (Word8)
+import           Data.Word               (Word8, Word64)
+import           Data.Int                (Int64)
+import           Data.Bits               (countLeadingZeros, shiftR)
 import           Data.Scientific         (Scientific, coefficient, base10Exponent)
 import qualified Data.Scientific         as Scientific
 import           Data.Text               (Text)
@@ -105,6 +108,8 @@ import qualified Data.Text               as Text
 import           Data.Hashable           (Hashable (..))
 import           Control.DeepSeq         (NFData (..))
 import qualified Data.Binary             as Binary
+import qualified Data.Binary.Put         as BinPut
+import qualified Data.ByteString.Builder as BB
 
 -- | A non-negative exact decimal value (wraps 'Data.Decimal.Decimal').
 --
@@ -377,7 +382,7 @@ instance NFData MoneyDecimal where
 -- This is the @newtype@ counterpart of the bare-@Double@ instance: a dedicated,
 -- domain-specific money type so a ledger value cannot be silently confused with
 -- an ABM coefficient, a random draw, or any other raw 'Double'. Every instance
--- it needs is owned here (via @deriving newtype@), so — exactly like
+-- it needs is owned here, so — exactly like
 -- t'MoneyDecimal' — there are no orphan instances. Use t'MoneyDouble' for the same
 -- speed as bare 'Double' while keeping the value type distinct in signatures.
 --
@@ -392,13 +397,54 @@ instance NFData MoneyDecimal where
 -- @isNaN x || isInfinite x || x < 0@, so the @(.\@)@ smart constructor and
 -- @(.*)@ reject negative\/non-finite values.
 newtype MoneyDouble = MoneyDouble Double
-  -- All instances are coerced from the existing bare-'Double' instances
-  -- ('Nearly'/'HatVal' live in "ExchangeAlgebra.Algebra"; 'Binary'/'Hashable'/
-  -- 'NFData' come from the binary/hashable/deepseq packages), so t'MoneyDouble'
-  -- is a zero-cost wrapper with identical numeric behavior and 2-decimal
-  -- 'showValue' formatting.
+  -- Derived instances delegate to bare 'Double'. 'HatVal' delegates by hand
+  -- with 2-decimal 'showValue' formatting; 'Binary.Binary' uses a compatible
+  -- encoder below and the binary package's 'Double' decoder.
   deriving newtype ( Eq, Ord, Show, Num, Fractional, Real, RealFrac
-                   , Nearly, Hashable, NFData, Binary.Binary )
+                   , Nearly, Hashable, NFData )
+
+-- | Encode exactly the same bytes as the binary package's 'Double' instance.
+-- Its encoder expands the mantissa into an Integer byte list; writing the
+-- mantissa directly with a builder avoids that intermediate allocation.
+-- Decoding retains the 'Double' instance's behavior, including non-finite values.
+instance Binary.Binary MoneyDouble where
+    {-# INLINE put #-}
+    put (MoneyDouble d) = putDoubleCompat d
+    get = MoneyDouble <$> Binary.get
+
+-- | Write the binary package's mantissa/exponent representation of a 'Double'.
+-- Invariant: decodeFloat returns a mantissa that fits in Int64, including
+-- zero, subnormal, infinite, and NaN inputs on the supported Double runtime.
+putDoubleCompat :: Double -> Binary.Put
+putDoubleCompat d = case decodeFloat d of
+    (mi, e) ->
+        let !m = fromInteger mi :: Int64
+        in BinPut.putBuilder (mant m <> BB.int64BE (fromIntegral e))
+  where
+    mant :: Int64 -> BB.Builder
+    mant m
+        | m >= -2147483648 && m <= 2147483647 =
+            BB.word8 0 <> BB.int32BE (fromIntegral m)
+        | otherwise =
+            let !a = fromIntegral (abs m) :: Word64
+                !n = byteLen a
+            in BB.word8 1 <> BB.word8 (signByte m)
+                 <> BB.int64BE (fromIntegral n) <> bytesLE n a
+
+    signByte :: Int64 -> Word8
+    signByte m
+        | m < 0     = 255
+        | otherwise = 1
+
+    byteLen :: Word64 -> Int
+    byteLen a = (64 - countLeadingZeros a + 7) `quot` 8
+
+    bytesLE :: Int -> Word64 -> BB.Builder
+    bytesLE 7 a = BB.word32LE (fromIntegral a)
+               <> BB.word16LE (fromIntegral (a `shiftR` 32))
+               <> BB.word8 (fromIntegral (a `shiftR` 48))
+    bytesLE 0 _ = mempty
+    bytesLE k a = BB.word8 (fromIntegral a) <> bytesLE (k - 1) (a `shiftR` 8)
 
 -- | Delegates to the 'Prelude.Double' accumulator. Written by hand because the
 -- associated data family 'Accum' cannot be derived through a newtype.
