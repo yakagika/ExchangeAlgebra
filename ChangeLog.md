@@ -4,6 +4,11 @@
 
 ### Added
 
+- `DirectorsCompensations` (役員報酬, remuneration for directors and other officers) in
+  `AccountTitles`: a cost account distinct from `WageExpenditure`. The Japanese name `役員報酬`
+  resolves to it on import. The wildcard `AccountTitle` keeps the last ordinal, so its ordinal shifts
+  by one.
+
 - `ExchangeAlgebra.Accounting.Audit` provides audits that report one type of
   accounting anomaly each, without blocking any computation. Every audit
   returns `AuditResult`: `NoProblem`, `Warning` for findings with legitimate

@@ -242,3 +242,4 @@ GoodsInTransit	Assets	False	Debit	Credit	PS	Current	Nothing
 SalesAllowances	Revenue	True	Debit	Credit	OUT	Other	Flip
 PurchaseAllowances	Cost	True	Credit	Debit	IN	Other	Keep
 ReversalOfAllowanceForBonuses	Revenue	False	Credit	Debit	IN	Other	Keep
+DirectorsCompensations	Cost	False	Debit	Credit	OUT	Other	Flip

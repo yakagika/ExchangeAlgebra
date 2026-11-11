@@ -75,6 +75,7 @@ DepositsReceived
 DepositsReceivedFromOfficers
 Depreciation
 DevelopmentExpenses
+DirectorsCompensations
 DishonoredNotesReceivable
 DividendEqualizationReserve
 DividendsReceived

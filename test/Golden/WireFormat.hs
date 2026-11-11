@@ -170,7 +170,7 @@ checkFixture :: IO ()
 checkFixture = do
     let path = fixtureDir ++ "/wire-format.tsv"
         boundaryPath = fixtureDir ++ "/decode-boundaries.tsv"
-    unless (length cases == 287 && length rejected == 23 && length accepted == 1)
+    unless (length cases == 288 && length rejected == 23 && length accepted == 1)
         (fail "wire-format-p2: case count differs")
     regen <- lookupEnv "EA_REGEN_GOLDEN"
     case regen of
@@ -233,7 +233,7 @@ rejected =
                         , Rule.relabel (Hat :< Cash) (Hat :< Sales)]
             :: [Rule.TransferRule Double WireBase])
             :: BL.ByteString) (Proxy :: Proxy (Rule.TransferRules Double WireBase))
-    , DecodeCase "AccountTitles unused code" (Put.runPut (Put.putWord16be 0x80F3))
+    , DecodeCase "AccountTitles unused code" (Put.runPut (Put.putWord16be 0x80F4))
         (Proxy :: Proxy AccountTitles)
     , DecodeCase "AccountTitles old code" (Put.runPut (Put.putWord16be 0x0000))
         (Proxy :: Proxy AccountTitles)

@@ -1,10 +1,10 @@
 module	names
 ExchangeAlgebra.Accounting.PostingPolicy	7
-ExchangeAlgebra.Accounting	359
+ExchangeAlgebra.Accounting	360
 ExchangeAlgebra.Algebra.Base.Account.JcciAliases	1
 ExchangeAlgebra.Algebra.Base.Account.Registry	23
 ExchangeAlgebra.Algebra.Base.Account.Types	46
-ExchangeAlgebra.Algebra.Base.Element	277
+ExchangeAlgebra.Algebra.Base.Element	278
 ExchangeAlgebra.Algebra.Base	54
 ExchangeAlgebra.Algebra.Internal	130
 ExchangeAlgebra.Algebra.Transfer.Rule	36
@@ -43,4 +43,4 @@ ExchangeAlgebra.Simulate	89
 ExchangeAlgebra.TrialBalance.Balance	12
 ExchangeAlgebra.TrialBalance.Validation	35
 ExchangeAlgebra.Value	13
-ExchangeAlgebra	675
+ExchangeAlgebra	676

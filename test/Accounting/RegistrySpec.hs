@@ -67,11 +67,11 @@ testAccountTitlesBinary = do
         roundTripped = L.map (Binary.decode . Binary.encode) titles
         codes = L.map (BinaryGet.runGet BinaryGet.getWord16be . Binary.encode) titles
         invalidCodes = [0x0000, 0x0001, 0x00F2, 0x7FFF, 0x8000 + fromIntegral (length titles)]
-    assertEqual "AccountTitles Binary covers all 244 constructors"
-        244 (L.length titles)
+    assertEqual "AccountTitles Binary covers all 245 constructors"
+        245 (L.length titles)
     assertEqual "AccountTitles Binary Word16be roundtrip"
         titles roundTripped
-    assertEqual "B4 AccountTitles codes are injective" 244 (Set.size (Set.fromList codes))
+    assertEqual "B4 AccountTitles codes are injective" 245 (Set.size (Set.fromList codes))
     assertEqual "B4 AccountTitles codes carry the version bit" True (all (>= 0x8000) codes)
     assertEqual "B4 wildcard code is fixed" (BinaryPut.runPut (BinaryPut.putWord16be 0xFFFF))
         (Binary.encode AccountTitle)
@@ -369,6 +369,7 @@ accountTitleClassTable =
     , (GoodsInTransit, Assets, Debit, Current)
     , (SalesAllowances, Revenue, Debit, Other)
     , (PurchaseAllowances, Cost, Credit, Other)
+    , (DirectorsCompensations, Cost, Debit, Other)
     ]
 
 testAccountTitleClassification :: IO ()
@@ -475,7 +476,7 @@ testVocabOrdinalPin = do
     assertEqual "vocab ordinal pin: new constructors sit between max pinned and wildcard"
         [] misplaced
     assertEqual "vocab ordinal pin: appended constructor ordinals and wildcard"
-        [232..243]
+        [232..244]
         (L.map fromEnum
             [ ConsumptionTaxRefundReceivable
             , PropertyTaxPayable
@@ -488,6 +489,7 @@ testVocabOrdinalPin = do
             , SalesAllowances
             , PurchaseAllowances
             , ReversalOfAllowanceForBonuses
+            , DirectorsCompensations
             , AccountTitle
             ])
     -- concreteAccountTitles は wildcard 以外の全 constructor を被覆すること。
@@ -500,7 +502,7 @@ testVocabOrdinalPin = do
 
 testAssistAllAccountInfos :: IO ()
 testAssistAllAccountInfos = do
-    assertEqual "Assist.allAccountInfos length" 243 (length Assist.allAccountInfos)
+    assertEqual "Assist.allAccountInfos length" 244 (length Assist.allAccountInfos)
     assertEqual "Assist.allAccountInfos follows concreteAccountTitles order"
         PP.concreteAccountTitles (L.map Assist.aiTitle Assist.allAccountInfos)
     forM_ Assist.allAccountInfos $ \info -> do
@@ -547,8 +549,8 @@ testAccountSemanticsRegistryInvariants = do
                 StatementDivision _ -> False
                 _                   -> True
             ]
-    assertEqual "metadata covers all 243 concrete titles"
-        243 (L.length semantics)
+    assertEqual "metadata covers all 244 concrete titles"
+        244 (L.length semantics)
     assertEqual "metadata rejects wildcard AccountTitle"
         Nothing (Registry.accountSemantics AccountTitle)
     assertEqual "non-statement metadata is exactly the reviewed exception set"
@@ -684,8 +686,8 @@ testAccountSemanticsGolden = do
             accountRegistryHeader
                 (T.pack "LLM AccountInfo (title, roles, posting, divisionSemantics, homeSideSemantics, reportingEligibility, nameEn, nameJa, description)")
             <> T.unlines (L.map accountRegistryInfoRow Assist.allAccountInfos)
-    assertEqual "metadata fixture has 243 rows"
-        243 (L.length (L.drop 1 (T.lines metadata)))
+    assertEqual "metadata fixture has 244 rows"
+        244 (L.length (L.drop 1 (T.lines metadata)))
     assertEqual "metadata fixture" metadata expectedMetadata
     assertEqual "LLM AccountInfo fixture" info expectedInfo
     assertEqual "LLM suggestion fixture"
@@ -1000,6 +1002,9 @@ testAdmissionBaselineGolden = do
 testAliasResolutionGolden :: IO ()
 testAliasResolutionGolden = do
     let path = "test/fixtures/registry-aliases/alias-resolution.tsv"
+    assertEqual "directors remuneration parses without changing wages or directors bonuses"
+        (L.map Right [DirectorsCompensations, WageExpenditure, Bonuses])
+        (L.map EC.parseAccountTitle [T.pack "役員報酬", T.pack "給料", T.pack "役員賞与"])
     aliases <- TIO.readFile path
     assertEqual "alias resolution golden: query count"
         703 (L.length (L.filter (not . T.null) (L.drop 1 (T.lines aliases))))
@@ -1135,8 +1140,8 @@ testJapaneseAccountLabels = do
             , any (`T.isInfixOf` label) forbidden
                 || T.any (\c -> isAscii c && isAlpha c) label
             ]
-    assertEqual "asLabelJa covers all 243 concrete titles"
-        243 (L.length labels)
+    assertEqual "asLabelJa covers all 244 concrete titles"
+        244 (L.length labels)
     assertEqual "asLabelJa contains only cleaned Japanese account names"
         ([] :: [(AccountTitles, T.Text)]) invalid
 

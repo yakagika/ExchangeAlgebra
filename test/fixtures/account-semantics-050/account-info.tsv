@@ -242,3 +242,4 @@ GoodsInTransit	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Assets	FixedH
 SalesAllowances	[OrdinaryAccount,ContraAccount]	OrdinaryPosting	StatementDivision Revenue	FixedHomeSide Debit	StatementEligible	Sales allowances	売上値引	Revenue: Sales allowances (売上値引)
 PurchaseAllowances	[OrdinaryAccount,ContraAccount]	OrdinaryPosting	StatementDivision Cost	FixedHomeSide Credit	StatementEligible	Purchase allowances	仕入値引	Cost: Purchase allowances (仕入値引)
 ReversalOfAllowanceForBonuses	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Revenue	FixedHomeSide Credit	StatementEligible	Reversal of provision for bonuses	賞与引当金戻入	Revenue: Reversal of provision for bonuses (賞与引当金戻入)
+DirectorsCompensations	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Cost	FixedHomeSide Debit	StatementEligible	Remuneration for directors (and other officers)	役員報酬	Cost: Remuneration for directors (役員報酬)

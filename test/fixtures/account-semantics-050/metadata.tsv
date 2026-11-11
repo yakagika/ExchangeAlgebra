@@ -242,3 +242,4 @@ GoodsInTransit	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Assets	FixedH
 SalesAllowances	[OrdinaryAccount,ContraAccount]	OrdinaryPosting	StatementDivision Revenue	FixedHomeSide Debit	StatementEligible
 PurchaseAllowances	[OrdinaryAccount,ContraAccount]	OrdinaryPosting	StatementDivision Cost	FixedHomeSide Credit	StatementEligible
 ReversalOfAllowanceForBonuses	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Revenue	FixedHomeSide Credit	StatementEligible
+DirectorsCompensations	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Cost	FixedHomeSide Debit	StatementEligible

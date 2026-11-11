@@ -145,6 +145,7 @@ rolesFor title _ = case title of
     MeetingExpenses                                -> [OrdinaryAccount]
     NewspaperBooksExpenses                         -> [OrdinaryAccount]
     WageExpenditure                                -> [OrdinaryAccount]
+    DirectorsCompensations                         -> [OrdinaryAccount]
     InterestExpense                                -> [OrdinaryAccount]
     TaxesExpense                                   -> [OrdinaryAccount]
     ConsumptionExpenditure                         -> [OrdinaryAccount]
@@ -392,6 +393,7 @@ postingFor title = case title of
     MeetingExpenses                                -> OrdinaryPosting
     NewspaperBooksExpenses                         -> OrdinaryPosting
     WageExpenditure                                -> OrdinaryPosting
+    DirectorsCompensations                         -> OrdinaryPosting
     InterestExpense                                -> OrdinaryPosting
     TaxesExpense                                   -> OrdinaryPosting
     ConsumptionExpenditure                         -> OrdinaryPosting
@@ -639,6 +641,7 @@ divisionFor title spec = case title of
     MeetingExpenses                                -> StatementDivision (asDivision spec)
     NewspaperBooksExpenses                         -> StatementDivision (asDivision spec)
     WageExpenditure                                -> StatementDivision (asDivision spec)
+    DirectorsCompensations                         -> StatementDivision (asDivision spec)
     InterestExpense                                -> StatementDivision (asDivision spec)
     TaxesExpense                                   -> StatementDivision (asDivision spec)
     ConsumptionExpenditure                         -> StatementDivision (asDivision spec)
@@ -886,6 +889,7 @@ homeSideFor title spec = case title of
     MeetingExpenses                                -> FixedHomeSide (legacyHomeSide spec)
     NewspaperBooksExpenses                         -> FixedHomeSide (legacyHomeSide spec)
     WageExpenditure                                -> FixedHomeSide (legacyHomeSide spec)
+    DirectorsCompensations                         -> FixedHomeSide (legacyHomeSide spec)
     InterestExpense                                -> FixedHomeSide (legacyHomeSide spec)
     TaxesExpense                                   -> FixedHomeSide (legacyHomeSide spec)
     ConsumptionExpenditure                         -> FixedHomeSide (legacyHomeSide spec)
@@ -1150,6 +1154,7 @@ reportingFor title = case title of
     MeetingExpenses                                -> StatementEligible
     NewspaperBooksExpenses                         -> StatementEligible
     WageExpenditure                                -> StatementEligible
+    DirectorsCompensations                         -> StatementEligible
     InterestExpense                                -> StatementEligible
     TaxesExpense                                   -> StatementEligible
     ConsumptionExpenditure                         -> StatementEligible
@@ -4035,6 +4040,17 @@ accountSpec DepositsReceivedFromOfficers = Just AccountSpec
     , asLabelJa = "役員預り金"
     , asDescription = "Liability: Deposits received from officers (役員預り金)"
     , asAliases = ["役員預り金"]
+    }
+accountSpec DirectorsCompensations = Just AccountSpec
+    { asDivision = Cost
+    , asClosing = CloseByDivision
+    , asIsContra = False
+    , asFixedCurrent = Other
+    , asNameEn = "Remuneration for directors (and other officers)"
+    , asNameJa = "役員報酬"
+    , asLabelJa = "役員報酬"
+    , asDescription = "Cost: Remuneration for directors (役員報酬)"
+    , asAliases = ["役員報酬"]
     }
 accountSpec AccountTitle = Nothing
 
