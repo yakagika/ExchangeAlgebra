@@ -72,6 +72,9 @@
   `docs/admission-api-design-notes.md`, an internal design note. The behavior
   of `ExchangeAlgebra.IO.Input.Admission` is documented in its Haddock.
 
+- The unused dependency on `numeric-prelude`. No module has imported it since the `NN.Double`
+  instances were removed in 0.6.0.0. The public API is unchanged.
+
 ## 0.6.0.1 - 2026-11-09
 
 ### Fixed
