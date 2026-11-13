@@ -18,7 +18,8 @@ and an amount---into exchange-algebra 'Alg' terms, and back. The format glue
 so the algebra core stays serialization-free.
 
 The mapping from a debit\/credit side to the @Hat@\/@Not@ marker is derived from
-the library's own 'whichSide', so the credit\/debit semantics are never duplicated.
+the library's own 'ExchangeAlgebra.Accounting.Exchange.whichSide', so the
+credit\/debit semantics are never duplicated.
 Unknown or wildcard account names are rejected (a /correct-by-construction/ guard
 against hallucinated accounts). Account names that are genuinely ambiguous (one
 Japanese label shared by several constructors, e.g. @準備預金@ for both the asset
@@ -45,11 +46,14 @@ import qualified Data.List as L
 import           Data.Text (Text)
 import qualified Data.Text as T
 
-import           ExchangeAlgebra.Algebra.Core ( Alg, Redundant((.+)), (.@) )
+import           ExchangeAlgebra.Algebra.Core (Alg)
 import           ExchangeAlgebra.Algebra.Value.Class (HatVal)
-import           ExchangeAlgebra.Algebra.Base.Representation (HatBase(..), Hat(..))
+import           ExchangeAlgebra.Algebra.Base.Representation (HatBase, Hat(..))
 import           ExchangeAlgebra.Accounting.Account (AccountTitles(..), Side(..), accountAliases)
-import           ExchangeAlgebra.Accounting.Exchange (whichSide)
+import           ExchangeAlgebra.Accounting.Exchange ( hatForSide
+                                                    , postingForSide
+                                                    , journalForSides
+                                                    )
 import           ExchangeAlgebra.Accounting.Account.Registry ( concreteAccountTitles )
 
 -- $setup
@@ -184,9 +188,11 @@ parseSide t = case normalizeTitle t of
     _        -> Left (UnknownSide t)
 
 -- | The @Hat@\/@Not@ marker that places @account@ on the requested debit\/credit
--- @side@. Derived from the library's 'whichSide' so the credit\/debit rule is not
--- duplicated: an account sits on its \"natural\" side under 'Not'; if the
+-- @side@. Derived from 'ExchangeAlgebra.Accounting.Exchange.whichSide' so the
+-- credit\/debit rule is not duplicated: an account sits on its \"natural\" side under 'Not'; if the
 -- requested side differs, the v'Hat' (reversal) marker is used.
+--
+-- Use 'hatForSide' for bases with additional axes.
 --
 -- >>> markerForSide Debit Cash
 -- Not
@@ -197,13 +203,14 @@ parseSide t = case normalizeTitle t of
 -- >>> markerForSide Debit Sales
 -- Hat
 markerForSide :: Side -> AccountTitles -> Hat
-markerForSide side account
-    | whichSide (Not :< account) == side = Not
-    | otherwise                          = Hat
+markerForSide = hatForSide
 
 -- | Build a single posting term: @amount .\@ (marker :< account)@, with the
 -- marker chosen so the posting lands on @side@. Built through the smart
--- constructor '(.@)' so the non-negative\/non-error value invariant is enforced.
+-- constructor 'ExchangeAlgebra.Algebra.Core..@' so the non-negative\/non-error
+-- value invariant is enforced.
+--
+-- Use 'postingForSide' for bases with additional axes.
 --
 -- >>> postingFromSide Debit Cash (1000 :: Double)
 -- 1000.00:@Not:<Cash
@@ -211,15 +218,16 @@ markerForSide side account
 -- 1000.00:@Not:<Sales
 postingFromSide :: (HatVal v)
                 => Side -> AccountTitles -> v -> Alg v (HatBase AccountTitles)
-postingFromSide side account amount =
-    amount .@ (markerForSide side account :< account)
+postingFromSide = postingForSide
 
 -- | Fold a list of @(side, account, amount)@ postings into one algebra term.
 -- Balance (debit == credit) is /not/ enforced here; check it with the library's
 -- balance functions after conversion.
 --
+-- Use 'journalForSides' for bases with additional axes.
+--
 -- >>> journalFromSides [(Debit, Cash, 1000), (Credit, Sales, 1000)] :: Alg Double (HatBase AccountTitles)
 -- 1000.00:@Not:<Cash .+ 1000.00:@Not:<Sales
 journalFromSides :: (HatVal v)
                  => [(Side, AccountTitles, v)] -> Alg v (HatBase AccountTitles)
-journalFromSides = foldr (\(s, a, v) acc -> postingFromSide s a v .+ acc) mempty
+journalFromSides = journalForSides

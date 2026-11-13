@@ -1272,6 +1272,47 @@ testIsContraSweepAcrossBaseInstances = do
     sweep "SimHatBase2 (custom instance)" (\t -> Not :< (t, 1, 2, Yen) :: SimHatBase2)
 
 
+-- | Check side selection across account-only and custom four-axis bases.
+testConstructionForSides :: IO ()
+testConstructionForSides = do
+    forM_ Registry.concreteAccountTitles $ \title ->
+        forM_ [Debit, Credit] $ \side -> do
+            let key :: (AccountTitles, Int, Int, CountUnit)
+                key = (title, 1, 2, Yen)
+                marker :: Hat
+                marker = hatForSide side key
+                markedBase :: SimHatBase2
+                markedBase = marker :< key
+                caseLabel = "side construction " ++ show (title, side)
+            assertEqual (caseLabel ++ " four-axis marker") (hatForSide side title) marker
+            assertEqual (caseLabel ++ " account-only compatibility")
+                (EC.markerForSide side title) (hatForSide side title)
+            assertEqual (caseLabel ++ " requested side") side (whichSide markedBase)
+    let key :: (AccountTitles, Int, Int, CountUnit)
+        key = (Cash, 1, 2, Yen)
+        otherKey :: (AccountTitles, Int, Int, CountUnit)
+        otherKey = (Sales, 2, 1, Dollar)
+        journal :: EA.Alg Double SimHatBase2
+        journal = journalForSides
+            [ (Debit, key, 10)
+            , (Debit, key, 20)
+            , (Credit, otherKey, 30)
+            ]
+        observed :: [(SimHatBase2, Double)]
+        observed = L.sort [(EA._hatBase entry, EA._val entry) | entry <- EA.toList journal]
+        expected :: [(SimHatBase2, Double)]
+        expected = L.sort
+            [ (Not :< key, 10)
+            , (Not :< key, 20)
+            , (Not :< otherKey, 30)
+            ]
+    assertEqual "journalForSides preserves axes and separate repeated postings" expected observed
+    assertEqual "journalForSides empty input" (mempty :: EA.Alg Double SimHatBase2)
+        (journalForSides [])
+    assertEqual "hatForSide wildcard matches markerForSide"
+        (EC.markerForSide Side Cash) (hatForSide Side Cash)
+
+
 -- | Check that allowance deductions preserve presentations without allowance activity.
 testPresentationGroupsWithoutAllowances :: IO ()
 testPresentationGroupsWithoutAllowances = do
@@ -3109,6 +3150,7 @@ runTests = do
     testPimoFlipInvolution
     testExchangeRelationProp538
     testIsContraSweepAcrossBaseInstances
+    testConstructionForSides
     testPresentationGroups
     testPresentationGroupsWithoutAllowances
     testStatementContraAssetsLiteral

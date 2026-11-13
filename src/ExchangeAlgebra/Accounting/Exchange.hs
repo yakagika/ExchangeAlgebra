@@ -44,6 +44,11 @@
 module ExchangeAlgebra.Accounting.Exchange ( ExBaseClass(..)
                                            , AccountBase(..)
                                            , Exchange(..)
+                                             -- * Construction by debit or credit side
+                                           , hatForSide
+                                           , postingForSide
+                                           , journalForSides
+                                             -- * Projections
                                            , projCredit
                                            , projDebit
                                            , projByAccountTitle
@@ -372,6 +377,62 @@ accountState = EA.foldPairs collect emptyAccum
             Credit -> state
             Debit  -> negateAccum state
             Side   -> emptyAccum
+
+-- * Construction by debit or credit side
+
+-- | Choose the 'Not' or v'Hat' marker for an unmarked base on the requested side.
+-- The base may contain additional axes. The marker is 'Not' exactly when
+-- @whichSide (Not :< key) == side@; otherwise it is v'Hat' (Definitions 7-9).
+-- The wildcard v'Side' is compared by equality, just as in the input-conversion
+-- helpers: it selects v'Hat' when the unmarked base has a concrete side.
+-- It does not request a wildcard marker or guarantee a wildcard result.
+--
+-- >>> hatForSide Debit Cash
+-- Not
+-- >>> hatForSide Credit Sales
+-- Not
+hatForSide :: ExBaseClass (HatBase k) => Side -> k -> Hat
+hatForSide side key
+    | whichSide (Not :< key) == side = Not
+    | otherwise                     = Hat
+
+-- | Construct a posting on the requested side while preserving every base axis.
+-- The amount must satisfy the non-negative, non-error value contract of '(.@)';
+-- a violation raises that constructor's error. The marker is chosen by
+-- 'hatForSide', including its treatment of the wildcard v'Side'.
+--
+-- >>> let posting = postingForSide Credit Cash 10 :: Alg Double (HatBase AccountTitles)
+-- >>> whichSide (_hatBase posting) == Credit && _val posting == 10
+-- True
+-- >>> import qualified Data.Text as T
+-- >>> import ExchangeAlgebra.Algebra.Element (CountUnit(..))
+-- >>> let key = (Cash, T.pack "owner", Yen)
+-- >>> type MultiBase = HatBase (AccountTitles, Name, CountUnit)
+-- >>> let posting = postingForSide Credit key 10 :: Alg Double MultiBase
+-- >>> _hatBase posting == Hat :< key && whichSide (_hatBase posting) == Credit
+-- True
+postingForSide :: (HatVal v, ExBaseClass (HatBase k))
+               => Side
+               -> k
+               -> v
+               -> Alg v (HatBase k)
+postingForSide side key amount = amount .@ (hatForSide side key :< key)
+
+-- | Combine side, unmarked base, and amount triples with '(.+)'.
+-- Every base axis is preserved, and repeated postings on the same base remain
+-- separate entries. The empty list gives the empty algebra. Debit/credit balance
+-- is not enforced. Each triple has the value contract and wildcard-side behavior
+-- of 'postingForSide'.
+--
+-- >>> import qualified ExchangeAlgebra.Algebra.Core as EA
+-- >>> let entries = [(Debit, Cash, 10), (Debit, Cash, 20)]
+-- >>> let journal = journalForSides entries :: Alg Double (HatBase AccountTitles)
+-- >>> length (EA.toList journal) == 2 && norm journal == 30
+-- True
+journalForSides :: (HatVal v, ExBaseClass (HatBase k)) => [(Side, k, v)] -> Alg v (HatBase k)
+journalForSides = foldr (\(side, key, amount) acc -> postingForSide side key amount .+ acc) mempty
+
+-- * Projections
 
 ------------------------------------------------------------------
 -- | Projects only the credit-side elements. For 'Alg' this coincides with the

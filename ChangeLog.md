@@ -4,6 +4,11 @@
 
 ### Added
 
+- `hatForSide`, `postingForSide`, and `journalForSides` in
+  `ExchangeAlgebra.Accounting.Exchange` construct debit/credit postings for any unmarked base
+  with an `ExBaseClass` instance, including multi-axis bases. The input-conversion helpers keep
+  their account-only types and delegate to these functions. Repeated postings remain separate.
+
 - `DirectorsCompensations` (役員報酬, remuneration for directors and other officers) in
   `AccountTitles`: a cost account distinct from `WageExpenditure`. The Japanese name `役員報酬`
   resolves to it on import. The wildcard `AccountTitle` keeps the last ordinal, so its ordinal shifts
