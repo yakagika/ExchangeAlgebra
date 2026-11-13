@@ -163,70 +163,6 @@ These modules attach notes to postings.
 - `ExchangeAlgebra.Journal.Transfer` — carries entries across notes and reads
   side totals. Use `Accounting.Transfer.transferEntriesBy` for accounting transfers.
 
-### Simulation: `Simulation.*` and `Simulate.*`
-
-Simulation code lives under two module prefixes with different futures.
-
-- `ExchangeAlgebra.Simulation.*` holds components that a model uses besides
-  the runner: trade networks, matrix analysis, optimization, and CSV output of
-  results. These modules are kept after 0.6.
-- `ExchangeAlgebra.Simulate.*` holds the simulation runners and their support:
-  the classic state-space engine, the Lite front-end, ledger policies, spill
-  files, random helpers, and Chart plotting.
-
-Components (`Simulation.*`):
-
-- `ExchangeAlgebra.Simulation.Network` — separates sparse trade-network topology from input coefficients;
-  `.Flows`, `.Csv`, and `.Journal` generate industrial flows, read network CSV
-  files, and sum flows into a `Journal`.
-- `ExchangeAlgebra.Simulation.Analysis` — computes a Leontief inverse and ripple effects.
-- `ExchangeAlgebra.Simulation.Output` — writes simulation results as CSV
-  without Chart. `writeFuncResults` and `writeFuncResultsWithContext` take the
-  classic engine's `StateTime`.
-- `ExchangeAlgebra.Simulation.Optimize` — see **Optimization** below.
-
-Runners (`Simulate.*`):
-
-- `ExchangeAlgebra.Simulate` — provides the classic state-space engine, spill support, and scenario execution, and re-exports the ripple utilities.
-- `ExchangeAlgebra.Simulate.Engine` — re-exports the
-  classic state-space protocol and runners without spill configuration or
-  analysis helpers.
-- `ExchangeAlgebra.Simulate.Lite` — provides the product-HKD, BSP front-end with declarative field rules and stages.
-- `ExchangeAlgebra.Simulate.Policy` — declares retention, spill, and compaction policy for long simulations.
-- `ExchangeAlgebra.Simulate.Spill` — provides spill chunk writers, checked readers, and ledger restoration shared by simulation and reporting layers.
-- `ExchangeAlgebra.Simulate.Random` — re-exports
-  simulation random-number helpers.
-- `ExchangeAlgebra.Simulate.Visualize` — renders simulation grids and time series with Chart/Cairo.
-
-### Planned changes to simulation modules
-
-The next major version (0.7) is planned to move simulation into a separate
-package, `exchangealgebra-simulation`, whose runner is a new model evaluator.
-The plan affects the 0.6 modules as follows:
-
-- `Simulation.*` and `Simulate.Spill` move to the new package. The writers
-  that take `StateTime` (`writeFuncResults`, `writeFuncResultsWithContext`)
-  are redesigned for the evaluator or removed.
-- The classic engine (`Simulate`, `Simulate.Engine`, `Simulate.Random`),
-  `Simulate.Lite`, and `Simulate.Policy` are removed and not moved. Their
-  successor is the model evaluator.
-- `Simulate.Visualize` either moves to the new package behind Chart or is
-  removed; the choice is made in 0.7.
-
-The 0.6 modules do not emit deprecation warnings, because the successor package
-has not been released. Changes to this plan will be recorded in the changelog.
-
-### Which simulation runner to use in 0.6
-
-`ExchangeAlgebra.Simulate.Lite` provides `Generic`-derived world records,
-term-boundary field rules, stages, and `runLite` / `runLiteWithPolicy`.
-`ExchangeAlgebra.Simulate.Engine` is the lower-level classic state-space API
-(`StateTime`, `Updatable`, `UpdatePattern`, and the `runSimulation` family),
-retained for existing models and reproducibility. Both runners are planned for
-removal in 0.7 (see above). For a new model built on 0.6, Lite needs less code;
-keep model logic separate from runner code so that it can be moved to the
-successor evaluator.
-
 ### Bookkeeping and reporting
 
 These modules build adjustments, validate reporting boundaries, and produce statements and output.
@@ -332,6 +268,252 @@ last-ULP of `norm` / `bar`. For `MoneyDecimal` the order never affects
 `norm` / `bar` / balance. (`Integer` is intentionally not offered — it cannot
 represent the fractional relative prices the ABM work depends on.)
 
+## Recommended import patterns
+
+`Alg` and `Journal` are abstract: construct them with `(.@)`, `(.+)`,
+`fromList`, `mkJournal`, and `(.|)`, and match `Alg` on `Zero` / `(:@)` only.
+The multi-posting representation and its cache fields live in the exposed
+`ExchangeAlgebra.Algebra.Internal` module, which carries no stability guarantee.
+
+### Simple single-period bookkeeping
+
+```haskell
+import ExchangeAlgebra
+
+main :: IO ()
+main = do
+    let entry = 100 .@ Not :< Cash .+ 100 .@ Not :< Sales
+            :: Alg MoneyDecimal (HatBase AccountTitles)
+        context = jcciSecondGradeContext Standalone
+    case present context BeforeClosing entry of
+        Left issues -> print issues
+        Right statements ->
+            print (financialStatementRows [CurrentAssetsSection, RevenueSection] statements)
+```
+
+### Journal-based work (multi-period, notes, simulation)
+
+```haskell
+import           ExchangeAlgebra.Journal
+import           ExchangeAlgebra.Accounting.Account
+import           ExchangeAlgebra.Accounting.Exchange
+import qualified ExchangeAlgebra.Algebra           as EA
+import qualified ExchangeAlgebra.Journal           as EJ
+import qualified ExchangeAlgebra.Accounting.Transfer as Transfer
+import qualified ExchangeAlgebra.Simulate          as ES
+import           ExchangeAlgebra.Simulate          -- unqualified, for StateSpace, Updatable, etc.
+import           ExchangeAlgebra.Simulation.Output -- writeTermIO / writeIOMatrix
+```
+
+Even in Journal-centric code you will frequently reach into the Algebra layer (for the `Alg`
+type or `EA.proj`, for example). **Using Journal as the unqualified umbrella and pulling the
+Algebra layer in as `EA` qualified is the idiomatic style for this library.**
+
+### Modules to import directly (not re-exported by the umbrellas)
+
+`ExchangeAlgebra.Accounting.Entries`, `ExchangeAlgebra.Simulate.Lite`,
+`ExchangeAlgebra.Simulation.Network`, and `ExchangeAlgebra.Simulate.Policy` are **by design
+imported directly** rather than re-exported from the `ExchangeAlgebra` umbrella. They
+introduce names that would otherwise collide with the Algebra layer (or with one another),
+so the package keeps them off the umbrella and expects an explicit (usually qualified)
+import:
+
+```haskell
+import           ExchangeAlgebra
+import qualified ExchangeAlgebra.Accounting.Entries     as BK
+import qualified ExchangeAlgebra.Simulate.Lite   as Lite
+```
+
+## Examples
+
+Runnable usage examples are collected in the `examples/` sub-package on GitHub.
+See the [examples directory](https://github.com/yakagika/ExchangeAlgebra/tree/master/examples)
+and its [README](https://github.com/yakagika/ExchangeAlgebra/blob/master/examples/README.md) for details.
+
+```bash
+stack build
+stack exec -- ebex1      # Introductory bookkeeping example
+stack exec -- fixed-price-io       # 100-term simulation (+ Python visualization)
+stack exec -- fixed-price-io-spill   # spill-to-disk simulation (constant memory, binary spill + restore)
+```
+
+The repository also keeps short executable samples under `test/api-samples/`; CI compiles and
+runs each of them and checks their hand-computed results. Two of them show the core accounting
+features in a few dozen lines:
+
+- `test/api-samples/Consolidation.hs`: a consolidation worksheet for a parent and its wholly
+  owned subsidiary, with the investment-capital and intercompany-sale eliminations.
+- `test/api-samples/InvoiceJournal.hs`: a buyer's journal entry from a Japanese qualified invoice
+  with 10% and 8% tax-rate summaries.
+
+## Simulation
+
+The core accounting layers above do not depend on the simulation modules. This section
+describes the simulation entry points, their planned move in 0.7, and how to run large simulations.
+
+### Simulation: `Simulation.*` and `Simulate.*`
+
+Simulation code lives under two module prefixes with different futures.
+
+- `ExchangeAlgebra.Simulation.*` holds components that a model uses besides
+  the runner: trade networks, matrix analysis, optimization, and CSV output of
+  results. These modules are kept after 0.6.
+- `ExchangeAlgebra.Simulate.*` holds the simulation runners and their support:
+  the classic state-space engine, the Lite front-end, ledger policies, spill
+  files, random helpers, and Chart plotting.
+
+Components (`Simulation.*`):
+
+- `ExchangeAlgebra.Simulation.Network` — separates sparse trade-network topology from input coefficients;
+  `.Flows`, `.Csv`, and `.Journal` generate industrial flows, read network CSV
+  files, and sum flows into a `Journal`.
+- `ExchangeAlgebra.Simulation.Analysis` — computes a Leontief inverse and ripple effects.
+- `ExchangeAlgebra.Simulation.Output` — writes simulation results as CSV
+  without Chart. `writeFuncResults` and `writeFuncResultsWithContext` take the
+  classic engine's `StateTime`.
+- `ExchangeAlgebra.Simulation.Optimize` — see **Optimization** below.
+
+Runners (`Simulate.*`):
+
+- `ExchangeAlgebra.Simulate` — provides the classic state-space engine, spill support, and scenario execution, and re-exports the ripple utilities.
+- `ExchangeAlgebra.Simulate.Engine` — re-exports the
+  classic state-space protocol and runners without spill configuration or
+  analysis helpers.
+- `ExchangeAlgebra.Simulate.Lite` — provides the product-HKD, BSP front-end with declarative field rules and stages.
+- `ExchangeAlgebra.Simulate.Policy` — declares retention, spill, and compaction policy for long simulations.
+- `ExchangeAlgebra.Simulate.Spill` — provides spill chunk writers, checked readers, and ledger restoration shared by simulation and reporting layers.
+- `ExchangeAlgebra.Simulate.Random` — re-exports
+  simulation random-number helpers.
+- `ExchangeAlgebra.Simulate.Visualize` — renders simulation grids and time series with Chart/Cairo.
+
+### Planned changes to simulation modules
+
+The next major version (0.7) is planned to move simulation into a separate
+package, `exchangealgebra-simulation`, whose runner is a new model evaluator.
+The plan affects the 0.6 modules as follows:
+
+- `Simulation.*` and `Simulate.Spill` move to the new package. The writers
+  that take `StateTime` (`writeFuncResults`, `writeFuncResultsWithContext`)
+  are redesigned for the evaluator or removed.
+- The classic engine (`Simulate`, `Simulate.Engine`, `Simulate.Random`),
+  `Simulate.Lite`, and `Simulate.Policy` are removed and not moved. Their
+  successor is the model evaluator.
+- `Simulate.Visualize` either moves to the new package behind Chart or is
+  removed; the choice is made in 0.7.
+
+The 0.6 modules do not emit deprecation warnings, because the successor package
+has not been released. Changes to this plan will be recorded in the changelog.
+
+### Which simulation runner to use in 0.6
+
+`ExchangeAlgebra.Simulate.Lite` provides `Generic`-derived world records,
+term-boundary field rules, stages, and `runLite` / `runLiteWithPolicy`.
+`ExchangeAlgebra.Simulate.Engine` is the lower-level classic state-space API
+(`StateTime`, `Updatable`, `UpdatePattern`, and the `runSimulation` family),
+retained for existing models and reproducibility. Both runners are planned for
+removal in 0.7 (see above). For a new model built on 0.6, Lite needs less code;
+keep model logic separate from runner code so that it can be moved to the
+successor evaluator.
+
+### Large-scale simulations (constant memory)
+
+For new Lite simulations, set `spillTo` in a `LedgerPolicy` and run with `runLiteWithPolicy`.
+
+`runSimulation` keeps the entire world state in memory for the whole run, so peak memory
+grows with the number of terms. For long horizons or large agent populations, use the
+**spill-to-disk** variants instead — they periodically write ledger chunks to disk and evict
+old terms, so peak memory becomes **independent of the number of terms**:
+
+```haskell
+import qualified ExchangeAlgebra.Simulate as ES
+
+opts :: ES.SpillOptions Term World Transaction
+opts = (ES.mkBinarySpillOptions everyNTerms spillPath extractPayload)
+         -- keep only the most recent N terms resident; older terms live on disk
+         { ES.spillDeletePolicy = ES.KeepRecentTerms 2 }
+
+main = do
+    _world <- ES.runSimulationWithSpill opts gen env
+    -- restore with ES.readBinarySpillFile, or import
+    -- restoreJournalFromBinarySpill from ExchangeAlgebra.Simulate.Spill
+    pure ()
+```
+
+- `ES.runSimulationWithSpill` / `ES.runScenariosWithSpill` are drop-in replacements for
+  `runSimulation` / `runScenarios` that add periodic spilling.
+- `ES.SpillDeletePolicy` bounds resident memory: `KeepRecentTerms n` keeps a sliding window,
+  `DeleteSpilledChunk` evicts each chunk right after it is written, `NoDelete` keeps everything.
+- Restore spilled data with `ES.readBinarySpillFile` (binary format) or the
+  `restoreJournalFromBinarySpill` helper from `ExchangeAlgebra.Simulate.Spill`.
+
+For policy-driven long runs, `ExchangeAlgebra.Simulate.Policy` keeps `FullAudit` as the
+default to preserve the full audit trail, but a declared `LedgerPolicy` can opt into
+`CompressClosedTerms` so only closed terms are compressed; `norm` / balance stay unchanged,
+the in-progress term keeps its full history, and because the choice is explicit it is not
+the forbidden implicit `bar` / `compress` shortcut. Pair it with `RetainRecent 2` and
+`spillTo = Just ...` to keep recent terms resident while older terms are restorable from
+disk; local measurements of that pattern reduced residency by about 15x. See the
+`Tuning long simulations` Haddock section in `ExchangeAlgebra.Simulate.Policy` for the
+`LedgerPolicy` record-syntax example.
+
+A runnable end-to-end example (multi-scenario run with binary spill, `KeepRecentTerms`, and
+restore) is `examples/basic/fixedPriceIOSpill.hs` (the `fixed-price-io-spill` executable).
+
+### A note on visualization
+
+`ExchangeAlgebra.Simulate.Visualize` provides Chart-based PNG rendering, but **we recommend
+writing CSV output and visualizing it from a separate Python script** for production-quality
+plotting.
+
+#### Why
+
+- Chart / Chart-cairo transitively pull in cairo / pango / freetype system libraries, which
+  makes the build environment heavier to set up.
+- For academic work, matplotlib / seaborn / pandas are more flexible than Chart.
+- Using CSV as an intermediate format cleanly separates "compute" from "plot".
+- The same CSVs can be reused with R / Julia / Excel if you need them.
+
+#### Recommended workflow
+
+```haskell
+-- Haskell side: write the simulation outputs to CSV
+import           ExchangeAlgebra.Simulation.Output (writeIOMatrix)
+import qualified ExchangeAlgebra.Simulate.Visualize as ESV
+                                                  -- qualified access to writeFuncResults etc.
+
+main = do
+    -- ... run the simulation ...
+    writeIOMatrix "result/io.csv" matrix
+    ESV.writeFuncResults header range world "result/profit.csv"
+```
+
+```bash
+# Plotting side: run a standalone script with uv + PEP 723 inline deps
+uv run --script visualize.py
+```
+
+```python
+# visualize.py
+# /// script
+# requires-python = ">=3.10"
+# dependencies = ["pandas>=2.0", "matplotlib>=3.7"]
+# ///
+import pandas as pd, matplotlib.pyplot as plt
+df = pd.read_csv("result/profit.csv")
+df.plot(); plt.savefig("result/profit.png")
+```
+
+Concrete runnable examples of this pattern live under the `examples/` sub-package
+(see [the examples directory on GitHub](https://github.com/yakagika/ExchangeAlgebra/tree/master/examples)).
+
+#### If you still want to plot from Haskell
+
+If keeping everything in Haskell is important to your workflow, `plotLineVector`,
+`plotMultiLines`, and `plotWldsDiffLine` in `ExchangeAlgebra.Simulate.Visualize` write PNGs
+directly and work without any Python setup.
+
+## Migrating between major versions
+
 ### Migrating to 0.6.0.0
 
 `0.6.0.0` is a major (breaking) release. Update imports, transfer composition,
@@ -396,172 +578,6 @@ ledgers keep working and render identically. Four things to know:
 (`0.5.0.0` also includes the `union` zero-base correctness fix first shipped in
 `0.4.1.1`; see the changelog.)
 
-## Recommended import patterns
-
-`Alg` and `Journal` are abstract: construct them with `(.@)`, `(.+)`,
-`fromList`, `mkJournal`, and `(.|)`, and match `Alg` on `Zero` / `(:@)` only.
-The multi-posting representation and its cache fields live in the exposed
-`ExchangeAlgebra.Algebra.Internal` module, which carries no stability guarantee.
-
-### Simple single-period bookkeeping
-
-```haskell
-import ExchangeAlgebra
-
-main :: IO ()
-main = do
-    let entry = 100 .@ Not :< Cash .+ 100 .@ Not :< Sales
-            :: Alg MoneyDecimal (HatBase AccountTitles)
-        context = jcciSecondGradeContext Standalone
-    case present context BeforeClosing entry of
-        Left issues -> print issues
-        Right statements ->
-            print (financialStatementRows [CurrentAssetsSection, RevenueSection] statements)
-```
-
-### Journal-based work (multi-period, notes, simulation)
-
-```haskell
-import           ExchangeAlgebra.Journal
-import           ExchangeAlgebra.Accounting.Account
-import           ExchangeAlgebra.Accounting.Exchange
-import qualified ExchangeAlgebra.Algebra           as EA
-import qualified ExchangeAlgebra.Journal           as EJ
-import qualified ExchangeAlgebra.Accounting.Transfer as Transfer
-import qualified ExchangeAlgebra.Simulate          as ES
-import           ExchangeAlgebra.Simulate          -- unqualified, for StateSpace, Updatable, etc.
-import           ExchangeAlgebra.Simulation.Output -- writeTermIO / writeIOMatrix
-```
-
-Even in Journal-centric code you will frequently reach into the Algebra layer (for the `Alg`
-type or `EA.proj`, for example). **Using Journal as the unqualified umbrella and pulling the
-Algebra layer in as `EA` qualified is the idiomatic style for this library.**
-
-### Modules to import directly (not re-exported by the umbrellas)
-
-`ExchangeAlgebra.Accounting.Entries`, `ExchangeAlgebra.Simulate.Lite`,
-`ExchangeAlgebra.Simulation.Network`, and `ExchangeAlgebra.Simulate.Policy` are **by design
-imported directly** rather than re-exported from the `ExchangeAlgebra` umbrella. They
-introduce names that would otherwise collide with the Algebra layer (or with one another),
-so the package keeps them off the umbrella and expects an explicit (usually qualified)
-import:
-
-```haskell
-import           ExchangeAlgebra
-import qualified ExchangeAlgebra.Accounting.Entries     as BK
-import qualified ExchangeAlgebra.Simulate.Lite   as Lite
-```
-
-## Large-scale simulations (constant memory)
-
-For new Lite simulations, set `spillTo` in a `LedgerPolicy` and run with `runLiteWithPolicy`.
-
-`runSimulation` keeps the entire world state in memory for the whole run, so peak memory
-grows with the number of terms. For long horizons or large agent populations, use the
-**spill-to-disk** variants instead — they periodically write ledger chunks to disk and evict
-old terms, so peak memory becomes **independent of the number of terms**:
-
-```haskell
-import qualified ExchangeAlgebra.Simulate as ES
-
-opts :: ES.SpillOptions Term World Transaction
-opts = (ES.mkBinarySpillOptions everyNTerms spillPath extractPayload)
-         -- keep only the most recent N terms resident; older terms live on disk
-         { ES.spillDeletePolicy = ES.KeepRecentTerms 2 }
-
-main = do
-    _world <- ES.runSimulationWithSpill opts gen env
-    -- restore with ES.readBinarySpillFile, or import
-    -- restoreJournalFromBinarySpill from ExchangeAlgebra.Simulate.Spill
-    pure ()
-```
-
-- `ES.runSimulationWithSpill` / `ES.runScenariosWithSpill` are drop-in replacements for
-  `runSimulation` / `runScenarios` that add periodic spilling.
-- `ES.SpillDeletePolicy` bounds resident memory: `KeepRecentTerms n` keeps a sliding window,
-  `DeleteSpilledChunk` evicts each chunk right after it is written, `NoDelete` keeps everything.
-- Restore spilled data with `ES.readBinarySpillFile` (binary format) or the
-  `restoreJournalFromBinarySpill` helper from `ExchangeAlgebra.Simulate.Spill`.
-
-For policy-driven long runs, `ExchangeAlgebra.Simulate.Policy` keeps `FullAudit` as the
-default to preserve the full audit trail, but a declared `LedgerPolicy` can opt into
-`CompressClosedTerms` so only closed terms are compressed; `norm` / balance stay unchanged,
-the in-progress term keeps its full history, and because the choice is explicit it is not
-the forbidden implicit `bar` / `compress` shortcut. Pair it with `RetainRecent 2` and
-`spillTo = Just ...` to keep recent terms resident while older terms are restorable from
-disk; local measurements of that pattern reduced residency by about 15x. See the
-`Tuning long simulations` Haddock section in `ExchangeAlgebra.Simulate.Policy` for the
-`LedgerPolicy` record-syntax example.
-
-A runnable end-to-end example (multi-scenario run with binary spill, `KeepRecentTerms`, and
-restore) is `examples/basic/fixedPriceIOSpill.hs` (the `fixed-price-io-spill` executable).
-
-## A note on visualization
-
-`ExchangeAlgebra.Simulate.Visualize` provides Chart-based PNG rendering, but **we recommend
-writing CSV output and visualizing it from a separate Python script** for production-quality
-plotting.
-
-### Why
-
-- Chart / Chart-cairo transitively pull in cairo / pango / freetype system libraries, which
-  makes the build environment heavier to set up.
-- For academic work, matplotlib / seaborn / pandas are more flexible than Chart.
-- Using CSV as an intermediate format cleanly separates "compute" from "plot".
-- The same CSVs can be reused with R / Julia / Excel if you need them.
-
-### Recommended workflow
-
-```haskell
--- Haskell side: write the simulation outputs to CSV
-import           ExchangeAlgebra.Simulation.Output (writeIOMatrix)
-import qualified ExchangeAlgebra.Simulate.Visualize as ESV
-                                                  -- qualified access to writeFuncResults etc.
-
-main = do
-    -- ... run the simulation ...
-    writeIOMatrix "result/io.csv" matrix
-    ESV.writeFuncResults header range world "result/profit.csv"
-```
-
-```bash
-# Plotting side: run a standalone script with uv + PEP 723 inline deps
-uv run --script visualize.py
-```
-
-```python
-# visualize.py
-# /// script
-# requires-python = ">=3.10"
-# dependencies = ["pandas>=2.0", "matplotlib>=3.7"]
-# ///
-import pandas as pd, matplotlib.pyplot as plt
-df = pd.read_csv("result/profit.csv")
-df.plot(); plt.savefig("result/profit.png")
-```
-
-Concrete runnable examples of this pattern live under the `examples/` sub-package
-(see [the examples directory on GitHub](https://github.com/yakagika/ExchangeAlgebra/tree/master/examples)).
-
-### If you still want to plot from Haskell
-
-If keeping everything in Haskell is important to your workflow, `plotLineVector`,
-`plotMultiLines`, and `plotWldsDiffLine` in `ExchangeAlgebra.Simulate.Visualize` write PNGs
-directly and work without any Python setup.
-
-## Examples
-
-Runnable usage examples are collected in the `examples/` sub-package on GitHub.
-See the [examples directory](https://github.com/yakagika/ExchangeAlgebra/tree/master/examples)
-and its [README](https://github.com/yakagika/ExchangeAlgebra/blob/master/examples/README.md) for details.
-
-```bash
-stack build
-stack exec -- ebex1      # Introductory bookkeeping example
-stack exec -- fixed-price-io       # 100-term simulation (+ Python visualization)
-stack exec -- fixed-price-io-spill   # spill-to-disk simulation (constant memory, binary spill + restore)
-```
-
 ## Documentation
 
 - Haddock: <https://hackage.haskell.org/package/exchangealgebra>
@@ -569,7 +585,7 @@ stack exec -- fixed-price-io-spill   # spill-to-disk simulation (constant memory
 
 ## License
 
-Dual licensed under MIT and the Open World License (OWL). See `LICENSE` for details.
+Licensed under the MIT license. See [LICENSE.txt](LICENSE.txt) for the full text.
 
 ## Publications using this library
 
