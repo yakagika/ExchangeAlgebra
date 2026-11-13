@@ -3,7 +3,7 @@
     Copyright  : (c) Kaya Akagi. 2018-2026
     Maintainer : yakagika@icloud.com
 
-    Released under the OWL license
+    Released under the MIT license
 
     Compatibility entry point for matrix analysis. Import
     "ExchangeAlgebra.Simulation.Analysis" for new code.

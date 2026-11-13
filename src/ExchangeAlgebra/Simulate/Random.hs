@@ -3,7 +3,7 @@
     Copyright  : (c) Kaya Akagi. 2018-2026
     Maintainer : yakagika@icloud.com
 
-    Released under the OWL license
+    Released under the MIT license
 
     Random-number helpers used by simulations: Box-Muller normal variates
     ('normal', 'normal'') and generator advancement ('updateGen'). All three

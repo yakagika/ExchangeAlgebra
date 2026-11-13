@@ -14,8 +14,8 @@ bug-reports:    https://github.com/yakagika/ExchangeAlgebra/issues
 author:         Kaya Akagi
 maintainer:     yakagika@icloud.com
 copyright:      2018-2026 Kaya Akagi
-license:        OtherLicense
-license-file:   LICENSE
+license:        MIT
+license-file:   LICENSE.txt
 build-type:     Simple
 extra-source-files:
     README.md

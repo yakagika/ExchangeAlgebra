@@ -3,7 +3,7 @@
     Copyright  : (c) Kaya Akagi. 2018-2026
     Maintainer : yakagika@icloud.com
 
-    Released under the OWL license
+    Released under the MIT license
 
     State-space framework for Exchange-Algebra-based simulation:
     'StateSpace', 'Updatable', 'runSimulation', ripple-effect utilities

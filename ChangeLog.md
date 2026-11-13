@@ -28,6 +28,8 @@
 
 ### Changed
 
+- Change the license to MIT alone (previously MIT with Open World License conditions),
+  and rename the license file from `LICENSE` to `LICENSE.txt`.
 - Reduce allocation in `MoneyDouble` Binary encoding without changing its bytes.
 - Build the Journal delta note-axis index only when an axis query needs it.
 - Store one-sided singleton algebra pairs without a `Seq` node, preserving posting order,

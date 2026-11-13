@@ -3,7 +3,7 @@
     Copyright  : (c) Kaya Akagi. 2018-2026
     Maintainer : yakagika@icloud.com
 
-    Released under the OWL license
+    Released under the MIT license
 
     The accounting layer on top of "ExchangeAlgebra.Algebra": the names
     that realize Definitions 7-9 of Akagi (2026), Appendix A.

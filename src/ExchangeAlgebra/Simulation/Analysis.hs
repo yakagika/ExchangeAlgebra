@@ -6,7 +6,7 @@
     Copyright  : (c) Kaya Akagi. 2018-2026
     Maintainer : yakagika@icloud.com
 
-    Released under the OWL license
+    Released under the MIT license
 
     Matrix analysis for ripple effects. Import this module to compute a
     Leontief inverse or extract the response to one industry's demand.

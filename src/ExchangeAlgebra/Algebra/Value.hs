@@ -8,7 +8,7 @@
     Copyright  : (c) Kaya Akagi. 2018-2026
     Maintainer : yakagika@icloud.com
 
-    Released under the OWL license
+    Released under the MIT license
 
     Exact, non-negative decimal value type t'MoneyDecimal' for use as the @v@
     parameter of @Alg v b@ / @Journal n v b@.

@@ -28,7 +28,7 @@
                   import "ExchangeAlgebra.Algebra" instead unless you are
                   writing a test or an engine that must see 'Liner'.
 
-    Released under the OWL license
+    Released under the MIT license
 
     Package for Exchange Algebra defined by Hiroshi Deguchi.
 

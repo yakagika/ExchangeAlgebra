@@ -3,7 +3,7 @@
     Copyright  : (c) Kaya Akagi. 2018-2026
     Maintainer : yakagika@icloud.com
 
-    Released under the OWL license
+    Released under the MIT license
 
     Compatibility entry point for simulation CSV output. The CSV functions
     live in "ExchangeAlgebra.Simulation.Output".

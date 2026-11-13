@@ -1,7 +1,8 @@
 name:                exchangealgebra
 version:             0.6.0.1
 github:              "yakagika/ExchangeAlgebra"
-license:             OtherLicense
+license:             MIT
+license-file:        LICENSE.txt
 author:              "Kaya Akagi"
 maintainer:          "yakagika@icloud.com"
 copyright:           "2018-2026 Kaya Akagi"

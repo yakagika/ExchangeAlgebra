@@ -3,7 +3,7 @@
     Copyright  : (c) Kaya Akagi. 2018-2026
     Maintainer : yakagika@icloud.com
 
-    Released under the OWL license
+    Released under the MIT license
 
     The state-space engine of "ExchangeAlgebra.Simulate" on its own: terms
     ('StateTime'), the per-variable update protocol ('Updatable',

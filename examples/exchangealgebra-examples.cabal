@@ -13,7 +13,7 @@ category:       Accounting, Finance, Math
 author:         Kaya Akagi
 maintainer:     Kaya Akagi
 copyright:      2019 Kaya Akagi
-license:        OtherLicense
+license:        MIT
 build-type:     Simple
 
 executable ebex1

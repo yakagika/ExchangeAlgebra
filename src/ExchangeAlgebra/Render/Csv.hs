@@ -3,7 +3,7 @@
     Copyright  : (c) Kaya Akagi. 2018-2026
     Maintainer : yakagika@icloud.com
 
-    Released under the OWL license
+    Released under the MIT license
 
     CSV serialization of text tables: 'writeCSV' (every cell quoted) and
     'csvTranspose' (transpose with blank padding). Both names are

@@ -6,7 +6,7 @@
     Import "ExchangeAlgebra.Journal.Core" for generic journal operations and
     "ExchangeAlgebra.Accounting.Exchange" for accounting operations.
 
-    Released under the OWL license
+    Released under the MIT license
 
     Package for Exchange Algebra defined by Hiroshi Deguchi.
 

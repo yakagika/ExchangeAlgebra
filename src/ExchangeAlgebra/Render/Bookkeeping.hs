@@ -3,7 +3,7 @@
     Copyright  : (c) Kaya Akagi. 2018-2026
     Maintainer : yakagika@icloud.com
 
-    Released under the OWL license
+    Released under the MIT license
 
     Journals, account ledgers, trial balances, and closing worksheets.
     These layouts and their file writers are re-exported from
