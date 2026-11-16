@@ -224,6 +224,9 @@ class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
     (.+) :: a n b -> a n b -> a n b
 
     -- | Scalar product. Multiplies all element values by a scalar.
+    -- Fixity @infixr 6@, the same as '(.@)': @2 .* 10 .@ b@ is
+    -- @2 .* (10 .@ b)@, and @2 .* x .+ y@ is @(2 .* x) .+ y@. Because '(<>)'
+    -- is also @infixr 6@, @2 .* x <> y@ is @2 .* (x <> y)@.
     -- Complexity: O(1) for singleton, O(n) for Liner
     (.*) :: n -> a n b -> a n b
 
@@ -258,6 +261,7 @@ class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
 
 
 infixr 7 .^
+infixr 6 .*
 infixr 2 .-
 infixr 3 .+
 infixr 3 <+

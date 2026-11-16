@@ -19,11 +19,11 @@ key = TxKey (EntityId "shop") (PeriodId "2026")
 main :: IO ()
 main = do
     let journal :: Journal.Journal TxKey MoneyDecimal (HatBase AccountTitles)
-        journal = (500 .@ Not :< Cash .+ 500 .@ Not :< CapitalStock .| key (TxId "opening"))
-               .+ (100 .@ Not :< Cash .+ 100 .@ Not :< Sales        .| key (TxId "sale"))
-               .+ (30  .@ Not :< RentExpense .+ 30 .@ Hat :< Cash   .| key (TxId "rent"))
+        journal = ((500 .@ Not :< Cash .+ 500 .@ Not :< CapitalStock) .| key (TxId "opening"))
+               .+ ((100 .@ Not :< Cash .+ 100 .@ Not :< Sales)        .| key (TxId "sale"))
+               .+ ((30  .@ Not :< RentExpense .+ 30 .@ Hat :< Cash)   .| key (TxId "rent"))
 
-        unbalanced = 100 .@ Not :< Cash .+ 90 .@ Not :< Sales .| key (TxId "sale")
+        unbalanced = (100 .@ Not :< Cash .+ 90 .@ Not :< Sales) .| key (TxId "sale")
     accepted <- either (fail . show . Admission.failureErrors) pure (Admission.admit journal)
 
     -- The bank records the cash receipt of the sale.

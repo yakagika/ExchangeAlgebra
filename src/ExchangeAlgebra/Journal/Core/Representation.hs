@@ -447,6 +447,17 @@ pattern Zero <- (isZero -> True)
 -- Returns an empty Journal when the algebra element is zero, consistent with
 -- the zero-value handling in @appendMap@ and 'sigmaOn'.
 --
+-- Fixity @infix 5@: it binds more tightly than '(.+)' and less tightly than
+-- '(.@)', so each term carries its own note and a multi-term algebra needs
+-- parentheses.
+--
+-- >>> type FixityTest = Journal T.Text Double (HatBase CountUnit)
+-- >>> j = 10.00.@Not:<Yen .| "a" .+ 20.00.@Hat:<Yen .| "b" :: FixityTest
+-- >>> toMap j == toMap ((10.00.@Not:<Yen .| "a") .+ (20.00.@Hat:<Yen .| "b"))
+-- True
+-- >>> toMap ((10.00.@Not:<Yen .+ 20.00.@Hat:<Dollar) .| "a" :: FixityTest) == toMap ((10.00.@Not:<Yen .| "a") .+ (20.00.@Hat:<Dollar .| "a"))
+-- True
+--
 -- Complexity: O(1)
 (.|) :: (HatVal v, HatBaseClass b, Note n)
       => Alg v b -> n -> Journal n v b
@@ -454,15 +465,16 @@ pattern Zero <- (isZero -> True)
     | EA.isZero alg = mempty
     | otherwise    = mkJournalNonZero Map.empty (Map.singleton n alg)
 
-infixr 2 .|
+infix 5 .|
 
 ------------------------------------------------------------------
 -- Show
 ------------------------------------------------------------------
--- | Render each non-blank note as the sum of its algebra entries followed by
--- one '(.|)'. A single group needs no parentheses because '(.+)' binds more
--- tightly than '(.|)'; multiple groups are parenthesized individually so the
--- result can be pasted back as an expression with the current fixities.
+-- | Render each non-blank note as its algebra entries followed by one '(.|)'.
+-- Because '(.|)' binds more tightly than '(.+)', the entries of one note are
+-- parenthesized when there are two or more of them, and the groups are joined
+-- with '(.+)' without parentheses. The result can be pasted back as an
+-- expression with the current fixities.
 --
 -- The blank note remains invisible when it is the only group. In a mixed
 -- journal it is rendered explicitly, so every summand is one complete group.
@@ -472,18 +484,18 @@ infixr 2 .|
 -- 0
 -- >>> (5.00.@Not:<Yen .| plank :: ShowTest)
 -- 5.00:@Not:<Yen
--- >>> one = 20.00.@Not:<Yen .+ 20.00.@Hat:<Dollar .| "N" :: ShowTest
+-- >>> one = (20.00.@Not:<Yen .+ 20.00.@Hat:<Dollar) .| "N" :: ShowTest
 -- >>> one
--- 20.00:@Hat:<Dollar .+ 20.00:@Not:<Yen .| "N"
--- >>> toMap (20.00.@Hat:<Dollar .+ 20.00.@Not:<Yen .| "N" :: ShowTest) == toMap one
+-- (20.00:@Hat:<Dollar .+ 20.00:@Not:<Yen) .| "N"
+-- >>> toMap ((20.00.@Hat:<Dollar .+ 20.00.@Not:<Yen) .| "N" :: ShowTest) == toMap one
 -- True
 -- >>> two = 10.00.@Hat:<Yen .| "M" :: ShowTest
--- >>> show (one .+ two) `elem` ["(10.00:@Hat:<Yen .| \"M\") .+ (20.00:@Hat:<Dollar .+ 20.00:@Not:<Yen .| \"N\")", "(20.00:@Hat:<Dollar .+ 20.00:@Not:<Yen .| \"N\") .+ (10.00:@Hat:<Yen .| \"M\")"]
+-- >>> show (one .+ two) `elem` ["10.00:@Hat:<Yen .| \"M\" .+ (20.00:@Hat:<Dollar .+ 20.00:@Not:<Yen) .| \"N\"", "(20.00:@Hat:<Dollar .+ 20.00:@Not:<Yen) .| \"N\" .+ 10.00:@Hat:<Yen .| \"M\""]
 -- True
--- >>> toMap ((10.00.@Hat:<Yen .| "M") .+ (20.00.@Hat:<Dollar .+ 20.00.@Not:<Yen .| "N") :: ShowTest) == toMap (one .+ two)
+-- >>> toMap ((10.00.@Hat:<Yen .| "M") .+ ((20.00.@Hat:<Dollar .+ 20.00.@Not:<Yen) .| "N") :: ShowTest) == toMap (one .+ two)
 -- True
 -- >>> blank = 5.00.@Not:<Yen .| plank :: ShowTest
--- >>> show (one .+ blank) `elem` ["(20.00:@Hat:<Dollar .+ 20.00:@Not:<Yen .| \"N\") .+ (5.00:@Not:<Yen .| \"\")", "(5.00:@Not:<Yen .| \"\") .+ (20.00:@Hat:<Dollar .+ 20.00:@Not:<Yen .| \"N\")"]
+-- >>> show (one .+ blank) `elem` ["(20.00:@Hat:<Dollar .+ 20.00:@Not:<Yen) .| \"N\" .+ 5.00:@Not:<Yen .| \"\"", "5.00:@Not:<Yen .| \"\" .+ (20.00:@Hat:<Dollar .+ 20.00:@Not:<Yen) .| \"N\""]
 -- True
 instance (HatVal v, HatBaseClass b, Note n) => Show (Journal n v b) where
     showsPrec d js =
@@ -491,7 +503,7 @@ instance (HatVal v, HatBaseClass b, Note n) => Show (Journal n v b) where
             [] -> showString "0"
             [(k, a)]
                 | isPlank k -> showsPrec d a
-                | otherwise -> showParen (d > 2) (showsGroup k a)
+                | otherwise -> showParen (d > 5) (showsGroup k a)
             _ -> showParen (d > 3) (showsGroups groups)
       where
         m = toMap js
@@ -502,20 +514,22 @@ instance (HatVal v, HatBaseClass b, Note n) => Show (Journal n v b) where
             | otherwise = (k, a) : acc
 
         showsGroups [] = id
-        showsGroups [(k, a)] = showParen True (showsGroup k a)
+        showsGroups [(k, a)] = showsGroup k a
         showsGroups ((k, a):rest) =
-            showParen True (showsGroup k a)
+            showsGroup k a
             . showString " .+ "
             . showsGroups rest
 
         showsGroup k a =
             showsGroupAlg k a
             . showString " .| "
-            . showsPrec 3 k
+            . showsPrec 6 k
 
-        showsGroupAlg k a
-            | isPlank k = showsPrec 3 a
-            | otherwise = showsAlgEntries (reverse (EA.toASCList a))
+        showsGroupAlg k a =
+            case (if isPlank k then id else reverse) (EA.toASCList a) of
+                []  -> showString "0"
+                [x] -> showsPrec 6 x
+                xs  -> showParen True (showsAlgEntries xs)
 
         showsAlgEntries [] = showString "0"
         showsAlgEntries [x] = showsPrec 3 x
@@ -534,9 +548,9 @@ instance (HatVal v, HatBaseClass b, Note n) => Semigroup (Journal n v b) where
 -- Complexity: Amortized O(size(rhs)); O(n) compaction when the delta exceeds the threshold
 --
 -- >>> type Test = Journal T.Text Double (HatBase CountUnit)
--- >>> x = 20.00.@Not:<Yen .+ 20.00.@Hat:<Dollar .| "Withdrawal" :: Test
--- >>> y = 10.00.@Hat:<Yen .+ 10.00.@Not:<Dollar .| "Deposits" :: Test
--- >>> toMap (x .+ y) == toMap ((10.00.@Not:<Dollar .+ 10.00.@Hat:<Yen .| "Deposits") .+ (20.00.@Hat:<Dollar .+ 20.00.@Not:<Yen .| "Withdrawal") :: Test)
+-- >>> x = (20.00.@Not:<Yen .+ 20.00.@Hat:<Dollar) .| "Withdrawal" :: Test
+-- >>> y = (10.00.@Hat:<Yen .+ 10.00.@Not:<Dollar) .| "Deposits" :: Test
+-- >>> toMap (x .+ y) == toMap (((10.00.@Not:<Dollar .+ 10.00.@Hat:<Yen) .| "Deposits") .+ ((20.00.@Hat:<Dollar .+ 20.00.@Not:<Yen) .| "Withdrawal") :: Test)
 -- True
 addJournal :: (HatVal v, HatBaseClass b, Note n)
            => Journal n v b -> Journal n v b -> Journal n v b
@@ -805,10 +819,10 @@ replaceNotes x y = mkJournalNonZero (Map.union (toMap x) (toMap y)) Map.empty
 -- returned unchanged (the blank note matches every note).
 --
 -- >>> type Test = Journal T.Text Double (HatBase CountUnit)
--- >>> x = 1.00.@Hat:<Yen .+ 1.00.@Not:<Amount .| "cat"  :: Test
--- >>> y = 2.00.@Hat:<Yen .+ 2.00.@Not:<Amount .| "dog"  :: Test
--- >>> z = 3.00.@Hat:<Yen .+ 3.00.@Not:<Amount .| "fish" :: Test
--- >>> toMap (projWithNote ["dog","cat"] (x .+ y .+ z)) == toMap ((1.00.@Not:<Amount .+ 1.00.@Hat:<Yen .| "cat") .+ (2.00.@Not:<Amount .+ 2.00.@Hat:<Yen .| "dog") :: Test)
+-- >>> x = (1.00.@Hat:<Yen .+ 1.00.@Not:<Amount) .| "cat"  :: Test
+-- >>> y = (2.00.@Hat:<Yen .+ 2.00.@Not:<Amount) .| "dog"  :: Test
+-- >>> z = (3.00.@Hat:<Yen .+ 3.00.@Not:<Amount) .| "fish" :: Test
+-- >>> toMap (projWithNote ["dog","cat"] (x .+ y .+ z)) == toMap (((1.00.@Not:<Amount .+ 1.00.@Hat:<Yen) .| "cat") .+ ((2.00.@Not:<Amount .+ 2.00.@Hat:<Yen) .| "dog") :: Test)
 -- True
 projWithNote :: (HatVal v, HatBaseClass b, Note n)
              => [n] -> Journal n v b -> Journal n v b
@@ -832,9 +846,9 @@ projWithNote ns js =
 -- normal form on t'Journal').
 --
 -- >>> type Test = Journal T.Text Double (HatBase CountUnit)
--- >>> x = 1.00.@Hat:<Yen .+ 1.00.@Not:<Amount .| "cat"  :: Test
--- >>> y = 2.00.@Not:<Yen .+ 2.00.@Hat:<Amount .| "dog"  :: Test
--- >>> z = 3.00.@Hat:<Yen .+ 3.00.@Not:<Amount .| "fish" :: Test
+-- >>> x = (1.00.@Hat:<Yen .+ 1.00.@Not:<Amount) .| "cat"  :: Test
+-- >>> y = (2.00.@Not:<Yen .+ 2.00.@Hat:<Amount) .| "dog"  :: Test
+-- >>> z = (3.00.@Hat:<Yen .+ 3.00.@Not:<Amount) .| "fish" :: Test
 -- >>> L.sort [(n, EA.toASCList a) | (n, a) <- Map.toList (toMap (projWithBase [Not:<Amount] (x .+ y .+ z)))]
 -- [("cat",[1.00:@Not:<Amount]),("fish",[3.00:@Not:<Amount])]
 projWithBase :: (HatVal v, HatBaseClass b, Note n)
@@ -880,9 +894,9 @@ projWithBaseNetNorm bs js =
 -- all notes (falls back to 'projWithBase').
 --
 -- >>> type Test = Journal T.Text Double (HatBase CountUnit)
--- >>> x = 1.00.@Hat:<Yen .+ 1.00.@Not:<Amount .| "cat"  :: Test
--- >>> y = 2.00.@Not:<Yen .+ 2.00.@Hat:<Amount .| "dog"  :: Test
--- >>> z = 3.00.@Hat:<Yen .+ 3.00.@Not:<Amount .| "fish" :: Test
+-- >>> x = (1.00.@Hat:<Yen .+ 1.00.@Not:<Amount) .| "cat"  :: Test
+-- >>> y = (2.00.@Not:<Yen .+ 2.00.@Hat:<Amount) .| "dog"  :: Test
+-- >>> z = (3.00.@Hat:<Yen .+ 3.00.@Not:<Amount) .| "fish" :: Test
 -- >>> projWithNoteBase ["dog","fish"] [Not:<Amount] (x .+ y .+ z)
 -- 3.00:@Not:<Amount .| "fish"
 projWithNoteBase :: (HatVal v, HatBaseClass b, Note n)
@@ -1008,10 +1022,10 @@ filterByAxis axis key j@(Journal _ _ baseIdx deltaIdx) =
 -- Gathers all Alg into one on the given Note.
 --
 -- >>> type Test = Journal T.Text Double (EA.HatBase EA.CountUnit)
--- >>> x = 20.00.@Not:<Yen .+ 20.00.@Hat:<Dollar .| "Withdrawal" :: Test
--- >>> y = 10.00.@Hat:<Yen .+ 10.00.@Not:<Dollar .| "Deposits" :: Test
+-- >>> x = (20.00.@Not:<Yen .+ 20.00.@Hat:<Dollar) .| "Withdrawal" :: Test
+-- >>> y = (10.00.@Hat:<Yen .+ 10.00.@Not:<Dollar) .| "Deposits" :: Test
 -- >>> gather "A" (x .+ y)
--- 10.00:@Not:<Dollar .+ 20.00:@Hat:<Dollar .+ 20.00:@Not:<Yen .+ 10.00:@Hat:<Yen .| "A"
+-- (10.00:@Not:<Dollar .+ 20.00:@Hat:<Dollar .+ 20.00:@Not:<Yen .+ 10.00:@Hat:<Yen) .| "A"
 gather :: (HatVal v, HatBaseClass b, Note n)
        => n -> Journal n v b -> Journal n v b
 gather n js = (toAlg js) .| n

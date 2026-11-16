@@ -33,6 +33,30 @@
 
 ### Changed
 
+- **Breaking:** `(.|)` is now `infix 5` (previously `infixr 2`), so it binds more
+  tightly than `(.+)` (`infixr 3`), as in the mathematical notation where each term
+  carries its note. Several journals can be added without parentheses, and a
+  multi-term algebra needs parentheses before its note:
+
+  ```haskell
+  -- before
+  (10 .@ Not :< Cash .| "a") .+ (20 .@ Hat :< Cash .| "b")
+  10 .@ Not :< Cash .+ 10 .@ Not :< Sales .| "sale"
+  -- after
+  10 .@ Not :< Cash .| "a" .+ 20 .@ Hat :< Cash .| "b"
+  (10 .@ Not :< Cash .+ 10 .@ Not :< Sales) .| "sale"
+  ```
+
+  An expression written for the old fixity that no longer parses as intended is a
+  type error, so the compiler reports every place to change. Code that already
+  parenthesized each `(alg .| note)` keeps working. `Show` for `Journal` follows the
+  new fixity: `(a .+ b) .| "N" .+ c .| "M"`. Code examples published with earlier
+  versions need parentheses around the algebra sum when built against this version.
+- **Breaking:** `(.*)` is now `infixr 6` (previously the default `infixl 9`), so
+  `2 .* 10 .@ Not :< Cash` means `2 .* (10 .@ Not :< Cash)` and
+  `2 .* 3 .* x` means `2 .* (3 .* x)`. `(.*)` still binds more tightly than `(.|)` and
+  `(.+)`. Note that `2 .* a <> b` means `2 .* (a <> b)` because `(<>)` is also
+  `infixr 6`.
 - Change the license to MIT alone (previously MIT with Open World License conditions),
   and rename the license file from `LICENSE` to `LICENSE.txt`.
 - Reduce allocation in `MoneyDouble` Binary encoding without changing its bytes.

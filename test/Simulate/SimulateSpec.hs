@@ -320,12 +320,12 @@ simPurchases t wld = do
         o i j = M.findWithDefault 0 (i, j) shortageMap
     return $ sigma simCompanies $ \i
            -> sigma (simCompanies L.\\ [i]) $ \j
-           -> (o i j) .@ Not :<(Products, j, i, Amount)
+           -> ( (o i j) .@ Not :<(Products, j, i, Amount)
            .+ (o i j) .@ Hat :<(Cash, (.#), i, Yen)
            .+ (o i j) .@ Not :<(Purchases, (.#), i, Yen)
            .+ (o i j) .@ Not :<(Cash, (.#), j, Yen)
            .+ (o i j) .@ Not :<(Sales, (.#), j, Yen)
-           .+ (o i j) .@ Hat :<(Products, j, j, Amount)
+           .+ (o i j) .@ Hat :<(Products, j, j, Amount) )
            .| (SimSalesPurchase, t)
 
 instance StateSpace SimTerm SimInitVar SimEvent SimWorld s where

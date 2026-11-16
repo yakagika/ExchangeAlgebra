@@ -363,12 +363,12 @@ purchases t wld = do
         o i j = M.findWithDefault 0 (i, j) shortageMap
     return $ sigma companies $ \i
            -> sigma (companies L.\\ [i]) $ \j
-           -> (o i j) .@ Not :<(Products, j, i, Amount) -- 発注側 購入財
+           -> ( (o i j) .@ Not :<(Products, j, i, Amount) -- 発注側 購入財
            .+ (o i j) .@ Hat :<(Cash,(.#),i,Yen)        -- 発注側 購入額
            .+ (o i j) .@ Not :<(Purchases,(.#),i,Yen)   -- 発注額 仕入高
            .+ (o i j) .@ Not :<(Cash,(.#),j,Yen)        -- 受注側 販売額
            .+ (o i j) .@ Not :<(Sales,(.#),j,Yen)       -- 受注側 売上高
-           .+ (o i j) .@ Hat :<(Products, j, j,Amount)  -- 受注側 販売材
+           .+ (o i j) .@ Hat :<(Products, j, j,Amount) ) -- 受注側 販売材
            .| (SalesPurchase,t)
 
 event' :: World s -> Term -> EventName -> ST s ()
