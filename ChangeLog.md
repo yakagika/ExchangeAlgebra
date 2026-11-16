@@ -52,11 +52,13 @@
   parenthesized each `(alg .| note)` keeps working. `Show` for `Journal` follows the
   new fixity: `(a .+ b) .| "N" .+ c .| "M"`. Code examples published with earlier
   versions need parentheses around the algebra sum when built against this version.
-- **Breaking:** `(.*)` is now `infixr 6` (previously the default `infixl 9`), so
-  `2 .* 10 .@ Not :< Cash` means `2 .* (10 .@ Not :< Cash)` and
-  `2 .* 3 .* x` means `2 .* (3 .* x)`. `(.*)` still binds more tightly than `(.|)` and
-  `(.+)`. Note that `2 .* a <> b` means `2 .* (a <> b)` because `(<>)` is also
-  `infixr 6`.
+- `(.*)` now has an explicit fixity, `infixr 7` (previously the default `infixl 9`).
+  It still binds more tightly than `(.+)`, `(<>)` and `(.|)`. No operator of this
+  library or of base with precedence 7 to 9 takes and returns an algebra, so an
+  expression that compiled before keeps its meaning unless it mixes `(.*)` with such a
+  user-defined operator without parentheses. `2 .* 3 .* x` now means `2 .* (3 .* x)` instead
+  of a type error. `(.@)` is weaker, so `2 .* (10 .@ Not :< Cash)` still needs the
+  parentheses.
 - Change the license to MIT alone (previously MIT with Open World License conditions),
   and rename the license file from `LICENSE` to `LICENSE.txt`.
 - Reduce allocation in `MoneyDouble` Binary encoding without changing its bytes.
