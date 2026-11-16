@@ -238,6 +238,7 @@ tests:
     - Accounting.AdjustmentSpec
     - Accounting.AuditSpec
     - Accounting.RegistrySpec
+    - Accounting.ProcedureLawSpec
     - IO.InputOutputSpec
     - Simulate.SimulateSpec
     - Simulation.NetworkSpec

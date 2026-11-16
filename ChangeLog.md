@@ -4,6 +4,24 @@
 
 ### Added
 
+- Random-input property tests (`test/Accounting/ProcedureLawSpec.hs`, 200 cases each for
+  `Double` and `MoneyDecimal`, exact `Rational` observation) for two procedures derived from
+  the journal. No library code changed.
+  - `closingEntries`, on ledgers over every account in two units:
+    CL1 the entries have equal exact debit and credit totals;
+    CL2 after adding them, every account with a `closingSide` has net zero;
+    CL3 every other account except `RetainedEarnings` keeps its net and receives no posting;
+    CL4 per unit, the change of `RetainedEarnings` equals the nets of `ClosingKeep` accounts
+    (revenue, contra cost) minus the nets of `ClosingFlip` accounts (cost, contra revenue),
+    that is, the period's net income.
+  - Consolidation worksheet (`validateConsolidationWorksheet`, `combinedWorksheet`):
+    CW1 balanced source trial balances and adjustments are accepted and their combination is
+    balanced; CW2 the combination has the same exact net on every base as the inputs added in
+    reverse order and keeps every input posting; CW3 one unbalanced adjustment or source is
+    rejected with an error naming it.
+  These complement the existing closing laws L2, L3, L5 and C1-C3, C5
+  (`test/Transfer/RuleSpec.hs`), which use three or four accounts.
+
 - `hatForSide`, `postingForSide`, and `journalForSides` in
   `ExchangeAlgebra.Accounting.Exchange` construct debit/credit postings for any unmarked base
   with an `ExBaseClass` instance, including multi-axis bases. The input-conversion helpers keep
