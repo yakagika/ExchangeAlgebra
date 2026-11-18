@@ -16,12 +16,12 @@ The following methods belong to `Redundant` in `ExchangeAlgebra.Algebra.Core.Rep
 
 | Operation | Method and type | Effect |
 |---|---|---|
-| Hat | `(.^) :: a n b -> a n b` | Swap the two sequences at each base, preserving every amount. |
-| Bar | `(.-) :: a n b -> a n b` | Total each sequence at each base and cancel the two totals. Keep the excess on the larger side and drop a zero remainder. |
-| Sum | `(.+) :: a n b -> a n b -> a n b` | Concatenate the corresponding sequences. |
-| Scalar multiplication | `(.*) :: n -> a n b -> a n b` | Multiply every amount by the same finite nonnegative scalar. |
-| Norm | `norm :: a n b -> n` | Sum all amounts on both sides over all bases. |
-| Compression | `compress :: a n b -> a n b` | Sum amounts with the same base and direction, keeping opposite directions separate. |
+| Hat | `(.^) :: a n b -> a n b` | Swap the two sequences<br>at each base, preserving<br>every amount. |
+| Bar | `(.-) :: a n b -> a n b` | Total each sequence at<br>each base and cancel the<br>two totals. Keep the<br>excess on the larger side<br>and drop a zero remainder. |
+| Sum | `(.+) :: a n b -> a n b -> a n b` | Concatenate the<br>corresponding sequences. |
+| Scalar<br>multiplication | `(.*) :: n -> a n b -> a n b` | Multiply every amount by<br>the same finite<br>nonnegative scalar. |
+| Norm | `norm :: a n b -> n` | Sum all amounts on both<br>sides over all bases. |
+| Compression | `compress :: a n b -> a n b` | Sum amounts with the<br>same base and direction,<br>keeping opposite<br>directions separate. |
 
 For example, two `Not` amounts of 3 and 2 and a `Hat` amount of 4 on the same base have norm 9. Compression gives 5 on `Not` and 4 on `Hat`. Bar leaves 1 on `Not`. In general, if the two sequences at a base have lengths $p_i$ and $q_i$, their contribution to the norm is
 
