@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# OPTIONS_GHC -Wincomplete-patterns -Werror=incomplete-patterns #-}
@@ -40,29 +40,33 @@ module ExchangeAlgebra.IO.Input.Checked
     , reconcileSources
     ) where
 
+import           Data.Bifunctor (first)
 import           Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.HashMap.Strict as HM
 import qualified Data.List as L
 import qualified Data.Map.Strict as M
-import           Data.Maybe (mapMaybe)
+import           Data.Maybe (fromMaybe)
 import           Data.Text (Text)
-import qualified Data.Text as T
 
 import           ExchangeAlgebra.Algebra.Core (Alg, Redundant((.+), norm))
 import           ExchangeAlgebra.Algebra.Value.Class (HatVal(..), isErrorValue)
-import           ExchangeAlgebra.Accounting.Exchange (Exchange(decL, balance), ExBaseClass, TitleOf)
+import           ExchangeAlgebra.Accounting.Exchange
+                     ( Exchange(decL, balance), ExBaseClass, TitleOf, journalForSides )
 import           ExchangeAlgebra.Accounting.Account.PostingPolicy
                      ( ProcessingContext(..)
                      , postingAllowedIn
-                     , postingCapabilityFor
                      )
 import           ExchangeAlgebra.Accounting.Account
-                     ( AccountTitles(..), PostingCapability(..), Side(..) )
+                     ( AccountTitles(..), AccountVocabulary(vocabSemantics)
+                     , AccountSemantics(asemPostingCapability), PostingCapability(..), Side(..) )
+import           ExchangeAlgebra.Algebra.Element.Representation (Element(isWildcard, wildcard))
 import           ExchangeAlgebra.Algebra.Base.Representation (BaseClass, HatBase)
 import           ExchangeAlgebra.IO.Input.Conversion
-                     ( ConvError
-                     , ConvErrorOf
+                     ( ConvErrorOf(..)
                      , AccountResolver
+                     , defaultAccountNames
+                     , extendAccountNames
+                     , resolveWith
                      , journalFromSides
                      , normalizeTitle
                      , parseAccountTitle
@@ -197,11 +201,14 @@ checkedEntryIn :: (HatVal v)
                -> [(Side, AccountTitles, v)]
                -> Either (NonEmpty (EntryError v)) (Alg v (HatBase AccountTitles))
 checkedEntryIn context rows =
-    case validateIndexed context (null rows) indexed of
+    case entryErrors of
         []     -> Right (journalFromSides rows)
         e : es -> Left (e :| es)
   where
-    indexed = zip [0..] rows
+    entryErrors = [EmptyEntry | null rows]
+        ++ concat [ postingErrors context i (Just side) (Just account) amount
+                  | (i, (side, account, amount)) <- zip [0..] rows ]
+        ++ balanceErrors [(side, amount) | (side, _, amount) <- rows]
 
 -- | Construct one ordinary-journal entry. This compatibility API delegates
 -- to 'checkedEntryIn' and therefore rejects closing-only, consolidation-only,
@@ -225,10 +232,7 @@ checkedEntryTextIn :: (HatVal v)
                    => ProcessingContext
                    -> [(Text, Text, v)]
                    -> Either (NonEmpty (EntryError v)) (Alg v (HatBase AccountTitles))
-checkedEntryTextIn context rows =
-    checkedEntryParsedIn context
-        [(i, (parseSide side, parseAccountTitle account, amount))
-        | (i, (side, account, amount)) <- zip [0..] rows]
+checkedEntryTextIn = checkedEntryTextBy parseAccountTitle
 
 -- | As 'checkedEntryTextIn', but with a caller-supplied account resolver, so
 -- the title type @acct@ is the caller's.
@@ -250,7 +254,14 @@ checkedEntryTextBy :: (HatVal v, ExBaseClass (HatBase acct), TitleOf (HatBase ac
                    -> ProcessingContext
                    -> [(Text, Text, v)]
                    -> Either (NonEmpty (EntryErrorOf acct v)) (Alg v (HatBase acct))
-checkedEntryTextBy = undefined
+checkedEntryTextBy resolve context rows =
+    checkedEntryParsedIn context
+        [(i, (parseInputSide side, resolve account, amount))
+        | (i, (side, account, amount)) <- zip [0..] rows]
+
+-- | Keep the original side field in the error for any account type.
+parseInputSide :: Text -> Either (ConvErrorOf acct) Side
+parseInputSide t = first (const (UnknownSide t)) (parseSide t)
 
 -- | Check typed sides and account text in the supplied processing context.
 -- Account parse errors precede structural errors and imbalance. Amounts from
@@ -268,72 +279,30 @@ checkedEntryAccountTextIn context rows =
 -- | Validate all indexed parse results without dropping unresolved rows.
 -- An unresolved side suppresses imbalance; an unresolved account does not.
 checkedEntryParsedIn
-    :: forall v. HatVal v
+    :: (HatVal v, ExBaseClass (HatBase acct), TitleOf (HatBase acct) ~ acct)
     => ProcessingContext
-    -> [(Int, (Either ConvError Side, Either ConvError AccountTitles, v))]
-    -> Either (NonEmpty (EntryError v)) (Alg v (HatBase AccountTitles))
+    -> [(Int, (Either (ConvErrorOf acct) Side, Either (ConvErrorOf acct) acct, v))]
+    -> Either (NonEmpty (EntryErrorOf acct v)) (Alg v (HatBase acct))
 checkedEntryParsedIn context rows =
-    case parseErrors ++ structuralErrors ++ textImbalanceErrors of
-        []     -> Right (journalFromSides (map snd parsedRows))
+    case parseErrors ++ structuralErrors ++ imbalanceErrors of
+        []     -> Right (journalForSides (map snd parsedRows))
         e : es -> Left (e :| es)
   where
-    parsed = map parseIndexed rows
-    parseErrors = concatMap first parsed
-    parsedRows = mapMaybe second parsed
-    sideAmounts = mapMaybe third parsed
-    structuralErrors = filter (not . isImbalance)
-        (validateIndexed context (null rows) parsedRows)
+    parseErrors = concat
+        [ [EntryParse i err | Left err <- [side]] ++ [EntryParse i err | Left err <- [account]]
+        | (i, (side, account, _)) <- rows ]
+    parsedRows =
+        [(i, (side, account, amount)) | (i, (Right side, Right account, amount)) <- rows]
+    structuralErrors = [EmptyEntry | null rows]
+        ++ concat [postingErrors context i (Just side) (Just account) amount
+                  | (i, (side, account, amount)) <- parsedRows]
 
-    -- Account vocabulary resolution and arithmetic balance are independent.
-    -- Retain every successfully parsed side/amount pair so an unknown account
-    -- does not make an otherwise balanced entry look imbalanced.
-    textImbalanceErrors
-        | null rows = []
+    -- An unresolved account contributes its amount if the side is known.
+    sideAmounts = [(side, amount) | (_, (Right side, _, amount)) <- rows]
+    imbalanceErrors
         | length sideAmounts /= length rows = []
-        | any invalidSideAmount sideAmounts = []
-        | signAccum (mergeAccum debitState (negateAccum creditState)) == Just EQ = []
-        | otherwise = [Imbalanced debitTotal creditTotal]
-      where
-        debitState = L.foldl' (flip addAccum) emptyAccum
-            [ amount | (Debit, amount) <- sideAmounts ]
-        creditState = L.foldl' (flip addAccum) emptyAccum
-            [ amount | (Credit, amount) <- sideAmounts ]
-        debitTotal = roundAccum debitState
-        creditTotal = roundAccum creditState
-
-    invalidSideAmount :: (Side, v) -> Bool
-    invalidSideAmount (side, amount) =
-        side == Side || isErrorValue amount || not (amount > 0)
-
-    isImbalance :: EntryError v -> Bool
-    isImbalance Imbalanced{} = True
-    isImbalance _ = False
-
-    first :: (a, b, c) -> a
-    first (x, _, _) = x
-    second :: (a, b, c) -> b
-    second (_, x, _) = x
-    third :: (a, b, c) -> c
-    third (_, _, x) = x
-
-    parseIndexed
-        :: (Int, (Either ConvError Side, Either ConvError AccountTitles, v))
-        -> ([EntryError v], Maybe (Int, (Side, AccountTitles, v)), Maybe (Side, v))
-    parseIndexed (i, (sideResult, accountResult, amount)) =
-        let errs =
-                (case sideResult of
-                    Left err -> [EntryParse i err]
-                    Right _  -> [])
-                ++ (case accountResult of
-                    Left err -> [EntryParse i err]
-                    Right _  -> [])
-            parsedRow = case (sideResult, accountResult) of
-                (Right side, Right account) -> Just (i, (side, account, amount))
-                _                           -> Nothing
-            sideAmount = case sideResult of
-                Right side -> Just (side, amount)
-                Left _     -> Nothing
-        in (errs, parsedRow, sideAmount)
+        | any (\(side, amount) -> side == Side || invalidAmount amount) sideAmounts = []
+        | otherwise = balanceErrors sideAmounts
 
 -- | Parse and check an ordinary-journal entry.
 checkedEntryText :: (HatVal v)
@@ -403,7 +372,40 @@ certifyJournalTextIn :: (HatVal v, Note n, Ord n)
                      => ProcessingContext
                      -> [(n, [(Text, Text, v)])]
                      -> JournalCert n v
-certifyJournalTextIn context entries =
+certifyJournalTextIn = certifyJournalTextBy
+    (resolveWith (extendAccountNames [("AccountTitle", AccountTitle)] defaultAccountNames))
+
+-- | As 'certifyJournalTextIn', but with a caller-supplied account resolver.
+--
+-- Laws:
+--
+-- * @certifyJournalTextBy (resolveWith (extendAccountNames [(\"AccountTitle\", AccountTitle)] defaultAccountNames)) == certifyJournalTextIn@.
+--   The built-in path lists the wildcard's name so that a wildcard (a
+--   structural defect) stays distinct from an unknown name (a vocabulary gap);
+--   a caller extending the built-in table keeps that distinction the same way.
+--   The side name @\"Side\"@ (after 'normalizeTitle') is read as the wildcard
+--   side for every title type, as before.
+-- * Decisions in order: duplicate txids, then structural errors of every
+--   entry, then the balance of each entry (per txid, so two entries whose
+--   imbalances cancel in the batch are 'Rejected'), then vocabulary gaps. The
+--   first non-empty stage gives 'Rejected'.
+-- * A resolved wildcard is a structural error. 'UnknownAccount' and
+--   'AmbiguousAccount' from the resolver are vocabulary gaps; any other 'Left'
+--   from the resolver is a structural 'EntryParse' error.
+-- * When only vocabulary gaps remain the result is 'BalancedUnresolved':
+--   '_certResolved' and '_certUnresolved' keep transaction order and row order
+--   and omit transactions with no rows in that group; '_certUnresolved' holds
+--   the account text as given; the batch totals include the amounts of
+--   unresolved rows. With no gaps the result is 'FullyResolved'.
+-- * Titles are checked for posting capability as in 'checkedEntryTextBy'
+--   (here a row with an unparsed side is still checked, as in
+--   'certifyJournalTextIn').
+certifyJournalTextBy :: (HatVal v, Note n, ExBaseClass (HatBase acct), TitleOf (HatBase acct) ~ acct)
+                     => AccountResolver acct
+                     -> ProcessingContext
+                     -> [(n, [(Text, Text, v)])]
+                     -> JournalCertOf acct n v
+certifyJournalTextBy resolve context entries =
     case duplicateErrors of
         e : es -> Rejected (e :| es)
         [] -> case structuralErrors of
@@ -411,7 +413,7 @@ certifyJournalTextIn context entries =
             [] -> case imbalanceErrors of
                 e : es -> Rejected (e :| es)
                 []
-                    | null unresolvedPostings ->
+                    | null unresolvedEntries ->
                         FullyResolved (L.foldl' (.+) mempty journals)
                     | otherwise ->
                         BalancedUnresolved
@@ -429,7 +431,7 @@ certifyJournalTextIn context entries =
         ]
 
     parsedEntries =
-        [ (txid, map parseCertPosting (zip [0..] rows))
+        [ (txid, map (parseCertPosting resolve) (zip [0..] rows))
         | (txid, rows) <- entries
         ]
 
@@ -469,8 +471,6 @@ certifyJournalTextIn context entries =
         , not (null unresolved)
         ]
 
-    unresolvedPostings = concatMap snd unresolvedEntries
-
     (debitTotal, creditTotal) =
         let (debitState, creditState) = L.foldl' addTotals (emptyAccum, emptyAccum)
                 (map (certTotals . snd) parsedEntries)
@@ -482,42 +482,9 @@ certifyJournalTextIn context entries =
         in (debitTotal, creditTotal)
 
     journals =
-        [ journalFromSides rows .| txid
+        [ journalForSides rows .| txid
         | (txid, rows) <- resolvedEntries
         ]
-
--- | As 'certifyJournalTextIn', but with a caller-supplied account resolver.
---
--- Laws:
---
--- * @certifyJournalTextBy (resolveWith (extendAccountNames [(\"AccountTitle\", AccountTitle)] defaultAccountNames)) == certifyJournalTextIn@.
---   The built-in path lists the wildcard's name so that a wildcard (a
---   structural defect) stays distinct from an unknown name (a vocabulary gap);
---   a caller extending the built-in table keeps that distinction the same way.
---   The side name @\"Side\"@ (after 'normalizeTitle') is read as the wildcard
---   side for every title type, as before.
--- * Decisions in order: duplicate txids, then structural errors of every
---   entry, then the balance of each entry (per txid, so two entries whose
---   imbalances cancel in the batch are 'Rejected'), then vocabulary gaps. The
---   first non-empty stage gives 'Rejected'.
--- * A resolved wildcard is a structural error. 'UnknownAccount' and
---   'AmbiguousAccount' from the resolver are vocabulary gaps; any other 'Left'
---   from the resolver is a structural 'EntryParse' error.
--- * When only vocabulary gaps remain the result is 'BalancedUnresolved':
---   '_certResolved' and '_certUnresolved' keep transaction order and row order
---   and omit transactions with no rows in that group; '_certUnresolved' holds
---   the account text as given; the batch totals include the amounts of
---   unresolved rows. With no gaps the result is 'FullyResolved'.
--- * Titles are checked for posting capability as in 'checkedEntryTextBy'
---   (here a row with an unparsed side is still checked, as in
---   'certifyJournalTextIn').
-certifyJournalTextBy :: (HatVal v, Note n, ExBaseClass (HatBase acct), TitleOf (HatBase acct) ~ acct)
-                     => AccountResolver acct
-                     -> ProcessingContext
-                     -> [(n, [(Text, Text, v)])]
-                     -> JournalCertOf acct n v
-certifyJournalTextBy = undefined
-
 
 -- | Certify an ordinary-journal batch in stages.
 certifyJournalText :: (HatVal v, Note n, Ord n)
@@ -525,63 +492,40 @@ certifyJournalText :: (HatVal v, Note n, Ord n)
                    -> JournalCert n v
 certifyJournalText = certifyJournalTextIn OrdinaryJournal
 
--- The tuple retains the original account text so resolution failures can be
+-- | The tuple retains the original account text so resolution failures can be
 -- reported without reconstructing user input.
-type CertPosting v =
-    (Int, Text, v, Either ConvError Side, Either ConvError AccountTitles)
+type CertPosting acct v =
+    (Int, Text, v, Either (ConvErrorOf acct) Side, Either (ConvErrorOf acct) acct)
 
--- Wildcard names have to be recognized here rather than delegated to the
--- parsers: 'parseAccountTitle' and 'parseSide' reject the wildcard
--- constructors by design (the /correct-by-construction/ guard documented in
--- "ExchangeAlgebra.IO.Input.Conversion"), so on the text path a wildcard is indistinguishable
--- from an unknown name. Certification must tell them apart, because a wildcard
--- is a structural defect ('Rejected') whereas an unknown name is a vocabulary
--- gap ('BalancedUnresolved'). Matching uses the parsers' own 'normalizeTitle',
--- so the two paths cannot drift apart.
-parseCertPosting :: (Int, (Text, Text, v)) -> CertPosting v
-parseCertPosting (i, (sideText, accountText, amount)) =
-    ( i
-    , accountText
-    , amount
-    , if normalizeTitle sideText == T.pack "side"
-          then Right Side
-          else parseSide sideText
-    , if normalizeTitle accountText == T.pack "accounttitle"
-          then Right AccountTitle
-          else parseAccountTitle accountText
-    )
-
-certStructuralErrors :: (HatVal v)
-                     => ProcessingContext
-                     -> [CertPosting v]
-                     -> [EntryError v]
-certStructuralErrors context rows =
-    [ EmptyEntry | null rows ] ++ concatMap rowErrors rows
+-- | Preserve the row index and raw account name for unresolved entries.
+parseCertPosting :: AccountResolver acct -> (Int, (Text, Text, v)) -> CertPosting acct v
+parseCertPosting resolve (i, (sideText, accountText, amount)) =
+    (i, accountText, amount, side, resolve accountText)
   where
-    rowErrors (i, _, amount, sideResult, accountResult) =
-        [ EntryParse i err | Left err <- [sideResult] ]
-        ++ [ NonPositiveAmount i (resolvedOrWildcard accountResult) amount
-           | isErrorValue amount || not (amount > 0)
-           ]
-        ++ [ WildcardAccount i | Right AccountTitle <- [accountResult] ]
-        ++ [ WildcardSide i | Right Side <- [sideResult] ]
-        ++ [ PostingNotAllowed i account capability context
-           | Right account <- [accountResult]
-           , account /= AccountTitle
-           , let capability = postingCapabilityFor account
-           , not (postingAllowedIn context capability)
-           ]
+    side | normalizeTitle sideText == "side" = Right Side
+         | otherwise = parseInputSide sideText
 
-    resolvedOrWildcard (Right account) = account
-    resolvedOrWildcard (Left _) = AccountTitle
+-- | Collect row defects before the per-transaction balance check.
+certStructuralErrors :: (HatVal v, AccountVocabulary acct)
+                     => ProcessingContext
+                     -> [CertPosting acct v]
+                     -> [EntryErrorOf acct v]
+certStructuralErrors context rows =
+    [EmptyEntry | null rows] ++ concatMap rowErrors rows
+  where
+    rowErrors (i, _, amount, side, account) =
+        [EntryParse i err | Left err <- [side]]
+        ++ [EntryParse i err | Left err <- [account], not (vocabularyGap err)]
+        ++ postingErrors context i (resolved side) (resolved account) amount
 
-certTotals :: (HatVal v) => [CertPosting v] -> (Accum v, Accum v)
-certTotals rows =
-    ( L.foldl' (flip addAccum) emptyAccum
-        [ amount | (_, _, amount, Right Debit, _) <- rows ]
-    , L.foldl' (flip addAccum) emptyAccum
-        [ amount | (_, _, amount, Right Credit, _) <- rows ]
-    )
+    resolved = either (const Nothing) Just
+    vocabularyGap UnknownAccount{}   = True
+    vocabularyGap AmbiguousAccount{} = True
+    vocabularyGap _                  = False
+
+-- | Include unresolved accounts in the totals for their parsed sides.
+certTotals :: HatVal v => [CertPosting acct v] -> (Accum v, Accum v)
+certTotals rows = sideTotals [(side, amount) | (_, _, amount, Right side, _) <- rows]
 
 -- | Compare source transactions against the note-indexed journal coverage.
 --
@@ -628,40 +572,39 @@ reconcileSources sources journal =
         , expectedAmount /= actualAmount
         ]
 
-validateIndexed :: (HatVal v)
-                => ProcessingContext
-                -> Bool
-                -> [(Int, (Side, AccountTitles, v))]
-                -> [EntryError v]
-validateIndexed context rawEmpty rows =
-    emptyErrors ++ rowErrors ++ imbalanceErrors
+-- | Report amount, wildcard and capability errors in their input-validation order.
+postingErrors :: (HatVal v, AccountVocabulary acct)
+              => ProcessingContext -> Int -> Maybe Side -> Maybe acct -> v
+              -> [EntryErrorOf acct v]
+postingErrors context i side account amount =
+    [NonPositiveAmount i (fromMaybe wildcard account) amount | invalidAmount amount]
+    ++ [WildcardAccount i | Just title <- [account], isWildcard title]
+    ++ [WildcardSide i | side == Just Side]
+    ++ case account of
+        Just title | not (isWildcard title) -> case vocabSemantics title of
+            Nothing -> [MissingPostingSemantics i title]
+            Just semantics ->
+                let capability = asemPostingCapability semantics
+                in [ PostingNotAllowed i title capability context
+                   | not (postingAllowedIn context capability) ]
+        _ -> []
+
+-- | Checked postings require positive, finite amounts.
+invalidAmount :: HatVal v => v -> Bool
+invalidAmount amount = isErrorValue amount || not (amount > 0)
+
+-- | Accumulate debits and credits before rounding to the value type.
+sideTotals :: HatVal v => [(Side, v)] -> (Accum v, Accum v)
+sideTotals rows =
+    ( L.foldl' (flip addAccum) emptyAccum [amount | (Debit, amount) <- rows]
+    , L.foldl' (flip addAccum) emptyAccum [amount | (Credit, amount) <- rows]
+    )
+
+-- | Compare the accumulated totals and round only for error reporting.
+balanceErrors :: HatVal v => [(Side, v)] -> [EntryErrorOf acct v]
+balanceErrors [] = []
+balanceErrors rows =
+    [ Imbalanced (roundAccum debit) (roundAccum credit)
+    | signAccum (mergeAccum debit (negateAccum credit)) /= Just EQ ]
   where
-    emptyErrors = [ EmptyEntry | rawEmpty ]
-
-    rowErrors = concatMap validateRow rows
-
-    validateRow (i, (side, account, amount)) =
-        [ NonPositiveAmount i account amount
-        | invalidAmount amount
-        ]
-        ++ [ WildcardAccount i | account == AccountTitle ]
-        ++ [ WildcardSide i | side == Side ]
-        ++ [ PostingNotAllowed i account capability context
-           | account /= AccountTitle
-           , let capability = postingCapabilityFor account
-           , not (postingAllowedIn context capability)
-           ]
-
-    invalidAmount amount = isErrorValue amount || not (amount > 0)
-
-    imbalanceErrors
-        | null rows = []
-        | otherwise =
-            [ Imbalanced (roundAccum debit) (roundAccum credit)
-            | signAccum (mergeAccum debit (negateAccum credit)) /= Just EQ
-            ]
-      where
-        debit = L.foldl' (flip addAccum) emptyAccum
-            [amount | (_, (Debit, _, amount)) <- rows]
-        credit = L.foldl' (flip addAccum) emptyAccum
-            [amount | (_, (Credit, _, amount)) <- rows]
+    (debit, credit) = sideTotals rows

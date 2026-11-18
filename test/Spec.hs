@@ -24,6 +24,7 @@ import qualified Accounting.AuditSpec as AuditSpec
 import qualified Accounting.RegistrySpec as RegistrySpec
 import qualified Accounting.ProcedureLawSpec as ProcedureLawSpec
 import qualified IO.InputOutputSpec as InputOutputSpec
+import qualified IO.AccountNamesSpec as AccountNamesSpec
 import qualified Simulate.SimulateSpec as SimulateSpec
 import qualified Simulation.NetworkSpec as NetworkSpec
 import qualified Simulation.OptimizeSpec as OptimizeSpec
@@ -53,6 +54,7 @@ main = do
     RegistrySpec.runTests
     ProcedureLawSpec.runTests
     InputOutputSpec.runTests
+    AccountNamesSpec.runTests
     SimulateSpec.runTests
     NetworkSpec.runTests
     OptimizeSpec.runTests

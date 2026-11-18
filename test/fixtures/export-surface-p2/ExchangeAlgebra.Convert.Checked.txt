@@ -6,12 +6,16 @@ DuplicateTxId
 EmptyEntry
 EngineComputation
 EntryError
+EntryErrorOf
 EntryErrors
 EntryParse
 FullyResolved
 Imbalanced
 JournalCert
+JournalCertOf
 JournalError
+JournalErrorOf
+MissingPostingSemantics
 MissingSource
 NonPositiveAmount
 OrdinaryJournal

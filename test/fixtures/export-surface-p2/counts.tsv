@@ -14,9 +14,9 @@ ExchangeAlgebra.Assist.Descriptions	1
 ExchangeAlgebra.Assist	16
 ExchangeAlgebra.Bookkeeping	19
 ExchangeAlgebra.Consolidation.Worksheet	73
-ExchangeAlgebra.Convert.Checked	40
+ExchangeAlgebra.Convert.Checked	44
 ExchangeAlgebra.Convert.Csv	5
-ExchangeAlgebra.Convert	13
+ExchangeAlgebra.Convert	14
 ExchangeAlgebra.IO.Input.Admission	19
 ExchangeAlgebra.Journal.Transfer.Rule	13
 ExchangeAlgebra.Journal.Transfer	12

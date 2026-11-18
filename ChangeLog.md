@@ -4,6 +4,14 @@
 
 ### Added
 
+- Journal input accepts caller-defined account names. Build a table with
+  `accountNameTable`, start from `defaultAccountNames` or `vocabularyNames`,
+  and add local names with `extendAccountNames`. Pass `resolveWith table` to
+  `parseJournalCsvBy`, `parseNotedJournalCsvBy`, `checkedEntryTextBy`, or
+  `certifyJournalTextBy`. Shared names report all distinct candidates in insertion order.
+  The checked readers report `MissingPostingSemantics` when a concrete title's
+  vocabulary omits its posting capability.
+
 - Random-input property tests (`test/Accounting/ProcedureLawSpec.hs`, 200 cases each for
   `Double` and `MoneyDecimal`, exact `Rational` observation) for two procedures derived from
   the journal. No library code changed.
@@ -56,6 +64,14 @@
 
 ### Changed
 
+- **Breaking.** `ConvError`, `EntryError`, `JournalError`, and `JournalCert`
+  are now type synonyms for the built-in chart. A former `T(..)` import leaves
+  the constructors out of scope. Import the corresponding `TOf(..)` alongside
+  the synonym, for example `import ExchangeAlgebra.IO.Input (ConvErrorOf(..), ConvError)`.
+  `scientificAmount` now returns errors of type `ConvErrorOf acct`. When comparing
+  or printing its result in isolation, specify the account type, for example
+  `scientificAmount "10" :: Either ConvError Double`.
+
 - **Breaking:** `ExBaseClass` has an associated type `TitleOf` (default `AccountTitles`), and
   `getAccountTitle`, `setAccountTitle`, `(.~)` and `projByAccountTitle` now use `TitleOf b`
   instead of `AccountTitles`. `ExBaseClass a` has the new superclass
@@ -101,6 +117,12 @@
   public APIs, and Binary encodings. `ExchangeAlgebra.Algebra.Internal` (outside the PVP
   contract) now exports the `HatOne`, `NotOne`, and `PairSeq` constructors of `Pair`; the
   `Pair hs ns` pattern and its field selectors remain.
+
+### Fixed
+
+- Journal CSV readers, including the built-in readers, return `BadAmount` with the
+  trimmed amount field when the amount parser returns a negative or non-finite value.
+  Previously the row passed parsing and `(.@)` raised an exception during term construction.
 
 ### Deprecated
 

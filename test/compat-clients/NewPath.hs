@@ -22,6 +22,12 @@ import qualified ExchangeAlgebra.Accounting.TrialBalance as TrialBalance
 import qualified ExchangeAlgebra.Accounting.Statements as Statements
 import qualified ExchangeAlgebra.Accounting.Consolidation as Consolidation
 import qualified ExchangeAlgebra.IO.Input as Input
+import ExchangeAlgebra.IO.Input
+    ( ConvErrorOf(..), ConvError, EntryErrorOf(..), EntryError
+    , JournalErrorOf(..), JournalError, JournalCertOf(..), JournalCert
+    , AccountResolver, AccountNameTable, resolveWith, defaultAccountNames
+    , extendAccountNames, vocabularyNames, checkedEntryTextBy, certifyJournalTextBy )
+import ExchangeAlgebra.IO.Input.Csv (parseJournalCsvBy, parseNotedJournalCsvBy)
 import qualified ExchangeAlgebra.IO.Input.Csv as InputCsv
 import qualified ExchangeAlgebra.IO.Input.Assist as Assist
 import qualified ExchangeAlgebra.IO.Output.Csv as OutputCsv
@@ -154,3 +160,39 @@ admissionClient :: Journal.Journal String Value.MoneyDecimal (HatBase AccountTit
                 -> Either (Admission.AdmissionFailure String (HatBase AccountTitles))
                           (Admission.Admitted String (HatBase AccountTitles))
 admissionClient = Admission.admit
+
+-- | Extend the built-in table with the client's local name for cash.
+nameTableClient :: AccountNameTable AccountTitles
+nameTableClient = extendAccountNames [(mempty, Cash)] defaultAccountNames
+
+-- | Resolve a name using the extended chart.
+nameResolverClient :: AccountResolver AccountTitles
+nameResolverClient = resolveWith nameTableClient
+
+-- | Construct a diagnostic using the built-in synonyms and the generic constructors.
+nameErrorClient
+    :: (ConvError, EntryError Double, JournalError String Double, JournalCert String Double)
+nameErrorClient = (unknown, entry, journal, Rejected (Data.List.NonEmpty.singleton journal))
+  where
+    unknown = UnknownAccount mempty
+    entry = EntryParse 0 unknown
+    journal = EntryErrors "tx" (Data.List.NonEmpty.singleton entry)
+
+-- | Check text rows against a chart extended with a local name.
+checkedNamesClient :: Either (Data.List.NonEmpty.NonEmpty (EntryError Double))
+                             (Alg Double (HatBase AccountTitles))
+checkedNamesClient = checkedEntryTextBy nameResolverClient Account.OrdinaryJournal []
+
+-- | Certify entries against just the listed titles.
+certifiedNamesClient :: JournalCert String Double
+certifiedNamesClient = certifyJournalTextBy (resolveWith (vocabularyNames [Cash, Sales]))
+    Account.OrdinaryJournal []
+
+-- | Read terms using the same resolver as the checked input.
+csvNamesClient :: Either ConvError (Alg Double (HatBase AccountTitles))
+csvNamesClient = parseJournalCsvBy nameResolverClient InputCsv.scientificAmount mempty
+
+-- | Extract the amounts from note-bearing rows.
+notedCsvNamesClient :: Either ConvError [Double]
+notedCsvNamesClient = fmap (map (\(_, _, amount, _) -> amount))
+    (parseNotedJournalCsvBy nameResolverClient InputCsv.scientificAmount mempty)

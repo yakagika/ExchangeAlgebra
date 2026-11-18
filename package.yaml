@@ -241,6 +241,7 @@ tests:
     - Accounting.RegistrySpec
     - Accounting.ProcedureLawSpec
     - IO.InputOutputSpec
+    - IO.AccountNamesSpec
     - Simulate.SimulateSpec
     - Simulation.NetworkSpec
     - Simulation.OptimizeSpec

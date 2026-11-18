@@ -1,6 +1,7 @@
 AmbiguousAccount
 BadAmount
 ConvError
+ConvErrorOf
 MalformedCsv
 UnknownAccount
 UnknownSide

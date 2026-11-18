@@ -54,7 +54,8 @@ module ExchangeAlgebra.IO.Input.Conversion
 
 import           Data.Char (isAlphaNum, isSpace)
 import qualified Data.List as L
-import           Data.List.NonEmpty (NonEmpty)
+import           Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
 import           Data.Text (Text)
 import qualified Data.Text as T
@@ -68,7 +69,9 @@ import           ExchangeAlgebra.Accounting.Exchange ( hatForSide
                                                     , postingForSide
                                                     , journalForSides
                                                     )
-import           ExchangeAlgebra.Accounting.Account.Registry ( concreteAccountTitles )
+import           ExchangeAlgebra.Accounting.Account.Registry ( AccountSpec(..)
+                                                            , concreteAccountTitles )
+import           ExchangeAlgebra.Algebra.Element.Representation (isWildcard)
 
 -- $setup
 -- The examples use 'Text' literals, so enable @OverloadedStrings@ in doctest.
@@ -137,7 +140,8 @@ data AccountNameTable acct = AccountNameTable
 --   @r t == Left (UnknownAccount t)@ iff it is empty.
 -- * With @f = id@, matching is exact.
 accountNameTable :: Eq acct => (Text -> Text) -> [(Text, acct)] -> AccountNameTable acct
-accountNameTable = undefined
+accountNameTable normalize pairs =
+    extendAccountNames pairs (AccountNameTable normalize M.empty)
 
 -- | Add @(name, title)@ pairs to a table, normalizing the new names with the
 -- table's own function.
@@ -148,12 +152,24 @@ accountNameTable = undefined
 -- a different title, in which case it becomes ambiguous with the existing
 -- candidates listed first.
 extendAccountNames :: Eq acct => [(Text, acct)] -> AccountNameTable acct -> AccountNameTable acct
-extendAccountNames = undefined
+extendAccountNames pairs (AccountNameTable normalize candidates) =
+    AccountNameTable normalize (L.foldl' addName candidates pairs)
+  where
+    addName table (name, title) = M.alter addCandidate (normalize name) table
+      where
+        addCandidate Nothing = Just (title :| [])
+        addCandidate (Just titles)
+            | title `elem` titles = Just titles
+            | otherwise          = Just (titles <> (title :| []))
 
 -- | The resolver of a table. Normalizes the argument with the table's function
 -- and looks up its candidates; see the laws of 'accountNameTable'.
 resolveWith :: AccountNameTable acct -> AccountResolver acct
-resolveWith = undefined
+resolveWith (AccountNameTable normalize candidates) name =
+    case M.lookup (normalize name) candidates of
+        Nothing             -> Left (UnknownAccount name)
+        Just (title :| [])  -> Right title
+        Just titles         -> Left (AmbiguousAccount name (NE.toList titles))
 
 -- | The names 'parseAccountTitle' accepts: the constructor name ('show') of
 -- every title in 'concreteAccountTitles', then the 'accountAliases' of each
@@ -181,7 +197,15 @@ defaultAccountNames = accountNameTable normalizeTitle defaultNameEntries
 -- English names and labels. Use 'extendAccountNames' to add names a
 -- vocabulary does not carry.
 vocabularyNames :: AccountVocabulary t => [t] -> AccountNameTable t
-vocabularyNames = undefined
+vocabularyNames titles = accountNameTable normalizeTitle
+    [ (name, title)
+    | title <- titles
+    , not (isWildcard title)
+    , name <- T.pack (show title) : specNames (vocabSpec title)
+    ]
+  where
+    specNames Nothing     = []
+    specNames (Just spec) = asNameEn spec : asLabelJa spec : asAliases spec
 
 -- $concreteAccountTitles
 -- 'concreteAccountTitles' lists all concrete account titles, /excluding/ the
@@ -272,20 +296,7 @@ normalizeTitle = T.unwords . T.words . T.filter (\c -> isAlphaNum c || isSpace c
 -- >>> parseAccountTitle "AccountTitle"
 -- Left (UnknownAccount "AccountTitle")
 parseAccountTitle :: Text -> Either ConvError AccountTitles
-parseAccountTitle t =
-    case lookup (normalizeTitle t) legacyAccountTable of
-        Just [a] -> Right a
-        Just as  -> Left (AmbiguousAccount t as)
-        Nothing  -> Left (UnknownAccount t)
-
--- Pre-0.7 lookup, kept until 'resolveWith' is implemented; then
--- 'parseAccountTitle' becomes @resolveWith defaultAccountNames@ and this goes.
-legacyAccountTable :: [(Text, [AccountTitles])]
-legacyAccountTable =
-    [ (k, L.nub [ a | (k', a) <- kvs, k' == k ])
-    | k <- L.nub (L.map fst kvs) ]
-  where
-    kvs = [ (normalizeTitle k, a) | (k, a) <- defaultNameEntries ]
+parseAccountTitle = resolveWith defaultAccountNames
 
 -- | Parse a side string (@"debit"@\/@"credit"@, case-insensitive) into t'Side'.
 --

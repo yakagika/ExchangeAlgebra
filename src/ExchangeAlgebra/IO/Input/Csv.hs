@@ -31,7 +31,7 @@ rejected. @side@ is resolved with 'parseSide'. @amount@ is parsed by a
 caller-supplied function so the value type @v@ stays open; 'scientificAmount'
 covers the common case (a non-negative decimal literal via 'Data.Scientific').
 All values are placed through the non-negative smart constructor @(.@)@ inside
-'postingFromSide'.
+'journalForSides'.
 -}
 module ExchangeAlgebra.IO.Input.Csv
     ( -- * Parsing journal CSV
@@ -51,17 +51,17 @@ import qualified Data.Scientific as Sci
 import           Data.Text (Text)
 import qualified Data.Text as T
 
-import           ExchangeAlgebra.Algebra.Core ( Alg, Redundant((.+)) )
-import           ExchangeAlgebra.Algebra.Value.Class (HatVal)
+import           ExchangeAlgebra.Algebra.Core (Alg)
+import           ExchangeAlgebra.Algebra.Value.Class (HatVal, valueError)
 import           ExchangeAlgebra.Algebra.Base.Representation (HatBase)
 import           ExchangeAlgebra.Accounting.Account (AccountTitles, Side)
-import           ExchangeAlgebra.Accounting.Exchange (ExBaseClass, TitleOf)
+import           ExchangeAlgebra.Accounting.Exchange (ExBaseClass, TitleOf, journalForSides)
 import           ExchangeAlgebra.IO.Input.Conversion        ( ConvErrorOf(..)
                                                 , ConvError
                                                 , AccountResolver
                                                 , parseAccountTitle
-                                                , parseSide
-                                                , postingFromSide )
+                                                , parseSide )
+import           ExchangeAlgebra.Algebra.Element.Representation (isWildcard)
 
 -- $setup
 -- >>> :set -XOverloadedStrings
@@ -105,9 +105,7 @@ parseJournalCsvWith :: (HatVal v)
                     => (Text -> Either ConvError v)
                     -> Text
                     -> Either ConvError (Alg v (HatBase AccountTitles))
-parseJournalCsvWith amount txt = do
-    rows <- parseRows amount txt
-    Right (foldr (\(s, a, v) acc -> postingFromSide s a v .+ acc) mempty rows)
+parseJournalCsvWith = parseJournalCsvBy parseAccountTitle
 
 -- | As 'parseJournalCsvWith', but with a caller-supplied account resolver, so
 -- the title type @acct@ is the caller's (see
@@ -130,7 +128,10 @@ parseJournalCsvBy :: (HatVal v, ExBaseClass (HatBase acct), TitleOf (HatBase acc
                   -> (Text -> Either (ConvErrorOf acct) v)
                   -> Text
                   -> Either (ConvErrorOf acct) (Alg v (HatBase acct))
-parseJournalCsvBy = undefined
+parseJournalCsvBy resolver amount txt =
+    journalForSides . map dropNote <$> parseNotedJournalCsvBy resolver amount txt
+  where
+    dropNote (side, account, value, _) = (side, account, value)
 
 -- | Parse the rows of a journal CSV into @(Side, AccountTitles, value, note)@
 -- tuples, where @note@ is the optional 4th column (empty 'Text' if absent). The
@@ -148,9 +149,7 @@ parseNotedJournalCsv :: (HatVal v)
                      => (Text -> Either ConvError v)
                      -> Text
                      -> Either ConvError [(Side, AccountTitles, v, Text)]
-parseNotedJournalCsv amount txt = do
-    keptHeader <- splitHeader txt
-    traverse (rowNoted amount) keptHeader
+parseNotedJournalCsv = parseNotedJournalCsvBy parseAccountTitle
 
 -- | As 'parseNotedJournalCsv', but with a caller-supplied account resolver.
 --
@@ -171,7 +170,9 @@ parseNotedJournalCsvBy :: (HatVal v, ExBaseClass (HatBase acct), TitleOf (HatBas
                        -> (Text -> Either (ConvErrorOf acct) v)
                        -> Text
                        -> Either (ConvErrorOf acct) [(Side, acct, v, Text)]
-parseNotedJournalCsvBy = undefined
+parseNotedJournalCsvBy resolver amount txt = do
+    rows <- splitHeader txt
+    traverse (rowNotedBy resolver amount) rows
 
 -- | Split one line on commas and strip surrounding whitespace from each field.
 -- No quoting is recognized, so a comma inside a field always separates. An
@@ -183,18 +184,10 @@ splitTrim = map T.strip . T.splitOn ","
 -- Internal: minimal CSV plumbing (no quoting), header check, row parse.
 ------------------------------------------------------------------
 
--- Parse to bare (Side, AccountTitles, v) triples (note dropped).
-parseRows :: (Text -> Either ConvError v)
-          -> Text
-          -> Either ConvError [(Side, AccountTitles, v)]
-parseRows amount txt = do
-    keptHeader <- splitHeader txt
-    traverse (\fs -> (\(s, a, v, _) -> (s, a, v)) <$> rowNoted amount fs) keptHeader
-
 -- | Drop blank\/comment lines, validate the header (@side,account,amount@ with an
 -- optional @note@ column), and return the remaining data rows as already-split,
 -- trimmed field lists.
-splitHeader :: Text -> Either ConvError [[Text]]
+splitHeader :: Text -> Either (ConvErrorOf acct) [[Text]]
 splitHeader txt =
     case keptLines of
       []        -> Left (MalformedCsv "empty CSV (no header)")
@@ -210,11 +203,13 @@ splitHeader txt =
     keptLines = filter keep (T.lines txt)
     keep l = let s = T.strip l in not (T.null s) && not ("#" `T.isPrefixOf` s)
 
--- | Parse one already-split row into @(Side, AccountTitles, value, note)@.
-rowNoted :: (Text -> Either ConvError v)
-         -> [Text]
-         -> Either ConvError (Side, AccountTitles, v, Text)
-rowNoted amount fields = case fields of
+-- | Parse one already-split row, checking side, account, then amount.
+rowNotedBy :: (HatVal v, ExBaseClass (HatBase acct), TitleOf (HatBase acct) ~ acct)
+           => AccountResolver acct
+           -> (Text -> Either (ConvErrorOf acct) v)
+           -> [Text]
+           -> Either (ConvErrorOf acct) (Side, acct, v, Text)
+rowNotedBy resolver amount fields = case fields of
     [s, a, v]    -> build s a v ""
     [s, a, v, n] -> build s a v n
     other        -> Left (MalformedCsv
@@ -223,7 +218,18 @@ rowNoted amount fields = case fields of
                             <> T.intercalate "," other))
   where
     build s a v n = do
-        side    <- parseSide s
-        account <- parseAccountTitle a
-        value   <- amount v
-        Right (side, account, value, n)
+        side    <- parseSideBy s
+        account <- resolver a
+        case isWildcard account of
+            True  -> Left (UnknownAccount a)
+            False -> do
+                value <- amount v
+                case valueError value of
+                    Just _  -> Left (BadAmount v)
+                    Nothing -> Right (side, account, value, n)
+
+-- | Reuse the built-in side parser without fixing the account error type.
+parseSideBy :: Text -> Either (ConvErrorOf acct) Side
+parseSideBy text = case parseSide text of
+    Right side -> Right side
+    Left _     -> Left (UnknownSide text)
