@@ -4,6 +4,13 @@
 
 ### Added
 
+- Closing supports caller-defined account title types through `AccountVocabulary`.
+  `closingEntries` and `settleEntries` close to the vocabulary's `closingTarget`,
+  preserving every non-account coordinate. `ExchangeAlgebra.Accounting.Closing`
+  exports `ClosingTargetViolation`, `closingTargetViolation`, and `ClosingError`.
+  The target check rejects wildcard titles, titles without a specification,
+  non-equity titles, and contra titles before reading the ledger or settlement nets.
+
 - Journal input accepts caller-defined account names. Build a table with
   `accountNameTable`, start from `defaultAccountNames` or `vocabularyNames`,
   and add local names with `extendAccountNames`. Pass `resolveWith table` to
@@ -64,6 +71,22 @@
 
 ### Changed
 
+- **Breaking.** `closingEntries` returns `Either (ClosingError v b) (Alg v b)`.
+  Match a former transfer failure `Left e` as `Left (ClosingTransferError e)`.
+  For example, change `Left (NonFiniteBalance b)` to
+  `Left (ClosingTransferError (NonFiniteBalance b))` and add a case for
+  `Left (InvalidClosingTarget title violation)`.
+  `closingSide` now has type `AccountVocabulary t => t -> Maybe ClosingSide`.
+  The base constraint on `closingEntries` and `settleEntries` changes from
+  `StandardBase b` to `ExBaseClass b`. `closingEntries` still requires `HatVal v`.
+  `SettleError` adds `InvalidSettleTarget title violation`, so a case that handles
+  only `NonFiniteNet` is no longer exhaustive. Its `Eq` and `Show` instances also
+  require `Eq (TitleOf b)` and `Show (TitleOf b)`, respectively, in addition to
+  the existing constraints on `BasePart b`. Add those constraints to standalone
+  deriving declarations for polymorphic wrappers around `SettleError b`.
+  Include the new `ClosingTargetRejected title violation` case in exhaustive
+  matches on `CatalogExecutionProblem`.
+
 - **Breaking.** `ConvError`, `EntryError`, `JournalError`, and `JournalCert`
   are now type synonyms for the built-in chart. A former `T(..)` import leaves
   the constructors out of scope. Import the corresponding `TOf(..)` alongside
@@ -78,7 +101,7 @@
   `AccountVocabulary (TitleOf a)`. Instances that do not set `TitleOf` keep the default and
   need no change. Code that names `AccountTitles` where the base type is polymorphic now needs
   the constraint `StandardBase b` (that is, `(ExBaseClass b, TitleOf b ~ AccountTitles)`); the
-  functions that need the built-in chart (closing, transfers, audit, trial balance, admission
+  functions that need the built-in chart (transfers, audit, trial balance, admission
   and the statement writers) now carry this constraint. GHC reports `-Worphans` for the
   generated `type instance TitleOf X = AccountTitles` next to an orphan `ExBaseClass` instance;
   this warning is expected. Behaviour is unchanged for `AccountTitles`.

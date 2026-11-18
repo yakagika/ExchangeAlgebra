@@ -14,6 +14,8 @@ import qualified ExchangeAlgebra.Accounting.Account as Account
 import qualified ExchangeAlgebra.Algebra.Element as Element
 import qualified ExchangeAlgebra.Algebra.Transfer.Rule as Rule
 import qualified ExchangeAlgebra.Accounting.Closing as Closing
+import ExchangeAlgebra.Accounting.Closing
+    ( ClosingTargetViolation(..), closingTargetViolation, ClosingError(..), SettleError(..) )
 import qualified ExchangeAlgebra.Journal.Core as Journal
 import qualified ExchangeAlgebra.Algebra.Posting as Posting
 import qualified ExchangeAlgebra.Algebra.Value as Value
@@ -196,3 +198,19 @@ csvNamesClient = parseJournalCsvBy nameResolverClient InputCsv.scientificAmount 
 notedCsvNamesClient :: Either ConvError [Double]
 notedCsvNamesClient = fmap (map (\(_, _, amount, _) -> amount))
     (parseNotedJournalCsvBy nameResolverClient InputCsv.scientificAmount mempty)
+
+-- | Check a closing target through the public accounting import.
+closingTargetCheckClient :: Maybe ClosingTargetViolation
+closingTargetCheckClient = closingTargetViolation Sales
+
+-- | Construct a rejected target using the public closing diagnostic.
+closingTargetErrorClient :: ClosingError Double (HatBase AccountTitles)
+closingTargetErrorClient = InvalidClosingTarget Sales (ClosingTargetNotEquity Account.Revenue)
+
+-- | Wrap a transfer failure in the public closing error type.
+closingTransferErrorClient :: ClosingError Double (HatBase AccountTitles)
+closingTransferErrorClient = ClosingTransferError (Rule.NonFiniteBalance (Not :< Sales))
+
+-- | Construct the additional settlement failure through the public import.
+settleTargetErrorClient :: SettleError (HatBase AccountTitles)
+settleTargetErrorClient = InvalidSettleTarget Sales (ClosingTargetNotEquity Account.Revenue)

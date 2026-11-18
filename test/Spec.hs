@@ -21,6 +21,7 @@ import qualified Journal.JournalSpec as JournalSpec
 import qualified Journal.NormalFormSpec as NormalFormSpec
 import qualified Accounting.AdjustmentSpec as AdjustmentSpec
 import qualified Accounting.AuditSpec as AuditSpec
+import qualified Accounting.ClosingTargetSpec as ClosingTargetSpec
 import qualified Accounting.RegistrySpec as RegistrySpec
 import qualified Accounting.ProcedureLawSpec as ProcedureLawSpec
 import qualified IO.InputOutputSpec as InputOutputSpec
@@ -51,6 +52,7 @@ main = do
     NormalFormSpec.runTests
     AdjustmentSpec.runTests
     AuditSpec.runTests
+    ClosingTargetSpec.runTests
     RegistrySpec.runTests
     ProcedureLawSpec.runTests
     InputOutputSpec.runTests

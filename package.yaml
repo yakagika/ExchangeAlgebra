@@ -238,6 +238,7 @@ tests:
     - Journal.NormalFormSpec
     - Accounting.AdjustmentSpec
     - Accounting.AuditSpec
+    - Accounting.ClosingTargetSpec
     - Accounting.RegistrySpec
     - Accounting.ProcedureLawSpec
     - IO.InputOutputSpec
