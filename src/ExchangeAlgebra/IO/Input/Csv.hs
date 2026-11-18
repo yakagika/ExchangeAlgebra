@@ -1,5 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 
 {- |
 Module      : ExchangeAlgebra.IO.Input.Csv
@@ -35,8 +37,10 @@ module ExchangeAlgebra.IO.Input.Csv
     ( -- * Parsing journal CSV
       parseJournalCsv
     , parseJournalCsvWith
+    , parseJournalCsvBy
       -- * Note-keyed journal (when the optional @note@ column is present)
     , parseNotedJournalCsv
+    , parseNotedJournalCsvBy
       -- * Amount parsers
     , scientificAmount
       -- * Field splitting
@@ -51,7 +55,10 @@ import           ExchangeAlgebra.Algebra.Core ( Alg, Redundant((.+)) )
 import           ExchangeAlgebra.Algebra.Value.Class (HatVal)
 import           ExchangeAlgebra.Algebra.Base.Representation (HatBase)
 import           ExchangeAlgebra.Accounting.Account (AccountTitles, Side)
-import           ExchangeAlgebra.IO.Input.Conversion        ( ConvError(..)
+import           ExchangeAlgebra.Accounting.Exchange (ExBaseClass, TitleOf)
+import           ExchangeAlgebra.IO.Input.Conversion        ( ConvErrorOf(..)
+                                                , ConvError
+                                                , AccountResolver
                                                 , parseAccountTitle
                                                 , parseSide
                                                 , postingFromSide )
@@ -74,7 +81,7 @@ import           ExchangeAlgebra.IO.Input.Conversion        ( ConvError(..)
 -- Left (BadAmount "-3")
 -- >>> scientificAmount "1,000" :: Either ConvError Double
 -- Left (BadAmount "1,000")
-scientificAmount :: (Fractional v) => Text -> Either ConvError v
+scientificAmount :: (Fractional v) => Text -> Either (ConvErrorOf acct) v
 scientificAmount t =
     case reads (T.unpack (T.strip t)) :: [(Sci.Scientific, String)] of
         [(s, "")] | s >= 0    -> Right (fromRational (toRational s))
@@ -102,6 +109,29 @@ parseJournalCsvWith amount txt = do
     rows <- parseRows amount txt
     Right (foldr (\(s, a, v) acc -> postingFromSide s a v .+ acc) mempty rows)
 
+-- | As 'parseJournalCsvWith', but with a caller-supplied account resolver, so
+-- the title type @acct@ is the caller's (see
+-- 'ExchangeAlgebra.IO.Input.AccountResolver').
+--
+-- The title type must be the base's own title type
+-- (@TitleOf (HatBase acct) ~ acct@), so the wildcard test and the side of each
+-- posting read the same vocabulary.
+--
+-- Laws:
+--
+-- * @parseJournalCsvBy parseAccountTitle == parseJournalCsvWith@.
+-- * @parseJournalCsvBy r a t == fmap (journalForSides . map dropNote) (parseNotedJournalCsvBy r a t)@,
+--   where @dropNote (s, k, v, _) = (s, k, v)@. So the term equals
+--   'ExchangeAlgebra.Accounting.Exchange.journalForSides' of the rows in file
+--   order: every posting goes through @(.\@)@, nonzero terms on the same
+--   base are not combined, and a zero-amount row adds nothing.
+parseJournalCsvBy :: (HatVal v, ExBaseClass (HatBase acct), TitleOf (HatBase acct) ~ acct)
+                  => AccountResolver acct
+                  -> (Text -> Either (ConvErrorOf acct) v)
+                  -> Text
+                  -> Either (ConvErrorOf acct) (Alg v (HatBase acct))
+parseJournalCsvBy = undefined
+
 -- | Parse the rows of a journal CSV into @(Side, AccountTitles, value, note)@
 -- tuples, where @note@ is the optional 4th column (empty 'Text' if absent). The
 -- note is returned as raw 'Text' so the caller can key an
@@ -121,6 +151,27 @@ parseNotedJournalCsv :: (HatVal v)
 parseNotedJournalCsv amount txt = do
     keptHeader <- splitHeader txt
     traverse (rowNoted amount) keptHeader
+
+-- | As 'parseNotedJournalCsv', but with a caller-supplied account resolver.
+--
+-- Laws:
+--
+-- * @parseNotedJournalCsvBy parseAccountTitle == parseNotedJournalCsv@.
+-- * The header is checked first, then each row in file order: side, then
+--   account, then amount; the first failure gives the 'Left'.
+-- * A row whose resolver result is the wildcard fails with
+--   @'UnknownAccount' t@ (@t@ the trimmed account field).
+-- * A row whose amount parser returns @Right x@ with @valueError x /= Nothing@
+--   (negative or non-finite) fails with @'BadAmount' t@ (@t@ the trimmed
+--   amount field). Before 0.7 such a value passed and @(.\@)@ raised an error
+--   when the term was built.
+-- * On success the rows are returned in file order, zero amounts included.
+parseNotedJournalCsvBy :: (HatVal v, ExBaseClass (HatBase acct), TitleOf (HatBase acct) ~ acct)
+                       => AccountResolver acct
+                       -> (Text -> Either (ConvErrorOf acct) v)
+                       -> Text
+                       -> Either (ConvErrorOf acct) [(Side, acct, v, Text)]
+parseNotedJournalCsvBy = undefined
 
 -- | Split one line on commas and strip surrounding whitespace from each field.
 -- No quoting is recognized, so a comma inside a field always separates. An

@@ -42,10 +42,12 @@ import           ExchangeAlgebra.Accounting.Account
                      , concreteAccountTitles
                      )
 import           ExchangeAlgebra.IO.Input.Conversion
-                     ( ConvError(..) )
+                     ( ConvErrorOf(..), ConvError )
 import           ExchangeAlgebra.IO.Input.Checked
-                     ( EntryError(..)
-                     , JournalError(..)
+                     ( EntryErrorOf(..)
+                     , EntryError
+                     , JournalErrorOf(..)
+                     , JournalError
                      , SourceError(..)
                      )
 
@@ -53,7 +55,7 @@ import           ExchangeAlgebra.IO.Input.Checked
 -- >>> :set -XOverloadedStrings
 -- >>> import Data.List.NonEmpty (NonEmpty(..))
 -- >>> import ExchangeAlgebra.Accounting.Account (AccountTitles(..), PostingCapability(..))
--- >>> import ExchangeAlgebra.IO.Input (ConvError(..), EntryError(..), JournalError(..), SourceError(..))
+-- >>> import ExchangeAlgebra.IO.Input (ConvErrorOf(..), ConvError, EntryErrorOf(..), EntryError, JournalErrorOf(..), JournalError, SourceError(..))
 -- >>> import ExchangeAlgebra.Accounting.Account (ProcessingContext(..))
 
 -- | Account-title metadata for LLM-facing lookup.
@@ -215,6 +217,9 @@ explainEntryError (PostingNotAllowed i account capability context) =
     postingAccount i account
     <> ": " <> showText capability
     <> " is not allowed in " <> showText context
+explainEntryError (MissingPostingSemantics i account) =
+    postingAccount i account
+    <> ": the account vocabulary gives no posting semantics for this account"
 explainEntryError EmptyEntry =
     "entry has no postings"
 explainEntryError (Imbalanced debitTotal creditTotal) =

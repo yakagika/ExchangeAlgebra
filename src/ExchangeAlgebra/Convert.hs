@@ -6,7 +6,8 @@
 "ExchangeAlgebra.Accounting.Account".
 -}
 module ExchangeAlgebra.Convert {-# DEPRECATED "Import ExchangeAlgebra.IO.Input or ExchangeAlgebra.Accounting.Account for concreteAccountTitles instead." #-}
-    ( ConvError(..)
+    ( ConvErrorOf(..)
+    , ConvError
       -- $concreteAccountTitles
     , concreteAccountTitles
     , normalizeTitle

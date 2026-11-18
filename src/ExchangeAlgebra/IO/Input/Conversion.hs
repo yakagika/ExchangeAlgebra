@@ -30,7 +30,18 @@ A fixed-schema CSV reader (@side,account,amount@, optional @note@ column) is
 provided in "ExchangeAlgebra.IO.Input.Csv".
 -}
 module ExchangeAlgebra.IO.Input.Conversion
-    ( ConvError(..)
+    ( -- * Errors
+      ConvErrorOf(..)
+    , ConvError
+      -- * Account-name tables
+      -- $accountNames
+    , AccountResolver
+    , AccountNameTable
+    , accountNameTable
+    , extendAccountNames
+    , resolveWith
+    , defaultAccountNames
+    , vocabularyNames
       -- $concreteAccountTitles
     , concreteAccountTitles
     , normalizeTitle
@@ -43,6 +54,8 @@ module ExchangeAlgebra.IO.Input.Conversion
 
 import           Data.Char (isAlphaNum, isSpace)
 import qualified Data.List as L
+import           Data.List.NonEmpty (NonEmpty)
+import qualified Data.Map.Strict as M
 import           Data.Text (Text)
 import qualified Data.Text as T
 
@@ -50,6 +63,7 @@ import           ExchangeAlgebra.Algebra.Core (Alg)
 import           ExchangeAlgebra.Algebra.Value.Class (HatVal)
 import           ExchangeAlgebra.Algebra.Base.Representation (HatBase, Hat(..))
 import           ExchangeAlgebra.Accounting.Account (AccountTitles(..), Side(..), accountAliases)
+import           ExchangeAlgebra.Accounting.Account.Vocabulary (AccountVocabulary(..))
 import           ExchangeAlgebra.Accounting.Exchange ( hatForSide
                                                     , postingForSide
                                                     , journalForSides
@@ -60,13 +74,114 @@ import           ExchangeAlgebra.Accounting.Account.Registry ( concreteAccountTi
 -- The examples use 'Text' literals, so enable @OverloadedStrings@ in doctest.
 -- >>> :set -XOverloadedStrings
 
--- | Conversion errors. Kept structural so callers can report precisely.
-data ConvError = UnknownAccount Text                    -- ^ name matched no concrete account title
-               | AmbiguousAccount Text [AccountTitles]  -- ^ name matched several accounts (disambiguate by canonical name)
-               | UnknownSide    Text                    -- ^ side string was not debit\/credit
-               | MalformedCsv   Text                    -- ^ CSV header\/row was structurally invalid (see "ExchangeAlgebra.IO.Input.Csv")
-               | BadAmount      Text                    -- ^ amount field was not a valid non-negative number
+-- | Conversion errors over an account-title type @acct@. Kept structural so
+-- callers can report precisely. 'UnknownAccount' and 'AmbiguousAccount' hold
+-- the argument the resolver received, before normalization (the CSV readers
+-- pass the field after trimming surrounding whitespace; the checked readers
+-- pass the caller's 'Text' unchanged). 'UnknownSide' and 'BadAmount' hold the
+-- field likewise; 'MalformedCsv' holds a diagnostic message.
+data ConvErrorOf acct
+    = UnknownAccount Text            -- ^ name matched no title in the table
+    | AmbiguousAccount Text [acct]   -- ^ name matched several titles, listed in table order (disambiguate by another name)
+    | UnknownSide    Text            -- ^ side string was not debit\/credit
+    | MalformedCsv   Text            -- ^ CSV header\/row was structurally invalid (see "ExchangeAlgebra.IO.Input.Csv")
+    | BadAmount      Text            -- ^ amount field was not a valid non-negative number
     deriving (Eq, Show)
+
+-- | Conversion errors for the built-in account titles.
+--
+-- Import @ConvErrorOf(..)@ to bring the constructors into scope: a type
+-- synonym does not carry them, so @ConvError(..)@ imports none.
+type ConvError = ConvErrorOf AccountTitles
+
+-- $accountNames
+-- An 'AccountResolver' turns an external account name into a title. Input
+-- readers that take a resolver (@parseJournalCsvBy@, @checkedEntryTextBy@,
+-- @certifyJournalTextBy@) accept any title type, so a model with its own
+-- vocabulary reads CSV and generated entries with its own names. The usual
+-- resolver is 'resolveWith' applied to an 'AccountNameTable'.
+--
+-- Contract of a resolver @r@ (all readers rely on it):
+--
+-- * @r t@ fails only with @'UnknownAccount' t@ or @'AmbiguousAccount' t cs@,
+--   where @t@ is the argument and @cs@ lists at least two distinct titles.
+--   'resolveWith' meets this. A reader that receives any other 'Left' from a
+--   resolver treats it as a parse failure, never as a vocabulary gap.
+-- * @r@ may return the wildcard (a table may list it). Readers do not accept
+--   it as a posting: the CSV readers report @'UnknownAccount' t@, and the
+--   checked readers report a wildcard-account error.
+
+-- | Resolve an external account name. See the contract above.
+type AccountResolver acct = Text -> Either (ConvErrorOf acct) acct
+
+-- | Account names and the titles they denote.
+--
+-- The table holds a normalization function and, for each normalized name, the
+-- candidate titles in the order they were added. A name with one candidate
+-- resolves; a name with several is ambiguous and is never resolved by picking
+-- one. The constructor is not exported: build tables with 'accountNameTable',
+-- 'extendAccountNames', 'defaultAccountNames', or 'vocabularyNames'.
+data AccountNameTable acct = AccountNameTable
+    { _nameNormalize  :: Text -> Text
+    , _nameCandidates :: M.Map Text (NonEmpty acct)
+    }
+
+-- | Build a table from @(name, title)@ pairs.
+--
+-- Laws (for @tbl = accountNameTable f pairs@ and @r = resolveWith tbl@):
+--
+-- * The candidates for a name @t@ are the titles paired with some @n@ where
+--   @f n == f t@, in the order of @pairs@, each title kept once.
+-- * @r t == Right a@ iff that candidate list is @[a]@;
+--   @r t == Left (AmbiguousAccount t cs)@ iff it is @cs@ with @length cs >= 2@;
+--   @r t == Left (UnknownAccount t)@ iff it is empty.
+-- * With @f = id@, matching is exact.
+accountNameTable :: Eq acct => (Text -> Text) -> [(Text, acct)] -> AccountNameTable acct
+accountNameTable = undefined
+
+-- | Add @(name, title)@ pairs to a table, normalizing the new names with the
+-- table's own function.
+--
+-- Law: @extendAccountNames new (accountNameTable f old) == accountNameTable f (old ++ new)@,
+-- compared through 'resolveWith' on every text. In particular a name that
+-- already resolves keeps resolving to the same title unless @new@ pairs it with
+-- a different title, in which case it becomes ambiguous with the existing
+-- candidates listed first.
+extendAccountNames :: Eq acct => [(Text, acct)] -> AccountNameTable acct -> AccountNameTable acct
+extendAccountNames = undefined
+
+-- | The resolver of a table. Normalizes the argument with the table's function
+-- and looks up its candidates; see the laws of 'accountNameTable'.
+resolveWith :: AccountNameTable acct -> AccountResolver acct
+resolveWith = undefined
+
+-- | The names 'parseAccountTitle' accepts: the constructor name ('show') of
+-- every title in 'concreteAccountTitles', then the 'accountAliases' of each
+-- title, all normalized with 'normalizeTitle'. The wildcard is absent.
+--
+-- Laws: @resolveWith defaultAccountNames == parseAccountTitle@ on every text,
+-- and the result equals the pre-0.7 lookup, including the candidate order of
+-- shared labels (\"準備預金\" lists the asset title first, \"通信費\" lists
+-- 'CommunicationExpenses' first).
+defaultAccountNames :: AccountNameTable AccountTitles
+defaultAccountNames = accountNameTable normalizeTitle defaultNameEntries
+
+-- | Names for a user vocabulary, normalized with 'normalizeTitle'. For each
+-- listed title, in list order: its 'show' text, then, from its 'vocabSpec',
+-- @asNameEn@, @asLabelJa@, and each of @asAliases@. Wildcards in the list are
+-- dropped ('isWildcard'), so the table never resolves to the wildcard.
+--
+-- The English name and the Japanese label are included because a title type
+-- that wraps built-in titles (@Std Cash@) shows as a constructor phrase that no
+-- external file carries. Two listed titles that share a name make that name
+-- ambiguous; it is never resolved by list order.
+--
+-- @vocabularyNames concreteAccountTitles@ is not 'defaultAccountNames': it
+-- lacks the JCCI aliases and the historical candidate order, and it adds the
+-- English names and labels. Use 'extendAccountNames' to add names a
+-- vocabulary does not carry.
+vocabularyNames :: AccountVocabulary t => [t] -> AccountNameTable t
+vocabularyNames = undefined
 
 -- $concreteAccountTitles
 -- 'concreteAccountTitles' lists all concrete account titles, /excluding/ the
@@ -84,26 +199,16 @@ data ConvError = UnknownAccount Text                    -- ^ name matched no con
 -- >>> AccountTitle `elem` concreteAccountTitles
 -- False
 
--- | Account-name lookup table: every key (canonical constructor names and the
--- Japanese\/abbreviation aliases below) is run through 'normalizeTitle', so matching is
--- case-, whitespace-, and symbol-insensitive. Keys are tagged so that a single
--- alias shared by several accounts is reported as 'AmbiguousAccount' rather than
--- silently resolving to whichever entry happens to come first.
+-- | Name entries of 'defaultAccountNames': canonical constructor names, then the
+-- Japanese\/abbreviation aliases. A single alias shared by several accounts is
+-- reported as 'AmbiguousAccount' rather than silently resolving to whichever
+-- entry happens to come first.
 --
 -- The canonical English names (derived from 'show' over 'concreteAccountTitles')
 -- are always unique, so they are never ambiguous and always resolve.
-accountTable :: [(Text, [AccountTitles])]
-accountTable = collapse [ (normalizeTitle k, a) | (k, a) <- entries ]
+defaultNameEntries :: [(Text, AccountTitles)]
+defaultNameEntries = canonical ++ aliases
   where
-    -- Group entries by normalized key, accumulating every account that key maps
-    -- to (so genuine collisions become ambiguous, not first-wins).
-    collapse kvs =
-        [ (k, L.nub as)
-        | k <- L.nub (L.map fst kvs)
-        , let as = [ a | (k', a) <- kvs, k' == k ] ]
-
-    entries :: [(Text, AccountTitles)]
-    entries =  canonical ++ aliases
 
     -- Canonical: the constructor name. Always unique.
     canonical = [ (T.pack (show a), a) | a <- concreteAccountTitles ]
@@ -168,10 +273,19 @@ normalizeTitle = T.unwords . T.words . T.filter (\c -> isAlphaNum c || isSpace c
 -- Left (UnknownAccount "AccountTitle")
 parseAccountTitle :: Text -> Either ConvError AccountTitles
 parseAccountTitle t =
-    case lookup (normalizeTitle t) accountTable of
+    case lookup (normalizeTitle t) legacyAccountTable of
         Just [a] -> Right a
         Just as  -> Left (AmbiguousAccount t as)
         Nothing  -> Left (UnknownAccount t)
+
+-- Pre-0.7 lookup, kept until 'resolveWith' is implemented; then
+-- 'parseAccountTitle' becomes @resolveWith defaultAccountNames@ and this goes.
+legacyAccountTable :: [(Text, [AccountTitles])]
+legacyAccountTable =
+    [ (k, L.nub [ a | (k', a) <- kvs, k' == k ])
+    | k <- L.nub (L.map fst kvs) ]
+  where
+    kvs = [ (normalizeTitle k, a) | (k, a) <- defaultNameEntries ]
 
 -- | Parse a side string (@"debit"@\/@"credit"@, case-insensitive) into t'Side'.
 --

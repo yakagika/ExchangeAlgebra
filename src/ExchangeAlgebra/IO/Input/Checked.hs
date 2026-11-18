@@ -1,6 +1,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 {-# OPTIONS_GHC -Wincomplete-patterns -Werror=incomplete-patterns #-}
 
 {- |
@@ -16,19 +18,24 @@ entries with structural errors instead.
 module ExchangeAlgebra.IO.Input.Checked
     ( -- $postingPolicy
       ProcessingContext(..)
-    , EntryError(..)
-    , JournalError(..)
-    , JournalCert(..)
+    , EntryErrorOf(..)
+    , EntryError
+    , JournalErrorOf(..)
+    , JournalError
+    , JournalCertOf(..)
+    , JournalCert
     , SourceError(..)
     , postingAllowedIn
     , checkedEntryIn
     , checkedEntry
     , checkedEntryTextIn
+    , checkedEntryTextBy
     , checkedEntryAccountTextIn
     , checkedEntryText
     , checkedJournalIn
     , checkedJournal
     , certifyJournalTextIn
+    , certifyJournalTextBy
     , certifyJournalText
     , reconcileSources
     ) where
@@ -43,7 +50,7 @@ import qualified Data.Text as T
 
 import           ExchangeAlgebra.Algebra.Core (Alg, Redundant((.+), norm))
 import           ExchangeAlgebra.Algebra.Value.Class (HatVal(..), isErrorValue)
-import           ExchangeAlgebra.Accounting.Exchange (Exchange(decL, balance))
+import           ExchangeAlgebra.Accounting.Exchange (Exchange(decL, balance), ExBaseClass, TitleOf)
 import           ExchangeAlgebra.Accounting.Account.PostingPolicy
                      ( ProcessingContext(..)
                      , postingAllowedIn
@@ -51,9 +58,11 @@ import           ExchangeAlgebra.Accounting.Account.PostingPolicy
                      )
 import           ExchangeAlgebra.Accounting.Account
                      ( AccountTitles(..), PostingCapability(..), Side(..) )
-import           ExchangeAlgebra.Algebra.Base.Representation (HatBase)
+import           ExchangeAlgebra.Algebra.Base.Representation (BaseClass, HatBase)
 import           ExchangeAlgebra.IO.Input.Conversion
                      ( ConvError
+                     , ConvErrorOf
+                     , AccountResolver
                      , journalFromSides
                      , normalizeTitle
                      , parseAccountTitle
@@ -82,24 +91,40 @@ import           ExchangeAlgebra.Journal.Core
 -- historical import path keeps working. The gate itself is accounting-domain
 -- policy, not an input-adapter concern.
 
--- | Validation errors for a single generated entry.
+-- | Validation errors for a single generated entry, over an account-title
+-- type @acct@.
 --
 -- Posting positions are 0-origin indices in the input entry.
-data EntryError v
-  = EntryParse Int ConvError
-  | NonPositiveAmount Int AccountTitles v
+data EntryErrorOf acct v
+  = EntryParse Int (ConvErrorOf acct)
+  | NonPositiveAmount Int acct v
+    -- ^ for an unresolved account the title is the wildcard
   | WildcardAccount Int
   | WildcardSide Int
-  | PostingNotAllowed Int AccountTitles PostingCapability ProcessingContext
+  | PostingNotAllowed Int acct PostingCapability ProcessingContext
+  | MissingPostingSemantics Int acct
+    -- ^ the vocabulary gives no 'ExchangeAlgebra.Accounting.Account.Vocabulary.vocabSemantics'
+    -- for this concrete title, so its posting capability is unknown and the
+    -- posting is rejected. Reported at the place 'PostingNotAllowed' would be
+    -- checked. Never produced for the built-in titles, which all carry
+    -- semantics.
   | EmptyEntry
   | Imbalanced { _debitTotal :: v, _creditTotal :: v }
   deriving (Show, Eq)
 
+-- | Validation errors for the built-in account titles. Import
+-- @EntryErrorOf(..)@ for the constructors.
+type EntryError = EntryErrorOf AccountTitles
+
 -- | Validation errors for a txid-indexed journal batch.
-data JournalError n v
-  = EntryErrors n (NonEmpty (EntryError v))
+data JournalErrorOf acct n v
+  = EntryErrors n (NonEmpty (EntryErrorOf acct v))
   | DuplicateTxId n
   deriving (Show, Eq)
+
+-- | Batch errors for the built-in account titles. Import
+-- @JournalErrorOf(..)@ for the constructors.
+type JournalError = JournalErrorOf AccountTitles
 
 -- | Staged certification of a text-originated journal batch.
 --
@@ -117,18 +142,22 @@ data JournalError n v
 -- Per-entry balance implies batch balance, so the invariant
 -- @_certDebitTotal == _certCreditTotal@ holds, but the converse does not: the
 -- batch totals alone would not have been a sufficient gate.
-data JournalCert n v
-  = FullyResolved (Journal n v (HatBase AccountTitles))
+data JournalCertOf acct n v
+  = FullyResolved (Journal n v (HatBase acct))
   | BalancedUnresolved
-      { _certResolved    :: [(n, [(Side, AccountTitles, v)])]
-      , _certUnresolved  :: [(n, [(Int, Text, ConvError)])]
+      { _certResolved    :: [(n, [(Side, acct, v)])]
+      , _certUnresolved  :: [(n, [(Int, Text, ConvErrorOf acct)])]
       , _certDebitTotal  :: v
       , _certCreditTotal :: v
       }
-  | Rejected (NonEmpty (JournalError n v))
+  | Rejected (NonEmpty (JournalErrorOf acct n v))
   deriving (Show)
 
-instance (HatVal v, Note n) => Eq (JournalCert n v) where
+-- | Certification for the built-in account titles. Import
+-- @JournalCertOf(..)@ for the constructors.
+type JournalCert = JournalCertOf AccountTitles
+
+instance (HatVal v, Note n, BaseClass acct) => Eq (JournalCertOf acct n v) where
     FullyResolved left == FullyResolved right = toMap left == toMap right
     BalancedUnresolved resolvedLeft unresolvedLeft debitLeft creditLeft
         == BalancedUnresolved resolvedRight unresolvedRight debitRight creditRight =
@@ -200,6 +229,28 @@ checkedEntryTextIn context rows =
     checkedEntryParsedIn context
         [(i, (parseSide side, parseAccountTitle account, amount))
         | (i, (side, account, amount)) <- zip [0..] rows]
+
+-- | As 'checkedEntryTextIn', but with a caller-supplied account resolver, so
+-- the title type @acct@ is the caller's.
+--
+-- Laws:
+--
+-- * @checkedEntryTextBy parseAccountTitle == checkedEntryTextIn@.
+-- * Errors are those of 'checkedEntryTextIn', in the same order, with titles
+--   of type @acct@: resolver failures become 'EntryParse'; a resolved wildcard
+--   gives 'WildcardAccount'; a concrete title whose 'vocabSemantics' is
+--   'Nothing' gives 'MissingPostingSemantics'; otherwise the posting capability
+--   is @asemPostingCapability@ of its semantics, checked with 'postingAllowedIn'.
+--   As in 'checkedEntryTextIn', a row whose side does not parse gets no
+--   structural checks (no wildcard, amount, capability, or semantics error).
+-- * Amounts of rows whose account did not resolve still enter the balance check.
+-- * On success the term equals 'journalForSides' of the parsed rows.
+checkedEntryTextBy :: (HatVal v, ExBaseClass (HatBase acct), TitleOf (HatBase acct) ~ acct)
+                   => AccountResolver acct
+                   -> ProcessingContext
+                   -> [(Text, Text, v)]
+                   -> Either (NonEmpty (EntryErrorOf acct v)) (Alg v (HatBase acct))
+checkedEntryTextBy = undefined
 
 -- | Check typed sides and account text in the supplied processing context.
 -- Account parse errors precede structural errors and imbalance. Amounts from
@@ -434,6 +485,39 @@ certifyJournalTextIn context entries =
         [ journalFromSides rows .| txid
         | (txid, rows) <- resolvedEntries
         ]
+
+-- | As 'certifyJournalTextIn', but with a caller-supplied account resolver.
+--
+-- Laws:
+--
+-- * @certifyJournalTextBy (resolveWith (extendAccountNames [(\"AccountTitle\", AccountTitle)] defaultAccountNames)) == certifyJournalTextIn@.
+--   The built-in path lists the wildcard's name so that a wildcard (a
+--   structural defect) stays distinct from an unknown name (a vocabulary gap);
+--   a caller extending the built-in table keeps that distinction the same way.
+--   The side name @\"Side\"@ (after 'normalizeTitle') is read as the wildcard
+--   side for every title type, as before.
+-- * Decisions in order: duplicate txids, then structural errors of every
+--   entry, then the balance of each entry (per txid, so two entries whose
+--   imbalances cancel in the batch are 'Rejected'), then vocabulary gaps. The
+--   first non-empty stage gives 'Rejected'.
+-- * A resolved wildcard is a structural error. 'UnknownAccount' and
+--   'AmbiguousAccount' from the resolver are vocabulary gaps; any other 'Left'
+--   from the resolver is a structural 'EntryParse' error.
+-- * When only vocabulary gaps remain the result is 'BalancedUnresolved':
+--   '_certResolved' and '_certUnresolved' keep transaction order and row order
+--   and omit transactions with no rows in that group; '_certUnresolved' holds
+--   the account text as given; the batch totals include the amounts of
+--   unresolved rows. With no gaps the result is 'FullyResolved'.
+-- * Titles are checked for posting capability as in 'checkedEntryTextBy'
+--   (here a row with an unparsed side is still checked, as in
+--   'certifyJournalTextIn').
+certifyJournalTextBy :: (HatVal v, Note n, ExBaseClass (HatBase acct), TitleOf (HatBase acct) ~ acct)
+                     => AccountResolver acct
+                     -> ProcessingContext
+                     -> [(n, [(Text, Text, v)])]
+                     -> JournalCertOf acct n v
+certifyJournalTextBy = undefined
+
 
 -- | Certify an ordinary-journal batch in stages.
 certifyJournalText :: (HatVal v, Note n, Ord n)

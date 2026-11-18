@@ -6,9 +6,12 @@
 module ExchangeAlgebra.Convert.Checked {-# DEPRECATED "Import ExchangeAlgebra.IO.Input or ExchangeAlgebra.Accounting.Account for posting policy instead." #-}
     ( -- $postingPolicy
       ProcessingContext(..)
-    , EntryError(..)
-    , JournalError(..)
-    , JournalCert(..)
+    , EntryErrorOf(..)
+    , EntryError
+    , JournalErrorOf(..)
+    , JournalError
+    , JournalCertOf(..)
+    , JournalCert
     , SourceError(..)
     , postingAllowedIn
     , checkedEntryIn

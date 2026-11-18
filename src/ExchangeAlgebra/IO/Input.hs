@@ -11,33 +11,51 @@
 -- | Parse CSV | "ExchangeAlgebra.IO.Input.Csv" |
 -- | Explain validation feedback | "ExchangeAlgebra.IO.Input.Assist" |
 module ExchangeAlgebra.IO.Input
-    ( ConvError(..)
+    ( ConvErrorOf(..)
+    , ConvError
+      -- * Account-name tables
+    , AccountResolver
+    , AccountNameTable
+    , accountNameTable
+    , extendAccountNames
+    , resolveWith
+    , defaultAccountNames
+    , vocabularyNames
     , normalizeTitle
     , parseAccountTitle
     , parseSide
     , markerForSide
     , postingFromSide
     , journalFromSides
-    , EntryError(..)
-    , JournalError(..)
-    , JournalCert(..)
+    , EntryErrorOf(..)
+    , EntryError
+    , JournalErrorOf(..)
+    , JournalError
+    , JournalCertOf(..)
+    , JournalCert
     , SourceError(..)
     , checkedEntryIn
     , checkedEntry
     , checkedEntryTextIn
     , checkedEntryText
+    , checkedEntryTextBy
     , checkedJournalIn
     , checkedJournal
     , certifyJournalTextIn
     , certifyJournalText
+    , certifyJournalTextBy
     , reconcileSources
     ) where
 
 import ExchangeAlgebra.IO.Input.Conversion
-    ( ConvError(..), normalizeTitle, parseAccountTitle, parseSide
+    ( ConvErrorOf(..), ConvError
+    , AccountResolver, AccountNameTable, accountNameTable, extendAccountNames
+    , resolveWith, defaultAccountNames, vocabularyNames
+    , normalizeTitle, parseAccountTitle, parseSide
     , markerForSide, postingFromSide, journalFromSides )
 import ExchangeAlgebra.IO.Input.Checked
-    ( EntryError(..), JournalError(..), JournalCert(..), SourceError(..)
+    ( EntryErrorOf(..), EntryError, JournalErrorOf(..), JournalError
+    , JournalCertOf(..), JournalCert, SourceError(..)
     , checkedEntryIn, checkedEntry, checkedEntryTextIn, checkedEntryText
-    , checkedJournalIn, checkedJournal, certifyJournalTextIn
-    , certifyJournalText, reconcileSources )
+    , checkedEntryTextBy, checkedJournalIn, checkedJournal, certifyJournalTextIn
+    , certifyJournalText, certifyJournalTextBy, reconcileSources )
