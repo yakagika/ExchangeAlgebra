@@ -1,0 +1,7 @@
+[book]
+title = "ExchangeAlgebra Manual"
+language = "en"
+src = "src"
+
+[output.html]
+mathjax-support = true
