@@ -1,0 +1,513 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: ExchangeAlgebra Manual\n"
+"POT-Creation-Date: 2026-11-18T17:00:38+09:00\n"
+"PO-Revision-Date: 2026-11-18 17:00+0900\n"
+"Last-Translator: ExchangeAlgebra contributors\n"
+"Language-Team: Japanese\n"
+"Language: ja\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: src/SUMMARY.md:1
+msgid "Summary"
+msgstr "目次"
+
+#: src/SUMMARY.md:3
+msgid "Introduction From journal entries to exchange algebra"
+msgstr "はじめに 仕訳から交換代数へ"
+
+#: src/SUMMARY.md:6
+msgid "Algebra"
+msgstr "代数"
+
+#: src/SUMMARY.md:8 src/algebra/definitions.md:1
+msgid "Definitions and axioms"
+msgstr "定義と公理"
+
+#: src/introduction.md:1
+msgid "Introduction"
+msgstr "はじめに"
+
+#: src/introduction.md:3
+msgid "This manual describes the mathematics of ExchangeAlgebra and how to use its Haskell operations. Start with [From journal entries to exchange algebra](overview.md), which maps a journal table onto the algebra's notation. [Definitions and axioms](algebra/definitions.md) then defines how the library represents postings and separates debits from credits. For module documentation and the full API, see the [Haddock reference on Hackage](https://hackage.haskell.org/package/exchangealgebra)."
+msgstr "このマニュアルでは, ExchangeAlgebra の数学的基盤と Haskell の演算の使い方を説明します. まず, 仕訳帳の表と代数の記法を対応づける[仕訳から交換代数へ](overview.md)を読んでください. [定義と公理](algebra/definitions.md)では, ライブラリが項 (posting) を表現し, 借方と貸方に分ける方法を定義します. モジュールの説明と API の全体については, [Hackage の Haddock リファレンス](https://hackage.haskell.org/package/exchangealgebra)を参照してください."
+
+#: src/overview.md:1
+msgid "From journal entries to exchange algebra"
+msgstr "仕訳から交換代数へ"
+
+#: src/overview.md:3
+msgid "This page maps a journal written as a debit and credit table onto exchange algebra notation, using four transactions of a small shop. It assumes familiarity with double-entry bookkeeping and no knowledge of the algebra. [Definitions and axioms](algebra/definitions.md) gives the formal definitions."
+msgstr "小さな店舗の 4 件の取引を使い, 借方と貸方の表で書いた仕訳帳を交換代数の記法に対応づけます. 複式簿記の知識を前提としますが, 交換代数の知識は必要ありません. 形式的な定義は[定義と公理](algebra/definitions.md)を参照してください."
+
+#: src/overview.md:5
+msgid "A journal as a table"
+msgstr "表で表す仕訳帳"
+
+#: src/overview.md:7
+msgid "Table 1 records the four transactions in a conventional journal. Each row has one debit account and one credit account with the same amount."
+msgstr "表 1 は, 4 件の取引を通常の仕訳帳に記録したものです. 各行は, 同額の借方科目 1 つと貸方科目 1 つからなります."
+
+#: src/overview.md:9
+msgid "No."
+msgstr "番号"
+
+#: src/overview.md:9
+msgid "Transaction"
+msgstr "取引"
+
+#: src/overview.md:9 src/algebra/definitions.md:76
+#: src/algebra/definitions.md:77
+msgid "Debit"
+msgstr "借方"
+
+#: src/overview.md:9
+msgid "Amount"
+msgstr "金額"
+
+#: src/overview.md:9 src/algebra/definitions.md:76
+#: src/algebra/definitions.md:77
+msgid "Credit"
+msgstr "貸方"
+
+#: src/overview.md:11
+msgid "1"
+msgstr "1"
+
+#: src/overview.md:11
+msgid "The owner invests cash."
+msgstr "所有者が現金を出資します."
+
+#: src/overview.md:11 src/overview.md:12 src/overview.md:14
+msgid "Cash"
+msgstr "現金"
+
+#: src/overview.md:11
+msgid "1,000"
+msgstr "1,000"
+
+#: src/overview.md:11
+msgid "Capital stock"
+msgstr "資本金"
+
+#: src/overview.md:12
+msgid "2"
+msgstr "2"
+
+#: src/overview.md:12
+msgid "The shop buys goods for cash."
+msgstr "店舗が現金で商品を仕入れます."
+
+#: src/overview.md:12
+msgid "Purchases"
+msgstr "仕入"
+
+#: src/overview.md:12
+msgid "600"
+msgstr "600"
+
+#: src/overview.md:13
+msgid "3"
+msgstr "3"
+
+#: src/overview.md:13
+msgid "The shop sells goods on credit."
+msgstr "店舗が商品を掛けで販売します."
+
+#: src/overview.md:13 src/overview.md:14
+msgid "Accounts receivable"
+msgstr "売掛金"
+
+#: src/overview.md:13
+msgid "900"
+msgstr "900"
+
+#: src/overview.md:13
+msgid "Sales"
+msgstr "売上"
+
+#: src/overview.md:14
+msgid "4"
+msgstr "4"
+
+#: src/overview.md:14
+msgid "The shop collects part of the receivable."
+msgstr "店舗が売掛金の一部を回収します."
+
+#: src/overview.md:14
+msgid "500"
+msgstr "500"
+
+#: src/overview.md:16
+msgid "_Table 1. Four journal entries of a small shop. The debit total and the credit total are both 3,000._"
+msgstr "_表 1. 小さな店舗の 4 件の仕訳. 借方合計と貸方合計はともに 3,000 です._"
+
+#: src/overview.md:18
+msgid "The same journal in exchange algebra"
+msgstr "同じ仕訳帳を交換代数で表す"
+
+#: src/overview.md:20
+msgid "Exchange algebra writes an entry as a sum of postings $a : e$, where $a$ is a nonnegative amount and $e$ is a base. Here a base is an account title in angle brackets. A plain base such as $\\langle \\text{Cash} \\rangle$ records an increase (`Not`), and a hat base such as $\\widehat{\\langle \\text{Cash} \\rangle}$ records a decrease (`Hat`). The four rows of Table 1 become:"
+msgstr "交換代数では, 仕訳を項 (posting) $a : e$ の和で表します. $a$ は非負の金額, $e$ は基底です. ここでは, 山括弧で囲んだ勘定科目が基底に当たります. $\\langle \\text{Cash} \\rangle$ のような通常の基底は増加 (`Not`) を, $\\widehat{\\langle \\text{Cash} \\rangle}$ のような hat 基底は減少 (`Hat`) を記録します. 表 1 の 4 行は次のようになります:"
+
+#: src/overview.md:22
+msgid "$$ \\\\begin{aligned} x_1 &= 1000 : \\langle \\text{Cash} \\rangle + 1000 : \\langle \\text{Capital stock} \\rangle \\\\\\\\ x_2 &= 600 : \\langle \\text{Purchases} \\rangle + 600 : \\widehat{\\langle \\text{Cash} \\rangle} \\\\\\\\ x_3 &= 900 : \\langle \\text{Accounts receivable} \\rangle + 900 : \\langle \\text{Sales} \\rangle \\\\\\\\ x_4 &= 500 : \\langle \\text{Cash} \\rangle + 500 : \\widehat{\\langle \\text{Accounts receivable} \\rangle} \\\\end{aligned} $$"
+msgstr "$$ \\\\begin{aligned} x_1 &= 1000 : \\langle \\text{Cash} \\rangle + 1000 : \\langle \\text{Capital stock} \\rangle \\\\\\\\ x_2 &= 600 : \\langle \\text{Purchases} \\rangle + 600 : \\widehat{\\langle \\text{Cash} \\rangle} \\\\\\\\ x_3 &= 900 : \\langle \\text{Accounts receivable} \\rangle + 900 : \\langle \\text{Sales} \\rangle \\\\\\\\ x_4 &= 500 : \\langle \\text{Cash} \\rangle + 500 : \\widehat{\\langle \\text{Accounts receivable} \\rangle} \\\\end{aligned} $$"
+
+#: src/overview.md:31
+msgid "The postings carry neither debit and credit labels nor minus signs. Each posting states which account changed and in which direction. The journal side follows from the account's division: an increase in an asset or expense is a debit, and an increase in a liability, equity, or revenue account is a credit. A decrease takes the opposite side. For example, the increase in capital stock in $x_1$ is a credit, and the decrease in cash in $x_2$ is also a credit. [Account classes and sides](algebra/definitions.md#account-classes-and-sides) gives the full rule, including contra accounts."
+msgstr "項には借方や貸方のラベルも負号も付けません. 各項は, どの勘定がどちらの方向に変化したかを表します. 借方と貸方の別は勘定の区分から決まります. 資産と費用の増加は借方, 負債, 純資産, 収益の増加は貸方です. 減少の場合は反対側になります. 例えば, $x_1$ の資本金の増加も, $x_2$ の現金の減少も貸方です. 評価勘定を含む規則の全体は[勘定の区分と貸借](algebra/definitions.md#勘定の区分と貸借)を参照してください."
+
+#: src/overview.md:33
+msgid "The whole journal is the sum $x = x_1 + x_2 + x_3 + x_4$ of eight postings. The sum keeps every posting: cash has $1000$ and $500$ on the plain base and $600$ on the hat base. Bar, written $\\bar{x}$, totals the two directions at each base and keeps the excess. For cash it leaves $900 : \\langle \\text{Cash} \\rangle$, the cash balance."
+msgstr "仕訳帳全体は, 8 個の項の和 $x = x_1 + x_2 + x_3 + x_4$ です. 和はすべての項を保持します. 現金については, 通常の基底に $1000$ と $500$, hat 基底に $600$ が記録されます. $\\bar{x}$ と書く bar は, 各基底の両方向をそれぞれ合計し, 差額を残します. 現金では $900 : \\langle \\text{Cash} \\rangle$ が残り, 現金残高を表します."
+
+#: src/overview.md:35
+msgid "Recover the debit and credit columns"
+msgstr "借方列と貸方列を取り出す"
+
+#: src/overview.md:37
+msgid "The projection `decL` selects the debit postings of $x$ and `decR` selects the credit postings. `decL` returns cash 1,000, purchases 600, accounts receivable 900, and cash 500, which is the debit column of Table 1. `decR` returns the credit column. Both totals are 3,000, so `balance` returns `True`."
+msgstr "射影 `decL` は $x$ の借方の項を, `decR` は貸方の項を選びます. `decL` が返すのは現金 1,000, 仕入 600, 売掛金 900, 現金 500 で, 表 1 の借方列に一致します. `decR` は貸方列を返します. 両方の合計が 3,000 なので, `balance` は `True` を返します."
+
+#: src/overview.md:39
+msgid "The following program builds the journal and checks these results with the `ExchangeAlgebra` module:"
+msgstr "次のプログラムは `ExchangeAlgebra` モジュールで仕訳帳を構築し, これらの結果を確かめます:"
+
+#: src/overview.md:57
+msgid "It prints:"
+msgstr "出力は次のとおりです:"
+
+#: src/overview.md:65
+msgid "`.@` attaches an amount to a hat base, and `.+` adds postings. `norm` sums the amounts, and `bar` applies bar to the cash postings selected by `projByAccountTitle`."
+msgstr "`.@` は金額を hat 基底に付け, `.+` は項を加えます. `norm` は金額を合計し, `bar` は `projByAccountTitle` で選んだ現金の項に bar を適用します."
+
+#: src/algebra/definitions.md:3
+msgid "Bases and postings"
+msgstr "基底と項"
+
+#: src/algebra/definitions.md:5
+msgid "A base is a tuple of coordinates, one per axis. For example, an account and a firm form a two-axis base. A query matches a stored base when every coordinate either equals the stored coordinate or carries the wildcard (#) in the query. A stored # records an inapplicable axis. A query for a specific firm therefore skips a posting whose firm coordinate is #."
+msgstr "基底は, 各軸の座標を 1 つずつ持つタプルです. 例えば, 勘定と企業は 2 軸の基底を構成します. 問い合わせのすべての座標が, 保存された基底の座標と等しいか wildcard (ワイルドカード) の # であるとき, 問い合わせはその基底に一致します. 保存された # は, その軸が該当しないことを表します. したがって, 特定の企業を指定した問い合わせでは, 企業の座標が # の項は選ばれません."
+
+#: src/algebra/definitions.md:7
+msgid "Definition 1 of the preprint gives a symmetric comparison. The library's `matchesQuery` treats only a query-side # as a pattern."
+msgstr "プレプリントの Definition 1 は対称な比較を定めています. ライブラリの `matchesQuery` は, 問い合わせ側の # だけをパターンとして扱います."
+
+#: src/algebra/definitions.md:9
+msgid "A hat base pairs the tuple with a direction. `Not` records an increase and `Hat` a decrease. A posting pairs this hat base with a nonnegative real amount from the value domain $V$. Use `.@` to construct a posting. `HatNot` is a wildcard for queries."
+msgstr "hat 基底はタプルと方向の組です. `Not` は増加を, `Hat` は減少を記録します. 項 (posting) は, この hat 基底と値域 $V$ に属する非負実数の金額の組です. 項の構築には `.@` を使ってください. `HatNot` は問い合わせ用の wildcard です."
+
+#: src/algebra/definitions.md:11
+msgid "At each underlying base $e_i$, a redundant algebra element records two finite sequences of amounts. Write $f_i(e_i)=\\langle A_i,B_i\\rangle$, with $A_i$ the `Not` sequence and $B_i$ the `Hat` sequence. Two increases of 3 and 2 at the same base remain separate postings until an operation explicitly combines them."
+msgstr "冗長代数の要素は, hat を除いた各基底 $e_i$ に金額の有限列を 2 つ記録します. $f_i(e_i)=\\langle A_i,B_i\\rangle$ と書き, $A_i$ を `Not` の列, $B_i$ を `Hat` の列とします. 同じ基底の 3 と 2 という 2 件の増加は, 明示的にまとめる演算を適用するまで別々の項として残ります."
+
+#: src/algebra/definitions.md:13
+msgid "Operations"
+msgstr "演算"
+
+#: src/algebra/definitions.md:15
+msgid "The following methods belong to `Redundant` in `ExchangeAlgebra.Algebra.Core.Representation`. In their signatures, `n` is the amount type, `b` the hat base type, and `a n b` the algebra element."
+msgstr "次のメソッドは `ExchangeAlgebra.Algebra.Core.Representation` の `Redundant` に属します. 型シグネチャの `n` は金額の型, `b` は hat 基底の型, `a n b` は代数の要素です."
+
+#: src/algebra/definitions.md:17
+msgid "Operation"
+msgstr "演算"
+
+#: src/algebra/definitions.md:17
+msgid "Method and type"
+msgstr "メソッドと型"
+
+#: src/algebra/definitions.md:17
+msgid "Effect"
+msgstr "作用"
+
+#: src/algebra/definitions.md:19
+msgid "Hat"
+msgstr "hat"
+
+#: src/algebra/definitions.md:19
+msgid "`(.^) :: a n b -> a n b`"
+msgstr "`(.^) :: a n b -> a n b`"
+
+#: src/algebra/definitions.md:19
+msgid "Swap the two sequences<br>at each base, preserving<br>every amount."
+msgstr "各基底の 2 つの列を<br>入れ替えます. すべての<br>金額を保持します."
+
+#: src/algebra/definitions.md:20
+msgid "Bar"
+msgstr "bar"
+
+#: src/algebra/definitions.md:20
+msgid "`(.-) :: a n b -> a n b`"
+msgstr "`(.-) :: a n b -> a n b`"
+
+#: src/algebra/definitions.md:20
+msgid "Total each sequence at<br>each base and cancel the<br>two totals. Keep the<br>excess on the larger side<br>and drop a zero remainder."
+msgstr "各基底で各列を合計し,<br>両方の合計を相殺します.<br>大きい側に差額を残し,<br>残額がゼロなら除きます."
+
+#: src/algebra/definitions.md:21
+msgid "Sum"
+msgstr "和"
+
+#: src/algebra/definitions.md:21
+msgid "`(.+) :: a n b -> a n b -> a n b`"
+msgstr "`(.+) :: a n b -> a n b -> a n b`"
+
+#: src/algebra/definitions.md:21
+msgid "Concatenate the<br>corresponding sequences."
+msgstr "対応する列を<br>連結します."
+
+#: src/algebra/definitions.md:22
+msgid "Scalar<br>multiplication"
+msgstr "スカラー倍"
+
+#: src/algebra/definitions.md:22
+msgid "`(.*) :: n -> a n b -> a n b`"
+msgstr "`(.*) :: n -> a n b -> a n b`"
+
+#: src/algebra/definitions.md:22
+msgid "Multiply every amount by<br>the same finite<br>nonnegative scalar."
+msgstr "すべての金額に同じ有限の<br>非負スカラーを掛けます."
+
+#: src/algebra/definitions.md:23
+msgid "Norm"
+msgstr "norm"
+
+#: src/algebra/definitions.md:23
+msgid "`norm :: a n b -> n`"
+msgstr "`norm :: a n b -> n`"
+
+#: src/algebra/definitions.md:23
+msgid "Sum all amounts on both<br>sides over all bases."
+msgstr "すべての基底の両側の<br>金額を合計します."
+
+#: src/algebra/definitions.md:24
+msgid "Compression"
+msgstr "compress"
+
+#: src/algebra/definitions.md:24
+msgid "`compress :: a n b -> a n b`"
+msgstr "`compress :: a n b -> a n b`"
+
+#: src/algebra/definitions.md:24
+msgid "Sum amounts with the<br>same base and direction,<br>keeping opposite<br>directions separate."
+msgstr "基底と方向が同じ金額を<br>合計します. 反対方向の<br>金額は別々に保ちます."
+
+#: src/algebra/definitions.md:26
+msgid "For example, two `Not` amounts of 3 and 2 and a `Hat` amount of 4 on the same base have norm 9. Compression gives 5 on `Not` and 4 on `Hat`. Bar leaves 1 on `Not`. In general, if the two sequences at a base have lengths $p_i$ and $q_i$, their contribution to the norm is"
+msgstr "例えば, 同じ基底に `Not` の金額 3 と 2, `Hat` の金額 4 があるとき, norm は 9 です. compress を適用すると `Not` に 5, `Hat` に 4 が残ります. bar を適用すると `Not` に 1 が残ります. 一般に, ある基底の 2 つの列の長さが $p_i$ と $q_i$ であるとき, その基底の norm への寄与は次のとおりです:"
+
+#: src/algebra/definitions.md:28
+msgid "$$ \\\\operatorname{norm}(f_i(e_i)) = \\sum\\_{j=1}^{p_i} a\\_{ij} + \\sum\\_{k=1}^{q_i} b\\_{ik}. $$"
+msgstr "$$ \\\\operatorname{norm}(f_i(e_i)) = \\sum\\_{j=1}^{p_i} a\\_{ij} + \\sum\\_{k=1}^{q_i} b\\_{ik}. $$"
+
+#: src/algebra/definitions.md:32
+msgid "Five axioms"
+msgstr "5 つの公理"
+
+#: src/algebra/definitions.md:34
+msgid "Let $x=\\langle f_1,\\ldots,f_n\\rangle$ and let $a$ be a nonnegative scalar."
+msgstr "$x=\\langle f_1,\\ldots,f_n\\rangle$ とし, $a$ を非負スカラーとします."
+
+#: src/algebra/definitions.md:36
+msgid "**Hat is an involution.** Applying hat twice restores the original postings."
+msgstr "**hat の対合性.** hat を 2 回適用すると元の項に戻ります."
+
+#: src/algebra/definitions.md:38
+msgid "$$ \\\\widehat{\\widehat{f_i}}(e_i) = f_i(e_i). $$"
+msgstr "$$ \\\\widehat{\\widehat{f_i}}(e_i) = f_i(e_i). $$"
+
+#: src/algebra/definitions.md:42
+msgid "**Scaling at one base.** The scalar acts on each amount in each sequence."
+msgstr "**1 つの基底でのスカラー倍.** スカラーは各列の各金額に作用します."
+
+#: src/algebra/definitions.md:44
+msgid "$$ a \\ast f_i(e_i) = \\langle a \\ast A_i, a \\ast B_i\\rangle. $$"
+msgstr "$$ a \\ast f_i(e_i) = \\langle a \\ast A_i, a \\ast B_i\\rangle. $$"
+
+#: src/algebra/definitions.md:48
+msgid "**Scaling across bases.** The scalar acts on every component."
+msgstr "**基底全体のスカラー倍.** スカラーはすべての成分に作用します."
+
+#: src/algebra/definitions.md:50
+msgid "$$ a \\ast \\langle f_1,\\ldots,f_n\\rangle = \\langle a \\ast f_1,\\ldots,a \\ast f_n\\rangle. $$"
+msgstr "$$ a \\ast \\langle f_1,\\ldots,f_n\\rangle = \\langle a \\ast f_1,\\ldots,a \\ast f_n\\rangle. $$"
+
+#: src/algebra/definitions.md:54
+msgid "**Norm homogeneity.** Scaling the postings scales their total."
+msgstr "**norm の斉次性.** 項をスカラー倍すると, 合計も同じスカラー倍になります."
+
+#: src/algebra/definitions.md:56
+msgid "$$ \\\\operatorname{norm}(a \\ast x) = a \\cdot \\operatorname{norm}(x), \\qquad a \\ge 0. $$"
+msgstr "$$ \\\\operatorname{norm}(a \\ast x) = a \\cdot \\operatorname{norm}(x), \\qquad a \\ge 0. $$"
+
+#: src/algebra/definitions.md:60
+msgid "**Norm additivity.** Adding postings adds their totals."
+msgstr "**norm の加法性.** 項を加えると, それぞれの合計も加わります."
+
+#: src/algebra/definitions.md:62
+msgid "$$ \\\\operatorname{norm}(f_i(e_i)+g_i(e_i)) = \\operatorname{norm}(f_i(e_i)) + \\operatorname{norm}(g_i(e_i)). $$"
+msgstr "$$ \\\\operatorname{norm}(f_i(e_i)+g_i(e_i)) = \\operatorname{norm}(f_i(e_i)) + \\operatorname{norm}(g_i(e_i)). $$"
+
+#: src/algebra/definitions.md:66
+msgid "The preprint lists the defining sum of the norm under the name “norm homogeneity.” The homogeneity law above follows from that sum and the scalar product."
+msgstr "プレプリントでは, norm を定義する和を「norm の斉次性」という名称で挙げています. ここに示した斉次性の法則は, その和とスカラー倍から導かれます."
+
+#: src/algebra/definitions.md:68
+msgid "For `MoneyDecimal`, axioms 4 and 5 hold exactly when the amounts and products are representable. For `MoneyDouble`, `norm` sums the stored posting amounts exactly and rounds once at the end. The two sides of a law can therefore differ in the last digit: scaling can round individual products, and adding two norms can use two already rounded totals."
+msgstr "`MoneyDecimal` では, 金額と積が表現可能な場合に公理 4 と 5 が厳密に成り立ちます. `MoneyDouble` では, `norm` は保存された項の金額を厳密に合計し, 最後に 1 回だけ丸めます. そのため, 法則の両辺が最終桁で異なることがあります. スカラー倍では個々の積が丸められ, 2 つの norm の加算では丸め済みの合計を 2 つ使う場合があるためです."
+
+#: src/algebra/definitions.md:70
+msgid "Account classes and sides"
+msgstr "勘定の区分と貸借"
+
+#: src/algebra/definitions.md:72
+msgid "An exchange base carries an account title. `ExBaseClass.whatDiv` identifies its division, and `ExBaseClass.whichSide` combines its home side with the hat direction. For ordinary accounts the assignment is:"
+msgstr "交換代数の基底は勘定科目を持ちます. `ExBaseClass.whatDiv` はその区分を識別し, `ExBaseClass.whichSide` は本来の側 (借方か貸方か)と hat の方向を組み合わせます. 通常の勘定では次の対応になります:"
+
+#: src/algebra/definitions.md:74
+msgid "Division"
+msgstr "区分"
+
+#: src/algebra/definitions.md:74
+msgid "Increase (`Not`)"
+msgstr "増加 (`Not`)"
+
+#: src/algebra/definitions.md:74
+msgid "Decrease (`Hat`)"
+msgstr "減少 (`Hat`)"
+
+#: src/algebra/definitions.md:76
+msgid "Assets, expenses (costs)"
+msgstr "資産, 費用 (原価)"
+
+#: src/algebra/definitions.md:77
+msgid "Liabilities, equity, revenue"
+msgstr "負債, 純資産, 収益"
+
+#: src/algebra/definitions.md:79
+msgid "A contra account reverses the home side of its division before the hat direction is applied."
+msgstr "評価勘定では, hat の方向を適用する前に, 所属する区分の本来の側 (借方か貸方か)を反転させます."
+
+#: src/algebra/definitions.md:81
+msgid "Debit and credit decomposition"
+msgstr "借方と貸方への分解"
+
+#: src/algebra/definitions.md:83
+msgid "`Exchange` in `ExchangeAlgebra.Accounting.Exchange` provides the two side projections. `decL :: a n b -> a n b` selects the debit postings (left), and `decR :: a n b -> a n b` selects the credit postings (right). For example, a decrease in cash appears in `decR` and an increase in an ordinary expense appears in `decL`. `balance :: a n b -> Bool` compares the exact debit and credit totals before rounding and returns `True` when they agree for finite postings."
+msgstr "`ExchangeAlgebra.Accounting.Exchange` の `Exchange` は, 借方と貸方への射影を提供します. `decL :: a n b -> a n b` は借方 (左側) の項を, `decR :: a n b -> a n b` は貸方 (右側) の項を選びます. 例えば, 現金の減少は `decR` に, 通常の費用の増加は `decL` に現れます. `balance :: a n b -> Bool` は, 丸める前の厳密な借方合計と貸方合計を比較し, 有限の金額を持つ項について両者が一致すれば `True` を返します."
+
+#: src/algebra/definitions.md:85
+msgid "For transfers and journals, see Appendix A of [_Accounting State Space as a Foundation for Economic Agent-Based Modeling: An Input–Output Benchmark and Inventory Extension_](https://doi.org/10.21203/rs.3.rs-8485050/v2)."
+msgstr "振替と仕訳帳については, [_Accounting State Space as a Foundation for Economic Agent-Based Modeling: An Input–Output Benchmark and Inventory Extension_](https://doi.org/10.21203/rs.3.rs-8485050/v2) の Appendix A を参照してください."
+
+#: src/algebra/definitions.md:87
+msgid "Correspondence to the library"
+msgstr "ライブラリとの対応"
+
+#: src/algebra/definitions.md:89
+msgid "The module names below are relative to `ExchangeAlgebra`."
+msgstr "次のモジュール名は, `ExchangeAlgebra` からの相対名です."
+
+#: src/algebra/definitions.md:91
+msgid "Mathematical notation"
+msgstr "数学的記法"
+
+#: src/algebra/definitions.md:91
+msgid "Class or library identifier"
+msgstr "クラスまたはライブラリの識別子"
+
+#: src/algebra/definitions.md:91
+msgid "Module"
+msgstr "モジュール"
+
+#: src/algebra/definitions.md:93
+msgid "Query matches entry"
+msgstr "問い合わせと項の照合"
+
+#: src/algebra/definitions.md:93
+msgid "`Element`, `matchesQuery`"
+msgstr "`Element`, `matchesQuery`"
+
+#: src/algebra/definitions.md:93
+msgid "`Algebra.Element`"
+msgstr "`Algebra.Element`"
+
+#: src/algebra/definitions.md:94
+msgid "Posting on a hat base"
+msgstr "hat 基底上の項"
+
+#: src/algebra/definitions.md:94
+msgid "`Alg`, `(.@)`"
+msgstr "`Alg`, `(.@)`"
+
+#: src/algebra/definitions.md:94 src/algebra/definitions.md:95
+#: src/algebra/definitions.md:96 src/algebra/definitions.md:97
+#: src/algebra/definitions.md:98
+msgid "`Algebra.Core.Representation`"
+msgstr "`Algebra.Core.Representation`"
+
+#: src/algebra/definitions.md:95
+msgid "$\\widehat{x}$, $\\bar{x}$"
+msgstr "$\\widehat{x}$, $\\bar{x}$"
+
+#: src/algebra/definitions.md:95
+msgid "`Redundant`: `(.^)`, `(.-)`"
+msgstr "`Redundant`: `(.^)`, `(.-)`"
+
+#: src/algebra/definitions.md:96
+msgid "$x+y$, $a \\ast x$"
+msgstr "$x+y$, $a \\ast x$"
+
+#: src/algebra/definitions.md:96
+msgid "`Redundant`: `(.+)`, `(.*)`"
+msgstr "`Redundant`: `(.+)`, `(.*)`"
+
+#: src/algebra/definitions.md:97
+msgid "$\\operatorname{norm}(x)$"
+msgstr "$\\operatorname{norm}(x)$"
+
+#: src/algebra/definitions.md:97
+msgid "`Redundant`: `norm`"
+msgstr "`Redundant`: `norm`"
+
+#: src/algebra/definitions.md:98
+msgid "Sum within each direction"
+msgstr "各方向内の合計"
+
+#: src/algebra/definitions.md:98
+msgid "`Redundant`: `compress`"
+msgstr "`Redundant`: `compress`"
+
+#: src/algebra/definitions.md:99
+msgid "Account division and side"
+msgstr "勘定の区分と貸借"
+
+#: src/algebra/definitions.md:99
+msgid "`ExBaseClass`: `whatDiv`, `whichSide`"
+msgstr "`ExBaseClass`: `whatDiv`, `whichSide`"
+
+#: src/algebra/definitions.md:99 src/algebra/definitions.md:100
+#: src/algebra/definitions.md:101
+msgid "`Accounting.Exchange`"
+msgstr "`Accounting.Exchange`"
+
+#: src/algebra/definitions.md:100
+msgid "Debit and credit projections"
+msgstr "借方と貸方への射影"
+
+#: src/algebra/definitions.md:100
+msgid "`Exchange`: `decL`, `decR`"
+msgstr "`Exchange`: `decL`, `decR`"
+
+#: src/algebra/definitions.md:101
+msgid "Equality of side totals"
+msgstr "借方合計と貸方合計の一致"
+
+#: src/algebra/definitions.md:101
+msgid "`Exchange`: `balance`"
+msgstr "`Exchange`: `balance`"
