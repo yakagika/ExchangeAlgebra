@@ -44,7 +44,7 @@ of at most @1e-9 * max (abs x) (abs y)@, treating absent bases as zero.
   by 'closingSide'; non-closing bases and non-account coordinates are retained.
 * Observation: exact net per complete base, including 'RetainedEarnings'.
 * Tolerance: none; the 'HatVal' accumulator and 'splitAccum' preserve exact nets.
-* Instances: 'Double' and @MoneyDecimal@ with 'ExBaseClass' bases.
+* Instances: 'Double' and @MoneyDecimal@ with 'StandardBase' bases.
 
 === L3: balance
 
@@ -56,7 +56,7 @@ of at most @1e-9 * max (abs x) (abs y)@, treating absent bases as zero.
   this relation, because 'closingSide' follows the account's PIMO direction.
 * Observation: @norm (decL entries)@ and @norm (decR entries)@.
 * Tolerance: relative @1e-9@ for 'Double'; exact for @MoneyDecimal@.
-* Instances: 'Double' and @MoneyDecimal@ with 'ExBaseClass' bases.
+* Instances: 'Double' and @MoneyDecimal@ with 'StandardBase' bases.
 
 A relabel from @Not :< Cash@ to @Not :< Sales@ violates L3's side
 precondition: its cancellation and destination are both credits.
@@ -70,7 +70,7 @@ precondition: its cancellation and destination are both credits.
 * Observation: posting values, before any @bar@.
 * Tolerance: none.
 * Instances: all lawful 'HatVal' and 'HatBaseClass' instances (closing also
-  requires 'ExBaseClass'). Hat reversal is never numeric negation.
+  requires 'StandardBase'). Hat reversal is never numeric negation.
 
 -}
 module ExchangeAlgebra.Accounting.Closing ( ClosingSide(..)
@@ -98,7 +98,7 @@ import ExchangeAlgebra.Algebra.Core ( Alg(..)
                                     )
 import ExchangeAlgebra.Algebra.Base.Representation (HatBaseClass(..), Hat(..))
 import ExchangeAlgebra.Algebra.Value.Class (HatVal(..), isErrorValue)
-import ExchangeAlgebra.Accounting.Exchange (ExBaseClass(..))
+import ExchangeAlgebra.Accounting.Exchange (StandardBase, ExBaseClass(..))
 import ExchangeAlgebra.Accounting.Account ( AccountTitles(..)
                                           , accountSpec
                                           , asClosing
@@ -166,7 +166,7 @@ closingSide title = case accountSpec title of
 -- the entries of @c@ have equal exact debit and credit sums; and
 -- @closingEntries (x .+ c) == Right Zero@.
 -- Balance collection is O(s log b), for s postings and b eligible bases.
-closingEntries :: forall v b. (HatVal v, ExBaseClass b)
+closingEntries :: forall v b. (HatVal v, StandardBase b)
                => Alg v b -> Either (TransferApplyError v b) (Alg v b)
 closingEntries = Map.foldlWithKey' close (Right Zero) . foldEntries collect Map.empty
   where
@@ -262,8 +262,8 @@ deriving instance Show (BasePart b) => Show (SettleError b)
 -- its increment is the sum of @direction * net@ over the source bases, where
 -- @direction@ is +1 for 'ClosingKeep' and -1 for 'ClosingFlip'.
 -- Observation: sums of @decL@ and @decR@ lifted to Rational for each pair.
--- Tolerance: exact. Instances: 'ExBaseClass' bases with Double posting values.
-settleEntries :: forall b. ExBaseClass b
+-- Tolerance: exact. Instances: 'StandardBase' bases with Double posting values.
+settleEntries :: forall b. StandardBase b
               => SettleRule
               -> Map (BasePart b) SignedNet
               -> Either (SettleError b) (SettlementBatch b)
@@ -303,7 +303,7 @@ settlementSteps (SettlementBatch steps) = steps
 -- Hat/Not, and 'revHat' reverses it. The caller must classify the source,
 -- and the value must satisfy the non-negative,
 -- finite posting contract of '.@'.
-closingPairBy :: (HatVal v, ExBaseClass b)
+closingPairBy :: (HatVal v, StandardBase b)
               => (b -> b)
               -> AccountTitles
               -> v

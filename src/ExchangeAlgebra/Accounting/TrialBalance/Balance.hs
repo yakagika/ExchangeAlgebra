@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
 
 {- |
@@ -33,7 +34,7 @@ import           ExchangeAlgebra.Algebra.Value.Class (HatVal(..))
 import           ExchangeAlgebra.Accounting.Account.Classification (Side(..))
 import           ExchangeAlgebra.Accounting.Account.Title (AccountTitles)
 import           ExchangeAlgebra.Accounting.Exchange
-                     ( ExBaseClass )
+                     ( StandardBase )
 
 -- | A trial balance: postings of one scope whose bases are reduced to account
 -- titles. The caller chooses the scope and the unit before reducing a ledger
@@ -93,7 +94,7 @@ balanceAmount (CreditBalance value) = value
 -- | Net the exact posting sum of each account and round its magnitude once.
 -- The direction is determined before rounding, without a tolerance.
 accountBalances
-    :: (HatVal v, ExBaseClass b)
+    :: (HatVal v, StandardBase b)
     => Alg v b
     -> Map AccountTitles (AccountBalance v)
 accountBalances = M.map finish . Accum.accountAccums

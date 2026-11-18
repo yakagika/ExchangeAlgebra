@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -Wincomplete-patterns -Werror=incomplete-patterns #-}
 
 -- | Package-private implementation of @admit@.
@@ -10,7 +11,7 @@ import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.HashMap.Strict as HashMap
 
 import ExchangeAlgebra.Accounting.Account (PostingCapability(NotPostable), postingCapabilityFor)
-import ExchangeAlgebra.Accounting.Exchange (ExBaseClass(..), Exchange(decL, decR))
+import ExchangeAlgebra.Accounting.Exchange (StandardBase, ExBaseClass(..), Exchange(decL, decR))
 import ExchangeAlgebra.Algebra.Base.Representation (HatBaseClass(hat), Hat(..))
 import qualified ExchangeAlgebra.Algebra.Core as Algebra
 import ExchangeAlgebra.Algebra.Value.Class (HatVal(..), isErrorValue)
@@ -53,7 +54,7 @@ import qualified ExchangeAlgebra.Journal.Core as Journal
 -- * The checks are per note: @admit (j1 .+ j2)@ succeeds when @admit j1@ and
 --   @admit j2@ succeed and @j1@ and @j2@ have disjoint notes.
 -- * @admit Zero@ succeeds.
-admit :: (Note n, ExBaseClass b)
+admit :: (Note n, StandardBase b)
       => Journal n MoneyDecimal b
       -> Either (AdmissionFailure n b) (Admitted n b)
 admit journal = case errors of

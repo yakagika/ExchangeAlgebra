@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE FlexibleContexts #-}
 
@@ -19,7 +20,7 @@ import           ExchangeAlgebra.Algebra.Value.Class (HatVal(..), isErrorValue)
 import           ExchangeAlgebra.Accounting.Account.Classification (Side(..))
 import           ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
 import           ExchangeAlgebra.Accounting.Exchange
-                     ( ExBaseClass(getAccountTitle, whichSide) )
+                     ( StandardBase, ExBaseClass(getAccountTitle, whichSide) )
 
 import           ExchangeAlgebra.Algebra.Base.Representation (Hat(..), HatBase(..))
 
@@ -43,7 +44,7 @@ structureErrors alg = case alg of
 
 -- | Add one posting to its account's exact debit-minus-credit sum.
 insertAccountAccum
-    :: (HatVal v, ExBaseClass b)
+    :: (HatVal v, StandardBase b)
     => Map AccountTitles (Accum v) -> v -> b -> Map AccountTitles (Accum v)
 insertAccountAccum totals value base = M.insertWith mergeAccum (getAccountTitle base)
     (case whichSide base of
@@ -53,7 +54,7 @@ insertAccountAccum totals value base = M.insertWith mergeAccum (getAccountTitle 
 
 -- | Retain each account's exact signed sum until its consumer reads it.
 accountAccums
-    :: (HatVal v, ExBaseClass b)
+    :: (HatVal v, StandardBase b)
     => Alg v b -> Map AccountTitles (Accum v)
 accountAccums = foldEntries insertAccountAccum M.empty
 

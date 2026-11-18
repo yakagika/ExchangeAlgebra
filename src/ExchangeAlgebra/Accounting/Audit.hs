@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -108,7 +109,7 @@ import           ExchangeAlgebra.Accounting.Account.PostingPolicy (postingCapabi
 import           ExchangeAlgebra.Accounting.Account.Registry
                      (AccountSemantics(..), accountSemantics)
 import           ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
-import           ExchangeAlgebra.Accounting.Exchange (ExBaseClass(..))
+import           ExchangeAlgebra.Accounting.Exchange (StandardBase, ExBaseClass(..))
 import           ExchangeAlgebra.Accounting.TrialBalance.Balance
                      ( AccountBalance(..)
                      , TrialBalance
@@ -163,7 +164,7 @@ type JournalIssue n v b = (n, StructureIssue v b)
 -- | Check every posting before any operation that determines accounting sides.
 -- A standalone zero term is inspected just as in the presentation structure check.
 structureIssues
-    :: forall v b. (HatVal v, ExBaseClass b)
+    :: forall v b. (HatVal v, StandardBase b)
     => Alg v b
     -> [StructureIssue v b]
 structureIssues input =
@@ -182,7 +183,7 @@ trialBalanceStructureIssues = structureIssues
 
 -- | Attach notes to structure issues, including those of the blank note.
 journalStructureIssues
-    :: (HatVal v, ExBaseClass b, Note n)
+    :: (HatVal v, StandardBase b, Note n)
     => Journal n v b
     -> [JournalIssue n v b]
 journalStructureIssues input =
@@ -362,7 +363,7 @@ data DuplicateTransactions n = DuplicateTransactions n (NonEmpty n)
 -- Legitimate exception: the same entry repeated on purpose, such as monthly
 -- rent.
 duplicateTransactions
-    :: (HatVal v, ExBaseClass b, Note n)
+    :: (HatVal v, StandardBase b, Note n)
     => Journal n v b
     -> AuditResult (JournalIssue n v b) (DuplicateTransactions n)
 duplicateTransactions (input :: Journal n v b) = case journalStructureIssues input of
@@ -404,7 +405,7 @@ data ContraryNominalPosting n v b = ContraryNominalPosting
 -- (Kieso, p. 2-55), transfer of purchases to cost of sales, and elimination in
 -- consolidation.
 contraryNominalPostings
-    :: (HatVal v, ExBaseClass b, Note n)
+    :: (HatVal v, StandardBase b, Note n)
     => Journal n v b
     -> AuditResult (JournalIssue n v b) (ContraryNominalPosting n v b)
 contraryNominalPostings (input :: Journal n v b) = case journalStructureIssues input of

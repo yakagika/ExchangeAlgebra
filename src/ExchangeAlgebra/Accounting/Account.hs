@@ -3,7 +3,8 @@
 
 -- | Account title metadata and direction helpers for exchange bases (Definition 7).
 module ExchangeAlgebra.Accounting.Account
-    ( AccountTitles(..)
+    ( AccountVocabulary(..)
+    , AccountTitles(..)
     , AccountDivision(..), Side(..), ClosingRule(..), FixedCurrent(..)
     , AccountRole(..), PostingCapability(..), DivisionSemantics(..)
     , HomeSideSemantics(..), ReportingEligibility(..)
@@ -15,13 +16,12 @@ module ExchangeAlgebra.Accounting.Account
     , pimoFromDivision, pimoFlip
     ) where
 
-import ExchangeAlgebra.Algebra.Base.Representation (customError)
+import ExchangeAlgebra.Accounting.Account.Vocabulary (AccountVocabulary(..), classifyAccountDivision)
 import ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
 import ExchangeAlgebra.Accounting.Account.Classification
 import ExchangeAlgebra.Accounting.Account.Registry
 import ExchangeAlgebra.Accounting.Account.Aliases (jcciAliases)
 import ExchangeAlgebra.Accounting.Account.PostingPolicy
-import GHC.Stack (HasCallStack)
 import Control.DeepSeq (NFData(..))
 
 -- | Reverse the credit/debit side. Swaps Credit and Debit.
@@ -48,17 +48,6 @@ defaultSide Cost      = Debit
 defaultSide Liability = Credit
 defaultSide Equity    = Credit
 defaultSide Revenue   = Credit
-
--- | Classify an account title into an account division (Assets/Equity/Liability/Cost/Revenue).
---
--- Complexity: O(1)
-{-# INLINE classifyAccountDivision #-}
-classifyAccountDivision :: HasCallStack => AccountTitles -> AccountDivision
-classifyAccountDivision AccountTitle = customError "this is wildcard AccountTitle"
-classifyAccountDivision title =
-    case accountSpec title of
-        Just spec -> asDivision spec
-        Nothing   -> customError "this is wildcard AccountTitle"
 
 -- | PIMO direction. In Proposition 5.3.8 (Deguchi 2004, pp.89-91) PS, IN,
 -- MS and OUT mean __plus stock, input, minus stock and output__ —

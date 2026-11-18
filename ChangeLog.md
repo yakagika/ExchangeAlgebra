@@ -49,7 +49,23 @@
   - `contraryNominalPostings`: revenue or expense posting opposite to its
     home side, outside closing transactions (`Warning`).
 
+- `AccountVocabulary` (`ExchangeAlgebra.Accounting.Account`): `vocabSpec`,
+  `vocabSemantics`, `closingTarget`, `vocabDivision`, `vocabContra`, with laws in the Haddock
+  (the closing target is concrete, has an `Equity` spec and is not a contra account). The
+  `AccountTitles` instance reads the existing registry and closes to `RetainedEarnings`.
+
 ### Changed
+
+- **Breaking:** `ExBaseClass` has an associated type `TitleOf` (default `AccountTitles`), and
+  `getAccountTitle`, `setAccountTitle`, `(.~)` and `projByAccountTitle` now use `TitleOf b`
+  instead of `AccountTitles`. `ExBaseClass a` has the new superclass
+  `AccountVocabulary (TitleOf a)`. Instances that do not set `TitleOf` keep the default and
+  need no change. Code that names `AccountTitles` where the base type is polymorphic now needs
+  the constraint `StandardBase b` (that is, `(ExBaseClass b, TitleOf b ~ AccountTitles)`); the
+  functions that need the built-in chart (closing, transfers, audit, trial balance, admission
+  and the statement writers) now carry this constraint. GHC reports `-Worphans` for the
+  generated `type instance TitleOf X = AccountTitles` next to an orphan `ExBaseClass` instance;
+  this warning is expected. Behaviour is unchanged for `AccountTitles`.
 
 - **Breaking:** `(.|)` is now `infix 5` (previously `infixr 2`), so it binds more
   tightly than `(.+)` (`infixr 3`), as in the mathematical notation where each term

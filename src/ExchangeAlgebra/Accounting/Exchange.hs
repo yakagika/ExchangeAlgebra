@@ -1,3 +1,5 @@
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE UndecidableSuperClasses #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE FlexibleInstances          #-}
@@ -42,6 +44,7 @@
 -- "ExchangeAlgebra.Journal.Core". Accounting classes and projections are
 -- exported here, separately from the generic Algebra and Journal APIs.
 module ExchangeAlgebra.Accounting.Exchange ( ExBaseClass(..)
+                                           , StandardBase
                                            , AccountBase(..)
                                            , Exchange(..)
                                              -- * Construction by debit or credit side
@@ -68,13 +71,11 @@ import ExchangeAlgebra.Accounting.Account ( AccountTitles(..)
                                           , FixedCurrent(..)
                                           , PIMO(..)
                                           , AccountSpec(..)
-                                          , classifyAccountDivision
-                                          , classifyAccountContra
+                                          , AccountVocabulary(..)
                                           , defaultSide
                                           , switchSide
                                           , pimoFromDivision
                                           , pimoFlip
-                                          , accountSpec
                                           )
 import ExchangeAlgebra.Algebra.Base.Representation ( HatBaseClass(..)
                                                    , HatBase(..)
@@ -114,33 +115,35 @@ import Prelude hiding (map, filter)
 -- Extended type class for bases that carry an account title.
 -- Provides access to and modification of account titles, account divisions, PIMO classification,
 -- credit/debit determination, and fixed/current classification.
-class (HatBaseClass a) => ExBaseClass a where
+class (HatBaseClass a, AccountVocabulary (TitleOf a)) => ExBaseClass a where
+    -- | Title type carried by this base. Existing instances default to 'AccountTitles'.
+    type TitleOf a
+    type TitleOf a = AccountTitles
+
     -- | Retrieve the account title from a base. Complexity: O(1)
-    getAccountTitle :: a -> AccountTitles
+    getAccountTitle :: a -> TitleOf a
 
     -- | Change the account title of a base. Complexity: O(1)
-    setAccountTitle :: a -> AccountTitles -> a
+    setAccountTitle :: a -> TitleOf a -> a
 
     -- | Account title setter operator. An alias for @setAccountTitle@. Complexity: O(1)
     {-# INLINE (.~) #-}
-    (.~) :: a -> AccountTitles -> a
+    (.~) :: a -> TitleOf a -> a
     (.~) = setAccountTitle
 
     -- | Retrieve the account division (Assets/Equity/Liability/Cost/Revenue). Complexity: O(1)
     {-# INLINE whatDiv #-}
     whatDiv     :: a -> AccountDivision
-    whatDiv = classifyAccountDivision . getAccountTitle
+    whatDiv = vocabDivision . getAccountTitle
 
     -- | Whether the account is a contra account (評価勘定等): its home side
     -- and PIMO direction are the reverse of its division's defaults.
-    -- Delegates to the registry ('classifyAccountContra') exactly like
-    -- 'whatDiv' delegates to 'classifyAccountDivision' — a constant default
-    -- would disconnect the registry flag from every built-in instance.
+    -- The default reads the contra flag from the account vocabulary.
     -- Contract: @isContra b == (homeSide of b \/= defaultSide (whatDiv b))@.
     -- Complexity: O(1)
     {-# INLINE isContra #-}
     isContra    :: a -> Bool
-    isContra = classifyAccountContra . getAccountTitle
+    isContra = vocabContra . getAccountTitle
 
     -- | Retrieve the PIMO direction (PS/IN/MS/OUT; see 'PIMO' for the
     -- original semantics). Derived from the division via 'pimoFromDivision',
@@ -178,8 +181,11 @@ class (HatBaseClass a) => ExBaseClass a where
     -- Complexity: O(1)
     {-# INLINE fixedCurrent #-}
     fixedCurrent :: a -> FixedCurrent
-    fixedCurrent b = maybe Other asFixedCurrent (accountSpec (getAccountTitle b))
+    fixedCurrent b = maybe Other asFixedCurrent (vocabSpec (getAccountTitle b))
 
+
+-- | A base whose titles belong to the built-in account registry.
+type StandardBase b = (ExBaseClass b, TitleOf b ~ AccountTitles)
 
 -- | Type class for determining correspondences between account divisions.
 -- Tests whether two account divisions form a pair in double-entry bookkeeping
@@ -463,10 +469,10 @@ projDebit = filter (\x -> (whichSide . _hatBase) x == Debit)
 -- whose ledger title is the wildcard.
 --
 -- Complexity: O(s) (s is the total number of scalar entries)
-projByAccountTitle :: (HatVal n, ExBaseClass b) => AccountTitles -> Alg n b -> Alg n b
+projByAccountTitle :: (HatVal n, ExBaseClass b) => TitleOf b -> Alg n b -> Alg n b
 projByAccountTitle at alg = filter (f at) alg
     where
-        f :: (HatVal n,ExBaseClass b) => AccountTitles -> Alg n b -> Bool
+        f :: (HatVal n,ExBaseClass b) => TitleOf b -> Alg n b -> Bool
         f _ Zero = False
         f t x    = matchesQuery t ((getAccountTitle ._hatBase) x)
 -- | Projects only current assets.

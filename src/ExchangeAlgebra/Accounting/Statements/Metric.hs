@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# OPTIONS_GHC -Wincomplete-patterns -Werror=incomplete-patterns #-}
 
@@ -39,7 +40,7 @@ import           ExchangeAlgebra.Accounting.Account.Registry
                      ( AccountSemantics(asemDivisionSemantics), accountSemantics )
 import           ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
 import           ExchangeAlgebra.Accounting.Exchange
-                     ( ExBaseClass(getAccountTitle, whichSide) )
+                     ( StandardBase, ExBaseClass(getAccountTitle, whichSide) )
 import           ExchangeAlgebra.Algebra.Base.Representation
                      ( Hat(..), HatBase, HatBaseClass(hat) )
 import qualified ExchangeAlgebra.Accounting.TrialBalance.Validation as TB
@@ -112,7 +113,7 @@ legacyTitlesForMetric metric = case metric of
 -- Invalid values and wildcard sides are returned as explicit errors.  For
 -- externally sourced trial balances, prefer 'periodResultOf'.
 periodResultOfAlg
-    :: (HatVal v, ExBaseClass b)
+    :: (HatVal v, StandardBase b)
     => Alg v b
     -> Either MetricError (PeriodResult v)
 periodResultOfAlg alg
@@ -184,7 +185,7 @@ metricStructureErrors alg =
     (invalidValues, wildcardAccounts, wildcardSides) = Accum.structureErrors alg
 
 nonZeroLegacyTitles
-    :: (HatVal v, ExBaseClass b)
+    :: (HatVal v, StandardBase b)
     => Alg v b
     -> [AccountTitles]
 nonZeroLegacyTitles alg =

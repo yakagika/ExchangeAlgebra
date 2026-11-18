@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies #-}
 {- |
     Module     : ExchangeAlgebra.Accounting.Entries
     Copyright  : (c) Kaya Akagi. 2018-2026
@@ -80,7 +81,8 @@ module ExchangeAlgebra.Accounting.Entries
 
 import           ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
 import           ExchangeAlgebra.Accounting.Exchange
-                     ( ExBaseClass
+                     ( StandardBase
+                     , ExBaseClass
                      , Exchange(decL, decR)
                      , projByAccountTitle
                      )
@@ -560,7 +562,7 @@ equityMethodEntries mk share div' =
 -- 2038000
 --
 -- Complexity: O(s) (s = number of scalar entries in the accumulated algebra)
-equityMethodBalance :: (HatVal v, ExBaseClass b) => Alg v b -> v
+equityMethodBalance :: (HatVal v, StandardBase b) => Alg v b -> v
 equityMethodBalance = norm . bar . projByAccountTitle InvestmentInAssociate
 
 ------------------------------------------------------------------

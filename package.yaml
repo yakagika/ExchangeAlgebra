@@ -158,6 +158,7 @@ library:
   - ExchangeAlgebra.Accounting.Account.Classification
   - ExchangeAlgebra.Accounting.Account.Aliases
   - ExchangeAlgebra.Accounting.Account.Registry
+  - ExchangeAlgebra.Accounting.Account.Vocabulary
   - ExchangeAlgebra.Accounting.Account.PostingPolicy
   - ExchangeAlgebra.Algebra.Transfer.Representation
   - ExchangeAlgebra.Simulation.Network.Representation

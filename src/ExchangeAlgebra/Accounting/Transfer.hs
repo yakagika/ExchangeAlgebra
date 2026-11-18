@@ -195,7 +195,7 @@ import ExchangeAlgebra.Algebra.Value.Class
     , roundScaled
     )
 import ExchangeAlgebra.Accounting.Account (accountSpec)
-import ExchangeAlgebra.Accounting.Exchange (ExBaseClass(..))
+import ExchangeAlgebra.Accounting.Exchange (StandardBase, ExBaseClass(..))
 import ExchangeAlgebra.Journal.Core (Journal, Note)
 import qualified ExchangeAlgebra.Journal.Core as Journal
 
@@ -318,7 +318,7 @@ deriving instance (Eq b, Eq (BasePart b)) => Eq (TransferError b)
 deriving instance (Show b, Show (BasePart b)) => Show (TransferError b)
 
 -- | 'transferEntriesWith' rounding 'Portion' rows to the nearest value.
-transferEntries :: (HatVal v, ExBaseClass b)
+transferEntries :: (HatVal v, StandardBase b)
                 => TransferTable b -> Alg v b -> Either (TransferError b) (Alg v b)
 transferEntries = transferEntriesWith Nearest
 
@@ -329,7 +329,7 @@ transferEntries = transferEntriesWith Nearest
 -- 'Portion' whose rounded amount is zero, add nothing. Wildcards in ledger
 -- bases are values. No @bar@ is applied.
 -- Complexity: O(s log b + r * b) for s postings, b selected bases, r rows.
-transferEntriesWith :: forall v b. (HatVal v, ExBaseClass b)
+transferEntriesWith :: forall v b. (HatVal v, StandardBase b)
                     => Rounding v
                     -> TransferTable b
                     -> Alg v b
@@ -490,7 +490,7 @@ deriving instance (Eq n, Eq b, Eq (BasePart b)) => Eq (TransferJournalError n b)
 deriving instance (Show n, Show b, Show (BasePart b)) => Show (TransferJournalError n b)
 
 -- | 'transferEntriesByWith' rounding to the nearest value.
-transferEntriesBy :: (Note n, HatVal v, ExBaseClass b)
+transferEntriesBy :: (Note n, HatVal v, StandardBase b)
                   => (n -> n)
                   -> TransferTable b
                   -> Journal n v b
@@ -503,7 +503,7 @@ transferEntriesBy = transferEntriesByWith Nearest
 -- and the entries are placed under the target. Only the additional entries
 -- are returned; add them with @j .+ r@. A target with no entries creates no
 -- note. See the module header for reading balances across notes.
-transferEntriesByWith :: forall n v b. (Note n, HatVal v, ExBaseClass b)
+transferEntriesByWith :: forall n v b. (Note n, HatVal v, StandardBase b)
                       => Rounding v
                       -> (n -> n)
                       -> TransferTable b

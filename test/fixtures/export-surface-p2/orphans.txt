@@ -1,14 +1,17 @@
 examples/basic/elementaryBookkeepingEx4.hs: instance Note Day
 examples/basic/elementaryBookkeepingEx5.hs: instance Element Company
 examples/basic/elementaryBookkeepingEx5.hs: instance ExBaseClass HatBaseC
+examples/basic/elementaryBookkeepingEx5.hs: type instance TitleOf HatBaseC = AccountTitles -- Defined at basic/elementaryBookkeepingEx5.hs:15:1
 examples/basic/fixedPriceIO.hs: instance BaseClass Company
 examples/basic/fixedPriceIO.hs: instance Element Company
 examples/basic/fixedPriceIO.hs: instance ExBaseClass HatBase2
 examples/basic/fixedPriceIO.hs: instance StateTime Term
+examples/basic/fixedPriceIO.hs: type instance TitleOf HatBase2 = AccountTitles -- Defined at basic/fixedPriceIO.hs:134:1
 examples/basic/fixedPriceIOSpill.hs: instance BaseClass Company
 examples/basic/fixedPriceIOSpill.hs: instance Element Company
 examples/basic/fixedPriceIOSpill.hs: instance ExBaseClass HatBase2
 examples/basic/fixedPriceIOSpill.hs: instance StateTime Term
+examples/basic/fixedPriceIOSpill.hs: type instance TitleOf HatBase2 = AccountTitles -- Defined at basic/fixedPriceIOSpill.hs:150:1
 examples/optimization/CGE/CGE.hs: instance StateTime Term
 src/ExchangeAlgebra/Algebra/Base/Element.hs: instance Hashable Day
 src/ExchangeAlgebra/Algebra/Base/Element.hs: instance Hashable TimeOfDay
@@ -16,4 +19,6 @@ test/Spec.hs: instance BaseClass SimCompany
 test/Spec.hs: instance Element SimCompany
 test/Spec.hs: instance ExBaseClass SimHatBase2
 test/Spec.hs: instance StateTime SimTerm
+test/Support.hs: type instance TitleOf SimHatBase2 = AccountTitles -- Defined at test/Support.hs:122:1
 test/Transfer/RuleSpec.hs: instance ExBaseClass TestBase
+test/Transfer/RuleSpec.hs: type instance TitleOf TestBase = AccountTitles -- Defined at test/Transfer/RuleSpec.hs:49:1
