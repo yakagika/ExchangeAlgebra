@@ -3,5 +3,8 @@ title = "ExchangeAlgebra Manual"
 language = "en"
 src = "src"
 
+[preprocessor.gettext]
+after = ["links"]
+
 [output.html]
 mathjax-support = true

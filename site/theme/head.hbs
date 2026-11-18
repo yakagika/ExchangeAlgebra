@@ -3,3 +3,47 @@ MathJax.Hub.Config({
     tex2jax: { inlineMath: [['$', '$'], ['\\(', '\\)']] }
 });
 </script>
+<style>
+.language-switch { display: inline-flex; align-items: center; white-space: nowrap; }
+.language-switch a { padding: 0 0.4em; }
+html[lang="en"] .language-switch [data-language="en"],
+html[lang="ja"] .language-switch [data-language="ja"] {
+    font-weight: bold;
+    text-decoration: underline;
+    text-underline-offset: 0.25em;
+}
+</style>
+<script>
+function languagePageLink(rootPath, pathname, language) {
+    const depth = (rootPath.match(/\.\.\//g) || []).length;
+    const page = pathname.split('/').slice(-(depth + 1)).join('/');
+    return rootPath + '../' + language + '/' + page;
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const buttons = document.querySelector('.right-buttons');
+    if (!buttons) return;
+    const nav = document.createElement('nav');
+    nav.className = 'language-switch';
+    nav.setAttribute('aria-label', 'Language');
+    for (const [language, label] of [['en', 'EN'], ['ja', 'JP']]) {
+        if (nav.childNodes.length) {
+            const separator = document.createElement('span');
+            separator.textContent = ' | ';
+            separator.setAttribute('aria-hidden', 'true');
+            nav.appendChild(separator);
+        }
+        const link = document.createElement('a');
+        link.href = languagePageLink(path_to_root, location.pathname, language);
+        link.dataset.language = language;
+        link.lang = language;
+        link.hreflang = language;
+        link.textContent = label;
+        if (language === document.documentElement.lang) {
+            link.setAttribute('aria-current', 'page');
+        }
+        nav.appendChild(link);
+    }
+    buttons.prepend(nav);
+});
+</script>
