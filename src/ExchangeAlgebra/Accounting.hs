@@ -118,6 +118,9 @@ import ExchangeAlgebra.Algebra.Transfer.Representation as ExchangeAlgebra.Algebr
 import ExchangeAlgebra.Accounting.Closing as ExchangeAlgebra.Algebra.Transfer.Rule
     ( ClosingSide(..)
     , closingSide
+    , ClosingTargetViolation(..)
+    , closingTargetViolation
+    , ClosingError(..)
     , closingEntries
     , SettleRule
     , retainedEarningsRule

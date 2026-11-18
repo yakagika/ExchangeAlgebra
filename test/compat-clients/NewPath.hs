@@ -83,7 +83,7 @@ elementClient :: Bool
 elementClient = Element.matchesQuery Cash Cash
 
 -- | Use the public closing entry point with the new algebra and account paths.
-closingClient :: Either (Rule.TransferApplyError Double (HatBase AccountTitles))
+closingClient :: Either (Rule.ClosingError Double (HatBase AccountTitles))
                         (Alg Double (HatBase AccountTitles))
 closingClient = Closing.closingEntries oldExpression
 

@@ -78,6 +78,9 @@ module ExchangeAlgebra.Algebra.Transfer.Rule
       -- * Closing entries
     , ClosingSide(..)
     , closingSide
+    , ClosingTargetViolation(..)
+    , closingTargetViolation
+    , ClosingError(..)
     , closingEntries
     , SettleRule
     , retainedEarningsRule
@@ -105,6 +108,9 @@ import ExchangeAlgebra.Algebra.Transfer.Representation ( TransferScale(..)
 
 import ExchangeAlgebra.Accounting.Closing ( ClosingSide(..)
                                           , closingSide
+                                          , ClosingTargetViolation(..)
+                                          , closingTargetViolation
+                                          , ClosingError(..)
                                           , closingEntries
                                           , SettleRule
                                           , retainedEarningsRule

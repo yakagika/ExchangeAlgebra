@@ -35,7 +35,7 @@ import ExchangeAlgebra.Algebra.Transfer.Rule ( TransferScale(..)
                                              , collapseEntries
                                              , collapseNetEntries
                                              )
-import ExchangeAlgebra.Accounting.Closing (ClosingSide(..), closingSide, closingEntries)
+import ExchangeAlgebra.Accounting.Closing (ClosingSide(..), ClosingError(..), closingSide, closingEntries)
 import qualified ExchangeAlgebra.Journal as Journal
 import           ExchangeAlgebra.Journal ((.|), Note(..))
 import qualified ExchangeAlgebra.Journal.Transfer.Rule as JournalRule
@@ -371,7 +371,7 @@ testClosingOverflow = do
         overflowing postingBase = 1e308 .@ postingBase .+ 1e308 .@ postingBase
             :: Alg Double TestBase
         isBalanceError expected result = case result of
-            Left (NonFiniteBalance actual) -> actual == expected
+            Left (ClosingTransferError (NonFiniteBalance actual)) -> actual == expected
             _ -> False
     assertTest "closing Not sum overflow" $
         isBalanceError sales (closingEntries (overflowing sales))
@@ -467,7 +467,7 @@ testClosingInvalid _ = do
     let source = Not :< (Sales, Yen)
         ledger = (-1) `Internal.Single` source :: Alg v TestBase
     assertTest "negative closing value" $ case closingEntries ledger of
-        Left (NonFiniteBalance actual) -> actual == source
+        Left (ClosingTransferError (NonFiniteBalance actual)) -> actual == source
         _ -> False
 
 -- | C6: overflowing sides may still have a representable exact difference.
@@ -483,7 +483,7 @@ testClosingRange = do
         Map.findWithDefault 1 source (exactNets (ledger .+ additions)) == 0
     mapM_ (\value -> assertTest "nonfinite closing scalar" $
         case closingEntries (value `Internal.Single` source :: Alg Double TestBase) of
-            Left (NonFiniteBalance actual) -> actual == source
+            Left (ClosingTransferError (NonFiniteBalance actual)) -> actual == source
             _ -> False) [0 / 0, 1 / 0, -1 / 0]
 
 -- | C7: paying expenses 0.1 and 0.2 leaves no nominal residual after closing.

@@ -14,6 +14,12 @@ entries using generic Algebra operations. Start with 'closingEntries' for
 an existing ledger; use 'settleEntries' for signed nets already computed
 by the caller. Both preserve the non-account coordinates of each source.
 
+Both close into the 'closingTarget' of the base's title vocabulary
+('RetainedEarnings' for 'AccountTitles'). Before reading any input, both check
+that target with 'closingTargetViolation' and reject a vocabulary that breaks
+the closing-target law, so a model's own title type cannot close into a
+revenue, cost, or contra title.
+
 Import this module qualified alongside "ExchangeAlgebra.Algebra.Core":
 
 > import qualified ExchangeAlgebra.Accounting.Closing as Closing
@@ -40,11 +46,40 @@ of at most @1e-9 * max (abs x) (abs y)@, treating absent bases as zero.
 * Preconditions: valid Hat\/Not postings; the ledger includes only entries
   through the closing date and the call returns @Right entries@.
 * Relation: adding the entries closes each eligible complete base exactly.
-  Each reversal has an equal retained-earnings posting on the side selected
-  by 'closingSide'; non-closing bases and non-account coordinates are retained.
-* Observation: exact net per complete base, including 'RetainedEarnings'.
+  Each reversal has an equal posting to the vocabulary's 'closingTarget' on
+  the side selected by 'closingSide', with the source's non-account
+  coordinates. Per combination of non-account coordinates, the exact net of
+  @x .+ entries@ is zero at every closed source; at the closing target it is
+  the net of @x@ there plus the sum of @direction * net@ over the closed
+  sources, where @direction@ is +1 for 'ClosingKeep' and -1 for
+  'ClosingFlip'; every other base keeps its net in @x@.
+* Observation: exact Not-minus-Hat net per base without Hat\/Not, including
+  the closing target.
 * Tolerance: none; the 'HatVal' accumulator and 'splitAccum' preserve exact nets.
-* Instances: 'Double' and @MoneyDecimal@ with 'StandardBase' bases.
+* Instances: 'Double' and @MoneyDecimal@ with 'ExBaseClass' bases whose
+  vocabulary satisfies the closing-target law.
+
+=== L2v: vocabulary renaming
+
+* Subject: 'closingEntries' and 'settleEntries'.
+* Preconditions: bases @b@ and @b'@ whose vocabularies satisfy the
+  closing-target law, and an injective map @g :: BasePart b -> BasePart b'@
+  that applies a title map @f@ and keeps every other coordinate, with
+  @closingSide (f x) == closingSide x@ for every title @x@ and
+  @f closingTarget == closingTarget@. 'ExchangeAlgebra.Algebra.Core.mapBasePart'
+  applies @g@ to a ledger.
+* Relation: @fmap (mapBasePart g) (closingEntries x)@ and
+  @closingEntries (mapBasePart g x)@ are both @Right@ or both @Left@, and the
+  @Right@ entries are equal under the observation. For 'settleEntries' with
+  nets @m@ and @m'@ = @m@ with keys mapped by @g@, both results are @Right@ or
+  both @Left@; for @Right@, the pairs are matched by source key: the pair of
+  @g k@ in the second equals the pair of @k@ in the first mapped by
+  @mapBasePart g@. The order of the pairs follows each base type's 'Ord'
+  and is not preserved unless @g@ is strictly monotone; for @Left@, the
+  reported base can differ for the same reason.
+* Observation: @obs@; for 'settleEntries', @obs@ of each matched pair.
+* Tolerance: none.
+* Instances: 'AccountTitles' and a vocabulary that renames its closing target.
 
 === L3: balance
 
@@ -52,11 +87,16 @@ of at most @1e-9 * max (abs x) (abs y)@, treating absent bases as zero.
 * Preconditions: valid postings, concrete accounts, @Relabel@ rules whose
   actual target and source have equal 'whichSide'; finite totals. The
   transfer or closing operation being observed returns @Right entries@.
+  For closing, the base's 'whatDiv' and 'isContra' agree with the title's
+  vocabulary ('vocabDivision' and 'vocabContra'), as the 'ExBaseClass'
+  defaults do: 'closingSide' reads the vocabulary, while @decL@ and @decR@
+  read 'whichSide' of the base.
 * Relation: debit total equals credit total. Closing entries also satisfy
   this relation, because 'closingSide' follows the account's PIMO direction.
 * Observation: @norm (decL entries)@ and @norm (decR entries)@.
 * Tolerance: relative @1e-9@ for 'Double'; exact for @MoneyDecimal@.
-* Instances: 'Double' and @MoneyDecimal@ with 'StandardBase' bases.
+* Instances: 'Double' and @MoneyDecimal@ with 'StandardBase' bases, and
+  with 'ExBaseClass' bases that keep the 'whatDiv' and 'isContra' defaults.
 
 A relabel from @Not :< Cash@ to @Not :< Sales@ violates L3's side
 precondition: its cancellation and destination are both credits.
@@ -70,11 +110,14 @@ precondition: its cancellation and destination are both credits.
 * Observation: posting values, before any @bar@.
 * Tolerance: none.
 * Instances: all lawful 'HatVal' and 'HatBaseClass' instances (closing also
-  requires 'StandardBase'). Hat reversal is never numeric negation.
+  requires 'ExBaseClass'). Hat reversal is never numeric negation.
 
 -}
 module ExchangeAlgebra.Accounting.Closing ( ClosingSide(..)
                                           , closingSide
+                                          , ClosingTargetViolation(..)
+                                          , closingTargetViolation
+                                          , ClosingError(..)
                                           , closingEntries
                                           , SettleRule
                                           , retainedEarningsRule
@@ -98,13 +141,13 @@ import ExchangeAlgebra.Algebra.Core ( Alg(..)
                                     )
 import ExchangeAlgebra.Algebra.Base.Representation (HatBaseClass(..), Hat(..))
 import ExchangeAlgebra.Algebra.Value.Class (HatVal(..), isErrorValue)
-import ExchangeAlgebra.Accounting.Exchange (StandardBase, ExBaseClass(..))
+import ExchangeAlgebra.Algebra.Element.Representation (Element(..))
+import ExchangeAlgebra.Accounting.Exchange (ExBaseClass(..))
 import ExchangeAlgebra.Accounting.Account ( AccountTitles(..)
-                                          , accountSpec
-                                          , asClosing
+                                          , AccountDivision(..)
+                                          , AccountSpec(..)
+                                          , AccountVocabulary(..)
                                           , ClosingRule(..)
-                                          , classifyAccountDivision
-                                          , classifyAccountContra
                                           , pimoFromDivision
                                           , pimoFlip
                                           , PIMO(..)
@@ -113,7 +156,7 @@ import ExchangeAlgebra.Algebra.Transfer.Representation (TransferApplyError(..))
 
 -- * Closing entries
 
--- | The retained-earnings side selected by a closing account's PIMO direction.
+-- | The closing-target side selected by a closing account's PIMO direction.
 data ClosingSide
     = ClosingKeep -- ^ IN: retain Hat/Not (revenue or contra cost).
     | ClosingFlip -- ^ OUT: reverse Hat/Not (cost or contra revenue).
@@ -123,22 +166,77 @@ instance Binary ClosingSide
 
 instance Hashable ClosingSide
 
--- | Select the retained-earnings direction for an account eligible for closing.
--- Registry NoClose accounts, including NetIncome and NetLoss, are excluded.
-closingSide :: AccountTitles -> Maybe ClosingSide
-closingSide title = case accountSpec title of
+-- | Select the closing-target direction for an account eligible for closing.
+-- The direction follows the title's division in 'vocabSpec', flipped for a
+-- contra account ('vocabContra'). Three kinds of title are excluded: titles
+-- whose specification has 'NoClose' (for 'AccountTitles', NetIncome and
+-- NetLoss among others); titles with 'CloseByDivision' whose direction is
+-- neither IN nor OUT (asset, liability, and equity titles, including
+-- 'RetainedEarnings', whose direction is PS or MS); and titles without a
+-- specification, including the wildcard.
+-- For 'AccountTitles' the result is the same as before the generalization.
+{-# INLINABLE closingSide #-}
+{-# SPECIALIZE closingSide :: AccountTitles -> Maybe ClosingSide #-}
+closingSide :: AccountVocabulary t => t -> Maybe ClosingSide
+closingSide title = case vocabSpec title of
     Nothing -> Nothing
     Just spec -> case asClosing spec of
         NoClose -> Nothing
-        CloseByDivision -> case direction of
+        CloseByDivision -> case direction spec of
             IN -> Just ClosingKeep
             OUT -> Just ClosingFlip
             _ -> Nothing
   where
-    direction
-        | classifyAccountContra title = pimoFlip ordinaryDirection
-        | otherwise = ordinaryDirection
-    ordinaryDirection = pimoFromDivision (classifyAccountDivision title)
+    direction spec
+        | vocabContra title = pimoFlip (pimoFromDivision (asDivision spec))
+        | otherwise = pimoFromDivision (asDivision spec)
+
+-- | The first check that a title fails as a closing target.
+data ClosingTargetViolation
+    = ClosingTargetIsWildcard
+      -- ^ The title is the vocabulary's wildcard ('isWildcard').
+    | ClosingTargetWithoutSpec
+      -- ^ 'vocabSpec' returns 'Nothing' for the title.
+    | ClosingTargetNotEquity AccountDivision
+      -- ^ The title's division, which is not 'Equity'.
+    | ClosingTargetIsContra
+      -- ^ The title is an equity contra account ('vocabContra').
+    deriving (Eq, Show)
+
+-- | Check a title against the closing-target law of 'AccountVocabulary'.
+-- The checks run in this order: the title is not the wildcard
+-- ('isWildcard', never the symmetric '.=='), it has a specification, its
+-- division is 'Equity', and it is not a contra account. The result is the
+-- first failed check, or 'Nothing' when the title can receive closing
+-- balances. 'closingEntries' and 'settleEntries' apply it to 'closingTarget'.
+--
+-- >>> closingTargetViolation RetainedEarnings
+-- Nothing
+-- >>> closingTargetViolation Sales
+-- Just (ClosingTargetNotEquity Revenue)
+-- >>> closingTargetViolation AccountTitle
+-- Just ClosingTargetIsWildcard
+{-# INLINABLE closingTargetViolation #-}
+closingTargetViolation :: AccountVocabulary t => t -> Maybe ClosingTargetViolation
+closingTargetViolation title
+    | isWildcard title = Just ClosingTargetIsWildcard
+    | otherwise = case vocabSpec title of
+        Nothing -> Just ClosingTargetWithoutSpec
+        Just spec
+            | asDivision spec /= Equity -> Just (ClosingTargetNotEquity (asDivision spec))
+            | vocabContra title -> Just ClosingTargetIsContra
+            | otherwise -> Nothing
+
+-- | Failures of 'closingEntries'.
+data ClosingError v b
+    = InvalidClosingTarget (TitleOf b) ClosingTargetViolation
+      -- ^ The vocabulary's 'closingTarget' and its first failed check.
+      -- Reported before the ledger is read, so every ledger, including the
+      -- empty one, gives this result.
+    | ClosingTransferError (TransferApplyError v b)
+      -- ^ A balance that cannot be closed: 'NonFiniteBalance' with the base.
+
+deriving instance (Show v, Show b, Show (TitleOf b)) => Show (ClosingError v b)
 
 -- | Generate closing entries that close each eligible base exactly.
 -- Supply only postings through the closing date. For each base whose account
@@ -147,29 +245,45 @@ closingSide title = case accountSpec title of
 -- winning side. A zero net generates nothing. Otherwise 'splitAccum' splits
 -- the exact magnitude into finite positive values @d1 >= d2 >= ... >= dk@
 -- whose exact sum is the net, and each @di@ becomes one pair: the reversal of
--- the base and the posting to 'RetainedEarnings'. @k = 1@ whenever the net is
+-- the base and the posting to the vocabulary's 'closingTarget'
+-- ('RetainedEarnings' for 'AccountTitles'). @k = 1@ whenever the net is
 -- representable in the value type. The pairs are not compressed back into one
 -- pair, so the exact net of every closed base after the entries is zero.
 -- This folds the source sequences (audit detail) per base, but preserves
 -- separate target postings from distinct source accounts. It does not call
 -- @bar@. All non-account axes are retained, and no note is attached.
 --
--- 'NonFiniteBalance' is returned when an eligible base has a posting value
+-- The closing target is checked first: when @closingTargetViolation
+-- closingTarget == Just r@, the result is @Left (InvalidClosingTarget
+-- closingTarget r)@ for every ledger, including the empty one.
+-- @'ClosingTransferError' ('NonFiniteBalance' base)@ is returned when an
+-- eligible base has a posting value
 -- for which 'valueError' is 'Just' (non-finite or negative), or when its net
 -- cannot be split ('splitAccum' returns 'Nothing': the rounded net is not
 -- finite). Side sums beyond the value type's range succeed when the exact
 -- net is in range. The reported base is the first in ascending 'Ord' order
 -- after normalizing Hat/Not to Not. No partial result is returned.
+-- 'NonFiniteResult' is never returned.
+--
+-- For 'AccountTitles' bases, @Right@ results are equal to those before the
+-- generalization, and each former @Left e@ is now @Left (ClosingTransferError e)@.
 --
 -- Laws (exact arithmetic; observed with 'exactAccum'): for every closed base
 -- the exact net of @x .+ c@ is zero, where @Right c = closingEntries x@;
 -- the entries of @c@ have equal exact debit and credit sums; and
--- @closingEntries (x .+ c) == Right Zero@.
+-- @closingEntries (x .+ c)@ returns @Right z@ with @isZero z@.
 -- Balance collection is O(s log b), for s postings and b eligible bases.
-closingEntries :: forall v b. (HatVal v, StandardBase b)
-               => Alg v b -> Either (TransferApplyError v b) (Alg v b)
-closingEntries = Map.foldlWithKey' close (Right Zero) . foldEntries collect Map.empty
+{-# INLINABLE closingEntries #-}
+closingEntries :: forall v b. (HatVal v, ExBaseClass b)
+               => Alg v b -> Either (ClosingError v b) (Alg v b)
+closingEntries ledger = case closingTargetViolation target of
+    Just violation -> Left (InvalidClosingTarget target violation)
+    Nothing -> either (Left . ClosingTransferError) Right
+        (Map.foldlWithKey' close (Right Zero) (foldEntries collect Map.empty ledger))
   where
+    target :: TitleOf b
+    target = closingTarget
+
     collect :: Map b (Bool, Accum v, Accum v) -> v -> b
             -> Map b (Bool, Accum v, Accum v)
     collect balances value source = case (hat source, closingSide (getAccountTitle source)) of
@@ -208,7 +322,7 @@ closingEntries = Map.foldlWithKey' close (Right Zero) . foldEntries collect Map.
         Just values -> case closingSide (getAccountTitle balanceBase) of
             Nothing   -> Right Zero
             Just side -> Right $ mconcat
-                [ closingPairBy (targetSide side) RetainedEarnings value balanceBase
+                [ closingPairBy (targetSide side) target value balanceBase
                 | value <- values ]
 
     targetSide :: ClosingSide -> b -> b
@@ -216,14 +330,16 @@ closingEntries = Map.foldlWithKey' close (Right Zero) . foldEntries collect Map.
         ClosingKeep -> id
         ClosingFlip -> revHat
 
--- | A closing rule containing only its destination account title.
--- The private constructor restricts destinations to accounts compatible with
--- the closing directions.
-newtype SettleRule = SettleRule AccountTitles
+-- | A rule that closes eligible accounts into the vocabulary's 'closingTarget'.
+-- It carries no title: 'settleEntries' reads the destination from the base
+-- type it is called at and checks it with 'closingTargetViolation'. The
+-- constructor is private.
+data SettleRule = SettleRule
 
--- | Close eligible accounts into 'RetainedEarnings', preserving all other axes.
+-- | Close eligible accounts into the vocabulary's 'closingTarget'
+-- ('RetainedEarnings' for 'AccountTitles'), preserving all other axes.
 retainedEarningsRule :: SettleRule
-retainedEarningsRule = SettleRule RetainedEarnings
+retainedEarningsRule = SettleRule
 
 -- | Settlement pairs in strictly ascending source-base order.
 -- A model returns only @Posting@ built with @entry@ and 'Monoid'. Settlement
@@ -240,11 +356,18 @@ newtype SettlementBatch b = SettlementBatch [(BasePart b, Alg Double b)]
 -- As a type synonym, it does not enforce finiteness or any numeric range.
 type SignedNet = Double
 
--- | The first non-finite input net, identified by its complete base coordinates.
-data SettleError b = NonFiniteNet (BasePart b)
+-- | Failures of 'settleEntries'.
+data SettleError b
+    = NonFiniteNet (BasePart b)
+      -- ^ The first non-finite input net, identified by its complete base
+      -- coordinates.
+    | InvalidSettleTarget (TitleOf b) ClosingTargetViolation
+      -- ^ The vocabulary's 'closingTarget' and its first failed check.
+      -- Reported before any net is read, so every input map, including the
+      -- empty one, gives this result.
 
-deriving instance Eq (BasePart b) => Eq (SettleError b)
-deriving instance Show (BasePart b) => Show (SettleError b)
+deriving instance (Eq (BasePart b), Eq (TitleOf b)) => Eq (SettleError b)
+deriving instance (Show (BasePart b), Show (TitleOf b)) => Show (SettleError b)
 
 -- | Construct one reversal and destination pair per eligible source base.
 -- Input values are signed Not-minus-Hat nets. Zero nets, accounts without a
@@ -252,8 +375,11 @@ deriving instance Show (BasePart b) => Show (SettleError b)
 -- finite, non-negative magnitudes equal to the absolute input net; the source
 -- reversal cancels that net exactly. Other base axes are preserved.
 --
--- A non-finite input, including at an excluded key, returns 'Left' with the
--- first key in ascending order. Finite magnitudes above
+-- The destination is the vocabulary's 'closingTarget'. It is checked first:
+-- when @closingTargetViolation closingTarget == Just r@, the result is
+-- @Left (InvalidSettleTarget closingTarget r)@ for every input map.
+-- A non-finite input, including at an excluded key, returns 'NonFiniteNet' with
+-- the first key in ascending order. Finite magnitudes above
 -- 'ExchangeAlgebra.Algebra.Value.postingUpperBound' are accepted, without passing
 -- through 'ExchangeAlgebra.Algebra.Posting.posted'. No implicit @bar@ or @compress@ is
 -- applied. Complexity: O(b) for b input bases.
@@ -262,16 +388,22 @@ deriving instance Show (BasePart b) => Show (SettleError b)
 -- its increment is the sum of @direction * net@ over the source bases, where
 -- @direction@ is +1 for 'ClosingKeep' and -1 for 'ClosingFlip'.
 -- Observation: sums of @decL@ and @decR@ lifted to Rational for each pair.
--- Tolerance: exact. Instances: 'StandardBase' bases with Double posting values.
-settleEntries :: forall b. StandardBase b
+-- Tolerance: exact. Instances: 'ExBaseClass' bases with Double posting values.
+-- For 'AccountTitles' bases the results are equal to those before the
+-- generalization.
+{-# INLINABLE settleEntries #-}
+settleEntries :: forall b. ExBaseClass b
               => SettleRule
               -> Map (BasePart b) SignedNet
               -> Either (SettleError b) (SettlementBatch b)
-settleEntries (SettleRule destination) amounts
-    = case mapMaybe nonFinite (Map.toAscList amounts) of
+settleEntries SettleRule amounts = case closingTargetViolation destination of
+    Just violation -> Left (InvalidSettleTarget destination violation)
+    Nothing -> case mapMaybe nonFinite (Map.toAscList amounts) of
         first : _ -> Left (NonFiniteNet first)
         []        -> Right (SettlementBatch (mapMaybe close (Map.toAscList amounts)))
   where
+    destination :: TitleOf b
+    destination = closingTarget
     finite amount = not (isNaN amount || isInfinite amount)
     nonFinite (coordinates, amount)
         | finite amount = Nothing
@@ -303,9 +435,9 @@ settlementSteps (SettlementBatch steps) = steps
 -- Hat/Not, and 'revHat' reverses it. The caller must classify the source,
 -- and the value must satisfy the non-negative,
 -- finite posting contract of '.@'.
-closingPairBy :: (HatVal v, StandardBase b)
+closingPairBy :: (HatVal v, ExBaseClass b)
               => (b -> b)
-              -> AccountTitles
+              -> TitleOf b
               -> v
               -> b
               -> Alg v b

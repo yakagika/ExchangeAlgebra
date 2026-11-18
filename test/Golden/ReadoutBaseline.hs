@@ -102,6 +102,22 @@ shownRow function argument value = [[function, argument, "result", T.pack (show 
 errorName :: Show e => e -> Text
 errorName = T.takeWhile (\character -> character /= ' ' && character /= '{') . T.pack . show
 
+-- | A closing failure shown by its cause. The baseline fixtures name the
+-- transfer failure, recorded before 'Closing.ClosingError' wrapped it.
+newtype ClosingCause = ClosingCause String
+
+instance Show ClosingCause where
+    show (ClosingCause cause) = cause
+
+-- | Replace a closing failure with its cause: the transfer failure inside
+-- 'Closing.ClosingTransferError', or the whole failure otherwise.
+closingCause :: Show v
+             => Either (Closing.ClosingError v ReadoutBase) a -> Either ClosingCause a
+closingCause = either (Left . ClosingCause . cause) Right
+  where
+    cause (Closing.ClosingTransferError failure) = show failure
+    cause failure = show failure
+
 -- | Render a checked algebra result and its sorted postings.
 algEitherRows
     :: (Show e, GoldenValue v)
@@ -259,7 +275,7 @@ algRows name postings =
          (compare (pair Cash [1]) (pair Cash [2, 3]))
     ++ shownRow "Pair.compare" "Sales notes=1,2 vs Sales note=3"
          (compare (pair Sales [1, 2]) (pair Sales [3]))
-    ++ algEitherRows "closingEntries" "Alg" (Closing.closingEntries input)
+    ++ algEitherRows "closingEntries" "Alg" (closingCause (Closing.closingEntries input))
     ++ balanceRows (TB.accountBalances input)
     ++ shownRow "trialBalanceFindings" "BeforeClosing" (Validation.trialBalanceFindings tbInput)
     ++ scalarRow "trialBalanceFindings.debitTotal" "BeforeClosing" (norm (decL input))
@@ -297,7 +313,7 @@ journalReadoutRows postings =
     ++ scalarRow "projWithNoteBaseNetNorm" "notes=1,2,Sales"
          (EJ.projWithNoteBaseNetNorm [1, 2] [Not :< Sales] input)
     ++ postingJournalRows "compress" "all" (compress input)
-    ++ algEitherRows "closingEntries" "Journal" (Closing.closingEntries (EJ.toAlg input))
+    ++ algEitherRows "closingEntries" "Journal" (closingCause (Closing.closingEntries (EJ.toAlg input)))
   where
     input = journal postings
 

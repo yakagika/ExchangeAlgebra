@@ -62,7 +62,6 @@ import qualified ExchangeAlgebra.Algebra  as EA
 import           ExchangeAlgebra.Accounting.Account
 import qualified ExchangeAlgebra.Accounting.Account as Account
 import qualified ExchangeAlgebra.Accounting.Exchange as Accounting
-import qualified ExchangeAlgebra.Algebra.Transfer as Rule (TransferApplyError)
 import qualified ExchangeAlgebra.Accounting.Closing as Closing
 import qualified ExchangeAlgebra.IO.Input as Checked
 import qualified ExchangeAlgebra.Journal  as EJ
@@ -449,7 +448,7 @@ forceAccountBalances = M.foldl' (\result accountBalance ->
 
 -- | Force closing entries and reject a broken finite input fixture.
 -- Invariant: the fixed non-negative posting values stay within Double's range.
-forceClosingEntries :: Either (Rule.TransferApplyError Double GateBase) GateAlg -> ()
+forceClosingEntries :: Show e => Either e GateAlg -> ()
 forceClosingEntries (Left failure) = error ("closing-entries fixture invariant: " ++ show failure)
 forceClosingEntries (Right algebra) = forceAlgebra algebra
 

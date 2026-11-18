@@ -216,6 +216,9 @@ module ExchangeAlgebra
     , transferEntriesByWith
     , ClosingSide(..)
     , closingSide
+    , ClosingTargetViolation(..)
+    , closingTargetViolation
+    , ClosingError(..)
     , closingEntries
     , SettleRule
     , retainedEarningsRule
@@ -342,6 +345,9 @@ import ExchangeAlgebra.Accounting.Transfer
 import ExchangeAlgebra.Accounting.Closing
     ( ClosingSide(..)
     , closingSide
+    , ClosingTargetViolation(..)
+    , closingTargetViolation
+    , ClosingError(..)
     , closingEntries
     , SettleRule
     , retainedEarningsRule

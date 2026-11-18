@@ -63,7 +63,7 @@ mixedOldValue :: OldValue.MoneyDecimal -> Value.MoneyDecimal
 mixedOldValue = id
 
 -- | Apply the new closing entry point to an algebra built through the old path.
-mixedClosing :: Either (Rule.TransferApplyError Double (HatBase Account.AccountTitles))
+mixedClosing :: Either (Rule.ClosingError Double (HatBase Account.AccountTitles))
                        (Core.Alg Double (HatBase Account.AccountTitles))
 mixedClosing = Closing.closingEntries Old.oldExpression
 

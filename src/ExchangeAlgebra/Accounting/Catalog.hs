@@ -240,6 +240,10 @@ data CatalogExecutionProblem
       -- ^ Base whose balance closing could not close. With the exact
       -- t'MoneyDecimal' value type this does not occur; it keeps the
       -- closing builder total.
+    | ClosingTargetRejected AccountTitles Closing.ClosingTargetViolation
+      -- ^ Closing target and its first failed check. 'RetainedEarnings'
+      -- satisfies the closing-target law, so this does not occur; it keeps
+      -- the closing builder total.
     deriving (Eq, Show)
 
 -- * Metadata and parameter checks
@@ -494,8 +498,10 @@ executeCatalog ledger call = case call of
         generated (Bookkeeping.priorPeriodErrorCorrection mk current prior expense asset)
     FinalStockCall -> case Closing.closingEntries ledger of
         Right entries -> generated entries
-        Left (NonFiniteBalance base) -> Left (ClosingFailed base)
-        Left (NonFiniteResult _ _ base) -> Left (ClosingFailed base)
+        Left (Closing.InvalidClosingTarget title violation) ->
+            Left (ClosingTargetRejected title violation)
+        Left (Closing.ClosingTransferError (NonFiniteBalance base)) -> Left (ClosingFailed base)
+        Left (Closing.ClosingTransferError (NonFiniteResult _ _ base)) -> Left (ClosingFailed base)
     StraightLineCall asset amount method  -> generated (depreciationEntry method asset amount)
     ConsolidateCall entities eliminations ->
         let selected = map snd (consolidationKeys entities eliminations)
