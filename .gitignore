@@ -38,3 +38,6 @@ agent-notes/
 examples/**/result/
 
 __pycache__/
+
+/site/book/
+/site/book-pdf/
