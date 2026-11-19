@@ -1,4 +1,6 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -16,8 +18,9 @@ these audits; the caller, a person or a language model, decides whether to
 stop, correct, or accept each finding.
 
 Layer: Accounting. The audits read account semantics (home side, role,
-statement division) from the account registry. Callers are model authors,
-teaching material, and experiments that check model output.
+statement division) from the account vocabulary. The table below describes
+the built-in chart of accounts. Callers include model authors, teaching
+material, and experiments that check model output.
 
 Every audit returns an 'AuditResult'. Whether a function reports 'Warning' or
 'Error' is fixed per function by the table below. Invalid values and wildcard
@@ -77,13 +80,17 @@ module ExchangeAlgebra.Accounting.Audit
     , TrialBalanceIssue
     , JournalIssue
       -- * Trial-balance audits
-    , ImpossibleBalance(..)
+    , ImpossibleBalance
+    , ImpossibleBalanceOf(..)
     , impossibleBalances
-    , AbnormalBalance(..)
+    , AbnormalBalance
+    , AbnormalBalanceOf(..)
     , abnormalBalances
-    , TemporaryAccountBalance(..)
+    , TemporaryAccountBalance
+    , TemporaryAccountBalanceOf(..)
     , temporaryAccountBalances
-    , ClosingResidual(..)
+    , ClosingResidual
+    , ClosingResidualOf(..)
     , closingResiduals
       -- * Journal audits
     , DuplicateTransactions(..)
@@ -105,19 +112,19 @@ import           ExchangeAlgebra.Accounting.Account.Classification
                      , PostingCapability(..)
                      , Side(..)
                      )
-import           ExchangeAlgebra.Accounting.Account.PostingPolicy (postingCapabilityFor)
 import           ExchangeAlgebra.Accounting.Account.Registry
-                     (AccountSemantics(..), accountSemantics)
-import           ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
-import           ExchangeAlgebra.Accounting.Exchange (StandardBase, ExBaseClass(..))
+                     (AccountSemantics(..))
+import           ExchangeAlgebra.Accounting.Account.Title (AccountTitles)
+import           ExchangeAlgebra.Accounting.Account.Vocabulary (AccountVocabulary(..))
+import           ExchangeAlgebra.Accounting.Exchange (ExBaseClass(..))
 import           ExchangeAlgebra.Accounting.TrialBalance.Balance
                      ( AccountBalance(..)
-                     , TrialBalance
                      , accountBalances
                      , balanceSide
                      )
 import           ExchangeAlgebra.Algebra.Base.Representation (Hat(..), HatBase, HatBaseClass(hat))
 import           ExchangeAlgebra.Algebra.Core.Representation (Alg, pattern (:@), foldEntries)
+import           ExchangeAlgebra.Algebra.Element.Representation (Element(isWildcard))
 import           ExchangeAlgebra.Algebra.Value.Class (HatVal, isErrorValue)
 import           ExchangeAlgebra.Journal.Core (Journal, Note(..), toMap)
 
@@ -164,12 +171,12 @@ type JournalIssue n v b = (n, StructureIssue v b)
 -- | Check every posting before any operation that determines accounting sides.
 -- A standalone zero term is inspected just as in the presentation structure check.
 structureIssues
-    :: forall v b. (HatVal v, StandardBase b)
+    :: forall v b. (HatVal v, ExBaseClass b)
     => Alg v b
     -> [StructureIssue v b]
 structureIssues input =
     [InvalidValue value base | (base, value) <- postings, isErrorValue value]
-    ++ [WildcardAccount base | (base, _) <- postings, getAccountTitle base == AccountTitle]
+    ++ [WildcardAccount base | (base, _) <- postings, isWildcard (getAccountTitle base)]
     ++ [WildcardSide base | (base, _) <- postings, hat base == HatNot]
   where
     postings :: [(b, v)]
@@ -177,13 +184,9 @@ structureIssues input =
         value :@ base -> [(base, value)]
         _             -> foldEntries (\entries value base -> (base, value) : entries) [] input
 
--- | Specialize the common structure check to account-only trial balances.
-trialBalanceStructureIssues :: HatVal v => TrialBalance v -> [TrialBalanceIssue v]
-trialBalanceStructureIssues = structureIssues
-
 -- | Attach notes to structure issues, including those of the blank note.
 journalStructureIssues
-    :: (HatVal v, StandardBase b, Note n)
+    :: (HatVal v, ExBaseClass b, Note n)
     => Journal n v b
     -> [JournalIssue n v b]
 journalStructureIssues input =
@@ -203,27 +206,21 @@ errorFindings []                   = NoProblem
 errorFindings (finding : findings) =
     Error (AccountingFinding finding :| map AccountingFinding findings)
 
--- | Accounts and the balance directions that cannot occur in correct processing.
-impossibleBalanceSides :: [(AccountTitles, Side)]
-impossibleBalanceSides =
-    [ (Cash, Credit)
-    , (PettyCash, Credit)
-    , (CapitalStock, Debit)
-    , (AccumulatedDepreciation, Debit)
-    ]
-
 -- * Trial-balance audits
 
 -- | An account whose balance cannot occur under any correct processing.
-data ImpossibleBalance v = ImpossibleBalance
-    { _impossibleAccount :: AccountTitles     -- ^ The account.
+data ImpossibleBalanceOf t v = ImpossibleBalance
+    { _impossibleAccount :: t                 -- ^ The account.
     , _impossibleBalance :: AccountBalance v  -- ^ Its balance.
     }
     deriving (Show, Eq)
 
--- | Report credit balances of cash and petty cash, and debit balances of
--- capital stock and accumulated depreciation. Returns 'Error' when any is
--- found.
+-- | An 'ImpossibleBalanceOf' finding for the built-in chart of accounts.
+type ImpossibleBalance = ImpossibleBalanceOf AccountTitles
+
+-- | Report 'Error' for balances on a side listed in 'vocabImpossibleBalanceSides'.
+-- The built-in chart checks credit balances of cash and petty cash and debit
+-- balances of capital stock and accumulated depreciation.
 --
 -- Precondition: the trial balance includes the opening balances, so that a
 -- balance is the balance of the account and not of a partial period.
@@ -235,24 +232,27 @@ data ImpossibleBalance v = ImpossibleBalance
 -- disposal removes the amount already recorded (p. 10-26). A credit balance of
 -- current deposits is not reported here; see 'abnormalBalances'.
 impossibleBalances
-    :: HatVal v
-    => TrialBalance v
-    -> AuditResult (TrialBalanceIssue v) (ImpossibleBalance v)
-impossibleBalances input = case trialBalanceStructureIssues input of
+    :: (HatVal v, ExBaseClass (HatBase t), TitleOf (HatBase t) ~ t)
+    => Alg v (HatBase t)
+    -> AuditResult (StructureIssue v (HatBase t)) (ImpossibleBalanceOf t v)
+impossibleBalances input = case structureIssues input of
     issue : issues -> Error (StructureFinding issue :| map StructureFinding issues)
     []             -> errorFindings
         [ ImpossibleBalance title balance
         | (title, balance) <- M.toAscList (accountBalances input)
-        , Just (balanceSide balance) == lookup title impossibleBalanceSides
+        , Just (balanceSide balance) == lookup title vocabImpossibleBalanceSides
         ]
 
 -- | An account balance on the side opposite to its home side.
-data AbnormalBalance v = AbnormalBalance
-    { _abnormalAccount  :: AccountTitles     -- ^ The account.
+data AbnormalBalanceOf t v = AbnormalBalance
+    { _abnormalAccount  :: t                 -- ^ The account.
     , _abnormalHomeSide :: Side              -- ^ The side its balance normally has.
     , _abnormalBalance  :: AccountBalance v  -- ^ Its balance.
     }
     deriving (Show, Eq)
+
+-- | An 'AbnormalBalanceOf' finding for the built-in chart of accounts.
+type AbnormalBalance = AbnormalBalanceOf AccountTitles
 
 -- | Report balances on the side opposite to the home side, for ordinary
 -- accounts whose home side is fixed. The accounts of 'impossibleBalances' are
@@ -269,32 +269,35 @@ data AbnormalBalance v = AbnormalBalance
 -- receivable (advance received), and a debit balance of accounts payable
 -- (advance paid).
 abnormalBalances
-    :: HatVal v
-    => TrialBalance v
-    -> AuditResult (TrialBalanceIssue v) (AbnormalBalance v)
-abnormalBalances input = case trialBalanceStructureIssues input of
+    :: (HatVal v, ExBaseClass (HatBase t), TitleOf (HatBase t) ~ t)
+    => Alg v (HatBase t)
+    -> AuditResult (StructureIssue v (HatBase t)) (AbnormalBalanceOf t v)
+abnormalBalances input = case structureIssues input of
     issue : issues -> Error (StructureFinding issue :| map StructureFinding issues)
     []             -> warningFindings
         [ AbnormalBalance title side balance
         | (title, balance) <- M.toAscList (accountBalances input)
-        , title `notElem` map fst impossibleBalanceSides
+        , title `notElem` map fst vocabImpossibleBalanceSides
         , balance /= NoBalance
-        , Just semantics <- [accountSemantics title]
+        , Just semantics <- [vocabSemantics title]
         , OrdinaryAccount `elem` asemRoles semantics
         , FixedHomeSide side <- [asemHomeSideSemantics semantics]
         , balanceSide balance /= side
         ]
 
 -- | A temporary account that still has a balance.
-data TemporaryAccountBalance v = TemporaryAccountBalance
-    { _temporaryAccount :: AccountTitles     -- ^ The account.
+data TemporaryAccountBalanceOf t v = TemporaryAccountBalance
+    { _temporaryAccount :: t                 -- ^ The account.
     , _temporaryBalance :: AccountBalance v  -- ^ Its balance.
     }
     deriving (Show, Eq)
 
--- | Report balances of suspense payments, suspense receipts, and the suspense
--- account. Cash over and short is reported by 'closingResiduals'. Returns
--- 'Warning' when any is found.
+-- | A 'TemporaryAccountBalanceOf' finding for the built-in chart of accounts.
+type TemporaryAccountBalance = TemporaryAccountBalanceOf AccountTitles
+
+-- | Report 'Warning' for balances of accounts in 'vocabSuspenseTitles'.
+-- The built-in chart includes suspense payments, suspense receipts, and the
+-- suspense account. 'closingResiduals' checks cash over and short.
 --
 -- Precondition: the trial balance is taken after adjustment.
 --
@@ -302,47 +305,52 @@ data TemporaryAccountBalance v = TemporaryAccountBalance
 -- or receipt is transferred when its content is settled; there is no general
 -- rule that it must be cleared at the period end.
 temporaryAccountBalances
-    :: HatVal v
-    => TrialBalance v
-    -> AuditResult (TrialBalanceIssue v) (TemporaryAccountBalance v)
-temporaryAccountBalances input = case trialBalanceStructureIssues input of
+    :: (HatVal v, ExBaseClass (HatBase t), TitleOf (HatBase t) ~ t)
+    => Alg v (HatBase t)
+    -> AuditResult (StructureIssue v (HatBase t)) (TemporaryAccountBalanceOf t v)
+temporaryAccountBalances input = case structureIssues input of
     issue : issues -> Error (StructureFinding issue :| map StructureFinding issues)
     []             -> warningFindings
         [ TemporaryAccountBalance title balance
         | (title, balance) <- M.toAscList (accountBalances input)
-        , title `elem` [SuspensePayments, SuspenseReceipts, SuspenseAccount]
+        , title `elem` vocabSuspenseTitles
         , balance /= NoBalance
         ]
 
 -- | An account that closing must clear but that still has a balance.
-data ClosingResidual v = ClosingResidual
-    { _residualAccount :: AccountTitles     -- ^ The account.
+data ClosingResidualOf t v = ClosingResidual
+    { _residualAccount :: t                 -- ^ The account.
     , _residualBalance :: AccountBalance v  -- ^ Its balance.
     }
     deriving (Show, Eq)
 
--- | Report balances that closing must clear: income summary, cash over and
--- short, period results and reporting subtotals (net income and others), and
--- accounts in the revenue and expense divisions. Returns 'Error' when any is
--- found.
+-- | A 'ClosingResidualOf' finding for the built-in chart of accounts.
+type ClosingResidual = ClosingResidualOf AccountTitles
+
+-- | Report 'Error' for remaining balances of closing devices, period results,
+-- reporting subtotals, revenue accounts, and expense accounts. The check also
+-- includes every account in 'vocabAdditionalClosingResidualTitles', even
+-- when that account has no semantics.
 --
 -- Precondition: the trial balance is taken after closing.
 closingResiduals
-    :: HatVal v
-    => TrialBalance v
-    -> AuditResult (TrialBalanceIssue v) (ClosingResidual v)
-closingResiduals input = case trialBalanceStructureIssues input of
+    :: (HatVal v, ExBaseClass (HatBase t), TitleOf (HatBase t) ~ t)
+    => Alg v (HatBase t)
+    -> AuditResult (StructureIssue v (HatBase t)) (ClosingResidualOf t v)
+closingResiduals input = case structureIssues input of
     issue : issues -> Error (StructureFinding issue :| map StructureFinding issues)
     []             -> errorFindings
         [ ClosingResidual title balance
         | (title, balance) <- M.toAscList (accountBalances input)
         , balance /= NoBalance
-        , Just semantics <- [accountSemantics title]
-        , title == CashOverShort
-            || any (`elem` asemRoles semantics) [ClosingDevice, PeriodResult, ReportingSubtotal]
-            || asemDivisionSemantics semantics `elem`
-                [StatementDivision Revenue, StatementDivision Cost]
+        , title `elem` vocabAdditionalClosingResidualTitles
+            || maybe False mustClear (vocabSemantics title)
         ]
+  where
+    mustClear :: AccountSemantics -> Bool
+    mustClear semantics =
+        any (`elem` asemRoles semantics) [ClosingDevice, PeriodResult, ReportingSubtotal]
+        || asemDivisionSemantics semantics `elem` [StatementDivision Revenue, StatementDivision Cost]
 
 -- * Journal audits
 
@@ -363,7 +371,7 @@ data DuplicateTransactions n = DuplicateTransactions n (NonEmpty n)
 -- Legitimate exception: the same entry repeated on purpose, such as monthly
 -- rent.
 duplicateTransactions
-    :: (HatVal v, StandardBase b, Note n)
+    :: (HatVal v, ExBaseClass b, Note n)
     => Journal n v b
     -> AuditResult (JournalIssue n v b) (DuplicateTransactions n)
 duplicateTransactions (input :: Journal n v b) = case journalStructureIssues input of
@@ -405,7 +413,7 @@ data ContraryNominalPosting n v b = ContraryNominalPosting
 -- (Kieso, p. 2-55), transfer of purchases to cost of sales, and elimination in
 -- consolidation.
 contraryNominalPostings
-    :: (HatVal v, StandardBase b, Note n)
+    :: (HatVal v, ExBaseClass b, Note n)
     => Journal n v b
     -> AuditResult (JournalIssue n v b) (ContraryNominalPosting n v b)
 contraryNominalPostings (input :: Journal n v b) = case journalStructureIssues input of
@@ -416,11 +424,14 @@ contraryNominalPostings (input :: Journal n v b) = case journalStructureIssues i
         , note /= plank
         , let postings :: [(b, v)]
               postings = foldEntries (\entries value base -> (base, value) : entries) [] transaction
-        , all ((/= ClosingOnly) . postingCapabilityFor . getAccountTitle . fst) postings
+        , all ((/= ClosingOnly) . postingCapability . fst) postings
         , (base, value) <- sort postings
-        , Just semantics <- [accountSemantics (getAccountTitle base)]
+        , Just semantics <- [vocabSemantics (getAccountTitle base)]
         , asemDivisionSemantics semantics `elem`
             [StatementDivision Revenue, StatementDivision Cost]
         , FixedHomeSide home <- [asemHomeSideSemantics semantics]
         , whichSide base /= home
         ]
+  where
+    postingCapability :: b -> PostingCapability
+    postingCapability = maybe NotPostable asemPostingCapability . vocabSemantics . getAccountTitle

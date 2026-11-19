@@ -4,7 +4,7 @@ module ExchangeAlgebra.Accounting.Account.Vocabulary
     , classifyAccountDivision
     ) where
 
-import ExchangeAlgebra.Accounting.Account.Classification (AccountDivision)
+import ExchangeAlgebra.Accounting.Account.Classification (AccountDivision, Side(..))
 import ExchangeAlgebra.Accounting.Account.Registry
     ( AccountSpec(..), AccountSemantics, accountSpec, accountSemantics
     , classifyAccountContra )
@@ -31,6 +31,23 @@ class Element t => AccountVocabulary t where
     vocabSemantics :: t -> Maybe AccountSemantics
     vocabSemantics _ = Nothing
 
+    -- | Accounts that cannot have a balance on the given side after correct
+    -- processing. Each title must be concrete and appear at most once. Each
+    -- side must be 'Debit' or 'Credit'. The default list is empty.
+    vocabImpossibleBalanceSides :: [(t, Side)]
+    vocabImpossibleBalanceSides = []
+
+    -- | Suspense accounts to check after adjustment. A remaining balance
+    -- warrants a warning because the item may still be under investigation.
+    -- The default list is empty.
+    vocabSuspenseTitles :: [t]
+    vocabSuspenseTitles = []
+
+    -- | Additional accounts that closing must clear, even when
+    -- 'vocabSemantics' supplies no metadata. The default list is empty.
+    vocabAdditionalClosingResidualTitles :: [t]
+    vocabAdditionalClosingResidualTitles = []
+
     -- | Name the account that receives revenue and cost balances at closing.
     closingTarget :: t
 
@@ -47,6 +64,12 @@ class Element t => AccountVocabulary t where
 instance AccountVocabulary AccountTitles where
     vocabSpec = accountSpec
     vocabSemantics = accountSemantics
+    vocabImpossibleBalanceSides =
+        [ (Cash, Credit), (PettyCash, Credit)
+        , (CapitalStock, Debit), (AccumulatedDepreciation, Debit)
+        ]
+    vocabSuspenseTitles = [SuspensePayments, SuspenseReceipts, SuspenseAccount]
+    vocabAdditionalClosingResidualTitles = [CashOverShort]
     closingTarget = RetainedEarnings
     vocabDivision = classifyAccountDivision
     vocabContra = classifyAccountContra

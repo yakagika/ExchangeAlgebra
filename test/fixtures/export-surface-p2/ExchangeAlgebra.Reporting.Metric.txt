@@ -3,6 +3,7 @@ DerivedMetric
 GrossProfitMetric
 InvalidMetricValue
 MetricError
+MetricErrorOf
 MetricId
 MetricNotAvailableAtStage
 OrdinaryProfitMetric

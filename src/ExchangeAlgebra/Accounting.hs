@@ -43,6 +43,7 @@ module ExchangeAlgebra.Accounting
     , FixedCurrent(..)
     , PIMO(..)
     , ExBaseClass(..)
+    , StandardBase
     , AccountBase(..)
     , switchSide
     , defaultSide
@@ -84,6 +85,7 @@ import           ExchangeAlgebra.Accounting.Account
                      )
 import           ExchangeAlgebra.Accounting.Exchange
                      ( ExBaseClass(..)
+                     , StandardBase
                      , AccountBase(..)
                      , Exchange(..)
                      , projCredit

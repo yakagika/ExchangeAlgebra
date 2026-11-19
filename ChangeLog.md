@@ -71,6 +71,28 @@
 
 ### Changed
 
+- Account balances, accounting transfers, journal audits, period results from
+  an algebra, and ledger and trial-balance rows now accept custom account
+  titles. The four trial-balance audits accept a single account axis. A
+  vocabulary can specify impossible balance sides, suspense accounts, and
+  additional accounts that closing must clear. All three lists default to
+  empty. The built-in chart retains its existing checks.
+- **Breaking (0.7).** The constructors and record fields of
+  `ImpossibleBalance`, `AbnormalBalance`, `TemporaryAccountBalance`,
+  `ClosingResidual`, and `MetricError` now belong to the corresponding
+  `*Of` types. The old type names still specialize to `AccountTitles`.
+  Replace imports such as `ImpossibleBalance(..)` with both names when
+  using the old type in an annotation.
+
+  ```haskell
+  import ExchangeAlgebra.Accounting.Audit (ImpossibleBalance, ImpossibleBalanceOf(..))
+  import ExchangeAlgebra.Accounting.Statements.Metric (MetricError, MetricErrorOf(..))
+  ```
+
+  A constructor without a title argument needs a type when the context
+  leaves the vocabulary open, for example
+  `show (WildcardMetricAccount :: MetricError)`.
+
 - **Breaking.** `closingEntries` returns `Either (ClosingError v b) (Alg v b)`.
   Match a former transfer failure `Left e` as `Left (ClosingTransferError e)`.
   For example, change `Left (NonFiniteBalance b)` to

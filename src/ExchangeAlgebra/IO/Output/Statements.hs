@@ -266,8 +266,8 @@ writeJournal path alg f = writeCSV path (journalRows alg f)
 -- ["2024-04-01","10.0","",""]
 --
 -- Complexity: O(t * s) (t = number of titles, s = number of entries).
-accountLedgerRows :: (HatVal n, HatBaseClass b, StandardBase b)
-                  => [AccountTitles]
+accountLedgerRows :: (HatVal n, ExBaseClass b)
+                  => [TitleOf b]
                   -> Alg n b
                   -> (b -> Day)
                   -> [[T.Text]]
@@ -299,8 +299,8 @@ accountLedgerRows titles alg f =
 -- trail — see 'accountLedgerRows').
 --
 -- Complexity: O(t * s) (t = number of titles, s = number of entries).
-writeAccountOf :: (HatVal n, HatBaseClass b, StandardBase b)
-             => [AccountTitles]
+writeAccountOf :: (HatVal n, ExBaseClass b)
+             => [TitleOf b]
              -> FilePath
              -> Alg n b
              -> (b -> Day)
@@ -338,8 +338,8 @@ writeAccountOf titles path alg f = writeCSV path (accountLedgerRows titles alg f
 -- ["\"sale\"","100.0",""]
 --
 -- Complexity: O(t * s) (t = number of titles, s = number of postings).
-accountLedgerRowsJournal :: (HatVal n, HatBaseClass b, StandardBase b, EJ.Note note)
-                         => [AccountTitles]
+accountLedgerRowsJournal :: (HatVal n, ExBaseClass b, EJ.Note note)
+                         => [TitleOf b]
                          -> EJ.Journal note n b
                          -> [[T.Text]]
 accountLedgerRowsJournal titles j =
@@ -367,8 +367,8 @@ accountLedgerRowsJournal titles j =
 --
 -- Complexity: O(t * s) (t = number of titles, s = number of postings; see
 -- 'accountLedgerRowsJournal').
-writeAccountOfJournal :: (HatVal n, HatBaseClass b, StandardBase b, EJ.Note note)
-                      => [AccountTitles]
+writeAccountOfJournal :: (HatVal n, ExBaseClass b, EJ.Note note)
+                      => [TitleOf b]
                       -> FilePath
                       -> EJ.Journal note n b
                       -> IO ()
@@ -381,7 +381,7 @@ writeAccountOfJournal titles path j =
 ------------------------------------------------------------------
 
 -- | Per-account gross debit/credit totals, accumulated in a __single pass__ over
--- the algebra's scalar entries (O(s)), keyed by 'AccountTitles' in 'Ord' order.
+-- the algebra's scalar entries (O(s)), keyed by 'TitleOf' in 'Ord' order.
 --
 -- Each entry contributes its (non-negative) value to either the debit or the
 -- credit total of its account title, classified by 'whichSide' (which already
@@ -399,8 +399,8 @@ writeAccountOfJournal titles path j =
 -- Each displayed amount is then rounded once.
 --
 -- Complexity: O(s) (s = number of scalar entries).
-accountGrossTotals :: (HatVal n, StandardBase b)
-                   => Alg n b -> OMap.Map AccountTitles (Accum n, Accum n)
+accountGrossTotals :: (HatVal n, ExBaseClass b)
+                   => Alg n b -> OMap.Map (TitleOf b) (Accum n, Accum n)
 accountGrossTotals = EA.foldEntries step OMap.empty
   where
     step totals value base =
@@ -451,7 +451,7 @@ readAccumBalance (debit, credit) =
 -- ["100.0","100.0","Total","100.0","100.0"]
 --
 -- Complexity: O(s) (single pass over s scalar entries; see @accountGrossTotals@)
-compoundTrialBalanceRows :: (HatVal n, HatBaseClass b, StandardBase b)
+compoundTrialBalanceRows :: (HatVal n, ExBaseClass b)
                           => Alg n b -> [[T.Text]]
 compoundTrialBalanceRows alg =
     header : lines' ++ [totalLine]
@@ -513,7 +513,7 @@ compoundTrialBalanceRows alg =
 --
 -- Complexity: O(s) (single pass over s scalar entries; see
 -- 'compoundTrialBalanceRows')
-writeCompoundTrialBalance :: (HatVal n, HatBaseClass b, StandardBase b)
+writeCompoundTrialBalance :: (HatVal n, ExBaseClass b)
                            => FilePath
                            -> Alg n b
                            -> IO ()
@@ -733,7 +733,7 @@ writeWorksheet path pre adj = writeCSV path (worksheetRows pre adj)
 -- ["60.0","Total","60.0"]
 --
 -- Complexity: O(s) (single pass over s scalar entries; see @accountGrossTotals@).
-postClosingTrialBalanceRows :: (HatVal n, HatBaseClass b, StandardBase b)
+postClosingTrialBalanceRows :: (HatVal n, ExBaseClass b)
                             => Alg n b -> [[T.Text]]
 postClosingTrialBalanceRows alg =
     header : bodyRows ++ [totalRow]
@@ -743,7 +743,7 @@ postClosingTrialBalanceRows alg =
     -- keep only real (Assets/Liability/Equity) titles.
     totals = accountGrossTotals alg
     titles = L.filter isReal (OMap.keys totals)
-    isReal t = let d = classifyAccountDivision t
+    isReal t = let d = vocabDivision t
                in d == Assets || d == Liability || d == Equity
     (bodyRows, debitTotal, creditTotal) =
         L.foldl' step ([], emptyAccum, emptyAccum) titles
@@ -767,7 +767,7 @@ postClosingTrialBalanceRows alg =
 -- 'Cost'\/'Revenue' accounts are excluded — see 'postClosingTrialBalanceRows'.
 --
 -- Complexity: O(s) (single pass; see 'postClosingTrialBalanceRows').
-writePostClosingTrialBalance :: (HatVal n, HatBaseClass b, StandardBase b)
+writePostClosingTrialBalance :: (HatVal n, ExBaseClass b)
                              => FilePath
                              -> Alg n b
                              -> IO ()

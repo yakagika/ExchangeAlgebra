@@ -398,6 +398,7 @@ Software
 SoftwareInProgress
 Standalone
 StandaloneReciprocalBalance
+StandardBase
 StatementDivision
 StatementEligible
 StatementLine

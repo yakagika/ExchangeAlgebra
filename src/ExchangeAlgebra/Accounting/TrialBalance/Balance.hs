@@ -34,7 +34,7 @@ import           ExchangeAlgebra.Algebra.Value.Class (HatVal(..))
 import           ExchangeAlgebra.Accounting.Account.Classification (Side(..))
 import           ExchangeAlgebra.Accounting.Account.Title (AccountTitles)
 import           ExchangeAlgebra.Accounting.Exchange
-                     ( StandardBase )
+                     ( ExBaseClass(TitleOf) )
 
 -- | A trial balance: postings of one scope whose bases are reduced to account
 -- titles. The caller chooses the scope and the unit before reducing a ledger
@@ -75,8 +75,7 @@ combineBalances left right = netPair
     (addPair (balancePair left) (balancePair right))
 
 -- | Look up an account balance, treating an absent account as balanced.
-balanceFor :: AccountTitles -> Map AccountTitles (AccountBalance v)
-           -> AccountBalance v
+balanceFor :: Ord t => t -> Map t (AccountBalance v) -> AccountBalance v
 balanceFor title = M.findWithDefault NoBalance title
 
 -- | Recover the structural side of a balance.
@@ -94,9 +93,9 @@ balanceAmount (CreditBalance value) = value
 -- | Net the exact posting sum of each account and round its magnitude once.
 -- The direction is determined before rounding, without a tolerance.
 accountBalances
-    :: (HatVal v, StandardBase b)
+    :: (HatVal v, ExBaseClass b)
     => Alg v b
-    -> Map AccountTitles (AccountBalance v)
+    -> Map (TitleOf b) (AccountBalance v)
 accountBalances = M.map finish . Accum.accountAccums
   where
     finish total = case Accum.readAccountAccum Credit total of

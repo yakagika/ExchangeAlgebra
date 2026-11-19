@@ -48,7 +48,8 @@ module ExchangeAlgebra.Accounting.Statements
     , metricIdText
     , DerivedMetric(..)
     , PeriodResult(..)
-    , MetricError(..)
+    , MetricError
+    , MetricErrorOf(..)
     , metricForLegacyTitle
     , legacyTitlesForMetric
     , periodResultOfAlg

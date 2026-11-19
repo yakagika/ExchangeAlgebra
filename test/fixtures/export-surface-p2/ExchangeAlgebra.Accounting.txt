@@ -267,6 +267,7 @@ Side
 SignedNet
 Software
 SoftwareInProgress
+StandardBase
 StatutoryWelfareExpenses
 StockInvestment
 StockIssuanceCosts

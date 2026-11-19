@@ -6,7 +6,8 @@ module ExchangeAlgebra.Reporting.Metric
     , metricIdText
     , DerivedMetric(..)
     , PeriodResult(..)
-    , MetricError(..)
+    , MetricError
+    , MetricErrorOf(..)
     , metricForLegacyTitle
     , legacyTitlesForMetric
     , periodResultOfAlg

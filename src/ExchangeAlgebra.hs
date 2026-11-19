@@ -173,6 +173,7 @@ module ExchangeAlgebra
     , pimoFromDivision
     , pimoFlip
     , ExBaseClass(..)
+    , StandardBase
     , AccountBase(..)
     , Exchange(..)
     , projCredit
@@ -311,6 +312,7 @@ import ExchangeAlgebra.Accounting.Account
     )
 import ExchangeAlgebra.Accounting.Exchange
     ( ExBaseClass(..)
+    , StandardBase
     , AccountBase(..)
     , Exchange(..)
     , projCredit

@@ -19,7 +19,8 @@ module ExchangeAlgebra.Accounting.Statements.Metric
     , metricIdText
     , DerivedMetric(..)
     , PeriodResult(..)
-    , MetricError(..)
+    , MetricError
+    , MetricErrorOf(..)
     , metricForLegacyTitle
     , legacyTitlesForMetric
     , periodResultOfAlg
@@ -37,10 +38,11 @@ import           ExchangeAlgebra.Algebra.Value.Class (HatVal(..), isErrorValue)
 import           ExchangeAlgebra.Accounting.Account.Classification
                      ( AccountDivision(..), DivisionSemantics(..), Side(..) )
 import           ExchangeAlgebra.Accounting.Account.Registry
-                     ( AccountSemantics(asemDivisionSemantics), accountSemantics )
+                     ( AccountSemantics(asemDivisionSemantics) )
+import           ExchangeAlgebra.Accounting.Account.Vocabulary (AccountVocabulary(vocabSemantics))
 import           ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
 import           ExchangeAlgebra.Accounting.Exchange
-                     ( StandardBase, ExBaseClass(getAccountTitle, whichSide) )
+                     ( StandardBase, ExBaseClass(TitleOf, getAccountTitle, whichSide) )
 import           ExchangeAlgebra.Algebra.Base.Representation
                      ( Hat(..), HatBase, HatBaseClass(hat) )
 import qualified ExchangeAlgebra.Accounting.TrialBalance.Validation as TB
@@ -79,15 +81,18 @@ data PeriodResult v
   deriving (Show, Eq)
 
 -- | Reasons why a reporting metric cannot be derived.
-data MetricError
+data MetricErrorOf t
   = MetricNotAvailableAtStage TB.TrialBalanceStage
-  | ResidualDerivedCoordinate AccountTitles
-  | WildcardMetricSide AccountTitles
+  | ResidualDerivedCoordinate t
+  | WildcardMetricSide t
   | WildcardMetricAccount
     -- ^ A posting carries the wildcard account title, so its statement
     -- division cannot be determined.
-  | InvalidMetricValue AccountTitles
+  | InvalidMetricValue t
   deriving (Show, Eq)
+
+-- | A metric error for the built-in chart of accounts.
+type MetricError = MetricErrorOf AccountTitles
 
 -- | Map an engine-only legacy coordinate to its reporting identity.
 metricForLegacyTitle :: AccountTitles -> Maybe DerivedMetric
@@ -108,14 +113,15 @@ legacyTitlesForMetric metric = case metric of
     CustomMetric _       -> []
 
 -- | Derive period profit or loss without adding a balancing coordinate.
--- Only genuine statement-classified Cost and Revenue titles participate;
--- direction-encoding legacy coordinates are therefore excluded structurally.
+-- A title contributes only when 'vocabSemantics' gives it a statement
+-- division of Cost or Revenue. A custom vocabulary must supply these
+-- semantics for each title that contributes to the period result.
 -- Invalid values and wildcard sides are returned as explicit errors.  For
 -- externally sourced trial balances, prefer 'periodResultOf'.
 periodResultOfAlg
-    :: (HatVal v, StandardBase b)
+    :: (HatVal v, ExBaseClass b)
     => Alg v b
-    -> Either MetricError (PeriodResult v)
+    -> Either (MetricErrorOf (TitleOf b)) (PeriodResult v)
 periodResultOfAlg alg
     | (_, base) : _ <- invalidEntries =
         Left (InvalidMetricValue (getAccountTitle base))
@@ -163,8 +169,8 @@ periodResultOf stage alg
         Left (ResidualDerivedCoordinate legacy)
     | otherwise = periodResultOfAlg alg
 
-isStatementNominal :: AccountTitles -> Bool
-isStatementNominal title = case accountSemantics title of
+isStatementNominal :: AccountVocabulary t => t -> Bool
+isStatementNominal title = case vocabSemantics title of
     Just semantics -> case asemDivisionSemantics semantics of
         StatementDivision Cost -> True
         StatementDivision Revenue -> True
