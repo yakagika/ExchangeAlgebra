@@ -1,0 +1,14 @@
+Decimal withdrawal: 3000:@Not:<(Cash,Yen) .+ 3000:@Hat:<(Deposits,Yen)
+Binary withdrawal: 3000.00:@Not:<(Cash,Yen) .+ 3000.00:@Hat:<(Deposits,Yen)
+Decimal portion totals (separate, combined): (1800,1800)
+Binary portion totals (separate, combined): (1800.0,1800.0000000000002)
+Rational yen withdrawal: 3000 % 1:@Not:<(Cash,Yen) .+ 3000 % 1:@Hat:<(Deposits,Yen)
+Negative amount rejected: True
+Infinite amount rejected: True
+NaN amount rejected: True
+Wildcard side rejected: True
+Negative scalar rejected: True
+Infinite scalar rejected: True
+NaN scalar rejected: True
+Negative scalar times Zero: 0
+Zero scalar times withdrawal: 0

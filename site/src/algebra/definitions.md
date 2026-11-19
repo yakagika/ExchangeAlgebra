@@ -1,35 +1,73 @@
 # Definitions and axioms
 
-## Bases and postings
+## Element structure {#element-structure}
 
-A base is a tuple of coordinates, one per axis. For example, an account and a firm form a two-axis base. A query matches a stored base when every coordinate either equals the stored coordinate or carries the wildcard (#) in the query. A stored # records an inapplicable axis. A query for a specific firm therefore skips a posting whose firm coordinate is #.
+**Definition 1.** An axis is a totally ordered set of coordinates with a distinguished wildcard, written $\\#$. For a query coordinate $p$ and a stored coordinate $e$, define one-way matching by
 
-Definition 1 of the preprint gives a symmetric comparison. The library's `matchesQuery` treats only a query-side # as a pattern.
+$$
+p \trianglerighteq e \quad\Longleftrightarrow\quad (p=\\#)\lor(p=e).
+$$
 
-A hat base pairs the tuple with a direction. `Not` records an increase and `Hat` a decrease. A posting pairs this hat base with a nonnegative real amount from the value domain $V$. Use `.@` to construct a posting. `HatNot` is a wildcard for queries.
+A stored $\\#$ records an inapplicable axis. A query for a specific firm therefore skips a posting whose firm coordinate is $\\#$. The wildcard is an ordinary member of the total order; matching does not define that order.
 
-At each underlying base $e_i$, a redundant algebra element records two finite sequences of amounts. Write $f_i(e_i)=\langle A_i,B_i\rangle$, with $A_i$ the `Not` sequence and $B_i$ the `Hat` sequence. Two increases of 3 and 2 at the same base remain separate postings until an operation explicitly combines them.
+Definition 1 of the preprint gives a symmetric comparison. The query relation used here treats only a query-side $\\#$ as a pattern.
 
-## Operations
+Usage: [Elements](elements.md).
 
-The following methods belong to `Redundant` in `ExchangeAlgebra.Algebra.Core.Representation`. In their signatures, `n` is the amount type, `b` the hat base type, and `a n b` the algebra element.
+## Bases {#bases}
 
-| Operation | Method and type | Effect |
-|---|---|---|
-| Hat | `(.^) :: a n b -> a n b` | Swap the two sequences<br>at each base, preserving<br>every amount. |
-| Bar | `(.-) :: a n b -> a n b` | Total each sequence at<br>each base and cancel the<br>two totals. Keep the<br>excess on the larger side<br>and drop a zero remainder. |
-| Sum | `(.+) :: a n b -> a n b -> a n b` | Concatenate the<br>corresponding sequences. |
-| Scalar<br>multiplication | `(.*) :: n -> a n b -> a n b` | Multiply every amount by<br>the same finite<br>nonnegative scalar. |
-| Norm | `norm :: a n b -> n` | Sum all amounts on both<br>sides over all bases. |
-| Compression | `compress :: a n b -> a n b` | Sum amounts with the<br>same base and direction,<br>keeping opposite<br>directions separate. |
+**Definition 2.** A base is a tuple of coordinates, one per axis. For coordinate sets $E_1,\ldots,E_n$, the base space is $E_1\times\cdots\times E_n$. An account and a firm, for example, form a two-axis base. A query tuple matches a stored base exactly when each query coordinate matches the corresponding stored coordinate.
 
-For example, two `Not` amounts of 3 and 2 and a `Hat` amount of 4 on the same base have norm 9. Compression gives 5 on `Not` and 4 on `Hat`. Bar leaves 1 on `Not`. In general, if the two sequences at a base have lengths $p_i$ and $q_i$, their contribution to the norm is
+Usage: [Bases](bases.md).
+
+## Hat bases and postings {#hat-bases-and-postings}
+
+**Definition 3.** A hat base pairs a base with one of two directions: plain (increase) or hat (decrease). The amount is nonnegative in either direction. A wildcard direction in a query selects either direction; it is not a posting direction.
+
+A posting pairs a hat base with a nonnegative real amount from the value domain $V\subseteq\mathbb{R}_{\geq 0}$. We write $a:e$ for an increase and $a:\widehat{e}$ for a decrease at the base $e$.
+
+Usage: [Bases](bases.md) and [Values](values.md).
+
+## Redundant algebra and linear combinations {#redundant-algebra-and-linear-combinations}
+
+**Definition 4.** A redundant algebra consists of finite collections of postings, with addition, scalar multiplication by nonnegative values, hat, bar, and a norm into the value domain.
+
+Usage: [The redundant algebra](redundant.md) and [Values](values.md).
+
+**Definition 5.** At each underlying base $e_i$, a redundant algebra element records two finite sequences of amounts. Write $f_i(e_i)=\langle A_i,B_i\rangle$, with $A_i$ the increase sequence and $B_i$ the decrease sequence. Two increases of 3 and 2 at the same base remain separate postings until an operation explicitly combines them. An element $x=\langle f_1,\ldots,f_n\rangle$ has finite support over the bases. An empty sequence pair contributes zero.
+
+Usage: [Construct postings and add them](redundant.md#construct-postings-and-add-them).
+
+## Operations {#operations}
+
+**Definition 6.** The operations on the paired sequences are as follows.
+
+| Operation | Effect |
+|---|---|
+| Hat | Swap the two sequences at each base, preserving every amount. |
+| Bar | Total each sequence at each base and cancel the two totals. Keep the excess on the larger side and drop a zero remainder. |
+| Sum | Concatenate the corresponding sequences. |
+| Scalar multiplication | Multiply every amount by the same nonnegative scalar. |
+| Norm | Sum all amounts on both sides over all bases. |
+| Compression | Sum amounts with the same base and direction, keeping opposite directions separate. |
+
+For bar, write $[z]\_+=\max(0,z)$. If $A_i=(a_{i1},\ldots,a_{ip_i})$ and $B_i=(b_{i1},\ldots,b_{iq_i})$, the remaining increase and decrease are
+
+$$
+D_i=\left[\sum_j a_{ij}-\sum_k b_{ik}\right]\_+,
+\qquad
+R_i=\left[\sum_k b_{ik}-\sum_j a_{ij}\right]\_+.
+$$
+
+For example, two increases of 3 and 2 and a decrease of 4 on the same base have norm 9. Compression gives an increase of 5 and a decrease of 4. Bar leaves an increase of 1. In general, the contribution to the norm is
 
 $$
 \operatorname{norm}(f_i(e_i)) = \sum_{j=1}^{p_i} a_{ij} + \sum_{k=1}^{q_i} b_{ik}.
 $$
 
-## Five axioms
+Usage: [Select an operation](redundant.md#select-an-operation).
+
+## Five axioms {#five-axioms}
 
 Let $x=\langle f_1,\ldots,f_n\rangle$ and let $a$ be a nonnegative scalar.
 
@@ -65,37 +103,27 @@ Let $x=\langle f_1,\ldots,f_n\rangle$ and let $a$ be a nonnegative scalar.
 
 The preprint lists the defining sum of the norm under the name “norm homogeneity.” The homogeneity law above follows from that sum and the scalar product.
 
-For `MoneyDecimal`, axioms 4 and 5 hold exactly when the amounts and products are representable. For `MoneyDouble`, `norm` sums the stored posting amounts exactly and rounds once at the end. The two sides of a law can therefore differ in the last digit: scaling can round individual products, and adding two norms can use two already rounded totals.
+Axioms 4 and 5 hold exactly with exact decimal arithmetic when the amounts, intermediate sums, and products are representable. With binary floating-point arithmetic, summing stored amounts exactly and rounding once still permits the two sides to differ in the last digit: scaling can round individual products, and adding two norms can use two already rounded totals.
 
-## Account classes and sides
+Usage: [Values and the numerical conditions](values.md#choose-an-amount-type).
 
-An exchange base carries an account title. `ExBaseClass.whatDiv` identifies its division, and `ExBaseClass.whichSide` combines its home side with the hat direction. For ordinary accounts the assignment is:
+## Account classes and sides {#account-classes-and-sides}
 
-| Division | Increase (`Not`) | Decrease (`Hat`) |
+**Definition 7.** An exchange base carries an account title with an account division and a home side. Its posting side combines that home side with the direction. For ordinary accounts the assignment is:
+
+| Division | Increase | Decrease |
 |---|---|---|
 | Assets, expenses (costs) | Debit | Credit |
 | Liabilities, equity, revenue | Credit | Debit |
 
-A contra account reverses the home side of its division before the hat direction is applied.
+A contra account reverses the home side of its division before the direction is applied.
 
-## Debit and credit decomposition
+Usage: [The journal example](../overview.md#the-same-journal-in-exchange-algebra).
 
-`Exchange` in `ExchangeAlgebra.Accounting.Exchange` provides the two side projections. `decL :: a n b -> a n b` selects the debit postings (left), and `decR :: a n b -> a n b` selects the credit postings (right). For example, a decrease in cash appears in `decR` and an increase in an ordinary expense appears in `decL`. `balance :: a n b -> Bool` compares the exact debit and credit totals before rounding and returns `True` when they agree for finite postings.
+## Debit and credit decomposition {#debit-and-credit-decomposition}
+
+**Definition 8.** An exchange algebra extends the redundant algebra with side decompositions. Debit decomposition selects debit postings (left), and credit decomposition selects credit postings (right). For example, a decrease in cash is a credit, and an increase in an ordinary expense is a debit. An element is balanced when its exact debit and credit totals agree.
+
+Usage: [Recover the debit and credit columns](../overview.md#recover-the-debit-and-credit-columns).
 
 For transfers and journals, see Appendix A of [*Accounting State Space as a Foundation for Economic Agent-Based Modeling: An Input–Output Benchmark and Inventory Extension*](https://doi.org/10.21203/rs.3.rs-8485050/v2).
-
-## Correspondence to the library
-
-The module names below are relative to `ExchangeAlgebra`.
-
-| Mathematical notation | Class or library identifier | Module |
-|---|---|---|
-| Query matches entry | `Element`, `matchesQuery` | `Algebra.Element` |
-| Posting on a hat base | `Alg`, `(.@)` | `Algebra.Core.Representation` |
-| $\widehat{x}$, $\bar{x}$ | `Redundant`: `(.^)`, `(.-)` | `Algebra.Core.Representation` |
-| $x+y$, $a \ast x$ | `Redundant`: `(.+)`, `(.*)` | `Algebra.Core.Representation` |
-| $\operatorname{norm}(x)$ | `Redundant`: `norm` | `Algebra.Core.Representation` |
-| Sum within each direction | `Redundant`: `compress` | `Algebra.Core.Representation` |
-| Account division and side | `ExBaseClass`: `whatDiv`, `whichSide` | `Accounting.Exchange` |
-| Debit and credit projections | `Exchange`: `decL`, `decR` | `Accounting.Exchange` |
-| Equality of side totals | `Exchange`: `balance` | `Accounting.Exchange` |
