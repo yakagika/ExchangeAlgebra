@@ -71,6 +71,30 @@
 
 ### Changed
 
+- **Consolidation worksheets (0.7 migration).** `validateConsolidationWorksheet`
+  accepts trial balances and adjustments over a caller-defined account title
+  type. The original worksheet type names specialize to `AccountTitles`
+  and preserve the built-in chart's validation and results.
+  - To import constructors and record fields, change `TrialBalanceSource(..)`,
+    `WorksheetAdjustment(..)`, `WorksheetInput(..)`, and `WorksheetError(..)`
+    to `TrialBalanceSourceOf(..)`, `WorksheetAdjustmentOf(..)`,
+    `WorksheetInputOf(..)`, and `WorksheetErrorOf(..)`, respectively.
+    `ValidatedWorksheetOf` exposes only its type name.
+  - An expression such as
+    `show [DuplicateSourceId (), EmptyAdjustment (), InvalidSourceValue () (1 :: Double)]`
+    now leaves the title type ambiguous. Annotate the list with
+    `:: [WorksheetError () () Double]` to select the built-in chart.
+  - Supply a posting capability through `vocabSemantics` for each concrete
+    title used in an adjustment. Validation rejects a title with missing
+    semantics as `NotPostable`.
+  - The `ExBaseClass` law now states that `whichSide` returns `Debit` or
+    `Credit` for concrete titles under `Hat` or `Not`. Under `Not`, the
+    base's `whatDiv` and `isContra` determine the home side. Under `Hat`,
+    the side is reversed. The default implementation already follows this
+    law. Worksheets total postings by the base's `whichSide`. Use the
+    vocabulary's division and contra flag in the base instance to obtain
+    totals consistent with that vocabulary.
+
 - **Financial statements and presentation groups (0.7 migration).** Use
   `present` with a trial balance over your own account titles and
   `presentGroups` with a grouping for those titles. Supply `vocabSemantics`

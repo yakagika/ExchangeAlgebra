@@ -1,4 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 {-# OPTIONS_GHC -Wincomplete-patterns -Werror=incomplete-patterns #-}
 
 {- |
@@ -56,12 +59,17 @@ True
 -}
 module ExchangeAlgebra.Accounting.Consolidation
     ( LinkField(..)
-    , TrialBalanceSource(..)
-    , WorksheetAdjustment(..)
+    , TrialBalanceSource
+    , TrialBalanceSourceOf(..)
+    , WorksheetAdjustment
+    , WorksheetAdjustmentOf(..)
     , WorksheetLinkage(..)
-    , WorksheetInput(..)
-    , WorksheetError(..)
+    , WorksheetInput
+    , WorksheetInputOf(..)
+    , WorksheetError
+    , WorksheetErrorOf(..)
     , ValidatedWorksheet
+    , ValidatedWorksheetOf
     , validateConsolidationWorksheet
     , validatedSources
     , validatedAdjustments
@@ -73,7 +81,7 @@ import           Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List as L
 import qualified Data.Map.Strict as M
 
-import           ExchangeAlgebra.Accounting.Exchange (decL, decR)
+import           ExchangeAlgebra.Accounting.Exchange (ExBaseClass(TitleOf), decL, decR)
 import           ExchangeAlgebra.Algebra.Core.Representation
                      ( Alg
                      , Redundant((.+)), foldEntries
@@ -84,13 +92,18 @@ import           ExchangeAlgebra.Algebra.Value.Class (HatVal(..), isErrorValue)
 import           ExchangeAlgebra.Accounting.Account.PostingPolicy
                      ( ProcessingContext(ConsolidationWorksheet)
                      , postingAllowedIn
-                     , postingCapabilityFor
                      )
 import           ExchangeAlgebra.Accounting.Account.Classification
-                     ( PostingCapability )
-import           ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
+                     ( PostingCapability(NotPostable) )
+import           ExchangeAlgebra.Accounting.Account.Registry
+                     ( AccountSemantics(asemPostingCapability) )
+import           ExchangeAlgebra.Accounting.Account.Vocabulary
+                     ( AccountVocabulary(vocabSemantics) )
+import           ExchangeAlgebra.Accounting.Account.Title (AccountTitles)
 import           ExchangeAlgebra.Algebra.Base.Representation
-                     ( Hat(..), HatBase((:<)) )
+                     ( BaseClass, Hat(..), HatBase((:<)) )
+import           ExchangeAlgebra.Algebra.Element.Representation
+                     ( AxisDecompose, Element(isWildcard) )
 import           ExchangeAlgebra.Accounting.Statements.Metric (PeriodResult(..))
 import           ExchangeAlgebra.Accounting.TrialBalance.Balance
                      ( AccountBalance(..)
@@ -118,21 +131,31 @@ data LinkField
 -- balance is accepted as historical input and is therefore not restricted by
 -- a processing-context posting-capability gate; it is still checked for
 -- structural coordinates, valid values, and exact balance.
-data TrialBalanceSource source v = TrialBalanceSource
+data TrialBalanceSourceOf t source v = TrialBalanceSource
     { _sourceId           :: source
-    , _sourceTrialBalance :: Alg v (HatBase AccountTitles)
+    , _sourceTrialBalance :: Alg v (HatBase t)
     }
-    deriving (Show)
+
+deriving instance (HatVal v, BaseClass t, AxisDecompose t, Show source)
+    => Show (TrialBalanceSourceOf t source v)
+
+-- | A source trial balance for the built-in chart of accounts.
+type TrialBalanceSource = TrialBalanceSourceOf AccountTitles
 
 -- | One atomic worksheet adjustment. The algebra element need not originate
 -- from a journal entry, but it must be independently balanced and use only
 -- coordinates admitted by the consolidation processing context.
-data WorksheetAdjustment source adjustment v = WorksheetAdjustment
+data WorksheetAdjustmentOf t source adjustment v = WorksheetAdjustment
     { _adjustmentId        :: adjustment
     , _adjustmentSourceIds :: NonEmpty source
-    , _adjustmentElement   :: Alg v (HatBase AccountTitles)
+    , _adjustmentElement   :: Alg v (HatBase t)
     }
-    deriving (Show)
+
+deriving instance (HatVal v, BaseClass t, AxisDecompose t, Show source, Show adjustment)
+    => Show (WorksheetAdjustmentOf t source adjustment v)
+
+-- | A worksheet adjustment for the built-in chart of accounts.
+type WorksheetAdjustment = WorksheetAdjustmentOf AccountTitles
 
 -- | Cross-column equations for the statement of profit or loss (P/L),
 -- statement of changes in equity (S/S), and balance sheet (B/S).
@@ -166,15 +189,20 @@ data WorksheetLinkage v = WorksheetLinkage
     deriving (Show, Eq)
 
 -- | Unvalidated consolidation worksheet input.
-data WorksheetInput source adjustment v = WorksheetInput
-    { _worksheetSources     :: NonEmpty (TrialBalanceSource source v)
-    , _worksheetAdjustments :: [WorksheetAdjustment source adjustment v]
+data WorksheetInputOf t source adjustment v = WorksheetInput
+    { _worksheetSources     :: NonEmpty (TrialBalanceSourceOf t source v)
+    , _worksheetAdjustments :: [WorksheetAdjustmentOf t source adjustment v]
     , _worksheetLinkage     :: WorksheetLinkage v
     }
-    deriving (Show)
+
+deriving instance (HatVal v, BaseClass t, AxisDecompose t, Show source, Show adjustment)
+    => Show (WorksheetInputOf t source adjustment v)
+
+-- | Worksheet input for the built-in chart of accounts.
+type WorksheetInput = WorksheetInputOf AccountTitles
 
 -- | Every rejected invariant is tied to a source, adjustment, or linkage.
-data WorksheetError source adjustment v
+data WorksheetErrorOf t source adjustment v
   = DuplicateSourceId source
   | DuplicateAdjustmentId adjustment
   | DuplicateAdjustmentSource adjustment source
@@ -187,7 +215,7 @@ data WorksheetError source adjustment v
   | InvalidAdjustmentValue adjustment v
   | WildcardAdjustmentAccount adjustment
   | WildcardAdjustmentSide adjustment
-  | AdjustmentPostingNotAllowed adjustment AccountTitles PostingCapability
+  | AdjustmentPostingNotAllowed adjustment t PostingCapability
   | UnbalancedAdjustment adjustment v v
   | InvalidLinkAmount LinkField v
   | NetIncomeAttributionMismatch v v
@@ -200,19 +228,37 @@ data WorksheetError source adjustment v
         (AccountBalance v) (AccountBalance v)
   deriving (Show, Eq)
 
+-- | A validation error for the built-in chart of accounts.
+type WorksheetError = WorksheetErrorOf AccountTitles
+
 -- | A worksheet whose provenance, atomic balance, processing capability, and
 -- cross-column linkage have all passed validation. The constructor is hidden.
-data ValidatedWorksheet source adjustment v = ValidatedWorksheet
-    (NonEmpty (TrialBalanceSource source v))
-    [WorksheetAdjustment source adjustment v]
+data ValidatedWorksheetOf t source adjustment v = ValidatedWorksheet
+    (NonEmpty (TrialBalanceSourceOf t source v))
+    [WorksheetAdjustmentOf t source adjustment v]
     (WorksheetLinkage v)
 
+-- | A validated worksheet for the built-in chart of accounts.
+type ValidatedWorksheet = ValidatedWorksheetOf AccountTitles
+
 -- | Validate a consolidation worksheet without normalizing any algebra term.
+-- The worksheet totals debits and credits using the base's @whichSide@.
+-- To obtain totals consistent with the vocabulary, use its division and
+-- contra flag when classifying the base.
+-- Supply eliminations of reciprocal accounts as worksheet adjustments.
+--
+-- For each concrete title used in an adjustment, supply its posting capability
+-- through 'vocabSemantics'. An omitted capability counts as 'NotPostable'.
+-- If @vocabSpec t == Nothing@ for a concrete title @t@, evaluating the default
+-- @vocabDivision t@ raises an exception. Results are unspecified for instances
+-- that violate the vocabulary laws.
 validateConsolidationWorksheet
-    :: (HatVal v, Ord source, Ord adjustment)
-    => WorksheetInput source adjustment v
-    -> Either (NonEmpty (WorksheetError source adjustment v))
-              (ValidatedWorksheet source adjustment v)
+    :: ( HatVal v, ExBaseClass (HatBase t), TitleOf (HatBase t) ~ t
+       , Ord source, Ord adjustment
+       )
+    => WorksheetInputOf t source adjustment v
+    -> Either (NonEmpty (WorksheetErrorOf t source adjustment v))
+              (ValidatedWorksheetOf t source adjustment v)
 validateConsolidationWorksheet input =
     case errors of
         []     -> Right (ValidatedWorksheet sources adjustments linkage)
@@ -228,19 +274,19 @@ validateConsolidationWorksheet input =
 
 -- | Recover the source trial balances with their provenance intact.
 validatedSources
-    :: ValidatedWorksheet source adjustment v
-    -> NonEmpty (TrialBalanceSource source v)
+    :: ValidatedWorksheetOf t source adjustment v
+    -> NonEmpty (TrialBalanceSourceOf t source v)
 validatedSources (ValidatedWorksheet sources _ _) = sources
 
 -- | Recover the atomic adjustments with their provenance intact.
 validatedAdjustments
-    :: ValidatedWorksheet source adjustment v
-    -> [WorksheetAdjustment source adjustment v]
+    :: ValidatedWorksheetOf t source adjustment v
+    -> [WorksheetAdjustmentOf t source adjustment v]
 validatedAdjustments (ValidatedWorksheet _ adjustments _) = adjustments
 
 -- | Recover the validated cross-column linkage values.
 validatedLinkage
-    :: ValidatedWorksheet source adjustment v
+    :: ValidatedWorksheetOf t source adjustment v
     -> WorksheetLinkage v
 validatedLinkage (ValidatedWorksheet _ _ linkage) = linkage
 
@@ -249,9 +295,9 @@ validatedLinkage (ValidatedWorksheet _ _ linkage) = linkage
 -- calculation projection; inspect the validated source and adjustment lists
 -- when provenance is required.
 combinedWorksheet
-    :: (HatVal v)
-    => ValidatedWorksheet source adjustment v
-    -> Alg v (HatBase AccountTitles)
+    :: (HatVal v, BaseClass t, AxisDecompose t)
+    => ValidatedWorksheetOf t source adjustment v
+    -> Alg v (HatBase t)
 combinedWorksheet (ValidatedWorksheet sources adjustments _) =
     L.foldl' (.+) mempty
         (map _sourceTrialBalance (toListNE sources)
@@ -259,9 +305,9 @@ combinedWorksheet (ValidatedWorksheet sources adjustments _) =
 
 duplicateIdErrors
     :: (Ord source, Ord adjustment)
-    => NonEmpty (TrialBalanceSource source v)
-    -> [WorksheetAdjustment source adjustment v]
-    -> [WorksheetError source adjustment v]
+    => NonEmpty (TrialBalanceSourceOf t source v)
+    -> [WorksheetAdjustmentOf t source adjustment v]
+    -> [WorksheetErrorOf t source adjustment v]
 duplicateIdErrors sources adjustments =
     [ DuplicateSourceId sourceId
     | (sourceId, count) <- M.toList sourceCounts
@@ -278,14 +324,14 @@ duplicateIdErrors sources adjustments =
         [ (_adjustmentId adjustment, 1 :: Int) | adjustment <- adjustments ]
 
 sourceIds :: Ord source
-          => NonEmpty (TrialBalanceSource source v)
+          => NonEmpty (TrialBalanceSourceOf t source v)
           -> M.Map source ()
 sourceIds = M.fromList . map (\source -> (_sourceId source, ())) . toListNE
 
 validateSource
-    :: HatVal v
-    => TrialBalanceSource source v
-    -> [WorksheetError source adjustment v]
+    :: (HatVal v, ExBaseClass (HatBase t))
+    => TrialBalanceSourceOf t source v
+    -> [WorksheetErrorOf t source adjustment v]
 validateSource source = structuralErrors ++ balanceErrors
   where
     sourceId = _sourceId source
@@ -296,7 +342,8 @@ validateSource source = structuralErrors ++ balanceErrors
         , isErrorValue value
         ]
         ++ [ WildcardSourceAccount sourceId
-           | _ :< AccountTitle <- bases alg
+           | _ :< title <- bases alg
+           , isWildcard title
            ]
         ++ [ WildcardSourceSide sourceId
            | HatNot :< _ <- bases alg
@@ -312,10 +359,10 @@ validateSource source = structuralErrors ++ balanceErrors
         credit = roundAccum creditState
 
 validateAdjustment
-    :: (HatVal v, Ord source)
+    :: (HatVal v, ExBaseClass (HatBase t), TitleOf (HatBase t) ~ t, Ord source)
     => M.Map source ()
-    -> WorksheetAdjustment source adjustment v
-    -> [WorksheetError source adjustment v]
+    -> WorksheetAdjustmentOf t source adjustment v
+    -> [WorksheetErrorOf t source adjustment v]
 validateAdjustment knownSources adjustment =
     provenanceErrors ++ structuralErrors ++ balanceErrors
   where
@@ -328,15 +375,16 @@ validateAdjustment knownSources adjustment =
            , isErrorValue value || not (value > 0)
            ]
         ++ [ WildcardAdjustmentAccount adjustmentId
-           | _ :< AccountTitle <- bases alg
+           | _ :< title <- bases alg
+           , isWildcard title
            ]
         ++ [ WildcardAdjustmentSide adjustmentId
            | HatNot :< _ <- bases alg
            ]
         ++ [ AdjustmentPostingNotAllowed adjustmentId account capability
            | _ :< account <- bases alg
-           , account /= AccountTitle
-           , let capability = postingCapabilityFor account
+           , not (isWildcard account)
+           , let capability = postingCapabilityOf account
            , not (postingAllowedIn ConsolidationWorksheet capability)
            ]
     refs = toListNE (_adjustmentSourceIds adjustment)
@@ -360,10 +408,13 @@ validateAdjustment knownSources adjustment =
         debit = roundAccum debitState
         credit = roundAccum creditState
 
+postingCapabilityOf :: AccountVocabulary t => t -> PostingCapability
+postingCapabilityOf = maybe NotPostable asemPostingCapability . vocabSemantics
+
 validateWorksheetLinkage
     :: HatVal v
     => WorksheetLinkage v
-    -> [WorksheetError source adjustment v]
+    -> [WorksheetErrorOf t source adjustment v]
 validateWorksheetLinkage linkage
     | not (null invalidAmounts) = invalidAmounts
     | otherwise = attributionErrors
@@ -517,7 +568,8 @@ rollForwardSides opening result dividends closing = case result of
     (openingDebit, openingCredit) = balancePair opening
     (closingDebit, closingCredit) = balancePair closing
 
-sideTotals :: HatVal v => Alg v (HatBase AccountTitles) -> (Accum v, Accum v)
+sideTotals :: (HatVal v, ExBaseClass (HatBase t))
+           => Alg v (HatBase t) -> (Accum v, Accum v)
 sideTotals alg = (sumSide (decL alg), sumSide (decR alg))
   where
     sumSide = foldEntries (\total value _ -> addAccum value total) emptyAccum

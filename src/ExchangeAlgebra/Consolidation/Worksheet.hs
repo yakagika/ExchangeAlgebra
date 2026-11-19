@@ -4,12 +4,17 @@ module ExchangeAlgebra.Consolidation.Worksheet
     ( PeriodResult(..)
     , AccountBalance(..)
     , LinkField(..)
-    , TrialBalanceSource(..)
-    , WorksheetAdjustment(..)
+    , TrialBalanceSource
+    , TrialBalanceSourceOf(..)
+    , WorksheetAdjustment
+    , WorksheetAdjustmentOf(..)
     , WorksheetLinkage(..)
-    , WorksheetInput(..)
-    , WorksheetError(..)
+    , WorksheetInput
+    , WorksheetInputOf(..)
+    , WorksheetError
+    , WorksheetErrorOf(..)
     , ValidatedWorksheet
+    , ValidatedWorksheetOf
     , validateConsolidationWorksheet
     , validatedSources
     , validatedAdjustments

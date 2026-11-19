@@ -23,6 +23,7 @@ import qualified Accounting.AdjustmentSpec as AdjustmentSpec
 import qualified Accounting.AuditSpec as AuditSpec
 import qualified Accounting.VocabularyLawSpec as VocabularyLawSpec
 import qualified Accounting.ClosingTargetSpec as ClosingTargetSpec
+import qualified Accounting.ConsolidationVocabularySpec as ConsolidationVocabularySpec
 import qualified Accounting.RegistrySpec as RegistrySpec
 import qualified Accounting.ProcedureLawSpec as ProcedureLawSpec
 import qualified IO.InputOutputSpec as InputOutputSpec
@@ -55,6 +56,7 @@ main = do
     AuditSpec.runTests
     VocabularyLawSpec.runTests
     ClosingTargetSpec.runTests
+    ConsolidationVocabularySpec.runTests
     RegistrySpec.runTests
     ProcedureLawSpec.runTests
     InputOutputSpec.runTests

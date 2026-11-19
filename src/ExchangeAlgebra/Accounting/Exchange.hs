@@ -115,6 +115,11 @@ import Prelude hiding (map, filter)
 -- Extended type class for bases that carry an account title.
 -- Provides access to and modification of account titles, account divisions, PIMO classification,
 -- credit/debit determination, and fixed/current classification.
+--
+-- * For a concrete title with a 'Not' or v'Hat' label, 'whichSide' must
+--   return 'Debit' or 'Credit' (Definitions 7 and 8). Under 'Not' it returns
+--   the home side determined by the base's 'whatDiv' and 'isContra'. Under
+--   v'Hat' it returns the opposite side.
 class (HatBaseClass a, AccountVocabulary (TitleOf a)) => ExBaseClass a where
     -- | Title type carried by this base. Existing instances default to 'AccountTitles'.
     type TitleOf a

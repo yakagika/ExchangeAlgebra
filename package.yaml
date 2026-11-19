@@ -238,6 +238,7 @@ tests:
     - Journal.NormalFormSpec
     - Accounting.AdjustmentSpec
     - Accounting.AuditSpec
+    - Accounting.ConsolidationVocabularySpec
     - Accounting.PresentationVocabularySpec
     - Accounting.VocabularyLawSpec
     - Accounting.ClosingTargetSpec
