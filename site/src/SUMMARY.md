@@ -21,3 +21,10 @@
 - [Transfers](exchange/transfer.md)
 - [Journals](journal/journal.md)
 - [Multiple agents](journal/agents.md)
+
+# Bookkeeping procedures
+
+- [Admitting a journal](bookkeeping/admission.md)
+- [Trial balance and audit](bookkeeping/trial-balance.md)
+- [Adjusting entries](bookkeeping/adjustment.md)
+- [Closing](bookkeeping/closing.md)

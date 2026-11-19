@@ -12,6 +12,9 @@ html[lang="ja"] .language-switch [data-language="ja"] {
     text-decoration: underline;
     text-underline-offset: 0.25em;
 }
+/* The summary text is a paragraph so that gettext extracts it for translation. */
+details > summary > p { display: inline; margin: 0; }
+details > summary { cursor: pointer; }
 </style>
 <script>
 function languagePageLink(rootPath, pathname, language) {

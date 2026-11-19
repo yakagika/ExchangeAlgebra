@@ -1,0 +1,16 @@
+Rent adjustment: 600:@Hat:<(RentExpense,Yen) .+ 600:@Not:<(PrepaidExpenses,Yen)
+Inventory adjustment: 200:@Hat:<(Purchases,Yen) .+ 200:@Not:<(MerchandiseInventory,Yen)
+Account: (debit turnover, credit turnover, balance)
+Cash: (8500,3200,DebitBalance 5300)
+Deposits: (10000,5000,DebitBalance 5000)
+PrepaidExpenses: (600,0,DebitBalance 600)
+MerchandiseInventory: (200,0,DebitBalance 200)
+Purchases: (500,200,DebitBalance 300)
+RentExpense: (1200,600,DebitBalance 600)
+Sales: (0,2000,CreditBalance 2000)
+CapitalStock: (0,10000,CreditBalance 10000)
+RetainedEarnings: (0,0,NoBalance)
+Balance totals (debit, credit): (12000,12000)
+Posting totals (debit, credit): (21000,21000)
+Balanced: True
+Findings: []

@@ -1,0 +1,29 @@
+Account: (debit turnover, credit turnover, balance)
+Cash: (8500,3200,DebitBalance 5300)
+Deposits: (10000,5000,DebitBalance 5000)
+PrepaidExpenses: (0,0,NoBalance)
+MerchandiseInventory: (0,0,NoBalance)
+Purchases: (500,0,DebitBalance 500)
+RentExpense: (1200,0,DebitBalance 1200)
+Sales: (0,2000,CreditBalance 2000)
+CapitalStock: (0,10000,CreditBalance 10000)
+RetainedEarnings: (0,0,NoBalance)
+Balance totals (debit, credit): (12000,12000)
+Posting totals (debit, credit): (20200,20200)
+Balanced: True
+Findings: []
+Without opening balances:
+Account: (debit turnover, credit turnover, balance)
+Cash: (8500,3200,DebitBalance 5300)
+Deposits: (0,5000,CreditBalance 5000)
+PrepaidExpenses: (0,0,NoBalance)
+MerchandiseInventory: (0,0,NoBalance)
+Purchases: (500,0,DebitBalance 500)
+RentExpense: (1200,0,DebitBalance 1200)
+Sales: (0,2000,CreditBalance 2000)
+CapitalStock: (0,0,NoBalance)
+RetainedEarnings: (0,0,NoBalance)
+Balance totals (debit, credit): (7000,7000)
+Posting totals (debit, credit): (10200,10200)
+Balanced: True
+Findings: [UnexplainedAbnormalBalance Deposits Debit (CreditBalance 5000)]
