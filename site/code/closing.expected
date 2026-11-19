@@ -1,0 +1,16 @@
+Closing entries: 300:@Hat:<(RetainedEarnings,Yen) .+ 600:@Hat:<(RetainedEarnings,Yen) .+ 2000:@Not:<(RetainedEarnings,Yen) .+ 600:@Hat:<(RentExpense,Yen) .+ 300:@Hat:<(Purchases,Yen) .+ 2000:@Hat:<(Sales,Yen)
+Account: (debit turnover, credit turnover, balance)
+Cash: (8500,3200,DebitBalance 5300)
+Deposits: (10000,5000,DebitBalance 5000)
+PrepaidExpenses: (600,0,DebitBalance 600)
+MerchandiseInventory: (200,0,DebitBalance 200)
+Purchases: (500,500,NoBalance)
+RentExpense: (1200,1200,NoBalance)
+Sales: (2000,2000,NoBalance)
+CapitalStock: (0,10000,CreditBalance 10000)
+RetainedEarnings: (900,2000,CreditBalance 1100)
+Balance totals (debit, credit): (11100,11100)
+Posting totals (debit, credit): (23900,23900)
+Balanced: True
+Findings: []
+Closing again: Right 0

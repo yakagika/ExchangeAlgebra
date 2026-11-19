@@ -132,7 +132,7 @@ Usage: [Recover the debit and credit columns](../overview.md#recover-the-debit-a
 
 A source wildcard matches any stored coordinate. A destination wildcard retains the corresponding source coordinate. For an accounting reclassification, the amount removed from the source equals the amount added at the destination.
 
-The preprint orders rows by the total order on source bases; the library applies rows in their written order.
+The rules of the algebra layer are sorted by source pattern, as in the preprint. The accounting transfer table preserves written row order and permits a destination to match a later source, but rejects a match with the source of the same or an earlier row; see [Transfers](../exchange/transfer.md).
 
 Usage: [Transfers](../exchange/transfer.md).
 
