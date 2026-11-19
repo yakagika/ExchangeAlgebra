@@ -1,0 +1,903 @@
+chapter	source	module	identifier
+algebra/bases.md	program	ExchangeAlgebra	:<
+algebra/bases.md	program	ExchangeAlgebra	AccountTitles
+algebra/bases.md	program	ExchangeAlgebra	BaseClass
+algebra/bases.md	program	ExchangeAlgebra	Cash
+algebra/bases.md	program	ExchangeAlgebra	Deposits
+algebra/bases.md	program	ExchangeAlgebra	Element
+algebra/bases.md	program	ExchangeAlgebra	Generic
+algebra/bases.md	program	ExchangeAlgebra	Hashable
+algebra/bases.md	program	ExchangeAlgebra	Hat
+algebra/bases.md	program	ExchangeAlgebra	HatBase
+algebra/bases.md	program	ExchangeAlgebra	HatBaseClass
+algebra/bases.md	program	ExchangeAlgebra	Not
+algebra/bases.md	program	ExchangeAlgebra	base
+algebra/bases.md	program	ExchangeAlgebra	hat
+algebra/bases.md	program	ExchangeAlgebra	merge
+algebra/bases.md	program	ExchangeAlgebra	revHat
+algebra/bases.md	program	ExchangeAlgebra	wildcard
+algebra/bases.md	reference		BasePart
+algebra/bases.md	reference		base
+algebra/bases.md	reference		compareHatBase
+algebra/bases.md	reference		hat
+algebra/bases.md	reference		isHat
+algebra/bases.md	reference		isNot
+algebra/bases.md	reference		merge
+algebra/bases.md	reference		revHat
+algebra/bases.md	reference		toHat
+algebra/bases.md	reference		toNot
+algebra/elements.md	program	ExchangeAlgebra	.#
+algebra/elements.md	program	ExchangeAlgebra	AccountTitles
+algebra/elements.md	program	ExchangeAlgebra	Cash
+algebra/elements.md	program	ExchangeAlgebra	Deposits
+algebra/elements.md	program	ExchangeAlgebra	Element
+algebra/elements.md	program	ExchangeAlgebra	Generic
+algebra/elements.md	program	ExchangeAlgebra	Hashable
+algebra/elements.md	program	ExchangeAlgebra	wildcard
+algebra/elements.md	program	ExchangeAlgebra.Algebra.Element	matchesQuery
+algebra/elements.md	reference		.#
+algebra/elements.md	reference		./=
+algebra/elements.md	reference		.<
+algebra/elements.md	reference		.<=
+algebra/elements.md	reference		.==
+algebra/elements.md	reference		.>
+algebra/elements.md	reference		.>=
+algebra/elements.md	reference		AccountTitles
+algebra/elements.md	reference		BaseClass
+algebra/elements.md	reference		BaseForSingleHat
+algebra/elements.md	reference		CountUnit
+algebra/elements.md	reference		Day
+algebra/elements.md	reference		Hat
+algebra/elements.md	reference		HatBase
+algebra/elements.md	reference		Text
+algebra/elements.md	reference		TimeOfDay
+algebra/elements.md	reference		compareElement
+algebra/elements.md	reference		equal
+algebra/elements.md	reference		haveWildcard
+algebra/elements.md	reference		ignoreWildcard
+algebra/elements.md	reference		isWildcard
+algebra/elements.md	reference		matchesQuery
+algebra/elements.md	reference		maxElement
+algebra/elements.md	reference		minElement
+algebra/elements.md	reference		wildcard
+algebra/redundant.md	program	ExchangeAlgebra	.#
+algebra/redundant.md	program	ExchangeAlgebra	.*
+algebra/redundant.md	program	ExchangeAlgebra	.+
+algebra/redundant.md	program	ExchangeAlgebra	.@
+algebra/redundant.md	program	ExchangeAlgebra	.^
+algebra/redundant.md	program	ExchangeAlgebra	:<
+algebra/redundant.md	program	ExchangeAlgebra	AccountTitles
+algebra/redundant.md	program	ExchangeAlgebra	Alg
+algebra/redundant.md	program	ExchangeAlgebra	Cash
+algebra/redundant.md	program	ExchangeAlgebra	Deposits
+algebra/redundant.md	program	ExchangeAlgebra	Element
+algebra/redundant.md	program	ExchangeAlgebra	Generic
+algebra/redundant.md	program	ExchangeAlgebra	Hashable
+algebra/redundant.md	program	ExchangeAlgebra	Hat
+algebra/redundant.md	program	ExchangeAlgebra	HatBase
+algebra/redundant.md	program	ExchangeAlgebra	HatNot
+algebra/redundant.md	program	ExchangeAlgebra	MoneyDecimal
+algebra/redundant.md	program	ExchangeAlgebra	Not
+algebra/redundant.md	program	ExchangeAlgebra	Purchases
+algebra/redundant.md	program	ExchangeAlgebra	Redundant
+algebra/redundant.md	program	ExchangeAlgebra	bar
+algebra/redundant.md	program	ExchangeAlgebra	compress
+algebra/redundant.md	program	ExchangeAlgebra	norm
+algebra/redundant.md	program	ExchangeAlgebra	proj
+algebra/redundant.md	program	ExchangeAlgebra	projNetNorm
+algebra/redundant.md	program	ExchangeAlgebra	wildcard
+algebra/redundant.md	reference		.*
+algebra/redundant.md	reference		.+
+algebra/redundant.md	reference		.-
+algebra/redundant.md	reference		.^
+algebra/redundant.md	reference		bar
+algebra/redundant.md	reference		compress
+algebra/redundant.md	reference		norm
+algebra/redundant.md	reference		proj
+algebra/redundant.md	reference		projNetNorm
+algebra/values.md	program	ExchangeAlgebra	.*
+algebra/values.md	program	ExchangeAlgebra	.+
+algebra/values.md	program	ExchangeAlgebra	.@
+algebra/values.md	program	ExchangeAlgebra	:<
+algebra/values.md	program	ExchangeAlgebra	AccountTitles
+algebra/values.md	program	ExchangeAlgebra	Accum
+algebra/values.md	program	ExchangeAlgebra	Alg
+algebra/values.md	program	ExchangeAlgebra	Cash
+algebra/values.md	program	ExchangeAlgebra	Deposits
+algebra/values.md	program	ExchangeAlgebra	Element
+algebra/values.md	program	ExchangeAlgebra	Generic
+algebra/values.md	program	ExchangeAlgebra	Hashable
+algebra/values.md	program	ExchangeAlgebra	Hat
+algebra/values.md	program	ExchangeAlgebra	HatBase
+algebra/values.md	program	ExchangeAlgebra	HatNot
+algebra/values.md	program	ExchangeAlgebra	HatVal
+algebra/values.md	program	ExchangeAlgebra	MoneyDecimal
+algebra/values.md	program	ExchangeAlgebra	MoneyDouble
+algebra/values.md	program	ExchangeAlgebra	Nearest
+algebra/values.md	program	ExchangeAlgebra	Nearly
+algebra/values.md	program	ExchangeAlgebra	NegativeValue
+algebra/values.md	program	ExchangeAlgebra	Not
+algebra/values.md	program	ExchangeAlgebra	Redundant
+algebra/values.md	program	ExchangeAlgebra	Rounding
+algebra/values.md	program	ExchangeAlgebra	ToMultipleOf
+algebra/values.md	program	ExchangeAlgebra	ValueError
+algebra/values.md	program	ExchangeAlgebra	Zero
+algebra/values.md	program	ExchangeAlgebra	addAccum
+algebra/values.md	program	ExchangeAlgebra	emptyAccum
+algebra/values.md	program	ExchangeAlgebra	exactAccum
+algebra/values.md	program	ExchangeAlgebra	isNearly
+algebra/values.md	program	ExchangeAlgebra	isNearlyNum
+algebra/values.md	program	ExchangeAlgebra	mergeAccum
+algebra/values.md	program	ExchangeAlgebra	negateAccum
+algebra/values.md	program	ExchangeAlgebra	norm
+algebra/values.md	program	ExchangeAlgebra	roundAccum
+algebra/values.md	program	ExchangeAlgebra	roundRational
+algebra/values.md	program	ExchangeAlgebra	showValue
+algebra/values.md	program	ExchangeAlgebra	signAccum
+algebra/values.md	program	ExchangeAlgebra	splitAccum
+algebra/values.md	program	ExchangeAlgebra	valueError
+algebra/values.md	program	ExchangeAlgebra	wildcard
+algebra/values.md	program	ExchangeAlgebra	zeroValue
+algebra/values.md	reference		Accum
+algebra/values.md	reference		addAccum
+algebra/values.md	reference		emptyAccum
+algebra/values.md	reference		exactAccum
+algebra/values.md	reference		isZeroValue
+algebra/values.md	reference		mergeAccum
+algebra/values.md	reference		negateAccum
+algebra/values.md	reference		postingUpperBound
+algebra/values.md	reference		roundAccum
+algebra/values.md	reference		roundRational
+algebra/values.md	reference		showValue
+algebra/values.md	reference		signAccum
+algebra/values.md	reference		splitAccum
+algebra/values.md	reference		valueError
+algebra/values.md	reference		zeroValue
+bookkeeping/adjustment.md	program	ExchangeAlgebra	.#
+bookkeeping/adjustment.md	program	ExchangeAlgebra	.+
+bookkeeping/adjustment.md	program	ExchangeAlgebra	.->
+bookkeeping/adjustment.md	program	ExchangeAlgebra	.@
+bookkeeping/adjustment.md	program	ExchangeAlgebra	:<
+bookkeeping/adjustment.md	program	ExchangeAlgebra	AccountTitles
+bookkeeping/adjustment.md	program	ExchangeAlgebra	Alg
+bookkeeping/adjustment.md	program	ExchangeAlgebra	CapitalStock
+bookkeeping/adjustment.md	program	ExchangeAlgebra	Cash
+bookkeeping/adjustment.md	program	ExchangeAlgebra	Deposits
+bookkeeping/adjustment.md	program	ExchangeAlgebra	Element
+bookkeeping/adjustment.md	program	ExchangeAlgebra	ExBaseClass
+bookkeeping/adjustment.md	program	ExchangeAlgebra	Exchange
+bookkeeping/adjustment.md	program	ExchangeAlgebra	Generic
+bookkeeping/adjustment.md	program	ExchangeAlgebra	Hashable
+bookkeeping/adjustment.md	program	ExchangeAlgebra	Hat
+bookkeeping/adjustment.md	program	ExchangeAlgebra	HatBase
+bookkeeping/adjustment.md	program	ExchangeAlgebra	MerchandiseInventory
+bookkeeping/adjustment.md	program	ExchangeAlgebra	MoneyDecimal
+bookkeeping/adjustment.md	program	ExchangeAlgebra	Not
+bookkeeping/adjustment.md	program	ExchangeAlgebra	Portion
+bookkeeping/adjustment.md	program	ExchangeAlgebra	PrepaidExpenses
+bookkeeping/adjustment.md	program	ExchangeAlgebra	Purchases
+bookkeeping/adjustment.md	program	ExchangeAlgebra	Redundant
+bookkeeping/adjustment.md	program	ExchangeAlgebra	RentExpense
+bookkeeping/adjustment.md	program	ExchangeAlgebra	RetainedEarnings
+bookkeeping/adjustment.md	program	ExchangeAlgebra	Sales
+bookkeeping/adjustment.md	program	ExchangeAlgebra	TransferShare
+bookkeeping/adjustment.md	program	ExchangeAlgebra	balance
+bookkeeping/adjustment.md	program	ExchangeAlgebra	decL
+bookkeeping/adjustment.md	program	ExchangeAlgebra	decR
+bookkeeping/adjustment.md	program	ExchangeAlgebra	getAccountTitle
+bookkeeping/adjustment.md	program	ExchangeAlgebra	mkTransferTable
+bookkeeping/adjustment.md	program	ExchangeAlgebra	norm
+bookkeeping/adjustment.md	program	ExchangeAlgebra	projByAccountTitle
+bookkeeping/adjustment.md	program	ExchangeAlgebra	setAccountTitle
+bookkeeping/adjustment.md	program	ExchangeAlgebra	transferEntries
+bookkeeping/adjustment.md	program	ExchangeAlgebra	wildcard
+bookkeeping/adjustment.md	program	ExchangeAlgebra	|%
+bookkeeping/adjustment.md	program	ExchangeAlgebra.Accounting.Entries	MkBase
+bookkeeping/adjustment.md	program	ExchangeAlgebra.Accounting.Entries	cogsAdjustmentEntries
+bookkeeping/adjustment.md	program	ExchangeAlgebra.Accounting.TrialBalance	BeforeClosing
+bookkeeping/adjustment.md	program	ExchangeAlgebra.Accounting.TrialBalance	TrialBalanceInput
+bookkeeping/adjustment.md	program	ExchangeAlgebra.Accounting.TrialBalance	TrialBalanceStage
+bookkeeping/adjustment.md	program	ExchangeAlgebra.Accounting.TrialBalance	accountBalances
+bookkeeping/adjustment.md	program	ExchangeAlgebra.Accounting.TrialBalance	addPair
+bookkeeping/adjustment.md	program	ExchangeAlgebra.Accounting.TrialBalance	balanceFor
+bookkeeping/adjustment.md	program	ExchangeAlgebra.Accounting.TrialBalance	balancePair
+bookkeeping/adjustment.md	program	ExchangeAlgebra.Accounting.TrialBalance	trialBalanceFindings
+bookkeeping/adjustment.md	program	ExchangeAlgebra.Algebra.Core	foldEntries
+bookkeeping/adjustment.md	program	ExchangeAlgebra.Algebra.Core	mapPosting
+bookkeeping/adjustment.md	program	ExchangeAlgebra.IO.Input.Admission	Admitted
+bookkeeping/adjustment.md	program	ExchangeAlgebra.IO.Input.Admission	admit
+bookkeeping/adjustment.md	program	ExchangeAlgebra.IO.Input.Admission	admittedJournal
+bookkeeping/adjustment.md	program	ExchangeAlgebra.IO.Input.Admission	failureErrors
+bookkeeping/adjustment.md	program	ExchangeAlgebra.Journal	.|
+bookkeeping/adjustment.md	program	ExchangeAlgebra.Journal	Journal
+bookkeeping/adjustment.md	program	ExchangeAlgebra.Journal	Note
+bookkeeping/adjustment.md	program	ExchangeAlgebra.Journal	map
+bookkeeping/adjustment.md	program	ExchangeAlgebra.Journal	plank
+bookkeeping/adjustment.md	program	ExchangeAlgebra.Journal	toAlg
+bookkeeping/adjustment.md	reference		transferEntries
+bookkeeping/adjustment.md	reference	ExchangeAlgebra.Accounting.Entries	MkBase
+bookkeeping/adjustment.md	reference	ExchangeAlgebra.Accounting.Entries	cogsAdjustmentEntries
+bookkeeping/admission.md	program	ExchangeAlgebra	.+
+bookkeeping/admission.md	program	ExchangeAlgebra	.@
+bookkeeping/admission.md	program	ExchangeAlgebra	:<
+bookkeeping/admission.md	program	ExchangeAlgebra	AccountTitles
+bookkeeping/admission.md	program	ExchangeAlgebra	Alg
+bookkeeping/admission.md	program	ExchangeAlgebra	CapitalStock
+bookkeeping/admission.md	program	ExchangeAlgebra	Cash
+bookkeeping/admission.md	program	ExchangeAlgebra	Deposits
+bookkeeping/admission.md	program	ExchangeAlgebra	Element
+bookkeeping/admission.md	program	ExchangeAlgebra	ExBaseClass
+bookkeeping/admission.md	program	ExchangeAlgebra	Exchange
+bookkeeping/admission.md	program	ExchangeAlgebra	Generic
+bookkeeping/admission.md	program	ExchangeAlgebra	Hashable
+bookkeeping/admission.md	program	ExchangeAlgebra	Hat
+bookkeeping/admission.md	program	ExchangeAlgebra	HatBase
+bookkeeping/admission.md	program	ExchangeAlgebra	MoneyDecimal
+bookkeeping/admission.md	program	ExchangeAlgebra	Not
+bookkeeping/admission.md	program	ExchangeAlgebra	Purchases
+bookkeeping/admission.md	program	ExchangeAlgebra	Redundant
+bookkeeping/admission.md	program	ExchangeAlgebra	RentExpense
+bookkeeping/admission.md	program	ExchangeAlgebra	Sales
+bookkeeping/admission.md	program	ExchangeAlgebra	balance
+bookkeeping/admission.md	program	ExchangeAlgebra	bar
+bookkeeping/admission.md	program	ExchangeAlgebra	decL
+bookkeeping/admission.md	program	ExchangeAlgebra	decR
+bookkeeping/admission.md	program	ExchangeAlgebra	getAccountTitle
+bookkeeping/admission.md	program	ExchangeAlgebra	norm
+bookkeeping/admission.md	program	ExchangeAlgebra	setAccountTitle
+bookkeeping/admission.md	program	ExchangeAlgebra	wildcard
+bookkeeping/admission.md	program	ExchangeAlgebra.Algebra.Core	mapPosting
+bookkeeping/admission.md	program	ExchangeAlgebra.IO.Input.Admission	Admitted
+bookkeeping/admission.md	program	ExchangeAlgebra.IO.Input.Admission	admit
+bookkeeping/admission.md	program	ExchangeAlgebra.IO.Input.Admission	admittedJournal
+bookkeeping/admission.md	program	ExchangeAlgebra.IO.Input.Admission	failureErrors
+bookkeeping/admission.md	program	ExchangeAlgebra.Journal	.|
+bookkeeping/admission.md	program	ExchangeAlgebra.Journal	Journal
+bookkeeping/admission.md	program	ExchangeAlgebra.Journal	Note
+bookkeeping/admission.md	program	ExchangeAlgebra.Journal	map
+bookkeeping/admission.md	program	ExchangeAlgebra.Journal	plank
+bookkeeping/admission.md	program	ExchangeAlgebra.Journal	toAlg
+bookkeeping/admission.md	reference	ExchangeAlgebra.Algebra.Core	mapPosting
+bookkeeping/admission.md	reference	ExchangeAlgebra.IO.Input.Admission	admit
+bookkeeping/admission.md	reference	ExchangeAlgebra.IO.Input.Admission	admittedJournal
+bookkeeping/admission.md	reference	ExchangeAlgebra.IO.Input.Admission	failureErrors
+bookkeeping/closing.md	program	ExchangeAlgebra	.#
+bookkeeping/closing.md	program	ExchangeAlgebra	.+
+bookkeeping/closing.md	program	ExchangeAlgebra	.->
+bookkeeping/closing.md	program	ExchangeAlgebra	.@
+bookkeeping/closing.md	program	ExchangeAlgebra	:<
+bookkeeping/closing.md	program	ExchangeAlgebra	AccountTitles
+bookkeeping/closing.md	program	ExchangeAlgebra	Alg
+bookkeeping/closing.md	program	ExchangeAlgebra	CapitalStock
+bookkeeping/closing.md	program	ExchangeAlgebra	Cash
+bookkeeping/closing.md	program	ExchangeAlgebra	Deposits
+bookkeeping/closing.md	program	ExchangeAlgebra	Element
+bookkeeping/closing.md	program	ExchangeAlgebra	ExBaseClass
+bookkeeping/closing.md	program	ExchangeAlgebra	Exchange
+bookkeeping/closing.md	program	ExchangeAlgebra	Generic
+bookkeeping/closing.md	program	ExchangeAlgebra	Hashable
+bookkeeping/closing.md	program	ExchangeAlgebra	Hat
+bookkeeping/closing.md	program	ExchangeAlgebra	HatBase
+bookkeeping/closing.md	program	ExchangeAlgebra	MerchandiseInventory
+bookkeeping/closing.md	program	ExchangeAlgebra	MoneyDecimal
+bookkeeping/closing.md	program	ExchangeAlgebra	Not
+bookkeeping/closing.md	program	ExchangeAlgebra	Portion
+bookkeeping/closing.md	program	ExchangeAlgebra	PrepaidExpenses
+bookkeeping/closing.md	program	ExchangeAlgebra	Purchases
+bookkeeping/closing.md	program	ExchangeAlgebra	Redundant
+bookkeeping/closing.md	program	ExchangeAlgebra	RentExpense
+bookkeeping/closing.md	program	ExchangeAlgebra	RetainedEarnings
+bookkeeping/closing.md	program	ExchangeAlgebra	Sales
+bookkeeping/closing.md	program	ExchangeAlgebra	TransferShare
+bookkeeping/closing.md	program	ExchangeAlgebra	balance
+bookkeeping/closing.md	program	ExchangeAlgebra	decL
+bookkeeping/closing.md	program	ExchangeAlgebra	decR
+bookkeeping/closing.md	program	ExchangeAlgebra	getAccountTitle
+bookkeeping/closing.md	program	ExchangeAlgebra	mkTransferTable
+bookkeeping/closing.md	program	ExchangeAlgebra	norm
+bookkeeping/closing.md	program	ExchangeAlgebra	projByAccountTitle
+bookkeeping/closing.md	program	ExchangeAlgebra	setAccountTitle
+bookkeeping/closing.md	program	ExchangeAlgebra	transferEntries
+bookkeeping/closing.md	program	ExchangeAlgebra	wildcard
+bookkeeping/closing.md	program	ExchangeAlgebra	|%
+bookkeeping/closing.md	program	ExchangeAlgebra.Accounting.Closing	closingEntries
+bookkeeping/closing.md	program	ExchangeAlgebra.Accounting.Entries	MkBase
+bookkeeping/closing.md	program	ExchangeAlgebra.Accounting.Entries	cogsAdjustmentEntries
+bookkeeping/closing.md	program	ExchangeAlgebra.Accounting.TrialBalance	AfterClosing
+bookkeeping/closing.md	program	ExchangeAlgebra.Accounting.TrialBalance	TrialBalanceInput
+bookkeeping/closing.md	program	ExchangeAlgebra.Accounting.TrialBalance	TrialBalanceStage
+bookkeeping/closing.md	program	ExchangeAlgebra.Accounting.TrialBalance	accountBalances
+bookkeeping/closing.md	program	ExchangeAlgebra.Accounting.TrialBalance	addPair
+bookkeeping/closing.md	program	ExchangeAlgebra.Accounting.TrialBalance	balanceFor
+bookkeeping/closing.md	program	ExchangeAlgebra.Accounting.TrialBalance	balancePair
+bookkeeping/closing.md	program	ExchangeAlgebra.Accounting.TrialBalance	trialBalanceFindings
+bookkeeping/closing.md	program	ExchangeAlgebra.Algebra.Core	foldEntries
+bookkeeping/closing.md	program	ExchangeAlgebra.Algebra.Core	mapPosting
+bookkeeping/closing.md	program	ExchangeAlgebra.IO.Input.Admission	Admitted
+bookkeeping/closing.md	program	ExchangeAlgebra.IO.Input.Admission	admit
+bookkeeping/closing.md	program	ExchangeAlgebra.IO.Input.Admission	admittedJournal
+bookkeeping/closing.md	program	ExchangeAlgebra.IO.Input.Admission	failureErrors
+bookkeeping/closing.md	program	ExchangeAlgebra.Journal	.|
+bookkeeping/closing.md	program	ExchangeAlgebra.Journal	Journal
+bookkeeping/closing.md	program	ExchangeAlgebra.Journal	Note
+bookkeeping/closing.md	program	ExchangeAlgebra.Journal	map
+bookkeeping/closing.md	program	ExchangeAlgebra.Journal	plank
+bookkeeping/closing.md	program	ExchangeAlgebra.Journal	toAlg
+bookkeeping/closing.md	reference		.+
+bookkeeping/closing.md	reference		.|
+bookkeeping/closing.md	reference	ExchangeAlgebra.Accounting.Closing	closingEntries
+bookkeeping/closing.md	reference	ExchangeAlgebra.Accounting.TrialBalance	AfterClosing
+bookkeeping/consolidation.md	program	ExchangeAlgebra	.#
+bookkeeping/consolidation.md	program	ExchangeAlgebra	.+
+bookkeeping/consolidation.md	program	ExchangeAlgebra	.->
+bookkeeping/consolidation.md	program	ExchangeAlgebra	.@
+bookkeeping/consolidation.md	program	ExchangeAlgebra	:<
+bookkeeping/consolidation.md	program	ExchangeAlgebra	AccountTitles
+bookkeeping/consolidation.md	program	ExchangeAlgebra	Alg
+bookkeeping/consolidation.md	program	ExchangeAlgebra	CapitalStock
+bookkeeping/consolidation.md	program	ExchangeAlgebra	Cash
+bookkeeping/consolidation.md	program	ExchangeAlgebra	Deposits
+bookkeeping/consolidation.md	program	ExchangeAlgebra	Element
+bookkeeping/consolidation.md	program	ExchangeAlgebra	ExBaseClass
+bookkeeping/consolidation.md	program	ExchangeAlgebra	Exchange
+bookkeeping/consolidation.md	program	ExchangeAlgebra	Generic
+bookkeeping/consolidation.md	program	ExchangeAlgebra	Hashable
+bookkeeping/consolidation.md	program	ExchangeAlgebra	Hat
+bookkeeping/consolidation.md	program	ExchangeAlgebra	HatBase
+bookkeeping/consolidation.md	program	ExchangeAlgebra	HatVal
+bookkeeping/consolidation.md	program	ExchangeAlgebra	InvestmentInAssociate
+bookkeeping/consolidation.md	program	ExchangeAlgebra	MoneyDecimal
+bookkeeping/consolidation.md	program	ExchangeAlgebra	Not
+bookkeeping/consolidation.md	program	ExchangeAlgebra	Portion
+bookkeeping/consolidation.md	program	ExchangeAlgebra	PrepaidExpenses
+bookkeeping/consolidation.md	program	ExchangeAlgebra	Purchases
+bookkeeping/consolidation.md	program	ExchangeAlgebra	Redundant
+bookkeeping/consolidation.md	program	ExchangeAlgebra	RentExpense
+bookkeeping/consolidation.md	program	ExchangeAlgebra	RetainedEarnings
+bookkeeping/consolidation.md	program	ExchangeAlgebra	Sales
+bookkeeping/consolidation.md	program	ExchangeAlgebra	TransferShare
+bookkeeping/consolidation.md	program	ExchangeAlgebra	bar
+bookkeeping/consolidation.md	program	ExchangeAlgebra	decL
+bookkeeping/consolidation.md	program	ExchangeAlgebra	decR
+bookkeeping/consolidation.md	program	ExchangeAlgebra	getAccountTitle
+bookkeeping/consolidation.md	program	ExchangeAlgebra	mkTransferTable
+bookkeeping/consolidation.md	program	ExchangeAlgebra	norm
+bookkeeping/consolidation.md	program	ExchangeAlgebra	setAccountTitle
+bookkeeping/consolidation.md	program	ExchangeAlgebra	showValue
+bookkeeping/consolidation.md	program	ExchangeAlgebra	transferEntries
+bookkeeping/consolidation.md	program	ExchangeAlgebra	wildcard
+bookkeeping/consolidation.md	program	ExchangeAlgebra	|%
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Closing	closingEntries
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Consolidation	TrialBalanceSource
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Consolidation	WorksheetAdjustment
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Consolidation	WorksheetInput
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Consolidation	WorksheetLinkage
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Consolidation	_balanceSheetNonControllingInterests
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Consolidation	_balanceSheetRetainedEarnings
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Consolidation	_nonControllingInterestsDividends
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Consolidation	_nonControllingInterestsPeriodShare
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Consolidation	_openingNonControllingInterests
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Consolidation	_openingRetainedEarnings
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Consolidation	_profitOrLossNetIncome
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Consolidation	_profitOrLossNetIncomeAttributableToOwners
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Consolidation	_retainedEarningsDividends
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Consolidation	_statementOfChangesClosingNonControllingInterests
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Consolidation	_statementOfChangesClosingRetainedEarnings
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Consolidation	_statementOfChangesNetIncomeAttributableToOwners
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Consolidation	combinedWorksheet
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Consolidation	validateConsolidationWorksheet
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Entries	MkBase
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Entries	cogsAdjustmentEntries
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	CanonicalEnglish
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	Combined
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	CurrentAssetsSection
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	CurrentLiabilitiesSection
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	EquitySection
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	FinancialStatements
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	NoncurrentAssetsSection
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	NoncurrentLiabilitiesSection
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	PeriodBreakEven
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	PeriodResult
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	PresentationProfile
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	ReportingContext
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	ReportingScope
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	StatementLine
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	StatementSection
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	_lineAmount
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	_lineLabel
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	_lineSection
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	_lineSide
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	_presentationProfile
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	_statementLines
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	jcciSecondGradeContext
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	present
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.TrialBalance	AccountBalance
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.TrialBalance	AfterClosing
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.TrialBalance	NoBalance
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.TrialBalance	TrialBalanceStage
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.TrialBalance	accountBalances
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.TrialBalance	balanceFor
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Algebra.Core	foldEntries
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Algebra.Core	mapPosting
+bookkeeping/consolidation.md	program	ExchangeAlgebra.IO.Input.Admission	Admitted
+bookkeeping/consolidation.md	program	ExchangeAlgebra.IO.Input.Admission	admit
+bookkeeping/consolidation.md	program	ExchangeAlgebra.IO.Input.Admission	admittedJournal
+bookkeeping/consolidation.md	program	ExchangeAlgebra.IO.Input.Admission	failureErrors
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Journal	.|
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Journal	Journal
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Journal	Note
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Journal	map
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Journal	plank
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Journal	toAlg
+bookkeeping/consolidation.md	reference		TrialBalanceSource
+bookkeeping/consolidation.md	reference		WorksheetAdjustment
+bookkeeping/consolidation.md	reference		WorksheetLinkage
+bookkeeping/consolidation.md	reference		combinedWorksheet
+bookkeeping/consolidation.md	reference		validateConsolidationWorksheet
+bookkeeping/consolidation.md	reference		validatedAdjustments
+bookkeeping/consolidation.md	reference		validatedSources
+bookkeeping/statements.md	program	ExchangeAlgebra	.#
+bookkeeping/statements.md	program	ExchangeAlgebra	.+
+bookkeeping/statements.md	program	ExchangeAlgebra	.->
+bookkeeping/statements.md	program	ExchangeAlgebra	.@
+bookkeeping/statements.md	program	ExchangeAlgebra	:<
+bookkeeping/statements.md	program	ExchangeAlgebra	AccountTitles
+bookkeeping/statements.md	program	ExchangeAlgebra	Alg
+bookkeeping/statements.md	program	ExchangeAlgebra	CapitalStock
+bookkeeping/statements.md	program	ExchangeAlgebra	Cash
+bookkeeping/statements.md	program	ExchangeAlgebra	Deposits
+bookkeeping/statements.md	program	ExchangeAlgebra	Element
+bookkeeping/statements.md	program	ExchangeAlgebra	ExBaseClass
+bookkeeping/statements.md	program	ExchangeAlgebra	Generic
+bookkeeping/statements.md	program	ExchangeAlgebra	Hashable
+bookkeeping/statements.md	program	ExchangeAlgebra	Hat
+bookkeeping/statements.md	program	ExchangeAlgebra	HatBase
+bookkeeping/statements.md	program	ExchangeAlgebra	HatVal
+bookkeeping/statements.md	program	ExchangeAlgebra	MoneyDecimal
+bookkeeping/statements.md	program	ExchangeAlgebra	Not
+bookkeeping/statements.md	program	ExchangeAlgebra	Portion
+bookkeeping/statements.md	program	ExchangeAlgebra	PrepaidExpenses
+bookkeeping/statements.md	program	ExchangeAlgebra	Purchases
+bookkeeping/statements.md	program	ExchangeAlgebra	Redundant
+bookkeeping/statements.md	program	ExchangeAlgebra	RentExpense
+bookkeeping/statements.md	program	ExchangeAlgebra	Sales
+bookkeeping/statements.md	program	ExchangeAlgebra	SalesCost
+bookkeeping/statements.md	program	ExchangeAlgebra	TransferShare
+bookkeeping/statements.md	program	ExchangeAlgebra	getAccountTitle
+bookkeeping/statements.md	program	ExchangeAlgebra	mkTransferTable
+bookkeeping/statements.md	program	ExchangeAlgebra	setAccountTitle
+bookkeeping/statements.md	program	ExchangeAlgebra	showValue
+bookkeeping/statements.md	program	ExchangeAlgebra	transferEntries
+bookkeeping/statements.md	program	ExchangeAlgebra	wildcard
+bookkeeping/statements.md	program	ExchangeAlgebra	|%
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Closing	closingEntries
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Entries	MkBase
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Entries	cogsAdjustmentEntries
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	CanonicalEnglish
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	CurrentAssetsSection
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	CurrentLiabilitiesSection
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	EquitySection
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	ExpenseSection
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	FinancialStatements
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	NoncurrentAssetsSection
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	NoncurrentLiabilitiesSection
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	PresentationProfile
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	PresentationRelabel
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	ReportingContext
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	ReportingScope
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	RevenueSection
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	Standalone
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	StatementLine
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	StatementSection
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	_lineAmount
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	_lineLabel
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	_lineSection
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	_lineSide
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	_presentationProfile
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	_presentationRelabels
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	_statementLines
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	jcciSecondGradeContext
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	periodResultOf
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	present
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.TrialBalance	AfterClosing
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.TrialBalance	BeforeClosing
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.TrialBalance	TrialBalanceStage
+bookkeeping/statements.md	program	ExchangeAlgebra.Algebra.Core	foldEntries
+bookkeeping/statements.md	program	ExchangeAlgebra.Algebra.Core	mapPosting
+bookkeeping/statements.md	program	ExchangeAlgebra.IO.Input.Admission	Admitted
+bookkeeping/statements.md	program	ExchangeAlgebra.IO.Input.Admission	admit
+bookkeeping/statements.md	program	ExchangeAlgebra.IO.Input.Admission	admittedJournal
+bookkeeping/statements.md	program	ExchangeAlgebra.IO.Input.Admission	failureErrors
+bookkeeping/statements.md	program	ExchangeAlgebra.Journal	.|
+bookkeeping/statements.md	program	ExchangeAlgebra.Journal	Journal
+bookkeeping/statements.md	program	ExchangeAlgebra.Journal	Note
+bookkeeping/statements.md	program	ExchangeAlgebra.Journal	map
+bookkeeping/statements.md	program	ExchangeAlgebra.Journal	plank
+bookkeeping/statements.md	program	ExchangeAlgebra.Journal	toAlg
+bookkeeping/statements.md	reference		PresentationProfile
+bookkeeping/statements.md	reference		ReportingContext
+bookkeeping/statements.md	reference		defaultPresentationGrouping
+bookkeeping/statements.md	reference		jcciSecondGradeContext
+bookkeeping/statements.md	reference		periodResultOf
+bookkeeping/statements.md	reference		present
+bookkeeping/statements.md	reference		presentGroups
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	.+
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	.@
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	:<
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	AccountTitles
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	Alg
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	CapitalStock
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	Cash
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	Deposits
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	Element
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	ExBaseClass
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	Exchange
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	Generic
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	Hashable
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	Hat
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	HatBase
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	MerchandiseInventory
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	MoneyDecimal
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	Not
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	PrepaidExpenses
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	Purchases
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	Redundant
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	RentExpense
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	RetainedEarnings
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	Sales
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	balance
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	decL
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	decR
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	getAccountTitle
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	norm
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	projByAccountTitle
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	setAccountTitle
+bookkeeping/trial-balance.md	program	ExchangeAlgebra	wildcard
+bookkeeping/trial-balance.md	program	ExchangeAlgebra.Accounting.TrialBalance	BeforeClosing
+bookkeeping/trial-balance.md	program	ExchangeAlgebra.Accounting.TrialBalance	TrialBalanceInput
+bookkeeping/trial-balance.md	program	ExchangeAlgebra.Accounting.TrialBalance	TrialBalanceStage
+bookkeeping/trial-balance.md	program	ExchangeAlgebra.Accounting.TrialBalance	accountBalances
+bookkeeping/trial-balance.md	program	ExchangeAlgebra.Accounting.TrialBalance	addPair
+bookkeeping/trial-balance.md	program	ExchangeAlgebra.Accounting.TrialBalance	balanceFor
+bookkeeping/trial-balance.md	program	ExchangeAlgebra.Accounting.TrialBalance	balancePair
+bookkeeping/trial-balance.md	program	ExchangeAlgebra.Accounting.TrialBalance	trialBalanceFindings
+bookkeeping/trial-balance.md	program	ExchangeAlgebra.Algebra.Core	foldEntries
+bookkeeping/trial-balance.md	program	ExchangeAlgebra.Algebra.Core	mapPosting
+bookkeeping/trial-balance.md	program	ExchangeAlgebra.IO.Input.Admission	Admitted
+bookkeeping/trial-balance.md	program	ExchangeAlgebra.IO.Input.Admission	admit
+bookkeeping/trial-balance.md	program	ExchangeAlgebra.IO.Input.Admission	admittedJournal
+bookkeeping/trial-balance.md	program	ExchangeAlgebra.IO.Input.Admission	failureErrors
+bookkeeping/trial-balance.md	program	ExchangeAlgebra.Journal	.|
+bookkeeping/trial-balance.md	program	ExchangeAlgebra.Journal	Journal
+bookkeeping/trial-balance.md	program	ExchangeAlgebra.Journal	Note
+bookkeeping/trial-balance.md	program	ExchangeAlgebra.Journal	filterWithNote
+bookkeeping/trial-balance.md	program	ExchangeAlgebra.Journal	map
+bookkeeping/trial-balance.md	program	ExchangeAlgebra.Journal	plank
+bookkeeping/trial-balance.md	program	ExchangeAlgebra.Journal	toAlg
+bookkeeping/trial-balance.md	reference		balance
+bookkeeping/trial-balance.md	reference	ExchangeAlgebra.Accounting.TrialBalance	accountBalances
+bookkeeping/trial-balance.md	reference	ExchangeAlgebra.Accounting.TrialBalance	balanceFor
+bookkeeping/trial-balance.md	reference	ExchangeAlgebra.Accounting.TrialBalance	balancePair
+bookkeeping/trial-balance.md	reference	ExchangeAlgebra.Accounting.TrialBalance	trialBalanceFindings
+exchange/exchange.md	program	ExchangeAlgebra	.+
+exchange/exchange.md	program	ExchangeAlgebra	.@
+exchange/exchange.md	program	ExchangeAlgebra	:<
+exchange/exchange.md	program	ExchangeAlgebra	AccountTitles
+exchange/exchange.md	program	ExchangeAlgebra	Alg
+exchange/exchange.md	program	ExchangeAlgebra	Cash
+exchange/exchange.md	program	ExchangeAlgebra	Deposits
+exchange/exchange.md	program	ExchangeAlgebra	Element
+exchange/exchange.md	program	ExchangeAlgebra	ExBaseClass
+exchange/exchange.md	program	ExchangeAlgebra	Exchange
+exchange/exchange.md	program	ExchangeAlgebra	Generic
+exchange/exchange.md	program	ExchangeAlgebra	Hashable
+exchange/exchange.md	program	ExchangeAlgebra	Hat
+exchange/exchange.md	program	ExchangeAlgebra	HatBase
+exchange/exchange.md	program	ExchangeAlgebra	MoneyDecimal
+exchange/exchange.md	program	ExchangeAlgebra	Not
+exchange/exchange.md	program	ExchangeAlgebra	Redundant
+exchange/exchange.md	program	ExchangeAlgebra	balance
+exchange/exchange.md	program	ExchangeAlgebra	decL
+exchange/exchange.md	program	ExchangeAlgebra	decR
+exchange/exchange.md	program	ExchangeAlgebra	diffRL
+exchange/exchange.md	program	ExchangeAlgebra	fixedCurrent
+exchange/exchange.md	program	ExchangeAlgebra	getAccountTitle
+exchange/exchange.md	program	ExchangeAlgebra	norm
+exchange/exchange.md	program	ExchangeAlgebra	setAccountTitle
+exchange/exchange.md	program	ExchangeAlgebra	whatDiv
+exchange/exchange.md	program	ExchangeAlgebra	whatPIMO
+exchange/exchange.md	program	ExchangeAlgebra	whichSide
+exchange/exchange.md	program	ExchangeAlgebra	wildcard
+exchange/exchange.md	reference		ExBaseClass
+exchange/exchange.md	reference		balance
+exchange/exchange.md	reference		decL
+exchange/exchange.md	reference		decM
+exchange/exchange.md	reference		decP
+exchange/exchange.md	reference		decR
+exchange/exchange.md	reference		diffRL
+exchange/exchange.md	reference		fixedCurrent
+exchange/exchange.md	reference		isContra
+exchange/exchange.md	reference		whatDiv
+exchange/exchange.md	reference		whatPIMO
+exchange/exchange.md	reference		whichSide
+exchange/transfer.md	program	ExchangeAlgebra	.#
+exchange/transfer.md	program	ExchangeAlgebra	.+
+exchange/transfer.md	program	ExchangeAlgebra	.->
+exchange/transfer.md	program	ExchangeAlgebra	.@
+exchange/transfer.md	program	ExchangeAlgebra	:<
+exchange/transfer.md	program	ExchangeAlgebra	AccountTitles
+exchange/transfer.md	program	ExchangeAlgebra	Alg
+exchange/transfer.md	program	ExchangeAlgebra	Cash
+exchange/transfer.md	program	ExchangeAlgebra	Deposits
+exchange/transfer.md	program	ExchangeAlgebra	Element
+exchange/transfer.md	program	ExchangeAlgebra	ExBaseClass
+exchange/transfer.md	program	ExchangeAlgebra	Exchange
+exchange/transfer.md	program	ExchangeAlgebra	Generic
+exchange/transfer.md	program	ExchangeAlgebra	Hashable
+exchange/transfer.md	program	ExchangeAlgebra	Hat
+exchange/transfer.md	program	ExchangeAlgebra	HatBase
+exchange/transfer.md	program	ExchangeAlgebra	MoneyDecimal
+exchange/transfer.md	program	ExchangeAlgebra	Not
+exchange/transfer.md	program	ExchangeAlgebra	Portion
+exchange/transfer.md	program	ExchangeAlgebra	PrepaidExpenses
+exchange/transfer.md	program	ExchangeAlgebra	Redundant
+exchange/transfer.md	program	ExchangeAlgebra	RentExpense
+exchange/transfer.md	program	ExchangeAlgebra	TransferShare
+exchange/transfer.md	program	ExchangeAlgebra	TransferTable
+exchange/transfer.md	program	ExchangeAlgebra	TransferTableError
+exchange/transfer.md	program	ExchangeAlgebra	balance
+exchange/transfer.md	program	ExchangeAlgebra	bar
+exchange/transfer.md	program	ExchangeAlgebra	getAccountTitle
+exchange/transfer.md	program	ExchangeAlgebra	mkTransferTable
+exchange/transfer.md	program	ExchangeAlgebra	setAccountTitle
+exchange/transfer.md	program	ExchangeAlgebra	transferEntries
+exchange/transfer.md	program	ExchangeAlgebra	wildcard
+exchange/transfer.md	program	ExchangeAlgebra	|%
+exchange/transfer.md	reference		.->
+exchange/transfer.md	reference		Portion
+exchange/transfer.md	reference		Relabel
+exchange/transfer.md	reference		mkTransferTable
+exchange/transfer.md	reference		transferEntries
+exchange/transfer.md	reference		transferEntriesWith
+exchange/transfer.md	reference		|%
+io/input.md	program	ExchangeAlgebra	AccountTitles
+io/input.md	program	ExchangeAlgebra	Alg
+io/input.md	program	ExchangeAlgebra	Cash
+io/input.md	program	ExchangeAlgebra	Credit
+io/input.md	program	ExchangeAlgebra	Debit
+io/input.md	program	ExchangeAlgebra	HatBase
+io/input.md	program	ExchangeAlgebra	MoneyDecimal
+io/input.md	program	ExchangeAlgebra	Sales
+io/input.md	program	ExchangeAlgebra	Side
+io/input.md	program	ExchangeAlgebra	decL
+io/input.md	program	ExchangeAlgebra	decR
+io/input.md	program	ExchangeAlgebra	norm
+io/input.md	program	ExchangeAlgebra.IO.Input	ConvError
+io/input.md	program	ExchangeAlgebra.IO.Input	certifyJournalText
+io/input.md	program	ExchangeAlgebra.IO.Input	checkedJournal
+io/input.md	program	ExchangeAlgebra.IO.Input	normalizeTitle
+io/input.md	program	ExchangeAlgebra.IO.Input	parseAccountTitle
+io/input.md	program	ExchangeAlgebra.IO.Input	reconcileSources
+io/input.md	program	ExchangeAlgebra.IO.Input.Admission	admit
+io/input.md	program	ExchangeAlgebra.IO.Input.Admission	admittedJournal
+io/input.md	program	ExchangeAlgebra.IO.Input.Csv	parseJournalCsv
+io/input.md	program	ExchangeAlgebra.IO.Input.Csv	parseNotedJournalCsv
+io/input.md	program	ExchangeAlgebra.IO.Input.Csv	scientificAmount
+io/input.md	program	ExchangeAlgebra.Journal	toAlg
+io/input.md	reference		admit
+io/input.md	reference		certifyJournalText
+io/input.md	reference		checkedJournal
+io/input.md	reference		normalizeTitle
+io/input.md	reference		parseAccountTitle
+io/input.md	reference		parseJournalCsv
+io/input.md	reference		parseNotedJournalCsv
+io/input.md	reference		reconcileSources
+io/output.md	program	ExchangeAlgebra	.#
+io/output.md	program	ExchangeAlgebra	.+
+io/output.md	program	ExchangeAlgebra	.->
+io/output.md	program	ExchangeAlgebra	.@
+io/output.md	program	ExchangeAlgebra	:<
+io/output.md	program	ExchangeAlgebra	AccountTitles
+io/output.md	program	ExchangeAlgebra	Alg
+io/output.md	program	ExchangeAlgebra	CapitalStock
+io/output.md	program	ExchangeAlgebra	Cash
+io/output.md	program	ExchangeAlgebra	Deposits
+io/output.md	program	ExchangeAlgebra	Element
+io/output.md	program	ExchangeAlgebra	ExBaseClass
+io/output.md	program	ExchangeAlgebra	Generic
+io/output.md	program	ExchangeAlgebra	Hashable
+io/output.md	program	ExchangeAlgebra	Hat
+io/output.md	program	ExchangeAlgebra	HatBase
+io/output.md	program	ExchangeAlgebra	MoneyDecimal
+io/output.md	program	ExchangeAlgebra	Not
+io/output.md	program	ExchangeAlgebra	Portion
+io/output.md	program	ExchangeAlgebra	PrepaidExpenses
+io/output.md	program	ExchangeAlgebra	Purchases
+io/output.md	program	ExchangeAlgebra	Redundant
+io/output.md	program	ExchangeAlgebra	RentExpense
+io/output.md	program	ExchangeAlgebra	Sales
+io/output.md	program	ExchangeAlgebra	SalesCost
+io/output.md	program	ExchangeAlgebra	TransferShare
+io/output.md	program	ExchangeAlgebra	getAccountTitle
+io/output.md	program	ExchangeAlgebra	mkTransferTable
+io/output.md	program	ExchangeAlgebra	setAccountTitle
+io/output.md	program	ExchangeAlgebra	transferEntries
+io/output.md	program	ExchangeAlgebra	wildcard
+io/output.md	program	ExchangeAlgebra	|%
+io/output.md	program	ExchangeAlgebra.Accounting.Closing	closingEntries
+io/output.md	program	ExchangeAlgebra.Accounting.Entries	MkBase
+io/output.md	program	ExchangeAlgebra.Accounting.Entries	cogsAdjustmentEntries
+io/output.md	program	ExchangeAlgebra.Accounting.Statements	CanonicalEnglish
+io/output.md	program	ExchangeAlgebra.Accounting.Statements	CurrentAssetsSection
+io/output.md	program	ExchangeAlgebra.Accounting.Statements	CurrentLiabilitiesSection
+io/output.md	program	ExchangeAlgebra.Accounting.Statements	EquitySection
+io/output.md	program	ExchangeAlgebra.Accounting.Statements	ExpenseSection
+io/output.md	program	ExchangeAlgebra.Accounting.Statements	NoncurrentAssetsSection
+io/output.md	program	ExchangeAlgebra.Accounting.Statements	NoncurrentLiabilitiesSection
+io/output.md	program	ExchangeAlgebra.Accounting.Statements	PresentationProfile
+io/output.md	program	ExchangeAlgebra.Accounting.Statements	PresentationRelabel
+io/output.md	program	ExchangeAlgebra.Accounting.Statements	ReportingContext
+io/output.md	program	ExchangeAlgebra.Accounting.Statements	ReportingScope
+io/output.md	program	ExchangeAlgebra.Accounting.Statements	RevenueSection
+io/output.md	program	ExchangeAlgebra.Accounting.Statements	Standalone
+io/output.md	program	ExchangeAlgebra.Accounting.Statements	StatementSection
+io/output.md	program	ExchangeAlgebra.Accounting.Statements	_presentationProfile
+io/output.md	program	ExchangeAlgebra.Accounting.Statements	_presentationRelabels
+io/output.md	program	ExchangeAlgebra.Accounting.Statements	jcciSecondGradeContext
+io/output.md	program	ExchangeAlgebra.Accounting.Statements	present
+io/output.md	program	ExchangeAlgebra.Accounting.TrialBalance	AfterClosing
+io/output.md	program	ExchangeAlgebra.Accounting.TrialBalance	BeforeClosing
+io/output.md	program	ExchangeAlgebra.Accounting.TrialBalance	TrialBalanceStage
+io/output.md	program	ExchangeAlgebra.Algebra.Core	foldEntries
+io/output.md	program	ExchangeAlgebra.Algebra.Core	mapPosting
+io/output.md	program	ExchangeAlgebra.IO.Input.Admission	Admitted
+io/output.md	program	ExchangeAlgebra.IO.Input.Admission	admit
+io/output.md	program	ExchangeAlgebra.IO.Input.Admission	admittedJournal
+io/output.md	program	ExchangeAlgebra.IO.Input.Admission	failureErrors
+io/output.md	program	ExchangeAlgebra.IO.Output.Statements	accountLedgerRows
+io/output.md	program	ExchangeAlgebra.IO.Output.Statements	compoundTrialBalanceRows
+io/output.md	program	ExchangeAlgebra.IO.Output.Statements	financialStatementRows
+io/output.md	program	ExchangeAlgebra.IO.Output.Statements	journalRows
+io/output.md	program	ExchangeAlgebra.IO.Output.Statements	postClosingTrialBalanceRows
+io/output.md	program	ExchangeAlgebra.IO.Output.Statements	worksheetRows
+io/output.md	program	ExchangeAlgebra.Journal	.|
+io/output.md	program	ExchangeAlgebra.Journal	Journal
+io/output.md	program	ExchangeAlgebra.Journal	Note
+io/output.md	program	ExchangeAlgebra.Journal	filterWithNote
+io/output.md	program	ExchangeAlgebra.Journal	map
+io/output.md	program	ExchangeAlgebra.Journal	plank
+io/output.md	program	ExchangeAlgebra.Journal	toAlg
+io/output.md	reference		accountLedgerRows
+io/output.md	reference		compoundTrialBalanceRows
+io/output.md	reference		financialStatementRows
+io/output.md	reference		journalRows
+io/output.md	reference		postClosingTrialBalanceRows
+io/output.md	reference		worksheetRows
+io/output.md	reference		writeAccountOf
+io/output.md	reference		writeCompoundTrialBalance
+io/output.md	reference		writeFinancialStatements
+io/output.md	reference		writeJournal
+io/output.md	reference		writePostClosingTrialBalance
+io/output.md	reference		writeWorksheet
+io/output.md	reference	ExchangeAlgebra.IO.Output.Csv	writeCSV
+journal/agents.md	program	ExchangeAlgebra	.#
+journal/agents.md	program	ExchangeAlgebra	.+
+journal/agents.md	program	ExchangeAlgebra	.@
+journal/agents.md	program	ExchangeAlgebra	:<
+journal/agents.md	program	ExchangeAlgebra	AccountTitles
+journal/agents.md	program	ExchangeAlgebra	Alg
+journal/agents.md	program	ExchangeAlgebra	Cash
+journal/agents.md	program	ExchangeAlgebra	DepositPayable
+journal/agents.md	program	ExchangeAlgebra	Deposits
+journal/agents.md	program	ExchangeAlgebra	Element
+journal/agents.md	program	ExchangeAlgebra	ExBaseClass
+journal/agents.md	program	ExchangeAlgebra	Exchange
+journal/agents.md	program	ExchangeAlgebra	Generic
+journal/agents.md	program	ExchangeAlgebra	Hashable
+journal/agents.md	program	ExchangeAlgebra	Hat
+journal/agents.md	program	ExchangeAlgebra	HatBase
+journal/agents.md	program	ExchangeAlgebra	HatNot
+journal/agents.md	program	ExchangeAlgebra	MoneyDecimal
+journal/agents.md	program	ExchangeAlgebra	Not
+journal/agents.md	program	ExchangeAlgebra	Redundant
+journal/agents.md	program	ExchangeAlgebra	balance
+journal/agents.md	program	ExchangeAlgebra	bar
+journal/agents.md	program	ExchangeAlgebra	getAccountTitle
+journal/agents.md	program	ExchangeAlgebra	proj
+journal/agents.md	program	ExchangeAlgebra	setAccountTitle
+journal/agents.md	program	ExchangeAlgebra	whichSide
+journal/agents.md	program	ExchangeAlgebra	wildcard
+journal/agents.md	reference		.#
+journal/agents.md	reference		:<
+journal/agents.md	reference		AccountTitles
+journal/agents.md	reference		Cash
+journal/agents.md	reference		Element
+journal/agents.md	reference		ExBaseClass
+journal/agents.md	reference		HatBase
+journal/agents.md	reference		HatNot
+journal/agents.md	reference		balance
+journal/agents.md	reference		bar
+journal/agents.md	reference		proj
+journal/journal.md	program	ExchangeAlgebra	.#
+journal/journal.md	program	ExchangeAlgebra	.+
+journal/journal.md	program	ExchangeAlgebra	.@
+journal/journal.md	program	ExchangeAlgebra	:<
+journal/journal.md	program	ExchangeAlgebra	AccountTitles
+journal/journal.md	program	ExchangeAlgebra	Alg
+journal/journal.md	program	ExchangeAlgebra	Cash
+journal/journal.md	program	ExchangeAlgebra	Deposits
+journal/journal.md	program	ExchangeAlgebra	Element
+journal/journal.md	program	ExchangeAlgebra	ExBaseClass
+journal/journal.md	program	ExchangeAlgebra	Generic
+journal/journal.md	program	ExchangeAlgebra	Hashable
+journal/journal.md	program	ExchangeAlgebra	Hat
+journal/journal.md	program	ExchangeAlgebra	HatBase
+journal/journal.md	program	ExchangeAlgebra	HatNot
+journal/journal.md	program	ExchangeAlgebra	MoneyDecimal
+journal/journal.md	program	ExchangeAlgebra	Not
+journal/journal.md	program	ExchangeAlgebra	Purchases
+journal/journal.md	program	ExchangeAlgebra	Redundant
+journal/journal.md	program	ExchangeAlgebra	bar
+journal/journal.md	program	ExchangeAlgebra	getAccountTitle
+journal/journal.md	program	ExchangeAlgebra	norm
+journal/journal.md	program	ExchangeAlgebra	proj
+journal/journal.md	program	ExchangeAlgebra	setAccountTitle
+journal/journal.md	program	ExchangeAlgebra	wildcard
+journal/journal.md	program	ExchangeAlgebra.Journal	.|
+journal/journal.md	program	ExchangeAlgebra.Journal	Journal
+journal/journal.md	program	ExchangeAlgebra.Journal	Note
+journal/journal.md	program	ExchangeAlgebra.Journal	filterWithNote
+journal/journal.md	program	ExchangeAlgebra.Journal	gather
+journal/journal.md	program	ExchangeAlgebra.Journal	plank
+journal/journal.md	program	ExchangeAlgebra.Journal	projWithBase
+journal/journal.md	program	ExchangeAlgebra.Journal	projWithNote
+journal/journal.md	program	ExchangeAlgebra.Journal	projWithNoteBase
+journal/journal.md	program	ExchangeAlgebra.Journal	toAlg
+journal/journal.md	reference		.|
+journal/journal.md	reference		Note
+journal/journal.md	reference		bar
+journal/journal.md	reference	ExchangeAlgebra.Journal	filterWithNote
+journal/journal.md	reference	ExchangeAlgebra.Journal	fromList
+journal/journal.md	reference	ExchangeAlgebra.Journal	gather
+journal/journal.md	reference	ExchangeAlgebra.Journal	map
+journal/journal.md	reference	ExchangeAlgebra.Journal	projWithBase
+journal/journal.md	reference	ExchangeAlgebra.Journal	projWithNote
+journal/journal.md	reference	ExchangeAlgebra.Journal	projWithNoteBase
+journal/journal.md	reference	ExchangeAlgebra.Journal	sigma
+journal/journal.md	reference	ExchangeAlgebra.Journal	toAlg
+overview.md	program	ExchangeAlgebra	.+
+overview.md	program	ExchangeAlgebra	.@
+overview.md	program	ExchangeAlgebra	:<
+overview.md	program	ExchangeAlgebra	AccountTitles
+overview.md	program	ExchangeAlgebra	AccountsReceivable
+overview.md	program	ExchangeAlgebra	Alg
+overview.md	program	ExchangeAlgebra	CapitalStock
+overview.md	program	ExchangeAlgebra	Cash
+overview.md	program	ExchangeAlgebra	Exchange
+overview.md	program	ExchangeAlgebra	Hat
+overview.md	program	ExchangeAlgebra	HatBase
+overview.md	program	ExchangeAlgebra	MoneyDecimal
+overview.md	program	ExchangeAlgebra	Not
+overview.md	program	ExchangeAlgebra	Purchases
+overview.md	program	ExchangeAlgebra	Redundant
+overview.md	program	ExchangeAlgebra	Sales
+overview.md	program	ExchangeAlgebra	balance
+overview.md	program	ExchangeAlgebra	bar
+overview.md	program	ExchangeAlgebra	decL
+overview.md	program	ExchangeAlgebra	decR
+overview.md	program	ExchangeAlgebra	norm
+overview.md	program	ExchangeAlgebra	projByAccountTitle
+usage/installation.md	program	ExchangeAlgebra	.+
+usage/installation.md	program	ExchangeAlgebra	.@
+usage/installation.md	program	ExchangeAlgebra	:<
+usage/installation.md	program	ExchangeAlgebra	AccountTitles
+usage/installation.md	program	ExchangeAlgebra	Alg
+usage/installation.md	program	ExchangeAlgebra	Cash
+usage/installation.md	program	ExchangeAlgebra	CountUnit
+usage/installation.md	program	ExchangeAlgebra	Deposits
+usage/installation.md	program	ExchangeAlgebra	Hat
+usage/installation.md	program	ExchangeAlgebra	HatBase
+usage/installation.md	program	ExchangeAlgebra	MoneyDecimal
+usage/installation.md	program	ExchangeAlgebra	Not
+usage/installation.md	program	ExchangeAlgebra	Redundant
+usage/installation.md	program	ExchangeAlgebra	Yen
