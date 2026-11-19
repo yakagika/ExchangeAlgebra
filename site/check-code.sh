@@ -23,7 +23,7 @@ for source in site/code/*.hs; do
         ghc -Wall -Werror -fforce-recomp -hide-all-packages \
         -package base -package exchangealgebra \
         -outputdir "$output_dir" -o "$output_dir/program" "$source"
-    "$output_dir/program" > "$output_dir/actual"
+    (cd site/code && "$output_dir/program") > "$output_dir/actual"
     diff -u "site/code/$name.expected" "$output_dir/actual"
     echo "PASS $name (compile and output)"
     count=$((count + 1))

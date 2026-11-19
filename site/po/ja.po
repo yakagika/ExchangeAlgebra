@@ -1,7 +1,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: ExchangeAlgebra Manual\n"
-"POT-Creation-Date: 2026-11-19T18:12:21+09:00\n"
+"POT-Creation-Date: 2026-11-19T18:28:05+09:00\n"
 "PO-Revision-Date: 2026-11-19 00:00+0900\n"
 "Last-Translator: ExchangeAlgebra contributors\n"
 "Language-Team: Japanese\n"
@@ -91,6 +91,26 @@ msgstr "決算整理仕訳"
 msgid "Closing"
 msgstr "締め"
 
+#: src/SUMMARY.md:31 src/bookkeeping/statements.md:1
+msgid "Financial statements"
+msgstr "財務諸表"
+
+#: src/SUMMARY.md:32 src/bookkeeping/consolidation.md:1
+msgid "Consolidation"
+msgstr "連結"
+
+#: src/SUMMARY.md:34
+msgid "Input and output"
+msgstr "入出力"
+
+#: src/SUMMARY.md:36 src/io/input.md:1
+msgid "Reading journals from CSV"
+msgstr "CSV からの仕訳帳の読み込み"
+
+#: src/SUMMARY.md:37 src/io/output.md:1
+msgid "Writing books and statements"
+msgstr "帳簿と財務諸表の書き出し"
+
 #: src/introduction.md:1
 msgid "Introduction"
 msgstr "はじめに"
@@ -111,6 +131,20 @@ msgstr ""
 "ブラリが項 (posting) を表現し, 借方と貸方に分ける方法を定義します. モジュール"
 "の説明と API の全体については, [Hackage の Haddock リファレンス](https://"
 "hackage.haskell.org/package/exchangealgebra)を参照してください."
+
+#: src/introduction.md:5
+msgid ""
+"The examples use the Algebra, Journal, Accounting, and IO layers. The "
+"[bookkeeping procedures](bookkeeping/admission.md) take the shop’s records "
+"from admission through closing, financial statements, and consolidation. The "
+"[Reading journals from CSV](io/input.md) and [Writing books and statements]"
+"(io/output.md) examples show how those records enter and leave the library."
+msgstr ""
+"例では Algebra, Journal, Accounting, IO の 4 層を使います. [簿記の手続き]"
+"(bookkeeping/admission.md)では, 店の記録を受け入れ, 締めを経て財務諸表を作"
+"り, さらに連結します. [CSV からの仕訳帳の読み込み](io/input.md)と[帳簿と財務"
+"諸表の書き出し](io/output.md)の例では, 記録をライブラリに取り込み, 表にして出"
+"力します."
 
 #: src/overview.md:1
 msgid "From journal entries to exchange algebra"
@@ -1210,7 +1244,9 @@ msgstr ""
 #: src/exchange/transfer.md:117 src/journal/journal.md:176
 #: src/journal/agents.md:134 src/bookkeeping/admission.md:169
 #: src/bookkeeping/trial-balance.md:233 src/bookkeeping/adjustment.md:242
-#: src/bookkeeping/closing.md:258
+#: src/bookkeeping/closing.md:258 src/bookkeeping/statements.md:288
+#: src/bookkeeping/consolidation.md:318 src/io/input.md:142
+#: src/io/output.md:364
 msgid "Tested with exchangealgebra-0.6.0.1 on 2026-11-19."
 msgstr "2026-11-19 に exchangealgebra-0.6.0.1 で検証しました."
 
@@ -1336,7 +1372,8 @@ msgstr "-- | 引き出しと交換の記録に使う通貨の座標です.\n"
 #: src/exchange/transfer.md:22 src/journal/journal.md:23
 #: src/journal/agents.md:22 src/bookkeeping/admission.md:32
 #: src/bookkeeping/trial-balance.md:33 src/bookkeeping/adjustment.md:34
-#: src/bookkeeping/closing.md:35
+#: src/bookkeeping/closing.md:35 src/bookkeeping/statements.md:38
+#: src/bookkeeping/consolidation.md:41 src/io/output.md:42
 msgid "-- ^ Japanese yen.\n"
 msgstr "-- ^ 日本円です.\n"
 
@@ -1345,7 +1382,8 @@ msgstr "-- ^ 日本円です.\n"
 #: src/exchange/transfer.md:23 src/journal/journal.md:24
 #: src/journal/agents.md:23 src/bookkeeping/admission.md:33
 #: src/bookkeeping/trial-balance.md:34 src/bookkeeping/adjustment.md:35
-#: src/bookkeeping/closing.md:36
+#: src/bookkeeping/closing.md:36 src/bookkeeping/statements.md:39
+#: src/bookkeeping/consolidation.md:42 src/io/output.md:43
 msgid "-- ^ US dollars.\n"
 msgstr "-- ^ 米ドルです.\n"
 
@@ -1355,6 +1393,8 @@ msgstr "-- ^ 米ドルです.\n"
 #: src/journal/agents.md:24 src/journal/agents.md:38
 #: src/bookkeeping/admission.md:34 src/bookkeeping/trial-balance.md:35
 #: src/bookkeeping/adjustment.md:36 src/bookkeeping/closing.md:37
+#: src/bookkeeping/statements.md:40 src/bookkeeping/consolidation.md:43
+#: src/io/output.md:44
 msgid "-- ^ Inapplicable in an entry; unrestricted in a query.\n"
 msgstr "-- ^ 記録では該当なし, 問い合わせでは制限なしを表します.\n"
 
@@ -1435,7 +1475,8 @@ msgstr "-- | 結果と, その結果を得た問い合わせまたは演算を�
 #: src/exchange/transfer.md:83 src/journal/journal.md:134
 #: src/journal/agents.md:100 src/bookkeeping/admission.md:127
 #: src/bookkeeping/trial-balance.md:108 src/bookkeeping/adjustment.md:109
-#: src/bookkeeping/closing.md:110
+#: src/bookkeeping/closing.md:110 src/bookkeeping/statements.md:113
+#: src/bookkeeping/consolidation.md:116 src/io/output.md:117
 msgid "\": \""
 msgstr "\": \""
 
@@ -1485,6 +1526,8 @@ msgstr ""
 #: src/journal/journal.md:178 src/journal/agents.md:136
 #: src/bookkeeping/admission.md:171 src/bookkeeping/trial-balance.md:235
 #: src/bookkeeping/adjustment.md:244 src/bookkeeping/closing.md:260
+#: src/bookkeeping/statements.md:290 src/bookkeeping/consolidation.md:320
+#: src/io/input.md:144 src/io/output.md:366
 msgid "Reference"
 msgstr "リファレンス"
 
@@ -2814,7 +2857,9 @@ msgstr ""
 #: src/exchange/transfer.md:121 src/journal/journal.md:180
 #: src/journal/agents.md:138 src/bookkeeping/admission.md:173
 #: src/bookkeeping/trial-balance.md:237 src/bookkeeping/adjustment.md:246
-#: src/bookkeeping/closing.md:262
+#: src/bookkeeping/closing.md:262 src/bookkeeping/statements.md:292
+#: src/bookkeeping/consolidation.md:322 src/io/input.md:146
+#: src/io/output.md:368
 msgid "Inputs and result"
 msgstr "入力と結果"
 
@@ -3646,7 +3691,8 @@ msgstr "-- ^ 人が読むための摘要です.\n"
 
 #: src/journal/journal.md:51 src/bookkeeping/admission.md:49
 #: src/bookkeeping/trial-balance.md:50 src/bookkeeping/adjustment.md:51
-#: src/bookkeeping/closing.md:52
+#: src/bookkeeping/closing.md:52 src/bookkeeping/statements.md:55
+#: src/bookkeeping/consolidation.md:58 src/io/input.md:72 src/io/output.md:59
 msgid "\"\""
 msgstr "\"\""
 
@@ -3661,6 +3707,9 @@ msgstr "-- | 引き出しのメタデータです. 空の摘要は集約のた�
 #: src/bookkeeping/trial-balance.md:73 src/bookkeeping/trial-balance.md:75
 #: src/bookkeeping/adjustment.md:74 src/bookkeeping/adjustment.md:76
 #: src/bookkeeping/closing.md:75 src/bookkeeping/closing.md:77
+#: src/bookkeeping/statements.md:78 src/bookkeeping/statements.md:80
+#: src/bookkeeping/consolidation.md:81 src/bookkeeping/consolidation.md:83
+#: src/io/output.md:82 src/io/output.md:84
 msgid "\"Withdrawal from Bank A\""
 msgstr "\"Withdrawal from Bank A\""
 
@@ -3724,6 +3773,8 @@ msgstr "-- | 2 月の仕入のメタデータです. 1 月の期間選択では�
 #: src/journal/journal.md:94 src/journal/journal.md:100
 #: src/bookkeeping/admission.md:80 src/bookkeeping/trial-balance.md:77
 #: src/bookkeeping/adjustment.md:78 src/bookkeeping/closing.md:79
+#: src/bookkeeping/statements.md:82 src/bookkeeping/consolidation.md:85
+#: src/io/output.md:86
 msgid "\"Purchase of goods\""
 msgstr "\"Purchase of goods\""
 
@@ -3736,7 +3787,8 @@ msgstr ""
 
 #: src/journal/journal.md:101 src/bookkeeping/admission.md:82
 #: src/bookkeeping/trial-balance.md:79 src/bookkeeping/adjustment.md:80
-#: src/bookkeeping/closing.md:81
+#: src/bookkeeping/closing.md:81 src/bookkeeping/statements.md:84
+#: src/bookkeeping/consolidation.md:87 src/io/output.md:88
 msgid "\"Yen-dollar exchange\""
 msgstr "\"Yen-dollar exchange\""
 
@@ -3974,7 +4026,9 @@ msgstr ""
 
 #: src/journal/journal.md:180 src/bookkeeping/admission.md:173
 #: src/bookkeeping/trial-balance.md:237 src/bookkeeping/adjustment.md:246
-#: src/bookkeeping/closing.md:262
+#: src/bookkeeping/closing.md:262 src/bookkeeping/statements.md:292
+#: src/bookkeeping/consolidation.md:322 src/io/input.md:146
+#: src/io/output.md:368
 msgid "Type or operation"
 msgstr "型または演算"
 
@@ -4468,21 +4522,29 @@ msgstr "プログラムは, [仕訳帳](../journal/journal.md#declare-a-note-typ
 
 #: src/bookkeeping/admission.md:14 src/bookkeeping/trial-balance.md:14
 #: src/bookkeeping/adjustment.md:14 src/bookkeeping/closing.md:14
+#: src/bookkeeping/statements.md:14 src/bookkeeping/consolidation.md:14
+#: src/io/input.md:38 src/io/output.md:14
 msgid "Code carried over from earlier chapters"
 msgstr "前の章から引き継いだコード"
 
 #: src/bookkeeping/admission.md:29 src/bookkeeping/trial-balance.md:30
 #: src/bookkeeping/adjustment.md:31 src/bookkeeping/closing.md:32
+#: src/bookkeeping/statements.md:35 src/bookkeeping/consolidation.md:38
+#: src/io/output.md:39
 msgid "-- | Currency coordinate retained in the source journal.\n"
 msgstr "-- | 元の仕訳帳に残す通貨の座標です.\n"
 
 #: src/bookkeeping/admission.md:43 src/bookkeeping/trial-balance.md:44
 #: src/bookkeeping/adjustment.md:45 src/bookkeeping/closing.md:46
+#: src/bookkeeping/statements.md:49 src/bookkeeping/consolidation.md:52
+#: src/io/output.md:53
 msgid "-- | Date and description; the example supplies valid calendar dates.\n"
 msgstr "-- | 日付と説明です. 例では有効な暦日を与えます.\n"
 
 #: src/bookkeeping/admission.md:50 src/bookkeeping/trial-balance.md:51
 #: src/bookkeeping/adjustment.md:52 src/bookkeeping/closing.md:53
+#: src/bookkeeping/statements.md:56 src/bookkeeping/consolidation.md:59
+#: src/io/output.md:60
 msgid ""
 "-- | One entry over account and currency coordinates; the alias adds no "
 "validation.\n"
@@ -4490,6 +4552,8 @@ msgstr "-- | 勘定科目と通貨の座標を持つ仕訳です. この別名�
 
 #: src/bookkeeping/admission.md:53 src/bookkeeping/trial-balance.md:54
 #: src/bookkeeping/adjustment.md:55 src/bookkeeping/closing.md:56
+#: src/bookkeeping/statements.md:59 src/bookkeeping/consolidation.md:62
+#: src/io/output.md:63
 msgid "-- | January journal with one distinct note per transaction.\n"
 msgstr "-- | 取引ごとに異なる摘要を持つ 1 月の仕訳帳です.\n"
 
@@ -4506,33 +4570,44 @@ msgstr ""
 
 #: src/bookkeeping/admission.md:63 src/bookkeeping/trial-balance.md:60
 #: src/bookkeeping/adjustment.md:61 src/bookkeeping/closing.md:62
+#: src/bookkeeping/statements.md:65 src/bookkeeping/consolidation.md:68
+#: src/io/output.md:69
 msgid ""
 "-- | Attach a January date and description after constructing all postings.\n"
 msgstr "-- | すべての項を構築してから, 1 月の日付と説明を付けます.\n"
 
 #: src/bookkeeping/admission.md:66 src/bookkeeping/trial-balance.md:63
 #: src/bookkeeping/adjustment.md:64 src/bookkeeping/closing.md:65
+#: src/bookkeeping/statements.md:68 src/bookkeeping/consolidation.md:71
+#: src/io/output.md:72
 msgid "-- | January 1: capital paid into Bank A's ordinary deposit account.\n"
 msgstr "-- | 1 月 1 日に, 資本金を A 銀行の普通預金口座へ払い込みます.\n"
 
 #: src/bookkeeping/admission.md:69 src/bookkeeping/trial-balance.md:66
 #: src/bookkeeping/trial-balance.md:187 src/bookkeeping/adjustment.md:67
-#: src/bookkeeping/closing.md:68
+#: src/bookkeeping/closing.md:68 src/bookkeeping/statements.md:71
+#: src/bookkeeping/consolidation.md:74 src/io/output.md:75
 msgid "\"Opening capital\""
 msgstr "\"Opening capital\""
 
 #: src/bookkeeping/admission.md:72 src/bookkeeping/trial-balance.md:69
 #: src/bookkeeping/adjustment.md:70 src/bookkeeping/closing.md:71
+#: src/bookkeeping/statements.md:74 src/bookkeeping/consolidation.md:77
+#: src/io/output.md:78
 msgid "-- | Transactions through January 30, before adjusting entries.\n"
 msgstr "-- | 決算整理前の, 1 月 30 日までの取引です.\n"
 
 #: src/bookkeeping/admission.md:84 src/bookkeeping/trial-balance.md:81
 #: src/bookkeeping/adjustment.md:82 src/bookkeeping/closing.md:83
+#: src/bookkeeping/statements.md:86 src/bookkeeping/consolidation.md:89
+#: src/io/output.md:90
 msgid "\"Cash sale\""
 msgstr "\"Cash sale\""
 
 #: src/bookkeeping/admission.md:86 src/bookkeeping/trial-balance.md:83
 #: src/bookkeeping/adjustment.md:84 src/bookkeeping/closing.md:85
+#: src/bookkeeping/statements.md:88 src/bookkeeping/consolidation.md:91
+#: src/io/output.md:92
 msgid "\"January and February rent\""
 msgstr "\"January and February rent\""
 
@@ -4590,6 +4665,8 @@ msgstr "[振替](../exchange/transfer.md)の会計の振替表では, `mkTransfe
 
 #: src/bookkeeping/admission.md:101 src/bookkeeping/trial-balance.md:88
 #: src/bookkeeping/adjustment.md:89 src/bookkeeping/closing.md:90
+#: src/bookkeeping/statements.md:93 src/bookkeeping/consolidation.md:96
+#: src/io/output.md:97
 msgid ""
 "-- | Express dollars in yen at 150 yen per dollar, preserving account and "
 "side.\n"
@@ -4597,6 +4674,8 @@ msgstr "-- | 勘定科目と側を保ち, 1 ドル 150 円でドルを円換算�
 
 #: src/bookkeeping/admission.md:107 src/bookkeeping/trial-balance.md:94
 #: src/bookkeeping/adjustment.md:95 src/bookkeeping/closing.md:96
+#: src/bookkeeping/statements.md:99 src/bookkeeping/consolidation.md:102
+#: src/io/output.md:103
 msgid ""
 "-- | Reporting representation at the January 31 rate, equal to the exchange "
 "rate.\n"
@@ -4604,6 +4683,8 @@ msgstr "-- | 両替時と同じ 1 月 31 日の相場による報告用の表現
 
 #: src/bookkeeping/admission.md:111 src/bookkeeping/trial-balance.md:98
 #: src/bookkeeping/adjustment.md:99 src/bookkeeping/closing.md:100
+#: src/bookkeeping/statements.md:103 src/bookkeeping/consolidation.md:106
+#: src/io/output.md:107
 msgid ""
 "-- | Admit the converted journal without changing its notes or posting "
 "sequences.\n"
@@ -4647,6 +4728,8 @@ msgstr ""
 
 #: src/bookkeeping/admission.md:125 src/bookkeeping/trial-balance.md:106
 #: src/bookkeeping/adjustment.md:107 src/bookkeeping/closing.md:108
+#: src/bookkeeping/statements.md:111 src/bookkeeping/consolidation.md:114
+#: src/io/output.md:115
 msgid ""
 "-- | Print a labeled result, retaining the library's diagnostic "
 "constructors.\n"
@@ -4654,6 +4737,8 @@ msgstr "-- | ライブラリの診断の構築子を保ち, ラベル付きの�
 
 #: src/bookkeeping/admission.md:128 src/bookkeeping/trial-balance.md:109
 #: src/bookkeeping/adjustment.md:110 src/bookkeeping/closing.md:111
+#: src/bookkeeping/statements.md:114 src/bookkeeping/consolidation.md:117
+#: src/io/input.md:43 src/io/output.md:118
 msgid "-- | Stop the example on an unexpected checked failure.\n"
 msgstr "-- | 検査で予期しない失敗があれば例の実行を止めます.\n"
 
@@ -4820,7 +4905,8 @@ msgid ""
 msgstr "-- | 店で使う勘定を並べます. 残高 0 も含め, 出力の順序を固定します.\n"
 
 #: src/bookkeeping/trial-balance.md:132 src/bookkeeping/adjustment.md:127
-#: src/bookkeeping/closing.md:128
+#: src/bookkeeping/closing.md:128 src/bookkeeping/statements.md:118
+#: src/bookkeeping/consolidation.md:121 src/io/output.md:122
 msgid ""
 "-- | Drop the currency coordinate only after checking every posting is in "
 "yen.\n"
@@ -4831,7 +4917,8 @@ msgstr ""
 "-- この報告用の射影では通貨の軸を失います. 項は相殺しません.\n"
 
 #: src/bookkeeping/trial-balance.md:138 src/bookkeeping/adjustment.md:133
-#: src/bookkeeping/closing.md:134
+#: src/bookkeeping/closing.md:134 src/bookkeeping/statements.md:124
+#: src/bookkeeping/consolidation.md:127 src/io/output.md:128
 msgid "\"Audit requires yen on every posting\""
 msgstr "\"Audit requires yen on every posting\""
 
@@ -5036,6 +5123,8 @@ msgstr ""
 "Purchases の残高が売上原価になります."
 
 #: src/bookkeeping/adjustment.md:175 src/bookkeeping/closing.md:168
+#: src/bookkeeping/statements.md:136 src/bookkeeping/consolidation.md:139
+#: src/io/output.md:140
 msgid ""
 "-- | January 31: defer February's half of the rent, using the rent transfer "
 "table.\n"
@@ -5044,6 +5133,8 @@ msgstr ""
 "ます.\n"
 
 #: src/bookkeeping/adjustment.md:181 src/bookkeeping/closing.md:174
+#: src/bookkeeping/statements.md:142 src/bookkeeping/consolidation.md:145
+#: src/io/output.md:146
 msgid ""
 "-- | Keep the currency axis when building the periodic inventory "
 "adjustment.\n"
@@ -5051,6 +5142,8 @@ msgstr ""
 "-- | 三分法による商品の決算整理仕訳を構築する際に, 通貨の軸を保ちます.\n"
 
 #: src/bookkeeping/adjustment.md:185 src/bookkeeping/closing.md:178
+#: src/bookkeeping/statements.md:146 src/bookkeeping/consolidation.md:149
+#: src/io/output.md:150
 msgid ""
 "-- | No beginning inventory; the January 31 physical count is worth 200 yen "
 "at cost.\n"
@@ -5058,16 +5151,22 @@ msgstr ""
 "-- | 期首商品棚卸高は 0 円です. 1 月 31 日の実地棚卸高は原価で 200 円です.\n"
 
 #: src/bookkeeping/adjustment.md:189 src/bookkeeping/closing.md:182
+#: src/bookkeeping/statements.md:150 src/bookkeeping/consolidation.md:153
+#: src/io/output.md:154
 msgid ""
 "-- | Add adjustments under distinct notes and admit the resulting journal "
 "again.\n"
 msgstr "-- | 異なる摘要で決算整理仕訳を加え, できた仕訳帳を再び受け入れます.\n"
 
 #: src/bookkeeping/adjustment.md:196 src/bookkeeping/closing.md:189
+#: src/bookkeeping/statements.md:157 src/bookkeeping/consolidation.md:160
+#: src/io/output.md:161
 msgid "\"Defer February rent\""
 msgstr "\"Defer February rent\""
 
 #: src/bookkeeping/adjustment.md:197 src/bookkeeping/closing.md:190
+#: src/bookkeeping/statements.md:158 src/bookkeeping/consolidation.md:161
+#: src/io/output.md:162
 msgid "\"Ending inventory\""
 msgstr "\"Ending inventory\""
 
@@ -5199,13 +5298,15 @@ msgstr ""
 "他の座標は保ちます. 内部で元の残高を集計しますが, `bar` は呼びません. 費用と"
 "収益の各勘定から生じた振替先の項は, 別々のまま残ります."
 
-#: src/bookkeeping/closing.md:202
+#: src/bookkeeping/closing.md:202 src/bookkeeping/statements.md:164
+#: src/bookkeeping/consolidation.md:167 src/io/output.md:168
 msgid ""
 "-- | Generate additional closing entries from the adjusted ledger, then "
 "admit them.\n"
 msgstr "-- | 決算整理後の記録から追加の締切仕訳を生成し, 受け入れます.\n"
 
-#: src/bookkeeping/closing.md:207
+#: src/bookkeeping/closing.md:207 src/bookkeeping/statements.md:169
+#: src/bookkeeping/consolidation.md:172 src/io/output.md:173
 msgid "\"Close January\""
 msgstr "\"Close January\""
 
@@ -5303,3 +5404,1229 @@ msgid ""
 "Attach a closing note to the additions, then add them to the adjusted "
 "journal."
 msgstr "追加する仕訳に締めの摘要を付け, 決算整理後の仕訳帳に加えます."
+
+#: src/bookkeeping/statements.md:3
+msgid ""
+"The shop needs an income statement for January and a balance sheet at "
+"January 31. The income statement measures the revenue and expenses for the "
+"month. The balance sheet shows the assets, liabilities, and equity at the "
+"end of the month."
+msgstr ""
+"店は, 1 月の損益計算書と 1 月 31 日時点の貸借対照表を作ります. 損益計算書は, "
+"1 か月の収益と費用を示します. 貸借対照表は, 月末時点の資産, 負債, 純資産を示"
+"します."
+
+#: src/bookkeeping/statements.md:5 src/bookkeeping/consolidation.md:5
+#: src/io/input.md:5 src/io/output.md:5
+msgid ""
+"Use exchangealgebra-0.6.0.1 in the project prepared in [Add the package to a "
+"Stack project](../usage/installation.md#add-the-package-to-a-stack-project). "
+"Save the Haskell blocks in their displayed order as `Main.hs`."
+msgstr ""
+"[Stack プロジェクトにパッケージを追加する](../usage/installation.md#add-the-"
+"package-to-a-stack-project)で用意したプロジェクトで exchangealgebra-0.6.0.1 "
+"を使います. Haskell のコードブロックを表示順に `Main.hs` に保存してください."
+
+#: src/bookkeeping/statements.md:7
+msgid "Select the January balances"
+msgstr "1 月の残高の選択"
+
+#: src/bookkeeping/statements.md:9
+msgid ""
+"Start with the records from [Closing](closing.md). Keep the journal after "
+"the rent and inventory adjustments for the income statement. Keep the "
+"journal with the closing entries for the balance sheet. Both reports use "
+"`HatBase AccountTitles`. The conversion to that base checks that every "
+"posting is in yen before removing the currency coordinate."
+msgstr ""
+"[締め](closing.md)の記録を使います. 損益計算書には, 家賃と商品を整理した後の"
+"仕訳帳を使います. 貸借対照表には, 締切仕訳を加えた仕訳帳を使います. どちらの"
+"表も基底は `HatBase AccountTitles` です. この基底へ移す前に, すべての項が円建"
+"てであることを確認し, 通貨の座標を外します."
+
+#: src/bookkeeping/statements.md:176
+msgid "Build the income statement"
+msgstr "損益計算書の作成"
+
+#: src/bookkeeping/statements.md:178
+msgid ""
+"Pass the adjusted ledger to `Statements.present` with `BeforeClosing`. "
+"`jcciSecondGradeContext Standalone` starts with the Japanese GAAP "
+"presentation context for one entity. Choose `CanonicalEnglish` for English "
+"display labels. The presentation classifies the lines into sections such as "
+"revenue and expenses."
+msgstr ""
+"決算整理後の記録を `BeforeClosing` とともに `Statements.present` に渡してくだ"
+"さい. `jcciSecondGradeContext Standalone` は, 日本の会計基準で個別財務諸表を"
+"表示するための設定を返します. 表示名を英語にするには `CanonicalEnglish` を選"
+"びます. 表示では, 明細を収益や費用などの区分に分けます."
+
+#: src/bookkeeping/statements.md:180
+msgid ""
+"After the periodic inventory adjustment, the 300-yen balance of `Purchases` "
+"represents the cost of goods sold. Use `PresentationRelabel` to display that "
+"balance under `SalesCost`. The relabeling applies to the statement. The "
+"adjusted journal still carries the balance under `Purchases`."
+msgstr ""
+"三分法で商品を決算整理すると, `Purchases` の残高 300 円は売上原価になります. "
+"`PresentationRelabel` でこの残高を `SalesCost` として表示してください. 科目の"
+"付け替えは財務諸表の表示に適用されます. 決算整理後の仕訳帳では, 引き続き "
+"`Purchases` に残高があります."
+
+#: src/bookkeeping/statements.md:182
+msgid ""
+"`periodResultOf` computes the difference between revenue and expenses as a "
+"reporting projection. `PeriodResult` distinguishes profit, loss, and break-"
+"even, with a nonnegative magnitude for profit or loss. `present` also "
+"produces a period-result subtotal from the before-closing ledger. Both "
+"operations accumulate balances internally and leave the postings intact."
+msgstr ""
+"`periodResultOf` は, 表示のための射影として収益と費用の差額を計算します. "
+"`PeriodResult` は利益, 損失, 損益ゼロを区別し, 利益と損失には非負の金額を持ち"
+"ます. `present` も締め前の記録から当期損益の小計を作ります. どちらの演算も内"
+"部で残高を集計し, 元の項を保ちます."
+
+#: src/bookkeeping/statements.md:185 src/io/output.md:179
+msgid "-- | Choose English labels for the shop's standalone statements.\n"
+msgstr "-- | 店の個別財務諸表には英語の表示名を使います.\n"
+
+#: src/bookkeeping/statements.md:189 src/io/output.md:183
+msgid ""
+"-- | Present the adjusted Purchases balance under the cost-of-sales title.\n"
+msgstr "-- | 決算整理後の Purchases の残高を売上原価として表示します.\n"
+
+#: src/bookkeeping/statements.md:194 src/io/output.md:188
+msgid "\"Periodic inventory adjustment\""
+msgstr "\"Periodic inventory adjustment\""
+
+#: src/bookkeeping/statements.md:196
+msgid ""
+"-- | Use the adjusted ledger to retain January's revenue and expense "
+"balances.\n"
+msgstr ""
+"-- | 決算整理を終え, 締める前の記録を使います. 1 月の収益と費用に残高があ"
+"ります.\n"
+
+#: src/bookkeeping/statements.md:209
+msgid "\"Period result\""
+msgstr "\"Period result\""
+
+#: src/bookkeeping/statements.md:212
+msgid "Build the balance sheet"
+msgstr "貸借対照表の作成"
+
+#: src/bookkeeping/statements.md:214
+msgid ""
+"Present the closed ledger with `AfterClosing`. The January result is already "
+"in `RetainedEarnings`. The balance sheet uses the asset, liability, and "
+"equity sections. The totals in the program sum the displayed magnitudes for "
+"the shop, whose balances are on their normal sides and have no deduction "
+"lines."
+msgstr ""
+"締め後の記録を `AfterClosing` で表示してください. 1 月の当期損益はすでに "
+"`RetainedEarnings` に振り替えられています. 貸借対照表には資産, 負債, 純資産の"
+"区分を使います. この店では各残高が通常の側にあり, 控除項目がないため, プログ"
+"ラムは表示額を足して合計を求めます."
+
+#: src/bookkeeping/statements.md:217 src/bookkeeping/consolidation.md:178
+msgid "-- | Print the balance-sheet lines and totals for this example.\n"
+msgstr "-- | 例の貸借対照表の明細と合計を表示します.\n"
+
+#: src/bookkeeping/statements.md:233 src/bookkeeping/consolidation.md:194
+msgid "\"Total assets\""
+msgstr "\"Total assets\""
+
+#: src/bookkeeping/statements.md:235 src/bookkeeping/consolidation.md:196
+msgid "\"Total liabilities and equity\""
+msgstr "\"Total liabilities and equity\""
+
+#: src/bookkeeping/statements.md:237 src/bookkeeping/consolidation.md:198
+msgid ""
+"-- | Keep the displayed section, account label, side, and magnitude "
+"visible.\n"
+msgstr "-- | 表示区分, 科目名, 借方と貸方の別, 金額を表示します.\n"
+
+#: src/bookkeeping/statements.md:248
+msgid "Inspect both statements"
+msgstr "損益計算書と貸借対照表の確認"
+
+#: src/bookkeeping/statements.md:266
+msgid ""
+"In your project directory, run `stack exec -- ghc -Wall -Werror Main.hs -o "
+"statements-example`, then run `./statements-example`."
+msgstr ""
+"プロジェクトのディレクトリで `stack exec -- ghc -Wall -Werror Main.hs -o "
+"statements-example` を実行し, 続けて `./statements-example` を実行してくださ"
+"い."
+
+#: src/bookkeeping/statements.md:268
+msgid ""
+"```text\n"
+"Income statement for January (yen)\n"
+"RevenueSection \"Sales\" Credit 2000\n"
+"ExpenseSection \"Cost of sales\" Debit 300\n"
+"ExpenseSection \"Rent\" Debit 600\n"
+"Period result: PeriodProfit 1100\n"
+"\n"
+"Balance sheet at January 31 (yen)\n"
+"CurrentAssetsSection \"Cash\" Debit 5300\n"
+"CurrentAssetsSection \"Savings deposits\" Debit 5000\n"
+"CurrentAssetsSection \"Merchandise inventory\" Debit 200\n"
+"CurrentAssetsSection \"Prepaid expenses\" Debit 600\n"
+"Total assets: 11100\n"
+"EquitySection \"Capital stock\" Credit 10000\n"
+"EquitySection \"Retained earnings\" Credit 1100\n"
+"Total liabilities and equity: 11100\n"
+"```"
+msgstr ""
+"```text\n"
+"Income statement for January (yen)\n"
+"RevenueSection \"Sales\" Credit 2000\n"
+"ExpenseSection \"Cost of sales\" Debit 300\n"
+"ExpenseSection \"Rent\" Debit 600\n"
+"Period result: PeriodProfit 1100\n"
+"\n"
+"Balance sheet at January 31 (yen)\n"
+"CurrentAssetsSection \"Cash\" Debit 5300\n"
+"CurrentAssetsSection \"Savings deposits\" Debit 5000\n"
+"CurrentAssetsSection \"Merchandise inventory\" Debit 200\n"
+"CurrentAssetsSection \"Prepaid expenses\" Debit 600\n"
+"Total assets: 11100\n"
+"EquitySection \"Capital stock\" Credit 10000\n"
+"EquitySection \"Retained earnings\" Credit 1100\n"
+"Total liabilities and equity: 11100\n"
+"```"
+
+#: src/bookkeeping/statements.md:286
+msgid ""
+"Sales of 2,000 yen less cost of goods sold of 300 yen and rent of 600 yen "
+"leave net income of 1,100 yen. At January 31, assets total 11,100 yen. "
+"Liabilities are zero, and capital stock of 10,000 yen plus retained earnings "
+"of 1,100 yen also total 11,100 yen."
+msgstr ""
+"売上 2,000 円から売上原価 300 円と家賃 600 円を差し引くと, 当期純利益は "
+"1,100 円です. 1 月 31 日時点の資産合計は 11,100 円です. 負債はゼロで, 資本金 "
+"10,000 円と繰越利益剰余金 1,100 円の合計も 11,100 円です."
+
+#: src/bookkeeping/statements.md:294
+msgid "`present context stage ledger`"
+msgstr "`present context stage ledger`"
+
+#: src/bookkeeping/statements.md:294
+msgid ""
+"Prepare statement lines, subtotals, and presentation audit events. "
+"`BeforeClosing` includes the period result. Use `trialBalanceFindings` "
+"separately to inspect accounting findings."
+msgstr ""
+"財務諸表の明細, 小計, 表示に関する監査記録を作ります. `BeforeClosing` では当"
+"期損益を含めます. 会計上の指摘事項は, 別途 `trialBalanceFindings` で確認しま"
+"す."
+
+#: src/bookkeeping/statements.md:295
+msgid "`jcciSecondGradeContext scope` and `PresentationProfile`"
+msgstr "`jcciSecondGradeContext scope` と `PresentationProfile`"
+
+#: src/bookkeeping/statements.md:295
+msgid ""
+"Start with the JCCI grade-2 profile. Set `_presentationProfile` to "
+"`CanonicalJapanese` or `CanonicalEnglish` to use canonical labels."
+msgstr ""
+"日商簿記 2 級の表示設定を初期値にします. 標準の科目名で表示するには, "
+"`_presentationProfile` に `CanonicalJapanese` または `CanonicalEnglish` を指"
+"定します."
+
+#: src/bookkeeping/statements.md:296
+msgid "`ReportingContext`"
+msgstr "`ReportingContext`"
+
+#: src/bookkeeping/statements.md:296
+msgid ""
+"Supply reporting instructions such as `PresentationRelabel` or "
+"`PresentationAllocation`. An allocation splits an asset or liability balance "
+"between current and noncurrent sections and requires evidence."
+msgstr ""
+"表示指示として `PresentationRelabel` や `PresentationAllocation` などを指定し"
+"ます. 資産や負債の残高を流動と固定に分ける配分には, 根拠が必要です."
+
+#: src/bookkeeping/statements.md:297
+msgid "`periodResultOf stage ledger`"
+msgstr "`periodResultOf stage ledger`"
+
+#: src/bookkeeping/statements.md:297
+msgid ""
+"Derive `PeriodProfit`, `PeriodLoss`, or `PeriodBreakEven` from a before-"
+"closing ledger. `AfterClosing` returns `MetricNotAvailableAtStage`."
+msgstr ""
+"締め前の記録から `PeriodProfit`, `PeriodLoss`, `PeriodBreakEven` のいずれかを"
+"求めます. `AfterClosing` では `MetricNotAvailableAtStage` を返します."
+
+#: src/bookkeeping/statements.md:298
+msgid "`defaultPresentationGrouping` and `presentGroups`"
+msgstr "`defaultPresentationGrouping` と `presentGroups`"
+
+#: src/bookkeeping/statements.md:298
+msgid ""
+"For group-based displays, pass the default groups and gross debit and credit "
+"totals by title to `presentGroups`. To change group membership or "
+"deductions, supply your own list of `PresentationGroupDef` values. This "
+"operation is separate from the sections produced by `present`."
+msgstr ""
+"表示グループを使うときは, 既定のグループと科目ごとの借方合計と貸方合計を "
+"`presentGroups` に渡します. グループに含める科目や控除項目を変えるには, 独自"
+"の `PresentationGroupDef` の一覧を渡します. この演算は, `present` が作る表示"
+"区分とは別です."
+
+#: src/bookkeeping/consolidation.md:3
+msgid ""
+"On February 1, the shop uses 3,000 yen from its bank deposits to form a "
+"wholly owned subsidiary. Prepare an opening consolidated balance sheet at "
+"that date from the two companies’ trial balances. A consolidation worksheet "
+"keeps the two source balances and the group adjustments "
+"(`WorksheetAdjustment`) as separate inputs."
+msgstr ""
+"2 月 1 日に, 店は普通預金から 3,000 円を出資して完全子会社を設立します. 両社"
+"の試算表から, 設立時点の連結貸借対照表を作ります. 連結精算表には, 両社の試算"
+"表と連結修正仕訳 (`WorksheetAdjustment`) を別々に入力します."
+
+#: src/bookkeeping/consolidation.md:7
+msgid "Prepare the two trial balances"
+msgstr "親会社と子会社の試算表の準備"
+
+#: src/bookkeeping/consolidation.md:9
+msgid ""
+"Carry forward the shop’s January balance-sheet amounts from [Build the "
+"balance sheet](statements.md#build-the-balance-sheet). The program checks "
+"that the January ledger is in yen before dropping the currency coordinate. "
+"Both February entries use the resulting reporting base, `HatBase "
+"AccountTitles`, with amounts in yen."
+msgstr ""
+"[貸借対照表の作成](statements.md#build-the-balance-sheet)で求めた店の 1 月の"
+"残高を繰り越します. プログラムは, 1 月の記録が円建てであることを確認してから"
+"通貨の座標を外します. 2 月の両社の仕訳は, 通貨の座標を外した `HatBase "
+"AccountTitles` を基底に使い, 金額は円で記録します."
+
+#: src/bookkeeping/consolidation.md:211
+msgid ""
+"In the parent’s books, debit the investment in the subsidiary and credit "
+"deposits for 3,000 yen. In the parent’s standalone balance sheet, "
+"`InvestmentInAssociate` represents subsidiary shares carried at acquisition "
+"cost, with no equity-method adjustment. In the subsidiary’s books, debit "
+"cash and credit capital stock for 3,000 yen. Use `bar` to obtain the "
+"parent’s February 1 balances, then identify each entity’s balances with a "
+"`TrialBalanceSource`."
+msgstr ""
+"親会社は, 子会社株式を借方に, 普通預金を貸方に 3,000 円ずつ記入します. 親会社"
+"の個別貸借対照表では, 関係会社株式の科目 `InvestmentInAssociate` に子会社株式"
+"を取得原価で計上し, 持分法による調整は行いません. 子会社は, 現金を借方に, 資"
+"本金を貸方に 3,000 円ずつ記入します. `bar` で親会社の 2 月 1 日時点の残高を求"
+"め, 両社の残高に `TrialBalanceSource` で会社の識別子を付けます."
+
+#: src/bookkeeping/consolidation.md:214
+msgid ""
+"-- | Parent and subsidiary trial balances immediately after the February 1 "
+"contribution.\n"
+msgstr "-- | 2 月 1 日の出資直後の親会社と子会社の試算表です.\n"
+
+#: src/bookkeeping/consolidation.md:218 src/bookkeeping/consolidation.md:237
+msgid "\"shop\""
+msgstr "\"shop\""
+
+#: src/bookkeeping/consolidation.md:219 src/bookkeeping/consolidation.md:237
+msgid "\"subsidiary\""
+msgstr "\"subsidiary\""
+
+#: src/bookkeeping/consolidation.md:228
+msgid "Eliminate the investment and subsidiary capital"
+msgstr "投資と資本の相殺消去"
+
+#: src/bookkeeping/consolidation.md:230
+msgid ""
+"The parent’s investment and the subsidiary’s capital stock record the same "
+"contribution within the group. Eliminate them with a debit to `CapitalStock` "
+"and a credit to `InvestmentInAssociate`, each for 3,000 yen. Both postings "
+"decrease a balance, so both use `Hat`. Record the entry as a "
+"`WorksheetAdjustment` linked to both companies. The adjustment belongs to "
+"the consolidated worksheet."
+msgstr ""
+"親会社の投資と子会社の資本金は, グループ内の同じ出資を表します. "
+"`CapitalStock` を借方に, `InvestmentInAssociate` を貸方に 3,000 円ずつ記入し"
+"て相殺消去します. どちらの項も残高を減らすため, `Hat` を使います. この仕訳を"
+"両社にひも付けた `WorksheetAdjustment` として連結精算表に記録します."
+
+#: src/bookkeeping/consolidation.md:233
+msgid ""
+"-- | Debit the subsidiary's capital and credit the parent's investment.\n"
+msgstr "-- | 子会社の資本金を借方に, 親会社の子会社株式を貸方に記入します.\n"
+
+#: src/bookkeeping/consolidation.md:236
+msgid "\"investment against subsidiary capital\""
+msgstr "\"investment against subsidiary capital\""
+
+#: src/bookkeeping/consolidation.md:242
+msgid "Link the statement columns"
+msgstr "財務諸表の欄を結びつける"
+
+#: src/bookkeeping/consolidation.md:244
+msgid ""
+"Supply the period result, its attribution, and the equity roll-forwards in a "
+"`WorksheetLinkage`. February’s result is zero at incorporation. January’s "
+"1,100 yen is February’s opening retained earnings. With zero dividends and a "
+"zero February result, the closing figure used in the roll-forward and the "
+"balance-sheet figure are also 1,100 yen at the reporting date. The parent "
+"owns all the shares, so the noncontrolling-interest fields have zero amounts "
+"or `NoBalance`."
+msgstr ""
+"`WorksheetLinkage` に当期損益, その帰属額, 純資産の期首から報告時点までの増減"
+"を指定します. 設立時点の 2 月の当期損益はゼロです. 1 月の 1,100 円は, 2 月の"
+"期首繰越利益剰余金になります. 配当も 2 月の当期損益もゼロなので, 増減計算後の"
+"残高と貸借対照表の残高はいずれも報告時点で 1,100 円です. 親会社が全株式を保有"
+"するため, 非支配株主持分の各欄にはゼロまたは `NoBalance` を指定します."
+
+#: src/bookkeeping/consolidation.md:246
+msgid ""
+"`validateConsolidationWorksheet` checks the balance of each source and "
+"adjustment, the adjustment’s source IDs and permitted accounts, and the "
+"equations among the supplied linkage figures. Cross-check those figures "
+"against the statement balances separately. The example takes retained "
+"earnings from the January ledger and checks the consolidated balances after "
+"combining."
+msgstr ""
+"`validateConsolidationWorksheet` は, 各試算表と各修正仕訳の貸借一致, 修正仕訳"
+"が参照する会社の識別子と使用できる科目, 入力した金額どうしの等式を検査しま"
+"す. 入力した金額と財務諸表の残高は別途照合してください. 例では 1 月の記録から"
+"繰越利益剰余金を取り出し, 合算した後で連結残高を確認します."
+
+#: src/bookkeeping/consolidation.md:249
+msgid ""
+"-- | Link February's opening and reporting balances at the formation date.\n"
+msgstr "-- | 2 月の期首残高と設立時点の報告残高を照合します.\n"
+
+#: src/bookkeeping/consolidation.md:267
+msgid "Inspect the consolidated balance sheet"
+msgstr "連結貸借対照表の確認"
+
+#: src/bookkeeping/consolidation.md:269
+msgid ""
+"`combinedWorksheet` adds the two trial balances and the elimination with `."
+"+`, retaining postings on the same base. Apply `bar` explicitly to inspect "
+"the net totals, and present the combined ledger as a `Combined` balance "
+"sheet."
+msgstr ""
+"`combinedWorksheet` は両社の試算表と相殺消去の仕訳を `.+` で加え, 同じ基底の"
+"項を並べて保ちます. 正味残高の合計を確かめるときは `bar` を明示して適用し, 合"
+"算した記録は `Combined` で連結貸借対照表として表示します."
+
+#: src/bookkeeping/consolidation.md:298
+msgid ""
+"In your project directory, run `stack exec -- ghc -Wall -Werror Main.hs -o "
+"consolidation-example`, then run `./consolidation-example`."
+msgstr ""
+"プロジェクトのディレクトリで `stack exec -- ghc -Wall -Werror Main.hs -o "
+"consolidation-example` を実行し, 続けて `./consolidation-example` を実行して"
+"ください."
+
+#: src/bookkeeping/consolidation.md:300
+msgid ""
+"```text\n"
+"Combined net totals (debit, credit): (11100,11100)\n"
+"Investment balance: NoBalance\n"
+"Group capital stock: CreditBalance 10000\n"
+"\n"
+"Opening consolidated balance sheet at February 1 (yen)\n"
+"CurrentAssetsSection \"Cash\" Debit 8300\n"
+"CurrentAssetsSection \"Savings deposits\" Debit 2000\n"
+"CurrentAssetsSection \"Merchandise inventory\" Debit 200\n"
+"CurrentAssetsSection \"Prepaid expenses\" Debit 600\n"
+"Total assets: 11100\n"
+"EquitySection \"Capital stock\" Credit 10000\n"
+"EquitySection \"Retained earnings\" Credit 1100\n"
+"Total liabilities and equity: 11100\n"
+"```"
+msgstr ""
+"```text\n"
+"Combined net totals (debit, credit): (11100,11100)\n"
+"Investment balance: NoBalance\n"
+"Group capital stock: CreditBalance 10000\n"
+"\n"
+"Opening consolidated balance sheet at February 1 (yen)\n"
+"CurrentAssetsSection \"Cash\" Debit 8300\n"
+"CurrentAssetsSection \"Savings deposits\" Debit 2000\n"
+"CurrentAssetsSection \"Merchandise inventory\" Debit 200\n"
+"CurrentAssetsSection \"Prepaid expenses\" Debit 600\n"
+"Total assets: 11100\n"
+"EquitySection \"Capital stock\" Credit 10000\n"
+"EquitySection \"Retained earnings\" Credit 1100\n"
+"Total liabilities and equity: 11100\n"
+"```"
+
+#: src/bookkeeping/consolidation.md:316
+msgid ""
+"The investment has no remaining balance. Capital stock is 10,000 yen, the "
+"parent’s own capital. The group shows cash of 8,300 yen and deposits of "
+"2,000 yen. Together with inventory of 200 yen and prepaid expenses of 600 "
+"yen, assets total 11,100 yen. There are no liabilities, and equity totals "
+"11,100 yen."
+msgstr ""
+"子会社株式の残高はゼロになり, 資本金は親会社分の 10,000 円です. グループの現"
+"金は 8,300 円, 普通預金は 2,000 円です. 商品 200 円と前払費用 600 円を合わせ"
+"ると, 資産合計は 11,100 円になります. 負債はゼロで, 純資産合計は 11,100 円で"
+"す."
+
+#: src/bookkeeping/consolidation.md:324
+msgid "`TrialBalanceSource`"
+msgstr "`TrialBalanceSource`"
+
+#: src/bookkeeping/consolidation.md:324
+msgid ""
+"Identify one entity and supply its balanced trial balance over `HatBase "
+"AccountTitles`."
+msgstr ""
+"会社を識別し, `HatBase AccountTitles` を基底とする貸借の一致した試算表を渡し"
+"ます."
+
+#: src/bookkeeping/consolidation.md:325
+msgid "`WorksheetAdjustment`"
+msgstr "`WorksheetAdjustment`"
+
+#: src/bookkeeping/consolidation.md:325
+msgid ""
+"Supply an independently balanced adjustment with its own ID and the nonempty "
+"list of source IDs it affects."
+msgstr ""
+"調整の識別子, 貸借の一致した修正仕訳, 影響を受ける会社の識別子を 1 件以上渡し"
+"ます."
+
+#: src/bookkeeping/consolidation.md:326
+msgid "`WorksheetLinkage`"
+msgstr "`WorksheetLinkage`"
+
+#: src/bookkeeping/consolidation.md:326
+msgid ""
+"Supply the period result and its attribution, and reconcile opening "
+"balances, period movements, dividends, and closing balances for retained "
+"earnings and noncontrolling interests."
+msgstr ""
+"当期損益とその帰属額を渡します. 繰越利益剰余金と非支配株主持分について, 期首"
+"残高, 当期の増減, 配当, 期末残高を照合します."
+
+#: src/bookkeeping/consolidation.md:327
+msgid "`validateConsolidationWorksheet input`"
+msgstr "`validateConsolidationWorksheet input`"
+
+#: src/bookkeeping/consolidation.md:327
+msgid ""
+"Validate the worksheet or return a nonempty list of `WorksheetError` values "
+"identifying the rejected inputs."
+msgstr ""
+"連結精算表を検査します. 検査に通らなければ, 該当する入力を示す "
+"`WorksheetError` を 1 件以上返します."
+
+#: src/bookkeeping/consolidation.md:328
+msgid "`combinedWorksheet`, `validatedSources`, and `validatedAdjustments`"
+msgstr "`combinedWorksheet`, `validatedSources`, `validatedAdjustments`"
+
+#: src/bookkeeping/consolidation.md:328
+msgid ""
+"Project the combined ledger, or retrieve the original source and adjustment "
+"columns to trace each contribution."
+msgstr ""
+"合算した記録を射影します. 各項がどの会社や調整に由来するかをたどるときは, 元"
+"の試算表と修正仕訳の列を取り出します."
+
+#: src/io/input.md:3
+msgid ""
+"Import the shop’s January 28 cash sale and January 30 rent payment from CSV. "
+"Both transactions are in yen, so the input uses `HatBase AccountTitles` with "
+"the currency fixed for the file. The accepted journal retains a separate "
+"note for each transaction."
+msgstr ""
+"店の 1 月 28 日の現金売上と 1 月 30 日の家賃支払いを CSV から読み込みます. ど"
+"ちらの取引も円建てです. ファイル全体の通貨を円とし, 基底には `HatBase "
+"AccountTitles` を使います. 受け入れた仕訳帳では, 取引ごとに摘要を保ちます."
+
+#: src/io/input.md:7
+msgid "Write one CSV row per posting"
+msgstr "項ごとの CSV 行の記入"
+
+#: src/io/input.md:9
+msgid ""
+"Save the CSV as `january-import.csv` in the same directory as `Main.hs`. The header "
+"gives the journal side, account title, amount, and optional note. Use "
+"`debit` or `credit` for the side and an unsigned decimal amount without "
+"thousands separators. Use the same nonempty note for every posting in one "
+"transaction and a distinct note for each other transaction. The parser trims "
+"spaces around fields and skips blank lines and comment lines starting with "
+"`#` after whitespace. Commas always separate fields, so keep commas out of "
+"the notes."
+msgstr ""
+"CSV を `Main.hs` と同じディレクトリに `january-import.csv` として保存してくだ"
+"さい. 見出しには, 借方と貸方の別, 勘定科目, 金額, 任意の摘要をこの順に書きま"
+"す. 側には `debit` または `credit` を書き, 金額は桁区切りと符号を付けずに十進"
+"数で書きます. 1 件の取引に属する項には同じ空でない摘要を書き, 別の取引には別"
+"の摘要を付けます. 読み込み時には各欄の前後の空白を取り除き, 空行や先頭の空白"
+"を除くと `#` で始まるコメント行を読み飛ばします. コンマは常に欄の区切りになる"
+"ため, 摘要には含めないでください."
+
+#: src/io/input.md:19
+msgid ""
+"For each line, the CSV parser resolves the account with `parseAccountTitle`. "
+"It accepts canonical English names and registered aliases. `normalizeTitle` "
+"lowercases the text, removes punctuation, and collapses whitespace before "
+"lookup. For example, `A/R` normalizes to `ar` and resolves to "
+"`AccountsReceivable`."
+msgstr ""
+"CSV を読むときは, 各行の勘定科目を `parseAccountTitle` で特定します. 標準の英"
+"語名と登録済みの別名を使えます. 検索の前に `normalizeTitle` で文字を小文字に"
+"し, 記号を取り除き, 空白を整理します. たとえば `A/R` は `ar` になり, "
+"`AccountsReceivable` として読み込まれます."
+
+#: src/io/input.md:50
+msgid "Check and admit the transactions"
+msgstr "取引の検査と受け入れ"
+
+#: src/io/input.md:52
+msgid ""
+"`parseJournalCsv` returns one algebra value with all the parsed postings. "
+"Its debit and credit totals describe the file as a whole. To check "
+"transactions individually, use `parseNotedJournalCsv` to retain the note "
+"column. Group the rows by note and pass one group per transaction to "
+"`checkedJournal`. It checks each group’s accounts, posting amounts, and "
+"debit and credit totals before constructing the journal."
+msgstr ""
+"`parseJournalCsv` は, 読み込んだ項を 1 つの代数の値として返します. 借方合計と"
+"貸方合計はファイル全体の金額です. 取引ごとに検査するには, "
+"`parseNotedJournalCsv` で摘要を残します. 行を摘要ごとにまとめ, 取引 1 件につ"
+"き 1 組を `checkedJournal` に渡してください. 各組の勘定科目, 項の金額, 借方合"
+"計と貸方合計を検査してから仕訳帳を作ります."
+
+#: src/io/input.md:55
+msgid ""
+"-- | Group the parsed postings by transaction key, keeping the order within "
+"each entry.\n"
+msgstr ""
+"-- | 読み込んだ項を取引の摘要でまとめ, 各仕訳の中で項の順序を保ちます.\n"
+
+#: src/io/input.md:67
+msgid ""
+"-- | Require a transaction key on every CSV posting before grouping by "
+"note.\n"
+msgstr ""
+"-- | 摘要でまとめる前に, CSV のすべての項に取引の摘要があることを確認しま"
+"す.\n"
+
+#: src/io/input.md:72
+msgid "\"Missing transaction key in note\""
+msgstr "\"Missing transaction key in note\""
+
+#: src/io/input.md:76
+msgid ""
+"Compare the checked journal with the amounts from the sale and rent records "
+"using `reconcileSources`. It reports absent or unexpected transaction keys "
+"and compares the expected amount for each key with its debit total. Pass the "
+"journal to `admit` to obtain the admitted type described in [Admitting a "
+"journal](../bookkeeping/admission.md)."
+msgstr ""
+"売上と家賃の記録にある金額を, `reconcileSources` で検査後の仕訳帳と照合して"
+"ください. 取引を識別する摘要について不足や余分なものを報告し, 摘要ごとに"
+"照合に使う金額と借方合計を比べます. 仕訳帳を `admit` に渡すと, [仕訳帳の受け入れ]"
+"(../bookkeeping/admission.md)で説明した受け入れ済みの型が得られます."
+
+#: src/io/input.md:103
+msgid "Diagnose an unknown title and an unbalanced entry"
+msgstr "未知の勘定科目と貸借不一致の診断"
+
+#: src/io/input.md:105
+msgid ""
+"If the sale credit is spelled `Saels`, the CSV parser returns "
+"`UnknownAccount`. For sources already represented as text triples, "
+"`certifyJournalText` can report a balanced transaction with an unresolved "
+"name as `BalancedUnresolved`. Correct the name before admitting the journal. "
+"If the sale credit is 1,900 yen against a 2,000-yen debit, `checkedJournal` "
+"reports `Imbalanced` under the sale’s transaction key."
+msgstr ""
+"売上の貸方科目に `Saels` と書くと, CSV の読み込みは `UnknownAccount` を返しま"
+"す. 入力が側と科目名の文字列および金額の組でそろっている場合, 貸借は一致して"
+"いても科目を特定できないと, `certifyJournalText` は `BalancedUnresolved` を返"
+"します. 仕訳帳を受け入れる前に科目名を直してください. 売上の借方が 2,000 円で"
+"貸方が 1,900 円なら, `checkedJournal` は売上の摘要に対して `Imbalanced` を返"
+"します."
+
+#: src/io/input.md:108
+msgid ""
+"-- | Show the results of a misspelled title and a separate amount error.\n"
+msgstr "-- | 科目名の誤記と金額の誤りを別の例で示します.\n"
+
+#: src/io/input.md:111
+msgid "\"Normalized title: \""
+msgstr "\"Normalized title: \""
+
+#: src/io/input.md:111 src/io/input.md:112
+msgid "\"  A/R  \""
+msgstr "\"  A/R  \""
+
+#: src/io/input.md:112
+msgid "\"Account name: \""
+msgstr "\"Account name: \""
+
+#: src/io/input.md:113
+msgid "\"side,account,amount\\ndebit,Cash,2000\\ncredit,Saels,2000\\n\""
+msgstr "\"side,account,amount\\ndebit,Cash,2000\\ncredit,Saels,2000\\n\""
+
+#: src/io/input.md:114
+msgid "\"CSV title error: \""
+msgstr "\"CSV title error: \""
+
+#: src/io/input.md:118 src/io/input.md:122
+msgid "\"Jan 28 Cash sale\""
+msgstr "\"Jan 28 Cash sale\""
+
+#: src/io/input.md:118
+msgid "\"debit\""
+msgstr "\"debit\""
+
+#: src/io/input.md:118
+msgid "\"Cash\""
+msgstr "\"Cash\""
+
+#: src/io/input.md:119
+msgid "\"credit\""
+msgstr "\"credit\""
+
+#: src/io/input.md:119
+msgid "\"Saels\""
+msgstr "\"Saels\""
+
+#: src/io/input.md:120
+msgid "\"Text certification: \""
+msgstr "\"Text certification: \""
+
+#: src/io/input.md:124
+msgid "\"Entry balance error: \""
+msgstr "\"Entry balance error: \""
+
+#: src/io/input.md:127
+msgid ""
+"In your project directory, run `stack exec -- ghc -Wall -Werror Main.hs -o "
+"input-example`, then run `./input-example`."
+msgstr ""
+"プロジェクトのディレクトリで `stack exec -- ghc -Wall -Werror Main.hs -o "
+"input-example` を実行し, 続けて `./input-example` を実行してください."
+
+#: src/io/input.md:129
+msgid ""
+"```text\n"
+"Parsed posting totals (debit, credit): (3200,3200)\n"
+"Source differences: []\n"
+"Admitted journal totals (debit, credit): (3200,3200)\n"
+"Normalized title: \"ar\"\n"
+"Account name: Right AccountsReceivable\n"
+"CSV title error: Left (UnknownAccount \"Saels\")\n"
+"Text certification: BalancedUnresolved {_certResolved = [(\"Jan 28 Cash "
+"sale\",[(Debit,Cash,2000)])], _certUnresolved = [(\"Jan 28 Cash sale\","
+"[(1,\"Saels\",UnknownAccount \"Saels\")])], _certDebitTotal = 2000, "
+"_certCreditTotal = 2000}\n"
+"Entry balance error: Left (EntryErrors \"Jan 28 Cash sale\" (Imbalanced "
+"{_debitTotal = 2000, _creditTotal = 1900} :| []) :| [])\n"
+"```"
+msgstr ""
+"```text\n"
+"Parsed posting totals (debit, credit): (3200,3200)\n"
+"Source differences: []\n"
+"Admitted journal totals (debit, credit): (3200,3200)\n"
+"Normalized title: \"ar\"\n"
+"Account name: Right AccountsReceivable\n"
+"CSV title error: Left (UnknownAccount \"Saels\")\n"
+"Text certification: BalancedUnresolved {_certResolved = [(\"Jan 28 Cash "
+"sale\",[(Debit,Cash,2000)])], _certUnresolved = [(\"Jan 28 Cash sale\","
+"[(1,\"Saels\",UnknownAccount \"Saels\")])], _certDebitTotal = 2000, "
+"_certCreditTotal = 2000}\n"
+"Entry balance error: Left (EntryErrors \"Jan 28 Cash sale\" (Imbalanced "
+"{_debitTotal = 2000, _creditTotal = 1900} :| []) :| [])\n"
+"```"
+
+#: src/io/input.md:140
+msgid ""
+"The admitted debit and credit totals are both 3,200 yen, and the source "
+"comparison returns an empty list. The name and amount errors come from the "
+"separate diagnostic examples."
+msgstr ""
+"受け入れた仕訳帳では, 借方合計と貸方合計はどちらも 3,200 円です. 証憑と照合し"
+"た結果は空の一覧です. 科目名と金額のエラーは, 診断用に別に用意した例から得ら"
+"れます."
+
+#: src/io/input.md:148
+msgid "`parseJournalCsv` and `parseNotedJournalCsv`"
+msgstr "`parseJournalCsv` と `parseNotedJournalCsv`"
+
+#: src/io/input.md:148
+msgid ""
+"Parse fixed-schema CSV. The former returns one algebra value. The latter "
+"takes an amount parser such as `scientificAmount` and returns individual "
+"rows with notes."
+msgstr ""
+"固定の列構成を持つ CSV を読み込みます. 前者は 1 つの代数の値を返します. 後者"
+"は `scientificAmount` などの金額を読む関数を受け取り, 摘要付きの行を返します."
+
+#: src/io/input.md:149
+msgid "`normalizeTitle` and `parseAccountTitle`"
+msgstr "`normalizeTitle` と `parseAccountTitle`"
+
+#: src/io/input.md:149
+msgid ""
+"Normalize names for lookup and resolve them to account titles. A name with "
+"several matches returns `AmbiguousAccount` and its candidates."
+msgstr ""
+"検索用に科目名を整え, 対応する勘定科目を特定します. 複数の科目に一致すると, "
+"`AmbiguousAccount` と候補を返します."
+
+#: src/io/input.md:150
+msgid "`checkedJournal`"
+msgstr "`checkedJournal`"
+
+#: src/io/input.md:150
+msgid ""
+"Build an ordinary journal from keyed entries with resolved titles. Duplicate "
+"keys and invalid entries produce journal errors."
+msgstr ""
+"科目が確定した摘要付きの仕訳から通常の仕訳帳を作ります. 摘要が重複する場合や"
+"無効な仕訳がある場合は, 仕訳帳のエラーを返します."
+
+#: src/io/input.md:151
+msgid "`certifyJournalText`"
+msgstr "`certifyJournalText`"
+
+#: src/io/input.md:151
+msgid ""
+"Certify entries supplied as side text, account text, and amount. The result "
+"is `FullyResolved`, `BalancedUnresolved`, or `Rejected`."
+msgstr ""
+"側と科目名を文字列で受け取り, 金額と合わせて仕訳を検証します. 結果は "
+"`FullyResolved`, `BalancedUnresolved`, `Rejected` のいずれかです."
+
+#: src/io/input.md:152
+msgid "`reconcileSources` and `admit`"
+msgstr "`reconcileSources` と `admit`"
+
+#: src/io/input.md:152
+msgid ""
+"Reconcile a journal with expected transaction keys and amounts, then "
+"validate a journal at the admission boundary."
+msgstr "仕訳帳を証憑の摘要と金額に照合し, 受け入れ時に仕訳帳を検査します."
+
+#: src/io/output.md:3
+msgid ""
+"The shop’s admitted January journal contains the postings for its books. Its "
+"pre-adjustment, adjusted, and closed versions supply the figures for the "
+"trial balances, the worksheet, and the financial statements. Use the row "
+"builders in `ExchangeAlgebra.IO.Output.Statements` to obtain text cells for "
+"each report."
+msgstr ""
+"店が受け入れた 1 月の仕訳帳には, 帳簿に記載する項が入っています. 決算整理前, "
+"決算整理後, 締め後の記録から, 試算表, 精算表, 財務諸表に載せる金額を求めま"
+"す. `ExchangeAlgebra.IO.Output.Statements` の行を作る関数で, 各表を文字列の欄"
+"に展開します."
+
+#: src/io/output.md:7
+msgid "Lay out the journal and general ledger by date"
+msgstr "仕訳帳と総勘定元帳の日付順の表示"
+
+#: src/io/output.md:9
+msgid ""
+"Reuse the yen conversion, admission, adjustments, closing, and reporting "
+"context from [Financial statements](../bookkeeping/statements.md). For the "
+"dated reports, select the original January entries by the date in their "
+"notes. Check the amounts are in yen before replacing the currency coordinate "
+"with the date."
+msgstr ""
+"[財務諸表](../bookkeeping/statements.md)で使った円への換算, 受け入れ, 決算整"
+"理, 締め, 表示設定を使います. 日付付きの表を作るには, 元の 1 月の仕訳を摘要の"
+"日付で選びます. 円建てであることを確認してから, 通貨の座標を日付に置き換えて"
+"ください."
+
+#: src/io/output.md:194
+msgid ""
+"Pass the dated postings and a function that extracts the date to "
+"`journalRows` and `accountLedgerRows`. The journal places each day’s debit "
+"and credit postings in columns. The general ledger groups postings by "
+"account and orders each side by date. Request `Cash` to inspect the cash "
+"account. Both reports retain the individual postings."
+msgstr ""
+"日付付きの項と, 基底から日付を取り出す関数を `journalRows` と "
+"`accountLedgerRows` に渡してください. 仕訳帳は日ごとに借方の項と貸方の項を列"
+"に並べます. 総勘定元帳では, 科目ごとに項を分け, 借方と貸方のそれぞれを日付順"
+"に並べます. 現金勘定を見るには `Cash` を指定します. どちらの表にも個々の項が"
+"残ります."
+
+#: src/io/output.md:197
+msgid ""
+"-- | Select one date while retaining the postings from every matching note.\n"
+msgstr "-- | 1 日を選び, その日に該当する摘要のすべての項を保ちます.\n"
+
+#: src/io/output.md:202
+msgid ""
+"-- | Put the note's date on each posting in the day selected for the dated "
+"reports.\n"
+msgstr "-- | 日付付きの表に使う項に, 摘要から選んだ日付を付けます.\n"
+
+#: src/io/output.md:209
+msgid "\"Journal by day\""
+msgstr "\"Journal by day\""
+
+#: src/io/output.md:211
+msgid "\"\\nGeneral ledger (Cash)\""
+msgstr "\"\\nGeneral ledger (Cash)\""
+
+#: src/io/output.md:215
+msgid "\"2026-01-%02d\""
+msgstr "\"2026-01-%02d\""
+
+#: src/io/output.md:216
+msgid "\"Invalid date \""
+msgstr "\"Invalid date \""
+
+#: src/io/output.md:223
+msgid "Lay out the trial balances and worksheet"
+msgstr "試算表と精算表の表示"
+
+#: src/io/output.md:225
+msgid ""
+"Give `compoundTrialBalanceRows` the pre-adjustment ledger to display both "
+"turnover and net balances by account. Give `worksheetRows` the same ledger "
+"and the separate rent and inventory adjustments dated January 31. The eight-"
+"column worksheet shows debit and credit pairs for the trial balance, "
+"adjustments, profit and loss, and balance sheet."
+msgstr ""
+"`compoundTrialBalanceRows` に決算整理前の記録を渡すと, 科目ごとの借方合計と貸"
+"方合計, および残高が表示されます. `worksheetRows` には, 同じ記録と 1 月 31 日"
+"付の家賃と商品の決算整理仕訳を別々に渡します. 8 桁精算表は, 試算表, 整理記"
+"入, 損益計算書, 貸借対照表のそれぞれに借方と貸方の列を設けます."
+
+#: src/io/output.md:227
+msgid ""
+"Pass the closed ledger to `postClosingTrialBalanceRows` to display the "
+"balances carried forward. This report selects the asset, liability, and "
+"equity accounts. The trial balance and worksheet row builders compute their "
+"totals and net balances internally as reporting projections."
+msgstr ""
+"繰り越す残高を表示するには, 締め後の記録を `postClosingTrialBalanceRows` に渡"
+"してください. この表には資産, 負債, 純資産の科目を載せます. 試算表と精算表の"
+"行を作る関数は, 表示のための射影として合計と正味残高を内部で計算します."
+
+#: src/io/output.md:230
+msgid ""
+"-- | Use the January 31 adjusting entries separately from the pre-adjustment "
+"ledger.\n"
+msgstr "-- | 1 月 31 日の決算整理仕訳を, 決算整理前の記録と別に使います.\n"
+
+#: src/io/output.md:236
+msgid "\"\\nPre-adjustment compound trial balance\""
+msgstr "\"\\nPre-adjustment compound trial balance\""
+
+#: src/io/output.md:238
+msgid "\"\\nEight-column worksheet\""
+msgstr "\"\\nEight-column worksheet\""
+
+#: src/io/output.md:240
+msgid "\"\\nPost-closing trial balance\""
+msgstr "\"\\nPost-closing trial balance\""
+
+#: src/io/output.md:244
+msgid "Select financial statement rows"
+msgstr "財務諸表に載せる行の選択"
+
+#: src/io/output.md:246
+msgid ""
+"Present the adjusted ledger for the income statement and the closed ledger "
+"for the balance sheet. Pass the revenue and expense sections to "
+"`financialStatementRows` for the income statement, and the asset, liability, "
+"and equity sections for the balance sheet. The `row` column distinguishes "
+"`line` from `subtotal`. Sum account lines and use the subtotals as separate "
+"results to avoid counting the same amounts twice."
+msgstr ""
+"損益計算書には決算整理後の記録を, 貸借対照表には締め後の記録を使って表示を作"
+"ります. `financialStatementRows` に, 損益計算書なら収益と費用の区分を, 貸借対"
+"照表なら資産, 負債, 純資産の区分を渡してください. `row` 列は明細の `line` と"
+"小計の `subtotal` を区別します. 二重計上を避けるには科目の明細を合計し, 小計"
+"は別個の結果として扱います."
+
+#: src/io/output.md:249
+msgid ""
+"-- | Select the financial statement sections appropriate to each stage.\n"
+msgstr "-- | 締め前と締め後のそれぞれに対応する財務諸表の区分を選びます.\n"
+
+#: src/io/output.md:265
+msgid "\"\\nIncome statement for January\""
+msgstr "\"\\nIncome statement for January\""
+
+#: src/io/output.md:267
+msgid "\"\\nBalance sheet at January 31\""
+msgstr "\"\\nBalance sheet at January 31\""
+
+#: src/io/output.md:271
+msgid "Inspect the text rows"
+msgstr "文字列の行の確認"
+
+#: src/io/output.md:273
+msgid ""
+"The program prints each report as lists of text cells on standard output. "
+"The file writers in [Reference](#reference) serialize rows as CSV."
+msgstr ""
+"プログラムは, 各表を文字列の一覧にした行として標準出力に表示します. [リファレ"
+"ンス](#reference)にある書き出し関数は, 行を CSV に変換して保存します."
+
+#: src/io/output.md:288
+msgid ""
+"In your project directory, run `stack exec -- ghc -Wall -Werror Main.hs -o "
+"output-example`, then run `./output-example`."
+msgstr ""
+"プロジェクトのディレクトリで `stack exec -- ghc -Wall -Werror Main.hs -o "
+"output-example` を実行し, 続けて `./output-example` を実行してください."
+
+#: src/io/output.md:290
+msgid ""
+"```text\n"
+"January reports (yen)\n"
+"Journal by day\n"
+"[\"Day\",\"Debit\",\"Amount\",\"Credit\",\"Amount\"]\n"
+"[\"2026-01-01\",\"Deposits\",\"10000\",\"CapitalStock\",\"10000\"]\n"
+"[\"2026-01-10\",\"Cash\",\"3000\",\"Deposits\",\"3000\"]\n"
+"[\"2026-01-15\",\"Cash\",\"2000\",\"Deposits\",\"2000\"]\n"
+"[\"2026-01-20\",\"Purchases\",\"500\",\"Cash\",\"500\"]\n"
+"[\"2026-01-25\",\"Cash\",\"1500\",\"Cash\",\"1500\"]\n"
+"[\"2026-01-28\",\"Cash\",\"2000\",\"Sales\",\"2000\"]\n"
+"[\"2026-01-30\",\"RentExpense\",\"1200\",\"Cash\",\"1200\"]\n"
+"\n"
+"General ledger (Cash)\n"
+"[\"Cash\",\"\",\"\",\"\"]\n"
+"[\"Date\",\"Debit\",\"Date\",\"Credit\"]\n"
+"[\"2026-01-10\",\"3000\",\"2026-01-20\",\"500\"]\n"
+"[\"2026-01-15\",\"2000\",\"2026-01-25\",\"1500\"]\n"
+"[\"2026-01-25\",\"1500\",\"2026-01-30\",\"1200\"]\n"
+"[\"2026-01-28\",\"2000\",\"\",\"\"]\n"
+"\n"
+"Pre-adjustment compound trial balance\n"
+"[\"Debit Balance\",\"Debit Total\",\"Account Title\",\"Credit Total\","
+"\"Credit Balance\"]\n"
+"[\"5300\",\"8500\",\"Cash\",\"3200\",\"\"]\n"
+"[\"5000\",\"10000\",\"Deposits\",\"5000\",\"\"]\n"
+"[\"\",\"0\",\"CapitalStock\",\"10000\",\"10000\"]\n"
+"[\"1200\",\"1200\",\"RentExpense\",\"0\",\"\"]\n"
+"[\"500\",\"500\",\"Purchases\",\"0\",\"\"]\n"
+"[\"\",\"0\",\"Sales\",\"2000\",\"2000\"]\n"
+"[\"12000\",\"20200\",\"Total\",\"20200\",\"12000\"]\n"
+"\n"
+"Eight-column worksheet\n"
+"[\"Account Title\",\"Trial Balance\",\"\",\"Adjustments\",\"\",\"Profit & "
+"Loss\",\"\",\"Balance Sheet\",\"\"]\n"
+"[\"\",\"Debit\",\"Credit\",\"Debit\",\"Credit\",\"Debit\",\"Credit\","
+"\"Debit\",\"Credit\"]\n"
+"[\"Cash\",\"5300\",\"\",\"\",\"\",\"\",\"\",\"5300\",\"\"]\n"
+"[\"Deposits\",\"5000\",\"\",\"\",\"\",\"\",\"\",\"5000\",\"\"]\n"
+"[\"CapitalStock\",\"\",\"10000\",\"\",\"\",\"\",\"\",\"\",\"10000\"]\n"
+"[\"RentExpense\",\"1200\",\"\",\"\",\"600\",\"600\",\"\",\"\",\"\"]\n"
+"[\"Purchases\",\"500\",\"\",\"\",\"200\",\"300\",\"\",\"\",\"\"]\n"
+"[\"Sales\",\"\",\"2000\",\"\",\"\",\"\",\"2000\",\"\",\"\"]\n"
+"[\"MerchandiseInventory\",\"\",\"\",\"200\",\"\",\"\",\"\",\"200\",\"\"]\n"
+"[\"PrepaidExpenses\",\"\",\"\",\"600\",\"\",\"\",\"\",\"600\",\"\"]\n"
+"[\"Subtotal\",\"12000\",\"12000\",\"\",\"\",\"900\",\"2000\",\"11100\","
+"\"10000\"]\n"
+"[\"Net Income\",\"\",\"\",\"\",\"\",\"1100\",\"\",\"\",\"1100\"]\n"
+"[\"Total\",\"\",\"\",\"\",\"\",\"2000\",\"2000\",\"11100\",\"11100\"]\n"
+"\n"
+"Post-closing trial balance\n"
+"[\"Debit\",\"Account Title\",\"Credit\"]\n"
+"[\"5300\",\"Cash\",\"\"]\n"
+"[\"5000\",\"Deposits\",\"\"]\n"
+"[\"\",\"CapitalStock\",\"10000\"]\n"
+"[\"\",\"RetainedEarnings\",\"1100\"]\n"
+"[\"200\",\"MerchandiseInventory\",\"\"]\n"
+"[\"600\",\"PrepaidExpenses\",\"\"]\n"
+"[\"11100\",\"Total\",\"11100\"]\n"
+"\n"
+"Income statement for January\n"
+"[\"section\",\"account\",\"label\",\"row\",\"side\",\"amount\"]\n"
+"[\"RevenueSection\",\"Sales\",\"Sales\",\"line\",\"Credit\",\"2000\"]\n"
+"[\"ExpenseSection\",\"SalesCost\",\"Cost of sales\",\"line\",\"Debit\","
+"\"300\"]\n"
+"[\"ExpenseSection\",\"RentExpense\",\"Rent\",\"line\",\"Debit\",\"600\"]\n"
+"[\"\",\"\",\"Net income\",\"subtotal\",\"Credit\",\"1100\"]\n"
+"\n"
+"Balance sheet at January 31\n"
+"[\"section\",\"account\",\"label\",\"row\",\"side\",\"amount\"]\n"
+"[\"CurrentAssetsSection\",\"Cash\",\"Cash\",\"line\",\"Debit\",\"5300\"]\n"
+"[\"CurrentAssetsSection\",\"Deposits\",\"Savings deposits\",\"line\","
+"\"Debit\",\"5000\"]\n"
+"[\"CurrentAssetsSection\",\"MerchandiseInventory\",\"Merchandise inventory\","
+"\"line\",\"Debit\",\"200\"]\n"
+"[\"CurrentAssetsSection\",\"PrepaidExpenses\",\"Prepaid expenses\",\"line\","
+"\"Debit\",\"600\"]\n"
+"[\"EquitySection\",\"CapitalStock\",\"Capital stock\",\"line\",\"Credit\","
+"\"10000\"]\n"
+"[\"EquitySection\",\"RetainedEarnings\",\"Retained earnings\",\"line\","
+"\"Credit\",\"1100\"]\n"
+"```"
+msgstr ""
+"```text\n"
+"January reports (yen)\n"
+"Journal by day\n"
+"[\"Day\",\"Debit\",\"Amount\",\"Credit\",\"Amount\"]\n"
+"[\"2026-01-01\",\"Deposits\",\"10000\",\"CapitalStock\",\"10000\"]\n"
+"[\"2026-01-10\",\"Cash\",\"3000\",\"Deposits\",\"3000\"]\n"
+"[\"2026-01-15\",\"Cash\",\"2000\",\"Deposits\",\"2000\"]\n"
+"[\"2026-01-20\",\"Purchases\",\"500\",\"Cash\",\"500\"]\n"
+"[\"2026-01-25\",\"Cash\",\"1500\",\"Cash\",\"1500\"]\n"
+"[\"2026-01-28\",\"Cash\",\"2000\",\"Sales\",\"2000\"]\n"
+"[\"2026-01-30\",\"RentExpense\",\"1200\",\"Cash\",\"1200\"]\n"
+"\n"
+"General ledger (Cash)\n"
+"[\"Cash\",\"\",\"\",\"\"]\n"
+"[\"Date\",\"Debit\",\"Date\",\"Credit\"]\n"
+"[\"2026-01-10\",\"3000\",\"2026-01-20\",\"500\"]\n"
+"[\"2026-01-15\",\"2000\",\"2026-01-25\",\"1500\"]\n"
+"[\"2026-01-25\",\"1500\",\"2026-01-30\",\"1200\"]\n"
+"[\"2026-01-28\",\"2000\",\"\",\"\"]\n"
+"\n"
+"Pre-adjustment compound trial balance\n"
+"[\"Debit Balance\",\"Debit Total\",\"Account Title\",\"Credit Total\","
+"\"Credit Balance\"]\n"
+"[\"5300\",\"8500\",\"Cash\",\"3200\",\"\"]\n"
+"[\"5000\",\"10000\",\"Deposits\",\"5000\",\"\"]\n"
+"[\"\",\"0\",\"CapitalStock\",\"10000\",\"10000\"]\n"
+"[\"1200\",\"1200\",\"RentExpense\",\"0\",\"\"]\n"
+"[\"500\",\"500\",\"Purchases\",\"0\",\"\"]\n"
+"[\"\",\"0\",\"Sales\",\"2000\",\"2000\"]\n"
+"[\"12000\",\"20200\",\"Total\",\"20200\",\"12000\"]\n"
+"\n"
+"Eight-column worksheet\n"
+"[\"Account Title\",\"Trial Balance\",\"\",\"Adjustments\",\"\",\"Profit & "
+"Loss\",\"\",\"Balance Sheet\",\"\"]\n"
+"[\"\",\"Debit\",\"Credit\",\"Debit\",\"Credit\",\"Debit\",\"Credit\","
+"\"Debit\",\"Credit\"]\n"
+"[\"Cash\",\"5300\",\"\",\"\",\"\",\"\",\"\",\"5300\",\"\"]\n"
+"[\"Deposits\",\"5000\",\"\",\"\",\"\",\"\",\"\",\"5000\",\"\"]\n"
+"[\"CapitalStock\",\"\",\"10000\",\"\",\"\",\"\",\"\",\"\",\"10000\"]\n"
+"[\"RentExpense\",\"1200\",\"\",\"\",\"600\",\"600\",\"\",\"\",\"\"]\n"
+"[\"Purchases\",\"500\",\"\",\"\",\"200\",\"300\",\"\",\"\",\"\"]\n"
+"[\"Sales\",\"\",\"2000\",\"\",\"\",\"\",\"2000\",\"\",\"\"]\n"
+"[\"MerchandiseInventory\",\"\",\"\",\"200\",\"\",\"\",\"\",\"200\",\"\"]\n"
+"[\"PrepaidExpenses\",\"\",\"\",\"600\",\"\",\"\",\"\",\"600\",\"\"]\n"
+"[\"Subtotal\",\"12000\",\"12000\",\"\",\"\",\"900\",\"2000\",\"11100\","
+"\"10000\"]\n"
+"[\"Net Income\",\"\",\"\",\"\",\"\",\"1100\",\"\",\"\",\"1100\"]\n"
+"[\"Total\",\"\",\"\",\"\",\"\",\"2000\",\"2000\",\"11100\",\"11100\"]\n"
+"\n"
+"Post-closing trial balance\n"
+"[\"Debit\",\"Account Title\",\"Credit\"]\n"
+"[\"5300\",\"Cash\",\"\"]\n"
+"[\"5000\",\"Deposits\",\"\"]\n"
+"[\"\",\"CapitalStock\",\"10000\"]\n"
+"[\"\",\"RetainedEarnings\",\"1100\"]\n"
+"[\"200\",\"MerchandiseInventory\",\"\"]\n"
+"[\"600\",\"PrepaidExpenses\",\"\"]\n"
+"[\"11100\",\"Total\",\"11100\"]\n"
+"\n"
+"Income statement for January\n"
+"[\"section\",\"account\",\"label\",\"row\",\"side\",\"amount\"]\n"
+"[\"RevenueSection\",\"Sales\",\"Sales\",\"line\",\"Credit\",\"2000\"]\n"
+"[\"ExpenseSection\",\"SalesCost\",\"Cost of sales\",\"line\",\"Debit\","
+"\"300\"]\n"
+"[\"ExpenseSection\",\"RentExpense\",\"Rent\",\"line\",\"Debit\",\"600\"]\n"
+"[\"\",\"\",\"Net income\",\"subtotal\",\"Credit\",\"1100\"]\n"
+"\n"
+"Balance sheet at January 31\n"
+"[\"section\",\"account\",\"label\",\"row\",\"side\",\"amount\"]\n"
+"[\"CurrentAssetsSection\",\"Cash\",\"Cash\",\"line\",\"Debit\",\"5300\"]\n"
+"[\"CurrentAssetsSection\",\"Deposits\",\"Savings deposits\",\"line\","
+"\"Debit\",\"5000\"]\n"
+"[\"CurrentAssetsSection\",\"MerchandiseInventory\",\"Merchandise inventory\","
+"\"line\",\"Debit\",\"200\"]\n"
+"[\"CurrentAssetsSection\",\"PrepaidExpenses\",\"Prepaid expenses\",\"line\","
+"\"Debit\",\"600\"]\n"
+"[\"EquitySection\",\"CapitalStock\",\"Capital stock\",\"line\",\"Credit\","
+"\"10000\"]\n"
+"[\"EquitySection\",\"RetainedEarnings\",\"Retained earnings\",\"line\","
+"\"Credit\",\"1100\"]\n"
+"```"
+
+#: src/io/output.md:362
+msgid ""
+"The cash ledger shows the 2,000-yen sale as a debit on January 28. The "
+"worksheet shows net income of 1,100 yen, which appears as a subtotal in the "
+"income statement. In the post-closing trial balance, the carried balances "
+"total 11,100 yen on each side."
+msgstr ""
+"現金勘定では, 1 月 28 日の売上 2,000 円が借方に載ります. 精算表で確認できる当"
+"期純利益 1,100 円は, 損益計算書にも小計として出ます. 締め後の試算表では, 繰り"
+"越す残高の合計が借方と貸方ともに 11,100 円です."
+
+#: src/io/output.md:370
+msgid "`journalRows` and `writeJournal`"
+msgstr "`journalRows` と `writeJournal`"
+
+#: src/io/output.md:370
+msgid ""
+"Lay out a journal by day from postings and a date accessor. The writer saves "
+"the rows to a path."
+msgstr ""
+"項と日付を取り出す関数から, 日ごとの仕訳帳を作ります. 書き出し関数は, 指定し"
+"たパスに行を保存します."
+
+#: src/io/output.md:371
+msgid "`accountLedgerRows` and `writeAccountOf`"
+msgstr "`accountLedgerRows` と `writeAccountOf`"
+
+#: src/io/output.md:371
+msgid ""
+"Lay out a general ledger for the requested accounts from dated postings."
+msgstr "日付付きの項から, 指定した科目の総勘定元帳を作ります."
+
+#: src/io/output.md:372
+msgid "`compoundTrialBalanceRows` and `writeCompoundTrialBalance`"
+msgstr "`compoundTrialBalanceRows` と `writeCompoundTrialBalance`"
+
+#: src/io/output.md:372
+msgid "Lay out turnover and net balances from one ledger."
+msgstr "1 つの記録から, 借方合計と貸方合計, および正味残高を表示します."
+
+#: src/io/output.md:373
+msgid "`worksheetRows` and `writeWorksheet`"
+msgstr "`worksheetRows` と `writeWorksheet`"
+
+#: src/io/output.md:373
+msgid ""
+"Lay out the eight-column worksheet from a pre-adjustment ledger and separate "
+"adjusting entries."
+msgstr "決算整理前の記録と決算整理仕訳を別々に渡して, 8 桁精算表を作ります."
+
+#: src/io/output.md:374
+msgid "`postClosingTrialBalanceRows` and `writePostClosingTrialBalance`"
+msgstr "`postClosingTrialBalanceRows` と `writePostClosingTrialBalance`"
+
+#: src/io/output.md:374
+msgid "Lay out the balances carried forward from a closed ledger."
+msgstr "締め後の記録から, 繰り越す残高を表示します."
+
+#: src/io/output.md:375
+msgid "`financialStatementRows` and `writeFinancialStatements`"
+msgstr "`financialStatementRows` と `writeFinancialStatements`"
+
+#: src/io/output.md:375
+msgid ""
+"Render the requested sections of `FinancialStatements`. A request for "
+"revenue or expenses without a period-result subtotal returns "
+"`PeriodResultMissing`."
+msgstr ""
+"`FinancialStatements` から指定された区分を表示します. 当期損益の小計がない状"
+"態で収益や費用を指定すると, `PeriodResultMissing` を返します."
+
+#: src/io/output.md:376
+msgid "`ExchangeAlgebra.IO.Output.Csv.writeCSV`"
+msgstr "`ExchangeAlgebra.IO.Output.Csv.writeCSV`"
+
+#: src/io/output.md:376
+msgid ""
+"Write a table of text cells to a file. Every cell is quoted, and embedded "
+"quotation marks are doubled."
+msgstr ""
+"文字列の欄を並べた表をファイルに書き出します. すべての欄を引用符で囲み, 欄に"
+"含まれる引用符は 2 つ重ねます."

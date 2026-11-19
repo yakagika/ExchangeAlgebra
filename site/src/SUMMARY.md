@@ -28,3 +28,10 @@
 - [Trial balance and audit](bookkeeping/trial-balance.md)
 - [Adjusting entries](bookkeeping/adjustment.md)
 - [Closing](bookkeeping/closing.md)
+- [Financial statements](bookkeeping/statements.md)
+- [Consolidation](bookkeeping/consolidation.md)
+
+# Input and output
+
+- [Reading journals from CSV](io/input.md)
+- [Writing books and statements](io/output.md)
