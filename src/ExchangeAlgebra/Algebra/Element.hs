@@ -19,9 +19,9 @@ instance Element Company where
   wildcard = CompanyWildcard
 @
 
-Use 'Wild' for a coordinate type whose values all have meaning, such as
+Use t'Wild' for a coordinate type whose values all have meaning, such as
 @Day@, @TimeOfDay@, or a custom identifier. Wrap ordinary coordinates in
-'Exactly' and use the 'Wild' constructor as the wildcard. The underlying type
+'Exactly' and use the v'Wild' constructor as the wildcard. The underlying type
 can be used without defining its own 'Element' instance.
 
 >>> import Data.Time (TimeOfDay, midnight)
