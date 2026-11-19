@@ -17,6 +17,7 @@ CountUnit
 Dollar
 Element
 Euro
+Exactly
 Generic
 Hashable
 Hat
@@ -26,6 +27,7 @@ HatNot
 Name
 Not
 Subject
+Wild
 Yen
 _base
 _hat

@@ -27,6 +27,7 @@ CountUnit
 Dollar
 Element
 Euro
+Exactly
 Generic
 Hashable
 Hat
@@ -42,6 +43,7 @@ Pair
 Redundant
 Single
 Subject
+Wild
 Yen
 Zero
 _allBpIds

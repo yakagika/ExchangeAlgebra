@@ -1,5 +1,22 @@
 # Changelog for ExchangeAlgebra
 
+## Unreleased
+
+### Added
+
+- `Wild a` extends a coordinate type with the wildcard `Wild` and represents
+  ordinary coordinates as `Exactly a`. It provides `Element` and `BaseClass`
+  instances when the payload has `Ord`, `Show`, `Hashable`, and `Typeable`
+  instances, along with `Eq`, `Ord`, `Show`, `Generic`, `NFData`, `Hashable`, and
+  `Binary` support. Use `Wild TimeOfDay` or `Wild Day` to record and query
+  00:00 or 1858-11-17 as an ordinary coordinate. The existing `Element`
+  instances for `TimeOfDay` and `Day` still use those values as their wildcards.
+- The following built-in bases now provide `ExBaseClass` instances:
+
+  - `HatBase (AccountTitles, Wild Day)`
+  - `HatBase (AccountTitles, Name, CountUnit, Subject, Wild Day)`
+  - `HatBase (AccountTitles, Name, CountUnit, Subject, Wild Day, Wild TimeOfDay)`
+
 ## 0.6.0.1 - 2026-11-09
 
 ### Fixed

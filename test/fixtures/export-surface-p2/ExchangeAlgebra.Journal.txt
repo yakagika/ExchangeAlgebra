@@ -26,6 +26,7 @@ CountUnit
 Dollar
 Element
 Euro
+Exactly
 Generic
 Hashable
 Hat
@@ -41,6 +42,7 @@ NoteAxisKey
 NoteAxisPosting
 Redundant
 Subject
+Wild
 Yen
 Zero
 _base

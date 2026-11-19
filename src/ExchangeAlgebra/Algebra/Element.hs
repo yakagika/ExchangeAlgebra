@@ -19,6 +19,17 @@ instance Element Company where
   wildcard = CompanyWildcard
 @
 
+Use 'Wild' for a coordinate type whose values all have meaning, such as
+@Day@, @TimeOfDay@, or a custom identifier. Wrap ordinary coordinates in
+'Exactly' and use the 'Wild' constructor as the wildcard. The underlying type
+can be used without defining its own 'Element' instance.
+
+>>> import Data.Time (TimeOfDay, midnight)
+>>> matchesQuery (Exactly midnight) (Wild :: Wild TimeOfDay)
+False
+>>> matchesQuery Wild (Exactly midnight)
+True
+
 == Import guidance
 
 Import 'Element' and its associated symbols from
