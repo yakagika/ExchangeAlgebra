@@ -1,5 +1,7 @@
 # Definitions and axioms
 
+> **Note:** The mathematical definitions are optional background for using the library. If you prefer to skip the mathematics, go to [Installation and modules](../usage/installation.md).
+
 ## Element structure {#element-structure}
 
 **Definition 1.** An axis is a totally ordered set of coordinates with a distinguished wildcard, written $\\#$. For a query coordinate $p$ and a stored coordinate $e$, define one-way matching by

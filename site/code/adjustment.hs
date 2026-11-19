@@ -7,6 +7,7 @@ module Main where
 
 import ExchangeAlgebra hiding (Yen, Dollar, map)
 import qualified ExchangeAlgebra.Algebra.Core as Algebra
+import ExchangeAlgebra.Journal ((.|))
 import qualified ExchangeAlgebra.Journal as Journal
 import qualified ExchangeAlgebra.IO.Input.Admission as Admission
 import qualified ExchangeAlgebra.Accounting.TrialBalance as TrialBalance
@@ -43,7 +44,7 @@ type Book = Journal.Journal EntryNote MoneyDecimal (HatBase (AccountTitles, Unit
 -- ANCHOR: january
 -- | Attach a January date and description after constructing all postings.
 record :: Int -> String -> Entry -> Book
-record day description algebra = algebra Journal..| EntryNote (2026, 1, day) description
+record day description algebra = algebra .| EntryNote (2026, 1, day) description
 
 -- | January 1: capital paid into Bank A's ordinary deposit account.
 opening :: Book

@@ -6,6 +6,7 @@
 module Main where
 
 import ExchangeAlgebra hiding (Yen, Dollar)
+import ExchangeAlgebra.Journal ((.|))
 import qualified ExchangeAlgebra.Journal as Journal
 
 -- | Currency coordinates for the withdrawal and exchange records.
@@ -75,11 +76,11 @@ februaryNote = EntryNote (2026, 2, 1) "Purchase of goods"
 
 -- | January transactions and one February purchase, each with a date and description.
 transactions :: Journal.Journal EntryNote MoneyDecimal (HatBase (AccountTitles, Unit))
-transactions = (withdrawal Journal..| withdrawalNote)
-            .+ (secondWithdrawal Journal..| EntryNote (2026, 1, 15) "Withdrawal from Bank A")
-            .+ (cashPayment Journal..| EntryNote (2026, 1, 20) "Purchase of goods")
-            .+ (currencyExchange Journal..| EntryNote (2026, 1, 25) "Yen-dollar exchange")
-            .+ (februaryPurchase Journal..| februaryNote)
+transactions = (withdrawal .| withdrawalNote)
+            .+ (secondWithdrawal .| EntryNote (2026, 1, 15) "Withdrawal from Bank A")
+            .+ (cashPayment .| EntryNote (2026, 1, 20) "Purchase of goods")
+            .+ (currencyExchange .| EntryNote (2026, 1, 25) "Yen-dollar exchange")
+            .+ (februaryPurchase .| februaryNote)
 -- ANCHOR_END: entries
 
 -- ANCHOR: queries
