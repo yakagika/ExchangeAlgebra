@@ -14,3 +14,10 @@
 - [Bases](algebra/bases.md)
 - [Values](algebra/values.md)
 - [The redundant algebra](algebra/redundant.md)
+
+# Exchange algebra and journals
+
+- [Exchange algebra](exchange/exchange.md)
+- [Transfers](exchange/transfer.md)
+- [Journals](journal/journal.md)
+- [Multiple agents](journal/agents.md)

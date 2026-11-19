@@ -126,4 +126,44 @@ Usage: [The journal example](../overview.md#the-same-journal-in-exchange-algebra
 
 Usage: [Recover the debit and credit columns](../overview.md#recover-the-debit-and-credit-columns).
 
-For transfers and journals, see Appendix A of [*Accounting State Space as a Foundation for Economic Agent-Based Modeling: An Input–Output Benchmark and Inventory Extension*](https://doi.org/10.21203/rs.3.rs-8485050/v2).
+## Transfers {#transfers}
+
+**Definition 9.** A transfer table is an ordered collection of triples $(b_i,a_i,f_i)$, where $b_i$ is a source base, $a_i$ is a destination base, and $f_i:V\to V$ transforms a nonnegative amount. Applying the table moves the selected amounts from their source bases to their destination bases according to those transformations. The source base, destination base, and value transformation are separate parts of each rule.
+
+A source wildcard matches any stored coordinate. A destination wildcard retains the corresponding source coordinate. For an accounting reclassification, the amount removed from the source equals the amount added at the destination.
+
+The preprint orders rows by the total order on source bases; the library applies rows in their written order.
+
+Usage: [Transfers](../exchange/transfer.md).
+
+## Notes {#notes}
+
+**Definition 10.** A note set $N$ is a totally ordered set with equality and a distinguished empty element $\mathrm{plank}\in N$. A note can contain a date, a description, or a transaction identifier.
+
+Usage: [Declare a note type](../journal/journal.md#declare-a-note-type).
+
+## Finite journals {#finite-journals}
+
+**Definition 11.** A journal is a finite-support function $J:N\to E$, where $E$ is the exchange algebra. A note outside the support has value zero. Equivalently, the journal is the finite collection of its nonzero note-algebra pairs $(n,J(n))$. Equal notes identify the same algebra component.
+
+Usage: [Attach notes to the month](../journal/journal.md#attach-notes-to-the-month).
+
+## Journal operations {#journal-operations}
+
+**Definition 12.** Hat and scalar multiplication act separately on each note's algebra, preserving its note. Addition combines the algebras at each equal note by redundant addition:
+
+$$
+(J_1+J_2)(n)=J_1(n)+J_2(n).
+$$
+
+Aggregation combines the note components under the empty note. Its algebra is $\sum_{n\in N}J(n)$; applying bar to that combined algebra gives the journal bar. The norm counts all amounts across notes:
+
+$$
+\operatorname{norm}(J)=\operatorname{norm}\left(\sum_{n\in N}J(n)\right).
+$$
+
+A note projection selects note keys; a base projection selects postings within the selected notes. A joint projection restricts both. Neither projection requires aggregation or cancellation.
+
+Usage: [Select by note, base, and date](../journal/journal.md#select-by-note-base-and-date) and [Total amounts and combine notes](../journal/journal.md#total-amounts-and-combine-notes).
+
+Definitions 1–12 follow Appendix A of [*Accounting State Space as a Foundation for Economic Agent-Based Modeling: An Input–Output Benchmark and Inventory Extension*](https://doi.org/10.21203/rs.3.rs-8485050/v2), with the query matching and norm clarification stated in Definitions 1 and 6.
