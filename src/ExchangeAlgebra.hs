@@ -105,6 +105,7 @@ module ExchangeAlgebra
     , Name
     , Subject
     , CountUnit(..)
+    , Wild(..)
     , Hashable(..)
     , Generic
     , Nearly(..)

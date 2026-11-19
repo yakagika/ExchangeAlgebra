@@ -27,7 +27,7 @@ Import 'Element' and its associated symbols from
 -}
 module ExchangeAlgebra.Algebra.Element
     ( Element(..), AxisKey(..), axisIsWildcard, AxisDecompose(..), (.#)
-    , Name, Subject, CountUnit(..), matchesQuery, Hashable(..), Generic
+    , Name, Subject, CountUnit(..), Wild(..), matchesQuery, Hashable(..), Generic
     ) where
 
 import ExchangeAlgebra.Algebra.Element.Representation

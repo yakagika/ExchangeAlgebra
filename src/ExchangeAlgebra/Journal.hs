@@ -45,6 +45,7 @@ module ExchangeAlgebra.Journal
     , Name
     , Subject
     , CountUnit(..)
+    , Wild(..)
     , Hashable(..)
     , Generic
     , HatVal(..)

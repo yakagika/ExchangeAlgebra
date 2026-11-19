@@ -16,6 +16,7 @@ import Data.Time (Day, TimeOfDay)
 import GHC.Stack (HasCallStack, callStack, prettyCallStack)
 import qualified Data.Binary as Binary
 import Control.DeepSeq (NFData(..))
+import Data.Typeable (Typeable)
 
 -- | Raise an error with the current call stack appended.
 customError :: HasCallStack => String -> a
@@ -287,3 +288,8 @@ instance BaseClass Day where
 
 -- *** TimeOfDay only (redundant algebra base)
 instance BaseClass TimeOfDay where
+
+-- *** A coordinate extended with a wildcard (redundant algebra base)
+--
+-- @since 0.6.1.0
+instance (Ord a, Show a, Hashable a, Typeable a) => BaseClass (Wild a) where

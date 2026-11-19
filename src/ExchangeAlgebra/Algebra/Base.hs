@@ -41,6 +41,7 @@ module ExchangeAlgebra.Algebra.Base
     , Name
     , Subject
     , CountUnit(..)
+    , Wild(..)
     , Hashable(..)
     , Generic
     ) where
@@ -62,6 +63,7 @@ import ExchangeAlgebra.Algebra.Element
     , Name
     , Subject
     , CountUnit(..)
+    , Wild(..)
     , Hashable(..)
     , Generic
     )
