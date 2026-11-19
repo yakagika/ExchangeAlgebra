@@ -5,21 +5,33 @@ module ExchangeAlgebra.Reporting.Presentation
     , ReportingScope(..)
     , PresentationProfile(..)
     , StatementSection(..)
-    , StatementLine(..)
-    , PresentationAllocation(..)
-    , PresentationRelabel(..)
-    , MaterialityTreatment(..)
-    , MaterialityDecision(..)
-    , ContraPresentationRule(..)
+    , StatementLine
+    , StatementLineOf(..)
+    , PresentationAllocation
+    , PresentationAllocationOf(..)
+    , PresentationRelabel
+    , PresentationRelabelOf(..)
+    , MaterialityTreatment
+    , MaterialityTreatmentOf(..)
+    , MaterialityDecision
+    , MaterialityDecisionOf(..)
+    , ContraPresentationRule
+    , ContraPresentationRuleOf(..)
     , CustomMetricLabel(..)
     , SubtotalCoverage(..)
-    , SubtotalDefinition(..)
+    , SubtotalDefinition
+    , SubtotalDefinitionOf(..)
     , StatementSubtotal(..)
-    , ReportingContext(..)
+    , ReportingContext
+    , ReportingContextOf(..)
+    , reportingContext
     , jcciSecondGradeContext
-    , PresentationAuditEvent(..)
-    , PresentationIssue(..)
-    , FinancialStatements(..)
+    , PresentationAuditEvent
+    , PresentationAuditEventOf(..)
+    , PresentationIssue
+    , PresentationIssueOf(..)
+    , FinancialStatements
+    , FinancialStatementsOf(..)
     , presentationLabel
     , metricLabel
     , present

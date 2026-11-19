@@ -71,6 +71,33 @@
 
 ### Changed
 
+- **Financial statements and presentation groups (0.7 migration).** Use
+  `present` with a trial balance over your own account titles and
+  `presentGroups` with a grouping for those titles. Supply `vocabSemantics`
+  for each nonzero balance that the report must display. The default is
+  `Nothing`. A statement-eligible title needs a statement division.
+  - Start a context with `reportingContext framework scope profile` or
+    `jcciSecondGradeContext scope`. When constructing `ReportingContext`
+    directly, supply the new field `_labelOverrides` (use an empty map for
+    no overrides). Omitting it can compile with a warning and fail when the
+    field is read. Only `JcciSecondGradeReport` uses these labels.
+  - Keep the original type names in annotations for `AccountTitles`.
+    Import constructors and record fields through the corresponding
+    `XOf(..)`, for example `StatementLineOf(..)`. A standalone expression
+    such as `show (PresentGross :: MaterialityTreatment)` needs a title type
+    annotation to resolve `Show`.
+  - `Combined` eliminates the pairs in `vocabReciprocalPairs` (default
+    `[]`). A wildcard endpoint, an endpoint without the `ReciprocalAccount`
+    role, or a revenue or cost endpoint yields
+    `ConflictingPresentationInstruction`. The built-in branch and head-office
+    accounts satisfy these checks.
+  - Each elimination records `ReciprocalPairEliminated left leftBalance right
+    rightBalance`. The two-argument `ReciprocalAccountsEliminated` pattern
+    still constructs and matches the built-in pair. Its `show` output now uses
+    `ReciprocalPairEliminated BranchCurrentAccount ... HeadOfficeCurrentAccount ...`,
+    including inside `FinancialStatements`. Statement amounts and ledger
+    readouts retain their existing values.
+
 - Account balances, accounting transfers, journal audits, period results from
   an algebra, and ledger and trial-balance rows now accept custom account
   titles. The four trial-balance audits accept a single account axis. A

@@ -93,9 +93,9 @@ data StatementRowsError
 -- Subtotal rows must not be summed together with line rows; the @row@ column
 -- distinguishes them, but the rendered 'Text' cannot enforce it.
 financialStatementRows
-    :: HatVal v
+    :: (Show t, HatVal v)
     => [Presentation.StatementSection]
-    -> Presentation.FinancialStatements v
+    -> Presentation.FinancialStatementsOf t v
     -> Either StatementRowsError [[Text]]
 financialStatementRows sections statements
     | requestsResult && not hasResult = Left (PeriodResultMissing
@@ -130,10 +130,10 @@ financialStatementRows sections statements
 -- | Write 'financialStatementRows' as CSV with 'writeCSV' (every cell quoted).
 -- Nothing is written when the rows cannot be rendered.
 writeFinancialStatements
-    :: HatVal v
+    :: (Show t, HatVal v)
     => FilePath
     -> [Presentation.StatementSection]
-    -> Presentation.FinancialStatements v
+    -> Presentation.FinancialStatementsOf t v
     -> IO (Either StatementRowsError ())
 writeFinancialStatements path sections statements =
     case financialStatementRows sections statements of

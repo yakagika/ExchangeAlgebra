@@ -1,25 +1,32 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
--- | L2-L4: exact observations under vocabulary renaming and empty audit defaults.
+-- | Exact observations under vocabulary renaming, including presentation order.
 -- Reversing title order exposes accidental dependence on built-in account order.
 module Accounting.VocabularyLawSpec (runTests) where
 
+import qualified Accounting.PresentationVocabularySpec as PresentationVocabularySpec
 import Control.Monad (forM_)
 import Data.Bifunctor (first)
+import Data.Maybe (isJust)
 import Data.Hashable (Hashable)
-import Data.List (sort, sortOn)
+import Data.List (sort, sortOn, (\\))
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import GHC.Generics (Generic)
 
 import ExchangeAlgebra.Accounting.Account
 import ExchangeAlgebra.Accounting.Audit
 import ExchangeAlgebra.Accounting.Exchange (ExBaseClass(..))
+import qualified ExchangeAlgebra.Accounting.Statements.Group as G
+import qualified ExchangeAlgebra.Accounting.Statements.Presentation as P
+import ExchangeAlgebra.Accounting.TrialBalance.Validation (TrialBalanceStage(..))
 import qualified ExchangeAlgebra.Accounting.Statements.Metric as Metric
 import ExchangeAlgebra.Accounting.Transfer
 import ExchangeAlgebra.Accounting.TrialBalance.Balance
@@ -67,6 +74,7 @@ instance BaseClass ReverseTitle
 instance AccountVocabulary ReverseTitle where
     vocabSpec (ReverseTitle title) = vocabSpec title
     vocabSemantics (ReverseTitle title) = vocabSemantics title
+    vocabReciprocalPairs = [(ReverseTitle l, ReverseTitle r) | (l, r) <- vocabReciprocalPairs]
     closingTarget = ReverseTitle (closingTarget :: AccountTitles)
     vocabImpossibleBalanceSides = map (first ReverseTitle)
         (vocabImpossibleBalanceSides :: [(AccountTitles, Side)])
@@ -223,6 +231,20 @@ checkAudits original renamed = do
     assertEqual "L2 closing residuals, target order and multiplicity"
         (mapAudit structure residual issueOrder (titleOrder _residualAccount)
             (closingResiduals original)) (closingResiduals renamed)
+
+-- | Registry premises for detecting derived coordinates and displaying balances.
+checkStatementRegistry :: IO ()
+checkStatementRegistry = do
+    assertEqual "L1 derived coordinates equal legacy metric titles"
+        (filter (isJust . Metric.metricForLegacyTitle) concreteAccountTitles)
+        [title | title <- concreteAccountTitles, Just sem <- [accountSemantics title],
+                 asemReportingEligibility sem == DerivedPresentation]
+    assertEqual "L1 all statement-eligible titles have a statement division" []
+        [title | title <- concreteAccountTitles, Just sem <- [accountSemantics title],
+                 asemReportingEligibility sem == StatementEligible,
+                 case asemDivisionSemantics sem of
+                     StatementDivision _ -> False
+                     _ -> True]
 
 -- | All metadata and side computations commute with the reversed bijection.
 checkMetadata :: IO ()
@@ -521,9 +543,147 @@ checkJournalWildcardSide = do
     assertEqual "L2 duplicate audit wildcard side" expected (duplicateTransactions journal)
     assertEqual "L2 contrary audit wildcard side" expected (contraryNominalPostings journal)
 
+-- | Map every title in the inputs, including instruction targets and label keys.
+statementContext :: Ord t => (AccountTitles -> t) -> P.PresentationProfile
+                 -> P.ReportingContextOf t Double
+statementContext f profile = (P.reportingContext P.JGAAP P.Combined profile)
+    { P._maturitySensitiveTitles = Set.fromList (map f [NotesReceivable, LoansReceivable])
+    , P._presentationAllocations =
+        [P.PresentationAllocation (f NotesReceivable) 10 4 "notes",
+         P.PresentationAllocation (f LoansReceivable) 20 10 "loans"]
+    , P._presentationRelabels =
+        [P.PresentationRelabel (f Purchases) (f SalesCost) "cost of sales",
+         P.PresentationRelabel (f PettyCash) (f Deposits) "deposit"]
+    , P._materialityDecisions =
+        [P.MaterialityDecision (f IncomeTaxesRefundReceivable) P.PresentGross "tax",
+         P.MaterialityDecision (f Cash) P.PresentSeparately "cash"]
+    , P._contraPresentationRules =
+        [P.NetContraAgainst (f SalesAllowances) (f Sales) "net",
+         P.PresentContraSeparately (f SalesRebates) "separate"]
+    , P._subtotalDefinitions =
+        [P.SubtotalDefinition Metric.OrdinaryProfitMetric [f Sales]
+            (map f [SalesCost, SalesRebates]) P.RequireAllTitlesPresent,
+         P.SubtotalDefinition Metric.GrossProfitMetric [f Sales] [f SalesCost]
+            P.RequireAllTitlesPresent]
+    , P._labelOverrides = Map.mapKeys f $ Map.insert NotesReceivable "notes by maturity"
+        (P._labelOverrides (P.jcciSecondGradeContext P.Combined))
+    }
+
+-- | Observe each stage in instruction order. Only labels use target-key order.
+expectedEvents :: Ord t => (AccountTitles -> t) -> P.PresentationProfile
+               -> [P.PresentationAuditEventOf t Double]
+expectedEvents f profile =
+    [ P.ReciprocalPairEliminated (f BranchCurrentAccount) (DebitBalance 9)
+        (f HeadOfficeCurrentAccount) (CreditBalance 9)
+    , P.AccountRelabeled (f Purchases) (f SalesCost) (DebitBalance 5) "cost of sales"
+    , P.AccountRelabeled (f PettyCash) (f Deposits) (DebitBalance 3) "deposit"
+    , P.MaterialityApplied (f IncomeTaxesRefundReceivable) P.PresentGross (DebitBalance 2) "tax"
+    , P.MaterialityApplied (f Cash) P.PresentSeparately (DebitBalance 10) "cash"
+    , P.ContraPresentationApplied (f SalesAllowances) (Just (f Sales)) (DebitBalance 4) "net"
+    , P.ContraPresentationApplied (f SalesRebates) Nothing (DebitBalance 3) "separate"
+    , P.BalanceAllocated (f NotesReceivable) 10 4 "notes"
+    , P.BalanceAllocated (f LoansReceivable) 20 10 "loans"
+    , P.SubtotalCalculated Metric.PeriodResultMetric (CreditBalance 38)
+    , P.SubtotalCalculated Metric.OrdinaryProfitMetric (CreditBalance 38)
+    , P.SubtotalCalculated Metric.GrossProfitMetric (CreditBalance 41)
+    ] ++ [ P.LabelOverridden (f title) (P.presentationLabel P.CanonicalJapanese title) label
+         | profile == P.JcciSecondGradeReport
+         , (title, label) <- sortOn (f . fst)
+             [(AdvancesReceived, "契約負債"), (NotesReceivable, "notes by maturity")] ]
+
+-- | Compare complete rows after a stable target-order sort, including split rows.
+checkStatementRenaming :: IO ()
+checkStatementRenaming = do
+    assertEqual "L2 reciprocal table preserves order and orientation"
+        [(ReverseTitle l, ReverseTitle r) | (l,r) <- vocabReciprocalPairs]
+        vocabReciprocalPairs
+    let rows = [(30, Not, LoansReceivable), (14, Not, NotesReceivable),
+                (5, Not, Purchases), (3, Not, PettyCash), (3, Not, SalesRebates),
+                (4, Not, SalesAllowances), (10, Not, Cash), (2, Not, IncomeTaxesRefundReceivable),
+                (9, Not, BranchCurrentAccount), (9, Not, HeadOfficeCurrentAccount),
+                (50, Not, Sales), (15, Not, AdvancesReceived), (6, Not, CapitalStock)]
+    forM_ [P.JcciSecondGradeReport, P.CanonicalJapanese] $ \profile -> do
+        let context = statementContext id profile
+        source <- either (fail . show) pure (P.present context BeforeClosing (validLedger rows))
+        target <- either (fail . show) pure (P.present (statementContext ReverseTitle profile)
+            BeforeClosing (validLedger (renameRows ReverseTitle rows)))
+        let renameLine line = line { P._lineAccount = ReverseTitle (P._lineAccount line) }
+            sourceLines = P._statementLines source
+            notesLabel = case profile of
+                P.JcciSecondGradeReport -> "notes by maturity"
+                _ -> P.presentationLabel profile NotesReceivable
+        assertEqual "L2 allocated labels, sections, and split order"
+            [(notesLabel, P.CurrentAssetsSection, 10), (notesLabel, P.NoncurrentAssetsSection, 4)]
+            [(P._lineLabel line, P._lineSection line, P._lineAmount line)
+            | line <- sourceLines, P._lineAccount line == NotesReceivable]
+        assertEqual "L2 allocated and ordinary lines in target order"
+            (sortOn P._lineAccount (map renameLine sourceLines)) (P._statementLines target)
+        assertEqual "L2 subtotals retain definition order and labels"
+            (P._statementSubtotals source) (P._statementSubtotals target)
+        assertEqual "L2 audit stages and source instruction order"
+            (expectedEvents id profile) (P._presentationAudit source)
+        assertEqual "L2 audit stages and target instruction order"
+            (expectedEvents ReverseTitle profile) (P._presentationAudit target)
+
+-- | Compare whole issue multisets, including repeated issues and their payloads.
+checkStatementFailures :: IO ()
+checkStatementFailures = do
+    let check label ledger wanted =
+            case P.present (P.reportingContext P.JGAAP P.Standalone P.CanonicalEnglish)
+                    BeforeClosing ledger of
+                Right _ -> fail (label ++ ": expected presentation issues")
+                Left issues -> assertEqual label ([], [])
+                    (wanted \\ NE.toList issues, NE.toList issues \\ wanted)
+        malformed = [(-1, Not, Cash), (-2, Not, Sales), (1, Not, AccountTitle)]
+        structural f = [P.InvalidStatementValue (f Cash), P.InvalidStatementValue (f Sales),
+                        P.WildcardStatementBase]
+        zeroWildcard f = Internal.Single (0 :: Double) (HatNot :< f AccountTitle)
+        derived = [(20, Not, NetIncome), (20, Not, OrdinaryProfit)]
+        residual f = [P.UnpresentableBalance (f NetIncome) (DebitBalance 20),
+                      P.UnpresentableBalance (f OrdinaryProfit) (CreditBalance 20),
+                      P.PeriodResultUnavailable
+                        (Metric.ResidualDerivedCoordinate (min (f NetIncome) (f OrdinaryProfit)))]
+    check "L2 structure issue multiset" (rawLedger malformed :: TrialBalance Double)
+        (structural id)
+    check "L2 renamed structure issue multiset" (rawLedger (renameRows ReverseTitle malformed)
+        :: Alg Double (HatBase ReverseTitle)) (structural ReverseTitle)
+    check "L2 singleton zero with two wildcard axes" (zeroWildcard id)
+        [P.WildcardStatementBase, P.WildcardStatementBase]
+    check "L2 renamed singleton zero with two wildcard axes" (zeroWildcard ReverseTitle)
+        [P.WildcardStatementBase, P.WildcardStatementBase]
+    check "L2 minimum derived coordinate and coverage issues"
+        (validLedger derived :: TrialBalance Double) (residual id)
+    check "L2 reversed minimum derived coordinate and coverage issues"
+        (validLedger (renameRows ReverseTitle derived) :: Alg Double (HatBase ReverseTitle))
+        (residual ReverseTitle)
+
+-- | A deduction larger than the gross amount reverses the net row's direction.
+checkCustomGroup :: IO ()
+checkCustomGroup = do
+    let gross = ReverseTitle Building
+        deduction = ReverseTitle AccumulatedDepreciation
+        key = G.DepreciableAssetsGroup
+        def = G.PresentationGroupDef key Assets "Carrying amount" [gross] [deduction] Nothing
+        grouped = G.presentGroups [def]
+            (Map.fromList [(gross, (10, 0)), (deduction, (2, 16))])
+            :: G.GroupedPresentationOf ReverseTitle Double
+    assertEqual "group rows retain gross, deduction and below-zero net"
+        [(def, [G.GroupRow (G.GrossRow gross) (G.RelativeAmount False 10),
+                G.GroupRow (G.DeductionRow deduction) (G.RelativeAmount True 14),
+                G.GroupRow (G.NetRow key) (G.RelativeAmount True 4)])] (G.gpBlocks grouped)
+    assertEqual "group root retains both gross sides"
+        (Map.singleton Assets (12, 16)) (G.gpRootTotals grouped)
+    assertEqual "group consumes gross and deduction titles"
+        (Set.fromList [gross, deduction]) (G.gpConsumed grouped)
+
 -- | Register the vocabulary laws in the accounting test suite.
 runTests :: IO ()
 runTests = do
+    checkStatementRegistry
+    checkStatementRenaming
+    checkStatementFailures
+    checkCustomGroup
+    PresentationVocabularySpec.runTests
     checkMetadata
     checkBalances
     quickProp "L2 generated exact balance and metric renaming" propRenaming

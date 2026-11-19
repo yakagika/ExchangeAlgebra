@@ -29,7 +29,6 @@ module ExchangeAlgebra.Accounting.Statements.Metric
 
 import qualified ExchangeAlgebra.Accounting.TrialBalance.Accum as Accum
 
-import qualified Data.Map.Strict as M
 import           Data.Text (Text)
 import qualified Data.Text as T
 
@@ -42,7 +41,7 @@ import           ExchangeAlgebra.Accounting.Account.Registry
 import           ExchangeAlgebra.Accounting.Account.Vocabulary (AccountVocabulary(vocabSemantics))
 import           ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
 import           ExchangeAlgebra.Accounting.Exchange
-                     ( StandardBase, ExBaseClass(TitleOf, getAccountTitle, whichSide) )
+                     ( ExBaseClass(TitleOf, getAccountTitle, whichSide) )
 import           ExchangeAlgebra.Algebra.Base.Representation
                      ( Hat(..), HatBase, HatBaseClass(hat) )
 import qualified ExchangeAlgebra.Accounting.TrialBalance.Validation as TB
@@ -165,7 +164,7 @@ periodResultOf stage alg
     | stage /= TB.BeforeClosing =
         Left (MetricNotAvailableAtStage stage)
     | issue : _ <- metricStructureErrors alg = Left issue
-    | legacy : _ <- nonZeroLegacyTitles alg =
+    | legacy : _ <- Accum.nonZeroDerivedTitles alg =
         Left (ResidualDerivedCoordinate legacy)
     | otherwise = periodResultOfAlg alg
 
@@ -189,17 +188,3 @@ metricStructureErrors alg =
     ++ map (const WildcardMetricAccount) wildcardAccounts
   where
     (invalidValues, wildcardAccounts, wildcardSides) = Accum.structureErrors alg
-
-nonZeroLegacyTitles
-    :: (HatVal v, StandardBase b)
-    => Alg v b
-    -> [AccountTitles]
-nonZeroLegacyTitles alg =
-    [ title
-    | (title, total) <- M.toList totals
-    , signAccum total /= Just EQ
-    ]
-  where
-    totals = M.filterWithKey (\title _ -> case metricForLegacyTitle title of
-        Nothing -> False
-        Just _ -> True) (Accum.accountAccums alg)

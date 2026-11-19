@@ -13,6 +13,7 @@ import Control.Monad (unless)
 import Data.Hashable (Hashable)
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import Data.Time (fromGregorian)
 import GHC.Generics (Generic)
 
@@ -36,11 +37,32 @@ import ExchangeAlgebra.Accounting.Audit
 import qualified ExchangeAlgebra.Accounting.Statements.Metric as Metric
     (MetricError, MetricErrorOf(..))
 import qualified ExchangeAlgebra.Accounting.Statements as Statements
-    (MetricError, MetricErrorOf(..))
+    (MetricError, MetricErrorOf(..), StatementLine, StatementLineOf(..))
 import qualified ExchangeAlgebra.Reporting.Metric as Reporting
     (MetricError, MetricErrorOf(..))
+import qualified ExchangeAlgebra.Accounting.Statements.Presentation as Presentation
+    ( StatementLine, StatementLineOf(..), ReportingContextOf, FinancialStatementsOf(..)
+    , PresentationAuditEvent, PresentationAuditEventOf(..), present
+    )
+import qualified ExchangeAlgebra.Reporting.Presentation as OldPresentation
+    (PresentationAuditEvent, PresentationAuditEventOf(..))
+import ExchangeAlgebra.Accounting.Statements.Presentation
+    (AccountingFramework(..), ReportingScope(..), PresentationProfile(..), StatementSection(..))
+import qualified ExchangeAlgebra.Accounting.Statements.Group as Groups
+    ( PresentationGroupDefOf(..), GroupRowKind, GroupRowKindOf(..)
+    , GroupRowOf(..), GroupedPresentationOf
+    )
+import qualified ExchangeAlgebra.Reporting.Group as OldGroups
+    (GroupRowKind, GroupRowKindOf(..))
+import ExchangeAlgebra.Accounting.Statements.Group
+    ( PresentationGroup(..), RelativeAmount(..), presentGroups
+    , gpBlocks, gpRootTotals, gpConsumed
+    )
+import qualified ExchangeAlgebra as Root
+    (StatementLine, StatementLineOf(..), reportingContext)
+import ExchangeAlgebra.Accounting.TrialBalance.Validation (TrialBalanceStage(..))
 import ExchangeAlgebra.Accounting.TrialBalance.Balance (AccountBalance(..), accountBalances)
-import ExchangeAlgebra.IO.Output.Statements (accountLedgerRows)
+import ExchangeAlgebra.IO.Output.Statements (accountLedgerRows, financialStatementRows)
 import qualified ExchangeAlgebra.Accounting.Closing as Closing
 import ExchangeAlgebra.Accounting.Exchange (ExBaseClass(..))
 import ExchangeAlgebra.Algebra.Base (BaseClass, Element(..), Hat(..), HatBase((:<)))
@@ -131,9 +153,80 @@ checkBuiltInImports = do
         && metricError == (Reporting.WildcardMetricAccount :: Reporting.MetricError))
         "metric imports agree"
 
+-- | Old annotations and constructors imported through the new type names
+-- agree across the defining modules, umbrella, and compatibility modules.
+checkPresentationImports :: IO ()
+checkPresentationImports = do
+    let line :: Presentation.StatementLine MoneyDecimal
+        line = Presentation.StatementLine Cash "Cash" CurrentAssetsSection Debit 1 False
+        umbrellaLine :: Statements.StatementLine MoneyDecimal
+        umbrellaLine = Statements.StatementLine Cash "Cash" CurrentAssetsSection Debit 1 False
+        rootLine :: Root.StatementLine MoneyDecimal
+        rootLine = Root.StatementLine Cash "Cash" CurrentAssetsSection Debit 1 False
+        rowKind :: Groups.GroupRowKind
+        rowKind = Groups.DeductionRow SalesRebates
+        oldRowKind :: OldGroups.GroupRowKind
+        oldRowKind = OldGroups.DeductionRow SalesRebates
+        reciprocal :: OldPresentation.PresentationAuditEvent MoneyDecimal
+        reciprocal = OldPresentation.ReciprocalPairEliminated
+            BranchCurrentAccount (DebitBalance 1) HeadOfficeCurrentAccount (CreditBalance 1)
+        legacyEvent :: Presentation.PresentationAuditEvent MoneyDecimal
+        legacyEvent = Presentation.ReciprocalAccountsEliminated (DebitBalance 1) (CreditBalance 1)
+    check (line == umbrellaLine && line == rootLine) "statement line imports agree"
+    check (rowKind == oldRowKind) "group row imports agree"
+    check (legacyEvent == reciprocal) "legacy reciprocal constructor"
+    case reciprocal of
+        OldPresentation.ReciprocalAccountsEliminated debit credit ->
+            check (debit == DebitBalance 1 && credit == CreditBalance 1)
+                  "legacy reciprocal match"
+        _ -> fail "ClosingTarget: legacy reciprocal pattern did not match"
+
+-- | Present the shop's own titles and apply an active net-sales group.
+checkShopPresentation :: ShopEntry -> IO ()
+checkShopPresentation ledger = do
+    let context = Root.reportingContext JGAAP Standalone CanonicalEnglish
+            :: Presentation.ReportingContextOf ShopTitle MoneyDecimal
+    case Presentation.present context BeforeClosing ledger of
+        Left failure -> fail ("ClosingTarget: presentation failed: " ++ show failure)
+        Right statements -> do
+            let linesOfShop = Presentation._statementLines statements
+                expectedLines =
+                    [ (Std Cash, Debit, 600)
+                    , (Std Sales, Credit, 1000)
+                    , (Std SalesCost, Debit, 400)
+                    ]
+                coordinates = map
+                    (\line -> (Presentation._lineAccount line, Presentation._lineSide line,
+                               Presentation._lineAmount line)) linesOfShop
+            check (length coordinates == 3 && all (`elem` coordinates) expectedLines)
+                  "presents shop balances"
+            check (all ((/= OwnersCapital) . Presentation._lineAccount) linesOfShop)
+                  "no closing balance inserted into presentation"
+            check (financialStatementRows [CurrentAssetsSection] statements == Right
+                [ ["section", "account", "label", "row", "side", "amount"]
+                , ["CurrentAssetsSection", "Std Cash", "Cash", "line", "Debit", "600"]
+                ]) "shop statement row preserves account, label, and amount"
+    let netSales = Groups.PresentationGroupDef NetSalesGroup Revenue "Shop net sales"
+            [Std Sales] [Std SalesRebates] Nothing
+        grouped = presentGroups [netSales]
+            (Map.fromList [(Std Sales, (0, 1000)), (Std SalesRebates, (100, 0))])
+            :: Groups.GroupedPresentationOf ShopTitle MoneyDecimal
+    check (gpBlocks grouped ==
+        [ (netSales,
+            [ Groups.GroupRow (Groups.GrossRow (Std Sales)) (RelativeAmount False 1000)
+            , Groups.GroupRow (Groups.DeductionRow (Std SalesRebates)) (RelativeAmount True 100)
+            , Groups.GroupRow (Groups.NetRow NetSalesGroup) (RelativeAmount False 900)
+            ])
+        ]) "shop group gross, deduction, and net rows"
+    check (gpRootTotals grouped == Map.singleton Revenue (100, 1000))
+          "shop group root totals"
+    check (gpConsumed grouped == Set.fromList [Std Sales, Std SalesRebates])
+          "shop group consumed titles"
+
 main :: IO ()
 main = do
     checkBuiltInImports
+    checkPresentationImports
     -- The shop's chart satisfies the closing-target law.
     check (Closing.closingTargetViolation (closingTarget :: ShopTitle) == Nothing)
           "shop target is lawful"
@@ -143,6 +236,7 @@ main = do
               .+ 400 .@ Not :< Std SalesCost .+ 400 .@ Hat :< Std Cash :: ShopEntry
         expected = 1000 .@ Hat :< Std Sales .+ 1000 .@ Not :< OwnersCapital
                 .+ 400 .@ Hat :< Std SalesCost .+ 400 .@ Hat :< OwnersCapital :: ShopEntry
+    checkShopPresentation ledger
     check (Map.lookup (Std Cash) (accountBalances ledger) == Just (DebitBalance 600))
           "shop cash balance"
     check (impossibleBalances ledger == NoProblem) "shop cash stays debit"

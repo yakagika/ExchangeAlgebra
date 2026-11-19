@@ -168,6 +168,7 @@ Exchange
 ExpenseSection
 ExplainedTemporaryBalance
 FinancialStatements
+FinancialStatementsOf
 Fixed
 FixedCurrent
 FixedHomeSide
@@ -336,6 +337,7 @@ PrepaidCorporateIncomeTaxes
 PrepaidExpenses
 PrepaidPensionCost
 PresentationIssue
+PresentationIssueOf
 Products
 PropertyTaxPayable
 ProvisionForBonuses
@@ -361,6 +363,7 @@ RentalIncome
 RepairFundReserve
 RepairsExpense
 ReportingContext
+ReportingContextOf
 ReportingEligibility
 ReportingScope
 ReportingSubtotal
@@ -402,6 +405,7 @@ StandardBase
 StatementDivision
 StatementEligible
 StatementLine
+StatementLineOf
 StatementRowsError
 StatementSection
 StatutoryWelfareExpenses
@@ -479,6 +483,7 @@ _contraPresentationRules
 _customMetricLabels
 _hat
 _hatBase
+_labelOverrides
 _lineAccount
 _lineAmount
 _lineIsDeduction
@@ -634,6 +639,7 @@ rationalAddAccum
 rationalRoundAccum
 relTol
 relabel
+reportingContext
 retainedEarningsRule
 revHat
 roundAccum

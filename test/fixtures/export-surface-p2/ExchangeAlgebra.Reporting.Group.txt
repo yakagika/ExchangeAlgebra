@@ -3,13 +3,17 @@ DepreciableAssetsGroup
 GrossRow
 GroupRow
 GroupRowKind
+GroupRowKindOf
+GroupRowOf
 GroupedPresentation
+GroupedPresentationOf
 IncomeTaxesGroup
 NetPurchasesGroup
 NetRow
 NetSalesGroup
 PresentationGroup
 PresentationGroupDef
+PresentationGroupDefOf
 RelativeAmount
 SubgroupRow
 TradeReceivablesGroup

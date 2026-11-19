@@ -22,6 +22,9 @@ import GHC.Stack (HasCallStack)
 -- * @vocabContra t == maybe False asIsContra (vocabSpec t)@.
 -- * 'closingTarget' differs from the wildcard, has a specification with
 --   division @Equity@, and has @vocabContra closingTarget == False@.
+-- * Each endpoint in 'vocabReciprocalPairs' is concrete, has the
+--   @ReciprocalAccount@ role in 'vocabSemantics', and is neither a Cost nor
+--   a Revenue account. No title occurs more than once across all pairs.
 class Element t => AccountVocabulary t where
     -- | Look up a title's specification. The wildcard returns 'Nothing'.
     vocabSpec :: t -> Maybe AccountSpec
@@ -48,6 +51,11 @@ class Element t => AccountVocabulary t where
     vocabAdditionalClosingResidualTitles :: [t]
     vocabAdditionalClosingResidualTitles = []
 
+    -- | Pairs eliminated in a combined report, in audit-event order.
+    -- The default list is empty.
+    vocabReciprocalPairs :: [(t, t)]
+    vocabReciprocalPairs = []
+
     -- | Name the account that receives revenue and cost balances at closing.
     closingTarget :: t
 
@@ -70,6 +78,7 @@ instance AccountVocabulary AccountTitles where
         ]
     vocabSuspenseTitles = [SuspensePayments, SuspenseReceipts, SuspenseAccount]
     vocabAdditionalClosingResidualTitles = [CashOverShort]
+    vocabReciprocalPairs = [(BranchCurrentAccount, HeadOfficeCurrentAccount)]
     closingTarget = RetainedEarnings
     vocabDivision = classifyAccountDivision
     vocabContra = classifyAccountContra

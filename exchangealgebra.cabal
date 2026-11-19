@@ -380,6 +380,7 @@ test-suite ExchangeAlgebra-test
       Journal.NormalFormSpec
       Accounting.AdjustmentSpec
       Accounting.AuditSpec
+      Accounting.PresentationVocabularySpec
       Accounting.VocabularyLawSpec
       Accounting.ClosingTargetSpec
       Accounting.RegistrySpec

@@ -3,7 +3,8 @@ module ExchangeAlgebra.Reporting.Group
 {-# DEPRECATED "Import ExchangeAlgebra.Accounting.Statements.Group instead." #-}
     ( -- * Groups
       PresentationGroup(..)
-    , PresentationGroupDef(..)
+    , PresentationGroupDef
+    , PresentationGroupDefOf(..)
     , defaultPresentationGrouping
     , presentationGroupOf
     , lookupGroupDef
@@ -14,9 +15,12 @@ module ExchangeAlgebra.Reporting.Group
     , relativeTo
     , addGross
       -- * Grouped rows
-    , GroupRowKind(..)
-    , GroupRow(..)
-    , GroupedPresentation(..)
+    , GroupRowKind
+    , GroupRowKindOf(..)
+    , GroupRow
+    , GroupRowOf(..)
+    , GroupedPresentation
+    , GroupedPresentationOf(..)
     , presentGroups
     ) where
 

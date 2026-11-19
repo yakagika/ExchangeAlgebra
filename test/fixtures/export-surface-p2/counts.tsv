@@ -28,9 +28,9 @@ ExchangeAlgebra.Posting	13
 ExchangeAlgebra.Render.Bookkeeping	12
 ExchangeAlgebra.Render.Csv	2
 ExchangeAlgebra.Render.Simulation	5
-ExchangeAlgebra.Reporting.Group	36
+ExchangeAlgebra.Reporting.Group	40
 ExchangeAlgebra.Reporting.Metric	23
-ExchangeAlgebra.Reporting.Presentation	111
+ExchangeAlgebra.Reporting.Presentation	125
 ExchangeAlgebra.Simulate.Analysis	2
 ExchangeAlgebra.Simulate.Engine	49
 ExchangeAlgebra.Simulate.Lite	37
@@ -43,4 +43,4 @@ ExchangeAlgebra.Simulate	89
 ExchangeAlgebra.TrialBalance.Balance	12
 ExchangeAlgebra.TrialBalance.Validation	35
 ExchangeAlgebra.Value	13
-ExchangeAlgebra	688
+ExchangeAlgebra	694

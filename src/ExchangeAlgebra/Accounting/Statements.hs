@@ -30,7 +30,8 @@ axes are summed, and no axis name appears in the output.
 -}
 module ExchangeAlgebra.Accounting.Statements
     ( PresentationGroup(..)
-    , PresentationGroupDef(..)
+    , PresentationGroupDef
+    , PresentationGroupDefOf(..)
     , defaultPresentationGrouping
     , presentationGroupOf
     , lookupGroupDef
@@ -39,9 +40,12 @@ module ExchangeAlgebra.Accounting.Statements
     , RelativeAmount(..)
     , relativeTo
     , addGross
-    , GroupRowKind(..)
-    , GroupRow(..)
-    , GroupedPresentation(..)
+    , GroupRowKind
+    , GroupRowKindOf(..)
+    , GroupRow
+    , GroupRowOf(..)
+    , GroupedPresentation
+    , GroupedPresentationOf(..)
     , presentGroups
     , MetricId
     , mkMetricId
@@ -58,21 +62,33 @@ module ExchangeAlgebra.Accounting.Statements
     , ReportingScope(..)
     , PresentationProfile(..)
     , StatementSection(..)
-    , StatementLine(..)
-    , PresentationAllocation(..)
-    , PresentationRelabel(..)
-    , MaterialityTreatment(..)
-    , MaterialityDecision(..)
-    , ContraPresentationRule(..)
+    , StatementLine
+    , StatementLineOf(..)
+    , PresentationAllocation
+    , PresentationAllocationOf(..)
+    , PresentationRelabel
+    , PresentationRelabelOf(..)
+    , MaterialityTreatment
+    , MaterialityTreatmentOf(..)
+    , MaterialityDecision
+    , MaterialityDecisionOf(..)
+    , ContraPresentationRule
+    , ContraPresentationRuleOf(..)
     , CustomMetricLabel(..)
     , SubtotalCoverage(..)
-    , SubtotalDefinition(..)
+    , SubtotalDefinition
+    , SubtotalDefinitionOf(..)
     , StatementSubtotal(..)
-    , ReportingContext(..)
+    , ReportingContext
+    , ReportingContextOf(..)
+    , reportingContext
     , jcciSecondGradeContext
-    , PresentationAuditEvent(..)
-    , PresentationIssue(..)
-    , FinancialStatements(..)
+    , PresentationAuditEvent
+    , PresentationAuditEventOf(..)
+    , PresentationIssue
+    , PresentationIssueOf(..)
+    , FinancialStatements
+    , FinancialStatementsOf(..)
     , presentationLabel
     , metricLabel
     , present

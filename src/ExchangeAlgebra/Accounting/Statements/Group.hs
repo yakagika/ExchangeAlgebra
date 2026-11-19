@@ -44,7 +44,8 @@ sum of the displayed amounts need not equal the displayed net.
 module ExchangeAlgebra.Accounting.Statements.Group
     ( -- * Groups
       PresentationGroup(..)
-    , PresentationGroupDef(..)
+    , PresentationGroupDef
+    , PresentationGroupDefOf(..)
     , defaultPresentationGrouping
     , presentationGroupOf
     , lookupGroupDef
@@ -55,9 +56,12 @@ module ExchangeAlgebra.Accounting.Statements.Group
     , relativeTo
     , addGross
       -- * Grouped rows
-    , GroupRowKind(..)
-    , GroupRow(..)
-    , GroupedPresentation(..)
+    , GroupRowKind
+    , GroupRowKindOf(..)
+    , GroupRow
+    , GroupRowOf(..)
+    , GroupedPresentation
+    , GroupedPresentationOf(..)
     , presentGroups
     ) where
 
@@ -98,7 +102,7 @@ data PresentationGroup
 -- @pgGross@ member is; the test-suite pins both, together with the disjointness
 -- of the membership sets and the fact that every registry contra account
 -- belongs to exactly one group.
-data PresentationGroupDef = PresentationGroupDef
+data PresentationGroupDefOf t = PresentationGroupDef
     { pgKey        :: PresentationGroup
     , pgDivision   :: AccountDivision
       -- ^ Statement column the block belongs to. Fixes the group's normal
@@ -106,8 +110,8 @@ data PresentationGroupDef = PresentationGroupDef
     , pgLabel      :: Text
       -- ^ Label of the net line (and of the carried subtotal when this block
       -- rolls up into another one).
-    , pgGross      :: [AccountTitles]
-    , pgDeductions :: [AccountTitles]
+    , pgGross      :: [t]
+    , pgDeductions :: [t]
     , pgParent     :: Maybe PresentationGroup
       -- ^ When set, this block's net is carried into the named block as a
       -- 'SubgroupRow' and only the outermost block contributes to the column
@@ -116,9 +120,12 @@ data PresentationGroupDef = PresentationGroupDef
     }
     deriving (Show, Eq)
 
+-- | Built-in chart specialization of 'PresentationGroupDefOf'.
+type PresentationGroupDef = PresentationGroupDefOf AccountTitles
+
 -- | Normal (deduction-free) side of a group, i.e. the side its net line is
 -- stated against.
-groupNormalSide :: PresentationGroupDef -> Side
+groupNormalSide :: PresentationGroupDefOf t -> Side
 groupNormalSide = defaultSide . pgDivision
 
 -- | Default display groups for callers using 'presentGroups'.
@@ -193,13 +200,19 @@ presentationGroupOf title = fmap pgKey (L.find member defaultPresentationGroupin
     member def = title `elem` pgGross def || title `elem` pgDeductions def
 
 -- | Look one block up in the grouping in force.
-lookupGroupDef :: [PresentationGroupDef] -> PresentationGroup -> Maybe PresentationGroupDef
+lookupGroupDef
+    :: [PresentationGroupDefOf t]
+    -> PresentationGroup
+    -> Maybe (PresentationGroupDefOf t)
 lookupGroupDef defs key = L.find ((== key) . pgKey) defs
 
 -- | Restrict a grouping to the statement columns a writer renders. A balance
 -- sheet must not net revenue accounts, and a profit and loss statement must
 -- not net asset accounts.
-groupingForDivisions :: [AccountDivision] -> [PresentationGroupDef] -> [PresentationGroupDef]
+groupingForDivisions
+    :: [AccountDivision]
+    -> [PresentationGroupDefOf t]
+    -> [PresentationGroupDefOf t]
 groupingForDivisions divisions = filter ((`elem` divisions) . pgDivision)
 
 ------------------------------------------------------------------
@@ -238,39 +251,48 @@ addGross (leftDebit, leftCredit) (rightDebit, rightCredit) =
 ------------------------------------------------------------------
 
 -- | What one row of a block states.
-data GroupRowKind
-    = GrossRow AccountTitles
+data GroupRowKindOf t
+    = GrossRow t
       -- ^ A constituent account, before deduction.
     | SubgroupRow PresentationGroup
       -- ^ The net of a nested block, carried into this one.
-    | DeductionRow AccountTitles
+    | DeductionRow t
       -- ^ A contra account. Its amount is already stated relative to the
       -- group's normal side, so it is normally 'raBelowZero'.
     | NetRow PresentationGroup
       -- ^ The block's net, rounded after combining the exact member amounts.
     deriving (Show, Eq)
 
+-- | Built-in chart specialization of 'GroupRowKindOf'.
+type GroupRowKind = GroupRowKindOf AccountTitles
+
 -- | A group row kind paired with its relative amount.
-data GroupRow v = GroupRow
-    { grKind   :: GroupRowKind
+data GroupRowOf t v = GroupRow
+    { grKind   :: GroupRowKindOf t
     , grAmount :: RelativeAmount v
     }
     deriving (Show, Eq)
 
+-- | Built-in chart specialization of 'GroupRowOf'.
+type GroupRow = GroupRowOf AccountTitles
+
 -- | Result of applying a grouping to a set of per-title balances.
-data GroupedPresentation v = GroupedPresentation
-    { gpBlocks     :: [(PresentationGroupDef, [GroupRow v])]
+data GroupedPresentationOf t v = GroupedPresentation
+    { gpBlocks     :: [(PresentationGroupDefOf t, [GroupRowOf t v])]
       -- ^ Blocks in render order: nested blocks precede the block they roll
       -- up into, roots follow the order of the grouping list.
     , gpRootTotals :: Map AccountDivision (v, v)
       -- ^ Per-division @(debit, credit)@ contribution of the __outermost__
       -- blocks only. A caller adds this to the ungrouped part of the column;
       -- adding nested blocks as well would double count.
-    , gpConsumed   :: Set AccountTitles
+    , gpConsumed   :: Set t
       -- ^ Titles the blocks have taken over. The caller must not render these
       -- again through its ordinary per-entry path.
     }
     deriving (Show, Eq)
+
+-- | Built-in chart specialization of 'GroupedPresentationOf'.
+type GroupedPresentation = GroupedPresentationOf AccountTitles
 
 -- | Apply a grouping to per-title @(debit gross, credit gross)@ totals.
 --
@@ -286,10 +308,10 @@ data GroupedPresentation v = GroupedPresentation
 -- Complexity: O(g · m + g²) for @g@ blocks of @m@ members (the grouping is a
 -- fixed, small table).
 presentGroups
-    :: HatVal v
-    => [PresentationGroupDef]
-    -> Map AccountTitles (v, v)
-    -> GroupedPresentation v
+    :: (Ord t, HatVal v)
+    => [PresentationGroupDefOf t]
+    -> Map t (v, v)
+    -> GroupedPresentationOf t v
 presentGroups defs balances = GroupedPresentation
     { gpBlocks = blocks
     , gpRootTotals = rootTotals

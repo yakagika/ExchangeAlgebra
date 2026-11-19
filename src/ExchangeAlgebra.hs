@@ -239,13 +239,18 @@ module ExchangeAlgebra
     , ReclassificationRule(..)
     , TBFinding(..)
     , trialBalanceFindings
-    , ReportingContext(..)
+    , ReportingContext
+    , ReportingContextOf(..)
     , ReportingScope(..)
+    , reportingContext
     , jcciSecondGradeContext
-    , FinancialStatements(..)
+    , FinancialStatements
+    , FinancialStatementsOf(..)
     , StatementSection(..)
-    , StatementLine(..)
-    , PresentationIssue(..)
+    , StatementLine
+    , StatementLineOf(..)
+    , PresentationIssue
+    , PresentationIssueOf(..)
     , present
       -- * Output
     , writeCSV
@@ -374,13 +379,18 @@ import ExchangeAlgebra.Accounting.TrialBalance.Validation
     , trialBalanceFindings
     )
 import ExchangeAlgebra.Accounting.Statements.Presentation
-    ( ReportingContext(..)
+    ( ReportingContext
+    , ReportingContextOf(..)
     , ReportingScope(..)
+    , reportingContext
     , jcciSecondGradeContext
-    , FinancialStatements(..)
+    , FinancialStatements
+    , FinancialStatementsOf(..)
     , StatementSection(..)
-    , StatementLine(..)
-    , PresentationIssue(..)
+    , StatementLine
+    , StatementLineOf(..)
+    , PresentationIssue
+    , PresentationIssueOf(..)
     , present
     )
 import ExchangeAlgebra.IO.Output.Csv (writeCSV, csvTranspose)

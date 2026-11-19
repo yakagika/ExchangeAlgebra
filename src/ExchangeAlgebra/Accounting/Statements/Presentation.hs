@@ -1,3 +1,6 @@
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wincomplete-patterns -Werror=incomplete-patterns #-}
@@ -51,21 +54,33 @@ module ExchangeAlgebra.Accounting.Statements.Presentation
     , ReportingScope(..)
     , PresentationProfile(..)
     , StatementSection(..)
-    , StatementLine(..)
-    , PresentationAllocation(..)
-    , PresentationRelabel(..)
-    , MaterialityTreatment(..)
-    , MaterialityDecision(..)
-    , ContraPresentationRule(..)
+    , StatementLine
+    , StatementLineOf(..)
+    , PresentationAllocation
+    , PresentationAllocationOf(..)
+    , PresentationRelabel
+    , PresentationRelabelOf(..)
+    , MaterialityTreatment
+    , MaterialityTreatmentOf(..)
+    , MaterialityDecision
+    , MaterialityDecisionOf(..)
+    , ContraPresentationRule
+    , ContraPresentationRuleOf(..)
     , CustomMetricLabel(..)
     , SubtotalCoverage(..)
-    , SubtotalDefinition(..)
+    , SubtotalDefinition
+    , SubtotalDefinitionOf(..)
     , StatementSubtotal(..)
-    , ReportingContext(..)
+    , ReportingContext
+    , ReportingContextOf(..)
+    , reportingContext
     , jcciSecondGradeContext
-    , PresentationAuditEvent(..)
-    , PresentationIssue(..)
-    , FinancialStatements(..)
+    , PresentationAuditEvent
+    , PresentationAuditEventOf(.., ReciprocalAccountsEliminated)
+    , PresentationIssue
+    , PresentationIssueOf(..)
+    , FinancialStatements
+    , FinancialStatementsOf(..)
     , presentationLabel
     , metricLabel
     , present
@@ -73,6 +88,7 @@ module ExchangeAlgebra.Accounting.Statements.Presentation
 
 import qualified ExchangeAlgebra.Accounting.TrialBalance.Accum as Accum
 
+import           Data.Maybe (isJust)
 import           Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Map.Strict as M
 import           Data.Map.Strict (Map)
@@ -82,6 +98,9 @@ import           Data.Text (Text)
 import qualified Data.Text as T
 
 import           ExchangeAlgebra.Algebra.Base.Representation (HatBase)
+import           ExchangeAlgebra.Algebra.Element.Representation (Element(isWildcard))
+import           ExchangeAlgebra.Accounting.Account.Vocabulary (AccountVocabulary(..))
+import           ExchangeAlgebra.Accounting.Exchange (ExBaseClass(TitleOf))
 import           ExchangeAlgebra.Algebra.Core.Representation (Alg)
 import           ExchangeAlgebra.Algebra.Value.Class (HatVal(..))
 import           ExchangeAlgebra.Accounting.Account.Classification
@@ -99,10 +118,10 @@ import           ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
 import qualified ExchangeAlgebra.Accounting.Account.Registry as Registry
 import           ExchangeAlgebra.Accounting.Statements.Metric
                      ( DerivedMetric(..)
-                     , MetricError
+                     , MetricErrorOf(..)
                      , MetricId
                      , PeriodResult(..)
-                     , periodResultOf
+                     , periodResultOfAlg
                      )
 import qualified ExchangeAlgebra.Accounting.TrialBalance.Validation as TB
 import           ExchangeAlgebra.Accounting.TrialBalance.Balance
@@ -111,7 +130,7 @@ import           ExchangeAlgebra.Accounting.TrialBalance.Balance
                      , balanceSide
                      )
 
--- | Land 4 deliberately supports JGAAP only.
+-- | Accounting framework used to prepare statements.
 data AccountingFramework = JGAAP
   deriving (Show, Eq)
 
@@ -140,8 +159,8 @@ data StatementSection
   deriving (Show, Eq)
 
 -- | An account line with its label, section, side, amount, and deduction flag.
-data StatementLine v = StatementLine
-    { _lineAccount :: AccountTitles
+data StatementLineOf t v = StatementLine
+    { _lineAccount :: t
     , _lineLabel   :: Text
     , _lineSection :: StatementSection
     , _lineSide    :: Side
@@ -150,44 +169,62 @@ data StatementLine v = StatementLine
     }
     deriving (Show, Eq)
 
+-- | A statement line for the built-in chart of accounts.
+type StatementLine = StatementLineOf AccountTitles
+
 -- | Evidence-backed split of one title without creating new bookkeeping
 -- coordinates. Current and non-current parts must sum exactly to its balance.
-data PresentationAllocation v = PresentationAllocation
-    { _allocationAccount    :: AccountTitles
+data PresentationAllocationOf t v = PresentationAllocation
+    { _allocationAccount    :: t
     , _allocationCurrent    :: v
     , _allocationNoncurrent :: v
     , _allocationEvidence   :: Text
     }
     deriving (Show, Eq)
 
+-- | A maturity allocation for the built-in chart of accounts.
+type PresentationAllocation = PresentationAllocationOf AccountTitles
+
 -- | An account relabeling instruction with its rationale.
-data PresentationRelabel = PresentationRelabel
-    { _relabelSource    :: AccountTitles
-    , _relabelTarget    :: AccountTitles
+data PresentationRelabelOf t = PresentationRelabel
+    { _relabelSource    :: t
+    , _relabelTarget    :: t
     , _relabelRationale :: Text
     }
     deriving (Show, Eq)
 
+-- | A relabeling instruction for the built-in chart of accounts.
+type PresentationRelabel = PresentationRelabelOf AccountTitles
+
 -- | Whether an account is presented gross, separately, or net against another.
-data MaterialityTreatment
+data MaterialityTreatmentOf t
   = PresentGross
   | PresentSeparately
-  | NetAgainst AccountTitles
+  | NetAgainst t
   deriving (Show, Eq)
 
+-- | A materiality treatment for the built-in chart of accounts.
+type MaterialityTreatment = MaterialityTreatmentOf AccountTitles
+
 -- | An account materiality treatment with its rationale.
-data MaterialityDecision = MaterialityDecision
-    { _materialityAccount   :: AccountTitles
-    , _materialityTreatment :: MaterialityTreatment
+data MaterialityDecisionOf t = MaterialityDecision
+    { _materialityAccount   :: t
+    , _materialityTreatment :: MaterialityTreatmentOf t
     , _materialityRationale :: Text
     }
     deriving (Show, Eq)
 
+-- | A materiality decision for the built-in chart of accounts.
+type MaterialityDecision = MaterialityDecisionOf AccountTitles
+
 -- | A separate or net presentation instruction for a contra account.
-data ContraPresentationRule
-  = PresentContraSeparately AccountTitles Text
-  | NetContraAgainst AccountTitles AccountTitles Text
+data ContraPresentationRuleOf t
+  = PresentContraSeparately t Text
+  | NetContraAgainst t t Text
   deriving (Show, Eq)
+
+-- | A contra presentation rule for the built-in chart of accounts.
+type ContraPresentationRule = ContraPresentationRuleOf AccountTitles
 
 -- | Profile-specific display labels for a caller-defined metric.  The metric
 -- identity remains separate from these labels.
@@ -205,13 +242,16 @@ data SubtotalCoverage
   deriving (Show, Eq)
 
 -- | A subtotal is a typed reporting definition, never an account-basis title.
-data SubtotalDefinition = SubtotalDefinition
+data SubtotalDefinitionOf t = SubtotalDefinition
     { _subtotalMetric       :: DerivedMetric
-    , _subtotalCreditTitles :: [AccountTitles]
-    , _subtotalDebitTitles  :: [AccountTitles]
+    , _subtotalCreditTitles :: [t]
+    , _subtotalDebitTitles  :: [t]
     , _subtotalCoverage     :: SubtotalCoverage
     }
     deriving (Show, Eq)
+
+-- | A subtotal definition for the built-in chart of accounts.
+type SubtotalDefinition = SubtotalDefinitionOf AccountTitles
 
 -- | A reporting metric with its label and account balance.
 data StatementSubtotal v = StatementSubtotal
@@ -222,19 +262,24 @@ data StatementSubtotal v = StatementSubtotal
     deriving (Show, Eq)
 
 -- | Framework, scope, profile, and instructions used to present a trial balance.
-data ReportingContext v = ReportingContext
+data ReportingContextOf t v = ReportingContext
     { _reportingFramework       :: AccountingFramework
     , _reportingScope           :: ReportingScope
     , _presentationProfile      :: PresentationProfile
-    , _maturitySensitiveTitles  :: Set AccountTitles
-    , _presentationAllocations  :: [PresentationAllocation v]
-    , _presentationRelabels     :: [PresentationRelabel]
-    , _materialityDecisions     :: [MaterialityDecision]
-    , _contraPresentationRules  :: [ContraPresentationRule]
-    , _subtotalDefinitions      :: [SubtotalDefinition]
+    , _maturitySensitiveTitles  :: Set t
+    , _presentationAllocations  :: [PresentationAllocationOf t v]
+    , _presentationRelabels     :: [PresentationRelabelOf t]
+    , _materialityDecisions     :: [MaterialityDecisionOf t]
+    , _contraPresentationRules  :: [ContraPresentationRuleOf t]
+    , _subtotalDefinitions      :: [SubtotalDefinitionOf t]
     , _customMetricLabels       :: [CustomMetricLabel]
+    , _labelOverrides           :: Map t Text
+      -- ^ Japanese labels used by the JCCI grade-2 profile.
     }
     deriving (Show, Eq)
+
+-- | A reporting context for the built-in chart of accounts.
+type ReportingContext = ReportingContextOf AccountTitles
 
 -- | Construct a JGAAP context with the JCCI grade-2 presentation profile.
 -- The caller explicitly chooses the reporting scope; it is not inferred from
@@ -244,10 +289,16 @@ data ReportingContext v = ReportingContext
 -- instructions needed for the report. This starting context does not guarantee
 -- that 'present' succeeds for every validated trial balance.
 jcciSecondGradeContext :: ReportingScope -> ReportingContext v
-jcciSecondGradeContext scope = ReportingContext
-    { _reportingFramework = JGAAP
+jcciSecondGradeContext scope = (reportingContext JGAAP scope JcciSecondGradeReport)
+    { _labelOverrides = jcciSecondGradeLabelOverrides }
+
+-- | Construct a context with empty instruction lists and no label overrides.
+reportingContext
+    :: AccountingFramework -> ReportingScope -> PresentationProfile -> ReportingContextOf t v
+reportingContext framework scope profile = ReportingContext
+    { _reportingFramework = framework
     , _reportingScope = scope
-    , _presentationProfile = JcciSecondGradeReport
+    , _presentationProfile = profile
     , _maturitySensitiveTitles = S.empty
     , _presentationAllocations = []
     , _presentationRelabels = []
@@ -255,28 +306,38 @@ jcciSecondGradeContext scope = ReportingContext
     , _contraPresentationRules = []
     , _subtotalDefinitions = []
     , _customMetricLabels = []
+    , _labelOverrides = M.empty
     }
 
 -- | A recorded presentation operation and its supporting values.
-data PresentationAuditEvent v
-  = ReciprocalAccountsEliminated
-        (TB.AccountBalance v) (TB.AccountBalance v)
+data PresentationAuditEventOf t v
+  = ReciprocalPairEliminated t (TB.AccountBalance v) t (TB.AccountBalance v)
+    -- ^ Left and right endpoints, each followed by its balance before elimination.
   | AccountRelabeled
-        AccountTitles AccountTitles (TB.AccountBalance v) Text
-  | BalanceAllocated AccountTitles v v Text
+        t t (TB.AccountBalance v) Text
+  | BalanceAllocated t v v Text
   | MaterialityApplied
-        AccountTitles MaterialityTreatment (TB.AccountBalance v) Text
+        t (MaterialityTreatmentOf t) (TB.AccountBalance v) Text
   | ContraPresentationApplied
-        AccountTitles (Maybe AccountTitles) (TB.AccountBalance v) Text
+        t (Maybe t) (TB.AccountBalance v) Text
   | SubtotalCalculated DerivedMetric (TB.AccountBalance v)
-  | LabelOverridden AccountTitles Text Text
+  | LabelOverridden t Text Text
   deriving (Show, Eq)
+
+-- | A presentation audit event for the built-in chart of accounts.
+type PresentationAuditEvent = PresentationAuditEventOf AccountTitles
+
+-- | Elimination of the built-in branch and head-office current accounts.
+pattern ReciprocalAccountsEliminated
+    :: TB.AccountBalance v -> TB.AccountBalance v -> PresentationAuditEventOf AccountTitles v
+pattern ReciprocalAccountsEliminated branch headOffice =
+    ReciprocalPairEliminated BranchCurrentAccount branch HeadOfficeCurrentAccount headOffice
 
 -- | Reasons why no correct statement can be presented. Accounting
 -- abnormalities that still allow a statement are not issues; they are
 -- reported by 'TB.trialBalanceFindings'.
-data PresentationIssue v
-  = InvalidStatementValue AccountTitles
+data PresentationIssueOf t v
+  = InvalidStatementValue t
     -- ^ A posting value is invalid (for example NaN or infinite).
   | WildcardStatementBase
     -- ^ An account title or a Hat/Not side is a wildcard, so the debit or
@@ -286,36 +347,42 @@ data PresentationIssue v
     -- presentation step (the per-title net balances summed on each side,
     -- as in a balance trial balance). Checked before reciprocal accounts are eliminated,
     -- so the elimination cannot hide an original imbalance.
-  | PeriodResultUnavailable MetricError
+  | PeriodResultUnavailable (MetricErrorOf t)
     -- ^ The before-closing period result cannot be derived, so the mandatory
     -- period-result subtotal cannot be presented.
-  | MissingPresentationAllocation AccountTitles
-  | DuplicatePresentationAllocation AccountTitles
+  | MissingPresentationAllocation t
+  | DuplicatePresentationAllocation t
   | InvalidPresentationAllocation
-        AccountTitles (TB.AccountBalance v) v v
-  | BlankPresentationEvidence AccountTitles
-  | UnexpectedPresentationAllocation AccountTitles
-  | ConflictingPresentationInstruction AccountTitles
-  | MissingPresentationAccount AccountTitles
-  | BlankPresentationRationale AccountTitles
-  | UnpresentableBalance AccountTitles (TB.AccountBalance v)
+        t (TB.AccountBalance v) v v
+  | BlankPresentationEvidence t
+  | UnexpectedPresentationAllocation t
+  | ConflictingPresentationInstruction t
+  | MissingPresentationAccount t
+  | BlankPresentationRationale t
+  | UnpresentableBalance t (TB.AccountBalance v)
   | InvalidSubtotalDefinition DerivedMetric
   | DuplicateMetricIdentity DerivedMetric
   | UnlabelledCustomMetric MetricId
   | UnreconciledPresentation v v
   deriving (Show, Eq)
 
+-- | A presentation issue for the built-in chart of accounts.
+type PresentationIssue = PresentationIssueOf AccountTitles
+
 -- | Presented statement lines, subtotals, and the presentation audit.
-data FinancialStatements v = FinancialStatements
+data FinancialStatementsOf t v = FinancialStatements
     { _statementFramework :: AccountingFramework
     , _statementScope     :: ReportingScope
     , _statementProfile   :: PresentationProfile
     , _statementTrialBalanceStage :: TB.TrialBalanceStage
-    , _statementLines     :: [StatementLine v]
+    , _statementLines     :: [StatementLineOf t v]
     , _statementSubtotals :: [StatementSubtotal v]
-    , _presentationAudit  :: [PresentationAuditEvent v]
+    , _presentationAudit  :: [PresentationAuditEventOf t v]
     }
     deriving (Show, Eq)
+
+-- | Financial statements for the built-in chart of accounts.
+type FinancialStatements = FinancialStatementsOf AccountTitles
 
 -- | Profile-specific Japanese display-label overrides.
 jcciSecondGradeLabelOverrides :: Map AccountTitles Text
@@ -326,18 +393,21 @@ jcciSecondGradeLabelOverrides = M.fromList
 -- | Profile-specific display label. Japanese profiles use the registry's
 -- cleaned statement label, with the JCCI grade-2 overrides applied first.
 presentationLabel :: PresentationProfile -> AccountTitles -> Text
-presentationLabel profile title = case Registry.accountSpec title of
+presentationLabel = labelWith jcciSecondGradeLabelOverrides
+
+labelWith :: AccountVocabulary t => Map t Text -> PresentationProfile -> t -> Text
+labelWith overrides profile title = case vocabSpec title of
     Nothing -> T.pack (show title)
     Just spec -> case profile of
         JcciSecondGradeReport -> M.findWithDefault
-            (Registry.asLabelJa spec) title jcciSecondGradeLabelOverrides
+            (Registry.asLabelJa spec) title overrides
         CanonicalJapanese -> Registry.asLabelJa spec
         CanonicalEnglish -> Registry.asNameEn spec
 
 -- | Resolve a metric's display label independently of its stable identity.
 -- Profit/loss wording follows the structural balance direction.
 metricLabel
-    :: ReportingContext v
+    :: ReportingContextOf t v
     -> DerivedMetric
     -> TB.AccountBalance v
     -> Maybe Text
@@ -378,7 +448,7 @@ metricLabel context metric balance = case metric of
 -- an entity, period, or department and map it to account titles before calling
 -- this function. The stage is stated by the caller. A 'TB.BeforeClosing' trial
 -- balance always receives a 'PeriodResultMetric' subtotal derived as
--- 'periodResultOf' derives it; a caller-supplied 'PeriodResultMetric'
+-- @periodResultOf@ derives it; a caller-supplied 'PeriodResultMetric'
 -- definition is rejected with 'InvalidSubtotalDefinition'. An
 -- 'TB.AfterClosing' trial balance receives no period-result subtotal.
 -- Presentation instructions that move a balance between a profit-and-loss
@@ -387,6 +457,11 @@ metricLabel context metric balance = case metric of
 -- 'ConflictingPresentationInstruction', so the period-result subtotal always
 -- equals the exact sum of the revenue and expense balances. A maturity
 -- allocation or a maturity-sensitive title must be an asset or a liability.
+--
+-- Combined reports eliminate each pair in 'vocabReciprocalPairs'. Each
+-- endpoint must be concrete, carry the reciprocal role, and have a
+-- non-nominal division. A conflicting instruction or an invalid endpoint
+-- yields 'ConflictingPresentationInstruction' for that title.
 --
 -- Titles whose balance must be split between current and noncurrent are the
 -- union of '_maturitySensitiveTitles' and the implicitly maturity-sensitive
@@ -398,11 +473,11 @@ metricLabel context metric balance = case metric of
 -- its own section on the side it actually has; inspect
 -- 'TB.trialBalanceFindings' to audit it.
 present
-    :: HatVal v
-    => ReportingContext v
+    :: (HatVal v, ExBaseClass (HatBase t), TitleOf (HatBase t) ~ t)
+    => ReportingContextOf t v
     -> TB.TrialBalanceStage
-    -> Alg v (HatBase AccountTitles)
-    -> Either (NonEmpty (PresentationIssue v)) (FinancialStatements v)
+    -> Alg v (HatBase t)
+    -> Either (NonEmpty (PresentationIssueOf t v)) (FinancialStatementsOf t v)
 present context stage alg = case issues of
     issue : rest -> Left (issue :| rest)
     [] -> Right FinancialStatements
@@ -463,35 +538,36 @@ present context stage alg = case issues of
     labelAudit =
         [ LabelOverridden title canonical displayed
         | _presentationProfile context == JcciSecondGradeReport
-        , (title, _) <- M.toList jcciSecondGradeLabelOverrides
+        , title <- M.keys (_labelOverrides context)
         , title `elem` map _lineAccount statementLines
-        , let canonical = presentationLabel CanonicalJapanese title
-        , let displayed = presentationLabel JcciSecondGradeReport title
+        , let canonical = labelWith (_labelOverrides context) CanonicalJapanese title
+        , let displayed = labelWith (_labelOverrides context) JcciSecondGradeReport title
         , canonical /= displayed
         ]
 
 eliminateReciprocals
-    :: HatVal v => ReportingContext v
-    -> Map AccountTitles (Accum v)
-    -> (Map AccountTitles (Accum v), [PresentationAuditEvent v])
+    :: (HatVal v, AccountVocabulary t) => ReportingContextOf t v
+    -> Map t (Accum v)
+    -> (Map t (Accum v), [PresentationAuditEventOf t v])
 eliminateReciprocals context balances = case _reportingScope context of
     Standalone -> (balances, [])
     Combined ->
-        ( M.delete BranchCurrentAccount
-            (M.delete HeadOfficeCurrentAccount balances)
-        , [ ReciprocalAccountsEliminated branch headOffice
-          | branch /= TB.NoBalance || headOffice /= TB.NoBalance
+        ( foldr (\(left, right) -> M.delete left . M.delete right) balances vocabReciprocalPairs
+        , [ ReciprocalPairEliminated left leftBalance right rightBalance
+          | (left, right) <- vocabReciprocalPairs
+          , let leftBalance = balance left
+                rightBalance = balance right
+          , leftBalance /= TB.NoBalance || rightBalance /= TB.NoBalance
           ]
         )
   where
-    branch = accumulatedBalance (accumulatedFor BranchCurrentAccount balances)
-    headOffice = accumulatedBalance (accumulatedFor HeadOfficeCurrentAccount balances)
+    balance title = accumulatedBalance (accumulatedFor title balances)
 
 applyRelabels
-    :: HatVal v
-    => ReportingContext v
-    -> Map AccountTitles (Accum v)
-    -> (Map AccountTitles (Accum v), [PresentationAuditEvent v])
+    :: (Ord t, HatVal v)
+    => ReportingContextOf t v
+    -> Map t (Accum v)
+    -> (Map t (Accum v), [PresentationAuditEventOf t v])
 applyRelabels context balances0 =
     Prelude.foldl applyOne (balances0, []) (_presentationRelabels context)
   where
@@ -504,10 +580,10 @@ applyRelabels context balances0 =
             [AccountRelabeled source target sourceBalance rationale])
 
 applyMateriality
-    :: HatVal v
-    => ReportingContext v
-    -> Map AccountTitles (Accum v)
-    -> (Map AccountTitles (Accum v), [PresentationAuditEvent v])
+    :: (Ord t, HatVal v)
+    => ReportingContextOf t v
+    -> Map t (Accum v)
+    -> (Map t (Accum v), [PresentationAuditEventOf t v])
 applyMateriality context balances0 =
     Prelude.foldl applyOne (balances0, []) (_materialityDecisions context)
   where
@@ -524,10 +600,10 @@ applyMateriality context balances0 =
         in (next, events ++ [event])
 
 applyContraRules
-    :: HatVal v
-    => ReportingContext v
-    -> Map AccountTitles (Accum v)
-    -> (Map AccountTitles (Accum v), [PresentationAuditEvent v])
+    :: (Ord t, HatVal v)
+    => ReportingContextOf t v
+    -> Map t (Accum v)
+    -> (Map t (Accum v), [PresentationAuditEventOf t v])
 applyContraRules context balances0 =
     Prelude.foldl applyOne (balances0, [])
         (_contraPresentationRules context)
@@ -543,10 +619,10 @@ applyContraRules context balances0 =
             )
 
 moveBalance
-    :: HatVal v
-    => AccountTitles -> AccountTitles
-    -> Map AccountTitles (Accum v)
-    -> Map AccountTitles (Accum v)
+    :: (Ord t, HatVal v)
+    => t -> t
+    -> Map t (Accum v)
+    -> Map t (Accum v)
 moveBalance source target balances =
     if source == target
         then balances
@@ -556,12 +632,12 @@ moveBalance source target balances =
             (M.delete source balances)
 
 allocationIssues
-    :: HatVal v
-    => Set AccountTitles
-    -> ReportingContext v
-    -> Map AccountTitles (TB.AccountBalance v)
-    -> Map AccountTitles (Accum v)
-    -> [PresentationIssue v]
+    :: (HatVal v, AccountVocabulary t)
+    => Set t
+    -> ReportingContextOf t v
+    -> Map t (TB.AccountBalance v)
+    -> Map t (Accum v)
+    -> [PresentationIssueOf t v]
 allocationIssues required context balances states = concatMap checkTitle checkedTitles
     ++ [ DuplicatePresentationAllocation title
        | title <- duplicateTitles (map _allocationAccount allocations)
@@ -573,7 +649,7 @@ allocationIssues required context balances states = concatMap checkTitle checked
     allocationTitles = S.fromList (map _allocationAccount allocations)
     checkedTitles = S.toList (required `S.union` allocationTitles)
     checkTitle title
-        | Just semantics <- Registry.accountSemantics title
+        | Just semantics <- vocabSemantics title
         , StatementDivision division <- asemDivisionSemantics semantics
         , division `elem` [Assets, Liability] = checkBalance title
         | otherwise = [ConflictingPresentationInstruction title]
@@ -595,7 +671,7 @@ allocationIssues required context balances states = concatMap checkTitle checked
 
 allocationMatches
     :: HatVal v
-    => Accum v -> PresentationAllocation v -> Bool
+    => Accum v -> PresentationAllocationOf t v -> Bool
 allocationMatches total allocation =
     _allocationCurrent allocation >= 0
     && _allocationNoncurrent allocation >= 0
@@ -608,25 +684,27 @@ allocationMatches total allocation =
         (addAccum (_allocationNoncurrent allocation) emptyAccum)
 
 instructionIssues
-    :: HatVal v
-    => Set AccountTitles
-    -> ReportingContext v
-    -> Map AccountTitles (TB.AccountBalance v)
-    -> [PresentationIssue v]
+    :: (HatVal v, AccountVocabulary t)
+    => Set t
+    -> ReportingContextOf t v
+    -> Map t (TB.AccountBalance v)
+    -> [PresentationIssueOf t v]
 instructionIssues explicitRequired context balances =
-    duplicateInstructionIssues
+    map ConflictingPresentationInstruction (duplicateTitles instructionSources)
+    ++ reciprocalIssues
     ++ concatMap relabelIssue (_presentationRelabels context)
     ++ concatMap materialityIssue (_materialityDecisions context)
     ++ concatMap contraIssue (_contraPresentationRules context)
   where
-    duplicateInstructionIssues =
-        map ConflictingPresentationInstruction
-            (duplicateTitles instructionSources)
-        ++ [ ConflictingPresentationInstruction title
-           | _reportingScope context == Combined
-           , title <- [BranchCurrentAccount, HeadOfficeCurrentAccount]
-           , title `elem` instructionSources
-           ]
+    reciprocalIssues =
+        [ ConflictingPresentationInstruction title
+        | _reportingScope context == Combined
+        , (left, right) <- vocabReciprocalPairs
+        , title <- [left, right]
+        , title `elem` instructionSources || isWildcard title || isNominal title
+            || not (hasReciprocalRole title)
+        ]
+    hasReciprocalRole = maybe False (elem ReciprocalAccount . asemRoles) . vocabSemantics
     instructionSources = concatMap relabelTitles (_presentationRelabels context)
         ++ concatMap materialityTitles (_materialityDecisions context)
         ++ concatMap contraTitles (_contraPresentationRules context)
@@ -639,7 +717,7 @@ instructionIssues explicitRequired context balances =
             [ConflictingPresentationInstruction (_relabelSource rule)]
         | isNominal (_relabelSource rule) /= isNominal (_relabelTarget rule) =
             [ConflictingPresentationInstruction (_relabelSource rule)]
-        | not (presentableTarget (_relabelTarget rule)) =
+        | not (presentable (_relabelTarget rule)) =
             [ConflictingPresentationInstruction (_relabelTarget rule)]
         | otherwise = []
     materialityIssue decision
@@ -656,7 +734,7 @@ instructionIssues explicitRequired context balances =
                     [ConflictingPresentationInstruction target]
                 | isNominal (_materialityAccount decision) /= isNominal target ->
                     [ConflictingPresentationInstruction (_materialityAccount decision)]
-                | not (presentableTarget target) ->
+                | not (presentable target) ->
                     [ConflictingPresentationInstruction target]
                 | M.notMember target balances ->
                     [MissingPresentationAccount target]
@@ -679,12 +757,12 @@ instructionIssues explicitRequired context balances =
                 [ConflictingPresentationInstruction source]
             | isNominal source /= isNominal target ->
                 [ConflictingPresentationInstruction source]
-            | not (presentableTarget target) ->
+            | not (presentable target) ->
                 [ConflictingPresentationInstruction target]
             | M.notMember target balances ->
                 [MissingPresentationAccount target]
             | otherwise -> []
-    isNominal title = case Registry.accountSemantics title of
+    isNominal title = case vocabSemantics title of
         Just semantics -> asemDivisionSemantics semantics `elem`
             [StatementDivision Revenue, StatementDivision Cost]
         Nothing -> False
@@ -697,26 +775,25 @@ instructionIssues explicitRequired context balances =
     contraTitles (PresentContraSeparately source _) = [source]
     contraTitles (NetContraAgainst source target _) = [source, target]
 
-duplicateTitles :: [AccountTitles] -> [AccountTitles]
+duplicateTitles :: Ord t => [t] -> [t]
 duplicateTitles titles = S.toList
     (S.fromList [title | title <- titles, count title titles > 1])
   where
     count needle = length . filter (== needle)
 
-presentableTarget :: AccountTitles -> Bool
-presentableTarget title = case Registry.accountSemantics title of
-    Just semantics -> asemReportingEligibility semantics `elem`
-        [StatementEligible, ContextualPresentation]
-    Nothing -> False
+-- | A contextual title has a section on either side. Its balance only selects
+-- which section to use, so an empty balance suffices to test coverage.
+presentable :: AccountVocabulary t => t -> Bool
+presentable title = isJust (reportingSection title TB.NoBalance)
 
 implicitMaturityTitles
-    :: Map AccountTitles (TB.AccountBalance v) -> Set AccountTitles
+    :: AccountVocabulary t => Map t (TB.AccountBalance v) -> Set t
 implicitMaturityTitles balances = S.fromList
     [ title
     | (title, balance) <- M.toList balances
     , balanceSide balance /= Side
     , fixedCurrent title == Other
-    , Just semantics <- [Registry.accountSemantics title]
+    , Just semantics <- [vocabSemantics title]
     , StatementDivision division <- [asemDivisionSemantics semantics]
     , division `elem` [Assets, Liability]
     ]
@@ -725,9 +802,9 @@ implicitMaturityTitles balances = S.fromList
 -- undetermined. When this list is non-empty, no other check is evaluated,
 -- because the account accumulation relies on a determined side.
 statementStructureIssues
-    :: HatVal v
-    => Alg v (HatBase AccountTitles)
-    -> [PresentationIssue v]
+    :: (HatVal v, ExBaseClass (HatBase t), TitleOf (HatBase t) ~ t)
+    => Alg v (HatBase t)
+    -> [PresentationIssueOf t v]
 statementStructureIssues alg =
     map (InvalidStatementValue . fst) invalidValues
     ++ map (const WildcardStatementBase) (wildcardAccounts ++ wildcardSides)
@@ -738,8 +815,8 @@ statementStructureIssues alg =
 -- relabeling, netting, or allocation; empty when they are equal.
 inputBalanceIssues
     :: HatVal v
-    => Map AccountTitles (Accum v)
-    -> [PresentationIssue v]
+    => Map t (Accum v)
+    -> [PresentationIssueOf t v]
 inputBalanceIssues states =
     [ UnbalancedStatementInput (roundAccum debit) (roundAccum credit)
     | signAccum (mergeAccum debit (negateAccum credit)) /= Just EQ ]
@@ -751,16 +828,19 @@ inputBalanceIssues states =
         _ -> (debits, credits)
 
 -- | The mandatory period-result subtotal of a before-closing trial balance,
--- derived as 'periodResultOf' derives it, or the issue that prevents it. An
+-- derived as @periodResultOf@ derives it, or the issue that prevents it. An
 -- after-closing trial balance yields neither.
 periodResultSubtotal
-    :: HatVal v
-    => ReportingContext v
+    :: (HatVal v, ExBaseClass (HatBase t), TitleOf (HatBase t) ~ t)
+    => ReportingContextOf t v
     -> TB.TrialBalanceStage
-    -> Alg v (HatBase AccountTitles)
-    -> ([PresentationIssue v], [StatementSubtotal v])
+    -> Alg v (HatBase t)
+    -> ([PresentationIssueOf t v], [StatementSubtotal v])
 periodResultSubtotal _ TB.AfterClosing _ = ([], [])
-periodResultSubtotal context TB.BeforeClosing alg = case periodResultOf TB.BeforeClosing alg of
+periodResultSubtotal _ TB.BeforeClosing alg
+    | title : _ <- Accum.nonZeroDerivedTitles alg =
+        ([PeriodResultUnavailable (ResidualDerivedCoordinate title)], [])
+periodResultSubtotal context TB.BeforeClosing alg = case periodResultOfAlg alg of
     Left issue -> ([PeriodResultUnavailable issue], [])
     Right result ->
         let balance = case result of
@@ -771,17 +851,17 @@ periodResultSubtotal context TB.BeforeClosing alg = case periodResultOf TB.Befor
                 | Just label <- [metricLabel context PeriodResultMetric balance]])
 
 coverageIssues
-    :: Map AccountTitles (TB.AccountBalance v) -> [PresentationIssue v]
+    :: AccountVocabulary t => Map t (TB.AccountBalance v) -> [PresentationIssueOf t v]
 coverageIssues balances =
     [ UnpresentableBalance title balance
     | (title, balance) <- M.toList balances
     , balanceSide balance /= Side
-    , not (presentableTarget title)
+    , not (presentable title)
     ]
 
 reconciliationIssues
-    :: HatVal v
-    => ReportingContext v -> Map AccountTitles (Accum v) -> [PresentationIssue v]
+    :: (HatVal v, AccountVocabulary t)
+    => ReportingContextOf t v -> Map t (Accum v) -> [PresentationIssueOf t v]
 reconciliationIssues context balances =
     [ UnreconciledPresentation (roundAccum debit) (roundAccum credit)
     | signAccum (mergeAccum debit (negateAccum credit)) /= Just EQ ]
@@ -803,11 +883,11 @@ reconciliationIssues context balances =
         [] -> total
 
 subtotalIssues
-    :: HatVal v
-    => ReportingContext v
-    -> Map AccountTitles (TB.AccountBalance v)
-    -> Map AccountTitles (TB.AccountBalance v)
-    -> [PresentationIssue v]
+    :: (Ord t, HatVal v)
+    => ReportingContextOf t v
+    -> Map t (TB.AccountBalance v)
+    -> Map t (TB.AccountBalance v)
+    -> [PresentationIssueOf t v]
 subtotalIssues context initial balances = duplicateDefinitionIssues
     ++ duplicateCustomLabelIssues
     ++ concatMap check definitions
@@ -871,10 +951,10 @@ duplicateMetricIds metricIds = S.toList
     count needle = length . filter (== needle)
 
 renderLines
-    :: (Eq v, Num v)
-    => ReportingContext v
-    -> Map AccountTitles (TB.AccountBalance v)
-    -> [StatementLine v]
+    :: (AccountVocabulary t, Eq v, Num v)
+    => ReportingContextOf t v
+    -> Map t (TB.AccountBalance v)
+    -> [StatementLineOf t v]
 renderLines context balances = concatMap renderOne (M.toList balances)
   where
     renderOne (_, TB.NoBalance) = []
@@ -889,11 +969,11 @@ renderLines context balances = concatMap renderOne (M.toList balances)
         [] -> Nothing
 
 allocatedLines
-    :: (Eq v, Num v)
-    => ReportingContext v -> AccountTitles -> TB.AccountBalance v
-    -> PresentationAllocation v -> [StatementLine v]
+    :: (AccountVocabulary t, Eq v, Num v)
+    => ReportingContextOf t v -> t -> TB.AccountBalance v
+    -> PresentationAllocationOf t v -> [StatementLineOf t v]
 allocatedLines context title balance allocation =
-    [ StatementLine title (presentationLabel (_presentationProfile context) title)
+    [ StatementLine title (labelWith (_labelOverrides context) (_presentationProfile context) title)
         section side amount (isContraTitle title)
     | (section, amount) <-
         [ (currentSection title balance, _allocationCurrent allocation)
@@ -905,21 +985,21 @@ allocatedLines context title balance allocation =
     side = balanceSide balance
 
 lineFor
-    :: Num v => ReportingContext v -> AccountTitles -> StatementSection
-    -> TB.AccountBalance v -> StatementLine v
+    :: (AccountVocabulary t, Num v) => ReportingContextOf t v -> t -> StatementSection
+    -> TB.AccountBalance v -> StatementLineOf t v
 lineFor context title section balance = StatementLine
-    title (presentationLabel (_presentationProfile context) title)
+    title (labelWith (_labelOverrides context) (_presentationProfile context) title)
     section (balanceSide balance) (balanceAmount balance) (isContraTitle title)
 
-isContraTitle :: AccountTitles -> Bool
-isContraTitle title = case Registry.accountSemantics title of
+isContraTitle :: AccountVocabulary t => t -> Bool
+isContraTitle title = case vocabSemantics title of
     Just semantics -> ContraAccount `elem` asemRoles semantics
     Nothing -> False
 
 reportingSection
-    :: AccountTitles -> TB.AccountBalance v -> Maybe StatementSection
+    :: AccountVocabulary t => t -> TB.AccountBalance v -> Maybe StatementSection
 reportingSection title balance = do
-    semantics <- Registry.accountSemantics title
+    semantics <- vocabSemantics title
     case asemReportingEligibility semantics of
         DerivedPresentation -> Nothing
         NotPresented -> Nothing
@@ -928,7 +1008,7 @@ reportingSection title balance = do
             StatementDivision division -> Just (divisionSection title division)
             _ -> Nothing
 
-divisionSection :: AccountTitles -> AccountDivision -> StatementSection
+divisionSection :: AccountVocabulary t => t -> AccountDivision -> StatementSection
 divisionSection title division = case division of
     Assets -> case fixedCurrent title of
         Fixed -> NoncurrentAssetsSection
@@ -940,8 +1020,8 @@ divisionSection title division = case division of
     Revenue -> RevenueSection
     Cost -> ExpenseSection
 
-fixedCurrent :: AccountTitles -> FixedCurrent
-fixedCurrent title = case Registry.accountSpec title of
+fixedCurrent :: AccountVocabulary t => t -> FixedCurrent
+fixedCurrent title = case vocabSpec title of
     Just spec -> Registry.asFixedCurrent spec
     Nothing -> Other
 
@@ -950,16 +1030,16 @@ contextualSection (TB.DebitBalance _) = ContextualDebitSection
 contextualSection (TB.CreditBalance _) = ContextualCreditSection
 contextualSection TB.NoBalance = ContextualDebitSection
 
-currentSection :: AccountTitles -> TB.AccountBalance v -> StatementSection
-currentSection title balance = case Registry.accountSemantics title of
+currentSection :: AccountVocabulary t => t -> TB.AccountBalance v -> StatementSection
+currentSection title balance = case vocabSemantics title of
     Just semantics -> case asemDivisionSemantics semantics of
         StatementDivision Liability -> CurrentLiabilitiesSection
         StatementDivision Assets -> CurrentAssetsSection
         _ -> contextualSection balance
     Nothing -> contextualSection balance
 
-noncurrentSection :: AccountTitles -> TB.AccountBalance v -> StatementSection
-noncurrentSection title balance = case Registry.accountSemantics title of
+noncurrentSection :: AccountVocabulary t => t -> TB.AccountBalance v -> StatementSection
+noncurrentSection title balance = case vocabSemantics title of
     Just semantics -> case asemDivisionSemantics semantics of
         StatementDivision Liability -> NoncurrentLiabilitiesSection
         StatementDivision Assets -> NoncurrentAssetsSection
@@ -974,13 +1054,13 @@ accumulatedBalance total = case Accum.readAccountAccum Credit total of
     (Credit, value) -> TB.CreditBalance value
 
 -- | An absent title contributes the empty exact sum.
-accumulatedFor :: HatVal v => AccountTitles -> Map AccountTitles (Accum v) -> Accum v
+accumulatedFor :: (Ord t, HatVal v) => t -> Map t (Accum v) -> Accum v
 accumulatedFor = M.findWithDefault emptyAccum
 
 subtotalBalance
-    :: HatVal v
-    => Map AccountTitles (Accum v)
-    -> [AccountTitles] -> [AccountTitles] -> TB.AccountBalance v
+    :: (Ord t, HatVal v)
+    => Map t (Accum v)
+    -> [t] -> [t] -> TB.AccountBalance v
 subtotalBalance balances creditTitles debitTitles = accumulatedBalance
     (foldr (mergeAccum . (`accumulatedFor` balances)) emptyAccum
         (debitTitles ++ creditTitles))
