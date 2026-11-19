@@ -1,0 +1,72 @@
+# Installation and modules
+
+This manual uses **exchangealgebra-0.6.0.1** from Hackage. The examples assume that you can write Haskell programs and have Stack installed. They use GHC 9.10.3 with the Stackage snapshot `lts-24.65`.
+
+The Algebra layer provides types for coordinates, bases, amounts, and finite sequences of postings. Its operations implement the [redundant algebra](../algebra/definitions.md#redundant-algebra-and-linear-combinations). Accounting adds the interpretation of account titles and the debit and credit sides.
+
+## Add the package to a Stack project {#add-the-package-to-a-stack-project}
+
+In your project's `stack.yaml`, select the snapshot and add the Hackage release as an extra dependency:
+
+```yaml
+resolver: lts-24.65
+packages:
+- .
+extra-deps:
+- exchangealgebra-0.6.0.1
+```
+
+Add the library to your `package.yaml` dependencies. Preserve any other dependencies your program needs:
+
+```yaml
+dependencies:
+- base
+- exchangealgebra == 0.6.0.1
+```
+
+`extra-deps` selects the package source for Stack; the dependency in `package.yaml` makes the library available to your program. Run `stack build` in the project directory to build the project and its dependencies. For a Cabal project, put `exchangealgebra == 0.6.0.1` in the component's `build-depends` instead.
+
+## Choose imports by layer {#choose-imports-by-layer}
+
+`ExchangeAlgebra` is a convenience module. It re-exports named selections of the Algebra API, account titles and classifications, accounting exchange operations, transfers and closing, trial-balance readouts, statement presentation, CSV and bookkeeping output, and money types. It does not re-export every public module. In particular, import `ExchangeAlgebra.Journal` qualified and import `matchesQuery` from `ExchangeAlgebra.Algebra.Element` directly.
+
+The module table lists public entry points in 0.6.0.1. Import a specific module to restrict the imported names to that part of the library.
+
+| Layer | Modules to import | Purpose |
+|---|---|---|
+| Algebra | `ExchangeAlgebra.Algebra` | Coordinates, bases, the `Alg` type, and redundant-algebra operations. |
+| Algebra | `ExchangeAlgebra.Algebra.Element`, `.Base`, `.Core`, `.Value` | Individual parts of the algebra; these abbreviated names share the prefix `ExchangeAlgebra.Algebra`. |
+| Algebra | `ExchangeAlgebra.Algebra.Posting`, `ExchangeAlgebra.Algebra.Transfer` | Checked posting construction and generic coordinate transformations. |
+| Journal | `ExchangeAlgebra.Journal`, `ExchangeAlgebra.Journal.Transfer` | Postings indexed by notes, and transformations of those journals. Use qualified imports to avoid names shared with Algebra. |
+| Accounting | `ExchangeAlgebra.Accounting`, `ExchangeAlgebra.Accounting.Account`, `ExchangeAlgebra.Accounting.Exchange` | Account titles, account classification, and debit and credit operations. |
+| Accounting | `ExchangeAlgebra.Accounting.TrialBalance`, `.Entries`, `.Closing`, `.Statements`, `.Consolidation` | Bookkeeping procedures; these abbreviated names share the prefix `ExchangeAlgebra.Accounting`. |
+| IO | `ExchangeAlgebra.IO.Input`, `ExchangeAlgebra.IO.Input.Admission`, `ExchangeAlgebra.IO.Output` | External input, admission checks, and output. |
+
+The Simulation layer is outside the scope of this manual.
+
+For the [account divisions and side decompositions](../algebra/definitions.md#account-classes-and-sides), `ExchangeAlgebra.Accounting.Exchange` provides `ExBaseClass` with `whatDiv` and `whichSide`, and `Exchange` with `decL`, `decR`, and `balance`. `decL` selects debit postings and `decR` selects credit postings. `balance` compares their exact totals before rounding. The [journal example](../overview.md#recover-the-debit-and-credit-columns) uses these functions through `ExchangeAlgebra`.
+
+## Build the withdrawal {#build-the-withdrawal}
+
+Save the complete program as `Main.hs`. It records a withdrawal of 3,000 yen from Bank A's savings account on January 10: cash increases, and deposits decrease. `Cash` and `Deposits` are built-in account titles, and the built-in `CountUnit` supplies `Yen`. The date and bank-account description are omitted from the bases because these balances combine dates and do not distinguish bank accounts.
+
+```haskell
+{{#include ../../code/installation.hs:program}}
+```
+
+Run these commands from your project directory:
+
+```bash
+stack exec -- ghc -Wall -Werror Main.hs -o first-posting
+./first-posting
+```
+
+The program prints:
+
+```text
+{{#include ../../code/installation.expected}}
+```
+
+The type annotation fixes both the amount type and the base type. `.@` constructs each posting, and `.+` retains both postings in one algebra value. The directions `Not` and `Hat` identify the cash increase and deposit decrease; neither amount is negative.
+
+Tested with exchangealgebra-0.6.0.1 on 2026-11-19.

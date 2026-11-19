@@ -159,7 +159,7 @@ msgstr "$$ \\\\begin{aligned} x_1 &= 1000 : \\langle \\text{Cash} \\rangle + 100
 
 #: src/overview.md:31
 msgid "The postings carry neither debit and credit labels nor minus signs. Each posting states which account changed and in which direction. The journal side follows from the account's division: an increase in an asset or expense is a debit, and an increase in a liability, equity, or revenue account is a credit. A decrease takes the opposite side. For example, the increase in capital stock in $x_1$ is a credit, and the decrease in cash in $x_2$ is also a credit. [Account classes and sides](algebra/definitions.md#account-classes-and-sides) gives the full rule, including contra accounts."
-msgstr "項には借方や貸方のラベルも負号も付けません. 各項は, どの勘定がどちらの方向に変化したかを表します. 借方と貸方の別は勘定の区分から決まります. 資産と費用の増加は借方, 負債, 純資産, 収益の増加は貸方です. 減少の場合は反対側になります. 例えば, $x_1$ の資本金の増加も, $x_2$ の現金の減少も貸方です. 評価勘定を含む規則の全体は[勘定の区分と貸借](algebra/definitions.md#勘定の区分と貸借)を参照してください."
+msgstr "項には借方や貸方のラベルも負号も付けません. 各項は, どの勘定がどちらの方向に変化したかを表します. 借方と貸方の別は勘定の区分から決まります. 資産と費用の増加は借方, 負債, 純資産, 収益の増加は貸方です. 減少の場合は反対側になります. 例えば, $x_1$ の資本金の増加も, $x_2$ の現金の減少も貸方です. 評価勘定を含む規則の全体は[勘定の区分と貸借](algebra/definitions.md#account-classes-and-sides)を参照してください."
 
 #: src/overview.md:33
 msgid "The whole journal is the sum $x = x_1 + x_2 + x_3 + x_4$ of eight postings. The sum keeps every posting: cash has $1000$ and $500$ on the plain base and $600$ on the hat base. Bar, written $\\bar{x}$, totals the two directions at each base and keeps the excess. For cash it leaves $900 : \\langle \\text{Cash} \\rangle$, the cash balance."

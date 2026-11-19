@@ -2,7 +2,7 @@
 
 This page maps a journal written as a debit and credit table onto exchange algebra notation, using four transactions of a small shop. It assumes familiarity with double-entry bookkeeping and no knowledge of the algebra. [Definitions and axioms](algebra/definitions.md) gives the formal definitions.
 
-## A journal as a table
+## A journal as a table {#a-journal-as-a-table}
 
 Table 1 records the four transactions in a conventional journal. Each row has one debit account and one credit account with the same amount.
 
@@ -15,7 +15,7 @@ Table 1 records the four transactions in a conventional journal. Each row has on
 
 *Table 1. Four journal entries of a small shop. The debit total and the credit total are both 3,000.*
 
-## The same journal in exchange algebra
+## The same journal in exchange algebra {#the-same-journal-in-exchange-algebra}
 
 Exchange algebra writes an entry as a sum of postings $a : e$, where $a$ is a nonnegative amount and $e$ is a base. Here a base is an account title in angle brackets. A plain base such as $\langle \text{Cash} \rangle$ records an increase (`Not`), and a hat base such as $\widehat{\langle \text{Cash} \rangle}$ records a decrease (`Hat`). The four rows of Table 1 become:
 
@@ -32,34 +32,20 @@ The postings carry neither debit and credit labels nor minus signs. Each posting
 
 The whole journal is the sum $x = x_1 + x_2 + x_3 + x_4$ of eight postings. The sum keeps every posting: cash has $1000$ and $500$ on the plain base and $600$ on the hat base. Bar, written $\bar{x}$, totals the two directions at each base and keeps the excess. For cash it leaves $900 : \langle \text{Cash} \rangle$, the cash balance.
 
-## Recover the debit and credit columns
+## Recover the debit and credit columns {#recover-the-debit-and-credit-columns}
 
 The projection `decL` selects the debit postings of $x$ and `decR` selects the credit postings. `decL` returns cash 1,000, purchases 600, accounts receivable 900, and cash 500, which is the debit column of Table 1. `decR` returns the credit column. Both totals are 3,000, so `balance` returns `True`.
 
-The following program builds the journal and checks these results with the `ExchangeAlgebra` module:
+A program that builds the journal of Table 1 and checks these results needs only the `ExchangeAlgebra` module:
 
 ```haskell
-import ExchangeAlgebra
-
-journal :: Alg MoneyDecimal (HatBase AccountTitles)
-journal = 1000 .@ Not :< Cash               .+ 1000 .@ Not :< CapitalStock
-       .+  600 .@ Not :< Purchases          .+  600 .@ Hat :< Cash
-       .+  900 .@ Not :< AccountsReceivable .+  900 .@ Not :< Sales
-       .+  500 .@ Not :< Cash               .+  500 .@ Hat :< AccountsReceivable
-
-main :: IO ()
-main = do
-    print (norm (decL journal), norm (decR journal))
-    print (balance journal)
-    print (bar (projByAccountTitle Cash journal))
+{{#include ../code/overview.hs:program}}
 ```
 
 It prints:
 
 ```text
-(3000,3000)
-True
-900:@Not:<Cash
+{{#include ../code/overview.expected}}
 ```
 
-`.@` attaches an amount to a hat base, and `.+` adds postings. `norm` sums the amounts, and `bar` applies bar to the cash postings selected by `projByAccountTitle`.
+`.@` attaches an amount to a hat base. `.+` keeps the postings of both operands, including postings on the same base. `norm` totals the amounts. `bar` offsets the increases and decreases of the cash postings selected by `projByAccountTitle` and leaves the net increase of 900.
