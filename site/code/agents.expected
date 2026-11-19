@@ -1,0 +1,9 @@
+Business record: 3000:@Not:<(Cash,Business,Yen) .+ 3000:@Hat:<(Deposits,Business,Yen)
+Bank A record: 3000:@Hat:<(Cash,BankA,Yen) .+ 3000:@Hat:<(DepositPayable,BankA,Yen)
+Business record is balanced: True
+Bank A record is balanced: True
+Combined record is balanced: True
+Bank liability decrease side: Debit
+Corresponding deposit changes: 3000:@Hat:<(Deposits,Business,Yen) .+ 3000:@Hat:<(DepositPayable,BankA,Yen)
+Cash changes with owners retained: 3000:@Not:<(Cash,Business,Yen) .+ 3000:@Hat:<(Cash,BankA,Yen)
+Bar retains separate owners: 3000:@Not:<(Cash,Business,Yen) .+ 3000:@Hat:<(Cash,BankA,Yen) .+ 3000:@Hat:<(Deposits,Business,Yen) .+ 3000:@Hat:<(DepositPayable,BankA,Yen)
