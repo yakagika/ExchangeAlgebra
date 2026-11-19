@@ -12,6 +12,9 @@
 # 出力したうえで exit 1 で終わる.
 set -euo pipefail
 cd "$(dirname "$0")"
+version=$(python3 manual_version.py)
+title_en="ExchangeAlgebra Manual ($version)"
+title_ja="ExchangeAlgebra マニュアル ($version)"
 
 for plugin in mdbook-gettext mdbook-xgettext; do
     if ! command -v "$plugin" >/dev/null 2>&1; then
@@ -37,15 +40,15 @@ else
     echo '警告: msgcmp がないため翻訳の照合を省略します. po/ja.po を更新する手順は build.sh の冒頭を見る.' >&2
 fi
 
-MDBOOK_BOOK__LANGUAGE=en mdbook build -d book/en
-MDBOOK_BOOK__LANGUAGE=ja mdbook build -d book/ja
-cat > book/index.html <<'HTML'
+MDBOOK_BOOK__LANGUAGE=en MDBOOK_BOOK__TITLE="$title_en" mdbook build -d book/en
+MDBOOK_BOOK__LANGUAGE=ja MDBOOK_BOOK__TITLE="$title_ja" mdbook build -d book/ja
+cat > book/index.html <<HTML
 <!DOCTYPE html>
 <html lang="en">
 <meta charset="utf-8">
-<title>ExchangeAlgebra Manual</title>
+<title>$title_en</title>
 <meta http-equiv="refresh" content="0; url=en/index.html">
-<a href="en/index.html">ExchangeAlgebra Manual (English)</a>
+<a href="en/index.html">$title_en</a>
 </html>
 HTML
 python3 check-book.py book/en book/ja || failed=1
