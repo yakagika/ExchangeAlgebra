@@ -1,0 +1,8 @@
+Parsed posting totals (debit, credit): (3200,3200)
+Source differences: []
+Admitted journal totals (debit, credit): (3200,3200)
+Normalized title: "ar"
+Account name: Right AccountsReceivable
+CSV title error: Left (UnknownAccount "Saels")
+Text certification: BalancedUnresolved {_certResolved = [("Jan 28 Cash sale",[(Debit,Cash,2000)])], _certUnresolved = [("Jan 28 Cash sale",[(1,"Saels",UnknownAccount "Saels")])], _certDebitTotal = 2000, _certCreditTotal = 2000}
+Entry balance error: Left (EntryErrors "Jan 28 Cash sale" (Imbalanced {_debitTotal = 2000, _creditTotal = 1900} :| []) :| [])

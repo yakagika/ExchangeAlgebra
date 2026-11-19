@@ -1,0 +1,5 @@
+side,account,amount,note
+debit,Cash,2000,Jan 28 Cash sale
+credit,Sales,2000,Jan 28 Cash sale
+debit,RentExpense,1200,Jan 30 January and February rent
+credit,Cash,1200,Jan 30 January and February rent
