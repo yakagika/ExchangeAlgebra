@@ -75,4 +75,4 @@ Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
 |---|---|
 | `Closing.closingEntries ledger` | Return additional entries to RetainedEarnings, or `Left` for an invalid eligible balance. |
 | `TrialBalance.AfterClosing` | Audit the closed trial balance, including unclosed revenue and expense accounts. |
-| `additions Journal..\| note` and `journal .+ closingJournal` | Attach a closing note to the additions, then add them to the adjusted journal. |
+| `additions .\| note` and `journal .+ closingJournal` | Attach a closing note to the additions, then add them to the adjusted journal. |

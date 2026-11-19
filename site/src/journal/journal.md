@@ -6,7 +6,7 @@ Use exchangealgebra-0.6.0.1 in the project prepared in [Add the package to a Sta
 
 ## Declare a note type {#declare-a-note-type}
 
-Save the code blocks in their displayed order as `Main.hs`. Import the journal module qualified to distinguish its constructors and queries from algebra operations:
+Save the code blocks in their displayed order as `Main.hs`. Use the qualified journal import for constructors and queries, and import `(.|)` separately to attach notes.
 
 ```haskell
 {{#include ../../code/journal.hs:setup}}
@@ -24,7 +24,7 @@ The value `EntryNote (0, 0, 0) ""` is reserved for the empty note and is not a t
 
 ## Attach notes to the month {#attach-notes-to-the-month}
 
-Construct each transaction as an algebra, then attach its note once with `Journal..|`:
+Construct each transaction as an algebra, then attach its note once with `.|`:
 
 ```haskell
 {{#include ../../code/journal.hs:entries}}
@@ -73,7 +73,7 @@ Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
 | Type or operation | Inputs and result |
 |---|---|
 | `Note n` | Requires `Show`, `Eq`, `Ord`, `Hashable`, and `Typeable`. Define `plank`; `isPlank` defaults to equality with `plank`. |
-| `algebra Journal..\| note` | Attach one note to all postings of an algebra. A zero algebra produces an empty journal. |
+| `algebra .\| note` | Attach one note to all postings of an algebra. A zero algebra produces an empty journal. |
 | `Journal.fromList entries` | Sum a list of journals, combining equal note keys with redundant addition. |
 | `Journal.sigma items f` | Sum the journals produced by applying `f` to the items. |
 | `Journal.projWithNote notes journal` | Select exact note keys. A list containing `plank` selects all notes; an empty list selects none. |

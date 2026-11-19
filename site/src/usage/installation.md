@@ -28,7 +28,7 @@ dependencies:
 
 ## Choose imports by layer {#choose-imports-by-layer}
 
-`ExchangeAlgebra` is a convenience module. It re-exports named selections of the Algebra API, account titles and classifications, accounting exchange operations, transfers and closing, trial-balance readouts, statement presentation, CSV and bookkeeping output, and money types. It does not re-export every public module. In particular, import `ExchangeAlgebra.Journal` qualified and import `matchesQuery` from `ExchangeAlgebra.Algebra.Element` directly.
+`ExchangeAlgebra` is a convenience module. It re-exports named selections of the Algebra API, account titles and classifications, accounting exchange operations, transfers and closing, trial-balance readouts, statement presentation, CSV and bookkeeping output, and money types. It does not re-export every public module. Import journal functions with `import qualified ExchangeAlgebra.Journal as Journal` and the operator with `import ExchangeAlgebra.Journal ((.|))`. Import `matchesQuery` directly from `ExchangeAlgebra.Algebra.Element`.
 
 The module table lists public entry points in 0.6.0.1. Import a specific module to restrict the imported names to that part of the library.
 
@@ -37,7 +37,7 @@ The module table lists public entry points in 0.6.0.1. Import a specific module 
 | Algebra | `ExchangeAlgebra.Algebra` | Coordinates, bases, the `Alg` type, and redundant-algebra operations. |
 | Algebra | `ExchangeAlgebra.Algebra.Element`, `.Base`, `.Core`, `.Value` | Individual parts of the algebra; these abbreviated names share the prefix `ExchangeAlgebra.Algebra`. |
 | Algebra | `ExchangeAlgebra.Algebra.Posting`, `ExchangeAlgebra.Algebra.Transfer` | Checked posting construction and generic coordinate transformations. |
-| Journal | `ExchangeAlgebra.Journal`, `ExchangeAlgebra.Journal.Transfer` | Postings indexed by notes, and transformations of those journals. Use qualified imports to avoid names shared with Algebra. |
+| Journal | `ExchangeAlgebra.Journal`, `ExchangeAlgebra.Journal.Transfer` | Postings indexed by notes, and transformations of those journals. Qualify function names shared with Algebra and import the operator `.\|` unqualified. |
 | Accounting | `ExchangeAlgebra.Accounting`, `ExchangeAlgebra.Accounting.Account`, `ExchangeAlgebra.Accounting.Exchange` | Account titles, account classification, and debit and credit operations. |
 | Accounting | `ExchangeAlgebra.Accounting.TrialBalance`, `.Entries`, `.Closing`, `.Statements`, `.Consolidation` | Bookkeeping procedures; these abbreviated names share the prefix `ExchangeAlgebra.Accounting`. |
 | IO | `ExchangeAlgebra.IO.Input`, `ExchangeAlgebra.IO.Input.Admission`, `ExchangeAlgebra.IO.Output` | External input, admission checks, and output. |
