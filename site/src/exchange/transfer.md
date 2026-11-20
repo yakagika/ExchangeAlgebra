@@ -34,7 +34,7 @@ Write `from .-> to |% share` to specify the source, destination, and share. In 0
 
 The amount to transfer is computed from the net balance at each selected full base. At the destination, the debit or credit side of that balance is retained; the direction depends on the destination account's home side. The returned entry contains a source cancellation and a destination posting. Add both postings to the original record to retain its history.
 
-The source wildcard in `(RentExpense, (.#))` selects every currency coordinate. The destination wildcard in `(PrepaidExpenses, (.#))` retains the selected currency. Here the selected amount is in yen, so the destination is `(PrepaidExpenses, Yen)`. A destination wildcard does not replace yen with an inapplicable coordinate.
+The source wildcard in `(RentExpense, (.#))` selects every currency element. The destination wildcard in `(PrepaidExpenses, (.#))` retains the selected currency. Here the selected amount is in yen, so the destination is `(PrepaidExpenses, Yen)`. A destination wildcard retains yen as the currency element.
 
 ## Add the transfer entry and read the balances {#add-the-transfer-entry-and-read-the-balances}
 

@@ -11,7 +11,7 @@ import ExchangeAlgebra.Journal ((.|))
 import qualified ExchangeAlgebra.Journal as Journal
 import qualified ExchangeAlgebra.IO.Input.Admission as Admission
 
--- | Currency coordinate retained in the source journal.
+-- | Currency element retained in the source journal.
 data Unit
     = Yen       -- ^ Japanese yen.
     | Dollar    -- ^ US dollars.
@@ -32,7 +32,7 @@ data EntryNote = EntryNote (Integer, Int, Int) String
 instance Journal.Note EntryNote where
     plank = EntryNote (0, 0, 0) ""
 
--- | One entry over account and currency coordinates; the alias adds no validation.
+-- | One entry with account and currency elements; the alias adds no validation.
 type Entry = Alg MoneyDecimal (HatBase (AccountTitles, Unit))
 
 -- | January journal with one distinct note per transaction.

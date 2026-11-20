@@ -47,7 +47,7 @@ The shop has no beginning merchandise inventory, purchases goods for 500 yen dur
 {{#include ../../code/adjustment.hs:adjustment}}
 ```
 
-Use `Entries.cogsAdjustmentEntries` with a `MkBase` that fills in `Yen`, because the entry builder accepts the existing account-and-currency base without discarding an axis. Its arguments are the beginning and ending inventory amounts, not the purchases total. A zero beginning inventory produces no zero-valued postings. The builder returns only additional postings, without implicit `bar` or `compress`; attach a note and add them to the journal with `.+`.
+Use `Entries.cogsAdjustmentEntries` with a `MkBase` that fills in `Yen`, because the entry builder accepts the existing account-and-currency base while retaining all its elements. Its arguments are the beginning and ending inventory amounts, not the purchases total. A zero beginning inventory produces no zero-valued postings. The builder returns only additional postings, without implicit `bar` or `compress`; attach a note and add them to the journal with `.+`.
 
 ## Admit and inspect the adjusted journal {#admit-and-inspect-the-adjusted-journal}
 

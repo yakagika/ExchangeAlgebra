@@ -4,4 +4,4 @@ Account and unit of the cash increase: (Cash,Yen)
 Direction of the deposit change: Hat
 Reverse the cash direction: Hat:<(Cash,Yen)
 Rebuild the deposit decrease: Hat:<(Deposits,Yen)
-Single-axis yen base: Not:<Yen
+Single-element yen base: Not:<Yen

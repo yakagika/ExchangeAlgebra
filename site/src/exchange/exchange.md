@@ -52,7 +52,7 @@ Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
 
 | Class or operation | Inputs and result |
 |---|---|
-| `ExBaseClass` | A `HatBaseClass` base with account access. Implement `getAccountTitle` and `setAccountTitle`; the setter must retain the other coordinates and direction. |
+| `ExBaseClass` | A `HatBaseClass` base with account access. Implement `getAccountTitle` and `setAccountTitle`; the setter must retain the other base elements and direction. |
 | `whatDiv`, `isContra`, `whatPIMO`, `fixedCurrent` | Classify an account from its base. The defaults use the account registry. |
 | `whichSide` | Return the posting side from account classification and `Hat` or `Not`. A query direction `HatNot` causes an error. |
 | `decL`, `decR` | Select debit (left) or credit (right) postings without changing their amounts or aggregating them. |

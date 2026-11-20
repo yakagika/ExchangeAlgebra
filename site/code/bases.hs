@@ -1,4 +1,4 @@
--- | Add directions to the cash and deposit coordinates of the withdrawal.
+-- | Add directions to the cash and deposit bases of the withdrawal.
 -- BaseClass and HatBaseClass supply the base structure used by posting construction.
 -- ANCHOR: unit
 {-# LANGUAGE DeriveAnyClass #-}
@@ -8,7 +8,7 @@ module Main where
 
 import ExchangeAlgebra hiding (Yen, Dollar)
 
--- | Currency coordinates for the withdrawal and exchange records.
+-- | Currency elements for the withdrawal and exchange records.
 data Unit
     = Yen       -- ^ Japanese yen.
     | Dollar    -- ^ US dollars.
@@ -29,14 +29,14 @@ depositDecrease :: HatBase (AccountTitles, Unit)
 depositDecrease = Hat :< (Deposits, Yen)
 -- ANCHOR_END: bases
 
--- ANCHOR: single-axis
+-- ANCHOR: single-element
 -- | Permit Unit itself, as well as tuples containing it, to be a base.
 instance BaseClass Unit where
 
--- | A one-axis base used only to contrast the instance requirements.
+-- | A base with one element, used to compare the instance requirements.
 yenOnly :: HatBase Unit
 yenOnly = Not :< Yen
--- ANCHOR_END: single-axis
+-- ANCHOR_END: single-element
 
 -- ANCHOR: results
 -- | Print a result with the question or operation that produced it.
@@ -53,5 +53,5 @@ main = do
     printNamed "Reverse the cash direction" (revHat cashIncrease)
     printNamed "Rebuild the deposit decrease"
         (merge Hat (Deposits, Yen) :: HatBase (AccountTitles, Unit))
-    printNamed "Single-axis yen base" yenOnly
+    printNamed "Single-element yen base" yenOnly
 -- ANCHOR_END: results

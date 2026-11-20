@@ -1,5 +1,5 @@
 -- | Record the January 10 withdrawal with built-in accounts and currency units.
--- Algebra constructs postings; the account coordinates identify cash and deposits.
+-- Algebra constructs postings; the account elements identify cash and deposits.
 -- ANCHOR: program
 module Main where
 

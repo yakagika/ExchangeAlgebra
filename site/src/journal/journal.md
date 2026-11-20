@@ -1,6 +1,6 @@
 # Journals
 
-The January 10 withdrawal has a date and a description, “Withdrawal from Bank A.” Keep those facts in a journal note so they remain available for selecting transactions without becoming coordinates of the account balance. A `Journal n v b` associates each note of type `n` with an `Alg v b`.
+The January 10 withdrawal has a date and a description, “Withdrawal from Bank A.” Keep those facts in a journal note so they remain available for selecting transactions without including them as elements in the base used for account balances. A `Journal n v b` associates each note of type `n` with an `Alg v b`.
 
 Use exchangealgebra-0.6.0.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). The example attaches notes to the month's transactions from [The redundant algebra](../algebra/redundant.md), adds a February purchase, then selects entries by note, base, and date range. The note set, finite journal, and operations correspond to [Definitions 10–12](../algebra/definitions.md#notes).
 

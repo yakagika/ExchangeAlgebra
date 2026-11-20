@@ -4,13 +4,13 @@
 
 ## Element structure {#element-structure}
 
-**Definition 1.** An axis is a totally ordered set of coordinates with a distinguished wildcard, written $\\#$. For a query coordinate $p$ and a stored coordinate $e$, define one-way matching by
+**Definition 1 (Element structure).** Each element set $E$ has a distinguished wildcard element $\\# \in E$ and a total order $\leq$. For a query element $p$ and a stored element $e$ in $E$, one-way matching is defined by
 
 $$
 p \trianglerighteq e \quad\Longleftrightarrow\quad (p=\\#)\lor(p=e).
 $$
 
-A stored $\\#$ records an inapplicable axis. A query for a specific firm therefore skips a posting whose firm coordinate is $\\#$. The wildcard is an ordinary member of the total order; matching does not define that order.
+A stored $\\#$ indicates that the corresponding element set does not apply. A query for a specific firm therefore skips a posting whose firm element is $\\#$. The wildcard is an ordinary member of the total order; matching does not define that order.
 
 Definition 1 of the preprint gives a symmetric comparison. The query relation used here treats only a query-side $\\#$ as a pattern.
 
@@ -18,7 +18,9 @@ Usage: [Elements](elements.md).
 
 ## Bases {#bases}
 
-**Definition 2.** A base is a tuple of coordinates, one per axis. For coordinate sets $E_1,\ldots,E_n$, the base space is $E_1\times\cdots\times E_n$. An account and a firm, for example, form a two-axis base. A query tuple matches a stored base exactly when each query coordinate matches the corresponding stored coordinate.
+**Definition 2.** A base is a tuple of elements, one from each element set. For element sets $E_1,\ldots,E_n$, the base space is $E_1\times\cdots\times E_n$. An account and a firm, for example, form a base with two elements. A query tuple matches a stored base exactly when each query element matches the corresponding stored element.
+
+Here, “element” refers to a member of an element set that supplies a component of a base, while “element of the redundant algebra” refers to a sum of postings.
 
 Usage: [Bases](bases.md).
 
@@ -36,7 +38,7 @@ Usage: [Bases](bases.md) and [Values](values.md).
 
 Usage: [The redundant algebra](redundant.md) and [Values](values.md).
 
-**Definition 5.** At each underlying base $e_i$, a redundant algebra element records two finite sequences of amounts. Write $f_i(e_i)=\langle A_i,B_i\rangle$, with $A_i$ the increase sequence and $B_i$ the decrease sequence. Two increases of 3 and 2 at the same base remain separate postings until an operation explicitly combines them. An element $x=\langle f_1,\ldots,f_n\rangle$ has finite support over the bases. An empty sequence pair contributes zero.
+**Definition 5.** At each underlying base $e_i$, an element of the redundant algebra records two finite sequences of amounts. Write $f_i(e_i)=\langle A_i,B_i\rangle$, with $A_i$ the increase sequence and $B_i$ the decrease sequence. Two increases of 3 and 2 at the same base remain separate postings until an operation explicitly combines them. An element of the redundant algebra $x=\langle f_1,\ldots,f_n\rangle$ has finite support over the bases. An empty sequence pair contributes zero.
 
 Usage: [Construct postings and add them](redundant.md#construct-postings-and-add-them).
 
@@ -124,7 +126,7 @@ Usage: [The journal example](../overview.md#the-same-journal-in-exchange-algebra
 
 ## Debit and credit decomposition {#debit-and-credit-decomposition}
 
-**Definition 8.** An exchange algebra extends the redundant algebra with side decompositions. Debit decomposition selects debit postings (left), and credit decomposition selects credit postings (right). For example, a decrease in cash is a credit, and an increase in an ordinary expense is a debit. An element is balanced when its exact debit and credit totals agree.
+**Definition 8.** An exchange algebra extends the redundant algebra with side decompositions. Debit decomposition selects debit postings (left), and credit decomposition selects credit postings (right). For example, a decrease in cash is a credit, and an increase in an ordinary expense is a debit. A sum of postings is balanced when its exact debit and credit totals agree.
 
 Usage: [Recover the debit and credit columns](../overview.md#recover-the-debit-and-credit-columns).
 
@@ -132,7 +134,7 @@ Usage: [Recover the debit and credit columns](../overview.md#recover-the-debit-a
 
 **Definition 9.** A transfer table is an ordered collection of triples $(b_i,a_i,f_i)$, where $b_i$ is a source base, $a_i$ is a destination base, and $f_i:V\to V$ transforms a nonnegative amount. Applying the table moves the selected amounts from their source bases to their destination bases according to those transformations. The source base, destination base, and value transformation are separate parts of each rule.
 
-A source wildcard matches any stored coordinate. A destination wildcard retains the corresponding source coordinate. For an accounting reclassification, the amount removed from the source equals the amount added at the destination.
+A source wildcard matches any stored element. A destination wildcard retains the corresponding source element. For an accounting reclassification, the amount removed from the source equals the amount added at the destination.
 
 The rules of the algebra layer are sorted by source pattern, as in the preprint. The accounting transfer table preserves written row order and permits a destination to match a later source, but rejects a match with the source of the same or an earlier row; see [Transfers](../exchange/transfer.md).
 

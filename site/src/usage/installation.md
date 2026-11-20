@@ -2,7 +2,7 @@
 
 This manual uses **exchangealgebra-0.6.0.1** from Hackage. The examples assume that you can write Haskell programs and have Stack installed. They use GHC 9.10.3 with the Stackage snapshot `lts-24.65`.
 
-The Algebra layer provides types for coordinates, bases, amounts, and finite sequences of postings. Its operations implement the [redundant algebra](../algebra/definitions.md#redundant-algebra-and-linear-combinations). Accounting adds the interpretation of account titles and the debit and credit sides.
+The Algebra layer provides types for base elements, bases, amounts, and finite sequences of postings. Its operations implement the [redundant algebra](../algebra/definitions.md#redundant-algebra-and-linear-combinations). Accounting adds the interpretation of account titles and the debit and credit sides.
 
 ## Add the package to a Stack project {#add-the-package-to-a-stack-project}
 
@@ -34,9 +34,9 @@ The module table lists public entry points in 0.6.0.1. Import a specific module 
 
 | Layer | Modules to import | Purpose |
 |---|---|---|
-| Algebra | `ExchangeAlgebra.Algebra` | Coordinates, bases, the `Alg` type, and redundant-algebra operations. |
+| Algebra | `ExchangeAlgebra.Algebra` | Base elements, bases, the `Alg` type, and redundant-algebra operations. |
 | Algebra | `ExchangeAlgebra.Algebra.Element`, `.Base`, `.Core`, `.Value` | Individual parts of the algebra; these abbreviated names share the prefix `ExchangeAlgebra.Algebra`. |
-| Algebra | `ExchangeAlgebra.Algebra.Posting`, `ExchangeAlgebra.Algebra.Transfer` | Checked posting construction and generic coordinate transformations. |
+| Algebra | `ExchangeAlgebra.Algebra.Posting`, `ExchangeAlgebra.Algebra.Transfer` | Checked posting construction and generic transformations of base elements. |
 | Journal | `ExchangeAlgebra.Journal`, `ExchangeAlgebra.Journal.Transfer` | Postings indexed by notes, and transformations of those journals. Qualify function names shared with Algebra and import the operator `.\|` unqualified. |
 | Accounting | `ExchangeAlgebra.Accounting`, `ExchangeAlgebra.Accounting.Account`, `ExchangeAlgebra.Accounting.Exchange` | Account titles, account classification, and debit and credit operations. |
 | Accounting | `ExchangeAlgebra.Accounting.TrialBalance`, `.Entries`, `.Closing`, `.Statements`, `.Consolidation` | Bookkeeping procedures; these abbreviated names share the prefix `ExchangeAlgebra.Accounting`. |

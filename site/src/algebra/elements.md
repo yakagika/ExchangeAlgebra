@@ -2,22 +2,22 @@
 
 On January 10, a business withdraws 3,000 yen from its savings account at Bank A and receives the same amount in cash. The journal entry is a debit to Cash for 3,000 yen and a credit to Deposits for 3,000 yen. To represent the entry in exchangealgebra-0.6.0.1, separate the information that identifies an amount from the amount itself.
 
-An element is one coordinate of a base. The account title and currency unit will be the coordinates of the withdrawal's postings. This is the [Element structure of Definition 1](definitions.md#element-structure). The examples assume a project prepared with [Installation and modules](../usage/installation.md).
+An element is a member of an element set. The account title and currency unit are the base elements of the withdrawal's postings. This is the [Element structure of Definition 1](definitions.md#element-structure). The examples assume a project prepared with [Installation and modules](../usage/installation.md).
 
-## Choose coordinates for the withdrawal {#choose-coordinates-for-the-withdrawal}
+## Choose base elements for the withdrawal {#choose-base-elements-for-the-withdrawal}
 
 The withdrawal contains a date, a bank account, two account titles, a currency unit, and an amount. Their roles depend on what must be distinguished in the resulting balances:
 
-- **Account titles:** Cash and Deposits identify the holdings that change. These are coordinates of each posting's base.
-- **Unit:** Yen identifies the unit of the amount. Keeping it as a coordinate prevents yen and dollar amounts from canceling against each other.
-- **Amount:** 3,000 is the value attached to each posting. It is not a coordinate.
-- **Date and bank account:** January 10 and Bank A's savings account identify the transaction and its source. In this example, the date and account description are journal metadata, rather than balance axes: the desired balances combine dates and do not distinguish bank accounts.
+- **Account titles:** Cash and Deposits identify the holdings that change. The account title is an element of each posting's base.
+- **Unit:** Yen identifies the unit of the amount. Keeping it as a base element prevents yen and dollar amounts from canceling against each other.
+- **Amount:** 3,000 is the value attached to each posting separately from the base.
+- **Date and bank account:** January 10 and Bank A's savings account identify the transaction and its source. In this example, the date and account description are journal metadata because the desired balances combine dates and do not distinguish bank accounts.
 
-If separate balances by date or bank account are required, include those coordinates in the base. Here the base needs only an account title and a currency unit. The built-in `AccountTitles` type already has an `Element` instance. Its constructors `Cash` and `Deposits` name the two accounts; `Deposits` denotes savings deposits, rather than current deposits or deposits received as a liability.
+If separate balances by date or bank account are required, include date or bank account elements in the base. Here the base needs only an account title and a currency unit. The built-in `AccountTitles` type already has an `Element` instance. Its constructors `Cash` and `Deposits` name the two accounts; `Deposits` denotes savings deposits, rather than current deposits or deposits received as a liability.
 
-## Declare a unit axis {#declare-a-unit-axis}
+## Declare a unit element type {#declare-a-unit-element-type}
 
-Define a currency type with `Yen`, `Dollar`, and a distinguished wildcard `Unit`. The declaration supplies `Eq`, `Ord`, `Show`, and `Hashable`, which are superclasses of `Element`; GHC supplies `Typeable` automatically. `DeriveGeneric` and `DeriveAnyClass` provide the generic `Hashable` instance. The only class method needed for this simple coordinate is `wildcard`.
+Define a currency type with `Yen`, `Dollar`, and a distinguished wildcard `Unit`. The declaration supplies `Eq`, `Ord`, `Show`, and `Hashable`, which are superclasses of `Element`; GHC supplies `Typeable` automatically. `DeriveGeneric` and `DeriveAnyClass` provide the generic `Hashable` instance. The only class method needed for this simple element type is `wildcard`.
 
 Save the code blocks in their displayed order as `Main.hs`:
 
@@ -27,19 +27,19 @@ Save the code blocks in their displayed order as `Main.hs`:
 
 The import hides the built-in currency constructors with the same names. `Generic` and `Hashable` are re-exported by `ExchangeAlgebra`, so the example needs only the `base` and `exchangealgebra` dependencies.
 
-## Query coordinates and combine axes {#query-coordinates-and-combine-axes}
+## Query elements and combine them into bases {#query-elements-and-combine-them-into-bases}
 
-The withdrawal affects `(Cash, Yen)` and `(Deposits, Yen)`. Both coordinates in each pair have `Element` instances, so the pair also has an `Element` instance.
+The withdrawal affects `(Cash, Yen)` and `(Deposits, Yen)`. Both component types have `Element` instances, so the pair type also has an `Element` instance.
 
-To select the cash coordinate without restricting its currency, use `(Cash, (.#))`. The alias `(.#)` denotes the wildcard of the inferred coordinate type, here `Unit`. In a query it means any unit; it does not change the stored `(Cash, Yen)` coordinate.
+To select cash entries in any currency, use `(Cash, (.#))`. The alias `(.#)` denotes the wildcard of the inferred element type, here `Unit`. In a query it matches any unit and leaves the stored base `(Cash, Yen)` intact.
 
-A stored `(Cash, Unit)` has a different meaning: no currency coordinate applies to that entry. The example defines such a hypothetical coordinate to check what happens if currency information is absent. It is not one of the withdrawal's coordinates. A query for cash in any unit matches it, but a query specifically for cash in yen does not.
+A stored `(Cash, Unit)` indicates that no currency element applies to that entry. The example defines this hypothetical base to check what happens if currency information is absent. The withdrawal itself uses only bases with `Yen`. A query for cash in any unit matches it, but a query specifically for cash in yen does not.
 
 ```haskell
-{{#include ../../code/elements.hs:coordinates}}
+{{#include ../../code/elements.hs:base-elements}}
 ```
 
-Use named output to identify the coordinates and query results:
+Use named output to identify the bases and query results:
 
 ```haskell
 {{#include ../../code/elements.hs:results}}
@@ -51,7 +51,7 @@ Run the program with the compile-and-run commands in [Installation and modules](
 {{#include ../../code/elements.expected}}
 ```
 
-`Cash in any unit` retains the actual yen coordinate. The checks labeled `Any-unit cash query` and `Yen cash query` distinguish an unrestricted query from a missing coordinate in a stored entry. This direction of matching also applies to projections over full bases.
+`Cash in any unit` retains the actual yen element. The checks labeled `Any-unit cash query` and `Yen cash query` distinguish an unrestricted query from a missing currency element in a stored entry. This direction of matching also applies to projections over full bases.
 
 Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
 
@@ -65,16 +65,16 @@ Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
 |---|---|
 | `wildcard`, or the alias `(.#)` | The distinguished wildcard value of the inferred type. |
 | `isWildcard x` | Whether `x` equals the whole wildcard value. |
-| `haveWildcard x` | Whether `x` contains a wildcard coordinate, including inside a tuple. |
-| `ignoreWildcard before after` | Keep coordinates of `before` where `after` has wildcards; otherwise use `after`. |
+| `haveWildcard x` | Whether `x` contains a wildcard element, including inside a tuple. |
+| `ignoreWildcard before after` | Use each element of `after` unless it is a wildcard, in which case keep the corresponding element of `before`. |
 | `equal`, `(.==)`, `(./=)` | Symmetric wildcard-aware comparison and its negation. `(.==)` also handles partially wildcarded tuples. |
-| `compareElement` | Return `EQ` for a wildcard match, otherwise compare with the ordinary order; tuples compare coordinate by coordinate. |
+| `compareElement` | Return `EQ` for a wildcard match, otherwise compare with the ordinary order. Compare tuples element by element. |
 | `(.<)`, `(.>)`, `(.<=)`, `(.>=)`, `maxElement`, `minElement` | Comparisons and selection using `compareElement`. |
 | `matchesQuery query entry` | One-way query matching. Import it from `ExchangeAlgebra.Algebra.Element`. |
 
-`wildcard` is the only required method for a simple coordinate type. Tuples implement wildcard substitution and matching component by component. In a transfer target, a wildcard preserves the source coordinate.
+`wildcard` is the only required method for a simple element type. Tuples implement wildcard substitution and matching component by component. In a transfer target, a wildcard preserves the source element.
 
-> **Caution:** `(.==)` is symmetric. Use `matchesQuery` to match queries against stored coordinates. Use ordinary `==` and `compare` for identity and canonical ordering; wildcard-aware comparison is not a total order on stored values.
+> **Caution:** `(.==)` is symmetric. Use `matchesQuery` to match queries against stored elements. Use ordinary `==` and `compare` for identity and canonical ordering; wildcard-aware comparison is not a total order on stored values.
 
 ### Built-in instances {#built-in-instances}
 
@@ -85,9 +85,9 @@ Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
 | `Text` | The empty text. `Name` and `Subject` are aliases for `Text`. |
 | `Day` | `ModifiedJulianDay 0`. |
 | `TimeOfDay` | `midnight`. |
-| Tuples of 2 through 7 element types | A tuple with a wildcard in every coordinate. |
+| Tuples of 2 through 7 element types | A tuple in which every element is a wildcard. |
 | `Hat` | `HatNot`, for direction patterns. |
 | `HatBase a`, for `BaseClass a` | `HatNot :< wildcard`. |
 | `BaseForSingleHat` | Its sole constructor, `BaseForSingleHat`, used by the bare `Hat` base. |
 
-`Int`, `Integer`, `Double`, and `String` have no `Element` instance in 0.6.0.1. For a numeric identifier or string axis, define a wrapper and choose a wildcard. The built-in date and time wildcard values are reserved; use a custom coordinate type if those exact dates or times must remain distinguishable from wildcards.
+`Int`, `Integer`, `Double`, and `String` have no `Element` instance in 0.6.0.1. For an element type based on a numeric identifier or string, define a wrapper and choose a wildcard. The built-in date and time wildcard values are reserved; use a custom element type if those exact dates or times must remain distinguishable from wildcards.

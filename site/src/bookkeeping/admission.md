@@ -41,7 +41,7 @@ The accounting transfer table in [Transfers](../exchange/transfer.md) works diff
 {{#include ../../code/admission.hs:conversion}}
 ```
 
-`sourceJournal` retains the original currency records; `yenJournal` is a reporting representation that preserves notes and posting detail but replaces the dollar coordinate and amount. This is unit conversion, not an additional debit-credit entry. Admission sums numerical amounts without converting currencies, so admit the yen representation. With different exchange-date and closing-date rates, record the valuation difference as a foreign exchange gain or loss before closing.
+`sourceJournal` retains the original currency records; `yenJournal` is a reporting representation that preserves notes and posting detail but replaces the dollar element and amount. This is unit conversion, not an additional debit-credit entry. Admission sums numerical amounts without converting currencies, so admit the yen representation. With different exchange-date and closing-date rates, record the valuation difference as a foreign exchange gain or loss before closing.
 
 ## Admit the January journal {#admit-the-january-journal}
 

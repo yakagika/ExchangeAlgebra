@@ -12,7 +12,7 @@ import qualified ExchangeAlgebra.Journal as Journal
 import qualified ExchangeAlgebra.IO.Input.Admission as Admission
 import qualified ExchangeAlgebra.Accounting.TrialBalance as TrialBalance
 
--- | Currency coordinate retained in the source journal.
+-- | Currency element retained in the source journal.
 data Unit
     = Yen       -- ^ Japanese yen.
     | Dollar    -- ^ US dollars.
@@ -33,7 +33,7 @@ data EntryNote = EntryNote (Integer, Int, Int) String
 instance Journal.Note EntryNote where
     plank = EntryNote (0, 0, 0) ""
 
--- | One entry over account and currency coordinates; the alias adds no validation.
+-- | One entry with account and currency elements; the alias adds no validation.
 type Entry = Alg MoneyDecimal (HatBase (AccountTitles, Unit))
 
 -- | January journal with one distinct note per transaction.
@@ -108,8 +108,8 @@ accounts :: [AccountTitles]
 accounts = [Cash, Deposits, PrepaidExpenses, MerchandiseInventory,
             Purchases, RentExpense, Sales, CapitalStock, RetainedEarnings]
 
--- | Drop the currency coordinate only after checking every posting is in yen.
--- This reporting projection loses the currency axis; it does not net postings.
+-- | Drop the currency element only after checking every posting is in yen.
+-- This reporting projection removes the currency element; it does not net postings.
 auditLedger :: Entry -> Either String (Alg MoneyDecimal (HatBase AccountTitles))
 auditLedger ledger
     | Algebra.foldEntries allYen True ledger = Right (Algebra.mapPosting dropUnit ledger)

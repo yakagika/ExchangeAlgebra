@@ -45,7 +45,7 @@ The opening contribution, the two withdrawals, the purchase, the cash sale, and 
 
 `accountBalances` sums each account exactly and returns a non-negative magnitude with `DebitBalance`, `CreditBalance`, or `NoBalance`. It computes net balances without calling `bar` or changing the source record. The report sums the debit and credit balance columns separately from gross posting totals.
 
-`TrialBalanceInput` accepts only `HatBase AccountTitles`. Check that every posting is in yen before removing the currency axis for the audit. This lossy projection removes currency information from the reporting copy; retain the account-and-currency journal as the record. Empty explanations, rules, and evidence sets mean that no such external information has been supplied.
+`TrialBalanceInput` accepts only `HatBase AccountTitles`. Check that every posting is in yen before removing the currency element for the audit. This lossy projection removes currency information from the reporting copy; retain the account-and-currency journal as the record. Empty explanations, rules, and evidence sets mean that no such external information has been supplied.
 
 ## Inspect a missing opening balance {#inspect-a-missing-opening-balance}
 

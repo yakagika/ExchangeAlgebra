@@ -14,7 +14,7 @@ import qualified ExchangeAlgebra.Accounting.TrialBalance as TrialBalance
 import qualified ExchangeAlgebra.Accounting.Entries as Entries
 import qualified ExchangeAlgebra.Accounting.Closing as Closing
 
--- | Currency coordinate retained in the source journal.
+-- | Currency element retained in the source journal.
 data Unit
     = Yen       -- ^ Japanese yen.
     | Dollar    -- ^ US dollars.
@@ -35,7 +35,7 @@ data EntryNote = EntryNote (Integer, Int, Int) String
 instance Journal.Note EntryNote where
     plank = EntryNote (0, 0, 0) ""
 
--- | One entry over account and currency coordinates; the alias adds no validation.
+-- | One entry with account and currency elements; the alias adds no validation.
 type Entry = Alg MoneyDecimal (HatBase (AccountTitles, Unit))
 
 -- | January journal with one distinct note per transaction.
@@ -110,8 +110,8 @@ accounts :: [AccountTitles]
 accounts = [Cash, Deposits, PrepaidExpenses, MerchandiseInventory,
             Purchases, RentExpense, Sales, CapitalStock, RetainedEarnings]
 
--- | Drop the currency coordinate only after checking every posting is in yen.
--- This reporting projection loses the currency axis; it does not net postings.
+-- | Drop the currency element only after checking every posting is in yen.
+-- This reporting projection removes the currency element; it does not net postings.
 auditLedger :: Entry -> Either String (Alg MoneyDecimal (HatBase AccountTitles))
 auditLedger ledger
     | Algebra.foldEntries allYen True ledger = Right (Algebra.mapPosting dropUnit ledger)
@@ -156,7 +156,7 @@ rentAdjustment ledger = do
         [(RentExpense, (.#)) .-> (PrepaidExpenses, (.#)) |% Portion 1 2]
     either (Left . show) Right (transferEntries table ledger)
 
--- | Keep the currency axis when building the periodic inventory adjustment.
+-- | Keep the currency element when building the periodic inventory adjustment.
 yenBase :: Entries.MkBase (HatBase (AccountTitles, Unit))
 yenBase direction account = direction :< (account, Yen)
 

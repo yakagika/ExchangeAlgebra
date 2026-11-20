@@ -12,7 +12,7 @@ module Main where
 import ExchangeAlgebra hiding (Yen, Dollar)
 import Control.Exception (ErrorCall, evaluate, try)
 
--- | Currency coordinates for the withdrawal.
+-- | Currency elements for the withdrawal.
 data Unit
     = Yen
     | Dollar

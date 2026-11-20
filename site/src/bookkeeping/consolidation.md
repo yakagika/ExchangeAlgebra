@@ -6,7 +6,7 @@ Use exchangealgebra-0.6.0.1 in the project prepared in [Add the package to a Sta
 
 ## Prepare the two trial balances {#prepare-the-two-trial-balances}
 
-Carry forward the shop’s January balance-sheet amounts from [Build the balance sheet](statements.md#build-the-balance-sheet). The program checks that the January ledger is in yen before dropping the currency coordinate. Both February entries use the resulting reporting base, `HatBase AccountTitles`, with amounts in yen.
+Carry forward the shop’s January balance-sheet amounts from [Build the balance sheet](statements.md#build-the-balance-sheet). The program checks that the January ledger is in yen before dropping the currency element. Both February entries use the resulting reporting base, `HatBase AccountTitles`, with amounts in yen.
 
 <details>
 <summary>
