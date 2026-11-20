@@ -1,0 +1,42 @@
+name:                exchangealgebra-einvoice
+version:             0.1.0.0
+github:              "yakagika/ExchangeAlgebra"
+license:             MIT
+license-file:        LICENSE.txt
+author:              "Kaya Akagi"
+# Skeleton: copy the maintainer field from ../package.yaml at release time.
+maintainer:          "<copy from ../package.yaml>"
+copyright:           "2026 Kaya Akagi"
+
+synopsis:            Read UBL e-invoices (JP PINT) into exchange algebra journals
+category:            Accounting, Finance
+
+description: >-
+  Reads Japanese qualified invoices in the JP PINT profile of UBL 2.1 and turns
+  each invoice into one balanced exchange algebra entry. The caller supplies the
+  function that builds the base of each term, so the base may have elements
+  other than the account, such as the tax rate or the counterparty.
+  Tax-exclusive and tax-inclusive accounting are both supported.
+
+dependencies:
+- base                  >= 4.19    && < 5
+# The API used here is in develop, whose version stays 0.6.1.0 until the 0.7
+# release commit. When that commit sets the version to 0.7.0.0, this bound no
+# longer matches and the build fails until it is raised to >= 0.7 && < 0.8, as
+# with the bound in ../examples/package.yaml.
+- exchangealgebra       >= 0.6.1   && < 0.7
+- bytestring            >= 0.11    && < 0.13
+- containers            >= 0.6     && < 0.8
+- text                  >= 2.0     && < 2.2
+- time                  >= 1.12    && < 1.15
+- xml-conduit           >= 1.9.1   && < 1.11
+
+ghc-options:
+- -Wall
+
+library:
+  source-dirs: src
+  exposed-modules:
+  - ExchangeAlgebra.IO.Input.EInvoice
+  - ExchangeAlgebra.IO.Input.EInvoice.Document
+  - ExchangeAlgebra.IO.Input.EInvoice.Journal
