@@ -10,7 +10,7 @@ Sales: (2000,2000,NoBalance)
 CapitalStock: (0,10000,CreditBalance 10000)
 RetainedEarnings: (900,2000,CreditBalance 1100)
 Balance totals (debit, credit): (11100,11100)
-Posting totals (debit, credit): (23900,23900)
+Term totals (debit, credit): (23900,23900)
 Balanced: True
 Findings: []
 Closing again: Right 0

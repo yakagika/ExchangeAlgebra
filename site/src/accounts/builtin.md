@@ -46,4 +46,4 @@ Table generation code (excerpt)
 
 </details>
 
-Tested with exchangealgebra-0.6.0.1 on 2026-11-20.
+Tested with exchangealgebra-0.6.1.1 on 2026-11-20.

@@ -1,6 +1,6 @@
 # Elements
 
-On January 10, a business withdraws 3,000 yen from its savings account at Bank A and receives the same amount in cash. The journal entry is a debit to Cash for 3,000 yen and a credit to Deposits for 3,000 yen. To represent the entry in exchangealgebra-0.6.0.1, separate the information that identifies an amount from the amount itself.
+On January 10, a business withdraws 3,000 yen from its savings account at Bank A and receives the same amount in cash. The journal entry is a debit to Cash for 3,000 yen and a credit to Deposits for 3,000 yen. To represent the entry in exchangealgebra-0.6.1.1, separate the information that identifies an amount from the amount itself.
 
 An element is a member of an element set. The account title and currency unit are elements of the bases in the withdrawal. This is the [Element structure of Definition 1](definitions.md#element-structure). The examples assume a project prepared with [Installation and modules](../usage/installation.md).
 
@@ -53,7 +53,25 @@ Run the program with the compile-and-run commands in [Installation and modules](
 
 `Cash in any unit` retains the actual yen element. The checks labeled `Any-unit cash query` and `Yen cash query` distinguish an unrestricted query from a missing currency element in a stored entry. This direction of matching also applies to projections over full bases.
 
-Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
+## Query a date stored as an ordinary element {#query-a-date-stored-as-an-ordinary-element}
+
+`Wild a` adds the wildcard `Wild` to the element type `a`. Wrap an ordinary element `x` in `Exactly x`.
+
+Save this standalone program as `Main.hs`. It records a cash term dated 1858-11-17.
+
+```haskell
+{{#include ../../code/wild-day.hs:program}}
+```
+
+Add `time` to your project's dependencies. From the project directory, run `stack exec -- ghc -Wall -Werror -package time Main.hs -o wild-day`, then run `./wild-day`.
+
+```text
+{{#include ../../code/wild-day.expected}}
+```
+
+The `Wild` query selects the term. An `Exactly` query selects the term only when its date matches.
+
+Tested with exchangealgebra-0.6.1.1 on 2026-11-20.
 
 ## Reference {#reference}
 
@@ -85,9 +103,14 @@ Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
 | `Text` | The empty text. `Name` and `Subject` are aliases for `Text`. You can use `Subject` to identify which accounting entity a record belongs to. |
 | `Day` | `ModifiedJulianDay 0`. |
 | `TimeOfDay` | `midnight`. |
+| `Wild a` | `Wild`. |
 | Tuples of 2 through 7 element types | A tuple in which every element is a wildcard. |
 | `Hat` | `HatNot`, for direction patterns. |
 | `HatBase a`, for `BaseClass a` | `HatNot :< wildcard`. |
 | `BaseForSingleHat` | Its sole constructor, `BaseForSingleHat`, used by the bare `Hat` base. |
 
-`Int`, `Integer`, `Double`, and `String` have no `Element` instance in 0.6.0.1. For an element type based on a numeric identifier or string, define a wrapper and choose a wildcard. The built-in date and time wildcard values are reserved; use a custom element type if those exact dates or times must remain distinguishable from wildcards.
+`Int`, `Integer`, `Double`, and `String` require a wrapper to serve as element types in 0.6.1.1. Use `Wild` to give each type a wildcard.
+
+`Wild a` has `Element` and `BaseClass` instances when `a` has `Ord`, `Show`, `Hashable`, and `Typeable` instances. It derives `Eq`, `Ord`, `Show`, and `Generic`, and has `NFData`, `Hashable`, and `Binary` instances when `a` has the corresponding instance.
+
+The `Element` instances for `Day` and `TimeOfDay` use 1858-11-17 and 00:00 as wildcards, respectively. To record and query those values as ordinary elements, use `Wild Day` or `Wild TimeOfDay` with `Exactly`.

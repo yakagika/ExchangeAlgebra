@@ -109,7 +109,7 @@ require = either (ioError . userError . show) pure
 auditLedger :: Entry -> Either String (Alg MoneyDecimal (HatBase AccountTitles))
 auditLedger ledger
     | Algebra.foldEntries allYen True ledger = Right (Algebra.mapPosting dropUnit ledger)
-    | otherwise = Left "Audit requires yen on every posting"
+    | otherwise = Left "Audit requires yen on every term"
   where
     allYen :: Bool -> MoneyDecimal -> HatBase (AccountTitles, Unit) -> Bool
     allYen result _ (_ :< (_, unit)) = result && unit == Yen

@@ -99,7 +99,7 @@ require = either (ioError . userError . show) pure
 -- | Show gross debit and credit totals in yen, without netting the source.
 printTotals :: Entry -> IO ()
 printTotals ledger = do
-    printNamed "Posting totals (debit, credit)" (norm (decL ledger), norm (decR ledger))
+    printNamed "Term totals (debit, credit)" (norm (decL ledger), norm (decR ledger))
     printNamed "Balanced" (balance ledger)
 -- ANCHOR_END: display
 
@@ -114,7 +114,7 @@ accounts = [Cash, Deposits, PrepaidExpenses, MerchandiseInventory,
 auditLedger :: Entry -> Either String (Alg MoneyDecimal (HatBase AccountTitles))
 auditLedger ledger
     | Algebra.foldEntries allYen True ledger = Right (Algebra.mapPosting dropUnit ledger)
-    | otherwise = Left "Audit requires yen on every posting"
+    | otherwise = Left "Audit requires yen on every term"
   where
     allYen :: Bool -> MoneyDecimal -> HatBase (AccountTitles, Unit) -> Bool
     allYen result _ (_ :< (_, unit)) = result && unit == Yen

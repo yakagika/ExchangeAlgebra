@@ -62,7 +62,7 @@ main = case rentTable of
             printNamed "Rent payment" rentPayment
             printNamed "Additional transfer entry" additions
             printNamed "Transfer entry is balanced" (balance additions)
-            printNamed "Record retaining original and added postings" (beforeTransfer .+ additions)
+            printNamed "Record retaining original and added terms" (beforeTransfer .+ additions)
             printNamed "Balances after transfer" (bar (beforeTransfer .+ additions))
             printNamed "Record is balanced" (balance (beforeTransfer .+ additions))
 -- ANCHOR_END: results

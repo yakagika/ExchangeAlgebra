@@ -48,12 +48,25 @@ algebra/bases.md	reference		revHat
 algebra/bases.md	reference		toHat
 algebra/bases.md	reference		toNot
 algebra/elements.md	program	ExchangeAlgebra	.#
+algebra/elements.md	program	ExchangeAlgebra	.@
+algebra/elements.md	program	ExchangeAlgebra	:<
 algebra/elements.md	program	ExchangeAlgebra	AccountTitles
+algebra/elements.md	program	ExchangeAlgebra	Alg
 algebra/elements.md	program	ExchangeAlgebra	Cash
 algebra/elements.md	program	ExchangeAlgebra	Deposits
 algebra/elements.md	program	ExchangeAlgebra	Element
+algebra/elements.md	program	ExchangeAlgebra	Exactly
 algebra/elements.md	program	ExchangeAlgebra	Generic
 algebra/elements.md	program	ExchangeAlgebra	Hashable
+algebra/elements.md	program	ExchangeAlgebra	Hat
+algebra/elements.md	program	ExchangeAlgebra	HatBase
+algebra/elements.md	program	ExchangeAlgebra	HatNot
+algebra/elements.md	program	ExchangeAlgebra	MoneyDecimal
+algebra/elements.md	program	ExchangeAlgebra	Not
+algebra/elements.md	program	ExchangeAlgebra	Redundant
+algebra/elements.md	program	ExchangeAlgebra	Wild
+algebra/elements.md	program	ExchangeAlgebra	norm
+algebra/elements.md	program	ExchangeAlgebra	proj
 algebra/elements.md	program	ExchangeAlgebra	wildcard
 algebra/elements.md	program	ExchangeAlgebra.Algebra.Element	matchesQuery
 algebra/elements.md	reference		.#
@@ -72,6 +85,7 @@ algebra/elements.md	reference		Hat
 algebra/elements.md	reference		HatBase
 algebra/elements.md	reference		Text
 algebra/elements.md	reference		TimeOfDay
+algebra/elements.md	reference		Wild
 algebra/elements.md	reference		compareElement
 algebra/elements.md	reference		equal
 algebra/elements.md	reference		haveWildcard

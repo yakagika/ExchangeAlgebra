@@ -71,11 +71,11 @@ main :: IO ()
 main = do
     printNamed "January 10 withdrawal" withdrawal
     printNamed "Twice the withdrawal" (2 .* withdrawal)
-    printNamed "Withdrawal posting total in yen" (norm withdrawal)
-    printNamed "Yen cash postings before aggregation" yenCashPostings
+    printNamed "Withdrawal term total in yen" (norm withdrawal)
+    printNamed "Yen cash terms before aggregation" yenCashPostings
     printNamed "Cash balances by currency" cashBalances
-    printNamed "Yen postings without cancellation" yenPostings
-    printNamed "Yen posting total" (norm yenPostings)
+    printNamed "Yen terms without cancellation" yenPostings
+    printNamed "Yen term total" (norm yenPostings)
     printNamed "Yen cash totals by direction" (compress yenCashPostings)
     printNamed "Yen cash residual amount" (projNetNorm [HatNot :< (Cash, Yen)] month)
     printNamed "Reverse the withdrawal directions" ((.^) withdrawal)

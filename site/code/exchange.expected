@@ -1,5 +1,5 @@
-Debit postings: 3000:@Not:<(Cash,Yen)
-Credit postings: 3000:@Hat:<(Deposits,Yen)
+Debit terms: 3000:@Not:<(Cash,Yen)
+Credit terms: 3000:@Hat:<(Deposits,Yen)
 Debit total in yen: 3000
 Credit total in yen: 3000
 Withdrawal is balanced: True

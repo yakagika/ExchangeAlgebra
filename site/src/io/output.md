@@ -2,7 +2,7 @@
 
 The shop’s checked January journal contains the terms for its books. Its pre-adjustment, adjusted, and closed versions supply the figures for the trial balances, the worksheet, and the financial statements. Use the row builders in `ExchangeAlgebra.IO.Output.Statements` to obtain text cells for each report.
 
-Use exchangealgebra-0.6.0.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the Haskell blocks in their displayed order as `Main.hs`.
+Use exchangealgebra-0.6.1.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the Haskell blocks in their displayed order as `Main.hs`.
 
 ## Lay out the journal and general ledger by date {#lay-out-the-journal-and-general-ledger-by-date}
 
@@ -85,7 +85,7 @@ In your project directory, run `stack exec -- ghc -Wall -Werror Main.hs -o outpu
 
 The cash ledger shows the 2,000-yen sale as a debit on January 28. The worksheet shows net income of 1,100 yen, which appears as a subtotal in the income statement. In the post-closing trial balance, the carried balances total 11,100 yen on each side.
 
-Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
+Tested with exchangealgebra-0.6.1.1 on 2026-11-20.
 
 ## Reference {#reference}
 

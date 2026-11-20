@@ -14,6 +14,7 @@ from manual_examples import (
     API_COLUMNS,
     API_MAP,
     BOOK,
+    GHC_PACKAGE_FLAGS,
     PROGRAMS,
     ROOT,
     StackProject,
@@ -76,7 +77,7 @@ def public_api(project):
     )
     result = project.stack(
         "exec", "--", "ghci", "-ignore-dot-ghci", "-v0", "-hide-all-packages",
-        "-package", "base", "-package", "exchangealgebra", input=commands,
+        *GHC_PACKAGE_FLAGS, input=commands,
         capture_output=True, text=True, check=True,
     )
     # GHCi can return zero even when an individual command failed.

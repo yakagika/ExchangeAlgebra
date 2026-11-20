@@ -1,6 +1,6 @@
 # Installation and modules
 
-This manual uses **exchangealgebra-0.6.0.1** from Hackage. The examples assume that you can write Haskell programs and have Stack installed. They use GHC 9.10.3 with the Stackage snapshot `lts-24.65`.
+This manual uses **exchangealgebra-0.6.1.1** from Hackage. The examples assume that you can write Haskell programs and have Stack installed. They use GHC 9.10.3 with the Stackage snapshot `lts-24.65`.
 
 The Algebra layer provides types for elements, bases, amounts, and finite sequences of terms. Its operations implement the [redundant algebra](../algebra/definitions.md#redundant-algebra-and-linear-combinations). Accounting adds the interpretation of account titles and the debit and credit sides.
 
@@ -13,7 +13,7 @@ resolver: lts-24.65
 packages:
 - .
 extra-deps:
-- exchangealgebra-0.6.0.1
+- exchangealgebra-0.6.1.1
 ```
 
 Add the library to your `package.yaml` dependencies. Preserve any other dependencies your program needs:
@@ -21,16 +21,16 @@ Add the library to your `package.yaml` dependencies. Preserve any other dependen
 ```yaml
 dependencies:
 - base
-- exchangealgebra == 0.6.0.1
+- exchangealgebra == 0.6.1.1
 ```
 
-`extra-deps` selects the package source for Stack; the dependency in `package.yaml` makes the library available to your program. Run `stack build` in the project directory to build the project and its dependencies. For a Cabal project, put `exchangealgebra == 0.6.0.1` in the component's `build-depends` instead.
+`extra-deps` selects the package source for Stack; the dependency in `package.yaml` makes the library available to your program. Run `stack build` in the project directory to build the project and its dependencies. For a Cabal project, put `exchangealgebra == 0.6.1.1` in the component's `build-depends` instead.
 
 ## Choose imports by layer {#choose-imports-by-layer}
 
 `ExchangeAlgebra` is a convenience module. It re-exports named selections of the Algebra API, account titles and classifications, accounting exchange operations, transfers and closing, trial-balance readouts, statement presentation, CSV and bookkeeping output, and money types. It does not re-export every public module. Import journal functions with `import qualified ExchangeAlgebra.Journal as Journal` and the operator with `import ExchangeAlgebra.Journal ((.|))`. Import `matchesQuery` directly from `ExchangeAlgebra.Algebra.Element`.
 
-The module table lists public entry points in 0.6.0.1. Import a specific module to restrict the imported names to that part of the library.
+The module table lists public entry points in 0.6.1.1. Import a specific module to restrict the imported names to that part of the library.
 
 | Layer | Modules to import | Purpose |
 |---|---|---|
@@ -69,4 +69,4 @@ The program prints:
 
 The type annotation fixes both the amount type and the base type. `.@` constructs each term, and `.+` retains both terms in one algebra value. The directions `Not` and `Hat` identify the cash increase and deposit decrease; neither amount is negative.
 
-Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
+Tested with exchangealgebra-0.6.1.1 on 2026-11-20.

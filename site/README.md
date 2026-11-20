@@ -26,6 +26,9 @@ dependencies on the first run.
    includes their messages in `site/po/ja.po`.
    It preserves other version mentions and prints the locations that name
    older releases for review against the new release.
+   Verify descriptions of current behavior against the new release and update
+   their version references, while retaining historical references such as the
+   releases that introduced or removed a feature.
 4. Run `bash site/check-code.sh --update-api-map`. After every program compiles
    and its output matches, the command rewrites `site/api-map.tsv`. Run
    `bash site/check-code.sh` to verify that another generation produces the
@@ -44,6 +47,8 @@ restore the version file, chapter sources, catalog, and API map from the same
 previous revision.
 
 ## Version and API files
+
+Manual programs can import modules from `base`, `exchangealgebra`, and `time`.
 
 | File | Role |
 |---|---|
