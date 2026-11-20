@@ -97,7 +97,7 @@ require = either (ioError . userError . show) pure
 -- | Show gross debit and credit totals in yen, without netting the source.
 printTotals :: Entry -> IO ()
 printTotals ledger = do
-    printNamed "Posting totals (debit, credit)" (norm (decL ledger), norm (decR ledger))
+    printNamed "Term totals (debit, credit)" (norm (decL ledger), norm (decR ledger))
     printNamed "Balanced" (balance ledger)
 -- ANCHOR_END: display
 

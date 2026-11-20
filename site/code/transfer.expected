@@ -1,6 +1,6 @@
 Rent payment: 1200:@Hat:<(Cash,Yen) .+ 1200:@Not:<(RentExpense,Yen)
 Additional transfer entry: 600:@Hat:<(RentExpense,Yen) .+ 600:@Not:<(PrepaidExpenses,Yen)
 Transfer entry is balanced: True
-Record retaining original and added postings: 1200:@Hat:<(Cash,Yen) .+ 3000:@Not:<(Cash,Yen) .+ 3000:@Hat:<(Deposits,Yen) .+ 600:@Hat:<(RentExpense,Yen) .+ 1200:@Not:<(RentExpense,Yen) .+ 600:@Not:<(PrepaidExpenses,Yen)
+Record retaining original and added terms: 1200:@Hat:<(Cash,Yen) .+ 3000:@Not:<(Cash,Yen) .+ 3000:@Hat:<(Deposits,Yen) .+ 600:@Hat:<(RentExpense,Yen) .+ 1200:@Not:<(RentExpense,Yen) .+ 600:@Not:<(PrepaidExpenses,Yen)
 Balances after transfer: 1800:@Not:<(Cash,Yen) .+ 3000:@Hat:<(Deposits,Yen) .+ 600:@Not:<(RentExpense,Yen) .+ 600:@Not:<(PrepaidExpenses,Yen)
 Record is balanced: True

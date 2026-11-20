@@ -2,7 +2,7 @@
 
 The January 10 withdrawal increases cash and decreases the savings deposit by 3,000 yen. The base of each term contains an account element and a currency element. Their directions differ: the cash term has `Not`, and the deposit term has `Hat`.
 
-These bases implement [Definition 2](definitions.md#bases) and [Definition 3](definitions.md#hat-bases-and-postings). The example uses exchangealgebra-0.6.0.1 and the custom currency element type from [Declare a unit element type](elements.md#declare-a-unit-element-type).
+These bases implement [Definition 2](definitions.md#bases) and [Definition 3](definitions.md#hat-bases-and-postings). The example uses exchangealgebra-0.6.1.1 and the custom currency element type from [Declare a unit element type](elements.md#declare-a-unit-element-type).
 
 ## Describe the two changes {#describe-the-two-changes}
 
@@ -52,13 +52,13 @@ The labeled `Cash increase` and `Deposit decrease` results retain the same unit 
 
 > **Caution:** Hat is a structural direction, not a negative amount or a debit label. Both Cash and Deposits are assets, so an increase is a debit and a decrease is a credit. Other account divisions have different home sides. `HatNot` is a query wildcard, not a term direction; direction reversal and tests are intended for concrete `Hat` or `Not` bases, and some methods fail on `HatNot`.
 
-Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
+Tested with exchangealgebra-0.6.1.1 on 2026-11-20.
 
 ## Reference {#reference}
 
 ### BaseClass {#baseclass}
 
-`BaseClass a` requires `Element a` and provides `compareBase :: a -> a -> Ordering`, defaulting to `compareElement`. Built-in base types with a single element include `AccountTitles`, `CountUnit`, `Text` (also called `Name`), `Day`, and `TimeOfDay`. Tuples of 2 through 7 element types have `BaseClass` instances even when individual element types have no separate `BaseClass` instance.
+`BaseClass a` requires `Element a` and provides `compareBase :: a -> a -> Ordering`, defaulting to `compareElement`. Built-in base types with a single element include `AccountTitles`, `CountUnit`, `Text` (also called `Name`), `Day`, `TimeOfDay`, and `Wild a` when `a` has `Ord`, `Show`, `Hashable`, and `Typeable` instances. Tuples of 2 through 7 element types have `BaseClass` instances even when individual element types have no separate `BaseClass` instance.
 
 ### HatBaseClass {#hatbaseclass}
 

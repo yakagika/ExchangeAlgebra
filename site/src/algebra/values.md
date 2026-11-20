@@ -2,7 +2,7 @@
 
 The January 10 withdrawal has two terms of 3,000 yen: cash increases, and the savings deposit decreases. The amount is positive in both terms. The decrease is represented by `Hat` on the deposit base, rather than by a negative amount.
 
-The value parameter of `Alg v b` represents these amounts, corresponding to the [value domain of Definition 4](definitions.md#redundant-algebra-and-linear-combinations). The example uses exchangealgebra-0.6.0.1 and the [account-and-unit bases](bases.md#define-the-account-and-unit-bases).
+The value parameter of `Alg v b` represents these amounts, corresponding to the [value domain of Definition 4](definitions.md#redundant-algebra-and-linear-combinations). The example uses exchangealgebra-0.6.1.1 and the [account-and-unit bases](bases.md#define-the-account-and-unit-bases).
 
 ## Choose an amount type {#choose-an-amount-type}
 
@@ -44,7 +44,7 @@ Catch the documented construction errors in the example so that the program can 
 
 Application code must validate external amounts before constructing terms.
 
-Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
+Tested with exchangealgebra-0.6.1.1 on 2026-11-20.
 
 ## Declare a custom yen amount type {#declare-a-custom-yen-amount-type}
 

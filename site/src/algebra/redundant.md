@@ -2,7 +2,7 @@
 
 The January 10 withdrawal becomes one algebra value containing two terms: a 3,000-yen increase in cash and a 3,000-yen decrease in savings deposits. Additional transactions in the same month can be added to this value while retaining their separate amounts.
 
-`Alg v b` represents a finite collection of terms with amount type `v` and hat base type `b`. The withdrawal uses `MoneyDecimal` amounts and `HatBase (AccountTitles, Unit)` bases in exchangealgebra-0.6.0.1. The collection corresponds to [Definitions 4 and 5](definitions.md#redundant-algebra-and-linear-combinations); its operations correspond to [Definition 6](definitions.md#operations).
+`Alg v b` represents a finite collection of terms with amount type `v` and hat base type `b`. The withdrawal uses `MoneyDecimal` amounts and `HatBase (AccountTitles, Unit)` bases in exchangealgebra-0.6.1.1. The collection corresponds to [Definitions 4 and 5](definitions.md#redundant-algebra-and-linear-combinations); its operations correspond to [Definition 6](definitions.md#operations).
 
 ## Construct terms and add them {#construct-postings-and-add-them}
 
@@ -64,11 +64,11 @@ The program prints:
 {{#include ../../code/redundant.expected}}
 ```
 
-`Yen cash postings before aggregation` retains the separate withdrawal and payment amounts. `Cash balances by currency` contains the net cash changes in yen and dollars, while `Yen posting total` counts the gross yen amounts on every account. `Yen cash totals by direction` contains the separate increase and decrease totals. The named withdrawal-plus-hat results distinguish retaining opposing terms from canceling them with bar.
+`Yen cash terms before aggregation` retains the separate withdrawal and payment amounts. `Cash balances by currency` contains the net cash changes in yen and dollars, while `Yen term total` counts the gross yen amounts on every account. `Yen cash totals by direction` contains the separate increase and decrease totals. The named withdrawal-plus-hat results distinguish retaining opposing terms from canceling them with bar.
 
 The displayed sequence order can differ from the source expression's order. Construction routes can arrange the same terms differently, and structural `Eq` can observe that arrangement. Do not infer chronological order from the printed algebra. When comparing aggregated content, choose an explicit `compress` or `bar` according to whether the opposing directions must remain separate.
 
-Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
+Tested with exchangealgebra-0.6.1.1 on 2026-11-20.
 
 ## Reference {#reference}
 
@@ -76,7 +76,7 @@ Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
 
 `Alg` requires a `HatVal` amount type and a `HatBaseClass` base type. Its `Redundant` instance implements the operations; defining a new element type does not require another `Redundant` instance. `Zero` is the empty algebra and the identity for addition. For value and direction checks, see [Construction and scalar checks](values.md#construction-and-scalar-checks).
 
-The public `(:@)` pattern matches a singleton term but cannot construct one in 0.6.0.1. Construct terms with `.@`. `toList` returns singleton terms, `vals` returns amounts, and `bases` returns hat bases.
+The public `(:@)` pattern matches a singleton term but cannot construct one in 0.6.1.1. Construct terms with `.@`. `toList` returns singleton terms, `vals` returns amounts, and `bases` returns hat bases.
 
 | Operation | Inputs and result |
 |---|---|
@@ -89,7 +89,7 @@ The public `(:@)` pattern matches a singleton term but cannot construct one in 0
 | `proj patterns x` | Select terms whose hat bases match at least one query pattern, without netting or changing amounts. |
 | `projNetNorm patterns x` | Select bases, net within each full base, total the magnitudes of the residuals, and round once. Return an amount. |
 
-In 0.6.0.1, `.*` has the default fixity `infixl 9`, and `.+` is `infixr 3`. Parenthesize mixed expressions to state the intended grouping, such as `(2 .* withdrawal) .+ cashPayment`.
+In 0.6.1.1, `.*` has the default fixity `infixl 9`, and `.+` is `infixr 3`. Parenthesize mixed expressions to state the intended grouping, such as `(2 .* withdrawal) .+ cashPayment`.
 
 ### Projections and rounding {#projections-and-rounding}
 

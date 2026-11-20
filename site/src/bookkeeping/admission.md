@@ -2,7 +2,7 @@
 
 The shop closes its books for January. Start with the dated withdrawal, purchase, exchange, and rent records from [Journals](../journal/journal.md) and [Transfers](../exchange/transfer.md). Supply an opening balance and a cash sale, express the amounts in yen, and submit the journal for checking before deriving a trial balance.
 
-Use exchangealgebra-0.6.0.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the code blocks in their displayed order as `Main.hs`.
+Use exchangealgebra-0.6.1.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the code blocks in their displayed order as `Main.hs`.
 
 ## Prepare the January records {#prepare-the-january-records}
 
@@ -35,7 +35,7 @@ The January 30 rent payment initially records all 1,200 yen as an expense. Keep 
 
 At January 31, the 10 dollars are worth 1,500 yen at 150 yen per dollar, the same rate as on January 25. The transfer in the preprint’s [Definition 9](../algebra/definitions.md#transfers) moves a source term to a destination term with a value transformation; the unit conversion in Appendix A, Example 2, also replaces the source term. Here the triple consists of source `(account, Dollar)`, destination `(account, Yen)`, and value function $f(v)=150v$. `Algebra.mapPosting` applies this triple by replacing every matching term, while `Journal.map` applies the conversion separately at each note.
 
-The accounting transfer table in [Transfers](../exchange/transfer.md) works differently: `mkTransferTable` and `transferEntries` retain the source record and add its cancellation and the destination terms. The conversion here does not use that table: in exchangealgebra-0.6.0.1 it cannot express a unit conversion with different source and destination amounts, and the documented replacement for deprecated `MulBy` and `DivBy` is `mapPosting` for unit conversion.
+The accounting transfer table in [Transfers](../exchange/transfer.md) works differently: `mkTransferTable` and `transferEntries` retain the source record and add its cancellation and the destination terms. The conversion here does not use that table: in exchangealgebra-0.6.1.1 it cannot express a unit conversion with different source and destination amounts, and the documented replacement for deprecated `MulBy` and `DivBy` is `mapPosting` for unit conversion.
 
 ```haskell
 {{#include ../../code/admission.hs:conversion}}
@@ -63,7 +63,7 @@ Run `stack exec -- ghc -Wall -Werror Main.hs -o admission-example`, then run `./
 
 The checked journal has equal debit and credit totals of 20,200 yen. An explicit `bar` of the combined record gives balance totals of 12,000 yen on each side; the checked journal itself retains the original terms. The rejected cash sale debits 2,000 yen but credits only 1,900 yen. `Imbalanced` identifies its note and the two totals. Correct that entry and submit it for checking again. A rejected journal yields no `Admitted` value.
 
-Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
+Tested with exchangealgebra-0.6.1.1 on 2026-11-20.
 
 ## Reference {#reference}
 

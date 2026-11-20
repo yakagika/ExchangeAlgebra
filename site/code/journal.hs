@@ -106,9 +106,9 @@ main = do
     printNamed "February 1 entry after January selection"
         (Journal.projWithNote [februaryNote] january)
     printNamed "January 10 entry" (Journal.projWithNote [withdrawalNote] transactions)
-    printNamed "January 10 cash postings"
+    printNamed "January 10 cash terms"
         (Journal.projWithNoteBase [withdrawalNote] [HatNot :< (Cash, Yen)] transactions)
-    printNamed "January yen cash postings"
+    printNamed "January yen cash terms"
         (Journal.projWithBase [HatNot :< (Cash, Yen)] january)
     printNamed "January gross yen cash amount"
         (norm (Journal.projWithBase [HatNot :< (Cash, Yen)] january))

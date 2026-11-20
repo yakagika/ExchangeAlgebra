@@ -1,10 +1,10 @@
 January 10 withdrawal: 3000:@Not:<(Cash,Yen) .+ 3000:@Hat:<(Deposits,Yen)
 Twice the withdrawal: 6000:@Not:<(Cash,Yen) .+ 6000:@Hat:<(Deposits,Yen)
-Withdrawal posting total in yen: 6000
-Yen cash postings before aggregation: 500:@Hat:<(Cash,Yen) .+ 1500:@Hat:<(Cash,Yen) .+ 2000:@Not:<(Cash,Yen) .+ 3000:@Not:<(Cash,Yen)
+Withdrawal term total in yen: 6000
+Yen cash terms before aggregation: 500:@Hat:<(Cash,Yen) .+ 1500:@Hat:<(Cash,Yen) .+ 2000:@Not:<(Cash,Yen) .+ 3000:@Not:<(Cash,Yen)
 Cash balances by currency: 3000:@Not:<(Cash,Yen) .+ 10:@Not:<(Cash,Dollar)
-Yen postings without cancellation: 500:@Hat:<(Cash,Yen) .+ 1500:@Hat:<(Cash,Yen) .+ 2000:@Not:<(Cash,Yen) .+ 3000:@Not:<(Cash,Yen) .+ 2000:@Hat:<(Deposits,Yen) .+ 3000:@Hat:<(Deposits,Yen) .+ 500:@Not:<(Purchases,Yen)
-Yen posting total: 12500
+Yen terms without cancellation: 500:@Hat:<(Cash,Yen) .+ 1500:@Hat:<(Cash,Yen) .+ 2000:@Not:<(Cash,Yen) .+ 3000:@Not:<(Cash,Yen) .+ 2000:@Hat:<(Deposits,Yen) .+ 3000:@Hat:<(Deposits,Yen) .+ 500:@Not:<(Purchases,Yen)
+Yen term total: 12500
 Yen cash totals by direction: 2000:@Hat:<(Cash,Yen) .+ 5000:@Not:<(Cash,Yen)
 Yen cash residual amount: 3000
 Reverse the withdrawal directions: 3000:@Hat:<(Cash,Yen) .+ 3000:@Not:<(Deposits,Yen)

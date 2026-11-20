@@ -2,7 +2,7 @@
 
 On February 1, the shop uses 3,000 yen from its bank deposits to form a wholly owned subsidiary. Prepare an opening consolidated balance sheet at that date from the two companies’ trial balances. A consolidation worksheet keeps the two source balances and the group adjustments (`WorksheetAdjustment`) as separate inputs.
 
-Use exchangealgebra-0.6.0.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the Haskell blocks in their displayed order as `Main.hs`.
+Use exchangealgebra-0.6.1.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the Haskell blocks in their displayed order as `Main.hs`.
 
 ## Prepare the two trial balances {#prepare-the-two-trial-balances}
 
@@ -85,7 +85,7 @@ In your project directory, run `stack exec -- ghc -Wall -Werror Main.hs -o conso
 
 The investment has no remaining balance. Capital stock is 10,000 yen, the parent’s own capital. The group shows cash of 8,300 yen and deposits of 2,000 yen. Together with inventory of 200 yen and prepaid expenses of 600 yen, assets total 11,100 yen. There are no liabilities, and equity totals 11,100 yen.
 
-Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
+Tested with exchangealgebra-0.6.1.1 on 2026-11-20.
 
 ## Reference {#reference}
 

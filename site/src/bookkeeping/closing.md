@@ -2,7 +2,7 @@
 
 Prepare January’s closing entries after the rent and inventory adjustments in [Adjusting entries](adjustment.md#admit-and-inspect-the-adjusted-journal). Sales of 2,000 yen less cost of goods sold of 300 yen and rent expense of 600 yen give a profit of 1,100 yen. Transfer the revenue and expense balances to retained earnings, the equity account that accumulates undistributed profits.
 
-Use exchangealgebra-0.6.0.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the code blocks in their displayed order as `Main.hs`.
+Use exchangealgebra-0.6.1.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the code blocks in their displayed order as `Main.hs`.
 
 ## Recover the adjusted journal {#recover-the-adjusted-journal}
 
@@ -51,7 +51,7 @@ See [Account titles and their attributes](../accounts/attributes.md) for the clo
 {{#include ../../code/closing.hs:closing}}
 ```
 
-For Sales, debit 2,000 yen by reversing its `Not` balance with `Hat`, and credit RetainedEarnings. For Purchases and RentExpense, credit 300 and 600 yen to cancel their debit balances, and debit RetainedEarnings for the same amounts. RetainedEarnings therefore has credits of 2,000 yen and debits of 900 yen, leaving a credit balance of 1,100 yen. Japanese bookkeeping textbooks collect revenue and expenses in an income summary account before transferring the result to retained earnings, whereas exchangealgebra-0.6.0.1’s `closingEntries` transfers those balances directly to RetainedEarnings, producing the same final balances.
+For Sales, debit 2,000 yen by reversing its `Not` balance with `Hat`, and credit RetainedEarnings. For Purchases and RentExpense, credit 300 and 600 yen to cancel their debit balances, and debit RetainedEarnings for the same amounts. RetainedEarnings therefore has credits of 2,000 yen and debits of 900 yen, leaving a credit balance of 1,100 yen. Japanese bookkeeping textbooks collect revenue and expenses in an income summary account before transferring the result to retained earnings, whereas exchangealgebra-0.6.1.1’s `closingEntries` transfers those balances directly to RetainedEarnings, producing the same final balances.
 
 ## Inspect the post-closing trial balance {#inspect-the-post-closing-trial-balance}
 
@@ -69,7 +69,7 @@ Sales, Purchases, and RentExpense each have `NoBalance`; their original and clos
 
 Check with `AfterClosing` so residual revenue and expense balances are findings. Checking the journal again alone cannot establish that closing was complete. The empty findings and `Closing again: Right 0` confirm that no eligible balance remains for another closing entry. Keep the checked closed journal with all dated entries; a balance report is not a replacement for that record.
 
-Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
+Tested with exchangealgebra-0.6.1.1 on 2026-11-20.
 
 ## Reference {#reference}
 

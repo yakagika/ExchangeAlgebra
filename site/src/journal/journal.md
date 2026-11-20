@@ -2,7 +2,7 @@
 
 The January 10 withdrawal has a date and a description, “Withdrawal from Bank A.” Keep those facts in a journal note so they remain available for selecting transactions without including them as elements in the base used for account balances. A `Journal n v b` associates each note of type `n` with an `Alg v b`.
 
-Use exchangealgebra-0.6.0.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). The example attaches notes to the month's transactions from [The redundant algebra](../algebra/redundant.md), adds a February purchase, then selects entries by note, base, and date range. The note set, finite journal, and operations correspond to [Definitions 10–12](../algebra/definitions.md#notes).
+Use exchangealgebra-0.6.1.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). The example attaches notes to the month's transactions from [The redundant algebra](../algebra/redundant.md), adds a February purchase, then selects entries by note, base, and date range. The note set, finite journal, and operations correspond to [Definitions 10–12](../algebra/definitions.md#notes).
 
 ## Declare a note type {#declare-a-note-type}
 
@@ -66,7 +66,7 @@ Run `stack exec -- ghc -Wall -Werror Main.hs -o journal-example`, then run `./jo
 
 `Journal.gather Journal.plank january` combines all entries under the empty note without canceling opposing terms. `bar january` combines the notes under `plank` and nets the combined algebra. It loses the original dates and descriptions. A component under `plank` is printed without a note suffix, but the value remains a `Journal`. To net separately within each note, use `Journal.map bar january`; retain `january` itself when the original term detail is required.
 
-Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
+Tested with exchangealgebra-0.6.1.1 on 2026-11-20.
 
 ## Reference {#reference}
 

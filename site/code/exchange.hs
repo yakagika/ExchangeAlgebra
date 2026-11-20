@@ -38,8 +38,8 @@ printNamed label value = putStrLn (label ++ ": " ++ show value)
 -- | Recover the withdrawal's debit and credit sides and classify its bases.
 main :: IO ()
 main = do
-    printNamed "Debit postings" (decL withdrawal)
-    printNamed "Credit postings" (decR withdrawal)
+    printNamed "Debit terms" (decL withdrawal)
+    printNamed "Credit terms" (decR withdrawal)
     printNamed "Debit total in yen" (norm (decL withdrawal))
     printNamed "Credit total in yen" (norm (decR withdrawal))
     printNamed "Withdrawal is balanced" (balance withdrawal)

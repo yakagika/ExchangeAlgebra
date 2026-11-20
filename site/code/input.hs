@@ -46,7 +46,7 @@ main = do
     input <- fromString <$> readFile "january-import.csv"
     flat <- require (Csv.parseJournalCsv input :: Either Input.ConvError
         (Alg MoneyDecimal (HatBase AccountTitles)))
-    putStrLn $ "Parsed posting totals (debit, credit): "
+    putStrLn $ "Parsed term totals (debit, credit): "
             ++ show (norm (decL flat), norm (decR flat))
 
     rows <- require (Csv.parseNotedJournalCsv Csv.scientificAmount input)

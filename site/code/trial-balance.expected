@@ -9,7 +9,7 @@ Sales: (0,2000,CreditBalance 2000)
 CapitalStock: (0,10000,CreditBalance 10000)
 RetainedEarnings: (0,0,NoBalance)
 Balance totals (debit, credit): (12000,12000)
-Posting totals (debit, credit): (20200,20200)
+Term totals (debit, credit): (20200,20200)
 Balanced: True
 Findings: []
 Without opening balances:
@@ -24,6 +24,6 @@ Sales: (0,2000,CreditBalance 2000)
 CapitalStock: (0,0,NoBalance)
 RetainedEarnings: (0,0,NoBalance)
 Balance totals (debit, credit): (7000,7000)
-Posting totals (debit, credit): (10200,10200)
+Term totals (debit, credit): (10200,10200)
 Balanced: True
 Findings: [UnexplainedAbnormalBalance Deposits Debit (CreditBalance 5000)]

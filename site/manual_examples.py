@@ -14,6 +14,8 @@ ROOT = SITE.parent
 BOOK = SITE / "book"
 CODE = SITE / "code"
 API_MAP = SITE / "api-map.tsv"
+GHC_PACKAGES = ("base", "exchangealgebra", "time")
+GHC_PACKAGE_FLAGS = tuple(flag for package in GHC_PACKAGES for flag in ("-package", package))
 API_COLUMNS = ("chapter", "source", "module", "identifier")
 PROGRAMS = sorted(CODE.glob("*.hs"))
 INCLUDE = re.compile(r"\{\{#include\s+([^\s:]+\.hs)(?=[:\s}])[^}]*\}\}")
@@ -91,7 +93,7 @@ def compile_program(project, source, directory, *, strict=False):
     flags = ["-Werror", "-ddump-minimal-imports", "-dumpdir", f"{directory}/"] if strict else []
     return project.stack(
         "exec", "--", "ghc", "-Wall", "-fforce-recomp", "-hide-all-packages",
-        "-package", "base", "-package", "exchangealgebra", *flags,
+        *GHC_PACKAGE_FLAGS, *flags,
         "-outputdir", str(directory), "-o", str(directory / "program"), str(source),
         capture_output=True,
     )
@@ -154,8 +156,8 @@ def wildcard_imports(project, source, directory, wildcards, groups):
     # GHC can print T(..) even when the source uses only some of T's members.
     # The renamed body identifies the resolved names independently of aliases.
     renamed = project.query(
-        "ghc", "-fno-code", "-fforce-recomp", "-hide-all-packages", "-package", "base",
-        "-package", "exchangealgebra", "-ddump-rn", "-dppr-debug",
+        "ghc", "-fno-code", "-fforce-recomp", "-hide-all-packages",
+        *GHC_PACKAGE_FLAGS, "-ddump-rn", "-dppr-debug",
         "-outputdir", str(directory), str(source),
     )
     if "==================== Renamer " not in renamed:

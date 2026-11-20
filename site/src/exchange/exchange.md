@@ -2,7 +2,7 @@
 
 The January 10 withdrawal has a debit of 3,000 yen to Cash and a credit of 3,000 yen to Deposits. An exchange algebra is a redundant algebra with account classifications on its bases and decompositions into debit and credit terms. The classifications correspond to [Definition 7](../algebra/definitions.md#account-classes-and-sides), and the decompositions correspond to [Definition 8](../algebra/definitions.md#debit-and-credit-decomposition).
 
-Use exchangealgebra-0.6.0.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). The example keeps the custom `Unit` and the account-and-unit base from [The redundant algebra](../algebra/redundant.md). It adds an instance for account access, then checks the withdrawal's sides and balance.
+Use exchangealgebra-0.6.1.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). The example keeps the custom `Unit` and the account-and-unit base from [The redundant algebra](../algebra/redundant.md). It adds an instance for account access, then checks the withdrawal's sides and balance.
 
 ## Declare the base instance {#declare-the-base-instance}
 
@@ -15,6 +15,22 @@ Save the code blocks in their displayed order as `Main.hs`. Declare how to read 
 `FlexibleInstances` is needed for the instance head `HatBase (AccountTitles, Unit)`. `DeriveGeneric` and `DeriveAnyClass` supply the `Hashable` instance for `Unit`. `ExchangeAlgebra` re-exports the types and classes used by these declarations; the accounting classes are also available from `ExchangeAlgebra.Accounting.Exchange`.
 
 The built-in `ExBaseClass` instances cover several specific base shapes, but do not cover this custom account-and-unit base. Define `getAccountTitle` and `setAccountTitle`. The setter retains direction and currency. The remaining methods have defaults derived from the account title and direction, so no new `Exchange` instance is needed for `Alg`.
+
+In 0.6.1.1, the following forms of `HatBase a` have built-in `ExBaseClass` instances.
+
+| `a` in `HatBase a` |
+|---|
+| `AccountTitles` |
+| `(AccountTitles, Day)` |
+| `(AccountTitles, Name)` |
+| `(CountUnit, AccountTitles)` |
+| `(AccountTitles, Name, CountUnit)` |
+| `(AccountTitles, Name, CountUnit, Subject)` |
+| `(AccountTitles, Name, CountUnit, Subject, Day)` |
+| `(AccountTitles, Name, CountUnit, Subject, Day, TimeOfDay)` |
+| `(AccountTitles, Wild Day)` |
+| `(AccountTitles, Name, CountUnit, Subject, Wild Day)` |
+| `(AccountTitles, Name, CountUnit, Subject, Wild Day, Wild TimeOfDay)` |
 
 ## Record the withdrawal {#record-the-withdrawal}
 
@@ -40,7 +56,7 @@ Run `stack exec -- ghc -Wall -Werror Main.hs -o exchange-example`, then run `./e
 {{#include ../../code/exchange.expected}}
 ```
 
-`Debit postings` contains the cash increase; `Credit postings` contains the deposit decrease. Each side totals 3,000 yen, and `balance withdrawal` is `True`. `diffRL` returns the neutral `Side` and zero when the exact difference is zero. Balanced amounts alone do not establish that the accounts or the transaction are correct.
+`Debit terms` contains the cash increase; `Credit terms` contains the deposit decrease. Each side totals 3,000 yen, and `balance withdrawal` is `True`. `diffRL` returns the neutral `Side` and zero when the exact difference is zero. Balanced amounts alone do not establish that the accounts or the transaction are correct.
 
 `whatDiv` reports the account division; `whichSide` includes the term's direction. `whatPIMO` classifies the ordinary cash account as `PS`, or plus stock, and `fixedCurrent` classifies it as `Current`. PIMO classifies the account's role; the direction still distinguishes its increase from its decrease.
 
@@ -48,7 +64,7 @@ See [Account titles and their attributes](../accounts/attributes.md) for the reg
 
 Select or convert to one monetary unit before comparing totals. The yen-dollar exchange in [Add the month's transactions](../algebra/redundant.md#add-the-months-transactions) records quantities in different currencies. Its raw amounts do not have a common unit for a balance comparison.
 
-Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
+Tested with exchangealgebra-0.6.1.1 on 2026-11-20.
 
 ## Reference {#reference}
 
