@@ -164,6 +164,7 @@ EquityInEarningsOfInvestee
 EquitySection
 Euro
 ExBaseClass
+Exactly
 Exchange
 ExpenseSection
 ExplainedTemporaryBalance
@@ -471,6 +472,7 @@ Vehicle
 WageEarned
 WageExpenditure
 WelfareExpenses
+Wild
 WildcardPosting
 WildcardStatementBase
 WildcardTrialBalanceAccount

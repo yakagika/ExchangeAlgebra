@@ -85,6 +85,7 @@ import ExchangeAlgebra.Algebra.Base.Representation ( HatBaseClass(..)
 import ExchangeAlgebra.Algebra.Element.Representation ( Name
                                                       , Subject
                                                       , CountUnit
+                                                      , Wild
                                                       , matchesQuery
                                                       )
 import ExchangeAlgebra.Algebra.Core.Representation ( Alg(..)
@@ -280,6 +281,27 @@ instance ExBaseClass (HatBase (AccountTitles, Name, CountUnit, Subject,  Day)) w
 -- ** 6-element bases
 -- | Basic BaseClass with 6 elements
 instance ExBaseClass (HatBase (AccountTitles, Name, CountUnit, Subject, Day, TimeOfDay)) where
+    getAccountTitle (_:< (a, _, _, _, _, _))   = a
+    setAccountTitle (h:< (_, n, c, s, d, t)) b = h:< (b, n, c, s, d, t)
+
+-- ** Bases with wildcard-extended dates and times
+--
+-- The bases above use the 'Element' instances of 'Day' and 'TimeOfDay', whose
+-- wildcards are reserved dates and times (1858-11-17 and midnight). The
+-- following bases use 'Wild' instead, so every date and time of day remains
+-- an ordinary coordinate.
+--
+-- @since 0.6.1.0
+
+instance ExBaseClass (HatBase (AccountTitles, Wild Day)) where
+    getAccountTitle (_:< (a, _))   = a
+    setAccountTitle (h:< (_, d)) b = h:< (b, d)
+
+instance ExBaseClass (HatBase (AccountTitles, Name, CountUnit, Subject, Wild Day)) where
+    getAccountTitle (_:< (a, _, _, _, _))   = a
+    setAccountTitle (h:< (_, n, c, s, d)) b = h:< (b, n, c, s, d)
+
+instance ExBaseClass (HatBase (AccountTitles, Name, CountUnit, Subject, Wild Day, Wild TimeOfDay)) where
     getAccountTitle (_:< (a, _, _, _, _, _))   = a
     setAccountTitle (h:< (_, n, c, s, d, t)) b = h:< (b, n, c, s, d, t)
 

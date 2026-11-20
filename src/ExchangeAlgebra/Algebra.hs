@@ -39,6 +39,7 @@ module ExchangeAlgebra.Algebra
     , Name
     , Subject
     , CountUnit(..)
+    , Wild(..)
     , Hashable(..)
     , Generic
     , Nearly(..)
