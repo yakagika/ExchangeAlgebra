@@ -40,3 +40,12 @@ library:
   - ExchangeAlgebra.IO.Input.EInvoice
   - ExchangeAlgebra.IO.Input.EInvoice.Document
   - ExchangeAlgebra.IO.Input.EInvoice.Journal
+
+tests:
+  exchangealgebra-einvoice-test:
+    main: Spec.hs
+    source-dirs: test
+    dependencies:
+    - exchangealgebra-einvoice
+    - hashable  >= 1.4  && < 1.6
+    - QuickCheck >= 2.14 && < 3

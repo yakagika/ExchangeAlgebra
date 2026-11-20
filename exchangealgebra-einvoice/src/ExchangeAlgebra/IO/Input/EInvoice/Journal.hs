@@ -1,5 +1,7 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 
 {- |
 Module      : ExchangeAlgebra.IO.Input.EInvoice.Journal
@@ -40,19 +42,35 @@ module ExchangeAlgebra.IO.Input.EInvoice.Journal
     , invoiceJournal
     ) where
 
-import Data.List.NonEmpty (NonEmpty)
+import           Data.Bifunctor (first)
+import           Data.List.NonEmpty (NonEmpty)
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as Map
+import           Data.Text (Text)
+import qualified Data.Text as T
 
-import ExchangeAlgebra.Accounting.Account (Side(..))
-import ExchangeAlgebra.Accounting.Exchange (ExBaseClass, TitleOf)
-import ExchangeAlgebra.Algebra.Base (HatBase)
+import ExchangeAlgebra.Accounting.Account (ProcessingContext(OrdinaryJournal), Side(..))
+import ExchangeAlgebra.Accounting.Exchange
+    ( ExBaseClass(getAccountTitle), TitleOf, journalForSides )
+import ExchangeAlgebra.Algebra.Base (Hat(Not), HatBase((:<)))
 import ExchangeAlgebra.Algebra.Core (Alg)
-import ExchangeAlgebra.Algebra.Value (HatVal)
-import ExchangeAlgebra.IO.Input (EntryErrorOf)
+import ExchangeAlgebra.Algebra.Value (HatVal(..), Rounding(Nearest))
+import ExchangeAlgebra.IO.Input (ConvErrorOf(UnknownAccount), EntryErrorOf, checkedEntryTextBy)
 import ExchangeAlgebra.IO.Input.EInvoice.Document
-    ( Invoice
+    ( Amount(..)
+    , Invoice
     , InvoiceLine
-    , TaxCategory
+    , MonetaryTotal(totalPayable)
+    , Percent(..)
+    , TaxCategory(categoryPercent)
     , TaxSubtotal
+    , invoiceLines
+    , invoiceTaxSubtotals
+    , invoiceTotals
+    , lineAmount
+    , lineTaxCategory
+    , subtotalCategory
+    , subtotalTaxAmount
     )
 
 -- | Whose books the entry is for. The base function must match: for
@@ -122,6 +140,23 @@ termBase = termBaseField
 termAmount :: InvoiceTerm k -> Rational
 termAmount = termAmountField
 
+-- | Put the magnitude of a nonzero amount on the side indicated by its sign.
+signedTerm
+    :: TermRole
+    -> Side
+    -> k
+    -> Rational
+    -> InvoiceTerm k
+signedTerm role positiveSide key amount
+    | amount < 0 = InvoiceTerm role (otherSide positiveSide) key (abs amount)
+    | otherwise  = InvoiceTerm role positiveSide key amount
+
+-- | Swap the debit and credit sides.
+otherSide :: Side -> Side
+otherSide Debit  = Credit
+otherSide Credit = Debit
+otherSide Side   = Side
+
 -- | The terms of an invoice.
 --
 -- Failure classification: a checked operation. @Left@ lists the categories
@@ -153,7 +188,59 @@ invoiceTerms
     => InvoiceJournalSpec k
     -> Invoice
     -> Either (NonEmpty TaxCategory) [InvoiceTerm k]
-invoiceTerms _ _ = undefined
+invoiceTerms spec invoice =
+    case NE.nonEmpty splitCategories of
+        Just categories -> Left categories
+        Nothing         -> Right (lineTerms ++ taxTerms ++ settlementTerms)
+  where
+    (lineSide, settlementSide) = case specBookSide spec of
+        BuyerBook  -> (Debit, Credit)
+        SellerBook -> (Credit, Debit)
+    lineTerms =
+        [ signedTerm role lineSide (specBase spec invoice role) amount
+        | line <- NE.toList (invoiceLines invoice)
+        , let Amount amount = lineAmount line
+        , amount /= 0
+        , let role = LineTerm line
+        ]
+    subtotals = NE.toList (invoiceTaxSubtotals invoice)
+    basesByCategory = Map.fromListWith (++)
+        [ (lineTaxCategory line, [termBase term])
+        | term <- lineTerms
+        , LineTerm line <- [termRole term]
+        ]
+    categoryBases = flip (Map.findWithDefault []) basesByCategory . subtotalCategory
+    (splitCategories, taxTerms) = case specTaxAccounting spec of
+        TaxExclusiveAccounting -> ([], exclusiveTerms)
+        TaxInclusiveAccounting -> (inclusiveSplits, inclusiveTerms)
+    exclusiveTerms =
+        [ signedTerm role lineSide (specBase spec invoice role) amount
+        | subtotal <- subtotals
+        , let Amount amount = subtotalTaxAmount subtotal
+        , amount /= 0
+        , let role = TaxTerm subtotal
+        ]
+    inclusiveSplits =
+        [ category
+        | subtotal <- subtotals
+        , let category = subtotalCategory subtotal
+        , Just (Percent rate) <- [categoryPercent category]
+        , rate /= 0
+        , key : rest <- [categoryBases subtotal]
+        , any (/= key) rest
+        ]
+    inclusiveTerms =
+        [ signedTerm (TaxTerm subtotal) lineSide key amount
+        | subtotal <- subtotals
+        , let Amount amount = subtotalTaxAmount subtotal
+        , amount /= 0
+        , key : _ <- [categoryBases subtotal]
+        ]
+    settlementTerms =
+        [ signedTerm SettlementTerm settlementSide (specBase spec invoice SettlementTerm) amount
+        | let Amount amount = totalPayable (invoiceTotals invoice)
+        , amount /= 0
+        ]
 
 -- | Why 'invoiceJournal' rejects an invoice.
 data InvoiceJournalError acct v
@@ -166,6 +253,34 @@ data InvoiceJournalError acct v
       -- index is the position in 'invoiceTerms'. An all-zero invoice gives
       -- @EntryRejected (EmptyEntry :| [])@.
     deriving (Eq, Show)
+
+-- | Convert an amount and reject the row if its exact value changes.
+convertTerm
+    :: HatVal v
+    => (Int, InvoiceTerm k)
+    -> Either (InvoiceJournalError acct v) (Side, k, v)
+convertTerm (index, term)
+    | Just amount <- roundRational Nearest exact
+    , exactAccum (addAccum amount emptyAccum) == Just exact =
+        Right (termSide term, termBase term, amount)
+    | otherwise = Left (UnrepresentableAmount index exact)
+  where
+    exact = termAmount term
+
+-- | Use the zero-based term position as the account resolver key.
+rowKey :: Int -> Text
+rowKey = T.pack . show
+
+-- | Resolve a row key to the account carried by that row's base.
+resolveAccount :: Map.Map Text acct -> Text -> Either (ConvErrorOf acct) acct
+resolveAccount accounts key =
+    maybe (Left (UnknownAccount key)) Right (Map.lookup key accounts)
+
+-- | Spell the side for the checked entry reader.
+sideText :: Side -> Text
+sideText Debit  = "debit"
+sideText Credit = "credit"
+sideText Side   = "side"
 
 -- | Build the entry of an invoice on the caller's base.
 --
@@ -204,4 +319,14 @@ invoiceJournal
     => InvoiceJournalSpec k
     -> Invoice
     -> Either (InvoiceJournalError acct v) (Alg v (HatBase k))
-invoiceJournal _ _ = undefined
+invoiceJournal spec invoice = do
+    terms <- first InclusiveTaxSplit (invoiceTerms spec invoice)
+    rows  <- traverse convertTerm (zip [0 ..] terms)
+    let indexed = zip [0 :: Int ..] rows
+        accounts = Map.fromList
+            [(rowKey index, getAccountTitle (Not :< key)) | (index, (_, key, _)) <- indexed]
+        resolve = resolveAccount accounts
+        checkedRows =
+            [(sideText side, rowKey index, amount) | (index, (side, _, amount)) <- indexed]
+    _ <- first EntryRejected (checkedEntryTextBy resolve OrdinaryJournal checkedRows)
+    pure (journalForSides rows)
