@@ -32,7 +32,7 @@ Construct the table with `mkTransferTable`:
 
 Write `from .-> to |% share` to specify the source, destination, and share. In 0.6.0.1 the accounting API uses whole balances (`Relabel`) or rational shares (`Portion`), rather than an arbitrary function. `Portion 1 2` moves half of the exact source balance, rounded once with the default `Nearest` rule. The integer amounts in this example require no rounding.
 
-The amount to transfer is computed from the net balance at each selected full base. At the destination, the debit or credit side of that balance is retained; the direction depends on the destination account's home side. The returned entry contains a source cancellation and a destination posting. Add both postings to the original record to retain its history.
+The amount to transfer is computed from the net balance at each selected full base. At the destination, the debit or credit side of that balance is retained; the direction depends on the destination account's home side. The returned entry contains a source cancellation and a destination term. Add both terms to the original record to retain its history.
 
 The source wildcard in `(RentExpense, (.#))` selects every currency element. The destination wildcard in `(PrepaidExpenses, (.#))` retains the selected currency. Here the selected amount is in yen, so the destination is `(PrepaidExpenses, Yen)`. A destination wildcard retains yen as the currency element.
 
@@ -65,11 +65,11 @@ Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
 | `from .-> to \|% Relabel` | Move the whole exact balance from source to destination. The bases omit `Hat`/`Not`; the destination's direction is derived to retain the source balance's debit or credit side. |
 | `from .-> to \|% Portion n d` | Move `n/d` of the balance, with `0 < n <= d`. |
 | `mkTransferTable rows` | Validate rows and return `Either`. Reject invalid portions, overlapping sources, and backward flow, including a cycle or a row to itself. Keep the written row order. |
-| `transferEntries table record` | Return `Either` containing only the additional cancellation and destination postings. Read exact balances; retain the original record by adding the result with `.+`. |
+| `transferEntries table record` | Return `Either` containing only the additional cancellation and destination terms. Read exact balances; retain the original record by adding the result with `.+`. |
 | `transferEntriesWith rounding table record` | Choose the rounding rule for portions. The default of `transferEntries` is `Nearest`. |
 
 The preprint orders rules by source base; the accounting table instead uses the supplied row order. Each row reads the balances left by earlier rows. A whole-balance transfer table closes its selected sources and is idempotent after its entries have been added. A portion table generally is not idempotent.
 
-A transfer can fail on selected invalid postings, unclassified accounts, or an amount that cannot be represented under the rounding rule. Handle `Left` before adding any entries; no partial successful record is returned. Use positive, finite amounts through `.@`, as in [Construction and scalar checks](../algebra/values.md#construction-and-scalar-checks).
+A transfer can fail on selected invalid terms, unclassified accounts, or an amount that cannot be represented under the rounding rule. Handle `Left` before adding any entries; no partial successful record is returned. Use positive, finite amounts through `.@`, as in [Construction and scalar checks](../algebra/values.md#construction-and-scalar-checks).
 
-The generic `ExchangeAlgebra.Algebra.Transfer` API works on individual postings and is separate from this accounting API. Unit conversion changes the measure of an amount and is not the accounting reclassification used for the rent adjustment.
+The generic `ExchangeAlgebra.Algebra.Transfer` API works on individual terms and is separate from this accounting API. Unit conversion changes the measure of an amount and is not the accounting reclassification used for the rent adjustment.

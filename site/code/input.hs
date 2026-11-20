@@ -19,7 +19,7 @@ require = either (ioError . userError . show) pure
 -- ANCHOR_END: support
 
 -- ANCHOR: grouping
--- | Group the parsed postings by transaction key, keeping the order within each entry.
+-- | Group the parsed terms by transaction key, keeping the order within each entry.
 groupTransactions :: Ord note
                   => [(Side, AccountTitles, MoneyDecimal, note)]
                   -> [(note, [(Side, AccountTitles, MoneyDecimal)])]
@@ -32,7 +32,7 @@ groupTransactions rows =
     sameNote left right = noteOf left == noteOf right
     withoutNote (side, account, amount, _) = (side, account, amount)
 
--- | Require a transaction key on every CSV posting before grouping by note.
+-- | Require a transaction key on every CSV term before grouping by note.
 checkNotes :: (Eq note, IsString note)
            => [(Side, AccountTitles, MoneyDecimal, note)] -> Either String ()
 checkNotes rows

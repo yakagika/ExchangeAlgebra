@@ -17,7 +17,7 @@ Table 1 records the four transactions in a conventional journal. Each row has on
 
 ## The same journal in exchange algebra {#the-same-journal-in-exchange-algebra}
 
-Exchange algebra writes an entry as a sum of postings $a : e$, where $a$ is a nonnegative amount and $e$ is a base. Here a base is an account title in angle brackets. A plain base such as $\langle \text{Cash} \rangle$ records an increase (`Not`), and a hat base such as $\widehat{\langle \text{Cash} \rangle}$ records a decrease (`Hat`). The four rows of Table 1 become:
+Exchange algebra writes an entry as a sum of terms $a : e$, where $a$ is a nonnegative amount and $e$ is a base. Here a base is an account title in angle brackets. A base with `Not`, such as $\langle \text{Cash} \rangle$, records an increase. A base with `Hat`, such as $\widehat{\langle \text{Cash} \rangle}$, records a decrease. The four rows of Table 1 become:
 
 $$
 \begin{aligned}
@@ -28,13 +28,13 @@ x_4 &= 500 : \langle \text{Cash} \rangle + 500 : \widehat{\langle \text{Accounts
 \end{aligned}
 $$
 
-The postings carry neither debit and credit labels nor minus signs. Each posting states which account changed and in which direction. The journal side follows from the account's division: an increase in an asset or expense is a debit, and an increase in a liability, equity, or revenue account is a credit. A decrease takes the opposite side. For example, the increase in capital stock in $x_1$ is a credit, and the decrease in cash in $x_2$ is also a credit. [Account classes and sides](algebra/definitions.md#account-classes-and-sides) gives the full rule, including contra accounts.
+The terms carry neither debit and credit labels nor minus signs. Each term states which account changed and in which direction. The journal side follows from the account's division: an increase in an asset or expense is a debit, and an increase in a liability, equity, or revenue account is a credit. A decrease takes the opposite side. For example, the increase in capital stock in $x_1$ is a credit, and the decrease in cash in $x_2$ is also a credit. [Account classes and sides](algebra/definitions.md#account-classes-and-sides) gives the full rule, including contra accounts.
 
-The whole journal is the sum $x = x_1 + x_2 + x_3 + x_4$ of eight postings. The sum keeps every posting: cash has $1000$ and $500$ on the plain base and $600$ on the hat base. Bar, written $\bar{x}$, totals the two directions at each base and keeps the excess. For cash it leaves $900 : \langle \text{Cash} \rangle$, the cash balance.
+The combined record is the sum $x = x_1 + x_2 + x_3 + x_4$ of eight terms. The sum keeps every term: cash has $1000$ and $500$ on the base with `Not` and $600$ on the base with `Hat`. Bar, written $\bar{x}$, totals the two directions at each base and keeps the excess. For cash it leaves $900 : \langle \text{Cash} \rangle$, the cash balance.
 
 ## Recover the debit and credit columns {#recover-the-debit-and-credit-columns}
 
-The projection `decL` selects the debit postings of $x$ and `decR` selects the credit postings. `decL` returns cash 1,000, purchases 600, accounts receivable 900, and cash 500, which is the debit column of Table 1. `decR` returns the credit column. Both totals are 3,000, so `balance` returns `True`.
+The projection `decL` selects the debit terms of $x$ and `decR` selects the credit terms. `decL` returns cash 1,000, purchases 600, accounts receivable 900, and cash 500, which is the debit column of Table 1. `decR` returns the credit column. Both totals are 3,000, so `balance` returns `True`.
 
 A program that builds the journal of Table 1 and checks these results needs only the `ExchangeAlgebra` module:
 
@@ -48,4 +48,4 @@ It prints:
 {{#include ../code/overview.expected}}
 ```
 
-`.@` attaches an amount to a hat base. `.+` keeps the postings of both operands, including postings on the same base. `norm` totals the amounts. `bar` offsets the increases and decreases of the cash postings selected by `projByAccountTitle` and leaves the net increase of 900.
+`.@` attaches an amount to a hat base. `.+` keeps the terms of both operands, including terms on the same base. `norm` totals the amounts. `bar` offsets the increases and decreases of the cash terms selected by `projByAccountTitle` and leaves the net increase of 900.

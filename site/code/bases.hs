@@ -1,5 +1,5 @@
 -- | Add directions to the cash and deposit bases of the withdrawal.
--- BaseClass and HatBaseClass supply the base structure used by posting construction.
+-- BaseClass and HatBaseClass supply the base structure used by term construction.
 -- ANCHOR: unit
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}

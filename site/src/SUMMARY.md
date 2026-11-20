@@ -20,14 +20,14 @@
 - [Exchange algebra](exchange/exchange.md)
 - [Transfers](exchange/transfer.md)
 - [Journals](journal/journal.md)
-- [Multiple agents](journal/agents.md)
+- [Multiple accounting entities](journal/agents.md)
 
 # Bookkeeping procedures
 
-- [Admitting a journal](bookkeeping/admission.md)
-- [Trial balance and audit](bookkeeping/trial-balance.md)
+- [Checking a journal](bookkeeping/admission.md)
+- [Trial balance and checks](bookkeeping/trial-balance.md)
 - [Adjusting entries](bookkeeping/adjustment.md)
-- [Closing](bookkeeping/closing.md)
+- [Closing entries](bookkeeping/closing.md)
 - [Financial statements](bookkeeping/statements.md)
 - [Consolidation](bookkeeping/consolidation.md)
 

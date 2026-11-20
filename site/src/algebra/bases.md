@@ -1,6 +1,6 @@
 # Bases
 
-The January 10 withdrawal increases cash and decreases the savings deposit by 3,000 yen. The base of each posting contains an account element and a currency element. Their directions differ: the cash posting has `Not`, and the deposit posting has `Hat`.
+The January 10 withdrawal increases cash and decreases the savings deposit by 3,000 yen. The base of each term contains an account element and a currency element. Their directions differ: the cash term has `Not`, and the deposit term has `Hat`.
 
 These bases implement [Definition 2](definitions.md#bases) and [Definition 3](definitions.md#hat-bases-and-postings). The example uses exchangealgebra-0.6.0.1 and the custom currency element type from [Declare a unit element type](elements.md#declare-a-unit-element-type).
 
@@ -26,7 +26,7 @@ Construct both sides of the withdrawal with the account and unit pairs:
 
 ## Use a single unit as a base {#use-a-single-unit-as-a-base}
 
-If the underlying base is just `Unit`, rather than an account-and-unit pair, declare `BaseClass Unit`. This separate declaration is needed for `HatBase Unit`, as in this example with one base element:
+If the underlying base is just `Unit`, rather than an account-and-unit pair, declare `BaseClass Unit`. This separate declaration is needed for `HatBase Unit`, as in this example with one element:
 
 ```haskell
 {{#include ../../code/bases.hs:single-element}}
@@ -50,7 +50,7 @@ The complete program prints:
 
 The labeled `Cash increase` and `Deposit decrease` results retain the same unit and distinct account titles. `Reverse the cash direction` retains the cash base and changes only its direction.
 
-> **Caution:** Hat is a structural direction, not a negative amount or a debit label. Both Cash and Deposits are assets, so an increase is a debit and a decrease is a credit. Other account divisions have different home sides. `HatNot` is a query wildcard, not a posting direction; direction reversal and tests are intended for concrete `Hat` or `Not` bases, and some methods fail on `HatNot`.
+> **Caution:** Hat is a structural direction, not a negative amount or a debit label. Both Cash and Deposits are assets, so an increase is a debit and a decrease is a credit. Other account divisions have different home sides. `HatNot` is a query wildcard, not a term direction; direction reversal and tests are intended for concrete `Hat` or `Not` bases, and some methods fail on `HatNot`.
 
 Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
 
@@ -62,7 +62,7 @@ Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
 
 ### HatBaseClass {#hatbaseclass}
 
-`HatBaseClass` requires `BaseClass` for both the whole hat base and its `BasePart`, and `AxisDecompose` for `BasePart`. `AxisDecompose` supplies a key for each base element. Its generic and tuple instances cover the bases used in the withdrawal.
+`HatBaseClass` requires `BaseClass` for both the whole hat base and its `BasePart`, and `AxisDecompose` for `BasePart`. `AxisDecompose` supplies a key for each element of the base. Its generic and tuple instances cover the bases used in the withdrawal.
 
 | Associated type or method | Purpose |
 |---|---|
