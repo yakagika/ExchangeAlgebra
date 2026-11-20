@@ -36,7 +36,7 @@ The module table lists public entry points in 0.6.0.1. Import a specific module 
 |---|---|---|
 | Algebra | `ExchangeAlgebra.Algebra` | Base elements, bases, the `Alg` type, and redundant-algebra operations. |
 | Algebra | `ExchangeAlgebra.Algebra.Element`, `.Base`, `.Core`, `.Value` | Individual parts of the algebra; these abbreviated names share the prefix `ExchangeAlgebra.Algebra`. |
-| Algebra | `ExchangeAlgebra.Algebra.Posting`, `ExchangeAlgebra.Algebra.Transfer` | Checked posting construction and generic transformations of base elements. |
+| Algebra | `ExchangeAlgebra.Algebra.Posting`, `ExchangeAlgebra.Algebra.Transfer` | Checked posting construction and generic transformations of bases. |
 | Journal | `ExchangeAlgebra.Journal`, `ExchangeAlgebra.Journal.Transfer` | Postings indexed by notes, and transformations of those journals. Qualify function names shared with Algebra and import the operator `.\|` unqualified. |
 | Accounting | `ExchangeAlgebra.Accounting`, `ExchangeAlgebra.Accounting.Account`, `ExchangeAlgebra.Accounting.Exchange` | Account titles, account classification, and debit and credit operations. |
 | Accounting | `ExchangeAlgebra.Accounting.TrialBalance`, `.Entries`, `.Closing`, `.Statements`, `.Consolidation` | Bookkeeping procedures; these abbreviated names share the prefix `ExchangeAlgebra.Accounting`. |

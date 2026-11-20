@@ -27,7 +27,7 @@ Save the code blocks in their displayed order as `Main.hs`:
 
 The import hides the built-in currency constructors with the same names. `Generic` and `Hashable` are re-exported by `ExchangeAlgebra`, so the example needs only the `base` and `exchangealgebra` dependencies.
 
-## Query elements and combine them into bases {#query-elements-and-combine-them-into-bases}
+## Query bases by their elements {#query-elements-and-combine-them-into-bases}
 
 The withdrawal affects `(Cash, Yen)` and `(Deposits, Yen)`. Both component types have `Element` instances, so the pair type also has an `Element` instance.
 
@@ -36,7 +36,7 @@ To select cash entries in any currency, use `(Cash, (.#))`. The alias `(.#)` den
 A stored `(Cash, Unit)` indicates that no currency element applies to that entry. The example defines this hypothetical base to check what happens if currency information is absent. The withdrawal itself uses only bases with `Yen`. A query for cash in any unit matches it, but a query specifically for cash in yen does not.
 
 ```haskell
-{{#include ../../code/elements.hs:base-elements}}
+{{#include ../../code/elements.hs:withdrawal-bases}}
 ```
 
 Use named output to identify the bases and query results:
@@ -74,7 +74,7 @@ Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
 
 `wildcard` is the only required method for a simple element type. Tuples implement wildcard substitution and matching component by component. In a transfer target, a wildcard preserves the source element.
 
-> **Caution:** `(.==)` is symmetric. Use `matchesQuery` to match queries against stored elements. Use ordinary `==` and `compare` for identity and canonical ordering; wildcard-aware comparison is not a total order on stored values.
+> **Caution:** `(.==)` is symmetric. Use `matchesQuery` to match queries against stored elements or bases. Use ordinary `==` and `compare` for identity and canonical ordering; wildcard-aware comparison is not a total order on stored values.
 
 ### Built-in instances {#built-in-instances}
 
