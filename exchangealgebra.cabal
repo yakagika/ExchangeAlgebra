@@ -5,7 +5,7 @@ cabal-version: 1.12
 -- see: https://github.com/sol/hpack
 
 name:           exchangealgebra
-version:        0.6.1.0
+version:        0.6.1.1
 synopsis:       Exchange Algebra for bookkeeping and economic simulation
 description:    Exchange Algebra is an algebraic description of bookkeeping developed by Hiroshi Deguchi. This package represents bookkeeping entries as members of a redundant algebra. The Hat direction of a base expresses a decrease, and the Not direction expresses an increase. Term values are non-negative. The package provides journals with notes, accounting operations such as closing, transfers, trial balances, and financial statements, CSV input and output, and a state-space framework for economic simulation. See the README for a guide and the changelog for migration notes.
 category:       Accounting, Finance, Math
