@@ -9,7 +9,7 @@
 -- postable accounts, and equal debit (@decL@) and credit (@decR@) totals. It
 -- returns the journal unchanged as @Admitted@, a type that only 'admit'
 -- constructs. 'checkEvidence' then compares an admitted journal with expected
--- elements, after a selection chosen by the caller.
+-- terms, after a selection chosen by the caller.
 --
 -- = What admission does not do
 --
@@ -120,12 +120,12 @@
 -- == 5. Check the journal against independent records
 --
 -- 'checkEvidence' selects part of the admitted journal and compares it with
--- expected elements: each expected element must match exactly one selected
--- element, and the values must be equal. Selected elements that nothing
--- expects are ignored. The expected element is a query: a concrete note and
+-- expected terms: each expected term must match exactly one selected
+-- term, and the values must be equal. Selected terms that nothing
+-- expects are ignored. The expected term is a query: a concrete note and
 -- base, as in this example, match only the same note and base, while a
--- @plank@ note or a wildcard axis of the expected base (such as the account
--- @AccountTitle@) matches any value on that axis. Here the bank records the
+-- @plank@ note or a wildcard component of the expected base (such as the account
+-- @AccountTitle@) matches any value on that component. Here the bank records the
 -- opening deposit and the cash receipt of the sale; the selection keeps the
 -- cash receipts (@Not :< Cash@), so the payment for supplies (@Hat :< Cash@)
 -- is not compared.

@@ -9,7 +9,7 @@
 Module      : ExchangeAlgebra.Algebra.Transfer.Representation
 Description : Generic transfer rules and additional entries.
 
-This Algebra layer owns transfer rules, their validation, and coordinate
+This Algebra layer owns transfer rules, their validation, and base
 collapse. It uses generic bases and values and supplies the public
 "ExchangeAlgebra.Algebra.Transfer" entry point.
 Start with 'mkTransferRules', then 'transferEntries' or the collapse functions.
@@ -24,12 +24,12 @@ summed values after @bar@; it does not observe the singleton versus composite
 constructor or sequence order. Relative tolerance means a per-base difference
 of at most @1e-9 * max (abs x) (abs y)@, treating absent bases as zero.
 
-=== L1: coordinate rewriting
+=== L1: base rewriting
 
 * Subject: 'transferEntries'.
 * Preconditions: disjoint source patterns, valid non-negative postings and
   a successful application returning @Right entries@. A source wildcard
-  matches any stored coordinate; a concrete source matches only itself.
+  matches any stored element; a concrete source matches only itself.
 * Relation: @obs (a .+ entries)@ equals the observation of independently
   rewriting each matched posting to its rule's target and scaled value;
   unmatched postings remain unchanged.
@@ -47,7 +47,7 @@ of at most @1e-9 * max (abs x) (abs y)@, treating absent bases as zero.
 * Tolerance: exact equality. Errors (including NaN) are outside this law.
 * Instances: all lawful 'HatVal' and 'HatBaseClass' instances.
 
-=== L6: coordinate collapse
+=== L6: base collapse
 
 * Subject: 'collapseEntries' and 'collapseNetEntries'.
 * Preconditions: non-negative valid postings and an exact additive value type.
@@ -111,7 +111,7 @@ instance Hashable v => Hashable (TransferScale v)
 -- | A source pattern, target template and value operation.
 data TransferRule v b = TransferRule
     { ruleFrom  :: b                -- ^ One-way matching pattern.
-    , ruleTo    :: b                -- ^ Wildcards retain source coordinates.
+    , ruleTo    :: b                -- ^ Wildcards retain source elements.
     , ruleScale :: TransferScale v  -- ^ Value operation, validated at construction.
     } deriving (Eq, Ord, Show, Generic)
 
@@ -196,7 +196,7 @@ divideBy source target coefficient = TransferRule source target (DivBy coefficie
 matches :: Element b => b -> b -> Bool
 matches patternBase entry = ignoreWildcard entry patternBase == entry
 
--- | Whether some base matches both patterns, with wildcard substitution per coordinate.
+-- | Whether some base matches both patterns, with wildcard substitution at each component position.
 patternsOverlap :: Element b => b -> b -> Bool
 patternsOverlap first second = matches first (ignoreWildcard first second)
 
@@ -237,21 +237,21 @@ transferEntries (TransferRules rules) = foldEntries step (Right Zero)
             DivBy coefficient -> value / coefficient
         cancellation = value `Single` revHat source
 
--- | Move selected entries to new base coordinates while retaining every posting.
+-- | Move selected entries to new bases while retaining every posting.
 -- Query patterns use one-way matching: only a pattern wildcard matches any
--- coordinate. The function rewrites each selected 'BasePart' with the supplied
--- function, so callers can replace an axis with its wildcard. A transfer
--- rule's target wildcard instead keeps the source coordinate; it cannot turn
--- a concrete coordinate into a wildcard.
+-- element. The function rewrites each selected 'BasePart' with the supplied
+-- function, so callers can replace a component with its wildcard. A transfer
+-- rule's target wildcard instead keeps the source element; it cannot turn
+-- a concrete element into a wildcard.
 --
 -- The result contains only the added entries: a Hat-reversed copy of each
 -- selected posting and its rewritten copy. Add it to the ledger with @(.+)@.
 -- Values remain non-negative, and this function does not call 'bar', so it
 -- retains redundant audit detail. 'collapseNetEntries' nets the rewritten
 -- entries instead. 'postFromNetBy' generates new postings for each netted
--- classification; both collapse functions move the coordinates of the same
+-- classification; both collapse functions rewrite the bases of the same
 -- entries.
--- On an axis-preserving ledger, @norm . bar@ cannot cancel across axes.
+-- On a ledger that retains complete bases, @norm . bar@ cannot cancel across different bases.
 --
 -- >>> type T = Alg Double (HatBase CountUnit)
 -- >>> x = 10 .@ Not :< Yen .+ 4 .@ Hat :< Dollar :: T
@@ -266,20 +266,20 @@ collapseEntries pats f x = (.^) selected .+ mapBasePart f selected
   where
     selected = proj pats x
 
--- | Move selected entries to new base coordinates and net the rewritten side.
+-- | Move selected entries to new bases and net the rewritten side.
 -- The result contains only added entries: a Hat-reversed copy of the selected
 -- postings plus @bar (mapBasePart f selected)@. This function calls 'bar'
--- internally after rewriting, so opposite sides from distinct original axes
+-- internally after rewriting, so opposite sides from different original bases
 -- can cancel when the new base parts coincide. Add the result to the original
 -- ledger with @(.+)@. It leaves the original audit entries in place.
 --
 -- Query wildcards match one way. A wildcard in a transfer rule's target
--- preserves the source coordinate; use this function to replace a concrete
--- coordinate with a wildcard. 'collapseEntries' retains all rewritten
+-- preserves the source element; use this function to replace a concrete
+-- element with a wildcard. 'collapseEntries' retains all rewritten
 -- postings. 'postFromNetBy' generates new postings for each netted
--- classification, while this function moves the coordinates of the same
--- entries. On an axis-preserving ledger, @norm . bar@ does not cancel across
--- axes.
+-- classification, while this function rewrites the bases of the same
+-- entries. On a ledger that retains complete bases, @norm . bar@ cancels
+-- only among terms with matching base parts.
 --
 -- >>> type T = Alg Double (HatBase CountUnit)
 -- >>> x = 10 .@ Not :< Yen .+ 4 .@ Hat :< Dollar :: T

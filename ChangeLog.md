@@ -1,5 +1,19 @@
 # Changelog for ExchangeAlgebra
 
+## Unreleased
+
+### Fixed
+
+- Corrected account descriptions and Japanese names returned by
+  `accountDescriptions`, `asDescription`, and `asNameJa`. The updated text can
+  change the order of candidates returned by `suggestAccounts`.
+- Corrected the projection documentation to distinguish one-sided totals from
+  account balances. Use `accountBalances` to net both sides of each account title.
+- Clarified that `projCapitalStock` selects credit-side terms from all non-contra
+  equity accounts, including retained earnings.
+- Standardized the terminology for element sets, bases, algebra terms, and scalar
+  multiplication, and corrected the description of post-closing trial balances.
+
 ## 0.6.1.0 - 2026-11-20
 
 ### Added

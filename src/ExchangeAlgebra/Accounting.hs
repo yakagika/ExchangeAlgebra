@@ -18,12 +18,12 @@
       ('decL' \/ 'decR' \/ 'decP' \/ 'decM') and the account-aware projections.
     * Definition 9 (transfer): the accounting transfer of
       "ExchangeAlgebra.Accounting.Transfer" (tables written with '.->' and
-      '|%', additive 'transferEntries' from exact balances), plus coordinate
+      '|%', additive 'transferEntries' from exact balances), plus base
       rules and closing entries. Import generic per-posting @transferEntries@
       and @Relabel@ from "ExchangeAlgebra.Algebra.Transfer" qualified.
 
     This umbrella re-exports account vocabulary, exchange operations,
-    coordinate rules, closing entries, and accounting transfers. It defines
+    base rules, closing entries, and accounting transfers. It defines
     no operations. The account registry ("ExchangeAlgebra.Accounting.Account"),
     trial-balance readouts ("ExchangeAlgebra.Accounting.TrialBalance.Balance"),
     and statement modules are imported separately.
@@ -62,7 +62,7 @@ module ExchangeAlgebra.Accounting
     , projCapitalStock
     , projContraAssets
     , projContra
-      -- * Definition 9: coordinate rules and closing
+      -- * Definition 9: base rules and closing
     , module ExchangeAlgebra.Algebra.Transfer.Rule
       -- * Definition 9: accounting transfer
     , module ExchangeAlgebra.Accounting.Transfer

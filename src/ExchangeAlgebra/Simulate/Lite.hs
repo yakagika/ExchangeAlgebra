@@ -588,7 +588,7 @@ enumFromThenToInclusive from0 to0
 -- Under 'ParChunk' the FIRST message is forced to normal form in the calling
 -- thread before the remaining messages are sparked. Every message reaches the
 -- shared snapshot @view@ through lazily-built index structures (the Journal's
--- note-axis index, each Alg's base index); if many sparks race to force those
+-- note component index, each Alg's base index); if many sparks race to force those
 -- shared thunks, the RTS's duplicate-work suspension can re-enter its own
 -- blackhole and abort with a spurious @<<loop>>@ (observed intermittently at
 -- @-N4@; the thunk graph is acyclic — sequential evaluation never loops).
@@ -609,7 +609,7 @@ runStage :: forall w t n v b.
 runStage spec view t termIx stageIx st =
     let seed0 = specSeed spec
         -- The per-agent messages, before applying the parallelism policy. Both
-        -- constructors derive each generator from the same coordinates only, so
+        -- constructors derive each generator from the same components only, so
         -- DET is identical to the StageFor-only runner. 'StageTagged' attaches
         -- the single note @(stTag, t)@ here — the ONLY place auto-tagging
         -- happens — as a pure post-transform of each agent's bare 'Alg'.
@@ -628,8 +628,8 @@ runStage spec view t termIx stageIx st =
                  (m : (ms `using` parListChunk (max 1 c) rdeepseq))
 
 -- | Deterministically derive an agent's generator from the seed and the
--- @(term, stage, agent)@ coordinates only — never from scheduling. Uses a hash
--- of the tuple so that distinct coordinates almost never collide and the value
+-- @(term, stage, agent)@ components only — never from scheduling. Uses a hash
+-- of the tuple so that distinct tuples almost never collide and the value
 -- is stable across runs and 'Par' policies.
 deriveGen :: Int -> Int -> Int -> Int -> StdGen
 deriveGen seed0 termIx stageIx agentIx =

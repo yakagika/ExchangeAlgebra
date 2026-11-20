@@ -18,7 +18,7 @@ a wildcard account or side, a trial balance whose debits and credits differ,
 a conflicting presentation instruction, a balance on a title that no
 statement section can hold, debits and credits that do not reconcile after
 presentation, or a period result that cannot be derived.
-Bookkeeping coordinates remain unchanged; all eliminations, relabelings,
+Bookkeeping bases remain unchanged; all eliminations, relabelings,
 maturity allocations, netting decisions, and subtotals are recorded as
 presentation audit events.
 
@@ -151,7 +151,7 @@ data StatementLine v = StatementLine
     deriving (Show, Eq)
 
 -- | Evidence-backed split of one title without creating new bookkeeping
--- coordinates. Current and non-current parts must sum exactly to its balance.
+-- base components. Current and non-current parts must sum exactly to its balance.
 data PresentationAllocation v = PresentationAllocation
     { _allocationAccount    :: AccountTitles
     , _allocationCurrent    :: v
@@ -204,7 +204,8 @@ data SubtotalCoverage
   | TreatAbsentAsZero
   deriving (Show, Eq)
 
--- | A subtotal is a typed reporting definition, never an account-basis title.
+-- | A subtotal is a typed reporting definition over account titles, never an
+-- account title in a base.
 data SubtotalDefinition = SubtotalDefinition
     { _subtotalMetric       :: DerivedMetric
     , _subtotalCreditTitles :: [AccountTitles]

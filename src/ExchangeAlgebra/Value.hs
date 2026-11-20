@@ -47,7 +47,7 @@
 
     The core algebra only adds/subtracts, which is exact for t'MoneyDecimal' and needs no
     rounding. Rounding is only needed by /multiplication and division/ (tax ratios,
-    proration, scalar product) at the point a monetary amount is /finalized/. Use
+    proration, scalar multiplication) at the point a monetary amount is /finalized/. Use
     'bankersRound': it rounds half-to-even (the unbiased financial default; also GHC's
     'Prelude.round' and IEEE-754's default mode). A ceiling variant ('ceilingRound') is
     provided for jurisdictions whose

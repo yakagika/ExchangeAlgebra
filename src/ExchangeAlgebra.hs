@@ -24,7 +24,7 @@
     financial-statement presentation, CSV and bookkeeping output, and value types.
     Start with this module for single-period bookkeeping. The transfer names
     '.->', '|%', 'Relabel' and 'transferEntries' belong to
-    "ExchangeAlgebra.Accounting.Transfer"; import generic coordinate rules from
+    "ExchangeAlgebra.Accounting.Transfer"; import generic base rules from
     "ExchangeAlgebra.Algebra.Transfer" qualified.
 
     > import ExchangeAlgebra
@@ -42,7 +42,7 @@
     * t'ExchangeAlgebra.Algebra.Value.MoneyDecimal' — exact decimal; construction-order
       independent totals. Use for audited\/deterministic ledgers.
 
-    For multi-period simulation or metadata-aware journals (notes, axes),
+    For multi-period simulation or metadata-aware journals (notes, components),
     import "ExchangeAlgebra.Journal" qualified to avoid overlapping names
     such as @sigma@, @fromList@, @map@ and @filter@:
 

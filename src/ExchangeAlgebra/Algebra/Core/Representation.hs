@@ -48,7 +48,7 @@ import qualified Data.Binary as Binary
 ------------------------------------------------------------------
 
 -- | Type class for Redundant Algebra.
--- Provides fundamental exchange algebra operations: hat, bar, norm, scalar product, and compress.
+-- Provides fundamental exchange algebra operations: hat, bar, norm, scalar multiplication, and compress.
 --
 --  Redundant ⊃ Exchange
 --
@@ -82,7 +82,7 @@ import qualified Data.Binary as Binary
 -- intermediate products and sums; floating-point readouts can round differently:
 --
 --   1. Hat involution:        @(.^) ((.^) x) = x@
---   2. Scalar on an element:   @a '.*' (v ':@' b) = (a*v) ':@' b@
+--   2. Scalar multiplication of a term:   @a '.*' (v ':@' b) = (a*v) ':@' b@
 --   3. Scalar distribution:    @a '.*' (x '.+' y) = (a '.*' x) '.+' (a '.*' y)@
 --   4. Norm homogeneity:       @'norm' (a '.*' x) = a * 'norm' x@  (for @a >= 0@)
 --   5. Norm additivity:        @'norm' (x '.+' y) = 'norm' x + 'norm' y@
@@ -107,7 +107,7 @@ import qualified Data.Binary as Binary
 -- the netted content.
 
 class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
-    -- | Hat operation. Flips Hat/Not on all elements.
+    -- | Hat operation. Flips Hat/Not on all terms.
     -- Complexity: O(1) for singleton, O(n) for Liner (n is the number of base keys)
     (.^) :: a n b -> a n b
 
@@ -121,7 +121,7 @@ class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
     (.-) :: a n b -> a n b
 
     -- | Alias for bar operation. Identical to @(.-)@.
-    -- On an axis-preserving ledger, @norm . bar@ cancels only within each full
+    -- On a ledger that retains complete bases, @norm . bar@ cancels only within each full
     -- base. Use 'balanceMapBy' or 'netPairMapBy' for net amounts by group.
     bar :: a n b -> a n b
     bar = (.-)
@@ -141,15 +141,15 @@ class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
     -- Complexity: O(n) (n is the number of base keys)
     compress :: a n b -> a n b
 
-    -- | Addition of algebra elements. Alias for the Monoid @<>@ operation.
+    -- | Addition in the redundant algebra. Alias for the Monoid @<>@ operation.
     -- Complexity: O(union cost)
     (.+) :: a n b -> a n b -> a n b
 
-    -- | Scalar product. Multiplies all element values by a scalar.
+    -- | Scalar multiplication. Multiplies the value of every term by a scalar.
     -- Complexity: O(1) for singleton, O(n) for Liner
     (.*) :: n -> a n b -> a n b
 
-    -- | Norm. Sum of all element values (both Hat and Not sides), i.e. the
+    -- | Norm. Sum of the values of all terms (both Hat and Not sides), i.e. the
     -- homomorphism from the algebra into the value domain @n@ (Akagi 2026,
     -- Appendix A, Definition 6). On exact values it is /additive/:
     -- @norm (x '.+' y) = norm x + norm y@ (axiom 5), and /homogeneous/:
@@ -162,8 +162,8 @@ class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
     -- types. It need not hold after floating-point rounding: with T = 2^53,
     -- Not T and Not 3 on one base and Not 2 on another give norm x = T+4, whereas
     -- norm (bar x) = T+6.
-    -- On an axis-preserving ledger, @norm ('bar' x)@ does not cancel across
-    -- distinct axis values. Use 'balanceMapBy' or 'netPairMapBy' to read each
+    -- On a ledger that retains complete bases, @norm ('bar' x)@ does not cancel across
+    -- different bases. Use 'balanceMapBy' or 'netPairMapBy' to read each
     -- group's net amount.
     --
     -- >>> norm (100.@Not:<Yen .+ 50.@Not:<Euro :: Alg Double (HatBase CountUnit))
@@ -185,7 +185,7 @@ infixr 3 .+
 infixr 3 <+
 
 ------------------------------------------------------------
--- | Sequences of values on the Hat and Not sides of one basis.
+-- | Sequences of values on the Hat and Not sides of one base.
 data Pair v where
  Pair :: {_hatSide :: !(Seq v)
          ,_notSide :: !(Seq v)} -> Pair v
@@ -285,14 +285,15 @@ pairUnion (Pair x1 y1) (Pair x2 y2) =
         !ns = if Seq.null y1 then y2 else y1
     in Pair hs ns
 
--- | Algebra element. An element of exchange algebra consisting of a value-base pair.
--- Zero is the zero element, @(:@)@ is a singleton, and Liner is a HashMap-based multi-element representation.
+-- | A member of the redundant algebra. 'Zero' represents zero, @(:@)@
+-- represents one term with a value and hat base, and 'Liner' stores multiple
+-- terms in a HashMap-based representation.
 --
 -- __Invariants (do not hand-construct @Liner@).__ No posting has a zero value,
 -- and no @Pair@ has both sides empty. The @Liner@ constructor carries
 -- internal cache\/index fields (@_axisPosting@, @_idToBp@, @_allBpIds@) that are
 -- /derived from/ @_realg@ and must stay consistent with it: @_axisPosting@,
--- @_idToBp@ and @_allBpIds@ must be exactly the axis index, id↔base map and id set
+-- @_idToBp@ and @_allBpIds@ must be exactly the component index, id↔base map and id set
 -- built from the keys of @_realg@ (as the internal @linerFromMap@ does). The
 -- wildcard projection path (@projWildMap@, @filterByAxis@) reads those indices and
 -- will return wrong answers (silently, not an exception) if they disagree with
@@ -401,7 +402,7 @@ emptyAxisPosting = IntMap.empty
 
 {-# INLINE insertAxisPosting #-}
 -- | Complexity: O(d * (hash-insert + intset-insert))
--- In practice this is near O(d), where d is the number of axes in the base part.
+-- In practice this is near O(d), where d is the number of components in the base part.
 insertAxisPosting :: [AxisKey] -> Int -> AxisPosting -> AxisPosting
 insertAxisPosting !keys !bpId !idx =
     snd $ L.foldl' step (0 :: Int, idx) keys
@@ -416,7 +417,7 @@ insertAxisPosting !keys !bpId !idx =
 
 {-# INLINE queryAxisPosting #-}
 -- | Complexity: O(d + intersection cost)
--- d is the number of axes; intersections are performed in ascending set-size order.
+-- d is the number of components; intersections are performed in ascending set-size order.
 queryAxisPosting :: [AxisKey] -> AxisPosting -> IntSet.IntSet -> IntSet.IntSet
 queryAxisPosting !keys !idx !allIds =
     case matchedSets of
@@ -483,7 +484,7 @@ linerFromMap m =
             (emptyAxisPosting, IntMap.empty, IntSet.empty)
             m
 
--- | Tests whether the algebra element is zero (empty).
+-- | Tests whether the member of the redundant algebra is zero (empty).
 --
 -- Complexity: O(1)
 isZero :: Alg v b -> Bool
@@ -505,7 +506,7 @@ singleton v b | hat b == HatNot = error $ "errorValue at (.@): HatNot side val: 
               | otherwise = v `Single` b
 
 {-# INLINE (.@) #-}
--- | Smart constructor that builds an algebra element from a value and a base.
+-- | Smart constructor that builds a term from a value and a hat base.
 -- This is the public construction boundary for a posting.
 --
 -- Contract (0.6): the side of @b@ must be v'Hat' or 'Not'. A base whose side is
@@ -521,7 +522,7 @@ singleton v b | hat b == HatNot = error $ "errorValue at (.@): HatNot side val: 
 (.@) :: (HatVal n, HatBaseClass b) => n -> b -> Alg n b
 (.@) v b = singleton v b
 
--- | Constructs an algebra element in an Applicative context. Lifted version of @(.@)@.
+-- | Constructs a term in an Applicative context. Lifted version of @(.@)@.
 --
 -- Complexity: O(1) + Applicative effects
 (<@) :: (HatVal n, Applicative f, HatBaseClass b)
@@ -652,7 +653,7 @@ union (v1:@b1) (v2:@b2)
 union x (v:@b) = insert b v x
 union (v:@b) x = insert b v x
 
--- In the case of multiple elements
+-- In the case of multiple terms
 union (Liner m1 _ _ _ _ _) (Liner m2 _ _ _ _ _) = linerFromMap (Map.unionWith pairAppend m1 m2)
 
 
@@ -910,7 +911,7 @@ postNetStates keyOf algebra = (mkAlgFromMap retained, totals)
 -- * Basic functions
 ------------------------------------------------------------------
 
--- | Returns all values contained in the algebra element as a list.
+-- | Returns the value of each term, as a list.
 --
 -- Complexity: O(s) (s is the total number of scalar entries)
 vals :: (HatVal v, HatBaseClass b) => Alg v b -> [v]
@@ -928,7 +929,7 @@ vals (Liner m _ _ _ _ _) =
             m
 
 
--- | Returns all bases contained in the algebra element as a list.
+-- | Returns the hat base of each term, as a list.
 --
 -- Complexity: O(s) (s is the total number of scalar entries)
 bases :: (HatVal v, HatBaseClass b) => Alg v b -> [b]
@@ -964,7 +965,7 @@ fromList = mconcat
 
 
 -- | Summation function that applies a function to each element of a list and sums the results.
--- Complexity: O(sum of HashMap union costs over produced elements).
+-- Complexity: O(sum of HashMap union costs over produced members of the redundant algebra).
 --
 -- Uses the bulk-merge path ('unionsMerge'); see there for the same-base
 -- sequence-order caveat relative to 'fromList'\/'mconcat'.
@@ -1013,7 +1014,7 @@ sigmaFromMap kvs f =
         | isZeroValue v = acc
         | otherwise = mergeAlgMapIfNonZero acc (f k v)
 
--- | Converts an algebra element to a list.
+-- | Returns the list of terms.
 -- Complexity: O(s) (s is the total number of scalar entries)
 --
 -- >>> toList (10.@Hat:<(Yen) .+ 10.@Hat:<(Dollar) .+ Zero :: Alg Double (HatBase CountUnit))
@@ -1155,7 +1156,7 @@ map f (Liner m _ _ _ _ _) = mkAlgFromMap $ (Map.foldrWithKey (p f) dnilMap m) Ma
                                 | isZeroValue v2 ->  (dlAcc, vsAcc)
                                 -- Structural equality: a wildcard in a ledger base is
                                 -- a value, so rewriting it to (or from) a concrete
-                                -- coordinate is a change of base, not \"the same base\".
+                                -- element changes the base.
                                 | b2 == (merge h b) -> (dlAcc, v2 Seq.<| vsAcc)
                                 | isHat (hat b2)     -> (dappendMap dlAcc (dsingleMap ( base b2
                                                                           ,nullPair{_hatSide = Seq.singleton v2}))
@@ -1254,7 +1255,7 @@ filter f (Liner m _ _ _ _ _) =
     filterSide bp h = Seq.filter (\val -> f (val `Single` merge h bp))
 
 ------------------------------------------------------------
--- | Relabel the /base part/ of every element, preserving the Hat\/Not structure
+-- | Relabel the /base part/ of every term, preserving the Hat\/Not structure
 -- and the redundancy (the ordered Hat- and Not-side sequences). Only the
 -- 'BasePart' is rewritten by @f@; the Hat\/Not side and the values are untouched.
 -- When @f@ maps two distinct base parts onto the same target, their sequences are
@@ -1375,10 +1376,10 @@ extendBy h = foldEntries (\acc v b -> acc .+ h v b) Zero
 -- @(base, side)@ cells.
 --
 -- Wildcards match __one way__: only a wildcard in the /query/ is a pattern
--- (\"any value on this axis\"). A wildcard stored in a ledger base is an
--- ordinary value (\"this axis does not apply\"): a wildcard query axis selects
--- it, a concrete query axis does not. The result is the same whether the
--- ledger is a single element or a 'Liner'.
+-- (\"any value on this component\"). A wildcard stored in a ledger base is an
+-- ordinary value (\"this component does not apply\"): a wildcard query component selects
+-- it, a concrete query component does not. The result is the same whether the
+-- ledger is a single term or a 'Liner'.
 --
 -- >>> type Test = Alg Double (HatBase (CountUnit, CountUnit))
 -- >>> proj [Not:<(Yen,Yen)] (10.@Not:<(Yen,(.#)) :: Test)
@@ -1431,7 +1432,7 @@ proj [b] (v:@b2)
     | matchesQuery b b2  = v`Single`b2
     | otherwise = Zero
 -- Index fields bound lazily (@~@) so a concrete (non-wildcard) base never forces
--- the axis index (the module is @Strict@; see 'projExactMap').
+-- the component index (the module is @Strict@; see 'projExactMap').
 proj [b] (Liner m ~idx _ ~idToBp _ ~allIds) =
     mkAlgFromMap $
         if haveWildcard (base b)
@@ -1466,7 +1467,7 @@ choosePairByHat h Pair {_hatSide = hs, _notSide = ns} =
 
 {-# INLINE projExactMap #-}
 -- | Exact (non-wildcard) single-base projection: a direct 'Map.lookup' on the
--- @_realg@ map. It does NOT reference the axis index, so the concrete projection
+-- @_realg@ map. It does NOT reference the component index, so the concrete projection
 -- path can keep that lazy index unforced.
 --
 -- This matters because the module is compiled @{-\# LANGUAGE Strict \#-}@: handing
@@ -1493,7 +1494,7 @@ projExactMap b m = case Map.lookup bp m of
     !h  = hat b
 
 {-# INLINE projWildMap #-}
--- | Wildcard single-base projection: resolves candidates through the axis index
+-- | Wildcard single-base projection: resolves candidates through the component index
 -- ('queryAxisPosting'), so it necessarily forces the index. Only invoked when
 -- 'haveWildcard' holds.
 --
@@ -1558,10 +1559,10 @@ singlePairToAlg b (Pair hs ns) = case (Seq.viewl hs, Seq.viewl ns) of
 -- types the two can differ (residuals @2^53 + 1@ and @1@ give @2^53 + 2@ here
 -- and @2^53@ there).
 --
--- Wildcards match one way, as in 'proj': a concrete query axis does not match
+-- Wildcards match one way, as in 'proj': a concrete query component does not match
 -- a wildcard stored in a ledger base.
--- On an axis-preserving ledger, this nets only within each projected full
--- base; it does not cancel across axis values. Use 'balanceMapBy' or
+-- On a ledger that retains complete bases, this nets only within each projected full
+-- base; it does not cancel across different bases. Use 'balanceMapBy' or
 -- 'netPairMapBy' for net amounts by group.
 -- Sums are exact over the given postings and the output is rounded once; sides
 -- cancel only when they are exactly equal.
@@ -1582,7 +1583,7 @@ projectedNetState bs (v :@ b)
     | L.any (`matchesQuery` b) bs = addAccum v emptyAccum
     | otherwise        = emptyAccum
 -- Index fields bound lazily (@~@); a concrete base uses 'projExactMap' (a plain
--- 'Map.lookup') and never forces the axis index. See 'projExactMap'.
+-- 'Map.lookup') and never forces the component index. See 'projExactMap'.
 projectedNetState [b] (Liner m ~idx _ ~idToBp _ ~allIds) =
     foldProjectedState $
         if haveWildcard (base b)
@@ -1717,7 +1718,7 @@ balanceMapBy keyOf = M.map roundAccum . foldPairs collect M.empty
 -- \[ \Big( \textstyle\sum_{n_b > h_b} (n_b - h_b),\ \sum_{h_b > n_b} (h_b - n_b) \Big). \]
 --
 -- This per-base netting is named and documented here — it is /not/ an implicit
--- 'bar'; the function performs exactly the standard-element reduction the name
+-- 'bar'; the function performs exactly the standard-form reduction the name
 -- promises, mirroring how 'balanceMapBy' reports a netted read-out.
 --
 -- __Both components are non-negative__ (consistent with the value domain

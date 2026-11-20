@@ -136,10 +136,10 @@ import              ExchangeAlgebra.Simulation.Analysis (leontiefInverse, ripple
 import              ExchangeAlgebra.Simulate.Spill
 
 ------------------------------------------------------------------
--- | Type class defining the time axis for simulations.
+-- | Type class defining the sequence of simulation terms.
 --
 -- @nextTerm@ and @prevTerm@ have default implementations via @succ@ / @pred@,
--- so for uniformly-spaced time axes only @initTerm@ and @lastTerm@ need to be defined.
+-- so for uniformly-spaced sequences of simulation terms only @initTerm@ and @lastTerm@ need to be defined.
 --
 -- @
 -- type Term = Int

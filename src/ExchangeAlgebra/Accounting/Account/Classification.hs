@@ -59,7 +59,7 @@ data FixedCurrent = Fixed   -- ^ Fixed
 instance NFData FixedCurrent where
     rnf value = value `seq` ()
 
--- | Accounting role of an account-basis coordinate. Roles are not assumed to
+-- | Accounting role of an account-title element. Roles are not assumed to
 -- be mutually exclusive; see
 -- 'ExchangeAlgebra.Accounting.Account.Registry.AccountSemantics' in the
 -- account registry.
@@ -77,7 +77,7 @@ data AccountRole
 instance NFData AccountRole where
     rnf value = value `seq` ()
 
--- | Context in which an account title may be used as a posting coordinate.
+-- | Context in which an account title may be used as a posting base.
 -- Enforcement is introduced by the checked-conversion API in a later land;
 -- this type is the canonical metadata used by that gate.
 data PostingCapability

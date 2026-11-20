@@ -42,7 +42,7 @@ import qualified ExchangeAlgebra.Journal.Core as Journal
 -- aggregated, and @bar@ is not applied.
 --
 -- Not checked: duplicated transaction keys (two additions with the same note
--- become one element of the journal, so the journal does not keep the
+-- become one term of the journal, so the journal does not keep the
 -- boundary; check keys before building the journal), balances across
 -- transactions, closing, agreement with independent records (use
 -- @checkEvidence@), and agreement with the answer of an exercise.

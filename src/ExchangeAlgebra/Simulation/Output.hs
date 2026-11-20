@@ -20,7 +20,7 @@
     +---------------------------------+---------------------------------------+
 
     Both operations use "ExchangeAlgebra.Simulate" for its 'StateTime'
-    axis. Spill-file restoration remains in
+    component. Spill-file restoration remains in
     "ExchangeAlgebra.Simulate.Spill". Use 'writeTermIO' for term slices
     and 'writeIOMatrix' for two-dimensional matrices.
 -}

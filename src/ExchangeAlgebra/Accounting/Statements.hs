@@ -17,16 +17,16 @@ when only grouping, metrics, or presentation is needed.
 
 'present' accepts a trial balance over account titles and its stage, and
 returns presentation results with their audit events. It does not alter
-bookkeeping coordinates and does not judge whether the trial balance is normal
+bookkeeping bases and does not judge whether the trial balance is normal
 for accounting purposes; inspect
 'ExchangeAlgebra.Accounting.TrialBalance.Validation.trialBalanceFindings' for
 that audit.
 
-Statements receive one reporting scope. A ledger with several axes (entity,
+Statements receive one reporting scope. A ledger with several components (entity,
 period, department) is narrowed by the caller and mapped to account titles
 with 'ExchangeAlgebra.Algebra.Core.mapMaybePosting' or
 'ExchangeAlgebra.Algebra.Core.mapPosting' before presentation. The remaining
-axes are summed, and no axis name appears in the output.
+amounts are summed after grouping by account title.
 -}
 module ExchangeAlgebra.Accounting.Statements
     ( PresentationGroup(..)

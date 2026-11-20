@@ -12,7 +12,7 @@ Description : Additional closing entries and ordered settlement pairs.
 This Accounting layer selects closing accounts and constructs additional
 entries using generic Algebra operations. Start with 'closingEntries' for
 an existing ledger; use 'settleEntries' for signed nets already computed
-by the caller. Both preserve the non-account coordinates of each source.
+by the caller. Both preserve the base components other than the account title of each source.
 
 Import this module qualified alongside "ExchangeAlgebra.Algebra.Core":
 
@@ -41,7 +41,7 @@ of at most @1e-9 * max (abs x) (abs y)@, treating absent bases as zero.
   through the closing date and the call returns @Right entries@.
 * Relation: adding the entries closes each eligible complete base exactly.
   Each reversal has an equal retained-earnings posting on the side selected
-  by 'closingSide'; non-closing bases and non-account coordinates are retained.
+  by 'closingSide'; non-closing bases and base components other than the account title are retained.
 * Observation: exact net per complete base, including 'RetainedEarnings'.
 * Tolerance: none; the 'HatVal' accumulator and 'splitAccum' preserve exact nets.
 * Instances: 'Double' and @MoneyDecimal@ with 'ExBaseClass' bases.
@@ -152,7 +152,7 @@ closingSide title = case accountSpec title of
 -- pair, so the exact net of every closed base after the entries is zero.
 -- This folds the source sequences (audit detail) per base, but preserves
 -- separate target postings from distinct source accounts. It does not call
--- @bar@. All non-account axes are retained, and no note is attached.
+-- @bar@. All base components other than the account title are retained, and no note is attached.
 --
 -- 'NonFiniteBalance' is returned when an eligible base has a posting value
 -- for which 'valueError' is 'Just' (non-finite or negative), or when its net
@@ -221,7 +221,7 @@ closingEntries = Map.foldlWithKey' close (Right Zero) . foldEntries collect Map.
 -- the closing directions.
 newtype SettleRule = SettleRule AccountTitles
 
--- | Close eligible accounts into 'RetainedEarnings', preserving all other axes.
+-- | Close eligible accounts into 'RetainedEarnings', preserving all other base components.
 retainedEarningsRule :: SettleRule
 retainedEarningsRule = SettleRule RetainedEarnings
 
@@ -240,7 +240,7 @@ newtype SettlementBatch b = SettlementBatch [(BasePart b, Alg Double b)]
 -- As a type synonym, it does not enforce finiteness or any numeric range.
 type SignedNet = Double
 
--- | The first non-finite input net, identified by its complete base coordinates.
+-- | The first non-finite input net, identified by its complete base.
 data SettleError b = NonFiniteNet (BasePart b)
 
 deriving instance Eq (BasePart b) => Eq (SettleError b)
@@ -250,7 +250,7 @@ deriving instance Show (BasePart b) => Show (SettleError b)
 -- Input values are signed Not-minus-Hat nets. Zero nets, accounts without a
 -- closing side, and destination bases produce no pair. Every pair has two
 -- finite, non-negative magnitudes equal to the absolute input net; the source
--- reversal cancels that net exactly. Other base axes are preserved.
+-- reversal cancels that net exactly. Other base components are preserved.
 --
 -- A non-finite input, including at an excluded key, returns 'Left' with the
 -- first key in ascending order. Finite magnitudes above

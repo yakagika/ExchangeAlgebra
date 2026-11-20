@@ -11,7 +11,7 @@ import Data.List.NonEmpty (NonEmpty)
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 
 -- | One accounting-integrity violation of one transaction. A transaction is
--- the element of one note @n@ of the submitted journal; @b@ is the base of the
+-- the term of one note @n@ of the submitted journal; @b@ is the base of the
 -- offending posting. Every check needs only the transaction itself, not the
 -- other transactions, opening balances, or the answer of an exercise.
 data AdmissionError n b
@@ -42,18 +42,18 @@ newtype AdmissionFailure n b = AdmissionFailure (NonEmpty (AdmissionError n b))
 failureErrors :: AdmissionFailure n b -> NonEmpty (AdmissionError n b)
 failureErrors (AdmissionFailure errors) = errors
 
--- | Why one expected element did not match the selected journal. @m@ and @b@
--- are the note and base of the expected element.
+-- | Why one expected term did not match the selected journal. @m@ and @b@
+-- are the note and base of the expected term.
 data EvidenceMismatch m b
     = EvidenceMissing m b MoneyDecimal
-      -- ^ No selected element matches the note and base. The value is the
+      -- ^ No selected term matches the note and base. The value is the
       -- expected one.
     | EvidenceDiffers m b MoneyDecimal MoneyDecimal
-      -- ^ Exactly one selected element matches the note and base, with a
+      -- ^ Exactly one selected term matches the note and base, with a
       -- different value: expected, then found.
     | EvidenceAmbiguous m b [MoneyDecimal]
-      -- ^ Two or more selected elements match the note and base; their values
-      -- in ascending note and base order. Combine them into one element in
+      -- ^ Two or more selected terms match the note and base; their values
+      -- in ascending note and base order. Combine them into one term in
       -- the selection, by @bar@ for the two sides of one base, or by a
       -- transfer for different accounts.
     deriving (Eq, Show)

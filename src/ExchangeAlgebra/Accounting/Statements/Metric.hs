@@ -3,14 +3,14 @@
 
 {- |
 Module      : ExchangeAlgebra.Accounting.Statements.Metric
-Description : Typed, read-only metrics derived from exchange-algebra coordinates.
+Description : Typed, read-only metrics derived from exchange-algebra bases.
 
-Derived metrics are not posting coordinates.  In particular, profit and loss
+Derived metrics are not posting bases.  In particular, profit and loss
 are two directions of one period-result identity, represented by
 'PeriodProfit' and 'PeriodLoss' with non-negative values.  The legacy
 @AccountTitles@ constructors remain available for the established transfer
 pipeline, but new reporting code should derive values without inserting those
-coordinates.
+bases.
 -}
 module ExchangeAlgebra.Accounting.Statements.Metric
     ( MetricId
@@ -88,7 +88,7 @@ data MetricError
   | InvalidMetricValue AccountTitles
   deriving (Show, Eq)
 
--- | Map an engine-only legacy coordinate to its reporting identity.
+-- | Map an engine-only legacy base to its reporting identity.
 metricForLegacyTitle :: AccountTitles -> Maybe DerivedMetric
 metricForLegacyTitle title = case title of
     NetIncome      -> Just PeriodResultMetric
@@ -97,7 +97,7 @@ metricForLegacyTitle title = case title of
     OrdinaryProfit -> Just OrdinaryProfitMetric
     _              -> Nothing
 
--- | Legacy coordinates retained for one metric.  This is a migration aid,
+-- | Legacy bases retained for one metric.  This is a migration aid,
 -- not a list of statement lines.
 legacyTitlesForMetric :: DerivedMetric -> [AccountTitles]
 legacyTitlesForMetric metric = case metric of
@@ -106,9 +106,9 @@ legacyTitlesForMetric metric = case metric of
     OrdinaryProfitMetric -> [OrdinaryProfit]
     CustomMetric _       -> []
 
--- | Derive period profit or loss without adding a balancing coordinate.
+-- | Derive period profit or loss without adding a balancing term.
 -- Only genuine statement-classified Cost and Revenue titles participate;
--- direction-encoding legacy coordinates are therefore excluded structurally.
+-- direction-encoding legacy bases are therefore excluded structurally.
 -- Invalid values and wildcard sides are returned as explicit errors.  For
 -- externally sourced trial balances, prefer 'periodResultOf'.
 periodResultOfAlg
@@ -142,9 +142,9 @@ periodResultOfAlg alg
 -- Invalid values, wildcard sides, and the wildcard account title are rejected
 -- before any balance is accumulated, because accumulation determines the
 -- debit or credit side of every posting.
--- A non-zero legacy derived coordinate is rejected to prevent a caller from
+-- A nonzero term with a legacy derived base is rejected to prevent a caller from
 -- treating an already-derived balancing item as another nominal account.
--- Consolidation attribution coordinates do not participate, so the result is
+-- Consolidation attribution bases do not participate, so the result is
 -- the period result before attribution to owners and non-controlling interests.
 -- No accounting finding is consulted; inspect
 -- 'ExchangeAlgebra.Accounting.TrialBalance.Validation.trialBalanceFindings'

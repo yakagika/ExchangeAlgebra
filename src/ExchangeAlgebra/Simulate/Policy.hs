@@ -20,7 +20,7 @@
     t'ExchangeAlgebra.Simulate.Spill.SpillOptions'
     (seven fields plus 'filterWithNote' calls for term extraction and eviction),
     the user declares a t'LedgerPolicy' and lets the plumbing be /derived from the
-    Note's term axis/.
+    Note's term component/.
 
     A policy answers three orthogonal questions:
 
@@ -78,7 +78,7 @@
     signatures of the existing spill API; it is a thin declarative front-end over
     it.
 
-    == The term axis
+    == The term component
 
     A policy needs to know /which term/ a 'Note' belongs to. Because a tuple
     Note carries no intrinsic notion of "which component is the period", the
@@ -98,7 +98,7 @@ module ExchangeAlgebra.Simulate.Policy
     , Compaction(..)
     , LedgerPolicy(..)
     , defaultLedgerPolicy
-      -- * Term axis convention
+      -- * Term component convention
     , HasTermAxis(..)
       -- * Bridges to the classic spill engine
     , policySpillOptions
@@ -176,7 +176,7 @@ defaultLedgerPolicy = LedgerPolicy
   }
 
 ------------------------------------------------------------------
--- * Term axis convention
+-- * Term component convention
 ------------------------------------------------------------------
 
 -- 'HasTermAxis' and 'TermOf' are defined in "ExchangeAlgebra.Journal.Core"
@@ -189,7 +189,7 @@ defaultLedgerPolicy = LedgerPolicy
 -- | Build a binary t'ExchangeAlgebra.Simulate.SpillOptions' for the classic
 -- @runSimulationWithSpill@ from
 -- a t'LedgerPolicy', deriving the per-chunk extraction and the eviction range
--- from the Note's term axis ('termOf'). This replaces the ~20 lines of
+-- from the Note's term component ('termOf'). This replaces the ~20 lines of
 -- hand-written 'filterWithNote' plumbing (cf. @fixedPriceIOSpill@) with a single call.
 --
 -- The caller supplies @spillEvery@ (the chunk size in terms) and two accessors

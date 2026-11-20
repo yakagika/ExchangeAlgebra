@@ -1,8 +1,8 @@
 {- |
 Module      : ExchangeAlgebra.Algebra.Transfer
-Description : Generic coordinate transfers and additional entries.
+Description : Generic base transfers and additional entries.
 
-This Algebra-layer module re-exports generic transfer rules and coordinate
+This Algebra-layer module re-exports generic transfer rules and base
 collapse from their shared representation. Start with 'mkTransferRules', then
 apply 'transferEntries' to generate source cancellations and target postings
 (Definition 9). Add the returned entries to the original ledger with @(.+)@;
