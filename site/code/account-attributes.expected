@@ -1,0 +1,11 @@
+Cash
+(Assets,CloseByDivision,False,Current)
+([OrdinaryAccount],OrdinaryPosting)
+(StatementDivision Assets,FixedHomeSide Debit)
+StatementEligible
+AccumulatedDepreciation
+(Assets,CloseByDivision,True,Fixed)
+([OrdinaryAccount,ContraAccount],OrdinaryPosting)
+(StatementDivision Assets,FixedHomeSide Credit)
+StatementEligible
+現金
