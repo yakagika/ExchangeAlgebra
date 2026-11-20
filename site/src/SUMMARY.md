@@ -22,6 +22,11 @@
 - [Journals](journal/journal.md)
 - [Multiple accounting entities](journal/agents.md)
 
+# Account titles
+
+- [Account titles and their attributes](accounts/attributes.md)
+- [Built-in account titles](accounts/builtin.md)
+
 # Bookkeeping procedures
 
 - [Checking a journal](bookkeeping/admission.md)

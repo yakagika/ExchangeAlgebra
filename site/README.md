@@ -55,3 +55,14 @@ previous revision.
 | `site/api-map.tsv` | Records the chapter path, source (`program` or `reference`), import module when known, and identifier. Program rows come from GHC's minimal imports and chapter includes. For `T(..)` imports, the checker identifies the members used in the renamed program. Reference rows come from the first column of each Reference table. |
 | `site/check-drift.py` | Compares the two installed libraries' exposed modules and GHCi signatures, then compiles and runs each example against the root Stack project. Stack reuses the local library build when its inputs match. |
 | `site/build.sh` | Validates the version literals and builds both localized HTML books. |
+
+## Update the account titles section for 0.7
+
+When the manual switches to 0.7, add a page on using your own account title
+type. Show an `AccountVocabulary` instance and explain its laws, including the
+requirements for `closingTarget`. Update the attributes page to describe the
+attributes that the account title type provides through the class methods.
+
+Pass the user's list of titles, `vocabSpec`, and `vocabSemantics` to
+`accountRows` in `site/code/account-titles.hs`. The function takes the list
+explicitly because `AccountVocabulary` has no method for enumerating titles.

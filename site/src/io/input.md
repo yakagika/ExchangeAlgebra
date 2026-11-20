@@ -14,6 +14,8 @@ Save the CSV as `january-import.csv` in the same directory as `Main.hs`. The hea
 
 For each line, the CSV parser resolves the account with `parseAccountTitle`. It accepts canonical English names and registered aliases. `normalizeTitle` lowercases the text, removes punctuation, and collapses whitespace before lookup. For example, `A/R` normalizes to `ar` and resolves to `AccountsReceivable`.
 
+See [Account titles and their attributes](../accounts/attributes.md) for the sources of the registered aliases.
+
 ```haskell
 {{#include ../../code/input.hs:setup}}
 ```

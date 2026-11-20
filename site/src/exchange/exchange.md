@@ -44,6 +44,8 @@ Run `stack exec -- ghc -Wall -Werror Main.hs -o exchange-example`, then run `./e
 
 `whatDiv` reports the account division; `whichSide` includes the term's direction. `whatPIMO` classifies the ordinary cash account as `PS`, or plus stock, and `fixedCurrent` classifies it as `Current`. PIMO classifies the account's role; the direction still distinguishes its increase from its decrease.
 
+See [Account titles and their attributes](../accounts/attributes.md) for the registry fields behind these classifications.
+
 Select or convert to one monetary unit before comparing totals. The yen-dollar exchange in [Add the month's transactions](../algebra/redundant.md#add-the-months-transactions) records quantities in different currencies. Its raw amounts do not have a common unit for a balance comparison.
 
 Tested with exchangealgebra-0.6.0.1 on 2026-11-19.

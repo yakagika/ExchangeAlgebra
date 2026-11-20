@@ -45,6 +45,8 @@ Code carried over from earlier chapters
 
 `Closing.closingEntries` reads the ledger through the closing date and returns only additional entries. For each eligible account-and-currency base, it computes the exact net, reverses that balance, and adds a term with the matching amount to `RetainedEarnings`. Other elements of the base are preserved. It sums source balances internally, without calling `bar`; separate contributions from different expense and revenue accounts remain separate terms.
 
+See [Account titles and their attributes](../accounts/attributes.md) for the closing rule and division used to select accounts for transfer to `RetainedEarnings`.
+
 ```haskell
 {{#include ../../code/closing.hs:closing}}
 ```
