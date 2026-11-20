@@ -27,7 +27,7 @@ Keep the account-and-currency base and a note containing the date and descriptio
 {{#include ../../code/admission.hs:january}}
 ```
 
-On January 1, the owner contributes 10,000 yen of capital to the ordinary deposit account at Bank A: debit Deposits and credit CapitalStock. The two withdrawals leave 5,000 yen in Deposits. On January 28, sell goods for 2,000 yen in cash: debit Cash and credit Sales. Under the periodic inventory method, record the cost of the goods sold at the period end.
+On January 1, the owner contributes 10,000 yen of capital to Bank A’s savings account: debit Deposits and credit CapitalStock. The two withdrawals leave 5,000 yen in Deposits. On January 28, sell goods for 2,000 yen in cash: debit Cash and credit Sales. Under the periodic inventory method, record the cost of the goods sold at the period end.
 
 The January 30 rent payment initially records all 1,200 yen as an expense. Keep the 600-yen deferral as a separate January 31 adjusting entry in [Adjusting entries](adjustment.md#defer-rent-and-count-inventory); do not add it twice.
 

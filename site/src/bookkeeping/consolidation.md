@@ -45,7 +45,7 @@ Code carried over from earlier chapters
 
 </details>
 
-In the parent’s books, debit the investment in the subsidiary and credit deposits for 3,000 yen. In the parent’s standalone balance sheet, `InvestmentInAssociate` represents subsidiary shares carried at acquisition cost, with no equity-method adjustment. In the subsidiary’s books, debit cash and credit capital stock for 3,000 yen. Use `bar` to obtain the parent’s February 1 balances, then identify each entity’s balances with a `TrialBalanceSource`.
+In the parent’s books, debit subsidiary shares and credit deposits for 3,000 yen. In the parent’s standalone balance sheet, `SubsidiaryStocks` represents subsidiary shares carried at acquisition cost, with no equity-method adjustment. In the subsidiary’s books, debit cash and credit capital stock for 3,000 yen. Use `bar` to obtain the parent’s February 1 balances, then identify each entity’s balances with a `TrialBalanceSource`.
 
 ```haskell
 {{#include ../../code/consolidation.hs:entity-balances}}
@@ -53,7 +53,7 @@ In the parent’s books, debit the investment in the subsidiary and credit depos
 
 ## Eliminate the investment and subsidiary capital {#eliminate-the-investment-and-subsidiary-capital}
 
-The parent’s investment and the subsidiary’s capital stock record the same contribution within the group. Eliminate them with a debit to `CapitalStock` and a credit to `InvestmentInAssociate`, each for 3,000 yen. Both postings decrease a balance, so both use `Hat`. Record the entry as a `WorksheetAdjustment` linked to both companies. The adjustment belongs to the consolidated worksheet.
+The parent’s subsidiary shares and the subsidiary’s capital stock record the same contribution within the group. Eliminate them with a debit to `CapitalStock` and a credit to `SubsidiaryStocks`, each for 3,000 yen. Both postings decrease a balance, so both use `Hat`. Record the entry as a `WorksheetAdjustment` linked to both companies. The adjustment belongs to the consolidated worksheet.
 
 ```haskell
 {{#include ../../code/consolidation.hs:elimination}}
