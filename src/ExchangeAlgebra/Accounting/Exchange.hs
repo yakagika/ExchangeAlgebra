@@ -286,9 +286,9 @@ instance ExBaseClass (HatBase (AccountTitles, Name, CountUnit, Subject, Day, Tim
 
 -- ** Bases with wildcard-extended dates and times
 --
--- The bases above use the 'Element' instances of 'Day' and 'TimeOfDay', whose
+-- The bases above use the 'Element' instances of 'Day' and t'TimeOfDay', whose
 -- wildcards are reserved dates and times (1858-11-17 and midnight). The
--- following bases use 'Wild' instead, so every date and time of day remains
+-- following bases use t'Wild' instead, so every date and time of day remains
 -- an ordinary coordinate.
 --
 -- @since 0.6.1.0

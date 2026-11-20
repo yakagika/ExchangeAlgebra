@@ -254,13 +254,13 @@ instance Hashable Day where
   hashWithSalt salt day = hashWithSalt salt (toModifiedJulianDay day)
 
 -- | The wildcard is 'Time.midnight', so a coordinate recorded at 00:00 is
--- indistinguishable from "no time of day". Use @'Wild' 'TimeOfDay'@ for an
+-- indistinguishable from "no time of day". Use @Wild TimeOfDay@ for an
 -- axis on which midnight is a meaningful time.
 instance Element TimeOfDay where
     wildcard = Time.midnight
 
 -- | The wildcard is @'ModifiedJulianDay' 0@ (1858-11-17), so that date is
--- indistinguishable from "no date". Use @'Wild' 'Day'@ for an axis on which
+-- indistinguishable from "no date". Use @Wild Day@ for an axis on which
 -- every date is meaningful.
 instance Element Day where
     wildcard =  ModifiedJulianDay 0
@@ -269,23 +269,23 @@ instance Element Day where
 -- | A coordinate type extended with a wildcard from outside the type.
 --
 -- Use it for an axis whose underlying type has no value to spare for the
--- wildcard, such as 'Day' or 'TimeOfDay': every date and every time of day is
+-- wildcard, such as 'Day' or t'TimeOfDay': every date and every time of day is
 -- a meaningful coordinate, so @'Exactly' 'Time.midnight'@ remains an ordinary
--- time and only 'Wild' is the wildcard.
+-- time and only v'Wild' is the wildcard.
 --
--- * In a ledger entry, 'Wild' records that the axis does not apply
+-- * In a ledger entry, v'Wild' records that the axis does not apply
 --   (for example, a transaction recorded without a time of day).
--- * In a query or a transfer source, 'Wild' matches any stored coordinate,
---   including a stored 'Wild'.
--- * In a transfer target, 'Wild' keeps the source coordinate.
+-- * In a query or a transfer source, v'Wild' matches any stored coordinate,
+--   including a stored v'Wild'.
+-- * In a transfer target, v'Wild' keeps the source coordinate.
 --
 -- @'Exactly' x@ matches only @'Exactly' x@ ('matchesQuery'). The derived
--- order places 'Wild' before every @'Exactly' x@ and orders 'Exactly'
+-- order places v'Wild' before every @'Exactly' x@ and orders 'Exactly'
 -- values by the order of @a@.
 --
 -- The underlying type need not be an 'Element'. If it is, its own wildcard
 -- becomes an ordinary coordinate once wrapped: @'Exactly' ""@ on a
--- @'Wild' 'Text'@ axis is the empty text, not the wildcard.
+-- @Wild Text@ axis is the empty text, not the wildcard.
 --
 -- @since 0.6.1.0
 data Wild a
