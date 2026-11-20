@@ -44,7 +44,7 @@ The payment uses `Purchases` for the goods purchased. The exchange reduces yen c
 {{#include ../../code/redundant.hs:queries}}
 ```
 
-The query `HatNot :< (Cash, (.#))` restricts the account but leaves direction and currency unrestricted. `HatNot :< ((.#), Yen)` restricts the currency but leaves account and direction unrestricted. A query wildcard matches any stored element. A concrete query element matches only an equal stored element, as in [Query elements and combine them into bases](elements.md#query-elements-and-combine-them-into-bases).
+The query `HatNot :< (Cash, (.#))` restricts the account but leaves direction and currency unrestricted. `HatNot :< ((.#), Yen)` restricts the currency but leaves account and direction unrestricted. A query wildcard matches any stored element. A concrete query element matches only an equal stored element, as in [Query bases by their elements](elements.md#query-elements-and-combine-them-into-bases).
 
 **What are the cash increases and decreases separately?** `compress yenCashPostings` totals each direction independently. It gives an increase total of 5,000 yen and a decrease total of 2,000 yen. `bar` instead cancels the totals and leaves the increase of 3,000 yen. Both operations explicitly discard individual posting detail.
 

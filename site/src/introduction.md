@@ -13,7 +13,7 @@ The running example starts with a bank withdrawal on January 10 and follows the 
 ### The algebra layer {#the-algebra-layer}
 
 - In [Installation and modules](usage/installation.md), add the package to a Stack project and run the withdrawal example.
-- In [Elements](algebra/elements.md), declare a currency element type and check how a wildcard query matches its elements.
+- In [Elements](algebra/elements.md), declare a currency element type and check how a wildcard query matches bases that use that type.
 - In [Bases](algebra/bases.md), pair account titles with currency units to describe the two changes in the withdrawal.
 - In [Values](algebra/values.md), represent the withdrawal amounts as exact decimals and check how construction handles invalid amounts.
 - In [The redundant algebra](algebra/redundant.md), add the month’s postings, select them by base, and aggregate them explicitly.

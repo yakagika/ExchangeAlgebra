@@ -62,7 +62,7 @@ Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
 
 ### HatBaseClass {#hatbaseclass}
 
-`HatBaseClass` requires `BaseClass` for both the whole hat base and its `BasePart`, and `AxisDecompose` for `BasePart`. `AxisDecompose` supplies a key for each base element. Its generic and tuple instances cover the base elements used in the withdrawal.
+`HatBaseClass` requires `BaseClass` for both the whole hat base and its `BasePart`, and `AxisDecompose` for `BasePart`. `AxisDecompose` supplies a key for each base element. Its generic and tuple instances cover the bases used in the withdrawal.
 
 | Associated type or method | Purpose |
 |---|---|
@@ -74,4 +74,4 @@ Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
 | `isHat`, `isNot` | Test the direction. |
 | `compareHatBase` | Compare hat bases; its default is `compareBase`. |
 
-A custom representation must implement `BasePart`, `base`, `hat`, `merge`, `toHat`, `toNot`, `revHat`, `isHat`, and `isNot`. Reconstruction must preserve the base elements and direction. Reversing twice must restore a concrete base. `HatBase a` already implements these operations. The bare `Hat` type has an instance with the single-value `BaseForSingleHat` as its base part.
+A custom representation must implement `BasePart`, `base`, `hat`, `merge`, `toHat`, `toNot`, `revHat`, `isHat`, and `isNot`. Reconstruction must preserve the underlying base and direction. Reversing twice must restore a concrete base. `HatBase a` already implements these operations. The bare `Hat` type has an instance with the single-value `BaseForSingleHat` as its base part.

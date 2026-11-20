@@ -1,4 +1,4 @@
-Withdrawal base elements: [(Cash,Yen),(Deposits,Yen)]
+Withdrawal bases: [(Cash,Yen),(Deposits,Yen)]
 Cash in any unit: [(Cash,Yen)]
 Any-unit cash query matches cash without a unit: True
 Yen cash query matches cash without a unit: False
