@@ -345,7 +345,6 @@ bookkeeping/consolidation.md	program	ExchangeAlgebra	Hashable
 bookkeeping/consolidation.md	program	ExchangeAlgebra	Hat
 bookkeeping/consolidation.md	program	ExchangeAlgebra	HatBase
 bookkeeping/consolidation.md	program	ExchangeAlgebra	HatVal
-bookkeeping/consolidation.md	program	ExchangeAlgebra	InvestmentInAssociate
 bookkeeping/consolidation.md	program	ExchangeAlgebra	MoneyDecimal
 bookkeeping/consolidation.md	program	ExchangeAlgebra	Not
 bookkeeping/consolidation.md	program	ExchangeAlgebra	Portion
@@ -355,6 +354,7 @@ bookkeeping/consolidation.md	program	ExchangeAlgebra	Redundant
 bookkeeping/consolidation.md	program	ExchangeAlgebra	RentExpense
 bookkeeping/consolidation.md	program	ExchangeAlgebra	RetainedEarnings
 bookkeeping/consolidation.md	program	ExchangeAlgebra	Sales
+bookkeeping/consolidation.md	program	ExchangeAlgebra	SubsidiaryStocks
 bookkeeping/consolidation.md	program	ExchangeAlgebra	TransferShare
 bookkeeping/consolidation.md	program	ExchangeAlgebra	bar
 bookkeeping/consolidation.md	program	ExchangeAlgebra	decL

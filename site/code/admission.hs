@@ -44,7 +44,7 @@ type Book = Journal.Journal EntryNote MoneyDecimal (HatBase (AccountTitles, Unit
 record :: Int -> String -> Entry -> Book
 record day description algebra = algebra .| EntryNote (2026, 1, day) description
 
--- | January 1: capital paid into Bank A's ordinary deposit account.
+-- | January 1: capital paid into Bank A's savings account.
 opening :: Book
 opening = record 1 "Opening capital"
     (10000 .@ Not :< (Deposits, Yen)

@@ -53,7 +53,7 @@ type Book = Journal.Journal EntryNote MoneyDecimal (HatBase (AccountTitles, Unit
 record :: Int -> String -> Entry -> Book
 record day description algebra = algebra .| EntryNote (2026, 1, day) description
 
--- | January 1: capital paid into Bank A's ordinary deposit account.
+-- | January 1: capital paid into Bank A's savings account.
 opening :: Book
 opening = record 1 "Opening capital"
     (10000 .@ Not :< (Deposits, Yen)
@@ -199,7 +199,7 @@ entityBalances januaryEnd =
     [Consolidation.TrialBalanceSource "subsidiary" subsidiary]
   where
     parent = bar (januaryEnd
-        .+ (3000 .@ Not :< InvestmentInAssociate)
+        .+ (3000 .@ Not :< SubsidiaryStocks)
         .+ (3000 .@ Hat :< Deposits))
     subsidiary = (3000 .@ Not :< Cash)
                .+ (3000 .@ Not :< CapitalStock)
@@ -212,7 +212,7 @@ elimination = Consolidation.WorksheetAdjustment
     "investment against subsidiary capital"
     ("shop" :| ["subsidiary"])
     ((3000 .@ Hat :< CapitalStock)
-  .+ (3000 .@ Hat :< InvestmentInAssociate))
+  .+ (3000 .@ Hat :< SubsidiaryStocks))
 -- ANCHOR_END: elimination
 
 -- ANCHOR: linkage
@@ -254,7 +254,7 @@ main = do
     unless (TrialBalance.balanceFor RetainedEarnings balances == retained) $
         ioError (userError "Combined retained earnings do not match the worksheet linkage")
     printNamed "Combined net totals (debit, credit)" (norm (decL net), norm (decR net))
-    printNamed "Investment balance" (TrialBalance.balanceFor InvestmentInAssociate balances)
+    printNamed "Investment balance" (TrialBalance.balanceFor SubsidiaryStocks balances)
     printNamed "Group capital stock" (TrialBalance.balanceFor CapitalStock balances)
     statement <- require (Statements.present context TrialBalance.AfterClosing combined)
     putStrLn "\nOpening consolidated balance sheet at February 1 (yen)"
