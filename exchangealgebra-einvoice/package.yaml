@@ -18,12 +18,15 @@ description: >-
   other than the account, such as the tax rate or the counterparty.
   Tax-exclusive and tax-inclusive accounting are both supported.
 
+extra-doc-files:
+- ChangeLog.md
+
 dependencies:
 - base                  >= 4.19    && < 5
-# The API used here is in develop, whose version stays 0.6.1.0 until the 0.7
-# release commit. When that commit sets the version to 0.7.0.0, this bound no
-# longer matches and the build fails until it is raised to >= 0.7 && < 0.8, as
-# with the bound in ../examples/package.yaml.
+# The API used here is in develop, whose version stays below 0.7 (0.6.1.1 now)
+# until the 0.7 release commit. When that commit sets the version to 0.7.0.0,
+# this bound no longer matches and the build fails until it is raised to
+# >= 0.7 && < 0.8, as with the bound in ../examples/package.yaml.
 - exchangealgebra       >= 0.6.1   && < 0.7
 - bytestring            >= 0.11    && < 0.13
 - containers            >= 0.6     && < 0.8

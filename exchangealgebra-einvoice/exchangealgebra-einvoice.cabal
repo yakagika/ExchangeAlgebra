@@ -1,4 +1,4 @@
-cabal-version: 1.12
+cabal-version: 1.18
 
 -- This file has been generated from package.yaml by hpack version 0.39.6.
 --
@@ -17,6 +17,8 @@ copyright:      2026 Kaya Akagi
 license:        MIT
 license-file:   LICENSE.txt
 build-type:     Simple
+extra-doc-files:
+    ChangeLog.md
 
 source-repository head
   type: git
