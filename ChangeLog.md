@@ -12,7 +12,8 @@
 - Clarified that `projCapitalStock` selects credit-side terms from all non-contra
   equity accounts, including retained earnings.
 - Standardized the terminology for element sets, bases, algebra terms, and scalar
-  multiplication, and corrected the description of post-closing trial balances.
+  multiplication across the documentation, including the README and package
+  description, and corrected the description of post-closing trial balances.
 
 ## 0.6.1.0 - 2026-11-20
 

@@ -127,21 +127,22 @@ These modules implement exchange-algebra values, transformations, and selectable
 - `ExchangeAlgebra.Algebra.Internal` — exposes the representation behind `Alg`
   for advanced use (all constructors, cache fields, rebuild helpers), but
   carries no stability guarantee.
-- `ExchangeAlgebra.Algebra.Transfer` — generic coordinate rules that return
+- `ExchangeAlgebra.Algebra.Transfer` — generic base-rewriting rules that return
   additional entries to add to the original algebra.
 - `ExchangeAlgebra.Algebra.Value` — provides fast typed and exact non-negative value types for `Alg` and `Journal`.
 
 ### Wildcards: queries versus ledger entries
 
-In a ledger entry's base, `#` means that the axis does not apply. It is one
-value, not a pattern. For example, a Cash entry can have no product axis.
+In a ledger entry's base, `#` is an element that marks a component as
+inapplicable. For example, a Cash entry can have `#` in its product component.
 In a projection query or a transfer's `from` pattern, `#` matches any value,
 including `#` in a ledger entry. In a transfer's `to` pattern, `#` preserves
-the source coordinate. Use `mapBasePart` or another mapping function to
-collapse an axis.
+the source element at that position. Use `mapBasePart` or another mapping
+function to replace elements at a component position with a common element.
 
 Matching is one way: a pattern `p` matches a ledger value `e` when `p = #`
-or `p = e`, on each axis. A concrete query does not select a ledger `#`:
+or `p = e`. Apply this rule at each component position of the base.
+A concrete query does not select a ledger `#`:
 
 ```haskell
 import ExchangeAlgebra
@@ -157,7 +158,7 @@ matching against ledger entries.
 
 ### Journal
 
-These modules attach notes to postings.
+These modules attach notes to terms.
 
 - `ExchangeAlgebra.Journal` — defines metadata-bearing `Journal` values, indexed projections, and journal aggregation.
 - `ExchangeAlgebra.Journal.Transfer` — carries entries across notes and reads
@@ -231,14 +232,14 @@ successor evaluator.
 
 These modules build adjustments, validate reporting boundaries, and produce statements and output.
 
-- `ExchangeAlgebra.Accounting.Entries` — builds period-end adjustment postings from explicit external amounts.
+- `ExchangeAlgebra.Accounting.Entries` — builds period-end adjustment terms from explicit external amounts.
 - `ExchangeAlgebra.IO.Output.Statements` — writes journals, account ledgers, trial balances, worksheets, and financial statements as CSV.
 - `ExchangeAlgebra.IO.Output.Csv` — provides CSV
   serialization independently of document layouts.
 - `ExchangeAlgebra.Accounting.Statements.Group` — defines presentation groups and contra-account netting policy.
 - `ExchangeAlgebra.Accounting.TrialBalance.Balance` — the shared `AccountBalance` type and debit-then-credit netting primitives.
 - `ExchangeAlgebra.Accounting.TrialBalance.Validation` — reports trial-balance findings and reclassification instructions.
-- `ExchangeAlgebra.Accounting.Statements.Metric` — derives typed, read-only metrics without inserting posting coordinates.
+- `ExchangeAlgebra.Accounting.Statements.Metric` — derives typed, read-only metrics without adding terms to the ledger.
 - `ExchangeAlgebra.Accounting.Statements.Presentation` — presents a trial balance and its stage as JGAAP financial statements.
 - `ExchangeAlgebra.Accounting.Consolidation` — validates consolidation adjustments and preserves worksheet provenance.
 
@@ -279,7 +280,7 @@ workload. The bare `Double` is the default; `ExchangeAlgebra.Algebra.Value` adds
 | Distinct money type | ✗ — a bare numeric type | ✓ — can't be silently mixed with coefficients / draws | ✓ |
 | Decimal prices / ratios | approximate | approximate | **exact** |
 | Tax / proration (`*`, `/`) | rounding noise | rounding noise | exact intermediates; round explicitly with `bankersRound` / `ceilingRound` |
-| Construction-order independence | ✗ — addition is non-associative, so the order same-base postings are summed shifts the last-ULP of `norm` / `bar` | ✗ — identical to `Double` | ✓ — addition is exact & associative, so `norm` / `bar` / balance are identical regardless of build order |
+| Construction-order independence | ✗ — addition is non-associative, so the order same-base terms are summed shifts the last-ULP of `norm` / `bar` | ✗ — identical to `Double` | ✓ — addition is exact & associative, so `norm` / `bar` / balance are identical regardless of build order |
 | Determinism / auditability | not bit-reproducible across reorderings | not bit-reproducible | bit-reproducible |
 | Memory per value | ~16 B | ~16 B (zero-cost wrapper) | ~40 B + indirection (~2.5×) |
 | Speed | fastest | fastest (= `Double`) | slower (boxed `Integer` mantissa arithmetic) |
@@ -319,14 +320,14 @@ the ledger*; convert reported stocks/profits back to `Double` for visualization.
 The ledger arithmetic in between is then exact. The bundled bookkeeping and
 simulation examples follow this pattern.
 
-**Large scale: precision × memory trade-off.** Retaining every posting is `O(n)`
+**Large scale: precision × memory trade-off.** Retaining every term is `O(n)`
 regardless of value type; `MoneyDecimal` adds a constant factor (~2.5× per value box)
 on top. For very large simulations weigh exactness against that overhead — or use
 the spill-to-disk path (below) to keep memory constant.
 
 **`fromList` ordering contract.** `EJ.fromList` is a strict `O(N)` left fold. It
-preserves the *multiset* of postings exactly. When two postings collide on the
-same note **and** base they land in one ordered sequence; that sequence's order is
+preserves the *multiset* of terms exactly. When two terms share the
+same note **and** base, they land in one ordered sequence; that sequence's order is
 observable through `Eq` / `Show` / `toAlg` / `Binary`, and for `Double` through the
 last-ULP of `norm` / `bar`. For `MoneyDecimal` the order never affects
 `norm` / `bar` / balance. (`Integer` is intentionally not offered — it cannot
@@ -339,7 +340,7 @@ value instances, and plotting configuration as described here. See the
 [changelog](https://hackage.haskell.org/package/exchangealgebra/changelog) for the full per-name migration tables.
 
 - **Transfers add entries.** Transfer and closing functions return additional
-  entries without rewriting the original postings. Add the returned entries
+  entries without rewriting the original terms. Add the returned entries
   with `(.+)`. `ExchangeAlgebra.Algebra.Transfer` and
   `ExchangeAlgebra.Journal.Transfer` replace their contents under the same
   module names; see **Removed** in the changelog.
@@ -400,7 +401,7 @@ ledgers keep working and render identically. Four things to know:
 
 `Alg` and `Journal` are abstract: construct them with `(.@)`, `(.+)`,
 `fromList`, `mkJournal`, and `(.|)`, and match `Alg` on `Zero` / `(:@)` only.
-The multi-posting representation and its cache fields live in the exposed
+The representation for multiple terms and its cache fields live in the exposed
 `ExchangeAlgebra.Algebra.Internal` module, which carries no stability guarantee.
 
 ### Simple single-period bookkeeping
