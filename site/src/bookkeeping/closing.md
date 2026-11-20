@@ -43,7 +43,7 @@ Code carried over from earlier chapters
 
 ## Generate closing entries {#generate-closing-entries}
 
-`Closing.closingEntries` reads the ledger through the closing date and returns only additional entries. For each eligible account-and-currency base, it computes the exact net, reverses that balance, and posts the matching amount to `RetainedEarnings`. Other coordinates are preserved. It sums source balances internally, without calling `bar`; separate contributions from different expense and revenue accounts remain separate postings.
+`Closing.closingEntries` reads the ledger through the closing date and returns only additional entries. For each eligible account-and-currency base, it computes the exact net, reverses that balance, and posts the matching amount to `RetainedEarnings`. Other base elements are preserved. It sums source balances internally, without calling `bar`; separate contributions from different expense and revenue accounts remain separate postings.
 
 ```haskell
 {{#include ../../code/closing.hs:closing}}

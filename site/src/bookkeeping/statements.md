@@ -6,7 +6,7 @@ Use exchangealgebra-0.6.0.1 in the project prepared in [Add the package to a Sta
 
 ## Select the January balances {#select-the-january-balances}
 
-Start with the records from [Closing](closing.md). Keep the journal after the rent and inventory adjustments for the income statement. Keep the journal with the closing entries for the balance sheet. Both reports use `HatBase AccountTitles`. The conversion to that base checks that every posting is in yen before removing the currency coordinate.
+Start with the records from [Closing](closing.md). Keep the journal after the rent and inventory adjustments for the income statement. Keep the journal with the closing entries for the balance sheet. Both reports use `HatBase AccountTitles`. The conversion to that base checks that every posting is in yen before removing the currency element.
 
 <details>
 <summary>

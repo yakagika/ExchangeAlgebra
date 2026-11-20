@@ -8,7 +8,7 @@ module Main where
 
 import ExchangeAlgebra hiding (Yen, Dollar)
 
--- | Currency coordinates for the withdrawal and exchange records.
+-- | Currency elements for the withdrawal and exchange records.
 data Unit
     = Yen       -- ^ Japanese yen.
     | Dollar    -- ^ US dollars.

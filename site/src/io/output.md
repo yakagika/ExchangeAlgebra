@@ -6,7 +6,7 @@ Use exchangealgebra-0.6.0.1 in the project prepared in [Add the package to a Sta
 
 ## Lay out the journal and general ledger by date {#lay-out-the-journal-and-general-ledger-by-date}
 
-Reuse the yen conversion, admission, adjustments, closing, and reporting context from [Financial statements](../bookkeeping/statements.md). For the dated reports, select the original January entries by the date in their notes. Check the amounts are in yen before replacing the currency coordinate with the date.
+Reuse the yen conversion, admission, adjustments, closing, and reporting context from [Financial statements](../bookkeeping/statements.md). For the dated reports, select the original January entries by the date in their notes. Check the amounts are in yen before replacing the currency element with the date.
 
 <details>
 <summary>

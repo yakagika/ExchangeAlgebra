@@ -30,7 +30,7 @@ Suppose the business withdraws another 2,000 yen on January 15, buys goods for 5
 
 `month` contains the recorded changes without opening balances. Adding the withdrawals with `.+` retains the cash increases of 3,000 and 2,000 as separate amounts on `(Cash, Yen)`. The cash payment and currency exchange also retain separate decreases on that base. No implicit sum or cancellation occurs at a shared base.
 
-The payment uses `Purchases` for the goods purchased. The exchange reduces yen cash and increases dollar cash; the two currencies remain separate coordinates. The record omits date and bank-account axes because its balances combine dates and do not distinguish bank accounts.
+The payment uses `Purchases` for the goods purchased. The exchange reduces yen cash and increases dollar cash; the two currencies remain distinct base elements. The record omits date and bank account elements from the base because its balances combine dates and do not distinguish bank accounts.
 
 ## Select an operation {#select-an-operation}
 
@@ -44,7 +44,7 @@ The payment uses `Purchases` for the goods purchased. The exchange reduces yen c
 {{#include ../../code/redundant.hs:queries}}
 ```
 
-The query `HatNot :< (Cash, (.#))` restricts the account but leaves direction and currency unrestricted. `HatNot :< ((.#), Yen)` restricts the currency but leaves account and direction unrestricted. A query wildcard matches any stored coordinate; a concrete coordinate does not match a stored wildcard, as in [Query coordinates and combine axes](elements.md#query-coordinates-and-combine-axes).
+The query `HatNot :< (Cash, (.#))` restricts the account but leaves direction and currency unrestricted. `HatNot :< ((.#), Yen)` restricts the currency but leaves account and direction unrestricted. A query wildcard matches any stored element. A concrete query element matches only an equal stored element, as in [Query elements and combine them into bases](elements.md#query-elements-and-combine-them-into-bases).
 
 **What are the cash increases and decreases separately?** `compress yenCashPostings` totals each direction independently. It gives an increase total of 5,000 yen and a decrease total of 2,000 yen. `bar` instead cancels the totals and leaves the increase of 3,000 yen. Both operations explicitly discard individual posting detail.
 
@@ -74,7 +74,7 @@ Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
 
 ### Construction and operations {#construction-and-operations}
 
-`Alg` requires a `HatVal` amount type and a `HatBaseClass` base type. Its `Redundant` instance implements the operations; defining a new coordinate type does not require another `Redundant` instance. `Zero` is the empty algebra and the identity for addition. For value and direction checks, see [Construction and scalar checks](values.md#construction-and-scalar-checks).
+`Alg` requires a `HatVal` amount type and a `HatBaseClass` base type. Its `Redundant` instance implements the operations; defining a new element type does not require another `Redundant` instance. `Zero` is the empty algebra and the identity for addition. For value and direction checks, see [Construction and scalar checks](values.md#construction-and-scalar-checks).
 
 The public `(:@)` pattern matches a singleton posting but cannot construct one in 0.6.0.1. Construct postings with `.@`. `toList` returns singleton postings, `vals` returns amounts, and `bases` returns hat bases.
 
@@ -93,7 +93,7 @@ In 0.6.0.1, `.*` has the default fixity `infixl 9`, and `.+` is `infixr 3`. Pare
 
 ### Projections and rounding {#projections-and-rounding}
 
-Overlapping or repeated `proj` patterns select each posting once. `projByAccountTitle` from `ExchangeAlgebra.Accounting.Exchange`, also re-exported by `ExchangeAlgebra`, selects an account across the other axes.
+Overlapping or repeated `proj` patterns select each posting once. `projByAccountTitle` from `ExchangeAlgebra.Accounting.Exchange`, also re-exported by `ExchangeAlgebra`, selects an account regardless of the other base elements.
 
 `bar` and `projNetNorm` net within each full base; yen and dollar cash cannot cancel each other. For exact decimal amounts, `projNetNorm patterns x` agrees with `norm (bar (proj patterns x))`. Floating-point results can differ because the latter expression rounds each base's residual before summing.
 

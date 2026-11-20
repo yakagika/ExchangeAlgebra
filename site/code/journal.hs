@@ -9,7 +9,7 @@ import ExchangeAlgebra hiding (Yen, Dollar)
 import ExchangeAlgebra.Journal ((.|))
 import qualified ExchangeAlgebra.Journal as Journal
 
--- | Currency coordinates for the withdrawal and exchange records.
+-- | Currency elements for the withdrawal and exchange records.
 data Unit
     = Yen       -- ^ Japanese yen.
     | Dollar    -- ^ US dollars.

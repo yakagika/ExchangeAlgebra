@@ -8,12 +8,12 @@ The running example starts with a bank withdrawal on January 10 and follows the 
 
 ### Mathematical foundations {#mathematical-foundations}
 
-- Consult [Definitions and axioms](algebra/definitions.md) for the formal rules for matching coordinates, adding postings, and separating debits from credits, or go straight to [Installation and modules](usage/installation.md) to start using the library.
+- Consult [Definitions and axioms](algebra/definitions.md) for the formal rules for matching base elements, adding postings, and separating debits from credits, or go straight to [Installation and modules](usage/installation.md) to start using the library.
 
 ### The algebra layer {#the-algebra-layer}
 
 - In [Installation and modules](usage/installation.md), add the package to a Stack project and run the withdrawal example.
-- In [Elements](algebra/elements.md), declare a currency axis and check how a wildcard query matches its coordinates.
+- In [Elements](algebra/elements.md), declare a currency element type and check how a wildcard query matches its elements.
 - In [Bases](algebra/bases.md), pair account titles with currency units to describe the two changes in the withdrawal.
 - In [Values](algebra/values.md), represent the withdrawal amounts as exact decimals and check how construction handles invalid amounts.
 - In [The redundant algebra](algebra/redundant.md), add the month’s postings, select them by base, and aggregate them explicitly.
