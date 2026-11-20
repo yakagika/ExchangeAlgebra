@@ -66,7 +66,7 @@ newtype YenAmount = YenAmount Rational
 instance Nearly YenAmount where
     isNearly = isNearlyNum
 
--- The accumulator may be signed even though postings must be nonnegative.
+-- The accumulator may be signed even though terms must be nonnegative.
 instance HatVal YenAmount where
     zeroValue = 0
 

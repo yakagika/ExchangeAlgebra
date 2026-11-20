@@ -30,7 +30,7 @@ instance ExBaseClass (HatBase (AccountTitles, Unit)) where
 -- This alias does not validate dates or distinguish them from other integer tuples.
 type EntryDate = (Integer, Int, Int)
 
--- | Date and description shared by all postings in one journal entry.
+-- | Date and description shared by all terms in one journal entry.
 data EntryNote = EntryNote
     { entryDate        :: EntryDate -- ^ Calendar date of the transaction.
     , entryDescription :: String    -- ^ Human-readable description.

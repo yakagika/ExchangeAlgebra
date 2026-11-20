@@ -53,7 +53,7 @@ In the parent’s books, debit subsidiary shares and credit deposits for 3,000 y
 
 ## Eliminate the investment and subsidiary capital {#eliminate-the-investment-and-subsidiary-capital}
 
-The parent’s subsidiary shares and the subsidiary’s capital stock record the same contribution within the group. Eliminate them with a debit to `CapitalStock` and a credit to `SubsidiaryStocks`, each for 3,000 yen. Both postings decrease a balance, so both use `Hat`. Record the entry as a `WorksheetAdjustment` linked to both companies. The adjustment belongs to the consolidated worksheet.
+The parent’s subsidiary shares and the subsidiary’s capital stock record the same contribution within the group. Eliminate them with a debit to `CapitalStock` and a credit to `SubsidiaryStocks`, each for 3,000 yen. Both terms decrease a balance, so both use `Hat`. Record the entry as a `WorksheetAdjustment` linked to both companies. The adjustment belongs to the consolidated worksheet.
 
 ```haskell
 {{#include ../../code/consolidation.hs:elimination}}
@@ -71,7 +71,7 @@ Supply the period result, its attribution, and the equity roll-forwards in a `Wo
 
 ## Inspect the consolidated balance sheet {#inspect-the-consolidated-balance-sheet}
 
-`combinedWorksheet` adds the two trial balances and the elimination with `.+`, retaining postings on the same base. Apply `bar` explicitly to inspect the net totals, and present the combined ledger as a `Combined` balance sheet.
+`combinedWorksheet` adds the two trial balances and the elimination with `.+`, retaining terms on the same base. Apply `bar` explicitly to inspect the net totals, and present the combined ledger as a `Combined` balance sheet.
 
 ```haskell
 {{#include ../../code/consolidation.hs:results}}

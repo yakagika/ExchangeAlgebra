@@ -20,7 +20,7 @@ Declare a note containing the date and description:
 
 `EntryDate` is a tuple ordered by year, month, and day. The example supplies valid dates directly; the alias performs no calendar validation. `EntryNote` derives equality, total ordering, display, and hashing. `Typeable`, another superclass of `Note`, is supplied automatically by GHC. Define the distinguished empty note with `plank`; the remaining methods have defaults.
 
-The value `EntryNote (0, 0, 0) ""` is reserved for the empty note and is not a transaction date. `plank` is also the all-notes wildcard for `projWithNote`. A note identifies a group of postings, not necessarily a unique transaction: two entries with exactly the same date and description share a key and their postings are added. Include a transaction identifier in a note if those entries must remain separately selectable.
+The value `EntryNote (0, 0, 0) ""` is reserved for the empty note and is not a transaction date. `plank` is also the all-notes wildcard for `projWithNote`. A note identifies a group of terms, not necessarily a unique transaction: two entries with exactly the same date and description share a key and their terms are added. Include a transaction identifier in a note if those entries must remain separately selectable.
 
 ## Attach notes to the month {#attach-notes-to-the-month}
 
@@ -30,7 +30,7 @@ Construct each transaction as an algebra, then attach its note once with `.|`:
 {{#include ../../code/journal.hs:entries}}
 ```
 
-The two postings of the January 10 withdrawal share `withdrawalNote`. The January 15 withdrawal has a different date, so it remains separately selectable even though its description is the same. Adding journals with `.+` keeps the notes and concatenates the posting sequences at a shared note; it does not net the postings.
+The two terms of the January 10 withdrawal share `withdrawalNote`. The January 15 withdrawal has a different date, so it remains separately selectable even though its description is the same. Adding journals with `.+` keeps the notes and concatenates the term sequences at a shared note; it does not net the terms.
 
 The January 20 purchase debits Purchases and credits Cash. The January 25 exchange reduces yen cash by 1,500 yen and increases dollar cash by 10 dollars at 150 yen per dollar, without a fee. Keep currencies separate when totaling amounts; the raw yen and dollar numbers are not a common-unit debit-credit comparison.
 
@@ -44,7 +44,7 @@ For a date range, test the date field with `filterWithNote`. Use an inclusive lo
 {{#include ../../code/journal.hs:queries}}
 ```
 
-`january` contains the four January entries and excludes the February 1 purchase. The predicate selects by date even when the descriptions differ. `projWithNote [withdrawalNote]` instead selects an exact note, including both its date and description. `projWithBase` selects postings while retaining their notes, and `projWithNoteBase` combines both restrictions.
+`january` contains the four January entries and excludes the February 1 purchase. The predicate selects by date even when the descriptions differ. `projWithNote [withdrawalNote]` instead selects an exact note, including both its date and description. `projWithBase` selects terms while retaining their notes, and `projWithNoteBase` combines both restrictions.
 
 ## Total amounts and combine notes {#total-amounts-and-combine-notes}
 
@@ -64,7 +64,7 @@ Run `stack exec -- ghc -Wall -Werror Main.hs -o journal-example`, then run `./jo
 
 `January gross yen cash amount` is 7,000 yen: increases of 3,000 and 2,000 plus decreases of 500 and 1,500. `norm` counts all selected amounts in both directions. For `January cash balances by currency`, `toAlg` removes the note keys without netting, and `bar` then cancels within each account-and-currency base. The resulting cash changes are 3,000 yen and 10 dollars.
 
-`Journal.gather Journal.plank january` combines all entries under the empty note without canceling opposing postings. `bar january` combines the notes under `plank` and nets the combined algebra. It loses the original dates and descriptions. A component under `plank` is printed without a note suffix, but the value remains a `Journal`. To net separately within each note, use `Journal.map bar january`; retain `january` itself when the original posting detail is required.
+`Journal.gather Journal.plank january` combines all entries under the empty note without canceling opposing terms. `bar january` combines the notes under `plank` and nets the combined algebra. It loses the original dates and descriptions. A component under `plank` is printed without a note suffix, but the value remains a `Journal`. To net separately within each note, use `Journal.map bar january`; retain `january` itself when the original term detail is required.
 
 Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
 
@@ -73,14 +73,14 @@ Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
 | Type or operation | Inputs and result |
 |---|---|
 | `Note n` | Requires `Show`, `Eq`, `Ord`, `Hashable`, and `Typeable`. Define `plank`; `isPlank` defaults to equality with `plank`. |
-| `algebra .\| note` | Attach one note to all postings of an algebra. A zero algebra produces an empty journal. |
+| `algebra .\| note` | Attach one note to all terms of an algebra. A zero algebra produces an empty journal. |
 | `Journal.fromList entries` | Sum a list of journals, combining equal note keys with redundant addition. |
 | `Journal.sigma items f` | Sum the journals produced by applying `f` to the items. |
 | `Journal.projWithNote notes journal` | Select exact note keys. A list containing `plank` selects all notes; an empty list selects none. |
-| `Journal.projWithBase bases journal` | Select matching postings at every note. Drop a note whose selected algebra is zero. |
+| `Journal.projWithBase bases journal` | Select matching terms at every note. Drop a note whose selected algebra is zero. |
 | `Journal.projWithNoteBase notes bases journal` | Restrict notes and bases. An empty note list or a list containing `plank` imposes no note restriction. An empty base list selects nothing. |
 | `Journal.filterWithNote predicate journal` | Keep note-algebra pairs satisfying the predicate. |
-| `Journal.toAlg journal` | Remove note keys and add their algebras, retaining posting amounts without netting. |
+| `Journal.toAlg journal` | Remove note keys and add their algebras, retaining term amounts without netting. |
 | `Journal.gather note journal` | Put the combined algebra under the specified note, without netting. |
 | `bar journal` | Gather under `plank`, then net the combined algebra. |
 | `Journal.map f journal` | Apply an algebra transformation separately at each note. |

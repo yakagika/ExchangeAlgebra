@@ -41,7 +41,7 @@ type Book = Journal.Journal EntryNote MoneyDecimal (HatBase (AccountTitles, Unit
 -- ANCHOR_END: setup
 
 -- ANCHOR: january
--- | Attach a January date and description after constructing all postings.
+-- | Attach a January date and description after constructing all terms.
 record :: Int -> String -> Entry -> Book
 record day description algebra = algebra .| EntryNote (2026, 1, day) description
 
@@ -80,7 +80,7 @@ toYen amount basis = (amount, basis)
 yenJournal :: Book
 yenJournal = Journal.map (Algebra.mapPosting toYen) sourceJournal
 
--- | Admit the converted journal without changing its notes or posting sequences.
+-- | Check the converted journal without changing its notes or term sequences.
 acceptedJanuary :: Either String (Admission.Admitted EntryNote (HatBase (AccountTitles, Unit)))
 acceptedJanuary = either (Left . show . Admission.failureErrors) Right
     (Admission.admit yenJournal)
@@ -108,8 +108,8 @@ accounts :: [AccountTitles]
 accounts = [Cash, Deposits, PrepaidExpenses, MerchandiseInventory,
             Purchases, RentExpense, Sales, CapitalStock, RetainedEarnings]
 
--- | Drop the currency element only after checking every posting is in yen.
--- This reporting projection removes the currency element; it does not net postings.
+-- | Drop the currency element only after checking every term is in yen.
+-- This reporting projection removes the currency element; it does not net terms.
 auditLedger :: Entry -> Either String (Alg MoneyDecimal (HatBase AccountTitles))
 auditLedger ledger
     | Algebra.foldEntries allYen True ledger = Right (Algebra.mapPosting dropUnit ledger)
@@ -123,7 +123,7 @@ auditLedger ledger
              -> (MoneyDecimal, HatBase AccountTitles)
     dropUnit amount (direction :< (account, _)) = (amount, direction :< account)
 
--- | Print account turnover, net balances, balance totals, and accounting findings.
+-- | Print account debit and credit totals, net balances, balance totals, and accounting findings.
 printTrial :: TrialBalance.TrialBalanceStage -> Entry -> IO ()
 printTrial stage ledger = do
     reporting <- require (auditLedger ledger)

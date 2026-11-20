@@ -1,12 +1,12 @@
 # Adjusting entries
 
-At January 31, part of the rent belongs to February and some purchased goods remain unsold. Start from the admitted journal in [Trial balance and audit](trial-balance.md#recover-the-admitted-records), defer the February rent, and recognize ending inventory before closing January’s revenue and expenses.
+At January 31, part of the rent belongs to February and some purchased goods remain unsold. Start from the checked journal in [Trial balance and checks](trial-balance.md#recover-the-admitted-records), defer the February rent, and recognize ending inventory before closing January’s revenue and expenses.
 
 Use exchangealgebra-0.6.0.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the code blocks in their displayed order as `Main.hs`.
 
 ## Recover January before adjustments {#recover-january-before-adjustments}
 
-The program begins with the admitted records and trial-balance calculations from [Trial balance and audit](trial-balance.md#recover-the-admitted-records) and the chapters before it.
+The program begins with the checked records and trial-balance calculations from [Trial balance and checks](trial-balance.md#recover-the-admitted-records) and the chapters before it.
 
 <details>
 <summary>
@@ -47,9 +47,9 @@ The shop has no beginning merchandise inventory, purchases goods for 500 yen dur
 {{#include ../../code/adjustment.hs:adjustment}}
 ```
 
-Use `Entries.cogsAdjustmentEntries` with a `MkBase` that fills in `Yen`, because the entry builder accepts the existing account-and-currency base while retaining all its elements. Its arguments are the beginning and ending inventory amounts, not the purchases total. A zero beginning inventory produces no zero-valued postings. The builder returns only additional postings, without implicit `bar` or `compress`; attach a note and add them to the journal with `.+`.
+Use `Entries.cogsAdjustmentEntries` with a `MkBase` that fills in `Yen`, because the entry builder accepts the existing account-and-currency base while retaining all its elements. Its arguments are the beginning and ending inventory amounts, not the purchases total. A zero beginning inventory produces no zero-valued terms. The builder returns only additional terms, without implicit `bar` or `compress`; attach a note and add them to the journal with `.+`.
 
-## Admit and inspect the adjusted journal {#admit-and-inspect-the-adjusted-journal}
+## Check and inspect the adjusted journal {#admit-and-inspect-the-adjusted-journal}
 
 ```haskell
 {{#include ../../code/adjustment.hs:results}}
@@ -61,7 +61,7 @@ Run `stack exec -- ghc -Wall -Werror Main.hs -o adjustment-example`, then run `.
 {{#include ../../code/adjustment.expected}}
 ```
 
-The rent and inventory adjustments remain separately selectable under their January 31 notes. Re-admission checks their debit-credit equality along with the original entries. The adjusted trial balance has PrepaidExpenses of 600 yen, MerchandiseInventory of 200 yen, Purchases of 300 yen, and RentExpense of 600 yen. Balance totals remain 12,000 yen on each side; gross posting totals increase to 21,000 yen because the added entries remain in the record.
+The rent and inventory adjustments remain separately selectable under their January 31 notes. Checking the journal again checks their debit-credit equality along with the original entries. The adjusted trial balance has PrepaidExpenses of 600 yen, MerchandiseInventory of 200 yen, Purchases of 300 yen, and RentExpense of 600 yen. Balance totals remain 12,000 yen on each side; gross term totals increase to 21,000 yen because the added entries remain in the record.
 
 Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
 

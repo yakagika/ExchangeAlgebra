@@ -6,7 +6,7 @@ Use exchangealgebra-0.6.0.1 in the project prepared in [Add the package to a Sta
 
 ## Select the January balances {#select-the-january-balances}
 
-Start with the records from [Closing](closing.md). Keep the journal after the rent and inventory adjustments for the income statement. Keep the journal with the closing entries for the balance sheet. Both reports use `HatBase AccountTitles`. The conversion to that base checks that every posting is in yen before removing the currency element.
+Start with the records from [Closing entries](closing.md). Prepare the income statement from the balances after the rent and inventory adjustments and before recording closing entries. Keep the journal with the closing entries for the balance sheet. Both reports use `HatBase AccountTitles`. The conversion to that base checks that every term is in yen before removing the currency element.
 
 <details>
 <summary>
@@ -47,7 +47,7 @@ Pass the adjusted ledger to `Statements.present` with `BeforeClosing`. `jcciSeco
 
 After the periodic inventory adjustment, the 300-yen balance of `Purchases` represents the cost of goods sold. Use `PresentationRelabel` to display that balance under `SalesCost`. The relabeling applies to the statement. The adjusted journal still carries the balance under `Purchases`.
 
-`periodResultOf` computes the difference between revenue and expenses as a reporting projection. `PeriodResult` distinguishes profit, loss, and break-even, with a nonnegative magnitude for profit or loss. `present` also produces a period-result subtotal from the before-closing ledger. Both operations accumulate balances internally and leave the postings intact.
+`periodResultOf` computes the difference between revenue and expenses as a reporting projection. `PeriodResult` distinguishes profit, loss, and break-even, with a nonnegative magnitude for profit or loss. `present` also produces a period-result subtotal from the before-closing ledger. Both operations accumulate balances internally and leave the terms intact.
 
 ```haskell
 {{#include ../../code/statements.hs:income}}
@@ -81,7 +81,7 @@ Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
 
 | Type or operation | Inputs and result |
 |---|---|
-| `present context stage ledger` | Prepare statement lines, subtotals, and presentation audit events. `BeforeClosing` includes the period result. Use `trialBalanceFindings` separately to inspect accounting findings. |
+| `present context stage ledger` | Prepare statement lines, subtotals, and presentation events. `BeforeClosing` includes the period result. Use `trialBalanceFindings` separately to inspect accounting findings. |
 | `jcciSecondGradeContext scope` and `PresentationProfile` | Start with the JCCI grade-2 profile. Set `_presentationProfile` to `CanonicalJapanese` or `CanonicalEnglish` to use canonical labels. |
 | `ReportingContext` | Supply reporting instructions such as `PresentationRelabel` or `PresentationAllocation`. An allocation splits an asset or liability balance between current and noncurrent sections and requires evidence. |
 | `periodResultOf stage ledger` | Derive `PeriodProfit`, `PeriodLoss`, or `PeriodBreakEven` from a before-closing ledger. `AfterClosing` returns `MetricNotAvailableAtStage`. |

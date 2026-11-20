@@ -2,15 +2,15 @@
 
 On January 10, a business withdraws 3,000 yen from its savings account at Bank A and receives the same amount in cash. The journal entry is a debit to Cash for 3,000 yen and a credit to Deposits for 3,000 yen. To represent the entry in exchangealgebra-0.6.0.1, separate the information that identifies an amount from the amount itself.
 
-An element is a member of an element set. The account title and currency unit are the base elements of the withdrawal's postings. This is the [Element structure of Definition 1](definitions.md#element-structure). The examples assume a project prepared with [Installation and modules](../usage/installation.md).
+An element is a member of an element set. The account title and currency unit are elements of the bases in the withdrawal. This is the [Element structure of Definition 1](definitions.md#element-structure). The examples assume a project prepared with [Installation and modules](../usage/installation.md).
 
-## Choose base elements for the withdrawal {#choose-base-elements-for-the-withdrawal}
+## Choose elements for the withdrawal {#choose-base-elements-for-the-withdrawal}
 
 The withdrawal contains a date, a bank account, two account titles, a currency unit, and an amount. Their roles depend on what must be distinguished in the resulting balances:
 
-- **Account titles:** Cash and Deposits identify the holdings that change. The account title is an element of each posting's base.
-- **Unit:** Yen identifies the unit of the amount. Keeping it as a base element prevents yen and dollar amounts from canceling against each other.
-- **Amount:** 3,000 is the value attached to each posting separately from the base.
+- **Account titles:** Cash and Deposits identify the holdings that change. The account title is an element of each term's base.
+- **Unit:** Yen identifies the unit of the amount. Keeping it as an element prevents yen and dollar amounts from canceling against each other.
+- **Amount:** 3,000 is the value attached to each term separately from the base.
 - **Date and bank account:** January 10 and Bank A's savings account identify the transaction and its source. In this example, the date and account description are journal metadata because the desired balances combine dates and do not distinguish bank accounts.
 
 If separate balances by date or bank account are required, include date or bank account elements in the base. Here the base needs only an account title and a currency unit. The built-in `AccountTitles` type already has an `Element` instance. Its constructors `Cash` and `Deposits` name the two accounts; `Deposits` denotes savings deposits, rather than current deposits or deposits received as a liability.
@@ -82,7 +82,7 @@ Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
 |---|---|
 | `AccountTitles` | `AccountTitle`. Import the account type from `ExchangeAlgebra` or `ExchangeAlgebra.Accounting.Account`. |
 | `CountUnit` | `CountUnit`; other constructors are `Yen`, `Dollar`, `Euro`, `CNY`, `Amount`. |
-| `Text` | The empty text. `Name` and `Subject` are aliases for `Text`. |
+| `Text` | The empty text. `Name` and `Subject` are aliases for `Text`. You can use `Subject` to identify which accounting entity a record belongs to. |
 | `Day` | `ModifiedJulianDay 0`. |
 | `TimeOfDay` | `midnight`. |
 | Tuples of 2 through 7 element types | A tuple in which every element is a wildcard. |

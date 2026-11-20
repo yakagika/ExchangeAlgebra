@@ -2,7 +2,7 @@
 
 This manual uses **exchangealgebra-0.6.0.1** from Hackage. The examples assume that you can write Haskell programs and have Stack installed. They use GHC 9.10.3 with the Stackage snapshot `lts-24.65`.
 
-The Algebra layer provides types for base elements, bases, amounts, and finite sequences of postings. Its operations implement the [redundant algebra](../algebra/definitions.md#redundant-algebra-and-linear-combinations). Accounting adds the interpretation of account titles and the debit and credit sides.
+The Algebra layer provides types for elements, bases, amounts, and finite sequences of terms. Its operations implement the [redundant algebra](../algebra/definitions.md#redundant-algebra-and-linear-combinations). Accounting adds the interpretation of account titles and the debit and credit sides.
 
 ## Add the package to a Stack project {#add-the-package-to-a-stack-project}
 
@@ -34,17 +34,17 @@ The module table lists public entry points in 0.6.0.1. Import a specific module 
 
 | Layer | Modules to import | Purpose |
 |---|---|---|
-| Algebra | `ExchangeAlgebra.Algebra` | Base elements, bases, the `Alg` type, and redundant-algebra operations. |
+| Algebra | `ExchangeAlgebra.Algebra` | Elements, bases, the `Alg` type, and redundant-algebra operations. |
 | Algebra | `ExchangeAlgebra.Algebra.Element`, `.Base`, `.Core`, `.Value` | Individual parts of the algebra; these abbreviated names share the prefix `ExchangeAlgebra.Algebra`. |
-| Algebra | `ExchangeAlgebra.Algebra.Posting`, `ExchangeAlgebra.Algebra.Transfer` | Checked posting construction and generic transformations of bases. |
-| Journal | `ExchangeAlgebra.Journal`, `ExchangeAlgebra.Journal.Transfer` | Postings indexed by notes, and transformations of those journals. Qualify function names shared with Algebra and import the operator `.\|` unqualified. |
+| Algebra | `ExchangeAlgebra.Algebra.Posting`, `ExchangeAlgebra.Algebra.Transfer` | Checked term construction and generic transformations of bases. |
+| Journal | `ExchangeAlgebra.Journal`, `ExchangeAlgebra.Journal.Transfer` | Terms indexed by notes, and transformations of those journals. Qualify function names shared with Algebra and import the operator `.\|` unqualified. |
 | Accounting | `ExchangeAlgebra.Accounting`, `ExchangeAlgebra.Accounting.Account`, `ExchangeAlgebra.Accounting.Exchange` | Account titles, account classification, and debit and credit operations. |
 | Accounting | `ExchangeAlgebra.Accounting.TrialBalance`, `.Entries`, `.Closing`, `.Statements`, `.Consolidation` | Bookkeeping procedures; these abbreviated names share the prefix `ExchangeAlgebra.Accounting`. |
-| IO | `ExchangeAlgebra.IO.Input`, `ExchangeAlgebra.IO.Input.Admission`, `ExchangeAlgebra.IO.Output` | External input, admission checks, and output. |
+| IO | `ExchangeAlgebra.IO.Input`, `ExchangeAlgebra.IO.Input.Admission`, `ExchangeAlgebra.IO.Output` | External input, journal checks, and output. |
 
 The Simulation layer is outside the scope of this manual.
 
-For the [account divisions and side decompositions](../algebra/definitions.md#account-classes-and-sides), `ExchangeAlgebra.Accounting.Exchange` provides `ExBaseClass` with `whatDiv` and `whichSide`, and `Exchange` with `decL`, `decR`, and `balance`. `decL` selects debit postings and `decR` selects credit postings. `balance` compares their exact totals before rounding. The [journal example](../overview.md#recover-the-debit-and-credit-columns) uses these functions through `ExchangeAlgebra`.
+For the [account divisions and side decompositions](../algebra/definitions.md#account-classes-and-sides), `ExchangeAlgebra.Accounting.Exchange` provides `ExBaseClass` with `whatDiv` and `whichSide`, and `Exchange` with `decL`, `decR`, and `balance`. `decL` selects debit terms and `decR` selects credit terms. `balance` compares their exact totals before rounding. The [journal example](../overview.md#recover-the-debit-and-credit-columns) uses these functions through `ExchangeAlgebra`.
 
 ## Build the withdrawal {#build-the-withdrawal}
 
@@ -67,6 +67,6 @@ The program prints:
 {{#include ../../code/installation.expected}}
 ```
 
-The type annotation fixes both the amount type and the base type. `.@` constructs each posting, and `.+` retains both postings in one algebra value. The directions `Not` and `Hat` identify the cash increase and deposit decrease; neither amount is negative.
+The type annotation fixes both the amount type and the base type. `.@` constructs each term, and `.+` retains both terms in one algebra value. The directions `Not` and `Hat` identify the cash increase and deposit decrease; neither amount is negative.
 
 Tested with exchangealgebra-0.6.0.1 on 2026-11-19.

@@ -40,7 +40,7 @@ type Book = Journal.Journal EntryNote MoneyDecimal (HatBase (AccountTitles, Unit
 -- ANCHOR_END: setup
 
 -- ANCHOR: january
--- | Attach a January date and description after constructing all postings.
+-- | Attach a January date and description after constructing all terms.
 record :: Int -> String -> Entry -> Book
 record day description algebra = algebra .| EntryNote (2026, 1, day) description
 
@@ -79,7 +79,7 @@ toYen amount basis = (amount, basis)
 yenJournal :: Book
 yenJournal = Journal.map (Algebra.mapPosting toYen) sourceJournal
 
--- | Admit the converted journal without changing its notes or posting sequences.
+-- | Check the converted journal without changing its notes or term sequences.
 acceptedJanuary :: Either String (Admission.Admitted EntryNote (HatBase (AccountTitles, Unit)))
 acceptedJanuary = either (Left . show . Admission.failureErrors) Right
     (Admission.admit yenJournal)

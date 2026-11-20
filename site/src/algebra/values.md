@@ -1,12 +1,12 @@
 # Values
 
-The January 10 withdrawal has two postings of 3,000 yen: cash increases, and the savings deposit decreases. The amount is positive in both postings. The decrease is represented by `Hat` on the deposit base, rather than by a negative amount.
+The January 10 withdrawal has two terms of 3,000 yen: cash increases, and the savings deposit decreases. The amount is positive in both terms. The decrease is represented by `Hat` on the deposit base, rather than by a negative amount.
 
 The value parameter of `Alg v b` represents these amounts, corresponding to the [value domain of Definition 4](definitions.md#redundant-algebra-and-linear-combinations). The example uses exchangealgebra-0.6.0.1 and the [account-and-unit bases](bases.md#define-the-account-and-unit-bases).
 
 ## Choose an amount type {#choose-an-amount-type}
 
-Use `MoneyDecimal` for the withdrawal. Its decimal arithmetic represents 3,000 yen exactly, and addition of the posting amounts is exact. Axioms 4 and 5 hold exactly when the amounts, intermediate sums, and products are representable. The [numerical conditions on the axioms](definitions.md#five-axioms) distinguish exact arithmetic from a rounded readout.
+Use `MoneyDecimal` for the withdrawal. Its decimal arithmetic represents 3,000 yen exactly, and addition of the term amounts is exact. Axioms 4 and 5 hold exactly when the amounts, intermediate sums, and products are representable. The [numerical conditions on the axioms](definitions.md#five-axioms) distinguish exact arithmetic from a rounded readout.
 
 Save the code blocks in their displayed order as `Main.hs`. The setup includes the unit declaration so that the program compiles on its own:
 
@@ -20,19 +20,19 @@ Save the code blocks in their displayed order as `Main.hs`. The setup includes t
 
 `MoneyDouble` wraps `Double`, with binary floating-point arithmetic and a distinct amount type. The integer amount 3,000 is exact in both `MoneyDecimal` and `MoneyDouble`. Differences arise when arithmetic uses fractions that have no exact binary representation.
 
-For example, allocate 10% and 20% portions of the withdrawal. These are scaled examples of the same transaction, not additional cash movements. Compare their combined posting total with the result of adding the two ratios before scaling:
+For example, allocate 10% and 20% portions of the withdrawal. These are scaled examples of the same transaction, not additional cash movements. Compare their combined term total with the result of adding the two ratios before scaling:
 
 ```haskell
 {{#include ../../code/values.hs:allocations}}
 ```
 
-With exact decimal arithmetic, both computations give the same total. In binary arithmetic, `0.1 + 0.2` is rounded before it is multiplied by the withdrawal amounts. The output labels `Decimal portion totals (separate, combined)` and `Binary portion totals (separate, combined)` identify the comparison. The totals count both the cash and deposit postings, so a 30% portion has a posting total of 1,800 yen, rather than a cash amount of 900 yen.
+With exact decimal arithmetic, both computations give the same total. In binary arithmetic, `0.1 + 0.2` is rounded before it is multiplied by the withdrawal amounts. The output labels `Decimal portion totals (separate, combined)` and `Binary portion totals (separate, combined)` identify the comparison. The totals count both the cash and deposit terms, so a 30% portion has a term total of 1,800 yen, rather than a cash amount of 900 yen.
 
-For finite stored amounts, readouts such as `norm` sum exactly in an accumulator and round once. This does not undo rounding already introduced when constructing amounts or multiplying postings.
+For finite stored amounts, readouts such as `norm` sum exactly in an accumulator and round once. This does not undo rounding already introduced when constructing amounts or multiplying terms.
 
 ## Construction and scalar checks {#construction-and-scalar-checks}
 
-A negative withdrawal amount would misrepresent the transaction: the direction already belongs to the base. The value types can represent negative numbers, but `.@` rejects a negative or non-finite amount. It checks the direction first and rejects `HatNot` even for zero; a zero amount with a concrete direction gives `Zero`.
+A negative withdrawal amount would misrepresent the transaction: the direction already belongs to the base. The value types, including `MoneyDecimal`, can represent negative numbers. The constructor `.@` rejects negative or non-finite term amounts. It checks the direction first and rejects `HatNot` even for zero; a zero amount with a concrete direction gives `Zero`.
 
 For scalar multiplication, any scalar times `Zero` gives `Zero`, and a zero scalar times an algebra gives `Zero`. These shortcuts are processed before scalar validation. A negative or non-finite scalar applied to a nonzero algebra raises `error`. Finite floating-point inputs do not guarantee finite products.
 
@@ -42,13 +42,13 @@ Catch the documented construction errors in the example so that the program can 
 {{#include ../../code/values.hs:failures}}
 ```
 
-Application code must validate external amounts before constructing postings.
+Application code must validate external amounts before constructing terms.
 
 Tested with exchangealgebra-0.6.0.1 on 2026-11-19.
 
 ## Declare a custom yen amount type {#declare-a-custom-yen-amount-type}
 
-A custom value type requires its own validation and accumulator operations. `YenAmount` represents rational yen amounts, so even a fractional allocation such as one seventh is exact. The accumulator can hold signed differences internally, while negative values remain invalid as postings. The default `postingUpperBound` is appropriate because rational amounts have no magnitude bound and no NaN or infinities.
+A custom value type requires its own validation and accumulator operations. `YenAmount` represents rational yen amounts, so even a fractional allocation such as one seventh is exact. The accumulator can hold signed differences internally, while negative values remain invalid as terms. The default `postingUpperBound` is appropriate because rational amounts have no magnitude bound and no NaN or infinities.
 
 ```haskell
 {{#include ../../code/values.hs:custom-value}}
@@ -80,7 +80,7 @@ Each rejection result names its input condition. `Negative scalar times Zero` an
 |---|---|
 | `zeroValue`, `isZeroValue` | Define zero and test it. `isZeroValue` has an equality-based default. |
 | `valueError` | Return `Nothing` for a finite nonnegative value, `Just NegativeValue` for a negative finite value, or `Just NonFiniteValue` for NaN or either infinity. |
-| `postingUpperBound` | An optional bound used by checked posting construction. Its default is `Nothing`; the floating-point instances use a bound of 2^900. |
+| `postingUpperBound` | An optional bound used by checked term construction. Its default is `Nothing`; the floating-point instances use a bound of 2^900. |
 | `showValue` | Render an amount inside the algebra's `Show` output. Decimal amounts retain decimal formatting; floating-point amounts use the instance's formatting. |
 | Associated data family `Accum n` | Represent an exact signed sum, including special states if the value type has NaN or infinities. |
 | `emptyAccum`, `addAccum`, `mergeAccum`, `negateAccum` | Construct and combine exact sums and differences. |

@@ -1,5 +1,5 @@
--- | Build a month's posting record from a withdrawal and ask questions about it.
--- Algebra operations retain, select, and explicitly total postings with account-and-unit bases.
+-- | Build a month's term record from a withdrawal and ask questions about it.
+-- Algebra operations retain, select, and explicitly total terms with account-and-unit bases.
 -- ANCHOR: unit
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -52,11 +52,11 @@ month = withdrawal .+ secondWithdrawal .+ cashPayment .+ currencyExchange
 cashBalances :: Alg MoneyDecimal (HatBase (AccountTitles, Unit))
 cashBalances = proj [HatNot :< (Cash, (.#))] (bar month)
 
--- | Original yen postings on every account and in both directions.
+-- | Original yen terms on every account and in both directions.
 yenPostings :: Alg MoneyDecimal (HatBase (AccountTitles, Unit))
 yenPostings = proj [HatNot :< ((.#), Yen)] month
 
--- | Original cash postings in yen, before aggregation.
+-- | Original cash terms in yen, before aggregation.
 yenCashPostings :: Alg MoneyDecimal (HatBase (AccountTitles, Unit))
 yenCashPostings = proj [HatNot :< (Cash, Yen)] month
 -- ANCHOR_END: queries
