@@ -46,7 +46,7 @@ jobs:
             ~/.stack
             .stack-work
             examples/.stack-work
-          key: ${{ runner.os }}-stack-${{ hashFiles('stack.yaml', 'package.yaml', 'examples/package.yaml') }}
+          key: ${{ runner.os }}-stack-${{ hashFiles('stack.yaml', 'package.yaml', 'examples/package.yaml', 'exchangealgebra-einvoice/package.yaml') }}
           restore-keys: |
             ${{ runner.os }}-stack-
 
@@ -63,7 +63,7 @@ jobs:
         run: stack build --system-ghc --no-install-ghc --test --bench --no-run-benchmarks
 
       - name: Build source distributions
-        run: stack sdist --system-ghc --no-install-ghc .
+        run: stack sdist --system-ghc --no-install-ghc . exchangealgebra-einvoice
 
       - name: Check admission API boundary
         run: STACK_ARGS="--system-ghc --no-install-ghc" bash test/compile-fail/check.sh
@@ -116,7 +116,7 @@ jobs:
       - name: Check P2 orphan instances (visualize flag off)
         run: EA_VISUALIZE=0 STACK_ARGS="--system-ghc --no-install-ghc" python3 tools/check-orphans.py
 
-  # The lowest GHC the package declares (base >= 4.19, GHC 9.8). Hackage's
+  # The lowest GHC the packages declare (base >= 4.19, GHC 9.8). Hackage's
   # documentation builder uses GHC 9.8, so a 9.8-only break also stops the docs.
   build-test-ghc98:
     runs-on: ubuntu-latest
@@ -135,12 +135,12 @@ jobs:
           path: |
             ~/.stack
             .stack-work
-          key: ${{ runner.os }}-stack-ghc98-${{ hashFiles('stack-ghc98.yaml', 'package.yaml') }}
+          key: ${{ runner.os }}-stack-ghc98-${{ hashFiles('stack-ghc98.yaml', 'package.yaml', 'exchangealgebra-einvoice/package.yaml') }}
           restore-keys: |
             ${{ runner.os }}-stack-ghc98-
 
-      - name: Build + test library (GHC 9.8, visualize flag off)
-        run: stack --stack-yaml stack-ghc98.yaml build exchangealgebra --test --no-run-benchmarks --system-ghc --no-install-ghc
+      - name: Build + test library and e-invoice package (GHC 9.8, visualize flag off)
+        run: stack --stack-yaml stack-ghc98.yaml build exchangealgebra exchangealgebra-einvoice --test --no-run-benchmarks --system-ghc --no-install-ghc
 
   # Optional formal-verification job: LiquidHaskell refinement checks for the
   # value non-negativity invariant (0 <= magnitude; sign lives in the Hat/Not
