@@ -101,7 +101,7 @@ nearlyEqScaled x y
 -- * Algebra
 ------------------------------------------------------------------
 
--- | Type class for algebra element values.
+-- | Type class for the values of algebra terms.
 -- Provides zero-value / error-value predicates and a representation-specific
 -- renderer ('showValue').
 --

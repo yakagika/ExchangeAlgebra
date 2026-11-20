@@ -338,7 +338,7 @@ accountRole division name account =
         || fmap asemDivisionSemantics (accountSemantics account)
             /= Just (StatementDivision division)]
 
--- | Reject blank reference coordinates at the typed boundary.
+-- | Reject blank reference components at the typed boundary.
 keyProblems :: TxKey -> [CatalogParameterProblem]
 keyProblems key@(TxKey (EntityId entity) (PeriodId period) (TxId transaction)) =
     [BlankReferenceKey key |

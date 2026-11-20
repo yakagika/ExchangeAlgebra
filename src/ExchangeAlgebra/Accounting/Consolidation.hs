@@ -9,7 +9,7 @@ Module      : ExchangeAlgebra.Accounting.Consolidation
 Description : Validation boundary for consolidation worksheets.
 
 A consolidation worksheet is not an entity's journal. Its adjustments are
-therefore accepted as exchange-algebra elements, while this module checks that
+therefore accepted as members of the redundant algebra, while this module checks that
 each adjustment is independently balanced before any aggregation takes place.
 This prevents two malformed adjustments from canceling each other only at the
 worksheet total.
@@ -130,7 +130,7 @@ data LinkField
 -- | One entity trial balance and its provenance identifier. A source trial
 -- balance is accepted as historical input and is therefore not restricted by
 -- a processing-context posting-capability gate; it is still checked for
--- structural coordinates, valid values, and exact balance.
+-- base structure, valid values, and exact balance.
 data TrialBalanceSourceOf t source v = TrialBalanceSource
     { _sourceId           :: source
     , _sourceTrialBalance :: Alg v (HatBase t)
@@ -142,9 +142,9 @@ deriving instance (HatVal v, BaseClass t, AxisDecompose t, Show source)
 -- | A source trial balance for the built-in chart of accounts.
 type TrialBalanceSource = TrialBalanceSourceOf AccountTitles
 
--- | One atomic worksheet adjustment. The algebra element need not originate
--- from a journal entry, but it must be independently balanced and use only
--- coordinates admitted by the consolidation processing context.
+-- | One atomic worksheet adjustment. A member of the redundant algebra represents
+-- the adjustment and can be prepared independently of a journal entry. The adjustment
+-- must balance on its own and use account titles admitted by the consolidation context.
 data WorksheetAdjustmentOf t source adjustment v = WorksheetAdjustment
     { _adjustmentId        :: adjustment
     , _adjustmentSourceIds :: NonEmpty source

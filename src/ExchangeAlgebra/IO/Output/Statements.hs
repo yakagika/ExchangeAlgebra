@@ -13,11 +13,11 @@
 -- 'ExchangeAlgebra.Accounting.Statements.Presentation.present' and
 -- 'financialStatementRows'.
 --
--- Statements receive one reporting scope. A ledger with several axes (entity,
+-- Statements receive one reporting scope. A ledger with several components (entity,
 -- period, department) is narrowed by the caller and mapped to account titles
 -- with 'ExchangeAlgebra.Algebra.Core.mapMaybePosting' or
 -- 'ExchangeAlgebra.Algebra.Core.mapPosting' before presentation. The remaining
--- axes are summed, and no axis name appears in the output.
+-- amounts are summed after grouping by account title.
 --
 -- | Task | Row layout | Writer |
 -- | :--- | :--- | :--- |
@@ -708,8 +708,9 @@ writeWorksheet path pre adj = writeCSV path (worksheetRows pre adj)
 -- After the closing transfers, only the /real/ (permanent) accounts remain on
 -- the ledger. This lists the net balance of every 'Assets'\/'Liability'\/
 -- 'Equity' account (the carried-forward balances, 次期繰越); 'Cost'\/'Revenue'
--- (nominal) accounts are __excluded by construction__, since they have been
--- closed out to the income summary. Layout:
+-- (nominal) accounts are __excluded by construction__, since
+-- 'ExchangeAlgebra.Accounting.Closing.closingEntries' transfers their balances
+-- directly to 'RetainedEarnings' with the built-in account titles. Layout:
 --
 -- > Debit | Account Title | Credit
 --

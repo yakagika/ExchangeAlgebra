@@ -78,9 +78,9 @@ import              Data.Typeable           (Typeable, cast, typeOf)
 -- * NoteAxisKey
 ------------------------------------------------------------------
 
--- | An existential type that holds each axis of a Note with its type erased.
--- Used to decompose multi-dimensional Note types (tuples) into per-axis keys
--- for indexing, mirroring how @AxisKey@ works for basis elements in 'Alg'.
+-- | An existential type that holds one component of a note with its type erased.
+-- Used to decompose multi-dimensional Note types (tuples) into keys for each component position
+-- for indexing, mirroring how @AxisKey@ works for bases in 'Alg'.
 data NoteAxisKey = forall a. (Eq a, Hashable a, Typeable a) => NoteAxisKey !a
 
 instance Eq NoteAxisKey where
@@ -95,7 +95,7 @@ instance Hashable NoteAxisKey where
 -- * NoteAxisPosting
 ------------------------------------------------------------------
 
--- | Per-axis index for Note keys.
+-- | Per-component index for Note keys.
 -- Maps axis_number -> axis_value -> set of Notes.
 -- Mirrors @AxisPosting@ in 'Alg'.
 type NoteAxisPosting n = IntMap (Map.HashMap NoteAxisKey (HashSet n))
@@ -105,7 +105,7 @@ emptyNoteAxisPosting :: NoteAxisPosting n
 emptyNoteAxisPosting = IntMap.empty
 
 {-# INLINE insertNoteAxisPosting #-}
--- | Complexity: O(d) where d is the number of axes in the Note
+-- | Complexity: O(d) where d is the number of components in the Note
 insertNoteAxisPosting :: (Eq n, Hashable n) => [NoteAxisKey] -> n -> NoteAxisPosting n -> NoteAxisPosting n
 insertNoteAxisPosting !keys !note !idx =
     snd $ L.foldl' step (0 :: Int, idx) keys
@@ -119,8 +119,8 @@ insertNoteAxisPosting !keys !note !idx =
         in (axis + 1, acc')
 
 {-# INLINE queryNoteAxisPosting #-}
--- | Query the NoteAxisPosting index for a single axis.
--- Returns the set of Notes whose value matches on the specified axis.
+-- | Query the 'NoteAxisPosting' index for one component position.
+-- Returns the set of Notes whose value matches on the specified component position.
 --
 -- Complexity: O(1) (two map lookups)
 queryNoteAxisPosting :: Int -> NoteAxisKey -> NoteAxisPosting n -> HashSet n
@@ -136,14 +136,14 @@ queryNoteAxisPosting !axis !key !idx =
 -- | Type class for journal annotations (notes attached to postings).
 -- @plank@ represents a blank note (analogous to @mempty@ in @Monoid@).
 --
--- @toNoteAxisKeys@ decomposes a Note into per-axis keys for AxisPosting
--- indexing, mirroring how @toAxisKeys@ works for basis elements.
--- For tuple Note types, each component becomes a separate axis.
--- The default returns a single axis containing the Note itself.
+-- @toNoteAxisKeys@ decomposes a Note into keys for each component position for 'NoteAxisPosting'
+-- indexing, mirroring how @toAxisKeys@ works for bases.
+-- For tuple Note types, the index uses the position of each component.
+-- The default returns a single indexed component containing the Note itself.
 --
 -- == Prefer an ADT note over @String@
 --
--- A note's /event/ axis is best modeled as a small enumeration (an ADT)
+-- A note's /event/ component is best modeled as a small enumeration (an ADT)
 -- rather than a @String@. A @String@ tag is a __stringly-typed semantic key__:
 -- the same literal must appear at the write site (@.| (\"trade\", t)@) and at
 -- every read site (@projWithNote [(\"trade\", t)]@), and a typo on either side
@@ -168,8 +168,8 @@ class (Show a, Eq a, Ord a, Hashable a, Typeable a) => Note a where
     plank :: a
     isPlank :: a -> Bool
     isPlank x = x == plank
-    -- | Decompose a Note into per-axis keys for AxisPosting indexing.
-    -- Default: single axis with the Note itself.
+    -- | Decompose a Note into keys for each component position for 'NoteAxisPosting' indexing.
+    -- Default: single indexed component with the Note itself.
     toNoteAxisKeys :: a -> [NoteAxisKey]
     toNoteAxisKeys a = [NoteAxisKey a]
 
@@ -201,7 +201,7 @@ instance (Note e1, Note e2, Note t) => HasTermAxis (e1, e2, t) where
   type TermOf (e1, e2, t) = t
   termOf (_, _, t) = t
 
--- | Default instance for using @Int@ as a time axis (Term).
+-- | Default instance for using @Int@ to represent a simulation term.
 -- @plank = -1@ is distinguished from non-negative term numbers.
 --
 -- In simulations, typically used as @type Term = Int@.
@@ -240,17 +240,17 @@ instance (Note a, Note b, Note c, Note d) => Note (a, b, c, d) where
 ------------------------------------------------------------------
 
 -- | Transaction data with annotations.
---   Stored in a base + delta two-layer structure with per-axis indices.
---   Both indices are built on the first axis query; each append leaves a fresh,
---   unevaluated delta index, so alternating queries and appends rebuild it in time
+--   Stored in two layers, base and delta, with a note index for each layer.
+--   A query by note component builds both indices on first use. Each append leaves
+--   a new unevaluated delta index, so alternating queries and appends rebuild it in time
 --   proportional to the delta note count, bounded by compaction at 128 notes.
 --   Updates are appended only to delta and periodically compacted into base.
 --
 --   __Invariants.__ The constructor is not exported; build with 'mkJournal',
 --   '(.|)' or 'fromList'. Its internal cache\/index fields @_jBaseAxis@ and
 --   @_jDeltaAxis@ must be
---   exactly the Note axis indices (@buildNoteAxisPosting@) of @_jBase@ and
---   @_jDelta@ respectively. The axis-filtered query path ('filterByAxis') reads
+--   exactly the note component indices (@buildNoteAxisPosting@) of @_jBase@ and
+--   @_jDelta@ respectively. The component-filtered query path ('filterByAxis') reads
 --   those indices, so a value whose indices disagree with its maps yields wrong
 --   answers silently (not an exception).
 --
@@ -278,7 +278,7 @@ data Journal n v b where
 deltaCompactThreshold :: Int
 deltaCompactThreshold = 128
 
--- | Build Note axis index from map keys.
+-- | Build note component index from map keys.
 {-# INLINE buildNoteAxisPosting #-}
 buildNoteAxisPosting :: Note n => Map.HashMap n a -> NoteAxisPosting n
 buildNoteAxisPosting =
@@ -287,7 +287,7 @@ buildNoteAxisPosting =
         emptyNoteAxisPosting
 
 -- | The only safe way to build a t'Journal' from a base layer and a delta
--- layer. It keeps the Note-axis indices consistent with both layers and
+-- layer. It keeps the note component indices consistent with both layers and
 -- returns the normal form; see the invariants note on t'Journal'.
 --
 -- A note whose algebra is zero ('EA.isZero') is dropped from the layer that
@@ -295,7 +295,7 @@ buildNoteAxisPosting =
 -- given, and only a map that holds one is rebuilt without it.
 --
 -- Complexity: O(n) where n is the number of notes in both layers; each note's
--- algebra is evaluated to WHNF. Both axis indices are built lazily on demand.
+-- algebra is evaluated to WHNF. Both note indices are built on demand.
 {-# INLINE mkJournal #-}
 mkJournal :: (Note n, HatVal v, HatBaseClass b)
           => Map.HashMap n (Alg v b) -> Map.HashMap n (Alg v b) -> Journal n v b
@@ -310,8 +310,8 @@ mkJournal bs delta = mkJournalNonZero base' delta'
 
 -- Internal constructor for callers that already hold the normal form (see the
 -- invariants note on t'Journal'): neither map may hold a note whose algebra is
--- zero. It does not check this. It builds the Note-axis indices as
--- 'mkJournal' does: both axis indices are built lazily on demand.
+-- zero. It does not check this. It builds the note component indices as
+-- 'mkJournal' does: both indices are built on demand.
 {-# INLINE mkJournalNonZero #-}
 mkJournalNonZero :: (Note n, HatVal v, HatBaseClass b)
                  => Map.HashMap n (Alg v b) -> Map.HashMap n (Alg v b) -> Journal n v b
@@ -324,7 +324,7 @@ mkJournalNonZero bs delta = Journal bs delta baseIdx deltaIdx
 -- dropped (see 'mkJournal').
 --
 -- Complexity: O(n) where n is the number of notes; the map is rebuilt only
--- when it holds a zero note. Base axis index is built lazily on first axis
+-- when it holds a zero note. Base component index is built lazily on first component
 -- query.
 --
 -- >>> case fromMap (Map.singleton "empty" EA.Zero) :: Journal T.Text Double (HatBase CountUnit) of { Zero -> True; _ -> False }
@@ -443,8 +443,8 @@ pattern Zero <- (isZero -> True)
     where
         Zero = mkJournalNonZero Map.empty Map.empty
 
--- | Smart constructor that attaches a Note (annotation) to an algebra element to build a Journal.
--- Returns an empty Journal when the algebra element is zero, consistent with
+-- | Smart constructor that attaches a Note (annotation) to a member of the redundant algebra to build a Journal.
+-- Returns an empty Journal when the member of the redundant algebra is zero, consistent with
 -- the zero-value handling in @appendMap@ and 'sigmaOn'.
 --
 -- Fixity @infix 5@: it binds more tightly than '(.+)' and less tightly than
@@ -563,7 +563,7 @@ instance (HatVal v, HatBaseClass b, Note n) => Monoid (Journal n v b) where
 -- | Shallow-structural 'NFData', mirroring the @'Alg' v b@ instance in
 -- "ExchangeAlgebra.Algebra.Core": it forces the two-layer @base@ / @delta@ maps to
 -- WHNF on their spines and forces every contained 'Alg' (via the 'Alg' 'NFData'
--- instance), but does not touch the lazily built axis indices (@_jBaseAxis@ /
+-- instance), but does not touch the lazily built component indices (@_jBaseAxis@ /
 -- @_jDeltaAxis@), which are derived caches. This is enough for
 -- 'Control.Parallel.Strategies.rdeepseq' to fully evaluate journal "messages"
 -- before merging them in parallel.
@@ -768,7 +768,7 @@ sigmaM xs f = mconcat <$> CM.forM xs f
 toAlg :: (HatVal v, HatBaseClass b, Note n)
       => Journal n v b -> Alg v b
 toAlg (Journal bs delta _ _) =
-    -- Fold base's elements directly onto delta's element list instead of
+    -- Fold the base terms directly onto the delta term list instead of
     -- @Map.elems base ++ Map.elems delta@, which avoids materializing the
     -- separate @Map.elems base@ list and the @(++)@ traversal.
     EA.unionsMerge (Map.foldr (:) (Map.elems delta) bs)
@@ -981,17 +981,17 @@ filterWithNote f (Journal bs delta _ _) =
         !delta' = Map.filterWithKey f delta
     in mkJournalNonZero base' delta'
 
--- | Efficiently filter a Journal to entries whose Note matches on the specified axis.
+-- | Efficiently filter a Journal to entries whose Note matches on the specified component position.
 -- Uses base/delta NoteAxisPosting indices for O(|result|) retrieval after index construction.
 --
--- Axis numbers are 0-indexed. For a Note type @(EventName, Term)@:
+-- Component positions are 0-indexed. For a Note type @(EventName, Term)@:
 --
---   * axis 0 corresponds to EventName
---   * axis 1 corresponds to Term
+--   * position 0 corresponds to EventName
+--   * position 1 corresponds to Term
 --
--- For non-tuple Note types, axis 0 is the only valid axis.
+-- For non-tuple Note types, position 0 is the only valid position.
 --
--- Complexity: O(|result|) after index construction; O(n) for first base-axis query on a Journal value
+-- Complexity: O(|result|) after index construction; O(n) for first base component query on a Journal value
 --
 -- >>> type Test = Journal (T.Text, Int) Double (HatBase CountUnit)
 -- >>> x = 10.00.@Not:<Yen .| ("A", 1) :: Test

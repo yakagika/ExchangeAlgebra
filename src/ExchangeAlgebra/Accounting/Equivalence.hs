@@ -57,9 +57,9 @@ import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 
 -- | Select the transaction-level observation used for comparison.
 -- 'NetAccountsInTransactions' nets only the named accounts in the named
--- transactions. 'Entry' has only an account-title base axis, so there are no
--- other base axes to retain when an account is selected. Both the transaction
--- keys and account titles use exact set membership; wildcard coordinates are
+-- transactions. 'Entry' has only an account-title component, so there are no
+-- other base components to retain when an account is selected. Both the transaction
+-- keys and account titles use exact set membership; wildcard components are
 -- values, not query patterns. Unselected postings remain strict multisets.
 data Equivalence
     = PostingMultiset -- ^ Compare every original posting as a multiset.
@@ -74,7 +74,7 @@ data Equivalence
 data PostingObservation = PostingObservation PostingMultisetValue PostingMultisetValue
     deriving (Eq)
 
--- | Sorted Hat, concrete account-title coordinate, and exact amount triples.
+-- | Sorted Hat, concrete account-title element, and exact amount triples.
 type PostingMultisetValue = [(Hat, AccountTitles, MoneyDecimal)]
 
 -- | Sort individual postings without using the representation-sensitive 'Alg' Eq.
@@ -85,7 +85,7 @@ postings = sort . map coordinate . toList
     coordinate posting = case _hatBase posting of
         hat :< account -> (hat, account, _val posting)
 
--- | Test the account coordinate without asking the potentially partial side API.
+-- | Test the account-title element without asking the potentially partial side API.
 isInAccounts :: Set AccountTitles -> Entry -> Bool
 isInAccounts accounts posting = case _hatBase posting of
     _ :< account -> Set.member account accounts

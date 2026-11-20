@@ -289,7 +289,7 @@ instance ExBaseClass (HatBase (AccountTitles, Name, CountUnit, Subject, Day, Tim
 -- The bases above use the 'Element' instances of 'Day' and t'TimeOfDay', whose
 -- wildcards are reserved dates and times (1858-11-17 and midnight). The
 -- following bases use t'Wild' instead, so every date and time of day remains
--- an ordinary coordinate.
+-- an ordinary element.
 --
 -- @since 0.6.1.0
 
@@ -316,16 +316,16 @@ instance ExBaseClass (HatBase (AccountTitles, Name, CountUnit, Subject, Wild Day
 -- 'decR' the credit side. ('decP' \/ 'decM' split along the Hat\/Not label
 -- instead of the debit\/credit side.)
 class (Redundant a n b ) => Exchange a n b where
-    -- | Extracts only the credit-side elements (R = Right = Credit, 貸方),
+    -- | Extracts only the credit-side terms (R = Right = Credit, 貸方),
     -- i.e. those whose 'whichSide' is 'Credit'. Complexity: O(s)
     decR :: a n b -> a n b
-    -- | Extracts only the debit-side elements (L = Left = Debit, 借方),
+    -- | Extracts only the debit-side terms (L = Left = Debit, 借方),
     -- i.e. those whose 'whichSide' is 'Debit'. Complexity: O(s)
     decL :: a n b -> a n b
-    -- | Extracts only the Hat-side elements (the P-projection of the
+    -- | Extracts only the terms whose base carries v'Hat' (the P-projection of the
     -- decomposition; @isHat@ holds). Complexity: O(s)
     decP :: a n b -> a n b
-    -- | Extracts only the Not-side elements (the M-projection of the
+    -- | Extracts only the terms whose base carries 'Not' (the M-projection of the
     -- decomposition; @isHat@ does not hold). Complexity: O(s)
     decM :: a n b -> a n b
     -- | 'True' exactly when the exact debit sum equals the exact credit sum
@@ -356,10 +356,10 @@ instance (HatVal n, ExBaseClass b) =>  Exchange Alg n b where
     -- | filter Debit side
     decL xs = filter (\x -> x /= Zero && (whichSide . _hatBase) x == Debit) xs
 
-    -- | filter Plus Stock
+    -- | Keep the nonzero terms whose base carries v'Hat'.
     decP xs = filter (\x -> x /= Zero && (isHat . _hatBase ) x) xs
 
-    -- | filter Minus Stock
+    -- | Keep the nonzero terms whose base carries 'Not'.
     decM xs = filter (\x -> x /= Zero && (not. isHat. _hatBase) x) xs
 
     -- | Compare the exact credit-minus-debit state before rounding.
@@ -413,11 +413,11 @@ accountState = EA.foldPairs collect emptyAccum
 
 -- * Construction by debit or credit side
 
--- | Choose the 'Not' or v'Hat' marker for an unmarked base on the requested side.
--- The base may contain additional axes. The marker is 'Not' exactly when
+-- | Choose 'Not' or v'Hat' to put a term on the requested side.
+-- The base can include components besides the account title. The result is 'Not' when
 -- @whichSide (Not :< key) == side@; otherwise it is v'Hat' (Definitions 7-9).
 -- The wildcard v'Side' is compared by equality, just as in the input-conversion
--- helpers: it selects v'Hat' when the unmarked base has a concrete side.
+-- helpers: it selects v'Hat' when the base with 'Not' has a concrete side.
 -- It does not request a wildcard marker or guarantee a wildcard result.
 --
 -- >>> hatForSide Debit Cash
@@ -429,7 +429,7 @@ hatForSide side key
     | whichSide (Not :< key) == side = Not
     | otherwise                     = Hat
 
--- | Construct a posting on the requested side while preserving every base axis.
+-- | Construct a term on the requested side while preserving every base component.
 -- The amount must satisfy the non-negative, non-error value contract of '(.@)';
 -- a violation raises that constructor's error. The marker is chosen by
 -- 'hatForSide', including its treatment of the wildcard v'Side'.
@@ -451,9 +451,9 @@ postingForSide :: (HatVal v, ExBaseClass (HatBase k))
                -> Alg v (HatBase k)
 postingForSide side key amount = amount .@ (hatForSide side key :< key)
 
--- | Combine side, unmarked base, and amount triples with '(.+)'.
--- Every base axis is preserved, and repeated postings on the same base remain
--- separate entries. The empty list gives the empty algebra. Debit/credit balance
+-- | Combine triples of side, base without Hat\/Not, and amount with '(.+)'.
+-- Every base component is preserved, and repeated terms on the same base
+-- remain separate. The empty list gives the empty algebra. Debit/credit balance
 -- is not enforced. Each triple has the value contract and wildcard-side behavior
 -- of 'postingForSide'.
 --
@@ -468,7 +468,7 @@ journalForSides = foldr (\(side, key, amount) acc -> postingForSide side key amo
 -- * Projections
 
 ------------------------------------------------------------------
--- | Projects only the credit-side elements. For 'Alg' this coincides with the
+-- | Projects only the credit-side terms. For 'Alg' this coincides with the
 -- 'Exchange' class method 'decR' (R = Right = Credit, 貸方); the top-level name
 -- makes the selected side explicit at call sites. (An earlier doc sentence
 -- restricting this to non-'Enum' bases referred to long-removed 'Enum'-based
@@ -479,7 +479,7 @@ journalForSides = foldr (\(side, key, amount) acc -> postingForSide side key amo
 projCredit :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
 projCredit = filter (\x -> (whichSide . _hatBase) x == Credit)
 
--- | Projects only the debit-side elements. For 'Alg' this coincides with the
+-- | Projects only the debit-side terms. For 'Alg' this coincides with the
 -- 'Exchange' class method 'decL' (L = Left = Debit, 借方); the top-level name
 -- makes the selected side explicit at call sites. (An earlier doc sentence
 -- restricting this to non-'Enum' bases referred to long-removed 'Enum'-based
@@ -489,10 +489,10 @@ projCredit = filter (\x -> (whichSide . _hatBase) x == Credit)
 projDebit :: (HatVal n, ExBaseClass b)  => Alg n b -> Alg n b
 projDebit = filter (\x -> (whichSide . _hatBase) x == Debit)
 
--- | Projects only the elements matching the specified account title.
+-- | Projects only the terms matching the specified account title.
 --
 -- The match is one-way, as in 'ExchangeAlgebra.Algebra.Core.proj': a wildcard query
--- title selects every element, while a concrete title does not select an element
+-- title selects every term, while a concrete title does not select a term
 -- whose ledger title is the wildcard.
 --
 -- Complexity: O(s) (s is the total number of scalar entries)
@@ -507,10 +507,13 @@ projByAccountTitle at alg = filter (f at) alg
 --
 -- Selection predicate (over every scalar entry @x@ of the input, on the debit side):
 -- @whatDiv (_hatBase x) == Assets && fixedCurrent (_hatBase x) == Current && not (isContra (_hatBase x))@.
--- Contra accounts are excluded, so the result is the /gross/ figure of this
--- class; the net figure is @norm (projCurrentAssets x) - norm ('bar' (contra x))@ where
--- @contra@ is 'projContraAssets' (Assets) or 'projContra' (any division).
--- See 'projContraAssets' for the rationale (Definition 7 amendment, Land 2).
+-- Contra accounts are excluded. The result keeps only the debit-side terms
+-- of these accounts, so its 'norm' is their debit-side total. Before 'bar',
+-- a cash record with 100 received and 40 paid has a debit-side norm of 100
+-- and a cash balance of 60.
+-- For balances, use 'ExchangeAlgebra.Accounting.TrialBalance.accountBalances',
+-- which nets both sides of each account title. See 'projContraAssets' for
+-- the selection of contra accounts (Definition 7 amendment).
 --
 -- Complexity: O(s) (s is the total number of scalar entries)
 projCurrentAssets :: ( HatVal n, ExBaseClass b) => Alg n b -> Alg n b
@@ -524,10 +527,13 @@ projCurrentAssets  = (filter (\x -> (fixedCurrent . _hatBase) x == Current))
 --
 -- Selection predicate (over every scalar entry @x@ of the input, on the debit side):
 -- @whatDiv (_hatBase x) == Assets && fixedCurrent (_hatBase x) == Fixed && not (isContra (_hatBase x))@.
--- Contra accounts are excluded, so the result is the /gross/ figure of this
--- class; the net figure is @norm (projFixedAssets x) - norm ('bar' (contra x))@ where
--- @contra@ is 'projContraAssets' (Assets) or 'projContra' (any division).
--- See 'projContraAssets' for the rationale (Definition 7 amendment, Land 2).
+-- Contra accounts are excluded. The result keeps only the debit-side terms
+-- of these accounts, so its 'norm' is their debit-side total. Before 'bar',
+-- an equipment record with 100 acquired and 40 disposed of
+-- has a debit-side norm of 100 and an equipment balance of 60.
+-- For balances, use 'ExchangeAlgebra.Accounting.TrialBalance.accountBalances',
+-- which nets both sides of each account title. See 'projContraAssets' for
+-- the selection of contra accounts (Definition 7 amendment).
 --
 -- Complexity: O(s) (s is the total number of scalar entries)
 projFixedAssets :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
@@ -541,10 +547,13 @@ projFixedAssets = (filter (\x -> (fixedCurrent . _hatBase) x == Fixed))
 --
 -- Selection predicate (over every scalar entry @x@ of the input, on the debit side):
 -- @whatDiv (_hatBase x) == Assets && fixedCurrent (_hatBase x) == Other && not (isContra (_hatBase x))@.
--- Contra accounts are excluded, so the result is the /gross/ figure of this
--- class; the net figure is @norm (projDeferredAssets x) - norm ('bar' (contra x))@ where
--- @contra@ is 'projContraAssets' (Assets) or 'projContra' (any division).
--- See 'projContraAssets' for the rationale (Definition 7 amendment, Land 2).
+-- Contra accounts are excluded. The result keeps only the debit-side terms
+-- of these accounts, so its 'norm' is their debit-side total. Before 'bar',
+-- a deferred asset record with 100 recognized and 40 amortized
+-- has a debit-side norm of 100 and a deferred asset balance of 60.
+-- For balances, use 'ExchangeAlgebra.Accounting.TrialBalance.accountBalances',
+-- which nets both sides of each account title. See 'projContraAssets' for
+-- the selection of contra accounts (Definition 7 amendment).
 --
 -- Complexity: O(s) (s is the total number of scalar entries)
 projDeferredAssets :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
@@ -558,11 +567,13 @@ projDeferredAssets  = (filter (\x -> (fixedCurrent . _hatBase) x == Other))
 --
 -- Selection predicate (over every scalar entry @x@ of the input, on the credit side):
 -- @whatDiv (_hatBase x) == Liability && fixedCurrent (_hatBase x) == Current && not (isContra (_hatBase x))@.
--- Contra accounts are excluded, so the result is the /gross/ figure of this
--- class; the net figure is @norm (projCurrentLiability x) - norm ('bar' (contra x))@ where
--- @contra@ selects the Liability-division entries of 'projContra' (the current
--- registry has no contra liability account, so gross and net coincide today).
--- See 'projContraAssets' for the rationale (Definition 7 amendment, Land 2).
+-- Contra accounts are excluded. The result keeps only the credit-side terms
+-- of these accounts, so its 'norm' is their credit-side total. Before 'bar',
+-- a short-term loan record with 100 borrowed and 40 repaid has a credit-side
+-- norm of 100 and a loan balance of 60.
+-- For balances, use 'ExchangeAlgebra.Accounting.TrialBalance.accountBalances',
+-- which nets both sides of each account title. See 'projContraAssets' for
+-- the selection of contra accounts (Definition 7 amendment).
 --
 -- Complexity: O(s) (s is the total number of scalar entries)
 projCurrentLiability :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
@@ -576,11 +587,13 @@ projCurrentLiability  = (filter (\x -> (fixedCurrent . _hatBase) x == Current))
 --
 -- Selection predicate (over every scalar entry @x@ of the input, on the credit side):
 -- @whatDiv (_hatBase x) == Liability && fixedCurrent (_hatBase x) == Fixed && not (isContra (_hatBase x))@.
--- Contra accounts are excluded, so the result is the /gross/ figure of this
--- class; the net figure is @norm (projFixedLiability x) - norm ('bar' (contra x))@ where
--- @contra@ selects the Liability-division entries of 'projContra' (the current
--- registry has no contra liability account, so gross and net coincide today).
--- See 'projContraAssets' for the rationale (Definition 7 amendment, Land 2).
+-- Contra accounts are excluded. The result keeps only the credit-side terms
+-- of these accounts, so its 'norm' is their credit-side total. Before 'bar',
+-- a long-term loan record with 100 borrowed and 40 repaid has a credit-side
+-- norm of 100 and a loan balance of 60.
+-- For balances, use 'ExchangeAlgebra.Accounting.TrialBalance.accountBalances',
+-- which nets both sides of each account title. See 'projContraAssets' for
+-- the selection of contra accounts (Definition 7 amendment).
 --
 -- Complexity: O(s) (s is the total number of scalar entries)
 projFixedLiability :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
@@ -589,16 +602,19 @@ projFixedLiability  = (filter (\x -> (fixedCurrent . _hatBase) x == Fixed))
                     . (filter (not . isContra . _hatBase))
                     . projCredit
 
--- | Projects only capital stock (equity).
--- Extracts items classified under the 'Equity' division from the credit side.
+-- | Projects the credit-side terms of every non-contra account in the 'Equity'
+-- division, including 'CapitalStock', 'RetainedEarnings', and other equity
+-- accounts.
 --
 -- Selection predicate (over every scalar entry @x@ of the input, on the credit side):
 -- @whatDiv (_hatBase x) == Equity && not (isContra (_hatBase x))@.
--- Contra accounts are excluded, so the result is the /gross/ figure of this
--- class; the net figure is @norm (projCapitalStock x) - norm ('bar' (contra x))@ where
--- @contra@ selects the Equity-division entries of 'projContra' (the current
--- registry has no contra equity account, so gross and net coincide today).
--- See 'projContraAssets' for the rationale (Definition 7 amendment, Land 2).
+-- Contra accounts are excluded. The result keeps only the credit-side terms
+-- of these accounts, so its 'norm' is their credit-side total. Before 'bar',
+-- a capital stock record with 100 issued and 40 redeemed
+-- has a credit-side norm of 100 and a capital stock balance of 60.
+-- For balances, use 'ExchangeAlgebra.Accounting.TrialBalance.accountBalances',
+-- which nets both sides of each account title. See 'projContraAssets' for
+-- the selection of contra accounts (Definition 7 amendment).
 --
 -- Complexity: O(s) (s is the total number of scalar entries)
 --
@@ -611,26 +627,14 @@ projCapitalStock  = (filter (\x -> (whatDiv . _hatBase) x == Equity))
                   . (filter (not . isContra . _hatBase))
                   . projCredit
 
--- | Projects contra-asset entries (@whatDiv == Assets && isContra@, e.g.
--- 貸倒引当金\/減価償却累計額) — an /attribute/ selection, not a physical-side
--- one: both Hat and Not postings of the contra account are kept, and normal
--- assets' credit-side (Hat) postings are NOT included. The division
--- projections (@proj*Assets@\/@proj*Liability@\/'projCapitalStock')
--- exclude ALL contra accounts, so within the Assets division this projection
--- is the sole selector — no double counting when combining them. A net
--- figure is @gross - contra balance@, e.g.
--- @norm (projCurrentAssets x) - norm ('ExchangeAlgebra.Algebra.bar' (projContraAssets x))@
--- when the contra accounts hold normal (credit) balances; deduction\/netting
--- /presentation/ policy is the ExchangeAlgebra.IO.Output module's job (Land 3).
+-- | Projects both the v'Hat' and 'Not' terms of contra accounts in the
+-- 'Assets' division (@whatDiv == Assets && isContra@).
 --
--- NOTE: this selects the Assets division only. In the current registry every
--- contra account is an asset, but the type class does not forbid contra
--- accounts in other divisions (e.g. a future treasury-stock contra equity) —
--- those are excluded from the division projections too and must be selected
--- with the generic 'projContra'. Consumers that need a
--- net asset figure combine the gross @proj*Assets@ family with this
--- projection themselves; deduction\/netting presentation policy is the
--- ExchangeAlgebra.IO.Output module's job (Land 3 of the Definition 7 amendment).
+-- Use 'ExchangeAlgebra.Accounting.TrialBalance.accountBalances' on the
+-- ledger to obtain balances for ordinary asset and contra-asset accounts.
+-- It nets both sides of each account title. Net asset presentation deducts
+-- applicable contra balances from the corresponding ordinary asset balances.
+-- Use 'projContra' to select contra accounts across all divisions.
 --
 -- Complexity: O(s) (s is the total number of scalar entries)
 --

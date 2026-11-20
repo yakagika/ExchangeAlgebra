@@ -104,11 +104,11 @@ import           GHC.Stack (HasCallStack)
 -- 'AccountTitles' into the concrete base @b@ in use. The caller supplies it once.
 --
 -- @
--- -- single-axis base (account title only):
+-- -- single-component base (account title only):
 -- mk1 :: MkBase (HatBase AccountTitles)
 -- mk1 = (':<')
 --
--- -- multi-axis base, filling the extra axes with fixed values:
+-- -- multi-component base, filling the extra components with fixed values:
 -- mk4 :: MkBase (HatBase (AccountTitles, Name, CountUnit, Subject))
 -- mk4 h t = h :< (t, \"\", Yen, \"\")
 -- @

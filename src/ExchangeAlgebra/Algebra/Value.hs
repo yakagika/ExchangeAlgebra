@@ -49,7 +49,7 @@
 
     The core algebra only adds/subtracts, which is exact for t'MoneyDecimal' and needs no
     rounding. Rounding is only needed by /multiplication and division/ (tax ratios,
-    proration, scalar product) at the point a monetary amount is /finalized/. Use
+    proration, scalar multiplication) at the point a monetary amount is /finalized/. Use
     'bankersRound': it rounds half-to-even (the unbiased financial default; also GHC's
     'Prelude.round' and IEEE-754's default mode). A ceiling variant ('ceilingRound') is
     provided for jurisdictions whose
@@ -479,7 +479,7 @@ toDouble (MoneyDouble d) = d
 -- 'Prelude.round' applied per 'Data.Decimal.roundTo''.
 --
 -- Apply at the point a monetary amount is finalized after multiplication/division
--- (tax, proration, scalar product). The core algebra (add/subtract) is exact and
+-- (tax, proration, scalar multiplication). The core algebra (add/subtract) is exact and
 -- needs no rounding.
 bankersRound :: Word8 -> MoneyDecimal -> MoneyDecimal
 bankersRound places (MoneyDecimal d) = MoneyDecimal (roundTo' round places d)

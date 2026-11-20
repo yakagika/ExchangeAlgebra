@@ -51,13 +51,13 @@ Conversion between units (quantity to money) is not a transfer: use
 'ExchangeAlgebra.Algebra.Core.mapPosting' (or @map@ of a journal) and keep the
 ledger in quantities.
 
-For generic per-posting coordinate rules, import
+For generic per-posting base rules, import
 "ExchangeAlgebra.Algebra.Transfer" qualified. The umbrella modules export
 the accounting transfer names defined here.
 
 == Laws
 
-Bases are flat @HatBase@ tuples with two or more coordinates and every
+Bases are flat @HatBase@ tuples with two or more components and every
 registry account; value types are 'Double' and @MoneyDecimal@. The exact
 balance of a base is Not minus Hat read with 'exactAccum' as a 'Rational'.
 @d = transferEntries t x@ with @Right d@ unless stated.
@@ -211,8 +211,8 @@ data TransferShare
     deriving (Eq, Show)
 
 -- | A source and a destination, written @from .-> to@. Both are complete bases
--- without Hat\/Not; a wildcard in the source selects any coordinate and a
--- wildcard in the destination keeps the source's coordinate.
+-- without Hat\/Not; a wildcard in the source selects any element and a
+-- wildcard in the destination keeps the source's element.
 data TransferEnds b = TransferEnds (BasePart b) (BasePart b)
 
 deriving instance Eq (BasePart b) => Eq (TransferEnds b)
@@ -263,7 +263,7 @@ deriving instance Eq (BasePart b) => Eq (TransferTableError b)
 deriving instance Show (BasePart b) => Show (TransferTableError b)
 
 -- | Validate a table and keep the rows in the order written.
--- Matching is one-way: a wildcard in the pattern matches any coordinate,
+-- Matching is one-way: a wildcard in the pattern matches any element,
 -- including a wildcard in the other base. Complexity: O(r^2) for r rows.
 mkTransferTable :: forall b. HatBaseClass b
                 => [TransferRow b]

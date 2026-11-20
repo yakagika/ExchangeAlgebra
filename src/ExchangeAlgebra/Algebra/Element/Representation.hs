@@ -34,16 +34,16 @@ import qualified Data.Binary as Binary
 -- * Element (components of bases)
 ------------------------------------------------------------------
 
--- | Element Class: a type must be an instance of this class to serve as a component of a basis.
+-- | Type class for element types.
 --
--- Each component of a basis must be an instance of this type class.
--- It provides wildcard-based pattern matching, enabling flexible basis
--- specification in transfer transformations and projections.
+-- Each component of a base has a type that implements this class.
+-- Its wildcard matching lets transfer and projection patterns match multiple
+-- bases.
 --
--- A wildcard in a ledger entry's base means that axis does not apply; it is
+-- A wildcard in a ledger entry's base means that component does not apply; it is
 -- one value, not a pattern. In a projection query or transfer source pattern,
 -- it matches any entry value, including a ledger wildcard. In a transfer target,
--- it preserves the source coordinate. To collapse an axis, use a function such
+-- it preserves the source element. To collapse a component, use a function such
 -- as @mapBasePart@ rather than a wildcard.
 --
 -- For pattern @p@ and ledger entry @e@, @p matches e@ exactly when
@@ -74,7 +74,7 @@ class (Eq a, Ord a, Show a, Hashable a, Typeable a) => Element a where
 
     -- | Wildcard-ignoring transformation.
     -- If @after@ is a wildcard, returns @before@.
-    -- Used inside transfer to fill wildcard positions in the target basis with the original values.
+    -- Transfers use this operation to fill wildcard positions in the target base with the source elements.
     --
     -- Complexity: O(k) (k is the number of tuple components; O(1) for primitive types)
     {-# INLINE ignoreWildcard #-}
@@ -162,11 +162,11 @@ class (Eq a, Ord a, Show a, Hashable a, Typeable a) => Element a where
         | x .<= y = x
         | otherwise = y
 
--- | An existential type that holds each axis of a basis with its type erased.
--- Used to decompose multi-dimensional bases (tuples) into per-axis keys for indexing.
+-- | An existential type that holds one element of a base with its type erased.
+-- Used to decompose multi-dimensional bases (tuples) into one key per component position.
 data AxisKey = forall a. Element a => AxisKey !a
 
--- | Force the stored axis to weak head normal form without requiring 'NFData'
+-- | Force the stored element to weak head normal form without requiring 'NFData'
 -- from every user-defined 'Element'.
 instance NFData AxisKey where
     rnf (AxisKey axis) = axis `seq` ()
@@ -179,12 +179,12 @@ instance Eq AxisKey where
 instance Hashable AxisKey where
     hashWithSalt salt (AxisKey x) = salt `hashWithSalt` (typeOf x) `hashWithSalt` x
 
--- | Test whether the stored axis value is its wildcard.
+-- | Test whether the stored element is its wildcard.
 {-# INLINE axisIsWildcard #-}
 axisIsWildcard :: AxisKey -> Bool
 axisIsWildcard (AxisKey x) = isWildcard x
 
--- | A type class for decomposing a basis element into a list of per-axis t'AxisKey's.
+-- | A type class for decomposing a base into one t'AxisKey' per component position.
 -- Overlapping instances are defined for tuple types so that each component
 -- is decomposed into a separate t'AxisKey'.
 --
@@ -253,44 +253,44 @@ instance Hashable TimeOfDay where
 instance Hashable Day where
   hashWithSalt salt day = hashWithSalt salt (toModifiedJulianDay day)
 
--- | The wildcard is 'Time.midnight', so a coordinate recorded at 00:00 is
--- indistinguishable from "no time of day". Use @Wild TimeOfDay@ for an
--- axis on which midnight is a meaningful time.
+-- | The wildcard is 'Time.midnight', so an element recorded at 00:00 is
+-- indistinguishable from "no time of day". Use @Wild TimeOfDay@ to include midnight
+-- as an ordinary element.
 instance Element TimeOfDay where
     wildcard = Time.midnight
 
 -- | The wildcard is @'ModifiedJulianDay' 0@ (1858-11-17), so that date is
--- indistinguishable from "no date". Use @Wild Day@ for an axis on which
--- every date is meaningful.
+-- indistinguishable from "no date". Use @Wild Day@ to include every date
+-- as an ordinary element.
 instance Element Day where
     wildcard =  ModifiedJulianDay 0
 
 ------------------------------------------------------------------
--- | A coordinate type extended with a wildcard from outside the type.
+-- | An element type extended with a wildcard from outside the type.
 --
--- Use it for an axis whose underlying type has no value to spare for the
+-- Use it when the underlying element type has no value to spare for the
 -- wildcard, such as 'Day' or t'TimeOfDay': every date and every time of day is
--- a meaningful coordinate, so @'Exactly' 'Time.midnight'@ remains an ordinary
+-- a meaningful element, so @'Exactly' 'Time.midnight'@ remains an ordinary
 -- time and only v'Wild' is the wildcard.
 --
--- * In a ledger entry, v'Wild' records that the axis does not apply
+-- * In a ledger entry, v'Wild' records that the component does not apply
 --   (for example, a transaction recorded without a time of day).
--- * In a query or a transfer source, v'Wild' matches any stored coordinate,
+-- * In a query or a transfer source, v'Wild' matches any stored element,
 --   including a stored v'Wild'.
--- * In a transfer target, v'Wild' keeps the source coordinate.
+-- * In a transfer target, v'Wild' keeps the source element.
 --
 -- @'Exactly' x@ matches only @'Exactly' x@ ('matchesQuery'). The derived
 -- order places v'Wild' before every @'Exactly' x@ and orders 'Exactly'
 -- values by the order of @a@.
 --
 -- The underlying type need not be an 'Element'. If it is, its own wildcard
--- becomes an ordinary coordinate once wrapped: @'Exactly' ""@ on a
--- @Wild Text@ axis is the empty text, not the wildcard.
+-- becomes an ordinary element once wrapped: @'Exactly' ""@ has type
+-- @Wild Text@ and represents the empty text.
 --
 -- @since 0.6.1.0
 data Wild a
-    = Wild        -- ^ The wildcard of the axis.
-    | Exactly a   -- ^ An ordinary coordinate.
+    = Wild        -- ^ The wildcard of the element set.
+    | Exactly a   -- ^ An ordinary element.
     deriving (Eq, Ord, Show, Generic)
 
 instance NFData a => NFData (Wild a)

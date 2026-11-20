@@ -12,7 +12,7 @@ Description : Additional closing entries and ordered settlement pairs.
 This Accounting layer selects closing accounts and constructs additional
 entries using generic Algebra operations. Start with 'closingEntries' for
 an existing ledger; use 'settleEntries' for signed nets already computed
-by the caller. Both preserve the non-account coordinates of each source.
+by the caller. Both preserve the base components other than the account title of each source.
 
 Both close into the 'closingTarget' of the base's title vocabulary
 ('RetainedEarnings' for 'AccountTitles'). Before reading any input, both check
@@ -46,10 +46,10 @@ of at most @1e-9 * max (abs x) (abs y)@, treating absent bases as zero.
 * Preconditions: valid Hat\/Not postings; the ledger includes only entries
   through the closing date and the call returns @Right entries@.
 * Relation: adding the entries closes each eligible complete base exactly.
-  Each reversal has an equal posting to the vocabulary's 'closingTarget' on
-  the side selected by 'closingSide', with the source's non-account
-  coordinates. Per combination of non-account coordinates, the exact net of
-  @x .+ entries@ is zero at every closed source; at the closing target it is
+  Each reversal has an equal term at the vocabulary's 'closingTarget' on
+  the side selected by 'closingSide'. It keeps the source's base components
+  other than the account title. For each combination of those components, the
+  exact net of @x .+ entries@ is zero at every closed source. At the closing target it is
   the net of @x@ there plus the sum of @direction * net@ over the closed
   sources, where @direction@ is +1 for 'ClosingKeep' and -1 for
   'ClosingFlip'; every other base keeps its net in @x@.
@@ -64,7 +64,7 @@ of at most @1e-9 * max (abs x) (abs y)@, treating absent bases as zero.
 * Subject: 'closingEntries' and 'settleEntries'.
 * Preconditions: bases @b@ and @b'@ whose vocabularies satisfy the
   closing-target law, and an injective map @g :: BasePart b -> BasePart b'@
-  that applies a title map @f@ and keeps every other coordinate, with
+  that applies a title map @f@ and keeps every other base component, with
   @closingSide (f x) == closingSide x@ for every title @x@ and
   @f closingTarget == closingTarget@. 'ExchangeAlgebra.Algebra.Core.mapBasePart'
   applies @g@ to a ledger.
@@ -251,7 +251,7 @@ deriving instance (Show v, Show b, Show (TitleOf b)) => Show (ClosingError v b)
 -- pair, so the exact net of every closed base after the entries is zero.
 -- This folds the source sequences (audit detail) per base, but preserves
 -- separate target postings from distinct source accounts. It does not call
--- @bar@. All non-account axes are retained, and no note is attached.
+-- @bar@. All base components other than the account title are retained, and no note is attached.
 --
 -- The closing target is checked first: when @closingTargetViolation
 -- closingTarget == Just r@, the result is @Left (InvalidClosingTarget
@@ -337,7 +337,7 @@ closingEntries ledger = case closingTargetViolation target of
 data SettleRule = SettleRule
 
 -- | Close eligible accounts into the vocabulary's 'closingTarget'
--- ('RetainedEarnings' for 'AccountTitles'), preserving all other axes.
+-- ('RetainedEarnings' for 'AccountTitles'), preserving all other base components.
 retainedEarningsRule :: SettleRule
 retainedEarningsRule = SettleRule
 
@@ -359,8 +359,8 @@ type SignedNet = Double
 -- | Failures of 'settleEntries'.
 data SettleError b
     = NonFiniteNet (BasePart b)
-      -- ^ The first non-finite input net, identified by its complete base
-      -- coordinates.
+      -- ^ The first non-finite input net, identified by its
+      -- complete base.
     | InvalidSettleTarget (TitleOf b) ClosingTargetViolation
       -- ^ The vocabulary's 'closingTarget' and its first failed check.
       -- Reported before any net is read, so every input map, including the
@@ -373,7 +373,7 @@ deriving instance (Show (BasePart b), Show (TitleOf b)) => Show (SettleError b)
 -- Input values are signed Not-minus-Hat nets. Zero nets, accounts without a
 -- closing side, and destination bases produce no pair. Every pair has two
 -- finite, non-negative magnitudes equal to the absolute input net; the source
--- reversal cancels that net exactly. Other base axes are preserved.
+-- reversal cancels that net exactly. Other base components are preserved.
 --
 -- The destination is the vocabulary's 'closingTarget'. It is checked first:
 -- when @closingTargetViolation closingTarget == Just r@, the result is

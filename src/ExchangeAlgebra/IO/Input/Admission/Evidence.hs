@@ -21,7 +21,7 @@ import qualified ExchangeAlgebra.Journal.Core as Journal
 
 -- | Check an admitted journal against independent records (evidence), such as
 -- a bank statement, a cash count, or the opening balances supplied by a
--- trusted party. The evidence is a journal of expected elements.
+-- trusted party. The evidence is a journal of expected terms.
 --
 -- The selection @f@ is applied to the admitted journal first. It chooses,
 -- combines, and aggregates as the caller needs: a projection, a transfer,
@@ -29,25 +29,25 @@ import qualified ExchangeAlgebra.Journal.Core as Journal
 -- does not call @bar@.
 --
 -- Each expected posting (note @m@, base @b@, value @v@) is a query against the
--- selected journal, matched one way as in Definition 1: the expected element is
--- the pattern and the selected elements are ledger entries.
+-- selected journal, matched one way as in Definition 1: the expected term is
+-- the pattern and the selected terms are ledger entries.
 --
 -- * Note: a @plank@ note matches every note; another note matches only itself.
--- * Base: matched in the query direction, so a wildcard axis of the expected
+-- * Base: matched in the query direction, so a wildcard component of the expected
 --   base (such as the account @AccountTitle@) matches any value of the
---   selected base on that axis. The side of the expected base is @Hat@ or
+--   selected base on that component. The side of the expected base is @Hat@ or
 --   @Not@ (@(.\@)@ rejects @HatNot@); to compare both sides of one base as one
 --   net value, apply @bar@ in @f@ and write the resulting side.
 --
--- The expected element matches when exactly one selected element matches the
--- note and base and its value equals @v@ exactly. Otherwise the element yields
--- 'EvidenceMissing' (no element), 'EvidenceDiffers' (one element with another
--- value), or 'EvidenceAmbiguous' (two or more elements; combine them in @f@).
--- Selected elements that no expected element matches are ignored: the
+-- The expected term matches when exactly one selected term matches the
+-- note and base and its value equals @v@ exactly. Otherwise the term yields
+-- 'EvidenceMissing' (no term), 'EvidenceDiffers' (one term with another
+-- value), or 'EvidenceAmbiguous' (two or more terms; combine them in @f@).
+-- Selected terms that no expected term matches are ignored: the
 -- evidence states what must be present, not the whole journal.
 --
--- Every expected element is checked and every mismatch is returned, in
--- ascending note and base order of the expected elements.
+-- Every expected term is checked and every mismatch is returned, in
+-- ascending note and base order of the expected terms.
 --
 -- Laws:
 --

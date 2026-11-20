@@ -11,7 +11,7 @@
 -- Combine journals                fromList, sigma
 -- Read entries as an Alg           toAlg
 -- Select notes or bases            projWithNote, projWithBase
--- Select an indexed note axis      filterByAxis
+-- Select an indexed note component      filterByAxis
 -- Replace whole notes              replaceNotes
 -- @
 --

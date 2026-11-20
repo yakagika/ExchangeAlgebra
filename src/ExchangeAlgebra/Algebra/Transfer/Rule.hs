@@ -2,7 +2,7 @@
 Module      : ExchangeAlgebra.Algebra.Transfer.Rule
 Description : Transfer rules and closing entries.
 
-This compatibility module re-exports generic transfer rules and coordinate collapse.
+This compatibility module re-exports generic transfer rules and base rewriting.
 Use "ExchangeAlgebra.Algebra.Transfer" for generic transfers.
 Start with 'mkTransferRules', then 'transferEntries' or the collapse functions.
 Closing and settlement names re-export the same entities as
@@ -22,12 +22,12 @@ summed values after @bar@; it does not observe the singleton versus composite
 constructor or sequence order. Relative tolerance means a per-base difference
 of at most @1e-9 * max (abs x) (abs y)@, treating absent bases as zero.
 
-=== L1: coordinate rewriting
+=== L1: base rewriting
 
 * Subject: 'transferEntries'.
 * Preconditions: disjoint source patterns, valid non-negative postings and
   a successful application returning @Right entries@. A source wildcard
-  matches any stored coordinate; a concrete source matches only itself.
+  matches any stored element; a concrete source matches only itself.
 * Relation: @obs (a .+ entries)@ equals the observation of independently
   rewriting each matched posting to its rule's target and scaled value;
   unmatched postings remain unchanged.
@@ -45,7 +45,7 @@ of at most @1e-9 * max (abs x) (abs y)@, treating absent bases as zero.
 * Tolerance: exact equality. Errors (including NaN) are outside this law.
 * Instances: all lawful 'HatVal' and 'HatBaseClass' instances.
 
-=== L6: coordinate collapse
+=== L6: base collapse
 
 * Subject: 'collapseEntries' and 'collapseNetEntries'.
 * Preconditions: non-negative valid postings and an exact additive value type.

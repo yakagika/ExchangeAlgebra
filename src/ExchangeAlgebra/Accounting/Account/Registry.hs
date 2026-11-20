@@ -1464,7 +1464,7 @@ accountSpec Products = Just AccountSpec
     , asNameEn = "Products"
     , asNameJa = "商品"
     , asLabelJa = "商品"
-    , asDescription = "Asset: Products (商品)。分記法用。3 分法 (仕入\\/売上\\/繰越商品) では 'MerchandiseInventory' を使う"
+    , asDescription = "Asset: Products (商品)。分記法用。3 分法 (仕入/売上/繰越商品) では 'MerchandiseInventory' を使う"
     , asAliases = ["商品"]
     }
 accountSpec Machinery = Just AccountSpec
@@ -1561,9 +1561,9 @@ accountSpec ReserveDepositReceivable = Just AccountSpec
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Reserve deposits, asset side"
-    , asNameJa = "準備預金, 資産側 — 市中銀行が中央銀行に置く準備預金。SNA\\/マクロ系"
+    , asNameJa = "準備預金, 資産側 — 市中銀行が中央銀行に置く準備預金。SNA/マクロ系"
     , asLabelJa = "準備預金"
-    , asDescription = "Asset: Reserve deposits, asset side (準備預金, 資産側 — 市中銀行が中央銀行に置く準備預金。SNA\\/マクロ系)"
+    , asDescription = "Asset: Reserve deposits, asset side (準備預金, 資産側 — 市中銀行が中央銀行に置く準備預金。SNA/マクロ系)"
     , asAliases = ["準備預金"]
     }
 accountSpec Gold = Just AccountSpec
@@ -1583,9 +1583,9 @@ accountSpec GovernmentService = Just AccountSpec
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Government service"
-    , asNameJa = "政府サービス。SNA\\/マクロ系"
+    , asNameJa = "政府サービス。SNA/マクロ系"
     , asLabelJa = "政府サービス"
-    , asDescription = "Asset: Government service (政府サービス。SNA\\/マクロ系)"
+    , asDescription = "Asset: Government service (政府サービス。SNA/マクロ系)"
     , asAliases = ["政府サービス"]
     }
 accountSpec CapitalStock = Just AccountSpec
@@ -1649,9 +1649,9 @@ accountSpec ReserveForDepreciation = Just AccountSpec
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Reserve for depreciation"
-    , asNameJa = "減価償却引当金 — SNA\\/マクロ系の旧称。簿記の間接法には 'AccumulatedDepreciation' (減価償却累計額"
+    , asNameJa = "減価償却引当金 — SNA/マクロ系の旧称。簿記の間接法には 'AccumulatedDepreciation' (減価償却累計額) を使う"
     , asLabelJa = "減価償却引当金"
-    , asDescription = "Liability: Reserve for depreciation (減価償却引当金 — SNA\\/マクロ系の旧称。簿記の間接法には 'AccumulatedDepreciation' (減価償却累計額) を使う)"
+    , asDescription = "Liability: Reserve for depreciation (減価償却引当金 — SNA/マクロ系の旧称。簿記の間接法には 'AccumulatedDepreciation' (減価償却累計額) を使う)"
     , asAliases = ["減価償却引当金"]
     }
 accountSpec DepositPayable = Just AccountSpec
@@ -1660,9 +1660,9 @@ accountSpec DepositPayable = Just AccountSpec
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Deposits accepted"
-    , asNameJa = "受入預金 — 銀行側の負債としての預金。SNA\\/マクロ系。従業員等からの預り金は 'DepositsReceived'"
+    , asNameJa = "受入預金 — 銀行側の負債としての預金。SNA/マクロ系。従業員等からの預り金は 'DepositsReceived'"
     , asLabelJa = "受入預金"
-    , asDescription = "Liability: Deposits accepted (受入預金 — 銀行側の負債としての預金。SNA\\/マクロ系。従業員等からの預り金は 'DepositsReceived')"
+    , asDescription = "Liability: Deposits accepted (受入預金 — 銀行側の負債としての預金。SNA/マクロ系。従業員等からの預り金は 'DepositsReceived')"
     , asAliases = ["受入預金"]
     }
 accountSpec LongTermNationalBondsPayable = Just AccountSpec
@@ -1693,9 +1693,9 @@ accountSpec ReserveDepositPayable = Just AccountSpec
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Reserve deposits, liability side"
-    , asNameJa = "準備預金, 負債側 — 中央銀行が受け入れる準備預金。SNA\\/マクロ系"
+    , asNameJa = "準備預金, 負債側 — 中央銀行が受け入れる準備預金。SNA/マクロ系"
     , asLabelJa = "準備預金"
-    , asDescription = "Liability: Reserve deposits, liability side (準備預金, 負債側 — 中央銀行が受け入れる準備預金。SNA\\/マクロ系)。※簿記の買掛金は 'AccountsPayable' を使うこと (旧 examples が本科目を買掛金の代用にしていた経緯あり)"
+    , asDescription = "Liability: Reserve deposits, liability side (準備預金, 負債側 — 中央銀行が受け入れる準備預金。SNA/マクロ系)。※簿記の買掛金は 'AccountsPayable' を使うこと (旧 examples が本科目を買掛金の代用にしていた経緯あり)"
     , asAliases = ["準備預金"]
     }
 accountSpec CentralBankNotePayable = Just AccountSpec
@@ -1704,9 +1704,9 @@ accountSpec CentralBankNotePayable = Just AccountSpec
     , asIsContra = False
     , asFixedCurrent = Current
     , asNameEn = "Central bank notes"
-    , asNameJa = "発行銀行券。SNA\\/マクロ系"
+    , asNameJa = "発行銀行券。SNA/マクロ系"
     , asLabelJa = "発行銀行券"
-    , asDescription = "Liability: Central bank notes (発行銀行券。SNA\\/マクロ系)"
+    , asDescription = "Liability: Central bank notes (発行銀行券。SNA/マクロ系)"
     , asAliases = ["発行銀行券"]
     }
 accountSpec Depreciation = Just AccountSpec
@@ -1726,7 +1726,7 @@ accountSpec AmortizationExpense = Just AccountSpec
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Amortization expense for intangibles"
-    , asNameJa = "無形固定資産償却費 — 特許権・商標権・ソフトウェア等の無形資産の償却費。有形の 'Depreciation' (減価償却費"
+    , asNameJa = "無形固定資産償却費 — 特許権・商標権・ソフトウェア等の無形資産の償却費。有形の 'Depreciation' (減価償却費) と区別される"
     , asLabelJa = "無形固定資産償却費"
     , asDescription = "Expense: Amortization expense for intangibles (無形固定資産償却費 — 特許権・商標権・ソフトウェア等の無形資産の償却費。有形の 'Depreciation' (減価償却費) と区別される)"
     , asAliases = []
@@ -1902,9 +1902,9 @@ accountSpec ConsumptionExpenditure = Just AccountSpec
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Consumption expenditure"
-    , asNameJa = "消費支出。SNA\\/マクロ系"
+    , asNameJa = "消費支出。SNA/マクロ系"
     , asLabelJa = "消費支出"
-    , asDescription = "Expense: Consumption expenditure (消費支出。SNA\\/マクロ系)"
+    , asDescription = "Expense: Consumption expenditure (消費支出。SNA/マクロ系)"
     , asAliases = ["消費支出"]
     }
 accountSpec SubsidyExpense = Just AccountSpec
@@ -1913,9 +1913,9 @@ accountSpec SubsidyExpense = Just AccountSpec
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Subsidy expenditure"
-    , asNameJa = "補助金支出。SNA\\/マクロ系"
+    , asNameJa = "補助金支出。SNA/マクロ系"
     , asLabelJa = "補助金支出"
-    , asDescription = "Expense: Subsidy expenditure (補助金支出。SNA\\/マクロ系)"
+    , asDescription = "Expense: Subsidy expenditure (補助金支出。SNA/マクロ系)"
     , asAliases = ["補助金支出"]
     }
 accountSpec CentralBankPaymentExpense = Just AccountSpec
@@ -1924,9 +1924,9 @@ accountSpec CentralBankPaymentExpense = Just AccountSpec
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Central bank payment to treasury"
-    , asNameJa = "国庫納付金支出。SNA\\/マクロ系"
+    , asNameJa = "国庫納付金支出。SNA/マクロ系"
     , asLabelJa = "国庫納付金支出"
-    , asDescription = "Expense: Central bank payment to treasury (国庫納付金支出。SNA\\/マクロ系)"
+    , asDescription = "Expense: Central bank payment to treasury (国庫納付金支出。SNA/マクロ系)"
     , asAliases = ["国庫納付金支出"]
     }
 accountSpec Purchases = Just AccountSpec
@@ -1957,9 +1957,9 @@ accountSpec ValueAdded = Just AccountSpec
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Value added"
-    , asNameJa = "付加価値。SNA\\/マクロ系"
+    , asNameJa = "付加価値。SNA/マクロ系"
     , asLabelJa = "付加価値"
-    , asDescription = "Revenue: Value added (付加価値。SNA\\/マクロ系)"
+    , asDescription = "Revenue: Value added (付加価値。SNA/マクロ系)"
     , asAliases = ["付加価値"]
     }
 accountSpec SubsidyIncome = Just AccountSpec
@@ -1968,9 +1968,9 @@ accountSpec SubsidyIncome = Just AccountSpec
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Subsidy income"
-    , asNameJa = "補助金収入。SNA\\/マクロ系"
+    , asNameJa = "補助金収入。SNA/マクロ系"
     , asLabelJa = "補助金収入"
-    , asDescription = "Revenue: Subsidy income (補助金収入。SNA\\/マクロ系)"
+    , asDescription = "Revenue: Subsidy income (補助金収入。SNA/マクロ系)"
     , asAliases = ["補助金収入"]
     }
 accountSpec NationalBondInterestEarned = Just AccountSpec
@@ -2056,9 +2056,9 @@ accountSpec WageEarned = Just AccountSpec
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Wage income"
-    , asNameJa = "賃金収入。SNA\\/マクロ系"
+    , asNameJa = "賃金収入。SNA/マクロ系"
     , asLabelJa = "賃金収入"
-    , asDescription = "Revenue: Wage income (賃金収入。SNA\\/マクロ系)"
+    , asDescription = "Revenue: Wage income (賃金収入。SNA/マクロ系)"
     , asAliases = ["賃金収入"]
     }
 accountSpec TaxesRevenue = Just AccountSpec
@@ -2067,9 +2067,9 @@ accountSpec TaxesRevenue = Just AccountSpec
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Tax revenue"
-    , asNameJa = "租税収入。SNA\\/マクロ系"
+    , asNameJa = "租税収入。SNA/マクロ系"
     , asLabelJa = "租税収入"
-    , asDescription = "Revenue: Tax revenue (租税収入。SNA\\/マクロ系)"
+    , asDescription = "Revenue: Tax revenue (租税収入。SNA/マクロ系)"
     , asAliases = ["租税収入"]
     }
 accountSpec CentralBankPaymentIncome = Just AccountSpec
@@ -2078,9 +2078,9 @@ accountSpec CentralBankPaymentIncome = Just AccountSpec
     , asIsContra = False
     , asFixedCurrent = Other
     , asNameEn = "Central bank payment to treasury"
-    , asNameJa = "国庫納付金収入。SNA\\/マクロ系"
+    , asNameJa = "国庫納付金収入。SNA/マクロ系"
     , asLabelJa = "国庫納付金収入"
-    , asDescription = "Revenue: Central bank payment to treasury (国庫納付金収入。SNA\\/マクロ系)"
+    , asDescription = "Revenue: Central bank payment to treasury (国庫納付金収入。SNA/マクロ系)"
     , asAliases = ["国庫納付金収入"]
     }
 accountSpec Sales = Just AccountSpec
@@ -2179,7 +2179,7 @@ accountSpec MerchandiseInventory = Just AccountSpec
     , asNameEn = "Merchandise inventory"
     , asNameJa = "繰越商品"
     , asLabelJa = "繰越商品"
-    , asDescription = "Asset: Merchandise inventory (繰越商品). Use under the periodic/3-account method (3 分法: Purchases\\/Sales\\/MerchandiseInventory). For the perpetual\\/specific-identification method (分記法) use 'Products' instead."
+    , asDescription = "Asset: Merchandise inventory (繰越商品). Use under the periodic/3-account method (3 分法: Purchases/Sales/MerchandiseInventory). For 分記法, which records the cost of the goods and the gain on sales at each sale, use 'Products' instead."
     , asAliases = ["繰越商品"]
     }
 accountSpec GoodsInTransit = Just AccountSpec
@@ -2190,7 +2190,7 @@ accountSpec GoodsInTransit = Just AccountSpec
     , asNameEn = "Goods in transit"
     , asNameJa = "未着品"
     , asLabelJa = "未着品"
-    , asDescription = "Assets: Goods in transit (未着品)"
+    , asDescription = "Asset: Goods in transit (未着品)"
     , asAliases = ["未着品"]
     }
 accountSpec AdvancesPaid = Just AccountSpec
@@ -2212,7 +2212,7 @@ accountSpec PrepaidExpenses = Just AccountSpec
     , asNameEn = "Prepaid expenses"
     , asNameJa = "前払費用"
     , asLabelJa = "前払費用"
-    , asDescription = "Asset: Prepaid expenses (前払費用), deferral accrual account (経過勘定)"
+    , asDescription = "Asset: Prepaid expenses (前払費用), deferral account (経過勘定)"
     , asAliases = ["前払費用"]
     }
 accountSpec AccruedRevenue = Just AccountSpec
@@ -2223,7 +2223,7 @@ accountSpec AccruedRevenue = Just AccountSpec
     , asNameEn = "Accrued revenue"
     , asNameJa = "未収収益"
     , asLabelJa = "未収収益"
-    , asDescription = "Asset: Accrued revenue (未収収益), deferral accrual account (経過勘定)"
+    , asDescription = "Asset: Accrued revenue (未収収益), accrual account (経過勘定)"
     , asAliases = ["未収収益"]
     }
 accountSpec OtherReceivables = Just AccountSpec
@@ -2344,7 +2344,7 @@ accountSpec CashOverShort = Just AccountSpec
     , asNameEn = "Cash over and short"
     , asNameJa = "現金過不足"
     , asLabelJa = "現金過不足"
-    , asDescription = "Asset: Cash over and short (現金過不足), a temporary/suspense account cleared at closing to MiscellaneousIncome\\/MiscellaneousLoss"
+    , asDescription = "Asset: Cash over and short (現金過不足), a temporary/suspense account cleared at closing to MiscellaneousIncome/MiscellaneousLoss"
     , asAliases = ["現金過不足"]
     }
 accountSpec AccountsPayable = Just AccountSpec
@@ -2421,7 +2421,7 @@ accountSpec UnearnedRevenue = Just AccountSpec
     , asNameEn = "Unearned revenue"
     , asNameJa = "前受収益"
     , asLabelJa = "前受収益"
-    , asDescription = "Liability: Unearned revenue (前受収益), deferral accrual account (経過勘定)"
+    , asDescription = "Liability: Unearned revenue (前受収益), deferral account (経過勘定)"
     , asAliases = ["前受収益"]
     }
 accountSpec AccruedExpenses = Just AccountSpec
@@ -2432,7 +2432,7 @@ accountSpec AccruedExpenses = Just AccountSpec
     , asNameEn = "Accrued expenses"
     , asNameJa = "未払費用"
     , asLabelJa = "未払費用"
-    , asDescription = "Liability: Accrued expenses (未払費用), deferral accrual account (経過勘定)"
+    , asDescription = "Liability: Accrued expenses (未払費用), accrual account (経過勘定)"
     , asAliases = ["未払費用"]
     }
 accountSpec OtherPayables = Just AccountSpec
@@ -2520,7 +2520,7 @@ accountSpec AllowanceForDoubtfulAccounts = Just AccountSpec
     , asNameEn = "Allowance for doubtful accounts"
     , asNameJa = "貸倒引当金"
     , asLabelJa = "貸倒引当金"
-    , asDescription = "Asset (contra): Allowance for doubtful accounts (貸倒引当金), a credit-balance valuation account (評価勘定) deducted from receivables. Home side is Credit because it is a contra asset (isContra); values stay non-negative and the Hat\\/Not structure is intact. B\\/S deduction (net) presentation is the ExchangeAlgebra.IO.Output module's job."
+    , asDescription = "Asset (contra): Allowance for doubtful accounts (貸倒引当金), a credit-balance valuation account (評価勘定) deducted from receivables. Home side is Credit because it is a contra asset (isContra); values stay non-negative and the Hat/Not structure is intact. B/S deduction (net) presentation is the ExchangeAlgebra.IO.Output module's job."
     , asAliases = ["貸倒引当金"]
     }
 accountSpec AccumulatedDepreciation = Just AccountSpec
@@ -2531,7 +2531,7 @@ accountSpec AccumulatedDepreciation = Just AccountSpec
     , asNameEn = "Accumulated depreciation"
     , asNameJa = "減価償却累計額"
     , asLabelJa = "減価償却累計額"
-    , asDescription = "Asset (contra): Accumulated depreciation (減価償却累計額), a credit-balance valuation account (評価勘定) under the indirect method (間接法), deducted from the related depreciable assets. Home side is Credit because it is a contra asset (isContra). This is the canonical bookkeeping account for accumulated depreciation; the existing 'ReserveForDepreciation' is retained as the legacy SNA\\/macro-accounting name."
+    , asDescription = "Asset (contra): Accumulated depreciation (減価償却累計額), a credit-balance valuation account (評価勘定) under the indirect method (間接法), deducted from the related depreciable assets. Home side is Credit because it is a contra asset (isContra). This is the canonical bookkeeping account for accumulated depreciation; the existing 'ReserveForDepreciation' is retained as the legacy SNA/macro-accounting name."
     , asAliases = ["減価償却累計額"]
     }
 accountSpec LegalRetainedEarnings = Just AccountSpec
@@ -2564,7 +2564,7 @@ accountSpec ProvisionForDoubtfulAccounts = Just AccountSpec
     , asNameEn = "Provision for doubtful accounts"
     , asNameJa = "貸倒引当金繰入"
     , asLabelJa = "貸倒引当金繰入"
-    , asDescription = "Cost: Provision for doubtful accounts (貸倒引当金繰入)"
+    , asDescription = "Expense: Provision for doubtful accounts (貸倒引当金繰入)"
     , asAliases = ["貸倒引当金繰入"]
     }
 accountSpec BadDebtLoss = Just AccountSpec
@@ -2575,7 +2575,7 @@ accountSpec BadDebtLoss = Just AccountSpec
     , asNameEn = "Bad debt loss"
     , asNameJa = "貸倒損失"
     , asLabelJa = "貸倒損失"
-    , asDescription = "Cost: Bad debt loss (貸倒損失)"
+    , asDescription = "Expense: Bad debt loss (貸倒損失)"
     , asAliases = ["貸倒損失"]
     }
 accountSpec LossOnSalesOfFixedAssets = Just AccountSpec
@@ -2586,7 +2586,7 @@ accountSpec LossOnSalesOfFixedAssets = Just AccountSpec
     , asNameEn = "Loss on sales of fixed assets"
     , asNameJa = "固定資産売却損"
     , asLabelJa = "固定資産売却損"
-    , asDescription = "Cost: Loss on sales of fixed assets (固定資産売却損)"
+    , asDescription = "Expense: Loss on sales of fixed assets (固定資産売却損)"
     , asAliases = ["固定資産売却損"]
     }
 accountSpec LossOnSalesOfNotesReceivable = Just AccountSpec
@@ -2597,7 +2597,7 @@ accountSpec LossOnSalesOfNotesReceivable = Just AccountSpec
     , asNameEn = "Loss on sales of notes receivable"
     , asNameJa = "手形売却損"
     , asLabelJa = "手形売却損"
-    , asDescription = "Cost: Loss on sales of notes receivable (手形売却損)"
+    , asDescription = "Expense: Loss on sales of notes receivable (手形売却損)"
     , asAliases = ["手形売却損"]
     }
 accountSpec PaymentFees = Just AccountSpec
@@ -2608,7 +2608,7 @@ accountSpec PaymentFees = Just AccountSpec
     , asNameEn = "Payment fees / fees paid"
     , asNameJa = "支払手数料"
     , asLabelJa = "支払手数料"
-    , asDescription = "Cost: Payment fees / fees paid (支払手数料), the debit counterpart of 'ReceiptFee'"
+    , asDescription = "Expense: Payment fees / fees paid (支払手数料), the debit counterpart of 'ReceiptFee'"
     , asAliases = ["支払手数料"]
     }
 accountSpec MiscellaneousLoss = Just AccountSpec
@@ -2619,7 +2619,7 @@ accountSpec MiscellaneousLoss = Just AccountSpec
     , asNameEn = "Miscellaneous loss"
     , asNameJa = "雑損"
     , asLabelJa = "雑損"
-    , asDescription = "Cost: Miscellaneous loss (雑損)"
+    , asDescription = "Expense: Miscellaneous loss (雑損)"
     , asAliases = ["雑損"]
     }
 accountSpec CorporateIncomeTaxes = Just AccountSpec
@@ -2630,7 +2630,7 @@ accountSpec CorporateIncomeTaxes = Just AccountSpec
     , asNameEn = "Corporate income taxes"
     , asNameJa = "法人税等"
     , asLabelJa = "法人税等"
-    , asDescription = "Cost: Corporate income taxes (法人税等)"
+    , asDescription = "Expense: Corporate income taxes (法人税等)"
     , asAliases = ["法人税等"]
     }
 accountSpec CommunicationExpenses = Just AccountSpec
@@ -2641,7 +2641,7 @@ accountSpec CommunicationExpenses = Just AccountSpec
     , asNameEn = "Communication expenses"
     , asNameJa = "通信費"
     , asLabelJa = "通信費"
-    , asDescription = "Cost: Communication expenses (通信費). Explicitly named counterpart of the legacy 'Commutation' (also \"Communication\"); 'Commutation' is retained for backward compatibility."
+    , asDescription = "Expense: Communication expenses (通信費). Explicitly named counterpart of the legacy 'Commutation' (also \"Communication\"); 'Commutation' is retained for backward compatibility."
     , asAliases = ["通信費"]
     }
 accountSpec GainOnSalesOfFixedAssets = Just AccountSpec
@@ -2696,7 +2696,7 @@ accountSpec TimeDeposits = Just AccountSpec
     , asNameEn = "Time deposits"
     , asNameJa = "定期預金"
     , asLabelJa = "定期預金"
-    , asDescription = "Assets: Time deposits (定期預金)"
+    , asDescription = "Asset: Time deposits (定期預金)"
     , asAliases = ["定期預金"]
     }
 accountSpec LoansReceivable = Just AccountSpec
@@ -2707,7 +2707,7 @@ accountSpec LoansReceivable = Just AccountSpec
     , asNameEn = "Loans receivable"
     , asNameJa = "貸付金"
     , asLabelJa = "貸付金"
-    , asDescription = "Assets: Loans receivable (貸付金)"
+    , asDescription = "Asset: Loans receivable (貸付金)"
     , asAliases = ["貸付金"]
     }
 accountSpec GiftCertificatesReceived = Just AccountSpec
@@ -2718,7 +2718,7 @@ accountSpec GiftCertificatesReceived = Just AccountSpec
     , asNameEn = "Gift certificates received"
     , asNameJa = "受取商品券"
     , asLabelJa = "受取商品券"
-    , asDescription = "Assets: Gift certificates received (受取商品券)"
+    , asDescription = "Asset: Gift certificates received (受取商品券)"
     , asAliases = ["受取商品券"]
     }
 accountSpec SecurityDepositsPaid = Just AccountSpec
@@ -2729,7 +2729,7 @@ accountSpec SecurityDepositsPaid = Just AccountSpec
     , asNameEn = "Guarantee deposits"
     , asNameJa = "差入保証金"
     , asLabelJa = "差入保証金"
-    , asDescription = "Assets: Guarantee deposits (差入保証金)"
+    , asDescription = "Asset: Guarantee deposits (差入保証金)"
     , asAliases = ["差入保証金"]
     }
 accountSpec SuppliesOnHand = Just AccountSpec
@@ -2740,7 +2740,7 @@ accountSpec SuppliesOnHand = Just AccountSpec
     , asNameEn = "Supplies"
     , asNameJa = "貯蔵品"
     , asLabelJa = "貯蔵品"
-    , asDescription = "Assets: Supplies (貯蔵品)"
+    , asDescription = "Asset: Supplies (貯蔵品)"
     , asAliases = ["貯蔵品"]
     }
 accountSpec RawMaterials = Just AccountSpec
@@ -2751,7 +2751,7 @@ accountSpec RawMaterials = Just AccountSpec
     , asNameEn = "Raw materials"
     , asNameJa = "原材料"
     , asLabelJa = "原材料"
-    , asDescription = "Assets: Raw materials (原材料)"
+    , asDescription = "Asset: Raw materials (原材料)"
     , asAliases = ["原材料", "材料"]
     }
 accountSpec ContractAssets = Just AccountSpec
@@ -2762,7 +2762,7 @@ accountSpec ContractAssets = Just AccountSpec
     , asNameEn = "Contract assets"
     , asNameJa = "契約資産"
     , asLabelJa = "契約資産"
-    , asDescription = "Assets: Contract assets (契約資産)"
+    , asDescription = "Asset: Contract assets (契約資産)"
     , asAliases = ["契約資産"]
     }
 accountSpec IncomeTaxesRefundReceivable = Just AccountSpec
@@ -2773,7 +2773,7 @@ accountSpec IncomeTaxesRefundReceivable = Just AccountSpec
     , asNameEn = "Income taxes refund receivable"
     , asNameJa = "未収還付法人税等"
     , asLabelJa = "未収還付法人税等"
-    , asDescription = "Assets: Income taxes refund receivable (未収還付法人税等)"
+    , asDescription = "Asset: Income taxes refund receivable (未収還付法人税等)"
     , asAliases = ["未収還付法人税等"]
     }
 accountSpec WorkInProcess = Just AccountSpec
@@ -2784,7 +2784,7 @@ accountSpec WorkInProcess = Just AccountSpec
     , asNameEn = "Work in process"
     , asNameJa = "仕掛品"
     , asLabelJa = "仕掛品"
-    , asDescription = "Assets: Work in process (仕掛品)"
+    , asDescription = "Asset: Work in process (仕掛品)"
     , asAliases = ["仕掛品"]
     }
 accountSpec DeferredTaxAssets = Just AccountSpec
@@ -2795,7 +2795,7 @@ accountSpec DeferredTaxAssets = Just AccountSpec
     , asNameEn = "Deferred tax assets"
     , asNameJa = "繰延税金資産"
     , asLabelJa = "繰延税金資産"
-    , asDescription = "Assets: Deferred tax assets (繰延税金資産)"
+    , asDescription = "Asset: Deferred tax assets (繰延税金資産)"
     , asAliases = ["繰延税金資産"]
     }
 accountSpec LeasedAssets = Just AccountSpec
@@ -2806,7 +2806,7 @@ accountSpec LeasedAssets = Just AccountSpec
     , asNameEn = "Leased assets"
     , asNameJa = "リース資産"
     , asLabelJa = "リース資産"
-    , asDescription = "Assets: Leased assets (リース資産)"
+    , asDescription = "Asset: Leased assets (リース資産)"
     , asAliases = ["リース資産"]
     }
 accountSpec ToolsAndInstruments = Just AccountSpec
@@ -2817,7 +2817,7 @@ accountSpec ToolsAndInstruments = Just AccountSpec
     , asNameEn = "Tools and instruments"
     , asNameJa = "工具器具"
     , asLabelJa = "工具器具"
-    , asDescription = "Assets: Tools and instruments (工具器具)"
+    , asDescription = "Asset: Tools and instruments (工具器具)"
     , asAliases = ["工具器具"]
     }
 accountSpec ConstructionInProgress = Just AccountSpec
@@ -2828,7 +2828,7 @@ accountSpec ConstructionInProgress = Just AccountSpec
     , asNameEn = "Construction in progress"
     , asNameJa = "建設仮勘定"
     , asLabelJa = "建設仮勘定"
-    , asDescription = "Assets: Construction in progress (建設仮勘定)"
+    , asDescription = "Asset: Construction in progress (建設仮勘定)"
     , asAliases = ["建設仮勘定"]
     }
 accountSpec Goodwill = Just AccountSpec
@@ -2839,7 +2839,7 @@ accountSpec Goodwill = Just AccountSpec
     , asNameEn = "Goodwill"
     , asNameJa = "のれん"
     , asLabelJa = "のれん"
-    , asDescription = "Assets: Goodwill (のれん)"
+    , asDescription = "Asset: Goodwill (のれん)"
     , asAliases = ["のれん"]
     }
 accountSpec SoftwareInProgress = Just AccountSpec
@@ -2850,7 +2850,7 @@ accountSpec SoftwareInProgress = Just AccountSpec
     , asNameEn = "Software in progress"
     , asNameJa = "ソフトウェア仮勘定"
     , asLabelJa = "ソフトウェア仮勘定"
-    , asDescription = "Assets: Software in progress (ソフトウェア仮勘定)"
+    , asDescription = "Asset: Software in progress (ソフトウェア仮勘定)"
     , asAliases = ["ソフトウェア仮勘定"]
     }
 accountSpec LongTermPrepaidExpenses = Just AccountSpec
@@ -2861,7 +2861,7 @@ accountSpec LongTermPrepaidExpenses = Just AccountSpec
     , asNameEn = "Long-term prepaid expenses"
     , asNameJa = "長期前払費用"
     , asLabelJa = "長期前払費用"
-    , asDescription = "Assets: Long-term prepaid expenses (長期前払費用)"
+    , asDescription = "Asset: Long-term prepaid expenses (長期前払費用)"
     , asAliases = ["長期前払費用"]
     }
 accountSpec DishonoredNotesReceivable = Just AccountSpec
@@ -2872,7 +2872,7 @@ accountSpec DishonoredNotesReceivable = Just AccountSpec
     , asNameEn = "Dishonored notes receivable"
     , asNameJa = "不渡手形"
     , asLabelJa = "不渡手形"
-    , asDescription = "Assets: Dishonored notes receivable (不渡手形)"
+    , asDescription = "Asset: Dishonored notes receivable (不渡手形)"
     , asAliases = ["不渡手形"]
     }
 accountSpec PrepaidPensionCost = Just AccountSpec
@@ -2883,7 +2883,7 @@ accountSpec PrepaidPensionCost = Just AccountSpec
     , asNameEn = "Prepaid pension costs"
     , asNameJa = "前払年金費用"
     , asLabelJa = "前払年金費用"
-    , asDescription = "Assets: Prepaid pension costs (前払年金費用)"
+    , asDescription = "Asset: Prepaid pension costs (前払年金費用)"
     , asAliases = ["前払年金費用"]
     }
 accountSpec NetDefinedBenefitAsset = Just AccountSpec
@@ -2894,7 +2894,7 @@ accountSpec NetDefinedBenefitAsset = Just AccountSpec
     , asNameEn = "Retirement benefit asset"
     , asNameJa = "退職給付に係る資産"
     , asLabelJa = "退職給付に係る資産"
-    , asDescription = "Assets: Retirement benefit asset (退職給付に係る資産)"
+    , asDescription = "Asset: Retirement benefit asset (退職給付に係る資産)"
     , asAliases = ["退職給付に係る資産"]
     }
 accountSpec DepositsInSpecialAccounts = Just AccountSpec
@@ -2905,7 +2905,7 @@ accountSpec DepositsInSpecialAccounts = Just AccountSpec
     , asNameEn = "Deposits in special accounts"
     , asNameJa = "別段預金"
     , asLabelJa = "別段預金"
-    , asDescription = "Assets: Deposits in special accounts (別段預金)"
+    , asDescription = "Asset: Deposits in special accounts (別段預金)"
     , asAliases = ["別段預金"]
     }
 accountSpec Structures = Just AccountSpec
@@ -2916,7 +2916,7 @@ accountSpec Structures = Just AccountSpec
     , asNameEn = "Structures"
     , asNameJa = "構築物"
     , asLabelJa = "構築物"
-    , asDescription = "Assets: Structures (構築物)"
+    , asDescription = "Asset: Structures (構築物)"
     , asAliases = ["構築物"]
     }
 accountSpec LeaseholdRights = Just AccountSpec
@@ -2927,7 +2927,7 @@ accountSpec LeaseholdRights = Just AccountSpec
     , asNameEn = "Leasehold interests in land"
     , asNameJa = "借地権"
     , asLabelJa = "借地権"
-    , asDescription = "Assets: Leasehold interests in land (借地権)"
+    , asDescription = "Asset: Leasehold interests in land (借地権)"
     , asAliases = ["借地権"]
     }
 accountSpec NonOperatingNotesReceivable = Just AccountSpec
@@ -2938,7 +2938,7 @@ accountSpec NonOperatingNotesReceivable = Just AccountSpec
     , asNameEn = "Non-operating notes receivable"
     , asNameJa = "営業外受取手形"
     , asLabelJa = "営業外受取手形"
-    , asDescription = "Assets: Non-operating notes receivable (営業外受取手形)"
+    , asDescription = "Asset: Non-operating notes receivable (営業外受取手形)"
     , asAliases = ["営業外受取手形"]
     }
 accountSpec NonOperatingElectronicallyRecordedReceivable = Just AccountSpec
@@ -2949,7 +2949,7 @@ accountSpec NonOperatingElectronicallyRecordedReceivable = Just AccountSpec
     , asNameEn = "Electronically recorded monetary claims - non-operating"
     , asNameJa = "営業外電子記録債権"
     , asLabelJa = "営業外電子記録債権"
-    , asDescription = "Assets: Electronically recorded monetary claims - non-operating (営業外電子記録債権)"
+    , asDescription = "Asset: Electronically recorded monetary claims - non-operating (営業外電子記録債権)"
     , asAliases = ["営業外電子記録債権"]
     }
 accountSpec RefundLiabilities = Just AccountSpec
@@ -3422,7 +3422,7 @@ accountSpec CostOfServices = Just AccountSpec
     , asNameEn = "Cost of services"
     , asNameJa = "役務原価"
     , asLabelJa = "役務原価"
-    , asDescription = "Cost: Cost of services (役務原価)"
+    , asDescription = "Expense: Cost of services (役務原価)"
     , asAliases = ["役務原価"]
     }
 accountSpec OperatingExpenses = Just AccountSpec
@@ -3433,7 +3433,7 @@ accountSpec OperatingExpenses = Just AccountSpec
     , asNameEn = "Operating expenses"
     , asNameJa = "営業費用"
     , asLabelJa = "営業費用"
-    , asDescription = "Cost: Operating expenses (営業費用)"
+    , asDescription = "Expense: Operating expenses (営業費用)"
     , asAliases = ["営業費用"]
     }
 accountSpec InventoryShrinkageLoss = Just AccountSpec
@@ -3444,7 +3444,7 @@ accountSpec InventoryShrinkageLoss = Just AccountSpec
     , asNameEn = "Inventory shrinkage loss"
     , asNameJa = "棚卸減耗損"
     , asLabelJa = "棚卸減耗損"
-    , asDescription = "Cost: Inventory shrinkage loss (棚卸減耗損)"
+    , asDescription = "Expense: Inventory shrinkage loss (棚卸減耗損)"
     , asAliases = ["棚卸減耗損"]
     }
 accountSpec LossOnValuationOfMerchandise = Just AccountSpec
@@ -3455,7 +3455,7 @@ accountSpec LossOnValuationOfMerchandise = Just AccountSpec
     , asNameEn = "Valuation loss on goods"
     , asNameJa = "商品評価損"
     , asLabelJa = "商品評価損"
-    , asDescription = "Cost: Valuation loss on goods (商品評価損)"
+    , asDescription = "Expense: Valuation loss on goods (商品評価損)"
     , asAliases = ["商品評価損"]
     }
 accountSpec Bonuses = Just AccountSpec
@@ -3466,7 +3466,7 @@ accountSpec Bonuses = Just AccountSpec
     , asNameEn = "Bonuses"
     , asNameJa = "賞与"
     , asLabelJa = "賞与"
-    , asDescription = "Cost: Bonuses (賞与)"
+    , asDescription = "Expense: Bonuses (賞与)"
     , asAliases = ["賞与"]
     }
 accountSpec RetirementBenefitExpenses = Just AccountSpec
@@ -3477,7 +3477,7 @@ accountSpec RetirementBenefitExpenses = Just AccountSpec
     , asNameEn = "Retirement benefit expenses"
     , asNameJa = "退職給付費用"
     , asLabelJa = "退職給付費用"
-    , asDescription = "Cost: Retirement benefit expenses (退職給付費用)"
+    , asDescription = "Expense: Retirement benefit expenses (退職給付費用)"
     , asAliases = ["退職給付費用"]
     }
 accountSpec ProvisionForRepairs = Just AccountSpec
@@ -3488,7 +3488,7 @@ accountSpec ProvisionForRepairs = Just AccountSpec
     , asNameEn = "Provision for repairs"
     , asNameJa = "修繕引当金繰入"
     , asLabelJa = "修繕引当金繰入"
-    , asDescription = "Cost: Provision for repairs (修繕引当金繰入)"
+    , asDescription = "Expense: Provision for repairs (修繕引当金繰入)"
     , asAliases = ["修繕引当金繰入"]
     }
 accountSpec ProvisionForBonuses = Just AccountSpec
@@ -3499,7 +3499,7 @@ accountSpec ProvisionForBonuses = Just AccountSpec
     , asNameEn = "Provision for bonuses"
     , asNameJa = "賞与引当金繰入"
     , asLabelJa = "賞与引当金繰入"
-    , asDescription = "Cost: Provision for bonuses (賞与引当金繰入)"
+    , asDescription = "Expense: Provision for bonuses (賞与引当金繰入)"
     , asAliases = ["賞与引当金繰入"]
     }
 accountSpec ProvisionForProductWarranties = Just AccountSpec
@@ -3510,7 +3510,7 @@ accountSpec ProvisionForProductWarranties = Just AccountSpec
     , asNameEn = "Provision for warranties"
     , asNameJa = "商品保証引当金繰入"
     , asLabelJa = "商品保証引当金繰入"
-    , asDescription = "Cost: Provision for warranties (商品保証引当金繰入)"
+    , asDescription = "Expense: Provision for warranties (商品保証引当金繰入)"
     , asAliases = ["商品保証引当金繰入"]
     }
 accountSpec ResearchAndDevelopmentExpenses = Just AccountSpec
@@ -3521,7 +3521,7 @@ accountSpec ResearchAndDevelopmentExpenses = Just AccountSpec
     , asNameEn = "Research and development expenses"
     , asNameJa = "研究開発費"
     , asLabelJa = "研究開発費"
-    , asDescription = "Cost: Research and development expenses (研究開発費)"
+    , asDescription = "Expense: Research and development expenses (研究開発費)"
     , asAliases = ["研究開発費"]
     }
 accountSpec AmortizationOfGoodwill = Just AccountSpec
@@ -3532,7 +3532,7 @@ accountSpec AmortizationOfGoodwill = Just AccountSpec
     , asNameEn = "Amortization of goodwill"
     , asNameJa = "のれん償却"
     , asLabelJa = "のれん償却"
-    , asDescription = "Cost: Amortization of goodwill (のれん償却)"
+    , asDescription = "Expense: Amortization of goodwill (のれん償却)"
     , asAliases = ["のれん償却"]
     }
 accountSpec AmortizationOfSoftware = Just AccountSpec
@@ -3543,7 +3543,7 @@ accountSpec AmortizationOfSoftware = Just AccountSpec
     , asNameEn = "Amortization of software"
     , asNameJa = "ソフトウェア償却"
     , asLabelJa = "ソフトウェア償却"
-    , asDescription = "Cost: Amortization of software (ソフトウェア償却)"
+    , asDescription = "Expense: Amortization of software (ソフトウェア償却)"
     , asAliases = ["ソフトウェア償却"]
     }
 accountSpec AmortizationOfPatents = Just AccountSpec
@@ -3554,7 +3554,7 @@ accountSpec AmortizationOfPatents = Just AccountSpec
     , asNameEn = "Amortization of patent rights"
     , asNameJa = "特許権償却"
     , asLabelJa = "特許権償却"
-    , asDescription = "Cost: Amortization of patent rights (特許権償却)"
+    , asDescription = "Expense: Amortization of patent rights (特許権償却)"
     , asAliases = ["特許権償却"]
     }
 accountSpec LeaseExpenses = Just AccountSpec
@@ -3565,7 +3565,7 @@ accountSpec LeaseExpenses = Just AccountSpec
     , asNameEn = "Lease expenses"
     , asNameJa = "支払リース料"
     , asLabelJa = "支払リース料"
-    , asDescription = "Cost: Lease expenses (支払リース料)"
+    , asDescription = "Expense: Lease expenses (支払リース料)"
     , asAliases = ["支払リース料"]
     }
 accountSpec IncorporationExpenses = Just AccountSpec
@@ -3576,7 +3576,7 @@ accountSpec IncorporationExpenses = Just AccountSpec
     , asNameEn = "Organization expenses"
     , asNameJa = "創立費"
     , asLabelJa = "創立費"
-    , asDescription = "Cost: Organization expenses (創立費)"
+    , asDescription = "Expense: Organization expenses (創立費)"
     , asAliases = ["創立費"]
     }
 accountSpec StockIssuanceCosts = Just AccountSpec
@@ -3587,7 +3587,7 @@ accountSpec StockIssuanceCosts = Just AccountSpec
     , asNameEn = "Share issuance costs"
     , asNameJa = "株式交付費"
     , asLabelJa = "株式交付費"
-    , asDescription = "Cost: Share issuance costs (株式交付費)"
+    , asDescription = "Expense: Share issuance costs (株式交付費)"
     , asAliases = ["株式交付費"]
     }
 accountSpec BusinessCommencementExpenses = Just AccountSpec
@@ -3598,7 +3598,7 @@ accountSpec BusinessCommencementExpenses = Just AccountSpec
     , asNameEn = "Business commencement expenses"
     , asNameJa = "開業費"
     , asLabelJa = "開業費"
-    , asDescription = "Cost: Business commencement expenses (開業費)"
+    , asDescription = "Expense: Business commencement expenses (開業費)"
     , asAliases = ["開業費"]
     }
 accountSpec DevelopmentExpenses = Just AccountSpec
@@ -3609,7 +3609,7 @@ accountSpec DevelopmentExpenses = Just AccountSpec
     , asNameEn = "Development expenses"
     , asNameJa = "開発費"
     , asLabelJa = "開発費"
-    , asDescription = "Cost: Development expenses (開発費)"
+    , asDescription = "Expense: Development expenses (開発費)"
     , asAliases = ["開発費"]
     }
 accountSpec LossOnSalesOfElectronicallyRecordedReceivables = Just AccountSpec
@@ -3620,7 +3620,7 @@ accountSpec LossOnSalesOfElectronicallyRecordedReceivables = Just AccountSpec
     , asNameEn = "Loss on sale of electronically recorded monetary claims"
     , asNameJa = "電子記録債権売却損"
     , asLabelJa = "電子記録債権売却損"
-    , asDescription = "Cost: Loss on sale of electronically recorded monetary claims (電子記録債権売却損)"
+    , asDescription = "Expense: Loss on sale of electronically recorded monetary claims (電子記録債権売却損)"
     , asAliases = ["電子記録債権売却損"]
     }
 accountSpec LossOnSalesOfReceivables = Just AccountSpec
@@ -3631,7 +3631,7 @@ accountSpec LossOnSalesOfReceivables = Just AccountSpec
     , asNameEn = "Loss on sale of receivables"
     , asNameJa = "債権売却損"
     , asLabelJa = "債権売却損"
-    , asDescription = "Cost: Loss on sale of receivables (債権売却損)"
+    , asDescription = "Expense: Loss on sale of receivables (債権売却損)"
     , asAliases = ["債権売却損"]
     }
 accountSpec LossOnSalesOfSecurities = Just AccountSpec
@@ -3642,7 +3642,7 @@ accountSpec LossOnSalesOfSecurities = Just AccountSpec
     , asNameEn = "Loss on sale of securities"
     , asNameJa = "有価証券売却損"
     , asLabelJa = "有価証券売却損"
-    , asDescription = "Cost: Loss on sale of securities (有価証券売却損)"
+    , asDescription = "Expense: Loss on sale of securities (有価証券売却損)"
     , asAliases = ["有価証券売却損"]
     }
 accountSpec LossOnValuationOfSecurities = Just AccountSpec
@@ -3653,7 +3653,7 @@ accountSpec LossOnValuationOfSecurities = Just AccountSpec
     , asNameEn = "Loss on valuation of securities"
     , asNameJa = "有価証券評価損"
     , asLabelJa = "有価証券評価損"
-    , asDescription = "Cost: Loss on valuation of securities (有価証券評価損)"
+    , asDescription = "Expense: Loss on valuation of securities (有価証券評価損)"
     , asAliases = ["有価証券評価損"]
     }
 accountSpec LossOnSalesOfInvestmentSecurities = Just AccountSpec
@@ -3664,7 +3664,7 @@ accountSpec LossOnSalesOfInvestmentSecurities = Just AccountSpec
     , asNameEn = "Loss on sale of investment securities"
     , asNameJa = "投資有価証券売却損"
     , asLabelJa = "投資有価証券売却損"
-    , asDescription = "Cost: Loss on sale of investment securities (投資有価証券売却損)"
+    , asDescription = "Expense: Loss on sale of investment securities (投資有価証券売却損)"
     , asAliases = ["投資有価証券売却損"]
     }
 accountSpec LossOnFire = Just AccountSpec
@@ -3675,7 +3675,7 @@ accountSpec LossOnFire = Just AccountSpec
     , asNameEn = "Loss on fire"
     , asNameJa = "火災損失"
     , asLabelJa = "火災損失"
-    , asDescription = "Cost: Loss on fire (火災損失)"
+    , asDescription = "Expense: Loss on fire (火災損失)"
     , asAliases = ["火災損失"]
     }
 accountSpec LossOnRetirementOfFixedAssets = Just AccountSpec
@@ -3686,7 +3686,7 @@ accountSpec LossOnRetirementOfFixedAssets = Just AccountSpec
     , asNameEn = "Loss on retirement of non-current assets"
     , asNameJa = "固定資産除却損"
     , asLabelJa = "固定資産除却損"
-    , asDescription = "Cost: Loss on retirement of non-current assets (固定資産除却損)"
+    , asDescription = "Expense: Loss on retirement of non-current assets (固定資産除却損)"
     , asAliases = ["固定資産除却損"]
     }
 accountSpec LossOnReductionOfFixedAssets = Just AccountSpec
@@ -3697,7 +3697,7 @@ accountSpec LossOnReductionOfFixedAssets = Just AccountSpec
     , asNameEn = "Loss on tax purpose reduction entry of non-current assets"
     , asNameJa = "固定資産圧縮損"
     , asLabelJa = "固定資産圧縮損"
-    , asDescription = "Cost: Loss on tax purpose reduction entry of non-current assets (固定資産圧縮損)"
+    , asDescription = "Expense: Loss on tax purpose reduction entry of non-current assets (固定資産圧縮損)"
     , asAliases = ["固定資産圧縮損"]
     }
 accountSpec AdditionalIncomeTaxesForPriorPeriods = Just AccountSpec
@@ -3708,7 +3708,7 @@ accountSpec AdditionalIncomeTaxesForPriorPeriods = Just AccountSpec
     , asNameEn = "Additional income taxes for prior periods"
     , asNameJa = "追徴法人税等"
     , asLabelJa = "追徴法人税等"
-    , asDescription = "Cost: Additional income taxes for prior periods (追徴法人税等)"
+    , asDescription = "Expense: Additional income taxes for prior periods (追徴法人税等)"
     , asAliases = ["追徴法人税等"]
     }
 accountSpec RefundOfIncomeTaxes = Just AccountSpec
@@ -3719,7 +3719,7 @@ accountSpec RefundOfIncomeTaxes = Just AccountSpec
     , asNameEn = "Refund of income taxes"
     , asNameJa = "還付法人税等"
     , asLabelJa = "還付法人税等"
-    , asDescription = "Cost: Refund of income taxes (還付法人税等)"
+    , asDescription = "Expense: Refund of income taxes (還付法人税等)"
     , asAliases = ["還付法人税等"]
     }
 accountSpec PurchaseRebates = Just AccountSpec
@@ -3730,7 +3730,7 @@ accountSpec PurchaseRebates = Just AccountSpec
     , asNameEn = "Purchase rebates"
     , asNameJa = "仕入割戻"
     , asLabelJa = "仕入割戻"
-    , asDescription = "Cost: Purchase rebates (仕入割戻)"
+    , asDescription = "Expense: Purchase rebates (仕入割戻)"
     , asAliases = ["仕入割戻"]
     }
 accountSpec PurchaseAllowances = Just AccountSpec
@@ -3741,7 +3741,7 @@ accountSpec PurchaseAllowances = Just AccountSpec
     , asNameEn = "Purchase allowances"
     , asNameJa = "仕入値引"
     , asLabelJa = "仕入値引"
-    , asDescription = "Cost: Purchase allowances (仕入値引)"
+    , asDescription = "Expense: Purchase allowances (仕入値引)"
     , asAliases = ["仕入値引"]
     }
 accountSpec WelfareExpenses = Just AccountSpec
@@ -3752,7 +3752,7 @@ accountSpec WelfareExpenses = Just AccountSpec
     , asNameEn = "Welfare expenses"
     , asNameJa = "福利厚生費"
     , asLabelJa = "福利厚生費"
-    , asDescription = "Cost: Welfare expenses (福利厚生費)"
+    , asDescription = "Expense: Welfare expenses (福利厚生費)"
     , asAliases = ["福利厚生費"]
     }
 accountSpec MaintenanceExpenses = Just AccountSpec
@@ -3763,7 +3763,7 @@ accountSpec MaintenanceExpenses = Just AccountSpec
     , asNameEn = "Maintenance expenses"
     , asNameJa = "保守費"
     , asLabelJa = "保守費"
-    , asDescription = "Cost: Maintenance expenses (保守費)"
+    , asDescription = "Expense: Maintenance expenses (保守費)"
     , asAliases = ["保守費"]
     }
 accountSpec StatutoryWelfareExpenses = Just AccountSpec
@@ -3774,7 +3774,7 @@ accountSpec StatutoryWelfareExpenses = Just AccountSpec
     , asNameEn = "Legal welfare expenses"
     , asNameJa = "法定福利費"
     , asLabelJa = "法定福利費"
-    , asDescription = "Cost: Legal welfare expenses (法定福利費)"
+    , asDescription = "Expense: Legal welfare expenses (法定福利費)"
     , asAliases = ["法定福利費"]
     }
 accountSpec LandRentPaid = Just AccountSpec
@@ -3785,7 +3785,7 @@ accountSpec LandRentPaid = Just AccountSpec
     , asNameEn = "Rent expenses on land"
     , asNameJa = "支払地代"
     , asLabelJa = "支払地代"
-    , asDescription = "Cost: Rent expenses on land (支払地代)"
+    , asDescription = "Expense: Rent expenses on land (支払地代)"
     , asAliases = ["支払地代"]
     }
 accountSpec InsuranceExpense = Just AccountSpec
@@ -3796,7 +3796,7 @@ accountSpec InsuranceExpense = Just AccountSpec
     , asNameEn = "Insurance expenses"
     , asNameJa = "保険料"
     , asLabelJa = "保険料"
-    , asDescription = "Cost: Insurance expenses (保険料)"
+    , asDescription = "Expense: Insurance expenses (保険料)"
     , asAliases = ["保険料"]
     }
 accountSpec RepairsExpense = Just AccountSpec
@@ -3807,7 +3807,7 @@ accountSpec RepairsExpense = Just AccountSpec
     , asNameEn = "Repair expenses"
     , asNameJa = "修繕費"
     , asLabelJa = "修繕費"
-    , asDescription = "Cost: Repair expenses (修繕費)"
+    , asDescription = "Expense: Repair expenses (修繕費)"
     , asAliases = ["修繕費"]
     }
 accountSpec StorageExpenses = Just AccountSpec
@@ -3818,7 +3818,7 @@ accountSpec StorageExpenses = Just AccountSpec
     , asNameEn = "Storage costs"
     , asNameJa = "保管費"
     , asLabelJa = "保管費"
-    , asDescription = "Cost: Storage costs (保管費)"
+    , asDescription = "Expense: Storage costs (保管費)"
     , asAliases = ["保管費"]
     }
 accountSpec MembershipFees = Just AccountSpec
@@ -3829,7 +3829,7 @@ accountSpec MembershipFees = Just AccountSpec
     , asNameEn = "Membership fees"
     , asNameJa = "諸会費"
     , asLabelJa = "諸会費"
-    , asDescription = "Cost: Membership fees (諸会費)"
+    , asDescription = "Expense: Membership fees (諸会費)"
     , asAliases = ["諸会費"]
     }
 accountSpec IncomeSummary = Just AccountSpec
@@ -3851,7 +3851,7 @@ accountSpec SuspenseAccount = Just AccountSpec
     , asNameEn = "Suspense account"
     , asNameJa = "未決算"
     , asLabelJa = "未決算"
-    , asDescription = "Assets: Suspense account (未決算)"
+    , asDescription = "Asset: Suspense account (未決算)"
     , asAliases = ["未決算"]
     }
 accountSpec ForeignExchangeGains = Just AccountSpec
@@ -3873,7 +3873,7 @@ accountSpec ForeignExchangeLosses = Just AccountSpec
     , asNameEn = "Foreign exchange losses"
     , asNameJa = "為替差損"
     , asLabelJa = "為替差損"
-    , asDescription = "Cost: Foreign exchange losses (為替差損)"
+    , asDescription = "Expense: Foreign exchange losses (為替差損)"
     , asAliases = ["為替差損"]
     }
 accountSpec ContraAccountForGuaranteeObligations = Just AccountSpec
@@ -3884,7 +3884,7 @@ accountSpec ContraAccountForGuaranteeObligations = Just AccountSpec
     , asNameEn = "Contra account for guarantee obligations"
     , asNameJa = "保証債務見返"
     , asLabelJa = "保証債務見返"
-    , asDescription = "Assets: Contra account for guarantee obligations (保証債務見返)"
+    , asDescription = "Asset: Contra account for guarantee obligations (保証債務見返)"
     , asAliases = ["保証債務見返"]
     }
 accountSpec GuaranteeObligations = Just AccountSpec
@@ -3906,7 +3906,7 @@ accountSpec IncomeTaxesAdjustment = Just AccountSpec
     , asNameEn = "Income taxes - deferred"
     , asNameJa = "法人税等調整額"
     , asLabelJa = "法人税等調整額"
-    , asDescription = "Cost: Income taxes - deferred (法人税等調整額)"
+    , asDescription = "Expense: Income taxes - deferred (法人税等調整額)"
     , asAliases = ["法人税等調整額"]
     }
 accountSpec BranchCurrentAccount = Just AccountSpec
@@ -3917,7 +3917,7 @@ accountSpec BranchCurrentAccount = Just AccountSpec
     , asNameEn = "Branch current account"
     , asNameJa = "支店"
     , asLabelJa = "支店"
-    , asDescription = "Assets: Branch current account (支店)"
+    , asDescription = "Asset: Branch current account (支店)"
     , asAliases = ["支店"]
     }
 accountSpec HeadOfficeCurrentAccount = Just AccountSpec
@@ -3939,7 +3939,7 @@ accountSpec NetIncomeAttributableToNCI = Just AccountSpec
     , asNameEn = "Profit attributable to non-controlling interests"
     , asNameJa = "非支配株主に帰属する当期純利益"
     , asLabelJa = "非支配株主に帰属する当期純利益"
-    , asDescription = "Cost: Profit attributable to non-controlling interests (非支配株主に帰属する当期純利益). NoClose: consolidation procedures transfer it separately to non-controlling interests."
+    , asDescription = "Expense: Profit attributable to non-controlling interests (非支配株主に帰属する当期純利益). NoClose: consolidation procedures transfer it separately to non-controlling interests."
     , asAliases = ["非支配株主に帰属する当期純利益"]
     }
 accountSpec NetLossAttributableToNCI = Just AccountSpec
@@ -3961,7 +3961,7 @@ accountSpec TradingSecurities = Just AccountSpec
     , asNameEn = "Trading securities"
     , asNameJa = "売買目的有価証券"
     , asLabelJa = "売買目的有価証券"
-    , asDescription = "Assets: Trading securities (売買目的有価証券)"
+    , asDescription = "Asset: Trading securities (売買目的有価証券)"
     , asAliases = ["売買目的有価証券"]
     }
 accountSpec HeldToMaturityBonds = Just AccountSpec
@@ -3972,7 +3972,7 @@ accountSpec HeldToMaturityBonds = Just AccountSpec
     , asNameEn = "Held-to-maturity bonds"
     , asNameJa = "満期保有目的債券"
     , asLabelJa = "満期保有目的債券"
-    , asDescription = "Assets: Held-to-maturity bonds (満期保有目的債券)"
+    , asDescription = "Asset: Held-to-maturity bonds (満期保有目的債券)"
     , asAliases = ["満期保有目的債券"]
     }
 accountSpec SubsidiaryStocks = Just AccountSpec
@@ -3983,7 +3983,7 @@ accountSpec SubsidiaryStocks = Just AccountSpec
     , asNameEn = "Shares of subsidiaries"
     , asNameJa = "子会社株式"
     , asLabelJa = "子会社株式"
-    , asDescription = "Assets: Shares of subsidiaries (子会社株式)"
+    , asDescription = "Asset: Shares of subsidiaries (子会社株式)"
     , asAliases = ["子会社株式"]
     }
 accountSpec AffiliateStocks = Just AccountSpec
@@ -3994,7 +3994,7 @@ accountSpec AffiliateStocks = Just AccountSpec
     , asNameEn = "Shares of associates"
     , asNameJa = "関連会社株式"
     , asLabelJa = "関連会社株式"
-    , asDescription = "Assets: Shares of associates (関連会社株式)"
+    , asDescription = "Asset: Shares of associates (関連会社株式)"
     , asAliases = ["関連会社株式"]
     }
 accountSpec AvailableForSaleSecurities = Just AccountSpec
@@ -4005,7 +4005,7 @@ accountSpec AvailableForSaleSecurities = Just AccountSpec
     , asNameEn = "Available-for-sale securities"
     , asNameJa = "その他有価証券"
     , asLabelJa = "その他有価証券"
-    , asDescription = "Assets: Available-for-sale securities (その他有価証券)"
+    , asDescription = "Asset: Available-for-sale securities (その他有価証券)"
     , asAliases = ["その他有価証券"]
     }
 accountSpec ConsumptionTaxRefundReceivable = Just AccountSpec
@@ -4049,7 +4049,7 @@ accountSpec DirectorsCompensations = Just AccountSpec
     , asNameEn = "Remuneration for directors (and other officers)"
     , asNameJa = "役員報酬"
     , asLabelJa = "役員報酬"
-    , asDescription = "Cost: Remuneration for directors (役員報酬)"
+    , asDescription = "Expense: Remuneration for directors (役員報酬)"
     , asAliases = ["役員報酬"]
     }
 accountSpec AccountTitle = Nothing

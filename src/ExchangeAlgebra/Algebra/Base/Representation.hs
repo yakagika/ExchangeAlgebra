@@ -118,7 +118,7 @@ instance Element Hat where
 
 instance BaseClass Hat where
 
--- | A one-constructor basis type whose only value is its own wildcard.
+-- | A one-constructor base type whose only value is its own wildcard.
 data BaseForSingleHat = BaseForSingleHat
     deriving (Eq,Ord,Generic)
 
@@ -289,7 +289,7 @@ instance BaseClass Day where
 -- *** TimeOfDay only (redundant algebra base)
 instance BaseClass TimeOfDay where
 
--- *** A coordinate extended with a wildcard (redundant algebra base)
+-- *** An element extended with a wildcard (redundant algebra base)
 --
 -- @since 0.6.1.0
 instance (Ord a, Show a, Hashable a, Typeable a) => BaseClass (Wild a) where

@@ -83,7 +83,7 @@ import           ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
 ------------------------------------------------------------------
 
 -- | Identity of a statement presentation block. These are reporting
--- identities, never posting coordinates: they name a group of account titles,
+-- identities, never posting bases: they name a group of account titles,
 -- not an account.
 data PresentationGroup
     = TradeReceivablesGroup   -- ^ 売上債権 − 貸倒引当金

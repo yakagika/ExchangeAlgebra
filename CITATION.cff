@@ -13,7 +13,7 @@ type: software
 authors:
   - family-names: Akagi
     given-names: Kaya
-version: 0.6.1.0
+version: 0.6.1.1
 license: MIT
 license-url: https://github.com/yakagika/ExchangeAlgebra/blob/master/LICENSE.txt
 repository-code: https://github.com/yakagika/ExchangeAlgebra

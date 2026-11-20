@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wincomplete-patterns -Werror=incomplete-patterns #-}
 
--- | Exact transaction coordinates and posting entries in the Accounting layer.
+-- | Exact transaction keys and posting entries in the Accounting layer.
 -- These types use algebra values and Journal notes; admission and equivalence
 -- share them without a dependency on input validation. Read the identifiers
 -- before 'Entry' and 'isBlankKey'.
@@ -15,12 +15,12 @@
 -- +-----------------------------+---------------------------------------------+
 -- | Keep original postings      | 'Entry'                                     |
 -- +-----------------------------+---------------------------------------------+
--- | Check blank key coordinates | 'isBlankKey'                                |
+-- | Check blank key components  | 'isBlankKey'                                |
 -- +-----------------------------+---------------------------------------------+
 --
 -- > import qualified ExchangeAlgebra.Accounting.Transaction as Transaction
 --
--- t'TxKey' supplies the note coordinates used by Definitions 10-12.
+-- t'TxKey' supplies the note components used by Definitions 10-12.
 -- Constructing an identifier or an 'Entry' does not establish admission.
 module ExchangeAlgebra.Accounting.Transaction
     ( EntityId(..)
@@ -53,7 +53,7 @@ newtype PeriodId = PeriodId Text deriving (Eq, Ord, Show)
 -- | Transaction identity within one entity and period.
 newtype TxId = TxId Text deriving (Eq, Ord, Show)
 
--- | Hash each identifier by its exact text, as t'TxKey' hashes its coordinates.
+-- | Hash each identifier by its exact text, as t'TxKey' hashes its components.
 instance Hashable EntityId where
     hashWithSalt salt (EntityId text) = hashWithSalt salt text
 
@@ -63,11 +63,12 @@ instance Hashable PeriodId where
 instance Hashable TxId where
     hashWithSalt salt (TxId text) = hashWithSalt salt text
 
--- | Exact transaction coordinate. Equality never performs wildcard matching.
+-- | Exact transaction key consisting of the entity, period, and transaction identifier.
+-- Equality never performs wildcard matching.
 data TxKey = TxKey EntityId PeriodId TxId -- ^ Entity, period, and transaction identity.
     deriving (Eq, Ord, Show)
 
--- | Hash the three exact text coordinates in their declared order.
+-- | Hash the three exact text components in their declared order.
 instance Hashable TxKey where
     hashWithSalt salt (TxKey (EntityId entity) (PeriodId period) (TxId transaction)) =
         hashWithSalt salt (entity, period, transaction)

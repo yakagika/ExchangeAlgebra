@@ -153,9 +153,9 @@ data Finding s f
     | AccountingFinding f    -- ^ The anomaly this audit looks for.
     deriving (Show, Eq)
 
--- | Elements that no audit can read. These are the same checks
--- 'ExchangeAlgebra.Accounting.Statements.Presentation.present' applies
--- before presenting statements.
+-- | A structural condition that prevents an audit.
+-- 'ExchangeAlgebra.Accounting.Statements.Presentation.present' checks the same
+-- conditions before presenting statements.
 data StructureIssue v b
     = InvalidValue v b       -- ^ A value that is not a valid posting value.
     | WildcardAccount b      -- ^ A base whose account title is the wildcard.
@@ -165,7 +165,7 @@ data StructureIssue v b
 -- | Structure issues of a trial balance.
 type TrialBalanceIssue v = StructureIssue v (HatBase AccountTitles)
 
--- | Structure issues of a journal, with the note that holds the element.
+-- | Structure issues of a journal, with the note associated with the affected term.
 type JournalIssue n v b = (n, StructureIssue v b)
 
 -- | Check every posting before any operation that determines accounting sides.

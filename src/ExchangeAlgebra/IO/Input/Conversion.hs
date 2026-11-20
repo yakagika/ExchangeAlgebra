@@ -102,7 +102,7 @@ type ConvError = ConvErrorOf AccountTitles
 -- readers that take a resolver (@parseJournalCsvBy@, @checkedEntryTextBy@,
 -- @certifyJournalTextBy@) accept any title type, so a model with its own
 -- vocabulary reads CSV and generated entries with its own names. The usual
--- resolver is 'resolveWith' applied to an 'AccountNameTable'.
+-- resolver is 'resolveWith' applied to an t'AccountNameTable'.
 --
 -- Contract of a resolver @r@ (all readers rely on it):
 --
@@ -317,7 +317,7 @@ parseSide t = case normalizeTitle t of
 -- credit\/debit rule is not duplicated: an account sits on its \"natural\" side under 'Not'; if the
 -- requested side differs, the v'Hat' (reversal) marker is used.
 --
--- Use 'hatForSide' for bases with additional axes.
+-- Use 'hatForSide' for bases with components besides the account title.
 --
 -- >>> markerForSide Debit Cash
 -- Not
@@ -335,7 +335,7 @@ markerForSide = hatForSide
 -- constructor 'ExchangeAlgebra.Algebra.Core..@' so the non-negative\/non-error
 -- value invariant is enforced.
 --
--- Use 'postingForSide' for bases with additional axes.
+-- Use 'postingForSide' for bases with components besides the account title.
 --
 -- >>> postingFromSide Debit Cash (1000 :: Double)
 -- 1000.00:@Not:<Cash
@@ -349,7 +349,7 @@ postingFromSide = postingForSide
 -- Balance (debit == credit) is /not/ enforced here; check it with the library's
 -- balance functions after conversion.
 --
--- Use 'journalForSides' for bases with additional axes.
+-- Use 'journalForSides' for bases with components besides the account title.
 --
 -- >>> journalFromSides [(Debit, Cash, 1000), (Credit, Sales, 1000)] :: Alg Double (HatBase AccountTitles)
 -- 1000.00:@Not:<Cash .+ 1000.00:@Not:<Sales

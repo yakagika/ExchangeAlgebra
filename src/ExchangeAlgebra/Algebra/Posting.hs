@@ -203,7 +203,7 @@ instance (HatVal v, HatBaseClass b) => Monoid (Posting v b) where
 -- of @(side, value, part)@ triples, let @mk (s, v, p) = entry s v p@ and
 -- @sameMultiset x y = toASCList x == toASCList y@. Conversion and projection
 -- preserve the multiset of postings for every query list @qs@, including
--- 'HatNot' and coordinate wildcards:
+-- 'HatNot' and element wildcards:
 --
 -- > sameMultiset (postingAlg (foldMap mk xs))
 -- >              (foldr (.+) Zero (map (postingAlg . mk) xs))
@@ -215,9 +215,9 @@ instance (HatVal v, HatBaseClass b) => Monoid (Posting v b) where
 postingAlg :: Posting v b -> Alg v b
 postingAlg (Posting algebra) = algebra
 
--- | Build one posting from a side, checked value, and base coordinates.
+-- | Build one posting from a side, checked value, and a base.
 -- A zero value produces 'Zero' through '(.@)'. The side is embedded by
--- 'sideHat' and the coordinates are combined with 'merge'.
+-- 'sideHat' and the base are combined with 'merge'.
 --
 -- > postingAlg (entry side value part) == unPosted value .@ merge (sideHat side) part
 --

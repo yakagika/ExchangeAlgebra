@@ -212,7 +212,7 @@ checkedEntryIn context rows =
 
 -- | Construct one ordinary-journal entry. This compatibility API delegates
 -- to 'checkedEntryIn' and therefore rejects closing-only, consolidation-only,
--- engine-generated, and non-postable coordinates.
+-- engine-generated, and non-postable account titles.
 checkedEntry :: (HatVal v)
              => [(Side, AccountTitles, v)]
              -> Either (NonEmpty (EntryError v)) (Alg v (HatBase AccountTitles))

@@ -25,7 +25,7 @@
     with 'StatedAmount'.
 
     Values are t'MoneyDecimal' and bases are @'HatBase' 'AccountTitles'@, the
-    base of admission and the catalog. Multi-axis bases are outside 0.6.
+    base of admission and the catalog. Multi-component bases are outside 0.6.
 
     Amounts that need a division take an 'AdjustmentRounding'. There is no
     default: the problem statement or company policy chooses it.

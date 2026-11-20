@@ -1,4 +1,4 @@
-{- | Generic basis elements and one-way wildcard matching (Definition 1).
+{- | Elements of element sets and one-way wildcard matching (Definition 1).
 
 Use 'matchesQuery' to match a query pattern against a stored element. The
 wildcard in the query matches any stored value; a concrete query does not
@@ -6,7 +6,7 @@ match a stored wildcard.
 
 == Extending with user-defined types
 
-To use your own type as a basis component, declare an 'Element' instance.
+To use your own type as an element type (the type of one component of a base), declare an 'Element' instance.
 A single distinguished value must serve as the wildcard used by the
 transfer engine and by projection operations. Derive t'Control.DeepSeq.NFData' when keys
 containing this component must be fully evaluated:
@@ -19,8 +19,8 @@ instance Element Company where
   wildcard = CompanyWildcard
 @
 
-Use t'Wild' for a coordinate type whose values all have meaning, such as
-@Day@, @TimeOfDay@, or a custom identifier. Wrap ordinary coordinates in
+Use t'Wild' for an element type whose values all have meaning, such as
+@Day@, @TimeOfDay@, or a custom identifier. Wrap ordinary elements in
 'Exactly' and use the v'Wild' constructor as the wildcard. The underlying type
 can be used without defining its own 'Element' instance.
 
