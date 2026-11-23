@@ -15,6 +15,16 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 BASELINE = ROOT / "test/fixtures/export-surface-p2/orphans.txt"
 
 
+def without_location(entry):
+    """Drop the path prefix and the line and column of a "Defined at" comment.
+
+    Editing lines above an existing instance moves it without adding an
+    orphan, so the comparison ignores where the instance currently sits.
+    """
+    declaration = entry.split(": ", 1)[1]
+    return re.sub(r"(-- Defined at \S+?):\d+:\d+", r"\1", declaration)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--update", action="store_true", help="Write the current warning set")
@@ -66,8 +76,8 @@ def main():
         raise RuntimeError(f"Missing orphan baseline: {BASELINE}")
     else:
         baseline = set(BASELINE.read_text().splitlines())
-        known_instances = Counter(line.split(": ", 1)[1] for line in baseline)
-        current_instances = Counter(warning.split(": ", 1)[1] for warning in warnings)
+        known_instances = Counter(without_location(line) for line in baseline)
+        current_instances = Counter(without_location(warning) for warning in warnings)
         added = {instance: count - known_instances[instance]
                  for instance, count in current_instances.items()
                  if count > known_instances[instance]}
