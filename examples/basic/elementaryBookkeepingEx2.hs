@@ -28,16 +28,21 @@ type MinBase = EA.HatBase EA.AccountTitles
 type MinTransaction = EA.Alg MoneyDecimal MinBase
 
 -- 時間をいれる
--- | 勘定科目と時間の基底
-type ADBase = EA.HatBase (EA.AccountTitles,Day)
+-- | Hat base for an account title and a calendar date.
+type ADBase = EA.HatBase (EA.AccountTitles, Wild Day)
 
 -- | 取引情報
 type ADTransaction = EA.Alg MoneyDecimal ADBase
 
-d = fromGregorian
+-- | Build a concrete date element for a dated entry.
+d :: Integer -> Int -> Int -> Wild Day
+d year month day = Exactly (fromGregorian year month day)
 
+-- | Extract the date for the journal CSV.
+-- Invariant: Every dated entry in this example is constructed with 'Exactly'.
 getDay :: ADBase -> Day
-getDay (x:<(a,d)) = d
+getDay (_ :< (_, Exactly day)) = day
+getDay (_ :< (_, Wild))        = error "bookkeeping example requires a date on every entry"
 
 
 -- 1月5日　田中株式会社を設立し、株式100株を1株の払込金額￥80,000で発行。
@@ -141,18 +146,18 @@ main = do
     --- >>> Credit
 
     print $ projByAccountTitle Cash t1_10
-    --- >>> 3000000:@Not:<(Cash,2024-01-10)
+    --- >>> 3000000:@Not:<(Cash,Exactly 2024-01-10)
 
     print $ decL t1_10
-    --- >>> 3000000:@Not:<(Cash,2024-01-10)
+    --- >>> 3000000:@Not:<(Cash,Exactly 2024-01-10)
     print $ decR t1_10
-    --- >>> 3000000:@Hat:<(Deposits,2024-01-10)
+    --- >>> 3000000:@Hat:<(Deposits,Exactly 2024-01-10)
     print $ norm $ decR t1_10
     --- >>> 3000000
     let z  = 100 .@Not:<(Cash, d 2024 1 2)
           .+  50 .@Hat:<(Cash, d 2024 1 2) :: ADTransaction
     print $ bar z
-    -- >>> 50:@Not:<(Cash,2024-01-02)
+    -- >>> 50:@Not:<(Cash,Exactly 2024-01-02)
 
     let t_total  = t1_5 .+ t1_10 .+ t1_15 .+ t1_20 .+ t1_25
                 .+ t2_1 .+ t2_10 .+ t2_15 .+ t2_20

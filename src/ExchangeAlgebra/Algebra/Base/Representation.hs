@@ -12,7 +12,6 @@
 module ExchangeAlgebra.Algebra.Base.Representation where
 
 import ExchangeAlgebra.Algebra.Element.Representation
-import Data.Time (Day, TimeOfDay)
 import GHC.Stack (HasCallStack, callStack, prettyCallStack)
 import qualified Data.Binary as Binary
 import Control.DeepSeq (NFData(..))
@@ -282,12 +281,6 @@ instance BaseClass Name where
 
 -- *** CountUnit only (redundant algebra base)
 instance BaseClass CountUnit where
-
--- *** Day only (redundant algebra base)
-instance BaseClass Day where
-
--- *** TimeOfDay only (redundant algebra base)
-instance BaseClass TimeOfDay where
 
 -- *** An element extended with a wildcard (redundant algebra base)
 --

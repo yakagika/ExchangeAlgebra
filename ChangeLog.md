@@ -71,6 +71,17 @@
 
 ### Changed
 
+- **Breaking (0.7).** The `Element` and `BaseClass` instances for `Day` and
+  `TimeOfDay` are removed, along with the three built-in `ExBaseClass`
+  instances that used either type directly. Use `Wild Day` and
+  `Wild TimeOfDay` in bases. Wrap concrete dates and times in `Exactly`
+  and use `Wild` where the old value meant a wildcard.
+  For example, change `HatBase (AccountTitles, Day)` to
+  `HatBase (AccountTitles, Wild Day)` and write `Not :< (Cash, Exactly d)`
+  for a cash entry dated `d`. The date 1858-11-17 and midnight (00:00)
+  are ordinary elements when wrapped in `Exactly`. In journal CSV output,
+  the order of distinct bases on the same date can change after migration.
+
 - **Consolidation worksheets (0.7 migration).** `validateConsolidationWorksheet`
   accepts trial balances and adjustments over a caller-defined account title
   type. The original worksheet type names specialize to `AccountTitles`

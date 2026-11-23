@@ -172,23 +172,39 @@ toSameLength xs ys =
 --
 -- ==== __Examples__
 --
--- Three days: a capital contribution, a cash sale, and a day with two debit
--- postings against one credit posting (the debit column is one line longer,
--- and the credit/date cells of that extra line are padded blank):
+-- The example records a capital contribution, a cash sale, and a transaction
+-- with two debit terms and one credit term. On the third day, the extra debit
+-- row has blank date and credit cells. The last check sorts the debit cells
+-- for that day because the order of distinct bases within a side is unspecified.
 --
 -- >>> import Data.Time (fromGregorian)
--- >>> type T = Alg Double (HatBase (AccountTitles, Day))
--- >>> let d1 = fromGregorian 2024 4 1
--- >>> let d2 = fromGregorian 2024 4 2
--- >>> let d3 = fromGregorian 2024 4 3
--- >>> let getDay (_ :< (_, d)) = d
--- >>> let alg = (100 .@ Not:<(Cash,d1)) .+ (100 .@ Not:<(CapitalStock,d1)) .+ (50 .@ Not:<(Cash,d2)) .+ (50 .@ Not:<(Sales,d2)) .+ (30 .@ Not:<(Cash,d3)) .+ (10 .@ Not:<(AccountsReceivable,d3)) .+ (40 .@ Not:<(Sales,d3)) :: T
--- >>> mapM_ print (journalRows alg getDay)
+-- >>> import ExchangeAlgebra.Algebra.Element (Wild(..))
+-- >>> type T = Alg Double (HatBase (AccountTitles, Wild Day))
+-- >>> let d1 = Exactly (fromGregorian 2024 4 1)
+-- >>> let d2 = Exactly (fromGregorian 2024 4 2)
+-- >>> let d3 = Exactly (fromGregorian 2024 4 3)
+-- >>> :{
+-- let getDay (_ :< (_, Exactly day)) = day
+--     getDay (_ :< (_, Wild))        = error "journal example requires a date on every entry"
+--     alg :: T
+--     alg  = 100 .@ Not :< (Cash, d1)
+--        .+ 100 .@ Not :< (CapitalStock, d1)
+--        .+  50 .@ Not :< (Cash, d2)
+--        .+  50 .@ Not :< (Sales, d2)
+--        .+  30 .@ Not :< (Cash, d3)
+--        .+  10 .@ Not :< (AccountsReceivable, d3)
+--        .+  40 .@ Not :< (Sales, d3)
+-- :}
+--
+-- >>> let rows = journalRows alg getDay
+-- >>> mapM_ print (take 3 rows)
 -- ["Day","Debit","Amount","Credit","Amount"]
 -- ["2024-04-01","Cash","100.0","CapitalStock","100.0"]
 -- ["2024-04-02","Cash","50.0","Sales","50.0"]
--- ["2024-04-03","AccountsReceivable","10.0","Sales","40.0"]
--- ["","Cash","30.0","",""]
+-- >>> [take 1 row ++ drop 3 row | row <- drop 3 rows]
+-- [["2024-04-03","Sales","40.0"],["","",""]]
+-- >>> L.sort [take 2 (drop 1 row) | row <- drop 3 rows]
+-- [["AccountsReceivable","10.0"],["Cash","30.0"]]
 --
 -- Complexity: O(s * log d) (s = number of entries, d = number of distinct dates)
 journalRows :: (HatVal n, HatBaseClass b, ExBaseClass b)

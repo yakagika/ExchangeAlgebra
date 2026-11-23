@@ -93,16 +93,21 @@ q4       = 150000 .@Not:<ReceiptFee       -- 受取利息
 ------------------------------------------------------------------
 
 -- 時間をいれる
--- | 勘定科目と時間の基底
-type ADBase = EA.HatBase (EA.AccountTitles,Day)
+-- | Hat base for an account title and a calendar date.
+type ADBase = EA.HatBase (EA.AccountTitles, Wild Day)
 
 -- | 取引情報
 type ADTransaction = EA.Alg MoneyDecimal ADBase
 
-d = fromGregorian
+-- | Build a concrete date element for a dated entry.
+d :: Integer -> Int -> Int -> Wild Day
+d year month day = Exactly (fromGregorian year month day)
 
+-- | Extract the date for the journal CSV.
+-- Invariant: Every dated entry in this example is constructed with 'Exactly'.
 getDay :: ADBase -> Day
-getDay (x:<(a,d)) = d
+getDay (_ :< (_, Exactly day)) = day
+getDay (_ :< (_, Wild))        = error "bookkeeping example requires a date on every entry"
 
 
 -- 減少はHat,増加はNotで記載する.

@@ -238,18 +238,12 @@ instance ExBaseClass (HatBase AccountTitles) where
 
 -- *** Name only (redundant algebra base)
 -- *** CountUnit only (redundant algebra base)
--- *** Day only (redundant algebra base)
--- *** TimeOfDay only (redundant algebra base)
 -- ***
 
 
 -- ** 2-element bases
 
 -- | Basic BaseClass with 2 elements
-
-instance ExBaseClass (HatBase (AccountTitles, Day)) where
-    getAccountTitle (_:< (a, _))   = a
-    setAccountTitle (h:< (_, d)) b = h:< (b, d)
 
 instance ExBaseClass (HatBase (AccountTitles, Name)) where
     getAccountTitle (_:< (a, _))   = a
@@ -271,25 +265,11 @@ instance ExBaseClass (HatBase (AccountTitles, Name, CountUnit, Subject)) where
     getAccountTitle (_:< (a, _, _, _))   = a
     setAccountTitle (h:< (_, n, c, s)) b = h:< (b, n, c, s)
 
--- ** 5-element bases
--- | Basic BaseClass with 5 elements
-instance ExBaseClass (HatBase (AccountTitles, Name, CountUnit, Subject,  Day)) where
-    getAccountTitle (_:< (a, _, _, _, _))   = a
-    setAccountTitle (h:< (_, n, c, s, d)) b = h:< (b, n, c, s, d)
-
-
--- ** 6-element bases
--- | Basic BaseClass with 6 elements
-instance ExBaseClass (HatBase (AccountTitles, Name, CountUnit, Subject, Day, TimeOfDay)) where
-    getAccountTitle (_:< (a, _, _, _, _, _))   = a
-    setAccountTitle (h:< (_, n, c, s, d, t)) b = h:< (b, n, c, s, d, t)
-
 -- ** Bases with wildcard-extended dates and times
 --
--- The bases above use the 'Element' instances of 'Day' and t'TimeOfDay', whose
--- wildcards are reserved dates and times (1858-11-17 and midnight). The
--- following bases use t'Wild' instead, so every date and time of day remains
--- an ordinary element.
+-- Built-in bases with dates or times use @Wild Day@ and @Wild TimeOfDay@.
+-- Wrap a date or time in @Exactly@ to store it
+-- as an ordinary element, including 1858-11-17 and midnight.
 --
 -- @since 0.6.1.0
 

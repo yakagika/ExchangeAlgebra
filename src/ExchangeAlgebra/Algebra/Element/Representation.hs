@@ -22,8 +22,7 @@ module ExchangeAlgebra.Algebra.Element.Representation
 
 import qualified Data.Text as T
 import Data.Text (Text)
-import qualified Data.Time as Time
-import Data.Time
+import Data.Time (Day, TimeOfDay(..), toModifiedJulianDay)
 import GHC.Generics (Generic)
 import Data.Hashable
 import Data.Typeable (Typeable, cast, typeOf)
@@ -253,25 +252,12 @@ instance Hashable TimeOfDay where
 instance Hashable Day where
   hashWithSalt salt day = hashWithSalt salt (toModifiedJulianDay day)
 
--- | The wildcard is 'Time.midnight', so an element recorded at 00:00 is
--- indistinguishable from "no time of day". Use @Wild TimeOfDay@ to include midnight
--- as an ordinary element.
-instance Element TimeOfDay where
-    wildcard = Time.midnight
-
--- | The wildcard is @'ModifiedJulianDay' 0@ (1858-11-17), so that date is
--- indistinguishable from "no date". Use @Wild Day@ to include every date
--- as an ordinary element.
-instance Element Day where
-    wildcard =  ModifiedJulianDay 0
-
 ------------------------------------------------------------------
 -- | An element type extended with a wildcard from outside the type.
 --
 -- Use it when the underlying element type has no value to spare for the
--- wildcard, such as 'Day' or t'TimeOfDay': every date and every time of day is
--- a meaningful element, so @'Exactly' 'Time.midnight'@ remains an ordinary
--- time and only v'Wild' is the wildcard.
+-- wildcard, such as 'Day' or t'TimeOfDay'. For example, @'Exactly' midnight@
+-- represents the ordinary time 00:00. The v'Wild' constructor is the wildcard.
 --
 -- * In a ledger entry, v'Wild' records that the component does not apply
 --   (for example, a transaction recorded without a time of day).

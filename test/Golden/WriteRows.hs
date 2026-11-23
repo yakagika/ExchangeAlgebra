@@ -27,7 +27,10 @@ import           ExchangeAlgebra.IO.Output.Statements
 
 type MinBase = HatBase AccountTitles
 type MinTransaction = Alg MoneyDecimal MinBase
-type ADBase = HatBase (AccountTitles, Day)
+
+-- | Hat base for dated correction fixtures.
+type ADBase = HatBase (AccountTitles, Wild Day)
+
 type ADTransaction = Alg MoneyDecimal ADBase
 
 writeRowsFixtureDir :: FilePath
@@ -282,11 +285,15 @@ ex7AllBalanced =
 ex8Mk :: MkBase MinBase
 ex8Mk = (:<)
 
+-- | Extract the date for the journal and account ledger rows.
+-- Invariant: Every correction fixture entry is constructed with 'Exactly'.
 ex8GetDay :: ADBase -> Day
-ex8GetDay (_ :< (_, day)) = day
+ex8GetDay (_ :< (_, Exactly day)) = day
+ex8GetDay (_ :< (_, Wild))        = error "correction fixture requires a date on every entry"
 
-ex8D :: Integer -> Int -> Int -> Day
-ex8D = fromGregorian
+-- | Build a concrete date element for a correction fixture entry.
+ex8D :: Integer -> Int -> Int -> Wild Day
+ex8D year month day = Exactly (fromGregorian year month day)
 
 ex8WrongEntry, ex8CancelEntry, ex8CorrectEntry :: ADTransaction
 ex8WrongEntry =

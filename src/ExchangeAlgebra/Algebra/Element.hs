@@ -19,10 +19,10 @@ instance Element Company where
   wildcard = CompanyWildcard
 @
 
-Use t'Wild' for an element type whose values all have meaning, such as
-@Day@, @TimeOfDay@, or a custom identifier. Wrap ordinary elements in
-'Exactly' and use the v'Wild' constructor as the wildcard. The underlying type
-can be used without defining its own 'Element' instance.
+Use @Wild Day@ and @Wild TimeOfDay@ for date and time elements in a base.
+Wrap a concrete date or time in 'Exactly' and use the v'Wild' constructor
+as the wildcard. You can also wrap a custom identifier whose type has
+no 'Element' instance.
 
 >>> import Data.Time (TimeOfDay, midnight)
 >>> matchesQuery (Exactly midnight) (Wild :: Wild TimeOfDay)

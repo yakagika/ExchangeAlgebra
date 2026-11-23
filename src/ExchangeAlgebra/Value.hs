@@ -70,5 +70,5 @@ import ExchangeAlgebra.Algebra.Value
     ( MoneyDecimal(..), toDecimal, bankersRound, ceilingRound
     , MoneyParseError(..), moneyDecimalFromText, moneyDecimalFromScientific
     , MoneyDouble(..), toDouble )
--- Preserve the existing Hashable Day and TimeOfDay instance visibility.
+-- Keep the Hashable instances for Day and TimeOfDay available to callers.
 import ExchangeAlgebra.Algebra.Element.Representation ()

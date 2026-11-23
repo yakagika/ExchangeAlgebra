@@ -11,7 +11,7 @@
              法人税等 (中間納付 / 確定)
 
   決算整理の builder は ExchangeAlgebra.Accounting.Entries から。
-  訂正仕訳の監査証跡を見せる箇所だけ日付つき基底 (AccountTitles, Day) を使う。
+  訂正仕訳の監査証跡を見せる箇所だけ日付つき基底 (AccountTitles, Wild Day) を使う。
 -}
 
 import qualified ExchangeAlgebra            as EA
@@ -28,15 +28,20 @@ type MinTransaction = EA.Alg MoneyDecimal MinBase
 mk :: MkBase MinBase
 mk = (:<)
 
--- 日付つき基底 (訂正仕訳の監査証跡を勘定元帳に出すため)
-type ADBase        = EA.HatBase (EA.AccountTitles, Day)
+-- | Hat base for an account title and a calendar date in the correction ledger.
+type ADBase = EA.HatBase (EA.AccountTitles, Wild Day)
+
 type ADTransaction = EA.Alg MoneyDecimal ADBase
 
-d :: Integer -> Int -> Int -> Day
-d = fromGregorian
+-- | Build a concrete date element for a dated entry.
+d :: Integer -> Int -> Int -> Wild Day
+d year month day = Exactly (fromGregorian year month day)
 
+-- | Extract the date for the account ledger CSV.
+-- Invariant: Every correction entry is constructed with 'Exactly'.
 getDay :: ADBase -> Day
-getDay (_ :< (_, dy)) = dy
+getDay (_ :< (_, Exactly day)) = day
+getDay (_ :< (_, Wild))        = error "bookkeeping example requires a date on every entry"
 
 ------------------------------------------------------------------
 -- 第 19 章 株式発行・剰余金の配当

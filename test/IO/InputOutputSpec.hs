@@ -125,11 +125,15 @@ testWriteFuncResultsCsv =
 
 testWriteJournalPinned :: IO ()
 testWriteJournalPinned = withTestTemporaryFile $ \path -> do
-    let d1 = fromGregorian 2024 4 1
-        d2 = fromGregorian 2024 4 2
-        d3 = fromGregorian 2024 4 3
-        getDay' :: HatBase (AccountTitles, Day) -> Day
-        getDay' (_ :< (_, d)) = d
+    let d1 = Exactly (fromGregorian 2024 4 1)
+        d2 = Exactly (fromGregorian 2024 4 2)
+        d3 = Exactly (fromGregorian 2024 4 3)
+
+        -- Invariant: Every entry in alg has a date.
+        getDay' :: HatBase (AccountTitles, Wild Day) -> Day
+        getDay' (_ :< (_, Exactly day)) = day
+        getDay' (_ :< (_, Wild))        = error "writeJournal fixture requires a date on every entry"
+
         alg = (100 .@ Not :< (Cash, d1))
             .+ (100 .@ Not :< (CapitalStock, d1))
             .+ (50  .@ Not :< (Cash, d2))
@@ -137,7 +141,7 @@ testWriteJournalPinned = withTestTemporaryFile $ \path -> do
             .+ (30  .@ Not :< (Cash, d3))
             .+ (10  .@ Not :< (AccountsReceivable, d3))
             .+ (40  .@ Not :< (Sales, d3))
-            :: EA.Alg Double (HatBase (AccountTitles, Day))
+            :: EA.Alg Double (HatBase (AccountTitles, Wild Day))
     EW.writeJournal path alg getDay'
     raw <- readFileStrict path
     let lns = lines raw
@@ -148,10 +152,17 @@ testWriteJournalPinned = withTestTemporaryFile $ \path -> do
         "\"2024-04-01\",\"Cash\",\"100.0\",\"CapitalStock\",\"100.0\"" (lns !! 1)
     assertEqual "writeJournal pinned: day2"
         "\"2024-04-02\",\"Cash\",\"50.0\",\"Sales\",\"50.0\"" (lns !! 2)
-    assertEqual "writeJournal pinned: day3 line1 (2 debits vs 1 credit -> toSameLength padding)"
-        "\"2024-04-03\",\"AccountsReceivable\",\"10.0\",\"Sales\",\"40.0\"" (lns !! 3)
-    assertEqual "writeJournal pinned: day3 line2 (padded Day/Credit cells empty)"
-        "\"\",\"Cash\",\"30.0\",\"\",\"\"" (lns !! 4)
+    -- The two debit bases can appear in either hash map traversal order.
+    let day3Rows =
+            [ [ "\"2024-04-03\",\"AccountsReceivable\",\"10.0\",\"Sales\",\"40.0\""
+              , "\"\",\"Cash\",\"30.0\",\"\",\"\""
+              ]
+            , [ "\"2024-04-03\",\"Cash\",\"30.0\",\"Sales\",\"40.0\""
+              , "\"\",\"AccountsReceivable\",\"10.0\",\"\",\"\""
+              ]
+            ]
+    assertEqual ("writeJournal pinned: day3 debit rows, credit, and padding " ++ show (drop 3 lns))
+        True (drop 3 lns `elem` day3Rows)
 
 -- ================================================================
 -- ExchangeAlgebra.IO.Input.Csv: generic journal CSV reader.

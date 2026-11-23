@@ -410,31 +410,43 @@ testWildProjection shape pack = mapM_ checkQueries querySets
             (observeWild selected)
             (observeWild (Journal.toAlg (Journal.projWithNote [note] journal)))
 
--- | Check source matching and target retention with both stored time coordinates.
+-- | Check source matching and transfer targets for concrete and wildcard times.
 testWildTransfer :: IO ()
 testWildTransfer = do
     assertTest "Wild concrete transfer source skips the stored Wild" $
-        agrees (Exactly midnight) (4 .@ Hat :< (Cash, Exactly midnight)
-                                .+ 4 .@ Not :< (Deposits, Exactly midnight))
+        agrees ledger (Exactly midnight) Wild
+            (4 .@ Hat :< (Cash, Exactly midnight)
+          .+ 4 .@ Not :< (Deposits, Exactly midnight))
     assertTest "Wild transfer target retains both stored time coordinates" $
-        agrees Wild (7 .@ Hat :< (Cash, Wild)
-                  .+ 7 .@ Not :< (Deposits, Wild)
-                  .+ 4 .@ Hat :< (Cash, Exactly midnight)
-                  .+ 4 .@ Not :< (Deposits, Exactly midnight))
+        agrees ledger Wild Wild
+            (7 .@ Hat :< (Cash, Wild)
+          .+ 7 .@ Not :< (Deposits, Wild)
+          .+ 4 .@ Hat :< (Cash, Exactly midnight)
+          .+ 4 .@ Not :< (Deposits, Exactly midnight))
+    assertTest "Exactly midnight sets the transfer target time to 00:00" $
+        agrees (5 .@ Not :< (Cash, morning)) morning (Exactly midnight)
+            (5 .@ Hat :< (Cash, morning)
+          .+ 5 .@ Not :< (Deposits, Exactly midnight))
   where
     ledger :: Alg MoneyDecimal (HatBase (AccountTitles, Wild TimeOfDay))
     ledger = 7 .@ Not :< (Cash, Wild)
           .+ 4 .@ Not :< (Cash, Exactly midnight)
 
-    agrees :: Wild TimeOfDay -> Alg MoneyDecimal (HatBase (AccountTitles, Wild TimeOfDay)) -> Bool
-    agrees source expected =
+    morning = Exactly (TimeOfDay 9 0 0)
+
+    agrees :: Alg MoneyDecimal (HatBase (AccountTitles, Wild TimeOfDay))
+           -> Wild TimeOfDay
+           -> Wild TimeOfDay
+           -> Alg MoneyDecimal (HatBase (AccountTitles, Wild TimeOfDay))
+           -> Bool
+    agrees input source target expected =
         case Transfer.mkTransferRules [rule] of
             Left _      -> False
-            Right rules -> case Transfer.transferEntries rules ledger of
+            Right rules -> case Transfer.transferEntries rules input of
                 Left _         -> False
                 Right postings -> observeWild postings == observeWild expected
       where
-        rule = Transfer.TransferRule (Not :< (Cash, source)) (Not :< (Deposits, Wild))
+        rule = Transfer.TransferRule (Not :< (Cash, source)) (Not :< (Deposits, target))
             Transfer.Relabel
 
 -- | Replacing an account title preserves the Hat/Not side and every other coordinate.
@@ -482,15 +494,13 @@ testWildPayload = do
     firstKey = AxisKey first
     secondKey = AxisKey second
 
--- | Midnight stays concrete on the wrapped axis and remains a wildcard on the legacy axis.
+-- | Check that midnight and 1858-11-17 can be selected as ordinary elements.
 testWildCalendarRegression :: IO ()
 testWildCalendarRegression = do
     assertEqual "Wild TimeOfDay: midnight selects only the midnight posting" 100
         (norm (proj [Not :< (Cash, Exactly midnight)] receipts))
     assertEqual "Wild TimeOfDay: Wild selects all three postings" 600
         (norm (proj [Not :< (Cash, Wild)] receipts))
-    assertEqual "legacy TimeOfDay: midnight selects all three postings" 600
-        (norm (proj [Not :< (Cash, midnight)] receiptsOld))
     assertEqual "Wild Day: 1858-11-17 selects only that day's posting" 500
         (norm (proj [Not :< (Cash, Exactly (ModifiedJulianDay 0))] dated))
     assertEqual "Wild Day: sale totals 500 on both debit and credit" (500, 500)
@@ -500,11 +510,6 @@ testWildCalendarRegression = do
     receipts = 100 .@ Not :< (Cash, Exactly midnight)
             .+ 200 .@ Not :< (Cash, Exactly (TimeOfDay 9 0 0))
             .+ 300 .@ Not :< (Cash, Wild)
-
-    receiptsOld :: Alg MoneyDecimal (HatBase (AccountTitles, TimeOfDay))
-    receiptsOld = 100 .@ Not :< (Cash, midnight)
-               .+ 200 .@ Not :< (Cash, TimeOfDay 9 0 0)
-               .+ 300 .@ Not :< (Cash, midnight)
 
     sale :: Alg MoneyDecimal (HatBase (AccountTitles, Wild Day))
     sale = 500 .@ Not :< (Cash,  Exactly (fromGregorian 2026 1 10))

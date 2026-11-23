@@ -1252,23 +1252,23 @@ testExchangeRelationProp538 = do
 -- isContra のTrue集合が既存評価勘定2件 + V-Land 2 P/L控除3件になること。
 testIsContraSweepAcrossBaseInstances :: IO ()
 testIsContraSweepAcrossBaseInstances = do
-    let day0 = fromGregorian 2026 1 1
-        tod0 = TimeOfDay 0 0 0
+    let day0 = Exactly (fromGregorian 2026 1 1)
+        tod0 = Exactly (TimeOfDay 0 0 0)
         nm   = T.pack "spec"
         sweep :: ExBaseClass b => String -> (AccountTitles -> b) -> IO ()
         sweep label mk = assertEqual ("isContra sweep: " ++ label)
             allContra
             [ t | t <- Registry.concreteAccountTitles, isContra (mk t) ]
     sweep "HatBase AccountTitles" (\t -> Not :< t :: HatBase AccountTitles)
-    sweep "HatBase (AccountTitles, Day)" (\t -> Not :< (t, day0))
+    sweep "HatBase (AccountTitles, Wild Day)" (\t -> Not :< (t, day0))
     sweep "HatBase (AccountTitles, Name)" (\t -> Not :< (t, nm))
     sweep "HatBase (CountUnit, AccountTitles)" (\t -> Not :< (Yen, t))
     sweep "HatBase (AccountTitles, Name, CountUnit)" (\t -> Not :< (t, nm, Yen))
     sweep "HatBase (AccountTitles, Name, CountUnit, Subject)"
           (\t -> Not :< (t, nm, Yen, nm))
-    sweep "HatBase (AccountTitles, Name, CountUnit, Subject, Day)"
+    sweep "HatBase (AccountTitles, Name, CountUnit, Subject, Wild Day)"
           (\t -> Not :< (t, nm, Yen, nm, day0))
-    sweep "HatBase (AccountTitles, Name, CountUnit, Subject, Day, TimeOfDay)"
+    sweep "HatBase (AccountTitles, Name, CountUnit, Subject, Wild Day, Wild TimeOfDay)"
           (\t -> Not :< (t, nm, Yen, nm, day0, tod0))
     sweep "SimHatBase2 (custom instance)" (\t -> Not :< (t, 1, 2, Yen) :: SimHatBase2)
 
