@@ -26,6 +26,7 @@ algebra/bases.md	program	ExchangeAlgebra	BaseClass
 algebra/bases.md	program	ExchangeAlgebra	Cash
 algebra/bases.md	program	ExchangeAlgebra	Deposits
 algebra/bases.md	program	ExchangeAlgebra	Element
+algebra/bases.md	program	ExchangeAlgebra	ExBaseClass
 algebra/bases.md	program	ExchangeAlgebra	Generic
 algebra/bases.md	program	ExchangeAlgebra	Hashable
 algebra/bases.md	program	ExchangeAlgebra	Hat
@@ -33,9 +34,11 @@ algebra/bases.md	program	ExchangeAlgebra	HatBase
 algebra/bases.md	program	ExchangeAlgebra	HatBaseClass
 algebra/bases.md	program	ExchangeAlgebra	Not
 algebra/bases.md	program	ExchangeAlgebra	base
+algebra/bases.md	program	ExchangeAlgebra	getAccountTitle
 algebra/bases.md	program	ExchangeAlgebra	hat
 algebra/bases.md	program	ExchangeAlgebra	merge
 algebra/bases.md	program	ExchangeAlgebra	revHat
+algebra/bases.md	program	ExchangeAlgebra	setAccountTitle
 algebra/bases.md	program	ExchangeAlgebra	wildcard
 algebra/bases.md	reference		BasePart
 algebra/bases.md	reference		base
@@ -103,92 +106,96 @@ algebra/redundant.md	program	ExchangeAlgebra	.@
 algebra/redundant.md	program	ExchangeAlgebra	.^
 algebra/redundant.md	program	ExchangeAlgebra	:<
 algebra/redundant.md	program	ExchangeAlgebra	AccountTitles
+algebra/redundant.md	program	ExchangeAlgebra	Accum
 algebra/redundant.md	program	ExchangeAlgebra	Alg
 algebra/redundant.md	program	ExchangeAlgebra	Cash
 algebra/redundant.md	program	ExchangeAlgebra	Deposits
 algebra/redundant.md	program	ExchangeAlgebra	Element
+algebra/redundant.md	program	ExchangeAlgebra	ExBaseClass
+algebra/redundant.md	program	ExchangeAlgebra	Exchange
 algebra/redundant.md	program	ExchangeAlgebra	Generic
 algebra/redundant.md	program	ExchangeAlgebra	Hashable
 algebra/redundant.md	program	ExchangeAlgebra	Hat
 algebra/redundant.md	program	ExchangeAlgebra	HatBase
 algebra/redundant.md	program	ExchangeAlgebra	HatNot
+algebra/redundant.md	program	ExchangeAlgebra	HatVal
 algebra/redundant.md	program	ExchangeAlgebra	MoneyDecimal
+algebra/redundant.md	program	ExchangeAlgebra	MoneyDouble
+algebra/redundant.md	program	ExchangeAlgebra	Nearest
+algebra/redundant.md	program	ExchangeAlgebra	Nearly
+algebra/redundant.md	program	ExchangeAlgebra	NegativeValue
 algebra/redundant.md	program	ExchangeAlgebra	Not
 algebra/redundant.md	program	ExchangeAlgebra	Purchases
 algebra/redundant.md	program	ExchangeAlgebra	Redundant
+algebra/redundant.md	program	ExchangeAlgebra	Rounding
+algebra/redundant.md	program	ExchangeAlgebra	ToMultipleOf
+algebra/redundant.md	program	ExchangeAlgebra	ValueError
+algebra/redundant.md	program	ExchangeAlgebra	Zero
+algebra/redundant.md	program	ExchangeAlgebra	addAccum
 algebra/redundant.md	program	ExchangeAlgebra	bar
 algebra/redundant.md	program	ExchangeAlgebra	compress
+algebra/redundant.md	program	ExchangeAlgebra	decL
+algebra/redundant.md	program	ExchangeAlgebra	decR
+algebra/redundant.md	program	ExchangeAlgebra	diffRL
+algebra/redundant.md	program	ExchangeAlgebra	emptyAccum
+algebra/redundant.md	program	ExchangeAlgebra	exactAccum
+algebra/redundant.md	program	ExchangeAlgebra	fixedCurrent
+algebra/redundant.md	program	ExchangeAlgebra	getAccountTitle
+algebra/redundant.md	program	ExchangeAlgebra	isNearly
+algebra/redundant.md	program	ExchangeAlgebra	isNearlyNum
+algebra/redundant.md	program	ExchangeAlgebra	mergeAccum
+algebra/redundant.md	program	ExchangeAlgebra	negateAccum
 algebra/redundant.md	program	ExchangeAlgebra	norm
 algebra/redundant.md	program	ExchangeAlgebra	proj
 algebra/redundant.md	program	ExchangeAlgebra	projNetNorm
+algebra/redundant.md	program	ExchangeAlgebra	roundAccum
+algebra/redundant.md	program	ExchangeAlgebra	roundRational
+algebra/redundant.md	program	ExchangeAlgebra	setAccountTitle
+algebra/redundant.md	program	ExchangeAlgebra	showValue
+algebra/redundant.md	program	ExchangeAlgebra	signAccum
+algebra/redundant.md	program	ExchangeAlgebra	splitAccum
+algebra/redundant.md	program	ExchangeAlgebra	valueError
+algebra/redundant.md	program	ExchangeAlgebra	whatDiv
+algebra/redundant.md	program	ExchangeAlgebra	whatPIMO
+algebra/redundant.md	program	ExchangeAlgebra	whichSide
 algebra/redundant.md	program	ExchangeAlgebra	wildcard
+algebra/redundant.md	program	ExchangeAlgebra	zeroValue
 algebra/redundant.md	reference		.*
 algebra/redundant.md	reference		.+
 algebra/redundant.md	reference		.-
 algebra/redundant.md	reference		.^
+algebra/redundant.md	reference		Accum
+algebra/redundant.md	reference		ExBaseClass
+algebra/redundant.md	reference		addAccum
+algebra/redundant.md	reference		balance
 algebra/redundant.md	reference		bar
 algebra/redundant.md	reference		compress
+algebra/redundant.md	reference		decL
+algebra/redundant.md	reference		decM
+algebra/redundant.md	reference		decP
+algebra/redundant.md	reference		decR
+algebra/redundant.md	reference		diffRL
+algebra/redundant.md	reference		emptyAccum
+algebra/redundant.md	reference		exactAccum
+algebra/redundant.md	reference		fixedCurrent
+algebra/redundant.md	reference		isContra
+algebra/redundant.md	reference		isZeroValue
+algebra/redundant.md	reference		mergeAccum
+algebra/redundant.md	reference		negateAccum
 algebra/redundant.md	reference		norm
+algebra/redundant.md	reference		postingUpperBound
 algebra/redundant.md	reference		proj
 algebra/redundant.md	reference		projNetNorm
-algebra/values.md	program	ExchangeAlgebra	.*
-algebra/values.md	program	ExchangeAlgebra	.+
-algebra/values.md	program	ExchangeAlgebra	.@
-algebra/values.md	program	ExchangeAlgebra	:<
-algebra/values.md	program	ExchangeAlgebra	AccountTitles
-algebra/values.md	program	ExchangeAlgebra	Accum
-algebra/values.md	program	ExchangeAlgebra	Alg
-algebra/values.md	program	ExchangeAlgebra	Cash
-algebra/values.md	program	ExchangeAlgebra	Deposits
-algebra/values.md	program	ExchangeAlgebra	Element
-algebra/values.md	program	ExchangeAlgebra	Generic
-algebra/values.md	program	ExchangeAlgebra	Hashable
-algebra/values.md	program	ExchangeAlgebra	Hat
-algebra/values.md	program	ExchangeAlgebra	HatBase
-algebra/values.md	program	ExchangeAlgebra	HatNot
-algebra/values.md	program	ExchangeAlgebra	HatVal
-algebra/values.md	program	ExchangeAlgebra	MoneyDecimal
-algebra/values.md	program	ExchangeAlgebra	MoneyDouble
-algebra/values.md	program	ExchangeAlgebra	Nearest
-algebra/values.md	program	ExchangeAlgebra	Nearly
-algebra/values.md	program	ExchangeAlgebra	NegativeValue
-algebra/values.md	program	ExchangeAlgebra	Not
-algebra/values.md	program	ExchangeAlgebra	Redundant
-algebra/values.md	program	ExchangeAlgebra	Rounding
-algebra/values.md	program	ExchangeAlgebra	ToMultipleOf
-algebra/values.md	program	ExchangeAlgebra	ValueError
-algebra/values.md	program	ExchangeAlgebra	Zero
-algebra/values.md	program	ExchangeAlgebra	addAccum
-algebra/values.md	program	ExchangeAlgebra	emptyAccum
-algebra/values.md	program	ExchangeAlgebra	exactAccum
-algebra/values.md	program	ExchangeAlgebra	isNearly
-algebra/values.md	program	ExchangeAlgebra	isNearlyNum
-algebra/values.md	program	ExchangeAlgebra	mergeAccum
-algebra/values.md	program	ExchangeAlgebra	negateAccum
-algebra/values.md	program	ExchangeAlgebra	norm
-algebra/values.md	program	ExchangeAlgebra	roundAccum
-algebra/values.md	program	ExchangeAlgebra	roundRational
-algebra/values.md	program	ExchangeAlgebra	showValue
-algebra/values.md	program	ExchangeAlgebra	signAccum
-algebra/values.md	program	ExchangeAlgebra	splitAccum
-algebra/values.md	program	ExchangeAlgebra	valueError
-algebra/values.md	program	ExchangeAlgebra	wildcard
-algebra/values.md	program	ExchangeAlgebra	zeroValue
-algebra/values.md	reference		Accum
-algebra/values.md	reference		addAccum
-algebra/values.md	reference		emptyAccum
-algebra/values.md	reference		exactAccum
-algebra/values.md	reference		isZeroValue
-algebra/values.md	reference		mergeAccum
-algebra/values.md	reference		negateAccum
-algebra/values.md	reference		postingUpperBound
-algebra/values.md	reference		roundAccum
-algebra/values.md	reference		roundRational
-algebra/values.md	reference		showValue
-algebra/values.md	reference		signAccum
-algebra/values.md	reference		splitAccum
-algebra/values.md	reference		valueError
-algebra/values.md	reference		zeroValue
+algebra/redundant.md	reference		roundAccum
+algebra/redundant.md	reference		roundRational
+algebra/redundant.md	reference		showValue
+algebra/redundant.md	reference		signAccum
+algebra/redundant.md	reference		splitAccum
+algebra/redundant.md	reference		valueError
+algebra/redundant.md	reference		whatDiv
+algebra/redundant.md	reference		whatPIMO
+algebra/redundant.md	reference		whichSide
+algebra/redundant.md	reference		zeroValue
 bookkeeping/adjustment.md	program	ExchangeAlgebra	.#
 bookkeeping/adjustment.md	program	ExchangeAlgebra	.+
 bookkeeping/adjustment.md	program	ExchangeAlgebra	.->
@@ -615,47 +622,6 @@ bookkeeping/trial-balance.md	reference	ExchangeAlgebra.Accounting.TrialBalance	a
 bookkeeping/trial-balance.md	reference	ExchangeAlgebra.Accounting.TrialBalance	balanceFor
 bookkeeping/trial-balance.md	reference	ExchangeAlgebra.Accounting.TrialBalance	balancePair
 bookkeeping/trial-balance.md	reference	ExchangeAlgebra.Accounting.TrialBalance	trialBalanceFindings
-exchange/exchange.md	program	ExchangeAlgebra	.+
-exchange/exchange.md	program	ExchangeAlgebra	.@
-exchange/exchange.md	program	ExchangeAlgebra	:<
-exchange/exchange.md	program	ExchangeAlgebra	AccountTitles
-exchange/exchange.md	program	ExchangeAlgebra	Alg
-exchange/exchange.md	program	ExchangeAlgebra	Cash
-exchange/exchange.md	program	ExchangeAlgebra	Deposits
-exchange/exchange.md	program	ExchangeAlgebra	Element
-exchange/exchange.md	program	ExchangeAlgebra	ExBaseClass
-exchange/exchange.md	program	ExchangeAlgebra	Exchange
-exchange/exchange.md	program	ExchangeAlgebra	Generic
-exchange/exchange.md	program	ExchangeAlgebra	Hashable
-exchange/exchange.md	program	ExchangeAlgebra	Hat
-exchange/exchange.md	program	ExchangeAlgebra	HatBase
-exchange/exchange.md	program	ExchangeAlgebra	MoneyDecimal
-exchange/exchange.md	program	ExchangeAlgebra	Not
-exchange/exchange.md	program	ExchangeAlgebra	Redundant
-exchange/exchange.md	program	ExchangeAlgebra	balance
-exchange/exchange.md	program	ExchangeAlgebra	decL
-exchange/exchange.md	program	ExchangeAlgebra	decR
-exchange/exchange.md	program	ExchangeAlgebra	diffRL
-exchange/exchange.md	program	ExchangeAlgebra	fixedCurrent
-exchange/exchange.md	program	ExchangeAlgebra	getAccountTitle
-exchange/exchange.md	program	ExchangeAlgebra	norm
-exchange/exchange.md	program	ExchangeAlgebra	setAccountTitle
-exchange/exchange.md	program	ExchangeAlgebra	whatDiv
-exchange/exchange.md	program	ExchangeAlgebra	whatPIMO
-exchange/exchange.md	program	ExchangeAlgebra	whichSide
-exchange/exchange.md	program	ExchangeAlgebra	wildcard
-exchange/exchange.md	reference		ExBaseClass
-exchange/exchange.md	reference		balance
-exchange/exchange.md	reference		decL
-exchange/exchange.md	reference		decM
-exchange/exchange.md	reference		decP
-exchange/exchange.md	reference		decR
-exchange/exchange.md	reference		diffRL
-exchange/exchange.md	reference		fixedCurrent
-exchange/exchange.md	reference		isContra
-exchange/exchange.md	reference		whatDiv
-exchange/exchange.md	reference		whatPIMO
-exchange/exchange.md	reference		whichSide
 exchange/transfer.md	program	ExchangeAlgebra	.#
 exchange/transfer.md	program	ExchangeAlgebra	.+
 exchange/transfer.md	program	ExchangeAlgebra	.->
@@ -923,20 +889,6 @@ overview.md	program	ExchangeAlgebra	decL
 overview.md	program	ExchangeAlgebra	decR
 overview.md	program	ExchangeAlgebra	norm
 overview.md	program	ExchangeAlgebra	projByAccountTitle
-usage/installation.md	program	ExchangeAlgebra	.+
-usage/installation.md	program	ExchangeAlgebra	.@
-usage/installation.md	program	ExchangeAlgebra	:<
-usage/installation.md	program	ExchangeAlgebra	AccountTitles
-usage/installation.md	program	ExchangeAlgebra	Alg
-usage/installation.md	program	ExchangeAlgebra	Cash
-usage/installation.md	program	ExchangeAlgebra	CountUnit
-usage/installation.md	program	ExchangeAlgebra	Deposits
-usage/installation.md	program	ExchangeAlgebra	Hat
-usage/installation.md	program	ExchangeAlgebra	HatBase
-usage/installation.md	program	ExchangeAlgebra	MoneyDecimal
-usage/installation.md	program	ExchangeAlgebra	Not
-usage/installation.md	program	ExchangeAlgebra	Redundant
-usage/installation.md	program	ExchangeAlgebra	Yen
 usage/withdrawal.md	program	ExchangeAlgebra	.+
 usage/withdrawal.md	program	ExchangeAlgebra	.@
 usage/withdrawal.md	program	ExchangeAlgebra	:<

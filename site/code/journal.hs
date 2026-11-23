@@ -1,4 +1,5 @@
 -- ANCHOR: setup
+-- ANCHOR: common-imports
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -6,9 +7,13 @@
 module Main where
 
 import ExchangeAlgebra hiding (Yen, Dollar)
+-- ANCHOR_END: common-imports
+-- ANCHOR: journal-imports
 import ExchangeAlgebra.Journal ((.|))
 import qualified ExchangeAlgebra.Journal as Journal
+-- ANCHOR_END: journal-imports
 
+-- ANCHOR: common-declarations
 -- | Currency elements for the withdrawal and exchange records.
 data Unit
     = Yen       -- ^ Japanese yen.
@@ -23,6 +28,7 @@ instance Element Unit where
 instance ExBaseClass (HatBase (AccountTitles, Unit)) where
     getAccountTitle (_ :< (account, _)) = account
     setAccountTitle (direction :< (_, unit)) account = direction :< (account, unit)
+-- ANCHOR_END: common-declarations
 -- ANCHOR_END: setup
 
 -- ANCHOR: note
@@ -45,11 +51,14 @@ withdrawalNote = EntryNote (2026, 1, 10) "Withdrawal from Bank A"
 -- ANCHOR_END: note
 
 -- ANCHOR: entries
+-- ANCHOR: withdrawal
 -- | January 10: withdraw 3,000 yen from Bank A's savings account into cash.
 withdrawal :: Alg MoneyDecimal (HatBase (AccountTitles, Unit))
 withdrawal = 3000 .@ Not :< (Cash, Yen)
           .+ 3000 .@ Hat :< (Deposits, Yen)
+-- ANCHOR_END: withdrawal
 
+-- ANCHOR: dated-entries
 -- | January 15: withdraw another 2,000 yen.
 secondWithdrawal :: Alg MoneyDecimal (HatBase (AccountTitles, Unit))
 secondWithdrawal = 2000 .@ Not :< (Cash, Yen)
@@ -81,6 +90,7 @@ transactions = (withdrawal .| withdrawalNote)
             .+ (cashPayment .| EntryNote (2026, 1, 20) "Purchase of goods")
             .+ (currencyExchange .| EntryNote (2026, 1, 25) "Yen-dollar exchange")
             .+ (februaryPurchase .| februaryNote)
+-- ANCHOR_END: dated-entries
 -- ANCHOR_END: entries
 
 -- ANCHOR: queries

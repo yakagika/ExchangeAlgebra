@@ -7,18 +7,19 @@
 
 - [Definitions and axioms](algebra/definitions.md)
 
-# The algebra layer
+# Getting started
 
 - [Installation and modules](usage/installation.md)
 - [Record a withdrawal](usage/withdrawal.md)
+
+# Customizing the components
+
 - [Elements](algebra/elements.md)
 - [Bases](algebra/bases.md)
-- [Values](algebra/values.md)
-- [The redundant algebra](algebra/redundant.md)
+- [Redundant and exchange algebras](algebra/redundant.md)
 
-# Exchange algebra and journals
+# Transfers and journals
 
-- [Exchange algebra](exchange/exchange.md)
 - [Transfers](exchange/transfer.md)
 - [Journals](journal/journal.md)
 - [Multiple accounting entities](journal/agents.md)

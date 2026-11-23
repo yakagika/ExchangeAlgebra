@@ -1,4 +1,15 @@
-January 10 withdrawal: 3000:@Not:<(Cash,Yen) .+ 3000:@Hat:<(Deposits,Yen)
+Decimal portion totals (separate, combined): (1800,1800)
+Binary portion totals (separate, combined): (1800.0,1800.0000000000002)
+Negative amount rejected: True
+Infinite amount rejected: True
+NaN amount rejected: True
+Wildcard side rejected: True
+Negative scalar rejected: True
+Infinite scalar rejected: True
+NaN scalar rejected: True
+Negative scalar times Zero: 0
+Zero scalar times withdrawal: 0
+Rational yen withdrawal: 3000 % 1:@Not:<(Cash,Yen) .+ 3000 % 1:@Hat:<(Deposits,Yen)
 Twice the withdrawal: 6000:@Not:<(Cash,Yen) .+ 6000:@Hat:<(Deposits,Yen)
 Withdrawal term total in yen: 6000
 Yen cash terms before aggregation: 500:@Hat:<(Cash,Yen) .+ 1500:@Hat:<(Cash,Yen) .+ 2000:@Not:<(Cash,Yen) .+ 3000:@Not:<(Cash,Yen)
@@ -10,3 +21,13 @@ Yen cash residual amount: 3000
 Reverse the withdrawal directions: 3000:@Hat:<(Cash,Yen) .+ 3000:@Not:<(Deposits,Yen)
 Withdrawal plus its hat, before bar: 3000:@Hat:<(Cash,Yen) .+ 3000:@Not:<(Cash,Yen) .+ 3000:@Hat:<(Deposits,Yen) .+ 3000:@Not:<(Deposits,Yen)
 Withdrawal plus its hat, after bar: 0
+Debit total in yen: 3000
+Credit total in yen: 3000
+Debit-credit difference: (Side,0)
+Cash division: Assets
+Cash increase side: Debit
+Deposit decrease side: Credit
+Cash PIMO class: PS
+Cash maturity class: Current
+Exchange difference in yen: (Credit,1500)
+Exchange difference in dollars: (Debit,10)

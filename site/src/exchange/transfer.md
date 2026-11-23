@@ -2,20 +2,42 @@
 
 A transfer moves an amount from one account to another by adding a journal entry. Keep the January 10 withdrawal and suppose that the business pays 1,200 yen in cash on January 30 for January and February rent, 600 yen for each month. If the payment was initially recorded entirely as rent expense, defer February's 600 yen to prepaid expenses at January 31.
 
-Use exchangealgebra-0.6.1.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). The example extends [Record the withdrawal](exchange.md#record-the-withdrawal) with the rent payment and its transfer entry. It uses the accounting transfer API from `ExchangeAlgebra.Accounting.Transfer`, re-exported by `ExchangeAlgebra`.
+Use exchangealgebra-0.6.1.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). The example extends [Record the withdrawal](../usage/withdrawal.md) with the rent payment and its transfer entry. It uses the accounting transfer API from `ExchangeAlgebra.Accounting.Transfer`, re-exported by `ExchangeAlgebra`.
 
 ## Record the rent payment {#record-the-rent-payment}
 
 Save the code blocks in their displayed order as `Main.hs`. Retain the account-and-unit base and its instance:
 
+<details>
+<summary>
+
+Common setup
+
+</summary>
+
 ```haskell
 {{#include ../../code/transfer.hs:setup}}
 ```
 
+</details>
+
 Add the payment to the withdrawal:
 
+<details>
+<summary>
+
+Withdrawal definition
+
+</summary>
+
 ```haskell
-{{#include ../../code/transfer.hs:payment}}
+{{#include ../../code/transfer.hs:withdrawal}}
+```
+
+</details>
+
+```haskell
+{{#include ../../code/transfer.hs:rent-payment}}
 ```
 
 The payment debits RentExpense and credits Cash by 1,200 yen. The withdrawal supplies the cash for the payment. `beforeTransfer` records changes without opening balances; the deposit decrease requires an opening deposit to determine the amount still held.
@@ -70,6 +92,6 @@ Tested with exchangealgebra-0.6.1.1 on 2026-11-20.
 
 The preprint orders rules by source base; the accounting table instead uses the supplied row order. Each row reads the balances left by earlier rows. A whole-balance transfer table closes its selected sources and is idempotent after its entries have been added. A portion table generally is not idempotent.
 
-A transfer can fail on selected invalid terms, unclassified accounts, or an amount that cannot be represented under the rounding rule. Handle `Left` before adding any entries; no partial successful record is returned. Use positive, finite amounts through `.@`, as in [Construction and scalar checks](../algebra/values.md#construction-and-scalar-checks).
+A transfer can fail on selected invalid terms, unclassified accounts, or an amount that cannot be represented under the rounding rule. Handle `Left` before adding any entries; no partial successful record is returned. Use positive, finite amounts through `.@`, as in [Construction and scalar checks](../algebra/redundant.md#construction-and-scalar-checks).
 
 The generic `ExchangeAlgebra.Algebra.Transfer` API works on individual terms and is separate from this accounting API. Unit conversion changes the measure of an amount and is not the accounting reclassification used for the rent adjustment.

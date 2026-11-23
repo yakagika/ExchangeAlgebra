@@ -2,15 +2,41 @@
 
 The January 10 withdrawal has a date and a description, “Withdrawal from Bank A.” Keep those facts in a journal note so they remain available for selecting transactions without including them as elements in the base used for account balances. A `Journal n v b` associates each note of type `n` with an `Alg v b`.
 
-Use exchangealgebra-0.6.1.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). The example attaches notes to the month's transactions from [The redundant algebra](../algebra/redundant.md), adds a February purchase, then selects entries by note, base, and date range. The note set, finite journal, and operations correspond to [Definitions 10–12](../algebra/definitions.md#notes).
+Use exchangealgebra-0.6.1.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). The example attaches notes to the month's transactions from [Add the month's transactions](../algebra/redundant.md#add-the-months-transactions), adds a February purchase, then selects entries by note, base, and date range. The note set, finite journal, and operations correspond to [Definitions 10–12](../algebra/definitions.md#notes).
 
 ## Declare a note type {#declare-a-note-type}
 
 Save the code blocks in their displayed order as `Main.hs`. Use the qualified journal import for constructors and queries, and import `(.|)` separately to attach notes.
 
+<details>
+<summary>
+
+Common imports and language extensions
+
+</summary>
+
 ```haskell
-{{#include ../../code/journal.hs:setup}}
+{{#include ../../code/journal.hs:common-imports}}
 ```
+
+</details>
+
+```haskell
+{{#include ../../code/journal.hs:journal-imports}}
+```
+
+<details>
+<summary>
+
+Common declarations
+
+</summary>
+
+```haskell
+{{#include ../../code/journal.hs:common-declarations}}
+```
+
+</details>
 
 Declare a note containing the date and description:
 
@@ -26,8 +52,21 @@ The value `EntryNote (0, 0, 0) ""` is reserved for the empty note and is not a t
 
 Construct each transaction as an algebra, then attach its note once with `.|`:
 
+<details>
+<summary>
+
+Withdrawal definition
+
+</summary>
+
 ```haskell
-{{#include ../../code/journal.hs:entries}}
+{{#include ../../code/journal.hs:withdrawal}}
+```
+
+</details>
+
+```haskell
+{{#include ../../code/journal.hs:dated-entries}}
 ```
 
 The two terms of the January 10 withdrawal share `withdrawalNote`. The January 15 withdrawal has a different date, so it remains separately selectable even though its description is the same. Adding journals with `.+` keeps the notes and concatenates the term sequences at a shared note; it does not net the terms.

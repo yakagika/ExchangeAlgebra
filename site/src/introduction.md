@@ -10,20 +10,27 @@ The running example starts with a bank withdrawal on January 10 and follows the 
 
 - Consult [Definitions and axioms](algebra/definitions.md) for the formal rules for matching elements, adding terms, and separating debits from credits, or go straight to [Installation and modules](usage/installation.md) to start using the library.
 
-### The algebra layer {#the-algebra-layer}
+### Getting started {#getting-started}
 
-- In [Installation and modules](usage/installation.md), add the package to a Stack project and run the withdrawal example.
-- In [Elements](algebra/elements.md), declare a currency element type and check how a wildcard query matches bases that use that type.
-- In [Bases](algebra/bases.md), pair account titles with currency units to describe the two changes in the withdrawal.
-- In [Values](algebra/values.md), represent the withdrawal amounts as exact decimals and check how construction handles invalid amounts.
-- In [The redundant algebra](algebra/redundant.md), add the month’s terms, select them by base, and aggregate them explicitly.
+- In [Installation and modules](usage/installation.md), add the package to a Stack project and select imports by layer.
+- In [Record a withdrawal](usage/withdrawal.md), write a journal entry in exchange algebra and check that the debit and credit totals agree.
 
-### Exchange algebra and journals {#exchange-algebra-and-journals}
+### Customizing the components {#customizing-the-components}
 
-- In [Exchange algebra](exchange/exchange.md), split the withdrawal into debits and credits and check that their totals agree.
+- In [Elements](algebra/elements.md), add a bank element and query bases by bank.
+- In [Bases](algebra/bases.md), build a three-element base and update account access.
+- In [Redundant and exchange algebras](algebra/redundant.md), choose an amount type, work with the month's terms, and read debit and credit differences.
+
+### Transfers and journals {#transfers-and-journals}
+
 - In [Transfers](exchange/transfer.md), move part of the rent payment to prepaid expenses and check the resulting balances.
 - In [Journals](journal/journal.md), attach dates and descriptions to transactions and select terms for January.
 - In [Multiple accounting entities](journal/agents.md), record the withdrawal for both the shop and the bank and check each entity’s terms.
+
+### Account titles {#account-titles}
+
+- In [Account titles and their attributes](accounts/attributes.md), look up how the library classifies an account title.
+- In [Built-in account titles](accounts/builtin.md), find an account title to use in an entry.
 
 ### Bookkeeping procedures {#bookkeeping-procedures}
 
