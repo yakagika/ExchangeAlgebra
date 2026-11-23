@@ -113,6 +113,55 @@ Tested with exchangealgebra-0.6.1.1 on 2026-11-20.
 
 `Wild a` has `Element` and `BaseClass` instances when `a` has `Ord`, `Show`, `Hashable`, and `Typeable` instances. It derives `Eq`, `Ord`, `Show`, and `Generic`, and has `NFData`, `Hashable`, and `Binary` instances when `a` has the corresponding instance.
 
+For example, `Wild Int` can identify branches by number. `Int` has no `Element` instance, so a base that contains `Int` without `Wild` does not compile. A query for `Exactly 1` selects branch 1, and a query for `Wild` selects every branch:
+
+```haskell
+{{#include ../../code/wild-elements.hs:int}}
+```
+
+```text
+{{#include ../../code/wild-elements.expected:1:2}}
+```
+
 The `Element` instance for `TimeOfDay` uses 00:00 as its wildcard. A query for 00:00 therefore matches every time of day. A term stored at 00:00 means that no time of day applies, so a query for a specific time, such as 13:00, does not match it.
 
+The following record receives cash at 00:00 and at 13:00 with `TimeOfDay`. The query for 00:00 selects both terms, and the query for 13:00 selects only the term at 13:00:
+
+```haskell
+{{#include ../../code/wild-elements.hs:time}}
+```
+
+```text
+{{#include ../../code/wild-elements.expected:3:4}}
+```
+
 To record 00:00 as an ordinary time, use `Wild TimeOfDay`, added in 0.6.1.0. Store `Exactly midnight`, and query `Exactly midnight` to select only 00:00 or `Wild` to select any time. `Day` and `Wild Day` treat 1858-11-17 in the same way. The built-in base `(AccountTitles, Name, CountUnit, Subject, Wild Day, Wild TimeOfDay)` has an `ExBaseClass` instance; see [Exchange algebra](../exchange/exchange.md#declare-the-base-instance).
+
+With `Wild TimeOfDay`, the same receipts are distinguished by time:
+
+```haskell
+{{#include ../../code/wild-elements.hs:wild-time}}
+```
+
+```text
+{{#include ../../code/wild-elements.expected:5:7}}
+```
+
+The query for `Exactly midnight` selects only the term at 00:00. For dates, [Query a date stored as an ordinary element](#query-a-date-stored-as-an-ordinary-element) shows the same use of `Wild Day`.
+
+These excerpts come from one program. To run it, save the complete program below as `Main.hs` and add `time` to your project's dependencies. From the project directory, run `stack exec -- ghc -Wall -Werror -package time Main.hs -o wild-elements`, then run `./wild-elements`.
+
+<details>
+<summary>
+
+Complete program
+
+</summary>
+
+```haskell
+{{#include ../../code/wild-elements.hs:program}}
+```
+
+</details>
+
+Tested with exchangealgebra-0.6.1.1 on 2026-11-23.

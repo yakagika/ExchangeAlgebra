@@ -48,6 +48,7 @@ algebra/bases.md	reference		revHat
 algebra/bases.md	reference		toHat
 algebra/bases.md	reference		toNot
 algebra/elements.md	program	ExchangeAlgebra	.#
+algebra/elements.md	program	ExchangeAlgebra	.+
 algebra/elements.md	program	ExchangeAlgebra	.@
 algebra/elements.md	program	ExchangeAlgebra	:<
 algebra/elements.md	program	ExchangeAlgebra	AccountTitles

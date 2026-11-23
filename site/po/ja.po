@@ -1,7 +1,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: ExchangeAlgebra Manual\n"
-"POT-Creation-Date: 2026-11-23T10:51:36+09:00\n"
+"POT-Creation-Date: 2026-11-23T11:05:26+09:00\n"
 "PO-Revision-Date: 2026-11-19 00:00+0900\n"
 "Last-Translator: ExchangeAlgebra contributors\n"
 "Language-Team: Japanese\n"
@@ -2472,6 +2472,34 @@ msgstr ""
 
 #: src/algebra/elements.md:176
 msgid ""
+"For example, `Wild Int` can identify branches by number. `Int` has no "
+"`Element` instance, so a base that contains `Int` without `Wild` does not "
+"compile. A query for `Exactly 1` selects branch 1, and a query for `Wild` "
+"selects every branch:"
+msgstr ""
+"たとえば, `Wild Int` で支店を番号で区別できます. `Int` には `Element` の "
+"instance がないので, `Wild` で包まずに `Int` を基底に入れると compile できま"
+"せん. `Exactly 1` の問い合わせは支店 1 を, `Wild` の問い合わせはすべての支店"
+"を選びます:"
+
+#: src/algebra/elements.md:179 src/algebra/elements.md:262
+msgid "-- | Cash at branches 1 and 2.\n"
+msgstr "-- | 支店 1 と支店 2 の現金です.\n"
+
+#: src/algebra/elements.md:183 src/algebra/elements.md:267
+msgid "-- | Total the cash at branch 1 and at any branch.\n"
+msgstr "-- | 支店 1 の現金と, すべての支店の現金を合計します.\n"
+
+#: src/algebra/elements.md:187 src/algebra/elements.md:271
+msgid "\"Branch 1: \""
+msgstr "\"Branch 1: \""
+
+#: src/algebra/elements.md:188 src/algebra/elements.md:272
+msgid "\"Any branch: \""
+msgstr "\"Any branch: \""
+
+#: src/algebra/elements.md:196
+msgid ""
 "The `Element` instance for `TimeOfDay` uses 00:00 as its wildcard. A query "
 "for 00:00 therefore matches every time of day. A term stored at 00:00 means "
 "that no time of day applies, so a query for a specific time, such as 13:00, "
@@ -2482,7 +2510,35 @@ msgstr ""
 "する時刻がない」ことを表すので, 13:00 のような特定の時刻の問い合わせには一致"
 "しません."
 
-#: src/algebra/elements.md:178
+#: src/algebra/elements.md:198
+msgid ""
+"The following record receives cash at 00:00 and at 13:00 with `TimeOfDay`. "
+"The query for 00:00 selects both terms, and the query for 13:00 selects only "
+"the term at 13:00:"
+msgstr ""
+"次の記録では, `TimeOfDay` を使って 00:00 と 13:00 に現金を受け取ります. "
+"00:00 の問い合わせは 2 つの項を両方選び, 13:00 の問い合わせは 13:00 の項だけ"
+"を選びます:"
+
+#: src/algebra/elements.md:201 src/algebra/elements.md:273
+msgid "-- | Cash received at 00:00 and at 13:00, with the time as TimeOfDay.\n"
+msgstr "-- | 00:00 と 13:00 に受け取った現金です. 時刻は TimeOfDay です.\n"
+
+#: src/algebra/elements.md:205 src/algebra/elements.md:278
+msgid ""
+"-- | Total the cash selected by a query for 00:00 and by a query for 13:00.\n"
+msgstr ""
+"-- | 00:00 の問い合わせと 13:00 の問い合わせで選んだ現金を合計します.\n"
+
+#: src/algebra/elements.md:209 src/algebra/elements.md:282
+msgid "\"TimeOfDay, query 00:00: \""
+msgstr "\"TimeOfDay, query 00:00: \""
+
+#: src/algebra/elements.md:210 src/algebra/elements.md:283
+msgid "\"TimeOfDay, query 13:00: \""
+msgstr "\"TimeOfDay, query 13:00: \""
+
+#: src/algebra/elements.md:219
 msgid ""
 "To record 00:00 as an ordinary time, use `Wild TimeOfDay`, added in 0.6.1.0. "
 "Store `Exactly midnight`, and query `Exactly midnight` to select only 00:00 "
@@ -2498,6 +2554,61 @@ msgstr ""
 "`(AccountTitles, Name, CountUnit, Subject, Wild Day, Wild TimeOfDay)` には "
 "`ExBaseClass` の instance があります. [交換代数](../exchange/"
 "exchange.md#declare-the-base-instance)を参照してください."
+
+#: src/algebra/elements.md:221
+msgid "With `Wild TimeOfDay`, the same receipts are distinguished by time:"
+msgstr "`Wild TimeOfDay` を使うと, 同じ受け取りを時刻で区別できます:"
+
+#: src/algebra/elements.md:224 src/algebra/elements.md:285
+msgid "-- | The same receipts, with the time as Wild TimeOfDay.\n"
+msgstr "-- | 同じ受け取りです. 時刻は Wild TimeOfDay です.\n"
+
+#: src/algebra/elements.md:228 src/algebra/elements.md:290
+msgid "-- | Total the cash at 00:00, at 13:00, and at any time.\n"
+msgstr "-- | 00:00, 13:00, 任意の時刻の現金を合計します.\n"
+
+#: src/algebra/elements.md:232 src/algebra/elements.md:294
+msgid "\"Wild TimeOfDay, query Exactly 00:00: \""
+msgstr "\"Wild TimeOfDay, query Exactly 00:00: \""
+
+#: src/algebra/elements.md:234 src/algebra/elements.md:296
+msgid "\"Wild TimeOfDay, query Exactly 13:00: \""
+msgstr "\"Wild TimeOfDay, query Exactly 13:00: \""
+
+#: src/algebra/elements.md:236 src/algebra/elements.md:298
+msgid "\"Wild TimeOfDay, query Wild: \""
+msgstr "\"Wild TimeOfDay, query Wild: \""
+
+#: src/algebra/elements.md:246
+msgid ""
+"The query for `Exactly midnight` selects only the term at 00:00. For dates, "
+"[Query a date stored as an ordinary element](#query-a-date-stored-as-an-"
+"ordinary-element) shows the same use of `Wild Day`."
+msgstr ""
+"`Exactly midnight` の問い合わせは 00:00 の項だけを選びます. 日付で `Wild "
+"Day` を同じように使う例は, [通常の要素として記録した日付を問い合わせる]"
+"(#query-a-date-stored-as-an-ordinary-element)にあります."
+
+#: src/algebra/elements.md:248
+msgid ""
+"These excerpts come from one program. To run it, save the complete program "
+"below as `Main.hs` and add `time` to your project's dependencies. From the "
+"project directory, run `stack exec -- ghc -Wall -Werror -package time "
+"Main.hs -o wild-elements`, then run `./wild-elements`."
+msgstr ""
+"これらの抜粋は 1 つのプログラムの一部です. 実行するには, 下の完全なプログラム"
+"を `Main.hs` として保存し, プロジェクトの依存関係に `time` を追加してくださ"
+"い. プロジェクトのディレクトリで `stack exec -- ghc -Wall -Werror -package "
+"time Main.hs -o wild-elements` を実行し, 続けて `./wild-elements` を実行して"
+"ください."
+
+#: src/algebra/elements.md:253
+msgid "Complete program"
+msgstr "完全なプログラム"
+
+#: src/algebra/elements.md:310
+msgid "Tested with exchangealgebra-0.6.1.1 on 2026-11-23."
+msgstr "2026-11-23 に exchangealgebra-0.6.1.1 で検証しました."
 
 #: src/algebra/bases.md:3
 msgid ""

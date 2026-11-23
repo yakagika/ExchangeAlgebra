@@ -1,0 +1,7 @@
+Branch 1: 100
+Any branch: 300
+TimeOfDay, query 00:00: 300
+TimeOfDay, query 13:00: 200
+Wild TimeOfDay, query Exactly 00:00: 100
+Wild TimeOfDay, query Exactly 13:00: 200
+Wild TimeOfDay, query Wild: 300
