@@ -15,9 +15,9 @@
     >>> fst (normal' (5, 0) (mkStdGen 1)) :: Double
     5.0
 
-    /Note:/ version 0.7 is planned to remove this module without a
+    /Note:/ version 0.8 is planned to remove this module without a
     compatibility module. Its successor is the model evaluator in the
-    separate @exchangealgebra-simulation@ package. 0.6 emits no deprecation
+    separate @exchangealgebra-simulation@ package. 0.6 and 0.7 emit no deprecation
     warning because that package has not been released.
 -}
 

@@ -9,7 +9,7 @@
 
     Released under the MIT license
 
-    /Note:/ version 0.7 is planned to move this module to the separate
+    /Note:/ version 0.8 is planned to move this module to the separate
     @exchangealgebra-simulation@ package.
 -}
 

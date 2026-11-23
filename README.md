@@ -350,7 +350,7 @@ features in a few dozen lines:
 ## Simulation
 
 The core accounting layers above do not depend on the simulation modules. This section
-describes the simulation entry points, their planned move in 0.7, and how to run large simulations.
+describes the simulation entry points, their planned move in 0.8, and how to run large simulations.
 
 ### Simulation: `Simulation.*` and `Simulate.*`
 
@@ -389,9 +389,10 @@ Runners (`Simulate.*`):
 
 ### Planned changes to simulation modules
 
-The next major version (0.7) is planned to move simulation into a separate
+Version 0.8 is planned to move simulation into a separate
 package, `exchangealgebra-simulation`, whose runner is a new model evaluator.
-The plan affects the 0.6 modules as follows:
+The move was planned for 0.7 until November 2026; 0.7 keeps the simulation
+modules of 0.6. The plan affects these modules as follows:
 
 - `Simulation.*` and `Simulate.Spill` move to the new package. The writers
   that take `StateTime` (`writeFuncResults`, `writeFuncResultsWithContext`)
@@ -400,10 +401,10 @@ The plan affects the 0.6 modules as follows:
   `Simulate.Lite`, and `Simulate.Policy` are removed and not moved. Their
   successor is the model evaluator.
 - `Simulate.Visualize` either moves to the new package behind Chart or is
-  removed; the choice is made in 0.7.
+  removed; the choice is made in 0.8.
 
-The 0.6 modules do not emit deprecation warnings, because the successor package
-has not been released. Changes to this plan will be recorded in the changelog.
+The simulation modules do not emit deprecation warnings in 0.6 or 0.7, because
+the successor package has not been released. Changes to this plan will be recorded in the changelog.
 
 ### Which simulation runner to use in 0.6
 
@@ -412,7 +413,7 @@ term-boundary field rules, stages, and `runLite` / `runLiteWithPolicy`.
 `ExchangeAlgebra.Simulate.Engine` is the lower-level classic state-space API
 (`StateTime`, `Updatable`, `UpdatePattern`, and the `runSimulation` family),
 retained for existing models and reproducibility. Both runners are planned for
-removal in 0.7 (see above). For a new model built on 0.6, Lite needs less code;
+removal in 0.8 (see above). For a new model built on 0.6, Lite needs less code;
 keep model logic separate from runner code so that it can be moved to the
 successor evaluator.
 

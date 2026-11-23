@@ -82,6 +82,14 @@
   are ordinary elements when wrapped in `Exactly`. In journal CSV output,
   the order of distinct bases on the same date can change after migration.
 
+- The move of simulation into the separate `exchangealgebra-simulation`
+  package, and the removal of the classic engine (`Simulate`,
+  `Simulate.Engine`, `Simulate.Random`), `Simulate.Lite`, and
+  `Simulate.Policy` without a compatibility module, are postponed from 0.7 to
+  0.8. Version 0.7 keeps the simulation modules of 0.6. The README section
+  "Planned changes to simulation modules" and the module documentation are
+  updated.
+
 - **Consolidation worksheets (0.7 migration).** `validateConsolidationWorksheet`
   accepts trial balances and adjustments over a caller-defined account title
   type. The original worksheet type names specialize to `AccountTitles`
