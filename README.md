@@ -13,6 +13,7 @@ ripple-effect analysis. See the [Publications section](#publications-using-this-
 - Book: <https://www.springer.com/gp/book/9784431209850>
 - Paper: <https://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/82987/1/0809-7.pdf>
 - Haddock: <https://hackage.haskell.org/package/exchangealgebra>
+- Manual (English and Japanese): <https://yakagika.github.io/ExchangeAlgebra/>
 
 ## Installation
 
@@ -566,7 +567,8 @@ stack exec -- fixed-price-io-spill   # spill-to-disk simulation (constant memory
 ## Documentation
 
 - Haddock: <https://hackage.haskell.org/package/exchangealgebra>
-- A tutorial / guided walkthrough is planned, based on an upcoming paper.
+- Manual (English and Japanese): <https://yakagika.github.io/ExchangeAlgebra/>. It records a journal entry in exchange algebra
+  step by step and covers the Algebra, Journal, Accounting, and IO layers of the Hackage release named in its title.
 
 ## License
 
