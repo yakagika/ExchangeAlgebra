@@ -24,11 +24,14 @@ instance ExBaseClass (HatBase (AccountTitles, Unit)) where
 -- ANCHOR_END: setup
 
 -- ANCHOR: payment
+-- ANCHOR: withdrawal
 -- | January 10: withdraw 3,000 yen from Bank A's savings account into cash.
 withdrawal :: Alg MoneyDecimal (HatBase (AccountTitles, Unit))
 withdrawal = 3000 .@ Not :< (Cash, Yen)
           .+ 3000 .@ Hat :< (Deposits, Yen)
+-- ANCHOR_END: withdrawal
 
+-- ANCHOR: rent-payment
 -- | January 30: pay 1,200 yen for January and February rent, initially expensed.
 rentPayment :: Alg MoneyDecimal (HatBase (AccountTitles, Unit))
 rentPayment = 1200 .@ Not :< (RentExpense, Yen)
@@ -37,6 +40,7 @@ rentPayment = 1200 .@ Not :< (RentExpense, Yen)
 -- | Recorded changes before deferring the February share of rent.
 beforeTransfer :: Alg MoneyDecimal (HatBase (AccountTitles, Unit))
 beforeTransfer = withdrawal .+ rentPayment
+-- ANCHOR_END: rent-payment
 -- ANCHOR_END: payment
 
 -- ANCHOR: table

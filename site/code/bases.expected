@@ -1,7 +1,8 @@
-Cash increase: Not:<(Cash,Yen)
-Deposit decrease: Hat:<(Deposits,Yen)
-Account and unit of the cash increase: (Cash,Yen)
+Cash increase: Not:<(Cash,Yen,Bank)
+Deposit decrease: Hat:<(Deposits,Yen,BankA)
+Elements of the cash increase: (Cash,Yen,Bank)
 Direction of the deposit change: Hat
-Reverse the cash direction: Hat:<(Cash,Yen)
-Rebuild the deposit decrease: Hat:<(Deposits,Yen)
+Reverse the cash direction: Hat:<(Cash,Yen,Bank)
+Rebuild the deposit decrease: Hat:<(Deposits,Yen,BankA)
+Replace the account title: Hat:<(Cash,Yen,BankA)
 Single-element yen base: Not:<Yen

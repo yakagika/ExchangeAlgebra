@@ -1,4 +1,3 @@
-Withdrawal bases: [(Cash,Yen),(Deposits,Yen)]
-Cash in any unit: [(Cash,Yen)]
-Any-unit cash query matches cash without a unit: True
-Yen cash query matches cash without a unit: False
+Bank A terms: 3000:@Hat:<(Deposits,Yen,BankA)
+Any-bank cash query matches cash without a bank: True
+Bank A cash query matches cash without a bank: False

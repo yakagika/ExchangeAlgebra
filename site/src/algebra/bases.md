@@ -1,58 +1,83 @@
 # Bases
 
-The January 10 withdrawal increases cash and decreases the savings deposit by 3,000 yen. The base of each term contains an account element and a currency element. Their directions differ: the cash term has `Not`, and the deposit term has `Hat`.
+Change the base in [Record a withdrawal](../usage/withdrawal.md) to include the [bank element](elements.md#add-a-bank-element). The base type determines which elements identify each term and which elements a query can match.
 
-These bases implement [Definition 2](definitions.md#bases) and [Definition 3](definitions.md#hat-bases-and-postings). The example uses exchangealgebra-0.6.1.1 and the custom currency element type from [Declare a unit element type](elements.md#declare-a-unit-element-type).
+## Add an element to the base {#add-an-element-to-the-base}
 
-## Describe the two changes {#describe-the-two-changes}
-
-The base `(Cash, Yen)` identifies cash measured in yen; `(Deposits, Yen)` identifies savings deposits measured in yen. A `HatBase` pairs each base with its direction through the constructor `(:<)`. `Not :< (Cash, Yen)` records the direction of the cash increase, and `Hat :< (Deposits, Yen)` records the direction of the deposit decrease. Neither expression contains the amount yet.
-
-Keep the same custom `Unit` declaration in the standalone program:
+Use the triple `(AccountTitles, Unit, Bank)` as the underlying base and pair it with a direction using `(:<)`. These two types implement [Definition 2](definitions.md#bases) and [Definition 3](definitions.md#hat-bases-and-postings).
 
 ```haskell
-{{#include ../../code/bases.hs:unit}}
+{{#include ../../code/bases.hs:bank-hat-bases}}
 ```
 
-## Define the account-and-unit bases {#define-the-account-and-unit-bases}
+The library supplies `BaseClass` for this triple because all three types have `Element` instances. It also supplies `HatBaseClass` for the resulting `HatBase`.
 
-Construct both sides of the withdrawal with the account and unit pairs:
+## Declare the base instance {#declare-the-base-instance}
+
+Update `ExBaseClass` to read and replace the first element of the triple. Keep the direction, unit, and bank when replacing the account title.
 
 ```haskell
-{{#include ../../code/bases.hs:bases}}
+{{#include ../../code/bases.hs:bank-instance}}
 ```
 
-`BaseClass` describes the underlying base space. The library already has `BaseClass` instances for tuples of 2 through 7 `Element` types, so `(AccountTitles, Unit)` needs no new `BaseClass` declaration. The `HatBaseClass` instance for `HatBase (AccountTitles, Unit)` also exists once the requirements on the element types are met. No user-defined implementation of the direction methods is needed for these bases.
+`FlexibleInstances` permits this instance head. Implement `getAccountTitle` and `setAccountTitle` for a custom exchange base. The other methods have defaults based on the account title and direction, and the `Exchange` instance for `Alg` uses them.
+
+### Built-in exchange bases {#built-in-exchange-bases}
+
+In 0.6.1.1, the following forms of `HatBase a` have built-in `ExBaseClass` instances.
+
+| `a` in `HatBase a` |
+|---|
+| `AccountTitles` |
+| `(AccountTitles, Day)` |
+| `(AccountTitles, Name)` |
+| `(CountUnit, AccountTitles)` |
+| `(AccountTitles, Name, CountUnit)` |
+| `(AccountTitles, Name, CountUnit, Subject)` |
+| `(AccountTitles, Name, CountUnit, Subject, Day)` |
+| `(AccountTitles, Name, CountUnit, Subject, Day, TimeOfDay)` |
+| `(AccountTitles, Wild Day)` |
+| `(AccountTitles, Name, CountUnit, Subject, Wild Day)` |
+| `(AccountTitles, Name, CountUnit, Subject, Wild Day, Wild TimeOfDay)` |
 
 ## Use a single unit as a base {#use-a-single-unit-as-a-base}
 
-If the underlying base is just `Unit`, rather than an account-and-unit pair, declare `BaseClass Unit`. This separate declaration is needed for `HatBase Unit`, as in this example with one element:
+To use `Unit` itself as the underlying base, declare `BaseClass Unit`. The empty instance uses the default `compareBase` implementation. The resulting `HatBase Unit` can identify an amount in yen without an account title.
 
 ```haskell
 {{#include ../../code/bases.hs:single-element}}
 ```
 
-`yenOnly` identifies a unit without an account. The withdrawal uses `cashIncrease` and `depositDecrease` instead, so its changes remain distinguishable by account. The empty instance uses the default `compareBase` implementation.
-
 ## Inspect the withdrawal bases {#inspect-the-withdrawal-bases}
 
-Extract the underlying base with `base` and the direction with `hat`. `revHat cashIncrease` changes the direction to a cash decrease without changing `(Cash, Yen)`. `merge` reconstructs the deposit base from its direction and underlying base.
+Use `base` and `hat` to read the elements and direction. `revHat` reverses the cash direction and leaves `(Cash, Yen, Bank)` intact. `merge` reconstructs the deposit hat base from the direction and elements. Replacing `Deposits` with `Cash` through `setAccountTitle` preserves `Hat`, `Yen`, and `BankA` in the example.
 
 ```haskell
 {{#include ../../code/bases.hs:results}}
 ```
 
-The complete program prints:
+Save the complete program as `Main.hs`, then use the commands in [Run the program](../usage/withdrawal.md#run-the-program).
+
+<details>
+<summary>
+
+Complete program
+
+</summary>
+
+```haskell
+{{#include ../../code/bases.hs:program}}
+```
+
+</details>
 
 ```text
 {{#include ../../code/bases.expected}}
 ```
 
-The labeled `Cash increase` and `Deposit decrease` results retain the same unit and distinct account titles. `Reverse the cash direction` retains the cash base and changes only its direction.
+> **Caution:** `Hat` represents a direction on a nonnegative amount. The account and direction together determine the debit or credit side. Use `HatNot` in query patterns. Some direction tests and reversal methods fail on `HatNot`.
 
-> **Caution:** Hat is a structural direction, not a negative amount or a debit label. Both Cash and Deposits are assets, so an increase is a debit and a decrease is a credit. Other account divisions have different home sides. `HatNot` is a query wildcard, not a term direction; direction reversal and tests are intended for concrete `Hat` or `Not` bases, and some methods fail on `HatNot`.
-
-Tested with exchangealgebra-0.6.1.1 on 2026-11-20.
+Tested with exchangealgebra-0.6.1.1 on 2026-11-23.
 
 ## Reference {#reference}
 

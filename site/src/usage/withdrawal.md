@@ -123,6 +123,6 @@ If this form is sufficient, continue with [Transfers](../exchange/transfer.md). 
 
 - To declare or add an element, read [Elements](../algebra/elements.md).
 - To change the combination of elements, read [Bases](../algebra/bases.md).
-- To change the amount type or use other operations, read [Values](../algebra/values.md) and [The redundant algebra](../algebra/redundant.md).
+- To change the amount type or use other operations, read [Redundant and exchange algebras](../algebra/redundant.md).
 
 Tested with exchangealgebra-0.6.1.1 on 2026-11-22.

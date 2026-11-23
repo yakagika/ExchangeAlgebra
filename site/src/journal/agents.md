@@ -2,15 +2,24 @@
 
 The January 10 withdrawal appears in two accounting records. The business receives 3,000 yen in cash and reduces its deposit asset. Bank A reduces the deposit liability it owes to the business and pays out 3,000 yen in cash. Add an element that identifies the accounting entity to the base to keep both records in one algebra while retaining whose accounts each term describes.
 
-Use exchangealgebra-0.6.1.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). The example extends [Record the withdrawal](../exchange/exchange.md#record-the-withdrawal) from `HatBase (AccountTitles, Unit)` to `HatBase (AccountTitles, Owner, Unit)`. The same algebra operations apply to bases that also identify the accounting entity.
+Use exchangealgebra-0.6.1.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). The example extends [Record the withdrawal](../usage/withdrawal.md) from `HatBase (AccountTitles, Unit)` to `HatBase (AccountTitles, Owner, Unit)`. The same algebra operations apply to bases that also identify the accounting entity.
 
 ## Add an element type for accounting entities {#add-the-owner-element-type}
 
 Save the code blocks in their displayed order as `Main.hs`. Retain the currency declaration:
 
+<details>
+<summary>
+
+Common setup
+
+</summary>
+
 ```haskell
 {{#include ../../code/agents.hs:setup}}
 ```
+
+</details>
 
 Declare the accounting entities and account access for the expanded base:
 

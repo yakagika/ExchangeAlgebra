@@ -1,51 +1,67 @@
--- | Select the account-and-unit bases of a January 10 withdrawal.
--- The custom currency type has an Element instance. Main queries the bases.
--- ANCHOR: unit
+-- | Add a bank element and query the expanded bases.
+
+-- ANCHOR: program
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 
 module Main where
 
 import ExchangeAlgebra hiding (Yen, Dollar)
+-- ANCHOR: query-import
 import ExchangeAlgebra.Algebra.Element (matchesQuery)
+-- ANCHOR_END: query-import
 
--- | Currency elements for the withdrawal and exchange records.
-data Unit
-    = Yen       -- ^ Japanese yen.
-    | Dollar    -- ^ US dollars.
-    | Unit      -- ^ Inapplicable in an entry; unrestricted in a query.
+data Unit = Yen | Dollar | Unit
     deriving (Eq, Ord, Show, Generic, Hashable)
 
 instance Element Unit where
     wildcard = Unit
--- ANCHOR_END: unit
 
--- ANCHOR: withdrawal-bases
--- | The two account-and-unit bases affected by the withdrawal.
-withdrawalBases :: [(AccountTitles, Unit)]
-withdrawalBases = [(Cash, Yen), (Deposits, Yen)]
+-- ANCHOR: bank
+-- | The bank where a deposit is held.
+data Bank = BankA | BankB | Bank
+    deriving (Eq, Ord, Show, Generic, Hashable)
 
--- | Select cash in any unit.
-cashBases :: [(AccountTitles, Unit)]
-cashBases = Prelude.filter (matchesQuery (Cash, (.#))) withdrawalBases
+instance Element Bank where
+    wildcard = Bank
+-- ANCHOR_END: bank
 
--- | A hypothetical cash base with no applicable currency element.
-cashWithoutUnit :: (AccountTitles, Unit)
-cashWithoutUnit = (Cash, Unit)
--- ANCHOR_END: withdrawal-bases
+-- ANCHOR: bank-bases
+-- | Cash has no applicable bank.
+cashBase :: (AccountTitles, Unit, Bank)
+cashBase = (Cash, Yen, Bank)
 
--- ANCHOR: results
+-- | The deposit is held at Bank A.
+depositBase :: (AccountTitles, Unit, Bank)
+depositBase = (Deposits, Yen, BankA)
+-- ANCHOR_END: bank-bases
+
+-- ANCHOR: bank-withdrawal
+-- | The withdrawal using bases with a bank element.
+bankWithdrawal :: Alg MoneyDecimal (HatBase (AccountTitles, Unit, Bank))
+bankWithdrawal = 3000 .@ Not :< cashBase
+              .+ 3000 .@ Hat :< depositBase
+-- ANCHOR_END: bank-withdrawal
+
+-- ANCHOR: bank-queries
+-- | Select terms on accounts at Bank A.
+bankATerms :: Alg MoneyDecimal (HatBase (AccountTitles, Unit, Bank))
+bankATerms = proj [HatNot :< ((.#), (.#), BankA)] bankWithdrawal
+
+-- | Check the cash base with an unrestricted or a specific bank query.
+cashMatchesAnyBank, cashMatchesBankA :: Bool
+cashMatchesAnyBank = matchesQuery (Cash, Yen, (.#)) cashBase
+cashMatchesBankA = matchesQuery (Cash, Yen, BankA) cashBase
+-- ANCHOR_END: bank-queries
+
 -- | Print a result with the question or operation that produced it.
 printNamed :: Show a => String -> a -> IO ()
 printNamed label value = putStrLn (label ++ ": " ++ show value)
 
--- | Print the withdrawal bases and named query results.
+-- | Print the deposit terms selected by bank and the cash base checks.
 main :: IO ()
 main = do
-    printNamed "Withdrawal bases" withdrawalBases
-    printNamed "Cash in any unit" cashBases
-    printNamed "Any-unit cash query matches cash without a unit"
-        (matchesQuery (Cash, Unit) cashWithoutUnit)
-    printNamed "Yen cash query matches cash without a unit"
-        (matchesQuery (Cash, Yen) cashWithoutUnit)
--- ANCHOR_END: results
+    printNamed "Bank A terms" bankATerms
+    printNamed "Any-bank cash query matches cash without a bank" cashMatchesAnyBank
+    printNamed "Bank A cash query matches cash without a bank" cashMatchesBankA
+-- ANCHOR_END: program

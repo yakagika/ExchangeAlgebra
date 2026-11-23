@@ -46,27 +46,4 @@ The Simulation layer is outside the scope of this manual.
 
 For the [account divisions and side decompositions](../algebra/definitions.md#account-classes-and-sides), `ExchangeAlgebra.Accounting.Exchange` provides `ExBaseClass` with `whatDiv` and `whichSide`, and `Exchange` with `decL`, `decR`, and `balance`. `decL` selects debit terms and `decR` selects credit terms. `balance` compares their exact totals before rounding. The [journal example](../overview.md#recover-the-debit-and-credit-columns) uses these functions through `ExchangeAlgebra`.
 
-## Build the withdrawal {#build-the-withdrawal}
-
-Save the complete program as `Main.hs`. It records a withdrawal of 3,000 yen from Bank A's savings account on January 10: cash increases, and deposits decrease. `Cash` and `Deposits` are built-in account titles, and the built-in `CountUnit` supplies `Yen`. The date and bank-account description are omitted from the bases because these balances combine dates and do not distinguish bank accounts.
-
-```haskell
-{{#include ../../code/installation.hs:program}}
-```
-
-Run these commands from your project directory:
-
-```bash
-stack exec -- ghc -Wall -Werror Main.hs -o first-posting
-./first-posting
-```
-
-The program prints:
-
-```text
-{{#include ../../code/installation.expected}}
-```
-
-The type annotation fixes both the amount type and the base type. `.@` constructs each term, and `.+` retains both terms in one algebra value. The directions `Not` and `Hat` identify the cash increase and deposit decrease; neither amount is negative.
-
-Tested with exchangealgebra-0.6.1.1 on 2026-11-20.
+When the project builds, continue with [Record a withdrawal](withdrawal.md).

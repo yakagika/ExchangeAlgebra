@@ -46,6 +46,10 @@ and rerun the check. To undo a release switch,
 restore the version file, chapter sources, catalog, and API map from the same
 previous revision.
 
+## Chapter structure
+
+Declare and explain the running withdrawal example in [Record a withdrawal](src/usage/withdrawal.md), then show each later chapter's changes and fold the shared declarations into `<details>`.
+
 ## Version and API files
 
 Manual programs can import modules from `base`, `exchangealgebra`, and `time`.
