@@ -10,6 +10,7 @@
 # The algebra layer
 
 - [Installation and modules](usage/installation.md)
+- [Record a withdrawal](usage/withdrawal.md)
 - [Elements](algebra/elements.md)
 - [Bases](algebra/bases.md)
 - [Values](algebra/values.md)
