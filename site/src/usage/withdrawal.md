@@ -33,7 +33,7 @@ The program prints:
 {{#include ../../code/withdrawal.expected}}
 ```
 
-The following sections explain the program in the order in which its type is built: elements, a base and hat base, a redundant algebra, and an exchange algebra.
+The following sections explain the program in the order in which its type is built: elements, a base and hat base, a redundant algebra, and an exchange algebra. Each section shows again the part of the program that it explains.
 
 ## Elements: `AccountTitles` and `Unit` {#elements}
 
@@ -42,13 +42,23 @@ An element is one piece of the information that identifies what changes. This en
 - `AccountTitles` is the built-in type of account titles. `Cash` and `Deposits` are two of its values, and `Deposits` denotes savings deposits.
 - `Unit` is the type that the program declares for units. `Yen` and `Dollar` are units. The value `Unit` is the wildcard: it means "any unit" in a query and "no applicable unit" in a recorded term.
 
+The program imports the library and declares `Unit`:
+
+```haskell
+{{#include ../../code/withdrawal.hs:elements}}
+```
+
 The `deriving` clause and the instance `Element Unit` make the new type usable as an element type. The import hides the library's `Yen` and `Dollar` because their names collide with the new values.
 
 The program does not use the date or the bank as an element, so its balances do not distinguish dates or banks.
 
 ## Base and hat base: `HatBase (AccountTitles, Unit)` {#base-and-hat-base}
 
-A base is a tuple of elements. `(Cash, Yen)` is the base for cash in yen, and `(Deposits, Yen)` is the base for savings deposits in yen. A hat base pairs a base with a direction through `:<`.
+A base is a tuple of elements. `(Cash, Yen)` is the base for cash in yen, and `(Deposits, Yen)` is the base for savings deposits in yen. A hat base pairs a base with a direction through `:<`. The definition of `withdrawal` contains two hat bases, `Not :< (Cash, Yen)` and `Hat :< (Deposits, Yen)`:
+
+```haskell
+{{#include ../../code/withdrawal.hs:withdrawal}}
+```
 
 The direction `Not` represents an increase, and `Hat` represents a decrease. For revenue and expenses, they represent recognition and reversal, respectively. The amount is nonnegative in both directions. The direction and the account's division together determine the debit or credit side, as Table 2 shows.
 
@@ -71,13 +81,27 @@ For a contra account, read the direction as a change in that account itself. `No
 
 `Alg MoneyDecimal (HatBase (AccountTitles, Unit))` is the type of a redundant algebra. Its first argument is the amount type, and its second is the hat base type. `MoneyDecimal` stores decimal amounts without binary rounding.
 
-`.@` attaches an amount to a hat base to make a term, and `.+` adds terms. The first line of the output is the sum of the two terms. Addition keeps every term, even on the same base. To net the terms on each base, apply `bar` explicitly.
+In the definition of `withdrawal`, `.@` attaches an amount to a hat base to make a term, and `.+` adds the two terms:
+
+```haskell
+{{#include ../../code/withdrawal.hs:withdrawal}}
+```
+
+The first line of the output is this sum. Addition keeps every term, even on the same base. To net the terms on each base, apply `bar` explicitly.
 
 ## Exchange algebra: `ExBaseClass` {#exchange-algebra}
 
 The instance of `ExBaseClass` defines where the account title is in the base. `getAccountTitle` reads the title, and `setAccountTitle` replaces it while keeping the direction and the unit. `FlexibleInstances` permits this instance declaration.
 
-With this instance, the redundant algebra is an exchange algebra, and three more functions are available:
+```haskell
+{{#include ../../code/withdrawal.hs:exchange-instance}}
+```
+
+With this instance, the redundant algebra is an exchange algebra, and three more functions are available. `main` prints their results after the sum:
+
+```haskell
+{{#include ../../code/withdrawal.hs:main}}
+```
 
 - `decL` selects the debit (left) terms, which form the second line of the output.
 - `decR` selects the credit (right) terms, which form the third line.
