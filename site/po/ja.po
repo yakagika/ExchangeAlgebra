@@ -1,7 +1,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: ExchangeAlgebra Manual\n"
-"POT-Creation-Date: 2026-11-20T17:44:23+09:00\n"
+"POT-Creation-Date: 2026-11-22T16:19:03+09:00\n"
 "PO-Revision-Date: 2026-11-19 00:00+0900\n"
 "Last-Translator: ExchangeAlgebra contributors\n"
 "Language-Team: Japanese\n"
@@ -35,91 +35,95 @@ msgstr "代数の層"
 msgid "Installation and modules"
 msgstr "導入とモジュール"
 
-#: src/SUMMARY.md:13 src/algebra/elements.md:1
+#: src/SUMMARY.md:13 src/usage/withdrawal.md:1
+msgid "Record a withdrawal"
+msgstr "引き出しを記録する"
+
+#: src/SUMMARY.md:14 src/algebra/elements.md:1
 msgid "Elements"
 msgstr "要素"
 
-#: src/SUMMARY.md:14 src/algebra/definitions.md:19 src/algebra/bases.md:1
+#: src/SUMMARY.md:15 src/algebra/definitions.md:19 src/algebra/bases.md:1
 msgid "Bases"
 msgstr "基底"
 
-#: src/SUMMARY.md:15 src/algebra/values.md:1
+#: src/SUMMARY.md:16 src/algebra/values.md:1
 msgid "Values"
 msgstr "値"
 
-#: src/SUMMARY.md:16 src/algebra/redundant.md:1
+#: src/SUMMARY.md:17 src/algebra/redundant.md:1
 msgid "The redundant algebra"
 msgstr "冗長代数"
 
-#: src/SUMMARY.md:18 src/introduction.md:21
+#: src/SUMMARY.md:19 src/introduction.md:21
 msgid "Exchange algebra and journals"
 msgstr "交換代数と仕訳帳"
 
-#: src/SUMMARY.md:20 src/exchange/exchange.md:1
+#: src/SUMMARY.md:21 src/exchange/exchange.md:1
 msgid "Exchange algebra"
 msgstr "交換代数"
 
-#: src/SUMMARY.md:21 src/algebra/definitions.md:134 src/exchange/transfer.md:1
+#: src/SUMMARY.md:22 src/algebra/definitions.md:134 src/exchange/transfer.md:1
 msgid "Transfers"
 msgstr "振替"
 
-#: src/SUMMARY.md:22 src/journal/journal.md:1
+#: src/SUMMARY.md:23 src/journal/journal.md:1
 msgid "Journals"
 msgstr "仕訳帳"
 
-#: src/SUMMARY.md:23 src/journal/agents.md:1
+#: src/SUMMARY.md:24 src/journal/agents.md:1
 msgid "Multiple accounting entities"
 msgstr "複数の会計主体"
 
-#: src/SUMMARY.md:25
+#: src/SUMMARY.md:26
 msgid "Account titles"
 msgstr "勘定科目"
 
-#: src/SUMMARY.md:27 src/accounts/attributes.md:1
+#: src/SUMMARY.md:28 src/accounts/attributes.md:1
 msgid "Account titles and their attributes"
 msgstr "勘定科目と属性"
 
-#: src/SUMMARY.md:28 src/accounts/builtin.md:1
+#: src/SUMMARY.md:29 src/accounts/builtin.md:1
 msgid "Built-in account titles"
 msgstr "既定の勘定科目の一覧"
 
-#: src/SUMMARY.md:30 src/introduction.md:28
+#: src/SUMMARY.md:31 src/introduction.md:28
 msgid "Bookkeeping procedures"
 msgstr "簿記の手続き"
 
-#: src/SUMMARY.md:32 src/bookkeeping/admission.md:1
+#: src/SUMMARY.md:33 src/bookkeeping/admission.md:1
 msgid "Checking a journal"
 msgstr "仕訳帳の検査"
 
-#: src/SUMMARY.md:33 src/bookkeeping/trial-balance.md:1
+#: src/SUMMARY.md:34 src/bookkeeping/trial-balance.md:1
 msgid "Trial balance and checks"
 msgstr "試算表と点検"
 
-#: src/SUMMARY.md:34 src/bookkeeping/adjustment.md:1
+#: src/SUMMARY.md:35 src/bookkeeping/adjustment.md:1
 msgid "Adjusting entries"
 msgstr "決算整理仕訳"
 
-#: src/SUMMARY.md:35 src/bookkeeping/closing.md:1
+#: src/SUMMARY.md:36 src/bookkeeping/closing.md:1
 msgid "Closing entries"
 msgstr "決算振替"
 
-#: src/SUMMARY.md:36 src/bookkeeping/statements.md:1
+#: src/SUMMARY.md:37 src/bookkeeping/statements.md:1
 msgid "Financial statements"
 msgstr "財務諸表"
 
-#: src/SUMMARY.md:37 src/bookkeeping/consolidation.md:1
+#: src/SUMMARY.md:38 src/bookkeeping/consolidation.md:1
 msgid "Consolidation"
 msgstr "連結"
 
-#: src/SUMMARY.md:39 src/introduction.md:37
+#: src/SUMMARY.md:40 src/introduction.md:37
 msgid "Input and output"
 msgstr "入出力"
 
-#: src/SUMMARY.md:41 src/io/input.md:1
+#: src/SUMMARY.md:42 src/io/input.md:1
 msgid "Reading journals from CSV"
 msgstr "CSV からの仕訳帳の読み込み"
 
-#: src/SUMMARY.md:42 src/io/output.md:1
+#: src/SUMMARY.md:43 src/io/output.md:1
 msgid "Writing books and statements"
 msgstr "帳簿と財務諸表の書き出し"
 
@@ -347,16 +351,16 @@ msgid "Transaction"
 msgstr "取引"
 
 #: src/overview.md:9 src/algebra/definitions.md:121
-#: src/algebra/definitions.md:122
+#: src/algebra/definitions.md:122 src/usage/withdrawal.md:9
 msgid "Debit"
 msgstr "借方"
 
-#: src/overview.md:9
+#: src/overview.md:9 src/usage/withdrawal.md:9
 msgid "Amount"
 msgstr "金額"
 
 #: src/overview.md:9 src/algebra/definitions.md:121
-#: src/algebra/definitions.md:122
+#: src/algebra/definitions.md:122 src/usage/withdrawal.md:9
 msgid "Credit"
 msgstr "貸方"
 
@@ -369,6 +373,7 @@ msgid "The owner invests cash."
 msgstr "所有者が現金を出資します."
 
 #: src/overview.md:11 src/overview.md:12 src/overview.md:14
+#: src/usage/withdrawal.md:11
 msgid "Cash"
 msgstr "現金"
 
@@ -918,7 +923,7 @@ msgstr ""
 "`fixedCurrent` は流動・固定・その他に分類します. 通常の勘定の対応は次のとおり"
 "です."
 
-#: src/algebra/definitions.md:119
+#: src/algebra/definitions.md:119 src/usage/withdrawal.md:89
 msgid "Division"
 msgstr "区分"
 
@@ -1418,7 +1423,8 @@ msgstr "-- | 引き出しの項の記録を表示します.\n"
 msgid "Run these commands from your project directory:"
 msgstr "プロジェクトのディレクトリで次のコマンドを実行してください:"
 
-#: src/usage/installation.md:75 src/algebra/redundant.md:124
+#: src/usage/installation.md:75 src/usage/withdrawal.md:61
+#: src/algebra/redundant.md:124
 msgid "The program prints:"
 msgstr "プログラムは次のように出力します:"
 
@@ -1445,6 +1451,412 @@ msgstr ""
 #: src/io/output.md:365
 msgid "Tested with exchangealgebra-0.6.1.1 on 2026-11-20."
 msgstr "2026-11-20 に exchangealgebra-0.6.1.1 で検証しました."
+
+#: src/usage/withdrawal.md:3
+msgid ""
+"You need knowledge of double-entry bookkeeping and a Stack project prepared "
+"as described in [Installation and modules](installation.md). The program on "
+"this page records one journal entry in exchange algebra, separates its "
+"debits and credits, and checks that their totals agree. You can adapt it to "
+"your own entries without reading the chapters on customization."
+msgstr ""
+"複式簿記の知識と, [導入とモジュール](installation.md)の章に従って用意した "
+"Stack プロジェクトを前提とします. このページのプログラムは, 1 件の仕訳を交換"
+"代数で記録し, 借方と貸方に分け, 両者の合計が一致するかを検査します. カスタマ"
+"イズの各章を読まなくても, 手元の仕訳に合わせて書き換えて使えます."
+
+#: src/usage/withdrawal.md:5
+msgid "Transaction and journal entry"
+msgstr "取引と仕訳"
+
+#: src/usage/withdrawal.md:7
+msgid ""
+"On January 10, a business withdraws 3,000 yen from its savings account at "
+"Bank A and keeps it as cash. Table 1 shows the journal entry."
+msgstr ""
+"1 月 10 日, A 銀行の普通預金から 3,000 円を引き出し, 現金とします. 表 1 に仕"
+"訳を示します."
+
+#: src/usage/withdrawal.md:9
+msgid "Date"
+msgstr "日付"
+
+#: src/usage/withdrawal.md:9
+msgid "Description"
+msgstr "摘要"
+
+#: src/usage/withdrawal.md:11
+msgid "January 10"
+msgstr "1 月 10 日"
+
+#: src/usage/withdrawal.md:11
+msgid "Savings account at Bank A"
+msgstr "A 銀行 普通預金"
+
+#: src/usage/withdrawal.md:11
+msgid "3,000"
+msgstr "3,000"
+
+#: src/usage/withdrawal.md:11
+msgid "Deposits"
+msgstr "普通預金"
+
+#: src/usage/withdrawal.md:13
+msgid "_Table 1. The journal entry for the withdrawal, in yen._"
+msgstr "_表 1. 引き出しの仕訳. 金額の単位は円です._"
+
+#: src/usage/withdrawal.md:15
+msgid "Run the program"
+msgstr "プログラムを実行する"
+
+#: src/usage/withdrawal.md:17
+msgid "Save the following program as `Main.hs` in your project directory:"
+msgstr ""
+"次のプログラムを, プロジェクトのディレクトリに `Main.hs` として保存してくださ"
+"い:"
+
+#: src/usage/withdrawal.md:27
+msgid "-- | The unit of an amount.\n"
+msgstr "-- | 金額の単位です.\n"
+
+#: src/usage/withdrawal.md:34
+msgid "-- | Read and replace the account title in a base.\n"
+msgstr "-- | 基底の勘定科目を読み出し, 置き換えます.\n"
+
+#: src/usage/withdrawal.md:39
+msgid "-- | January 10: withdraw 3,000 yen from a savings account at Bank A.\n"
+msgstr "-- | 1 月 10 日: A 銀行の普通預金から 3,000 円を引き出します.\n"
+
+#: src/usage/withdrawal.md:44
+msgid ""
+"-- | Print the entry, its debit terms, its credit terms, and the balance "
+"check.\n"
+msgstr "-- | 仕訳, 借方の項, 貸方の項, 貸借の検査の結果を出力します.\n"
+
+#: src/usage/withdrawal.md:54
+msgid "Run these commands from the project directory:"
+msgstr "プロジェクトのディレクトリから次のコマンドを実行してください:"
+
+#: src/usage/withdrawal.md:70
+msgid ""
+"The following sections explain the program in the order in which its type is "
+"built: elements, a base and hat base, a redundant algebra, and an exchange "
+"algebra."
+msgstr ""
+"以下では, このプログラムの型を組み立てる順に, 要素, 基底と Hat 基底, 冗長代"
+"数, 交換代数を説明します."
+
+#: src/usage/withdrawal.md:72
+msgid "Elements: `AccountTitles` and `Unit`"
+msgstr "要素: `AccountTitles` と `Unit`"
+
+#: src/usage/withdrawal.md:74
+msgid ""
+"An element is one piece of the information that identifies what changes. "
+"This entry uses two kinds of elements:"
+msgstr ""
+"要素は, 何が変化したかを特定する情報の 1 つ 1 つです. この仕訳では 2 種類の要"
+"素を使います."
+
+#: src/usage/withdrawal.md:76
+msgid ""
+"`AccountTitles` is the built-in type of account titles. `Cash` and "
+"`Deposits` are two of its values, and `Deposits` denotes savings deposits."
+msgstr ""
+"`AccountTitles` は組み込みの勘定科目の型です. `Cash` と `Deposits` はその値"
+"で, `Deposits` は普通預金を表します."
+
+#: src/usage/withdrawal.md:77
+msgid ""
+"`Unit` is the type that the program declares for units. `Yen` and `Dollar` "
+"are units. The value `Unit` is the wildcard: it means \"any unit\" in a "
+"query and \"no applicable unit\" in a recorded term."
+msgstr ""
+"`Unit` はこのプログラムで宣言する単位の型です. `Yen` と `Dollar` が単位を表し"
+"ます. 値 `Unit` はワイルドカードで, 問い合わせでは「任意の単位」, 記録した項"
+"では「該当する単位がない」ことを表します."
+
+#: src/usage/withdrawal.md:79
+msgid ""
+"The `deriving` clause and the instance `Element Unit` make the new type "
+"usable as an element type. The import hides the library's `Yen` and `Dollar` "
+"because their names collide with the new values."
+msgstr ""
+"`deriving` 節と `Element Unit` の instance を書くと, この型を要素の型として使"
+"えます. ライブラリの `Yen` と `Dollar` は, 新しく宣言した値と名前が衝突するた"
+"め, import で隠します."
+
+#: src/usage/withdrawal.md:81
+msgid ""
+"The program does not use the date or the bank as an element, so its balances "
+"do not distinguish dates or banks."
+msgstr ""
+"このプログラムは日付と銀行を要素にしないので, 残高を日付や銀行ごとに区別しま"
+"せん."
+
+#: src/usage/withdrawal.md:83
+msgid "Base and hat base: `HatBase (AccountTitles, Unit)`"
+msgstr "基底と Hat 基底: `HatBase (AccountTitles, Unit)`"
+
+#: src/usage/withdrawal.md:85
+msgid ""
+"A base is a tuple of elements. `(Cash, Yen)` is the base for cash in yen, "
+"and `(Deposits, Yen)` is the base for savings deposits in yen. A hat base "
+"pairs a base with a direction through `:<`."
+msgstr ""
+"基底は要素の組です. `(Cash, Yen)` は円建ての現金, `(Deposits, Yen)` は円建て"
+"の普通預金の基底です. 基底に `:<` で方向を付けた組が Hat 基底です."
+
+#: src/usage/withdrawal.md:87
+msgid ""
+"The direction `Not` represents an increase, and `Hat` represents a decrease. "
+"For revenue and expenses, they represent recognition and reversal, "
+"respectively. The amount is nonnegative in both directions. The direction "
+"and the account's division together determine the debit or credit side, as "
+"Table 2 shows."
+msgstr ""
+"方向 `Not` は増加を, `Hat` は減少を表します. 収益と費用では, それぞれ発生と消"
+"滅に当たります. 金額はどちらの方向でも非負です. 借方と貸方は, 表 2 のとおり, "
+"方向と勘定科目の区分の組で決まります."
+
+#: src/usage/withdrawal.md:89
+msgid "`Not`"
+msgstr "`Not`"
+
+#: src/usage/withdrawal.md:89 src/algebra/elements.md:168
+msgid "`Hat`"
+msgstr "`Hat`"
+
+#: src/usage/withdrawal.md:91 src/accounts/builtin.md:14
+msgid "Assets"
+msgstr "資産"
+
+#: src/usage/withdrawal.md:91
+msgid "Increase (debit)"
+msgstr "増加 (借方)"
+
+#: src/usage/withdrawal.md:91
+msgid "Decrease (credit)"
+msgstr "減少 (貸方)"
+
+#: src/usage/withdrawal.md:92
+msgid "Liabilities, equity"
+msgstr "負債, 純資産"
+
+#: src/usage/withdrawal.md:92
+msgid "Increase (credit)"
+msgstr "増加 (貸方)"
+
+#: src/usage/withdrawal.md:92
+msgid "Decrease (debit)"
+msgstr "減少 (借方)"
+
+#: src/usage/withdrawal.md:93 src/accounts/builtin.md:171
+msgid "Revenue"
+msgstr "収益"
+
+#: src/usage/withdrawal.md:93
+msgid "Recognition (credit)"
+msgstr "発生 (貸方)"
+
+#: src/usage/withdrawal.md:93
+msgid "Reversal (debit)"
+msgstr "消滅 (借方)"
+
+#: src/usage/withdrawal.md:94 src/accounts/builtin.md:218
+msgid "Expenses"
+msgstr "費用"
+
+#: src/usage/withdrawal.md:94
+msgid "Recognition (debit)"
+msgstr "発生 (借方)"
+
+#: src/usage/withdrawal.md:94
+msgid "Reversal (credit)"
+msgstr "消滅 (貸方)"
+
+#: src/usage/withdrawal.md:96
+msgid ""
+"_Table 2. The meaning of `Not` and `Hat` and the resulting side, by account "
+"division._"
+msgstr "_表 2. 勘定科目の区分ごとに見た `Not` と `Hat` の意味と貸借._"
+
+#: src/usage/withdrawal.md:98
+msgid ""
+"Cash and deposits are assets. Thus `Not :< (Cash, Yen)` is an increase in "
+"cash on the debit side, and `Hat :< (Deposits, Yen)` is a decrease in "
+"deposits on the credit side."
+msgstr ""
+"現金と普通預金は資産です. したがって, `Not :< (Cash, Yen)` は現金の増加で借"
+"方, `Hat :< (Deposits, Yen)` は普通預金の減少で貸方になります."
+
+#: src/usage/withdrawal.md:100
+msgid ""
+"For a contra account, read the direction as a change in that account itself. "
+"`Not` on `AccumulatedDepreciation` is an increase in accumulated "
+"depreciation and falls on the credit side."
+msgstr ""
+"評価勘定では, 方向をその科目自身の増減として読みます. "
+"`AccumulatedDepreciation` の `Not` は減価償却累計額の増加で, 貸方になります."
+
+#: src/usage/withdrawal.md:102
+msgid ""
+"**Note:** The side that increases `CashOverShort`, `IncomeSummary`, or "
+"`SuspenseAccount` depends on the context. The library gives them the same "
+"sides as assets: `Not` is a debit and `Hat` is a credit."
+msgstr ""
+"**補足:** `CashOverShort`, `IncomeSummary`, `SuspenseAccount` では, 増加が借"
+"方と貸方のどちらに当たるかが文脈で決まります. ライブラリはこの 3 科目に資産と"
+"同じ貸借を割り当て, `Not` を借方, `Hat` を貸方とします."
+
+#: src/usage/withdrawal.md:104
+msgid "Redundant algebra: `Alg`"
+msgstr "冗長代数: `Alg`"
+
+#: src/usage/withdrawal.md:106
+msgid ""
+"`Alg MoneyDecimal (HatBase (AccountTitles, Unit))` is the type of a "
+"redundant algebra. Its first argument is the amount type, and its second is "
+"the hat base type. `MoneyDecimal` stores decimal amounts without binary "
+"rounding."
+msgstr ""
+"`Alg MoneyDecimal (HatBase (AccountTitles, Unit))` は冗長代数の型です. 第 1 "
+"引数が金額の型, 第 2 引数が Hat 基底の型です. `MoneyDecimal` は金額を 10 進数"
+"のまま保持するので, 2 進数への変換による丸め誤差が生じません."
+
+#: src/usage/withdrawal.md:108
+msgid ""
+"`.@` attaches an amount to a hat base to make a term, and `.+` adds terms. "
+"The first line of the output is the sum of the two terms. Addition keeps "
+"every term, even on the same base. To net the terms on each base, apply "
+"`bar` explicitly."
+msgstr ""
+"`.@` は金額を Hat 基底に付けて項を作り, `.+` は項を加えます. 出力の 1 行目は "
+"2 つの項の和です. 加えた項は, 基底が同じでもすべて残ります. 基底ごとに相殺し"
+"て集約するには, `bar` を明示的に適用してください."
+
+#: src/usage/withdrawal.md:110
+msgid "Exchange algebra: `ExBaseClass`"
+msgstr "交換代数: `ExBaseClass`"
+
+#: src/usage/withdrawal.md:112
+msgid ""
+"The instance of `ExBaseClass` defines where the account title is in the "
+"base. `getAccountTitle` reads the title, and `setAccountTitle` replaces it "
+"while keeping the direction and the unit. `FlexibleInstances` permits this "
+"instance declaration."
+msgstr ""
+"`ExBaseClass` の instance には, 基底のどこに勘定科目があるかを書きます. "
+"`getAccountTitle` は勘定科目を読み出し, `setAccountTitle` は方向と単位を保っ"
+"たまま勘定科目を置き換えます. この instance の宣言には `FlexibleInstances` が"
+"必要です."
+
+#: src/usage/withdrawal.md:114
+msgid ""
+"With this instance, the redundant algebra is an exchange algebra, and three "
+"more functions are available:"
+msgstr ""
+"この instance があると冗長代数は交換代数になり, 次の 3 つの関数を使えます."
+
+#: src/usage/withdrawal.md:116
+msgid ""
+"`decL` selects the debit (left) terms, which form the second line of the "
+"output."
+msgstr "`decL` は借方 (左) の項を選びます. 出力の 2 行目に当たります."
+
+#: src/usage/withdrawal.md:117
+msgid "`decR` selects the credit (right) terms, which form the third line."
+msgstr "`decR` は貸方 (右) の項を選びます. 出力の 3 行目に当たります."
+
+#: src/usage/withdrawal.md:118
+msgid ""
+"`balance` compares the debit and credit totals. The last line, `True`, means "
+"that they agree."
+msgstr ""
+"`balance` は借方と貸方の合計を比べます. 最終行の `True` は, 両者の一致を表し"
+"ます."
+
+#: src/usage/withdrawal.md:120
+msgid ""
+"`balance` compares amounts only. It does not detect a wrong account title or "
+"convert between units, so apply it to terms in a single unit."
+msgstr ""
+"`balance` は金額だけを比べます. 勘定科目の誤りの検出や単位の換算はしないの"
+"で, 単位が 1 種類の項に適用してください."
+
+#: src/usage/withdrawal.md:122
+msgid "Use the program for your entry"
+msgstr "手元の仕訳に使う"
+
+#: src/usage/withdrawal.md:124
+msgid ""
+"To record another entry in yen, change three parts of each term in "
+"`withdrawal`:"
+msgstr ""
+"円建ての別の仕訳を記録するには, `withdrawal` の各項で次の 3 か所を書き換えて"
+"ください."
+
+#: src/usage/withdrawal.md:126
+msgid ""
+"Replace the account title with one from [Built-in account titles](../"
+"accounts/builtin.md)."
+msgstr ""
+"勘定科目を[組み込みの勘定科目](../accounts/builtin.md)から選んだ科目に置き換"
+"えてください."
+
+#: src/usage/withdrawal.md:127
+msgid "Select `Not` or `Hat` from Table 2."
+msgstr "表 2 から `Not` か `Hat` を選んでください."
+
+#: src/usage/withdrawal.md:128
+msgid ""
+"Replace `3000` with a nonnegative amount. `.@` stops with an error for a "
+"negative amount."
+msgstr ""
+"`3000` を非負の金額に置き換えてください. 負の金額を渡すと, `.@` はエラーで停"
+"止します."
+
+#: src/usage/withdrawal.md:130
+msgid ""
+"If the entry has more than two terms, join the additional terms with `.+`. "
+"Run the program again, and check that the last line is `True`."
+msgstr ""
+"項が 3 つ以上あるときは, 追加する項を `.+` でつないでください. プログラムを再"
+"実行し, 最終行が `True` であることを確かめてください."
+
+#: src/usage/withdrawal.md:132
+msgid ""
+"If this form is sufficient, continue with [Transfers](../exchange/"
+"transfer.md). To customize it, read the chapter for the component that you "
+"want to change:"
+msgstr ""
+"この形で足りる場合は, [振替](../exchange/transfer.md)の章へ進んでください. カ"
+"スタマイズする場合は, 変更する構成要素に応じて次の章を読んでください."
+
+#: src/usage/withdrawal.md:134
+msgid "To declare or add an element, read [Elements](../algebra/elements.md)."
+msgstr ""
+"要素を宣言または追加する場合は, [要素](../algebra/elements.md)の章を読んでく"
+"ださい."
+
+#: src/usage/withdrawal.md:135
+msgid ""
+"To change the combination of elements, read [Bases](../algebra/bases.md)."
+msgstr ""
+"要素の組み合わせを変える場合は, [基底](../algebra/bases.md)の章を読んでくださ"
+"い."
+
+#: src/usage/withdrawal.md:136
+msgid ""
+"To change the amount type or use other operations, read [Values](../algebra/"
+"values.md) and [The redundant algebra](../algebra/redundant.md)."
+msgstr ""
+"金額の型を変える場合や他の演算を使う場合は, [値](../algebra/values.md)と[冗長"
+"代数](../algebra/redundant.md)の章を読んでください."
+
+#: src/usage/withdrawal.md:138
+msgid "Tested with exchangealgebra-0.6.1.1 on 2026-11-22."
+msgstr "2026-11-22 に exchangealgebra-0.6.1.1 で検証しました."
 
 #: src/algebra/elements.md:3
 msgid ""
@@ -1992,10 +2404,6 @@ msgid "A tuple in which every element is a wildcard."
 msgstr "すべての要素がワイルドカードであるタプル."
 
 #: src/algebra/elements.md:168
-msgid "`Hat`"
-msgstr "`Hat`"
-
-#: src/algebra/elements.md:168
 msgid "`HatNot`, for direction patterns."
 msgstr "`HatNot`. 方向のパターンに使います."
 
@@ -2021,8 +2429,8 @@ msgid ""
 "`Int`, `Integer`, `Double`, and `String` require a wrapper to serve as "
 "element types in 0.6.1.1. Use `Wild` to give each type a wildcard."
 msgstr ""
-"0.6.1.1 で `Int`, `Integer`, `Double`, `String` を要素の型として使うには, "
-"これらの型を包む型が必要です. `Wild` で包むと, ワイルドカードを加えられます."
+"0.6.1.1 で `Int`, `Integer`, `Double`, `String` を要素の型として使うには, こ"
+"れらの型を包む型が必要です. `Wild` で包むと, ワイルドカードを加えられます."
 
 #: src/algebra/elements.md:174
 msgid ""
@@ -5166,10 +5574,6 @@ msgid ""
 "each value."
 msgstr "各列の値の意味は[勘定科目と属性](attributes.md)を参照してください."
 
-#: src/accounts/builtin.md:14
-msgid "Assets"
-msgstr "資産"
-
 #: src/accounts/builtin.md:99
 msgid "Liabilities"
 msgstr "負債"
@@ -5177,14 +5581,6 @@ msgstr "負債"
 #: src/accounts/builtin.md:148
 msgid "Equity"
 msgstr "純資産"
-
-#: src/accounts/builtin.md:171
-msgid "Revenue"
-msgstr "収益"
-
-#: src/accounts/builtin.md:218
-msgid "Expenses"
-msgstr "費用"
 
 #: src/accounts/builtin.md:297
 msgid "The tables are generated from the account registry."
