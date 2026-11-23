@@ -7,6 +7,7 @@
 
 module Main where
 
+-- ANCHOR: elements
 import ExchangeAlgebra hiding (Yen, Dollar)
 
 -- | The unit of an amount.
@@ -15,17 +16,23 @@ data Unit = Yen | Dollar | Unit
 
 instance Element Unit where
     wildcard = Unit
+-- ANCHOR_END: elements
 
+-- ANCHOR: exchange-instance
 -- | Read and replace the account title in a base.
 instance ExBaseClass (HatBase (AccountTitles, Unit)) where
     getAccountTitle (_ :< (account, _)) = account
     setAccountTitle (direction :< (_, unit)) account = direction :< (account, unit)
+-- ANCHOR_END: exchange-instance
 
+-- ANCHOR: withdrawal
 -- | January 10: withdraw 3,000 yen from a savings account at Bank A.
 withdrawal :: Alg MoneyDecimal (HatBase (AccountTitles, Unit))
 withdrawal = 3000 .@ Not :< (Cash, Yen)
           .+ 3000 .@ Hat :< (Deposits, Yen)
+-- ANCHOR_END: withdrawal
 
+-- ANCHOR: main
 -- | Print the entry, its debit terms, its credit terms, and the balance check.
 main :: IO ()
 main = do
@@ -33,4 +40,5 @@ main = do
     print (decL withdrawal)
     print (decR withdrawal)
     print (balance withdrawal)
+-- ANCHOR_END: main
 -- ANCHOR_END: program
