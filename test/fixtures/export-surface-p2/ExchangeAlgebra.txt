@@ -17,7 +17,6 @@
 <+
 <=>
 <@
-AbnormalBalanceWithReclassificationRule
 AccountBalance
 AccountBase
 AccountDivision
@@ -46,7 +45,6 @@ AllowanceForDoubtfulAccounts
 AllowanceForProductWarranties
 AllowanceForRepairs
 AllowanceForRetirementBenefits
-AmbiguousReclassification
 AmortizationExpense
 AmortizationOfGoodwill
 AmortizationOfPatents
@@ -66,7 +64,6 @@ BasePart
 BeforeClosing
 BlankPresentationEvidence
 BlankPresentationRationale
-BlankTemporaryExplanation
 Bonuses
 BonusesPayable
 BookkeepingControlClass
@@ -84,7 +81,6 @@ CentralBankPaymentExpense
 CentralBankPaymentIncome
 CloseByDivision
 ClosingDevice
-ClosingDeviceResidual
 ClosingError
 ClosingFlip
 ClosingKeep
@@ -139,7 +135,6 @@ DepositsInSpecialAccounts
 DepositsReceived
 DepositsReceivedFromOfficers
 Depreciation
-DerivedCoordinateResidual
 DerivedPresentation
 DevelopmentExpenses
 DirectionEncoding
@@ -167,7 +162,6 @@ ExBaseClass
 Exactly
 Exchange
 ExpenseSection
-ExplainedTemporaryBalance
 FinancialStatements
 FinancialStatementsOf
 Fixed
@@ -204,7 +198,6 @@ HeadOfficeCurrentAccount
 HeldToMaturityBonds
 HomeSideSemantics
 IN
-InapplicableReclassificationRule
 IncomeSummary
 IncomeTaxesAdjustment
 IncomeTaxesRefundReceivable
@@ -222,7 +215,6 @@ InvalidPresentationAllocation
 InvalidSettleTarget
 InvalidStatementValue
 InvalidSubtotalDefinition
-InvalidTrialBalanceValue
 InventoryShrinkageLoss
 InvestmentInAssociate
 InvestmentSecurities
@@ -259,14 +251,12 @@ MS
 Machinery
 MaintenanceExpenses
 MalformedMoney
-MaturityEvidenceRequired
 MeetingExpenses
 MembershipFees
 MerchandiseInventory
 MiscellaneousExpenses
 MiscellaneousIncome
 MiscellaneousLoss
-MissingMaturityEvidence
 MissingPresentationAccount
 MissingPresentationAllocation
 MoneyDecimal
@@ -352,8 +342,6 @@ RationalAccum
 RawMaterials
 ReceiptFee
 ReciprocalAccount
-ReciprocalMismatch
-ReclassificationRule
 RecoveryOfBadDebts
 Redundant
 RefundLiabilities
@@ -396,12 +384,10 @@ ShortTermLoansReceivable
 ShortTermNationalBonds
 ShortTermNationalBondsPayable
 Side
-SideReclassificationRule
 SignedNet
 Software
 SoftwareInProgress
 Standalone
-StandaloneReciprocalBalance
 StandardBase
 StatementDivision
 StatementEligible
@@ -425,7 +411,6 @@ SuspenseAccount
 SuspenseOrClearingAccount
 SuspensePayments
 SuspenseReceipts
-TBFinding
 TaxesExpense
 TaxesRevenue
 TimeDeposits
@@ -449,20 +434,15 @@ TransferScale
 TransferShare
 TransferTable
 TransferTableError
-TrialBalanceInput
 TrialBalanceStage
 UnbalancedStatementInput
-UnbalancedTrialBalance
 UnclassifiedAccount
-UnclosedNominalBalance
 UnearnedRevenue
 UnexpectedPresentationAllocation
-UnexplainedAbnormalBalance
 UnlabelledCustomMetric
 UnpaidDividends
 UnpresentableBalance
 UnreconciledPresentation
-UnresolvedTemporaryBalance
 UnroundableAmount
 UtilitiesExpense
 ValuationDifferenceOnOtherSecurities
@@ -475,8 +455,6 @@ WelfareExpenses
 Wild
 WildcardPosting
 WildcardStatementBase
-WildcardTrialBalanceAccount
-WildcardTrialBalanceSide
 WorkInProcess
 Yen
 Zero
@@ -493,13 +471,11 @@ _lineLabel
 _lineSection
 _lineSide
 _materialityDecisions
-_maturityEvidenceTitles
 _maturitySensitiveTitles
 _presentationAllocations
 _presentationAudit
 _presentationProfile
 _presentationRelabels
-_reclassificationRules
 _reportingFramework
 _reportingScope
 _statementFramework
@@ -509,9 +485,6 @@ _statementScope
 _statementSubtotals
 _statementTrialBalanceStage
 _subtotalDefinitions
-_temporaryBalanceExplanations
-_trialBalanceElement
-_trialBalanceStage
 _val
 absTol
 accountAliases
@@ -675,7 +648,6 @@ transferEntries
 transferEntriesBy
 transferEntriesByWith
 transferEntriesWith
-trialBalanceFindings
 unionsMerge
 vals
 valueError

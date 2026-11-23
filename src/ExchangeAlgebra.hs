@@ -236,10 +236,6 @@ module ExchangeAlgebra
     , balanceSide
     , balanceAmount
     , TrialBalanceStage(..)
-    , TrialBalanceInput(..)
-    , ReclassificationRule(..)
-    , TBFinding(..)
-    , trialBalanceFindings
     , ReportingContext
     , ReportingContextOf(..)
     , ReportingScope(..)
@@ -372,13 +368,7 @@ import ExchangeAlgebra.Accounting.TrialBalance.Balance
     , balanceSide
     , balanceAmount
     )
-import ExchangeAlgebra.Accounting.TrialBalance.Validation
-    ( TrialBalanceStage(..)
-    , TrialBalanceInput(..)
-    , ReclassificationRule(..)
-    , TBFinding(..)
-    , trialBalanceFindings
-    )
+import ExchangeAlgebra.Accounting.TrialBalance.Validation (TrialBalanceStage(..))
 import ExchangeAlgebra.Accounting.Statements.Presentation
     ( ReportingContext
     , ReportingContextOf(..)

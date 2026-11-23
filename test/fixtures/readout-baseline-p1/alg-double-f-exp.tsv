@@ -39,7 +39,4 @@ accountBalances	all	map	AccountsReceivable	DebitBalance	0x3ff0000000000000	1.0
 accountBalances	all	map	RetainedEarnings	DebitBalance	0x3ff0000000000000	1.0
 accountBalances	all	map	Purchases	CreditBalance	0x7e37e43c8800759c	1.0e300
 accountBalances	all	map	Sales	CreditBalance	0x7ff0000000000000	Infinity
-trialBalanceFindings	BeforeClosing	result	[UnbalancedTrialBalance 1.0e300 Infinity,UnexplainedAbnormalBalance RetainedEarnings Credit (DebitBalance 1.0),UnexplainedAbnormalBalance Purchases Debit (CreditBalance 1.0e300)]
-trialBalanceFindings.debitTotal	BeforeClosing	scalar	0x7e37e43c8800759c	1.0e300
-trialBalanceFindings.creditTotal	BeforeClosing	scalar	0x7ff0000000000000	Infinity
 periodResultOfAlg	all	PeriodProfit	0x7ff0000000000000	Infinity

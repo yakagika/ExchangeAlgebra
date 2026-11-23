@@ -64,10 +64,10 @@ Both series cover algebra `bar`, `norm`, `balance`, `diffRL`, `balanceMapBy`, an
 `Accounting.TrialBalance.Balance.accountBalances`, and
 `Accounting.Statements.Metric.periodResultOfAlg`.
 It covers journal `bar`, `compress`, `projWithBaseNetNorm`, and
-`projWithNoteBaseNetNorm`. `Accounting.TrialBalance.Validation.trialBalanceFindings` and
-`IO.Input` fix their base type to `HatBase AccountTitles`. This type has
-fewer than 1000 concrete titles and cannot express the gate's 1000 distinct
-synthetic owner bases, so these validation readouts have no gate group. The
+`projWithNoteBaseNetNorm`. Use `impossibleBalances`, `abnormalBalances`,
+`temporaryAccountBalances`, and `closingResiduals` from
+`ExchangeAlgebra.Accounting.Audit` for account balance audits. These functions
+take trial balances over account titles and have no gate group. The
 `gate-ref/checked-acceptance/checkedJournal` series observes checked acceptance
 with `K` distinct notes and balanced entries; its `K` counts notes, not bases.
 

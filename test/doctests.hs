@@ -15,9 +15,8 @@ main = doctest  [ "-isrc"
                 , "src/ExchangeAlgebra/Algebra/Transfer/Representation.hs"
                 , "src/ExchangeAlgebra/Accounting/Closing.hs"
                 , "src/ExchangeAlgebra/Journal/Core/Representation.hs"
-                  -- reporting gates have their own examples;
+                  -- reporting modules have their own examples;
                   -- explicit roots keep them covered independently of umbrellas.
-                , "src/ExchangeAlgebra/Accounting/TrialBalance/Validation.hs"
                 , "src/ExchangeAlgebra/Accounting/Statements/Presentation.hs"
                 , "src/ExchangeAlgebra/Accounting/Consolidation.hs"
                   -- admission execution modules are not re-exported in full;

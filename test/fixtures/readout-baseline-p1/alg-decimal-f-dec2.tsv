@@ -49,9 +49,6 @@ accountBalances	all	map	AccountsReceivable	DebitBalance	1214.57
 accountBalances	all	map	RetainedEarnings	DebitBalance	0.1
 accountBalances	all	map	Purchases	CreditBalance	0.09
 accountBalances	all	map	Sales	DebitBalance	20.18
-trialBalanceFindings	BeforeClosing	result	[UnbalancedTrialBalance 1255.37 1255.16,UnexplainedAbnormalBalance Cash Debit (CreditBalance 1234.55),UnexplainedAbnormalBalance RetainedEarnings Credit (DebitBalance 0.1),UnexplainedAbnormalBalance Purchases Debit (CreditBalance 0.09),UnexplainedAbnormalBalance Sales Credit (DebitBalance 20.18)]
-trialBalanceFindings.debitTotal	BeforeClosing	scalar	1255.37
-trialBalanceFindings.creditTotal	BeforeClosing	scalar	1255.16
 Convert.Checked.checkedEntry	0.1+0.2 vs 0.3	result	Right 0.3:@Hat:<Cash .+ 0.1:@Not:<Cash .+ 0.2:@Not:<Cash
 Convert.Checked.debitInput	0.1+0.2	scalar	0.3
 Convert.Checked.creditInput	0.3	scalar	0.3

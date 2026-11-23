@@ -1,18 +1,8 @@
 {- |
 Module      : ExchangeAlgebra.Accounting.TrialBalance
-Description : Compute debit and credit account balances and audit findings.
+Description : Compute debit and credit account balances.
 
-Import this module for the complete trial-balance API. Import
-"ExchangeAlgebra.Accounting.TrialBalance.Balance" for balance calculations or
-"ExchangeAlgebra.Accounting.TrialBalance.Validation" for findings alone.
-
-+--------------------------------------+-------------------------------------------+
-| Task                                 | Entry point                               |
-+======================================+===========================================+
-| Aggregate account balances           | 'accountBalances'                         |
-+--------------------------------------+-------------------------------------------+
-| Report accounting findings           | 'trialBalanceFindings'                    |
-+--------------------------------------+-------------------------------------------+
+Use "ExchangeAlgebra.Accounting.Audit" to audit the trial balance.
 
 'accountBalances' returns account balances directed by 'DebitBalance' or
 'CreditBalance'. 'ExchangeAlgebra.Algebra.Core.netPairMapBy' instead returns
@@ -30,11 +20,7 @@ module ExchangeAlgebra.Accounting.TrialBalance
     , balanceAmount
     , accountBalances
     , TrialBalanceStage(..)
-    , ReclassificationRule(..)
-    , TrialBalanceInput(..)
-    , TBFinding(..)
-    , trialBalanceFindings
     ) where
 
 import ExchangeAlgebra.Accounting.TrialBalance.Balance
-import ExchangeAlgebra.Accounting.TrialBalance.Validation
+import ExchangeAlgebra.Accounting.TrialBalance.Validation (TrialBalanceStage(..))

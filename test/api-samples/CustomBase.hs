@@ -2,9 +2,9 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
-import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
+import Data.List.NonEmpty (NonEmpty(..))
 import ExchangeAlgebra
+import qualified ExchangeAlgebra.Accounting.Audit as Audit
 import qualified ExchangeAlgebra.Accounting.Closing as Closing
 import qualified ExchangeAlgebra.Accounting.Statements as St
 import qualified ExchangeAlgebra.Accounting.TrialBalance as TB
@@ -103,8 +103,7 @@ main = do
         ]
     check "cash" [(Debit, 270)] (linesOf Cash bs)
     -- The audit is a separate function. The caller decides what to do with it.
-    let audit = TB.trialBalanceFindings
-            (TB.TrialBalanceInput closed TB.AfterClosing Map.empty [] Set.empty)
     check "deficit reported"
-        [TB.UnexplainedAbnormalBalance RetainedEarnings Credit (TB.DebitBalance 230)]
-        audit
+        (Audit.Warning
+            (Audit.AbnormalBalance RetainedEarnings Credit (TB.DebitBalance 230) :| []))
+        (Audit.abnormalBalances closed)

@@ -152,9 +152,8 @@ periodResultOfAlg alg
 -- treating an already-derived balancing item as another nominal account.
 -- Consolidation attribution bases do not participate, so the result is
 -- the period result before attribution to owners and non-controlling interests.
--- No accounting finding is consulted; inspect
--- 'ExchangeAlgebra.Accounting.TrialBalance.Validation.trialBalanceFindings'
--- separately when the trial balance must also be audited.
+-- Use "ExchangeAlgebra.Accounting.Audit" to inspect accounting findings
+-- separately.
 periodResultOf
     :: HatVal v
     => TB.TrialBalanceStage

@@ -10,12 +10,10 @@ Module      : ExchangeAlgebra.Accounting.Statements.Presentation
 Description : Context-sensitive JGAAP presentation from trial balances.
 
 This module is the reporting boundary between a trial balance and presented
-statements. 'present' computes statements whenever a correct statement can be
-computed; it does not judge whether the trial balance is normal for
-accounting purposes. Abnormal-side balances (for example a deficit in
-retained earnings), temporary-account residuals, reciprocal-account
-mismatches, and unclosed nominal balances are reported separately by
-'TB.trialBalanceFindings', and the caller decides how to treat them.
+statements. 'present' computes statements when the trial balance and
+presentation instructions allow it. Use "ExchangeAlgebra.Accounting.Audit"
+to inspect findings such as abnormal-side balances, temporary-account
+balances, and residuals after closing.
 Presentation fails only when no correct statement exists: an invalid value,
 a wildcard account or side, a trial balance whose debits and credits differ,
 a conflicting presentation instruction, a balance on a title that no
@@ -333,9 +331,9 @@ pattern ReciprocalAccountsEliminated
 pattern ReciprocalAccountsEliminated branch headOffice =
     ReciprocalPairEliminated BranchCurrentAccount branch HeadOfficeCurrentAccount headOffice
 
--- | Reasons why no correct statement can be presented. Accounting
--- abnormalities that still allow a statement are not issues; they are
--- reported by 'TB.trialBalanceFindings'.
+-- | Conditions that prevent presentation. Use
+-- "ExchangeAlgebra.Accounting.Audit" to check for accounting findings
+-- separately.
 data PresentationIssueOf t v
   = InvalidStatementValue t
     -- ^ A posting value is invalid (for example NaN or infinite).
@@ -468,10 +466,10 @@ metricLabel context metric balance = case metric of
 -- titles. '_maturitySensitiveTitles' lists titles whose balances require a
 -- maturity split.
 --
--- Success does not mean that the trial balance is normal for accounting
--- purposes. A balance on the side opposite to its home side is presented in
--- its own section on the side it actually has; inspect
--- 'TB.trialBalanceFindings' to audit it.
+-- A balance on the side opposite to its home side is presented in its own
+-- section on the side it actually has. Inspect such balances with
+-- 'ExchangeAlgebra.Accounting.Audit.impossibleBalances' and
+-- 'ExchangeAlgebra.Accounting.Audit.abnormalBalances'.
 present
     :: (HatVal v, ExBaseClass (HatBase t), TitleOf (HatBase t) ~ t)
     => ReportingContextOf t v

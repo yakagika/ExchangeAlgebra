@@ -13,7 +13,6 @@ import qualified Data.HashMap.Strict as HM
 import qualified Data.List as L
 import qualified Data.Map.Strict as M
 import qualified Data.Sequence as Seq
-import qualified Data.Set as S
 import           Data.Text (Text)
 import qualified Data.Text as T
 import           GHC.Float (castDoubleToWord64)
@@ -28,7 +27,6 @@ import qualified ExchangeAlgebra.Journal as EJ
 import qualified ExchangeAlgebra.Journal.Transfer.Rule as JR
 import qualified ExchangeAlgebra.Accounting.Statements.Metric as Metric
 import qualified ExchangeAlgebra.Accounting.TrialBalance.Balance as TB
-import qualified ExchangeAlgebra.Accounting.TrialBalance.Validation as Validation
 import           ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 
 -- | Account-only bases for the main readout series.
@@ -277,9 +275,6 @@ algRows name postings =
          (compare (pair Sales [1, 2]) (pair Sales [3]))
     ++ algEitherRows "closingEntries" "Alg" (closingCause (Closing.closingEntries input))
     ++ balanceRows (TB.accountBalances input)
-    ++ shownRow "trialBalanceFindings" "BeforeClosing" (Validation.trialBalanceFindings tbInput)
-    ++ scalarRow "trialBalanceFindings.debitTotal" "BeforeClosing" (norm (decL input))
-    ++ scalarRow "trialBalanceFindings.creditTotal" "BeforeClosing" (norm (decR input))
     ++ checkedRows
     ++ metricRows (Metric.periodResultOfAlg input)
   where
@@ -294,7 +289,6 @@ algRows name postings =
                              , title == account, note `elem` selectedNotes])
         (Seq.fromList [value | Posting value Not title note <- postings
                              , title == account, note `elem` selectedNotes])
-    tbInput = Validation.TrialBalanceInput input Validation.BeforeClosing M.empty [] S.empty
     checkedRows
         | name == "f-dec2" = checkedBoundaryRows (norm input)
         | otherwise = []

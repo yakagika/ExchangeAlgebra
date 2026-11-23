@@ -1,12 +1,8 @@
--- | Compatibility exports for trial balance validation.
+-- | Compatibility exports for trial-balance stages and account balances.
 module ExchangeAlgebra.TrialBalance.Validation
 {-# DEPRECATED "Import ExchangeAlgebra.Accounting.TrialBalance.Validation instead." #-}
     ( TrialBalanceStage(..)
     , AccountBalance(..)
-    , ReclassificationRule(..)
-    , TrialBalanceInput(..)
-    , TBFinding(..)
-    , trialBalanceFindings
     ) where
 
 import ExchangeAlgebra.Accounting.TrialBalance.Validation

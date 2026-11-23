@@ -220,19 +220,20 @@
   trimmed amount field when the amount parser returns a negative or non-finite value.
   Previously the row passed parsing and `(.@)` raised an exception during term construction.
 
-### Deprecated
+### Removed
 
 - `TBFinding`, `trialBalanceFindings`, `TrialBalanceInput`, and
   `ReclassificationRule` of `ExchangeAlgebra.Accounting.TrialBalance.Validation`
-  are deprecated and will be removed in 0.7. Use `impossibleBalances`,
+  have been removed. Use `impossibleBalances`,
   `abnormalBalances`, `temporaryAccountBalances`, and `closingResiduals` of
-  `ExchangeAlgebra.Accounting.Audit` instead; they take the trial balance
-  directly and return `AuditResult`. Where each finding of `TBFinding` goes:
+  `ExchangeAlgebra.Accounting.Audit` instead. They take the trial balance
+  directly and return `AuditResult`. Migrate each finding as follows.
   - `InvalidTrialBalanceValue`, `WildcardTrialBalanceAccount`,
     `WildcardTrialBalanceSide`: a structure issue, reported as `Error` by
     every audit.
   - `UnexplainedAbnormalBalance`: `impossibleBalances` or `abnormalBalances`.
-  - `UnresolvedTemporaryBalance`: `temporaryAccountBalances`.
+  - `UnresolvedTemporaryBalance`: `temporaryAccountBalances`. Use
+    `closingResiduals` to check `CashOverShort` after closing.
   - `ClosingDeviceResidual`, `DerivedCoordinateResidual`,
     `UnclosedNominalBalance`: `closingResiduals`.
   - The following have no successor among the audits.
@@ -243,15 +244,13 @@
     records both balances in a `ReciprocalAccountsEliminated` audit event, and
     fails with `UnreconciledPresentation` when the statements do not
     reconcile. `ExplainedTemporaryBalance` and `BlankTemporaryExplanation`:
-    the audits take no explanation text; `temporaryAccountBalances` reports
-    the balance as a `Warning`. `AbnormalBalanceWithReclassificationRule`,
+    `temporaryAccountBalances` reports eligible balances as a `Warning`
+    with no explanation field. `AbnormalBalanceWithReclassificationRule`,
     `AmbiguousReclassification`, and `InapplicableReclassificationRule`: a
     reclassification rule is an instruction for a correction, not an audit;
     `abnormalBalances` reports the balance and its documentation lists the
     legitimate exceptions. `MissingMaturityEvidence`: the maturity split is
     the presentation setting `_maturitySensitiveTitles` (since 0.6.0.0).
-
-### Removed
 
 - The source distribution no longer contains
   `docs/admission-api-design-notes.md`, an internal design note. The behavior

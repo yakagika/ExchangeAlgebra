@@ -20,8 +20,8 @@ they do not assert that the current arithmetic is the intended 0.6 behavior.
 
 The `alg-*` files cover `bar`, `norm`, `balance`, `diffRL`, `compress`,
 `balanceMapBy`, `netPairMapBy`, `postFromNetBy`, `projNetNorm`, `balanceBy`,
-`Pair.compare`, `closingEntries`, `accountBalances`, `checkedEntry`,
-`trialBalanceFindings`, and `periodResultOfAlg`. The
+`Pair.compare`, `closingEntries`, `accountBalances`, `checkedEntry`, and
+`periodResultOfAlg`. The
 `journal-*` files cover `bar`, `norm`, `projWithBaseNetNorm`,
 `projWithNoteBaseNetNorm`, `compress`, and `closingEntries`. The Double journal
 files also cover `carryEntries` and `carryBefore`; those APIs accept Double

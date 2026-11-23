@@ -16,11 +16,9 @@ when only grouping, metrics, or presentation is needed.
 +--------------------------------+--------------------------------------------+
 
 'present' accepts a trial balance over account titles and its stage, and
-returns presentation results with their audit events. It does not alter
-bookkeeping bases and does not judge whether the trial balance is normal
-for accounting purposes; inspect
-'ExchangeAlgebra.Accounting.TrialBalance.Validation.trialBalanceFindings' for
-that audit.
+returns presentation results with their audit events and leaves the
+bookkeeping bases intact. Use "ExchangeAlgebra.Accounting.Audit" to
+inspect accounting findings separately.
 
 Statements receive one reporting scope. A ledger with several components (entity,
 period, department) is narrowed by the caller and mapped to account titles

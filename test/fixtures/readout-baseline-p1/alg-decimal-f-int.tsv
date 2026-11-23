@@ -49,7 +49,4 @@ accountBalances	all	map	AccountsReceivable	DebitBalance	12342
 accountBalances	all	map	RetainedEarnings	DebitBalance	12245
 accountBalances	all	map	Purchases	CreditBalance	1
 accountBalances	all	map	Sales	CreditBalance	3
-trialBalanceFindings	BeforeClosing	result	[UnbalancedTrialBalance 24794 214,UnexplainedAbnormalBalance Cash Debit (CreditBalance 3),UnexplainedAbnormalBalance RetainedEarnings Credit (DebitBalance 12245),UnexplainedAbnormalBalance Purchases Debit (CreditBalance 1)]
-trialBalanceFindings.debitTotal	BeforeClosing	scalar	24794
-trialBalanceFindings.creditTotal	BeforeClosing	scalar	214
 periodResultOfAlg	all	PeriodProfit	4

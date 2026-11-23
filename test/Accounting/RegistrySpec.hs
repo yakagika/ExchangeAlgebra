@@ -14,6 +14,7 @@ import qualified ExchangeAlgebra.Accounting.Account as PP
 import qualified ExchangeAlgebra.Accounting.Consolidation as CW
 import ExchangeAlgebra.Accounting.Closing (ClosingSide(..), closingSide)
 import qualified ExchangeAlgebra.Accounting.TrialBalance.Balance as TBB
+import qualified ExchangeAlgebra.Accounting.Audit as Audit
 import qualified ExchangeAlgebra.Accounting.TrialBalance.Validation as TB
 import qualified ExchangeAlgebra.Accounting.Statements.Presentation as RP
 import qualified ExchangeAlgebra.Accounting.Statements.Metric as RM
@@ -1980,18 +1981,6 @@ testConsolidationWorksheet = do
             "unbalanced-source" 10 0 NE.:| []))
         (leftErrors (CW.validateConsolidationWorksheet unbalancedSourceInput))
 
-trialBalanceInput
-    :: CheckedAlgM
-    -> TB.TrialBalanceStage
-    -> TB.TrialBalanceInput MoneyDecimal
-trialBalanceInput alg stage = TB.TrialBalanceInput
-    { TB._trialBalanceElement = alg
-    , TB._trialBalanceStage = stage
-    , TB._temporaryBalanceExplanations = M.empty
-    , TB._reclassificationRules = []
-    , TB._maturityEvidenceTitles = Set.empty
-    }
-
 testSharedAccountBalancePrimitives :: IO ()
 testSharedAccountBalancePrimitives = do
     let balances =
@@ -2004,178 +1993,58 @@ testSharedAccountBalancePrimitives = do
     assertEqual "account balance: structural sides"
         [Side, Debit, Credit] (fmap TBB.balanceSide balances)
 
-testTrialBalanceValidation :: IO ()
-testTrialBalanceValidation = do
+-- | Present standalone reciprocal balances and a supplied maturity split.
+testPresentationOfReciprocalAndMaturityBalances :: IO ()
+testPresentationOfReciprocalAndMaturityBalances = do
     let reciprocalMismatch = EC.journalFromSides
             [ (Debit, BranchCurrentAccount, 40 :: MoneyDecimal)
             , (Credit, HeadOfficeCurrentAccount, 30)
             , (Credit, CapitalStock, 10)
             ] :: CheckedAlgM
-        reciprocalInput = trialBalanceInput reciprocalMismatch TB.BeforeClosing
-        expectedReciprocal = TB.ReciprocalMismatch
-            (TB.DebitBalance 40) (TB.CreditBalance 30)
-    assertEqual "trial balance: reciprocal mismatch independent of global balance"
-        (Just (expectedReciprocal NE.:| []))
-        (NE.nonEmpty (TB.trialBalanceFindings (reciprocalInput)))
-    let standaloneReciprocal = EC.journalFromSides
+        standaloneReciprocal = EC.journalFromSides
             [ (Debit, BranchCurrentAccount, 40 :: MoneyDecimal)
             , (Credit, CapitalStock, 40)
             ] :: CheckedAlgM
-        standaloneInput = trialBalanceInput standaloneReciprocal TB.BeforeClosing
-        expectedStandalone = TB.StandaloneReciprocalBalance
-            BranchCurrentAccount (TB.DebitBalance 40)
-    assertEqual "trial balance: standalone reciprocal balance is a finding"
-        [expectedStandalone] (TB.trialBalanceFindings standaloneInput)
-
-    let explainedSuspense = EC.journalFromSides
-            [ (Debit, SuspensePayments, 10 :: MoneyDecimal)
-            , (Credit, CapitalStock, 10)
-            ] :: CheckedAlgM
-        explanation = T.pack "invoice received after reporting date"
-        explainedInput = (trialBalanceInput explainedSuspense TB.BeforeClosing)
-            { TB._temporaryBalanceExplanations =
-                M.singleton SuspensePayments explanation }
-        expectedExplained = TB.ExplainedTemporaryBalance SuspensePayments
-            (TB.DebitBalance 10) explanation
-    assertEqual "trial balance: explained temporary balance retained"
-        [expectedExplained] (TB.trialBalanceFindings explainedInput)
-    let unresolvedInput = trialBalanceInput explainedSuspense TB.BeforeClosing
-    assertEqual "trial balance: unexplained temporary balance is a finding"
-        (Just (TB.UnresolvedTemporaryBalance SuspensePayments
-            (TB.DebitBalance 10) NE.:| []))
-        (NE.nonEmpty (TB.trialBalanceFindings (unresolvedInput)))
-    let blankInput = explainedInput
-            { TB._temporaryBalanceExplanations =
-                M.singleton SuspensePayments (T.pack "  ") }
-    assertEqual "trial balance: blank explanation is a finding"
-        (Just (TB.BlankTemporaryExplanation SuspensePayments
-            (TB.DebitBalance 10) NE.:| []))
-        (NE.nonEmpty (TB.trialBalanceFindings (blankInput)))
-
-    let closingResidual = EC.journalFromSides
-            [ (Debit, CashOverShort, 10 :: MoneyDecimal)
-            , (Credit, IncomeSummary, 10)
-            ] :: CheckedAlgM
-        closingInput = trialBalanceInput closingResidual TB.AfterClosing
-    assertEqual "trial balance: closing devices must be zero after closing"
-        (Just
-            ( TB.ClosingDeviceResidual CashOverShort (TB.DebitBalance 10)
-                NE.:|
-              [TB.ClosingDeviceResidual IncomeSummary (TB.CreditBalance 10)]
-            ))
-        (NE.nonEmpty (TB.trialBalanceFindings (closingInput)))
-    let unclosedNominal = EC.journalFromSides
-            [ (Debit, Cash, 10 :: MoneyDecimal)
-            , (Credit, Sales, 10)
-            ] :: CheckedAlgM
-    assertEqual "trial balance: nominal balances must close after closing"
-        (Just (TB.UnclosedNominalBalance Sales
-            (TB.CreditBalance 10) NE.:| []))
-        (NE.nonEmpty (TB.trialBalanceFindings ((trialBalanceInput unclosedNominal TB.AfterClosing))))
-
-    let derivedResidual = EC.journalFromSides
-            [ (Debit, NetIncome, 10 :: MoneyDecimal)
-            , (Credit, CapitalStock, 10)
-            ] :: CheckedAlgM
-    assertEqual "trial balance: derived coordinates are residuals after closing"
-        (Just (TB.DerivedCoordinateResidual NetIncome
-            (TB.DebitBalance 10) NE.:| []))
-        (NE.nonEmpty (TB.trialBalanceFindings ((trialBalanceInput derivedResidual TB.AfterClosing))))
-
-    let abnormalDeposit = EC.journalFromSides
-            [ (Debit, Cash, 10 :: MoneyDecimal)
-            , (Credit, CurrentDeposits, 10)
-            ] :: CheckedAlgM
-        abnormalInput = trialBalanceInput abnormalDeposit TB.BeforeClosing
-        oneRule = TB.SideReclassificationRule CurrentDeposits Credit
-            (ShortTermLoansPayable NE.:| [])
-        twoRules = TB.SideReclassificationRule CurrentDeposits Credit
-            (BankOverdraft NE.:| [ShortTermLoansPayable])
-    assertEqual "trial balance: unexplained abnormal side is explicit"
-        (Just (TB.UnexplainedAbnormalBalance CurrentDeposits Debit
-            (TB.CreditBalance 10) NE.:| []))
-        (NE.nonEmpty (TB.trialBalanceFindings (abnormalInput)))
-    assertEqual "trial balance: unique reclassification is an instruction"
-        (Just (TB.AbnormalBalanceWithReclassificationRule CurrentDeposits
-            (TB.CreditBalance 10) ShortTermLoansPayable NE.:| []))
-        (NE.nonEmpty (TB.trialBalanceFindings (abnormalInput { TB._reclassificationRules = [oneRule] })))
-    assertEqual "trial balance: ambiguous reclassification is never automatic"
-        (Just (TB.AmbiguousReclassification CurrentDeposits
-            (TB.CreditBalance 10)
-            (BankOverdraft NE.:| [ShortTermLoansPayable]) NE.:| []))
-        (NE.nonEmpty (TB.trialBalanceFindings (abnormalInput { TB._reclassificationRules = [twoRules] })))
-
-    let recordedTransfer = EC.journalFromSides
-            [ (Debit, CurrentDeposits, 10 :: MoneyDecimal)
-            , (Credit, ShortTermLoansPayable, 10)
-            ] :: CheckedAlgM
-        transferred = abnormalDeposit .+ recordedTransfer
-        transferredInput = (trialBalanceInput transferred TB.BeforeClosing)
-            { TB._reclassificationRules = [oneRule] }
-    assertEqual "trial balance: recorded transfer clears abnormal finding"
-        [] (TB.trialBalanceFindings transferredInput)
-
-    let invalidRule = TB.SideReclassificationRule CashOverShort Credit
-            (MiscellaneousIncome NE.:| [])
-        invalidRuleInput = (trialBalanceInput mempty TB.BeforeClosing)
-            { TB._reclassificationRules = [invalidRule] }
-    assertEqual "trial balance: inapplicable rules are explicit"
-        (Just (TB.InapplicableReclassificationRule invalidRule NE.:| []))
-        (NE.nonEmpty (TB.trialBalanceFindings (invalidRuleInput)))
-    let deadRule = TB.SideReclassificationRule CurrentDeposits Debit
-            (Cash NE.:| [])
-        deadRuleInput = (trialBalanceInput mempty TB.BeforeClosing)
-            { TB._reclassificationRules = [deadRule] }
-    assertEqual "trial balance: normal-side trigger is a dead rule"
-        (Just (TB.InapplicableReclassificationRule deadRule NE.:| []))
-        (NE.nonEmpty (TB.trialBalanceFindings (deadRuleInput)))
-
+        context = RP.jcciSecondGradeContext RP.Standalone
+    forM_ [reciprocalMismatch, standaloneReciprocal] $ \ledger ->
+        assertEqual "standalone presentation accepts reciprocal balances"
+            True (case RP.present context TB.BeforeClosing ledger of
+                Right _ -> True
+                Left _ -> False)
     let maturityBalance = EC.journalFromSides
             [ (Debit, LoansReceivable, 25 :: MoneyDecimal)
             , (Credit, CapitalStock, 25)
             ] :: CheckedAlgM
-        maturityRule = TB.MaturityEvidenceRequired LoansReceivable
-        missingMaturity = (trialBalanceInput maturityBalance TB.BeforeClosing)
-            { TB._reclassificationRules = [maturityRule] }
-        suppliedMaturity = missingMaturity
-            { TB._maturityEvidenceTitles = Set.singleton LoansReceivable }
-    assertEqual "trial balance: maturity-sensitive title requires evidence"
-        (Just (TB.MissingMaturityEvidence LoansReceivable NE.:| []))
-        (NE.nonEmpty (TB.trialBalanceFindings (missingMaturity)))
-    assertEqual "trial balance: supplied maturity evidence clears finding"
-        [] (TB.trialBalanceFindings suppliedMaturity)
-
-    let unbalanced = EC.journalFromSides
-            [(Debit, Cash, 10 :: MoneyDecimal)] :: CheckedAlgM
-        unbalancedInput = trialBalanceInput unbalanced TB.BeforeClosing
-    assertEqual "trial balance: exact global imbalance is a finding"
-        (Just (TB.UnbalancedTrialBalance 10 0 NE.:| []))
-        (NE.nonEmpty (TB.trialBalanceFindings (unbalancedInput)))
-
-    let wildcard = 10 `Internal.Single` (HatNot :< Cash) :: CheckedAlgM
-        wildcardInput = trialBalanceInput wildcard TB.BeforeClosing
-    assertEqual "trial balance: wildcard side reports without whichSide crash"
-        (Just (TB.WildcardTrialBalanceSide NE.:| []))
-        (NE.nonEmpty (TB.trialBalanceFindings (wildcardInput)))
-
-    forM_ [reciprocalInput, standaloneInput, unresolvedInput, blankInput,
-           explainedInput, abnormalInput,
-           abnormalInput { TB._reclassificationRules = [oneRule] },
-           abnormalInput { TB._reclassificationRules = [twoRules] }] $ \input ->
-        assertEqual "audit findings do not block a presentable trial balance"
-            True (case RP.present (RP.jcciSecondGradeContext RP.Standalone)
-                    (TB._trialBalanceStage input) (TB._trialBalanceElement input) of
-                Right _ -> True
-                Left _ -> False)
-    let maturityContext = (RP.jcciSecondGradeContext RP.Standalone)
+        maturityContext = context
             { RP._maturitySensitiveTitles = Set.singleton LoansReceivable
             , RP._presentationAllocations =
                 [RP.PresentationAllocation LoansReceivable 10 15 (T.pack "schedule")] }
-    assertEqual "missing maturity audit evidence does not block supplied presentation split"
+    assertEqual "presentation accepts a supplied maturity split"
         True (case RP.present maturityContext TB.BeforeClosing maturityBalance of
             Right _ -> True
             Left _ -> False)
 
+-- | Observe an overdraft before and after recording a reclassification.
+testAbnormalBalanceAfterReclassification :: IO ()
+testAbnormalBalanceAfterReclassification = do
+    let abnormalDeposit = EC.journalFromSides
+            [ (Debit, Cash, 10)
+            , (Credit, CurrentDeposits, 10)
+            ] :: CheckedAlgM
+        recordedTransfer = EC.journalFromSides
+            [ (Debit, CurrentDeposits, 10)
+            , (Credit, ShortTermLoansPayable, 10)
+            ] :: CheckedAlgM
+    assertEqual "audit: credit balance on current deposits is abnormal"
+        (Audit.Warning (Audit.AbnormalBalance CurrentDeposits Debit
+            (TB.CreditBalance 10) NE.:| []))
+        (Audit.abnormalBalances abnormalDeposit)
+    assertEqual "audit: recorded transfer clears abnormal finding"
+        Audit.NoProblem (Audit.abnormalBalances (abnormalDeposit .+ recordedTransfer))
+
+-- | Check the registry roles used for trial balance accounts.
+testTrialBalanceAccountRoles :: IO ()
+testTrialBalanceAccountRoles = do
     let titlesFor role =
             [ title
             | title <- Registry.concreteAccountTitles
@@ -2283,20 +2152,17 @@ testReportingPresentation = do
                 `elem` NE.toList issues
             Right _ -> False)
 
-    let explainedSuspense = EC.journalFromSides
+    let suspenseBalance = EC.journalFromSides
             [ (Debit, SuspensePayments, 10 :: MoneyDecimal)
             , (Credit, CapitalStock, 10)
             ] :: CheckedAlgM
-        explainedInput = (trialBalanceInput explainedSuspense TB.BeforeClosing)
-            { TB._temporaryBalanceExplanations = M.singleton SuspensePayments
-                (T.pack "pending invoice") }
-    assertEqual "reporting: explained temporary finding is separate from presentation"
-        [TB.ExplainedTemporaryBalance SuspensePayments (TB.DebitBalance 10)
-            (T.pack "pending invoice")]
-        (TB.trialBalanceFindings explainedInput)
-    assertEqual "reporting: combined context presents an explained temporary balance"
+    assertEqual "reporting: temporary balance is a separate audit finding"
+        (Audit.Warning (Audit.TemporaryAccountBalance SuspensePayments
+            (TB.DebitBalance 10) NE.:| []))
+        (Audit.temporaryAccountBalances suspenseBalance)
+    assertEqual "reporting: combined context presents a temporary balance"
         True (case RP.present (RP.jcciSecondGradeContext RP.Combined)
-                TB.BeforeClosing explainedSuspense of
+                TB.BeforeClosing suspenseBalance of
             Left _ -> False
             Right _ -> True)
 
@@ -2489,10 +2355,12 @@ testStatementLaws = do
         suspense = EC.journalFromSides
             [(Debit, SuspensePayments, 10), (Credit, CapitalStock, 10)] :: CheckedAlgM
         unclosed = ledger 30 20 10 15
-    forM_ [(deficit, TB.BeforeClosing), (suspense, TB.BeforeClosing),
-           (unclosed, TB.AfterClosing)] $ \(alg, stage) -> do
-        assertEqual "D1 law 4: accounting finding remains observable" True
-            (not (null (TB.trialBalanceFindings (trialBalanceInput alg stage))))
+    forM_
+        [ (deficit, TB.BeforeClosing, Audit.abnormalBalances deficit /= Audit.NoProblem)
+        , (suspense, TB.BeforeClosing, Audit.temporaryAccountBalances suspense /= Audit.NoProblem)
+        , (unclosed, TB.AfterClosing, Audit.closingResiduals unclosed /= Audit.NoProblem)
+        ] $ \(alg, stage, hasFinding) -> do
+        assertEqual "D1 law 4: accounting finding remains observable" True hasFinding
         assertEqual "D1 law 4: accounting finding does not block presentation" True
             (case RP.present context stage alg of Right _ -> True; Left _ -> False)
     assertEqual "D1 law 5: deficit keeps equity section and actual debit side"
@@ -2978,10 +2846,6 @@ testAccumulatorAccounting = do
         (TBB.balanceFor Cash (TBB.accountBalances
             (rejected EA..+ (large EA..@ (Hat :< Cash)))))
     forM_ [(accepted, True), (rejected, False)] $ \(alg, expected) -> do
-        assertEqual "trial balance: exact balance findings in both directions" expected
-            $ null
-            $ TB.trialBalanceFindings
-            $ TB.TrialBalanceInput alg TB.BeforeClosing M.empty [] Set.empty
         assertEqual "consolidation source: exact acceptance in both directions"
             expected (isRight (worksheet alg []))
         assertEqual "consolidation adjustment: exact acceptance in both directions"
@@ -2991,9 +2855,6 @@ testAccumulatorAccounting = do
             [(Debit, Cash, large), (Debit, Cash, 1),
              (Debit, AccountsReceivable, 1), (Credit, CapitalStock, large + 2)]
                 :: EA.Alg Double (HatBase AccountTitles)
-    assertEqual "trial balance: exact reporting input has no findings" []
-        $ TB.trialBalanceFindings
-        $ TB.TrialBalanceInput reportingInput TB.BeforeClosing M.empty [] Set.empty
     case RP.present context TB.BeforeClosing reportingInput of
         Left issues -> fail (show issues)
         Right statements -> assertEqual
@@ -3015,10 +2876,6 @@ testAccumulatorAccounting = do
             assertEqual "presentation subtotal retains exact transformed balance"
                 [TBB.NoBalance, TBB.DebitBalance (large + 2)]
                 (L.map RP._statementSubtotalBalance (RP._statementSubtotals statements))
-    assertEqual "trial balance: exact maturity input has no findings" []
-        $ TB.trialBalanceFindings
-        $ TB.TrialBalanceInput (entry [large, 1] [large, 1])
-            TB.BeforeClosing M.empty [] Set.empty
     forM_ [(1, True), (0, False)] $ \(remainder, expected) -> do
         let allocated = context
                 { RP._maturitySensitiveTitles = Set.singleton Cash
@@ -3058,29 +2915,10 @@ testAccumulatorAccounting = do
     let omitted = EC.journalFromSides
             [(Debit, Cash, 100), (Credit, CapitalStock, 90), (Credit, CashOverShort, 10)]
                 :: EA.Alg Double (HatBase AccountTitles)
-    assertEqual "trial balance: omitted balance retains only its explained finding"
-        [TB.ExplainedTemporaryBalance CashOverShort (TB.CreditBalance 10)
-            (T.pack "investigation pending")]
-        $ TB.trialBalanceFindings
-        $ TB.TrialBalanceInput omitted TB.BeforeClosing
-            (M.singleton CashOverShort (T.pack "investigation pending")) [] Set.empty
     assertEqual "presentation reconciles only the rendered balances"
         (Left (RP.UnpresentableBalance CashOverShort (TB.CreditBalance 10)
             NE.:| [RP.UnreconciledPresentation 100 90]))
         (fmap (const ()) (RP.present context TB.BeforeClosing omitted))
-    let reciprocal branchAmounts headAmounts = EC.journalFromSides
-            ([(Debit, BranchCurrentAccount, value) | value <- branchAmounts]
-                ++ [(Credit, HeadOfficeCurrentAccount, value) | value <- headAmounts])
-                :: EA.Alg Double (HatBase AccountTitles)
-    assertEqual "reciprocal comparison finds no mismatch for exact equal sums" []
-        $ TB.trialBalanceFindings
-        $ TB.TrialBalanceInput (reciprocal [large, 1, 1] [large + 2])
-            TB.BeforeClosing M.empty [] Set.empty
-    let mismatch = reciprocal [large, 1] [large]
-            EA..+ (1 EA..@ (Not :< CapitalStock))
-    assertEqual "reciprocal comparison rejects rounded equal sums"
-        True (any isReciprocal (TB.trialBalanceFindings
-            (TB.TrialBalanceInput mismatch TB.BeforeClosing M.empty [] Set.empty)))
     let offset = EC.journalFromSides
             [(Debit, Cash, large), (Debit, Cash, 1), (Credit, Cash, large)]
                 :: EA.Alg Double (HatBase AccountTitles)
@@ -3091,9 +2929,6 @@ testAccumulatorAccounting = do
     assertEqual "post-closing trial balance keeps exact net one"
         [T.pack "1.0", T.pack "Cash", T.pack ""]
         (concat (take 1 (drop 1 (EW.postClosingTrialBalanceRows offset))))
-  where
-    isReciprocal TB.ReciprocalMismatch{} = True
-    isReciprocal _ = False
 
 -- | Keep the default BS groups independent of the closing transfer.
 testBalanceSheetGroupsStayUnclosed :: IO ()
@@ -3158,7 +2993,9 @@ runTests = do
     testWhichSideHatNotErrors
     testConsolidationWorksheet
     testSharedAccountBalancePrimitives
-    testTrialBalanceValidation
+    testPresentationOfReciprocalAndMaturityBalances
+    testAbnormalBalanceAfterReclassification
+    testTrialBalanceAccountRoles
     testReportingPresentation
     testStatementLaws
     testDerivedMetricsAndLegacyCoordinates

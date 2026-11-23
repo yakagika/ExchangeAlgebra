@@ -15,8 +15,7 @@ import qualified Data.HashMap.Strict as HashMap
 import           Data.List (permutations)
 import qualified Data.Map.Strict as Map
 import           Data.Proxy (Proxy(..))
-import qualified Data.Set as Set
-import qualified ExchangeAlgebra.Accounting.TrialBalance.Validation as Validation
+import qualified ExchangeAlgebra.Accounting.Audit as Audit
 import           System.Exit (exitFailure)
 import           Test.QuickCheck hiding (label, sample)
 import           ExchangeAlgebra.Algebra hiding (map, filter)
@@ -493,13 +492,8 @@ testClosingValidation _ = do
         expense value = value .@ Not :< DeliveryExpenses .+ value .@ Hat :< Cash
         ledger = expense 0.1 .+ expense 0.2
     additions <- requireRight "fractional expense closing" (closingEntries ledger)
-    let input = Validation.TrialBalanceInput (ledger .+ additions)
-            Validation.AfterClosing Map.empty [] Set.empty
-        unclosed :: Validation.TBFinding v -> Bool
-        unclosed (Validation.UnclosedNominalBalance _ _) = True
-        unclosed _ = False
-    assertTest "C7 no UnclosedNominalBalance" $
-        not $ any unclosed $ Validation.trialBalanceFindings input
+    assertTest "C7 no closing residuals" $
+        Audit.closingResiduals (ledger .+ additions) == Audit.NoProblem
 
 -- | Two goods share an owner and differ only in the axis collapsed below.
 data ValuationGood = GoodA | GoodB | AnyValuationGood
