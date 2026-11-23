@@ -101,9 +101,9 @@ Tested with exchangealgebra-0.6.1.1 on 2026-11-20.
 | `AccountTitles` | `AccountTitle`. Import the account type from `ExchangeAlgebra` or `ExchangeAlgebra.Accounting.Account`. |
 | `CountUnit` | `CountUnit`; other constructors are `Yen`, `Dollar`, `Euro`, `CNY`, `Amount`. |
 | `Text` | The empty text. `Name` and `Subject` are aliases for `Text`. You can use `Subject` to identify which accounting entity a record belongs to. |
-| `Day` | `ModifiedJulianDay 0`. |
-| `TimeOfDay` | `midnight`. |
-| `Wild a` | `Wild`. |
+| `Day` | `ModifiedJulianDay 0` (1858-11-17). To use that date as an ordinary element, use `Wild Day`. |
+| `TimeOfDay` | `midnight` (00:00). To use 00:00 as an ordinary element, use `Wild TimeOfDay`. |
+| `Wild a` | `Wild`. Each value `x` of `a` is the ordinary element `Exactly x`. Added in 0.6.1.0. |
 | Tuples of 2 through 7 element types | A tuple in which every element is a wildcard. |
 | `Hat` | `HatNot`, for direction patterns. |
 | `HatBase a`, for `BaseClass a` | `HatNot :< wildcard`. |
@@ -113,4 +113,6 @@ Tested with exchangealgebra-0.6.1.1 on 2026-11-20.
 
 `Wild a` has `Element` and `BaseClass` instances when `a` has `Ord`, `Show`, `Hashable`, and `Typeable` instances. It derives `Eq`, `Ord`, `Show`, and `Generic`, and has `NFData`, `Hashable`, and `Binary` instances when `a` has the corresponding instance.
 
-The `Element` instances for `Day` and `TimeOfDay` use 1858-11-17 and 00:00 as wildcards, respectively. To record and query those values as ordinary elements, use `Wild Day` or `Wild TimeOfDay` with `Exactly`.
+The `Element` instance for `TimeOfDay` uses 00:00 as its wildcard. A query for 00:00 therefore matches every time of day. A term stored at 00:00 means that no time of day applies, so a query for a specific time, such as 13:00, does not match it.
+
+To record 00:00 as an ordinary time, use `Wild TimeOfDay`, added in 0.6.1.0. Store `Exactly midnight`, and query `Exactly midnight` to select only 00:00 or `Wild` to select any time. `Day` and `Wild Day` treat 1858-11-17 in the same way. The built-in base `(AccountTitles, Name, CountUnit, Subject, Wild Day, Wild TimeOfDay)` has an `ExBaseClass` instance; see [Exchange algebra](../exchange/exchange.md#declare-the-base-instance).

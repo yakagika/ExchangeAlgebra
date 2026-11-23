@@ -1,7 +1,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: ExchangeAlgebra Manual\n"
-"POT-Creation-Date: 2026-11-23T10:48:47+09:00\n"
+"POT-Creation-Date: 2026-11-23T10:51:36+09:00\n"
 "PO-Revision-Date: 2026-11-19 00:00+0900\n"
 "Last-Translator: ExchangeAlgebra contributors\n"
 "Language-Team: Japanese\n"
@@ -2390,24 +2390,36 @@ msgid "`Day`"
 msgstr "`Day`"
 
 #: src/algebra/elements.md:164
-msgid "`ModifiedJulianDay 0`."
-msgstr "`ModifiedJulianDay 0`."
+msgid ""
+"`ModifiedJulianDay 0` (1858-11-17). To use that date as an ordinary element, "
+"use `Wild Day`."
+msgstr ""
+"`ModifiedJulianDay 0` (1858-11-17). この日付を通常の要素として使うには, "
+"`Wild Day` を使ってください."
 
 #: src/algebra/elements.md:165
 msgid "`TimeOfDay`"
 msgstr "`TimeOfDay`"
 
 #: src/algebra/elements.md:165
-msgid "`midnight`."
-msgstr "`midnight`."
+msgid ""
+"`midnight` (00:00). To use 00:00 as an ordinary element, use `Wild "
+"TimeOfDay`."
+msgstr ""
+"`midnight` (00:00). 00:00 を通常の要素として使うには, `Wild TimeOfDay` を使っ"
+"てください."
 
 #: src/algebra/elements.md:166
 msgid "`Wild a`"
 msgstr "`Wild a`"
 
 #: src/algebra/elements.md:166
-msgid "`Wild`."
-msgstr "`Wild`."
+msgid ""
+"`Wild`. Each value `x` of `a` is the ordinary element `Exactly x`. Added in "
+"0.6.1.0."
+msgstr ""
+"`Wild`. `a` の各値 `x` は通常の要素 `Exactly x` になります. 0.6.1.0 で追加さ"
+"れました."
 
 #: src/algebra/elements.md:167
 msgid "Tuples of 2 through 7 element types"
@@ -2460,13 +2472,32 @@ msgstr ""
 
 #: src/algebra/elements.md:176
 msgid ""
-"The `Element` instances for `Day` and `TimeOfDay` use 1858-11-17 and 00:00 "
-"as wildcards, respectively. To record and query those values as ordinary "
-"elements, use `Wild Day` or `Wild TimeOfDay` with `Exactly`."
+"The `Element` instance for `TimeOfDay` uses 00:00 as its wildcard. A query "
+"for 00:00 therefore matches every time of day. A term stored at 00:00 means "
+"that no time of day applies, so a query for a specific time, such as 13:00, "
+"does not match it."
 msgstr ""
-"`Day` と `TimeOfDay` の `Element` instance は, それぞれ 1858-11-17 と 00:00 "
-"をワイルドカードとして使います. これらの値を通常の要素として記録し, 問い合わ"
-"せるには, `Wild Day` または `Wild TimeOfDay` で `Exactly` を使ってください."
+"`TimeOfDay` の `Element` instance は 00:00 をワイルドカードとします. そのた"
+"め, 00:00 の問い合わせはすべての時刻に一致します. 00:00 で記録した項は「該当"
+"する時刻がない」ことを表すので, 13:00 のような特定の時刻の問い合わせには一致"
+"しません."
+
+#: src/algebra/elements.md:178
+msgid ""
+"To record 00:00 as an ordinary time, use `Wild TimeOfDay`, added in 0.6.1.0. "
+"Store `Exactly midnight`, and query `Exactly midnight` to select only 00:00 "
+"or `Wild` to select any time. `Day` and `Wild Day` treat 1858-11-17 in the "
+"same way. The built-in base `(AccountTitles, Name, CountUnit, Subject, Wild "
+"Day, Wild TimeOfDay)` has an `ExBaseClass` instance; see [Exchange algebra]"
+"(../exchange/exchange.md#declare-the-base-instance)."
+msgstr ""
+"00:00 を通常の時刻として記録するには, 0.6.1.0 で追加された `Wild TimeOfDay` "
+"を使ってください. `Exactly midnight` で記録し, 00:00 だけを選ぶときは "
+"`Exactly midnight`, 任意の時刻を選ぶときは `Wild` で問い合わせます. `Day` と "
+"`Wild Day` も 1858-11-17 を同じように扱います. 組み込みの基底 "
+"`(AccountTitles, Name, CountUnit, Subject, Wild Day, Wild TimeOfDay)` には "
+"`ExBaseClass` の instance があります. [交換代数](../exchange/"
+"exchange.md#declare-the-base-instance)を参照してください."
 
 #: src/algebra/bases.md:3
 msgid ""
