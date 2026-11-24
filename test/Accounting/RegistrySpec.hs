@@ -70,12 +70,15 @@ testAccountTitlesBinary = do
     let titles = [minBound .. maxBound] :: [AccountTitles]
         roundTripped = L.map (Binary.decode . Binary.encode) titles
         codes = L.map (BinaryGet.runGet BinaryGet.getWord16be . Binary.encode) titles
-        invalidCodes = [0x0000, 0x0001, 0x00F2, 0x7FFF, 0x8023, 0x80F4]
+        retiredCodes = [0x8023] -- Commutation
+        invalidCodes = [0x0000, 0x0001, 0x00F2, 0x7FFF, 0x80F4] ++ retiredCodes
     assertEqual "AccountTitles Binary covers all 244 constructors"
         244 (L.length titles)
     assertEqual "AccountTitles Binary Word16be roundtrip"
         titles roundTripped
     assertEqual "B4 AccountTitles codes are injective" 244 (Set.size (Set.fromList codes))
+    assertEqual "B4 AccountTitles codes exclude retired codes"
+        Set.empty (Set.intersection (Set.fromList retiredCodes) (Set.fromList codes))
     assertEqual "B4 AccountTitles codes carry the version bit" True (all (>= 0x8000) codes)
     assertEqual "AccountTitles wildcard is maxBound" AccountTitle maxBound
     assertEqual "concreteAccountTitles covers all non-wildcard constructors"
@@ -1012,11 +1015,8 @@ testJcciAccountNameCoverage = do
         _ -> assertEqual "JCCI fixture row has seven columns" (7 :: Int)
             (L.length (T.splitOn (T.pack "\t") row))
 
--- | Match the generated aliases to the frozen fixture, preserving query order
--- and removing duplicates. Additional aliases remain in the account registry.
--- The expectation re-implements the rule of @tools/gen-jcci-aliases.py@
--- (candidates split on @|@, queries in file order without duplicates); keep
--- the two in step when either changes.
+-- | Compare fixture and registry alias pairs in both directions, then check
+-- that each title's aliases follow the order of first occurrence in the fixture.
 testJcciAliasesMatchFixture :: IO ()
 testJcciAliasesMatchFixture = do
     fixture <- TIO.readFile "test/fixtures/jcci-2022/queries.tsv"
@@ -1026,15 +1026,24 @@ testJcciAliasesMatchFixture = do
             | row <- rows
             , [_, _, _, query, _, candidates, _] <- [T.splitOn (T.pack "\t") row]
             ]
+        titles = [minBound .. maxBound] :: [AccountTitles]
+        fixturePairs = Set.fromList
+            [(candidate, query) | (query, candidates) <- entries, candidate <- candidates]
+        registryPairs = Set.fromList
+            [(T.pack (show title), alias) | title <- titles, alias <- Registry.jcciAliases title]
+        missingPairs = Set.toList (Set.difference fixturePairs registryPairs)
+        extraPairs = Set.toList (Set.difference registryPairs fixturePairs)
     assertEqual "every JCCI fixture row has the seven expected columns"
         (L.length rows) (L.length entries)
-    forM_ ([minBound .. maxBound] :: [AccountTitles]) $ \title -> do
+    assertEqual "JCCI 2022 alias pairs (missing from registry, extra in registry)"
+        ([], []) (missingPairs, extraPairs)
+    forM_ titles $ \title -> do
         let expected = L.nub
                 [ query
                 | (query, candidates) <- entries
                 , T.pack (show title) `L.elem` candidates
                 ]
-        assertEqual ("JCCI generated aliases: " ++ show title)
+        assertEqual ("JCCI 2022 alias order: " ++ show title)
             expected (Registry.jcciAliases title)
     forM_
         [ (DeliveryExpenses, "荷造運賃")

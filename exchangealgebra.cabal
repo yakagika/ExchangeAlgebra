@@ -207,7 +207,7 @@ library
       ExchangeAlgebra.Journal.Core.Representation
       ExchangeAlgebra.Accounting.Account.Title
       ExchangeAlgebra.Accounting.Account.Classification
-      ExchangeAlgebra.Accounting.Account.Aliases
+      ExchangeAlgebra.Accounting.Account.Spec
       ExchangeAlgebra.Accounting.Account.Registry
       ExchangeAlgebra.Accounting.Account.Vocabulary
       ExchangeAlgebra.Accounting.Account.PostingPolicy

@@ -45,6 +45,7 @@ Source:
   (accessed 2026-08-16; SHA-256
   `ad1691da158429dd5c4ec9a7721bb41ad2ecf55f9e6f27eb483b3722e0d0eb7e`)
 
-The checked fixture is a transcription and mapping decision, not a modified
-copy of the source PDF. `tools/gen-jcci-aliases.py` deterministically generates
-the Haskell alias overlay from `queries.tsv`.
+The test suite compares every `(candidate, query)` pair in `queries.tsv` with
+the pairs returned by `jcciAliases` and reports missing or extra pairs. It also
+checks that each title's aliases follow the order in which they first occur in
+the fixture.

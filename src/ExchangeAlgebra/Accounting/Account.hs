@@ -20,7 +20,6 @@ import ExchangeAlgebra.Accounting.Account.Vocabulary (AccountVocabulary(..), cla
 import ExchangeAlgebra.Accounting.Account.Title (AccountTitles(..))
 import ExchangeAlgebra.Accounting.Account.Classification
 import ExchangeAlgebra.Accounting.Account.Registry
-import ExchangeAlgebra.Accounting.Account.Aliases (jcciAliases)
 import ExchangeAlgebra.Accounting.Account.PostingPolicy
 import Control.DeepSeq (NFData(..))
 
