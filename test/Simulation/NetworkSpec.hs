@@ -4,7 +4,7 @@
 module Simulation.NetworkSpec (runTests) where
 
 import ExchangeAlgebra.Accounting.Account
-import ExchangeAlgebra.Journal
+import ExchangeAlgebra.Journal hiding (map)
 import qualified ExchangeAlgebra.Journal  as EJ
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 import ExchangeAlgebra.Simulation.Network (TradeNetwork
@@ -46,11 +46,12 @@ import ExchangeAlgebra.Simulation.Network.Flows (TaxRate(..)
 import ExchangeAlgebra.Simulation.Network.Csv (parseEdgeCsv, parseCoefCsv)
 import ExchangeAlgebra.Simulation.Network.Journal (sigmaEdges)
 import qualified Data.Map.Strict     as M
+import Data.List (foldl')
 import qualified Data.List           as L
-import qualified Data.Set            as Set
+import qualified Data.Set            as S
 import qualified Data.Text           as T
 import Control.Monad (forM_, when)
-import System.Random (mkStdGen)
+import System.Random (StdGen, mkStdGen, randomR)
 import Control.Exception (try, evaluate, SomeException)
 import Control.DeepSeq (force)
 import Support (TestComparison(..), assertEqual, runTestComparison)
@@ -285,7 +286,7 @@ testIndustrialNetworkCases = do
                 (M.elems (ieSize economy)))
         when dag $ do
             assertEqual "Industrial network: no duplicate edges"
-                (length networkEdges) (Set.size (Set.fromList networkEdges))
+                (length networkEdges) (S.size (S.fromList networkEdges))
             assertEqual "Industrial network: sector order and intra-sector id DAG"
                 True (all valid networkEdges)
         when increasing $ do
@@ -293,11 +294,140 @@ testIndustrialNetworkCases = do
             assertEqual "Industrial network: K=1 edges are increasing ids"
                 True (all (uncurry (<)) networkEdges)
 
+-- Copy of the 2026-11-24 implementation for checking output compatibility.
+kRegularReference :: Ord k => StdGen -> [k] -> Int -> TradeNetwork k
+kRegularReference gen ks k =
+    buildNetwork nodeSet (concat (snd (foldl' pick (gen, []) xs)))
+  where
+    nodeSet = S.fromList ks
+    xs      = S.toAscList nodeSet
+    deg     = max 0 (min k (length xs - 1))
+    pick (g0, acc) j =
+        let candidates   = filter (/= j) xs
+            (chosen, g1) = sampleWithoutReference g0 deg candidates
+        in (g1, [ (i, j) | i <- chosen ] : acc)
+
+scaleFreeReference :: Ord k => StdGen -> [k] -> Int -> TradeNetwork k
+scaleFreeReference gen ks m0 =
+    buildNetwork nodeSet builtEdges
+  where
+    nodeSet = S.fromList ks
+    xs      = S.toAscList nodeSet
+    m       = max 1 m0
+    -- State threads the generator, the edge accumulator and an incremental
+    -- degree table (@node ↦ current degree@). The degree table replaces the
+    -- O(E) rescan that the naive @degree i = length (filter …) acc@ performed
+    -- for every candidate at every node: each added edge bumps both endpoints'
+    -- degrees in O(log N), so the per-node weight list is built without ever
+    -- touching @acc@. The weights produced are bit-for-bit identical to the
+    -- rescan version, so the generated network is unchanged.
+    (_, builtEdges0, _) = foldl' addNode (gen, [], M.empty) (zip [0 ..] xs)
+    builtEdges = reverse builtEdges0
+
+    -- addNode :: (StdGen, [(k,k)], Map k Int)
+    --         -> (Int, k) -> (StdGen, [(k,k)], Map k Int)
+    addNode st@(g0, acc, deg) (ix, j)
+      | ix == 0   = st                                   -- first node: nothing to attach to
+      | ix <= m   =                                      -- seed phase: attach to all earlier nodes
+          let suppliers = take ix xs
+              newEdges  = [ (i, j) | i <- suppliers ]
+          in (g0, newEdges ++ acc, bumpEdges newEdges deg)
+      | otherwise =                                      -- preferential attachment
+          let present       = take ix xs                 -- nodes already added
+              degree i      = M.findWithDefault 0 i deg
+              weighted      = [ (i, fromIntegral (1 + degree i) :: Double) | i <- present ]
+              (chosen, g1)  = sampleWeightedWithoutReference g0 m weighted
+              newEdges      = [ (i, j) | i <- chosen ]
+          in (g1, newEdges ++ acc, bumpEdges newEdges deg)
+
+    -- Increment both endpoints' degree counts for each newly added edge.
+    bumpEdges es d = foldl' (\d' (i, t) -> bump i (bump t d')) d es
+    bump k = M.insertWith (+) k 1
+
+sampleWithoutReference :: StdGen -> Int -> [a] -> ([a], StdGen)
+sampleWithoutReference g0 n xs0 = go g0 (max 0 n) xs0 []
+  where
+    go g _ []      acc = (reverse acc, g)
+    go g k xs       acc
+      | k <= 0         = (reverse acc, g)
+      | otherwise =
+          let (ix, g1) = randomR (0, length xs - 1) g
+              (chosen, rest) = pick ix xs
+          in go g1 (k - 1) rest (chosen : acc)
+    pick i ys = case splitAt i ys of
+        (pre, y : post) -> (y, pre ++ post)
+        (pre, [])       -> (last pre, init pre)   -- unreachable (ix in range)
+
+sampleWeightedWithoutReference :: StdGen -> Int -> [(a, Double)] -> ([a], StdGen)
+sampleWeightedWithoutReference g0 n xs0 = go g0 (max 0 n) xs0 []
+  where
+    go g _ []  acc = (reverse acc, g)
+    go g k ws   acc
+      | k <= 0       = (reverse acc, g)
+      | otherwise =
+          let total      = sum (map snd ws)
+              (u, g1)    = randomR (0, total) g :: (Double, StdGen)
+              (chosen, rest) = drawAt u ws
+          in go g1 (k - 1) rest (chosen : acc)
+    drawAt u ws = walk u ws []
+      where
+        walk _ [] seen           = case reverse seen of
+                                      ((a, _) : _) -> (a, [])      -- exhausted (shouldn't happen)
+                                      []           -> error "sampleWeightedWithout: empty"
+        walk acc ((a, w) : rest) seen
+          | acc <= w  = (a, reverse seen ++ rest)
+          | otherwise = walk (acc - w) rest ((a, w) : seen)
+
+-- The library's buildNetwork is private. The reference edges are valid input
+-- to the public constructor, which assembles the same adjacency indices.
+buildNetwork :: Ord k => S.Set k -> [(k, k)] -> TradeNetwork k
+buildNetwork nodeSet es = case tradeNetwork (S.toAscList nodeSet) es of
+    Right network -> network
+    Left err      -> error ("Invalid reference network: " ++ show err)
+
+testNetworkSamplingCompatibility :: IO ()
+testNetworkSamplingCompatibility = do
+    checkRegular "ascending Int" (\n -> [1 .. n])
+    checkRegular "reversed Int with duplicates" (\n -> [n, n - 1 .. 1] ++ [1 .. n])
+    checkRegular "Char" (\n -> take n ['a' ..])
+    assertEqual "Network: scaleFree matches reference across sizes, m and seeds"
+        Nothing (L.find differsScaleFree scaleFreeCases)
+    let ks = [1 .. 3000 :: Int]
+        gen = mkStdGen 0
+    assertEqual "Network: kRegular matches reference at N=3000, k=10"
+        (edges (kRegularReference gen ks 10)) (edges (kRegular gen ks 10))
+    assertEqual "Network: scaleFree matches reference at N=3000, m=3"
+        (edges (scaleFreeReference gen ks 3)) (edges (scaleFree gen ks 3))
+  where
+    sizes = [0, 1, 2, 3, 10, 57, 200 :: Int]
+    seeds = [0 .. 49]
+
+    checkRegular label keys =
+        assertEqual ("Network: kRegular matches reference for " ++ label)
+            Nothing (L.find differs cases)
+      where
+        cases =
+            [ (n, k, seed)
+            | n <- sizes, k <- L.nub [0, 1, 2, 5, n - 1, n, n + 3], seed <- seeds ]
+        differs (n, k, seed) =
+            let ks = keys n
+                gen = mkStdGen seed
+            in edges (kRegularReference gen ks k) /= edges (kRegular gen ks k)
+
+    scaleFreeCases =
+        [ (n, m, seed)
+        | n <- sizes, m <- L.nub [0, 1, 2, 3, 5, n], seed <- seeds ]
+    differsScaleFree (n, m, seed) =
+        let ks = [1 .. n]
+            gen = mkStdGen seed
+        in edges (scaleFreeReference gen ks m) /= edges (scaleFree gen ks m)
+
 -- | Run this domain in its original relative test order.
 runTests :: IO ()
 runTests = do
     testIndustrialNetworkCases
     testNetworkInvariants
+    testNetworkSamplingCompatibility
     testNetCompleteEquiv
     testNetHawkinsSimon
     testNetCsvRoundTrip

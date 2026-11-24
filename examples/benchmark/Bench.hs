@@ -69,6 +69,8 @@ import qualified ExchangeAlgebra.Accounting.Statements.Metric as Metric
 import qualified ExchangeAlgebra.Accounting.TrialBalance.Balance as TrialBalance
 import qualified ExchangeAlgebra.IO.Output.Statements     as EW
 import qualified ExchangeAlgebra.Algebra.Posting as LP
+import qualified ExchangeAlgebra.Simulation.Network as Network
+import           System.Random            (mkStdGen)
 
 -- | Complete benchmark coordinates for owner and two synthetic dimensions.
 type LedgerBase = HatBase (Int, Int, Int)
@@ -733,6 +735,13 @@ main = defaultMain $ gateShared "I" False ++ gateShared "D2" True ++ gateInteger
                     bench "force-only" $ nf id merged
                 ]
         | size <- [1000, 100000] ]
+    -- The previous samplers did not finish in practical time at 100,000 nodes.
+    , bgroup "Network/kRegular"
+        [ bench (show n) $ nf (\size -> Network.kRegular (mkStdGen 0) [1 .. size] 10) n
+        | n <- [10000, 100000 :: Int] ]
+    , bgroup "Network/scaleFree"
+        [ bench (show n) $ nf (\size -> Network.scaleFree (mkStdGen 0) [1 .. size] 3) n
+        | n <- [10000, 100000 :: Int] ]
     , bgroup "Journal/big-plus-small-same-note"
         [ env (evaluate (force (largeAlg size .| (0 :: Int),
                                 smallAlg size .| (0 :: Int)))) $ \inputs ->

@@ -10,13 +10,17 @@ implementation. Read the network accessors before using the generators.
 module ExchangeAlgebra.Simulation.Network.Representation where
 
 import Control.DeepSeq (NFData (..))
-import Data.List (foldl', sortBy)
+import Control.Monad (forM_)
+import Control.Monad.ST (ST, runST)
+import Data.Bits ((.&.), countLeadingZeros, finiteBitSize, shiftL, shiftR)
+import Data.List (foldl', insert, sortBy)
 import qualified Data.Map.Strict as M
 import Data.Map.Strict (Map)
 import Data.Maybe (fromMaybe)
 import qualified Data.Set as S
 import Data.Set (Set)
 import qualified Data.Vector as V
+import qualified Data.Vector.Unboxed.Mutable as MV
 import System.Random (StdGen, mkStdGen, randomR)
 import ExchangeAlgebra.Algebra.Value.Class (HatVal(..), isErrorValue)
 import qualified ExchangeAlgebra.Algebra.Value.Class as EJ
@@ -282,20 +286,36 @@ circulant ks k =
 -- (sampling without replacement, excluding itself). Deterministic in the given
 -- 'StdGen'.
 --
+-- Keys must satisfy the 'Eq' and 'Ord' laws.
+-- Sampling takes @O(N d^2)@ time for @d = min k (N-1)@ when @d > 0@.
+--
 -- >>> let g = kRegular (mkStdGen 1) [1..6] 2 :: TradeNetwork Int
 -- >>> all (\j -> length (suppliersOf g j) == 2) (nodes g)
 -- True
 kRegular :: Ord k => StdGen -> [k] -> Int -> TradeNetwork k
 kRegular gen ks k =
-    buildNetwork nodeSet (concat (snd (foldl' pick (gen, []) xs)))
+    buildNetwork nodeSet builtEdges
   where
     nodeSet = S.fromList ks
     xs      = S.toAscList nodeSet
-    deg     = max 0 (min k (length xs - 1))
-    pick (g0, acc) j =
-        let candidates   = filter (/= j) xs
-            (chosen, g1) = sampleWithout g0 deg candidates
-        in (g1, [ (i, j) | i <- chosen ] : acc)
+    keys    = V.fromList xs
+    count   = V.length keys - 1
+    deg     = max 0 (min k count)
+    builtEdges
+      | deg == 0  = []
+      | otherwise = snd (V.ifoldl' pick (gen, []) keys)
+
+    pick (!g0, acc) buyerIndex buyer =
+        let (chosen, g1) = sampleRegularRanks g0 deg count
+            !nextEdges = foldl' addEdge acc chosen
+        in (g1, nextEdges)
+      where
+        addEdge es rank =
+            (keys V.! supplierIndex, buyer) : es
+          where
+            supplierIndex
+              | rank < buyerIndex = rank
+              | otherwise         = rank + 1
 
 -- | An Erdős–Rényi @G(n, p)@ directed network: each ordered pair @(i, j)@,
 -- @i /= j@, becomes an edge independently with probability @p@. @p <= 0@ yields
@@ -331,6 +351,10 @@ erdosRenyi gen ks p
 -- @C(m+1, 2)·1 + (N - m - 1)·m@ counting the directed buyer→supplier edges as
 -- one per attachment; the property test checks the exact value.
 --
+-- Keys must satisfy the 'Eq' and 'Ord' laws.
+-- Sampling and weight updates take @O(N m log N)@ time with @m@ clamped to at least 1.
+-- Weighted draws assume the total weight stays below @2^53@.
+--
 -- >>> let g = scaleFree (mkStdGen 7) [1..10] 2 :: TradeNetwork Int
 -- >>> edgeCount g
 -- 17
@@ -340,36 +364,55 @@ scaleFree gen ks m0 =
   where
     nodeSet = S.fromList ks
     xs      = S.toAscList nodeSet
+    keys    = V.fromList xs
+    n       = V.length keys
     m       = max 1 m0
-    -- State threads the generator, the edge accumulator and an incremental
-    -- degree table (@node ↦ current degree@). The degree table replaces the
-    -- O(E) rescan that the naive @degree i = length (filter …) acc@ performed
-    -- for every candidate at every node: each added edge bumps both endpoints'
-    -- degrees in O(log N), so the per-node weight list is built without ever
-    -- touching @acc@. The weights produced are bit-for-bit identical to the
-    -- rescan version, so the generated network is unchanged.
-    (_, builtEdges0, _) = foldl' addNode (gen, [], M.empty) (zip [0 ..] xs)
-    builtEdges = reverse builtEdges0
+    firstStride = 1 `shiftL` max 0 (finiteBitSize n - countLeadingZeros n - 1)
 
-    -- addNode :: (StdGen, [(k,k)], Map k Int)
-    --         -> (Int, k) -> (StdGen, [(k,k)], Map k Int)
-    addNode st@(g0, acc, deg) (ix, j)
-      | ix == 0   = st                                   -- first node: nothing to attach to
-      | ix <= m   =                                      -- seed phase: attach to all earlier nodes
-          let suppliers = take ix xs
-              newEdges  = [ (i, j) | i <- suppliers ]
-          in (g0, newEdges ++ acc, bumpEdges newEdges deg)
-      | otherwise =                                      -- preferential attachment
-          let present       = take ix xs                 -- nodes already added
-              degree i      = M.findWithDefault 0 i deg
-              weighted      = [ (i, fromIntegral (1 + degree i) :: Double) | i <- present ]
-              (chosen, g1)  = sampleWeightedWithout g0 m weighted
-              newEdges      = [ (i, j) | i <- chosen ]
-          in (g1, newEdges ++ acc, bumpEdges newEdges deg)
+    builtEdges = runST $ do
+        weights <- MV.replicate n 0
+        tree <- MV.replicate (n + 1) 0
 
-    -- Increment both endpoints' degree counts for each newly added edge.
-    bumpEdges es d = foldl' (\d' (i, t) -> bump i (bump t d')) d es
-    bump k = M.insertWith (+) k 1
+        let changeWeight i delta = do
+                MV.modify weights (+ delta) i
+                addFenwickWeight tree i delta
+
+            drawSuppliers !g 0 _ chosen = pure (g, chosen)
+            drawSuppliers !g remaining total chosen = do
+                let (u, g1) = randomR (0, fromIntegral total) g :: (Double, StdGen)
+                    -- A draw of zero selects the first positive weight.
+                    target
+                      | u <= 0    = 1
+                      | otherwise = u
+                i <- fenwickLowerBound tree firstStride target
+                weight <- MV.read weights i
+                changeWeight i (negate weight)
+                drawSuppliers g1 (remaining - 1) (total - weight) ((i, weight) : chosen)
+
+            chooseSuppliers ix degree g total
+              | ix <= m = do
+                  let earlier = [0 .. ix - 1]
+                  forM_ earlier (\i -> changeWeight i 1)
+                  pure (g, earlier)
+              | otherwise = do
+                  (nextGen, chosen) <- drawSuppliers g degree total []
+                  -- Restore each removed weight and include the new edge.
+                  forM_ chosen (\(i, weight) -> changeWeight i (weight + 1))
+                  pure (nextGen, map fst chosen)
+
+            addNode ix g total !acc
+              | ix == n = pure acc
+              | otherwise = do
+                  let degree = min ix m
+                  (g1, suppliers) <- chooseSuppliers ix degree g total
+                  changeWeight ix (degree + 1)
+                  let !buyer = keys V.! ix
+                      nextEdges = foldl' (\es i -> (keys V.! i, buyer) : es) acc suppliers
+                      -- Every edge adds weight at both ends, and each new node adds one.
+                      !nextTotal = total + 2 * degree + 1
+                  addNode (ix + 1) g1 nextTotal nextEdges
+
+        addNode 0 gen 0 []
 
 -- | A stochastic block network: each node carries a sector label, and an
 -- ordered pair @(i, j)@ (@i /= j@) becomes an edge with probability
@@ -804,45 +847,49 @@ fromCoefficientMatrix ks a =
 -- * Internal sampling helpers
 ------------------------------------------------------------------
 
--- | Uniform sampling without replacement of @n@ elements from a list,
--- deterministic in the 'StdGen'. Returns the chosen elements (in the order they
--- were drawn) and the advanced generator. If @n >= length xs@ the whole list is
--- returned.
-sampleWithout :: StdGen -> Int -> [a] -> ([a], StdGen)
-sampleWithout g0 n xs0 = go g0 (max 0 n) xs0 []
+-- Translate each rank in the remaining candidates back to its original rank
+-- by skipping the removed ranks in ascending order.
+sampleRegularRanks :: StdGen -> Int -> Int -> ([Int], StdGen)
+sampleRegularRanks gen draws size = go gen draws size [] []
   where
-    go g _ []      acc = (reverse acc, g)
-    go g k xs       acc
-      | k <= 0         = (reverse acc, g)
-      | otherwise =
-          let (ix, g1) = randomR (0, length xs - 1) g
-              (chosen, rest) = pick ix xs
-          in go g1 (k - 1) rest (chosen : acc)
-    pick i ys = case splitAt i ys of
-        (pre, y : post) -> (y, pre ++ post)
-        (pre, [])       -> (last pre, init pre)   -- unreachable (ix in range)
+    go !g 0 _ _ chosen = (chosen, g)
+    go !g remaining len removed chosen =
+        let (rank, nextGen) = randomR (0, len - 1) g
+            !originalRank = foldl' skipRemoved rank removed
+        in go nextGen (remaining - 1) (len - 1)
+              (insert originalRank removed) (originalRank : chosen)
 
--- | Weighted sampling without replacement: pick @n@ elements, each draw
--- proportional to its weight, deterministic in the 'StdGen'.
-sampleWeightedWithout :: StdGen -> Int -> [(a, Double)] -> ([a], StdGen)
-sampleWeightedWithout g0 n xs0 = go g0 (max 0 n) xs0 []
+    skipRemoved rank removedRank
+      | removedRank <= rank = rank + 1
+      | otherwise           = rank
+
+-- The Fenwick tree stores partial sums in slots 1 through N.
+addFenwickWeight :: MV.MVector s Int -> Int -> Int -> ST s ()
+addFenwickWeight tree index delta = go (index + 1)
   where
-    go g _ []  acc = (reverse acc, g)
-    go g k ws   acc
-      | k <= 0       = (reverse acc, g)
-      | otherwise =
-          let total      = sum (map snd ws)
-              (u, g1)    = randomR (0, total) g :: (Double, StdGen)
-              (chosen, rest) = drawAt u ws
-          in go g1 (k - 1) rest (chosen : acc)
-    drawAt u ws = walk u ws []
+    go i
+      | i >= MV.length tree = pure ()
+      | otherwise = do
+          MV.modify tree (+ delta) i
+          go (i + (i .&. negate i))
+
+-- Find the longest prefix whose sum is strictly below the positive target.
+-- Its length is the zero-based index of the selected supplier.
+fenwickLowerBound :: MV.MVector s Int -> Int -> Double -> ST s Int
+fenwickLowerBound tree firstStride target = go 0 0 firstStride
+  where
+    go i _ 0 = pure i
+    go i prefix stride
+      | candidate >= MV.length tree = go i prefix nextStride
+      | otherwise = do
+          partial <- MV.read tree candidate
+          advance (prefix + partial)
       where
-        walk _ [] seen           = case reverse seen of
-                                      ((a, _) : _) -> (a, [])      -- exhausted (shouldn't happen)
-                                      []           -> error "sampleWeightedWithout: empty"
-        walk acc ((a, w) : rest) seen
-          | acc <= w  = (a, reverse seen ++ rest)
-          | otherwise = walk (acc - w) rest ((a, w) : seen)
+        candidate  = i + stride
+        nextStride = stride `shiftR` 1
+        advance candidateSum
+          | fromIntegral candidateSum < target = go candidate candidateSum nextStride
+          | otherwise                         = go i prefix nextStride
 
 ------------------------------------------------------------------
 -- * Small utilities

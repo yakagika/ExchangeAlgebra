@@ -272,6 +272,12 @@
   Building an `Alg` with 100,000 distinct bases and running one wildcard query
   took 9.2 s before the fix and 0.10 s after it (10,000 bases: 92 ms and 6.5 ms).
 
+- Performance: `kRegular` and `scaleFree` avoid scanning all candidates on each
+  supplier draw. Both generators preserve the edges for a given seed and keys
+  with lawful `Eq` and `Ord` instances. With 10,000 nodes, `kRegular` (k = 10)
+  took 18 s before the fix and 67 ms after it, and `scaleFree` (m = 3) took
+  6.3 s and 21 ms (100,000 nodes after the fix: 1.27 s and 0.32 s).
+
 - Journal CSV readers, including the built-in readers, return `BadAmount` with the
   trimmed amount field when the amount parser returns a negative or non-finite value.
   Previously the row passed parsing and `(.@)` raised an exception during term construction.
