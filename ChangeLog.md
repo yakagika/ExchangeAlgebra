@@ -76,6 +76,28 @@
 
 ### Changed
 
+- **Breaking (0.7).** Update imports, uses, and instance definitions for the
+  renamed base element keys, note fields, note periods, and equity projection.
+
+  | Previous name | New name |
+  | --- | --- |
+  | `AxisKey` | `ElementKey` |
+  | `axisIsWildcard` | `elementKeyIsWildcard` |
+  | `AxisDecompose` | `HasElementKeys` |
+  | `toAxisKeys` | `toElementKeys` |
+  | `NoteAxisKey` | `NoteFieldKey` |
+  | `NoteAxisPosting` | `NoteFieldIndex` |
+  | `emptyNoteAxisPosting` | `emptyNoteFieldIndex` |
+  | `insertNoteAxisPosting` | `insertNoteFieldIndex` |
+  | `queryNoteAxisPosting` | `queryNoteFieldIndex` |
+  | `buildNoteAxisPosting` | `buildNoteFieldIndex` |
+  | `toNoteAxisKeys` | `toNoteFieldKeys` |
+  | `filterByAxis` | `filterByNoteField` |
+  | `HasTermAxis` | `HasNotePeriod` |
+  | `TermOf` | `PeriodOf` |
+  | `termOf` | `periodOf` |
+  | `projCapitalStock` | `projNonContraCreditEquity` |
+
 - **English account names (0.7 output change).** Financial statements
   in English now show the equity row for `RetainedEarnings` as
   `Retained earnings brought forward`. For CSV rows that use an old English

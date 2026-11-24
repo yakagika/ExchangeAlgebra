@@ -53,8 +53,6 @@ Amount
 Assets
 AttributionAccount
 AvailableForSaleSecurities
-AxisDecompose
-AxisKey
 BackwardFlow
 BadDebtLoss
 BankOverdraft
@@ -149,6 +147,7 @@ EarnedSurplus
 ElectronicallyRecordedObligations
 ElectronicallyRecordedReceivable
 Element
+ElementKey
 EngineGeneratedOnly
 EntertainmentExpenses
 EquipmentInvestment
@@ -186,6 +185,7 @@ GovernmentService
 GrossProfit
 GuaranteeDepositsReceived
 GuaranteeObligations
+HasElementKeys
 Hashable
 Hat
 HatBase
@@ -506,7 +506,6 @@ asemHomeSideSemantics
 asemPostingCapability
 asemReportingEligibility
 asemRoles
-axisIsWildcard
 balance
 balanceAmount
 balanceBy
@@ -544,6 +543,7 @@ defaultSide
 defaultTolerance
 diffRL
 diffRLWithin
+elementKeyIsWildcard
 emptyAccum
 equal
 exactAccum
@@ -594,7 +594,6 @@ postingUpperBound
 present
 proj
 projByAccountTitle
-projCapitalStock
 projContra
 projContraAssets
 projCredit
@@ -605,6 +604,7 @@ projDeferredAssets
 projFixedAssets
 projFixedLiability
 projNetNorm
+projNonContraCreditEquity
 rationalAddAccum
 rationalRoundAccum
 relTol
@@ -631,9 +631,9 @@ sumValues
 switchSide
 tableRows
 toASCList
-toAxisKeys
 toDecimal
 toDouble
+toElementKeys
 toHat
 toList
 toNot

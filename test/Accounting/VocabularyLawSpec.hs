@@ -31,7 +31,7 @@ import qualified ExchangeAlgebra.Accounting.Statements.Metric as Metric
 import ExchangeAlgebra.Accounting.Transfer
 import ExchangeAlgebra.Accounting.TrialBalance.Balance
 import ExchangeAlgebra.Algebra.Base
-    ( AxisDecompose
+    ( HasElementKeys
     , BaseClass
     , CountUnit(..)
     , Element(..)
@@ -140,12 +140,12 @@ renameBase :: BaseClass b => (a -> b) -> HatBase a -> HatBase b
 renameBase rename (side :< title) = side :< rename title
 
 -- | Construct normal fixtures through the checked posting constructor.
-validLedger :: (HatVal v, BaseClass t, AxisDecompose t) => [(v, Hat, t)] -> Alg v (HatBase t)
+validLedger :: (HatVal v, BaseClass t, HasElementKeys t) => [(v, Hat, t)] -> Alg v (HatBase t)
 validLedger = mconcat . map (\(value, side, title) -> value .@ side :< title)
 
 -- | Admit deliberately invalid fixtures from a shared raw posting list.
 -- No renaming operation is allowed to validate, drop, or aggregate invalid terms.
-rawLedger :: (HatVal v, BaseClass t, AxisDecompose t) => [(v, Hat, t)] -> Alg v (HatBase t)
+rawLedger :: (HatVal v, BaseClass t, HasElementKeys t) => [(v, Hat, t)] -> Alg v (HatBase t)
 rawLedger = mconcat . map (\(value, side, title) -> Internal.Single value (side :< title))
 
 -- | Rename the raw coordinates before constructing the algebra.
@@ -153,7 +153,9 @@ renameRows :: (a -> b) -> [(v, Hat, a)] -> [(v, Hat, b)]
 renameRows rename = map (\(value, side, title) -> (value, side, rename title))
 
 -- | Multiset observation retaining values, full bases, sides, and duplicates.
-postings :: (HatVal v, Ord v, BaseClass t, AxisDecompose t) => Alg v (HatBase t) -> [(HatBase t, v)]
+postings :: (HatVal v, Ord v, BaseClass t, HasElementKeys t)
+         => Alg v (HatBase t)
+         -> [(HatBase t, v)]
 postings = sort . foldEntries (\rows value source -> (source, value) : rows) []
 
 -- | Reorder findings in the target vocabulary without changing severity or count.

@@ -103,7 +103,7 @@ import           ExchangeAlgebra.Accounting.Account.Title (AccountTitles)
 import           ExchangeAlgebra.Algebra.Base.Representation
                      ( BaseClass, Hat(..), HatBase((:<)) )
 import           ExchangeAlgebra.Algebra.Element.Representation
-                     ( AxisDecompose, Element(isWildcard) )
+                     ( HasElementKeys, Element(isWildcard) )
 import           ExchangeAlgebra.Accounting.Statements.Metric (PeriodResult(..))
 import           ExchangeAlgebra.Accounting.TrialBalance.Balance
                      ( AccountBalance(..)
@@ -136,7 +136,7 @@ data TrialBalanceSourceOf t source v = TrialBalanceSource
     , _sourceTrialBalance :: Alg v (HatBase t)
     }
 
-deriving instance (HatVal v, BaseClass t, AxisDecompose t, Show source)
+deriving instance (HatVal v, BaseClass t, HasElementKeys t, Show source)
     => Show (TrialBalanceSourceOf t source v)
 
 -- | A source trial balance for the built-in chart of accounts.
@@ -151,7 +151,7 @@ data WorksheetAdjustmentOf t source adjustment v = WorksheetAdjustment
     , _adjustmentElement   :: Alg v (HatBase t)
     }
 
-deriving instance (HatVal v, BaseClass t, AxisDecompose t, Show source, Show adjustment)
+deriving instance (HatVal v, BaseClass t, HasElementKeys t, Show source, Show adjustment)
     => Show (WorksheetAdjustmentOf t source adjustment v)
 
 -- | A worksheet adjustment for the built-in chart of accounts.
@@ -195,7 +195,7 @@ data WorksheetInputOf t source adjustment v = WorksheetInput
     , _worksheetLinkage     :: WorksheetLinkage v
     }
 
-deriving instance (HatVal v, BaseClass t, AxisDecompose t, Show source, Show adjustment)
+deriving instance (HatVal v, BaseClass t, HasElementKeys t, Show source, Show adjustment)
     => Show (WorksheetInputOf t source adjustment v)
 
 -- | Worksheet input for the built-in chart of accounts.
@@ -295,7 +295,7 @@ validatedLinkage (ValidatedWorksheet _ _ linkage) = linkage
 -- calculation projection; inspect the validated source and adjustment lists
 -- when provenance is required.
 combinedWorksheet
-    :: (HatVal v, BaseClass t, AxisDecompose t)
+    :: (HatVal v, BaseClass t, HasElementKeys t)
     => ValidatedWorksheetOf t source adjustment v
     -> Alg v (HatBase t)
 combinedWorksheet (ValidatedWorksheet sources adjustments _) =

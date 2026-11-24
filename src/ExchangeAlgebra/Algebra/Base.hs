@@ -34,9 +34,9 @@ module ExchangeAlgebra.Algebra.Base
     , BaseForSingleHat(..)
     , HatBase(..)
     , Element(..)
-    , AxisKey(..)
-    , axisIsWildcard
-    , AxisDecompose(..)
+    , ElementKey(..)
+    , elementKeyIsWildcard
+    , HasElementKeys(..)
     , (.#)
     , Name
     , Subject
@@ -56,9 +56,9 @@ import ExchangeAlgebra.Algebra.Base.Representation
     )
 import ExchangeAlgebra.Algebra.Element
     ( Element(..)
-    , AxisKey(..)
-    , axisIsWildcard
-    , AxisDecompose(..)
+    , ElementKey(..)
+    , elementKeyIsWildcard
+    , HasElementKeys(..)
     , (.#)
     , Name
     , Subject

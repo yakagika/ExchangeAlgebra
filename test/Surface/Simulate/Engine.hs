@@ -107,9 +107,9 @@ import           ExchangeAlgebra.Simulate.Lite    ( InitT
                                                    , SnapT
                                                    )
 import qualified ExchangeAlgebra.Simulate.Lite   as Lite
-import           ExchangeAlgebra.Simulate.Policy  ( HasTermAxis
+import           ExchangeAlgebra.Simulate.Policy  ( HasNotePeriod
                                                    , LedgerPolicy
-                                                   , TermOf
+                                                   , PeriodOf
                                                    )
 
 -- | Compile-time lock for the pure per-term observer runner exported by
@@ -132,7 +132,7 @@ runLiteWithPolicyObs
     :: forall w t n v b r.
        ( forall s. LiteWorld w s
        , HatVal v, HatBaseClass b
-       , HasTermAxis n, TermOf n ~ t
+       , HasNotePeriod n, PeriodOf n ~ t
        , StateTime t
        , Binary.Binary t, Binary.Binary (Journal n v b) )
     => (t -> w SnapT -> IO ())

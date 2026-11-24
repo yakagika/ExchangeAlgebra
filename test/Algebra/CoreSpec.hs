@@ -232,11 +232,11 @@ testWildcardIndexIds = do
         let numberedBases :: [(Int, EAI.BasePart SimHatBase2)]
             numberedBases = zip [0 ..] (HM.keys m)
 
-            expectedPostings :: IM.IntMap (HM.HashMap EAI.AxisKey IS.IntSet)
+            expectedPostings :: IM.IntMap (HM.HashMap EAI.ElementKey IS.IntSet)
             expectedPostings = IM.fromListWith (HM.unionWith IS.union)
                 [ (axis, HM.singleton key (IS.singleton baseId))
                 | (baseId, basePart) <- numberedBases
-                , (axis, key) <- zip [0 ..] (EAI.toAxisKeys basePart)
+                , (axis, key) <- zip [0 ..] (EAI.toElementKeys basePart)
                 ]
         in conjoin
             [ counterexample "too few distinct bases" (HM.size m >= minBases)

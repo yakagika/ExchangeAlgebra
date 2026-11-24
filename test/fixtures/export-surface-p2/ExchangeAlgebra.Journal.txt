@@ -16,8 +16,6 @@
 <+
 Accum
 Amount
-AxisDecompose
-AxisKey
 BaseClass
 BaseForSingleHat
 BasePart
@@ -25,9 +23,11 @@ CNY
 CountUnit
 Dollar
 Element
+ElementKey
 Euro
 Exactly
 Generic
+HasElementKeys
 Hashable
 Hat
 HatBase
@@ -38,8 +38,8 @@ Journal
 Name
 Not
 Note
-NoteAxisKey
-NoteAxisPosting
+NoteFieldIndex
+NoteFieldKey
 Redundant
 Subject
 Wild
@@ -48,7 +48,6 @@ Zero
 _base
 _hat
 addAccum
-axisIsWildcard
 bar
 barWithin
 base
@@ -58,10 +57,11 @@ compareHatBase
 compress
 customError
 decTo
+elementKeyIsWildcard
 emptyAccum
 equal
 exactAccum
-filterByAxis
+filterByNoteField
 filterWithNote
 fromList
 fromMap
@@ -105,11 +105,11 @@ sigmaOnFromMap
 signAccum
 splitAccum
 toAlg
-toAxisKeys
+toElementKeys
 toHat
 toMap
 toNot
-toNoteAxisKeys
+toNoteFieldKeys
 valueError
 wildcard
 zeroValue

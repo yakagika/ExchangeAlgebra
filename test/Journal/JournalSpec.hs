@@ -417,9 +417,9 @@ testSigmaReferences = do
     forM_ cases runTestComparison
 
 
--- | Check axis filtering, type mismatch, and index updates after append.
-testFilterByAxisCases :: IO ()
-testFilterByAxisCases = do
+-- | Check note field filtering, type mismatch, and index updates after append.
+testFilterByNoteFieldCases :: IO ()
+testFilterByNoteFieldCases = do
     let cases = concat
             [ let
                   ledger :: AxisJournal
@@ -429,13 +429,13 @@ testFilterByAxisCases = do
                       , (30 .@ (Hat :< Yen)) .| ("A", 2)
                       ]
                   expected = EJ.filterWithNote (\(_, t') _ -> t' == 1) ledger
-                  actual = EJ.filterByAxis 1 (EJ.NoteAxisKey (1 :: Int)) ledger
-                  mismatch = EJ.filterByAxis 1 (EJ.NoteAxisKey ("1" :: String)) ledger
+                  actual = EJ.filterByNoteField 1 (EJ.NoteFieldKey (1 :: Int)) ledger
+                  mismatch = EJ.filterByNoteField 1 (EJ.NoteFieldKey ("1" :: String)) ledger
               in
-                  [ EqualComparison "Journal.filterByAxis matches filterWithNote on axis=1"
+                  [ EqualComparison "Journal.filterByNoteField matches filterWithNote on field 1"
                         (EJ.toMap expected)
                         (EJ.toMap actual)
-                  , EqualComparison "Journal.filterByAxis type mismatch returns empty"
+                  , EqualComparison "Journal.filterByNoteField type mismatch returns empty"
                         (EJ.toMap (EJ.Zero :: AxisJournal))
                         (EJ.toMap mismatch)
                   ]
@@ -452,9 +452,9 @@ testFilterByAxisCases = do
                       ]
                   ledger = base .+ rhs
                   expected = EJ.filterWithNote (\(_, t') _ -> t' == 1) ledger
-                  actual = EJ.filterByAxis 1 (EJ.NoteAxisKey (1 :: Int)) ledger
+                  actual = EJ.filterByNoteField 1 (EJ.NoteFieldKey (1 :: Int)) ledger
               in
-                  [ EqualComparison "Journal.filterByAxis works after append updates"
+                  [ EqualComparison "Journal.filterByNoteField works after append updates"
                         (EJ.toMap expected)
                         (EJ.toMap actual)
                   ]
@@ -536,20 +536,20 @@ testLazyDeltaAxisCompatibility = forM_ [0, 1, 127, 128, 129, 260] $ \count -> do
         rnf journal `seq` pure ()
         forM_ [0, 1, count, count + 1] $ \index -> do
             let expected = HM.filterWithKey (\(_, term) _ -> term == index) expectedMap
-                selected = EJ.filterByAxis 1 (EJ.NoteAxisKey index) journal
+                selected = EJ.filterByNoteField 1 (EJ.NoteFieldKey index) journal
             assertEqual "lazy delta: axis query after NFData" expected (EJ.toMap selected)
             assertEqual "lazy delta: repeated axis query" expected
-                (EJ.toMap (EJ.filterByAxis 1 (EJ.NoteAxisKey index) journal))
+                (EJ.toMap (EJ.filterByNoteField 1 (EJ.NoteFieldKey index) journal))
         -- Querying a shared predecessor must not leave a stale index on append.
         let extended = journal <> (posting 3 .| note (count + 1))
         assertEqual "lazy delta: append after query" (HM.singleton (note (count + 1)) (posting 3))
-            (EJ.toMap (EJ.filterByAxis 1 (EJ.NoteAxisKey (count + 1)) extended))
+            (EJ.toMap (EJ.filterByNoteField 1 (EJ.NoteFieldKey (count + 1)) extended))
 
 -- | Run this domain in its original relative test order.
 runTests :: IO ()
 runTests = do
     testFinalStockTransferEquivalence
-    testFilterByAxisCases
+    testFilterByNoteFieldCases
     testSigmaReferences
     testJournalProjectionNorms
     testReplaceNotes

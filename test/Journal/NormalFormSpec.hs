@@ -94,7 +94,7 @@ normalFormLaws first second emptyNote witness =
             , EA.compress input
             , Journal.projWithNote notes input
             , Journal.filterWithNote (\n _ -> n == first) input
-            , Journal.filterByAxis 0 (Journal.NoteAxisKey first) input
+            , Journal.filterByNoteField 0 (Journal.NoteFieldKey first) input
             , Journal.replaceNotes input (positive Journal..| second)
             , Journal.fromList [input, input]
             , Journal.sigma [input, input] id

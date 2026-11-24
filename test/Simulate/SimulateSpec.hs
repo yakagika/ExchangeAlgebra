@@ -775,12 +775,13 @@ testPolicyClassicBridge = withTestTemporaryFile $ \path -> do
     assertEqual "Policy bridge: restore (spill + remainder) == whole ledger (lossless)"
         (toMap whole) (toMap restored)
 
--- Test 7 (HasTermAxis): termOf returns the LAST Note component for pair/triple.
-testPolicyHasTermAxis :: IO ()
-testPolicyHasTermAxis = do
-    assertEqual "Policy HasTermAxis: pair termOf = snd" (7 :: Int) (Policy.termOf ("e", 7 :: Int))
-    assertEqual "Policy HasTermAxis: triple termOf = 3rd" (9 :: Int)
-        (Policy.termOf ("e1", "e2", 9 :: Int))
+-- Test 7 (HasNotePeriod): periodOf returns the LAST Note component for pair/triple.
+testPolicyHasNotePeriod :: IO ()
+testPolicyHasNotePeriod = do
+    assertEqual "Policy HasNotePeriod: pair periodOf = snd" (7 :: Int)
+        (Policy.periodOf ("e", 7 :: Int))
+    assertEqual "Policy HasNotePeriod: triple periodOf = 3rd" (9 :: Int)
+        (Policy.periodOf ("e1", "e2", 9 :: Int))
 
 -- ================================================================
 -- MarketModel equivalence tests (Phase 5, feat/market-scale-experiments)
@@ -912,7 +913,7 @@ mktReport = stageOf MktReport [()] $ \w t _g () ->
 -- positive surplus into (MktCarryover, t+1). Mirrors MarketModel.carryoverStage.
 mktCarryover :: (HatVal v, Real v) => Stage (MktW v) Int MktNote v MktBase
 mktCarryover = stage (T.pack "closing") $ \w t ->
-    let termAlg = EJ.toAlg (EJ.filterByAxis 1 (NoteAxisKey (t :: Int)) (mkLedger w))
+    let termAlg = EJ.toAlg (EJ.filterByNoteField 1 (NoteFieldKey (t :: Int)) (mkLedger w))
         netMap  = EA.balanceMapBy mktOwnerOfProduct termAlg
         perFirm (j, v) =
             if v <= 0 then mempty
@@ -1345,7 +1346,7 @@ runTests = do
     testPolicyDeleteOnly
     testPolicyDeterminism
     testPolicyClassicBridge
-    testPolicyHasTermAxis
+    testPolicyHasNotePeriod
     testMarketSimpleTunedEqual
     testMarketSeqParEqual
     testMarketShortagePositive

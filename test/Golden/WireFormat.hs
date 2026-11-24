@@ -382,10 +382,10 @@ checkWireLaws = do
     assertEqual "HatNot standalone base roundtrip" (HatNot :< Cash)
         (Binary.decode (Binary.encode (HatNot :< Cash)))
     let note = ("buy" :: String, 7 :: Int)
-        oldTerm :: JournalCore.HasTermAxis n => n -> JournalCore.TermOf n
-        oldTerm = Policy.termOf
-    assertEqual "HasTermAxis old and new paths share the same instance"
-        (JournalCore.termOf note) (oldTerm note)
+        oldTerm :: JournalCore.HasNotePeriod n => n -> JournalCore.PeriodOf n
+        oldTerm = Policy.periodOf
+    assertEqual "HasNotePeriod old and new paths share the same instance"
+        (JournalCore.periodOf note) (oldTerm note)
   where
     law :: ( EA.HatVal v, HatBaseClass b, Binary.Binary v
            , Binary.Binary b, Binary.Binary (BasePart b)) => [(Int, EA.Alg v b)] -> Bool

@@ -101,7 +101,7 @@ module ExchangeAlgebra.Algebra.Core.Representation
     ) where
 
 import ExchangeAlgebra.Algebra.Base.Representation
-import ExchangeAlgebra.Algebra.Element.Representation (Element(..), AxisDecompose(..), AxisKey(..), CountUnit(..), ( .# ), matchesQuery)
+import ExchangeAlgebra.Algebra.Element.Representation (Element(..), HasElementKeys(..), ElementKey(..), CountUnit(..), ( .# ), matchesQuery)
 import ExchangeAlgebra.Algebra.Value (MoneyDouble, MoneyDecimal)
 import ExchangeAlgebra.Algebra.Value.Class
 
@@ -531,7 +531,7 @@ pairUnion (PairSeq hs ns) (PairSeq ks ms) =
 -- /derived from/ @_realg@ and must stay consistent with it: @_axisPosting@,
 -- @_idToBp@ and @_allBpIds@ must be exactly the component index, id↔base map and id set
 -- built from the keys of @_realg@ (as the internal @linerFromMap@ does). The
--- wildcard projection path (@projWildMap@, @filterByAxis@) reads those indices and
+-- wildcard projection path (@projWildMap@, @filterByNoteField@) reads those indices and
 -- will return wrong answers (silently, not an exception) if they disagree with
 -- @_realg@. The fields @_bpToId@ and @_nextBpId@ are currently unmaintained
 -- /poison/ (reserved for a dormant scheme) — forcing them throws. Always build
@@ -547,7 +547,7 @@ data  Alg v b where
         Zero  :: Alg v b
         Single :: !v -> !b -> Alg v b
         Liner :: { _realg       :: !(Map.HashMap (BasePart b) (Pair v))
-                 , _axisPosting :: ~(IntMap.IntMap (Map.HashMap AxisKey IntSet.IntSet))
+                 , _axisPosting :: ~(IntMap.IntMap (Map.HashMap ElementKey IntSet.IntSet))
                  , _bpToId      :: ~(Map.HashMap (BasePart b) Int)
                  , _idToBp      :: ~(IntMap.IntMap (BasePart b))
                  , _nextBpId    :: ~Int
@@ -636,7 +636,7 @@ instance forall v b. ( HatBaseClass b
                         let pair = filterPair (not . isZeroValue) (not . isZeroValue) decoded
                         go (remaining - 1) (Map.insert basis pair acc)
 
-type AxisPosting = IntMap.IntMap (Map.HashMap AxisKey IntSet.IntSet)
+type AxisPosting = IntMap.IntMap (Map.HashMap ElementKey IntSet.IntSet)
 
 {-# INLINE emptyAxisPosting #-}
 -- | Complexity: O(1)
@@ -646,7 +646,7 @@ emptyAxisPosting = IntMap.empty
 {-# INLINE insertAxisPosting #-}
 -- | Complexity: O(d * (hash-insert + intset-insert))
 -- In practice this is near O(d), where d is the number of components in the base part.
-insertAxisPosting :: [AxisKey] -> Int -> AxisPosting -> AxisPosting
+insertAxisPosting :: [ElementKey] -> Int -> AxisPosting -> AxisPosting
 insertAxisPosting !keys !bpId !idx =
     snd $ L.foldl' step (0 :: Int, idx) keys
   where
@@ -661,7 +661,7 @@ insertAxisPosting !keys !bpId !idx =
 {-# INLINE queryAxisPosting #-}
 -- | Complexity: O(d + intersection cost)
 -- d is the number of components; intersections are performed in ascending set-size order.
-queryAxisPosting :: [AxisKey] -> AxisPosting -> IntSet.IntSet -> IntSet.IntSet
+queryAxisPosting :: [ElementKey] -> AxisPosting -> IntSet.IntSet -> IntSet.IntSet
 queryAxisPosting !keys !idx !allIds =
     case matchedSets of
         Left ()  -> IntSet.empty
@@ -689,7 +689,7 @@ queryAxisPosting !keys !idx !allIds =
 
     -- A component with a wildcard inside it (e.g. @("a", wildcard)@) must
     -- not be looked up as an exact key; the final 'matchesQuery' check selects.
-    axisHasWildcard (AxisKey coordinate) = haveWildcard coordinate
+    axisHasWildcard (ElementKey coordinate) = haveWildcard coordinate
     {-# INLINE axisHasWildcard #-}
 
 {-# INLINE linerFromMap #-}
@@ -720,7 +720,7 @@ linerFromMap m =
         Map.foldlWithKey'
             (\(!bpId, !idxAcc, !idToBpAcc, !allIdsAcc) bp _ ->
                 let !nextId = bpId + 1
-                    !idx' = insertAxisPosting (toAxisKeys bp) bpId idxAcc
+                    !idx' = insertAxisPosting (toElementKeys bp) bpId idxAcc
                     !idToBp' = IntMap.insert bpId bp idToBpAcc
                     !allIds' = IntSet.insert bpId allIdsAcc
                 in (nextId, idx', idToBp', allIds'))
@@ -1755,7 +1755,7 @@ projWildMap
     -> IntSet.IntSet
     -> Map.HashMap (BasePart b) (Pair v)
 projWildMap b m idx idToBp allIds =
-    let !ids = queryAxisPosting (toAxisKeys bp) idx allIds
+    let !ids = queryAxisPosting (toElementKeys bp) idx allIds
     in IntSet.foldl'
         (\acc bpId -> case IntMap.lookup bpId idToBp of
             Nothing -> acc

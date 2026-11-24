@@ -11,7 +11,7 @@
 -- Combine journals                fromList, sigma
 -- Read entries as an Alg           toAlg
 -- Select notes or bases            projWithNote, projWithBase
--- Select an indexed note component      filterByAxis
+-- Select an indexed note field          filterByNoteField
 -- Replace whole notes              replaceNotes
 -- @
 --
@@ -20,9 +20,9 @@
 -- and "ExchangeAlgebra.Accounting.Exchange". "ExchangeAlgebra.Journal"
 -- re-exports the generic Journal API.
 module ExchangeAlgebra.Journal.Core ( Note(..)
-                                    , HasTermAxis(..)
-                                    , NoteAxisKey(..)
-                                    , NoteAxisPosting
+                                    , HasNotePeriod(..)
+                                    , NoteFieldKey(..)
+                                    , NoteFieldIndex
                                     , Journal
                                     , pattern Zero
                                     , mkJournal
@@ -45,16 +45,16 @@ module ExchangeAlgebra.Journal.Core ( Note(..)
                                     , projWithBaseNetNorm
                                     , projWithNoteBaseNetNorm
                                     , filterWithNote
-                                    , filterByAxis
+                                    , filterByNoteField
                                     , postFromNetBy
                                     , gather
                                     ) where
 
 import Prelude hiding (map)
 import ExchangeAlgebra.Journal.Core.Representation ( Note(..)
-                                                   , HasTermAxis(..)
-                                                   , NoteAxisKey(..)
-                                                   , NoteAxisPosting
+                                                   , HasNotePeriod(..)
+                                                   , NoteFieldKey(..)
+                                                   , NoteFieldIndex
                                                    , Journal
                                                    , pattern Zero
                                                    , mkJournal
@@ -77,7 +77,7 @@ import ExchangeAlgebra.Journal.Core.Representation ( Note(..)
                                                    , projWithBaseNetNorm
                                                    , projWithNoteBaseNetNorm
                                                    , filterWithNote
-                                                   , filterByAxis
+                                                   , filterByNoteField
                                                    , postFromNetBy
                                                    , gather
                                                    )

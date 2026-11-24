@@ -850,7 +850,7 @@ accountSemanticsProjectionGolden =
            , kept Exchange.projDeferredAssets value
            , kept Exchange.projCurrentLiability value
            , kept Exchange.projFixedLiability value
-           , kept Exchange.projCapitalStock value
+           , kept Exchange.projNonContraCreditEquity value
            , kept Exchange.projContraAssets value
            , kept Exchange.projContra value
            ]
@@ -1519,7 +1519,7 @@ statementPresentationLines = L.concatMap sect
         , ("projDeferredAssets",   Exchange.projDeferredAssets)
         , ("projCurrentLiability", Exchange.projCurrentLiability)
         , ("projFixedLiability",   Exchange.projFixedLiability)
-        , ("projCapitalStock",     Exchange.projCapitalStock)
+        , ("projNonContraCreditEquity",     Exchange.projNonContraCreditEquity)
         ]
 
 testStatementPresentationGolden :: IO ()

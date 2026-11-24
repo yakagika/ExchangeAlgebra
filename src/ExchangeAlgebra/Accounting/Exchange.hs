@@ -60,7 +60,7 @@ module ExchangeAlgebra.Accounting.Exchange ( ExBaseClass(..)
                                            , projDeferredAssets
                                            , projCurrentLiability
                                            , projFixedLiability
-                                           , projCapitalStock
+                                           , projNonContraCreditEquity
                                            , projContraAssets
                                            , projContra
                                            ) where
@@ -582,9 +582,8 @@ projFixedLiability  = (filter (\x -> (fixedCurrent . _hatBase) x == Fixed))
                     . (filter (not . isContra . _hatBase))
                     . projCredit
 
--- | Projects the credit-side terms of every non-contra account in the 'Equity'
--- division, including 'CapitalStock', 'RetainedEarnings', and other equity
--- accounts.
+-- | Selects credit-side terms from all non-contra equity accounts, including
+-- 'CapitalStock' and 'RetainedEarnings'.
 --
 -- Selection predicate (over every scalar entry @x@ of the input, on the credit side):
 -- @whatDiv (_hatBase x) == Equity && not (isContra (_hatBase x))@.
@@ -600,10 +599,10 @@ projFixedLiability  = (filter (\x -> (fixedCurrent . _hatBase) x == Fixed))
 --
 -- >>> type Test = Alg Double (HatBase AccountTitles)
 -- >>> x = 100.@Not:<CapitalStock .+ 30.@Not:<Cash .+ 20.@Not:<RetainedEarnings :: Test
--- >>> norm (projCapitalStock x)
+-- >>> norm (projNonContraCreditEquity x)
 -- 120.0
-projCapitalStock :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
-projCapitalStock  = (filter (\x -> (whatDiv . _hatBase) x == Equity))
+projNonContraCreditEquity :: (HatVal n, ExBaseClass b) => Alg n b -> Alg n b
+projNonContraCreditEquity  = (filter (\x -> (whatDiv . _hatBase) x == Equity))
                   . (filter (not . isContra . _hatBase))
                   . projCredit
 

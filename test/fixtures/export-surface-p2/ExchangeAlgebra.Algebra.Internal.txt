@@ -17,8 +17,6 @@
 Accum
 Alg
 Amount
-AxisDecompose
-AxisKey
 BaseClass
 BaseForSingleHat
 BasePart
@@ -26,9 +24,11 @@ CNY
 CountUnit
 Dollar
 Element
+ElementKey
 Euro
 Exactly
 Generic
+HasElementKeys
 Hashable
 Hat
 HatBase
@@ -62,7 +62,6 @@ _notSide
 _realg
 _val
 addAccum
-axisIsWildcard
 balanceBy
 balanceMapBy
 bar
@@ -75,6 +74,7 @@ compareHatBase
 compress
 customError
 decBy
+elementKeyIsWildcard
 emptyAccum
 equal
 exactAccum
@@ -121,7 +121,7 @@ sigmaFromMap
 signAccum
 splitAccum
 toASCList
-toAxisKeys
+toElementKeys
 toHat
 toList
 toNot

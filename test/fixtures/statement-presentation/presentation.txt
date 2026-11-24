@@ -10,7 +10,7 @@
 60.00:@Not:<LoansPayable
 -- projFixedLiability
 0
--- projCapitalStock
+-- projNonContraCreditEquity
 40.00:@Not:<CapitalStock
 ## b2-pl
 -- projCurrentAssets
@@ -23,7 +23,7 @@
 0
 -- projFixedLiability
 0
--- projCapitalStock
+-- projNonContraCreditEquity
 0
 ## b3-contra
 -- projCurrentAssets
@@ -36,7 +36,7 @@
 400.00:@Not:<LoansPayable
 -- projFixedLiability
 0
--- projCapitalStock
+-- projNonContraCreditEquity
 2000.00:@Not:<CapitalStock
 ## b4-abnormal
 -- projCurrentAssets
@@ -49,7 +49,7 @@
 200.00:@Not:<LoansPayable
 -- projFixedLiability
 0
--- projCapitalStock
+-- projNonContraCreditEquity
 0
 ## b5-closing
 -- projCurrentAssets
@@ -62,5 +62,5 @@
 400.00:@Not:<LoansPayable
 -- projFixedLiability
 0
--- projCapitalStock
+-- projNonContraCreditEquity
 2000.00:@Not:<CapitalStock

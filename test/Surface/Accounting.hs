@@ -288,7 +288,7 @@ module Surface.Accounting
     , projDeferredAssets
     , projCurrentLiability
     , projFixedLiability
-    , projCapitalStock
+    , projNonContraCreditEquity
     , projContraAssets
     , projContra
     , (.->)
@@ -583,7 +583,7 @@ import           ExchangeAlgebra.Accounting
                      , projDeferredAssets
                      , projCurrentLiability
                      , projFixedLiability
-                     , projCapitalStock
+                     , projNonContraCreditEquity
                      , projContraAssets
                      , projContra
                      , (.->)

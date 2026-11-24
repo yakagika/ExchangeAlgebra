@@ -325,11 +325,11 @@ journal :: World s -> Transaction -> ST s ()
 journal _ Zero = return ()
 journal world js = modifyURef (_ledger world) (\x -> x .+ js)
 
--- | Extract journal entries for a specific term.
--- Uses NoteAxisPosting index via filterByAxis instead of scanning all Note keys.
--- For Note type (EventName, Term), the Term is at axis 1.
+-- | Extract journal entries for a specific period.
+-- Uses the @NoteFieldIndex@ through @filterByNoteField@.
+-- For notes of type @(EventName, Term)@, field 1 holds the period.
 termJournal :: Term -> Transaction -> Transaction
-termJournal t = EJ.filterByAxis 1 (EJ.NoteAxisKey t)
+termJournal t = EJ.filterByNoteField 1 (EJ.NoteFieldKey t)
 
 termAlgAt :: Term -> Transaction -> EA.Alg MoneyDouble HatBase2
 termAlgAt t = EJ.toAlg . (.-) . termJournal t

@@ -7,8 +7,6 @@
 .>=
 :<
 Amount
-AxisDecompose
-AxisKey
 BaseClass
 BaseForSingleHat
 BasePart
@@ -16,9 +14,11 @@ CNY
 CountUnit
 Dollar
 Element
+ElementKey
 Euro
 Exactly
 Generic
+HasElementKeys
 Hashable
 Hat
 HatBase
@@ -31,12 +31,12 @@ Wild
 Yen
 _base
 _hat
-axisIsWildcard
 base
 compareBase
 compareElement
 compareHatBase
 customError
+elementKeyIsWildcard
 equal
 hash
 hashWithSalt
@@ -50,7 +50,7 @@ maxElement
 merge
 minElement
 revHat
-toAxisKeys
+toElementKeys
 toHat
 toNot
 wildcard

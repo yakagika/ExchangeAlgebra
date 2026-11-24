@@ -18,9 +18,9 @@
     the point a ledger is built — how a long simulation should manage the size of
     its audit trail. Instead of hand-wiring
     t'ExchangeAlgebra.Simulate.Spill.SpillOptions'
-    (seven fields plus 'filterWithNote' calls for term extraction and eviction),
+    (seven fields plus 'filterWithNote' calls for period extraction and eviction),
     the user declares a t'LedgerPolicy' and lets the plumbing be /derived from the
-    Note's term component/.
+    note period/.
 
     A policy answers three orthogonal questions:
 
@@ -78,12 +78,12 @@
     signatures of the existing spill API; it is a thin declarative front-end over
     it.
 
-    == The term component
+    == The note period
 
-    A policy needs to know /which term/ a 'Note' belongs to. Because a tuple
+    A policy uses the period of each 'Note'. Because a tuple
     Note carries no intrinsic notion of "which component is the period", the
-    convention is fixed by the 'HasTermAxis' class: __the last component of the
-    Note is the term__. The library ships instances for @(e, t)@ and
+    'HasNotePeriod' instances for tuples use the last field as the period.
+    The library provides instances for @(e, t)@ and
     @(e1, e2, t)@; a bespoke Note needs a one-line instance.
 
     /Note:/ version 0.8 is planned to remove this module without a
@@ -98,8 +98,8 @@ module ExchangeAlgebra.Simulate.Policy
     , Compaction(..)
     , LedgerPolicy(..)
     , defaultLedgerPolicy
-      -- * Term component convention
-    , HasTermAxis(..)
+      -- * Note period
+    , HasNotePeriod(..)
       -- * Bridges to the classic spill engine
     , policySpillOptions
     , restoreLedger
@@ -112,7 +112,7 @@ import           ExchangeAlgebra.Journal           ( Journal
                                                    , HatVal
                                                    , HatBaseClass
                                                    , filterWithNote )
-import           ExchangeAlgebra.Journal.Core      (HasTermAxis(..))
+import           ExchangeAlgebra.Journal.Core      (HasNotePeriod(..))
 import           ExchangeAlgebra.Simulate          (StateTime)
 import           ExchangeAlgebra.Simulate.Spill    ( SpillOptions(..)
                                                    , SpillDeletePolicy(..)
@@ -176,10 +176,10 @@ defaultLedgerPolicy = LedgerPolicy
   }
 
 ------------------------------------------------------------------
--- * Term component convention
+-- * Note period
 ------------------------------------------------------------------
 
--- 'HasTermAxis' and 'TermOf' are defined in "ExchangeAlgebra.Journal.Core"
+-- 'HasNotePeriod' and 'PeriodOf' are defined in "ExchangeAlgebra.Journal.Core"
 -- and re-exported here, so the 0.5.x import path keeps working.
 
 ------------------------------------------------------------------
@@ -189,7 +189,7 @@ defaultLedgerPolicy = LedgerPolicy
 -- | Build a binary t'ExchangeAlgebra.Simulate.SpillOptions' for the classic
 -- @runSimulationWithSpill@ from
 -- a t'LedgerPolicy', deriving the per-chunk extraction and the eviction range
--- from the Note's term component ('termOf'). This replaces the ~20 lines of
+-- from the note period ('periodOf'). This replaces the ~20 lines of
 -- hand-written 'filterWithNote' plumbing (cf. @fixedPriceIOSpill@) with a single call.
 --
 -- The caller supplies @spillEvery@ (the chunk size in terms) and two accessors
@@ -209,7 +209,7 @@ defaultLedgerPolicy = LedgerPolicy
 -- the policy vocabulary onto t'SpillOptions' (design-review C4).
 policySpillOptions
     :: forall n v b t a.
-       ( HasTermAxis n, TermOf n ~ t, StateTime t
+       ( HasNotePeriod n, PeriodOf n ~ t, StateTime t
        , HatVal v, HatBaseClass b
        , Binary.Binary t, Binary.Binary (Journal n v b) )
     => LedgerPolicy
@@ -226,7 +226,7 @@ policySpillOptions pol spillEvery readLedger modifyLedger =
       , spillExtractChunk = Just $ \(chunkStart, chunkEnd) world -> do
             ledger <- readLedger world
             pure $ filterWithNote
-                     (\n _ -> let t = termOf n
+                     (\n _ -> let t = periodOf n
                               in t >= chunkStart && t <= chunkEnd)
                      ledger
       , spillWriteChunk   = defaultBinarySpillWriter
@@ -235,7 +235,7 @@ policySpillOptions pol spillEvery readLedger modifyLedger =
             RetainRecent w   -> KeepRecentTerms w
       , spillDeleteRange  = \(_, deleteEnd) world ->
             modifyLedger
-              (filterWithNote (\n _ -> termOf n > deleteEnd))
+              (filterWithNote (\n _ -> periodOf n > deleteEnd))
               world
       }
 
@@ -250,11 +250,11 @@ policySpillOptions pol spillEvery readLedger modifyLedger =
 -- with an exact value type such as @MoneyDecimal@). With @'spillTo' = 'Nothing'@
 -- there is nothing to restore — the evicted terms are gone.
 restoreLedger
-    :: ( HasTermAxis n, TermOf n ~ t, Ord t, Enum t, Show t
+    :: ( HasNotePeriod n, PeriodOf n ~ t, Ord t, Enum t, Show t
        , HatVal v, HatBaseClass b
        , Binary.Binary t, Binary.Binary (Journal n v b) )
     => FilePath               -- ^ binary spill file written under the policy
     -> Journal n v b          -- ^ in-memory remainder (recent terms)
     -> IO (Journal n v b)
 restoreLedger path remainder =
-    restoreJournalFromBinarySpill path termOf remainder
+    restoreJournalFromBinarySpill path periodOf remainder

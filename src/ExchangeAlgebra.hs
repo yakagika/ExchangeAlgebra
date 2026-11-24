@@ -98,9 +98,9 @@ module ExchangeAlgebra
     , BaseForSingleHat(..)
     , customError
     , Element(..)
-    , AxisKey(..)
-    , axisIsWildcard
-    , AxisDecompose(..)
+    , ElementKey(..)
+    , elementKeyIsWildcard
+    , HasElementKeys(..)
     , (.#)
     , Name
     , Subject
@@ -185,7 +185,7 @@ module ExchangeAlgebra
     , projDeferredAssets
     , projCurrentLiability
     , projFixedLiability
-    , projCapitalStock
+    , projNonContraCreditEquity
     , projContraAssets
     , projContra
       -- * Transfers and closing
@@ -322,7 +322,7 @@ import ExchangeAlgebra.Accounting.Exchange
     , projDeferredAssets
     , projCurrentLiability
     , projFixedLiability
-    , projCapitalStock
+    , projNonContraCreditEquity
     , projContraAssets
     , projContra
     )

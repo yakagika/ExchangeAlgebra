@@ -50,7 +50,7 @@ instance (Element e1, Element e2, Element e3, Element e4, Element e5)
 instance (Element e1, Element e2, Element e3, Element e4, Element e5, Element e6)
         => BaseClass (e1, e2, e3, e4, e5, e6) where
 
--- 7-tuple: 'Element'/'AxisDecompose' already provide 7-tuple instances; this
+-- 7-tuple: 'Element'/'HasElementKeys' already provide 7-tuple instances; this
 -- closes the gap so every Element tuple arity is also usable as a base.
 instance (Element e1, Element e2, Element e3, Element e4, Element e5, Element e6, Element e7)
         => BaseClass (e1, e2, e3, e4, e5, e6, e7) where
@@ -67,7 +67,7 @@ instance (Element e1, Element e2, Element e3, Element e4, Element e5, Element e6
 -- by the account division /together with/ this label (see
 -- 'ExchangeAlgebra.Accounting.Exchange.whichSide' — an
 -- account sits on its home side when 'Not' and on the opposite side when v'Hat').
-class (BaseClass a, BaseClass (BasePart a), AxisDecompose (BasePart a)) => HatBaseClass a where
+class (BaseClass a, BaseClass (BasePart a), HasElementKeys (BasePart a)) => HatBaseClass a where
     -- | The type of the base part excluding the Hat.
     type BasePart a
     -- | Extract the base part excluding the Hat. Complexity: O(1)
@@ -249,7 +249,7 @@ instance (BaseClass a) => Element (HatBase a) where
 
 instance (BaseClass a) => BaseClass (HatBase a) where
 
-instance (BaseClass a, AxisDecompose a) => HatBaseClass (HatBase a) where
+instance (BaseClass a, HasElementKeys a) => HatBaseClass (HatBase a) where
     type BasePart (HatBase a) = a
 
     hat  = _hat

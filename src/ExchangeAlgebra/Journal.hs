@@ -38,9 +38,9 @@ module ExchangeAlgebra.Journal
     , BaseForSingleHat(..)
     , HatBase(..)
     , Element(..)
-    , AxisKey(..)
-    , axisIsWildcard
-    , AxisDecompose(..)
+    , ElementKey(..)
+    , elementKeyIsWildcard
+    , HasElementKeys(..)
     , (.#)
     , Name
     , Subject
@@ -54,8 +54,8 @@ module ExchangeAlgebra.Journal
     , pattern (:@)
     , (.@)
     , Note(..)
-    , NoteAxisKey(..)
-    , NoteAxisPosting
+    , NoteFieldKey(..)
+    , NoteFieldIndex
     , Journal
     , pattern ExchangeAlgebra.Journal.Zero
     , mkJournal
@@ -78,7 +78,7 @@ module ExchangeAlgebra.Journal
     , projWithBaseNetNorm
     , projWithNoteBaseNetNorm
     , filterWithNote
-    , filterByAxis
+    , filterByNoteField
     , postFromNetBy
     , gather
     ) where
@@ -88,8 +88,8 @@ import ExchangeAlgebra.Algebra.Value.Class (HatVal(..))
 import ExchangeAlgebra.Algebra.Core.Representation (Redundant(..), pattern (:@), (.@))
 import ExchangeAlgebra.Journal.Core.Representation as ExchangeAlgebra.Journal
     ( Note(..)
-    , NoteAxisKey(..)
-    , NoteAxisPosting
+    , NoteFieldKey(..)
+    , NoteFieldIndex
     , Journal
     , pattern Zero
     , mkJournal
@@ -112,7 +112,7 @@ import ExchangeAlgebra.Journal.Core.Representation as ExchangeAlgebra.Journal
     , projWithBaseNetNorm
     , projWithNoteBaseNetNorm
     , filterWithNote
-    , filterByAxis
+    , filterByNoteField
     , postFromNetBy
     , gather
     )

@@ -7,9 +7,9 @@
 
 module ExchangeAlgebra.Algebra.Element.Representation
     ( Element(..)
-    , AxisKey(..)
-    , axisIsWildcard
-    , AxisDecompose(..)
+    , ElementKey(..)
+    , elementKeyIsWildcard
+    , HasElementKeys(..)
     , (.#)
     , Name
     , Subject
@@ -163,37 +163,37 @@ class (Eq a, Ord a, Show a, Hashable a, Typeable a) => Element a where
 
 -- | An existential type that holds one element of a base with its type erased.
 -- Used to decompose multi-dimensional bases (tuples) into one key per component position.
-data AxisKey = forall a. Element a => AxisKey !a
+data ElementKey = forall a. Element a => ElementKey !a
 
 -- | Force the stored element to weak head normal form without requiring 'NFData'
 -- from every user-defined 'Element'.
-instance NFData AxisKey where
-    rnf (AxisKey axis) = axis `seq` ()
+instance NFData ElementKey where
+    rnf (ElementKey axis) = axis `seq` ()
 
-instance Eq AxisKey where
-    AxisKey x == AxisKey y = case cast y of
+instance Eq ElementKey where
+    ElementKey x == ElementKey y = case cast y of
         Nothing -> False
         Just y' -> x == y'
 
-instance Hashable AxisKey where
-    hashWithSalt salt (AxisKey x) = salt `hashWithSalt` (typeOf x) `hashWithSalt` x
+instance Hashable ElementKey where
+    hashWithSalt salt (ElementKey x) = salt `hashWithSalt` (typeOf x) `hashWithSalt` x
 
 -- | Test whether the stored element is its wildcard.
-{-# INLINE axisIsWildcard #-}
-axisIsWildcard :: AxisKey -> Bool
-axisIsWildcard (AxisKey x) = isWildcard x
+{-# INLINE elementKeyIsWildcard #-}
+elementKeyIsWildcard :: ElementKey -> Bool
+elementKeyIsWildcard (ElementKey x) = isWildcard x
 
--- | A type class for decomposing a base into one t'AxisKey' per component position.
+-- | A type class for decomposing a base into one t'ElementKey' per component position.
 -- Overlapping instances are defined for tuple types so that each component
--- is decomposed into a separate t'AxisKey'.
+-- is decomposed into a separate t'ElementKey'.
 --
 -- Complexity: O(k) (k is the number of tuple components)
-class (Element a) => AxisDecompose a where
-    toAxisKeys :: a -> [AxisKey]
+class (Element a) => HasElementKeys a where
+    toElementKeys :: a -> [ElementKey]
 
-instance {-# OVERLAPPABLE #-} Element a => AxisDecompose a where
-    {-# INLINE toAxisKeys #-}
-    toAxisKeys a = [AxisKey a]
+instance {-# OVERLAPPABLE #-} Element a => HasElementKeys a where
+    {-# INLINE toElementKeys #-}
+    toElementKeys a = [ElementKey a]
 
 -- | Shorthand notation for the wildcard. An alias for @wildcard@.
 -- Write @(.#)@ when specifying patterns in projections and transfer transformations.
@@ -322,9 +322,9 @@ instance (Element a ,Element b)
             x  -> x
 
 instance {-# OVERLAPPING #-} (Element a, Element b)
-    => AxisDecompose (a, b) where
-    {-# INLINE toAxisKeys #-}
-    toAxisKeys (a, b) = [AxisKey a, AxisKey b]
+    => HasElementKeys (a, b) where
+    {-# INLINE toElementKeys #-}
+    toElementKeys (a, b) = [ElementKey a, ElementKey b]
 
 instance (Element a, Element b, Element c)
     => Element (a, b, c) where
@@ -359,9 +359,9 @@ instance (Element a, Element b, Element c)
                          ((b1, b2), b3)
 
 instance {-# OVERLAPPING #-} (Element a, Element b, Element c)
-    => AxisDecompose (a, b, c) where
-    {-# INLINE toAxisKeys #-}
-    toAxisKeys (a, b, c) = [AxisKey a, AxisKey b, AxisKey c]
+    => HasElementKeys (a, b, c) where
+    {-# INLINE toElementKeys #-}
+    toElementKeys (a, b, c) = [ElementKey a, ElementKey b, ElementKey c]
 
 
 instance (Element a, Element b, Element c, Element d)
@@ -401,9 +401,9 @@ instance (Element a, Element b, Element c, Element d)
                          ((b1, b2, b3), b4)
 
 instance {-# OVERLAPPING #-} (Element a, Element b, Element c, Element d)
-    => AxisDecompose (a, b, c, d) where
-    {-# INLINE toAxisKeys #-}
-    toAxisKeys (a, b, c, d) = [AxisKey a, AxisKey b, AxisKey c, AxisKey d]
+    => HasElementKeys (a, b, c, d) where
+    {-# INLINE toElementKeys #-}
+    toElementKeys (a, b, c, d) = [ElementKey a, ElementKey b, ElementKey c, ElementKey d]
 
 
 instance (Element a, Element b, Element c, Element d, Element e)
@@ -447,9 +447,15 @@ instance (Element a, Element b, Element c, Element d, Element e)
                          ((b1, b2, b3, b4), b5)
 
 instance {-# OVERLAPPING #-} (Element a, Element b, Element c, Element d, Element e)
-    => AxisDecompose (a, b, c, d, e) where
-    {-# INLINE toAxisKeys #-}
-    toAxisKeys (a, b, c, d, e) = [AxisKey a, AxisKey b, AxisKey c, AxisKey d, AxisKey e]
+    => HasElementKeys (a, b, c, d, e) where
+    {-# INLINE toElementKeys #-}
+    toElementKeys (a, b, c, d, e) =
+        [ ElementKey a
+        , ElementKey b
+        , ElementKey c
+        , ElementKey d
+        , ElementKey e
+        ]
 
 
 instance (Element a, Element b, Element c, Element d, Element e, Element f)
@@ -496,9 +502,9 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f)
                          ((b1, b2, b3, b4, b5), b6)
 
 instance {-# OVERLAPPING #-} (Element a, Element b, Element c, Element d, Element e, Element f)
-    => AxisDecompose (a, b, c, d, e, f) where
-    {-# INLINE toAxisKeys #-}
-    toAxisKeys (a, b, c, d, e, f) = [AxisKey a, AxisKey b, AxisKey c, AxisKey d, AxisKey e, AxisKey f]
+    => HasElementKeys (a, b, c, d, e, f) where
+    {-# INLINE toElementKeys #-}
+    toElementKeys (a, b, c, d, e, f) = [ElementKey a, ElementKey b, ElementKey c, ElementKey d, ElementKey e, ElementKey f]
 
 
 instance (Element a, Element b, Element c, Element d, Element e, Element f, Element g)
@@ -548,9 +554,9 @@ instance (Element a, Element b, Element c, Element d, Element e, Element f, Elem
                          ((b1, b2, b3, b4, b5, b6), b7)
 
 instance {-# OVERLAPPING #-} (Element a, Element b, Element c, Element d, Element e, Element f, Element g)
-    => AxisDecompose (a, b, c, d, e, f, g) where
-    {-# INLINE toAxisKeys #-}
-    toAxisKeys (a, b, c, d, e, f, g) = [AxisKey a, AxisKey b, AxisKey c, AxisKey d, AxisKey e, AxisKey f, AxisKey g]
+    => HasElementKeys (a, b, c, d, e, f, g) where
+    {-# INLINE toElementKeys #-}
+    toElementKeys (a, b, c, d, e, f, g) = [ElementKey a, ElementKey b, ElementKey c, ElementKey d, ElementKey e, ElementKey f, ElementKey g]
 
 -- | One-way wildcard query matching. The query is the pattern.
 -- Complexity: O(k) (k is the number of tuple components).

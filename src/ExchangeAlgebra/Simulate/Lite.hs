@@ -191,7 +191,7 @@ import           ExchangeAlgebra.Simulate.Spill    (defaultBinarySpillWriter, st
 import           ExchangeAlgebra.Simulate.Policy    ( LedgerPolicy(..)
                                                     , Retention(..)
                                                     , Compaction(..)
-                                                    , HasTermAxis(..) )
+                                                    , HasNotePeriod(..) )
 
 ------------------------------------------------------------------
 -- * Term-boundary field rules
@@ -652,7 +652,7 @@ deriveGen seed0 termIx stageIx agentIx =
 --      This is norm- and balance-preserving; only the within-term posting
 --      sequence is collapsed. The in-progress term is never touched.
 --   2. __retention / spill__ — if @'retain' = 'RetainRecent' w@, terms with
---      @'termOf' n '<=' t - w@ are evicted from the in-memory ledger. If
+--      @'periodOf' n '<=' t - w@ are evicted from the in-memory ledger. If
 --      @'spillTo' = 'Just' path@, each newly-closed-and-evicted term is first
 --      appended to that binary file (compatible with 'defaultBinarySpillWriter',
 --      so 'ExchangeAlgebra.Simulate.Policy.restoreLedger' can read it back).
@@ -669,7 +669,7 @@ runLiteWithPolicy
     :: forall w t n v b r.
        ( forall s. LiteWorld w s
        , HatVal v, HatBaseClass b
-       , HasTermAxis n, TermOf n ~ t
+       , HasNotePeriod n, PeriodOf n ~ t
        , StateTime t
        , Binary.Binary t, Binary.Binary (Journal n v b) )
     => LedgerPolicy
@@ -694,7 +694,7 @@ runLiteWithPolicyObs
     :: forall w t n v b r.
        ( forall s. LiteWorld w s
        , HatVal v, HatBaseClass b
-       , HasTermAxis n, TermOf n ~ t
+       , HasNotePeriod n, PeriodOf n ~ t
        , StateTime t
        , Binary.Binary t, Binary.Binary (Journal n v b) )
     => (t -> w SnapT -> IO ())
@@ -711,7 +711,7 @@ runLiteWithPolicyInternal
     :: forall w t n v b r.
        ( forall s. LiteWorld w s
        , HatVal v, HatBaseClass b
-       , HasTermAxis n, TermOf n ~ t
+       , HasNotePeriod n, PeriodOf n ~ t
        , StateTime t
        , Binary.Binary t, Binary.Binary (Journal n v b) )
     => Maybe (t -> w SnapT -> IO ())
@@ -777,7 +777,7 @@ runLiteWithPolicyInternal observer pol spec wInit k = do
                     ledger <- stToIO (readSTRef (specLedger spec wr))
                     let lo    = firstUnspilled spilledHi
                         chunk = filterWithNote
-                                  (\nn _ -> let tt = termOf nn
+                                  (\nn _ -> let tt = periodOf nn
                                             in tt >= lo && tt <= boundary)
                                   ledger
                     -- Suppress empty spill chunks: at early term boundaries the
@@ -790,7 +790,7 @@ runLiteWithPolicyInternal observer pol spec wInit k = do
                       defaultBinarySpillWriter h (lo, boundary) chunk
                 -- delete evicted terms from memory (whether or not spilled)
                 stToIO $ modifySTRef' (specLedger spec wr)
-                           (filterWithNote (\nn _ -> termOf nn > boundary))
+                           (filterWithNote (\nn _ -> periodOf nn > boundary))
                 writeIORef spilledRef (Just boundary)
     final <- stToIO (gFreezeR wr)
     pure (k final)
@@ -820,9 +820,9 @@ withMaybeSpillHandle (Just path) act = withFile path WriteMode (act . Just)
 -- before @t@ (a /closed/ term), leaving the in-progress term untouched. Uses
 -- 'toMap'\/'fromMap' so the traversal order does not affect the result.
 compressClosedTerms
-    :: (HasTermAxis n, TermOf n ~ t, Ord t, HatVal v, HatBaseClass b)
+    :: (HasNotePeriod n, PeriodOf n ~ t, Ord t, HatVal v, HatBaseClass b)
     => t -> Journal n v b -> Journal n v b
 compressClosedTerms t j =
     fromMap (HM.mapWithKey
-               (\nn alg -> if termOf nn < t then EA.compress alg else alg)
+               (\nn alg -> if periodOf nn < t then EA.compress alg else alg)
                (toMap j))

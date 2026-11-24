@@ -266,7 +266,7 @@ instance Binary.Binary FixtureId where
     get = FixtureId <$> Binary.get
 
 -- | Compare exact coordinates, sides, and amounts independently of posting order.
-observeWild :: forall coordinates. (BaseClass coordinates, AxisDecompose coordinates)
+observeWild :: forall coordinates. (BaseClass coordinates, HasElementKeys coordinates)
             => Alg MoneyDecimal (HatBase coordinates)
             -> [(Hat, coordinates, MoneyDecimal)]
 observeWild = List.sort . foldEntries collect []
@@ -322,16 +322,16 @@ testWildAxis axis concrete = do
 type WildCoordinates = (AccountTitles, Wild TimeOfDay, Wild Text)
 
 -- | Flat tuples expose each axis key. A nested tuple stays one key at its outer position.
-testWildAxisKeys :: IO ()
-testWildAxisKeys = do
+testWildElementKeys :: IO ()
+testWildElementKeys = do
     assertTest "Wild flat tuple has one wildcard at the time axis" $
         haveWildcard flat && not (haveWildcard (Cash, time, identifier))
     assertTest "Wild nested tuple has an inner wildcard" $
         haveWildcard nested && not (haveWildcard (Cash, (time, identifier)))
     assertTest "Wild flat tuple exposes three axis keys in coordinate order" $
-        toAxisKeys flat == [AxisKey Cash, AxisKey noTime, AxisKey identifier]
+        toElementKeys flat == [ElementKey Cash, ElementKey noTime, ElementKey identifier]
     assertTest "Wild nested tuple exposes two outer keys with the pair in position two" $
-        toAxisKeys nested == [AxisKey Cash, AxisKey (noTime, identifier)]
+        toElementKeys nested == [ElementKey Cash, ElementKey (noTime, identifier)]
   where
     noTime :: Wild TimeOfDay
     noTime = Wild
@@ -349,7 +349,7 @@ testWildAxisKeys = do
     nested = (Cash, (noTime, identifier))
 
 -- | Exercise single and indexed projections against the same per-axis oracle.
-testWildProjection :: forall coordinates. (BaseClass coordinates, AxisDecompose coordinates)
+testWildProjection :: forall coordinates. (BaseClass coordinates, HasElementKeys coordinates)
                    => String
                    -> (WildCoordinates -> coordinates)
                    -> IO ()
@@ -491,8 +491,8 @@ testWildPayload = do
     empty = Exactly "" :: Wild Text
     first = Exactly (FixtureId 1)
     second = Exactly (FixtureId 2)
-    firstKey = AxisKey first
-    secondKey = AxisKey second
+    firstKey = ElementKey first
+    secondKey = ElementKey second
 
 -- | Check that midnight and 1858-11-17 can be selected as ordinary elements.
 testWildCalendarRegression :: IO ()
@@ -542,7 +542,7 @@ runTests = do
         (forAll genConcreteCase propConcreteRegression)
     testWildAxis "Wild TimeOfDay" [midnight, TimeOfDay 9 0 0]
     testWildAxis "Wild Day" [ModifiedJulianDay (-1), ModifiedJulianDay 0, ModifiedJulianDay 1]
-    testWildAxisKeys
+    testWildElementKeys
     testWildProjection "flat tuple" id
     testWildProjection "nested tuple" (\(title, time, identifier) -> (title, (time, identifier)))
     testWildTransfer

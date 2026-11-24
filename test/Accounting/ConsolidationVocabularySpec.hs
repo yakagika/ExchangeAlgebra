@@ -45,7 +45,7 @@ import ExchangeAlgebra.Accounting.Exchange (ExBaseClass(..))
 import ExchangeAlgebra.Accounting.Statements.Metric (PeriodResult(PeriodBreakEven))
 import ExchangeAlgebra.Accounting.TrialBalance.Balance (AccountBalance(NoBalance))
 import ExchangeAlgebra.Algebra.Base
-    ( AxisDecompose
+    ( HasElementKeys
     , BaseClass
     , Element(..)
     , Hat(..)
@@ -196,7 +196,7 @@ instance FixturePolicy policy => AccountVocabulary (LocalTitle policy) where
 
 -- | Build each source and adjustment from raw Hat/Not directions.
 worksheet
-    :: forall a t. (BaseClass t, AxisDecompose t)
+    :: forall a t. (BaseClass t, HasElementKeys t)
     => (a -> t)
     -> NonEmpty (String, [Row a])
     -> [(String, NonEmpty String, [Row a])]
@@ -231,7 +231,7 @@ linkage = WorksheetLinkage
     }
 
 -- | Read all posting rows in traversal order.
-postings :: forall t. (BaseClass t, AxisDecompose t) => Alg Double (HatBase t) -> [Row t]
+postings :: forall t. (BaseClass t, HasElementKeys t) => Alg Double (HatBase t) -> [Row t]
 postings alg = reverse (foldEntries collect [] alg)
   where
     collect :: [Row t] -> Double -> HatBase t -> [Row t]
@@ -259,7 +259,7 @@ requireWorksheet label result = case result of
 
 -- | Assert the full posting multiset and the amount sequence within each base.
 expectCombined
-    :: (BaseClass t, AxisDecompose t)
+    :: (BaseClass t, HasElementKeys t)
     => String
     -> [((Hat, t), [Double])]
     -> ValidatedWorksheetOf t String String Double

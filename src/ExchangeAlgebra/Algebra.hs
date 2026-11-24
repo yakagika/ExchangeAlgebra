@@ -32,9 +32,9 @@ module ExchangeAlgebra.Algebra
     , BaseForSingleHat(..)
     , HatBase(..)
     , Element(..)
-    , AxisKey(..)
-    , axisIsWildcard
-    , AxisDecompose(..)
+    , ElementKey(..)
+    , elementKeyIsWildcard
+    , HasElementKeys(..)
     , (.#)
     , Name
     , Subject

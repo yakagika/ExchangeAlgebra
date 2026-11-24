@@ -60,7 +60,7 @@ module ExchangeAlgebra.Accounting
     , projDeferredAssets
     , projCurrentLiability
     , projFixedLiability
-    , projCapitalStock
+    , projNonContraCreditEquity
     , projContraAssets
     , projContra
       -- * Definition 9: base rules and closing
@@ -97,7 +97,7 @@ import           ExchangeAlgebra.Accounting.Exchange
                      , projDeferredAssets
                      , projCurrentLiability
                      , projFixedLiability
-                     , projCapitalStock
+                     , projNonContraCreditEquity
                      , projContraAssets
                      , projContra
                      )

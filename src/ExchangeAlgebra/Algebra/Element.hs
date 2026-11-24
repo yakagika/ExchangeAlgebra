@@ -36,7 +36,7 @@ Import 'Element' and its associated symbols from
 "ExchangeAlgebra.Algebra.Element".
 -}
 module ExchangeAlgebra.Algebra.Element
-    ( Element(..), AxisKey(..), axisIsWildcard, AxisDecompose(..), (.#)
+    ( Element(..), ElementKey(..), elementKeyIsWildcard, HasElementKeys(..), (.#)
     , Name, Subject, CountUnit(..), Wild(..), matchesQuery, Hashable(..), Generic
     ) where
 

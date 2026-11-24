@@ -50,9 +50,9 @@ module ExchangeAlgebra.Algebra.Internal
     , BaseForSingleHat(..)
     , HatBase(..)
     , Element(..)
-    , AxisKey(..)
-    , axisIsWildcard
-    , AxisDecompose(..)
+    , ElementKey(..)
+    , elementKeyIsWildcard
+    , HasElementKeys(..)
     , (.#)
     , Name
     , Subject

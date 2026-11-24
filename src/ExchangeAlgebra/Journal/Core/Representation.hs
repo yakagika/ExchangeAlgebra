@@ -16,9 +16,9 @@
 -- It uses generic Algebra owners; "ExchangeAlgebra.Journal.Core" exposes the
 -- public operations. Read the note definitions before the journal operations.
 module ExchangeAlgebra.Journal.Core.Representation ( Note(..)
-                                                   , HasTermAxis(..)
-                                                   , NoteAxisKey(..)
-                                                   , NoteAxisPosting
+                                                   , HasNotePeriod(..)
+                                                   , NoteFieldKey(..)
+                                                   , NoteFieldIndex
                                                    , Journal
                                                    , pattern Zero
                                                    , mkJournal
@@ -41,7 +41,7 @@ module ExchangeAlgebra.Journal.Core.Representation ( Note(..)
                                                    , projWithBaseNetNorm
                                                    , projWithNoteBaseNetNorm
                                                    , filterWithNote
-                                                   , filterByAxis
+                                                   , filterByNoteField
                                                    , postFromNetBy
                                                    , gather
                                                    ) where
@@ -75,39 +75,39 @@ import              Data.Typeable           (Typeable, cast, typeOf)
 -- >>> :set -XOverloadedStrings
 
 ------------------------------------------------------------------
--- * NoteAxisKey
+-- * NoteFieldKey
 ------------------------------------------------------------------
 
--- | An existential type that holds one component of a note with its type erased.
--- Used to decompose multi-dimensional Note types (tuples) into keys for each component position
--- for indexing, mirroring how @AxisKey@ works for bases in 'Alg'.
-data NoteAxisKey = forall a. (Eq a, Hashable a, Typeable a) => NoteAxisKey !a
+-- | An existential type that holds one note field with its type erased.
+-- Used to decompose tuple notes into keys for their field positions
+-- for indexing, mirroring how @ElementKey@ works for bases in 'Alg'.
+data NoteFieldKey = forall a. (Eq a, Hashable a, Typeable a) => NoteFieldKey !a
 
-instance Eq NoteAxisKey where
-    NoteAxisKey x == NoteAxisKey y = case cast y of
+instance Eq NoteFieldKey where
+    NoteFieldKey x == NoteFieldKey y = case cast y of
         Nothing -> False
         Just y' -> x == y'
 
-instance Hashable NoteAxisKey where
-    hashWithSalt salt (NoteAxisKey x) = salt `hashWithSalt` typeOf x `hashWithSalt` x
+instance Hashable NoteFieldKey where
+    hashWithSalt salt (NoteFieldKey x) = salt `hashWithSalt` typeOf x `hashWithSalt` x
 
 ------------------------------------------------------------------
--- * NoteAxisPosting
+-- * NoteFieldIndex
 ------------------------------------------------------------------
 
--- | Per-component index for Note keys.
--- Maps axis_number -> axis_value -> set of Notes.
+-- | Index of notes by field position and value.
+-- Each field value maps to the set of notes that contain it at that position.
 -- Mirrors @AxisPosting@ in 'Alg'.
-type NoteAxisPosting n = IntMap (Map.HashMap NoteAxisKey (HashSet n))
+type NoteFieldIndex n = IntMap (Map.HashMap NoteFieldKey (HashSet n))
 
-{-# INLINE emptyNoteAxisPosting #-}
-emptyNoteAxisPosting :: NoteAxisPosting n
-emptyNoteAxisPosting = IntMap.empty
+{-# INLINE emptyNoteFieldIndex #-}
+emptyNoteFieldIndex :: NoteFieldIndex n
+emptyNoteFieldIndex = IntMap.empty
 
-{-# INLINE insertNoteAxisPosting #-}
+{-# INLINE insertNoteFieldIndex #-}
 -- | Complexity: O(d) where d is the number of components in the Note
-insertNoteAxisPosting :: (Eq n, Hashable n) => [NoteAxisKey] -> n -> NoteAxisPosting n -> NoteAxisPosting n
-insertNoteAxisPosting !keys !note !idx =
+insertNoteFieldIndex :: (Eq n, Hashable n) => [NoteFieldKey] -> n -> NoteFieldIndex n -> NoteFieldIndex n
+insertNoteFieldIndex !keys !note !idx =
     snd $ L.foldl' step (0 :: Int, idx) keys
   where
     step (!axis, !acc) !k =
@@ -118,13 +118,12 @@ insertNoteAxisPosting !keys !note !idx =
             !acc' = IntMap.insert axis axisMap' acc
         in (axis + 1, acc')
 
-{-# INLINE queryNoteAxisPosting #-}
--- | Query the 'NoteAxisPosting' index for one component position.
--- Returns the set of Notes whose value matches on the specified component position.
+{-# INLINE queryNoteFieldIndex #-}
+-- | Query the 'NoteFieldIndex' for notes with the given value at the specified field position.
 --
 -- Complexity: O(1) (two map lookups)
-queryNoteAxisPosting :: Int -> NoteAxisKey -> NoteAxisPosting n -> HashSet n
-queryNoteAxisPosting !axis !key !idx =
+queryNoteFieldIndex :: Int -> NoteFieldKey -> NoteFieldIndex n -> HashSet n
+queryNoteFieldIndex !axis !key !idx =
     case IntMap.lookup axis idx of
         Nothing -> HSet.empty
         Just axisMap -> Map.lookupDefault HSet.empty key axisMap
@@ -136,10 +135,10 @@ queryNoteAxisPosting !axis !key !idx =
 -- | Type class for journal annotations (notes attached to postings).
 -- @plank@ represents a blank note (analogous to @mempty@ in @Monoid@).
 --
--- @toNoteAxisKeys@ decomposes a Note into keys for each component position for 'NoteAxisPosting'
--- indexing, mirroring how @toAxisKeys@ works for bases.
--- For tuple Note types, the index uses the position of each component.
--- The default returns a single indexed component containing the Note itself.
+-- @toNoteFieldKeys@ returns a key for each note field for 'NoteFieldIndex'
+-- indexing, mirroring how @toElementKeys@ works for bases.
+-- For tuple notes, the index uses the position of each field.
+-- The default returns a single key containing the note itself.
 --
 -- == Prefer an ADT note over @String@
 --
@@ -168,38 +167,37 @@ class (Show a, Eq a, Ord a, Hashable a, Typeable a) => Note a where
     plank :: a
     isPlank :: a -> Bool
     isPlank x = x == plank
-    -- | Decompose a Note into keys for each component position for 'NoteAxisPosting' indexing.
-    -- Default: single indexed component with the Note itself.
-    toNoteAxisKeys :: a -> [NoteAxisKey]
-    toNoteAxisKeys a = [NoteAxisKey a]
+    -- | Return a key for each note field for 'NoteFieldIndex' indexing.
+    -- The default returns a single key containing the note itself.
+    toNoteFieldKeys :: a -> [NoteFieldKey]
+    toNoteFieldKeys a = [NoteFieldKey a]
 
--- | The convention that fixes /which/ part of a 'Note' is the simulation term.
+-- | Extracts the simulation period from a 'Note'.
 --
--- A simulation policy or a multi-period ledger maps a Note to its term to
--- decide which entries belong to a period. Since a tuple Note has no intrinsic "term" component, the rule
--- is fixed here: __the term is the last component of the Note__. The shipped
--- instances follow this rule; a custom Note type provides a one-line instance.
+-- A simulation policy or a multi-period ledger uses this period to group
+-- entries. The built-in tuple instances use the last field as the period.
+-- Define an instance to specify the period for a custom note type.
 --
--- >>> termOf ("buy" :: T.Text, 7 :: Int)
+-- >>> periodOf ("buy" :: T.Text, 7 :: Int)
 -- 7
 --
--- >>> termOf ("buy" :: T.Text, "shopA" :: T.Text, 3 :: Int)
+-- >>> periodOf ("buy" :: T.Text, "shopA" :: T.Text, 3 :: Int)
 -- 3
-class (Note n, Ord (TermOf n)) => HasTermAxis n where
-  -- | The term type extracted from the Note.
-  type TermOf n
-  -- | Extract the term (last Note component, by the library convention).
-  termOf :: n -> TermOf n
+class (Note n, Ord (PeriodOf n)) => HasNotePeriod n where
+  -- | The type of the period extracted from the note.
+  type PeriodOf n
+  -- | Extract the period. The tuple instances use the last field.
+  periodOf :: n -> PeriodOf n
 
--- | Pair Note: the term is the second (last) component.
-instance (Note e, Note t) => HasTermAxis (e, t) where
-  type TermOf (e, t) = t
-  termOf = snd
+-- | The second field of a pair note is its period.
+instance (Note e, Note t) => HasNotePeriod (e, t) where
+  type PeriodOf (e, t) = t
+  periodOf = snd
 
--- | Triple Note: the term is the third (last) component.
-instance (Note e1, Note e2, Note t) => HasTermAxis (e1, e2, t) where
-  type TermOf (e1, e2, t) = t
-  termOf (_, _, t) = t
+-- | The third field of a triple note is its period.
+instance (Note e1, Note e2, Note t) => HasNotePeriod (e1, e2, t) where
+  type PeriodOf (e1, e2, t) = t
+  periodOf (_, _, t) = t
 
 -- | Default instance for using @Int@ to represent a simulation term.
 -- @plank = -1@ is distinguished from non-negative term numbers.
@@ -225,15 +223,15 @@ instance Note T.Text where
 
 instance (Note a, Note b) => Note (a, b) where
     plank = (plank, plank)
-    toNoteAxisKeys (a, b) = [NoteAxisKey a, NoteAxisKey b]
+    toNoteFieldKeys (a, b) = [NoteFieldKey a, NoteFieldKey b]
 
 instance (Note a, Note b, Note c) => Note (a, b, c) where
     plank = (plank, plank, plank)
-    toNoteAxisKeys (a, b, c) = [NoteAxisKey a, NoteAxisKey b, NoteAxisKey c]
+    toNoteFieldKeys (a, b, c) = [NoteFieldKey a, NoteFieldKey b, NoteFieldKey c]
 
 instance (Note a, Note b, Note c, Note d) => Note (a, b, c, d) where
     plank = (plank, plank, plank, plank)
-    toNoteAxisKeys (a, b, c, d) = [NoteAxisKey a, NoteAxisKey b, NoteAxisKey c, NoteAxisKey d]
+    toNoteFieldKeys (a, b, c, d) = [NoteFieldKey a, NoteFieldKey b, NoteFieldKey c, NoteFieldKey d]
 
 ------------------------------------------------------------------
 -- * Journal
@@ -249,8 +247,8 @@ instance (Note a, Note b, Note c, Note d) => Note (a, b, c, d) where
 --   __Invariants.__ The constructor is not exported; build with 'mkJournal',
 --   '(.|)' or 'fromList'. Its internal cache\/index fields @_jBaseAxis@ and
 --   @_jDeltaAxis@ must be
---   exactly the note component indices (@buildNoteAxisPosting@) of @_jBase@ and
---   @_jDelta@ respectively. The component-filtered query path ('filterByAxis') reads
+--   exactly the note field indices (@buildNoteFieldIndex@) of @_jBase@ and
+--   @_jDelta@ respectively. The component-filtered query path ('filterByNoteField') reads
 --   those indices, so a value whose indices disagree with its maps yields wrong
 --   answers silently (not an exception).
 --
@@ -269,22 +267,22 @@ data Journal n v b where
      Journal :: (Note n, HatVal v, HatBaseClass b)
             => { _jBase      :: !(Map.HashMap n (Alg v b))
                , _jDelta     :: !(Map.HashMap n (Alg v b))
-               , _jBaseAxis  :: NoteAxisPosting n
-               , _jDeltaAxis :: NoteAxisPosting n
-                 -- ^ Built lazily: only 'filterByAxis' reads this cache.
+               , _jBaseAxis  :: NoteFieldIndex n
+               , _jDeltaAxis :: NoteFieldIndex n
+                 -- ^ Built lazily: only 'filterByNoteField' reads this cache.
                  -- A strict field builds an index on every '(.|)' and append.
                } -> Journal n v b
 
 deltaCompactThreshold :: Int
 deltaCompactThreshold = 128
 
--- | Build note component index from map keys.
-{-# INLINE buildNoteAxisPosting #-}
-buildNoteAxisPosting :: Note n => Map.HashMap n a -> NoteAxisPosting n
-buildNoteAxisPosting =
+-- | Build the note field index from map keys.
+{-# INLINE buildNoteFieldIndex #-}
+buildNoteFieldIndex :: Note n => Map.HashMap n a -> NoteFieldIndex n
+buildNoteFieldIndex =
     Map.foldlWithKey'
-        (\acc n _ -> insertNoteAxisPosting (toNoteAxisKeys n) n acc)
-        emptyNoteAxisPosting
+        (\acc n _ -> insertNoteFieldIndex (toNoteFieldKeys n) n acc)
+        emptyNoteFieldIndex
 
 -- | The only safe way to build a t'Journal' from a base layer and a delta
 -- layer. It keeps the note component indices consistent with both layers and
@@ -317,8 +315,8 @@ mkJournalNonZero :: (Note n, HatVal v, HatBaseClass b)
                  => Map.HashMap n (Alg v b) -> Map.HashMap n (Alg v b) -> Journal n v b
 mkJournalNonZero bs delta = Journal bs delta baseIdx deltaIdx
   where
-    ~baseIdx = buildNoteAxisPosting bs
-    ~deltaIdx = buildNoteAxisPosting delta
+    ~baseIdx = buildNoteFieldIndex bs
+    ~deltaIdx = buildNoteFieldIndex delta
 
 -- | Construct a Journal from a HashMap. A note whose algebra is zero is
 -- dropped (see 'mkJournal').
@@ -381,7 +379,7 @@ appendMap rhs j@(Journal bs delta baseAxis _)
     | Map.null rhs = j
     | otherwise = compactIfNeeded $ Journal bs delta' baseAxis deltaAxis'
   where
-    ~deltaAxis' = buildNoteAxisPosting delta'
+    ~deltaAxis' = buildNoteFieldIndex delta'
     !delta' = Map.foldlWithKey' step delta rhs
 
     step :: Map.HashMap n (Alg v b) -> n -> Alg v b -> Map.HashMap n (Alg v b)
@@ -981,34 +979,35 @@ filterWithNote f (Journal bs delta _ _) =
         !delta' = Map.filterWithKey f delta
     in mkJournalNonZero base' delta'
 
--- | Efficiently filter a Journal to entries whose Note matches on the specified component position.
--- Uses base/delta NoteAxisPosting indices for O(|result|) retrieval after index construction.
+-- | Select journal entries whose note has the specified value at the given field position.
+-- Uses the base and delta 'NoteFieldIndex' caches for O(|result|) retrieval
+-- after index construction.
 --
--- Component positions are 0-indexed. For a Note type @(EventName, Term)@:
+-- Field positions are zero-based. For a note of type @(EventName, Term)@:
 --
---   * position 0 corresponds to EventName
---   * position 1 corresponds to Term
+--   * Position 0 holds the event name.
+--   * Position 1 holds the period.
 --
--- For non-tuple Note types, position 0 is the only valid position.
+-- For non-tuple notes, position 0 is the only valid position.
 --
--- Complexity: O(|result|) after index construction; O(n) for first base component query on a Journal value
+-- Complexity: O(|result|) after index construction; O(n) for the first base note field query on a Journal value
 --
 -- >>> type Test = Journal (T.Text, Int) Double (HatBase CountUnit)
 -- >>> x = 10.00.@Not:<Yen .| ("A", 1) :: Test
 -- >>> y = 20.00.@Hat:<Yen .| ("B", 1) :: Test
 -- >>> z = 30.00.@Not:<Yen .| ("A", 2) :: Test
--- >>> toMap (filterByAxis 0 (NoteAxisKey ("A" :: T.Text)) (x .+ y .+ z)) == toMap ((10.00.@Not:<Yen .| ("A",1)) .+ (30.00.@Not:<Yen .| ("A",2)) :: Test)
+-- >>> toMap (filterByNoteField 0 (NoteFieldKey ("A" :: T.Text)) (x .+ y .+ z)) == toMap ((10.00.@Not:<Yen .| ("A",1)) .+ (30.00.@Not:<Yen .| ("A",2)) :: Test)
 -- True
 --
--- >>> toMap (filterByAxis 1 (NoteAxisKey (1 :: Int)) (x .+ y .+ z)) == toMap ((10.00.@Not:<Yen .| ("A",1)) .+ (20.00.@Hat:<Yen .| ("B",1)) :: Test)
+-- >>> toMap (filterByNoteField 1 (NoteFieldKey (1 :: Int)) (x .+ y .+ z)) == toMap ((10.00.@Not:<Yen .| ("A",1)) .+ (20.00.@Hat:<Yen .| ("B",1)) :: Test)
 -- True
-{-# INLINE filterByAxis #-}
-filterByAxis :: (HatVal v, HatBaseClass b, Note n)
-             => Int -> NoteAxisKey -> Journal n v b -> Journal n v b
-filterByAxis axis key j@(Journal _ _ baseIdx deltaIdx) =
+{-# INLINE filterByNoteField #-}
+filterByNoteField :: (HatVal v, HatBaseClass b, Note n)
+             => Int -> NoteFieldKey -> Journal n v b -> Journal n v b
+filterByNoteField axis key j@(Journal _ _ baseIdx deltaIdx) =
     let !matched = HSet.union
-            (queryNoteAxisPosting axis key baseIdx)
-            (queryNoteAxisPosting axis key deltaIdx)
+            (queryNoteFieldIndex axis key baseIdx)
+            (queryNoteFieldIndex axis key deltaIdx)
         !result = HSet.foldl'
             (\acc n -> case lookupNote n j of
                 Nothing  -> acc

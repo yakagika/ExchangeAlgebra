@@ -242,7 +242,7 @@ testBinary = do
     assertTest "base component NFData instances" $
         rnf (Cash :: AccountTitles) `seq`
         rnf (Yen :: CountUnit) `seq`
-        rnf (AxisKey Cash) `seq`
+        rnf (ElementKey Cash) `seq`
         rnf (Hat :: Hat) `seq`
         rnf (BaseForSingleHat :: BaseForSingleHat) `seq`
         rnf (PS :: PIMO) `seq`
