@@ -245,6 +245,55 @@
 
 ### Removed
 
+- **Accounting and algebra compatibility modules.** Replace imports from
+  the following modules. For `AccountTitles`, import
+  `ExchangeAlgebra.Accounting.Account`. For `PeriodResult` and
+  `AccountBalance` formerly supplied by the worksheet module, use
+  `ExchangeAlgebra.Accounting.Statements.Metric` and
+  `ExchangeAlgebra.Accounting.TrialBalance.Balance`.
+
+  | Removed import | Replacement |
+  | --- | --- |
+  | `ExchangeAlgebra.Algebra.Base.Element` | `ExchangeAlgebra.Algebra.Element` |
+  | `ExchangeAlgebra.Value` | `ExchangeAlgebra.Algebra.Value` |
+  | `ExchangeAlgebra.Posting` | `ExchangeAlgebra.Algebra.Posting` |
+  | `ExchangeAlgebra.Algebra.Base.Account.Types` | `ExchangeAlgebra.Accounting.Account` |
+  | `ExchangeAlgebra.Algebra.Base.Account.Registry` | `ExchangeAlgebra.Accounting.Account` |
+  | `ExchangeAlgebra.Algebra.Base.Account.JcciAliases` | `ExchangeAlgebra.Accounting.Account` |
+  | `ExchangeAlgebra.Accounting.PostingPolicy` | `ExchangeAlgebra.Accounting.Account` |
+  | `ExchangeAlgebra.Assist.Descriptions` | `ExchangeAlgebra.Accounting.Account` |
+  | `ExchangeAlgebra.Bookkeeping` | `ExchangeAlgebra.Accounting.Entries` |
+  | `ExchangeAlgebra.TrialBalance.Balance` | `ExchangeAlgebra.Accounting.TrialBalance.Balance` |
+  | `ExchangeAlgebra.TrialBalance.Validation` | `ExchangeAlgebra.Accounting.TrialBalance.Validation` |
+  | `ExchangeAlgebra.Reporting.Group` | `ExchangeAlgebra.Accounting.Statements.Group` |
+  | `ExchangeAlgebra.Reporting.Metric` | `ExchangeAlgebra.Accounting.Statements.Metric` |
+  | `ExchangeAlgebra.Reporting.Presentation` | `ExchangeAlgebra.Accounting.Statements.Presentation` |
+  | `ExchangeAlgebra.Consolidation.Worksheet` | `ExchangeAlgebra.Accounting.Consolidation` |
+  | `ExchangeAlgebra.Convert` | `ExchangeAlgebra.IO.Input` and `ExchangeAlgebra.Accounting.Account` for `concreteAccountTitles` |
+  | `ExchangeAlgebra.Convert.Checked` | `ExchangeAlgebra.IO.Input.Checked` and `ExchangeAlgebra.Accounting.Account` for posting policy |
+  | `ExchangeAlgebra.Convert.Csv` | `ExchangeAlgebra.IO.Input.Csv` |
+  | `ExchangeAlgebra.Assist` | `ExchangeAlgebra.IO.Input.Assist` |
+  | `ExchangeAlgebra.Render.Csv` | `ExchangeAlgebra.IO.Output.Csv` |
+  | `ExchangeAlgebra.Render.Bookkeeping` | `ExchangeAlgebra.IO.Output.Statements` |
+  | `ExchangeAlgebra.Algebra.Transfer.Rule` | `ExchangeAlgebra.Algebra.Transfer` for generic rules and `ExchangeAlgebra.Accounting.Closing` for closing and settlement |
+
+- **Journal transfers.** Replace
+  `ExchangeAlgebra.Journal.Transfer.Rule.transferEntries` with
+  `ExchangeAlgebra.Accounting.Transfer.transferEntriesBy`, which computes
+  transfers from exact balances grouped by destination note.
+- **Communication expenses.** Replace `Commutation` with
+  `CommunicationExpenses`. The account name `通信費` resolves to
+  `CommunicationExpenses`. The removal lowers `fromEnum` by one for each
+  account title declared after `Commutation`. The `Binary` codes of surviving
+  titles keep their values, and the decoder rejects the retired code `0x8023`.
+- **Transfer rules.** Replace `relabel` with `TransferRule from to Relabel`
+  for generic base rules or `from .-> to |% Relabel` for an accounting
+  transfer. Replace `MulBy`, `DivBy`, `scaleBy`, and `divideBy` with
+  `mapPosting` for unit conversion or `Portion n d` for moving an equal
+  share on both sides. Remove branches that match the `InvalidCoefficient`
+  constructor of `TransferRuleError`. The remaining generic transfer
+  operation has no coefficient.
+
 - `TBFinding`, `trialBalanceFindings`, `TrialBalanceInput`, and
   `ReclassificationRule` of `ExchangeAlgebra.Accounting.TrialBalance.Validation`
   have been removed. Use `impossibleBalances`,

@@ -1,8 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wincomplete-patterns -Werror=incomplete-patterns #-}
--- The exhaustive registry intentionally retains the deprecated Commutation
--- constructor so that legacy behavior remains byte-for-byte stable.
-{-# OPTIONS_GHC -Wno-deprecations #-}
 
 {- |
 Module      : ExchangeAlgebra.Accounting.Account.Registry
@@ -54,7 +51,7 @@ data AccountSpec = AccountSpec
     -- | Annotation-free Japanese display label (清書和文表示名) used for
     -- financial-statement lines
     -- ('ExchangeAlgebra.Accounting.Statements.Presentation.presentationLabel') and LLM-facing
-    -- names ('ExchangeAlgebra.Assist.safeNameJa'). Unlike 'asNameJa' it never
+    -- names ('ExchangeAlgebra.IO.Input.Assist.safeNameJa'). Unlike 'asNameJa' it never
     -- carries notes, legacy-name
     -- remarks, or constructor identifiers; the JCCI level-2 A-column sweep in
     -- the test suite pins it against the official standard names.
@@ -134,7 +131,6 @@ rolesFor title _ = case title of
     AmortizationExpense                            -> [OrdinaryAccount]
     SalesCost                                      -> [OrdinaryAccount]
     BusinessTrip                                   -> [OrdinaryAccount]
-    Commutation                                    -> [OrdinaryAccount]
     UtilitiesExpense                               -> [OrdinaryAccount]
     RentExpense                                    -> [OrdinaryAccount]
     AdvertisingExpense                             -> [OrdinaryAccount]
@@ -382,7 +378,6 @@ postingFor title = case title of
     AmortizationExpense                            -> OrdinaryPosting
     SalesCost                                      -> OrdinaryPosting
     BusinessTrip                                   -> OrdinaryPosting
-    Commutation                                    -> OrdinaryPosting
     UtilitiesExpense                               -> OrdinaryPosting
     RentExpense                                    -> OrdinaryPosting
     AdvertisingExpense                             -> OrdinaryPosting
@@ -630,7 +625,6 @@ divisionFor title spec = case title of
     AmortizationExpense                            -> StatementDivision (asDivision spec)
     SalesCost                                      -> StatementDivision (asDivision spec)
     BusinessTrip                                   -> StatementDivision (asDivision spec)
-    Commutation                                    -> StatementDivision (asDivision spec)
     UtilitiesExpense                               -> StatementDivision (asDivision spec)
     RentExpense                                    -> StatementDivision (asDivision spec)
     AdvertisingExpense                             -> StatementDivision (asDivision spec)
@@ -878,7 +872,6 @@ homeSideFor title spec = case title of
     AmortizationExpense                            -> FixedHomeSide (legacyHomeSide spec)
     SalesCost                                      -> FixedHomeSide (legacyHomeSide spec)
     BusinessTrip                                   -> FixedHomeSide (legacyHomeSide spec)
-    Commutation                                    -> FixedHomeSide (legacyHomeSide spec)
     UtilitiesExpense                               -> FixedHomeSide (legacyHomeSide spec)
     RentExpense                                    -> FixedHomeSide (legacyHomeSide spec)
     AdvertisingExpense                             -> FixedHomeSide (legacyHomeSide spec)
@@ -1143,7 +1136,6 @@ reportingFor title = case title of
     AmortizationExpense                            -> StatementEligible
     SalesCost                                      -> StatementEligible
     BusinessTrip                                   -> StatementEligible
-    Commutation                                    -> StatementEligible
     UtilitiesExpense                               -> StatementEligible
     RentExpense                                    -> StatementEligible
     AdvertisingExpense                             -> StatementEligible
@@ -1752,17 +1744,6 @@ accountSpec BusinessTrip = Just AccountSpec
     , asLabelJa = "旅費交通費"
     , asDescription = "Expense: Travel and transportation (旅費交通費)"
     , asAliases = ["旅費交通費"]
-    }
-accountSpec Commutation = Just AccountSpec
-    { asDivision = Cost
-    , asClosing = CloseByDivision
-    , asIsContra = False
-    , asFixedCurrent = Other
-    , asNameEn = "Communication"
-    , asNameJa = "通信費 — 旧称。新規コードでは 'CommunicationExpenses' を使う"
-    , asLabelJa = "通信費"
-    , asDescription = "Expense: Communication (通信費 — 旧称。新規コードでは 'CommunicationExpenses' を使う)"
-    , asAliases = ["通信費"]
     }
 accountSpec UtilitiesExpense = Just AccountSpec
     { asDivision = Cost
@@ -2641,7 +2622,7 @@ accountSpec CommunicationExpenses = Just AccountSpec
     , asNameEn = "Communication expenses"
     , asNameJa = "通信費"
     , asLabelJa = "通信費"
-    , asDescription = "Expense: Communication expenses (通信費). Explicitly named counterpart of the legacy 'Commutation' (also \"Communication\"); 'Commutation' is retained for backward compatibility."
+    , asDescription = "Expense: Communication expenses (通信費)"
     , asAliases = ["通信費"]
     }
 accountSpec GainOnSalesOfFixedAssets = Just AccountSpec

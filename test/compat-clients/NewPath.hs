@@ -12,7 +12,7 @@ import ExchangeAlgebra.Accounting.Account (AccountTitles(Cash, Sales))
 import qualified ExchangeAlgebra.Accounting.Exchange as Exchange
 import qualified ExchangeAlgebra.Accounting.Account as Account
 import qualified ExchangeAlgebra.Algebra.Element as Element
-import qualified ExchangeAlgebra.Algebra.Transfer.Rule as Rule
+import qualified ExchangeAlgebra.Algebra.Transfer as Rule
 import qualified ExchangeAlgebra.Accounting.Closing as Closing
 import ExchangeAlgebra.Accounting.Closing
     ( ClosingTargetViolation(..), closingTargetViolation, ClosingError(..), SettleError(..) )
@@ -85,7 +85,7 @@ elementClient :: Bool
 elementClient = Element.matchesQuery Cash Cash
 
 -- | Use the public closing entry point with the new algebra and account paths.
-closingClient :: Either (Rule.ClosingError Double (HatBase AccountTitles))
+closingClient :: Either (Closing.ClosingError Double (HatBase AccountTitles))
                         (Alg Double (HatBase AccountTitles))
 closingClient = Closing.closingEntries oldExpression
 

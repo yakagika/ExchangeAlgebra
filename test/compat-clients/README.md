@@ -6,12 +6,10 @@ Run the clients after building the library from the repository root:
 STACK_ARGS="--system-ghc --no-install-ghc" bash test/compat-clients/check.sh
 ```
 
-`OldPath.hs` uses the current public imports, including the umbrella,
-algebra, journal, base, transfer rule, posting, and value modules. It checks
-the `.+`, `.@`, and `:<` fixities, a class method call, a constructor pattern,
-and the `BasePart` associated type. `NewPath.hs` and `MixedPath.hs` are
-placeholders that compile the old client now. Replace their imports and
-expressions with the new and mixed paths as each P2 wave creates them.
+`OldPath.hs` checks umbrella imports, operator fixities, a class method call,
+a constructor pattern, and the `BasePart` associated type. `NewPath.hs` uses
+the defining modules. `MixedPath.hs` combines current paths with retained
+simulation paths.
 
 `CompatInstance.hs` defines two client-owned base types. One uses the
 `ExBaseClass` defaults, and the other overrides `whatDiv` and `isContra`.

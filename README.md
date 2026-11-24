@@ -535,8 +535,10 @@ value instances, and plotting configuration as described here. See the
   `ExchangeAlgebra.Journal` no longer re-export accounting names. Import their
   accounting owners, or use `import ExchangeAlgebra`, which still provides
   all these accounting names.
-- **Module moves.** Deprecated compatibility modules remain in 0.6 and are
-  removed in 0.7.0.0. See **Deprecated** in the changelog for the new paths.
+- **Module moves.** Version 0.7.0.0 removes the deprecated accounting and
+  algebra compatibility modules. See [Removed in the changelog](ChangeLog.md#removed)
+  for replacement imports. The five deprecated simulation compatibility
+  modules remain until simulation moves to a separate package in 0.8.0.0.
 - **Exact variants are merged.** The `*Exact` functions and
   `ExchangeAlgebra.Algebra.Exact` and `ExchangeAlgebra.Journal.Exact` modules
   are removed. Ordinary functions provide the same readouts; for example,

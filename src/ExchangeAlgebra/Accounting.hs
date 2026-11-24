@@ -64,7 +64,8 @@ module ExchangeAlgebra.Accounting
     , projContraAssets
     , projContra
       -- * Definition 9: base rules and closing
-    , module ExchangeAlgebra.Algebra.Transfer.Rule
+    , module ExchangeAlgebra.Algebra.Transfer
+    , module ExchangeAlgebra.Accounting.Closing
       -- * Definition 9: accounting transfer
     , module ExchangeAlgebra.Accounting.Transfer
     ) where
@@ -102,22 +103,19 @@ import           ExchangeAlgebra.Accounting.Exchange
                      )
 import           ExchangeAlgebra.Accounting.Transfer
 
-import ExchangeAlgebra.Algebra.Transfer.Representation as ExchangeAlgebra.Algebra.Transfer.Rule
-    ( TransferScale(MulBy, DivBy)
+import ExchangeAlgebra.Algebra.Transfer
+    ( TransferScale
     , TransferRule(..)
     , TransferRules
     , TransferRuleError(..)
     , TransferApplyError(..)
     , mkTransferRules
     , rulesToList
-    , relabel
-    , scaleBy
-    , divideBy
     , collapseEntries
     , collapseNetEntries
     )
 
-import ExchangeAlgebra.Accounting.Closing as ExchangeAlgebra.Algebra.Transfer.Rule
+import ExchangeAlgebra.Accounting.Closing
     ( ClosingSide(..)
     , closingSide
     , ClosingTargetViolation(..)

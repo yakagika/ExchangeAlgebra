@@ -95,7 +95,6 @@ ClosingTargetWithoutSpec
 ClosingTransferError
 Combined
 CommunicationExpenses
-Commutation
 ConflictingPresentationInstruction
 ConsolidationOnly
 ConstructionFundReserve
@@ -140,7 +139,6 @@ DevelopmentExpenses
 DirectionEncoding
 DirectorsCompensations
 DishonoredNotesReceivable
-DivBy
 DividendEqualizationReserve
 DividendsReceived
 DivisionSemantics
@@ -208,7 +206,6 @@ InterestEarned
 InterestExpense
 InterestOnSecurities
 InvalidClosingTarget
-InvalidCoefficient
 InvalidPortion
 InvalidPosting
 InvalidPresentationAllocation
@@ -264,7 +261,6 @@ MoneyDouble
 MoneyExponentOutOfRange
 MoneyParseError
 MoneyScaleOutOfRange
-MulBy
 Name
 NationalBondInterestEarned
 Nearest
@@ -548,7 +544,6 @@ defaultSide
 defaultTolerance
 diffRL
 diffRLWithin
-divideBy
 emptyAccum
 equal
 exactAccum
@@ -613,7 +608,6 @@ projNetNorm
 rationalAddAccum
 rationalRoundAccum
 relTol
-relabel
 reportingContext
 retainedEarningsRule
 revHat
@@ -624,7 +618,6 @@ ruleFrom
 ruleScale
 ruleTo
 rulesToList
-scaleBy
 setAccountTitle
 settleEntries
 settlementSteps

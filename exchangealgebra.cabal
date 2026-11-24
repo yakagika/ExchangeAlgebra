@@ -36,24 +36,11 @@ extra-source-files:
     test/fixtures/example-numbers-p1/README.md
     test/fixtures/example-numbers-p1/ripple-analysis.tsv
     test/fixtures/export-surface-p2/counts.tsv
-    test/fixtures/export-surface-p2/ExchangeAlgebra.Accounting.PostingPolicy.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.Accounting.txt
-    test/fixtures/export-surface-p2/ExchangeAlgebra.Algebra.Base.Account.JcciAliases.txt
-    test/fixtures/export-surface-p2/ExchangeAlgebra.Algebra.Base.Account.Registry.txt
-    test/fixtures/export-surface-p2/ExchangeAlgebra.Algebra.Base.Account.Types.txt
-    test/fixtures/export-surface-p2/ExchangeAlgebra.Algebra.Base.Element.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.Algebra.Base.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.Algebra.Internal.txt
-    test/fixtures/export-surface-p2/ExchangeAlgebra.Algebra.Transfer.Rule.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.Algebra.Transfer.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.Algebra.txt
-    test/fixtures/export-surface-p2/ExchangeAlgebra.Assist.Descriptions.txt
-    test/fixtures/export-surface-p2/ExchangeAlgebra.Assist.txt
-    test/fixtures/export-surface-p2/ExchangeAlgebra.Bookkeeping.txt
-    test/fixtures/export-surface-p2/ExchangeAlgebra.Consolidation.Worksheet.txt
-    test/fixtures/export-surface-p2/ExchangeAlgebra.Convert.Checked.txt
-    test/fixtures/export-surface-p2/ExchangeAlgebra.Convert.Csv.txt
-    test/fixtures/export-surface-p2/ExchangeAlgebra.Convert.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.IO.Input.Admission.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.Journal.Transfer.Rule.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.Journal.Transfer.txt
@@ -61,13 +48,7 @@ extra-source-files:
     test/fixtures/export-surface-p2/ExchangeAlgebra.Optimize.Annealing.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.Optimize.GA.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.Optimize.txt
-    test/fixtures/export-surface-p2/ExchangeAlgebra.Posting.txt
-    test/fixtures/export-surface-p2/ExchangeAlgebra.Render.Bookkeeping.txt
-    test/fixtures/export-surface-p2/ExchangeAlgebra.Render.Csv.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.Render.Simulation.txt
-    test/fixtures/export-surface-p2/ExchangeAlgebra.Reporting.Group.txt
-    test/fixtures/export-surface-p2/ExchangeAlgebra.Reporting.Metric.txt
-    test/fixtures/export-surface-p2/ExchangeAlgebra.Reporting.Presentation.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.Simulate.Analysis.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.Simulate.Engine.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.Simulate.Lite.txt
@@ -77,21 +58,16 @@ extra-source-files:
     test/fixtures/export-surface-p2/ExchangeAlgebra.Simulate.Spill.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.Simulate.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.Simulate.Visualize.txt
-    test/fixtures/export-surface-p2/ExchangeAlgebra.TrialBalance.Balance.txt
-    test/fixtures/export-surface-p2/ExchangeAlgebra.TrialBalance.Validation.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.txt
-    test/fixtures/export-surface-p2/ExchangeAlgebra.Value.txt
     test/fixtures/export-surface-p2/orphans.txt
     test/fixtures/export-surface-p2/README.md
     test/fixtures/jcci-2022/queries.tsv
     test/fixtures/jcci-2022/README.md
     test/fixtures/jcci-2022/source.tsv
     test/fixtures/post-vocab/account-info.tsv
-    test/fixtures/post-vocab/ordinals.tsv
     test/fixtures/post-vocab/README.md
     test/fixtures/post-vocab/semantics.tsv
     test/fixtures/post-vocab/suggest.tsv
-    test/fixtures/pre-vland2/ordinals.tsv
     test/fixtures/readout-baseline-p1/alg-decimal-f-dec2.tsv
     test/fixtures/readout-baseline-p1/alg-decimal-f-int.tsv
     test/fixtures/readout-baseline-p1/alg-double-f-cancel.tsv
@@ -134,7 +110,6 @@ extra-source-files:
     test/compile-fail/AlgRecordUpdate.hs
     test/compile-fail/Coerce.hs
     test/compile-fail/Constructor.hs
-    test/compile-fail/DeprecatedTransfer.hs
     test/compile-fail/HiddenModule.hs
     test/compile-fail/PublicClient.hs
     test/compile-fail/PublicExplicitImportClient.hs
@@ -169,7 +144,6 @@ library
       ExchangeAlgebra.Accounting.Consolidation
       ExchangeAlgebra.Accounting.Entries
       ExchangeAlgebra.Accounting.Exchange
-      ExchangeAlgebra.Accounting.PostingPolicy
       ExchangeAlgebra.Accounting.Statements
       ExchangeAlgebra.Accounting.Statements.Group
       ExchangeAlgebra.Accounting.Statements.Metric
@@ -180,24 +154,12 @@ library
       ExchangeAlgebra.Accounting.Transfer
       ExchangeAlgebra.Algebra
       ExchangeAlgebra.Algebra.Base
-      ExchangeAlgebra.Algebra.Base.Account.JcciAliases
-      ExchangeAlgebra.Algebra.Base.Account.Registry
-      ExchangeAlgebra.Algebra.Base.Account.Types
-      ExchangeAlgebra.Algebra.Base.Element
       ExchangeAlgebra.Algebra.Core
       ExchangeAlgebra.Algebra.Element
       ExchangeAlgebra.Algebra.Internal
       ExchangeAlgebra.Algebra.Posting
       ExchangeAlgebra.Algebra.Transfer
-      ExchangeAlgebra.Algebra.Transfer.Rule
       ExchangeAlgebra.Algebra.Value
-      ExchangeAlgebra.Assist
-      ExchangeAlgebra.Assist.Descriptions
-      ExchangeAlgebra.Bookkeeping
-      ExchangeAlgebra.Consolidation.Worksheet
-      ExchangeAlgebra.Convert
-      ExchangeAlgebra.Convert.Checked
-      ExchangeAlgebra.Convert.Csv
       ExchangeAlgebra.IO.Input
       ExchangeAlgebra.IO.Input.Csv
       ExchangeAlgebra.IO.Input.Assist
@@ -216,13 +178,7 @@ library
       ExchangeAlgebra.Optimize
       ExchangeAlgebra.Optimize.Annealing
       ExchangeAlgebra.Optimize.GA
-      ExchangeAlgebra.Posting
-      ExchangeAlgebra.Render.Bookkeeping
-      ExchangeAlgebra.Render.Csv
       ExchangeAlgebra.Render.Simulation
-      ExchangeAlgebra.Reporting.Group
-      ExchangeAlgebra.Reporting.Metric
-      ExchangeAlgebra.Reporting.Presentation
       ExchangeAlgebra.Simulate
       ExchangeAlgebra.Simulate.Analysis
       ExchangeAlgebra.Simulation.Analysis
@@ -240,9 +196,6 @@ library
       ExchangeAlgebra.Simulate.Policy
       ExchangeAlgebra.Simulate.Random
       ExchangeAlgebra.Simulate.Spill
-      ExchangeAlgebra.TrialBalance.Balance
-      ExchangeAlgebra.TrialBalance.Validation
-      ExchangeAlgebra.Value
   other-modules:
       ExchangeAlgebra.Accounting.TrialBalance.Accum
       ExchangeAlgebra.Accounting.Catalog

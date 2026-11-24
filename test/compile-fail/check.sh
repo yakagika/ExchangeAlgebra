@@ -65,23 +65,3 @@ fi
 reject AlgConstructor 'non-bidirectional pattern synonym|not bidirectional'
 reject AlgRecordUpdate 'non-bidirectional pattern synonym|not a record selector|not a record field'
 reject AlgHiddenConstructor 'does not export any children|does not export.*(Single|Liner)'
-
-# Deprecated APIs remain usable, and their warning survives public rule-module re-export.
-warn_deprecated() {
-    local snippet=$1
-    local identifier=$2
-    if ! compile "$snippet"; then
-        printf '[FAIL] %s did not compile\n' "$snippet"
-        cat "$admission_tmp/$snippet.log"
-        exit 1
-    fi
-    if ! grep -Eq "In the use of [‘'\"]([^‘’'\"]*\\.)?${identifier}[’'\"]" \
-        "$admission_tmp/$snippet.log"; then
-        printf '[FAIL] %s compiled without the expected deprecation warning\n' "$snippet"
-        cat "$admission_tmp/$snippet.log"
-        exit 1
-    fi
-    printf '[PASS] %s compiled with the expected deprecation warning\n' "$snippet"
-}
-
-warn_deprecated DeprecatedTransfer scaleBy

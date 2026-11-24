@@ -189,16 +189,13 @@ module ExchangeAlgebra
     , projContraAssets
     , projContra
       -- * Transfers and closing
-    , TransferScale(MulBy, DivBy)
+    , TransferScale
     , TransferRule(..)
     , TransferRules
     , TransferRuleError(..)
     , TransferApplyError(..)
     , mkTransferRules
     , rulesToList
-    , relabel
-    , scaleBy
-    , divideBy
     , collapseEntries
     , collapseNetEntries
     , TransferShare(..)
@@ -331,17 +328,14 @@ import ExchangeAlgebra.Accounting.Exchange
     )
 -- Generic per-posting rules. The accounting transfer below owns Relabel and
 -- transferEntries in this module, so they are not imported from here.
-import ExchangeAlgebra.Algebra.Transfer.Representation
-    ( TransferScale(MulBy, DivBy)
+import ExchangeAlgebra.Algebra.Transfer
+    ( TransferScale
     , TransferRule(..)
     , TransferRules
     , TransferRuleError(..)
     , TransferApplyError(..)
     , mkTransferRules
     , rulesToList
-    , relabel
-    , scaleBy
-    , divideBy
     , collapseEntries
     , collapseNetEntries
     )

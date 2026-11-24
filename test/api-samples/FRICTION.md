@@ -65,7 +65,7 @@
 - したかったこと: 既定科目に部門軸を加え, 題材 1 と同じ試算表と諸表を出す.
 - 起きたこと: `Element` と `BaseClass` に加え, `ExBaseClass` の `getAccountTitle` / `setAccountTitle` を利用者が定義する必要があった. 出力では `Cash` が部門別の複数行になり, `RetainedEarnings` も分割して現れた. 出力行から部門名は見えず, 試算表・諸表を科目ごとに一行で読む用途にはそのまま使いにくい.
 - 回避: 必要な instance を書き, 部門別の内訳は `projByAccountTitle` の代数値として表示した. 報告行の見た目は変換しなかった.
-- API: `ExchangeAlgebra.Algebra.Base.Element` / `BaseClass` / `ExBaseClass`, `ExchangeAlgebra.IO.Output.Statements.compoundTrialBalanceRows` / `ExchangeAlgebra.Accounting.Statements.present`.
+- API: `ExchangeAlgebra.Algebra.Element` / `BaseClass` / `ExBaseClass`, `ExchangeAlgebra.IO.Output.Statements.compoundTrialBalanceRows` / `ExchangeAlgebra.Accounting.Statements.present`.
 
 ## 10. 独自勘定は基礎代数で使えても会計分類へ入らない
 

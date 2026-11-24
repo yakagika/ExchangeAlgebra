@@ -23,7 +23,6 @@
   CentralBankPaymentExpense  	Right CentralBankPaymentExpense
   CentralBankPaymentIncome  	Right CentralBankPaymentIncome
   CommunicationExpenses  	Right CommunicationExpenses
-  Commutation  	Right Commutation
   ConsumptionExpenditure  	Right ConsumptionExpenditure
   ConsumptionTaxPaid  	Right ConsumptionTaxPaid
   ConsumptionTaxReceived  	Right ConsumptionTaxReceived
@@ -218,7 +217,7 @@
   賃金収入  	Right WageEarned
   資本金  	Right CapitalStock
   車両運搬具  	Right Vehicle
-  通信費  	Left (AmbiguousAccount "  \36890\20449\36027  " [CommunicationExpenses,Commutation])
+  通信費  	Right CommunicationExpenses
   金  	Right Gold
   長期借入金  	Right LongTermLoansPayable
   長期国債  	Left (AmbiguousAccount "  \38263\26399\22269\20661  " [LongTermNationalBonds,LongTermNationalBondsPayable])
@@ -275,7 +274,6 @@ CENTRALBANKPAYMENTEXPENSE	Right CentralBankPaymentExpense
 CENTRALBANKPAYMENTINCOME	Right CentralBankPaymentIncome
 COGS	Right SalesCost
 COMMUNICATIONEXPENSES	Right CommunicationExpenses
-COMMUTATION	Right Commutation
 CONSUMPTIONEXPENDITURE	Right ConsumptionExpenditure
 CONSUMPTIONTAXPAID	Right ConsumptionTaxPaid
 CONSUMPTIONTAXRECEIVED	Right ConsumptionTaxReceived
@@ -291,7 +289,6 @@ CentralBankNotePayable	Right CentralBankNotePayable
 CentralBankPaymentExpense	Right CentralBankPaymentExpense
 CentralBankPaymentIncome	Right CentralBankPaymentIncome
 CommunicationExpenses	Right CommunicationExpenses
-Commutation	Right Commutation
 ConsumptionExpenditure	Right ConsumptionExpenditure
 ConsumptionTaxPaid	Right ConsumptionTaxPaid
 ConsumptionTaxReceived	Right ConsumptionTaxReceived
@@ -498,7 +495,6 @@ centralbankpaymentexpense	Right CentralBankPaymentExpense
 centralbankpaymentincome	Right CentralBankPaymentIncome
 cogs	Right SalesCost
 communicationexpenses	Right CommunicationExpenses
-commutation	Right Commutation
 consumptionexpenditure	Right ConsumptionExpenditure
 consumptiontaxpaid	Right ConsumptionTaxPaid
 consumptiontaxreceived	Right ConsumptionTaxReceived
@@ -690,7 +686,7 @@ wageexpenditure	Right WageExpenditure
 賃金収入	Right WageEarned
 資本金	Right CapitalStock
 車両運搬具	Right Vehicle
-通信費	Left (AmbiguousAccount "\36890\20449\36027" [CommunicationExpenses,Commutation])
+通信費	Right CommunicationExpenses
 金	Right Gold
 長期借入金	Right LongTermLoansPayable
 長期国債	Left (AmbiguousAccount "\38263\26399\22269\20661" [LongTermNationalBonds,LongTermNationalBondsPayable])

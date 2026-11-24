@@ -31,11 +31,10 @@ of at most @1e-9 * max (abs x) (abs y)@, treating absent bases as zero.
   a successful application returning @Right entries@. A source wildcard
   matches any stored element; a concrete source matches only itself.
 * Relation: @obs (a .+ entries)@ equals the observation of independently
-  rewriting each matched posting to its rule's target and scaled value;
+  moving each matched term to its rule's target with its original value;
   unmatched postings remain unchanged.
 * Observation: @obs@ as defined above, including every target base.
-* Tolerance: relative @1e-9@; tested values are integers in @1..1000000@,
-  and coefficients are @2@, @3@, @0.5@ and @4@.
+* Tolerance: relative @1e-9@; tested values are integers in @1..1000000@.
 * Instances: 'Double' and @MoneyDecimal@ with flat @HatBase@ tuples.
 
 === L4: canonical form
@@ -66,9 +65,6 @@ module ExchangeAlgebra.Algebra.Transfer.Representation ( TransferScale(..)
                                                        , TransferApplyError(..)
                                                        , mkTransferRules
                                                        , rulesToList
-                                                       , relabel
-                                                       , scaleBy
-                                                       , divideBy
                                                        , transferEntries
                                                        , collapseEntries
                                                        , collapseNetEntries
@@ -78,7 +74,9 @@ module ExchangeAlgebra.Algebra.Transfer.Representation ( TransferScale(..)
                                                        ) where
 
 import Data.Binary (Binary(..))
-import Data.Hashable (Hashable)
+import Data.Binary.Get (getWord8)
+import Data.Binary.Put (putWord8)
+import Data.Hashable (Hashable(..))
 import Data.List (find, sortOn, tails)
 import GHC.Generics (Generic)
 import ExchangeAlgebra.Algebra.Core.Representation (Alg(Single))
@@ -98,15 +96,20 @@ import ExchangeAlgebra.Algebra.Value.Class (HatVal(..), isErrorValue)
 -- | How a rule changes the value it moves.
 data TransferScale v
     = Relabel  -- ^ Keep the value.
-    | MulBy v  -- ^ Multiply by a positive finite coefficient.
-    | DivBy v  -- ^ Divide by a positive finite coefficient.
     deriving (Eq, Ord, Show, Generic)
 
-{-# DEPRECATED MulBy, DivBy "A factor on the destination only does not balance. Use mapPosting to convert units, or Portion of ExchangeAlgebra.Accounting.Transfer to move a share." #-}
+-- Keep the original wire tag for the supported operation.
+instance Binary v => Binary (TransferScale v) where
+    put Relabel = putWord8 0
+    get = do
+        tag <- getWord8
+        case tag of
+            0 -> pure Relabel
+            _ -> fail "TransferScale: unknown or removed operation"
 
-instance Binary v => Binary (TransferScale v)
-
-instance Hashable v => Hashable (TransferScale v)
+-- Preserve the hash inputs for the retained operation in the old sum type.
+instance Hashable v => Hashable (TransferScale v) where
+    hashWithSalt salt Relabel = hashWithSalt (hashWithSalt salt (0 :: Int)) (0 :: Int)
 
 -- | A source pattern, target template and value operation.
 data TransferRule v b = TransferRule
@@ -136,11 +139,9 @@ instance (HatVal v, HatBaseClass b, Binary v, Binary b) => Binary (TransferRules
 
 instance (Hashable v, Hashable b) => Hashable (TransferRules v b)
 
--- | A construction failure. The first invalid coefficient in input order
--- precedes overlap checks; overlaps report the first pair @(i,j)@, @i < j@.
+-- | A construction failure. Overlaps report the first pair @(i,j)@, @i < j@.
 data TransferRuleError v b
     = OverlappingRules (TransferRule v b) (TransferRule v b) -- ^ Including duplicates.
-    | InvalidCoefficient (TransferRule v b)                -- ^ Zero, negative or non-finite.
     deriving (Eq, Show)
 
 -- | A value operation produced a non-finite (or otherwise invalid) value.
@@ -149,24 +150,17 @@ data TransferApplyError v b
     | NonFiniteBalance b                   -- ^ Closing base, normalized to Not.
     deriving (Show)
 
--- | Validate coefficients, reject all overlapping source patterns, and sort.
+-- | Reject all overlapping source patterns and sort.
 -- Matching is one-way: a wildcard in the ledger is a value, not a pattern.
 -- Overlap uses wildcard substitution recursively, including nested tuples;
 -- symmetric wildcard equality is insufficient. Complexity: O(r^2).
 mkTransferRules :: (HatVal v, HatBaseClass b)
                 => [TransferRule v b]
                 -> Either (TransferRuleError v b) (TransferRules v b)
-mkTransferRules rules = case find invalidCoefficient rules of
-    Just rule -> Left (InvalidCoefficient rule)
-    Nothing -> case find overlaps pairs of
-        Just (first, second) -> Left (OverlappingRules first second)
-        Nothing -> Right (TransferRules (sortOn ruleFrom rules))
+mkTransferRules rules = case find overlaps pairs of
+    Just (first, second) -> Left (OverlappingRules first second)
+    Nothing -> Right (TransferRules (sortOn ruleFrom rules))
   where
-    invalidCoefficient rule = case ruleScale rule of
-        Relabel -> False
-        MulBy coefficient -> invalid coefficient
-        DivBy coefficient -> invalid coefficient
-    invalid coefficient = coefficient <= zeroValue || isErrorValue coefficient
     pairs = [(first, second) | first : rest <- tails rules, second <- rest]
     overlaps (first, second) =
         patternsOverlap (ruleFrom first) (ruleFrom second)
@@ -174,22 +168,6 @@ mkTransferRules rules = case find invalidCoefficient rules of
 -- | Extract the canonical list, sorted by 'ruleFrom'.
 rulesToList :: TransferRules v b -> [TransferRule v b]
 rulesToList (TransferRules rules) = rules
-
-{-# DEPRECATED relabel "Use from .-> to |% Relabel of ExchangeAlgebra.Accounting.Transfer for an accounting transfer, or TransferRule from to Relabel to move coordinates." #-}
-{-# DEPRECATED scaleBy, divideBy "A factor on the destination only does not balance. Use mapPosting to convert units, or Portion of ExchangeAlgebra.Accounting.Transfer to move a share." #-}
-
--- | Construct a value-preserving rule; validate with 'mkTransferRules'.
-relabel :: b -> b -> TransferRule v b
-relabel source target = TransferRule source target Relabel
-
--- | Construct a multiplication rule; the coefficient must be positive and finite.
-scaleBy :: b -> b -> v -> TransferRule v b
-scaleBy source target coefficient = TransferRule source target (MulBy coefficient)
-
--- | Construct a division rule. Division is not reciprocal multiplication:
--- the latter need not round the same way for floating-point values.
-divideBy :: b -> b -> v -> TransferRule v b
-divideBy source target coefficient = TransferRule source target (DivBy coefficient)
 
 -- | Match only the pattern's wildcards, preserving literal ledger wildcards.
 -- Also used by "ExchangeAlgebra.Accounting.Transfer" on 'BasePart'.
@@ -204,11 +182,9 @@ patternsOverlap first second = matches first (ignoreWildcard first second)
 
 -- | Generate cancellation and destination entries, without the input ledger.
 -- Input values must satisfy the ordinary non-negative, finite posting contract.
--- 'Relabel'-only rules cannot fail. Scaled overflow returns 'NonFiniteResult',
--- and no partial result is returned. Source HatNot postings are unmatched.
--- A relabel to the identical base generates nothing; a zero scaled value
--- generates only the cancellation. No implicit @bar@ or legacy one-to-one
--- map is used. Complexity: O(s*r), with linear rule lookup per posting.
+-- Source 'HatNot' terms are unmatched. A rule with an identical
+-- source and destination generates no entries. The result retains all
+-- generated terms. Complexity: O(s*r), with linear rule lookup per term.
 transferEntries :: (HatVal v, HatBaseClass b)
                 => TransferRules v b
                 -> Alg v b
@@ -225,16 +201,12 @@ transferEntries (TransferRules rules) = foldEntries step (Right Zero)
             Nothing -> Right Zero
             Just rule -> generate rule value source
     generate rule value source
-        | ruleScale rule == Relabel && target == source = Right Zero
-        | isErrorValue moved = Left (NonFiniteResult rule value source)
-        | isZeroValue moved = Right cancellation
-        | otherwise = Right (cancellation .+ (moved `Single` target))
+        | target == source = Right Zero
+        | isErrorValue value = Left (NonFiniteResult rule value source)
+        | isZeroValue value = Right cancellation
+        | otherwise = Right (cancellation .+ (value `Single` target))
       where
         target = ignoreWildcard source (ruleTo rule)
-        moved = case ruleScale rule of
-            Relabel -> value
-            MulBy coefficient -> value * coefficient
-            DivBy coefficient -> value / coefficient
         cancellation = value `Single` revHat source
 
 -- | Move selected entries to new bases while retaining every posting.

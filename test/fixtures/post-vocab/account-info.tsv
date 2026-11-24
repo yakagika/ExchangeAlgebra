@@ -34,7 +34,6 @@ Depreciation	Cost	Debit	Depreciation	減価償却費	Expense: Depreciation (減�
 AmortizationExpense	Cost	Debit	Amortization expense for intangibles	無形固定資産償却費 — 特許権・商標権・ソフトウェア等の無形資産の償却費。有形の 'Depreciation' (減価償却費) と区別される	Expense: Amortization expense for intangibles (無形固定資産償却費 — 特許権・商標権・ソフトウェア等の無形資産の償却費。有形の 'Depreciation' (減価償却費) と区別される)
 SalesCost	Cost	Debit	Cost of sales	売上原価	Expense: Cost of sales (売上原価)
 BusinessTrip	Cost	Debit	Travel and transportation	旅費交通費	Expense: Travel and transportation (旅費交通費)
-Commutation	Cost	Debit	Communication	通信費 — 旧称。新規コードでは 'CommunicationExpenses' を使う	Expense: Communication (通信費 — 旧称。新規コードでは 'CommunicationExpenses' を使う)
 UtilitiesExpense	Cost	Debit	Utilities	水道光熱費	Expense: Utilities (水道光熱費)
 RentExpense	Cost	Debit	Rent	支払家賃	Expense: Rent (支払家賃)
 AdvertisingExpense	Cost	Debit	Advertising	広告宣伝費	Expense: Advertising (広告宣伝費)
@@ -110,7 +109,7 @@ LossOnSalesOfNotesReceivable	Cost	Debit	Loss on sales of notes receivable	手形
 PaymentFees	Cost	Debit	Payment fees / fees paid	支払手数料	Expense: Payment fees / fees paid (支払手数料), the debit counterpart of 'ReceiptFee'
 MiscellaneousLoss	Cost	Debit	Miscellaneous loss	雑損	Expense: Miscellaneous loss (雑損)
 CorporateIncomeTaxes	Cost	Debit	Corporate income taxes	法人税等	Expense: Corporate income taxes (法人税等)
-CommunicationExpenses	Cost	Debit	Communication expenses	通信費	Expense: Communication expenses (通信費). Explicitly named counterpart of the legacy 'Commutation' (also "Communication"); 'Commutation' is retained for backward compatibility.
+CommunicationExpenses	Cost	Debit	Communication expenses	通信費	Expense: Communication expenses (通信費)
 GainOnSalesOfFixedAssets	Revenue	Credit	Gain on sales of fixed assets	固定資産売却益	Revenue: Gain on sales of fixed assets (固定資産売却益)
 RecoveryOfBadDebts	Revenue	Credit	Recovery of bad debts written off	償却債権取立益	Revenue: Recovery of bad debts written off (償却債権取立益)
 MiscellaneousIncome	Revenue	Credit	Miscellaneous income	雑益	Revenue: Miscellaneous income (雑益)

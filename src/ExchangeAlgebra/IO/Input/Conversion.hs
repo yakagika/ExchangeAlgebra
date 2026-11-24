@@ -1,10 +1,6 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
--- The alias table intentionally references the deprecated 'Commutation'
--- constructor so that its legacy Japanese label ("通信費") is recognized and
--- flagged as ambiguous against 'CommunicationExpenses'; silence the warning.
-{-# OPTIONS_GHC -Wno-deprecations #-}
 
 {- |
 Module      : ExchangeAlgebra.IO.Input.Conversion
@@ -209,10 +205,8 @@ vocabularyNames titles = accountNameTable normalizeTitle
 
 -- $concreteAccountTitles
 -- 'concreteAccountTitles' lists all concrete account titles, /excluding/ the
--- wildcard 'AccountTitle', in stable Enum order. It is re-exported from
--- "ExchangeAlgebra.Algebra.Base.Account.Registry", which is the single
--- definition; external input must never resolve to the wildcard, so callers
--- should use this safe range rather than @[minBound .. maxBound]@.
+-- wildcard 'AccountTitle', in stable Enum order. Import it from
+-- "ExchangeAlgebra.Accounting.Account" when building an input name table.
 --
 -- >>> take 1 concreteAccountTitles
 -- [Cash]

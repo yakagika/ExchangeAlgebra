@@ -1,245 +1,244 @@
-# account-algebra-behavior semantics (title, enum, binaryHex, division, closing, isContra, whichSide Not, whichSide Hat, whatPIMO, fixedCurrent, finalStockProbe); schema 1
-Cash	0	8000	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-Deposits	1	8001	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-CurrentDeposits	2	8002	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-Securities	3	8003	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-InvestmentSecurities	4	8004	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-InvestmentInAssociate	5	8005	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-LongTermNationalBonds	6	8006	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-ShortTermNationalBonds	7	8007	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-Products	8	8008	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-Machinery	9	8009	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-Building	10	800a	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-Vehicle	11	800b	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-StockInvestment	12	800c	Assets	CloseByDivision	False	Debit	Credit	PS	Other	Nothing
-EquipmentInvestment	13	800d	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-LongTermLoansReceivable	14	800e	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-AccountsReceivable	15	800f	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-ShortTermLoansReceivable	16	8010	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-ReserveDepositReceivable	17	8011	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-Gold	18	8012	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-GovernmentService	19	8013	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-CapitalStock	20	8014	Equity	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
-RetainedEarnings	21	8015	Equity	CloseByDivision	False	Credit	Debit	MS	Other	SELF
-LongTermLoansPayable	22	8016	Liability	CloseByDivision	False	Credit	Debit	MS	Fixed	Nothing
-ShortTermLoansPayable	23	8017	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-LoansPayable	24	8018	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-ReserveForDepreciation	25	8019	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-DepositPayable	26	801a	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-LongTermNationalBondsPayable	27	801b	Liability	CloseByDivision	False	Credit	Debit	MS	Fixed	Nothing
-ShortTermNationalBondsPayable	28	801c	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-ReserveDepositPayable	29	801d	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-CentralBankNotePayable	30	801e	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-Depreciation	31	801f	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-AmortizationExpense	32	8020	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-SalesCost	33	8021	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-BusinessTrip	34	8022	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-Commutation	35	8023	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-UtilitiesExpense	36	8024	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-RentExpense	37	8025	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-AdvertisingExpense	38	8026	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-DeliveryExpenses	39	8027	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-SuppliesExpenses	40	8028	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-MiscellaneousExpenses	41	8029	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-WageExpenditure	42	802a	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-InterestExpense	43	802b	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-TaxesExpense	44	802c	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-ConsumptionExpenditure	45	802d	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-SubsidyExpense	46	802e	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-CentralBankPaymentExpense	47	802f	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-Purchases	48	8030	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-NetIncome	49	8031	Cost	NoClose	False	Debit	Credit	OUT	Other	Nothing
-ValueAdded	50	8032	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-SubsidyIncome	51	8033	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-NationalBondInterestEarned	52	8034	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-DepositInterestEarned	53	8035	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-GrossProfit	54	8036	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-OrdinaryProfit	55	8037	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-InterestEarned	56	8038	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-ReceiptFee	57	8039	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-RentalIncome	58	803a	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-WageEarned	59	803b	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-TaxesRevenue	60	803c	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-CentralBankPaymentIncome	61	803d	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-Sales	62	803e	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-EquityInEarningsOfInvestee	63	803f	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-NetLoss	64	8040	Revenue	NoClose	False	Credit	Debit	IN	Other	Nothing
-PettyCash	65	8041	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-NotesReceivable	66	8042	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-ElectronicallyRecordedReceivable	67	8043	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-CreditCardReceivable	68	8044	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-NotesLoansReceivable	69	8045	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-MerchandiseInventory	70	8046	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-AdvancesPaid	71	8047	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-PrepaidExpenses	72	8048	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-AccruedRevenue	73	8049	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-OtherReceivables	74	804a	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-PaymentsOnBehalf	75	804b	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-SuspensePayments	76	804c	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-ConsumptionTaxPaid	77	804d	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-PrepaidCorporateIncomeTaxes	78	804e	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-Land	79	804f	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-Fixtures	80	8050	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-Patent	81	8051	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-Trademark	82	8052	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-Software	83	8053	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-CashOverShort	84	8054	Assets	CloseByDivision	False	Debit	Credit	PS	Other	Nothing
-AccountsPayable	85	8055	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-NotesPayable	86	8056	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-ElectronicallyRecordedObligations	87	8057	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-NotesLoansPayable	88	8058	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-BankOverdraft	89	8059	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-AdvancesReceived	90	805a	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-UnearnedRevenue	91	805b	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-AccruedExpenses	92	805c	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-OtherPayables	93	805d	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-DepositsReceived	94	805e	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-SuspenseReceipts	95	805f	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-ConsumptionTaxReceived	96	8060	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-AccruedConsumptionTax	97	8061	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-AccruedCorporateIncomeTaxes	98	8062	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-UnpaidDividends	99	8063	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-AllowanceForDoubtfulAccounts	100	8064	Assets	CloseByDivision	True	Credit	Debit	MS	Current	Nothing
-AccumulatedDepreciation	101	8065	Assets	CloseByDivision	True	Credit	Debit	MS	Fixed	Nothing
-LegalRetainedEarnings	102	8066	Equity	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
-CumulativeTranslationAdjustment	103	8067	Equity	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
-ProvisionForDoubtfulAccounts	104	8068	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-BadDebtLoss	105	8069	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-LossOnSalesOfFixedAssets	106	806a	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-LossOnSalesOfNotesReceivable	107	806b	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-PaymentFees	108	806c	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-MiscellaneousLoss	109	806d	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-CorporateIncomeTaxes	110	806e	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-CommunicationExpenses	111	806f	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-GainOnSalesOfFixedAssets	112	8070	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-RecoveryOfBadDebts	113	8071	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-MiscellaneousIncome	114	8072	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-ReversalOfAllowanceForDoubtfulAccounts	115	8073	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-TimeDeposits	116	8074	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-LoansReceivable	117	8075	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-GiftCertificatesReceived	118	8076	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-SecurityDepositsPaid	119	8077	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-SuppliesOnHand	120	8078	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-ContractAssets	121	8079	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-IncomeTaxesRefundReceivable	122	807a	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-WorkInProcess	123	807b	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-DeferredTaxAssets	124	807c	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-LeasedAssets	125	807d	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-ToolsAndInstruments	126	807e	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-ConstructionInProgress	127	807f	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-Goodwill	128	8080	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-SoftwareInProgress	129	8081	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-LongTermPrepaidExpenses	130	8082	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-DishonoredNotesReceivable	131	8083	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-PrepaidPensionCost	132	8084	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-NetDefinedBenefitAsset	133	8085	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-DepositsInSpecialAccounts	134	8086	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-Structures	135	8087	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-LeaseholdRights	136	8088	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-NonOperatingNotesReceivable	137	8089	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-NonOperatingElectronicallyRecordedReceivable	138	808a	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-RefundLiabilities	139	808b	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-NonOperatingNotesPayable	140	808c	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-NonOperatingElectronicallyRecordedObligations	141	808d	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-BonusesPayable	142	808e	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-AllowanceForRepairs	143	808f	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-AllowanceForProductWarranties	144	8090	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-AllowanceForBonuses	145	8091	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-DeferredTaxLiabilities	146	8092	Liability	CloseByDivision	False	Credit	Debit	MS	Fixed	Nothing
-LeaseObligations	147	8093	Liability	CloseByDivision	False	Credit	Debit	MS	Fixed	Nothing
-GuaranteeDepositsReceived	148	8094	Liability	CloseByDivision	False	Credit	Debit	MS	Fixed	Nothing
-AllowanceForRetirementBenefits	149	8095	Liability	CloseByDivision	False	Credit	Debit	MS	Fixed	Nothing
-LongTermOtherPayables	150	8096	Liability	CloseByDivision	False	Credit	Debit	MS	Fixed	Nothing
-NetDefinedBenefitLiability	151	8097	Liability	CloseByDivision	False	Credit	Debit	MS	Fixed	Nothing
-StockSubscriptionDeposits	152	8098	Equity	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
-LegalCapitalSurplus	153	8099	Equity	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
-OtherCapitalSurplus	154	809a	Equity	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
-DividendEqualizationReserve	155	809b	Equity	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
-RepairFundReserve	156	809c	Equity	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
-ConstructionFundReserve	157	809d	Equity	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
-GeneralReserve	158	809e	Equity	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
-ValuationDifferenceOnOtherSecurities	159	809f	Equity	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
-NonControllingInterests	160	80a0	Equity	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
-CapitalSurplus	161	80a1	Equity	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
-EarnedSurplus	162	80a2	Equity	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
-ServiceRevenue	163	80a3	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-OperatingRevenue	164	80a4	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-GainOnSalesOfSecurities	165	80a5	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-GainOnValuationOfSecurities	166	80a6	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-DividendsReceived	167	80a7	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-InterestOnSecurities	168	80a8	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-GainOnSalesOfInvestmentSecurities	169	80a9	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-InsuranceGain	170	80aa	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-GainOnBargainPurchase	171	80ab	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-ReversalOfAllowanceForRepairs	172	80ac	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-ReversalOfAllowanceForProductWarranties	173	80ad	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-GainOnDonationOfFixedAssets	174	80ae	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-GainOnNationalSubsidies	175	80af	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-GainOnConstructionGrants	176	80b0	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-LandRentReceived	177	80b1	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-SalesRebates	178	80b2	Revenue	CloseByDivision	True	Debit	Credit	OUT	Other	Flip
-CostOfServices	179	80b3	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-OperatingExpenses	180	80b4	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-InventoryShrinkageLoss	181	80b5	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-LossOnValuationOfMerchandise	182	80b6	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-Bonuses	183	80b7	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-RetirementBenefitExpenses	184	80b8	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-ProvisionForRepairs	185	80b9	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-ProvisionForBonuses	186	80ba	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-ProvisionForProductWarranties	187	80bb	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-ResearchAndDevelopmentExpenses	188	80bc	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-AmortizationOfGoodwill	189	80bd	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-AmortizationOfSoftware	190	80be	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-AmortizationOfPatents	191	80bf	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-LeaseExpenses	192	80c0	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-IncorporationExpenses	193	80c1	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-StockIssuanceCosts	194	80c2	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-BusinessCommencementExpenses	195	80c3	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-DevelopmentExpenses	196	80c4	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-LossOnSalesOfElectronicallyRecordedReceivables	197	80c5	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-LossOnSalesOfReceivables	198	80c6	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-LossOnSalesOfSecurities	199	80c7	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-LossOnValuationOfSecurities	200	80c8	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-LossOnSalesOfInvestmentSecurities	201	80c9	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-LossOnFire	202	80ca	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-LossOnRetirementOfFixedAssets	203	80cb	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-LossOnReductionOfFixedAssets	204	80cc	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-AdditionalIncomeTaxesForPriorPeriods	205	80cd	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-RefundOfIncomeTaxes	206	80ce	Cost	CloseByDivision	True	Credit	Debit	IN	Other	Keep
-PurchaseRebates	207	80cf	Cost	CloseByDivision	True	Credit	Debit	IN	Other	Keep
-WelfareExpenses	208	80d0	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-MaintenanceExpenses	209	80d1	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-StatutoryWelfareExpenses	210	80d2	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-LandRentPaid	211	80d3	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-InsuranceExpense	212	80d4	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-RepairsExpense	213	80d5	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-StorageExpenses	214	80d6	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-MembershipFees	215	80d7	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-IncomeSummary	216	80d8	Assets	NoClose	False	Debit	Credit	PS	Other	Nothing
-SuspenseAccount	217	80d9	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-ForeignExchangeGains	218	80da	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-ForeignExchangeLosses	219	80db	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-ContraAccountForGuaranteeObligations	220	80dc	Assets	CloseByDivision	False	Debit	Credit	PS	Other	Nothing
-GuaranteeObligations	221	80dd	Liability	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
-IncomeTaxesAdjustment	222	80de	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-BranchCurrentAccount	223	80df	Assets	CloseByDivision	False	Debit	Credit	PS	Other	Nothing
-HeadOfficeCurrentAccount	224	80e0	Liability	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
-NetIncomeAttributableToNCI	225	80e1	Cost	NoClose	False	Debit	Credit	OUT	Other	Nothing
-NetLossAttributableToNCI	226	80e2	Revenue	NoClose	False	Credit	Debit	IN	Other	Nothing
-TradingSecurities	227	80e3	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-HeldToMaturityBonds	228	80e4	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-SubsidiaryStocks	229	80e5	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-AffiliateStocks	230	80e6	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-AvailableForSaleSecurities	231	80e7	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
-ConsumptionTaxRefundReceivable	232	80e8	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-PropertyTaxPayable	233	80e9	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-DepositsReceivedFromOfficers	234	80ea	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
-EntertainmentExpenses	235	80eb	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-MeetingExpenses	236	80ec	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-NewspaperBooksExpenses	237	80ed	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
-RawMaterials	238	80ee	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-GoodsInTransit	239	80ef	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
-SalesAllowances	240	80f0	Revenue	CloseByDivision	True	Debit	Credit	OUT	Other	Flip
-PurchaseAllowances	241	80f1	Cost	CloseByDivision	True	Credit	Debit	IN	Other	Keep
-ReversalOfAllowanceForBonuses	242	80f2	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
-DirectorsCompensations	243	80f3	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+# account-algebra-behavior semantics (title, binaryHex, division, closing, isContra, whichSide Not, whichSide Hat, whatPIMO, fixedCurrent, finalStockProbe); schema 1
+Cash	8000	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+Deposits	8001	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+CurrentDeposits	8002	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+Securities	8003	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+InvestmentSecurities	8004	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+InvestmentInAssociate	8005	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+LongTermNationalBonds	8006	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+ShortTermNationalBonds	8007	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+Products	8008	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+Machinery	8009	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+Building	800a	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+Vehicle	800b	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+StockInvestment	800c	Assets	CloseByDivision	False	Debit	Credit	PS	Other	Nothing
+EquipmentInvestment	800d	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+LongTermLoansReceivable	800e	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+AccountsReceivable	800f	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+ShortTermLoansReceivable	8010	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+ReserveDepositReceivable	8011	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+Gold	8012	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+GovernmentService	8013	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+CapitalStock	8014	Equity	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
+RetainedEarnings	8015	Equity	CloseByDivision	False	Credit	Debit	MS	Other	SELF
+LongTermLoansPayable	8016	Liability	CloseByDivision	False	Credit	Debit	MS	Fixed	Nothing
+ShortTermLoansPayable	8017	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+LoansPayable	8018	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+ReserveForDepreciation	8019	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+DepositPayable	801a	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+LongTermNationalBondsPayable	801b	Liability	CloseByDivision	False	Credit	Debit	MS	Fixed	Nothing
+ShortTermNationalBondsPayable	801c	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+ReserveDepositPayable	801d	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+CentralBankNotePayable	801e	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+Depreciation	801f	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+AmortizationExpense	8020	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+SalesCost	8021	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+BusinessTrip	8022	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+UtilitiesExpense	8024	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+RentExpense	8025	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+AdvertisingExpense	8026	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+DeliveryExpenses	8027	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+SuppliesExpenses	8028	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+MiscellaneousExpenses	8029	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+WageExpenditure	802a	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+InterestExpense	802b	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+TaxesExpense	802c	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+ConsumptionExpenditure	802d	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+SubsidyExpense	802e	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+CentralBankPaymentExpense	802f	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+Purchases	8030	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+NetIncome	8031	Cost	NoClose	False	Debit	Credit	OUT	Other	Nothing
+ValueAdded	8032	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+SubsidyIncome	8033	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+NationalBondInterestEarned	8034	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+DepositInterestEarned	8035	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+GrossProfit	8036	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+OrdinaryProfit	8037	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+InterestEarned	8038	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+ReceiptFee	8039	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+RentalIncome	803a	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+WageEarned	803b	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+TaxesRevenue	803c	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+CentralBankPaymentIncome	803d	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+Sales	803e	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+EquityInEarningsOfInvestee	803f	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+NetLoss	8040	Revenue	NoClose	False	Credit	Debit	IN	Other	Nothing
+PettyCash	8041	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+NotesReceivable	8042	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+ElectronicallyRecordedReceivable	8043	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+CreditCardReceivable	8044	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+NotesLoansReceivable	8045	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+MerchandiseInventory	8046	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+AdvancesPaid	8047	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+PrepaidExpenses	8048	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+AccruedRevenue	8049	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+OtherReceivables	804a	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+PaymentsOnBehalf	804b	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+SuspensePayments	804c	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+ConsumptionTaxPaid	804d	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+PrepaidCorporateIncomeTaxes	804e	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+Land	804f	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+Fixtures	8050	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+Patent	8051	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+Trademark	8052	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+Software	8053	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+CashOverShort	8054	Assets	CloseByDivision	False	Debit	Credit	PS	Other	Nothing
+AccountsPayable	8055	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+NotesPayable	8056	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+ElectronicallyRecordedObligations	8057	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+NotesLoansPayable	8058	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+BankOverdraft	8059	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+AdvancesReceived	805a	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+UnearnedRevenue	805b	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+AccruedExpenses	805c	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+OtherPayables	805d	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+DepositsReceived	805e	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+SuspenseReceipts	805f	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+ConsumptionTaxReceived	8060	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+AccruedConsumptionTax	8061	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+AccruedCorporateIncomeTaxes	8062	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+UnpaidDividends	8063	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+AllowanceForDoubtfulAccounts	8064	Assets	CloseByDivision	True	Credit	Debit	MS	Current	Nothing
+AccumulatedDepreciation	8065	Assets	CloseByDivision	True	Credit	Debit	MS	Fixed	Nothing
+LegalRetainedEarnings	8066	Equity	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
+CumulativeTranslationAdjustment	8067	Equity	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
+ProvisionForDoubtfulAccounts	8068	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+BadDebtLoss	8069	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+LossOnSalesOfFixedAssets	806a	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+LossOnSalesOfNotesReceivable	806b	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+PaymentFees	806c	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+MiscellaneousLoss	806d	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+CorporateIncomeTaxes	806e	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+CommunicationExpenses	806f	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+GainOnSalesOfFixedAssets	8070	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+RecoveryOfBadDebts	8071	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+MiscellaneousIncome	8072	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+ReversalOfAllowanceForDoubtfulAccounts	8073	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+TimeDeposits	8074	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+LoansReceivable	8075	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+GiftCertificatesReceived	8076	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+SecurityDepositsPaid	8077	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+SuppliesOnHand	8078	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+ContractAssets	8079	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+IncomeTaxesRefundReceivable	807a	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+WorkInProcess	807b	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+DeferredTaxAssets	807c	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+LeasedAssets	807d	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+ToolsAndInstruments	807e	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+ConstructionInProgress	807f	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+Goodwill	8080	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+SoftwareInProgress	8081	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+LongTermPrepaidExpenses	8082	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+DishonoredNotesReceivable	8083	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+PrepaidPensionCost	8084	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+NetDefinedBenefitAsset	8085	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+DepositsInSpecialAccounts	8086	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+Structures	8087	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+LeaseholdRights	8088	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+NonOperatingNotesReceivable	8089	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+NonOperatingElectronicallyRecordedReceivable	808a	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+RefundLiabilities	808b	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+NonOperatingNotesPayable	808c	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+NonOperatingElectronicallyRecordedObligations	808d	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+BonusesPayable	808e	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+AllowanceForRepairs	808f	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+AllowanceForProductWarranties	8090	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+AllowanceForBonuses	8091	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+DeferredTaxLiabilities	8092	Liability	CloseByDivision	False	Credit	Debit	MS	Fixed	Nothing
+LeaseObligations	8093	Liability	CloseByDivision	False	Credit	Debit	MS	Fixed	Nothing
+GuaranteeDepositsReceived	8094	Liability	CloseByDivision	False	Credit	Debit	MS	Fixed	Nothing
+AllowanceForRetirementBenefits	8095	Liability	CloseByDivision	False	Credit	Debit	MS	Fixed	Nothing
+LongTermOtherPayables	8096	Liability	CloseByDivision	False	Credit	Debit	MS	Fixed	Nothing
+NetDefinedBenefitLiability	8097	Liability	CloseByDivision	False	Credit	Debit	MS	Fixed	Nothing
+StockSubscriptionDeposits	8098	Equity	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
+LegalCapitalSurplus	8099	Equity	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
+OtherCapitalSurplus	809a	Equity	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
+DividendEqualizationReserve	809b	Equity	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
+RepairFundReserve	809c	Equity	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
+ConstructionFundReserve	809d	Equity	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
+GeneralReserve	809e	Equity	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
+ValuationDifferenceOnOtherSecurities	809f	Equity	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
+NonControllingInterests	80a0	Equity	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
+CapitalSurplus	80a1	Equity	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
+EarnedSurplus	80a2	Equity	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
+ServiceRevenue	80a3	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+OperatingRevenue	80a4	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+GainOnSalesOfSecurities	80a5	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+GainOnValuationOfSecurities	80a6	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+DividendsReceived	80a7	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+InterestOnSecurities	80a8	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+GainOnSalesOfInvestmentSecurities	80a9	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+InsuranceGain	80aa	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+GainOnBargainPurchase	80ab	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+ReversalOfAllowanceForRepairs	80ac	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+ReversalOfAllowanceForProductWarranties	80ad	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+GainOnDonationOfFixedAssets	80ae	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+GainOnNationalSubsidies	80af	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+GainOnConstructionGrants	80b0	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+LandRentReceived	80b1	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+SalesRebates	80b2	Revenue	CloseByDivision	True	Debit	Credit	OUT	Other	Flip
+CostOfServices	80b3	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+OperatingExpenses	80b4	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+InventoryShrinkageLoss	80b5	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+LossOnValuationOfMerchandise	80b6	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+Bonuses	80b7	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+RetirementBenefitExpenses	80b8	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+ProvisionForRepairs	80b9	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+ProvisionForBonuses	80ba	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+ProvisionForProductWarranties	80bb	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+ResearchAndDevelopmentExpenses	80bc	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+AmortizationOfGoodwill	80bd	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+AmortizationOfSoftware	80be	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+AmortizationOfPatents	80bf	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+LeaseExpenses	80c0	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+IncorporationExpenses	80c1	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+StockIssuanceCosts	80c2	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+BusinessCommencementExpenses	80c3	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+DevelopmentExpenses	80c4	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+LossOnSalesOfElectronicallyRecordedReceivables	80c5	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+LossOnSalesOfReceivables	80c6	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+LossOnSalesOfSecurities	80c7	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+LossOnValuationOfSecurities	80c8	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+LossOnSalesOfInvestmentSecurities	80c9	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+LossOnFire	80ca	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+LossOnRetirementOfFixedAssets	80cb	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+LossOnReductionOfFixedAssets	80cc	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+AdditionalIncomeTaxesForPriorPeriods	80cd	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+RefundOfIncomeTaxes	80ce	Cost	CloseByDivision	True	Credit	Debit	IN	Other	Keep
+PurchaseRebates	80cf	Cost	CloseByDivision	True	Credit	Debit	IN	Other	Keep
+WelfareExpenses	80d0	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+MaintenanceExpenses	80d1	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+StatutoryWelfareExpenses	80d2	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+LandRentPaid	80d3	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+InsuranceExpense	80d4	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+RepairsExpense	80d5	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+StorageExpenses	80d6	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+MembershipFees	80d7	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+IncomeSummary	80d8	Assets	NoClose	False	Debit	Credit	PS	Other	Nothing
+SuspenseAccount	80d9	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+ForeignExchangeGains	80da	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+ForeignExchangeLosses	80db	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+ContraAccountForGuaranteeObligations	80dc	Assets	CloseByDivision	False	Debit	Credit	PS	Other	Nothing
+GuaranteeObligations	80dd	Liability	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
+IncomeTaxesAdjustment	80de	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+BranchCurrentAccount	80df	Assets	CloseByDivision	False	Debit	Credit	PS	Other	Nothing
+HeadOfficeCurrentAccount	80e0	Liability	CloseByDivision	False	Credit	Debit	MS	Other	Nothing
+NetIncomeAttributableToNCI	80e1	Cost	NoClose	False	Debit	Credit	OUT	Other	Nothing
+NetLossAttributableToNCI	80e2	Revenue	NoClose	False	Credit	Debit	IN	Other	Nothing
+TradingSecurities	80e3	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+HeldToMaturityBonds	80e4	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+SubsidiaryStocks	80e5	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+AffiliateStocks	80e6	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+AvailableForSaleSecurities	80e7	Assets	CloseByDivision	False	Debit	Credit	PS	Fixed	Nothing
+ConsumptionTaxRefundReceivable	80e8	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+PropertyTaxPayable	80e9	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+DepositsReceivedFromOfficers	80ea	Liability	CloseByDivision	False	Credit	Debit	MS	Current	Nothing
+EntertainmentExpenses	80eb	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+MeetingExpenses	80ec	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+NewspaperBooksExpenses	80ed	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip
+RawMaterials	80ee	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+GoodsInTransit	80ef	Assets	CloseByDivision	False	Debit	Credit	PS	Current	Nothing
+SalesAllowances	80f0	Revenue	CloseByDivision	True	Debit	Credit	OUT	Other	Flip
+PurchaseAllowances	80f1	Cost	CloseByDivision	True	Credit	Debit	IN	Other	Keep
+ReversalOfAllowanceForBonuses	80f2	Revenue	CloseByDivision	False	Credit	Debit	IN	Other	Keep
+DirectorsCompensations	80f3	Cost	CloseByDivision	False	Debit	Credit	OUT	Other	Flip

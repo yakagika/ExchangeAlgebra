@@ -1,10 +1,8 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE TypeFamilies #-}
-
--- This sample also checks the import from the historical reporting module.
-{-# OPTIONS_GHC -Wno-deprecations #-}
 
 -- | Audit a shop's chart, read its cash ledger, and close it to owner's capital.
 module Main (main) where
@@ -37,23 +35,20 @@ import ExchangeAlgebra.Accounting.Audit
 import qualified ExchangeAlgebra.Accounting.Statements.Metric as Metric
     (MetricError, MetricErrorOf(..))
 import qualified ExchangeAlgebra.Accounting.Statements as Statements
-    (MetricError, MetricErrorOf(..), StatementLine, StatementLineOf(..))
-import qualified ExchangeAlgebra.Reporting.Metric as Reporting
-    (MetricError, MetricErrorOf(..))
+    ( MetricError, MetricErrorOf(..), StatementLine, StatementLineOf(..)
+    , GroupRowKind, GroupRowKindOf(..)
+    )
 import qualified ExchangeAlgebra.Accounting.Statements.Presentation as Presentation
     ( StatementLine, StatementLineOf(..), ReportingContextOf, FinancialStatementsOf(..)
     , PresentationAuditEvent, PresentationAuditEventOf(..), present
+    , pattern ReciprocalAccountsEliminated
     )
-import qualified ExchangeAlgebra.Reporting.Presentation as OldPresentation
-    (PresentationAuditEvent, PresentationAuditEventOf(..))
 import ExchangeAlgebra.Accounting.Statements.Presentation
     (AccountingFramework(..), ReportingScope(..), PresentationProfile(..), StatementSection(..))
 import qualified ExchangeAlgebra.Accounting.Statements.Group as Groups
     ( PresentationGroupDefOf(..), GroupRowKind, GroupRowKindOf(..)
     , GroupRowOf(..), GroupedPresentationOf
     )
-import qualified ExchangeAlgebra.Reporting.Group as OldGroups
-    (GroupRowKind, GroupRowKindOf(..))
 import ExchangeAlgebra.Accounting.Statements.Group
     ( PresentationGroup(..), RelativeAmount(..), presentGroups
     , gpBlocks, gpRootTotals, gpConsumed
@@ -149,12 +144,11 @@ checkBuiltInImports = do
     check (closingResiduals (1 .@ Not :< Sales) == Error (AccountingFinding residual :| []))
           "built-in closing residual"
     let metricError = Metric.WildcardMetricAccount :: Metric.MetricError
-    check (metricError == (Statements.WildcardMetricAccount :: Statements.MetricError)
-        && metricError == (Reporting.WildcardMetricAccount :: Reporting.MetricError))
+    check (metricError == (Statements.WildcardMetricAccount :: Statements.MetricError))
         "metric imports agree"
 
 -- | Old annotations and constructors imported through the new type names
--- agree across the defining modules, umbrella, and compatibility modules.
+-- agree across the defining modules and umbrellas.
 checkPresentationImports :: IO ()
 checkPresentationImports = do
     let line :: Presentation.StatementLine MoneyDecimal
@@ -165,18 +159,18 @@ checkPresentationImports = do
         rootLine = Root.StatementLine Cash "Cash" CurrentAssetsSection Debit 1 False
         rowKind :: Groups.GroupRowKind
         rowKind = Groups.DeductionRow SalesRebates
-        oldRowKind :: OldGroups.GroupRowKind
-        oldRowKind = OldGroups.DeductionRow SalesRebates
-        reciprocal :: OldPresentation.PresentationAuditEvent MoneyDecimal
-        reciprocal = OldPresentation.ReciprocalPairEliminated
+        umbrellaRowKind :: Statements.GroupRowKind
+        umbrellaRowKind = Statements.DeductionRow SalesRebates
+        reciprocal :: Presentation.PresentationAuditEvent MoneyDecimal
+        reciprocal = Presentation.ReciprocalPairEliminated
             BranchCurrentAccount (DebitBalance 1) HeadOfficeCurrentAccount (CreditBalance 1)
         legacyEvent :: Presentation.PresentationAuditEvent MoneyDecimal
         legacyEvent = Presentation.ReciprocalAccountsEliminated (DebitBalance 1) (CreditBalance 1)
     check (line == umbrellaLine && line == rootLine) "statement line imports agree"
-    check (rowKind == oldRowKind) "group row imports agree"
+    check (rowKind == umbrellaRowKind) "group row imports agree"
     check (legacyEvent == reciprocal) "legacy reciprocal constructor"
     case reciprocal of
-        OldPresentation.ReciprocalAccountsEliminated debit credit ->
+        Presentation.ReciprocalAccountsEliminated debit credit ->
             check (debit == DebitBalance 1 && credit == CreditBalance 1)
                   "legacy reciprocal match"
         _ -> fail "ClosingTarget: legacy reciprocal pattern did not match"

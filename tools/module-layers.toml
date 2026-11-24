@@ -1,16 +1,7 @@
 # Prefixes are relative to ExchangeAlgebra. The longest matching prefix wins.
 layers = ["Algebra", "Journal", "Accounting", "IO", "Simulation"]
 umbrella = ["ExchangeAlgebra"]
-shims = [
-  "Posting",
-  "Bookkeeping",
-  "TrialBalance.Balance",
-  "TrialBalance.Validation",
-  "Reporting.Group",
-  "Reporting.Metric",
-  "Reporting.Presentation",
-  "Consolidation.Worksheet",
-]
+shims = []
 
 [assign]
 Algebra = "Algebra"
@@ -18,15 +9,7 @@ Algebra = "Algebra"
 "Algebra.Core" = "Algebra"
 "Algebra.Posting" = "Algebra"
 "Algebra.Base" = "Algebra"
-"Algebra.Base.Element" = "Algebra"
-"Algebra.Base.Account.JcciAliases" = "Algebra"
-"Algebra.Base.Account.Registry" = "Algebra"
-"Algebra.Base.Account.Types" = "Algebra"
-Value = "Algebra"
-Posting = "Algebra"
-"Algebra.Base.Account" = "Accounting"
 "Algebra.Transfer" = "Algebra"
-"Algebra.Transfer.Rule" = "Algebra"
 "Algebra.Transfer.Representation" = "Algebra"
 "Accounting.Closing" = "Accounting"
 "Accounting.Entries" = "Accounting"
@@ -42,17 +25,9 @@ Accounting = "Accounting"
 "Accounting.Transaction" = "Accounting"
 "Accounting.Equivalence" = "Accounting"
 "Accounting.Exchange" = "Accounting"
-Bookkeeping = "Accounting"
-TrialBalance = "Accounting"
-Reporting = "Accounting"
-Consolidation = "Accounting"
 Journal = "Journal"
 "Journal.Core" = "Journal"
 "Journal.Core.Representation" = "Journal"
-Convert = "IO"
-Assist = "IO"
-"Render.Csv" = "IO"
-"Render.Bookkeeping" = "IO"
 IO = "IO"
 "IO.Input" = "IO"
 "IO.Input.Conversion" = "IO"
@@ -89,42 +64,12 @@ to = "Simulation.Visualize"
 # These orphans are outside the import graph. Remove them when the dependency
 # supplies the instances or the axes become newtypes.
 [[notes]]
-item = "Hashable Day, Hashable TimeOfDay in Algebra.Base.Element"
+item = "Hashable Day, Hashable TimeOfDay in Algebra.Element.Representation"
 reason = "Existing orphan instances; remove when upstream supplies them or axes use newtypes."
 remove_by = "upstream instance or newtype migration"
 
 [[exceptions]]
 from = "Render.Simulation"
 to = "Simulation.Output"
-reason = "Legacy rendering namespace re-exports simulation CSV output during 0.6."
-remove_by = "0.7.0.0"
-
-[[exceptions]]
-from = "Algebra.Base.Element"
-to = "Accounting.Account"
-reason = "Legacy element path re-exports AccountTitles during 0.6."
-remove_by = "0.7.0.0"
-
-[[exceptions]]
-from = "Algebra.Base.Account.JcciAliases"
-to = "Accounting.Account.Aliases"
-reason = "Legacy account alias namespace re-exports the new owner."
-remove_by = "0.7.0.0"
-
-[[exceptions]]
-from = "Algebra.Base.Account.Registry"
-to = "Accounting.Account.Registry"
-reason = "Legacy account registry namespace re-exports the new owner."
-remove_by = "0.7.0.0"
-
-[[exceptions]]
-from = "Algebra.Base.Account.Types"
-to = "Accounting.Account.Classification"
-reason = "Legacy account types namespace re-exports the new owner."
-remove_by = "0.7.0.0"
-
-[[exceptions]]
-from = "Algebra.Transfer.Rule"
-to = "Accounting.Closing"
-reason = "Compatibility module deprecated in 0.6; retained until removal."
-remove_by = "0.7.0.0"
+reason = "Keep the rendering re-export until simulation moves to a separate package in 0.8."
+remove_by = "0.8.0.0"

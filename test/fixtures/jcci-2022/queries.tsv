@@ -212,7 +212,7 @@ grade	division	source_columns	query	expected	candidates	source_standard_names
 3	費用	A	減価償却費	right	Depreciation	減価償却費
 3	費用	B	建物減価償却費	right	Depreciation	減価償却費
 3	費用	B	備品減価償却費	right	Depreciation	減価償却費
-3	費用	A	通信費	ambiguous	CommunicationExpenses|Commutation	通信費
+3	費用	A	通信費	right	CommunicationExpenses	通信費
 3	費用	A	消耗品費	right	SuppliesExpenses	消耗品費
 3	費用	B	事務用消耗品費	right	SuppliesExpenses	消耗品費
 3	費用	A	水道光熱費	right	UtilitiesExpense	水道光熱費

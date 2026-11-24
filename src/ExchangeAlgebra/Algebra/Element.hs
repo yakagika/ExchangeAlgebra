@@ -33,8 +33,7 @@ True
 == Import guidance
 
 Import 'Element' and its associated symbols from
-"ExchangeAlgebra.Algebra.Element". The old
-"ExchangeAlgebra.Algebra.Base.Element" module is deprecated.
+"ExchangeAlgebra.Algebra.Element".
 -}
 module ExchangeAlgebra.Algebra.Element
     ( Element(..), AxisKey(..), axisIsWildcard, AxisDecompose(..), (.#)

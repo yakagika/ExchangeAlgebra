@@ -21,14 +21,13 @@ parser mapping. Land 4a gives the three level-2 A names `未収還付消費税`,
 query after `normalizeTitle`: `right` for a unique constructor and `ambiguous`
 for a deliberate candidate set. Its candidates describe the complete parser
 contract: JCCI-derived aliases combined with pre-existing EA aliases. Therefore
-an A name can remain ambiguous when the same spelling is also a B name, and
-legacy constructors such as `Securities`, `InvestmentSecurities`, and
-`Commutation` remain visible rather than being silently removed. Shared names
-and generic gain/loss names are never resolved by first-match order.
+an A name can remain ambiguous when the same spelling is also a B name.
+`通信費` resolves to `CommunicationExpenses`. Shared names and generic
+gain/loss names are never resolved by first-match order.
 
-The 21 frozen ambiguities are: `銀行預金`, `〇〇商店`, `貸付金`, `仮払金`,
+The 20 remaining ambiguities are: `銀行預金`, `〇〇商店`, `貸付金`, `仮払金`,
 `有価証券`, `投資有価証券`, `関係会社株式`, `借入金`, `未払金`, `仮受金`,
-`営業収益`, `有価証券運用益`, `通信費`, `地代家賃`, `支払賃借料`,
+`営業収益`, `有価証券運用益`, `地代家賃`, `支払賃借料`,
 `支払不動産賃借料`, `営業費用`, `有価証券運用損`, `為替差損益`,
 `有価証券評価損益`, and `有価証券運用損益`. `〇〇商店` is a literal
 counterparty placeholder in the source; real counterparty names do not become

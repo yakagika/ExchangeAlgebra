@@ -296,7 +296,7 @@ axiomProperties = do
     quickProp "lemma: (.+) associative" $
         forAll genAlgD $ \x -> forAll genAlgD $ \y -> forAll genAlgD $ \z ->
             netByBase ((x .+ y) .+ z) == netByBase (x .+ (y .+ z))
-    -- regression: union must not relabel a value onto a zero posting's base
+    -- regression: union must not move a value onto a zero posting's base
     -- (the 0.4.1.1 bug; raw (:@) so zero-valued singletons are exercised)
     quickProp "regression: union preserves per-base net (zero-base bug)" $
         forAll genNNDouble $ \v1 -> forAll genBase $ \b1 ->
@@ -319,7 +319,7 @@ axiomProperties = do
         forAll genAlgN $ \x -> netByBase (EA.mapBasePart id x :: NNAlg) == netByBase x
     quickProp "mapBasePart preserves norm under base collapse (MoneyDecimal)" $
         forAll genAlgN $ \x -> norm (EA.mapBasePart (const Amount) x :: NNAlg) == norm x
-    -- S-4: functoriality of the base-relabel map pi_kappa (Prop 2.8(4)):
+    -- S-4: functoriality of the base map pi_kappa (Prop 2.8(4)):
     --   mapBasePart (kappa' . kappa) x  ~=_pi  mapBasePart kappa' (mapBasePart kappa x)
     -- The two kappa are non-identity, non-injective relabelers on CountUnit so the
     -- composite collapses bases (Yen -> Dollar -> Amount), exercising the value
@@ -493,8 +493,8 @@ functorialityLawProperties = do
     -- extendBy (0.5.1.0 A1): the free extension in the redundant layer.
     let dup :: MoneyDecimal -> HatBase CountUnit -> NNAlg
         dup v b = (v .@ b) .+ (v .@ b)
-        relabel :: (CountUnit -> CountUnit) -> MoneyDecimal -> HatBase CountUnit -> NNAlg
-        relabel f v b = v .@ EA.merge (EA.hat b) (f (EA.base b))
+        mapTermBase :: (CountUnit -> CountUnit) -> MoneyDecimal -> HatBase CountUnit -> NNAlg
+        mapTermBase f v b = v .@ EA.merge (EA.hat b) (f (EA.base b))
     quickProp "extendBy: (.+) homomorphism holds through per-base multisets" $
         forAll genAlgN $ \x -> forAll genAlgN $ \y ->
             observe (EA.extendBy dup (x .+ y) :: NNAlg)
@@ -504,7 +504,7 @@ functorialityLawProperties = do
     quickProp "extendBy: mapBasePart is the relabelling special case" $
         forAll genAlgN $ \x ->
             observe (EA.mapBasePart (const Amount) x :: NNAlg)
-                == observe (EA.extendBy (relabel (const Amount)) x :: NNAlg)
+                == observe (EA.extendBy (mapTermBase (const Amount)) x :: NNAlg)
     quickProp "extendBy: norm is the sum of the substituted norms" $
         forAll genAlgN $ \x -> norm (EA.extendBy dup x :: NNAlg) == 2 * norm x
     quickProp "extendBy: substituting Zero everywhere yields Zero" $

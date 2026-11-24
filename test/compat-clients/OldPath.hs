@@ -6,12 +6,12 @@ import qualified ExchangeAlgebra as Umbrella
 import ExchangeAlgebra.Algebra (Alg(Zero, (:@)), Redundant((.+)), ( .@ ))
 import qualified ExchangeAlgebra.Algebra.Base as Base
 import ExchangeAlgebra.Algebra.Base (Hat(Not), HatBase((:<)))
-import ExchangeAlgebra.Algebra.Base.Element (AccountTitles(Cash, Sales))
-import qualified ExchangeAlgebra.Algebra.Base.Account.Registry as Registry
-import ExchangeAlgebra.Algebra.Transfer.Rule ()
+import ExchangeAlgebra.Accounting.Account (AccountTitles(Cash, Sales))
+import qualified ExchangeAlgebra.Accounting.Account as Registry
+import ExchangeAlgebra.Algebra.Transfer ()
 import qualified ExchangeAlgebra.Journal as Journal
-import qualified ExchangeAlgebra.Posting as Posting
-import qualified ExchangeAlgebra.Value as Value
+import qualified ExchangeAlgebra.Algebra.Posting as Posting
+import qualified ExchangeAlgebra.Algebra.Value as Value
 
 type ClientBasePart = Base.BasePart (HatBase AccountTitles)
 

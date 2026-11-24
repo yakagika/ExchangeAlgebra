@@ -20,16 +20,13 @@ import           System.Exit (exitFailure)
 import           Test.QuickCheck hiding (label, sample)
 import           ExchangeAlgebra.Algebra hiding (map, filter)
 import qualified ExchangeAlgebra.Algebra as Algebra
-import ExchangeAlgebra.Algebra.Transfer.Rule ( TransferScale(..)
+import ExchangeAlgebra.Algebra.Transfer ( TransferScale(..)
                                              , TransferRule(..)
                                              , TransferRules
                                              , TransferRuleError(..)
                                              , TransferApplyError(..)
                                              , mkTransferRules
                                              , rulesToList
-                                             , relabel
-                                             , scaleBy
-                                             , divideBy
                                              , transferEntries
                                              , collapseEntries
                                              , collapseNetEntries
@@ -37,7 +34,6 @@ import ExchangeAlgebra.Algebra.Transfer.Rule ( TransferScale(..)
 import ExchangeAlgebra.Accounting.Closing (ClosingSide(..), ClosingError(..), closingSide, closingEntries)
 import qualified ExchangeAlgebra.Journal as Journal
 import           ExchangeAlgebra.Journal ((.|), Note(..))
-import qualified ExchangeAlgebra.Journal.Transfer.Rule as JournalRule
 import           ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 
 -- | Concrete account and unit coordinates for compatibility properties.
@@ -52,12 +48,11 @@ instance ExBaseClass TestBase where
 -- | Integer posting quantities bounded away from zero for the independent oracle.
 type TestQuantity = Integer
 
--- | Generated flat postings and one permitted scale coefficient.
-data CompatibilityCase = CompatibilityCase [(TestQuantity, TestBase)] Rational
+-- | Generated flat postings for the transfer laws.
+newtype CompatibilityCase = CompatibilityCase [(TestQuantity, TestBase)]
     deriving (Show)
 
--- | Generate P1-P5-compatible inputs; every rule table includes HatNot,
--- Relabel, MulBy and DivBy, with uniform wildcard positions.
+-- | Generate inputs for rules with uniform wildcard positions.
 genCompatibilityCase :: Gen CompatibilityCase
 genCompatibilityCase = do
     count <- chooseInt (1, 35)
@@ -67,35 +62,31 @@ genCompatibilityCase = do
         title <- elements [Cash, Products, Sales, Depreciation]
         unit <- elements [Yen, Amount, Dollar]
         pure (quantity, postingHat :< (title, unit))
-    coefficient <- elements [2, 3, 1 / 2, 4]
-    pure (CompatibilityCase entries coefficient)
+    pure (CompatibilityCase entries)
 
--- | Translate the generated scale without converting division into a reciprocal.
-caseRules :: Fractional v => CompatibilityCase -> [TransferRule v TestBase]
-caseRules (CompatibilityCase _ coefficient) =
-    [ relabel (HatNot :< (Cash, wildcard)) (HatNot :< (Deposits, wildcard))
-    , scaleBy (HatNot :< (Products, wildcard))
-              (HatNot :< (RawMaterials, wildcard)) (fromRational coefficient)
-    , divideBy (HatNot :< (Sales, wildcard))
-               (HatNot :< (RetainedEarnings, wildcard)) (fromRational coefficient)
+-- | Rules used by the independent rewrite oracle.
+caseRules :: [TransferRule v TestBase]
+caseRules =
+    [ TransferRule (HatNot :< (Cash, wildcard)) (HatNot :< (Deposits, wildcard)) Relabel
+    , TransferRule (HatNot :< (Products, wildcard)) (HatNot :< (RawMaterials, wildcard)) Relabel
+    , TransferRule (HatNot :< (Sales, wildcard)) (HatNot :< (RetainedEarnings, wildcard)) Relabel
     ]
 
 -- | Construct ordinary non-negative postings through the public smart constructor.
 caseAlgebra :: HatVal v => CompatibilityCase -> Alg v TestBase
-caseAlgebra (CompatibilityCase entries _) =
+caseAlgebra (CompatibilityCase entries) =
     Algebra.fromList [fromInteger quantity .@ postingBase | (quantity, postingBase) <- entries]
 
 -- | Independently rewrite the generated concrete account coordinates.
--- The oracle uses the input coefficient, without interpreting transfer rules.
 expectedConversion :: forall v. HatVal v => CompatibilityCase -> Alg v TestBase
-expectedConversion (CompatibilityCase entries coefficient) = Algebra.fromList
+expectedConversion (CompatibilityCase entries) = Algebra.fromList
     [ convert (fromInteger quantity) posting | (quantity, posting) <- entries ]
   where
     convert :: v -> TestBase -> Alg v TestBase
     convert value (side :< (title, unit)) = case title of
         Cash -> value .@ side :< (Deposits, unit)
-        Products -> (value * fromRational coefficient) .@ side :< (RawMaterials, unit)
-        Sales -> (value / fromRational coefficient) .@ side :< (RetainedEarnings, unit)
+        Products -> value .@ side :< (RawMaterials, unit)
+        Sales -> value .@ side :< (RetainedEarnings, unit)
         _ -> value .@ side :< (title, unit)
 
 -- | Law observation: complete base including Hat/Not to value, after bar.
@@ -119,7 +110,7 @@ nearObservations left right = all close (Map.keys (Map.union left right))
 -- | L1 compares every resulting base, not only the overall norm.
 propCompatibility :: forall v. HatVal v => Proxy v -> Property
 propCompatibility _ = forAll genCompatibilityCase $ \sample ->
-    let rules = caseRules sample :: [TransferRule v TestBase]
+    let rules = caseRules :: [TransferRule v TestBase]
         ledger = caseAlgebra sample :: Alg v TestBase
     in case applyChecked (mkTransferRules rules) ledger of
         Left failure -> counterexample failure False
@@ -154,7 +145,7 @@ propClosing _ = forAll genCompatibilityCase $ \sample ->
 propBalance :: forall v. HatVal v => Proxy v -> Property
 propBalance _ = forAll genCompatibilityCase $ \sample ->
     let ledger = caseAlgebra sample :: Alg v TestBase
-        rules = [relabel (HatNot :< (Cash, wildcard)) (HatNot :< (Deposits, wildcard))]
+        rules = [TransferRule (HatNot :< (Cash, wildcard)) (HatNot :< (Deposits, wildcard)) Relabel]
     in case mkTransferRules rules of
         Left failure -> counterexample (show failure) False
         Right validated -> case transferEntries validated ledger of
@@ -167,17 +158,18 @@ propBalance _ = forAll genCompatibilityCase $ \sample ->
 
 -- | L4 pins permutation invariance of successful construction and fingerprints.
 propCanonical :: Property
-propCanonical = forAll genCompatibilityCase $ \sample ->
-    let rules = caseRules sample :: [TransferRule Double TestBase]
-    in forAll (shuffle rules) $ \permuted -> case (mkTransferRules rules, mkTransferRules permuted) of
-        (Right first, Right second) -> property (first == second && hash first == hash second)
-        failures -> counterexample (show failures) False
+propCanonical =
+    let rules = caseRules :: [TransferRule Double TestBase]
+    in forAll (shuffle rules) $ \permuted ->
+        case (mkTransferRules rules, mkTransferRules permuted) of
+            (Right first, Right second) -> property (first == second && hash first == hash second)
+            failures                    -> counterexample (show failures) False
 
 -- | L5 observes all output values before bar for transfers and closing.
 propNonnegative :: forall v. HatVal v => Proxy v -> Property
 propNonnegative _ = forAll genCompatibilityCase $ \sample ->
     let ledger = caseAlgebra sample :: Alg v TestBase
-    in case mkTransferRules (caseRules sample) of
+    in case mkTransferRules (caseRules) of
         Left failure -> counterexample (show failure) False
         Right rules -> case transferEntries rules ledger of
             Left failure -> counterexample (show failure) False
@@ -208,26 +200,24 @@ quickProperty label proposition = do
         exitFailure
     putStrLn ("[PASS] " ++ label)
 
--- | Reject overlaps, duplicates and all invalid coefficients deterministically.
+-- | Reject overlaps and duplicates deterministically.
 testValidation :: IO ()
 testValidation = do
-    let first = relabel (HatNot :< (Cash, wildcard)) (Not :< (Deposits, Yen))
+    let first = TransferRule (HatNot :< (Cash, wildcard)) (Not :< (Deposits, Yen)) Relabel
             :: TransferRule Double TestBase
-        second = relabel (Not :< (Cash, Yen)) (Not :< (Products, Yen))
-        third = relabel (Not :< (Cash, Amount)) (Not :< (Sales, Amount))
+        second = TransferRule (Not :< (Cash, Yen)) (Not :< (Products, Yen)) Relabel
+        third = TransferRule (Not :< (Cash, Amount)) (Not :< (Sales, Amount)) Relabel
         overlap expectedFirst expectedSecond result = case result of
             Left (OverlappingRules actualFirst actualSecond) ->
                 actualFirst == expectedFirst && actualSecond == expectedSecond
             _ -> False
     assertTest "overlap input order" (overlap first second (mkTransferRules [first, second, third]))
     assertTest "duplicate rejected" (overlap first first (mkTransferRules [first, first]))
-    mapM_ (\coefficient -> mapM_ (checkCoefficient first second coefficient) [scaleBy, divideBy])
-        [0, -1, 0 / 0, 1 / 0, -1 / 0]
-    let nestedFirst = relabel (Hat :< ((Cash, wildcard), Yen))
-                              (Hat :< ((Deposits, Amount), Yen))
+    let nestedFirst = TransferRule (Hat :< ((Cash, wildcard), Yen))
+                              (Hat :< ((Deposits, Amount), Yen)) Relabel
             :: TransferRule Double (HatBase ((AccountTitles, CountUnit), CountUnit))
-        nestedSecond = relabel (Hat :< ((wildcard, Amount), wildcard))
-                               (Hat :< ((Products, Amount), Yen))
+        nestedSecond = TransferRule (Hat :< ((wildcard, Amount), wildcard))
+                               (Hat :< ((Products, Amount), Yen)) Relabel
     assertTest "nested partial wildcard overlap" $
         overlap nestedFirst nestedSecond (mkTransferRules [nestedFirst, nestedSecond])
     canonical <- requireRight "valid rules" (mkTransferRules ([second, third] :: [TransferRule Double TestBase]))
@@ -238,22 +228,13 @@ testValidation = do
         Left _ -> pure ()
         Right (_, _, value) -> assertTest "Binary refuses overlapping rules"
             (const False (value :: TransferRules Double TestBase))
-  where
-    checkCoefficient first second coefficient constructor = do
-        let invalid = constructor (Not :< (Products, Yen)) (Not :< (Cash, Yen)) coefficient
-            later = scaleBy (Not :< (Deposits, Yen)) (Not :< (Cash, Yen)) 0
-        assertTest "coefficient checked before overlap; first error" $
-            case mkTransferRules [first, second, invalid, later] of
-                Left (InvalidCoefficient rule) -> ruleFrom rule == ruleFrom invalid
-                _ -> False
-
 -- | Mixed wildcard positions match every posting under every rule permutation.
 testMixedWildcardPermutations :: IO ()
 testMixedWildcardPermutations = do
     let rules =
-            [ relabel (Hat :< (wildcard, Yen)) (Hat :< (wildcard, Amount))
-            , relabel (Not :< (Cash, wildcard)) (Not :< (Deposits, wildcard))
-            , relabel (Hat :< (Products, Amount)) (Hat :< (Purchases, Amount))
+            [ TransferRule (Hat :< (wildcard, Yen)) (Hat :< (wildcard, Amount)) Relabel
+            , TransferRule (Not :< (Cash, wildcard)) (Not :< (Deposits, wildcard)) Relabel
+            , TransferRule (Hat :< (Products, Amount)) (Hat :< (Purchases, Amount)) Relabel
             ] :: [TransferRule Double TestBase]
         ledger = 9 .@ Hat :< (Sales, Yen)
               .+ 8 .@ Hat :< (Deposits, Yen)
@@ -268,7 +249,7 @@ testMixedWildcardPermutations = do
         entries <- requireRight "mixed wildcard application" (transferEntries validated ledger)
         assertTest "new API transforms all three entries" (obs (ledger .+ entries) == obs expected)
 
--- | One-way matching, no-op, zero result, HatNot and overflow edge cases.
+-- | One-way matching, identical bases, zero input, and HatNot.
 testApplication :: IO ()
 testApplication = do
     let source = Not :< (Cash, Yen)
@@ -278,65 +259,31 @@ testApplication = do
         (mkTransferRules [] :: Either (TransferRuleError Double TestBase) (TransferRules Double TestBase))
     emptyEntries <- requireRight "empty rules emit nothing" (transferEntries emptyRules literalWildcard)
     assertTest "empty rule set" (Algebra.isZero emptyEntries)
-    concrete <- requireRight "concrete rule" (mkTransferRules [relabel source target])
+    concrete <- requireRight "concrete rule" (mkTransferRules [TransferRule source target Relabel])
     zeroEntries <- requireRight "zero input" (transferEntries concrete Zero)
     assertTest "zero input emits nothing" (Algebra.isZero zeroEntries)
     unmatched <- requireRight "ledger wildcard is literal" (transferEntries concrete literalWildcard)
     assertTest "one-way matching" (Algebra.isZero unmatched)
-    noOp <- requireRight "identity rule" (mkTransferRules [relabel source source])
+    noOp <- requireRight "identity rule" (mkTransferRules [TransferRule source source Relabel])
     identityEntries <- requireRight "identity application" (transferEntries noOp (10 .@ source :: Alg Double TestBase))
     assertTest "identity emits nothing" (Algebra.isZero identityEntries)
     wildcardRule <- requireRight "HatNot rule" $
-        mkTransferRules [relabel (HatNot :< (Cash, wildcard)) (HatNot :< (Deposits, wildcard))]
+        mkTransferRules
+            [TransferRule (HatNot :< (Cash, wildcard)) (HatNot :< (Deposits, wildcard)) Relabel]
     invalidHat <- requireRight "HatNot posting is ignored" $
         transferEntries wildcardRule
             (10 `Internal.Single` HatNot :< (Cash, Yen) :: Alg Double TestBase)
     assertTest "HatNot posting" (Algebra.isZero invalidHat)
-    underflow <- requireRight "underflow rule" (mkTransferRules [scaleBy source target (1e-300 :: Double)])
-    zeroTarget <- requireRight "underflow result" (transferEntries underflow (1e-300 .@ source))
-    assertTest "zero result emits only cancellation" $
-        rawObservation zeroTarget == Map.singleton (revHat source) 1e-300
-    overflow <- requireRight "overflow rule" (mkTransferRules [scaleBy source target (2 :: Double)])
-    assertTest "Algebra overflow is Left" $ case transferEntries overflow (1e308 .@ source) of
-        Left (NonFiniteResult rule value postingBase) ->
-            ruleFrom rule == source && value == 1e308 && postingBase == source
-        _ -> False
-    divisionOverflow <- requireRight "division overflow rule" $
-        mkTransferRules [divideBy source target (1e-308 :: Double)]
-    assertTest "division overflow is Left" $
-        case transferEntries divisionOverflow (2 .@ source) of
-            Left (NonFiniteResult rule value postingBase) ->
-                ruleScale rule == DivBy 1e-308 && value == 2 && postingBase == source
-            _ -> False
     let largeSource = 1e308 .@ source .+ 1e308 .@ source :: Alg Double TestBase
     largeEntries <- requireRight "Relabel preserves finite individual values"
         (transferEntries concrete largeSource)
     assertTest "transfer does not aggregate large postings" $
         length (vals largeEntries) == 4 && all (not . isErrorValue) (vals largeEntries)
-    let journal = (5 .@ source .| "first") .+ (7 .@ source .| "second")
-    additions <- requireRight "two-note application" (JournalRule.transferEntries concrete journal)
-    let at note value = case HashMap.lookup note (Journal.toMap additions) of
-            Nothing -> False
-            Just entries -> rawObservation entries == rawObservation
-                (value .@ revHat source .+ value .@ target)
-    assertTest "two notes preserved" (HashMap.size (Journal.toMap additions) == 2 && at "first" 5 && at "second" 7)
     let cancellationInput = 10 .@ source .+ 10 .@ revHat source :: Alg Double TestBase
     rawEntries <- requireRight "no implicit bar" (transferEntries wildcardRule cancellationInput)
     assertTest "opposing generated postings remain raw" (length (vals rawEntries) == 4)
-    let overflowingJournal = (5 .@ source .| "small") .+ (1e308 .@ source .| "large")
-    assertTest "Journal overflow aborts whole result" $
-        case JournalRule.transferEntries overflow overflowingJournal of
-            Left (NonFiniteResult _ value _) -> value == 1e308
-            _ -> False
-    let failures = (1e308 .@ source .| "a") .+ (1.1e308 .@ source .| "b")
-    case HashMap.toList (Journal.toMap failures) of
-        [] -> assertTest "failure fixture is nonempty" False
-        (_, first) : _ -> assertTest "Journal returns first traversal error" $
-            case JournalRule.transferEntries overflow failures of
-                Left (NonFiniteResult _ value _) -> vals first == [value]
-                _ -> False
-    sideChanging <- requireRight "cross-side relabel" $
-        mkTransferRules [relabel source (Not :< (Sales, Yen))]
+    sideChanging <- requireRight "cross-side transfer" $
+        mkTransferRules [TransferRule source (Not :< (Sales, Yen)) Relabel]
     unbalanced <- requireRight "cross-side application" (transferEntries sideChanging (10 .@ source :: Alg Double TestBase))
     assertTest "L3 needs equal debit-credit sides" (norm (decL unbalanced) /= norm (decR unbalanced))
 
@@ -506,7 +453,7 @@ instance Element ValuationGood where
 
 type ValuationBase = HatBase (AccountTitles, ValuationGood, Owner, CountUnit)
 
--- | Retain the raw count in its own axes, then net the value across goods.
+-- | Convert units, then net the value across goods.
 testValuationCollapse :: IO ()
 testValuationCollapse = do
     let source good = Not :< (Products, good, Alice, Amount)
@@ -516,11 +463,11 @@ testValuationCollapse = do
         patternBase = Not :< (Products, wildcard, Alice, Yen)
         dropGood (title, _, owner, unit) = (title, wildcard, owner, unit)
         expected = Not :< (Products, wildcard, Alice, Yen)
-    rules <- requireRight "valuation rules" $
-        mkTransferRules [scaleBy (source GoodA) (target GoodA) 2,
-                         scaleBy (source GoodB) (target GoodB) 10]
-    valuationEntries <- requireRight "valuation transfer" (transferEntries rules ledger)
-    let valued = ledger .+ valuationEntries
+    let valueGood value (_ :< (_, good, _, _)) = case good of
+            GoodA -> (2 * value, target GoodA)
+            GoodB -> (10 * value, target GoodB)
+            AnyValuationGood -> (value, source AnyValuationGood)
+        valued = Algebra.mapPosting valueGood ledger
         collapsed = bar (valued .+ collapseNetEntries [patternBase] dropGood valued)
     assertTest "valuation of two goods becomes one 40 posting" $
         rawObservation collapsed == Map.singleton expected 40
@@ -571,13 +518,13 @@ testWildcardLedger = do
         ledger = 7 .@ source :: Alg MoneyDecimal TestBase
         target = Not :< (Deposits, wildcard)
     concrete <- requireRight "concrete source rule" $
-        mkTransferRules [relabel (Not :< (Sales, Yen)) target]
+        mkTransferRules [TransferRule (Not :< (Sales, Yen)) target Relabel]
     concreteEntries <- requireRight "concrete source application" $
         transferEntries concrete ledger
     assertTest "concrete source does not match ledger wildcard" $
         Algebra.isZero concreteEntries
     wildcardRule <- requireRight "wildcard source rule" $
-        mkTransferRules [relabel source target]
+        mkTransferRules [TransferRule source target Relabel]
     wildcardEntries <- requireRight "wildcard source application" $
         transferEntries wildcardRule ledger
     assertTest "wildcard source matches ledger wildcard" $

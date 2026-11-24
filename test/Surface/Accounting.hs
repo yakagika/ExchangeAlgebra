@@ -37,7 +37,6 @@ module Surface.Accounting
           , AmortizationExpense
           , SalesCost
           , BusinessTrip
-          , Commutation
           , UtilitiesExpense
           , RentExpense
           , AdvertisingExpense
@@ -333,7 +332,6 @@ import           ExchangeAlgebra.Accounting
                            , AmortizationExpense
                            , SalesCost
                            , BusinessTrip
-                           , Commutation
                            , UtilitiesExpense
                            , RentExpense
                            , AdvertisingExpense

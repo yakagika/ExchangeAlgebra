@@ -113,8 +113,6 @@ main = do
     [outdir] <- getArgs
     createDirectoryIfMissing True outdir
     let titles = Registry.concreteAccountTitles
-        allTitles = [minBound .. maxBound] :: [AccountTitles]
-        ordinalRow title = tshow title <> "\t" <> tshow (fromEnum title)
         semanticsRow title =
             let nb = Not :< title :: B
                 hb = Hat :< title :: B
@@ -128,9 +126,6 @@ main = do
                 , tshow (fixedCurrent nb)
                 , probeRule title
                 ]
-    TIO.writeFile (outdir </> "ordinals.tsv") $
-        header "Enum ordinals (constructor, fromEnum)"
-        <> T.unlines (L.map ordinalRow allTitles)
     TIO.writeFile (outdir </> "semantics.tsv") $
         header "semantics (title, whatDiv, isContra, whichSide Not, whichSide Hat, whatPIMO, fixedCurrent, finalStockProbe)"
         <> T.unlines (L.map semanticsRow titles)

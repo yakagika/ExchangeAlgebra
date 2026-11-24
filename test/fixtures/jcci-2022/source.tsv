@@ -156,7 +156,7 @@
 3	費用	貸倒引当金繰入	貸倒引当金繰入額	ProvisionForDoubtfulAccounts	EXISTS
 3	費用	貸倒損失		BadDebtLoss	EXISTS
 3	費用	減価償却費	建物減価償却費|備品減価償却費	Depreciation	EXISTS
-3	費用	通信費		CommunicationExpenses|Commutation	AMBIGUOUS_LEGACY
+3	費用	通信費		CommunicationExpenses	EXISTS
 3	費用	消耗品費	事務用消耗品費	SuppliesExpenses	EXISTS
 3	費用	水道光熱費	光熱水費	UtilitiesExpense	EXISTS
 3	費用	支払家賃	地代家賃|支払賃借料|支払不動産賃借料	RentExpense	EXISTS

@@ -17,8 +17,7 @@ section before the complete-result section.
 
 module ExchangeAlgebra.Journal.Transfer.Rule
     ( -- * Additional entries
-      transferEntries
-    , carryEntries
+      carryEntries
       -- * Complete results
     , carryBefore
       -- * Side totals
@@ -36,8 +35,6 @@ import ExchangeAlgebra.Algebra.Core ( Alg( (:@) )
                                     , Redundant((.^))
                                     )
 import qualified ExchangeAlgebra.Algebra.Core as Algebra
-import ExchangeAlgebra.Algebra.Transfer.Representation (TransferRules, TransferApplyError)
-import qualified ExchangeAlgebra.Algebra.Transfer.Representation as Rule
 import ExchangeAlgebra.Algebra.Base.Representation (Hat(..), HatBaseClass(..))
 import ExchangeAlgebra.Algebra.Value.Class (HatVal(..), isErrorValue)
 import qualified ExchangeAlgebra.Algebra.Value.Class as Value
@@ -45,30 +42,11 @@ import ExchangeAlgebra.Journal.Core ( Journal
                                     , Note
                                     , (.|)
                                     , toMap
-                                    , fromMap
                                     )
 import qualified ExchangeAlgebra.Journal.Core as Journal
 import           ExchangeAlgebra.Algebra.Posting (PostSide(..))
 
 -- * Additional entries
-
-{-# DEPRECATED transferEntries "Use transferEntriesBy of ExchangeAlgebra.Accounting.Transfer, which reads the exact balance per target note." #-}
-
--- | Generate additional entries under the same notes as their sources.
--- Each note is processed in the traversal order of 'toMap'. The first failure
--- aborts the whole operation; no partial Journal is returned. This order is
--- an implementation traversal, not a chronological ordering of notes.
--- Input posting values must be valid and finite. No @bar@ is applied.
-transferEntries :: (Note n, HatVal v, HatBaseClass b)
-                => TransferRules v b
-                -> Journal n v b
-                -> Either (TransferApplyError v b) (Journal n v b)
-transferEntries rules journal = fromMap . Map.fromList
-                             <$> traverse apply (Map.toList (toMap journal))
-  where
-    apply (note, algebra) = do
-        entries <- Rule.transferEntries rules algebra
-        pure (note, entries)
 
 -- | Round selected complete-base nets once and attach the carry note.
 -- Each complete base's Not and Hat values are accumulated exactly with the
@@ -206,7 +184,7 @@ carryEntries selectedNote carryNote journal = do
 --
 -- The selected net is accumulated exactly and rounded once per complete base,
 -- with the same 'CarryError' failures as 'carryEntries'. Structurally, 'carryEntries' resembles
--- 'ExchangeAlgebra.Algebra.Transfer.Rule.collapseNetEntries': both generate
+-- 'ExchangeAlgebra.Algebra.Transfer.collapseNetEntries': both generate
 -- reversals and moved nets. The latter uses @bar@ after rewriting and has a
 -- different numeric contract. Complexity: O(e log(k + 1)) for e selected
 -- scalars and k distinct selected complete bases, plus filtering and merge.

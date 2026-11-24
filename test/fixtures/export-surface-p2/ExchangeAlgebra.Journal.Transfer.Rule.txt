@@ -10,4 +10,3 @@ hatTotal
 notTotal
 sideTotal
 sideTotalsBy
-transferEntries

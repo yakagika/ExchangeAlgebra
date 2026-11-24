@@ -55,7 +55,6 @@ ClosingTargetViolation
 ClosingTargetWithoutSpec
 ClosingTransferError
 CommunicationExpenses
-Commutation
 ConstructionFundReserve
 ConstructionInProgress
 ConsumptionExpenditure
@@ -86,7 +85,6 @@ Depreciation
 DevelopmentExpenses
 DirectorsCompensations
 DishonoredNotesReceivable
-DivBy
 DividendEqualizationReserve
 DividendsReceived
 EarnedSurplus
@@ -133,7 +131,6 @@ InterestEarned
 InterestExpense
 InterestOnSecurities
 InvalidClosingTarget
-InvalidCoefficient
 InvalidPortion
 InvalidPosting
 InvalidSettleTarget
@@ -178,7 +175,6 @@ MerchandiseInventory
 MiscellaneousExpenses
 MiscellaneousIncome
 MiscellaneousLoss
-MulBy
 NationalBondInterestEarned
 NetDefinedBenefitAsset
 NetDefinedBenefitLiability
@@ -331,7 +327,6 @@ decR
 defaultSide
 diffRL
 diffRLWithin
-divideBy
 fixedCurrent
 getAccountTitle
 isContra
@@ -350,13 +345,11 @@ projDebit
 projDeferredAssets
 projFixedAssets
 projFixedLiability
-relabel
 retainedEarningsRule
 ruleFrom
 ruleScale
 ruleTo
 rulesToList
-scaleBy
 setAccountTitle
 settleEntries
 settlementSteps

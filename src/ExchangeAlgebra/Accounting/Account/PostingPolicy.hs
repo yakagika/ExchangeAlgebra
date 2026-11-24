@@ -5,7 +5,7 @@ Module      : ExchangeAlgebra.Accounting.Account.PostingPolicy
 Description : Accounting-domain posting authority for processing contexts.
 
 Accounting-domain posting authority: which account titles may be used in which
-processing context. Input adapters ("ExchangeAlgebra.Convert.Checked") and the
+processing context. Input adapters ("ExchangeAlgebra.IO.Input.Checked") and the
 consolidation worksheet ("ExchangeAlgebra.Accounting.Consolidation") consume
 this; it does not depend on either.
 

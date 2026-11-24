@@ -19,7 +19,7 @@ import ExchangeAlgebra.Simulation.Network
 -- lines whose first non-space character is @#@ are skipped, surrounding
 -- whitespace on each field is trimmed. The first non-skipped line must be the
 -- header. Avoids a @cassava@ dependency for these fixed schemas. Line splitting
--- is shared with "ExchangeAlgebra.Convert.Csv" through 'splitTrim'.
+-- is shared with "ExchangeAlgebra.IO.Input.Csv" through 'splitTrim'.
 
 -- | Parse an edge CSV with header @from,to@ into @(from, to)@ pairs.
 --

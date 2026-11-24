@@ -1,5 +1,5 @@
 -- | Compile-time lock for the public names exported by
--- "ExchangeAlgebra.Render.Bookkeeping".
+-- "ExchangeAlgebra.IO.Output.Statements".
 module Surface.Render.Bookkeeping
     ( writeJournal
     , journalRows
@@ -15,7 +15,7 @@ module Surface.Render.Bookkeeping
     , postClosingTrialBalanceRows
     ) where
 
-import           ExchangeAlgebra.Render.Bookkeeping
+import           ExchangeAlgebra.IO.Output.Statements
                      ( writeJournal
                      , journalRows
                      , writeAccountOf

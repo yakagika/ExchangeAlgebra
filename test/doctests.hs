@@ -42,7 +42,7 @@ main = doctest  [ "-isrc"
                 , "src/ExchangeAlgebra/Simulate/Policy.hs"
                   -- closing-adjustment builders: not re-exported from the
                   -- umbrella, so listed explicitly to check its examples too.
-                , "src/ExchangeAlgebra/Bookkeeping.hs"
+                , "src/ExchangeAlgebra/Accounting/Entries.hs"
                   -- dependency-free input-conversion core: not re-exported from
                   -- the umbrella, so listed explicitly to check its examples too.
                 , "src/ExchangeAlgebra/IO/Input.hs"
@@ -50,7 +50,7 @@ main = doctest  [ "-isrc"
                 , "src/ExchangeAlgebra/IO/Input/Csv.hs"
                 , "src/ExchangeAlgebra/IO/Input/Checked.hs"
                 , "src/ExchangeAlgebra/IO/Input/Assist.hs"
-                , "src/ExchangeAlgebra/Reporting/Group.hs"
+                , "src/ExchangeAlgebra/Accounting/Statements/Group.hs"
                   -- optimization layer: not re-exported from the umbrella,
                   -- so listed explicitly to check its examples too.
                 , "src/ExchangeAlgebra/Simulation/Optimize.hs"
@@ -62,7 +62,4 @@ main = doctest  [ "-isrc"
                 , "src/ExchangeAlgebra/Simulate/Random.hs"
                 , "src/ExchangeAlgebra/IO/Output/Csv.hs"
                 , "src/ExchangeAlgebra/IO/Output/Statements.hs"
-                  -- deprecated Render shims still carry the row-layout examples.
-                , "src/ExchangeAlgebra/Render/Csv.hs"
-                , "src/ExchangeAlgebra/Render/Bookkeeping.hs"
                 , "src/ExchangeAlgebra/Simulation/Output.hs"]

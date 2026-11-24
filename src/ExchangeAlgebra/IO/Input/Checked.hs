@@ -91,7 +91,7 @@ import           ExchangeAlgebra.Journal.Core
 
 -- $postingPolicy
 -- 'ProcessingContext' and 'postingAllowedIn' are defined in
--- "ExchangeAlgebra.Accounting.PostingPolicy" and re-exported here so the
+-- "ExchangeAlgebra.Accounting.Account" and re-exported here so the
 -- historical import path keeps working. The gate itself is accounting-domain
 -- policy, not an input-adapter concern.
 

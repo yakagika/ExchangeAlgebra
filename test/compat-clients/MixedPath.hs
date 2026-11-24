@@ -17,12 +17,9 @@ import qualified ExchangeAlgebra.Algebra.Element as Element
 import qualified ExchangeAlgebra.Algebra.Value as Value
 import qualified ExchangeAlgebra.Algebra.Core as Core
 import qualified ExchangeAlgebra.Algebra.Posting as Posting
-import qualified ExchangeAlgebra.Algebra.Transfer.Rule as Rule
 import qualified ExchangeAlgebra.Accounting.Closing as Closing
 import qualified ExchangeAlgebra.Journal.Core as JournalCore
-import qualified ExchangeAlgebra.Value as OldValue
-import qualified ExchangeAlgebra.TrialBalance.Balance as OldTrialBalance
-import qualified ExchangeAlgebra.Consolidation.Worksheet as OldConsolidation
+import qualified ExchangeAlgebra.Accounting.TrialBalance.Balance as Balance
 import qualified ExchangeAlgebra.Accounting.TrialBalance as TrialBalance
 import qualified ExchangeAlgebra.Accounting.Consolidation as Consolidation
 import qualified ExchangeAlgebra.Accounting.Statements as Statements
@@ -59,26 +56,23 @@ mixedElement = Element.matchesQuery Cash Cash
 mixedValue :: Value.MoneyDecimal -> Value.MoneyDecimal
 mixedValue = id
 
-mixedOldValue :: OldValue.MoneyDecimal -> Value.MoneyDecimal
-mixedOldValue = id
-
 -- | Apply the new closing entry point to an algebra built through the old path.
-mixedClosing :: Either (Rule.ClosingError Double (HatBase Account.AccountTitles))
+mixedClosing :: Either (Closing.ClosingError Double (HatBase Account.AccountTitles))
                        (Core.Alg Double (HatBase Account.AccountTitles))
 mixedClosing = Closing.closingEntries Old.oldExpression
 
--- | Pass a balance made through the old path to the new account readout.
+-- | Pass a balance read through the balance module to the new account readout.
 mixedTrialBalance :: TrialBalance.AccountBalance Double
-mixedTrialBalance = TrialBalance.combineBalances oldBalance oldBalance
+mixedTrialBalance = TrialBalance.combineBalances balance balance
   where
-    oldBalance = OldTrialBalance.balanceFor Cash
-        (OldTrialBalance.accountBalances Old.oldExpression)
+    balance = Balance.balanceFor Cash
+        (Balance.accountBalances Old.oldExpression)
 
 mixedStatements :: Maybe Statements.DerivedMetric
 mixedStatements = Statements.metricForLegacyTitle Cash
 
 mixedConsolidation
-    :: OldConsolidation.WorksheetInput String String Double
+    :: Consolidation.WorksheetInput String String Double
     -> Consolidation.WorksheetInput String String Double
 mixedConsolidation = id
 

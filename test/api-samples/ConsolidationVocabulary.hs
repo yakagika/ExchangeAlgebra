@@ -30,14 +30,6 @@ import ExchangeAlgebra.Accounting.TrialBalance.Balance
 import ExchangeAlgebra.Algebra.Base (BaseClass, Element(..), Hat(..), HatBase((:<)))
 import ExchangeAlgebra.Algebra.Core ((.@), (.+))
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal)
-import qualified ExchangeAlgebra.Consolidation.Worksheet as Old
-    ( TrialBalanceSource, TrialBalanceSourceOf(..)
-    , WorksheetAdjustment, WorksheetAdjustmentOf(..)
-    , WorksheetInput, WorksheetInputOf(..)
-    , WorksheetError, WorksheetErrorOf(..)
-    , ValidatedWorksheet, ValidatedWorksheetOf
-    , validateConsolidationWorksheet, combinedWorksheet
-    )
 
 data GroupTitle = AnyTitle | Bank | InvestmentInSubsidiary | ShareCapital | AccumulatedProfit
     deriving (Eq, Ord, Show, Generic)
@@ -93,49 +85,44 @@ formationLinkage = C.WorksheetLinkage
     NoBalance PeriodBreakEven 0 NoBalance NoBalance
 
 -- | Import legacy type aliases alongside constructors and fields from the
--- polymorphic types. Confirm that both module paths expose the same types.
-checkCompatibilityImports :: IO ()
-checkCompatibilityImports = do
+-- polymorphic types through the consolidation module.
+checkBuiltInWorksheet :: IO ()
+checkBuiltInWorksheet = do
     let source :: C.TrialBalanceSource String MoneyDecimal
         source = C.TrialBalanceSource "parent" mempty
         adjustment :: C.WorksheetAdjustment String String MoneyDecimal
         adjustment = C.WorksheetAdjustment "empty" (C._sourceId source :| []) mempty
         input :: C.WorksheetInput String String MoneyDecimal
         input = C.WorksheetInput
-            { C._worksheetSources =
-                (source :: Old.TrialBalanceSource String MoneyDecimal) :| []
-            , C._worksheetAdjustments =
-                [adjustment :: Old.WorksheetAdjustment String String MoneyDecimal]
+            { C._worksheetSources = source :| []
+            , C._worksheetAdjustments = [adjustment]
             , C._worksheetLinkage = formationLinkage
             }
-        oldInput = input :: Old.WorksheetInput String String MoneyDecimal
-        canonicalError = C.EmptyAdjustment "empty" :: C.WorksheetError String String MoneyDecimal
-        shimError = Old.EmptyAdjustment "empty" :: Old.WorksheetError String String MoneyDecimal
-    case oldInput of
-        Old.WorksheetInput (Old.TrialBalanceSource sourceId _ :| [])
-                           [Old.WorksheetAdjustment adjustmentId _ _] linkage
+        emptyAdjustment = C.EmptyAdjustment "empty" :: C.WorksheetError String String MoneyDecimal
+    case input of
+        C.WorksheetInput (C.TrialBalanceSource sourceId _ :| [])
+                           [C.WorksheetAdjustment adjustmentId _ _] linkage
             | sourceId == C._sourceId source
             , adjustmentId == C._adjustmentId adjustment
-            , linkage == Old._worksheetLinkage oldInput
-            , canonicalError == shimError -> pure ()
+            , linkage == formationLinkage -> pure ()
         _ -> fail "worksheet constructors or fields disagree"
-    case Old.validateConsolidationWorksheet oldInput of
-        Left errors | errors == shimError :| [] -> pure ()
+    case C.validateConsolidationWorksheet input of
+        Left errors | errors == emptyAdjustment :| [] -> pure ()
         _ -> fail "the empty adjustment should be rejected"
     let validation :: Either (NonEmpty (C.WorksheetError String String MoneyDecimal))
                              (C.ValidatedWorksheet String String MoneyDecimal)
         validation = C.validateConsolidationWorksheet
-            oldInput { Old._worksheetAdjustments = [] }
+            input { C._worksheetAdjustments = [] }
     validated <- either (fail . show) pure validation
-    let oldValidated = validated :: Old.ValidatedWorksheet String String MoneyDecimal
-        oldCombined = Old.combinedWorksheet
-            (oldValidated :: Old.ValidatedWorksheetOf AccountTitles String String MoneyDecimal)
-    unless (oldCombined == mempty)
+    let builtInValidated = validated :: C.ValidatedWorksheet String String MoneyDecimal
+        combined = C.combinedWorksheet
+            (builtInValidated :: C.ValidatedWorksheetOf AccountTitles String String MoneyDecimal)
+    unless (combined == mempty)
         (fail "validated worksheet imports disagree")
 
 main :: IO ()
 main = do
-    checkCompatibilityImports
+    checkBuiltInWorksheet
     let result :: Either (NonEmpty (C.WorksheetErrorOf GroupTitle String String MoneyDecimal))
                          (C.ValidatedWorksheetOf GroupTitle String String MoneyDecimal)
         result = C.validateConsolidationWorksheet worksheet

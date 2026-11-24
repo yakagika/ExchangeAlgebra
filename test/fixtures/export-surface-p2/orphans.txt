@@ -13,8 +13,8 @@ examples/basic/fixedPriceIOSpill.hs: instance ExBaseClass HatBase2
 examples/basic/fixedPriceIOSpill.hs: instance StateTime Term
 examples/basic/fixedPriceIOSpill.hs: type instance TitleOf HatBase2 = AccountTitles -- Defined at basic/fixedPriceIOSpill.hs:150:1
 examples/optimization/CGE/CGE.hs: instance StateTime Term
-src/ExchangeAlgebra/Algebra/Base/Element.hs: instance Hashable Day
-src/ExchangeAlgebra/Algebra/Base/Element.hs: instance Hashable TimeOfDay
+src/ExchangeAlgebra/Algebra/Element/Representation.hs: instance Hashable Day
+src/ExchangeAlgebra/Algebra/Element/Representation.hs: instance Hashable TimeOfDay
 test/Spec.hs: instance BaseClass SimCompany
 test/Spec.hs: instance Element SimCompany
 test/Spec.hs: instance ExBaseClass SimHatBase2

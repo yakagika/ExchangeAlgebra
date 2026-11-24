@@ -98,7 +98,7 @@ of at most @1e-9 * max (abs x) (abs y)@, treating absent bases as zero.
 * Instances: 'Double' and @MoneyDecimal@ with 'StandardBase' bases, and
   with 'ExBaseClass' bases that keep the 'whatDiv' and 'isContra' defaults.
 
-A relabel from @Not :< Cash@ to @Not :< Sales@ violates L3's side
+A rule from @Not :< Cash@ to @Not :< Sales@ violates L3's side
 precondition: its cancellation and destination are both credits.
 
 === L5: non-negativity

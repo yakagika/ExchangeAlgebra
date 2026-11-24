@@ -62,18 +62,24 @@ decodeAccountTitleOrFail bytes = case Binary.decodeOrFail bytes of
     Left (_, _, message) -> Left message
     Right (_, _, title)  -> Right title
 
+-- | The wire fixture pins the bytes of each surviving title. Keep retired
+-- codes reserved. Version 0.7.0.0 stopped pinning derived Enum ordinals
+-- because removing a title shifts the ordinals of later constructors.
 testAccountTitlesBinary :: IO ()
 testAccountTitlesBinary = do
     let titles = [minBound .. maxBound] :: [AccountTitles]
         roundTripped = L.map (Binary.decode . Binary.encode) titles
         codes = L.map (BinaryGet.runGet BinaryGet.getWord16be . Binary.encode) titles
-        invalidCodes = [0x0000, 0x0001, 0x00F2, 0x7FFF, 0x8000 + fromIntegral (length titles)]
-    assertEqual "AccountTitles Binary covers all 245 constructors"
-        245 (L.length titles)
+        invalidCodes = [0x0000, 0x0001, 0x00F2, 0x7FFF, 0x8023, 0x80F4]
+    assertEqual "AccountTitles Binary covers all 244 constructors"
+        244 (L.length titles)
     assertEqual "AccountTitles Binary Word16be roundtrip"
         titles roundTripped
-    assertEqual "B4 AccountTitles codes are injective" 245 (Set.size (Set.fromList codes))
+    assertEqual "B4 AccountTitles codes are injective" 244 (Set.size (Set.fromList codes))
     assertEqual "B4 AccountTitles codes carry the version bit" True (all (>= 0x8000) codes)
+    assertEqual "AccountTitles wildcard is maxBound" AccountTitle maxBound
+    assertEqual "concreteAccountTitles covers all non-wildcard constructors"
+        (L.filter (/= AccountTitle) titles) Registry.concreteAccountTitles
     assertEqual "B4 wildcard code is fixed" (BinaryPut.runPut (BinaryPut.putWord16be 0xFFFF))
         (Binary.encode AccountTitle)
     forM_ invalidCodes $ \code ->
@@ -152,7 +158,6 @@ accountTitleClassTable =
     , (AmortizationExpense,           Cost,      Debit,  Other)
     , (SalesCost,                     Cost,      Debit,  Other)
     , (BusinessTrip,                  Cost,      Debit,  Other)
-    , (Commutation,                   Cost,      Debit,  Other)
     , (UtilitiesExpense,              Cost,      Debit,  Other)
     , (RentExpense,                   Cost,      Debit,  Other)
     , (AdvertisingExpense,            Cost,      Debit,  Other)
@@ -430,80 +435,9 @@ testFinalStockRuleReference = mapM_ check Registry.concreteAccountTitles
         div_   = classifyAccountDivision t
         contra = Registry.classifyAccountContra t
 
--- ================================================================
--- V-Land 2 scaffolding (語彙拡張の受理条件, レビュー非依存):
--- pre-vland2 fixture (tools/DumpVocabGolden.hs で生成, commit 85d6a7f に pin)
--- に対する Enum 挿入規律 pin と意味関数 closed-diff。
--- ================================================================
-
--- | 挿入規律 pin: 語彙拡張は「既存 concrete constructor の Enum 序数を 1 つも
--- 動かさず, 新規は最大既存 concrete 序数と wildcard の間にのみ挿入し,
--- wildcard ('AccountTitle') は maxBound のまま」でなければならない
--- (Binary Word16 直列化互換と既存 fixture 世代の解釈可能性の要)。
-testVocabOrdinalPin :: IO ()
-testVocabOrdinalPin = do
-    fixture <- TIO.readFile "test/fixtures/pre-vland2/ordinals.tsv"
-    let parseOrd line = case T.splitOn (T.pack "\t") line of
-            [name, ordText] -> (name, read (T.unpack ordText) :: Int)
-            fields -> error ("invalid pre-vland2 ordinals row: " ++ show fields)
-        rows =
-            [ parseOrd line
-            | line <- T.lines fixture
-            , not (T.null line)
-            , not (T.isPrefixOf (T.pack "#") line)
-            ]
-        current = M.fromList
-            [ (T.pack (show t), fromEnum t)
-            | t <- [minBound .. maxBound] :: [AccountTitles] ]
-        wildcardName = T.pack (show (AccountTitle :: AccountTitles))
-        pinnedConcrete = [ r | r@(n, _) <- rows, n /= wildcardName ]
-        moved =
-            [ (n, o, M.lookup n current)
-            | (n, o) <- pinnedConcrete
-            , M.lookup n current /= Just o ]
-    assertEqual "vocab ordinal pin: fixture rows = 117 (116 concrete + wildcard)"
-        117 (L.length rows)
-    assertEqual "vocab ordinal pin: no pinned concrete ordinal moved" [] moved
-    assertEqual "vocab ordinal pin: wildcard is maxBound"
-        (fromEnum (maxBound :: AccountTitles))
-        (fromEnum (AccountTitle :: AccountTitles))
-    let maxPinned = L.maximum [ o | (_, o) <- pinnedConcrete ]
-        pinnedNames = M.fromList [ (n, ()) | (n, _) <- rows ]
-        misplaced =
-            [ (n, o)
-            | (n, o) <- M.toList current
-            , not (M.member n pinnedNames)
-            , not (o > maxPinned && o < fromEnum (maxBound :: AccountTitles)) ]
-    assertEqual "vocab ordinal pin: new constructors sit between max pinned and wildcard"
-        [] misplaced
-    assertEqual "vocab ordinal pin: appended constructor ordinals and wildcard"
-        [232..244]
-        (L.map fromEnum
-            [ ConsumptionTaxRefundReceivable
-            , PropertyTaxPayable
-            , DepositsReceivedFromOfficers
-            , EntertainmentExpenses
-            , MeetingExpenses
-            , NewspaperBooksExpenses
-            , RawMaterials
-            , GoodsInTransit
-            , SalesAllowances
-            , PurchaseAllowances
-            , ReversalOfAllowanceForBonuses
-            , DirectorsCompensations
-            , AccountTitle
-            ])
-    -- concreteAccountTitles は wildcard 以外の全 constructor を被覆すること。
-    -- 現行の hardcoded 上限 ([Cash .. ReversalOfAllowanceForDoubtfulAccounts]) は
-    -- 挿入後に新規科目が漏れるため, この assert が V-Land 2 に
-    -- filter (/= wildcard) [minBound ..] への導出化を強制する。
-    assertEqual "vocab ordinal pin: concreteAccountTitles covers all non-wildcard constructors"
-        (L.filter (/= (AccountTitle :: AccountTitles)) [minBound .. maxBound])
-        Registry.concreteAccountTitles
-
 testAssistAllAccountInfos :: IO ()
 testAssistAllAccountInfos = do
-    assertEqual "Assist.allAccountInfos length" 244 (length Assist.allAccountInfos)
+    assertEqual "Assist.allAccountInfos length" 243 (length Assist.allAccountInfos)
     assertEqual "Assist.allAccountInfos follows concreteAccountTitles order"
         PP.concreteAccountTitles (L.map Assist.aiTitle Assist.allAccountInfos)
     forM_ Assist.allAccountInfos $ \info -> do
@@ -550,8 +484,8 @@ testAccountSemanticsRegistryInvariants = do
                 StatementDivision _ -> False
                 _                   -> True
             ]
-    assertEqual "metadata covers all 244 concrete titles"
-        244 (L.length semantics)
+    assertEqual "metadata covers all 243 concrete titles"
+        243 (L.length semantics)
     assertEqual "metadata rejects wildcard AccountTitle"
         Nothing (Registry.accountSemantics AccountTitle)
     assertEqual "non-statement metadata is exactly the reviewed exception set"
@@ -676,10 +610,8 @@ accountRegistrySuggestions =
 
 testAccountSemanticsGolden :: IO ()
 testAccountSemanticsGolden = do
-    metadata <- TIO.readFile "test/fixtures/account-semantics-050/metadata.tsv"
-    info <- TIO.readFile "test/fixtures/account-semantics-050/account-info.tsv"
-    suggest <- TIO.readFile "test/fixtures/account-semantics-050/suggest.tsv"
-    let expectedMetadata =
+    let dir = "test/fixtures/account-semantics-050/"
+        expectedMetadata =
             accountRegistryHeader
                 (T.pack "registry (title, roles, posting, divisionSemantics, homeSideSemantics, reportingEligibility)")
             <> T.unlines (L.map accountRegistryRow Registry.concreteAccountTitles)
@@ -687,12 +619,12 @@ testAccountSemanticsGolden = do
             accountRegistryHeader
                 (T.pack "LLM AccountInfo (title, roles, posting, divisionSemantics, homeSideSemantics, reportingEligibility, nameEn, nameJa, description)")
             <> T.unlines (L.map accountRegistryInfoRow Assist.allAccountInfos)
-    assertEqual "metadata fixture has 244 rows"
-        244 (L.length (L.drop 1 (T.lines metadata)))
-    assertEqual "metadata fixture" metadata expectedMetadata
-    assertEqual "LLM AccountInfo fixture" info expectedInfo
-    assertEqual "LLM suggestion fixture"
-        suggest accountRegistrySuggestions
+    goldenCheck "metadata fixture" (dir ++ "metadata.tsv") expectedMetadata
+    goldenCheck "LLM AccountInfo fixture" (dir ++ "account-info.tsv") expectedInfo
+    goldenCheck "LLM suggestion fixture" (dir ++ "suggest.tsv") accountRegistrySuggestions
+    metadata <- TIO.readFile (dir ++ "metadata.tsv")
+    assertEqual "metadata fixture has 243 rows"
+        243 (L.length (L.drop 1 (T.lines metadata)))
 
 testAssistSuggestAccounts :: IO ()
 testAssistSuggestAccounts = do
@@ -814,14 +746,6 @@ postVocabSuggestionsGolden =
         Just spec -> T.words (Registry.asDescription spec)
         Nothing -> []
 
-postVocabOrdinalsGolden :: T.Text
-postVocabOrdinalsGolden =
-    postVocabHeader (T.pack "Enum ordinals (constructor, fromEnum)")
-    <> T.unlines
-        [ goldenShow title <> T.pack "\t" <> goldenShow (fromEnum title)
-        | title <- [minBound .. maxBound] :: [AccountTitles]
-        ]
-
 postVocabSemanticsGolden :: T.Text
 postVocabSemanticsGolden =
     postVocabHeader (T.pack "semantics (title, whatDiv, isContra, whichSide Not, whichSide Hat, whatPIMO, fixedCurrent, finalStockProbe)")
@@ -843,14 +767,11 @@ postVocabSemanticsGolden =
 
 testPostVocabGolden :: IO ()
 testPostVocabGolden = do
-    ordinals <- TIO.readFile "test/fixtures/post-vocab/ordinals.tsv"
-    semantics <- TIO.readFile "test/fixtures/post-vocab/semantics.tsv"
-    info <- TIO.readFile "test/fixtures/post-vocab/account-info.tsv"
-    suggestions <- TIO.readFile "test/fixtures/post-vocab/suggest.tsv"
-    assertEqual "post-vocab ordinal fixture" ordinals postVocabOrdinalsGolden
-    assertEqual "post-vocab semantics fixture" semantics postVocabSemanticsGolden
-    assertEqual "post-vocab account-info fixture" info postVocabInfoGolden
-    assertEqual "post-vocab suggest fixture" suggestions postVocabSuggestionsGolden
+    let dir = "test/fixtures/post-vocab/"
+    goldenCheck "post-vocab semantics fixture" (dir ++ "semantics.tsv") postVocabSemanticsGolden
+    goldenCheck "post-vocab account-info fixture" (dir ++ "account-info.tsv") postVocabInfoGolden
+    goldenCheck "post-vocab suggest fixture" (dir ++ "suggest.tsv") postVocabSuggestionsGolden
+
 
 -- ================================================================
 -- Account behavior over every concrete title: closing, projection membership,
@@ -873,7 +794,7 @@ accountSemanticsBaselineTitles = Registry.concreteAccountTitles
 
 accountSemanticsSemanticsGolden :: T.Text
 accountSemanticsSemanticsGolden =
-    accountSemanticsHeader (T.pack "semantics (title, enum, binaryHex, division, closing, isContra, whichSide Not, whichSide Hat, whatPIMO, fixedCurrent, finalStockProbe)")
+    accountSemanticsHeader (T.pack "semantics (title, binaryHex, division, closing, isContra, whichSide Not, whichSide Hat, whatPIMO, fixedCurrent, finalStockProbe)")
     <> T.unlines (L.map row accountSemanticsBaselineTitles)
   where
     row title =
@@ -884,7 +805,6 @@ accountSemanticsSemanticsGolden =
                 Nothing -> error ("missing AccountSpec for " ++ show title)
         in T.intercalate (T.pack "\t")
             [ goldenShow title
-            , goldenShow (fromEnum title)
             , accountSemanticsBinaryHex title
             , goldenShow (Registry.asDivision spec)
             , goldenShow (Registry.asClosing spec)
@@ -1008,7 +928,7 @@ testAliasResolutionGolden = do
         (L.map EC.parseAccountTitle [T.pack "役員報酬", T.pack "給料", T.pack "役員賞与"])
     aliases <- TIO.readFile path
     assertEqual "alias resolution golden: query count"
-        703 (L.length (L.filter (not . T.null) (L.drop 1 (T.lines aliases))))
+        699 (L.length (L.filter (not . T.null) (L.drop 1 (T.lines aliases))))
     goldenCheck "alias resolution golden" path (goldenAliasResolution aliases)
 
 -- | JCCI 2022 A欄/B欄の全 distinct query は, 一意のRightかfixtureで候補を
@@ -1057,8 +977,8 @@ testJcciAccountNameCoverage = do
     assertEqual "JCCI distinct normalized A/B query count" 316 (L.length rows)
     assertEqual "JCCI fixture covers exactly the source A/B labels"
         sourceLabels fixtureLabels
-    assertEqual "JCCI unique resolutions" 295 (L.length (L.filter (== T.pack "right") outcomes))
-    assertEqual "JCCI policy ambiguities" 21 (L.length (L.filter (== T.pack "ambiguous") outcomes))
+    assertEqual "JCCI unique resolutions" 296 (L.length (L.filter (== T.pack "right") outcomes))
+    assertEqual "JCCI policy ambiguities" 20 (L.length (L.filter (== T.pack "ambiguous") outcomes))
     forM_ rows $ \row -> case T.splitOn (T.pack "\t") row of
         [_, _, _, query, _, _, standardNames] ->
             assertEqual ("JCCI source provenance: " ++ T.unpack query)
@@ -1141,8 +1061,8 @@ testJapaneseAccountLabels = do
             , any (`T.isInfixOf` label) forbidden
                 || T.any (\c -> isAscii c && isAlpha c) label
             ]
-    assertEqual "asLabelJa covers all 244 concrete titles"
-        244 (L.length labels)
+    assertEqual "asLabelJa covers all 243 concrete titles"
+        243 (L.length labels)
     assertEqual "asLabelJa contains only cleaned Japanese account names"
         ([] :: [(AccountTitles, T.Text)]) invalid
 
@@ -2139,7 +2059,7 @@ testReportingPresentation = do
         True (RP.MaterialityApplied IncomeTaxesRefundReceivable
             RP.PresentSeparately (TB.DebitBalance 5) rationale
                 `elem` RP._presentationAudit standalone)
-    assertEqual "reporting: relabel never mutates validated bookkeeping coordinates"
+    assertEqual "reporting: renaming never mutates validated bookkeeping coordinates"
         True (Purchases `elem` basesAccountTitles reportingBalance
             && SalesCost `notElem`
                 basesAccountTitles reportingBalance)
@@ -2450,14 +2370,14 @@ testStatementLaws = do
 
 testDerivedMetricsAndLegacyCoordinates :: IO ()
 testDerivedMetricsAndLegacyCoordinates = do
-    assertEqual "legacy derived-coordinate ordinals and Binary bytes"
-        [ (NetIncome, 49, T.pack "8031")
-        , (GrossProfit, 54, T.pack "8036")
-        , (OrdinaryProfit, 55, T.pack "8037")
-        , (NetLoss, 64, T.pack "8040")
-        , (IncomeSummary, 216, T.pack "80d8")
+    assertEqual "legacy derived-coordinate Binary bytes"
+        [ (NetIncome, T.pack "8031")
+        , (GrossProfit, T.pack "8036")
+        , (OrdinaryProfit, T.pack "8037")
+        , (NetLoss, T.pack "8040")
+        , (IncomeSummary, T.pack "80d8")
         ]
-        [ (title, fromEnum title, accountSemanticsBinaryHex title)
+        [ (title, accountSemanticsBinaryHex title)
         | title <- [NetIncome, GrossProfit, OrdinaryProfit, NetLoss, IncomeSummary]
         ]
     assertEqual "exactly four legacy coordinates map to typed metrics"
@@ -2870,7 +2790,7 @@ testAccumulatorAccounting = do
     case RP.present relabeled TB.BeforeClosing reportingInput of
         Left issues -> fail (show issues)
         Right statements -> do
-            assertEqual "presentation relabel rounds combined postings once"
+            assertEqual "presentation renaming rounds combined postings once"
                 [large + 2, large + 2]
                 (L.map RP._lineAmount (RP._statementLines statements))
             assertEqual "presentation subtotal retains exact transformed balance"
@@ -2965,7 +2885,6 @@ runTests = do
     testAllowanceAccountTitles
     testAccountTitleClassification
     testFinalStockRuleReference
-    testVocabOrdinalPin
     testAssistAllAccountInfos
     testAccountSemanticsRegistryInvariants
     testAccountSemanticsGolden

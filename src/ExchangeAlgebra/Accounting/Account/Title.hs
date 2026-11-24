@@ -57,7 +57,6 @@ data  AccountTitles = Cash                            -- ^ Asset: Cash (現金)
                     | AmortizationExpense             -- ^ Expense: Amortization expense for intangibles (無形固定資産償却費 — 特許権・商標権・ソフトウェア等の無形資産の償却費。有形の 'Depreciation' (減価償却費) と区別される)
                     | SalesCost                       -- ^ Expense: Cost of sales (売上原価)
                     | BusinessTrip                    -- ^ Expense: Travel and transportation (旅費交通費)
-                    | Commutation                     -- ^ Expense: Communication (通信費 — 旧称。新規コードでは 'CommunicationExpenses' を使う)
                     | UtilitiesExpense                -- ^ Expense: Utilities (水道光熱費)
                     | RentExpense                     -- ^ Expense: Rent (支払家賃)
                     | AdvertisingExpense              -- ^ Expense: Advertising (広告宣伝費)
@@ -143,7 +142,7 @@ data  AccountTitles = Cash                            -- ^ Asset: Cash (現金)
                     | PaymentFees                     -- ^ Expense: Payment fees / fees paid (支払手数料), the debit counterpart of 'ReceiptFee'
                     | MiscellaneousLoss               -- ^ Expense: Miscellaneous loss (雑損)
                     | CorporateIncomeTaxes            -- ^ Expense: Corporate income taxes (法人税等)
-                    | CommunicationExpenses           -- ^ Expense: Communication expenses (通信費). Explicitly named counterpart of the legacy 'Commutation' (also "Communication"); 'Commutation' is retained for backward compatibility.
+                    | CommunicationExpenses           -- ^ Expense: Communication expenses (通信費)
                     -- Revenue (収益)
                     | GainOnSalesOfFixedAssets        -- ^ Revenue: Gain on sales of fixed assets (固定資産売却益)
                     | RecoveryOfBadDebts              -- ^ Revenue: Recovery of bad debts written off (償却債権取立益)
@@ -283,10 +282,6 @@ data  AccountTitles = Cash                            -- ^ Asset: Cash (現金)
                     | AccountTitle                    -- ^ Wildcard (ワイルドカード — 任意の科目にマッチ。projWithBase 等の問い合わせ用で, 実 posting には使わない)
                     deriving (Show, Ord, Eq, Enum, Generic, Bounded)
 
--- Commutation の実用法は examples の文脈から「通信費」であることが確認済
--- (2026-06-11 調査)。Enum/Binary 序数の安定のため削除はせず, 新名称への移行を促す。
-{-# DEPRECATED Commutation "通信費 (communication expenses) — use 'CommunicationExpenses' instead" #-}
-
 instance NFData AccountTitles
 
 instance Hashable AccountTitles where
@@ -310,9 +305,9 @@ instance Binary.Binary AccountTitles where
 
 -- | The fixed wire code of each title. The case is total and written out, so
 -- adding a title without a code fails to compile. The numbers are the
--- declaration indices of develop at this change, frozen; a new title
--- takes the next unused number wherever it is declared. Decoding uses the
--- inverse table built from this function, not a second hand-written table.
+-- declaration indices at the time the wire codes were assigned. Give new
+-- titles fresh codes and keep retired codes, including @0x8023@, reserved.
+-- The decoder uses the inverse of this table.
 accountCode :: AccountTitles -> Word16
 accountCode title = case title of
     Cash                                           -> 0x8000
@@ -350,7 +345,6 @@ accountCode title = case title of
     AmortizationExpense                            -> 0x8020
     SalesCost                                      -> 0x8021
     BusinessTrip                                   -> 0x8022
-    Commutation                                    -> 0x8023
     UtilitiesExpense                               -> 0x8024
     RentExpense                                    -> 0x8025
     AdvertisingExpense                             -> 0x8026

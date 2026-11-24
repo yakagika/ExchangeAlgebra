@@ -29,7 +29,7 @@ import           Data.Decimal (DecimalRaw(Decimal))
 
 import           ExchangeAlgebra.Algebra.Base
 import qualified ExchangeAlgebra.Algebra.Internal as EA
-import qualified ExchangeAlgebra.Algebra.Transfer.Rule as Rule
+import qualified ExchangeAlgebra.Algebra.Transfer as Rule
 import qualified ExchangeAlgebra.Accounting.Closing as Closing
 import qualified ExchangeAlgebra.Journal as Journal
 import qualified ExchangeAlgebra.Journal.Core as JournalCore
@@ -82,16 +82,10 @@ cases =
     , eq "Alg" "Zero" (EA.Zero :: EA.Alg Double WireBase)
     , eq "Alg" "singleton" (1 `EA.Single` (Hat :< Cash) :: EA.Alg Double WireBase)
     , eq "Alg" "repeated base on both sides"
-        (EA.fromList [1 `EA.Single` (Hat :< Cash), 2 `EA.Single` (Hat :< Cash)
-                     , 3 `EA.Single` (Not :< Cash), 4 `EA.Single` (Not :< Sales)]
-            :: EA.Alg Double WireBase)
+        repeatedBaseAlg
     , eq "TransferScale" "Relabel" (Rule.Relabel :: Rule.TransferScale Double)
-    , eq "TransferScale" "MulBy" (Rule.MulBy 2 :: Rule.TransferScale Double)
-    , eq "TransferScale" "DivBy" (Rule.DivBy 0.5 :: Rule.TransferScale Double)
-    , eq "TransferRule" "relabel" (Rule.relabel (Hat :< Cash) (Not :< Sales)
+    , eq "TransferRule" "Relabel" (Rule.TransferRule (Hat :< Cash) (Not :< Sales) Rule.Relabel
         :: Rule.TransferRule Double WireBase)
-    , eq "TransferRule" "multiply" (Rule.TransferRule (Not :< Sales)
-        (Hat :< Cash) (Rule.MulBy 2) :: Rule.TransferRule Double WireBase)
     , eq "TransferRules" "empty"
         (validated [] :: Rule.TransferRules Double WireBase)
     , eq "TransferRules" "one" (validated [ruleA])
@@ -119,8 +113,8 @@ cases =
     repeated = EA.fromList [1 `EA.Single` (Hat :< Cash), 2 `EA.Single` (Hat :< Cash)
                            , 3 `EA.Single` (Not :< Cash)]
     singleton = EA.fromList [4 `EA.Single` (Not :< Sales)]
-    ruleA = Rule.relabel (Hat :< Cash) (Hat :< Sales)
-    ruleB = Rule.relabel (Not :< Cash) (Not :< Sales)
+    ruleA = Rule.TransferRule (Hat :< Cash) (Hat :< Sales) Rule.Relabel
+    ruleB = Rule.TransferRule (Not :< Cash) (Not :< Sales) Rule.Relabel
     validated :: [Rule.TransferRule Double WireBase] -> Rule.TransferRules Double WireBase
     validated rules = case Rule.mkTransferRules rules of
         Right value -> value
@@ -129,6 +123,15 @@ cases =
     checked value = case posted value of
         Right result -> result
         Left _ -> error "wire fixture: expected valid Posted"
+
+-- | Repeated terms on both sides and more than one base.
+repeatedBaseAlg :: EA.Alg Double WireBase
+repeatedBaseAlg = EA.fromList
+    [ 1 `EA.Single` (Hat :< Cash)
+    , 2 `EA.Single` (Hat :< Cash)
+    , 3 `EA.Single` (Not :< Cash)
+    , 4 `EA.Single` (Not :< Sales)
+    ]
 
 eq :: (Eq a, Binary.Binary a) => Text -> Text -> a -> WireCase
 eq name description value = WireCase name description value (==)
@@ -170,7 +173,7 @@ checkFixture :: IO ()
 checkFixture = do
     let path = fixtureDir ++ "/wire-format.tsv"
         boundaryPath = fixtureDir ++ "/decode-boundaries.tsv"
-    unless (length cases == 288 && length rejected == 23 && length accepted == 1)
+    unless (length cases == 284 && length rejected == 23 && length accepted == 1)
         (fail "wire-format-p2: case count differs")
     regen <- lookupEnv "EA_REGEN_GOLDEN"
     case regen of
@@ -188,22 +191,47 @@ checkFixture = do
                 (fail "wire-format-p2: decode boundary bytes differ")
     forM_ rejected checkRejected
     forM_ accepted checkAccepted
+    checkLegacyRepeatedBase
     checkWireLaws
 
 checkRow :: (WireCase, Text) -> IO ()
 checkRow (WireCase name description expected same, row) =
     case T.splitOn "\t" row of
         [rowName, rowDescription, bytesText]
-            | rowName == name && rowDescription == description ->
-                case unhex bytesText of
-                    Nothing -> fail "wire-format-p2: invalid hex"
-                    Just bytes -> case Binary.decodeOrFail bytes of
-                        Left (_, _, message) -> fail ("wire-format-p2: decode failed: " ++ message)
-                        Right (rest, _, actual) -> do
-                            unless (BL.null rest) (fail "wire-format-p2: trailing bytes")
-                            unless (same expected actual)
-                                (fail "wire-format-p2: decoded value differs")
+            | rowName == name && rowDescription == description -> do
+                actual <- decodeFixtureValue bytesText
+                unless (same expected actual)
+                    (fail "wire-format-p2: decoded value differs")
         _ -> fail "wire-format-p2: invalid row"
+
+-- | Decode a fixture value and require the decoder to consume all bytes.
+decodeFixtureValue :: Binary.Binary a => Text -> IO a
+decodeFixtureValue bytesText = case unhex bytesText of
+    Nothing -> fail "wire-format-p2: invalid hex"
+    Just bytes -> case Binary.decodeOrFail bytes of
+        Left (_, _, message) -> fail ("wire-format-p2: decode failed: " ++ message)
+        Right (rest, _, value) -> do
+            unless (BL.null rest) (fail "wire-format-p2: trailing bytes")
+            pure value
+
+-- | Check that the exact 0.6 bytes preserve the original term sequences.
+-- The 0.7 fixture uses the current encoding of the same algebra.
+checkLegacyRepeatedBase :: IO ()
+checkLegacyRepeatedBase = do
+    legacy <- decodeFixtureValue legacyHex
+    current <- decodeFixtureValue (hex (Binary.encode repeatedBaseAlg))
+    assertEqual "Alg 0.6 bytes decode to the original repeated-base value"
+        repeatedBaseAlg legacy
+    assertEqual "Alg 0.6 and 0.7 bytes decode to the same repeated-base value"
+        legacy current
+  where
+    legacyHex = T.concat
+        [ "0000000000000002000000000000000280000000000000000002010100000000"
+        , "0000000700000000000010ffffffffffffffcc01010000000000000007000000"
+        , "00000010ffffffffffffffcd0000000000000001010100000000000000070000"
+        , "0000000018ffffffffffffffcd803e0000000000000000000000000000000101"
+        , "01000000000000000700000000000010ffffffffffffffce"
+        ]
 
 data DecodeCase = forall a. Binary.Binary a => DecodeCase String BL.ByteString (Proxy a)
 
@@ -224,13 +252,11 @@ rejected =
     , DecodeCase "Posted infinity" (Binary.encode (1 / 0 :: Double)) (Proxy :: Proxy (Posted Double))
     , DecodeCase "Posted above bound" (Binary.encode (2 ^ (901 :: Int) :: Double))
         (Proxy :: Proxy (Posted Double))
-    , DecodeCase "TransferRules zero coefficient"
-        (Binary.encode [Rule.TransferRule (Hat :< Cash) (Hat :< Sales)
-            (Rule.MulBy (0 :: Double))])
-        (Proxy :: Proxy (Rule.TransferRules Double WireBase))
+    , DecodeCase "TransferScale removed operation" (BL.singleton 1)
+        (Proxy :: Proxy (Rule.TransferScale Double))
     , DecodeCase "TransferRules overlap"
-        (Binary.encode ([ Rule.relabel (Hat :< Cash) (Hat :< Sales)
-                        , Rule.relabel (Hat :< Cash) (Hat :< Sales)]
+        (Binary.encode ([ Rule.TransferRule (Hat :< Cash) (Hat :< Sales) Rule.Relabel
+                        , Rule.TransferRule (Hat :< Cash) (Hat :< Sales) Rule.Relabel]
             :: [Rule.TransferRule Double WireBase])
             :: BL.ByteString) (Proxy :: Proxy (Rule.TransferRules Double WireBase))
     , DecodeCase "AccountTitles unused code" (Put.runPut (Put.putWord16be 0x80F4))

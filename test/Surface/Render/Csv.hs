@@ -1,11 +1,11 @@
 -- | Compile-time lock for the public names exported by
--- "ExchangeAlgebra.Render.Csv".
+-- "ExchangeAlgebra.IO.Output.Csv".
 module Surface.Render.Csv
     ( writeCSV
     , csvTranspose
     ) where
 
-import           ExchangeAlgebra.Render.Csv
+import           ExchangeAlgebra.IO.Output.Csv
                      ( writeCSV
                      , csvTranspose
                      )

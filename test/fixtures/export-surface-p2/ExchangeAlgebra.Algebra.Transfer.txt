@@ -1,4 +1,3 @@
-InvalidCoefficient
 NonFiniteBalance
 NonFiniteResult
 OverlappingRules

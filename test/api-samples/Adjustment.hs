@@ -4,7 +4,6 @@
 -- Read balances across adjustment notes only after combining them with toAlg.
 import ExchangeAlgebra
 import qualified ExchangeAlgebra.Algebra as EA
-import qualified ExchangeAlgebra.Algebra.Transfer.Rule as Legacy
 import qualified ExchangeAlgebra.Journal as EJ
 import Control.Monad (unless)
 import Data.Text (Text)
@@ -79,11 +78,4 @@ main = do
     check "combined after reversal" (bar payment)
         $ bar
         $ EJ.toAlg reversed
-    -- Legacy per-posting scaling is still available by direct module import.
-    rules <- requireRight $ Legacy.mkTransferRules
-        [Legacy.scaleBy (Not :< (RentExpense, "lease")) (Not :< (PrepaidExpenses, "lease")) (0.5)]
-    legacyEntries <- requireRight $ Legacy.transferEntries rules payment
-    let expectedLegacy = 12000 .@ Hat :< (RentExpense, "lease")
-                      .+ 6000 .@ Not :< (PrepaidExpenses, "lease") :: Entry
-    check "legacy per-posting entries" expectedLegacy legacyEntries
     putStrLn "Adjustment: all checks passed"

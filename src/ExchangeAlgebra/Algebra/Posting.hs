@@ -29,8 +29,7 @@
 -- @
 --
 -- Import "ExchangeAlgebra.Accounting.Account" alongside this module when
--- the posting base uses account titles. The old "ExchangeAlgebra.Posting"
--- path re-exports the same types and functions during the transition.
+-- the base uses account titles.
 module ExchangeAlgebra.Algebra.Posting
     ( -- * Posting values
       Posted

@@ -34,7 +34,6 @@ Depreciation	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Cost	FixedHomeS
 AmortizationExpense	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Cost	FixedHomeSide Debit	StatementEligible	Amortization expense for intangibles	無形固定資産償却費	Expense: Amortization expense for intangibles (無形固定資産償却費 — 特許権・商標権・ソフトウェア等の無形資産の償却費。有形の 'Depreciation' (減価償却費) と区別される)
 SalesCost	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Cost	FixedHomeSide Debit	StatementEligible	Cost of sales	売上原価	Expense: Cost of sales (売上原価)
 BusinessTrip	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Cost	FixedHomeSide Debit	StatementEligible	Travel and transportation	旅費交通費	Expense: Travel and transportation (旅費交通費)
-Commutation	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Cost	FixedHomeSide Debit	StatementEligible	Communication	通信費	Expense: Communication (通信費 — 旧称。新規コードでは 'CommunicationExpenses' を使う)
 UtilitiesExpense	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Cost	FixedHomeSide Debit	StatementEligible	Utilities	水道光熱費	Expense: Utilities (水道光熱費)
 RentExpense	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Cost	FixedHomeSide Debit	StatementEligible	Rent	支払家賃	Expense: Rent (支払家賃)
 AdvertisingExpense	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Cost	FixedHomeSide Debit	StatementEligible	Advertising	広告宣伝費	Expense: Advertising (広告宣伝費)
@@ -110,7 +109,7 @@ LossOnSalesOfNotesReceivable	[OrdinaryAccount]	OrdinaryPosting	StatementDivision
 PaymentFees	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Cost	FixedHomeSide Debit	StatementEligible	Payment fees / fees paid	支払手数料	Expense: Payment fees / fees paid (支払手数料), the debit counterpart of 'ReceiptFee'
 MiscellaneousLoss	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Cost	FixedHomeSide Debit	StatementEligible	Miscellaneous loss	雑損	Expense: Miscellaneous loss (雑損)
 CorporateIncomeTaxes	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Cost	FixedHomeSide Debit	StatementEligible	Corporate income taxes	法人税等	Expense: Corporate income taxes (法人税等)
-CommunicationExpenses	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Cost	FixedHomeSide Debit	StatementEligible	Communication expenses	通信費	Expense: Communication expenses (通信費). Explicitly named counterpart of the legacy 'Commutation' (also "Communication"); 'Commutation' is retained for backward compatibility.
+CommunicationExpenses	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Cost	FixedHomeSide Debit	StatementEligible	Communication expenses	通信費	Expense: Communication expenses (通信費)
 GainOnSalesOfFixedAssets	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Revenue	FixedHomeSide Credit	StatementEligible	Gain on sales of fixed assets	固定資産売却益	Revenue: Gain on sales of fixed assets (固定資産売却益)
 RecoveryOfBadDebts	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Revenue	FixedHomeSide Credit	StatementEligible	Recovery of bad debts written off	償却債権取立益	Revenue: Recovery of bad debts written off (償却債権取立益)
 MiscellaneousIncome	[OrdinaryAccount]	OrdinaryPosting	StatementDivision Revenue	FixedHomeSide Credit	StatementEligible	Miscellaneous income	雑益	Revenue: Miscellaneous income (雑益)

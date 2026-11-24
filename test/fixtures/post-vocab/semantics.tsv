@@ -34,7 +34,6 @@ Depreciation	Cost	False	Debit	Credit	OUT	Other	Flip
 AmortizationExpense	Cost	False	Debit	Credit	OUT	Other	Flip
 SalesCost	Cost	False	Debit	Credit	OUT	Other	Flip
 BusinessTrip	Cost	False	Debit	Credit	OUT	Other	Flip
-Commutation	Cost	False	Debit	Credit	OUT	Other	Flip
 UtilitiesExpense	Cost	False	Debit	Credit	OUT	Other	Flip
 RentExpense	Cost	False	Debit	Credit	OUT	Other	Flip
 AdvertisingExpense	Cost	False	Debit	Credit	OUT	Other	Flip
