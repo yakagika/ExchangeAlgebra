@@ -10,4 +10,5 @@ result_dir: examples/benchmark/result/
 executable_notes:
   bench-core: "Core micro-benchmarks for exchangealgebra construction, bar, projection, and `BasePart` key hashing."
   repr-baseline: "Measure time, allocation, and build residency for the current `Alg` representation on a synthetic purchase network."
+  sparse-trade-model: "Measure per-term time, allocation, and journal residency for a sparse production and trade model."
 notes: "Run bench-core with stack bench; an optional Criterion HTML report can be written under the gitignored result directory."

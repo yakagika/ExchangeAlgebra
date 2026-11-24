@@ -181,6 +181,7 @@ rather than `stack run`.
 |---|---|---|---|
 | `bench-core` | `benchmark/Bench.hs` | bench | Core micro-benchmarks for exchangealgebra construction, bar, projection, and `BasePart` key hashing. |
 | `repr-baseline` | `benchmark/reprBaseline.hs` | executable | Measure time, allocation, and build residency for the current `Alg` representation on a synthetic purchase network. |
+| `sparse-trade-model` | `benchmark/sparseTradeModel.hs` | executable | Measure per-term time, allocation, and journal residency for a sparse production and trade model. |
 
 **Papers:** None.
 

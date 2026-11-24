@@ -158,6 +158,47 @@ terms, respectively.
 
 Tested with exchangealgebra-0.6.1.1 on 2026-11-24.
 
+## Measure a sparse production and trade model
+
+Use `sparse-trade-model` to compare the current `Journal` representation with
+other ledger representations on the same four-term model. Each company buys
+from ten suppliers. The network and input coefficients stay fixed across
+terms, with seeds 0 and 1, respectively. For zero-based company `j` in term
+`t`, output is `1 + (7 * j + t) mod 5` units.
+
+From the repository root, build the executable and run the 10,000-company case.
+Pass `100000` for the larger case.
+
+```bash
+stack build exchangealgebra-examples:exe:sparse-trade-model --no-run-benchmarks
+stack exec sparse-trade-model -- 10000 +RTS -N1 -T
+```
+
+Each term builds a journal from its opening, production, and trade entries.
+The first opening includes 100 units of inventory, 1,000 yen in cash, and
+1,000 yen in capital stock per company. Each buyer purchases the quantity it
+uses from each supplier at one yen per unit. The executable measures the
+journal norm, the transfer of sales and purchases to gross profit, inventory
+and gross profit queries for every company, and closing with
+`closingEntries` and `bar`. The result of `bar` supplies the next opening.
+
+`-N1` sets one runtime capability, and `-T` enables live-heap statistics.
+Each timed operation evaluates its result before the end timestamp and
+reports elapsed nanoseconds and allocated bytes from the current thread.
+Build traverses the entries under each note through `Journal.toMap` and
+`foldEntries`, leaving the lazy query indexes for query operations.
+`ledger_live_bytes` is the difference between major collections immediately
+before and after build, with the fixed inputs and the opening balance held
+live across both collections.
+
+The executable prints `validated sparse-trade-model` and the measurements
+after the norm and all company balances pass the reference calculations for
+all four terms. It reports medians across terms 2–4, including the median of
+each term's live-byte difference divided by the number of postings in that
+term's journal (`postings` in the output).
+
+Tested with exchangealgebra-0.6.1.1 on 2026-11-24.
+
 ## Roadmap follow-ups (not yet done)
 
 - Parameterize the `fixed-price-io-spill` simulation scale (`lastC`) via CLI or environment

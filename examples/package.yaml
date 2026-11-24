@@ -108,6 +108,12 @@ executables:
     source-dirs:         benchmark
     other-modules:       [Paths_exchangealgebra_examples]
 
+  sparse-trade-model:
+    <<: *exe-defaults
+    main:                sparseTradeModel.hs
+    source-dirs:         benchmark
+    other-modules:       [Paths_exchangealgebra_examples]
+
 benchmarks:
   # Performance roadmap benchmark harness (ROAD_MAP "ベンチマーク基盤の整備").
   # criterion is scoped to this component only, so the library and the example
