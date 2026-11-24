@@ -91,6 +91,17 @@ testAccountTitlesBinary = do
                 Left _  -> True
                 Right _ -> False)
 
+-- | Check that each concrete account title has a distinct English name.
+testUniqueEnglishAccountNames :: IO ()
+testUniqueEnglishAccountNames = do
+    let names = M.fromListWith (++)
+            [ (Registry.asNameEn spec, [title])
+            | title <- Registry.concreteAccountTitles
+            , Just spec <- [Registry.accountSpec title]
+            ]
+        duplicates = M.toList (M.filter ((> 1) . L.length) names)
+    assertEqual "concrete account titles have unique English names" [] duplicates
+
 -- | Check the appended allowances and the additional Japanese aliases.
 testAllowanceAccountTitles :: IO ()
 testAllowanceAccountTitles = do
@@ -2891,6 +2902,7 @@ runTests = do
     testBalanceSheetGroupsStayUnclosed
     testWriterNaNDirections
     testAccountTitlesBinary
+    testUniqueEnglishAccountNames
     testAllowanceAccountTitles
     testAccountTitleClassification
     testFinalStockRuleReference

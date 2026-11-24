@@ -149,6 +149,20 @@ vocabularyLaws = do
     assertEqual "T4 vocabulary specs share a label in list order"
         (Left (Input.AmbiguousAccount "売上" [Std Sales, SubscriptionRevenue])) (resolve "売上")
 
+-- | Resolve renamed English labels against the complete built-in vocabulary.
+builtInEnglishNames :: IO ()
+builtInEnglishNames = do
+    let resolveBuiltIn = Input.resolveWith (Input.vocabularyNames concreteAccountTitles)
+    forM_ [ ("Supplies on hand", SuppliesOnHand)
+          , ("Supplies expense", SuppliesExpenses)
+          , ("Buildings", Building)
+          ] $ \(name, title) ->
+        assertEqual ("built-in English name " ++ T.unpack name)
+            (Right title) (resolveBuiltIn name)
+    forM_ ["Supplies", "real estate"] $ \name ->
+        assertEqual ("retired English name " ++ T.unpack name)
+            (Left (Input.UnknownAccount name)) (resolveBuiltIn name)
+
 -- | Compare CSV rows with their algebra projection and check parser errors.
 csvLaws :: IO ()
 csvLaws = do
@@ -313,6 +327,7 @@ runTests = do
     nameTableLaws
     legacyLaws
     vocabularyLaws
+    builtInEnglishNames
     csvLaws
     checkedLaws
     certificationLaws

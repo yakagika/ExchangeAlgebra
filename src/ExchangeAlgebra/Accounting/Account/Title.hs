@@ -47,7 +47,7 @@ data  AccountTitles = Cash                            -- ^ Asset: Cash (現金)
                     | ShortTermNationalBonds          -- ^ Asset: Short-term national bonds (短期国債)
                     | Products                        -- ^ Asset: Products (商品)。分記法用。3 分法 (仕入\/売上\/繰越商品) では 'MerchandiseInventory' を使う
                     | Machinery                       -- ^ Asset: Machinery and equipment (機械装置)
-                    | Building                        -- ^ Asset: Real estate (建物)
+                    | Building                        -- ^ Asset: Buildings (建物)
                     | Vehicle                         -- ^ Asset: Vehicles (車両運搬具)
                     | StockInvestment                 -- ^ Asset: Stock investment (株式投資)
                     | EquipmentInvestment             -- ^ Asset: Equipment investment (設備投資)
@@ -58,7 +58,7 @@ data  AccountTitles = Cash                            -- ^ Asset: Cash (現金)
                     | Gold                            -- ^ Asset: Gold (金)
                     | GovernmentService               -- ^ Asset: Government service (政府サービス。SNA\/マクロ系)
                     | CapitalStock                    -- ^ Equity: Capital stock (資本金)
-                    | RetainedEarnings                -- ^ Equity: Retained earnings (繰越利益剰余金)
+                    | RetainedEarnings                -- ^ Equity: Retained earnings brought forward (繰越利益剰余金)
                     | LongTermLoansPayable            -- ^ Liability: Long-term loans payable (長期借入金)
                     | ShortTermLoansPayable           -- ^ Liability: Short-term loans payable (短期借入金)
                     | LoansPayable                    -- ^ Liability: Loans payable (借入金)
@@ -76,14 +76,14 @@ data  AccountTitles = Cash                            -- ^ Asset: Cash (現金)
                     | RentExpense                     -- ^ Expense: Rent (支払家賃)
                     | AdvertisingExpense              -- ^ Expense: Advertising (広告宣伝費)
                     | DeliveryExpenses                -- ^ Expense: Delivery (発送費)
-                    | SuppliesExpenses                -- ^ Expense: Supplies (消耗品費)
+                    | SuppliesExpenses                -- ^ Expense: Supplies expense (消耗品費)
                     | MiscellaneousExpenses           -- ^ Expense: Miscellaneous (雑費)
                     | WageExpenditure                 -- ^ Expense: Wages (給料)
                     | InterestExpense                 -- ^ Expense: Interest expense (支払利息)
                     | TaxesExpense                    -- ^ Expense: Taxes (租税公課)
                     | ConsumptionExpenditure          -- ^ Expense: Consumption expenditure (消費支出。SNA\/マクロ系)
                     | SubsidyExpense                  -- ^ Expense: Subsidy expenditure (補助金支出。SNA\/マクロ系)
-                    | CentralBankPaymentExpense       -- ^ Expense: Central bank payment to treasury (国庫納付金支出。SNA\/マクロ系)
+                    | CentralBankPaymentExpense       -- ^ Expense: Payment to national treasury (国庫納付金支出。SNA\/マクロ系)
                     | Purchases                       -- ^ Expense: Purchases (仕入)
                     | NetIncome                       -- ^ Expense: Net income (当期純利益 — 決算振替用。借方側に立つため Expense 区分)
                     | ValueAdded                      -- ^ Revenue: Value added (付加価値。SNA\/マクロ系)
@@ -97,7 +97,7 @@ data  AccountTitles = Cash                            -- ^ Asset: Cash (現金)
                     | RentalIncome                    -- ^ Revenue: Rental income (受取家賃)
                     | WageEarned                      -- ^ Revenue: Wage income (賃金収入。SNA\/マクロ系)
                     | TaxesRevenue                    -- ^ Revenue: Tax revenue (租税収入。SNA\/マクロ系)
-                    | CentralBankPaymentIncome        -- ^ Revenue: Central bank payment to treasury (国庫納付金収入。SNA\/マクロ系)
+                    | CentralBankPaymentIncome        -- ^ Revenue: Central bank payment received (国庫納付金収入。SNA\/マクロ系)
                     | Sales                           -- ^ Revenue: Sales (売上)
                     | EquityInEarningsOfInvestee      -- ^ Revenue: Equity in earnings of investee
                     -- (持分法による投資利益). Recognized under the equity method.
@@ -168,7 +168,7 @@ data  AccountTitles = Cash                            -- ^ Asset: Cash (現金)
                     | LoansReceivable -- ^ Asset: Loans receivable (貸付金)
                     | GiftCertificatesReceived -- ^ Asset: Gift certificates received (受取商品券)
                     | SecurityDepositsPaid -- ^ Asset: Guarantee deposits (差入保証金)
-                    | SuppliesOnHand -- ^ Asset: Supplies (貯蔵品)
+                    | SuppliesOnHand -- ^ Asset: Supplies on hand (貯蔵品)
                     | ContractAssets -- ^ Asset: Contract assets (契約資産)
                     | IncomeTaxesRefundReceivable -- ^ Asset: Income taxes refund receivable (未収還付法人税等)
                     | WorkInProcess -- ^ Asset: Work in process (仕掛品)
@@ -191,9 +191,9 @@ data  AccountTitles = Cash                            -- ^ Asset: Cash (現金)
                     | NonOperatingNotesPayable -- ^ Liability: Non-operating notes payable (営業外支払手形)
                     | NonOperatingElectronicallyRecordedObligations -- ^ Liability: Electronically recorded obligations - non-operating (営業外電子記録債務)
                     | BonusesPayable -- ^ Liability: Accrued bonuses (未払賞与)
-                    | AllowanceForRepairs -- ^ Liability: Provision for repairs (修繕引当金)
-                    | AllowanceForProductWarranties -- ^ Liability: Provision for warranties (商品保証引当金)
-                    | AllowanceForBonuses -- ^ Liability: Provision for bonuses (賞与引当金)
+                    | AllowanceForRepairs -- ^ Liability: Allowance for repairs (修繕引当金)
+                    | AllowanceForProductWarranties -- ^ Liability: Allowance for warranties (商品保証引当金)
+                    | AllowanceForBonuses -- ^ Liability: Allowance for bonuses (賞与引当金)
                     | DeferredTaxLiabilities -- ^ Liability: Deferred tax liabilities (繰延税金負債)
                     | LeaseObligations -- ^ Liability: Lease liabilities (リース債務)
                     | GuaranteeDepositsReceived -- ^ Liability: Guarantee deposits received (預り保証金)
@@ -220,8 +220,8 @@ data  AccountTitles = Cash                            -- ^ Asset: Cash (現金)
                     | GainOnSalesOfInvestmentSecurities -- ^ Revenue: Gain on sale of investment securities (投資有価証券売却益)
                     | InsuranceGain -- ^ Revenue: Gain on insurance claims (保険差益)
                     | GainOnBargainPurchase -- ^ Revenue: Gain on bargain purchase (負ののれん発生益)
-                    | ReversalOfAllowanceForRepairs -- ^ Revenue: Reversal of provision for repairs (修繕引当金戻入)
-                    | ReversalOfAllowanceForProductWarranties -- ^ Revenue: Reversal of provision for warranties (商品保証引当金戻入)
+                    | ReversalOfAllowanceForRepairs -- ^ Revenue: Reversal of allowance for repairs (修繕引当金戻入)
+                    | ReversalOfAllowanceForProductWarranties -- ^ Revenue: Reversal of allowance for warranties (商品保証引当金戻入)
                     | GainOnDonationOfFixedAssets -- ^ Revenue: Gain on receipt of donated non-current assets (固定資産受贈益)
                     | GainOnNationalSubsidies -- ^ Revenue: Gain on receipt of national subsidies (国庫補助金受贈益)
                     | GainOnConstructionGrants -- ^ Revenue: Gain on contribution received for construction (工事負担金受贈益)
@@ -291,7 +291,7 @@ data  AccountTitles = Cash                            -- ^ Asset: Cash (現金)
                     | SalesAllowances -- ^ Revenue: Sales allowances (売上値引)
                     | PurchaseAllowances -- ^ Expense: Purchase allowances (仕入値引)
                     | ReversalOfAllowanceForBonuses
-                      -- ^ Revenue: Reversal of provision for bonuses (賞与引当金戻入)
+                      -- ^ Revenue: Reversal of allowance for bonuses (賞与引当金戻入)
                     | DirectorsCompensations
                       -- ^ Expense: Remuneration for directors (役員報酬)
                     | AccountTitle                    -- ^ Wildcard (ワイルドカード — 任意の科目にマッチ。projWithBase 等の問い合わせ用で, 実 posting には使わない)
@@ -551,10 +551,10 @@ row Building = ConcreteRow
         , asClosing = CloseByDivision
         , asIsContra = False
         , asFixedCurrent = Fixed
-        , asNameEn = "Real estate"
+        , asNameEn = "Buildings"
         , asNameJa = "建物"
         , asLabelJa = "建物"
-        , asDescription = "Asset: Real estate (建物)"
+        , asDescription = "Asset: Buildings (建物)"
         , asAliases = ["建物"]
         }
     , rowSemantics = AccountSemantics
@@ -804,10 +804,10 @@ row RetainedEarnings = ConcreteRow
         , asClosing = CloseByDivision
         , asIsContra = False
         , asFixedCurrent = Other
-        , asNameEn = "Retained earnings"
+        , asNameEn = "Retained earnings brought forward"
         , asNameJa = "繰越利益剰余金"
         , asLabelJa = "繰越利益剰余金"
-        , asDescription = "Equity: Retained earnings (繰越利益剰余金)"
+        , asDescription = "Equity: Retained earnings brought forward (繰越利益剰余金)"
         , asAliases = ["繰越利益剰余金"]
         }
     , rowSemantics = AccountSemantics
@@ -1218,10 +1218,10 @@ row SuppliesExpenses = ConcreteRow
         , asClosing = CloseByDivision
         , asIsContra = False
         , asFixedCurrent = Other
-        , asNameEn = "Supplies"
+        , asNameEn = "Supplies expense"
         , asNameJa = "消耗品費"
         , asLabelJa = "消耗品費"
-        , asDescription = "Expense: Supplies (消耗品費)"
+        , asDescription = "Expense: Supplies expense (消耗品費)"
         , asAliases = ["消耗品費"]
         }
     , rowSemantics = AccountSemantics
@@ -1379,10 +1379,10 @@ row CentralBankPaymentExpense = ConcreteRow
         , asClosing = CloseByDivision
         , asIsContra = False
         , asFixedCurrent = Other
-        , asNameEn = "Central bank payment to treasury"
+        , asNameEn = "Payment to national treasury"
         , asNameJa = "国庫納付金支出。SNA/マクロ系"
         , asLabelJa = "国庫納付金支出"
-        , asDescription = "Expense: Central bank payment to treasury (国庫納付金支出。SNA/マクロ系)"
+        , asDescription = "Expense: Payment to national treasury (国庫納付金支出。SNA/マクロ系)"
         , asAliases = ["国庫納付金支出"]
         }
     , rowSemantics = AccountSemantics
@@ -1701,10 +1701,10 @@ row CentralBankPaymentIncome = ConcreteRow
         , asClosing = CloseByDivision
         , asIsContra = False
         , asFixedCurrent = Other
-        , asNameEn = "Central bank payment to treasury"
+        , asNameEn = "Central bank payment received"
         , asNameJa = "国庫納付金収入。SNA/マクロ系"
         , asLabelJa = "国庫納付金収入"
-        , asDescription = "Revenue: Central bank payment to treasury (国庫納付金収入。SNA/マクロ系)"
+        , asDescription = "Revenue: Central bank payment received (国庫納付金収入。SNA/マクロ系)"
         , asAliases = ["国庫納付金収入"]
         }
     , rowSemantics = AccountSemantics
@@ -3058,10 +3058,10 @@ row SuppliesOnHand = ConcreteRow
         , asClosing = CloseByDivision
         , asIsContra = False
         , asFixedCurrent = Current
-        , asNameEn = "Supplies"
+        , asNameEn = "Supplies on hand"
         , asNameJa = "貯蔵品"
         , asLabelJa = "貯蔵品"
-        , asDescription = "Asset: Supplies (貯蔵品)"
+        , asDescription = "Asset: Supplies on hand (貯蔵品)"
         , asAliases = ["貯蔵品"]
         }
     , rowSemantics = AccountSemantics
@@ -3587,10 +3587,10 @@ row AllowanceForRepairs = ConcreteRow
         , asClosing = CloseByDivision
         , asIsContra = False
         , asFixedCurrent = Current
-        , asNameEn = "Provision for repairs"
+        , asNameEn = "Allowance for repairs"
         , asNameJa = "修繕引当金"
         , asLabelJa = "修繕引当金"
-        , asDescription = "Liability: Provision for repairs (修繕引当金)"
+        , asDescription = "Liability: Allowance for repairs (修繕引当金)"
         , asAliases = ["修繕引当金"]
         }
     , rowSemantics = AccountSemantics
@@ -3610,10 +3610,10 @@ row AllowanceForProductWarranties = ConcreteRow
         , asClosing = CloseByDivision
         , asIsContra = False
         , asFixedCurrent = Current
-        , asNameEn = "Provision for warranties"
+        , asNameEn = "Allowance for warranties"
         , asNameJa = "商品保証引当金"
         , asLabelJa = "商品保証引当金"
-        , asDescription = "Liability: Provision for warranties (商品保証引当金)"
+        , asDescription = "Liability: Allowance for warranties (商品保証引当金)"
         , asAliases = ["商品保証引当金"]
         }
     , rowSemantics = AccountSemantics
@@ -3633,10 +3633,10 @@ row AllowanceForBonuses = ConcreteRow
         , asClosing = CloseByDivision
         , asIsContra = False
         , asFixedCurrent = Current
-        , asNameEn = "Provision for bonuses"
+        , asNameEn = "Allowance for bonuses"
         , asNameJa = "賞与引当金"
         , asLabelJa = "賞与引当金"
-        , asDescription = "Liability: Provision for bonuses (賞与引当金)"
+        , asDescription = "Liability: Allowance for bonuses (賞与引当金)"
         , asAliases = ["賞与引当金"]
         }
     , rowSemantics = AccountSemantics
@@ -4254,10 +4254,10 @@ row ReversalOfAllowanceForRepairs = ConcreteRow
         , asClosing = CloseByDivision
         , asIsContra = False
         , asFixedCurrent = Other
-        , asNameEn = "Reversal of provision for repairs"
+        , asNameEn = "Reversal of allowance for repairs"
         , asNameJa = "修繕引当金戻入"
         , asLabelJa = "修繕引当金戻入"
-        , asDescription = "Revenue: Reversal of provision for repairs (修繕引当金戻入)"
+        , asDescription = "Revenue: Reversal of allowance for repairs (修繕引当金戻入)"
         , asAliases = ["修繕引当金戻入"]
         }
     , rowSemantics = AccountSemantics
@@ -4277,10 +4277,10 @@ row ReversalOfAllowanceForProductWarranties = ConcreteRow
         , asClosing = CloseByDivision
         , asIsContra = False
         , asFixedCurrent = Other
-        , asNameEn = "Reversal of provision for warranties"
+        , asNameEn = "Reversal of allowance for warranties"
         , asNameJa = "商品保証引当金戻入"
         , asLabelJa = "商品保証引当金戻入"
-        , asDescription = "Revenue: Reversal of provision for warranties (商品保証引当金戻入)"
+        , asDescription = "Revenue: Reversal of allowance for warranties (商品保証引当金戻入)"
         , asAliases = ["商品保証引当金戻入"]
         }
     , rowSemantics = AccountSemantics
@@ -5864,10 +5864,10 @@ row ReversalOfAllowanceForBonuses = ConcreteRow
         , asClosing = CloseByDivision
         , asIsContra = False
         , asFixedCurrent = Other
-        , asNameEn = "Reversal of provision for bonuses"
+        , asNameEn = "Reversal of allowance for bonuses"
         , asNameJa = "賞与引当金戻入"
         , asLabelJa = "賞与引当金戻入"
-        , asDescription = "Revenue: Reversal of provision for bonuses (賞与引当金戻入)"
+        , asDescription = "Revenue: Reversal of allowance for bonuses (賞与引当金戻入)"
         , asAliases = ["賞与引当金戻入"]
         }
     , rowSemantics = AccountSemantics

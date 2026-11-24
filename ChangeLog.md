@@ -76,6 +76,27 @@
 
 ### Changed
 
+- **English account names (0.7 output change).** Financial statements
+  in English now show the equity row for `RetainedEarnings` as
+  `Retained earnings brought forward`. For CSV rows that use an old English
+  name to refer to one of these accounts, use the corresponding new name
+  with `vocabularyNames` or use the constructor name.
+
+  | Account | Old English name | New English name |
+  | --- | --- | --- |
+  | `AllowanceForBonuses` | Provision for bonuses | Allowance for bonuses |
+  | `AllowanceForRepairs` | Provision for repairs | Allowance for repairs |
+  | `AllowanceForProductWarranties` | Provision for warranties | Allowance for warranties |
+  | `ReversalOfAllowanceForBonuses` | Reversal of provision for bonuses | Reversal of allowance for bonuses |
+  | `ReversalOfAllowanceForRepairs` | Reversal of provision for repairs | Reversal of allowance for repairs |
+  | `ReversalOfAllowanceForProductWarranties` | Reversal of provision for warranties | Reversal of allowance for warranties |
+  | `SuppliesExpenses` | Supplies | Supplies expense |
+  | `SuppliesOnHand` | Supplies | Supplies on hand |
+  | `CentralBankPaymentExpense` | Central bank payment to treasury | Payment to national treasury |
+  | `CentralBankPaymentIncome` | Central bank payment to treasury | Central bank payment received |
+  | `RetainedEarnings` | Retained earnings | Retained earnings brought forward |
+  | `Building` | Real estate | Buildings |
+
 - `journalRows` and journal CSV output list each day's debit and credit
   terms in account-title order, then by hat base. The built-in chart uses
   the declaration order of `AccountTitles`. Earlier versions left the
