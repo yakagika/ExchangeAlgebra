@@ -774,6 +774,22 @@ main = defaultMain $ gateShared "I" False ++ gateShared "D2" True ++ gateInteger
         [ env (pure (mkAlgs n)) $ \xs ->
             bench (show n) $ whnf (norm . EA.proj projKey . EA.fromList) xs
         | n <- sizes ]
+    -- Keep the input terms in env. Construct the algebra inside the timed function
+    -- so each iteration builds its own lazy wildcard index.
+    , bgroup "Alg/wildcard-index-build"
+        [ env (pure terms) $ \inputs ->
+            bench (show n) $ nf
+                (EA.projNetNorm [Not :< (1, (.#), 0)]
+                    . EA.fromList
+                    . Prelude.map (uncurry (.@)))
+                inputs
+        | n <- [10000, 100000]
+        , let terms :: [(Double, LedgerBase)]
+              terms =
+                  [ (1, Not :< (i `div` 2, i `mod` 2, 0))
+                  | i <- [0 .. n - 1]
+                  ]
+        ]
     -- audit R7: all-concrete multi-pattern proj (k=8 concrete bases, N=4900).
     -- Algebra prebuilt in env so only the projection (the multi-pattern fold) is
     -- timed.

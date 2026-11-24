@@ -10,6 +10,9 @@ import qualified ExchangeAlgebra.Algebra  as EA
 import qualified ExchangeAlgebra.Algebra.Internal as EAI
 import qualified ExchangeAlgebra.Journal  as EJ
 import ExchangeAlgebra.Algebra.Value (MoneyDecimal, bankersRound)
+import qualified Data.HashMap.Strict as HM
+import qualified Data.IntMap.Strict  as IM
+import qualified Data.IntSet         as IS
 import qualified Data.Map.Strict     as M
 import qualified Data.List           as L
 import System.Exit (exitFailure)
@@ -193,6 +196,55 @@ testProjConcreteNoIndexForce = do
           Left _   -> putStrLn "[PASS] wildcard projNetNorm uses the axis index (forced, as required)"
           Right v  -> do putStrLn ("[FAIL] wildcard projNetNorm did not use the index: " ++ show v); exitFailure
       _ -> do putStrLn "[FAIL] expected a Liner"; exitFailure
+
+-- | Check all three wildcard index fields against IDs assigned in base key order.
+testWildcardIndexIds :: IO ()
+testWildcardIndexIds = do
+    quickProp "wildcard index IDs follow base key order" $
+        forAll genAlgebra (checkIndex 32)
+    quickProp "wildcard index IDs follow base key order (1000 bases)" $
+        once (checkIndex 1000 largeAlgebra)
+  where
+    genAlgebra :: Gen (EA.Alg Double SimHatBase2)
+    genAlgebra = do
+        baseCount <- chooseInt (32, 96)
+        EA.fromList <$> traverse genPosting [1 .. baseCount]
+
+    genPosting :: Int -> Gen (EA.Alg Double SimHatBase2)
+    genPosting company = do
+        side :< unit <- genBase
+        counterparty <- chooseInt (1, 8)
+        pure (1 .@ (side :< (Cash, company, counterparty, unit)))
+
+    largeAlgebra :: EA.Alg Double SimHatBase2
+    largeAlgebra = EA.fromList
+        [ 1 .@ (Not :< (Cash, company, 1, Yen))
+        | company <- [1 .. 1000]
+        ]
+
+    checkIndex :: Int -> EA.Alg Double SimHatBase2 -> Property
+    checkIndex minBases EAI.Liner
+        { EAI._realg       = m
+        , EAI._idToBp      = idToBp
+        , EAI._allBpIds    = allIds
+        , EAI._axisPosting = axisPosting
+        } =
+        let numberedBases :: [(Int, EAI.BasePart SimHatBase2)]
+            numberedBases = zip [0 ..] (HM.keys m)
+
+            expectedPostings :: IM.IntMap (HM.HashMap EAI.AxisKey IS.IntSet)
+            expectedPostings = IM.fromListWith (HM.unionWith IS.union)
+                [ (axis, HM.singleton key (IS.singleton baseId))
+                | (baseId, basePart) <- numberedBases
+                , (axis, key) <- zip [0 ..] (EAI.toAxisKeys basePart)
+                ]
+        in conjoin
+            [ counterexample "too few distinct bases" (HM.size m >= minBases)
+            , idToBp === IM.fromList numberedBases
+            , allIds === IS.fromList [0 .. HM.size m - 1]
+            , counterexample "component index differs" (axisPosting == expectedPostings)
+            ]
+    checkIndex _ _ = counterexample "expected a Liner" False
 
 
 -- | Regression tests for scale-aware numeric tolerance (WI-11/12/14).
@@ -637,6 +689,7 @@ runTests = do
     testSameBaseSeqOrderPathDependence
     testScalarRejectsNegative
     testProjConcreteNoIndexForce
+    testWildcardIndexIds
     axiomProperties
     functorialityLawProperties
     quotientProperties

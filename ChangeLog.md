@@ -244,6 +244,13 @@
 
 ### Fixed
 
+- Performance: Building the index on the first wildcard query against an `Alg`,
+  such as with `proj` or `projNetNorm`, took quadratic time in the number of
+  distinct bases because assigning each ID called the linear-time `IntMap.size`.
+  A running counter now assigns the same IDs in the same order and preserves query results.
+  Building an `Alg` with 100,000 distinct bases and running one wildcard query
+  took 9.2 s before the fix and 0.10 s after it (10,000 bases: 92 ms and 6.5 ms).
+
 - Journal CSV readers, including the built-in readers, return `BadAmount` with the
   trimmed amount field when the amount parser returns a negative or non-finite value.
   Previously the row passed parsing and `(.@)` raised an exception during term construction.

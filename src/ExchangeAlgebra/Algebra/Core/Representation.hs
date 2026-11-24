@@ -716,15 +716,15 @@ linerFromMap m =
         (error "Liner internal: _nextBpId is not maintained (reserved for P1a); do not force")
         allIds
   where
-    ~(idx, idToBp, allIds) =
+    ~(_, idx, idToBp, allIds) =
         Map.foldlWithKey'
-            (\(!idxAcc, !idToBpAcc, !allIdsAcc) bp _ ->
-                let !bpId = IntMap.size idToBpAcc
+            (\(!bpId, !idxAcc, !idToBpAcc, !allIdsAcc) bp _ ->
+                let !nextId = bpId + 1
                     !idx' = insertAxisPosting (toAxisKeys bp) bpId idxAcc
                     !idToBp' = IntMap.insert bpId bp idToBpAcc
                     !allIds' = IntSet.insert bpId allIdsAcc
-                in (idx', idToBp', allIds'))
-            (emptyAxisPosting, IntMap.empty, IntSet.empty)
+                in (nextId, idx', idToBp', allIds'))
+            (0, emptyAxisPosting, IntMap.empty, IntSet.empty)
             m
 
 -- | Tests whether the member of the redundant algebra is zero (empty).
