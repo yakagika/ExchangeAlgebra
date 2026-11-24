@@ -32,14 +32,15 @@ def main():
     args = parser.parse_args()
     # GHC reports an orphan only when it compiles the module, so every module
     # is compiled again. The warning comes from the type checker, so the build
-    # runs without optimisation (--fast) and with GHC's parallel make. It uses
-    # its own work directory, which keeps the optimised products of the normal
-    # build in .stack-work untouched.
+    # runs without optimisation (--fast). It uses its own work directory, which
+    # keeps the optimised products of the normal build in .stack-work untouched.
+    # Do not pass -j to GHC here: with parallel make the progress lines of other
+    # modules land inside a warning, and the declaration can no longer be read.
     command = ["stack", *shlex.split(os.environ.get("STACK_ARGS", "")),
                "--stack-yaml", str(ROOT / "stack.yaml"),
                "--work-dir", WORK_DIR, "build", "--fast",
                "--test", "--bench", "--no-run-tests", "--no-run-benchmarks",
-               "--force-dirty", "--ghc-options=-fforce-recomp -Worphans -j4"]
+               "--force-dirty", "--ghc-options=-fforce-recomp -Worphans"]
     result = subprocess.run(command, cwd=ROOT, text=True,
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     if result.returncode:
