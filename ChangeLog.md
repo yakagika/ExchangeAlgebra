@@ -4,6 +4,11 @@
 
 ### Added
 
+- Import `ExchangeAlgebra.Accounting.Account.Jcci` to use `JcciTitles` in
+  ledgers limited to JCCI account titles. Use `widen` to embed a title in
+  `AccountTitles`, and `narrow` or `narrowAlg` to restrict a title or ledger
+  to the JCCI vocabulary.
+
 - Closing supports caller-defined account title types through `AccountVocabulary`.
   `closingEntries` and `settleEntries` close to the vocabulary's `closingTarget`,
   preserving every non-account coordinate. `ExchangeAlgebra.Accounting.Closing`

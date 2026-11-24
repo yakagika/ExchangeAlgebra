@@ -68,6 +68,7 @@ library:
   - ExchangeAlgebra
   - ExchangeAlgebra.Accounting
   - ExchangeAlgebra.Accounting.Account
+  - ExchangeAlgebra.Accounting.Account.Jcci
   - ExchangeAlgebra.Accounting.Closing
   - ExchangeAlgebra.Accounting.Consolidation
   - ExchangeAlgebra.Accounting.Entries
@@ -221,6 +222,7 @@ tests:
     - Accounting.PresentationVocabularySpec
     - Accounting.VocabularyLawSpec
     - Accounting.ClosingTargetSpec
+    - Accounting.JcciSpec
     - Accounting.RegistrySpec
     - Accounting.ProcedureLawSpec
     - IO.InputOutputSpec

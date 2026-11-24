@@ -36,6 +36,7 @@ extra-source-files:
     test/fixtures/example-numbers-p1/README.md
     test/fixtures/example-numbers-p1/ripple-analysis.tsv
     test/fixtures/export-surface-p2/counts.tsv
+    test/fixtures/export-surface-p2/ExchangeAlgebra.Accounting.Account.Jcci.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.Accounting.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.Algebra.Base.txt
     test/fixtures/export-surface-p2/ExchangeAlgebra.Algebra.Internal.txt
@@ -111,6 +112,8 @@ extra-source-files:
     test/compile-fail/Coerce.hs
     test/compile-fail/Constructor.hs
     test/compile-fail/HiddenModule.hs
+    test/compile-fail/JcciHiddenConstructor.hs
+    test/compile-fail/JcciMacroTitle.hs
     test/compile-fail/PublicClient.hs
     test/compile-fail/PublicExplicitImportClient.hs
     test/compile-fail/RawDerivation.hs
@@ -140,6 +143,7 @@ library
       ExchangeAlgebra
       ExchangeAlgebra.Accounting
       ExchangeAlgebra.Accounting.Account
+      ExchangeAlgebra.Accounting.Account.Jcci
       ExchangeAlgebra.Accounting.Closing
       ExchangeAlgebra.Accounting.Consolidation
       ExchangeAlgebra.Accounting.Entries
@@ -337,6 +341,7 @@ test-suite ExchangeAlgebra-test
       Accounting.PresentationVocabularySpec
       Accounting.VocabularyLawSpec
       Accounting.ClosingTargetSpec
+      Accounting.JcciSpec
       Accounting.RegistrySpec
       Accounting.ProcedureLawSpec
       IO.InputOutputSpec

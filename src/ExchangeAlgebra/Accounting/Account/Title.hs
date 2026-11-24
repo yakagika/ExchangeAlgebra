@@ -12,10 +12,13 @@
 -- To add an account title, add one constructor line and one equation for 'row'.
 -- Assign an unused wire code and keep retired codes such as @0x8023@ reserved.
 -- For a title listed in the JCCI 2022 fixture, enter its aliases in fixture order.
+-- For a JCCI title, add a matching pattern definition and a @COMPLETE@ entry
+-- to @ExchangeAlgebra.Accounting.Account.Jcci@, along with its export and signature entry.
 module ExchangeAlgebra.Accounting.Account.Title
     ( AccountTitles(..)
     , Row(..)
     , row
+    , isJcciTitle
     ) where
 
 import ExchangeAlgebra.Algebra.Element.Representation (Element(..))
@@ -5900,6 +5903,13 @@ row DirectorsCompensations = ConcreteRow
     , rowJcciAliases = []
     }
 row AccountTitle = WildcardRow
+
+-- | Determine whether the title belongs to the JCCI vocabulary, including the wildcard.
+isJcciTitle :: AccountTitles -> Bool
+isJcciTitle title = case row title of
+    WildcardRow -> True
+    ConcreteRow { rowScheme = Jcci } -> True
+    ConcreteRow { rowScheme = Macro } -> False
 
 instance NFData AccountTitles
 

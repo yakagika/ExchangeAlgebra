@@ -23,6 +23,7 @@ import qualified Accounting.AdjustmentSpec as AdjustmentSpec
 import qualified Accounting.AuditSpec as AuditSpec
 import qualified Accounting.VocabularyLawSpec as VocabularyLawSpec
 import qualified Accounting.ClosingTargetSpec as ClosingTargetSpec
+import qualified Accounting.JcciSpec as JcciSpec
 import qualified Accounting.ConsolidationVocabularySpec as ConsolidationVocabularySpec
 import qualified Accounting.RegistrySpec as RegistrySpec
 import qualified Accounting.ProcedureLawSpec as ProcedureLawSpec
@@ -56,6 +57,7 @@ main = do
     AuditSpec.runTests
     VocabularyLawSpec.runTests
     ClosingTargetSpec.runTests
+    JcciSpec.runTests
     ConsolidationVocabularySpec.runTests
     RegistrySpec.runTests
     ProcedureLawSpec.runTests

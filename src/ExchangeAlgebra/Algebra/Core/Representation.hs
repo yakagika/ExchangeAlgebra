@@ -556,6 +556,9 @@ data  Alg v b where
 
 -- | Serialize an algebra in the 0.5 wire layout (tag 0 = 'Zero', tag 1 =
 -- one posting, tag 2 = the per-base map with each t'Pair' in sequence order).
+-- Tag 2 writes blocks in the base 'Map.HashMap' traversal order, so equal
+-- algebras can have different byte sequences across versions of @hashable@.
+-- Compare decoded values to check equality.
 --
 -- Decoding is a construction boundary, like '.@': it fails on a value for
 -- which 'valueError' is 'Just' (negative or non-finite), on a tag-1 posting
