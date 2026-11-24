@@ -13,6 +13,7 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 BASELINE = ROOT / "test/fixtures/export-surface-p2/orphans.txt"
+WORK_DIR = ".stack-work-orphans"
 
 
 def without_location(entry):
@@ -29,15 +30,16 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--update", action="store_true", help="Write the current warning set")
     args = parser.parse_args()
+    # GHC reports an orphan only when it compiles the module, so every module
+    # is compiled again. The warning comes from the type checker, so the build
+    # runs without optimisation (--fast) and with GHC's parallel make. It uses
+    # its own work directory, which keeps the optimised products of the normal
+    # build in .stack-work untouched.
     command = ["stack", *shlex.split(os.environ.get("STACK_ARGS", "")),
-               "--stack-yaml", str(ROOT / "stack.yaml"), "build"]
-    if os.environ.get("EA_VISUALIZE", "1") == "0":
-        command.extend(["exchangealgebra", "--test", "--no-run-tests"])
-        command.extend(["--flag", "exchangealgebra:-visualize"])
-    else:
-        command.extend(["--test", "--bench", "--no-run-tests",
-                        "--no-run-benchmarks"])
-    command.extend(["--force-dirty", "--ghc-options=-fforce-recomp -Worphans"])
+               "--stack-yaml", str(ROOT / "stack.yaml"),
+               "--work-dir", WORK_DIR, "build", "--fast",
+               "--test", "--bench", "--no-run-tests", "--no-run-benchmarks",
+               "--force-dirty", "--ghc-options=-fforce-recomp -Worphans -j4"]
     result = subprocess.run(command, cwd=ROOT, text=True,
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     if result.returncode:

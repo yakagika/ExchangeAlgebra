@@ -3,6 +3,14 @@ name: CI
 # Build + run the test and doctest suites, and build (not run) the benchmark
 # harness so it cannot bitrot. This is the regression gate; a numeric criterion
 # perf-regression gate is a future enhancement (see plans ROAD_MAP).
+#
+# Run time. Three things keep the jobs short; keep them when editing.
+# - The GHC that ghcup installs is cached (the install takes about 3 minutes
+#   and the runner image does not ship these versions).
+# - ~/.stack (dependencies) and .stack-work (this repository's build products)
+#   are cached separately. The .stack-work key ends in the commit, so every
+#   green run saves its products and the next run compiles only what changed.
+# - The heavy builds pass -j4 to GHC (the runners have 4 cores).
 
 on:
   push:
@@ -33,22 +41,37 @@ jobs:
       # We then run stack with --system-ghc so it uses this GHC instead of
       # downloading its own bindist (whose configure step fails on the runner
       # toolchain: gcc rejects --target=x86_64-unknown-linux).
+      # ghcup's install of GHC takes about 3 minutes; restore it instead.
+      - name: Cache GHC 9.10.3
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/.ghcup/ghc/9.10.3
+          key: ${{ runner.os }}-ghcup-ghc-9.10.3
+
       - uses: haskell-actions/setup@v2
         with:
           enable-stack: true
           stack-version: latest
           ghc-version: '9.10.3'
 
-      - name: Cache Stack
+      - name: Cache Stack dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-deps-main-${{ hashFiles('stack.yaml', 'package.yaml', 'examples/package.yaml', 'exchangealgebra-einvoice/package.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-deps-main-
+
+      - name: Cache build products
         uses: actions/cache@v4
         with:
           path: |
-            ~/.stack
             .stack-work
             examples/.stack-work
-          key: ${{ runner.os }}-stack-${{ hashFiles('stack.yaml', 'package.yaml', 'examples/package.yaml', 'exchangealgebra-einvoice/package.yaml') }}
+            exchangealgebra-einvoice/.stack-work
+          key: ${{ runner.os }}-work-main-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-stack-
+            ${{ runner.os }}-work-main-
 
       - name: Check module layers
         run: python3 tools/check-module-layers.py
@@ -60,7 +83,7 @@ jobs:
       # suite (incl. the QuickCheck axiom properties) and the doctests. The
       # benchmark is built but not run (--no-run-benchmarks) to keep CI fast.
       - name: Build + test + doctest (bench build-only)
-        run: stack build --system-ghc --no-install-ghc --test --bench --no-run-benchmarks
+        run: stack build --system-ghc --no-install-ghc --test --bench --no-run-benchmarks --ghc-options=-j4
 
       - name: Build source distributions
         run: stack sdist --system-ghc --no-install-ghc . exchangealgebra-einvoice
@@ -77,13 +100,17 @@ jobs:
       - name: Check user-facing API samples
         run: STACK_ARGS="--system-ghc --no-install-ghc" bash test/api-samples/check.sh
 
-      - name: Check P2 orphan instances
-        run: STACK_ARGS="--system-ghc --no-install-ghc" python3 tools/check-orphans.py
-
   build-test-no-visualize:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # ghcup's install of GHC takes about 3 minutes; restore it instead.
+      - name: Cache GHC 9.10.3
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/.ghcup/ghc/9.10.3
+          key: ${{ runner.os }}-ghcup-ghc-9.10.3
 
       - uses: haskell-actions/setup@v2
         with:
@@ -91,18 +118,24 @@ jobs:
           stack-version: latest
           ghc-version: '9.10.3'
 
-      - name: Cache Stack (visualize flag off)
+      - name: Cache Stack dependencies (visualize flag off)
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.stack
-            .stack-work
-          key: ${{ runner.os }}-stack-no-visualize-${{ hashFiles('stack.yaml', 'package.yaml') }}
+          path: ~/.stack
+          key: ${{ runner.os }}-deps-no-visualize-${{ hashFiles('stack.yaml', 'package.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-stack-no-visualize-
+            ${{ runner.os }}-deps-no-visualize-
+
+      - name: Cache build products (visualize flag off)
+        uses: actions/cache@v4
+        with:
+          path: .stack-work
+          key: ${{ runner.os }}-work-no-visualize-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-work-no-visualize-
 
       - name: Build + test library (visualize flag off)
-        run: stack build exchangealgebra --flag exchangealgebra:-visualize --test --no-run-benchmarks --system-ghc --no-install-ghc
+        run: stack build exchangealgebra --flag exchangealgebra:-visualize --test --no-run-benchmarks --system-ghc --no-install-ghc --ghc-options=-j4
 
       - name: Check admission API boundary (visualize flag off)
         run: STACK_ARGS="--system-ghc --no-install-ghc" bash test/compile-fail/check.sh
@@ -113,8 +146,48 @@ jobs:
       - name: Check P2 compatibility clients (visualize flag off)
         run: STACK_ARGS="--system-ghc --no-install-ghc" bash test/compat-clients/check.sh
 
-      - name: Check P2 orphan instances (visualize flag off)
-        run: EA_VISUALIZE=0 STACK_ARGS="--system-ghc --no-install-ghc" python3 tools/check-orphans.py
+  # Orphan instances: every instance the library, the examples, the tests and
+  # the benchmark define outside the module of its class or type must be in the
+  # baseline (test/fixtures/export-surface-p2/orphans.txt). GHC reports orphans
+  # only for modules it compiles, so the check compiles everything from scratch.
+  # It does so without optimisation and in its own work directory (see
+  # tools/check-orphans.py), in a job of its own so that it runs beside
+  # build-test instead of after it. The sources with the visualize flag off are
+  # a subset of these (no CPP), so one run with the flag on covers both.
+  orphan-instances:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system deps (cairo / pango for Chart-cairo)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libcairo2-dev libpango1.0-dev libglib2.0-dev
+
+      # ghcup's install of GHC takes about 3 minutes; restore it instead.
+      - name: Cache GHC 9.10.3
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/.ghcup/ghc/9.10.3
+          key: ${{ runner.os }}-ghcup-ghc-9.10.3
+
+      - uses: haskell-actions/setup@v2
+        with:
+          enable-stack: true
+          stack-version: latest
+          ghc-version: '9.10.3'
+
+      # Read-only: build-test saves this cache.
+      - name: Restore Stack dependencies
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-deps-main-${{ hashFiles('stack.yaml', 'package.yaml', 'examples/package.yaml', 'exchangealgebra-einvoice/package.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-deps-main-
+
+      - name: Check orphan instances
+        run: STACK_ARGS="--system-ghc --no-install-ghc" python3 tools/check-orphans.py
 
   # The lowest GHC the packages declare (base >= 4.19, GHC 9.8). Hackage's
   # documentation builder uses GHC 9.8, so a 9.8-only break also stops the docs.
@@ -123,24 +196,39 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # ghcup's install of GHC takes about 3 minutes; restore it instead.
+      - name: Cache GHC 9.8.4
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/.ghcup/ghc/9.8.4
+          key: ${{ runner.os }}-ghcup-ghc-9.8.4
+
       - uses: haskell-actions/setup@v2
         with:
           enable-stack: true
           stack-version: latest
           ghc-version: '9.8.4'
 
-      - name: Cache Stack (GHC 9.8)
+      - name: Cache Stack dependencies (GHC 9.8)
+        uses: actions/cache@v4
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-deps-ghc98-${{ hashFiles('stack-ghc98.yaml', 'package.yaml', 'exchangealgebra-einvoice/package.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-deps-ghc98-
+
+      - name: Cache build products (GHC 9.8)
         uses: actions/cache@v4
         with:
           path: |
-            ~/.stack
             .stack-work
-          key: ${{ runner.os }}-stack-ghc98-${{ hashFiles('stack-ghc98.yaml', 'package.yaml', 'exchangealgebra-einvoice/package.yaml') }}
+            exchangealgebra-einvoice/.stack-work
+          key: ${{ runner.os }}-work-ghc98-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-stack-ghc98-
+            ${{ runner.os }}-work-ghc98-
 
       - name: Build + test library and e-invoice package (GHC 9.8, visualize flag off)
-        run: stack --stack-yaml stack-ghc98.yaml build exchangealgebra exchangealgebra-einvoice --test --no-run-benchmarks --system-ghc --no-install-ghc
+        run: stack --stack-yaml stack-ghc98.yaml build exchangealgebra exchangealgebra-einvoice --test --no-run-benchmarks --system-ghc --no-install-ghc --ghc-options=-j4
 
   # Optional formal-verification job: LiquidHaskell refinement checks for the
   # value non-negativity invariant (0 <= magnitude; sign lives in the Hat/Not
@@ -163,6 +251,13 @@ jobs:
 
       # GHC 9.10.3 matches the harness resolver lts-24.45 (the snapshot that
       # ships liquidhaskell-0.9.10.1.2 / liquid-fixpoint-0.9.6.3.2).
+      # ghcup's install of GHC takes about 3 minutes; restore it instead.
+      - name: Cache GHC 9.10.3
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/.ghcup/ghc/9.10.3
+          key: ${{ runner.os }}-ghcup-ghc-9.10.3
+
       - uses: haskell-actions/setup@v2
         with:
           enable-stack: true
