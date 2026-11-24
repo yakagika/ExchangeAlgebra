@@ -164,18 +164,16 @@ toSameLength xs ys =
 -- | Build the rows of a journal (仕訳帳), as a pure value (the part
 -- 'writeJournal' renders to CSV).
 --
--- Entries are grouped by date (via @f@) into a deterministic, deduplicated,
--- ascending day sequence; within a day the debit and credit postings are
--- listed by 'decL'\/'decR' and padded to equal length with @toSameLength@ --
--- no aggregation\/@bar@ is applied, so a day with more debit than credit
--- postings (or vice versa) simply gets blank cells on the shorter side.
+-- Dates returned by @f@ appear in ascending order. Within each day, debit
+-- and credit terms are each listed in account-title order, then by hat base.
+-- The sort preserves the relative order of terms with the same hat base.
+-- Each term occupies its own row. Blank cells pad the shorter side.
 --
 -- ==== __Examples__
 --
 -- The example records a capital contribution, a cash sale, and a transaction
 -- with two debit terms and one credit term. On the third day, the extra debit
--- row has blank date and credit cells. The last check sorts the debit cells
--- for that day because the order of distinct bases within a side is unspecified.
+-- row has blank date and credit cells.
 --
 -- >>> import Data.Time (fromGregorian)
 -- >>> import ExchangeAlgebra.Algebra.Element (Wild(..))
@@ -196,17 +194,14 @@ toSameLength xs ys =
 --        .+  40 .@ Not :< (Sales, d3)
 -- :}
 --
--- >>> let rows = journalRows alg getDay
--- >>> mapM_ print (take 3 rows)
+-- >>> mapM_ print (journalRows alg getDay)
 -- ["Day","Debit","Amount","Credit","Amount"]
 -- ["2024-04-01","Cash","100.0","CapitalStock","100.0"]
 -- ["2024-04-02","Cash","50.0","Sales","50.0"]
--- >>> [take 1 row ++ drop 3 row | row <- drop 3 rows]
--- [["2024-04-03","Sales","40.0"],["","",""]]
--- >>> L.sort [take 2 (drop 1 row) | row <- drop 3 rows]
--- [["AccountsReceivable","10.0"],["Cash","30.0"]]
+-- ["2024-04-03","Cash","30.0","Sales","40.0"]
+-- ["","AccountsReceivable","10.0","",""]
 --
--- Complexity: O(s * log d) (s = number of entries, d = number of distinct dates)
+-- Complexity: O(s * (d + log s)) (s = number of terms, d = number of distinct dates)
 journalRows :: (HatVal n, HatBaseClass b, ExBaseClass b)
             => Alg n b
             -> (b -> Day)
@@ -215,18 +210,26 @@ journalRows alg f = csvTranspose [ds, dt, dv, ct, cv]
   where
     days = L.sort $ Set.toList . Set.fromList $ L.map (f . _hatBase) $ EA.toList alg
     rows = L.map perDay days
+
+    perDay :: Day -> ([Text], [Text], [Text], [Text], [Text])
     perDay d =
         let da = EA.filter (\y -> (f . _hatBase) y == d) alg
-            dl = decL da
-            dr = decR da
-            dlTexts = L.map (tshow . getAccountTitle . _hatBase) (EA.toList dl)
-            drTexts = L.map (tshow . getAccountTitle . _hatBase) (EA.toList dr)
-            dlValues = L.map (tshow . _val) (EA.toList dl)
-            drValues = L.map (tshow . _val) (EA.toList dr)
+            debitTerms  = L.sortOn termOrder $ EA.toList $ decL da
+            creditTerms = L.sortOn termOrder $ EA.toList $ decR da
+            dlTexts     = L.map (tshow . getAccountTitle . _hatBase) debitTerms
+            drTexts     = L.map (tshow . getAccountTitle . _hatBase) creditTerms
+            dlValues    = L.map (tshow . _val) debitTerms
+            drValues    = L.map (tshow . _val) creditTerms
             (dt', ct') = toSameLength dlTexts drTexts
             (dv', cv') = toSameLength dlValues drValues
             (ds', _) = toSameLength [tshow d] cv'
         in (ds', dt', dv', ct', cv')
+
+    termOrder :: (HatVal v, ExBaseClass a) => Alg v a -> (TitleOf a, a)
+    termOrder term =
+        let base = _hatBase term
+        in (getAccountTitle base, base)
+
     ds = [T.pack "Day"] ++ concatMap (\(a,_,_,_,_) -> a) rows
     dt = [T.pack "Debit"] ++ concatMap (\(_,a,_,_,_) -> a) rows
     dv = [T.pack "Amount"] ++ concatMap (\(_,_,a,_,_) -> a) rows
@@ -237,7 +240,7 @@ journalRows alg f = csvTranspose [ds, dt, dv, ct, cv]
 -- Groups by date and records the debit/credit account titles and amounts for each day.
 -- Pure layout is delegated to 'journalRows'; this function only writes the file.
 --
--- Complexity: O(s * log d) (s = number of entries, d = number of distinct dates; see 'journalRows')
+-- See 'journalRows' for the row order and complexity.
 writeJournal :: (HatVal n, HatBaseClass b, ExBaseClass b)
              => FilePath
              -> Alg n b

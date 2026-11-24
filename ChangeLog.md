@@ -71,6 +71,11 @@
 
 ### Changed
 
+- `journalRows` and journal CSV output list each day's debit and credit
+  terms in account-title order, then by hat base. The built-in chart uses
+  the declaration order of `AccountTitles`. Earlier versions left the
+  order within each side of a date unspecified.
+
 - **Breaking (0.7).** The `Element` and `BaseClass` instances for `Day` and
   `TimeOfDay` are removed, along with the three built-in `ExBaseClass`
   instances that used either type directly. Use `Wild Day` and
@@ -79,8 +84,7 @@
   For example, change `HatBase (AccountTitles, Day)` to
   `HatBase (AccountTitles, Wild Day)` and write `Not :< (Cash, Exactly d)`
   for a cash entry dated `d`. The date 1858-11-17 and midnight (00:00)
-  are ordinary elements when wrapped in `Exactly`. In journal CSV output,
-  the order of distinct bases on the same date can change after migration.
+  are ordinary elements when wrapped in `Exactly`.
 
 - The move of simulation into the separate `exchangealgebra-simulation`
   package, and the removal of the classic engine (`Simulate`,

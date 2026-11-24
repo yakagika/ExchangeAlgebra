@@ -152,17 +152,11 @@ testWriteJournalPinned = withTestTemporaryFile $ \path -> do
         "\"2024-04-01\",\"Cash\",\"100.0\",\"CapitalStock\",\"100.0\"" (lns !! 1)
     assertEqual "writeJournal pinned: day2"
         "\"2024-04-02\",\"Cash\",\"50.0\",\"Sales\",\"50.0\"" (lns !! 2)
-    -- The two debit bases can appear in either hash map traversal order.
-    let day3Rows =
-            [ [ "\"2024-04-03\",\"AccountsReceivable\",\"10.0\",\"Sales\",\"40.0\""
-              , "\"\",\"Cash\",\"30.0\",\"\",\"\""
-              ]
-            , [ "\"2024-04-03\",\"Cash\",\"30.0\",\"Sales\",\"40.0\""
-              , "\"\",\"AccountsReceivable\",\"10.0\",\"\",\"\""
-              ]
-            ]
-    assertEqual ("writeJournal pinned: day3 debit rows, credit, and padding " ++ show (drop 3 lns))
-        True (drop 3 lns `elem` day3Rows)
+    assertEqual "writeJournal pinned: day3 debit order, credit, and padding"
+        [ "\"2024-04-03\",\"Cash\",\"30.0\",\"Sales\",\"40.0\""
+        , "\"\",\"AccountsReceivable\",\"10.0\",\"\",\"\""
+        ]
+        (drop 3 lns)
 
 -- ================================================================
 -- ExchangeAlgebra.IO.Input.Csv: generic journal CSV reader.
