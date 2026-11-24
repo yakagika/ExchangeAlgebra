@@ -180,6 +180,7 @@ rather than `stack run`.
 | executable | main | kind | notes |
 |---|---|---|---|
 | `bench-core` | `benchmark/Bench.hs` | bench | Core micro-benchmarks for exchangealgebra construction, bar, projection, and `BasePart` key hashing. |
+| `repr-baseline` | `benchmark/reprBaseline.hs` | executable | Measure time, allocation, and build residency for the current `Alg` representation on a synthetic purchase network. |
 
 **Papers:** None.
 

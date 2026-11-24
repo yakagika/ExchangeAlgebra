@@ -102,6 +102,12 @@ executables:
     main:                fixedPriceIOSpill.hs
     source-dirs:         basic
 
+  repr-baseline:
+    <<: *exe-defaults
+    main:                reprBaseline.hs
+    source-dirs:         benchmark
+    other-modules:       [Paths_exchangealgebra_examples]
+
 benchmarks:
   # Performance roadmap benchmark harness (ROAD_MAP "ベンチマーク基盤の整備").
   # criterion is scoped to this component only, so the library and the example
@@ -109,6 +115,7 @@ benchmarks:
   bench-core:
     main:                Bench.hs
     source-dirs:         benchmark
+    other-modules:       [Paths_exchangealgebra_examples]
     dependencies:
     - criterion          >= 1.6 && < 1.7
     ghc-options:

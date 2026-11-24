@@ -123,6 +123,41 @@ stack bench exchangealgebra-examples:bench-core \
   --benchmark-arguments '--match glob exact/gate/I/norm/K=200/n=10/* --time-limit 1'
 ```
 
+## Measure the current `Alg` representation
+
+Use `repr-baseline` as the reference for comparing ledger representations on the
+same synthetic purchase network. Each buyer has 10 suppliers, and each purchase
+relationship contributes six terms. The executable accepts `100000` or
+`1000000` purchase relationships.
+
+Run these commands from the repository root to build against the local library
+and measure the 100,000-relationship workload.
+
+```bash
+stack build exchangealgebra-examples:exe:repr-baseline
+stack exec repr-baseline -- 100000 +RTS -N1 -T
+```
+
+`-N1` fixes the number of runtime capabilities at one, and `-T` enables RTS
+statistics. The executable starts three fresh child processes with these flags
+so heap from earlier samples cannot affect build residency. Each child forces
+the ledger without forcing the lazy query index during construction and checks
+the operation results against formulas for the network.
+
+The output starts with `validated current 100000` and reports median elapsed
+nanoseconds and median allocated bytes for construction, `norm`, Cash queries
+for 1,000 owners, `bar`, and relabeling Sales to Purchases. `query-index` times
+the first `Hat` Cash query, which triggers the lazy index; `query` includes that
+first query and all remaining `Hat` and `Not` Cash queries.
+
+`build_live_bytes` reports the median live heap size after the post-build major
+GC. `build_max_live_bytes` reports the median of the RTS peak live-byte counts
+through that collection. `build_ns_per_posting` and `live_bytes_per_posting`
+divide the median build time and median post-build live bytes by the number of
+terms, respectively.
+
+Tested with exchangealgebra-0.6.1.1 on 2026-11-24.
+
 ## Roadmap follow-ups (not yet done)
 
 - Parameterize the `fixed-price-io-spill` simulation scale (`lastC`) via CLI or environment
