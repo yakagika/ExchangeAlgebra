@@ -47,11 +47,6 @@
   with an `ExBaseClass` instance, including multi-axis bases. The input-conversion helpers keep
   their account-only types and delegate to these functions. Repeated postings remain separate.
 
-- `DirectorsCompensations` (役員報酬, remuneration for directors and other officers) in
-  `AccountTitles`: a cost account distinct from `WageExpenditure`. The Japanese name `役員報酬`
-  resolves to it on import. The wildcard `AccountTitle` keeps the last ordinal, so its ordinal shifts
-  by one.
-
 - `ExchangeAlgebra.Accounting.Audit` provides audits that report one type of
   accounting anomaly each, without blocking any computation. Every audit
   returns `AuditResult`: `NoProblem`, `Warning` for findings with legitimate
@@ -214,6 +209,16 @@
   A constructor without a title argument needs a type when the context
   leaves the vocabulary open, for example
   `show (WildcardMetricAccount :: MetricError)`.
+
+- **Breaking (0.7).** `AccountTitles` has a new constructor
+  `DirectorsCompensations` (役員報酬, remuneration for directors and other
+  officers), a cost account distinct from `WageExpenditure`. The Japanese name
+  `役員報酬` resolves to it on import. A `case` on `AccountTitles` that lists
+  every constructor without a wildcard pattern is no longer exhaustive; add a
+  case for `DirectorsCompensations`. The wildcard `AccountTitle` keeps the last
+  ordinal, so its `fromEnum` value increases by one. The `Binary` encoding
+  writes a fixed code for each title, so the bytes for existing titles do not
+  change.
 
 - **Breaking.** `closingEntries` returns `Either (ClosingError v b) (Alg v b)`.
   Match a former transfer failure `Left e` as `Left (ClosingTransferError e)`.
