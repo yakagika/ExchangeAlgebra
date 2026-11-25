@@ -109,8 +109,8 @@ nearlyEqScaled x y
 --
 -- * 'Prelude.Double' — fast IEEE-754 (this module); the low-friction default.
 -- * @MoneyDouble@ ("ExchangeAlgebra.Algebra.Value") — same speed, dedicated money newtype.
--- * @MoneyDecimal@ ("ExchangeAlgebra.Algebra.Value") — exact decimal, construction-order
---   independent totals; use for audited\/deterministic ledgers.
+-- * @MoneyDecimal@ ("ExchangeAlgebra.Algebra.Value") — exact decimal arithmetic, so
+--   totals match decimal bookkeeping; use for audited ledgers.
 --
 -- DESIGN NOTE (2026-06-06, selectable value type — Double vs exact Decimal):
 -- The @RealFloat@ superclass was intentionally *removed* so that exact,

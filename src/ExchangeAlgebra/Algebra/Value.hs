@@ -13,23 +13,24 @@
     Exact, non-negative decimal value type t'MoneyDecimal' for use as the @v@
     parameter of @Alg v b@ / @Journal n v b@.
 
-    == Why this exists (DESIGN, 2026-06-06)
+    == Why this exists
 
     The accounting value type is selectable:
 
-      * @Double@      — fast IEEE-754; the default. Addition is /non-associative/,
-        so the order in which same-base postings are summed (which depends on how a
-        value was /constructed/) can change @norm@ / @bar@ results. In the
-        agent-based simulations this manifested as a ~3% swing in a stock value when
-        the construction order changed (see plans/in-progress/LAZY_EVAL_AUDIT.md and
-        FP_SUMMATION_SURVEY.md). This is acceptable for relative-price ABM work where
-        speed matters, but it is not deterministic/auditable.
+      * @Double@      — fast IEEE-754; the default. Floating-point addition is
+        /non-associative/, but @norm@ and @bar@ sum the supplied values exactly and
+        round once, and @balance@ compares the exact sums, so for finite terms they
+        do not depend on the order in which same-base terms were added. The sequential sums of @barWithin@,
+        @balanceWithin@, and @diffRLWithin@ follow that order and can change in the
+        last digit. Decimal amounts such as @0.1@ are approximated, and products and
+        quotients such as tax ratios round at each step. This is acceptable for
+        relative-price ABM work where speed matters.
 
       * @MoneyDecimal@   — exact base-10 fixed-point (a non-negative 'Data.Decimal').
-        Addition is /exact and associative/, so results are independent of
-        construction order: the fromList fold direction, parallel merges, etc. no
-        longer change the answer. This is the right choice for audited ledgers and
-        for making the construction-order optimizations (fromList O(N)) safe.
+        Addition is /exact and associative/, so every readout, including the
+        sequential sums, is independent of construction order, and decimal amounts
+        such as @0.1@ are represented exactly. This is the right choice for audited
+        ledgers whose totals must match decimal arithmetic.
 
     @Integer@ (minimal-currency-unit) is intentionally NOT offered: ABM simulations
     use relative prices with base unit 1 and sub-unit fractional prices, which an
@@ -386,8 +387,9 @@ instance NFData MoneyDecimal where
 -- t'MoneyDecimal' — there are no orphan instances. Use t'MoneyDouble' for the same
 -- speed as bare 'Double' while keeping the value type distinct in signatures.
 --
--- Trade-off vs t'MoneyDecimal': addition is /non-associative/ (FP), so @norm@ \/
--- @bar@ can differ in the last ULP depending on construction order. It is fast
+-- Trade-off vs t'MoneyDecimal': decimal amounts are approximated, and the
+-- sequential sums of @barWithin@ can differ in the last digit depending on
+-- construction order (@norm@ and @bar@ sum exactly and round once). It is fast
 -- and runs everywhere bare 'Double' does (subtraction is signed, so the
 -- intermediate negatives that arise inside @bar@\/@(.-)@ are fine — unlike
 -- @Number.NonNegative.Double@, whose @(-)@ /errors/ on a negative result).

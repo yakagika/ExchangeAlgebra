@@ -216,11 +216,11 @@ workload. The bare `Double` is the default; `ExchangeAlgebra.Algebra.Value` adds
 | Distinct money type | ✗ — a bare numeric type | ✓ — can't be silently mixed with coefficients / draws | ✓ |
 | Decimal prices / ratios | approximate | approximate | **exact** |
 | Tax / proration (`*`, `/`) | rounding noise | rounding noise | exact intermediates; round explicitly with `bankersRound` / `ceilingRound` |
-| Construction-order independence | ✗ — addition is non-associative, so the order same-base terms are summed shifts the last-ULP of `norm` / `bar` | ✗ — identical to `Double` | ✓ — addition is exact & associative, so `norm` / `bar` / balance are identical regardless of build order |
-| Determinism / auditability | not bit-reproducible across reorderings | not bit-reproducible | bit-reproducible |
+| Construction-order independence | ✓ for `norm` / `bar` / balance on finite terms, which work from exact sums (`norm` and `bar` round once; balance compares the exact sums); ✗ for the sequential sums of `barWithin` / `balanceWithin` / `diffRLWithin`, whose last digit can shift with the order same-base terms were added | identical to `Double` | ✓ — addition is exact & associative, so every readout, including the sequential sums, is identical regardless of build order |
+| Determinism / auditability | `norm` / `bar` / balance are bit-reproducible across reorderings; the sequential sums are not | identical to `Double` | bit-reproducible |
 | Memory per value | ~16 B | ~16 B (zero-cost wrapper) | ~40 B + indirection (~2.5×) |
 | Speed | fastest | fastest (= `Double`) | slower (boxed `Integer` mantissa arithmetic) |
-| Typical use | numeric methods (Leontief inverse, optimization), quick ABM | ABM where you want a *typed* money value distinct from raw `Double` | audited ledgers, bookkeeping, anywhere a total must be reproducible |
+| Typical use | numeric methods (Leontief inverse, optimization), quick ABM | ABM where you want a *typed* money value distinct from raw `Double` | audited ledgers, bookkeeping, anywhere a total must match decimal arithmetic exactly |
 
 ```haskell
 import ExchangeAlgebra
@@ -261,13 +261,15 @@ regardless of value type; `MoneyDecimal` adds a constant factor (~2.5× per valu
 on top. For very large simulations weigh exactness against that overhead — or use
 the spill-to-disk path (below) to keep memory constant.
 
-**`fromList` ordering contract.** `EJ.fromList` is a strict `O(N)` left fold. It
-preserves the *multiset* of terms exactly. When two terms share the
-same note **and** base, they land in one ordered sequence; that sequence's order is
-observable through `Eq` / `Show` / `toAlg` / `Binary`, and for `Double` through the
-last-ULP of `norm` / `bar`. For `MoneyDecimal` the order never affects
-`norm` / `bar` / balance. (`Integer` is intentionally not offered — it cannot
-represent the fractional relative prices the ABM work depends on.)
+**`fromList` ordering contract.** `EJ.fromList` is a strict `O(N)` left fold. When
+two terms share the same note **and** base, they land in one sequence in input
+order. `Eq` on the results of `toMap` and `toAlg`, `Binary`, and the sequential sums
+of `barWithin`, `balanceWithin`, and `diffRLWithin` observe that order; `Show`
+displays sorted terms. For finite terms,
+`norm`, `bar`, and balance do not depend on the order for any value type. For
+`MoneyDecimal`, the sequential sums do not depend on it either. (`Integer` is
+intentionally not offered — it cannot represent the fractional relative prices the
+ABM work depends on.)
 
 ## Recommended import patterns
 

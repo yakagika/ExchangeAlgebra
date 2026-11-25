@@ -39,8 +39,8 @@
     * 'Prelude.Double' — fast IEEE-754; fine for simulations and quick work.
     * t'ExchangeAlgebra.Algebra.Value.MoneyDouble' — same speed, but a dedicated money
       newtype so a ledger value cannot be confused with a raw coefficient.
-    * t'ExchangeAlgebra.Algebra.Value.MoneyDecimal' — exact decimal; construction-order
-      independent totals. Use for audited\/deterministic ledgers.
+    * t'ExchangeAlgebra.Algebra.Value.MoneyDecimal' — exact decimal arithmetic, so
+      totals match decimal bookkeeping. Use for audited ledgers.
 
     For multi-period simulation or metadata-aware journals (notes, components),
     import "ExchangeAlgebra.Journal" qualified to avoid overlapping names
