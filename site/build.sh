@@ -7,6 +7,7 @@
 # ja.po の訳文と fuzzy を確認し, msgfmt --check -o /dev/null po/ja.po
 # を通してから再実行する. 英語版は book/en/, 日本語版は book/ja/ に出力する.
 # book/index.html は英語版へ誘導する. 生成物は繰り返し上書きできる.
+# check-po.py で英文を写したままの未訳を探し,
 # 最後に check-book.py で両言語の内部 link と数式の崩れを検査する.
 # 検査の問題か, 未訳や英文の変更による ja.po の不一致があると, book を
 # 出力したうえで exit 1 で終わる.
@@ -51,5 +52,6 @@ cat > book/index.html <<HTML
 <a href="en/index.html">$title_en</a>
 </html>
 HTML
+python3 check-po.py po/ja.po || failed=1
 python3 check-book.py book/en book/ja || failed=1
 exit "$failed"

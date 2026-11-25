@@ -34,8 +34,9 @@ dependencies on the first run.
    `bash site/check-code.sh` to verify that another generation produces the
    same table.
 5. Run `msgfmt --check -o /dev/null site/po/ja.po` and `bash site/build.sh`.
-   The build checks the translation catalog against the English source and
-   checks links and math in both HTML books. The English and Japanese titles
+   The build checks the translation catalog against the English source,
+   reports Japanese messages that still copy the English text, and checks
+   links and math in both HTML books. The English and Japanese titles
    include the selected Hackage version. Review the updated sources, catalog,
    version file, and API map together.
 
