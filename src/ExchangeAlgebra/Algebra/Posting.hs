@@ -172,11 +172,11 @@ instance NFData (Posting v b) where
 -- > postingAlg (a <> b) == (postingAlg a .+ postingAlg b)
 --
 -- This law uses 'Alg' equality without a tolerance for every 'HatBaseClass'
--- instance, so it also preserves the multiset of postings. Associativity
--- holds as equality of posting multisets, using
--- @sameMultiset x y = toASCList x == toASCList y@:
+-- instance. Associativity holds under the same equality, because '(.+)'
+-- keeps the terms on each base and side in left-to-right order for either
+-- grouping:
 --
--- > sameMultiset (postingAlg ((a <> b) <> c)) (postingAlg (a <> (b <> c)))
+-- > postingAlg ((a <> b) <> c) == postingAlg (a <> (b <> c))
 --
 -- Complexity: the same as '(.+)' on the underlying algebras.
 instance (HatVal v, HatBaseClass b) => Semigroup (Posting v b) where
