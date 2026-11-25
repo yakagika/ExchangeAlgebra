@@ -324,11 +324,10 @@ narrowAlg
     => Alg v (HatBase AccountTitles)
     -> Either [AccountTitles] (Alg v (HatBase JcciTitles))
 narrowAlg ledger = case Set.toAscList rejected of
-    [] -> Right (unionsMerge terms)
+    [] -> Right (unionsMerge (reverse terms))
     titles -> Left titles
   where
-    -- foldEntries reads each side in sequence order. Collect in reverse because
-    -- unionsMerge prepends each singleton to the sequence for its base and side.
+    -- Collect with cons, then pass the terms to unionsMerge in traversal order.
     (rejected, terms) = foldEntries collect (Set.empty, []) ledger
 
     collect (!missing, accepted) value (side :< title) =

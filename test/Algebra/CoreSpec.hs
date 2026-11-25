@@ -98,38 +98,24 @@ testBasesNotSideRegression = do
     assertEqual "bases Not label count" 3 notCount
 
 
--- | Characterization: the same-base 'Seq' order is __construction-path
--- dependent__. The pairwise-union path ('EA.fromList' = 'mconcat') and the
--- bulk-merge path ('EA.sigma' \/ 'EA.unionsMerge') produce the same /multiset/
--- of postings but in different sequence orders, which 'Eq' \/ @Binary@ observe
--- (and 'Double' observes through the last ULP of 'norm'\/'bar' association).
--- This test pins the current orders so any change to either path is a
--- conscious decision; unifying the paths is tracked in the 0.5.0.0 cleanup
--- plan. For order-independent comparison use `MoneyDecimal` (exact) or compare
--- after 'EA.compress'\/'EA.bar'.
-testSameBaseSeqOrderPathDependence :: IO ()
-testSameBaseSeqOrderPathDependence = do
+testSameBaseSeqOrder :: IO ()
+testSameBaseSeqOrder = do
     let f :: Int -> TestAlg
         f i = fromIntegral i .@ (Hat :< Yen)
-        xs = L.map f [1, 2, 3]
-        viaFromList = EA.fromList xs
-        viaSigma    = EA.sigma [1, 2, 3] f
-        viaMerge    = EA.unionsMerge xs
-    assertEqual "fromList same-base seq order (pairwise-union path)"
-        [3, 1, 2] (EA.vals viaFromList)
-    assertEqual "sigma same-base seq order (bulk-merge path)"
-        [3, 2, 1] (EA.vals viaSigma)
-    assertEqual "unionsMerge order matches sigma (same merge path)"
-        (EA.vals viaSigma) (EA.vals viaMerge)
-    -- same multiset, different order: Eq observes the redundancy order
-    assertEqual "fromList /= sigma under Eq (order is observable)"
-        False (viaFromList == viaSigma)
-    -- the algebraic content is nevertheless identical
-    assertNear "norm agrees across construction paths"
-        (norm viaFromList) (norm viaSigma)
-    assertEqual "bar agrees across construction paths"
-        (EA.bar viaFromList) (EA.bar viaSigma)
-
+        a = f 1
+        b = f 2
+        c = f 3
+        xs = [a, b, c]
+        paths = [ ("left-associated (.+)", (a .+ b) .+ c)
+                , ("right-associated (.+)", a .+ (b .+ c))
+                , ("fromList", EA.fromList xs)
+                , ("sigma", EA.sigma [1, 2, 3] f)
+                , ("unionsMerge", EA.unionsMerge xs)
+                ]
+    mapM_ (\(label, alg) -> assertEqual (label ++ " same-base sequence order")
+            [1, 2, 3] (EA.vals alg)) paths
+    assertEqual "same-base construction paths agree under Eq"
+        True (all ((== (a .+ (b .+ c))) . snd) paths)
 
 -- | Regression for audit divergence C: scalar product (.*) must reject a
 -- negative / non-finite scalar instead of silently producing negative
@@ -343,6 +329,49 @@ genAlgD = sized $ \n -> do
     k  <- choose (0, min 40 n)
     ps <- vectorOf k ((,) <$> genNNDouble <*> genBase)
     pure (EA.fromList [ v .@ b | (v, b) <- ps ])
+
+testAdditionOrderProperties :: IO ()
+testAdditionOrderProperties = do
+    quickProp "(.+) is associative under Eq for zero, single, and multiple terms" $
+        forAll algShapes $ \xs -> forAll algShapes $ \ys -> forAll algShapes $ \zs ->
+            conjoin [((x .+ y) .+ z) === (x .+ (y .+ z)) | x <- xs, y <- ys, z <- zs]
+
+    quickProp "Alg addition paths retain input order on each base and side" $
+        forAll genPostings $ \postings ->
+            let xs = [v .@ b | (v, b) <- postings] :: [TestAlg]
+                expected = EA.fromList xs
+                paths = [ EA.sigma xs id
+                        , EA.unionsMerge xs
+                        , foldr (.+) EA.Zero xs
+                        , L.foldl' (.+) EA.Zero xs
+                        ]
+                expectedValues = M.fromList
+                    [ (b, [v | (v, b') <- postings, b' == b])
+                    | (_, b) <- postings
+                    ]
+                actualValues = fmap reverse $ EA.foldEntries
+                    (\acc v b -> M.insertWith (++) b [v] acc) M.empty expected
+            in conjoin ((actualValues === expectedValues) : L.map (=== expected) paths)
+
+    quickProp "norm and projNetNorm are equal for reversed Double terms" $
+        forAll genPostings $ \postings ->
+            let xs = [v .@ b | (v, b) <- postings] :: [TestAlg]
+                original = EA.fromList xs
+                reordered = EA.fromList (reverse xs)
+                query = [HatNot :< Yen, HatNot :< Dollar]
+            in conjoin [norm original === norm reordered,
+                        EA.projNetNorm query original === EA.projNetNorm query reordered]
+  where
+    positive = genNNDouble `suchThat` (> 0)
+    algShapes = do
+        single <- (.@) <$> positive <*> genBase
+        multiple <- genAlgD `suchThat` ((> 1) . length . EA.vals)
+        pure [EA.Zero, single, multiple]
+    genPostings = do
+        repeatedBase <- genBase
+        repeated <- vectorOf 3 ((\v -> (v, repeatedBase)) <$> positive)
+        others <- listOf ((,) <$> positive <*> genBase)
+        shuffle (repeated ++ others)
 
 genAlgN :: Gen NNAlg
 genAlgN = sized $ \n -> do
@@ -579,13 +608,13 @@ functorialityLawProperties = do
         forAll (listOf ((,) <$> (realToFrac <$> genNNDouble) <*> genBase)) $ \ps ->
             let singles = [ v .@ b | (v, b) <- ps ] :: [NNAlg]
                 pairwise = EA.fromList singles
-                bulk = EA.sigma ps (\(v, b) -> v .@ b :: NNAlg)
+                bulk = EA.sigma (reverse ps) (\(v, b) -> v .@ b :: NNAlg)
                 sumEntries = EA.foldEntries (\acc v _ -> acc + v) 0
             in sumEntries pairwise == sumEntries bulk
     let entries = [1 .@ (Hat :< Yen), 2 .@ (Hat :< Yen), 3 .@ (Hat :< Yen)]
             :: [NNAlg]
         pairwise = EA.fromList entries
-        bulk = EA.sigma [1, 2, 3 :: Int]
+        bulk = EA.sigma [3, 2, 1 :: Int]
             (\i -> fromIntegral i .@ (Hat :< Yen) :: NNAlg)
         collect = EA.foldEntries (\acc v _ -> acc ++ [v]) []
     assertEqual "foldEntries: non-commutative list append observes Seq order"
@@ -752,7 +781,8 @@ runTests = do
     testMapMaybePosting
     testBasesNotSideRegression
     testNumericToleranceScaleAware
-    testSameBaseSeqOrderPathDependence
+    testSameBaseSeqOrder
+    testAdditionOrderProperties
     testScalarRejectsNegative
     testProjConcreteNoIndexForce
     testWildcardIndexIds

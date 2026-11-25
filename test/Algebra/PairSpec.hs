@@ -60,23 +60,23 @@ posting v b
     | isHat b = RefPair (S.singleton v) S.empty
     | otherwise = RefPair S.empty (S.singleton v)
 
--- | Old insertion order: a new posting precedes the existing side.
-insertRef :: Base -> Double -> Ref -> Ref
-insertRef _ v x | isZeroValue v = x
-insertRef b v Empty = One v b
-insertRef b v (One w c) = insertRef c w (Many (H.singleton (base b) (posting v b)))
-insertRef b v (Many m) = Many (H.insertWith append (base b) (posting v b) m)
+-- | Insert a nonzero term into a map, combining the new pair and the old pair.
+insertRef :: (RefPair -> RefPair -> RefPair)
+          -> Base -> Double -> H.HashMap CountUnit RefPair -> Ref
+insertRef combine b v m
+    | isZeroValue v = Many m
+    | otherwise = Many (H.insertWith combine (base b) (posting v b) m)
 
--- | Old pairwise union, including its asymmetric singleton insertion path.
+-- | Combine operands in left-to-right order on each base and side.
 unionRef :: Ref -> Ref -> Ref
 unionRef Empty x = x
 unionRef x Empty = x
 unionRef (One v b) (One w c)
     | isZeroValue v = if isZeroValue w then Empty else One w c
     | isZeroValue w = One v b
-    | otherwise = insertRef c w (One v b)
-unionRef x (One v b) = insertRef b v x
-unionRef (One v b) x = insertRef b v x
+    | otherwise = insertRef (flip append) c w (H.singleton (base b) (posting v b))
+unionRef (Many m) (One v b) = insertRef (flip append) b v m
+unionRef (One v b) (Many m) = insertRef append b v m
 unionRef (Many m) (Many n) = Many (H.unionWith append m n)
 
 -- | Construct only the expected representation, after computing it independently.
@@ -443,7 +443,7 @@ runTests = do
     patternTests
     binaryTests
     customMapTests
-    quickProp "Pair: arbitrary posting lists preserve old order and wire layout" $
+    quickProp "Pair: arbitrary posting lists preserve addition order and wire layout" $
         forAll (listOf ((,) <$> choose (0, 1000) <*> elements
             [Hat :< Yen, Not :< Yen, Hat :< Dollar, Not :< Euro, Not :< CountUnit])) $ \ps ->
             ioProperty $ do
@@ -461,7 +461,7 @@ runTests = do
                     (E.mapMaybePosting (\v b -> if v > 2 then Just (v, b) else Nothing) actual)
                 let bulk = rebuild $ foldl
                         (\m (v, b) -> if isZeroValue v then m
-                            else H.insertWith append (base b) (posting v b) m) H.empty ps
+                            else H.insertWith (flip append) (base b) (posting v b) m) H.empty ps
                 check "unionsMerge" bulk (E.unionsMerge [E.Single v b | (v, b) <- ps])
                 check "append liners" (unionRef ref ref) (actual E..+ actual)
                 forM_ (E.decBy (Just . isHat) actual) $ \part ->

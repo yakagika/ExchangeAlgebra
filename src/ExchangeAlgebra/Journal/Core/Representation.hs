@@ -586,33 +586,8 @@ instance (HatVal v, HatBaseClass b, Note n) => Redundant (Journal n) v b where
     compress = map compress
 
 ------------------------------------------------------------------
--- | Build a t'Journal' from a list of postings. @O(N)@ via a strict left fold
--- (@L.foldl' (.+) mempty@).
---
--- == Why a strict left fold
---
--- This was previously a lazy right fold (@foldr (.+) mempty@), kept that way to
--- freeze the same-base accumulation order for 'Double' (whose addition is
--- non-associative, so reordering affected the former sequential 'norm'). The strict left
--- fold is far cheaper at scale — the lazy right fold builds a deep right-nested
--- thunk that is expensive to force (≈40x at N=20000, ~15x at N=10000 in the core
--- benchmark). The fold direction was switched to the fast version once the
--- audited/exact path moved to t'ExchangeAlgebra.Algebra.Value.MoneyDecimal'; see
--- plans/in-progress/LAZY_EVAL_AUDIT.md and SELECTABLE_VALUE_TYPE_PLAN.md.
---
--- == Behavior contract
---
--- 'fromList' preserves the /multiset/ of postings exactly (no posting is added,
--- dropped, or merged across bases that would otherwise be kept apart). When two
--- postings collide on the /same note key and same base/ (and therefore land in
--- one t'ExchangeAlgebra.Algebra.Core.Alg' sequence) the strict left fold orders that
--- @Seq@ opposite to the old lazy right fold. That order is observable through
--- 'Eq' \/ 'Show' \/ @Binary@, and for 'Double' through the sequential
--- sums in 'barWithin' (IEEE-754 addition is non-associative). Postings that differ in
--- note or base land in separate map entries and are unaffected.
---
--- For finite postings, 'norm', 'bar', and balance are independent of
--- construction order for every value type, including Double and MoneyDouble.
+-- | Build a t'Journal' from a list using a strict left fold.
+-- Each note retains the input order of the terms on each base and side.
 --
 -- >>> type Test = Journal T.Text Double (HatBase CountUnit)
 -- >>> x = [(1.00.@Hat:<Yen .| z) | z <- ["Loan Payment","Purchace Apple"]] :: [Test]
@@ -636,7 +611,7 @@ mergeJournalMap !acc (Journal bs delta _ _)
   where
     mergeOne !m !n !alg
         | EA.isZero alg = m
-        | otherwise = Map.insertWith (.+) n alg m
+        | otherwise = Map.insertWith (flip (.+)) n alg m
 
 {-# INLINE mergeJournalMapIfNonZero #-}
 mergeJournalMapIfNonZero :: (HatVal v, HatBaseClass b, Note n)
@@ -647,7 +622,8 @@ mergeJournalMapIfNonZero !acc js
     | isZero js = acc
     | otherwise = mergeJournalMap acc js
 
--- | Summation function that applies a function to each list element and sums the resulting Journals.
+-- | Apply a function to each list element and sum the resulting journals.
+-- Terms for each note, base, and side retain their list order.
 --
 -- Complexity: O(|xs| * union cost)
 {-# INLINE sigma #-}
@@ -750,26 +726,19 @@ decTo kf x =
 --
 -- Complexity: O(|xs| * cost(f))
 --
--- NOTE: kept as @mconcat <$> forM xs f@ deliberately. A strict @foldM@ left fold
--- was tried (plan WI-3) but it changes the '<>' association order, which for
--- 'Alg'/t'Journal' reorders the audit-trail sequence. The order is observable
--- through Eq, Show, Binary, and the sequential sums in barWithin. For finite
--- postings, norm, bar, and balance are order-independent for every value type.
--- See plans/in-progress/LAZY_EVAL_AUDIT.md (WI-3).
+-- Effects run in list order. The result combines their values using 'mconcat'.
 sigmaM :: (Monoid m, Monad m0) => [a] -> (a -> m0 m) -> m0 m
 sigmaM xs f = mconcat <$> CM.forM xs f
 
 ------------------------------------------------------------------
--- | Combine entries from all Notes in a Journal into a single Alg.
+-- | Combine all notes into a single algebra.
+-- Merge both layers of each note first, then combine notes in the traversal
+-- order of the resulting @HashMap@.
 --
--- Complexity: O(total number of base keys across all Notes)
+-- Complexity: O(total number of base keys across all notes)
 toAlg :: (HatVal v, HatBaseClass b, Note n)
       => Journal n v b -> Alg v b
-toAlg (Journal bs delta _ _) =
-    -- Fold the base terms directly onto the delta term list instead of
-    -- @Map.elems base ++ Map.elems delta@, which avoids materializing the
-    -- separate @Map.elems base@ list and the @(++)@ traversal.
-    EA.unionsMerge (Map.foldr (:) (Map.elems delta) bs)
+toAlg = EA.unionsMerge . materializeMap
 
 ------------------------------------------------------------------
 -- | Apply function f to the entry of each Note in the Journal.

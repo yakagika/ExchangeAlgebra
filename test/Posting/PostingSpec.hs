@@ -266,7 +266,7 @@ testSides = do
     assertTest "PostSide excludes HatNot" $
         all ((/= HatNot) . sideHat) [minBound .. maxBound]
 
--- | Three equal-base entries expose structural ordering without breaking the multiset law.
+-- | Both groupings of three equal-base entries preserve the same sequence.
 testAssociativityRegression :: IO ()
 testAssociativityRegression = case traverse posted [1, 2, 3] of
     Left failure                 -> do
@@ -279,7 +279,7 @@ testAssociativityRegression = case traverse posted [1, 2, 3] of
             z = entry HatSide third part :: Posting Double TestBase
             left = postingAlg ((x <> y) <> z)
             right = postingAlg (x <> (y <> z))
-        assertTest "equal-base grouping changes structural order" (left /= right)
+        assertTest "equal-base grouping preserves structural order" (left == right)
         assertTest "equal-base grouping preserves the multiset" (sameMultiset left right)
     Right _                      -> assertTest "three checked fixture values" False
 

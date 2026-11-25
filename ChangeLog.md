@@ -284,6 +284,40 @@
   public APIs, and Binary encodings. `ExchangeAlgebra.Algebra.Internal` (outside the PVP
   contract) now exports the `HatOne`, `NotOne`, and `PairSeq` constructors of `Pair`; the
   `Pair hs ns` pattern and its field selectors remain.
+- Addition now appends terms on the same base and side in input order.
+  In an `Alg`, adding a singleton on the right with `(.+)` or using `fromList`
+  can change `[3,1,2]` to `[1,2,3]`. `sigma` and `unionsMerge` change
+  `[3,2,1]` to `[1,2,3]` for the same three singleton terms. Both
+  associations of `(.+)` now agree under `Eq`. A `Journal` retains the
+  addition order within each note even when other notes trigger compaction.
+  `Journal.sigma` changes `[3,2,1]` to `[1,2,3]` for three singletons on
+  one note. `toAlg` merges each note before traversing the merged note map.
+
+  - `extendBy (.@)` on a term sequence `[1,2,3]` changes its output from
+    `[3,1,2]` to `[1,2,3]`. `Journal.fromList` makes the same change
+    when adding three singleton terms to one note. So does `Journal.sigmaM`
+    when it combines `[1,2]` and `[3]` as algebras or on one note.
+  - `sigma2When`, `sigmaFromMap`, `Journal.sigma2When`, `Journal.sigmaOn`,
+    and `Journal.sigmaOnFromMap` change `[3,2,1]` to `[1,2,3]` when
+    they visit three singleton terms in that order on one base and side
+    and, for the journal functions, on one note.
+  - Reading a note with `toMap` after `filterWithNote` changes
+    `[3,1,2]` to `[1,2,3]` when its original layer holds `[1,2]` and
+    its pending layer holds `[3]`. The same applies when `Journal.map`
+    uses the identity function, `replaceNotes` retains that note, or
+    `projWithNote`, `projWithBase`, `projWithNoteBase`, or
+    `filterByNoteField` selects all three terms. Journal `(.^)` and
+    `1 .*` carry the new order into their results.
+  - `toAlg` and `gather` follow the merged note map's traversal order.
+    If that traversal visits three notes holding same-base singletons
+    `[1,2,3]` in one layer, the result changes from `[3,2,1]` to `[1,2,3]`.
+
+  `Eq` and the encoded `Binary` bytes may change. `Show` displays sorted
+  terms and can hide this difference. Previously encoded bytes still decode.
+  The exact readouts `norm`, `bar`, `projNetNorm`, and closing give the
+  same values for finite terms. `barWithin` sums each side in sequence order, so the last
+  digit can change for `Double`. For example, with zero tolerance,
+  `[2^53,1,1]` gives `2^53` and `[1,1,2^53]` gives `2^53+2`.
 
 ### Fixed
 

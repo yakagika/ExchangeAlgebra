@@ -545,12 +545,37 @@ testLazyDeltaAxisCompatibility = forM_ [0, 1, 127, 128, 129, 260] $ \count -> do
         assertEqual "lazy delta: append after query" (HM.singleton (note (count + 1)) (posting 3))
             (EJ.toMap (EJ.filterByNoteField 1 (EJ.NoteFieldKey (count + 1)) extended))
 
+testJournalAdditionOrder :: IO ()
+testJournalAdditionOrder = do
+    let posting v = v .@ (Hat :< Yen) :: TestAlg
+        on note v = posting v .| note :: EJ.Journal Int Double (HatBase CountUnit)
+        -- Adding 128 other notes crosses the delta compaction threshold.
+        -- They share the target note's Hat base, so their position matters to toAlg.
+        fillers = [on n (fromIntegral n + 10) | n <- [1 .. 128]]
+        early = L.foldl' (.+) mempty ([on 0 1] ++ fillers ++ [on 0 2, on 0 3])
+        late = L.foldl' (.+) mempty ([on 0 1, on 0 2, on 0 3] ++ fillers)
+    assertEqual "Journal.toMap preserves same-note order across compaction"
+        (EJ.toMap late) (EJ.toMap early)
+    assertEqual "Journal.toAlg preserves order across compaction on shared bases"
+        (EJ.toAlg late) (EJ.toAlg early)
+    assertEqual "Journal compaction retains the note's input order"
+        (Just [1, 2, 3]) (EA.vals <$> HM.lookup 0 (EJ.toMap early))
+
+    let base = EJ.fromMap (HM.singleton 0 (posting 2))
+        layered = base .+ on 0 3
+        entries = [on 0 1, layered, on 1 4, on 0 5]
+        folded = L.foldl' (.+) mempty entries
+        bulk = EJ.sigma entries id
+    assertEqual "Journal.sigma agrees with (.+) on repeated and layered notes"
+        (EJ.toMap folded) (EJ.toMap bulk)
+
 -- | Run this domain in its original relative test order.
 runTests :: IO ()
 runTests = do
     testFinalStockTransferEquivalence
     testFilterByNoteFieldCases
     testSigmaReferences
+    testJournalAdditionOrder
     testJournalProjectionNorms
     testReplaceNotes
     journalProperties

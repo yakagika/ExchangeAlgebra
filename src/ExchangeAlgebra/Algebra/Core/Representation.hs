@@ -173,16 +173,11 @@ import qualified Data.Binary as Binary
 --
 -- Derived lemmas (also property-tested): @'bar'@ idempotence
 -- (@'bar' ('bar' x) = 'bar' x@), 'Zero' identity, and associativity of @('.+')@.
--- Note @('.+')@ accumulates same-base postings as an ordered sequence (the
--- /redundancy/), so 'Show' \/ 'Eq' \/ @Binary@ observe that order, as do the
--- sequential sums in 'barWithin'. For finite postings, 'norm', 'bar', and
--- balance are order-independent for every value type.
--- The order itself is furthermore /construction-path dependent/: the
--- pairwise-union path ('fromList'\/'mconcat') and the bulk-merge path
--- ('sigma'\/'unionsMerge') arrange the same multiset of postings differently.
--- Do not rely on @('==')@ to compare algebras built by different routes —
--- compare after 'compress'\/'bar', or use an exact value type and compare
--- the netted content.
+-- For each base and each side, @('.+')@ retains the terms in left-to-right
+-- order. 'fromList', 'sigma', and 'unionsMerge' follow the input order.
+-- 'Eq', @Binary@, and the sequential sums in 'barWithin' can observe that
+-- order. 'Show' displays sorted terms. For finite terms, 'norm', 'bar', and
+-- balance are order-independent.
 
 class (HatVal n, HatBaseClass b, Monoid (a n b)) =>  Redundant a n b where
     -- | Hat operation. Flips Hat/Not on all terms.
@@ -875,7 +870,7 @@ instance  (HatVal n, HatBaseClass b) => Semigroup (Alg n b) where
 
 
 
--- | union two trees
+-- | Combine two algebras, appending the right-hand values on each base and side.
 --
 -- >>> type Test = Alg Double (HatBase CountUnit)
 -- >>> x = 1.@Hat:<Yen .+ 1.@Not:<Amount :: Test
@@ -904,7 +899,9 @@ union (v1:@b1) (v2:@b2)
     | isZeroValue v2 = v1`Single`b1
     | otherwise      = insert b2 v2 (v1`Single`b1)
 -- If one side is a singleton
-union x (v:@b) = insert b v x
+union x@(Liner m _ _ _ _ _) (v:@b)
+    | isZeroValue v = x
+    | otherwise = insertLiner (flip pairAppend) b v m
 union (v:@b) x = insert b v x
 
 -- In the case of multiple terms
@@ -912,7 +909,11 @@ union (Liner m1 _ _ _ _ _) (Liner m2 _ _ _ _ _) = linerFromMap (Map.unionWith pa
 
 
 {-# INLINE insert #-}
--- | Complexity:
+-- | Insert one term. Into a 'Liner', the term goes before the existing terms
+-- for its base and side. Into a single term @w :\@ c@, the existing term
+-- stays first, as in @(w :\@ c) .+ (v :\@ b)@.
+--
+-- Complexity:
 --   - into Zero or singleton: O(1) to O(d * index-build)
 --   - into Liner: O(n * d * index-build) due to rebuilding 'linerFromMap'
 -- where n is the number of distinct base keys after insertion.
@@ -928,14 +929,16 @@ insert !b1 !v1 (v2:@b2) = case isHat b1 of
                                    $ linerFromMap
                                    $ Map.singleton (base b1)
                                    $ NotOne v1
-insert !b !v (Liner m _ _ _ _ _)  = case isHat b of
-                        True  -> insertLiner (HatOne v)
-                        False -> insertLiner (NotOne v)
+insert !b !v (Liner m _ _ _ _ _) = insertLiner pairAppend b v m
+
+{-# INLINE insertLiner #-}
+insertLiner :: HatBaseClass b
+            => (Pair v -> Pair v -> Pair v)
+            -> b -> v -> Map.HashMap (BasePart b) (Pair v) -> Alg v b
+insertLiner combine b v m =
+    linerFromMap (Map.insertWith combine (base b) pairToInsert m)
   where
-    !bp = base b
-    insertLiner !pairToInsert =
-        let !m' = Map.insertWith pairAppend bp pairToInsert m
-        in linerFromMap m'
+    pairToInsert = if isHat b then HatOne v else NotOne v
 
 ------------------------------------------------------------------
 -- Monoid
@@ -965,7 +968,7 @@ mergeAlgMap !acc (v :@ b)
         let !p = if isHat b
                  then HatOne v
                  else NotOne v
-        in Map.insertWith pairAppend (base b) p acc
+        in Map.insertWith (flip pairAppend) (base b) p acc
 mergeAlgMap !acc (Liner m _ _ _ _ _)
     | Map.null m = acc
     | otherwise = Map.unionWith pairAppend acc m
@@ -985,12 +988,8 @@ mergeAlgMapIfNonZero !acc alg = mergeAlgMap acc alg
 -- | Merge multiple Algs by directly combining their internal HashMaps,
 -- building the AxisPosting index only once at the end.
 --
--- Produces the same /multiset/ of postings as @unions@\/'mconcat', but the
--- same-base sequence order differs (the bulk-merge accumulates a new same-base
--- singleton in front of the previously merged values, whereas the pairwise
--- union path interleaves differently). 'Eq'\/@Binary@ observe that order, and
--- 'Double' can observe it through the sequential sums in 'barWithin'; see the
--- characterization test @testSameBaseSeqOrderPathDependence@.
+-- The result preserves the input traversal order on each base and side,
+-- as 'fromList' does for a list.
 unionsMerge :: (HatVal n, Foldable f, HatBaseClass b) => f (Alg n b) -> Alg n b
 unionsMerge ts =
     let !m = Foldable.foldl' mergeAlgMap Map.empty ts
@@ -1214,12 +1213,11 @@ fromList = mconcat
 -- | Summation function that applies a function to each element of a list and sums the results.
 -- Complexity: O(sum of HashMap union costs over produced members of the redundant algebra).
 --
--- Uses the bulk-merge path ('unionsMerge'); see there for the same-base
--- sequence-order caveat relative to 'fromList'\/'mconcat'.
+-- Each base and side retains terms in list order, as in 'unionsMerge'.
 --
 -- >>> type Test = Alg Double (HatBase CountUnit)
--- >>> sigma [1,2] (\x -> x.@Hat:<Yen)
--- 1.00:@Hat:<Yen .+ 2.00:@Hat:<Yen
+-- >>> vals (sigma [1,2,3] (\x -> x .@ Hat :< Yen) :: Test)
+-- [1.0,2.0,3.0]
 
 {-# INLINE sigma #-}
 sigma :: (HatVal v, HatBaseClass b) => [a] -> (a -> Alg v b) -> Alg v b
@@ -1589,9 +1587,9 @@ mapBasePart f (Liner m _ _ _ _ _) =
 -- the per-side sequence order. Through ℘:
 --
 -- * @extendBy h (x .+ y)@ equals @extendBy h x .+ extendBy h y@.
--- * @extendBy (:\@)@ is the identity. Raw equality can fail because the
---   result is rebuilt by a fold: the per-side order and the
---   singleton-versus-@Liner@ representation may differ from @x@.
+-- * @extendBy (:\@)@ is the identity. The fold keeps the per-side order, but
+--   raw equality can still fail because the singleton-versus-@Liner@
+--   representation may differ from @x@.
 -- * @mapBasePart f x@ equals
 --   @extendBy (\\v b -> v :\@ merge (hat b) (f (base b))) x@.
 -- * @norm (extendBy h x)@ equals the sum of @norm (h v b)@ over the entries of
