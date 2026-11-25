@@ -1,7 +1,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: ExchangeAlgebra Manual\n"
-"POT-Creation-Date: 2026-11-23T11:36:51+09:00\n"
+"POT-Creation-Date: 2026-11-25T16:25:56+09:00\n"
 "PO-Revision-Date: 2026-11-19 00:00+0900\n"
 "Last-Translator: ExchangeAlgebra contributors\n"
 "Language-Team: Japanese\n"
@@ -59,7 +59,7 @@ msgstr "冗長代数と交換代数"
 msgid "Transfers and journals"
 msgstr "振替と仕訳帳"
 
-#: src/SUMMARY.md:23 src/algebra/definitions.md:140 src/exchange/transfer.md:1
+#: src/SUMMARY.md:23 src/algebra/definitions.md:205 src/exchange/transfer.md:1
 msgid "Transfers"
 msgstr "振替"
 
@@ -597,9 +597,7 @@ msgstr ""
 msgid ""
 "Definition 1 of the preprint gives a symmetric comparison. The query "
 "relation used here treats only a query-side $\\\\#$ as a pattern."
-msgstr ""
-"プレプリントの定義 1 は対称な比較を与えています. ここで使う問い合わせの関係で"
-"は, 問い合わせ側の $\\\\#$ だけをパターンとして扱います."
+msgstr "プレプリントの定義 1 は対称な比較を与えています. ここで使う問い合わせの関係では, 問い合わせ側の $\\\\#$ だけをパターンとして扱います."
 
 #: src/algebra/definitions.md:17
 msgid "Usage: [Elements](elements.md)."
@@ -659,16 +657,28 @@ msgstr ""
 "す. 項は冗長代数の生成元です. Haskell では `Posting` が項を表す型です."
 
 #: src/algebra/definitions.md:33
+msgid ""
+"**Example 1 (Hat bases).** A base can consist of an account title alone, "
+"such as `Cash`, or pair an account title with a date or a name. For the base "
+"$e=\\langle\\mathrm{Cash},\\text{2024-01-01}\\rangle$, the hat bases are $e$ "
+"for `Not` and $\\widehat{e}$ for `Hat`."
+msgstr ""
+"**例 1 (Hat 基底).** 基底は `Cash` のような勘定科目だけでも, 勘定科目と日付や"
+"名前の組でも構成できます. 基底 $e=\\langle\\mathrm{Cash},"
+"\\text{2024-01-01}\\rangle$ に対する Hat 基底は, `Not` なら $e$, `Hat` なら $"
+"\\widehat{e}$ です."
+
+#: src/algebra/definitions.md:35
 msgid "Usage: [Bases](bases.md) and [Amount types](redundant.md#amount-types)."
 msgstr ""
 "使い方は[基底](bases.md)と[金額の型](redundant.md#amount-types)を参照してくだ"
 "さい."
 
-#: src/algebra/definitions.md:35
+#: src/algebra/definitions.md:37
 msgid "Redundant algebra and linear combinations"
 msgstr "冗長代数と線形結合"
 
-#: src/algebra/definitions.md:37
+#: src/algebra/definitions.md:39
 msgid ""
 "**Definition 4.** A redundant algebra consists of finite collections of "
 "terms, with addition, scalar multiplication by nonnegative values, hat, bar, "
@@ -677,7 +687,66 @@ msgstr ""
 "**定義 4.** 冗長代数は項の有限な集まりからなり, 加法, 非負の値によるスカラー"
 "倍, hat, bar, 値域への norm を備えます."
 
-#: src/algebra/definitions.md:39
+#: src/algebra/definitions.md:41
+msgid ""
+"Write $R$ for the redundant algebra and $V$ for its value domain. The five "
+"operations and the library's additional operation `compress` have the "
+"following types."
+msgstr ""
+"冗長代数を $R$, その値域を $V$ とします. 5 つの演算と, ライブラリが追加した演"
+"算 `compress` の型を次の表に示します."
+
+#: src/algebra/definitions.md:43 src/algebra/definitions.md:68
+#: src/algebra/redundant.md:591 src/exchange/transfer.md:141
+msgid "Operation"
+msgstr "演算"
+
+#: src/algebra/definitions.md:43 src/algebra/elements.md:229
+msgid "Type"
+msgstr "型"
+
+#: src/algebra/definitions.md:45 src/algebra/definitions.md:70
+msgid "Hat"
+msgstr "hat"
+
+#: src/algebra/definitions.md:45 src/algebra/definitions.md:48
+#: src/algebra/definitions.md:50
+msgid "$R\\to R$"
+msgstr "$R\\to R$"
+
+#: src/algebra/definitions.md:46
+msgid "Addition $+$"
+msgstr "加法 $+$"
+
+#: src/algebra/definitions.md:46
+msgid "$R\\times R\\to R$"
+msgstr "$R\\times R\\to R$"
+
+#: src/algebra/definitions.md:47
+msgid "Scalar multiplication $\\ast$"
+msgstr "スカラー倍 $\\ast$"
+
+#: src/algebra/definitions.md:47
+msgid "$V\\times R\\to R$"
+msgstr "$V\\times R\\to R$"
+
+#: src/algebra/definitions.md:48 src/algebra/definitions.md:71
+msgid "Bar"
+msgstr "bar"
+
+#: src/algebra/definitions.md:49 src/algebra/definitions.md:74
+msgid "Norm"
+msgstr "norm"
+
+#: src/algebra/definitions.md:49
+msgid "$R\\to V$"
+msgstr "$R\\to V$"
+
+#: src/algebra/definitions.md:50
+msgid "`compress`"
+msgstr "`compress`"
+
+#: src/algebra/definitions.md:52
 msgid ""
 "Usage: [Operations](redundant.md#operations) and [Amount types]"
 "(redundant.md#amount-types)."
@@ -685,7 +754,7 @@ msgstr ""
 "使い方は[演算](redundant.md#operations)と[金額の型](redundant.md#amount-"
 "types)を参照してください."
 
-#: src/algebra/definitions.md:41
+#: src/algebra/definitions.md:54
 msgid ""
 "**Definition 5.** At each underlying base $e_i$, a member of the redundant "
 "algebra records two finite sequences of amounts. Write $f_i(e_i)=\\langle "
@@ -702,7 +771,22 @@ msgstr ""
 "f_1,\\ldots,f_n\\rangle$ は基底上で有限な台を持ちます. 空の列の対は寄与しませ"
 "ん."
 
-#: src/algebra/definitions.md:43
+#: src/algebra/definitions.md:56
+msgid ""
+"Let $a\\_{ij}$ and $b\\_{ik}$ be the amounts in $A_i$ and $B_i$. The sum "
+"records each amount as a separate term, including repeated terms at the same "
+"base."
+msgstr ""
+"$a\\_{ij}$ と $b\\_{ik}$ をそれぞれ $A_i$ と $B_i$ の金額とします. この和で"
+"は, 同じ基底に項が繰り返し現れる場合も, 各金額を別々の項として記録します."
+
+#: src/algebra/definitions.md:58
+msgid ""
+"$$ x=\\sum_i\\sum_j a\\_{ij}:e_i+\\sum_i\\sum_k b\\_{ik}:\\widehat{e_i}. $$"
+msgstr ""
+"$$ x=\\sum_i\\sum_j a\\_{ij}:e_i+\\sum_i\\sum_k b\\_{ik}:\\widehat{e_i}. $$"
+
+#: src/algebra/definitions.md:62
 msgid ""
 "Usage: [Add the month's transactions](redundant.md#add-the-months-"
 "transactions)."
@@ -710,37 +794,24 @@ msgstr ""
 "使い方は[月内の取引を足す](redundant.md#add-the-months-transactions)を参照し"
 "てください."
 
-#: src/algebra/definitions.md:45 src/algebra/redundant.md:171
+#: src/algebra/definitions.md:64 src/algebra/redundant.md:171
 msgid "Operations"
 msgstr "演算"
 
-#: src/algebra/definitions.md:47
+#: src/algebra/definitions.md:66
 msgid ""
 "**Definition 6.** The operations on the paired sequences are as follows."
 msgstr "**定義 6.** 対になった列に対する演算は次のとおりです."
 
-#: src/algebra/definitions.md:49 src/algebra/redundant.md:591
-#: src/exchange/transfer.md:141
-msgid "Operation"
-msgstr "演算"
-
-#: src/algebra/definitions.md:49
+#: src/algebra/definitions.md:68
 msgid "Effect"
 msgstr "作用"
 
-#: src/algebra/definitions.md:51
-msgid "Hat"
-msgstr "hat"
-
-#: src/algebra/definitions.md:51
+#: src/algebra/definitions.md:70
 msgid "Swap the two sequences at each base, preserving every amount."
 msgstr "各基底の 2 つの列を入れ替え, すべての金額を保持します."
 
-#: src/algebra/definitions.md:52
-msgid "Bar"
-msgstr "bar"
-
-#: src/algebra/definitions.md:52
+#: src/algebra/definitions.md:71
 msgid ""
 "Total each sequence at each base and cancel the two totals. Keep the excess "
 "on the larger side and drop a zero remainder."
@@ -748,31 +819,27 @@ msgstr ""
 "各基底でそれぞれの列を合計し, 2 つの合計を相殺します. 大きい側に差額を残し, "
 "残額がゼロなら取り除きます."
 
-#: src/algebra/definitions.md:53
+#: src/algebra/definitions.md:72
 msgid "Sum"
 msgstr "和"
 
-#: src/algebra/definitions.md:53
+#: src/algebra/definitions.md:72
 msgid "Concatenate the corresponding sequences."
 msgstr "対応する列を連結します."
 
-#: src/algebra/definitions.md:54
+#: src/algebra/definitions.md:73
 msgid "Scalar multiplication"
 msgstr "スカラー倍"
 
-#: src/algebra/definitions.md:54
+#: src/algebra/definitions.md:73
 msgid "Multiply every amount by the same nonnegative scalar."
 msgstr "すべての金額に同じ非負のスカラーを掛けます."
 
-#: src/algebra/definitions.md:55
-msgid "Norm"
-msgstr "norm"
-
-#: src/algebra/definitions.md:55
+#: src/algebra/definitions.md:74
 msgid "Sum all amounts on both sides over all bases."
 msgstr "すべての基底にわたって両側の全金額を合計します."
 
-#: src/algebra/definitions.md:57
+#: src/algebra/definitions.md:76
 msgid ""
 "The library adds `compress`, which sums amounts separately for each base and "
 "each direction (`Hat` or `Not`)."
@@ -780,7 +847,19 @@ msgstr ""
 "ライブラリが追加した演算 `compress` は, 基底と方向 (`Hat` または `Not`) ごと"
 "に金額を合算します."
 
-#: src/algebra/definitions.md:59
+#: src/algebra/definitions.md:78
+msgid "Hat swaps the increase and decrease sequences of every component."
+msgstr "hat は, 各成分の増加の列と減少の列を入れ替えます."
+
+#: src/algebra/definitions.md:80
+msgid ""
+"$$ \\\\widehat{x}=\\langle\\widehat{f_1},\\ldots,\\widehat{f_n}\\rangle, \\"
+"\\qquad \\\\widehat{f_i}(e_i)=\\langle B_i,A_i\\rangle. $$"
+msgstr ""
+"$$ \\\\widehat{x}=\\langle\\widehat{f_1},\\ldots,\\widehat{f_n}\\rangle, \\"
+"\\qquad \\\\widehat{f_i}(e_i)=\\langle B_i,A_i\\rangle. $$"
+
+#: src/algebra/definitions.md:86
 msgid ""
 "For bar, write $\\[z\\]\\_+=\\max(0,z)$. If $A_i=(a\\_{i1},"
 "\\ldots,a\\_{ip_i})$ and $B_i=(b\\_{i1},\\ldots,b\\_{iq_i})$, the remaining "
@@ -790,7 +869,7 @@ msgstr ""
 "\\ldots,a\\_{ip_i})$, $B_i=(b\\_{i1},\\ldots,b\\_{iq_i})$ のとき, 残る増加と"
 "減少は次のとおりです:"
 
-#: src/algebra/definitions.md:61
+#: src/algebra/definitions.md:88
 msgid ""
 "$$ D_i=\\left\\[\\\\sum_j a\\_{ij}-\\sum_k b\\_{ik}\\right\\]\\_+, \\\\qquad "
 "R_i=\\left\\[\\\\sum_k b\\_{ik}-\\sum_j a\\_{ij}\\right\\]\\_+. $$"
@@ -798,7 +877,23 @@ msgstr ""
 "$$ D_i=\\left\\[\\\\sum_j a\\_{ij}-\\sum_k b\\_{ik}\\right\\]\\_+, \\\\qquad "
 "R_i=\\left\\[\\\\sum_k b\\_{ik}-\\sum_j a\\_{ij}\\right\\]\\_+. $$"
 
-#: src/algebra/definitions.md:67
+#: src/algebra/definitions.md:94
+msgid ""
+"Bar represents each nonzero remainder by a one-term sequence and each zero "
+"remainder by an empty sequence. With that convention, its components are"
+msgstr ""
+"bar は, ゼロでない残額を 1 項の列で, ゼロの残額を空の列で表します. この約束の"
+"もとで, bar の各成分は次の式で表せます."
+
+#: src/algebra/definitions.md:96
+msgid ""
+"$$ \\\\bar{x}=\\langle\\bar{f_1},\\ldots,\\bar{f_n}\\rangle, \\\\qquad \\"
+"\\bar{f_i}(e_i)=\\langle D_i,R_i\\rangle. $$"
+msgstr ""
+"$$ \\\\bar{x}=\\langle\\bar{f_1},\\ldots,\\bar{f_n}\\rangle, \\\\qquad \\"
+"\\bar{f_i}(e_i)=\\langle D_i,R_i\\rangle. $$"
+
+#: src/algebra/definitions.md:102
 msgid ""
 "For example, two increases of 3 and 2 and a decrease of 4 on the same base "
 "have norm 9. Applying `compress` gives an increase of 5 and a decrease of 4. "
@@ -808,7 +903,7 @@ msgstr ""
 "`compress` を適用すると, 5 の増加と 4 の減少になります. bar を適用すると 1 の"
 "増加が残ります. 一般に, norm への寄与は次のとおりです:"
 
-#: src/algebra/definitions.md:69
+#: src/algebra/definitions.md:104
 msgid ""
 "$$ \\\\operatorname{norm}(f_i(e_i)) = \\sum\\_{j=1}^{p_i} a\\_{ij} + "
 "\\sum\\_{k=1}^{q_i} b\\_{ik}. $$"
@@ -816,42 +911,42 @@ msgstr ""
 "$$ \\\\operatorname{norm}(f_i(e_i)) = \\sum\\_{j=1}^{p_i} a\\_{ij} + "
 "\\sum\\_{k=1}^{q_i} b\\_{ik}. $$"
 
-#: src/algebra/definitions.md:73
+#: src/algebra/definitions.md:108
 msgid "Usage: [Select an operation](redundant.md#select-an-operation)."
 msgstr "使い方: [演算を選ぶ](redundant.md#select-an-operation)."
 
-#: src/algebra/definitions.md:75
+#: src/algebra/definitions.md:110
 msgid "Five axioms"
 msgstr "5 つの公理"
 
-#: src/algebra/definitions.md:77
+#: src/algebra/definitions.md:112
 msgid ""
 "Let $x=\\langle f_1,\\ldots,f_n\\rangle$ and let $a$ be a nonnegative scalar."
 msgstr "$x=\\langle f_1,\\ldots,f_n\\rangle$ とし, $a$ を非負スカラーとします."
 
-#: src/algebra/definitions.md:79
+#: src/algebra/definitions.md:114
 msgid ""
 "**Hat is an involution.** Applying hat twice restores the original terms."
 msgstr "**hat の対合性.** hat を 2 回適用すると元の項に戻ります."
 
-#: src/algebra/definitions.md:81
+#: src/algebra/definitions.md:116
 msgid "$$ \\\\widehat{\\widehat{f_i}}(e_i) = f_i(e_i). $$"
 msgstr "$$ \\\\widehat{\\widehat{f_i}}(e_i) = f_i(e_i). $$"
 
-#: src/algebra/definitions.md:85
+#: src/algebra/definitions.md:120
 msgid ""
 "**Scaling at one base.** The scalar acts on each amount in each sequence."
 msgstr "**1 つの基底でのスカラー倍.** スカラーは各列の各金額に作用します."
 
-#: src/algebra/definitions.md:87
+#: src/algebra/definitions.md:122
 msgid "$$ a \\ast f_i(e_i) = \\langle a \\ast A_i, a \\ast B_i\\rangle. $$"
 msgstr "$$ a \\ast f_i(e_i) = \\langle a \\ast A_i, a \\ast B_i\\rangle. $$"
 
-#: src/algebra/definitions.md:91
+#: src/algebra/definitions.md:126
 msgid "**Scaling across bases.** The scalar acts on every component."
 msgstr "**基底全体のスカラー倍.** スカラーはすべての成分に作用します."
 
-#: src/algebra/definitions.md:93
+#: src/algebra/definitions.md:128
 msgid ""
 "$$ a \\ast \\langle f_1,\\ldots,f_n\\rangle = \\langle a \\ast f_1,\\ldots,a "
 "\\ast f_n\\rangle. $$"
@@ -859,12 +954,12 @@ msgstr ""
 "$$ a \\ast \\langle f_1,\\ldots,f_n\\rangle = \\langle a \\ast f_1,\\ldots,a "
 "\\ast f_n\\rangle. $$"
 
-#: src/algebra/definitions.md:97
+#: src/algebra/definitions.md:132
 msgid "**Norm homogeneity.** Scaling the terms scales their total."
 msgstr ""
 "**norm の斉次性.** 項をスカラー倍すると, 合計も同じスカラー倍になります."
 
-#: src/algebra/definitions.md:99
+#: src/algebra/definitions.md:134
 msgid ""
 "$$ \\\\operatorname{norm}(a \\ast x) = a \\cdot \\operatorname{norm}(x), "
 "\\qquad a \\ge 0. $$"
@@ -872,11 +967,11 @@ msgstr ""
 "$$ \\\\operatorname{norm}(a \\ast x) = a \\cdot \\operatorname{norm}(x), "
 "\\qquad a \\ge 0. $$"
 
-#: src/algebra/definitions.md:103
+#: src/algebra/definitions.md:138
 msgid "**Norm additivity.** Adding terms adds their totals."
 msgstr "**norm の加法性.** 項を加えると, それぞれの合計も加わります."
 
-#: src/algebra/definitions.md:105
+#: src/algebra/definitions.md:140
 msgid ""
 "$$ \\\\operatorname{norm}(f_i(e_i)+g_i(e_i)) = \\operatorname{norm}"
 "(f_i(e_i)) + \\operatorname{norm}(g_i(e_i)). $$"
@@ -884,7 +979,7 @@ msgstr ""
 "$$ \\\\operatorname{norm}(f_i(e_i)+g_i(e_i)) = \\operatorname{norm}"
 "(f_i(e_i)) + \\operatorname{norm}(g_i(e_i)). $$"
 
-#: src/algebra/definitions.md:109
+#: src/algebra/definitions.md:144
 msgid ""
 "The preprint lists the defining sum of the norm under the name “norm "
 "homogeneity.” The homogeneity law above follows from that sum and the scalar "
@@ -893,7 +988,7 @@ msgstr ""
 "プレプリントでは, norm を定義する和を「norm の斉次性」という名称で挙げていま"
 "す. ここに示した斉次性の法則は, その和とスカラー倍から導かれます."
 
-#: src/algebra/definitions.md:111
+#: src/algebra/definitions.md:146
 msgid ""
 "Axioms 4 and 5 hold exactly with exact decimal arithmetic when the amounts, "
 "intermediate sums, and products are representable. With binary floating-"
@@ -907,17 +1002,17 @@ msgstr ""
 "が丸められ, 2 つの norm の加算では既に丸められた 2 つの合計を使うことがあるた"
 "めです."
 
-#: src/algebra/definitions.md:113
+#: src/algebra/definitions.md:148
 msgid "Usage: [Choose an amount type](redundant.md#choose-an-amount-type)."
 msgstr ""
 "使い方は[金額の型を選ぶ](redundant.md#choose-an-amount-type)を参照してくださ"
 "い."
 
-#: src/algebra/definitions.md:115
+#: src/algebra/definitions.md:150
 msgid "Account classes and sides"
 msgstr "勘定の区分と貸借"
 
-#: src/algebra/definitions.md:117
+#: src/algebra/definitions.md:152
 msgid ""
 "**Definition 7.** An exchange base carries an account title with an account "
 "division and a home side. Its debit or credit side combines that home side "
@@ -933,77 +1028,77 @@ msgstr ""
 "ずれかに分類し, `fixedCurrent` は流動, 固定, その他のいずれかに分類します. 通"
 "常の勘定科目について, 向きと貸借区分の対応を表 1 に示します."
 
-#: src/algebra/definitions.md:119 src/usage/withdrawal.md:109
+#: src/algebra/definitions.md:154 src/usage/withdrawal.md:109
 msgid "Division"
 msgstr "区分"
 
-#: src/algebra/definitions.md:119 src/usage/withdrawal.md:109
+#: src/algebra/definitions.md:154 src/usage/withdrawal.md:109
 msgid "`Not`"
 msgstr "`Not`"
 
-#: src/algebra/definitions.md:119 src/usage/withdrawal.md:109
+#: src/algebra/definitions.md:154 src/usage/withdrawal.md:109
 #: src/algebra/elements.md:238
 msgid "`Hat`"
 msgstr "`Hat`"
 
-#: src/algebra/definitions.md:121 src/usage/withdrawal.md:111
+#: src/algebra/definitions.md:156 src/usage/withdrawal.md:111
 #: src/accounts/builtin.md:14
 msgid "Assets"
 msgstr "資産"
 
-#: src/algebra/definitions.md:121 src/usage/withdrawal.md:111
+#: src/algebra/definitions.md:156 src/usage/withdrawal.md:111
 msgid "Increase (debit)"
 msgstr "増加 (借方)"
 
-#: src/algebra/definitions.md:121 src/usage/withdrawal.md:111
+#: src/algebra/definitions.md:156 src/usage/withdrawal.md:111
 msgid "Decrease (credit)"
 msgstr "減少 (貸方)"
 
-#: src/algebra/definitions.md:122 src/usage/withdrawal.md:112
+#: src/algebra/definitions.md:157 src/usage/withdrawal.md:112
 msgid "Liabilities, equity"
 msgstr "負債, 純資産"
 
-#: src/algebra/definitions.md:122 src/usage/withdrawal.md:112
+#: src/algebra/definitions.md:157 src/usage/withdrawal.md:112
 msgid "Increase (credit)"
 msgstr "増加 (貸方)"
 
-#: src/algebra/definitions.md:122 src/usage/withdrawal.md:112
+#: src/algebra/definitions.md:157 src/usage/withdrawal.md:112
 msgid "Decrease (debit)"
 msgstr "減少 (借方)"
 
-#: src/algebra/definitions.md:123 src/usage/withdrawal.md:113
+#: src/algebra/definitions.md:158 src/usage/withdrawal.md:113
 #: src/accounts/builtin.md:171
 msgid "Revenue"
 msgstr "収益"
 
-#: src/algebra/definitions.md:123 src/usage/withdrawal.md:113
+#: src/algebra/definitions.md:158 src/usage/withdrawal.md:113
 msgid "Recognition (credit)"
 msgstr "発生 (貸方)"
 
-#: src/algebra/definitions.md:123 src/usage/withdrawal.md:113
+#: src/algebra/definitions.md:158 src/usage/withdrawal.md:113
 msgid "Reversal (debit)"
 msgstr "消滅 (借方)"
 
-#: src/algebra/definitions.md:124 src/usage/withdrawal.md:114
+#: src/algebra/definitions.md:159 src/usage/withdrawal.md:114
 #: src/accounts/builtin.md:218
 msgid "Expenses"
 msgstr "費用"
 
-#: src/algebra/definitions.md:124 src/usage/withdrawal.md:114
+#: src/algebra/definitions.md:159 src/usage/withdrawal.md:114
 msgid "Recognition (debit)"
 msgstr "発生 (借方)"
 
-#: src/algebra/definitions.md:124 src/usage/withdrawal.md:114
+#: src/algebra/definitions.md:159 src/usage/withdrawal.md:114
 msgid "Reversal (credit)"
 msgstr "消滅 (貸方)"
 
-#: src/algebra/definitions.md:126
+#: src/algebra/definitions.md:161
 msgid ""
 "_Table 1. The meaning of `Not` and `Hat` and the resulting side, by account "
 "division._"
 msgstr "_表 1. 勘定科目の区分ごとの `Not` と `Hat` の意味と貸借区分._"
 
-#: src/algebra/definitions.md:128
+#: src/algebra/definitions.md:163
 msgid ""
 "This table also appears as Table 2 in [Record a withdrawal](../usage/"
 "withdrawal.md#base-and-hat-base)."
@@ -1011,14 +1106,63 @@ msgstr ""
 "この表は, [引き出しを記録する](../usage/withdrawal.md#base-and-hat-base)の表 "
 "2 と同じです."
 
-#: src/algebra/definitions.md:130
+#: src/algebra/definitions.md:165
 msgid ""
-"A contra account reverses the home side of its division before the direction "
-"is applied."
+"For an exchange base $b$, `whatDiv` takes values in $"
+"\\lbrace\\mathrm{Assets},\\mathrm{Equity},\\mathrm{Liability},\\mathrm{Cost},"
+"\\mathrm{Revenue}\\rbrace$. For ordinary accounts, `whatPIMO` is $"
+"\\mathrm{PS}$ for $\\mathrm{Assets}$, $\\mathrm{MS}$ for $\\mathrm{Equity}$ "
+"and $\\mathrm{Liability}$, $\\mathrm{IN}$ for $\\mathrm{Revenue}$, and $"
+"\\mathrm{OUT}$ for $\\mathrm{Cost}$. When `isContra` holds, `whatPIMO` swaps "
+"$\\mathrm{PS}\\leftrightarrow\\mathrm{MS}$ and $\\mathrm{IN}"
+"\\leftrightarrow\\mathrm{OUT}$."
 msgstr ""
-"評価勘定では, 方向を適用する前に, その区分が本来持つ貸借の側を反転します."
+"交換基底 $b$ に対し, `whatDiv` は $\\lbrace\\mathrm{Assets},\\mathrm{Equity},"
+"\\mathrm{Liability},\\mathrm{Cost},\\mathrm{Revenue}\\rbrace$ のいずれかを返"
+"します. 通常の勘定科目の `whatPIMO` は, $\\mathrm{Assets}$ なら $\\mathrm{PS}"
+"$, $\\mathrm{Equity}$ と $\\mathrm{Liability}$ なら $\\mathrm{MS}$, $"
+"\\mathrm{Revenue}$ なら $\\mathrm{IN}$, $\\mathrm{Cost}$ なら $\\mathrm{OUT}"
+"$ です. `isContra` が成り立つ評価勘定では, `whatPIMO` は $\\mathrm{PS}"
+"\\leftrightarrow\\mathrm{MS}$ と $\\mathrm{IN}\\leftrightarrow\\mathrm{OUT}$ "
+"をそれぞれ入れ替えます."
 
-#: src/algebra/definitions.md:132
+#: src/algebra/definitions.md:167
+msgid ""
+"Let $\\operatorname{opposite}$ exchange $\\mathrm{Debit}$ and $"
+"\\mathrm{Credit}$, and let $s=\\operatorname{defaultSide}"
+"(\\operatorname{whatDiv}(b))$. The division's default side is debit for "
+"`Assets` and `Cost` and credit for `Equity`, `Liability`, and `Revenue`. The "
+"home side and the side of a stored hat base are"
+msgstr ""
+"$\\operatorname{opposite}$ は $\\mathrm{Debit}$ と $\\mathrm{Credit}$ を入れ"
+"替える関数とし, $s=\\operatorname{defaultSide}(\\operatorname{whatDiv}(b))$ "
+"とします. 区分の既定の側は, `Assets` と `Cost` では借方, `Equity`, "
+"`Liability`, `Revenue` では貸方です. 勘定科目が本来持つ貸借の側と, 記録され"
+"た Hat 基底の貸借の側を次の式で表します."
+
+#: src/algebra/definitions.md:169
+msgid ""
+"$$ \\\\operatorname{homeSide}(b)= \\\\begin{cases} \\\\operatorname{opposite}"
+"(s) & \\text{if } \\operatorname{isContra}(b), \\\\\\\\ s & "
+"\\text{otherwise}. \\\\end{cases} $$"
+msgstr ""
+"$$ \\\\operatorname{homeSide}(b)= \\\\begin{cases} \\\\operatorname{opposite}"
+"(s) & \\text{if } \\operatorname{isContra}(b), \\\\\\\\ s & "
+"\\text{otherwise}. \\\\end{cases} $$"
+
+#: src/algebra/definitions.md:177
+msgid ""
+"$$ \\\\begin{aligned} \\\\operatorname{whichSide}"
+"(\\mathrm{Not},b)&=\\operatorname{homeSide}(b),\\\\\\\\ \\"
+"\\operatorname{whichSide}(\\mathrm{Hat},b)&=\\operatorname{opposite}"
+"(\\operatorname{homeSide}(b)). \\\\end{aligned} $$"
+msgstr ""
+"$$ \\\\begin{aligned} \\\\operatorname{whichSide}"
+"(\\mathrm{Not},b)&=\\operatorname{homeSide}(b),\\\\\\\\ \\"
+"\\operatorname{whichSide}(\\mathrm{Hat},b)&=\\operatorname{opposite}"
+"(\\operatorname{homeSide}(b)). \\\\end{aligned} $$"
+
+#: src/algebra/definitions.md:184
 msgid ""
 "Usage: [Base and hat base](../usage/withdrawal.md#base-and-hat-base) and "
 "[Classify an account and check its side](redundant.md#classify-an-account-"
@@ -1028,27 +1172,79 @@ msgstr ""
 "目を分類し貸借区分を調べる](redundant.md#classify-an-account-and-check-its-"
 "side)を参照してください."
 
-#: src/algebra/definitions.md:134
+#: src/algebra/definitions.md:186
 msgid "Debit and credit decomposition"
 msgstr "借方と貸方への分解"
 
-#: src/algebra/definitions.md:136
+#: src/algebra/definitions.md:188
 msgid ""
 "**Definition 8.** An exchange algebra extends the redundant algebra with "
-"four decompositions. `decL` selects debit terms (left), and `decR` selects "
-"credit terms (right). The other two decompositions select by direction. "
-"`decP` selects terms with `Hat`, and `decM` selects terms with `Not`. For "
-"example, a decrease in cash is a credit, and an increase in an ordinary "
-"expense is a debit. A sum of terms is balanced when its exact debit and "
-"credit totals agree."
+"four decompositions. Each decomposition projects $x$ onto the terms whose "
+"hat bases $h$ satisfy its condition."
 msgstr ""
-"**定義 8.** 交換代数は, 冗長代数に 4 つの分解の演算を加えたものです. `decL` "
-"は借方 (左側) の項を, `decR` は貸方 (右側) の項を選びます. 残る 2 つの演算は"
-"方向で分解します. `decP` は `Hat` の付いた項を, `decM` は `Not` の付いた項を"
-"選びます. 例えば, 現金の減少は貸方であり, 通常の費用の増加は借方です. 項の和"
-"の借方合計と貸方合計が厳密に等しいとき, 貸借が一致します."
+"**定義 8.** 交換代数は, 冗長代数に 4 つの分解の演算を加えたものです. 各演算"
+"は, $x$ から条件を満たす Hat 基底 $h$ の項を射影します."
 
-#: src/algebra/definitions.md:138
+#: src/algebra/definitions.md:190
+msgid ""
+"$$ \\\\operatorname{dec}\\_{\\bullet}(x):=x\\big\\vert\\_{\\lbrace h\\mid "
+"C\\_{\\bullet}(h)\\rbrace}. $$"
+msgstr ""
+"$$ \\\\operatorname{dec}\\_{\\bullet}(x):=x\\big\\vert\\_{\\lbrace h\\mid "
+"C\\_{\\bullet}(h)\\rbrace}. $$"
+
+#: src/algebra/definitions.md:194
+msgid "Decomposition"
+msgstr "分解"
+
+#: src/algebra/definitions.md:194
+msgid "Condition"
+msgstr "条件"
+
+#: src/algebra/definitions.md:196
+msgid "`decL`"
+msgstr "`decL`"
+
+#: src/algebra/definitions.md:196
+msgid "$C_L(h)\\iff\\operatorname{whichSide}(h)=\\mathrm{Debit}$"
+msgstr "$C_L(h)\\iff\\operatorname{whichSide}(h)=\\mathrm{Debit}$"
+
+#: src/algebra/definitions.md:197
+msgid "`decR`"
+msgstr "`decR`"
+
+#: src/algebra/definitions.md:197
+msgid "$C_R(h)\\iff\\operatorname{whichSide}(h)=\\mathrm{Credit}$"
+msgstr "$C_R(h)\\iff\\operatorname{whichSide}(h)=\\mathrm{Credit}$"
+
+#: src/algebra/definitions.md:198
+msgid "`decP`"
+msgstr "`decP`"
+
+#: src/algebra/definitions.md:198
+msgid "$C_P(h)\\iff\\operatorname{hat}(h)=\\mathrm{Hat}$"
+msgstr "$C_P(h)\\iff\\operatorname{hat}(h)=\\mathrm{Hat}$"
+
+#: src/algebra/definitions.md:199
+msgid "`decM`"
+msgstr "`decM`"
+
+#: src/algebra/definitions.md:199
+msgid "$C_M(h)\\iff\\operatorname{hat}(h)=\\mathrm{Not}$"
+msgstr "$C_M(h)\\iff\\operatorname{hat}(h)=\\mathrm{Not}$"
+
+#: src/algebra/definitions.md:201
+msgid ""
+"Deguchi and Nakano (1986, Definition 2.16) use left for debit (`decL`) and "
+"right for credit (`decR`). For example, a decrease in cash is a credit, and "
+"an increase in an ordinary expense is a debit. A sum of terms is balanced "
+"when its exact debit and credit totals agree."
+msgstr ""
+"Deguchi and Nakano (1986, 定義 2.16) の慣習に従い, 左側 (`decL`) を借方, 右"
+"側 (`decR`) を貸方とします. 例えば, 現金の減少は貸方であり, 通常の費用の増加"
+"は借方です. 項の和の借方合計と貸方合計が厳密に等しいとき, 貸借が一致します."
+
+#: src/algebra/definitions.md:203
 msgid ""
 "Usage: [Split an entry into debits and credits](../usage/"
 "withdrawal.md#exchange-algebra) and [Read the debit and credit difference]"
@@ -1058,52 +1254,135 @@ msgstr ""
 "[借方と貸方の差額を求める](redundant.md#decompose-and-check-the-record)を参照"
 "してください."
 
-#: src/algebra/definitions.md:142
+#: src/algebra/definitions.md:207
 msgid ""
-"**Definition 9.** A transfer table is an ordered collection of triples $"
-"(b_i,a_i,f_i)$, where $b_i$ is a source base, $a_i$ is a destination base, "
-"and $f_i:V\\to V$ transforms a nonnegative amount. Applying the table moves "
-"the selected amounts from their source bases to their destination bases "
-"according to those transformations. The source base, destination base, and "
-"value transformation are separate parts of each rule."
-msgstr ""
-"**定義 9.** 振替表は三つ組 $(b_i,a_i,f_i)$ を順序付きで集めたものです. $b_i$ "
-"は振替元の基底, $a_i$ は振替先の基底で, $f_i:V\\to V$ は非負の額を変換しま"
-"す. 表を適用すると, 選択した額が変換に従って振替元から振替先へ移ります. 各規"
-"則では, 振替元の基底, 振替先の基底, 値の変換を別々に指定します."
+"**Definition 9.** An accounting transfer table is an ordered list of rows "
+"written `from .-> to |% share`. The source and destination are bases without "
+"a direction. `Relabel` moves the entire exact balance at each matched "
+"source. `Portion n d` moves the fraction $n/d$ of that exact balance, with "
+"$0\\<n\\le d$, and rounds the moved amount once."
+msgstr "**定義 9.** 会計の振替表は `from .-> to |% share` と書く行の順序付きリストです. 振替元と振替先には方向を付けない基底を指定します. `Relabel` は一致する振替元ごとに厳密な残高の全額を移します. `Portion n d` は厳密な残高の $n/d$ ($0\\<n\\le d$) を移し, 移す額を 1 回丸めます."
 
-#: src/algebra/definitions.md:144
+#: src/algebra/definitions.md:209
 msgid ""
 "A source wildcard matches any stored element. A destination wildcard retains "
-"the corresponding source element. For an accounting reclassification, the "
-"amount removed from the source equals the amount added at the destination."
+"the corresponding source element. The accounting table preserves written row "
+"order and permits a destination to match a later source. It rejects "
+"overlapping source patterns and destinations that match the source of the "
+"same or an earlier row. The algebra layer sorts its rules by source pattern."
 msgstr ""
 "振替元のワイルドカードは格納された任意の要素に一致します. 振替先のワイルド"
-"カードは対応する振替元の要素を保ちます. 会計上の付け替えでは, 振替元から取り"
-"除く額と振替先へ加える額が等しくなります."
+"カードは対応する振替元の要素を保ちます. 会計の振替表は記述した行順を保ち, 振"
+"替先が後の行の振替元に一致することを許します. 振替元のパターンが重複する場合"
+"や, 振替先が同じ行または前の行の振替元に一致する場合は拒否します. 代数層では"
+"規則を振替元のパターン順に並べます."
 
-#: src/algebra/definitions.md:146
+#: src/algebra/definitions.md:211
 msgid ""
-"The rules of the algebra layer are sorted by source pattern, as in the "
-"preprint. The accounting transfer table preserves written row order and "
-"permits a destination to match a later source, but rejects a match with the "
-"source of the same or an earlier row; see [Transfers](../exchange/"
-"transfer.md)."
+"The `transferEntries` function returns a cancellation term at the source and "
+"a term of the same amount at the destination for each amount moved. The "
+"destination direction preserves the debit or credit side of the balance "
+"being moved. Add these terms to the original ledger to record the transfer "
+"and retain the original terms. Apply bar explicitly to cancel opposite "
+"amounts at each base."
 msgstr ""
-"代数層の規則は, プレプリントと同じく振替元のパターン順に並べられます. 会計の"
-"振替表は記述した行順を保ち, 振替先が後の行の振替元に一致する場合は受け入れま"
-"すが, 同じ行または前の行の振替元に一致する場合は拒否します. 詳しくは[振替]"
-"(../exchange/transfer.md)を参照してください."
+"`transferEntries` は, 移す額ごとに, 振替元の取消項と同額の振替先の項を返しま"
+"す. 振替先の方向は, 移す残高の貸借の側を保つように決まります. これらの項を元"
+"の台帳に足すと, 元の項を保ったまま振替を記録できます. 各基底で逆方向の額を相"
+"殺するには, bar を明示的に適用します."
 
-#: src/algebra/definitions.md:148
+#: src/algebra/definitions.md:213
+msgid ""
+"The preprint's transfer operation takes an arbitrary transformation $f:V\\to "
+"V$. Version 0.7 removed the 0.6 algebra operations `MulBy` and `DivBy`."
+msgstr "プレプリントの振替演算は任意の変換 $f:V\\to V$ を受け取ります. 0.7 で, 0.6 の代数層の演算 `MulBy` と `DivBy` が削除されました."
+
+#: src/algebra/definitions.md:215
+msgid ""
+"**Example 2 (Unit conversion).** Let $x$ and $y$ record the following terms."
+msgstr "**例 2 (単位換算).** $x$ と $y$ が次の項を記録するとします."
+
+#: src/algebra/definitions.md:217
+msgid ""
+"$$ \\\\begin{aligned} x&=1:\\widehat{\\langle\\mathrm{Cash},\\mathrm{Yen}"
+"\\rangle} +1:\\langle\\mathrm{Products},\\mathrm{Amount}\\rangle,\\\\\\\\ "
+"y&=2:\\langle\\mathrm{Cash},\\mathrm{Yen}\\rangle "
+"+2:\\widehat{\\langle\\mathrm{Deposits},\\mathrm{Yen}\\rangle}. \\"
+"\\end{aligned} $$"
+msgstr ""
+"$$ \\\\begin{aligned} x&=1:\\widehat{\\langle\\mathrm{Cash},\\mathrm{Yen}"
+"\\rangle} +1:\\langle\\mathrm{Products},\\mathrm{Amount}\\rangle,\\\\\\\\ "
+"y&=2:\\langle\\mathrm{Cash},\\mathrm{Yen}\\rangle "
+"+2:\\widehat{\\langle\\mathrm{Deposits},\\mathrm{Yen}\\rangle}. \\"
+"\\end{aligned} $$"
+
+#: src/algebra/definitions.md:226
+msgid ""
+"Use a single `Relabel` row from $\\langle\\mathrm{Products},\\mathrm{Amount}"
+"\\rangle$ to $\\langle\\mathrm{Products},\\mathrm{Yen}\\rangle$. Adding the "
+"two terms returned by `transferEntries` to $x+y$ gives the transfer result "
+"$z$."
+msgstr ""
+"$\\langle\\mathrm{Products},\\mathrm{Amount}\\rangle$ から $"
+"\\langle\\mathrm{Products},\\mathrm{Yen}\\rangle$ への `Relabel` の行を 1 つ"
+"使います. `transferEntries` が返す 2 項を $x+y$ に足すと, 振替の結果 $z$ が得"
+"られます."
+
+#: src/algebra/definitions.md:228
+msgid ""
+"$$ \\\\begin{aligned} z={}&1:\\widehat{\\langle\\mathrm{Cash},\\mathrm{Yen}"
+"\\rangle} +1:\\langle\\mathrm{Products},\\mathrm{Amount}\\rangle\\\\\\\\ "
+"&+2:\\langle\\mathrm{Cash},\\mathrm{Yen}\\rangle "
+"+2:\\widehat{\\langle\\mathrm{Deposits},\\mathrm{Yen}\\rangle}\\\\\\\\ "
+"&+1:\\widehat{\\langle\\mathrm{Products},\\mathrm{Amount}\\rangle} "
+"+1:\\langle\\mathrm{Products},\\mathrm{Yen}\\rangle. \\\\end{aligned} $$"
+msgstr ""
+"$$ \\\\begin{aligned} z={}&1:\\widehat{\\langle\\mathrm{Cash},\\mathrm{Yen}"
+"\\rangle} +1:\\langle\\mathrm{Products},\\mathrm{Amount}\\rangle\\\\\\\\ "
+"&+2:\\langle\\mathrm{Cash},\\mathrm{Yen}\\rangle "
+"+2:\\widehat{\\langle\\mathrm{Deposits},\\mathrm{Yen}\\rangle}\\\\\\\\ "
+"&+1:\\widehat{\\langle\\mathrm{Products},\\mathrm{Amount}\\rangle} "
+"+1:\\langle\\mathrm{Products},\\mathrm{Yen}\\rangle. \\\\end{aligned} $$"
+
+#: src/algebra/definitions.md:239
+msgid ""
+"Applying bar cancels the two $\\langle\\mathrm{Products},\\mathrm{Amount}"
+"\\rangle$ terms and leaves a net increase of 1 at $\\langle\\mathrm{Cash},"
+"\\mathrm{Yen}\\rangle$."
+msgstr ""
+"bar を適用すると $\\langle\\mathrm{Products},\\mathrm{Amount}\\rangle$ の 2 "
+"項が相殺され, $\\langle\\mathrm{Cash},\\mathrm{Yen}\\rangle$ には差額として "
+"1 の増加が残ります."
+
+#: src/algebra/definitions.md:241
+msgid ""
+"$$ \\\\bar{z}=1:\\langle\\mathrm{Cash},\\mathrm{Yen}\\rangle "
+"+2:\\widehat{\\langle\\mathrm{Deposits},\\mathrm{Yen}\\rangle} "
+"+1:\\langle\\mathrm{Products},\\mathrm{Yen}\\rangle. $$"
+msgstr ""
+"$$ \\\\bar{z}=1:\\langle\\mathrm{Cash},\\mathrm{Yen}\\rangle "
+"+2:\\widehat{\\langle\\mathrm{Deposits},\\mathrm{Yen}\\rangle} "
+"+1:\\langle\\mathrm{Products},\\mathrm{Yen}\\rangle. $$"
+
+#: src/algebra/definitions.md:247
+msgid ""
+"The preprint's example cancels only the pair at the source base $"
+"\\langle\\mathrm{Products},\\mathrm{Amount}\\rangle$ and retains the "
+"original terms at the other bases."
+msgstr ""
+"プレプリントの例では, 振替元の基底 $\\langle\\mathrm{Products},"
+"\\mathrm{Amount}\\rangle$ の 1 組だけを相殺し, 他の基底の元の項をそのまま残し"
+"ています."
+
+#: src/algebra/definitions.md:249
 msgid "Usage: [Transfers](../exchange/transfer.md)."
 msgstr "使い方: [振替](../exchange/transfer.md)."
 
-#: src/algebra/definitions.md:150
+#: src/algebra/definitions.md:251
 msgid "Notes"
 msgstr "摘要"
 
-#: src/algebra/definitions.md:152
+#: src/algebra/definitions.md:253
 msgid ""
 "**Definition 10.** A note set $N$ is a totally ordered set with equality and "
 "a distinguished empty element $\\mathrm{plank}\\in N$. A note can contain a "
@@ -1113,17 +1392,17 @@ msgstr ""
 "\\mathrm{plank}\\in N$ を備えた全順序集合です. 摘要には日付, 説明, 取引識別子"
 "などを含められます."
 
-#: src/algebra/definitions.md:154
+#: src/algebra/definitions.md:255
 msgid ""
 "Usage: [Declare a note type](../journal/journal.md#declare-a-note-type)."
 msgstr ""
 "使い方: [摘要の型を宣言する](../journal/journal.md#declare-a-note-type)."
 
-#: src/algebra/definitions.md:156
+#: src/algebra/definitions.md:257
 msgid "Finite journals"
 msgstr "有限台を持つ仕訳帳"
 
-#: src/algebra/definitions.md:158
+#: src/algebra/definitions.md:259
 msgid ""
 "**Definition 11.** A journal is a finite-support function $J:N\\to E$, where "
 "$E$ is the exchange algebra. A note outside the support has value zero. "
@@ -1135,7 +1414,7 @@ msgstr ""
 "対 $(n,J(n))$ を有限個集めたものとしても表せます. 等しい摘要は同じ代数成分を"
 "指します."
 
-#: src/algebra/definitions.md:160
+#: src/algebra/definitions.md:261
 msgid ""
 "Usage: [Attach notes to the month](../journal/journal.md#attach-notes-to-the-"
 "month)."
@@ -1143,11 +1422,11 @@ msgstr ""
 "使い方: [月の取引に摘要を付ける](../journal/journal.md#attach-notes-to-the-"
 "month)."
 
-#: src/algebra/definitions.md:162
+#: src/algebra/definitions.md:263
 msgid "Journal operations"
 msgstr "仕訳帳の演算"
 
-#: src/algebra/definitions.md:164
+#: src/algebra/definitions.md:265
 msgid ""
 "**Definition 12.** Hat and scalar multiplication act separately on each "
 "note's algebra, preserving its note. Addition combines the algebras at each "
@@ -1156,11 +1435,11 @@ msgstr ""
 "**定義 12.** Hat とスカラー倍は各摘要の代数に個別に作用し, 摘要を保ちます. 加"
 "算は, 等しい摘要に対応する代数を冗長加算で合わせます:"
 
-#: src/algebra/definitions.md:166
+#: src/algebra/definitions.md:267
 msgid "$$ (J_1+J_2)(n)=J_1(n)+J_2(n). $$"
 msgstr "$$ (J_1+J_2)(n)=J_1(n)+J_2(n). $$"
 
-#: src/algebra/definitions.md:170
+#: src/algebra/definitions.md:271
 msgid ""
 "Aggregation combines the note components under the empty note. Its algebra "
 "is $\\sum\\_{n\\in N}J(n)$; applying bar to that combined algebra gives the "
@@ -1170,7 +1449,7 @@ msgstr ""
 "J(n)$ です. この代数に bar を適用すると仕訳帳の bar が得られます. norm は摘要"
 "をまたいで全ての額を数えます:"
 
-#: src/algebra/definitions.md:172
+#: src/algebra/definitions.md:273
 msgid ""
 "$$ \\\\operatorname{norm}(J)=\\operatorname{norm}\\left(\\sum\\_{n\\in N}J(n)"
 "\\right). $$"
@@ -1178,17 +1457,53 @@ msgstr ""
 "$$ \\\\operatorname{norm}(J)=\\operatorname{norm}\\left(\\sum\\_{n\\in N}J(n)"
 "\\right). $$"
 
-#: src/algebra/definitions.md:176
+#: src/algebra/definitions.md:277
 msgid ""
-"A note projection selects note keys; a base projection selects terms within "
-"the selected notes. A joint projection restricts both. Neither projection "
-"requires aggregation or cancellation."
+"Journal projections take finite lists of note keys or hat-base patterns. The "
+"following signatures omit type parameters on `Journal` and class constraints."
 msgstr ""
-"摘要による射影は摘要のキーを選びます. 基底による射影は選択した摘要の中から項"
-"を選びます. 両方による射影は摘要と基底をともに制限します. どちらの射影にも集"
-"約や相殺は必要ありません."
+"仕訳帳の射影は, 摘要のキーや Hat 基底のパターンを有限のリストで受け取ります. "
+"次の型シグネチャでは, `Journal` の型引数と型クラス制約を省略しています."
 
-#: src/algebra/definitions.md:178
+#: src/algebra/definitions.md:279
+msgid "`projWithNote :: [n] -> Journal -> Journal`"
+msgstr "`projWithNote :: [n] -> Journal -> Journal`"
+
+#: src/algebra/definitions.md:280
+msgid "`projWithBase :: [b] -> Journal -> Journal`"
+msgstr "`projWithBase :: [b] -> Journal -> Journal`"
+
+#: src/algebra/definitions.md:281
+msgid "`projWithNoteBase :: [n] -> [b] -> Journal -> Journal`"
+msgstr "`projWithNoteBase :: [n] -> [b] -> Journal -> Journal`"
+
+#: src/algebra/definitions.md:283
+msgid ""
+"`projWithNote` selects the listed notes by equality, and `plank` in a note "
+"list selects every note. `projWithBase` selects terms within each note using "
+"the one-way matching of Definition 1, with `HatNot` matching either "
+"direction. `projWithNoteBase` applies both restrictions, with an empty note "
+"list leaving all notes eligible. A base projection drops notes whose "
+"projected algebra is zero."
+msgstr "`projWithNote` は列に挙げた摘要を等号で選び, 摘要の列に `plank` があればすべての摘要を選びます. `projWithBase` は定義 1 の片方向の照合で各摘要の中の項を選び, `HatNot` はどちらの向きにも一致します. `projWithNoteBase` は両方の制限を課し, 摘要の列が空ならすべての摘要が対象になります. 基底による射影は, 射影した代数がゼロになった摘要を落とします."
+
+#: src/algebra/definitions.md:285
+msgid ""
+"`transferEntriesBy :: (n -> n) -> TransferTable b -> Journal -> Either "
+"(TransferJournalError n b) Journal` maps each input note to a target note. "
+"For each target, it combines the algebras of the input notes that map there, "
+"applies the table to their combined ledger, and returns the additional terms "
+"under the target note. Add the returned journal to the original journal to "
+"record the transfers."
+msgstr "`transferEntriesBy :: (n -> n) -> TransferTable b -> Journal -> Either (TransferJournalError n b) Journal` が各入力摘要を振替先の摘要に対応付けます. 振替先ごとに, そこへ対応付けられた入力摘要の代数をまとめ, まとめた台帳に振替表を適用し, 追加する項を振替先の摘要の下に返します. 返された仕訳帳を元の仕訳帳に足すと, 振替を記録できます."
+
+#: src/algebra/definitions.md:287
+msgid ""
+"The preprint specifies the inputs to these projections as power sets of "
+"notes and bases."
+msgstr "プレプリントでは, これらの射影の入力に摘要と基底の冪集合を用います."
+
+#: src/algebra/definitions.md:289
 msgid ""
 "Usage: [Select by note, base, and date](../journal/journal.md#select-by-note-"
 "base-and-date) and [Total amounts and combine notes](../journal/"
@@ -1198,17 +1513,78 @@ msgstr ""
 "and-date)と[額を合計して摘要をまとめる](../journal/journal.md#total-amounts-"
 "and-combine-notes)."
 
-#: src/algebra/definitions.md:180
+#: src/algebra/definitions.md:291
+msgid "Journal notation"
+msgstr "仕訳帳の記法"
+
+#: src/algebra/definitions.md:293
 msgid ""
-"Definitions 1–12 follow Appendix A of [_Accounting State Space as a "
-"Foundation for Economic Agent-Based Modeling: An Input–Output Benchmark and "
-"Inventory Extension_](https://doi.org/10.21203/rs.3.rs-8485050/v2), with the "
-"query matching and norm clarification stated in Definitions 1 and 6."
+"**Definition 13.** Write $e\\mid n$ for the journal that attaches note $n$ "
+"to the exchange algebra $e$. In Haskell, this is `e .| n` (`infix 5`). The "
+"operator binds more tightly than `.+`, so enclose a sum in parentheses to "
+"attach one note to the sum."
 msgstr ""
-"定義 1–12 は [_Accounting State Space as a Foundation for Economic Agent-"
-"Based Modeling: An Input–Output Benchmark and Inventory Extension_](https://"
-"doi.org/10.21203/rs.3.rs-8485050/v2) の Appendix A に従います. 問い合わせの照"
-"合と norm に関する補足は定義 1 と 6 に記しています."
+"**定義 13.** 交換代数 $e$ に摘要 $n$ を付けた仕訳帳を $e\\mid n$ と書きます. "
+"Haskell では `e .| n` (`infix 5`) と書きます. この演算子は `.+` より強く結合"
+"するため, 和に 1 つの摘要を付けるときは和を括弧で囲みます."
+
+#: src/algebra/definitions.md:295
+msgid ""
+"Terms with the same note belong to a single component of the journal. For "
+"example, $(e_1\\mid n)+(e_2\\mid n)=(e_1+e_2)\\mid n$."
+msgstr ""
+"摘要が同じ項は, 仕訳帳の 1 つの成分に属します. 例えば, $(e_1\\mid n)+"
+"(e_2\\mid n)=(e_1+e_2)\\mid n$ です."
+
+#: src/algebra/definitions.md:297
+msgid ""
+"**Example 3 (Select transactions by date).** Let the notes $n_1$, $n_2$, and "
+"$n_3$ be the date strings `2024-01-01`, `2024-01-15`, and `2024-02-01`. A "
+"journal $J$ can record two sales and a purchase of products."
+msgstr ""
+"**例 3 (日付で取引を選ぶ).** 摘要 $n_1$, $n_2$, $n_3$ をそれぞれ日付の文字列 "
+"`2024-01-01`, `2024-01-15`, `2024-02-01` とします. 仕訳帳 $J$ に 2 件の売上"
+"と 1 件の商品の購入を記録します."
+
+#: src/algebra/definitions.md:299
+msgid ""
+"$$ \\\\begin{aligned} e_1&=100:\\mathrm{Cash}+100:\\mathrm{Sales},\\\\\\\\ "
+"e_2&=50:\\widehat{\\mathrm{Cash}}+50:\\mathrm{Products},\\\\\\\\ "
+"e_3&=30:\\mathrm{Cash}+30:\\mathrm{Sales},\\\\\\\\ J&=(e_1\\mid n_1)+"
+"(e_2\\mid n_2)+(e_3\\mid n_3). \\\\end{aligned} $$"
+msgstr ""
+"$$ \\\\begin{aligned} e_1&=100:\\mathrm{Cash}+100:\\mathrm{Sales},\\\\\\\\ "
+"e_2&=50:\\widehat{\\mathrm{Cash}}+50:\\mathrm{Products},\\\\\\\\ "
+"e_3&=30:\\mathrm{Cash}+30:\\mathrm{Sales},\\\\\\\\ J&=(e_1\\mid n_1)+"
+"(e_2\\mid n_2)+(e_3\\mid n_3). \\\\end{aligned} $$"
+
+#: src/algebra/definitions.md:308
+msgid "Pass the two January notes in the list supplied to `projWithNote`."
+msgstr "1 月の 2 つの摘要をリストに列挙し, `projWithNote` に渡します."
+
+#: src/algebra/definitions.md:310
+msgid ""
+"$$ \\\\operatorname{projWithNote}(\\[n_1,n_2\\],J)=(e_1\\mid n_1)+(e_2\\mid "
+"n_2). $$"
+msgstr ""
+"$$ \\\\operatorname{projWithNote}(\\[n_1,n_2\\],J)=(e_1\\mid n_1)+(e_2\\mid "
+"n_2). $$"
+
+#: src/algebra/definitions.md:314
+msgid ""
+"The preprint's date example describes the January notes with a predicate, "
+"while `projWithNote` takes the list of dates."
+msgstr ""
+"プレプリントの日付の例は 1 月の摘要を述語で指定しますが, `projWithNote` は日"
+"付のリストを受け取ります."
+
+#: src/algebra/definitions.md:316
+msgid ""
+"Definitions 1–13 draw on Appendix A of [_Accounting State Space as a "
+"Foundation for Economic Agent-Based Modeling: An Input–Output Benchmark and "
+"Inventory Extension_](https://doi.org/10.21203/rs.3.rs-8485050/v2), with "
+"clarifications in Definitions 1, 6, 9, 12, and 13."
+msgstr "定義 1–13 は [_Accounting State Space as a Foundation for Economic Agent-Based Modeling: An Input–Output Benchmark and Inventory Extension_](https://doi.org/10.21203/rs.3.rs-8485050/v2) の Appendix A に基づきます. 定義 1, 6, 9, 12, 13 に補足を記します."
 
 #: src/usage/installation.md:3
 msgid ""
@@ -2202,10 +2578,6 @@ msgstr ""
 #: src/algebra/elements.md:227
 msgid "Built-in instances"
 msgstr "組み込みの instance"
-
-#: src/algebra/elements.md:229
-msgid "Type"
-msgstr "型"
 
 #: src/algebra/elements.md:229
 msgid "Wildcard"
