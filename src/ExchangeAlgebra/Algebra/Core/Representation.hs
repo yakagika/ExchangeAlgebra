@@ -547,7 +547,7 @@ data  Alg v b where
         Zero  :: Alg v b
         Single :: !v -> !b -> Alg v b
         Liner :: { _realg       :: !(Map.HashMap (BasePart b) (Pair v))
-                 , _axisPosting :: ~(IntMap.IntMap (Map.HashMap ElementKey IntSet.IntSet))
+                 , _axisPosting :: ~AxisPosting
                  , _bpToId      :: ~(Map.HashMap (BasePart b) Int)
                  , _idToBp      :: ~(IntMap.IntMap (BasePart b))
                  , _nextBpId    :: ~Int
@@ -636,7 +636,12 @@ instance forall v b. ( HatBaseClass b
                         let pair = filterPair (not . isZeroValue) (not . isZeroValue) decoded
                         go (remaining - 1) (Map.insert basis pair acc)
 
-type AxisPosting = IntMap.IntMap (Map.HashMap ElementKey IntSet.IntSet)
+-- | An index from component positions and element keys to sets of base IDs.
+type AxisPosting = IntMap.IntMap (Map.HashMap ElementKey SizedIds)
+
+-- | A set of base IDs and its cardinality in the first field.
+-- Invariant: insertion evaluates the cardinality before storing the pair.
+type SizedIds = (Int, IntSet.IntSet)
 
 {-# INLINE emptyAxisPosting #-}
 -- | Complexity: O(1)
@@ -644,36 +649,42 @@ emptyAxisPosting :: AxisPosting
 emptyAxisPosting = IntMap.empty
 
 {-# INLINE insertAxisPosting #-}
--- | Complexity: O(d * (hash-insert + intset-insert))
--- In practice this is near O(d), where d is the number of components in the base part.
+-- | Insert a base ID once for each component position and element key.
+-- For d components, this performs O(d) map updates and up to d set membership
+-- checks and insertions.
 insertAxisPosting :: [ElementKey] -> Int -> AxisPosting -> AxisPosting
 insertAxisPosting !keys !bpId !idx =
     snd $ L.foldl' step (0 :: Int, idx) keys
   where
     step (!axis, !acc) !k =
-        let !axisMap = IntMap.findWithDefault Map.empty axis acc
-            !ids0 = Map.lookupDefault IntSet.empty k axisMap
-            !ids1 = IntSet.insert bpId ids0
-            !axisMap' = Map.insert k ids1 axisMap
-            !acc' = IntMap.insert axis axisMap' acc
+        let !axisMap  = IntMap.findWithDefault Map.empty axis acc
+            !axisMap' = Map.alter addId k axisMap
+            !acc'     = IntMap.insert axis axisMap' acc
         in (axis + 1, acc')
 
+    addId Nothing = Just (1, IntSet.singleton bpId)
+    addId (Just sized@(count, ids))
+        | IntSet.member bpId ids = Just sized
+        | otherwise =
+            let !count' = count + 1
+                !ids'   = IntSet.insert bpId ids
+            in Just (count', ids')
+
 {-# INLINE queryAxisPosting #-}
--- | Complexity: O(d + intersection cost)
--- d is the number of components; intersections are performed in ascending set-size order.
+-- | Find candidate base IDs for the concrete components of a query.
+-- With d components and k matched sets, this performs up to d index lookups,
+-- O(k log k) comparisons of cached cardinalities, and k - 1 intersections
+-- (zero intersections when k is zero).
 queryAxisPosting :: [ElementKey] -> AxisPosting -> IntSet.IntSet -> IntSet.IntSet
 queryAxisPosting !keys !idx !allIds =
     case matchedSets of
-        Left ()  -> IntSet.empty
-        Right [] -> allIds
-        -- 'L.sortOn' preserves length, so a non-empty 'xs' sorts to a non-empty
-        -- list; matching @(x:rest)@ here (rather than on a lazy let-binding) makes
-        -- exhaustiveness explicit and avoids the partial pattern warning.
-        Right xs@(_:_) ->
-            case L.sortOn IntSet.size xs of
-                (x:rest) -> L.foldl' IntSet.intersection x rest
-                []       -> allIds  -- unreachable: xs is non-empty
+        Left () -> IntSet.empty
+        Right sets -> case L.sortOn fst sets of
+            []                -> allIds
+            ((_, ids) : rest) -> L.foldl' intersectIds ids rest
   where
+    intersectIds acc (_, ids) = IntSet.intersection acc ids
+
     matchedSets =
         L.foldl' collect (Right []) (zip [0 :: Int ..] keys)
 
@@ -693,8 +704,8 @@ queryAxisPosting !keys !idx !allIds =
     {-# INLINE axisHasWildcard #-}
 
 {-# INLINE linerFromMap #-}
--- | Complexity: O(n * d * (hash-insert + intset-insert))
--- n is the number of distinct base keys in the map.
+-- | Build a 'Liner' with a lazy index. For n distinct bases with d components,
+-- forcing the index performs O(n * d) map and set operations.
 linerFromMap :: (HatBaseClass b)
              => Map.HashMap (BasePart b) (Pair v)
              -> Alg v b
@@ -1637,10 +1648,10 @@ extendBy h = foldEntries (\acc v b -> acc .+ h v b) Zero
 --
 -- Complexity:
 --  exact single-key path: expected O(1)
---  wildcard single-key path: O(queryAxisPosting + c * verify)
+--  wildcard single-key path: index lookup, sorting by cached cardinality, set
+--  intersections, and one lookup and verification step per candidate base.
+--  The first wildcard query also builds the index.
 --  multi-pattern path: O(sum pattern costs + union costs)
---
--- where c is candidate count returned by the posting index.
 -- >>> type Test = Alg Double (HatBase CountUnit)
 -- >>> x = 1.@Hat:<Yen .+ 1.@Not:<Amount :: Test
 -- >>> y = 2.@Not:<Yen .+ 2.@Hat:<Amount :: Test
@@ -1745,7 +1756,8 @@ projExactMap b m = case Map.lookup bp m of
 -- ('queryAxisPosting'), so it necessarily forces the index. Only invoked when
 -- 'haveWildcard' holds.
 --
--- Complexity: O(queryAxisPosting + c * verify).
+-- The query uses cached set cardinalities to order intersections, then looks up
+-- and verifies each candidate base. The index is built on first use.
 projWildMap
     :: (HatBaseClass b)
     => b

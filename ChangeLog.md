@@ -300,6 +300,18 @@
   took 18 s before the fix and 67 ms after it, and `scaleFree` (m = 3) took
   6.3 s and 21 ms (100,000 nodes after the fix: 1.27 s and 0.32 s).
 
+- Performance: Wildcard queries in `proj` and `projNetNorm` called the
+  linear-time `IntSet.size` on each candidate set of base IDs to order
+  intersections, so each query took time proportional to the number of bases
+  sharing a concrete element rather than to the matches. The index now supplies
+  each set's size in constant time and preserves query results. Querying the
+  inventory and gross profit of every company in one term of the
+  `sparse-trade-model` benchmark (100,000 companies, 7.5 million postings) took
+  67.5 s before the fix and 5.4 s after it (10,000 companies: 0.79 s and
+  0.37 s). The `Liner` field `_axisPosting` in
+  `ExchangeAlgebra.Algebra.Internal` (outside the PVP contract) now stores each
+  ID set with its cardinality.
+
 - Journal CSV readers, including the built-in readers, return `BadAmount` with the
   trimmed amount field when the amount parser returns a negative or non-finite value.
   Previously the row passed parsing and `(.@)` raised an exception during term construction.

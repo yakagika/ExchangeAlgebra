@@ -197,6 +197,26 @@ testProjConcreteNoIndexForce = do
           Right v  -> do putStrLn ("[FAIL] wildcard projNetNorm did not use the index: " ++ show v); exitFailure
       _ -> do putStrLn "[FAIL] expected a Liner"; exitFailure
 
+-- | Generate a multi-base algebra with small whole values and ledger wildcards.
+genAlgebra :: Gen (EA.Alg Double SimHatBase2)
+genAlgebra = do
+    baseCount <- chooseInt (32, 96)
+    EA.fromList <$> traverse genPosting [1 .. baseCount]
+  where
+    genPosting company = do
+        side :< unit <- genBase
+        counterparty <- frequency [(1, pure EA.wildcard), (4, chooseInt (1, 8))]
+        ledgerUnit   <- frequency [(1, pure EA.wildcard), (4, pure unit)]
+        value        <- chooseInt (1, 10)
+        pure (fromIntegral value .@ (side :< (Cash, company, counterparty, ledgerUnit)))
+
+-- | Exercise an index containing sets of 1,000 base IDs.
+largeAlgebra :: EA.Alg Double SimHatBase2
+largeAlgebra = EA.fromList
+    [ 1 .@ (Not :< (Cash, company, 1, Yen))
+    | company <- [1 .. 1000]
+    ]
+
 -- | Check all three wildcard index fields against IDs assigned in base key order.
 testWildcardIndexIds :: IO ()
 testWildcardIndexIds = do
@@ -205,23 +225,6 @@ testWildcardIndexIds = do
     quickProp "wildcard index IDs follow base key order (1000 bases)" $
         once (checkIndex 1000 largeAlgebra)
   where
-    genAlgebra :: Gen (EA.Alg Double SimHatBase2)
-    genAlgebra = do
-        baseCount <- chooseInt (32, 96)
-        EA.fromList <$> traverse genPosting [1 .. baseCount]
-
-    genPosting :: Int -> Gen (EA.Alg Double SimHatBase2)
-    genPosting company = do
-        side :< unit <- genBase
-        counterparty <- chooseInt (1, 8)
-        pure (1 .@ (side :< (Cash, company, counterparty, unit)))
-
-    largeAlgebra :: EA.Alg Double SimHatBase2
-    largeAlgebra = EA.fromList
-        [ 1 .@ (Not :< (Cash, company, 1, Yen))
-        | company <- [1 .. 1000]
-        ]
-
     checkIndex :: Int -> EA.Alg Double SimHatBase2 -> Property
     checkIndex minBases EAI.Liner
         { EAI._realg       = m
@@ -242,9 +245,72 @@ testWildcardIndexIds = do
             [ counterexample "too few distinct bases" (HM.size m >= minBases)
             , idToBp === IM.fromList numberedBases
             , allIds === IS.fromList [0 .. HM.size m - 1]
-            , counterexample "component index differs" (axisPosting == expectedPostings)
+            , counterexample "component index differs" $
+                IM.map (HM.map snd) axisPosting == expectedPostings
             ]
     checkIndex _ _ = counterexample "expected a Liner" False
+
+-- | Check every cached cardinality against the corresponding set.
+testWildcardIndexSizes :: IO ()
+testWildcardIndexSizes = do
+    quickProp "wildcard index sizes agree with IntSet.size" $
+        forAll genAlgebra checkSizes
+    quickProp "wildcard index sizes agree with IntSet.size (1000 bases)" $
+        once (checkSizes largeAlgebra)
+  where
+    checkSizes :: EA.Alg Double SimHatBase2 -> Property
+    checkSizes EAI.Liner { EAI._axisPosting = axisPosting } = conjoin
+        [ counterexample ("component " ++ show position ++ ", key " ++ show key) $
+            size === IS.size ids
+        | (position, byKey) <- IM.toList axisPosting
+        , (EAI.ElementKey key, (size, ids)) <- HM.toList byKey
+        ]
+    checkSizes _ = counterexample "expected a Liner" False
+
+-- | Compare both projection APIs with a full scan using one-way matching.
+testWildcardQueriesAgainstScan :: IO ()
+testWildcardQueriesAgainstScan =
+    quickProp "wildcard proj and projNetNorm agree with an entry scan" $
+        forAll genAlgebra $ \alg -> conjoin (L.map (checkQuery alg) queries)
+  where
+    queries :: [SimHatBase2]
+    queries =
+        [ HatNot :< (Cash, (.#), 1, Yen)
+        , Not    :< (Cash, (.#), (.#), Yen)
+        , Hat    :< (Cash, 1, (.#), (.#))
+        , HatNot :< (Cash, (.#), (.#), (.#))
+        , Not    :< (Products, (.#), 1, Yen)
+        , HatNot :< ((.#), (.#), (.#), (.#))
+        ]
+
+    checkQuery alg query =
+        let entries     = EA.foldEntries (collectMatching query) [] alg
+            projected   = EA.foldEntries collectEntry [] (EA.proj [query] alg)
+            expectedNet = norm $ EA.bar $ EA.fromList
+                [value .@ (side :< components) | ((side, components), value) <- entries]
+        in counterexample ("query " ++ show query) $ conjoin
+            [ L.sortOn fst projected === L.sortOn fst entries
+            , EA.projNetNorm [query] alg === expectedNet
+            ]
+
+    collectEntry entries value (side :< components) =
+        ((side, components), value) : entries
+
+    collectMatching query entries value entry
+        | matchesBase query entry = collectEntry entries value entry
+        | otherwise               = entries
+
+    matchesBase :: SimHatBase2 -> SimHatBase2 -> Bool
+    matchesBase (querySide :< (title, company, counterparty, unit))
+                (entrySide :< (title', company', counterparty', unit')) =
+        matchesElement querySide entrySide
+            && matchesElement title title'
+            && matchesElement company company'
+            && matchesElement counterparty counterparty'
+            && matchesElement unit unit'
+
+    matchesElement :: EA.Element a => a -> a -> Bool
+    matchesElement query entry = EA.isWildcard query || query == entry
 
 
 -- | Regression tests for scale-aware numeric tolerance (WI-11/12/14).
@@ -690,6 +756,8 @@ runTests = do
     testScalarRejectsNegative
     testProjConcreteNoIndexForce
     testWildcardIndexIds
+    testWildcardIndexSizes
+    testWildcardQueriesAgainstScan
     axiomProperties
     functorialityLawProperties
     quotientProperties
