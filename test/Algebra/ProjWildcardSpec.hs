@@ -8,6 +8,8 @@
 module Algebra.ProjWildcardSpec (runTests) where
 
 import qualified Data.Binary as Binary
+import qualified Data.Binary.Put as Binary
+import qualified Data.HashMap.Strict as HashMap
 import           Data.Time ( Day(ModifiedJulianDay)
                            , TimeOfDay(..)
                            , fromGregorian
@@ -19,12 +21,14 @@ import ExchangeAlgebra.Accounting.Exchange
 import           Control.Monad (unless)
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
+import           Data.Maybe (mapMaybe, listToMaybe)
 import           Data.Text (Text)
 import           System.Exit (exitFailure)
 import           Test.QuickCheck hiding (label)
 import           ExchangeAlgebra.Algebra hiding (map, filter)
 import qualified ExchangeAlgebra.Algebra as Algebra
 import           ExchangeAlgebra.Algebra.Element (matchesQuery)
+import qualified ExchangeAlgebra.Algebra.Internal as Internal
 import qualified ExchangeAlgebra.Algebra.Transfer as Transfer
 import           ExchangeAlgebra.Algebra.Value (MoneyDecimal)
 import qualified ExchangeAlgebra.Journal as Journal
@@ -264,6 +268,151 @@ instance Hashable FixtureId where
 instance Binary.Binary FixtureId where
     put (FixtureId number) = Binary.put number
     get = FixtureId <$> Binary.get
+
+instance Journal.Note FixtureId where
+    plank = FixtureId 0
+
+-- | An algebra whose distinct concrete bases have the same hash.
+type CollisionAlg = Alg Double (HatBase (Wild FixtureId))
+
+-- | A destination shared by every generated source base.
+collisionTarget :: Wild FixtureId
+collisionTarget = Exactly (FixtureId 0)
+
+-- | Compare the results of reading or relabeling equal algebras.
+collisionOrderLaws :: CollisionAlg -> CollisionAlg -> [(String, Bool)]
+collisionOrderLaws left right =
+    [ ("equal inputs", left == right)
+    , ("mapBasePart", agrees (mapBasePart (const collisionTarget) :: CollisionAlg -> CollisionAlg))
+    , ("map", agrees (Algebra.map (\(value :@ basis) -> relabel value basis)))
+    , ("mapMaybePosting", agrees (mapMaybePosting (\value basis -> Just (value, target basis))))
+    , ("extendBy", agrees (extendBy relabel))
+    , ("transferEntries", transferAgrees)
+    , ("foldEntries", agrees (foldEntries (\terms value basis -> (value, basis) : terms) []))
+    , ("toList", agrees toList)
+    , ("vals", agrees vals)
+    , ("bases", agrees bases)
+    ]
+  where
+    agrees observeResult = observeResult left == observeResult right
+    target basis = hat basis :< collisionTarget
+    relabel value basis = value .@ target basis
+    transferAgrees = case Transfer.mkTransferRules
+        [Transfer.TransferRule (HatNot :< Wild) (HatNot :< collisionTarget) Transfer.Relabel] of
+        Left _ -> False
+        Right rules ->
+            let apply = Transfer.transferEntries rules
+            in case (apply left, apply right) of
+                (Right actual, Right expected) -> actual == expected
+                _                              -> False
+
+-- | Change the interleaving of whole base groups, keeping each group's sequence.
+genCollisionLedgers :: Gen (CollisionAlg, CollisionAlg)
+genCollisionLedgers = frequency [(4, multipleBases), (1, oneTerm)]
+  where
+    multipleBases = do
+        count <- chooseInt (2, 8)
+        groups <- traverse genTerms [1 .. count]
+        reordered <- shuffle groups
+        pure (fromList (concat groups), fromList (concat reordered))
+
+    genTerms identifier = listOf1 $ do
+        side  <- elements [Hat, Not]
+        value <- fromIntegral <$> chooseInt (1, 10)
+        pure (value .@ side :< Exactly (FixtureId identifier))
+
+    oneTerm = do
+        firstValue  <- fromIntegral <$> chooseInt (1, 10)
+        secondValue <- fromIntegral <$> chooseInt (1, 10)
+        side        <- elements [Hat, Not]
+        let basis = side :< Exactly (FixtureId 1)
+            single = (firstValue + secondValue) .@ basis
+            composed = bar (firstValue .@ basis .+ secondValue .@ basis)
+        pure (single, composed)
+
+-- | Check equal-hash placement, including equal one-term values of different shapes.
+testCollisionOrder :: IO ()
+testCollisionOrder = do
+    assertTest "Hash collisions: distinct concrete bases have equal hashes"
+        (first /= second && hash first == hash second)
+    mapM_ (\(operation, success) -> assertTest ("Hash collisions: " ++ operation) success)
+        (collisionOrderLaws left right)
+    assertEqual "Hash collisions: foldEntries visits equal-hash bases in Ord order"
+        [second, first] (foldEntries (\keys _ basis -> base basis : keys) [] right)
+    assertEqual "Hash collisions: Alg Binary bytes" (Binary.encode left) (Binary.encode right)
+    quickProperty "Hash collisions: equal Alg readouts and encodings" $
+        forAll genCollisionLedgers $ \(before, after) ->
+            let keys = case before of
+                    Internal.Liner {} -> HashMap.keys (Internal._realg before)
+                    _                 -> []
+                hashes = map hash keys
+                colliding = length hashes /= length (List.nub hashes)
+            in checkCoverage
+                $ cover 60 colliding "multiple colliding bases"
+                $ cover 10 (not colliding) "equal singleton and one-term map"
+                $ conjoin
+                    ([counterexample operation (property success)
+                     | (operation, success) <- collisionOrderLaws before after]
+                    ++ [Binary.encode before === Binary.encode after | colliding])
+  where
+    first = Exactly (FixtureId 1)
+    second = Exactly (FixtureId 2)
+    left = 1 .@ Not :< first .+ 2 .@ Not :< second :: CollisionAlg
+    right = 2 .@ Not :< second .+ 1 .@ Not :< first :: CollisionAlg
+
+-- | Reversing two equal-hash notes leaves journal readouts equal.
+testNoteCollisionOrder :: IO ()
+testNoteCollisionOrder = do
+    assertEqual "Hash collisions: equal journal maps" (Journal.toMap left) (Journal.toMap right)
+    assertEqual "Hash collisions: Journal.toAlg" (Journal.toAlg left) (Journal.toAlg right)
+    assertEqual "Hash collisions: Journal Binary bytes" (Binary.encode left) (Binary.encode right)
+    assertEqual "Hash collisions: Journal Show" (show left) (show right)
+  where
+    first = (1 .@ Not :< collisionTarget :: CollisionAlg) Journal..| FixtureId 1
+    second = (2 .@ Not :< collisionTarget :: CollisionAlg) Journal..| FixtureId 2
+    left = first .+ second
+    right = second .+ first
+
+-- | Preserve the previous output direction and wire order for distinct hashes.
+testDistinctHashOrder :: IO ()
+testDistinctHashOrder = do
+    assertTest "Distinct hashes: fixture keys do not collide"
+        (length hashes == length (List.nub hashes))
+    assertEqual "Distinct hashes: toList keeps reverse HashMap key order"
+        (reverse keys) outputKeys
+    assertEqual "Distinct hashes: Alg Binary retains HashMap traversal order"
+        previousBytes (Binary.encode algebra)
+    assertTest "Distinct hashes: fixture notes do not collide"
+        (length noteHashes == length (List.nub noteHashes))
+    assertEqual "Distinct hashes: Journal.toAlg retains HashMap traversal order"
+        (unionsMerge notes) (Journal.toAlg journal)
+    assertEqual "Distinct hashes: Journal Binary retains HashMap traversal order"
+        previousJournalBytes (Binary.encode journal)
+  where
+    algebra = 1 .@ Hat :< Yen .+ 2 .@ Hat :< Yen .+ 3 .@ Not :< Yen
+           .+ 4 .@ Not :< Dollar .+ 5 .@ Hat :< Amount :: Alg Double (HatBase CountUnit)
+    entries = Internal._realg algebra
+    keys = HashMap.keys entries
+    hashes = map hash keys
+    outputKeys = mapMaybe listToMaybe $ List.group $ map (base . _hatBase) (toList algebra)
+    previousBytes = Binary.runPut $ do
+        Binary.put (2 :: Int)
+        Binary.put (HashMap.size entries)
+        HashMap.foldrWithKey
+            (\key pair remaining -> Binary.put key >> Binary.put pair >> remaining)
+            (pure ())
+            entries
+    journal = (1 .@ Not :< Yen) Journal..| (3 :: Int)
+           .+ (2 .@ Not :< Yen) Journal..| 1
+           .+ (3 .@ Not :< Yen) Journal..| 2 :: Journal.Journal Int Double (HatBase CountUnit)
+    notes = Journal.toMap journal
+    noteHashes = map hash (HashMap.keys notes)
+    previousJournalBytes = Binary.runPut $ do
+        Binary.put (HashMap.size notes)
+        HashMap.foldrWithKey
+            (\note terms remaining -> Binary.put note >> Binary.put terms >> remaining)
+            (pure ())
+            notes
 
 -- | Compare exact coordinates, sides, and amounts independently of posting order.
 observeWild :: forall coordinates. (BaseClass coordinates, HasElementKeys coordinates)
@@ -549,3 +698,6 @@ runTests = do
     testWildAccountTitles
     testWildPayload
     testWildCalendarRegression
+    testCollisionOrder
+    testNoteCollisionOrder
+    testDistinctHashOrder

@@ -1,5 +1,16 @@
 # Changelog for ExchangeAlgebra
 
+## Unreleased
+
+### Fixed
+
+- Base relabeling, `Journal.toAlg`, and `toList` now give equal results for
+  equal inputs when distinct bases or notes share a hash. Previously, the
+  insertion order of those keys could change the resulting term sequences
+  and the `Binary` bytes for equal algebras with multiple terms. Traversals
+  now visit equal-hash keys in `Ord` order. Inputs without hash collisions
+  produce the same results as before.
+
 ## 0.7.0.0 - 2026-11-27
 
 ### Added

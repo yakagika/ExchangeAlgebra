@@ -395,7 +395,8 @@ appendMap rhs j@(Journal bs delta baseAxis _)
                     else Map.insert k dMerged dAcc
 
 -- | Serialize a journal as its note count followed by each note and its
--- algebra. Decoding checks each algebra as the 'Alg' instance does and fails
+-- algebra. Notes with the same hash are encoded in 'Ord' order.
+-- Decoding checks each algebra as the 'Alg' instance does and fails
 -- on a repeated note. The encoder never writes a note whose algebra is zero
 -- (see the normal form on t'Journal'); the decoder drops one written by an
 -- older encoder instead of rejecting the bytes, so they still decode.
@@ -410,7 +411,7 @@ instance ( Note n
     put j = do
         let !m = toMap j
         Binary.put (Map.size m :: Int)
-        Map.foldrWithKey
+        EA.foldrHashMapByHash
             (\n alg k -> Binary.put n >> Binary.put alg >> k)
             (pure ())
             m
@@ -505,7 +506,7 @@ instance (HatVal v, HatBaseClass b, Note n) => Show (Journal n v b) where
             _ -> showParen (d > 3) (showsGroups groups)
       where
         m = toMap js
-        groups = reverse $ Map.foldrWithKey collectGroup [] m
+        groups = reverse $ EA.foldrHashMapByHash collectGroup [] m
 
         collectGroup k a acc
             | not (isPlank k) && Prelude.null (EA.toASCList a) = acc
@@ -581,7 +582,7 @@ instance (HatVal v, HatBaseClass b, Note n) => Redundant (Journal n) v b where
     (.^) = map (.^)
     (.+) = mappend
     (.*) x  = map ((.*) x)
-    norm = norm . toAlg
+    norm = norm . EA.unionsMerge . materializeMap
     (.-) x = map (.-) (gather plank x)
     compress = map compress
 
@@ -733,12 +734,16 @@ sigmaM xs f = mconcat <$> CM.forM xs f
 ------------------------------------------------------------------
 -- | Combine all notes into a single algebra.
 -- Merge both layers of each note first, then combine notes in the traversal
--- order of the resulting @HashMap@.
+-- order of the resulting @HashMap@, visiting notes with the same hash in
+-- 'Ord' order. For lawful notes, bases, and values, equal 'toMap' results
+-- imply equal 'toAlg' results.
 --
--- Complexity: O(total number of base keys across all notes)
+-- The cost includes the merges and sorting each run of equal-hash notes.
 toAlg :: (HatVal v, HatBaseClass b, Note n)
       => Journal n v b -> Alg v b
-toAlg = EA.unionsMerge . materializeMap
+toAlg = EA.mkAlgFromMap . EA.foldlHashMapByHash mergeNote Map.empty . materializeMap
+  where
+    mergeNote acc _ algebra = EA.mergeAlgMap acc algebra
 
 ------------------------------------------------------------------
 -- | Apply function f to the entry of each Note in the Journal.
@@ -1040,9 +1045,12 @@ postFromNetBy :: (HatVal v, HatBaseClass b, Note n, Ord k)
 postFromNetBy keyOf post journal = retained .+ M.foldlWithKey'
     (\result key state -> result .+ post key (roundAccum state)) mempty amounts
   where
-    (nonfinite, amounts) = EA.postNetStates keyOf (toAlg journal)
+    (nonfinite, amounts) = EA.postNetStates keyOf (EA.unionsMerge (materializeMap journal))
     retained
         | HSet.null nonfiniteBases = mempty
         | otherwise = map (EA.filter (\entry ->
             HSet.member (base (EA._hatBase entry)) nonfiniteBases)) journal
-    nonfiniteBases = HSet.fromList (Prelude.map base (EA.bases nonfinite))
+    nonfiniteBases = case nonfinite of
+        EA.Zero                       -> HSet.empty
+        _ :@ basis                    -> HSet.singleton (base basis)
+        EA.Liner { EA._realg = pairs } -> Map.keysSet pairs

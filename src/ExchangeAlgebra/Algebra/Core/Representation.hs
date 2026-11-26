@@ -48,6 +48,8 @@ module ExchangeAlgebra.Algebra.Core.Representation
     , nullPair
     , pairAppend
     , pairUnion
+    , foldlHashMapByHash
+    , foldrHashMapByHash
     , emptyAxisPosting
     , insertAxisPosting
     , queryAxisPosting
@@ -107,6 +109,7 @@ import ExchangeAlgebra.Algebra.Value.Class
 
 import qualified Data.List as L (foldl', sort, sortOn, any)
 import Prelude hiding (map, head, filter, tail, traverse, mapM)
+import Data.Hashable (Hashable, hash)
 import qualified Data.HashMap.Strict as Map
 import qualified Data.IntMap.Strict as IntMap
 import qualified Data.IntSet as IntSet
@@ -117,7 +120,81 @@ import Data.Sequence (Seq)
 import qualified Data.Maybe as Maybe
 import Control.DeepSeq
 import GHC.Stack (HasCallStack)
+import GHC.Exts (oneShot)
 import qualified Data.Binary as Binary
+
+-- | State of a collision check in hash map traversal order.
+data HashScan
+    = NoHash
+    | PreviousHash {-# UNPACK #-} !Int
+    | CollisionFound
+
+-- | Check adjacent hashes before choosing the fold.
+-- Keys with the same hash are adjacent in 'Map.HashMap' traversal order.
+{-# INLINE hasHashCollision #-}
+hasHashCollision :: Hashable k => Map.HashMap k v -> Bool
+hasHashCollision entries = case Map.foldlWithKey' step NoHash entries of
+    CollisionFound -> True
+    _              -> False
+  where
+    step CollisionFound _ _ = CollisionFound
+    step NoHash key _ = PreviousHash (hash key)
+    step (PreviousHash previous) key _
+        | current == previous = CollisionFound
+        | otherwise           = PreviousHash current
+      where
+        current = hash key
+
+-- | The pending entry and any other entries with the same hash.
+data HashRun k v
+    = EmptyRun                       -- ^ No entry has been read yet.
+    | HashRun !Int !k v [(k, v)]      -- ^ The list is allocated only for collisions.
+
+-- | Fold in 'Map.HashMap' traversal order, sorting keys with the same hash
+-- by 'Ord'. Equal maps therefore yield the same sequence of entries. Hashes
+-- can vary across @hashable@ versions and machines, so the order among keys
+-- with different hashes can vary across those environments.
+-- After checking adjacent hashes, maps with distinct hashes use
+-- 'Map.foldrWithKey'. Maps with a collision sort each run of equal-hash keys.
+{-# INLINE foldrHashMapByHash #-}
+foldrHashMapByHash :: (Hashable k, Ord k) => (k -> v -> a -> a) -> a -> Map.HashMap k v -> a
+foldrHashMapByHash combine ~initial entries
+    | hasHashCollision entries = foldrHashMapCollisions combine initial entries
+    | otherwise               = Map.foldrWithKey combine initial entries
+
+-- | Buffer and sort equal-hash runs in a map with collisions.
+{-# INLINE foldrHashMapCollisions #-}
+foldrHashMapCollisions :: (Hashable k, Ord k) => (k -> v -> a -> a) -> a -> Map.HashMap k v -> a
+foldrHashMapCollisions combine ~initial entries = Map.foldrWithKey step finish entries EmptyRun
+  where
+    step key value ~next = oneShot $ \pending ->
+        let !keyHash = hash key
+        in case pending of
+            EmptyRun -> next (HashRun keyHash key value [])
+            HashRun previousHash firstKey firstValue collisions
+                | keyHash == previousHash ->
+                    next (HashRun previousHash firstKey firstValue ((key, value) : collisions))
+                | otherwise ->
+                    emit firstKey firstValue collisions (next (HashRun keyHash key value []))
+
+    finish EmptyRun = initial
+    finish (HashRun _ firstKey firstValue collisions) =
+        emit firstKey firstValue collisions initial
+
+    emit key value [] ~rest = combine key value rest
+    emit key value collisions ~rest =
+        foldr (\(entryKey, entryValue) -> combine entryKey entryValue) rest
+            (L.sortOn fst ((key, value) : collisions))
+
+-- | Strict left fold in the traversal order of 'foldrHashMapByHash'.
+-- Maps with distinct hashes use @Map.foldlWithKey'@ after the collision check.
+{-# INLINE foldlHashMapByHash #-}
+foldlHashMapByHash :: (Hashable k, Ord k) => (a -> k -> v -> a) -> a -> Map.HashMap k v -> a
+foldlHashMapByHash combine initial entries
+    | hasHashCollision entries = foldrHashMapCollisions step id entries initial
+    | otherwise               = Map.foldlWithKey' combine initial entries
+  where
+    step key value ~next = oneShot $ \ !acc -> next $! combine acc key value
 
 -- * Algebra
 ------------------------------------------------------------
@@ -551,9 +628,12 @@ data  Alg v b where
 
 -- | Serialize an algebra in the 0.5 wire layout (tag 0 = 'Zero', tag 1 =
 -- one posting, tag 2 = the per-base map with each t'Pair' in sequence order).
--- Tag 2 writes blocks in the base 'Map.HashMap' traversal order, so equal
--- algebras can have different byte sequences across versions of @hashable@.
--- Compare decoded values to check equality.
+-- Tag 2 writes blocks in 'Map.HashMap' traversal order, with equal-hash keys
+-- sorted by 'Ord'. Within one environment, equal algebras with the same
+-- tag have identical byte sequences when their component encoders agree
+-- on equal values. Equal algebras can have different byte sequences across
+-- versions of @hashable@ or when one is a singleton and the other a one-term
+-- map. Compare decoded values for equality.
 --
 -- Decoding is a construction boundary, like '.@': it fails on a value for
 -- which 'valueError' is 'Just' (negative or non-finite), on a tag-1 posting
@@ -583,7 +663,7 @@ instance forall v b. ( HatBaseClass b
     put (Liner m _ _ _ _ _) = do
         Binary.put (2 :: Int)
         Binary.put (Map.size m :: Int)
-        Map.foldrWithKey
+        foldrHashMapByHash
             (\bp p k -> Binary.put bp >> Binary.put p >> k)
             (pure ())
             m
@@ -1056,12 +1136,14 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
       where
         productValue = x * v
     x  .* (Liner ms idx bpToId idToBp nextBpId allIds)
-        | any isZeroValue (vals scaled) = filter (not . isZeroValue . _val) scaled
-        | otherwise                    = scaled
+        | any hasZero scaledPairs = filter (not . isZeroValue . _val) scaled
+        | otherwise               = scaled
       where
-        scaled = Liner
-            (Map.map (mapPair (x *)) ms)
-            idx bpToId idToBp nextBpId allIds
+        scaledPairs = Map.map (mapPair (x *)) ms
+        scaled = Liner scaledPairs idx bpToId idToBp nextBpId allIds
+        hasZero (HatOne value)    = isZeroValue value
+        hasZero (NotOne value)    = isZeroValue value
+        hasZero (PairSeq hs ns)   = any isZeroValue hs || any isZeroValue ns
 
     norm Zero       = 0
     norm (v:@_)     = roundAccum (addAccum v emptyAccum)
@@ -1142,17 +1224,27 @@ instance (HatVal n, HatBaseClass b) => Redundant Alg n b where
 
 
 -- | Visit full-base pairs without rebuilding every posting's base.
+-- The fold visits keys with the same hash in 'Ord' order.
 foldPairs :: (HatVal n, HatBaseClass b)
           => (a -> BasePart b -> Pair n -> a) -> a -> Alg n b -> a
 {-# INLINE foldPairs #-}
-foldPairs _ initial Zero = initial
-foldPairs collect initial (value :@ postingBase)
+foldPairs = foldPairsWith foldlHashMapByHash
+
+-- | Visit each full-base pair in the order provided by the supplied map fold.
+{-# INLINE foldPairsWith #-}
+foldPairsWith :: (HatVal n, HatBaseClass b)
+              => ((a -> BasePart b -> Pair n -> a) -> a -> Map.HashMap (BasePart b) (Pair n) -> a)
+              -> (a -> BasePart b -> Pair n -> a)
+              -> a
+              -> Alg n b
+              -> a
+foldPairsWith _ _ initial Zero = initial
+foldPairsWith _ collect initial (value :@ postingBase)
     | isZeroValue value = initial
-    | isHat postingBase = collect initial (base postingBase)
-        (HatOne value)
-    | otherwise = collect initial (base postingBase)
-        (NotOne value)
-foldPairs collect initial (Liner pairs _ _ _ _ _) = Map.foldlWithKey' collect initial pairs
+    | isHat postingBase = collect initial (base postingBase) (HatOne value)
+    | otherwise = collect initial (base postingBase) (NotOne value)
+foldPairsWith foldMapPairs collect initial (Liner pairs _ _ _ _ _) =
+    foldMapPairs collect initial pairs
 
 -- | Exact Not-minus-Hat residual for one complete base.
 netPairState :: HatVal n => Pair n -> Accum n
@@ -1173,7 +1265,7 @@ postNetStates :: (HatVal n, HatBaseClass b, Ord k)
 {-# INLINE postNetStates #-}
 postNetStates keyOf algebra = (mkAlgFromMap retained, totals)
   where
-    (!retained, !totals) = foldPairs collect (Map.empty, M.empty) algebra
+    (!retained, !totals) = foldPairsWith Map.foldlWithKey' collect (Map.empty, M.empty) algebra
     collect (!unchanged, !amounts) basePart pair =
         let state = netPairState pair
             select side magnitude = case keyOf (merge side basePart) of
@@ -1191,26 +1283,27 @@ postNetStates keyOf algebra = (mkAlgFromMap retained, totals)
 ------------------------------------------------------------------
 
 -- | Returns the value of each term, as a list.
---
--- Complexity: O(s) (s is the total number of scalar entries)
+-- The traversal visits keys with the same hash in 'Ord' order.
+-- Complexity: linear in the number of terms, plus sorting within collisions.
 vals :: (HatVal v, HatBaseClass b) => Alg v b -> [v]
 vals Zero = []
 vals (v:@_) = [v]
 vals (Liner m _ _ _ _ _) =
     reverse $
-        Map.foldl'
-            (foldPair (flip (:)) (flip (:)))
+        foldlHashMapByHash
+            (\values _ -> foldPair (flip (:)) (flip (:)) values)
             []
             m
 
 
 -- | Returns the hat base of each term, as a list.
---
--- Complexity: O(s) (s is the total number of scalar entries)
+-- The traversal visits keys with the same hash in 'Ord' order before
+-- prepending terms to the result.
+-- Complexity: linear in the number of terms, plus sorting within collisions.
 bases :: (HatVal v, HatBaseClass b) => Alg v b -> [b]
 bases Zero = []
 bases (_:@b) = [b]
-bases (Liner m _ _ _ _ _) = Map.foldlWithKey' f [] m
+bases (Liner m _ _ _ _ _) = foldlHashMapByHash f [] m
     where
         f ::  (HatVal v, HatBaseClass b) => [b] -> BasePart b -> Pair v ->  [b]
         f xs b = foldPair (g Hat b) (g Not b) xs
@@ -1288,7 +1381,9 @@ sigmaFromMap kvs f =
         | otherwise = mergeAlgMapIfNonZero acc (f k v)
 
 -- | Returns the list of terms.
--- Complexity: O(s) (s is the total number of scalar entries)
+-- The traversal visits keys with the same hash in 'Ord' order before
+-- prepending terms to the result. Equal algebras produce equal lists.
+-- Complexity: linear in the number of terms, plus sorting within collisions.
 --
 -- >>> toList (10.@Hat:<(Yen) .+ 10.@Hat:<(Dollar) .+ Zero :: Alg Double (HatBase CountUnit))
 -- [10.00:@Hat:<Dollar,10.00:@Hat:<Yen]
@@ -1297,9 +1392,18 @@ sigmaFromMap kvs f =
 -- >>> toList Zero :: [Alg Double (HatBase CountUnit)]
 -- []
 toList :: (HatVal v, HatBaseClass b) => Alg v b -> [Alg v b]
-toList Zero       = []
-toList (v:@b)     = [v`Single`b]
-toList (Liner m _ _ _ _ _)  = Map.foldlWithKey' f [] m
+toList = toListWith foldlHashMapByHash
+
+-- | Collect terms by prepending each term in the supplied map traversal.
+{-# INLINE toListWith #-}
+toListWith :: (HatVal v, HatBaseClass b)
+           => (([Alg v b] -> BasePart b -> Pair v -> [Alg v b])
+                -> [Alg v b] -> Map.HashMap (BasePart b) (Pair v) -> [Alg v b])
+           -> Alg v b
+           -> [Alg v b]
+toListWith _ Zero = []
+toListWith _ (v :@ b) = [v `Single` b]
+toListWith foldMapPairs (Liner m _ _ _ _ _) = foldMapPairs f [] m
     where
         f :: (HatVal v, HatBaseClass b) =>  [Alg v b] -> BasePart b -> Pair v -> [Alg v b]
         f xs b (HatOne v) = g Hat b xs v
@@ -1313,7 +1417,10 @@ toList (Liner m _ _ _ _ _)  = Map.foldlWithKey' f [] m
             | otherwise     = (v `Single` (merge h b)):ys
 
 {-# INLINE foldEntries #-}
--- | Strict left fold over scalar entries without building an intermediate list.
+-- | Strict left fold over scalar entries, sorting only runs of base keys
+-- with the same hash by 'Ord'. For lawful values and bases, @x == y@ implies
+-- @foldEntries f initial x == foldEntries f initial y@ for the same step
+-- and initial accumulator, whenever the step respects equality.
 --
 -- This is the implementation vehicle for the universal extension from the free
 -- commutative monoid of entries when each step acts through an associative,
@@ -1333,7 +1440,7 @@ foldEntries f !acc (v :@ b)
     | isZeroValue v = acc
     | otherwise = f acc v b
 foldEntries f !acc (Liner m _ _ _ _ _) =
-    Map.foldlWithKey' step acc m
+    foldlHashMapByHash step acc m
   where
     step :: acc -> BasePart b -> Pair v -> acc
     step !acc0 !bp pair =
@@ -1346,11 +1453,14 @@ foldEntries f !acc (Liner m _ _ _ _ _) =
 {-# INLINE toASCList #-}
 -- | Complexity: O(s log s), dominated by sorting the list representation.
 toASCList :: (HatVal v, HatBaseClass b) => Alg v b -> [Alg v b]
-toASCList = L.sort . toList
+toASCList = L.sort . toListWith Map.foldlWithKey'
 
 
--- | map
--- Complexity: O(s + c), where s is traversed scalar entries and c is transformed output size.
+-- | Transform each term with a function that returns one term.
+-- The traversal orders base keys with the same hash by 'Ord', so equal
+-- inputs give equal results with the same equality-preserving function.
+-- Complexity: O(s + c), plus sorting within collisions, where s is the
+-- number of input terms and c is the number of output terms.
 -- Typed alternatives: 'mapPosting' and 'mapMaybePosting'.
 --
 -- >>> type Test = Alg Double (HatBase CountUnit)
@@ -1378,7 +1488,7 @@ map f (v:@b)    = let  v2:@b2 = f (v`Single`b)
                 in case isZeroValue v2 of
                     True  -> Zero
                     False -> (v2 `Single` b2)
-map f (Liner m _ _ _ _ _) = mkAlgFromMap $ (Map.foldrWithKey (p f) dnilMap m) Map.empty
+map f (Liner m _ _ _ _ _) = mkAlgFromMap $ foldrHashMapByHash (p f) dnilMap m Map.empty
     where
         {-# INLINE dnilMap #-}
         dnilMap = id
@@ -1465,8 +1575,10 @@ mapPosting :: (HatVal v, HatVal v2, HatBaseClass b, HatBaseClass b2)
            => (v -> b -> (v2, b2)) -> Alg v b -> Alg v2 b2
 mapPosting f = mapMaybePosting (\v b -> Just (f v b))
 
--- | Map every posting to zero or one posting. A 'Nothing' drops the posting;
--- a zero value is normalized as by '(.@)'.
+-- | Map each term to at most one term. 'Nothing' drops the term, and '(.@)'
+-- normalizes a zero value. The traversal orders base keys with the same hash
+-- by 'Ord', so equal inputs give equal results with the same
+-- equality-preserving function.
 mapMaybePosting :: (HatVal v, HatVal v2, HatBaseClass b, HatBaseClass b2)
                 => (v -> b -> Maybe (v2, b2)) -> Alg v b -> Alg v2 b2
 mapMaybePosting _ Zero = Zero
@@ -1474,7 +1586,7 @@ mapMaybePosting f (v :@ b) = case f v b of
     Nothing       -> Zero
     Just (v2, b2) -> v2 .@ b2
 mapMaybePosting f (Liner m _ _ _ _ _) =
-    mkAlgFromMap $ Map.foldrWithKey addPair id m Map.empty
+    mkAlgFromMap $ foldrHashMapByHash addPair id m Map.empty
   where
     {-# INLINE addPair #-}
     addPair bp (HatOne v) accDMap = mapOne (merge Hat bp) id v . accDMap
@@ -1570,12 +1682,13 @@ filter f (Liner m _ _ _ _ _) =
 --   relabelling (always on exact values).
 --
 -- In particular, @mapBasePart f (bar x) == bar (mapBasePart f x)@ is false in
--- general: distinct source bases may collide only after relabelling. When
--- collisions occur, @pairAppend@ preserves every value but the resulting
--- sequence order is a representation detail determined by @HashMap@ traversal;
--- callers must not attach semantics to it.
+-- general: distinct source bases may merge after relabeling. The traversal
+-- preserves every value and visits source keys with the same hash in 'Ord'
+-- order. For lawful values and bases and an equality-preserving @f@,
+-- @x == y@ implies @mapBasePart f x == mapBasePart f y@.
 --
--- Complexity: O(n) over distinct base keys (rebuilds the posting index once).
+-- Complexity: linear in the number of base keys, plus sorting within
+-- collisions. The posting index is rebuilt once.
 --
 -- >>> type T = Alg Double (HatBase CountUnit)
 -- >>> mapBasePart id (10.@Hat:<Yen :: T) :: T
@@ -1589,7 +1702,7 @@ mapBasePart _ Zero     = Zero
 mapBasePart f (v :@ b) = singleton v (merge (hat b) (f (base b)))
 mapBasePart f (Liner m _ _ _ _ _) =
     mkAlgFromMap $
-        Map.foldlWithKey'
+        foldlHashMapByHash
             (\acc bp p -> Map.insertWith pairAppend (f bp) p acc)
             Map.empty
             m
@@ -1628,11 +1741,12 @@ mapBasePart f (Liner m _ _ _ _ _) =
 -- Zero-valued entries are skipped, as in 'foldEntries'. Well-formedness of the
 -- algebras returned by @h@ (non-negative, finite values) is the caller's
 -- responsibility: build them with @(.\@)@ rather than the raw constructor.
--- The sequence order of the result is a representation detail determined by
--- the traversal of @x@; callers must not attach semantics to it.
+-- The traversal visits base keys with the same hash in 'Ord' order.
+-- For lawful values and bases and an equality-preserving @h@,
+-- @x == y@ implies @extendBy h x == extendBy h y@.
 --
--- Complexity: O(n · cost(h)) plus the cost of the @('.+')@ merges, in one
--- pass over the entries.
+-- Complexity: O(n · cost(h)) plus the cost of the @('.+')@ merges and
+-- sorting within collisions, in one pass over the entries.
 --
 -- >>> type T = Alg Double (HatBase CountUnit)
 -- >>> let split v b = (v / 2) .@ b .+ (v / 2) .@ b :: T
@@ -1967,7 +2081,7 @@ balanceBy plusBases minusBases alg =
 {-# SPECIALIZE balanceMapBy :: (HatBaseClass b, Ord k) => (BasePart b -> Maybe k) -> Alg MoneyDecimal b -> M.Map k MoneyDecimal #-}
 balanceMapBy :: (HatVal v, HatBaseClass b, Ord k)
              => (BasePart b -> Maybe k) -> Alg v b -> M.Map k v
-balanceMapBy keyOf = M.map roundAccum . foldPairs collect M.empty
+balanceMapBy keyOf = M.map roundAccum . foldPairsWith Map.foldlWithKey' collect M.empty
   where
     collect totals basePart pair = case keyOf basePart of
         Nothing -> totals
@@ -2026,7 +2140,7 @@ balanceMapBy keyOf = M.map roundAccum . foldPairs collect M.empty
 {-# SPECIALIZE netPairMapBy :: (HatBaseClass b, Ord k) => (BasePart b -> Maybe k) -> Alg MoneyDecimal b -> M.Map k (MoneyDecimal, MoneyDecimal) #-}
 netPairMapBy :: (HatVal v, HatBaseClass b, Ord k)
              => (BasePart b -> Maybe k) -> Alg v b -> M.Map k (v, v)
-netPairMapBy keyOf = M.map finish . foldPairs collect M.empty
+netPairMapBy keyOf = M.map finish . foldPairsWith Map.foldlWithKey' collect M.empty
   where
     collect totals basePart pair = case keyOf basePart of
         Nothing -> totals
