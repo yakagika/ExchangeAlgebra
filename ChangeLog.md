@@ -439,7 +439,11 @@
     scope `present` eliminates the head-office and branch current accounts,
     records both balances in a `ReciprocalAccountsEliminated` audit event, and
     fails with `UnreconciledPresentation` when the statements do not
-    reconcile. `ExplainedTemporaryBalance` and `BlankTemporaryExplanation`:
+    reconcile. In the standalone scope no audit reports a balance in these
+    accounts: the books of each office normally keep it after closing, and
+    the pair cancels only in combined statements. To keep the old check, pass
+    a trial balance that holds the books of both offices to `present` in the
+    combined scope. `ExplainedTemporaryBalance` and `BlankTemporaryExplanation`:
     `temporaryAccountBalances` reports eligible balances as a `Warning`
     with no explanation field. `AbnormalBalanceWithReclassificationRule`,
     `AmbiguousReclassification`, and `InapplicableReclassificationRule`: a
