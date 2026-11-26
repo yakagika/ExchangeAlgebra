@@ -355,6 +355,18 @@
   trimmed amount field when the amount parser returns a negative or non-finite value.
   Previously the row passed parsing and `(.@)` raised an exception during term construction.
 
+- `Alg` equality now treats a one-term table returned by `bar`, `(.-)`,
+  `(.*)`, or `filter` as equal to the same term built with `(.@)`.
+  Ordering uses the same rule, so `compare` returns `EQ` exactly when
+  `(==)` returns `True`. One-term tables now sort with singletons.
+  The ordering among singletons and among members with multiple terms
+  is unchanged. The `Binary` encoding is unchanged.
+
+- `filterWithNote` now applies its predicate to the whole algebra for each
+  note, as returned by `toMap`. Previously, a predicate that read the algebra
+  could retain only some terms for a note stored in both journal layers.
+  Predicates that read only the note produce the same results as before.
+
 ### Removed
 
 - **Accounting and algebra compatibility modules.** Replace imports from

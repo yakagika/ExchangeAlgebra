@@ -151,8 +151,8 @@ sideHat NotSide = Not
 
 -- | Postings built through 'entry' and 'Monoid', without implicit cancellation
 -- or compression. Equality and display delegate to the underlying 'Alg'.
--- Equality is structural and depends on construction order. To compare
--- multisets of postings instead, compare the results of @toASCList . postingAlg@.
+-- Equality compares the order of values on each Hat and Not side of a base.
+-- To compare multisets of postings, compare the results of @toASCList . postingAlg@.
 -- (0.6.0.0: polymorphic in the value type @v@; 0.5.x fixed @v = Double@.)
 -- The value type is nominal for the same reason as in t'Posted'.
 type role Posting nominal nominal

@@ -32,6 +32,54 @@ import Support (TestComparison(..)
 type TestJournal = EJ.Journal String Double (HatBase CountUnit)
 type AxisJournal = EJ.Journal (String, Int) Double (HatBase CountUnit)
 
+-- | Compare whole-note filtering with filtering the materialized note map.
+testFilterWithNote :: IO ()
+testFilterWithNote = do
+    let first = 1 .@ Not :< Yen :: TestAlg
+        second = 2 .@ Not :< Yen
+        layered = EJ.fromMap (HM.singleton "shared" first) .+ (second .| "shared")
+        filtered = EJ.filterWithNote (\_ algebra -> norm algebra >= 2) layered
+    assertEqual "filterWithNote keeps both terms of an accepted shared note"
+        (Just [1, 2]) (EA.vals <$> HM.lookup "shared" (EJ.toMap filtered))
+
+    quickProp "filterWithNote matches toMap filtering for value and note predicates" $
+        forAll genCase $ \(baseOnly, deltaOnly, threshold) ->
+            let layeredJournal = baseOnly .+ deltaOnly
+                agrees :: TestJournal -> (String -> TestAlg -> Bool) -> Property
+                agrees journal predicate =
+                    EJ.toMap (EJ.filterWithNote predicate journal)
+                        === HM.filterWithKey predicate (EJ.toMap journal)
+            in conjoin
+                [ agrees journal predicate
+                | journal <- [baseOnly, deltaOnly, layeredJournal]
+                , predicate <- predicates threshold
+                ]
+    quickProp "filterWithNote agrees for a materialized and a two-layer journal" $
+        forAll genCase $ \(baseOnly, deltaOnly, threshold) ->
+            let layeredJournal = baseOnly .+ deltaOnly
+                materialized = EJ.fromMap (EJ.toMap layeredJournal)
+                agrees :: (String -> TestAlg -> Bool) -> Property
+                agrees predicate =
+                    EJ.toMap (EJ.filterWithNote predicate layeredJournal)
+                        === EJ.toMap (EJ.filterWithNote predicate materialized)
+            in conjoin (L.map agrees (predicates threshold))
+  where
+    genCase :: Gen (TestJournal, TestJournal, Double)
+    genCase = do
+        baseAmount  <- choose (1, 10)
+        deltaAmount <- choose (1, 10)
+        threshold   <- choose (1, 21)
+        let term :: Double -> TestAlg
+            term value = value .@ Not :< Yen
+            baseOnly = EJ.fromMap (HM.fromList
+                [ ("shared", term baseAmount), ("base", term deltaAmount) ])
+            deltaOnly =  (term deltaAmount .| "shared")
+                      .+ (term baseAmount  .| "delta")
+        pure (baseOnly, deltaOnly, threshold)
+
+    predicates :: Double -> [String -> TestAlg -> Bool]
+    predicates threshold = [\_ algebra -> norm algebra >= threshold, \note _ -> note /= "base"]
+
 algSample :: TestAlg
 algSample =
        (1 .@ (Hat    :< Yen))
@@ -574,6 +622,7 @@ runTests :: IO ()
 runTests = do
     testFinalStockTransferEquivalence
     testFilterByNoteFieldCases
+    testFilterWithNote
     testSigmaReferences
     testJournalAdditionOrder
     testJournalProjectionNorms

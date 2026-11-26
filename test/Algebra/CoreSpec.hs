@@ -330,6 +330,94 @@ genAlgD = sized $ \n -> do
     ps <- vectorOf k ((,) <$> genNNDouble <*> genBase)
     pure (EA.fromList [ v .@ b | (v, b) <- ps ])
 
+-- | Check all comparison triples across five generated representation shapes.
+testAlgComparison :: IO ()
+testAlgComparison = do
+    let yen = Not :< Yen
+        dollar = Hat :< Dollar
+        first = 1 .@ yen :: TestAlg
+        second = 2 .@ yen
+        retained = 1 .@ dollar
+        check :: String -> TestAlg -> TestAlg -> IO ()
+        check description expected actual = do
+            assertEqual (description ++ " produces a one-term Liner") True (isOneTermLiner actual)
+            assertEqual (description ++ " compares equal to a Single")
+                (True, True, EQ, EQ)
+                (actual == expected, expected == actual,
+                 compare actual expected, compare expected actual)
+    check "Alg bar" (3 .@ yen) (bar (first .+ second))
+    check "Alg scaling underflow" (0.5 .@ yen) (0.5 .* (first .+ 5e-324 .@ yen))
+    check "Alg subtraction" (3 .@ yen) ((.-) (first .+ second))
+    check "Alg filter" retained (EA.filter (EA.isHat . EA._hatBase) (first .+ retained))
+    shapes <- generate genShapes
+    assertEqual "Alg order generator produces all five representation shapes"
+        True (hasAllShapes shapes)
+
+    quickProp "Alg compare returns EQ exactly when Eq holds" $
+        forAll genShapes $ \left -> forAll genShapes $ \right ->
+            conjoin [ (compare x y == EQ) === (x == y) | x <- left, y <- right ]
+    quickProp "Alg compare is antisymmetric and transitive across five shapes" $
+        forAll genShapes $ \left -> forAll genShapes $ \middle -> forAll genShapes $ \right ->
+            conjoin
+                [ conjoin [ compare x y === invert (compare y x)
+                          , property (not (x <= y && y <= z) || x <= z)
+                          ]
+                | x <- left, y <- middle, z <- right
+                ]
+    quickProp "Alg Single order still compares hat base before value" $
+        forAll positive $ \v1 -> forAll genBase $ \b1 ->
+        forAll positive $ \v2 -> forAll genBase $ \b2 ->
+            compare (v1 .@ b1 :: TestAlg) (v2 .@ b2) === oldSingleOrder v1 b1 v2 b2
+  where
+    positive :: Gen Double
+    positive = genNNDouble `suchThat` (> 0)
+
+    isOneTermLiner :: TestAlg -> Bool
+    isOneTermLiner (EAI.Liner entries _ _ _ _ _) = case HM.elems entries of
+        [EAI.HatOne _] -> True
+        [EAI.NotOne _] -> True
+        _              -> False
+    isOneTermLiner _ = False
+
+    hasAllShapes :: [TestAlg] -> Bool
+    hasAllShapes
+        [ EA.Zero
+        , EAI.Single _ _
+        , oneTerm
+        , EAI.Liner repeated _ _ _ _ _
+        , EAI.Liner distinct _ _ _ _ _
+        ] = case (HM.elems repeated, HM.elems distinct) of
+            ([EAI.PairSeq _ _], [_, _]) -> isOneTermLiner oneTerm
+            _                          -> False
+    hasAllShapes _ = False
+
+    genShapes :: Gen [TestAlg]
+    genShapes = do
+        v1 <- positive
+        v2 <- positive
+        b1 <- genBase
+        b2 <- genBase `suchThat` (\b -> EA.base b /= EA.base b1)
+        let single = v1 .@ b1
+            repeated = single .+ v2 .@ b1
+            distinct = single .+ v2 .@ b2
+            singletonLiner = EA.filter ((== b1) . EA._hatBase) distinct
+        pure [EA.Zero, single, singletonLiner, repeated, distinct]
+
+    invert :: Ordering -> Ordering
+    invert LT = GT
+    invert EQ = EQ
+    invert GT = LT
+
+    oldSingleOrder :: Double
+                   -> HatBase CountUnit
+                   -> Double
+                   -> HatBase CountUnit
+                   -> Ordering
+    oldSingleOrder v1 b1 v2 b2
+        | b1 == b2  = compare v1 v2
+        | b1 > b2   = GT
+        | otherwise = LT
+
 testAdditionOrderProperties :: IO ()
 testAdditionOrderProperties = do
     quickProp "(.+) is associative under Eq for zero, single, and multiple terms" $
@@ -545,27 +633,25 @@ functorialityLawProperties = do
         forAll genAlgN $ \x ->
             EA.mapBasePart (const Amount) ((.^) x)
                 == ((.^) (EA.mapBasePart (const Amount) x) :: NNAlg)
-    -- bar keeps the Liner constructor even when cancellation leaves one key
-    -- with one value; mapBasePart rebuilds that map as a singleton. Eq treats
-    -- the two constructors as distinct, although ℘ observes the same entry.
+    -- bar leaves a one-term Liner and mapBasePart rebuilds it as a Single.
     let identitySource = (1 .@ (Not :< Yen))
             .+ (1 .@ (Hat :< Yen))
             .+ (2 .@ (Not :< Dollar)) :: NNAlg
         oneKeyLiner = bar identitySource
         identityMapped = EA.mapBasePart id oneKeyLiner :: NNAlg
-    assertEqual "mapBasePart: identity counterexample has equal multisets"
+    assertEqual "mapBasePart: one-term identity preserves the multiset"
         (observe oneKeyLiner) (observe identityMapped)
-    assertEqual "mapBasePart: identity fails under raw Eq for one-key Liner"
-        False (identityMapped == oneKeyLiner)
+    assertEqual "mapBasePart: identity holds under Eq for one-term Liner"
+        True (identityMapped == oneKeyLiner)
 
     let sandwichLeft = bar
             (EA.mapBasePart (const Amount) oneKeyLiner :: NNAlg)
         sandwichRight = bar
             (EA.mapBasePart (const Amount) identitySource :: NNAlg)
-    assertEqual "mapBasePart: bar sandwich counterexample has equal multisets"
+    assertEqual "mapBasePart: bar sandwich has equal multisets for this result"
         (observe sandwichLeft) (observe sandwichRight)
-    assertEqual "mapBasePart: bar sandwich can fail under raw Eq"
-        False (sandwichLeft == sandwichRight)
+    assertEqual "mapBasePart: bar sandwich agrees for this one-term result"
+        True (sandwichLeft == sandwichRight)
 
     -- Three distinct source keys are read back in whatever order the source
     -- HashMap traverses them (a representation detail, so it is observed at
@@ -657,17 +743,16 @@ functorialityLawProperties = do
     quickProp "extendBy: substituting Zero everywhere yields Zero" $
         forAll genAlgN $ \x -> EA.isZero (EA.extendBy (\_ _ -> EA.Zero) x :: NNAlg)
 
-    -- Raw counterexample for the unit law: a one-key Liner left by bar is
-    -- rebuilt as a singleton (:@), which Eq distinguishes although ℘ agrees.
+    -- The unit rebuilds the one-term Liner left by bar as a Single.
     let unitSource = (1 .@ (Not :< Yen))
             .+ (1 .@ (Hat :< Yen))
             .+ (2 .@ (Not :< Dollar)) :: NNAlg
         unitOneKey = bar unitSource
         unitRebuilt = EA.extendBy (.@) unitOneKey :: NNAlg
-    assertEqual "extendBy: unit counterexample has equal multisets"
+    assertEqual "extendBy: one-term unit preserves the multiset"
         (observe unitOneKey) (observe unitRebuilt)
-    assertEqual "extendBy: unit fails under raw Eq for one-key Liner"
-        False (unitRebuilt == unitOneKey)
+    assertEqual "extendBy: unit holds under Eq for one-term Liner"
+        True (unitRebuilt == unitOneKey)
 
 -- ================================================================
 -- Quotient decomposition properties (Phase 1, feat/quotient-decomposition)
@@ -782,6 +867,7 @@ runTests = do
     testBasesNotSideRegression
     testNumericToleranceScaleAware
     testSameBaseSeqOrder
+    testAlgComparison
     testAdditionOrderProperties
     testScalarRejectsNegative
     testProjConcreteNoIndexForce

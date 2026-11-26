@@ -937,16 +937,38 @@ projWithNoteBaseNetNorm ns bs js =
 -- 'projWithNoteBaseNetNorm' explicitly.
 
 ------------------------------------------------------------------
--- | Filter by a predicate on Note-entry pairs.
--- Applies the filter to both the base and delta layers.
+-- | Retain a note and all its terms when the predicate accepts the note and
+-- its algebra. The predicate runs once per note and receives the same algebra
+-- as in 'toMap'. A shared note's algebra is combined only if the predicate
+-- evaluates it.
 --
--- Complexity: O(n) where n is the number of Notes
-filterWithNote :: (HatVal v, HatBaseClass b, Note n)
-               => (n -> Alg v b -> Bool) -> Journal n v b -> Journal n v b
-filterWithNote f (Journal bs delta _ _) =
-    let !base' = Map.filterWithKey f bs
-        !delta' = Map.filterWithKey f delta
-    in mkJournalNonZero base' delta'
+-- Complexity: O(n) expected for scanning both layers and looking up notes,
+-- plus the costs of the predicates and any algebra additions they evaluate.
+-- Here n is the number of notes across the two layers.
+filterWithNote :: forall v b n. (HatVal v, HatBaseClass b, Note n)
+               => (n -> Alg v b -> Bool)
+               -> Journal n v b
+               -> Journal n v b
+filterWithNote predicate (Journal baseLayer deltaLayer _ _)
+    | Map.null deltaLayer = mkJournalNonZero (Map.filterWithKey predicate baseLayer) Map.empty
+    | Map.null baseLayer  = mkJournalNonZero Map.empty (Map.filterWithKey predicate deltaLayer)
+    | otherwise          = mkJournalNonZero retainedBase retainedDelta
+  where
+    retainedBase :: Map.HashMap n (Alg v b)
+    retainedBase = Map.filterWithKey keepBase baseLayer
+
+    retainedDelta :: Map.HashMap n (Alg v b)
+    retainedDelta = Map.filterWithKey keepDelta deltaLayer
+
+    keepBase :: n -> Alg v b -> Bool
+    keepBase note algebra = case Map.lookup note deltaLayer of
+        Nothing    -> predicate note algebra
+        Just delta -> predicate note (algebra .+ delta)
+
+    keepDelta :: n -> Alg v b -> Bool
+    keepDelta note algebra
+        | Map.member note baseLayer = Map.member note retainedBase
+        | otherwise                 = predicate note algebra
 
 -- | Select journal entries whose note has the specified value at the given field position.
 -- Uses the base and delta 'NoteFieldIndex' caches for O(|result|) retrieval

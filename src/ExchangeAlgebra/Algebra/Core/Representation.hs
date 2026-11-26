@@ -800,29 +800,48 @@ infixr 6 <@
 -- of 'Alg' below now calls 'showValue'. The @Double@/@MoneyDouble@ 'showValue'
 -- implementations reproduce the old formatting byte-for-byte.
 
-instance (HatVal v, HatBaseClass b) =>  Eq (Alg v b) where
+-- | Compare the members of the redundant algebra. A 'Single' and a one-term
+-- 'Liner' are equal when their hat bases and values match. Equality also
+-- compares the order of values on each Hat and Not side of a base.
+instance (HatVal v, HatBaseClass b) => Eq (Alg v b) where
     (==) Zero Zero = True
     (==) Zero _    = False
     (==) _    Zero = False
     (==) (v1:@b1) (v2:@b2) = (v1 == v2) && (b1 == b2)
     (==) (Liner m1 _ _ _ _ _) (Liner m2 _ _ _ _ _) = m1 == m2
-    (==) _ _ = False
+    (==) single@(_ :@ _) (Liner entries _ _ _ _ _) =
+        maybe False (single ==) (singleFromMap entries)
+    (==) (Liner entries _ _ _ _ _) single@(_ :@ _) =
+        maybe False (== single) (singleFromMap entries)
     (/=) x y = not (x == y)
 
-instance (HatVal v, HatBaseClass b) => Ord (Alg v b) where
+-- | Order 'Zero' first, one-term members next, and members with multiple
+-- terms last. Compare one-term members by hat base and then by value.
+-- Compare the remaining members by their maps, including the per-side
+-- order of values. For lawful bases and values, @compare x y == EQ@
+-- exactly when @x == y@.
+instance forall v b. (HatVal v, HatBaseClass b) => Ord (Alg v b) where
     {-# INLINE compare #-}
     compare Zero Zero = EQ
     compare Zero _ = LT
     compare _ Zero = GT
 
-    compare (_:@_) (Liner _ _ _ _ _ _) = LT
-    compare (Liner _ _ _ _ _ _) (_:@_) = GT
-    compare (v1:@b1) (v2:@b2)
-        | b1 == b2  = compare v1 v2
-        | b1 >  b2  = GT
-        | otherwise = LT   -- b1 < b2 (Ord is total; otherwise keeps it exhaustive)
-
-    compare (Liner m1 _ _ _ _ _) (Liner m2 _ _ _ _ _) = compare m1 m2
+    compare left right = case (asSingle left, asSingle right) of
+        (v1 :@ b1, v2 :@ b2)
+            | b1 == b2  -> compare v1 v2
+            | b1 > b2   -> GT
+            | otherwise -> LT
+        (_ :@ _, Liner {}) -> LT
+        (Liner {}, _ :@ _) -> GT
+        (Liner m1 _ _ _ _ _, Liner m2 _ _ _ _ _) -> compare m1 m2
+        (Zero, Zero) -> EQ
+        (Zero, _)    -> LT
+        (_, Zero)    -> GT
+      where
+        asSingle :: Alg v b -> Alg v b
+        asSingle algebra@(Liner entries _ _ _ _ _) =
+            Maybe.fromMaybe algebra (singleFromMap entries)
+        asSingle algebra = algebra
 
     (<) x y | compare x y == LT = True
             | otherwise         = False
@@ -843,6 +862,15 @@ instance (HatVal v, HatBaseClass b) => Ord (Alg v b) where
 
     min x y | x <= y    = x
             | otherwise = y
+
+-- | Read a one-term map as a singleton by inspecting at most two map entries.
+{-# INLINE singleFromMap #-}
+singleFromMap :: (HatVal v, HatBaseClass b)
+              => Map.HashMap (BasePart b) (Pair v)
+              -> Maybe (Alg v b)
+singleFromMap entries = case Map.toList entries of
+    [(basePart, pair)] -> singlePairToAlg basePart pair
+    _                 -> Nothing
 
 instance (HatVal v, HatBaseClass b) => Show (Alg v b) where
     show Zero       = "0"
@@ -1524,10 +1552,8 @@ filter f (Liner m _ _ _ _ _) =
 -- order but retains, for every full Hat\/Not base, the multiset of values.
 -- The functor and additive laws at this layer are:
 --
--- * @mapBasePart id x@ and @x@ are equal through ℘. Raw equality can fail when
---   @x@ is a one-key, one-value @Liner@ produced by 'bar' or filtering:
---   rebuilding it chooses the singleton @(:@)@ representation, and 'Eq'
---   distinguishes those constructors.
+-- * For valid algebras, @mapBasePart id x == x@. When rebuilding a one-term
+--   'Liner' as a 'Single', 'Eq' compares the same value and hat base.
 -- * @mapBasePart (g . f) x@ and
 --   @mapBasePart g (mapBasePart f x)@ are equal through ℘, but need not be raw
 --   equal.
@@ -1541,8 +1567,7 @@ filter f (Liner m _ _ _ _ _) =
 -- * Algebraically, @bar (mapBasePart f (bar x))@ and
 --   @bar (mapBasePart f x)@ are equal through ℘ whenever the implementation's
 --   rounding of a source-base residual does not change the cancellation after
---   relabelling (always on exact values). Raw equality can additionally
---   distinguish singleton from one-key @Liner@.
+--   relabelling (always on exact values).
 --
 -- In particular, @mapBasePart f (bar x) == bar (mapBasePart f x)@ is false in
 -- general: distinct source bases may collide only after relabelling. When
@@ -1587,9 +1612,9 @@ mapBasePart f (Liner m _ _ _ _ _) =
 -- the per-side sequence order. Through ℘:
 --
 -- * @extendBy h (x .+ y)@ equals @extendBy h x .+ extendBy h y@.
--- * @extendBy (:\@)@ is the identity. The fold keeps the per-side order, but
---   raw equality can still fail because the singleton-versus-@Liner@
---   representation may differ from @x@.
+-- * For valid algebras, @extendBy (.\@) x == x@. The substitution rebuilds
+--   each @v :\@ b@ term and the fold preserves the order of values on each
+--   Hat and Not side of a base.
 -- * @mapBasePart f x@ equals
 --   @extendBy (\\v b -> v :\@ merge (hat b) (f (base b))) x@.
 -- * @norm (extendBy h x)@ equals the sum of @norm (h v b)@ over the entries of
