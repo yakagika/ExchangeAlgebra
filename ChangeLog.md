@@ -1,6 +1,6 @@
 # Changelog for ExchangeAlgebra
 
-## Unreleased
+## 0.7.0.0 - 2026-11-27
 
 ### Added
 

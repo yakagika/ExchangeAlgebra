@@ -518,6 +518,49 @@ directly and work without any Python setup.
 
 ## Migrating between major versions
 
+### Migrating to 0.7.0.0
+
+`0.7.0.0` is a major (breaking) release. It lets closing, audits, financial
+statements, and consolidation worksheets take your own account title type.
+Update renamed names, error-type imports, and exhaustive matches as described
+here. See the
+[changelog](https://hackage.haskell.org/package/exchangealgebra/changelog) for
+the full per-name migration tables.
+
+- **Renamed names.** `AxisKey` becomes `ElementKey`, `filterByAxis` becomes
+  `filterByNoteField`, `HasTermAxis` and `termOf` become `HasNotePeriod` and
+  `periodOf`, and `projCapitalStock` becomes `projNonContraCreditEquity`. The
+  changelog lists all 16 renamed names.
+- **Account title types.** `ExBaseClass` has an associated type `TitleOf`
+  (default `AccountTitles`). Instances that keep the default need no change.
+  Error, audit, worksheet, and statement types have `*Of` versions over the
+  title type. Import constructors through the `*Of(..)` name next to the old
+  type name, for example `import ExchangeAlgebra.IO.Input (ConvErrorOf(..), ConvError)`.
+- **Closing errors.** `closingEntries` returns `Either (ClosingError v b) (Alg v b)`.
+  Match a transfer failure as `Left (ClosingTransferError e)` and add a case
+  for `Left (InvalidClosingTarget title violation)`.
+- **Note operator.** `(.|)` is `infix 5` and binds more tightly than `(.+)`.
+  Put parentheses around an algebra sum before its note, as in
+  `(10 .@ Not :< Cash .+ 10 .@ Not :< Sales) .| "sale"`. An expression written
+  for the old fixity that no longer parses as intended is a type error.
+- **Dates in bases.** Replace `Day` with `Wild Day` in base types and write a
+  concrete date as `Exactly d`.
+- **Account titles.** Exhaustive `case` expressions on `AccountTitles` need a
+  case for the new `DirectorsCompensations`. Replace `Commutation` with
+  `CommunicationExpenses`.
+- **Removed modules and audits.** The deprecated accounting and algebra
+  compatibility modules are removed; the changelog maps each to its
+  replacement. Replace `trialBalanceFindings` with the audits in
+  `ExchangeAlgebra.Accounting.Audit`.
+- **Output changes.** Twelve English account names change, for example
+  `Retained earnings` becomes `Retained earnings brought forward`. Addition
+  keeps terms on the same base in input order, so `Eq` and the `Binary` bytes
+  can differ from 0.6. `norm`, `bar`, and closing return the same values for
+  finite terms.
+
+The simulation modules of 0.6 are unchanged in 0.7; see
+[Planned changes to simulation modules](#planned-changes-to-simulation-modules).
+
 ### Migrating to 0.6.0.0
 
 `0.6.0.0` is a major (breaking) release. Update imports, transfer composition,

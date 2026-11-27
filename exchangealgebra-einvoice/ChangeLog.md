@@ -1,6 +1,6 @@
 # Changelog for exchangealgebra-einvoice
 
-## Unreleased
+## 0.1.0.0 - 2026-11-27
 
 ### Added
 

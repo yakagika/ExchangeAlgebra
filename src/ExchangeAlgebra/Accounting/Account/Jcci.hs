@@ -7,7 +7,7 @@
 
 -- | Account titles for ledgers limited to the library's JCCI vocabulary.
 --
--- Import this module for 'JcciTitles'. Import @ExchangeAlgebra.Accounting.Account@
+-- Import this module for t'JcciTitles'. Import @ExchangeAlgebra.Accounting.Account@
 -- for the chart that also includes macroeconomic accounts. Use qualified imports
 -- when working with both charts in one module.
 --

@@ -12,7 +12,7 @@ category:       Accounting, Finance
 homepage:       https://github.com/yakagika/ExchangeAlgebra#readme
 bug-reports:    https://github.com/yakagika/ExchangeAlgebra/issues
 author:         Kaya Akagi
-maintainer:     <copy from ../package.yaml>
+maintainer:     yakagika@icloud.com
 copyright:      2026 Kaya Akagi
 license:        MIT
 license-file:   LICENSE.txt
@@ -38,7 +38,7 @@ library
       base >=4.19 && <5
     , bytestring >=0.11 && <0.13
     , containers >=0.6 && <0.8
-    , exchangealgebra >=0.6.1 && <0.7
+    , exchangealgebra ==0.7.*
     , text >=2.0 && <2.2
     , time >=1.12 && <1.15
     , xml-conduit >=1.9.1 && <1.11
@@ -61,7 +61,7 @@ test-suite exchangealgebra-einvoice-test
     , base >=4.19 && <5
     , bytestring >=0.11 && <0.13
     , containers >=0.6 && <0.8
-    , exchangealgebra >=0.6.1 && <0.7
+    , exchangealgebra ==0.7.*
     , exchangealgebra-einvoice
     , hashable >=1.4 && <1.6
     , text >=2.0 && <2.2
