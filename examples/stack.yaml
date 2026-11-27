@@ -9,17 +9,13 @@
 # packages so edits to src/ are picked up immediately. See the project's
 # CLAUDE.md for the rationale of keeping both files.
 #
-# The examples use API that is not yet on Hackage (renamed in the
-# upcoming 0.7.0.0), so the library is pinned to a git commit on develop.
-# The pin returns to the Hackage release when 0.7.0.0 is published.
 resolver: lts-24.65
 
 packages:
 - '.'
 
 extra-deps:
-- git: https://github.com/yakagika/ExchangeAlgebra.git
-  commit: 07e59214a8b7eefd618c16a181d2ed85404b50d7
+- exchangealgebra-0.7.0.0
 
 flags:
   exchangealgebra:
