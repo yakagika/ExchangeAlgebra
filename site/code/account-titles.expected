@@ -12,7 +12,7 @@
 <tr><td><code>ShortTermNationalBonds</code></td><td>Short-term national bonds</td><td>短期国債</td><td>Current</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>Products</code></td><td>Products</td><td>商品</td><td>Current</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>Machinery</code></td><td>Machinery and equipment</td><td>機械装置</td><td>Fixed</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
-<tr><td><code>Building</code></td><td>Real estate</td><td>建物</td><td>Fixed</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
+<tr><td><code>Building</code></td><td>Buildings</td><td>建物</td><td>Fixed</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>Vehicle</code></td><td>Vehicles</td><td>車両運搬具</td><td>Fixed</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>StockInvestment</code></td><td>Stock investment</td><td>株式投資</td><td>Other</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>EquipmentInvestment</code></td><td>Equipment investment</td><td>設備投資</td><td>Fixed</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
@@ -48,7 +48,7 @@
 <tr><td><code>LoansReceivable</code></td><td>Loans receivable</td><td>貸付金</td><td>Current</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>GiftCertificatesReceived</code></td><td>Gift certificates received</td><td>受取商品券</td><td>Current</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>SecurityDepositsPaid</code></td><td>Guarantee deposits</td><td>差入保証金</td><td>Fixed</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
-<tr><td><code>SuppliesOnHand</code></td><td>Supplies</td><td>貯蔵品</td><td>Current</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
+<tr><td><code>SuppliesOnHand</code></td><td>Supplies on hand</td><td>貯蔵品</td><td>Current</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>ContractAssets</code></td><td>Contract assets</td><td>契約資産</td><td>Current</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>IncomeTaxesRefundReceivable</code></td><td>Income taxes refund receivable</td><td>未収還付法人税等</td><td>Current</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>WorkInProcess</code></td><td>Work in process</td><td>仕掛品</td><td>Current</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
@@ -114,9 +114,9 @@
 <tr><td><code>NonOperatingNotesPayable</code></td><td>Non-operating notes payable</td><td>営業外支払手形</td><td>Current</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>NonOperatingElectronicallyRecordedObligations</code></td><td>Electronically recorded obligations - non-operating</td><td>営業外電子記録債務</td><td>Current</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>BonusesPayable</code></td><td>Accrued bonuses</td><td>未払賞与</td><td>Current</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
-<tr><td><code>AllowanceForRepairs</code></td><td>Provision for repairs</td><td>修繕引当金</td><td>Current</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
-<tr><td><code>AllowanceForProductWarranties</code></td><td>Provision for warranties</td><td>商品保証引当金</td><td>Current</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
-<tr><td><code>AllowanceForBonuses</code></td><td>Provision for bonuses</td><td>賞与引当金</td><td>Current</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
+<tr><td><code>AllowanceForRepairs</code></td><td>Allowance for repairs</td><td>修繕引当金</td><td>Current</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
+<tr><td><code>AllowanceForProductWarranties</code></td><td>Allowance for warranties</td><td>商品保証引当金</td><td>Current</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
+<tr><td><code>AllowanceForBonuses</code></td><td>Allowance for bonuses</td><td>賞与引当金</td><td>Current</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>DeferredTaxLiabilities</code></td><td>Deferred tax liabilities</td><td>繰延税金負債</td><td>Fixed</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>LeaseObligations</code></td><td>Lease liabilities</td><td>リース債務</td><td>Fixed</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>GuaranteeDepositsReceived</code></td><td>Guarantee deposits received</td><td>預り保証金</td><td>Fixed</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
@@ -135,7 +135,7 @@
 <thead><tr><th>Constructor</th><th>English name</th><th>Japanese name</th><th>Fixed/current</th><th>Home side</th><th>Closing rule</th><th>Roles</th></tr></thead>
 <tbody>
 <tr><td><code>CapitalStock</code></td><td>Capital stock</td><td>資本金</td><td>Other</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
-<tr><td><code>RetainedEarnings</code></td><td>Retained earnings</td><td>繰越利益剰余金</td><td>Other</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
+<tr><td><code>RetainedEarnings</code></td><td>Retained earnings brought forward</td><td>繰越利益剰余金</td><td>Other</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>LegalRetainedEarnings</code></td><td>Legal (appropriated) retained earnings reserve</td><td>利益準備金</td><td>Other</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>CumulativeTranslationAdjustment</code></td><td>Cumulative translation adjustment</td><td>為替換算調整勘定</td><td>Other</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>StockSubscriptionDeposits</code></td><td>Deposits for subscriptions of shares</td><td>株式申込証拠金</td><td>Other</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
@@ -167,7 +167,7 @@
 <tr><td><code>RentalIncome</code></td><td>Rental income</td><td>受取家賃</td><td>Other</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>WageEarned</code></td><td>Wage income</td><td>賃金収入</td><td>Other</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>TaxesRevenue</code></td><td>Tax revenue</td><td>租税収入</td><td>Other</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
-<tr><td><code>CentralBankPaymentIncome</code></td><td>Central bank payment to treasury</td><td>国庫納付金収入</td><td>Other</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
+<tr><td><code>CentralBankPaymentIncome</code></td><td>Central bank payment received</td><td>国庫納付金収入</td><td>Other</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>Sales</code></td><td>Sales</td><td>売上</td><td>Other</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>EquityInEarningsOfInvestee</code></td><td>Equity in earnings of investee</td><td>持分法による投資利益</td><td>Other</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>NetLoss</code></td><td>Net loss</td><td>当期純損失</td><td>Other</td><td>FixedHomeSide Credit</td><td>NoClose</td><td>PeriodResult</td></tr>
@@ -184,8 +184,8 @@
 <tr><td><code>GainOnSalesOfInvestmentSecurities</code></td><td>Gain on sale of investment securities</td><td>投資有価証券売却益</td><td>Other</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>InsuranceGain</code></td><td>Gain on insurance claims</td><td>保険差益</td><td>Other</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>GainOnBargainPurchase</code></td><td>Gain on bargain purchase</td><td>負ののれん発生益</td><td>Other</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
-<tr><td><code>ReversalOfAllowanceForRepairs</code></td><td>Reversal of provision for repairs</td><td>修繕引当金戻入</td><td>Other</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
-<tr><td><code>ReversalOfAllowanceForProductWarranties</code></td><td>Reversal of provision for warranties</td><td>商品保証引当金戻入</td><td>Other</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
+<tr><td><code>ReversalOfAllowanceForRepairs</code></td><td>Reversal of allowance for repairs</td><td>修繕引当金戻入</td><td>Other</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
+<tr><td><code>ReversalOfAllowanceForProductWarranties</code></td><td>Reversal of allowance for warranties</td><td>商品保証引当金戻入</td><td>Other</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>GainOnDonationOfFixedAssets</code></td><td>Gain on receipt of donated non-current assets</td><td>固定資産受贈益</td><td>Other</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>GainOnNationalSubsidies</code></td><td>Gain on receipt of national subsidies</td><td>国庫補助金受贈益</td><td>Other</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>GainOnConstructionGrants</code></td><td>Gain on contribution received for construction</td><td>工事負担金受贈益</td><td>Other</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
@@ -194,7 +194,7 @@
 <tr><td><code>ForeignExchangeGains</code></td><td>Foreign exchange gains</td><td>為替差益</td><td>Other</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>NetLossAttributableToNCI</code></td><td>Loss attributable to non-controlling interests</td><td>非支配株主に帰属する当期純損失</td><td>Other</td><td>FixedHomeSide Credit</td><td>NoClose</td><td>AttributionAccount, PeriodResult</td></tr>
 <tr><td><code>SalesAllowances</code></td><td>Sales allowances</td><td>売上値引</td><td>Other</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td>ContraAccount</td></tr>
-<tr><td><code>ReversalOfAllowanceForBonuses</code></td><td>Reversal of provision for bonuses</td><td>賞与引当金戻入</td><td>Other</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
+<tr><td><code>ReversalOfAllowanceForBonuses</code></td><td>Reversal of allowance for bonuses</td><td>賞与引当金戻入</td><td>Other</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td></td></tr>
 </tbody>
 </table>
 <!-- ANCHOR_END: revenue -->
@@ -206,19 +206,18 @@
 <tr><td><code>AmortizationExpense</code></td><td>Amortization expense for intangibles</td><td>無形固定資産償却費</td><td>Other</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>SalesCost</code></td><td>Cost of sales</td><td>売上原価</td><td>Other</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>BusinessTrip</code></td><td>Travel and transportation</td><td>旅費交通費</td><td>Other</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
-<tr><td><code>Commutation</code></td><td>Communication</td><td>通信費</td><td>Other</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>UtilitiesExpense</code></td><td>Utilities</td><td>水道光熱費</td><td>Other</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>RentExpense</code></td><td>Rent</td><td>支払家賃</td><td>Other</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>AdvertisingExpense</code></td><td>Advertising</td><td>広告宣伝費</td><td>Other</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>DeliveryExpenses</code></td><td>Delivery</td><td>発送費</td><td>Other</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
-<tr><td><code>SuppliesExpenses</code></td><td>Supplies</td><td>消耗品費</td><td>Other</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
+<tr><td><code>SuppliesExpenses</code></td><td>Supplies expense</td><td>消耗品費</td><td>Other</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>MiscellaneousExpenses</code></td><td>Miscellaneous</td><td>雑費</td><td>Other</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>WageExpenditure</code></td><td>Wages</td><td>給料</td><td>Other</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>InterestExpense</code></td><td>Interest expense</td><td>支払利息</td><td>Other</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>TaxesExpense</code></td><td>Taxes</td><td>租税公課</td><td>Other</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>ConsumptionExpenditure</code></td><td>Consumption expenditure</td><td>消費支出</td><td>Other</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>SubsidyExpense</code></td><td>Subsidy expenditure</td><td>補助金支出</td><td>Other</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
-<tr><td><code>CentralBankPaymentExpense</code></td><td>Central bank payment to treasury</td><td>国庫納付金支出</td><td>Other</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
+<tr><td><code>CentralBankPaymentExpense</code></td><td>Payment to national treasury</td><td>国庫納付金支出</td><td>Other</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>Purchases</code></td><td>Purchases</td><td>仕入</td><td>Other</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>NetIncome</code></td><td>Net income</td><td>当期純利益</td><td>Other</td><td>FixedHomeSide Debit</td><td>NoClose</td><td>PeriodResult</td></tr>
 <tr><td><code>ProvisionForDoubtfulAccounts</code></td><td>Provision for doubtful accounts</td><td>貸倒引当金繰入</td><td>Other</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
@@ -273,6 +272,7 @@
 <tr><td><code>MeetingExpenses</code></td><td>Meeting expenses</td><td>会議費</td><td>Other</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>NewspaperBooksExpenses</code></td><td>Newspapers and books</td><td>新聞図書費</td><td>Other</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
 <tr><td><code>PurchaseAllowances</code></td><td>Purchase allowances</td><td>仕入値引</td><td>Other</td><td>FixedHomeSide Credit</td><td>CloseByDivision</td><td>ContraAccount</td></tr>
+<tr><td><code>DirectorsCompensations</code></td><td>Remuneration for directors (and other officers)</td><td>役員報酬</td><td>Other</td><td>FixedHomeSide Debit</td><td>CloseByDivision</td><td></td></tr>
 </tbody>
 </table>
 <!-- ANCHOR_END: expenses -->

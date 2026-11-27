@@ -43,17 +43,8 @@ This program prints the classification and semantics for `Cash` and `Accumulated
 {{#include ../../code/account-attributes.expected}}
 ```
 
-Tested with exchangealgebra-0.6.1.1 on 2026-11-20.
+Tested with exchangealgebra-0.7.0.0 on 2026-11-27.
 
-## English names shared by multiple accounts
+## English names in the built-in chart
 
-Use constructor names or Japanese names to distinguish accounts that share an English name. The [built-in list](builtin.md) gives both. In exchangealgebra-0.6.1.1, the following pairs share an `asNameEn` value.
-
-- Retained earnings (`RetainedEarnings` and `EarnedSurplus`)
-- Supplies (`SuppliesExpenses` and `SuppliesOnHand`)
-- Central bank payment to treasury (`CentralBankPaymentExpense` and `CentralBankPaymentIncome`)
-- Provision for repairs (`AllowanceForRepairs` and `ProvisionForRepairs`)
-- Provision for warranties (`AllowanceForProductWarranties` and `ProvisionForProductWarranties`)
-- Provision for bonuses (`AllowanceForBonuses` and `ProvisionForBonuses`)
-
-The English name of `Building` is “Real estate”.
+In 0.7.0.0, the [built-in chart](builtin.md) gives distinct English names to the accounts that previously shared a name. For example, `RetainedEarnings` is “Retained earnings brought forward” and `EarnedSurplus` is “Retained earnings”. The English name of `Building` is “Buildings”.

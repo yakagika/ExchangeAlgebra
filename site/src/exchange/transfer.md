@@ -2,7 +2,7 @@
 
 A transfer moves an amount from one account to another by adding a journal entry. Keep the January 10 withdrawal and suppose that the business pays 1,200 yen in cash on January 30 for January and February rent, 600 yen for each month. If the payment was initially recorded entirely as rent expense, defer February's 600 yen to prepaid expenses at January 31.
 
-Use exchangealgebra-0.6.1.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). The example extends [Record the withdrawal](../usage/withdrawal.md) with the rent payment and its transfer entry. It uses the accounting transfer API from `ExchangeAlgebra.Accounting.Transfer`, re-exported by `ExchangeAlgebra`.
+Use exchangealgebra-0.7.0.0 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). The example extends [Record the withdrawal](../usage/withdrawal.md) with the rent payment and its transfer entry. It uses the accounting transfer API from `ExchangeAlgebra.Accounting.Transfer`, re-exported by `ExchangeAlgebra`.
 
 ## Record the rent payment {#record-the-rent-payment}
 
@@ -52,7 +52,7 @@ Construct the table with `mkTransferTable`:
 {{#include ../../code/transfer.hs:table}}
 ```
 
-Write `from .-> to |% share` to specify the source, destination, and share. In 0.6.1.1 the accounting API uses whole balances (`Relabel`) or rational shares (`Portion`), rather than an arbitrary function. `Portion 1 2` moves half of the exact source balance, rounded once with the default `Nearest` rule. The integer amounts in this example require no rounding.
+Write `from .-> to |% share` to specify the source, destination, and share. Use `Relabel` to move the whole balance or `Portion` to move a rational share. `Portion 1 2` moves half of the exact source balance, rounded once with the default `Nearest` rule. The integer amounts in this example require no rounding.
 
 The amount to transfer is computed from the net balance at each selected full base. At the destination, the debit or credit side of that balance is retained; the direction depends on the destination account's home side. The returned entry contains a source cancellation and a destination term. Add both terms to the original record to retain its history.
 
@@ -78,7 +78,7 @@ The record made with `beforeTransfer .+ additions` retains the original 1,200-ye
 
 Applying the same `Portion 1 2` table again would move half the remaining rent balance. Add this adjusting entry once for the stated January 31 adjustment.
 
-Tested with exchangealgebra-0.6.1.1 on 2026-11-20.
+Tested with exchangealgebra-0.7.0.0 on 2026-11-27.
 
 ## Reference {#reference}
 

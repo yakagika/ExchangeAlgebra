@@ -185,7 +185,8 @@ printDatedBooks :: Book -> IO ()
 printDatedBooks journal = do
     dated <- traverse datedPostings [1 .. 30]
     let postings = foldr (.+) mempty dated
-        postingDay (_ :< (_, day)) = day
+        postingDay (_ :< (_, Exactly day)) = day
+        postingDay (_ :< (_, Wild)) = error "Expected a concrete date"
     putStrLn "Journal by day"
     mapM_ print (Output.journalRows postings postingDay)
     putStrLn "\nGeneral ledger (Cash)"
@@ -196,7 +197,7 @@ printDatedBooks journal = do
         calendarDay <- require $ maybe (Left ("Invalid date " ++ date)) Right (readMaybe date)
         ledger <- require (auditLedger (onJanuaryDay day journal))
         pure $ Algebra.mapPosting
-            (\amount (direction :< account) -> (amount, direction :< (account, calendarDay)))
+            (\amount (direction :< account) -> (amount, direction :< (account, Exactly calendarDay)))
             ledger
 -- ANCHOR_END: book-rows
 

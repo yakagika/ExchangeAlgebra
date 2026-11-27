@@ -2,7 +2,7 @@
 
 Import the shop’s January 28 cash sale and January 30 rent payment from CSV. Both transactions are in yen, so the input uses `HatBase AccountTitles` with the currency fixed for the file. The accepted journal retains a separate note for each transaction.
 
-Use exchangealgebra-0.6.1.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the Haskell blocks in their displayed order as `Main.hs`.
+Use exchangealgebra-0.7.0.0 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the Haskell blocks in their displayed order as `Main.hs`.
 
 ## Write one CSV row per term {#write-one-csv-row-per-posting}
 
@@ -63,7 +63,7 @@ In your project directory, run `stack exec -- ghc -Wall -Werror Main.hs -o input
 
 The checked journal’s debit and credit totals are both 3,200 yen, and the source comparison returns an empty list. The name and amount errors come from the separate diagnostic examples.
 
-Tested with exchangealgebra-0.6.1.1 on 2026-11-20.
+Tested with exchangealgebra-0.7.0.0 on 2026-11-27.
 
 ## Reference {#reference}
 

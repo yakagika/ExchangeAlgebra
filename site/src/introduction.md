@@ -1,6 +1,6 @@
 # Introduction
 
-This manual describes exchangealgebra-0.6.1.1. With ExchangeAlgebra, you record transactions in Haskell as sums of exchange algebra terms, keep journals, carry out bookkeeping procedures, and prepare financial statements. It covers four layers of the library: Algebra, Journal, Accounting, and IO. Start with [From journal entries to exchange algebra](overview.md) to see how a journal table corresponds to the algebraic notation. For module documentation and the full API, see the [Haddock reference on Hackage](https://hackage.haskell.org/package/exchangealgebra).
+This manual describes exchangealgebra-0.7.0.0. With ExchangeAlgebra, you record transactions in Haskell as sums of exchange algebra terms, keep journals, carry out bookkeeping procedures, and prepare financial statements. It covers four layers of the library: Algebra, Journal, Accounting, and IO. Start with [From journal entries to exchange algebra](overview.md) to see how a journal table corresponds to the algebraic notation. For module documentation and the full API, see the [Haddock reference on Hackage](https://hackage.haskell.org/package/exchangealgebra).
 
 ## How this manual is organized {#how-this-manual-is-organized}
 
@@ -35,7 +35,7 @@ The running example starts with a bank withdrawal on January 10 and follows the 
 ### Bookkeeping procedures {#bookkeeping-procedures}
 
 - In [Checking a journal](bookkeeping/admission.md), express dollar cash in yen and validate the January records for bookkeeping.
-- In [Trial balance and checks](bookkeeping/trial-balance.md), compute debit and credit totals and balances by account and diagnose a missing opening balance.
+- In [Trial balance and checks](bookkeeping/trial-balance.md), compute debit and credit totals and balances by account, then use `Audit.abnormalBalances` to see the warning for the credit balance in Deposits after an additional withdrawal.
 - In [Adjusting entries](bookkeeping/adjustment.md), defer the rent for the next period and record the inventory count.
 - In [Closing entries](bookkeeping/closing.md), close the revenue and expense accounts and inspect the post-closing trial balance.
 - In [Financial statements](bookkeeping/statements.md), prepare January’s income statement and balance sheet.

@@ -13,4 +13,4 @@ RetainedEarnings: (0,0,NoBalance)
 Balance totals (debit, credit): (12000,12000)
 Term totals (debit, credit): (21000,21000)
 Balanced: True
-Findings: []
+Temporary account balances: NoProblem

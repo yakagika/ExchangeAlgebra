@@ -2,7 +2,7 @@
 
 The January 10 withdrawal appears in two accounting records. The business receives 3,000 yen in cash and reduces its deposit asset. Bank A reduces the deposit liability it owes to the business and pays out 3,000 yen in cash. Add an element that identifies the accounting entity to the base to keep both records in one algebra while retaining whose accounts each term describes.
 
-Use exchangealgebra-0.6.1.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). The example extends [Record the withdrawal](../usage/withdrawal.md) from `HatBase (AccountTitles, Unit)` to `HatBase (AccountTitles, Owner, Unit)`. The same algebra operations apply to bases that also identify the accounting entity.
+Use exchangealgebra-0.7.0.0 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). The example extends [Record the withdrawal](../usage/withdrawal.md) from `HatBase (AccountTitles, Unit)` to `HatBase (AccountTitles, Owner, Unit)`. The same algebra operations apply to bases that also identify the accounting entity.
 
 ## Add an element type for accounting entities {#add-the-owner-element-type}
 
@@ -69,7 +69,7 @@ The business, bank, and combined records are balanced in yen. Check each entity 
 
 The accounting entity element identifies the entity whose record contains the term. Counterparty identity is separate. With only one business and one bank the correspondence is specified by the example. To identify particular pairs in a larger set of transactions, add the counterparty or a shared transaction identifier to the note type, as described in [Declare a note type](journal.md#declare-a-note-type).
 
-Tested with exchangealgebra-0.6.1.1 on 2026-11-20.
+Tested with exchangealgebra-0.7.0.0 on 2026-11-27.
 
 ## Reference {#reference}
 

@@ -2,7 +2,7 @@
 
 Prepare January’s closing entries after the rent and inventory adjustments in [Adjusting entries](adjustment.md#admit-and-inspect-the-adjusted-journal). Sales of 2,000 yen less cost of goods sold of 300 yen and rent expense of 600 yen give a profit of 1,100 yen. Transfer the revenue and expense balances to retained earnings, the equity account that accumulates undistributed profits.
 
-Use exchangealgebra-0.6.1.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the code blocks in their displayed order as `Main.hs`.
+Use exchangealgebra-0.7.0.0 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the code blocks in their displayed order as `Main.hs`.
 
 ## Recover the adjusted journal {#recover-the-adjusted-journal}
 
@@ -51,7 +51,7 @@ See [Account titles and their attributes](../accounts/attributes.md) for the clo
 {{#include ../../code/closing.hs:closing}}
 ```
 
-For Sales, debit 2,000 yen by reversing its `Not` balance with `Hat`, and credit RetainedEarnings. For Purchases and RentExpense, credit 300 and 600 yen to cancel their debit balances, and debit RetainedEarnings for the same amounts. RetainedEarnings therefore has credits of 2,000 yen and debits of 900 yen, leaving a credit balance of 1,100 yen. Japanese bookkeeping textbooks collect revenue and expenses in an income summary account before transferring the result to retained earnings, whereas exchangealgebra-0.6.1.1’s `closingEntries` transfers those balances directly to RetainedEarnings, producing the same final balances.
+For Sales, debit 2,000 yen by reversing its `Not` balance with `Hat`, and credit RetainedEarnings. For Purchases and RentExpense, credit 300 and 600 yen to cancel their debit balances, and debit RetainedEarnings for the same amounts. RetainedEarnings therefore has credits of 2,000 yen and debits of 900 yen, leaving a credit balance of 1,100 yen. With the built-in chart, `closingEntries` transfers those revenue and expense balances directly to `RetainedEarnings`.
 
 ## Inspect the post-closing trial balance {#inspect-the-post-closing-trial-balance}
 
@@ -67,14 +67,14 @@ Run `stack exec -- ghc -Wall -Werror Main.hs -o closing-example`, then run `./cl
 
 Sales, Purchases, and RentExpense each have `NoBalance`; their original and closing terms remain in the columns for debit and credit totals. Cash, Deposits, PrepaidExpenses, and MerchandiseInventory total 11,100 yen on the debit side. CapitalStock of 10,000 yen and RetainedEarnings of 1,100 yen total 11,100 yen on the credit side. Only assets and equity have balances in this example; there are no liabilities.
 
-Check with `AfterClosing` so residual revenue and expense balances are findings. Checking the journal again alone cannot establish that closing was complete. The empty findings and `Closing again: Right 0` confirm that no eligible balance remains for another closing entry. Keep the checked closed journal with all dated entries; a balance report is not a replacement for that record.
+Pass the post-closing trial balance to `Audit.closingResiduals`. It reports `Error` if an account that closing must clear still has a balance. The example prints `Closing residuals: NoProblem` and `Closing again: Right 0`. Keep the checked closed journal with all dated entries as the record.
 
-Tested with exchangealgebra-0.6.1.1 on 2026-11-20.
+Tested with exchangealgebra-0.7.0.0 on 2026-11-27.
 
 ## Reference {#reference}
 
 | Type or operation | Inputs and result |
 |---|---|
 | `Closing.closingEntries ledger` | Return additional entries to RetainedEarnings, or `Left` for an invalid eligible balance. |
-| `TrialBalance.AfterClosing` | Check the post-closing trial balance, including unclosed revenue and expense accounts. |
+| `Audit.closingResiduals ledger` | Audit a post-closing trial balance for balances that closing must clear, including revenue and expense balances. |
 | `additions .\| note` and `journal .+ closingJournal` | Attach a closing note to the additions, then add them to the adjusted journal. |

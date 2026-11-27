@@ -2,7 +2,7 @@
 
 Start from the checked January journal in [Checking a journal](admission.md#admit-the-january-journal). A trial balance collects each account’s debit and credit totals and its remaining debit or credit balance. Equal totals are necessary for double-entry bookkeeping, but an omitted balanced entry can leave them equal.
 
-Use exchangealgebra-0.6.1.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the code blocks in their displayed order as `Main.hs`.
+Use exchangealgebra-0.7.0.0 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the code blocks in their displayed order as `Main.hs`.
 
 ## Recover the checked records {#recover-the-admitted-records}
 
@@ -45,9 +45,9 @@ The opening contribution, the two withdrawals, the purchase, the cash sale, and 
 
 `accountBalances` sums each account exactly and returns a non-negative magnitude with `DebitBalance`, `CreditBalance`, or `NoBalance`. It computes net balances without calling `bar` or changing the source record. The report sums the debit and credit balance columns separately from gross term totals.
 
-`TrialBalanceInput` accepts only `HatBase AccountTitles`. Check that every term is in yen before removing the currency element for the trial balance checks. This lossy projection removes currency information from the reporting copy; retain the account-and-currency journal as the record. Empty explanations, rules, and evidence sets mean that no such external information has been supplied.
+Check that every term is in yen before removing the currency element. This gives the audits a trial balance with bases of type `HatBase AccountTitles`. Keep the account-and-currency journal as the record. Include opening balances before calling `Audit.impossibleBalances` and `Audit.abnormalBalances`. Each returns `NoProblem` when its check finds no issue.
 
-## Inspect a missing opening balance {#inspect-a-missing-opening-balance}
+## Inspect a balance on the opposite side {#inspect-a-balance-on-the-opposite-side}
 
 ```haskell
 {{#include ../../code/trial-balance.hs:results}}
@@ -61,9 +61,9 @@ Run `stack exec -- ghc -Wall -Werror Main.hs -o trial-balance-example`, then run
 
 With the opening contribution, Deposits has a debit balance of 5,000 yen and the balance columns each total 12,000 yen. Cash has a debit balance of 5,300 yen, including the yen equivalent of the 10 dollars. Its debit total is 8,500 yen and its credit total is 3,200 yen.
 
-Remove the opening contribution as a whole and the journal still passes the check: the terms under each remaining note balance. Deposits then has a credit balance of 5,000 yen. `UnexplainedAbnormalBalance Deposits Debit (CreditBalance 5000)` reports that Deposits normally has a debit balance. Findings neither reject nor repair the journal. For these records, restore the independently confirmed opening contribution; do not invent a balancing entry merely to remove the finding.
+The program then adds a third withdrawal of 6,000 yen to the journal, and each transaction still balances. Deposits now has a credit balance of 1,000 yen. `Audit.abnormalBalances` returns a `Warning` for Deposits because its normal balance is a debit. Check the bank records to determine whether the withdrawal was recorded correctly.
 
-Tested with exchangealgebra-0.6.1.1 on 2026-11-20.
+Tested with exchangealgebra-0.7.0.0 on 2026-11-27.
 
 ## Reference {#reference}
 
@@ -72,4 +72,5 @@ Tested with exchangealgebra-0.6.1.1 on 2026-11-20.
 | `TrialBalance.accountBalances ledger` | Compute account balances across all supplied terms. |
 | `TrialBalance.balanceFor account balances` | Read an account; an absent account returns `NoBalance`. |
 | `TrialBalance.balancePair balance` | Return a pair ordered as debit balance, then credit balance. |
-| `TrialBalance.trialBalanceFindings input` | Report structural errors, imbalance, abnormal sides, residuals, and missing evidence according to the supplied stage and rules. |
+| `Audit.impossibleBalances ledger` | Return `Error` for balances on sides that the chart rules out, such as a credit balance in Cash. |
+| `Audit.abnormalBalances ledger` | Return `Warning` for ordinary accounts with a balance opposite their fixed normal side, excluding the accounts checked by `impossibleBalances`. |

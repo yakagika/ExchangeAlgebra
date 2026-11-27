@@ -11,5 +11,5 @@ CurrentAssetsSection "Merchandise inventory" Debit 200
 CurrentAssetsSection "Prepaid expenses" Debit 600
 Total assets: 11100
 EquitySection "Capital stock" Credit 10000
-EquitySection "Retained earnings" Credit 1100
+EquitySection "Retained earnings brought forward" Credit 1100
 Total liabilities and equity: 11100

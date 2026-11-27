@@ -2,7 +2,7 @@
 
 The shop’s checked January journal contains the terms for its books. Its pre-adjustment, adjusted, and closed versions supply the figures for the trial balances, the worksheet, and the financial statements. Use the row builders in `ExchangeAlgebra.IO.Output.Statements` to obtain text cells for each report.
 
-Use exchangealgebra-0.6.1.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the Haskell blocks in their displayed order as `Main.hs`.
+Use exchangealgebra-0.7.0.0 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the Haskell blocks in their displayed order as `Main.hs`.
 
 ## Lay out the journal and general ledger by date {#lay-out-the-journal-and-general-ledger-by-date}
 
@@ -45,7 +45,7 @@ Code carried over from earlier chapters
 
 </details>
 
-Pass the dated terms and a function that extracts the date to `journalRows` and `accountLedgerRows`. The journal places each day’s debit and credit terms in columns. The general ledger groups terms by account and orders each side by date. Request `Cash` to inspect the cash account. Both reports retain the individual terms.
+Store each date as `Exactly day` in a `Wild Day` element. Pass the dated terms and a function that extracts the concrete date to `journalRows` and `accountLedgerRows`. Within each date and side, the journal sorts terms by account title and then by hat base. The general ledger groups terms by account and orders each side by date. Request `Cash` to inspect the cash account. Both reports retain the individual terms.
 
 ```haskell
 {{#include ../../code/output.hs:book-rows}}
@@ -85,7 +85,7 @@ In your project directory, run `stack exec -- ghc -Wall -Werror Main.hs -o outpu
 
 The cash ledger shows the 2,000-yen sale as a debit on January 28. The worksheet shows net income of 1,100 yen, which appears as a subtotal in the income statement. In the post-closing trial balance, the carried balances total 11,100 yen on each side.
 
-Tested with exchangealgebra-0.6.1.1 on 2026-11-20.
+Tested with exchangealgebra-0.7.0.0 on 2026-11-27.
 
 ## Reference {#reference}
 

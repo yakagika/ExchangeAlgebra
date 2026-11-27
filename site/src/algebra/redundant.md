@@ -1,6 +1,6 @@
 # Redundant and exchange algebras
 
-Compare amount types, work with a month's terms, and read debit and credit differences. The examples use exchangealgebra-0.6.1.1 and keep the account-and-unit base from [Record a withdrawal](../usage/withdrawal.md).
+Compare amount types, work with a month's terms, and read debit and credit differences. The examples use exchangealgebra-0.7.0.0 and keep the account-and-unit base from [Record a withdrawal](../usage/withdrawal.md).
 
 ## Amount types {#amount-types}
 
@@ -191,7 +191,7 @@ Complete program
 
 </details>
 
-Tested with exchangealgebra-0.6.1.1 on 2026-11-23.
+Tested with exchangealgebra-0.7.0.0 on 2026-11-27.
 
 ## Reference {#reference}
 
@@ -221,7 +221,7 @@ An accumulator must merge associatively and commutatively with zero as its unit,
 
 `Alg` requires a `HatVal` amount type and a `HatBaseClass` base type. Its `Redundant` instance implements the operations; defining a new element type does not require another `Redundant` instance. `Zero` is the empty algebra and the identity for addition. For value and direction checks, see [Construction and scalar checks](#construction-and-scalar-checks).
 
-The public `(:@)` pattern matches a singleton term but cannot construct one in 0.6.1.1. Construct terms with `.@`. `toList` returns singleton terms, `vals` returns amounts, and `bases` returns hat bases.
+Use the public `(:@)` pattern to match a singleton term. Construct terms with `.@`. `toList` returns singleton terms, `vals` returns amounts, and `bases` returns hat bases.
 
 | Operation | Inputs and result |
 |---|---|
@@ -234,7 +234,7 @@ The public `(:@)` pattern matches a singleton term but cannot construct one in 0
 | `proj patterns x` | Select terms whose hat bases match at least one query pattern, without netting or changing amounts. |
 | `projNetNorm patterns x` | Select bases, net within each full base, total the magnitudes of the residuals, and round once. Return an amount. |
 
-In 0.6.1.1, `.*` has the default fixity `infixl 9`, and `.+` is `infixr 3`. Parenthesize mixed expressions to state the intended grouping, such as `(2 .* withdrawal) .+ cashPayment`.
+In 0.7.0.0, `.*` is `infixr 7` and binds more tightly than `.+` (`infixr 3`). For example, `2 .* withdrawal .+ cashPayment` means `(2 .* withdrawal) .+ cashPayment`. Use parentheses around a term constructed with `.@`, as in `2 .* (10 .@ Not :< (Cash, Yen))`.
 
 ### Projections and rounding {#projections-and-rounding}
 

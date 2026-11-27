@@ -2,7 +2,7 @@
 
 The shop needs an income statement for January and a balance sheet at January 31. The income statement measures the revenue and expenses for the month. The balance sheet shows the assets, liabilities, and equity at the end of the month.
 
-Use exchangealgebra-0.6.1.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the Haskell blocks in their displayed order as `Main.hs`.
+Use exchangealgebra-0.7.0.0 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the Haskell blocks in their displayed order as `Main.hs`.
 
 ## Select the January balances {#select-the-january-balances}
 
@@ -73,15 +73,15 @@ In your project directory, run `stack exec -- ghc -Wall -Werror Main.hs -o state
 {{#include ../../code/statements.expected}}
 ```
 
-Sales of 2,000 yen less cost of goods sold of 300 yen and rent of 600 yen leave net income of 1,100 yen. At January 31, assets total 11,100 yen. Liabilities are zero, and capital stock of 10,000 yen plus retained earnings of 1,100 yen also total 11,100 yen.
+Sales of 2,000 yen less cost of goods sold of 300 yen and rent of 600 yen leave net income of 1,100 yen. At January 31, assets total 11,100 yen. Liabilities are zero. Capital stock of 10,000 yen and the 1,100 yen shown as “Retained earnings brought forward” make up the 11,100 yen in equity.
 
-Tested with exchangealgebra-0.6.1.1 on 2026-11-20.
+Tested with exchangealgebra-0.7.0.0 on 2026-11-27.
 
 ## Reference {#reference}
 
 | Type or operation | Inputs and result |
 |---|---|
-| `present context stage ledger` | Prepare statement lines, subtotals, and presentation events. `BeforeClosing` includes the period result. Use `trialBalanceFindings` separately to inspect accounting findings. |
+| `present context stage ledger` | Prepare statement lines, subtotals, and presentation events. `BeforeClosing` includes the period result. Use the [trial balance audits](trial-balance.md#reference) to inspect accounting findings separately. |
 | `jcciSecondGradeContext scope` and `PresentationProfile` | Start with the JCCI grade-2 profile. Set `_presentationProfile` to `CanonicalJapanese` or `CanonicalEnglish` to use canonical labels. |
 | `ReportingContext` | Supply reporting instructions such as `PresentationRelabel` or `PresentationAllocation`. An allocation splits an asset or liability balance between current and noncurrent sections and requires evidence. |
 | `periodResultOf stage ledger` | Derive `PeriodProfit`, `PeriodLoss`, or `PeriodBreakEven` from a before-closing ledger. `AfterClosing` returns `MetricNotAvailableAtStage`. |

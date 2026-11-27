@@ -125,4 +125,4 @@ If this form is sufficient, continue with [Transfers](../exchange/transfer.md). 
 - To change the combination of elements, read [Bases](../algebra/bases.md).
 - To change the amount type or use other operations, read [Redundant and exchange algebras](../algebra/redundant.md).
 
-Tested with exchangealgebra-0.6.1.1 on 2026-11-22.
+Tested with exchangealgebra-0.7.0.0 on 2026-11-27.

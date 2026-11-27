@@ -24,18 +24,15 @@ Update `ExBaseClass` to read and replace the first element of the triple. Keep t
 
 ### Built-in exchange bases {#built-in-exchange-bases}
 
-In 0.6.1.1, the following forms of `HatBase a` have built-in `ExBaseClass` instances.
+The following forms of `HatBase a` have built-in `ExBaseClass` instances for `AccountTitles`.
 
 | `a` in `HatBase a` |
 |---|
 | `AccountTitles` |
-| `(AccountTitles, Day)` |
 | `(AccountTitles, Name)` |
 | `(CountUnit, AccountTitles)` |
 | `(AccountTitles, Name, CountUnit)` |
 | `(AccountTitles, Name, CountUnit, Subject)` |
-| `(AccountTitles, Name, CountUnit, Subject, Day)` |
-| `(AccountTitles, Name, CountUnit, Subject, Day, TimeOfDay)` |
 | `(AccountTitles, Wild Day)` |
 | `(AccountTitles, Name, CountUnit, Subject, Wild Day)` |
 | `(AccountTitles, Name, CountUnit, Subject, Wild Day, Wild TimeOfDay)` |
@@ -77,7 +74,7 @@ Complete program
 
 > **Caution:** `Hat` represents a direction on a nonnegative amount. The account and direction together determine the debit or credit side. Use `HatNot` in query patterns. Some direction tests and reversal methods fail on `HatNot`.
 
-Tested with exchangealgebra-0.6.1.1 on 2026-11-23.
+Tested with exchangealgebra-0.7.0.0 on 2026-11-27.
 
 ## Reference {#reference}
 

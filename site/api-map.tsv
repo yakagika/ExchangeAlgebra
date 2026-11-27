@@ -84,11 +84,9 @@ algebra/elements.md	reference		AccountTitles
 algebra/elements.md	reference		BaseClass
 algebra/elements.md	reference		BaseForSingleHat
 algebra/elements.md	reference		CountUnit
-algebra/elements.md	reference		Day
 algebra/elements.md	reference		Hat
 algebra/elements.md	reference		HatBase
 algebra/elements.md	reference		Text
-algebra/elements.md	reference		TimeOfDay
 algebra/elements.md	reference		Wild
 algebra/elements.md	reference		compareElement
 algebra/elements.md	reference		equal
@@ -235,16 +233,13 @@ bookkeeping/adjustment.md	program	ExchangeAlgebra	setAccountTitle
 bookkeeping/adjustment.md	program	ExchangeAlgebra	transferEntries
 bookkeeping/adjustment.md	program	ExchangeAlgebra	wildcard
 bookkeeping/adjustment.md	program	ExchangeAlgebra	|%
+bookkeeping/adjustment.md	program	ExchangeAlgebra.Accounting.Audit	temporaryAccountBalances
 bookkeeping/adjustment.md	program	ExchangeAlgebra.Accounting.Entries	MkBase
 bookkeeping/adjustment.md	program	ExchangeAlgebra.Accounting.Entries	cogsAdjustmentEntries
-bookkeeping/adjustment.md	program	ExchangeAlgebra.Accounting.TrialBalance	BeforeClosing
-bookkeeping/adjustment.md	program	ExchangeAlgebra.Accounting.TrialBalance	TrialBalanceInput
-bookkeeping/adjustment.md	program	ExchangeAlgebra.Accounting.TrialBalance	TrialBalanceStage
 bookkeeping/adjustment.md	program	ExchangeAlgebra.Accounting.TrialBalance	accountBalances
 bookkeeping/adjustment.md	program	ExchangeAlgebra.Accounting.TrialBalance	addPair
 bookkeeping/adjustment.md	program	ExchangeAlgebra.Accounting.TrialBalance	balanceFor
 bookkeeping/adjustment.md	program	ExchangeAlgebra.Accounting.TrialBalance	balancePair
-bookkeeping/adjustment.md	program	ExchangeAlgebra.Accounting.TrialBalance	trialBalanceFindings
 bookkeeping/adjustment.md	program	ExchangeAlgebra.Algebra.Core	foldEntries
 bookkeeping/adjustment.md	program	ExchangeAlgebra.Algebra.Core	mapPosting
 bookkeeping/adjustment.md	program	ExchangeAlgebra.IO.Input.Admission	Admitted
@@ -343,17 +338,14 @@ bookkeeping/closing.md	program	ExchangeAlgebra	setAccountTitle
 bookkeeping/closing.md	program	ExchangeAlgebra	transferEntries
 bookkeeping/closing.md	program	ExchangeAlgebra	wildcard
 bookkeeping/closing.md	program	ExchangeAlgebra	|%
+bookkeeping/closing.md	program	ExchangeAlgebra.Accounting.Audit	closingResiduals
 bookkeeping/closing.md	program	ExchangeAlgebra.Accounting.Closing	closingEntries
 bookkeeping/closing.md	program	ExchangeAlgebra.Accounting.Entries	MkBase
 bookkeeping/closing.md	program	ExchangeAlgebra.Accounting.Entries	cogsAdjustmentEntries
-bookkeeping/closing.md	program	ExchangeAlgebra.Accounting.TrialBalance	AfterClosing
-bookkeeping/closing.md	program	ExchangeAlgebra.Accounting.TrialBalance	TrialBalanceInput
-bookkeeping/closing.md	program	ExchangeAlgebra.Accounting.TrialBalance	TrialBalanceStage
 bookkeeping/closing.md	program	ExchangeAlgebra.Accounting.TrialBalance	accountBalances
 bookkeeping/closing.md	program	ExchangeAlgebra.Accounting.TrialBalance	addPair
 bookkeeping/closing.md	program	ExchangeAlgebra.Accounting.TrialBalance	balanceFor
 bookkeeping/closing.md	program	ExchangeAlgebra.Accounting.TrialBalance	balancePair
-bookkeeping/closing.md	program	ExchangeAlgebra.Accounting.TrialBalance	trialBalanceFindings
 bookkeeping/closing.md	program	ExchangeAlgebra.Algebra.Core	foldEntries
 bookkeeping/closing.md	program	ExchangeAlgebra.Algebra.Core	mapPosting
 bookkeeping/closing.md	program	ExchangeAlgebra.IO.Input.Admission	Admitted
@@ -368,8 +360,8 @@ bookkeeping/closing.md	program	ExchangeAlgebra.Journal	plank
 bookkeeping/closing.md	program	ExchangeAlgebra.Journal	toAlg
 bookkeeping/closing.md	reference		.+
 bookkeeping/closing.md	reference		.|
+bookkeeping/closing.md	reference	ExchangeAlgebra.Accounting.Audit	closingResiduals
 bookkeeping/closing.md	reference	ExchangeAlgebra.Accounting.Closing	closingEntries
-bookkeeping/closing.md	reference	ExchangeAlgebra.Accounting.TrialBalance	AfterClosing
 bookkeeping/consolidation.md	program	ExchangeAlgebra	.#
 bookkeeping/consolidation.md	program	ExchangeAlgebra	.+
 bookkeeping/consolidation.md	program	ExchangeAlgebra	.->
@@ -412,8 +404,11 @@ bookkeeping/consolidation.md	program	ExchangeAlgebra	wildcard
 bookkeeping/consolidation.md	program	ExchangeAlgebra	|%
 bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Closing	closingEntries
 bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Consolidation	TrialBalanceSource
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Consolidation	TrialBalanceSourceOf
 bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Consolidation	WorksheetAdjustment
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Consolidation	WorksheetAdjustmentOf
 bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Consolidation	WorksheetInput
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Consolidation	WorksheetInputOf
 bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Consolidation	WorksheetLinkage
 bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Consolidation	_balanceSheetNonControllingInterests
 bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Consolidation	_balanceSheetRetainedEarnings
@@ -437,14 +432,16 @@ bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	Curre
 bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	CurrentLiabilitiesSection
 bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	EquitySection
 bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	FinancialStatements
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	FinancialStatementsOf
 bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	NoncurrentAssetsSection
 bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	NoncurrentLiabilitiesSection
 bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	PeriodBreakEven
 bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	PeriodResult
 bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	PresentationProfile
-bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	ReportingContext
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	ReportingContextOf
 bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	ReportingScope
 bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	StatementLine
+bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	StatementLineOf
 bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	StatementSection
 bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	_lineAmount
 bookkeeping/consolidation.md	program	ExchangeAlgebra.Accounting.Statements	_lineLabel
@@ -522,15 +519,19 @@ bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	CurrentL
 bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	EquitySection
 bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	ExpenseSection
 bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	FinancialStatements
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	FinancialStatementsOf
 bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	NoncurrentAssetsSection
 bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	NoncurrentLiabilitiesSection
 bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	PresentationProfile
 bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	PresentationRelabel
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	PresentationRelabelOf
 bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	ReportingContext
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	ReportingContextOf
 bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	ReportingScope
 bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	RevenueSection
 bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	Standalone
 bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	StatementLine
+bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	StatementLineOf
 bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	StatementSection
 bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	_lineAmount
 bookkeeping/statements.md	program	ExchangeAlgebra.Accounting.Statements	_lineLabel
@@ -596,14 +597,12 @@ bookkeeping/trial-balance.md	program	ExchangeAlgebra	norm
 bookkeeping/trial-balance.md	program	ExchangeAlgebra	projByAccountTitle
 bookkeeping/trial-balance.md	program	ExchangeAlgebra	setAccountTitle
 bookkeeping/trial-balance.md	program	ExchangeAlgebra	wildcard
-bookkeeping/trial-balance.md	program	ExchangeAlgebra.Accounting.TrialBalance	BeforeClosing
-bookkeeping/trial-balance.md	program	ExchangeAlgebra.Accounting.TrialBalance	TrialBalanceInput
-bookkeeping/trial-balance.md	program	ExchangeAlgebra.Accounting.TrialBalance	TrialBalanceStage
+bookkeeping/trial-balance.md	program	ExchangeAlgebra.Accounting.Audit	abnormalBalances
+bookkeeping/trial-balance.md	program	ExchangeAlgebra.Accounting.Audit	impossibleBalances
 bookkeeping/trial-balance.md	program	ExchangeAlgebra.Accounting.TrialBalance	accountBalances
 bookkeeping/trial-balance.md	program	ExchangeAlgebra.Accounting.TrialBalance	addPair
 bookkeeping/trial-balance.md	program	ExchangeAlgebra.Accounting.TrialBalance	balanceFor
 bookkeeping/trial-balance.md	program	ExchangeAlgebra.Accounting.TrialBalance	balancePair
-bookkeeping/trial-balance.md	program	ExchangeAlgebra.Accounting.TrialBalance	trialBalanceFindings
 bookkeeping/trial-balance.md	program	ExchangeAlgebra.Algebra.Core	foldEntries
 bookkeeping/trial-balance.md	program	ExchangeAlgebra.Algebra.Core	mapPosting
 bookkeeping/trial-balance.md	program	ExchangeAlgebra.IO.Input.Admission	Admitted
@@ -613,15 +612,15 @@ bookkeeping/trial-balance.md	program	ExchangeAlgebra.IO.Input.Admission	failureE
 bookkeeping/trial-balance.md	program	ExchangeAlgebra.Journal	.|
 bookkeeping/trial-balance.md	program	ExchangeAlgebra.Journal	Journal
 bookkeeping/trial-balance.md	program	ExchangeAlgebra.Journal	Note
-bookkeeping/trial-balance.md	program	ExchangeAlgebra.Journal	filterWithNote
 bookkeeping/trial-balance.md	program	ExchangeAlgebra.Journal	map
 bookkeeping/trial-balance.md	program	ExchangeAlgebra.Journal	plank
 bookkeeping/trial-balance.md	program	ExchangeAlgebra.Journal	toAlg
 bookkeeping/trial-balance.md	reference		balance
+bookkeeping/trial-balance.md	reference	ExchangeAlgebra.Accounting.Audit	abnormalBalances
+bookkeeping/trial-balance.md	reference	ExchangeAlgebra.Accounting.Audit	impossibleBalances
 bookkeeping/trial-balance.md	reference	ExchangeAlgebra.Accounting.TrialBalance	accountBalances
 bookkeeping/trial-balance.md	reference	ExchangeAlgebra.Accounting.TrialBalance	balanceFor
 bookkeeping/trial-balance.md	reference	ExchangeAlgebra.Accounting.TrialBalance	balancePair
-bookkeeping/trial-balance.md	reference	ExchangeAlgebra.Accounting.TrialBalance	trialBalanceFindings
 exchange/transfer.md	program	ExchangeAlgebra	.#
 exchange/transfer.md	program	ExchangeAlgebra	.+
 exchange/transfer.md	program	ExchangeAlgebra	.->
@@ -706,6 +705,7 @@ io/output.md	program	ExchangeAlgebra	Cash
 io/output.md	program	ExchangeAlgebra	Deposits
 io/output.md	program	ExchangeAlgebra	Element
 io/output.md	program	ExchangeAlgebra	ExBaseClass
+io/output.md	program	ExchangeAlgebra	Exactly
 io/output.md	program	ExchangeAlgebra	Generic
 io/output.md	program	ExchangeAlgebra	Hashable
 io/output.md	program	ExchangeAlgebra	Hat
@@ -720,6 +720,7 @@ io/output.md	program	ExchangeAlgebra	RentExpense
 io/output.md	program	ExchangeAlgebra	Sales
 io/output.md	program	ExchangeAlgebra	SalesCost
 io/output.md	program	ExchangeAlgebra	TransferShare
+io/output.md	program	ExchangeAlgebra	Wild
 io/output.md	program	ExchangeAlgebra	getAccountTitle
 io/output.md	program	ExchangeAlgebra	mkTransferTable
 io/output.md	program	ExchangeAlgebra	setAccountTitle
@@ -738,7 +739,9 @@ io/output.md	program	ExchangeAlgebra.Accounting.Statements	NoncurrentAssetsSecti
 io/output.md	program	ExchangeAlgebra.Accounting.Statements	NoncurrentLiabilitiesSection
 io/output.md	program	ExchangeAlgebra.Accounting.Statements	PresentationProfile
 io/output.md	program	ExchangeAlgebra.Accounting.Statements	PresentationRelabel
+io/output.md	program	ExchangeAlgebra.Accounting.Statements	PresentationRelabelOf
 io/output.md	program	ExchangeAlgebra.Accounting.Statements	ReportingContext
+io/output.md	program	ExchangeAlgebra.Accounting.Statements	ReportingContextOf
 io/output.md	program	ExchangeAlgebra.Accounting.Statements	ReportingScope
 io/output.md	program	ExchangeAlgebra.Accounting.Statements	RevenueSection
 io/output.md	program	ExchangeAlgebra.Accounting.Statements	Standalone

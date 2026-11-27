@@ -11,19 +11,21 @@ RetainedEarnings: (0,0,NoBalance)
 Balance totals (debit, credit): (12000,12000)
 Term totals (debit, credit): (20200,20200)
 Balanced: True
-Findings: []
-Without opening balances:
+Impossible balances: NoProblem
+Abnormal balances: NoProblem
+With an additional withdrawal:
 Account: (debit turnover, credit turnover, balance)
-Cash: (8500,3200,DebitBalance 5300)
-Deposits: (0,5000,CreditBalance 5000)
+Cash: (14500,3200,DebitBalance 11300)
+Deposits: (10000,11000,CreditBalance 1000)
 PrepaidExpenses: (0,0,NoBalance)
 MerchandiseInventory: (0,0,NoBalance)
 Purchases: (500,0,DebitBalance 500)
 RentExpense: (1200,0,DebitBalance 1200)
 Sales: (0,2000,CreditBalance 2000)
-CapitalStock: (0,0,NoBalance)
+CapitalStock: (0,10000,CreditBalance 10000)
 RetainedEarnings: (0,0,NoBalance)
-Balance totals (debit, credit): (7000,7000)
-Term totals (debit, credit): (10200,10200)
+Balance totals (debit, credit): (13000,13000)
+Term totals (debit, credit): (26200,26200)
 Balanced: True
-Findings: [UnexplainedAbnormalBalance Deposits Debit (CreditBalance 5000)]
+Impossible balances: NoProblem
+Abnormal balances: Warning (AbnormalBalance {_abnormalAccount = Deposits, _abnormalHomeSide = Debit, _abnormalBalance = CreditBalance 1000} :| [])

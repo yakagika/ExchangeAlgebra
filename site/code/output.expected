@@ -66,4 +66,4 @@ Balance sheet at January 31
 ["CurrentAssetsSection","MerchandiseInventory","Merchandise inventory","line","Debit","200"]
 ["CurrentAssetsSection","PrepaidExpenses","Prepaid expenses","line","Debit","600"]
 ["EquitySection","CapitalStock","Capital stock","line","Credit","10000"]
-["EquitySection","RetainedEarnings","Retained earnings","line","Credit","1100"]
+["EquitySection","RetainedEarnings","Retained earnings brought forward","line","Credit","1100"]

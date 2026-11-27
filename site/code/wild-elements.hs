@@ -1,4 +1,4 @@
--- | Show how Wild gives a wildcard to Int and TimeOfDay, and how TimeOfDay matches 00:00.
+-- | Query branch numbers and times of day with Wild.
 -- Each group of definitions is included after the matching note in the Reference.
 -- ANCHOR: program
 module Main where
@@ -19,22 +19,8 @@ branchQueries = do
     putStrLn $ "Any branch: " ++ show (norm (proj [HatNot :< (Cash, Wild)] branches))
 -- ANCHOR_END: int
 
--- ANCHOR: time
--- | Cash received at 00:00 and at 13:00, with the time as TimeOfDay.
-byTime :: Alg MoneyDecimal (HatBase (AccountTitles, TimeOfDay))
-byTime = 100 .@ Not :< (Cash, midnight)
-      .+ 200 .@ Not :< (Cash, TimeOfDay 13 0 0)
-
--- | Total the cash selected by a query for 00:00 and by a query for 13:00.
-timeQueries :: IO ()
-timeQueries = do
-    putStrLn $ "TimeOfDay, query 00:00: " ++ show (norm (proj [HatNot :< (Cash, midnight)] byTime))
-    putStrLn $ "TimeOfDay, query 13:00: "
-        ++ show (norm (proj [HatNot :< (Cash, TimeOfDay 13 0 0)] byTime))
--- ANCHOR_END: time
-
 -- ANCHOR: wild-time
--- | The same receipts, with the time as Wild TimeOfDay.
+-- | Cash received at 00:00 and at 13:00.
 byWildTime :: Alg MoneyDecimal (HatBase (AccountTitles, Wild TimeOfDay))
 byWildTime = 100 .@ Not :< (Cash, Exactly midnight)
           .+ 200 .@ Not :< (Cash, Exactly (TimeOfDay 13 0 0))
@@ -53,6 +39,5 @@ wildTimeQueries = do
 main :: IO ()
 main = do
     branchQueries
-    timeQueries
     wildTimeQueries
 -- ANCHOR_END: program

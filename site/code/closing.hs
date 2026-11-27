@@ -10,6 +10,7 @@ import qualified ExchangeAlgebra.Algebra.Core as Algebra
 import ExchangeAlgebra.Journal ((.|))
 import qualified ExchangeAlgebra.Journal as Journal
 import qualified ExchangeAlgebra.IO.Input.Admission as Admission
+import qualified ExchangeAlgebra.Accounting.Audit as Audit
 import qualified ExchangeAlgebra.Accounting.TrialBalance as TrialBalance
 import qualified ExchangeAlgebra.Accounting.Entries as Entries
 import qualified ExchangeAlgebra.Accounting.Closing as Closing
@@ -126,8 +127,8 @@ auditLedger ledger
     dropUnit amount (direction :< (account, _)) = (amount, direction :< account)
 
 -- | Print account debit and credit totals, net balances, balance totals, and accounting findings.
-printTrial :: TrialBalance.TrialBalanceStage -> Entry -> IO ()
-printTrial stage ledger = do
+printTrial :: Entry -> IO ()
+printTrial ledger = do
     reporting <- require (auditLedger ledger)
     let balances = TrialBalance.accountBalances reporting
         pairs :: [(MoneyDecimal, MoneyDecimal)]
@@ -144,8 +145,7 @@ printTrial stage ledger = do
     mapM_ row accounts
     printNamed "Balance totals (debit, credit)" totals
     printTotals ledger
-    printNamed "Findings" $ TrialBalance.trialBalanceFindings
-        (TrialBalance.TrialBalanceInput reporting stage mempty [] mempty)
+    printNamed "Closing residuals" (Audit.closingResiduals reporting)
 -- ANCHOR_END: trial
 
 -- ANCHOR: adjustment
@@ -200,6 +200,6 @@ main = do
                $ Journal.toAlg adjusted
     printNamed "Closing entries" additions
     closed <- require (closedJanuary adjusted)
-    printTrial TrialBalance.AfterClosing (Journal.toAlg closed)
+    printTrial (Journal.toAlg closed)
     printNamed "Closing again" (Closing.closingEntries (Journal.toAlg closed))
 -- ANCHOR_END: results

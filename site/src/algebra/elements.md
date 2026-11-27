@@ -59,7 +59,7 @@ The program prints the results below.
 {{#include ../../code/elements.expected}}
 ```
 
-Tested with exchangealgebra-0.6.1.1 on 2026-11-23.
+Tested with exchangealgebra-0.7.0.0 on 2026-11-27.
 
 ## Query a date stored as an ordinary element {#query-a-date-stored-as-an-ordinary-element}
 
@@ -98,7 +98,7 @@ Add `time` to your project's dependencies. From the project directory, run `stac
 
 The `Wild` query selects the term. An `Exactly` query selects the term only when its date matches.
 
-Tested with exchangealgebra-0.6.1.1 on 2026-11-20.
+Tested with exchangealgebra-0.7.0.0 on 2026-11-27.
 
 ## Reference {#reference}
 
@@ -128,15 +128,13 @@ Tested with exchangealgebra-0.6.1.1 on 2026-11-20.
 | `AccountTitles` | `AccountTitle`. Import the account type from `ExchangeAlgebra` or `ExchangeAlgebra.Accounting.Account`. |
 | `CountUnit` | `CountUnit`; other constructors are `Yen`, `Dollar`, `Euro`, `CNY`, `Amount`. |
 | `Text` | The empty text. `Name` and `Subject` are aliases for `Text`. You can use `Subject` to identify which accounting entity a record belongs to. |
-| `Day` | `ModifiedJulianDay 0` (1858-11-17). To use that date as an ordinary element, use `Wild Day`. |
-| `TimeOfDay` | `midnight` (00:00). To use 00:00 as an ordinary element, use `Wild TimeOfDay`. |
 | `Wild a` | `Wild`. Each value `x` of `a` is the ordinary element `Exactly x`. Added in 0.6.1.0. |
 | Tuples of 2 through 7 element types | A tuple in which every element is a wildcard. |
 | `Hat` | `HatNot`, for direction patterns. |
 | `HatBase a`, for `BaseClass a` | `HatNot :< wildcard`. |
 | `BaseForSingleHat` | Its sole constructor, `BaseForSingleHat`, used by the bare `Hat` base. |
 
-`Int`, `Integer`, `Double`, and `String` require a wrapper to serve as element types in 0.6.1.1. Use `Wild` to give each type a wildcard.
+Use `Wild` to give `Int`, `Integer`, `Double`, and `String` a wildcard when you use them in a base.
 
 `Wild a` has `Element` and `BaseClass` instances when `a` has `Ord`, `Show`, `Hashable`, and `Typeable` instances. It derives `Eq`, `Ord`, `Show`, and `Generic`, and has `NFData`, `Hashable`, and `Binary` instances when `a` has the corresponding instance.
 
@@ -150,28 +148,16 @@ For example, `Wild Int` can identify branches by number. `Int` has no `Element` 
 {{#include ../../code/wild-elements.expected:1:2}}
 ```
 
-The `Element` instance for `TimeOfDay` uses 00:00 as its wildcard. A query for 00:00 therefore matches every time of day. A term stored at 00:00 means that no time of day applies, so a query for a specific time, such as 13:00, does not match it.
+The direct `Element` instances for `Day` and `TimeOfDay` were removed in 0.7.0.0. Use `Wild Day` for dates and `Wild TimeOfDay` for times of day. Wrap concrete values in `Exactly`, including 1858-11-17 and `midnight` (00:00).
 
-The following record receives cash at 00:00 and at 13:00 with `TimeOfDay`. The query for 00:00 selects both terms, and the query for 13:00 selects only the term at 13:00:
-
-```haskell
-{{#include ../../code/wild-elements.hs:time}}
-```
-
-```text
-{{#include ../../code/wild-elements.expected:3:4}}
-```
-
-To record 00:00 as an ordinary time, use `Wild TimeOfDay`, added in 0.6.1.0. Store `Exactly midnight`, and query `Exactly midnight` to select only 00:00 or `Wild` to select any time. `Day` and `Wild Day` treat 1858-11-17 in the same way. The built-in base `(AccountTitles, Name, CountUnit, Subject, Wild Day, Wild TimeOfDay)` has an `ExBaseClass` instance; see [Built-in exchange bases](bases.md#built-in-exchange-bases).
-
-With `Wild TimeOfDay`, the same receipts are distinguished by time:
+The next example records receipts at 00:00 and 13:00.
 
 ```haskell
 {{#include ../../code/wild-elements.hs:wild-time}}
 ```
 
 ```text
-{{#include ../../code/wild-elements.expected:5:7}}
+{{#include ../../code/wild-elements.expected:3:5}}
 ```
 
 The query for `Exactly midnight` selects only the term at 00:00. For dates, [Query a date stored as an ordinary element](#query-a-date-stored-as-an-ordinary-element) shows the same use of `Wild Day`.
@@ -191,4 +177,4 @@ Complete program
 
 </details>
 
-Tested with exchangealgebra-0.6.1.1 on 2026-11-23.
+Tested with exchangealgebra-0.7.0.0 on 2026-11-27.

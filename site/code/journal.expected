@@ -1,8 +1,8 @@
-February 1 entry before date selection: 400:@Not:<(Purchases,Yen) .+ 400:@Hat:<(Cash,Yen) .| EntryNote {entryDate = (2026,2,1), entryDescription = "Purchase of goods"}
+February 1 entry before date selection: (400:@Not:<(Purchases,Yen) .+ 400:@Hat:<(Cash,Yen)) .| EntryNote {entryDate = (2026,2,1), entryDescription = "Purchase of goods"}
 February 1 entry after January selection: 0
-January 10 entry: 3000:@Hat:<(Deposits,Yen) .+ 3000:@Not:<(Cash,Yen) .| EntryNote {entryDate = (2026,1,10), entryDescription = "Withdrawal from Bank A"}
+January 10 entry: (3000:@Hat:<(Deposits,Yen) .+ 3000:@Not:<(Cash,Yen)) .| EntryNote {entryDate = (2026,1,10), entryDescription = "Withdrawal from Bank A"}
 January 10 cash terms: 3000:@Not:<(Cash,Yen) .| EntryNote {entryDate = (2026,1,10), entryDescription = "Withdrawal from Bank A"}
-January yen cash terms: (500:@Hat:<(Cash,Yen) .| EntryNote {entryDate = (2026,1,20), entryDescription = "Purchase of goods"}) .+ (3000:@Not:<(Cash,Yen) .| EntryNote {entryDate = (2026,1,10), entryDescription = "Withdrawal from Bank A"}) .+ (2000:@Not:<(Cash,Yen) .| EntryNote {entryDate = (2026,1,15), entryDescription = "Withdrawal from Bank A"}) .+ (1500:@Hat:<(Cash,Yen) .| EntryNote {entryDate = (2026,1,25), entryDescription = "Yen-dollar exchange"})
+January yen cash terms: 500:@Hat:<(Cash,Yen) .| EntryNote {entryDate = (2026,1,20), entryDescription = "Purchase of goods"} .+ 3000:@Not:<(Cash,Yen) .| EntryNote {entryDate = (2026,1,10), entryDescription = "Withdrawal from Bank A"} .+ 2000:@Not:<(Cash,Yen) .| EntryNote {entryDate = (2026,1,15), entryDescription = "Withdrawal from Bank A"} .+ 1500:@Hat:<(Cash,Yen) .| EntryNote {entryDate = (2026,1,25), entryDescription = "Yen-dollar exchange"}
 January gross yen cash amount: 7000
 January cash balances by currency: 3000:@Not:<(Cash,Yen) .+ 10:@Not:<(Cash,Dollar)
 Gathered January record: 500:@Hat:<(Cash,Yen) .+ 1500:@Hat:<(Cash,Yen) .+ 2000:@Not:<(Cash,Yen) .+ 3000:@Not:<(Cash,Yen) .+ 10:@Not:<(Cash,Dollar) .+ 2000:@Hat:<(Deposits,Yen) .+ 3000:@Hat:<(Deposits,Yen) .+ 500:@Not:<(Purchases,Yen)

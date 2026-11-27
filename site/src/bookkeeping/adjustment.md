@@ -2,7 +2,7 @@
 
 At January 31, part of the rent belongs to February and some purchased goods remain unsold. Start from the checked journal in [Trial balance and checks](trial-balance.md#recover-the-admitted-records), defer the February rent, and recognize ending inventory before closing January’s revenue and expenses.
 
-Use exchangealgebra-0.6.1.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the code blocks in their displayed order as `Main.hs`.
+Use exchangealgebra-0.7.0.0 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the code blocks in their displayed order as `Main.hs`.
 
 ## Recover January before adjustments {#recover-january-before-adjustments}
 
@@ -63,7 +63,9 @@ Run `stack exec -- ghc -Wall -Werror Main.hs -o adjustment-example`, then run `.
 
 The rent and inventory adjustments remain separately selectable under their January 31 notes. Checking the journal again checks their debit-credit equality along with the original entries. The adjusted trial balance has PrepaidExpenses of 600 yen, MerchandiseInventory of 200 yen, Purchases of 300 yen, and RentExpense of 600 yen. Balance totals remain 12,000 yen on each side; gross term totals increase to 21,000 yen because the added entries remain in the record.
 
-Tested with exchangealgebra-0.6.1.1 on 2026-11-20.
+Pass the adjusted trial balance to `Audit.temporaryAccountBalances`. It returns `Warning` for balances in suspense accounts that remain after adjustment. The example prints `Temporary account balances: NoProblem`.
+
+Tested with exchangealgebra-0.7.0.0 on 2026-11-27.
 
 ## Reference {#reference}
 

@@ -10,6 +10,7 @@ import qualified ExchangeAlgebra.Algebra.Core as Algebra
 import ExchangeAlgebra.Journal ((.|))
 import qualified ExchangeAlgebra.Journal as Journal
 import qualified ExchangeAlgebra.IO.Input.Admission as Admission
+import qualified ExchangeAlgebra.Accounting.Audit as Audit
 import qualified ExchangeAlgebra.Accounting.TrialBalance as TrialBalance
 
 -- | Currency element retained in the source journal.
@@ -124,8 +125,8 @@ auditLedger ledger
     dropUnit amount (direction :< (account, _)) = (amount, direction :< account)
 
 -- | Print account debit and credit totals, net balances, balance totals, and accounting findings.
-printTrial :: TrialBalance.TrialBalanceStage -> Entry -> IO ()
-printTrial stage ledger = do
+printTrial :: Entry -> IO ()
+printTrial ledger = do
     reporting <- require (auditLedger ledger)
     let balances = TrialBalance.accountBalances reporting
         pairs :: [(MoneyDecimal, MoneyDecimal)]
@@ -142,8 +143,8 @@ printTrial stage ledger = do
     mapM_ row accounts
     printNamed "Balance totals (debit, credit)" totals
     printTotals ledger
-    printNamed "Findings" $ TrialBalance.trialBalanceFindings
-        (TrialBalance.TrialBalanceInput reporting stage mempty [] mempty)
+    printNamed "Impossible balances" (Audit.impossibleBalances reporting)
+    printNamed "Abnormal balances" (Audit.abnormalBalances reporting)
 -- ANCHOR_END: trial
 
 -- ANCHOR: results
@@ -152,12 +153,10 @@ main :: IO ()
 main = do
     accepted <- require acceptedJanuary
     let journal = Admission.admittedJournal accepted
-    printTrial TrialBalance.BeforeClosing (Journal.toAlg journal)
-    let withoutOpening = Journal.filterWithNote (\note _ -> note /= EntryNote (2026, 1, 1)
-            "Opening capital") journal
-    incomplete <- require (Admission.admit withoutOpening)
-    putStrLn "Without opening balances:"
-    printTrial TrialBalance.BeforeClosing
-        $ Journal.toAlg
-        $ Admission.admittedJournal incomplete
+    printTrial (Journal.toAlg journal)
+    let extraWithdrawal = record 29 "Additional withdrawal"
+            (6000 .@ Not :< (Cash, Yen) .+ 6000 .@ Hat :< (Deposits, Yen))
+    admitted <- require (Admission.admit (journal .+ extraWithdrawal))
+    putStrLn "With an additional withdrawal:"
+    printTrial (Journal.toAlg (Admission.admittedJournal admitted))
 -- ANCHOR_END: results

@@ -10,6 +10,7 @@ import qualified ExchangeAlgebra.Algebra.Core as Algebra
 import ExchangeAlgebra.Journal ((.|))
 import qualified ExchangeAlgebra.Journal as Journal
 import qualified ExchangeAlgebra.IO.Input.Admission as Admission
+import qualified ExchangeAlgebra.Accounting.Audit as Audit
 import qualified ExchangeAlgebra.Accounting.TrialBalance as TrialBalance
 import qualified ExchangeAlgebra.Accounting.Entries as Entries
 
@@ -125,8 +126,8 @@ auditLedger ledger
     dropUnit amount (direction :< (account, _)) = (amount, direction :< account)
 
 -- | Print account debit and credit totals, net balances, balance totals, and accounting findings.
-printTrial :: TrialBalance.TrialBalanceStage -> Entry -> IO ()
-printTrial stage ledger = do
+printTrial :: Entry -> IO ()
+printTrial ledger = do
     reporting <- require (auditLedger ledger)
     let balances = TrialBalance.accountBalances reporting
         pairs :: [(MoneyDecimal, MoneyDecimal)]
@@ -143,8 +144,7 @@ printTrial stage ledger = do
     mapM_ row accounts
     printNamed "Balance totals (debit, credit)" totals
     printTotals ledger
-    printNamed "Findings" $ TrialBalance.trialBalanceFindings
-        (TrialBalance.TrialBalanceInput reporting stage mempty [] mempty)
+    printNamed "Temporary account balances" (Audit.temporaryAccountBalances reporting)
 -- ANCHOR_END: trial
 
 -- ANCHOR: adjustment
@@ -185,5 +185,5 @@ main = do
     printNamed "Rent adjustment" rent
     printNamed "Inventory adjustment" inventoryAdjustment
     adjusted <- require (adjustedJanuary journal)
-    printTrial TrialBalance.BeforeClosing (Journal.toAlg adjusted)
+    printTrial (Journal.toAlg adjusted)
 -- ANCHOR_END: results
