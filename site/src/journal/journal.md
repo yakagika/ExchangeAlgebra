@@ -50,7 +50,7 @@ The value `EntryNote (0, 0, 0) ""` is reserved for the empty note and is not a t
 
 ## Attach notes to the month {#attach-notes-to-the-month}
 
-Construct each transaction as an algebra, then attach its note once with `.|`. When you write a sum directly before `.|`, enclose the sum in parentheses. The same parentheses appear in the printed journal.
+Construct each transaction as an algebra, then attach its note once with `.|`. The note operator `.|` (`infix 5`) binds more tightly than `.+` (`infixr 3`), so enclose a sum in parentheses before attaching its note. When the printed journal shows a note after `.|`, it encloses the preceding sum in parentheses.
 
 <details>
 <summary>

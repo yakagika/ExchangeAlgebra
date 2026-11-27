@@ -234,7 +234,7 @@ Use the public `(:@)` pattern to match a singleton term. Construct terms with `.
 | `proj patterns x` | Select terms whose hat bases match at least one query pattern, without netting or changing amounts. |
 | `projNetNorm patterns x` | Select bases, net within each full base, total the magnitudes of the residuals, and round once. Return an amount. |
 
-In 0.7.0.0, `.*` is `infixr 7` and binds more tightly than `.+` (`infixr 3`). For example, `2 .* withdrawal .+ cashPayment` means `(2 .* withdrawal) .+ cashPayment`. Use parentheses around a term constructed with `.@`, as in `2 .* (10 .@ Not :< (Cash, Yen))`.
+`.*` is `infixr 7` and binds more tightly than `.+` (`infixr 3`). For example, `2 .* withdrawal .+ cashPayment` means `(2 .* withdrawal) .+ cashPayment`. Use parentheses around a term constructed with `.@`, as in `2 .* (10 .@ Not :< (Cash, Yen))`.
 
 ### Projections and rounding {#projections-and-rounding}
 

@@ -47,4 +47,4 @@ Tested with exchangealgebra-0.7.0.0 on 2026-11-27.
 
 ## English names in the built-in chart
 
-In 0.7.0.0, the [built-in chart](builtin.md) gives distinct English names to the accounts that previously shared a name. For example, `RetainedEarnings` is “Retained earnings brought forward” and `EarnedSurplus` is “Retained earnings”. The English name of `Building` is “Buildings”.
+Each account in the [built-in chart](builtin.md) has a unique English name. For example, `RetainedEarnings` is “Retained earnings brought forward” and `EarnedSurplus` is “Retained earnings”. The English name of `Building` is “Buildings”.

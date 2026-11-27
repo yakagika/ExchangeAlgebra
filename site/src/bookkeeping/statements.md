@@ -81,7 +81,7 @@ Tested with exchangealgebra-0.7.0.0 on 2026-11-27.
 
 | Type or operation | Inputs and result |
 |---|---|
-| `present context stage ledger` | Prepare statement lines, subtotals, and presentation events. `BeforeClosing` includes the period result. Use the [trial balance audits](trial-balance.md#reference) to inspect accounting findings separately. |
+| `present context stage ledger` | Prepare statement lines, subtotals, and presentation events. `BeforeClosing` includes the period result. Run the [trial balance audits](trial-balance.md#reference) separately to detect impossible or abnormal balances. |
 | `jcciSecondGradeContext scope` and `PresentationProfile` | Start with the JCCI grade-2 profile. Set `_presentationProfile` to `CanonicalJapanese` or `CanonicalEnglish` to use canonical labels. |
 | `ReportingContext` | Supply reporting instructions such as `PresentationRelabel` or `PresentationAllocation`. An allocation splits an asset or liability balance between current and noncurrent sections and requires evidence. |
 | `periodResultOf stage ledger` | Derive `PeriodProfit`, `PeriodLoss`, or `PeriodBreakEven` from a before-closing ledger. `AfterClosing` returns `MetricNotAvailableAtStage`. |

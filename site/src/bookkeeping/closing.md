@@ -67,7 +67,7 @@ Run `stack exec -- ghc -Wall -Werror Main.hs -o closing-example`, then run `./cl
 
 Sales, Purchases, and RentExpense each have `NoBalance`; their original and closing terms remain in the columns for debit and credit totals. Cash, Deposits, PrepaidExpenses, and MerchandiseInventory total 11,100 yen on the debit side. CapitalStock of 10,000 yen and RetainedEarnings of 1,100 yen total 11,100 yen on the credit side. Only assets and equity have balances in this example; there are no liabilities.
 
-Pass the post-closing trial balance to `Audit.closingResiduals`. It reports `Error` if an account that closing must clear still has a balance. The example prints `Closing residuals: NoProblem` and `Closing again: Right 0`. Keep the checked closed journal with all dated entries as the record.
+Pass the post-closing trial balance to `Audit.closingResiduals`. It reports `Error` if an account that closing must clear still has a balance. The example prints `Closing residuals: NoProblem` and `Closing again: Right 0`. Keep the checked closed journal with all dated entries as the record, since the balance report does not preserve the individual entries.
 
 Tested with exchangealgebra-0.7.0.0 on 2026-11-27.
 

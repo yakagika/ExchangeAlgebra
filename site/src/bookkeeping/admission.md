@@ -35,7 +35,7 @@ The January 30 rent payment initially records all 1,200 yen as an expense. Keep 
 
 At January 31, the 10 dollars are worth 1,500 yen at 150 yen per dollar, the same rate as on January 25. The transfer in the preprint’s [Definition 9](../algebra/definitions.md#transfers) moves a source term to a destination term with a value transformation; the unit conversion in Appendix A, Example 2, also replaces the source term. Here the triple consists of source `(account, Dollar)`, destination `(account, Yen)`, and value function $f(v)=150v$. `Algebra.mapPosting` applies this triple by replacing every matching term, while `Journal.map` applies the conversion separately at each note.
 
-The accounting transfer table in [Transfers](../exchange/transfer.md) uses `mkTransferTable` and `transferEntries` to retain the source record and add its cancellation and the destination terms. The source and destination amounts are equal. For unit conversions that change the amount, use `mapPosting`. Version 0.7.0.0 removed `MulBy` and `DivBy`.
+Use `mkTransferTable` to build the accounting transfer table in [Transfers](../exchange/transfer.md). On success, `transferEntries` returns only the cancellation and destination terms. Add those terms to the original record with `.+` to retain it. The source and destination amounts are equal. For unit conversions that change the amount, use `mapPosting`. Version 0.7.0.0 removed `MulBy` and `DivBy`.
 
 ```haskell
 {{#include ../../code/admission.hs:conversion}}

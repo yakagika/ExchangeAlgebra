@@ -45,7 +45,7 @@ Code carried over from earlier chapters
 
 </details>
 
-Store each date as `Exactly day` in a `Wild Day` element. Pass the dated terms and a function that extracts the concrete date to `journalRows` and `accountLedgerRows`. Within each date and side, the journal sorts terms by account title and then by hat base. The general ledger groups terms by account and orders each side by date. Request `Cash` to inspect the cash account. Both reports retain the individual terms.
+Store each date as `Exactly day` in a `Wild Day` element. Pass the dated terms and a function that extracts the concrete date to `journalRows` and `accountLedgerRows`. Within each date and side, `journalRows` sorts terms by account title and then by hat base. The general ledger groups terms by account and orders each side by date. Request `Cash` to inspect the cash account. Both reports retain the individual terms.
 
 ```haskell
 {{#include ../../code/output.hs:book-rows}}

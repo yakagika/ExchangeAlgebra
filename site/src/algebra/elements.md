@@ -148,7 +148,7 @@ For example, `Wild Int` can identify branches by number. `Int` has no `Element` 
 {{#include ../../code/wild-elements.expected:1:2}}
 ```
 
-The direct `Element` instances for `Day` and `TimeOfDay` were removed in 0.7.0.0. Use `Wild Day` for dates and `Wild TimeOfDay` for times of day. Wrap concrete values in `Exactly`, including 1858-11-17 and `midnight` (00:00).
+`Day` and `TimeOfDay` have no `Element` instances. Use `Wild Day` for dates and `Wild TimeOfDay` for times of day. Wrap concrete values such as the date 1858-11-17 from the [cash example](#query-a-date-stored-as-an-ordinary-element) and `midnight` (00:00) in `Exactly`. Both values served as wildcards in the direct instances that 0.7.0.0 removed.
 
 The next example records receipts at 00:00 and 13:00.
 

@@ -45,7 +45,7 @@ The opening contribution, the two withdrawals, the purchase, the cash sale, and 
 
 `accountBalances` sums each account exactly and returns a non-negative magnitude with `DebitBalance`, `CreditBalance`, or `NoBalance`. It computes net balances without calling `bar` or changing the source record. The report sums the debit and credit balance columns separately from gross term totals.
 
-Check that every term is in yen before removing the currency element. This gives the audits a trial balance with bases of type `HatBase AccountTitles`. Keep the account-and-currency journal as the record. Include opening balances before calling `Audit.impossibleBalances` and `Audit.abnormalBalances`. Each returns `NoProblem` when its check finds no issue.
+Check that every term is in yen before removing the currency element. Removing that element produces a trial balance with bases of type `HatBase AccountTitles` for the audits. This projection discards currency information, so keep the account-and-currency journal as the record. Include opening balances before calling `Audit.impossibleBalances` and `Audit.abnormalBalances`. Each audit returns `NoProblem` when it finds no issue.
 
 ## Inspect a balance on the opposite side {#inspect-a-balance-on-the-opposite-side}
 
@@ -72,5 +72,5 @@ Tested with exchangealgebra-0.7.0.0 on 2026-11-27.
 | `TrialBalance.accountBalances ledger` | Compute account balances across all supplied terms. |
 | `TrialBalance.balanceFor account balances` | Read an account; an absent account returns `NoBalance`. |
 | `TrialBalance.balancePair balance` | Return a pair ordered as debit balance, then credit balance. |
-| `Audit.impossibleBalances ledger` | Return `Error` for balances on sides that the chart rules out, such as a credit balance in Cash. |
-| `Audit.abnormalBalances ledger` | Return `Warning` for ordinary accounts with a balance opposite their fixed normal side, excluding the accounts checked by `impossibleBalances`. |
+| `Audit.impossibleBalances ledger` | Return `Error` for balances on sides that the built-in chart rules out, such as a credit balance in Cash. |
+| `Audit.abnormalBalances ledger` | Return `Warning` when an account classified as `OrdinaryAccount` has a balance on the side opposite its fixed normal balance. Accounts audited by `impossibleBalances` are excluded. |

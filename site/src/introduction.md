@@ -35,7 +35,7 @@ The running example starts with a bank withdrawal on January 10 and follows the 
 ### Bookkeeping procedures {#bookkeeping-procedures}
 
 - In [Checking a journal](bookkeeping/admission.md), express dollar cash in yen and validate the January records for bookkeeping.
-- In [Trial balance and checks](bookkeeping/trial-balance.md), compute debit and credit totals and balances by account, then use `Audit.abnormalBalances` to see the warning for the credit balance in Deposits after an additional withdrawal.
+- In [Trial balance and checks](bookkeeping/trial-balance.md), compute debit and credit totals and balances by account, then use `Audit.abnormalBalances` to find balances on the side opposite an account's normal balance.
 - In [Adjusting entries](bookkeeping/adjustment.md), defer the rent for the next period and record the inventory count.
 - In [Closing entries](bookkeeping/closing.md), close the revenue and expense accounts and inspect the post-closing trial balance.
 - In [Financial statements](bookkeeping/statements.md), prepare January’s income statement and balance sheet.
