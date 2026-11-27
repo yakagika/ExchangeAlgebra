@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 -- | Exact accumulator laws in the Algebra layer. The public HatVal methods
--- are observed against Rational, with no tolerance and no readout operations.
+-- are observed against Rational and the decimal representation.
 -- Generators cover binary64 boundaries and decimal scales before the fixed cases.
 module Algebra.AccumSpec (runTests) where
 
@@ -9,12 +9,18 @@ import Control.Monad (forM_, unless)
 import qualified Data.Decimal as Decimal
 import Data.Hashable (hashWithSalt)
 import qualified Data.List as List
+import qualified Data.Map.Strict as Map
 import Data.Maybe (isJust)
 import Data.Ratio ((%), denominator)
+import qualified Data.Ratio as Ratio
+import qualified Data.Text as Text
+import Data.Word (Word8)
 import GHC.Float (castDoubleToWord64, castWord64ToDouble)
 import System.Exit (exitFailure)
 import Test.QuickCheck hiding (label)
 
+import qualified ExchangeAlgebra.Algebra as Algebra
+import ExchangeAlgebra.Algebra (Hat(..), HatBase((:<)), (.@))
 import ExchangeAlgebra.Algebra.Value
     ( HatVal(..)
     , MoneyDecimal(..)
@@ -299,6 +305,49 @@ propRationalHelper = forAll (chooseInt (0, 20) >>= flip vectorOf genFinite) $ \v
         , rationalRoundAccum negate state === negate expected
         ]
 
+-- | Observe both decimal fields because numeric equality ignores trailing zeros.
+decimalParts :: MoneyDecimal -> (Word8, Integer)
+decimalParts (MoneyDecimal (Decimal.Decimal places coefficient)) = (places, coefficient)
+
+-- | Compare exact sums and decimal representations across orders and groupings.
+propDecimalPlaces :: Property
+propDecimalPlaces =
+    forAll (chooseInt (0, 20) >>= flip vectorOf genDecimal) $ \values ->
+    forAll genDecimal $ \value ->
+        -- Include a nonempty sum that cancels in every trial.
+        let terms = value : values
+        in conjoin [checkPlaces values, checkPlaces (terms ++ map negate terms)]
+  where
+    checkPlaces values = forAll (shuffle values) $ \permuted ->
+        forAll (chooseInt (0, length values)) $ \firstCut ->
+        forAll (chooseInt (firstCut, length values)) $ \secondCut ->
+            let (left, rest) = splitAt firstCut permuted
+                (middle, right) = splitAt (secondCut - firstCut) rest
+                first = accumulate left
+                second = accumulate middle
+                third = accumulate right
+                states =
+                    [ accumulate values
+                    , accumulate permuted
+                    , mergeAccum (mergeAccum first second) third
+                    , mergeAccum first (mergeAccum second third)
+                    ]
+                places = maximum (0 : map (fst . decimalParts) values)
+                exact = sum (map toRational values)
+                coefficient = Ratio.numerator (exact * fromInteger (10 ^ places))
+                parts = (places, coefficient)
+                expectedSplit
+                    | exact > 0 = Just [parts]
+                    | otherwise = Nothing
+            in conjoin
+                [ conjoin
+                    [ decimalParts (roundAccum state) === parts
+                    , fmap (map decimalParts) (splitAccum state) === expectedSplit
+                    , exactAccum state === Just exact
+                    ]
+                | state <- states
+                ]
+
 -- * Fixed boundaries
 
 -- | Integer overflow, cancellation, two decimal places, subnormals, and greedy splits.
@@ -462,6 +511,41 @@ testDecimalBoundaries = do
         check "decimal zero hash" (hashWithSalt salt (MoneyDecimal (Decimal.Decimal 0 0)))
             (hashWithSalt salt (MoneyDecimal (Decimal.Decimal 255 0)))
 
+-- | Check decimal places in accumulator outputs and grouped ledger balances.
+testDecimalPlaces :: IO ()
+testDecimalPlaces = do
+    let one          = MoneyDecimal (Decimal.Decimal 2 100)
+        two          = MoneyDecimal (Decimal.Decimal 1 20)
+        zero         = MoneyDecimal (Decimal.Decimal 2 0)
+        positiveOne  = addAccum one emptyAccum
+        negativeOne  = negateAccum positiveOne
+        positiveTwo  = addAccum two emptyAccum
+        baseNames    = map Text.pack ["a", "b", "c"]
+        terms        = [(one, Not), (one, Hat), (two, Not)]
+    forM_ (List.permutations terms) $ \assignment -> do
+        let ledger   = Algebra.fromList (zipWith makeTerm assignment baseNames)
+            balances = Algebra.balanceMapBy (const (Just ())) ledger
+        check ("balanceMapBy decimal places " ++ show assignment)
+            (Map.singleton () "2.00") (fmap show balances)
+    forM_ (List.permutations [positiveOne, negativeOne, positiveTwo]) $ \states -> do
+        let leftGrouped  = List.foldl' mergeAccum emptyAccum states
+            rightGrouped = foldr mergeAccum emptyAccum states
+        forM_ [leftGrouped, rightGrouped] $ \state -> do
+            check "roundAccum decimal places" "2.00" (show (roundAccum state))
+            check "splitAccum decimal places" (Just ["2.00"])
+                (fmap (map show) (splitAccum state))
+    let cancelled = mergeAccum positiveOne negativeOne
+    check "zero state decimal places" (2, 0) (decimalParts (roundAccum cancelled))
+    check "negated zero state decimal places" (2, 0)
+        (decimalParts (roundAccum (negateAccum cancelled)))
+    check "empty state decimal places" (0, 0)
+        (decimalParts (roundAccum (emptyAccum :: Accum MoneyDecimal)))
+    check "sumValues leading zero decimal places" "2.00" (show (sumValues [zero, two]))
+    check "sumValues trailing zero decimal places" "2.00" (show (sumValues [two, zero]))
+    putStrLn "[PASS] accum decimal places in fixed cases and balanceMapBy"
+  where
+    makeTerm (value, side) name = value .@ (side :< name)
+
 -- | B1 and P1 at adjacent floating values and an unbounded decimal magnitude.
 testPostingBoundaries :: IO ()
 testPostingBoundaries = do
@@ -494,11 +578,13 @@ runTests = do
     testFloatingBoundaries
     testSpecialValues
     testDecimalBoundaries
+    testDecimalPlaces
     testPostingBoundaries
     propertyCheck "Double A1-A6/A5'/E1/E2/T3/S1/V1-V3/B1/P1" (propFiniteLaws genFinite)
     propertyCheck "MoneyDouble A1-A6/A5'/E1/E2/T3/S1/V1-V3/B1/P1"
         (propFiniteLaws (MoneyDouble <$> genFinite))
     propertyCheck "MoneyDecimal A1-A6/A5'/E1/T3/S1/V1-V3/B1/P1" (propFiniteLaws genDecimal)
+    propertyCheck "MoneyDecimal decimal places across orders and groupings" propDecimalPlaces
     propertyCheck "A5 greedy Double split" propGreedySplit
     propertyCheck "T1/T3 decimal unit and ties" propDecimalUnit
     propertyCheck "T2 decimal representability" propDecimalNearest

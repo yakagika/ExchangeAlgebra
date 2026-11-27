@@ -11,6 +11,16 @@
   now visit equal-hash keys in `Ord` order. Inputs without hash collisions
   produce the same results as before.
 
+- Exact `MoneyDecimal` sums now retain the largest number of decimal places
+  among their inputs. This applies to `sumValues`, `balanceBy`, `balanceMapBy`,
+  `projNetNorm`, `bar`, and balances used in accounting transfers and closing.
+  Previously, a zero input or an intermediate sum of zero could make the
+  number of trailing zeros depend on the order of addition, which for a
+  ledger follows the hashes of its bases. Results still compare equal under
+  `==`.
+  Calculated amounts may show more trailing zeros with `show` and have
+  different `Binary` bytes.
+
 ## 0.7.0.0 - 2026-11-27
 
 ### Added

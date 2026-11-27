@@ -323,13 +323,15 @@ instance HatVal MoneyDecimal where
     {-# INLINE showValue #-}
     showValue (MoneyDecimal x) = show x
 
-    -- Decimal addition is exact, so the state is the signed exact sum.
+    -- The signed exact sum keeps the largest number of decimal places among
+    -- its inputs, even when it is zero. Order and grouping preserve both
+    -- the number of places and the mantissa.
     newtype Accum MoneyDecimal = MoneyDecimalAccum Decimal
-    emptyAccum = MoneyDecimalAccum 0
+    emptyAccum = MoneyDecimalAccum (Decimal 0 0)
     addAccum (MoneyDecimal value) (MoneyDecimalAccum total) =
-        MoneyDecimalAccum (total + value)
+        MoneyDecimalAccum (addDecimalAtMaxPlaces total value)
     mergeAccum (MoneyDecimalAccum left) (MoneyDecimalAccum right) =
-        MoneyDecimalAccum (left + right)
+        MoneyDecimalAccum (addDecimalAtMaxPlaces left right)
     negateAccum (MoneyDecimalAccum value) = MoneyDecimalAccum (negate value)
     signAccum (MoneyDecimalAccum value) = Just (compare value 0)
     roundAccum (MoneyDecimalAccum value) = MoneyDecimal value
@@ -350,6 +352,18 @@ instance HatVal MoneyDecimal where
     roundRational (ToMultipleOf (MoneyDecimal unit)) value
         | unit > 0 = Just (MoneyDecimal (fromInteger (round (value / toRational unit)) * unit))
         | otherwise = Nothing
+
+-- | Add exact mantissas at the larger number of decimal places, including for zeros.
+addDecimalAtMaxPlaces :: Decimal -> Decimal -> Decimal
+addDecimalAtMaxPlaces (Decimal leftPlaces leftMantissa) (Decimal rightPlaces rightMantissa)
+    | leftPlaces < rightPlaces =
+        Decimal rightPlaces (rescale leftMantissa (rightPlaces - leftPlaces) + rightMantissa)
+    | leftPlaces > rightPlaces =
+        Decimal leftPlaces (leftMantissa + rescale rightMantissa (leftPlaces - rightPlaces))
+    | otherwise = Decimal leftPlaces (leftMantissa + rightMantissa)
+  where
+    rescale 0 _ = 0
+    rescale mantissa extraPlaces = mantissa * 10 ^ extraPlaces
 
 -- 'Binary'/'Hashable' are defined here (not orphan) because 'Data.Decimal' ships
 -- neither, and 'Alg'/t'Journal' serialization and the binary spill path require
