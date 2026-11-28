@@ -2,7 +2,7 @@
 
 Start from the checked January journal in [Checking a journal](admission.md#admit-the-january-journal). A trial balance collects each account’s debit and credit totals and its remaining debit or credit balance. Equal totals are necessary for double-entry bookkeeping, but an omitted balanced entry can leave them equal.
 
-Use exchangealgebra-0.7.0.0 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the code blocks in their displayed order as `Main.hs`.
+Use exchangealgebra-0.7.0.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the code blocks in their displayed order as `Main.hs`.
 
 ## Recover the checked records {#recover-the-admitted-records}
 
@@ -63,7 +63,7 @@ With the opening contribution, Deposits has a debit balance of 5,000 yen and the
 
 The program then adds a third withdrawal of 6,000 yen to the journal, and each transaction still balances. Deposits now has a credit balance of 1,000 yen. `Audit.abnormalBalances` returns a `Warning` for Deposits because its normal balance is a debit. Check the bank records to determine whether the withdrawal was recorded correctly.
 
-Tested with exchangealgebra-0.7.0.0 on 2026-11-27.
+Tested with exchangealgebra-0.7.0.1 on 2026-11-28.
 
 ## Reference {#reference}
 

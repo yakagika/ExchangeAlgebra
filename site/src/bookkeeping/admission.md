@@ -2,7 +2,7 @@
 
 The shop closes its books for January. Start with the dated withdrawal, purchase, exchange, and rent records from [Journals](../journal/journal.md) and [Transfers](../exchange/transfer.md). Supply an opening balance and a cash sale, express the amounts in yen, and submit the journal for checking before deriving a trial balance.
 
-Use exchangealgebra-0.7.0.0 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the code blocks in their displayed order as `Main.hs`.
+Use exchangealgebra-0.7.0.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the code blocks in their displayed order as `Main.hs`.
 
 ## Prepare the January records {#prepare-the-january-records}
 
@@ -63,7 +63,7 @@ Run `stack exec -- ghc -Wall -Werror Main.hs -o admission-example`, then run `./
 
 The checked journal has equal debit and credit totals of 20,200 yen. An explicit `bar` of the combined record gives balance totals of 12,000 yen on each side; the checked journal itself retains the original terms. The rejected cash sale debits 2,000 yen but credits only 1,900 yen. `Imbalanced` identifies its note and the two totals. Correct that entry and submit it for checking again. A rejected journal yields no `Admitted` value.
 
-Tested with exchangealgebra-0.7.0.0 on 2026-11-27.
+Tested with exchangealgebra-0.7.0.1 on 2026-11-28.
 
 ## Reference {#reference}
 

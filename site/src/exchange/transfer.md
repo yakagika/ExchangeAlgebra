@@ -2,7 +2,7 @@
 
 A transfer moves an amount from one account to another by adding a journal entry. Keep the January 10 withdrawal and suppose that the business pays 1,200 yen in cash on January 30 for January and February rent, 600 yen for each month. If the payment was initially recorded entirely as rent expense, defer February's 600 yen to prepaid expenses at January 31.
 
-Use exchangealgebra-0.7.0.0 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). The example extends [Record the withdrawal](../usage/withdrawal.md) with the rent payment and its transfer entry. It uses the accounting transfer API from `ExchangeAlgebra.Accounting.Transfer`, re-exported by `ExchangeAlgebra`.
+Use exchangealgebra-0.7.0.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). The example extends [Record the withdrawal](../usage/withdrawal.md) with the rent payment and its transfer entry. It uses the accounting transfer API from `ExchangeAlgebra.Accounting.Transfer`, re-exported by `ExchangeAlgebra`.
 
 ## Record the rent payment {#record-the-rent-payment}
 
@@ -78,7 +78,7 @@ The record made with `beforeTransfer .+ additions` retains the original 1,200-ye
 
 Applying the same `Portion 1 2` table again would move half the remaining rent balance. Add this adjusting entry once for the stated January 31 adjustment.
 
-Tested with exchangealgebra-0.7.0.0 on 2026-11-27.
+Tested with exchangealgebra-0.7.0.1 on 2026-11-28.
 
 ## Reference {#reference}
 

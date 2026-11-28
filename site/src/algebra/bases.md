@@ -74,7 +74,7 @@ Complete program
 
 > **Caution:** `Hat` represents a direction on a nonnegative amount. The account and direction together determine the debit or credit side. Use `HatNot` in query patterns. Some direction tests and reversal methods fail on `HatNot`.
 
-Tested with exchangealgebra-0.7.0.0 on 2026-11-27.
+Tested with exchangealgebra-0.7.0.1 on 2026-11-28.
 
 ## Reference {#reference}
 

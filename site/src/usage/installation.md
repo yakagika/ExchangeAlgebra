@@ -1,6 +1,6 @@
 # Installation and modules
 
-This manual uses **exchangealgebra-0.7.0.0** from Hackage. The examples assume that you can write Haskell programs and have Stack installed. They use GHC 9.10.3 with the Stackage snapshot `lts-24.65`.
+This manual uses **exchangealgebra-0.7.0.1** from Hackage. The examples assume that you can write Haskell programs and have Stack installed. They use GHC 9.10.3 with the Stackage snapshot `lts-24.65`.
 
 The Algebra layer provides types for elements, bases, amounts, and finite sequences of terms. Its operations implement the [redundant algebra](../algebra/definitions.md#redundant-algebra-and-linear-combinations). Accounting adds the interpretation of account titles and the debit and credit sides.
 
@@ -13,7 +13,7 @@ resolver: lts-24.65
 packages:
 - .
 extra-deps:
-- exchangealgebra-0.7.0.0
+- exchangealgebra-0.7.0.1
 ```
 
 Add the library to your `package.yaml` dependencies. Preserve any other dependencies your program needs:
@@ -21,10 +21,10 @@ Add the library to your `package.yaml` dependencies. Preserve any other dependen
 ```yaml
 dependencies:
 - base
-- exchangealgebra == 0.7.0.0
+- exchangealgebra == 0.7.0.1
 ```
 
-`extra-deps` selects the package source for Stack; the dependency in `package.yaml` makes the library available to your program. Run `stack build` in the project directory to build the project and its dependencies. For a Cabal project, put `exchangealgebra == 0.7.0.0` in the component's `build-depends` instead.
+`extra-deps` selects the package source for Stack; the dependency in `package.yaml` makes the library available to your program. Run `stack build` in the project directory to build the project and its dependencies. For a Cabal project, put `exchangealgebra == 0.7.0.1` in the component's `build-depends` instead.
 
 ## Choose imports by layer {#choose-imports-by-layer}
 

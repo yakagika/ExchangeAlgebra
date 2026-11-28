@@ -2,7 +2,7 @@
 
 The shop needs an income statement for January and a balance sheet at January 31. The income statement measures the revenue and expenses for the month. The balance sheet shows the assets, liabilities, and equity at the end of the month.
 
-Use exchangealgebra-0.7.0.0 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the Haskell blocks in their displayed order as `Main.hs`.
+Use exchangealgebra-0.7.0.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the Haskell blocks in their displayed order as `Main.hs`.
 
 ## Select the January balances {#select-the-january-balances}
 
@@ -75,7 +75,7 @@ In your project directory, run `stack exec -- ghc -Wall -Werror Main.hs -o state
 
 Sales of 2,000 yen less cost of goods sold of 300 yen and rent of 600 yen leave net income of 1,100 yen. At January 31, assets total 11,100 yen. Liabilities are zero. Capital stock of 10,000 yen and the 1,100 yen shown as “Retained earnings brought forward” make up the 11,100 yen in equity.
 
-Tested with exchangealgebra-0.7.0.0 on 2026-11-27.
+Tested with exchangealgebra-0.7.0.1 on 2026-11-28.
 
 ## Reference {#reference}
 

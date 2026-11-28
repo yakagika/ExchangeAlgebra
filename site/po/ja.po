@@ -129,7 +129,7 @@ msgstr "はじめに"
 
 #: src/introduction.md:3
 msgid ""
-"This manual describes exchangealgebra-0.7.0.0. With ExchangeAlgebra, you "
+"This manual describes exchangealgebra-0.7.0.1. With ExchangeAlgebra, you "
 "record transactions in Haskell as sums of exchange algebra terms, keep "
 "journals, carry out bookkeeping procedures, and prepare financial "
 "statements. It covers four layers of the library: Algebra, Journal, "
@@ -138,7 +138,7 @@ msgid ""
 "notation. For module documentation and the full API, see the [Haddock "
 "reference on Hackage](https://hackage.haskell.org/package/exchangealgebra)."
 msgstr ""
-"このマニュアルは exchangealgebra-0.7.0.0 を対象とします. ExchangeAlgebra を使"
+"このマニュアルは exchangealgebra-0.7.0.1 を対象とします. ExchangeAlgebra を使"
 "うと, Haskell で取引を交換代数の項の和として記録し, 仕訳帳を作り, 簿記の手続"
 "きを進めて財務諸表を作成できます. このマニュアルでは, ライブラリの Algebra, "
 "Journal, Accounting, IO の 4 層を扱います. まず[仕訳から交換代数へ]"
@@ -1611,11 +1611,11 @@ msgstr ""
 
 #: src/usage/installation.md:3
 msgid ""
-"This manual uses **exchangealgebra-0.7.0.0** from Hackage. The examples "
+"This manual uses **exchangealgebra-0.7.0.1** from Hackage. The examples "
 "assume that you can write Haskell programs and have Stack installed. They "
 "use GHC 9.10.3 with the Stackage snapshot `lts-24.65`."
 msgstr ""
-"このマニュアルでは, Hackage の **exchangealgebra-0.7.0.0** を使います. 例は, "
+"このマニュアルでは, Hackage の **exchangealgebra-0.7.0.1** を使います. 例は, "
 "Haskell のプログラムを書けることと Stack の導入が済んでいることを前提としま"
 "す. GHC 9.10.3 と Stackage snapshot `lts-24.65` を使います."
 
@@ -1661,8 +1661,8 @@ msgid "extra-deps"
 msgstr "extra-deps"
 
 #: src/usage/installation.md:16
-msgid "exchangealgebra-0.7.0.0"
-msgstr "exchangealgebra-0.7.0.0"
+msgid "exchangealgebra-0.7.0.1"
+msgstr "exchangealgebra-0.7.0.1"
 
 #: src/usage/installation.md:19
 msgid ""
@@ -1681,22 +1681,22 @@ msgid "base"
 msgstr "base"
 
 #: src/usage/installation.md:24
-msgid "exchangealgebra == 0.7.0.0"
-msgstr "exchangealgebra == 0.7.0.0"
+msgid "exchangealgebra == 0.7.0.1"
+msgstr "exchangealgebra == 0.7.0.1"
 
 #: src/usage/installation.md:27
 msgid ""
 "`extra-deps` selects the package source for Stack; the dependency in "
 "`package.yaml` makes the library available to your program. Run `stack "
 "build` in the project directory to build the project and its dependencies. "
-"For a Cabal project, put `exchangealgebra == 0.7.0.0` in the component's "
+"For a Cabal project, put `exchangealgebra == 0.7.0.1` in the component's "
 "`build-depends` instead."
 msgstr ""
 "`extra-deps` は Stack が取得するパッケージのソースを選びます. `package.yaml` "
 "の依存指定は, プログラムからライブラリを使えるようにします. プロジェクトの"
 "ディレクトリで `stack build` を実行し, プロジェクトとその依存をビルドしてくだ"
 "さい. Cabal プロジェクトの場合は, 代わりにコンポーネントの `build-depends` "
-"に `exchangealgebra == 0.7.0.0` を指定してください."
+"に `exchangealgebra == 0.7.0.1` を指定してください."
 
 #: src/usage/installation.md:29
 msgid "Choose imports by layer"
@@ -2243,8 +2243,8 @@ msgstr ""
 #: src/bookkeeping/closing.md:261 src/bookkeeping/statements.md:289
 #: src/bookkeeping/consolidation.md:319 src/io/input.md:144
 #: src/io/output.md:366
-msgid "Tested with exchangealgebra-0.7.0.0 on 2026-11-27."
-msgstr "2026-11-27 に exchangealgebra-0.7.0.0 で検証しました."
+msgid "Tested with exchangealgebra-0.7.0.1 on 2026-11-28."
+msgstr "2026-11-28 に exchangealgebra-0.7.0.1 で検証しました."
 
 #: src/algebra/elements.md:3
 msgid ""
@@ -4176,7 +4176,7 @@ msgstr ""
 
 #: src/exchange/transfer.md:5
 msgid ""
-"Use exchangealgebra-0.7.0.0 in the project prepared in [Add the package to a "
+"Use exchangealgebra-0.7.0.1 in the project prepared in [Add the package to a "
 "Stack project](../usage/installation.md#add-the-package-to-a-stack-project). "
 "The example extends [Record the withdrawal](../usage/withdrawal.md) with the "
 "rent payment and its transfer entry. It uses the accounting transfer API "
@@ -4534,7 +4534,7 @@ msgstr ""
 
 #: src/journal/journal.md:5
 msgid ""
-"Use exchangealgebra-0.7.0.0 in the project prepared in [Add the package to a "
+"Use exchangealgebra-0.7.0.1 in the project prepared in [Add the package to a "
 "Stack project](../usage/installation.md#add-the-package-to-a-stack-project). "
 "The example attaches notes to the month's transactions from [Add the month's "
 "transactions](../algebra/redundant.md#add-the-months-transactions), adds a "
@@ -5093,7 +5093,7 @@ msgstr ""
 
 #: src/journal/agents.md:5
 msgid ""
-"Use exchangealgebra-0.7.0.0 in the project prepared in [Add the package to a "
+"Use exchangealgebra-0.7.0.1 in the project prepared in [Add the package to a "
 "Stack project](../usage/installation.md#add-the-package-to-a-stack-project). "
 "The example extends [Record the withdrawal](../usage/withdrawal.md) from "
 "`HatBase (AccountTitles, Unit)` to `HatBase (AccountTitles, Owner, Unit)`. "
@@ -5730,11 +5730,11 @@ msgstr ""
 #: src/bookkeeping/admission.md:5 src/bookkeeping/trial-balance.md:5
 #: src/bookkeeping/adjustment.md:5 src/bookkeeping/closing.md:5
 msgid ""
-"Use exchangealgebra-0.7.0.0 in the project prepared in [Add the package to a "
+"Use exchangealgebra-0.7.0.1 in the project prepared in [Add the package to a "
 "Stack project](../usage/installation.md#add-the-package-to-a-stack-project). "
 "Save the code blocks in their displayed order as `Main.hs`."
 msgstr ""
-"exchangealgebra-0.7.0.0 を, [Stack プロジェクトにパッケージを追加する](../"
+"exchangealgebra-0.7.0.1 を, [Stack プロジェクトにパッケージを追加する](../"
 "usage/installation.md#add-the-package-to-a-stack-project)で用意したプロジェク"
 "トで使ってください. コードブロックを表示順に並べ, `Main.hs` として保存してく"
 "ださい."
@@ -6729,12 +6729,12 @@ msgstr ""
 #: src/bookkeeping/statements.md:5 src/bookkeeping/consolidation.md:5
 #: src/io/input.md:5 src/io/output.md:5
 msgid ""
-"Use exchangealgebra-0.7.0.0 in the project prepared in [Add the package to a "
+"Use exchangealgebra-0.7.0.1 in the project prepared in [Add the package to a "
 "Stack project](../usage/installation.md#add-the-package-to-a-stack-project). "
 "Save the Haskell blocks in their displayed order as `Main.hs`."
 msgstr ""
 "[Stack プロジェクトにパッケージを追加する](../usage/installation.md#add-the-"
-"package-to-a-stack-project)で用意したプロジェクトで exchangealgebra-0.7.0.0 "
+"package-to-a-stack-project)で用意したプロジェクトで exchangealgebra-0.7.0.1 "
 "を使います. Haskell のコードブロックを表示順に `Main.hs` に保存してください."
 
 #: src/bookkeeping/statements.md:7

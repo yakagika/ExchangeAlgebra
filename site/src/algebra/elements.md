@@ -59,7 +59,7 @@ The program prints the results below.
 {{#include ../../code/elements.expected}}
 ```
 
-Tested with exchangealgebra-0.7.0.0 on 2026-11-27.
+Tested with exchangealgebra-0.7.0.1 on 2026-11-28.
 
 ## Query a date stored as an ordinary element {#query-a-date-stored-as-an-ordinary-element}
 
@@ -98,7 +98,7 @@ Add `time` to your project's dependencies. From the project directory, run `stac
 
 The `Wild` query selects the term. An `Exactly` query selects the term only when its date matches.
 
-Tested with exchangealgebra-0.7.0.0 on 2026-11-27.
+Tested with exchangealgebra-0.7.0.1 on 2026-11-28.
 
 ## Reference {#reference}
 
@@ -177,4 +177,4 @@ Complete program
 
 </details>
 
-Tested with exchangealgebra-0.7.0.0 on 2026-11-27.
+Tested with exchangealgebra-0.7.0.1 on 2026-11-28.

@@ -2,7 +2,7 @@
 
 At January 31, part of the rent belongs to February and some purchased goods remain unsold. Start from the checked journal in [Trial balance and checks](trial-balance.md#recover-the-admitted-records), defer the February rent, and recognize ending inventory before closing January’s revenue and expenses.
 
-Use exchangealgebra-0.7.0.0 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the code blocks in their displayed order as `Main.hs`.
+Use exchangealgebra-0.7.0.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the code blocks in their displayed order as `Main.hs`.
 
 ## Recover January before adjustments {#recover-january-before-adjustments}
 
@@ -65,7 +65,7 @@ The rent and inventory adjustments remain separately selectable under their Janu
 
 Pass the adjusted trial balance to `Audit.temporaryAccountBalances`, the audit for suspense accounts. With the built-in chart, it returns `Warning` if suspense payments, suspense receipts, or the suspense account still have a balance after adjustment. The example prints `Temporary account balances: NoProblem`.
 
-Tested with exchangealgebra-0.7.0.0 on 2026-11-27.
+Tested with exchangealgebra-0.7.0.1 on 2026-11-28.
 
 ## Reference {#reference}
 

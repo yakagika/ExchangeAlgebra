@@ -2,7 +2,7 @@
 
 Prepare January’s closing entries after the rent and inventory adjustments in [Adjusting entries](adjustment.md#admit-and-inspect-the-adjusted-journal). Sales of 2,000 yen less cost of goods sold of 300 yen and rent expense of 600 yen give a profit of 1,100 yen. Transfer the revenue and expense balances to retained earnings, the equity account that accumulates undistributed profits.
 
-Use exchangealgebra-0.7.0.0 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the code blocks in their displayed order as `Main.hs`.
+Use exchangealgebra-0.7.0.1 in the project prepared in [Add the package to a Stack project](../usage/installation.md#add-the-package-to-a-stack-project). Save the code blocks in their displayed order as `Main.hs`.
 
 ## Recover the adjusted journal {#recover-the-adjusted-journal}
 
@@ -69,7 +69,7 @@ Sales, Purchases, and RentExpense each have `NoBalance`; their original and clos
 
 Pass the post-closing trial balance to `Audit.closingResiduals`. It reports `Error` if an account that closing must clear still has a balance. The example prints `Closing residuals: NoProblem` and `Closing again: Right 0`. Keep the checked closed journal with all dated entries as the record, since the balance report does not preserve the individual entries.
 
-Tested with exchangealgebra-0.7.0.0 on 2026-11-27.
+Tested with exchangealgebra-0.7.0.1 on 2026-11-28.
 
 ## Reference {#reference}
 
