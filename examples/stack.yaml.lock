@@ -5,12 +5,12 @@
 
 packages:
 - completed:
-    hackage: exchangealgebra-0.7.0.0@sha256:68f33bb7aa0ae2ddd497346a882843de34870ca32444ee68bb4197f0c4291cd1,15721
+    hackage: exchangealgebra-0.7.0.1@sha256:18bbcfea8209f3d7db22407d8c9964598081b555e8667e397a3103b04306a4bd,15721
     pantry-tree:
-      sha256: 92760fa7152fe396b1bf5bb2af7ccbfc2adfffba1de7cee248ed8987a18e6ba2
-      size: 20645
+      sha256: a4f05b0c7c123d5f2ec3b7bc667fdaa82d24a918519622627418686a7157c4e7
+      size: 20646
   original:
-    hackage: exchangealgebra-0.7.0.0
+    hackage: exchangealgebra-0.7.0.1
 snapshots:
 - completed:
     sha256: 352c486bea279c068c5ec9f7afde5b84e594ba47b85cda186ed3811df1cc7994

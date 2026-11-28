@@ -15,7 +15,7 @@ packages:
 - '.'
 
 extra-deps:
-- exchangealgebra-0.7.0.0
+- exchangealgebra-0.7.0.1
 
 flags:
   exchangealgebra:
